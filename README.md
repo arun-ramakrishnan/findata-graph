@@ -32,7 +32,7 @@ set MISTRAL_API_KEY='your_api_key_here'    # For Windows
 Run the following command to open the Jupyter Notebook:
 
 ```sh
-jupyter notebook ocr_processor.ipynb
+jupyter notebook pdf-markdown-ocr.ipynb
 ```
 
 ### 3. Place PDFs in `pdfs_to_process`
