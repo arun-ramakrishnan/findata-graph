@@ -19,7 +19,10 @@ pip install mistralai jupyter
 
 ## Usage
 ### 1. Set Up API Key
-Before running the notebook, you need to set your Mistral API key. An `env.example` file is included in the repository—edit it to add your API key and rename it to `.env`.
+
+Before running the notebook, you need to set up a free Mistral API key. Go to [Mistral's API Key Console](https://console.mistral.ai/api-keys) and generate your key—it doesn’t cost anything.
+
+An `env.example` file is included in the repository. Edit it to add your API key and rename it to `.env` so the script can use it properly.
 
 Alternatively, you can set it manually as an environment variable:
 
