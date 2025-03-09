@@ -38,11 +38,13 @@ Run the following command to open the Jupyter Notebook:
 jupyter notebook pdf-markdown-ocr.ipynb
 ```
 
-### 3. Place PDFs in `pdfs_to_process`
-Put the PDFs you want to OCR inside the `pdfs_to_process` folder.
+### 3. Place PDFs in pdfs_to_process
+
+Before running the notebook for the first time, you need to manually create the pdfs_to_process folder inside the project directory. Once created, place the PDFs you want to OCR inside this folder.
 
 ### 4. Run the Notebook
-Execute the cells sequentially to process the PDFs.
+
+Execute the cells sequentially to process the PDFs. Make sure each step works correctly.
 
 ### 5. Output Structure
 Each processed PDF gets its own folder inside `ocr_output`, structured like this:
