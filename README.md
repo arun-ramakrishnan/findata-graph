@@ -14,7 +14,7 @@ This repository contains a **Jupyter Notebook (`.ipynb`)** that automates the OC
 Ensure you have Python and Jupyter installed, then install dependencies:
 
 ```sh
-pip install mistralai jupyter
+pip install mistralai jupyter python-dotenv
 ```
 
 ## Usage
