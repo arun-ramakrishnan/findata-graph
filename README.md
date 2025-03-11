@@ -11,7 +11,7 @@ This repository contains a **Jupyter Notebook (`.ipynb`)** that automates the OC
 - **Notebook-based workflow:** Run step-by-step OCR processing in a Jupyter Notebook.
 
 ## Installation
-Ensure you have Python and Jupyter installed, then install dependencies:
+Ensure you have Python 3.9+ and Jupyter installed, then install dependencies:
 
 ```sh
 pip install mistralai jupyter python-dotenv
