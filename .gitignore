@@ -1,6 +1,7 @@
 # Folders
 ocr_output/
 pdf-ocr-markdown/
+pdfs_to_process/
 pdfs-done/
 
 # Byte-compiled / optimized / DLL files
