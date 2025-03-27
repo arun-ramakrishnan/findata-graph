@@ -1,0 +1,4 @@
+Flask
+mistralai
+python-dotenv
+Werkzeug >= 2.0

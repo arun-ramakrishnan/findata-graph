@@ -2,6 +2,8 @@
 
 This repository contains a **Jupyter Notebook (`.ipynb`)** that automates the OCR (Optical Character Recognition) process for PDFs using the **Mistral AI** OCR API. It extracts text and images from PDFs and organizes the output into structured markdown documents with images properly linked using Obsidian-style **wikilinks**.
 
+> Beta testing! -> Check [Web App](#web-app) section for the first working preview, where you can upload your PDFs and get the markdown files, and even preview them before downloading anything.
+
 ## Features
 - **Batch processing:** Place multiple PDFs in the input folder and process them automatically.
 - **Text extraction:** Converts scanned PDFs into structured markdown format while preserving document hierarchy.
@@ -37,6 +39,8 @@ Run the following command to open the Jupyter Notebook:
 ```sh
 jupyter notebook pdf-markdown-ocr.ipynb
 ```
+
+Or open the [PDF Markdown OCR Notebook](pdf-markdown-ocr.ipynb) file directly in your IDE.
 
 ### 3. Place PDFs in pdfs_to_process
 
@@ -78,6 +82,13 @@ After conversion, move the generated `output.md` file into your **Obsidian vault
 - The extracted markdown is optimized for use with **Obsidian**, a knowledge management tool that supports wikilinks.
 - If a PDF has already been processed, you can reload its OCR data from the saved JSON file instead of making a new API request.
 - Contributions to improve compatibility with different Obsidian setups are welcome!
+
+## Web App
+
+- `pip install -r requirements.txt`
+- `python app.py`
+- Open your browser and go to `http://localhost:5000/`
+
 
 ## Contributing
 Feel free to submit issues or pull requests if you have improvements or additional features in mind.

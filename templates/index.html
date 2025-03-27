@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF to Markdown OCR</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        MathJax = {
+          tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']] // Configure inline delimiters
+          },
+          svg: {
+              fontCache: 'global' // Optional: Optimize font caching
+            }
+        };
+    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+</head>
+<body>
+    <div class="container">
+        <h1>PDF to Markdown Converter (via Mistral OCR)</h1>
+        <form id="ocr-form">
+            <div class="form-group">
+                <label for="api-key">Mistral API Key:</label>
+                <input type="password" id="api-key" name="api_key" placeholder="Enter your Mistral API Key">
+                <small>Your API key is sent securely to the server for processing and is not stored long-term.</small>
+            </div>
+            <div class="form-group">
+                <label for="pdf-files">Select PDF Files:</label>
+                <input type="file" id="pdf-files" name="pdf_files" accept=".pdf" multiple required>
+                <small>You can select multiple PDF files.</small>
+            </div>
+            <button type="submit" id="submit-btn">Convert PDFs</button>
+        </form>
+
+        <div id="status-area">
+            <h2>Processing Status</h2>
+            <pre id="status-log">Ready. Select files and click "Convert PDFs".</pre>
+            <div class="loader" id="loader" style="display: none;"></div>
+        </div>
+
+        <!-- Area for Download Links -->
+        <div id="results-area" style="display: none;">
+            <h2>Downloads</h2>
+            <p>Download the ZIP archive(s) containing the Markdown file(s) and extracted images.</p>
+            <ul id="download-links">
+                <!-- Download links will appear here -->
+            </ul>
+        </div>
+
+        <!-- NEW: Area for Previews -->
+        <div id="preview-area" style="display: none;">
+            <h2>Previews</h2>
+            <div id="preview-content">
+                <!-- Previews will be generated here by JavaScript -->
+            </div>
+        </div>
+
+
+        <div id="error-area" style="display: none;">
+             <h2>Error</h2>
+             <pre id="error-message" class="error"></pre>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
