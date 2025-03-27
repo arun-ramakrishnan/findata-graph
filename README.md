@@ -2,11 +2,11 @@
 
 This is a workflow to automate the conversion of PDFs to markdown using the Mistral AI OCR API. It extracts text and images from PDFs and organizes the output into structured markdown documents with images properly linked using Obsidian-style wikilinks.
 
-> **New!!**: Now there is a Web Aplication that lets you upload your PDFs and get the markdown files, and even preview them before downloading anything. Check it here: https://markdownify.up.railway.app/
+> **New!!**: There’s now a web app where you can upload PDFs, preview the output, and download the Markdown files—no setup required. Try it here: https://markdownify.up.railway.app/
 
->If you want to host it yourself, check the [Web App](#web-app) section.
+Want to self-host it? Check the [Local Web App](#option-2-local-web-app) section.
 
->Another alternative is using the **Jupyter Notebook (`.ipynb`)**. Which was the first version of this project. Check the [Usage](#usage) section for more information about it.
+Prefer working in a python notebook? There's also a Jupyter Notebook version—the original version of this project. See the [Jupyter Notebook](#option-3-jupyter-notebook) section for more details.
 
 ## Features
 
@@ -15,8 +15,9 @@ This is a workflow to automate the conversion of PDFs to markdown using the Mist
 - **Image extraction:** Saves images separately and links them in the markdown using Obsidian-compatible `![[image-name]]` format.
 - **Automatic organization:** Each processed PDF gets its own output folder with the markdown and images.
 - **OCR caching:** Saves the OCR response as JSON to avoid redundant API calls.
-- **Notebook-based option:** Running step-by-step OCR processing in a Jupyter Notebook.
-- Contributions to improve compatibility with different Obsidian setups are welcome!
+- **Notebook mode:** Running step-by-step OCR processing in a Jupyter Notebook.
+
+Contributions to improve compatibility with different Obsidian setups are welcome!
 
 ## Option 1: Hosted Web App
 
@@ -24,15 +25,21 @@ https://markdownify.up.railway.app/
 
 **Usage:**
 
+![alt text](doc/usage.gif)
 
+## Option 2: Local Web App
 
-<img src="doc/main.png" alt="example" width="400">
-<img src="doc/download-preview.png" alt="alt text" width="400">
+```sh
+pip install -r requirements.txt
+python app.py
+```
+Then open your browser at `http://localhost:5000/`
 
-## Option 1: Jupyter Notebook
+## Option 3: Jupyter Notebook
 
 ### Installation
-Ensure you have Python 3.9+ and Jupyter installed, then install dependencies:
+
+Ensure you have Python 3.9+. Then install dependencies:
 
 ```sh
 pip install mistralai jupyter python-dotenv
@@ -41,11 +48,11 @@ pip install mistralai jupyter python-dotenv
 ### Usage
 #### 1. Set Up API Key
 
-Before running the notebook, you need to set up a free Mistral API key. Go to [Mistral's API Key Console](https://console.mistral.ai/api-keys) and generate your key, it doesn’t cost anything.
+Before running the notebook, get your free API key from [Mistral's API Key Console](https://console.mistral.ai/api-keys). It's free.
 
-An `env.example` file is included in the repository. Edit it to add your API key and rename it to `.env` so the script can use it properly.
+Edit the `env.example` with your key, rename it to `.env` and you're good to go.
 
-Alternatively, you can set it manually as an environment variable:
+Or set it manually:
 
 ```sh
 export MISTRAL_API_KEY='your_api_key_here'  # For Linux/macOS
@@ -53,21 +60,20 @@ set MISTRAL_API_KEY='your_api_key_here'    # For Windows
 ```
 
 #### 2. Open the Notebook
-Run the following command to open the Jupyter Notebook:
 
 ```sh
 jupyter notebook pdf-markdown-ocr.ipynb
 ```
 
-Or open the [PDF Markdown OCR Notebook](pdf-markdown-ocr.ipynb) file directly in your IDE.
+Or open the [Notebook](pdf-markdown-ocr.ipynb) file directly in your IDE.
 
 #### 3. Place PDFs in pdfs_to_process
 
-Before running the notebook for the first time, you need to manually create the pdfs_to_process folder inside the project directory. Once created, place the PDFs you want to OCR inside this folder.
+Before first use, create a `pdfs_to_process` folder in the project directory and drop your PDFs in there.
 
 #### 4. Run the Notebook
 
-Execute the cells sequentially to process the PDFs. Make sure each step works correctly.
+Go cell by cell and make sure everything runs as expected.
 
 #### 5. Output Structure
 Each processed PDF gets its own folder inside `ocr_output`, structured like this:
@@ -85,9 +91,10 @@ pdfs-done/
 ```
 
 #### 6. Move Output to Obsidian Vault
-After conversion, move the generated `output.md` file into your **Obsidian vault**. Additionally, make sure to move the extracted images to your **Obsidian attachment folder**.
 
-**Important:** Ensure that your Obsidian vault is set up to handle **wikilink paths** (`![[image-name]]`). If your vault does not support this structure, the script may not work as expected. Contributions to enhance compatibility are welcome!
+Move the generated `output.md` file into your **Obsidian vault** and also move the images to your attachments folder.
+
+**Heads up!**: For now, Obsidian must be configured to support ![[image-name]] style links. If your setup is different, the script might not work as-is. Feel free to fork and tweak it.
 
 ### How It Works
 1. The notebook scans `pdfs_to_process` for PDFs.
@@ -96,20 +103,4 @@ After conversion, move the generated `output.md` file into your **Obsidian vault
 4. Images are extracted, saved in a subfolder, and referenced in the markdown using `![[image-name]]`.
 5. The original PDF is moved to `pdfs-done` to avoid duplicate processing.
 6. The full OCR response is saved as JSON for later use.
-
-## Option 2: Local Web App
-
-Hosted:
-
-- https://markdownify.up.railway.app/
-
-Locally:
-
-- `cd web-app`
-- `pip install -r requirements.txt`
-- `python app.py` 
-- Open your browser and go to `http://localhost:5000/`
-
-**Examples:**
-
 
