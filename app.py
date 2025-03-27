@@ -164,13 +164,24 @@ def process_pdf(pdf_path: Path, api_key: str, session_output_dir: Path) -> tuple
         # Return the actual content and image list now
         return pdf_base_sanitized, final_markdown_content, extracted_image_filenames, output_markdown_path, images_dir
 
-    except Exception as e: # Catch general exceptions including potential API errors
-        print(f"  Error processing {pdf_path.name}: {e}")
+    except Exception as e:
+        error_str = str(e)
+        # Attempt to extract JSON error message from the exception string
+        json_index = error_str.find('{')
+        if json_index != -1:
+            try:
+                error_json = json.loads(error_str[json_index:])
+                error_msg = error_json.get("message", error_str)
+            except Exception:
+                error_msg = error_str
+        else:
+            error_msg = error_str
+        print(f"  Error processing {pdf_path.name}: {error_msg}")
         # Attempt cleanup even on error
         if uploaded_file:
-             try: client.files.delete(file_id=uploaded_file.id)
-             except Exception: pass
-        raise # Re-raise the exception to be handled by the route
+            try: client.files.delete(file_id=uploaded_file.id)
+            except Exception: pass
+        raise Exception(error_msg)
 
 
 def create_zip_archive(source_dir: Path, output_zip_path: Path):

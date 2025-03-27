@@ -31,6 +31,7 @@
                     <input type="checkbox" id="api-key-toggle">
                     <label for="api-key-toggle" style="margin-left: 5px; font-weight: normal;">Show</label>
                 </div>
+                <small>Get one at: https://console.mistral.ai/api-keys.</small>
                 <small>Your API key is sent securely to the server for processing and is not stored long-term.</small>
             </div>
             
@@ -38,6 +39,7 @@
                 <label for="pdf-files">Select PDF Files:</label>
                 <input type="file" id="pdf-files" name="pdf_files" accept=".pdf" multiple required>
                 <small>You can select multiple PDF files.</small>
+                <small>Keep in mind that there are rate limits on how many PDFs you can process per minute/hour/day...</small>
             </div>
             <button type="submit" id="submit-btn">Convert PDFs</button>
         </form>
