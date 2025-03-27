@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('ocr-form');
     const apiKeyInput = document.getElementById('api-key');
     const fileInput = document.getElementById('pdf-files');
+    const apiKeyToggle = document.getElementById('api-key-toggle'); 
     const submitBtn = document.getElementById('submit-btn');
     const statusLog = document.getElementById('status-log');
     const loader = document.getElementById('loader');
@@ -223,4 +224,14 @@ document.addEventListener('DOMContentLoaded', () => {
             logStatus('Ready for next operation.');
         }
     });
+
+    if (apiKeyToggle && apiKeyInput) {
+        apiKeyToggle.addEventListener('change', function() {
+            if (this.checked) {
+                apiKeyInput.type = 'text';
+            } else {
+                apiKeyInput.type = 'password';
+            }
+        });
+    }  
 });

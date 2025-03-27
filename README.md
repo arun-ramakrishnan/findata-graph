@@ -85,10 +85,15 @@ After conversion, move the generated `output.md` file into your **Obsidian vault
 
 ## Web App
 
+- `cd web-app`
 - `pip install -r requirements.txt`
 - `python app.py`
 - Open your browser and go to `http://localhost:5000/`
 
+Example:
+
+![example](doc/main.png)
+![alt text](doc/download-preview.png)
 
 ## Contributing
 Feel free to submit issues or pull requests if you have improvements or additional features in mind.

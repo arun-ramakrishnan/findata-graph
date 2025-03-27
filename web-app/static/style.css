@@ -33,7 +33,7 @@ label {
     font-weight: bold;
 }
 
-input[type="password"],
+input[type="password"], input[type="text"],
 input[type="file"] {
     width: 100%;
     padding: 10px;
@@ -44,6 +44,11 @@ input[type="file"] {
 
 input[type="file"] {
     padding: 5px; /* Less padding for file input */
+}
+
+.password-toggle-group {
+    display: flex;
+    align-items: center;
 }
 
 button {
