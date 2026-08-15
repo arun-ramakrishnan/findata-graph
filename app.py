@@ -1,381 +1,1580 @@
+import logging
 import os
-import json
-import base64
-import shutil
-import zipfile
-import re # Import regex module
+import threading
+import time
 from pathlib import Path
-from uuid import uuid4
-from flask import Flask, request, render_template, jsonify, send_from_directory, url_for
-from mistralai import Mistral, DocumentURLChunk
-from mistralai.models import OCRResponse
-from werkzeug.utils import secure_filename
+from typing import Any
+
+import yaml
 from dotenv import load_dotenv
+from flask import (
+    Flask,
+    abort,
+    jsonify,
+    make_response,
+    render_template,
+    request,
+    send_from_directory,
+)
 
 load_dotenv()
 
-print("--- .env Loading Debug ---")
-dotenv_api_key = os.getenv("MISTRAL_API_KEY")
-if dotenv_api_key:
-    print(f"API Key loaded from .env (first 4 chars): {dotenv_api_key[:4]}...")
-else:
-    print("API Key NOT loaded from .env. Check .env file and setup.")
-print("--- End .env Debug ---")
-
-
 app = Flask(__name__)
 
-# --- Configuration ---
-UPLOAD_FOLDER = Path(os.getenv('UPLOAD_FOLDER', 'uploads'))
-OUTPUT_FOLDER = Path(os.getenv('OUTPUT_FOLDER', 'output'))
-app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024
-ALLOWED_EXTENSIONS = {'pdf'}
-PAGE_SEPARATOR_DEFAULT = os.getenv('PAGE_SEPARATOR', '---')
+# Configure logging. In production gunicorn handles stdout handlers; in dev
+# we attach a basic one. Level overridable via LOG_LEVEL.
+if not app.logger.handlers:
+    logging.basicConfig(
+        level=os.getenv("LOG_LEVEL", "INFO"),
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+app.logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
 
-UPLOAD_FOLDER.mkdir(exist_ok=True)
-OUTPUT_FOLDER.mkdir(exist_ok=True)
-
-# --- Helper Functions ---
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def replace_images_in_markdown_with_wikilinks(markdown_str: str, image_mapping: dict) -> str:
-    updated_markdown = markdown_str
-    for original_id, new_name in image_mapping.items():
-        updated_markdown = updated_markdown.replace(
-            f"![{original_id}]({original_id})",
-            f"![[{new_name}]]"
-        )
-    return updated_markdown
-
-# --- Core Processing Logic ---
-
-def process_pdf(pdf_path: Path, api_key: str, session_output_dir: Path, page_separator: str | None = PAGE_SEPARATOR_DEFAULT) -> tuple[str, str, list[str], Path, Path]:
-    """
-    Processes a single PDF file using Mistral OCR and saves results.
-
-    Args:
-        pdf_path: Path to the PDF file.
-        api_key: Mistral API key.
-        session_output_dir: Directory to store output.
-        page_separator: Text to insert between pages. Use empty string to join pages without a separator.
-
-    Returns:
-        A tuple (pdf_base_name, final_markdown_content, list_of_image_filenames, path_to_markdown_file, path_to_images_dir)
-    Raises:
-        Exception: For processing errors.
-    """
-    pdf_base = pdf_path.stem
-    base_sanitized_original = secure_filename(pdf_base)
-    pdf_base_sanitized = base_sanitized_original
-    print(f"Processing {pdf_path.name}...")
-
-    pdf_output_dir = session_output_dir / pdf_base_sanitized
-    counter = 1
-    while pdf_output_dir.exists():
-        pdf_base_sanitized = f"{base_sanitized_original}_{counter}"
-        pdf_output_dir = session_output_dir / pdf_base_sanitized
-        counter += 1
-
-    pdf_output_dir.mkdir(exist_ok=True)
-    images_dir = pdf_output_dir / "images"
-    images_dir.mkdir(exist_ok=True)
-
-    client = Mistral(api_key=api_key)
-    ocr_response: OCRResponse | None = None
-    uploaded_file = None # Initialize uploaded_file
-
-    try:
-        print(f"  Uploading {pdf_path.name} to Mistral...")
-        with open(pdf_path, "rb") as f:
-            pdf_bytes = f.read()
-        uploaded_file = client.files.upload(
-            file={"file_name": pdf_path.name, "content": pdf_bytes}, purpose="ocr"
-        )
-
-        print(f"  File uploaded (ID: {uploaded_file.id}). Getting signed URL...")
-        signed_url = client.files.get_signed_url(file_id=uploaded_file.id, expiry=60)
-
-        print(f"  Calling OCR API...")
-        ocr_response = client.ocr.process(
-            document=DocumentURLChunk(document_url=signed_url.url),
-            model="mistral-ocr-latest",
-            include_image_base64=True
-        )
-        print(f"  OCR processing complete for {pdf_path.name}.")
-
-        # Optional: Save Raw OCR Response
-        ocr_json_path = pdf_output_dir / "ocr_response.json"
-        try:
-            with open(ocr_json_path, "w", encoding="utf-8") as json_file:
-                if hasattr(ocr_response, 'model_dump'):
-                    json.dump(ocr_response.model_dump(), json_file, indent=4, ensure_ascii=False)
-                else:
-                     json.dump(ocr_response.dict(), json_file, indent=4, ensure_ascii=False)
-            print(f"  Raw OCR response saved to {ocr_json_path}")
-        except Exception as json_err:
-            print(f"  Warning: Could not save raw OCR JSON: {json_err}")
-
-        # Process OCR Response -> Markdown & Images
-        global_image_counter = 1
-        updated_markdown_pages = []
-        extracted_image_filenames = [] # Store filenames for preview
-
-        print(f"  Extracting images and generating Markdown...")
-        for page_index, page in enumerate(ocr_response.pages):
-            current_page_markdown = page.markdown
-            page_image_mapping = {}
-
-            for image_obj in page.images:
-                base64_str = image_obj.image_base64
-                if not base64_str: continue # Skip if no image data
-
-                if base64_str.startswith("data:"):
-                     try: base64_str = base64_str.split(",", 1)[1]
-                     except IndexError: continue
-
-                try: image_bytes = base64.b64decode(base64_str)
-                except Exception as decode_err:
-                    print(f"  Warning: Base64 decode error for image {image_obj.id} on page {page_index+1}: {decode_err}")
-                    continue
-
-                original_ext = Path(image_obj.id).suffix
-                ext = original_ext if original_ext else ".png"
-                new_image_name = f"{pdf_base_sanitized}_p{page_index+1}_img{global_image_counter}{ext}"
-                global_image_counter += 1
-
-                image_output_path = images_dir / new_image_name
-                try:
-                    with open(image_output_path, "wb") as img_file:
-                        img_file.write(image_bytes)
-                    extracted_image_filenames.append(new_image_name) # Add to list for preview
-                    page_image_mapping[image_obj.id] = new_image_name
-                except IOError as io_err:
-                     print(f"  Warning: Could not write image file {image_output_path}: {io_err}")
-                     continue
-
-            updated_page_markdown = replace_images_in_markdown_with_wikilinks(current_page_markdown, page_image_mapping)
-            updated_markdown_pages.append(updated_page_markdown)
-
-        separator = f"\n\n{page_separator}\n\n" if page_separator else "\n\n"
-        final_markdown_content = separator.join(updated_markdown_pages)
-        output_markdown_path = pdf_output_dir / f"{pdf_base_sanitized}_output.md"
-
-        try:
-            with open(output_markdown_path, "w", encoding="utf-8") as md_file:
-                md_file.write(final_markdown_content)
-            print(f"  Markdown generated successfully at {output_markdown_path}")
-        except IOError as io_err:
-            raise Exception(f"Failed to write final markdown file: {io_err}") from io_err
-
-        # Clean up Mistral file
-        try:
-            client.files.delete(file_id=uploaded_file.id)
-            print(f"  Deleted temporary file {uploaded_file.id} from Mistral.")
-        except Exception as delete_err: # Catch general Exception
-            print(f"  Warning: Could not delete file {uploaded_file.id} from Mistral: {delete_err}")
-
-        # Return the actual content and image list now
-        return pdf_base_sanitized, final_markdown_content, extracted_image_filenames, output_markdown_path, images_dir
-
-    except Exception as e:
-        error_str = str(e)
-        # Attempt to extract JSON error message from the exception string
-        json_index = error_str.find('{')
-        if json_index != -1:
-            try:
-                error_json = json.loads(error_str[json_index:])
-                error_msg = error_json.get("message", error_str)
-            except Exception:
-                error_msg = error_str
-        else:
-            error_msg = error_str
-        print(f"  Error processing {pdf_path.name}: {error_msg}")
-        # Attempt cleanup even on error
-        if uploaded_file:
-            try: client.files.delete(file_id=uploaded_file.id)
-            except Exception: pass
-        raise Exception(error_msg)
+# --- Static File Routes ---
+@app.route("/points_and_figures/images/<path:filename>")
+def serve_points_and_figures_images(filename):
+    """Serve images from Points_And_Figures directory"""
+    return send_from_directory(
+        os.path.join("findata", "Points_And_Figures", "images"),
+        filename,
+        mimetype="image/jpeg",  # Default to JPEG, will work for most images
+    )
 
 
-def create_zip_archive(source_dir: Path, output_zip_path: Path):
-    print(f"  Creating ZIP archive: {output_zip_path} from {source_dir}")
-    try:
-        with zipfile.ZipFile(output_zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-            for entry in source_dir.rglob('*'):
-                arcname = entry.relative_to(source_dir)
-                # Ensure arcname contains the 'images' folder if it exists
-                # Example: arcname should be 'images/my_image.png', not just 'my_image.png'
-                zipf.write(entry, arcname)
-        print(f"  Successfully created ZIP: {output_zip_path}")
-    except Exception as e:
-        print(f"  Error creating ZIP file {output_zip_path}: {e}")
-        raise
-
-
-# --- Flask Routes ---
-
-@app.route('/')
+@app.route("/")
 def index():
-    return render_template('index.html', default_page_separator=PAGE_SEPARATOR_DEFAULT)
-
-@app.route('/check-api-key', methods=['GET'])
-def check_api_key():
-    """check if the API key is configured in the environment variables"""
-    api_key = os.getenv("MISTRAL_API_KEY")
-    return jsonify({"has_api_key": bool(api_key)})
-
-@app.route('/process', methods=['POST'])
-def handle_process():
-    if 'pdf_files' not in request.files:
-        return jsonify({"error": "No PDF files part in the request"}), 400
-
-    files = request.files.getlist('pdf_files')
-    
-    # use the API key from the environment variables first
-    api_key = os.getenv("MISTRAL_API_KEY")
-    if api_key:
-        print(f"Using API Key from environment (first 4 chars): {api_key[:4]}...")
-    else:
-        # if the API key is not in the environment variables, get it from the form
-        api_key = request.form.get('api_key')
-        if api_key:
-            print(f"Using API Key from web form (first 4 chars): {api_key[:4]}...")
-        else:
-            return jsonify({"error": "Mistral API Key is required. Please set MISTRAL_API_KEY in environment or provide it in the form."}), 400
-
-    if not files or all(f.filename == '' for f in files):
-         return jsonify({"error": "No selected PDF files"}), 400
-
-    valid_files, invalid_files = [], []
-    for f in files:
-        if f and allowed_file(f.filename): valid_files.append(f)
-        elif f and f.filename != '': invalid_files.append(f.filename)
-
-    if not valid_files:
-         # ... (error handling as before) ...
-         error_msg = "No valid PDF files found."
-         if invalid_files: error_msg += f" Invalid files skipped: {', '.join(invalid_files)}"
-         return jsonify({"error": error_msg}), 400
+    """Main landing page - FinData Knowledge Graph Viewer"""
+    return render_template("findata.html")
 
 
-    session_id = str(uuid4())
-    session_upload_dir = UPLOAD_FOLDER / session_id
-    session_output_dir = OUTPUT_FOLDER / session_id
-    session_upload_dir.mkdir(parents=True, exist_ok=True)
-    session_output_dir.mkdir(parents=True, exist_ok=True)
-
-    processed_files_results = [] # Changed name for clarity
-    processing_errors = []
-    if invalid_files: processing_errors.append(f"Skipped non-PDF files: {', '.join(invalid_files)}")
-
-    page_separator = request.form.get('page_separator')
-    if page_separator is None:
-        page_separator = PAGE_SEPARATOR_DEFAULT
-
-    for file in valid_files:
-        original_filename = file.filename
-        filename_sanitized = secure_filename(original_filename)
-        temp_pdf_path = session_upload_dir / filename_sanitized
+# --- FinData Viewer Routes ---
 
 
+def get_db_connection():
+    """Get database connection.
+
+    Uses the shared `helpers.core.db.connect` helper which enables FK
+    enforcement and WAL mode. Keeps the sqlite3.Row factory so handlers can
+    access columns by name.
+    """
+    from helpers.core.db import connect
+    return connect()
+
+
+def _super_sector_hierarchy() -> list[dict]:
+    """Build the super-sector -> child-sectors hierarchy (Bundle M4).
+
+    Returns a list of ``{"name": <super_sector>, "sectors": [...]}`` dicts
+    sourced from the `belongs_to` edges. Ordered by super-sector name. If the
+    hierarchy hasn't been built yet (no super_sector entities), returns [].
+    """
+    conn = get_db_connection()
+    try:
+        super_sectors = [
+            r[0] for r in conn.execute(
+                "SELECT name FROM entities WHERE entity_type='super_sector' "
+                "ORDER BY name"
+            ).fetchall()
+        ]
+        if not super_sectors:
+            return []
+        result = []
+        for ss in super_sectors:
+            children = [
+                r[0] for r in conn.execute(
+                    "SELECT source FROM graph_edges "
+                    "WHERE target=? AND edge_type='belongs_to' "
+                    "ORDER BY source", (ss,)
+                ).fetchall()
+            ]
+            result.append({"name": ss, "sectors": children})
+        return result
+    finally:
+        conn.close()
+
+
+# --------------------------------------------------------------------------- #
+# Graph DB connection (DuckDB, long-lived per design §9)                        #
+# --------------------------------------------------------------------------- #
+# Lazy singleton: opened on first /api/graph/* request so an import-time
+# DuckDB install failure cannot break the OCR / findata paths (which
+# use only SQLite). On failure the exception is cached and re-raised on every
+# subsequent call — surfaces as a clean 500 to the client — but only for
+# _GRAPH_ERROR_TTL seconds, after which the next call retries connect() so a
+# transient blip (mid-copy file, extension download, momentary lock) doesn't
+# brick the endpoints until process restart.
+#
+# Callers should NOT hold a reference; always reach through this helper so the
+# /api/graph/refresh endpoint can swap the cached connection in place.
+_graph_con: Any = None
+_graph_con_error: Exception | None = None
+# Wall-clock time the current cached error was recorded (time.monotonic()).
+# Used by the TTL auto-recover path in get_graph_connection(): once older than
+# _GRAPH_ERROR_TTL, the next request retries connect() instead of re-raising
+# the stale error. None when there is no cached error.
+_graph_error_at: float | None = None
+_GRAPH_ERROR_TTL = 60.0  # seconds; tradeoff between retry cost and recovery latency
+
+# Serializes init/reset of _graph_con across Flask worker threads. DuckDB
+# connections are not safe to share across threads for concurrent execute, and
+# two threads racing the lazy-init branch would both call connect(). The lock
+# covers init AND reset so a refresh can't null the connection mid-query in
+# another thread. Query execution itself is NOT locked — concurrent reads on a
+# read-write connection are fine; only the init/reset swap needs guarding.
+_graph_lock = threading.Lock()
+
+# Cached ETag for /api/graph/* responses (Bundle C4). Derived from the DuckDB
+# cache's _build_meta.built_at — the cache is immutable between explicit
+# POST /api/graph/refresh calls (which bump built_at), so an ETag keyed on it
+# lets browsers absorb repeat traffic as a free 304. None = not yet computed
+# or cache unreadable; cleared by _reset_graph_connection() so a refresh
+# immediately produces a fresh ETag.
+_graph_etag: str | None = None
+
+
+def get_graph_connection():
+    """Return the long-lived DuckDB graph connection (design §9).
+
+    Opens lazily on first call. If opening fails, caches the exception and
+    re-raises on subsequent calls WITHOUT retrying — but only for
+    _GRAPH_ERROR_TTL seconds. After the TTL elapses, the next call retries
+    connect() so transient blips auto-recover without operator action.
+    """
+    global _graph_con, _graph_con_error, _graph_error_at
+    # Fast path: connection is live. No lock needed for the read — the worst
+    # case under a race is a thread sees None and takes the slow path, which is
+    # correct (it'll re-init under the lock below).
+    if _graph_con is not None:
+        return _graph_con
+    with _graph_lock:
+        # Re-check inside the lock — another thread may have inited.
+        if _graph_con is not None:
+            return _graph_con
+        # Cached error still within TTL? Re-raise without retrying.
+        if (_graph_con_error is not None
+                and _graph_error_at is not None
+                and time.monotonic() - _graph_error_at < _GRAPH_ERROR_TTL):
+            raise _graph_con_error
+        # Either no cached error, or it's stale — attempt (re)connect.
         try:
-            print(f"Saving uploaded file temporarily to: {temp_pdf_path}")
-            file.save(temp_pdf_path)
+            from helpers.graph.query import connect as duckdb_connect
+            _graph_con = duckdb_connect()
+            _graph_con_error = None
+            _graph_error_at = None
+            return _graph_con
+        except Exception as e:
+            _graph_con_error = e
+            _graph_error_at = time.monotonic()
+            app.logger.error("graph connection init failed: %s", e)
+            raise
 
-            # Process PDF - Capture new return values
-            processed_pdf_base, markdown_content, image_filenames, md_path, img_dir = process_pdf(
-                temp_pdf_path, api_key, session_output_dir, page_separator
+
+def _graph_build_etag() -> str | None:
+    """Stable ETag for /api/graph/* responses, derived from the DuckDB cache's
+    ``_build_meta.built_at`` (Bundle C4).
+
+    The DuckDB cache is immutable between explicit POST /api/graph/refresh
+    calls — refresh rebuilds the whole cache and bumps built_at via
+    _mark_warm. So an ETag keyed on built_at lets browsers absorb repeat
+    traffic as a free 304, and a refresh provably invalidates every cached
+    response.
+
+    Returns None if the cache is cold/unreadable — callers skip caching
+    rather than letting a caching-layer failure break the request. The value
+    is cached in the module global ``_graph_etag`` and cleared by
+    _reset_graph_connection() so a refresh produces a fresh ETag on the next
+    request.
+
+    The ETag is weak (``W/``) because multiple gunicorn workers may serve
+    byte-different JSON (key ordering) for semantically-identical content.
+
+    Reads built_at from the live ``_graph_con`` when it's already open (the
+    common case in production). Opening a SEPARATE read-only connection while
+    the app holds the read-write singleton fails — DuckDB forbids two
+    connections to the same file with different configs. The read-only
+    fallback only fires on cold start (before any graph request opened the
+    singleton).
+    """
+    global _graph_etag
+    if _graph_etag is not None:
+        return _graph_etag
+    r = None
+    try:
+        if _graph_con is not None:
+            # Reuse the live read-write connection (production common case).
+            r = _graph_con.execute(
+                "SELECT value FROM _build_meta WHERE key='built_at'"
+            ).fetchone()
+        else:
+            # Cold start: no singleton yet, so a read-only connection is safe.
+            import duckdb
+            from helpers.graph.query import DUCKDB_PATH
+            con = duckdb.connect(str(DUCKDB_PATH), read_only=True)
+            try:
+                r = con.execute(
+                    "SELECT value FROM _build_meta WHERE key='built_at'"
+                ).fetchone()
+            finally:
+                con.close()
+    except Exception as e:
+        # Cold cache, missing _build_meta, or DuckDB unavailable. Don't let
+        # caching break the request — just skip the ETag.
+        app.logger.debug("graph ETag derivation skipped: %s", e)
+        return None
+    if r is None:
+        return None
+    _graph_etag = f'W/"graph-{r[0]}"'
+    return _graph_etag
+
+
+def _reset_graph_connection() -> None:
+    """Close and discard the cached graph connection (and cached init error).
+
+    Used by the /api/graph/refresh admin endpoint after the SQLite source has
+    been updated (e.g. by parse_newsletter --apply + derive-relations) so the
+    next /api/graph/* request sees fresh data. Also closes the file handle
+    (DuckDB single-writer contract — see doc/graph_design.txt §8) so the
+    subsequent rebuild() can reopen the file read-write.
+    """
+    global _graph_con, _graph_con_error, _graph_error_at, _graph_etag
+    with _graph_lock:
+        if _graph_con is not None:
+            # Guard getattr: unit tests seed a bare object() sentinel that has
+            # no .close(); real DuckDB connections do.
+            close = getattr(_graph_con, "close", None)
+            if close is not None:
+                try:
+                    close()
+                except Exception as e:
+                    app.logger.warning("graph connection close failed: %s", e)
+            _graph_con = None
+        _graph_con_error = None
+        _graph_error_at = None
+        # Drop the cached ETag so the next response derives a fresh one from
+        # the rebuilt cache's built_at (Bundle C4). Without this, a refresh
+        # would keep serving the old ETag and clients could get stale 304s.
+        _graph_etag = None
+        # P1.3: also evict the module-level DuckDB cache in helpers.graph.query
+        # so the next get_graph_connection() sees the fresh generation.
+        try:
+            from helpers.graph.query import clear_graph_cache
+            clear_graph_cache()
+        except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
+            pass
+
+
+def _resolve_entity_or_404(name: str) -> str:
+    """Case-insensitive entity-name lookup → canonical name. 404 if unknown.
+
+    All /api/graph/<name> routes go through this so URL casing doesn't matter
+    (`/api/graph/peers/ceat` resolves to `CEAT`). The canonical name is what
+    the graph wrappers need: their SQL WHERE clauses match on exact string
+    equality against the materialised names.
+    """
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT name FROM entities WHERE name = ? COLLATE NOCASE",
+            (name,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if row is None:
+        abort(404, description=f"Entity not found: {name}")
+    return row["name"]
+
+
+def _resolve_entity_with_type_or_404(name: str) -> tuple[str, str]:
+    """Same as _resolve_entity_or_404 but also returns entity_type.
+
+    Used by routes that need to branch on company-vs-sector behaviour
+    (notably /api/graph/neighbors, which renders a different bundle for each).
+    """
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT name, entity_type FROM entities WHERE name = ? COLLATE NOCASE",
+            (name,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if row is None:
+        abort(404, description=f"Entity not found: {name}")
+    return row["name"], row["entity_type"]
+
+
+def _parse_as_of_or_400():
+    """Parse the ?as_of= query param, returning None if absent.
+
+    Accepts 'YYYY', 'YYYY-MM', or 'YYYY-MM-DD'. Returns 400 on bad shapes
+    so the client gets a clean error rather than a 500 from SQL.
+    """
+    raw = request.args.get("as_of", "").strip()
+    if not raw:
+        return None
+    from helpers.graph.query import _normalise_as_of
+    try:
+        return _normalise_as_of(raw)
+    except ValueError as e:
+        abort(400, description=str(e))
+
+
+def parse_yaml_frontmatter(content):
+    """Parse YAML frontmatter from markdown content"""
+    if content.startswith("---\n"):
+        try:
+            end_index = content.find("\n---\n", 4)
+            if end_index != -1:
+                yaml_content = content[4:end_index]
+                return yaml.safe_load(yaml_content), content[end_index + 5 :]
+        except yaml.YAMLError as e:
+            # Malformed frontmatter — log and fall through to raw content rather
+            # than masking every exception (the prior bare `except:` would also
+            # swallow KeyboardInterrupt/SystemExit).
+            app.logger.warning("YAML frontmatter parse error: %s", e)
+    return {}, content
+
+
+@app.route("/entity/<path:entity_path>")
+def entity_detail_page(entity_path):
+    """Separate page for entity details"""
+    return render_template("entity_detail.html", entity_path=entity_path)
+
+
+@app.route("/findata")
+def findata_viewer():
+    """Main FinData viewer page"""
+    return render_template("findata.html")
+
+
+@app.route("/debug/entity/<path:entity_path>")
+def debug_entity(entity_path):
+    """Debug route to check entity path"""
+    return f"Debug: Entity path received: {entity_path}"
+
+
+@app.route("/api/entities")
+def api_entities():
+    """API endpoint to get all entities with filtering"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get query parameters
+    entity_type = request.args.get("type", "")
+    sector = request.args.get("sector", "")
+    marketcap = request.args.get("marketcap", "")
+    search = request.args.get("search", "")
+    limit = int(request.args.get("limit", 50))
+    offset = int(request.args.get("offset", 0))
+
+    # Filtering uses the normalized entity_tags table (indexed, no fuzzy LIKE).
+    # The sector/marketcap params arrive as the human form (e.g. 'Banking',
+    # 'large_cap'); we match against the lowercase canonical tag values.
+    where = ["1=1"]
+    params = []
+
+    if entity_type:
+        where.append("entity_type = ?")
+        params.append(entity_type)
+
+    if sector:
+        where.append(
+            "EXISTS (SELECT 1 FROM entity_tags t "
+            "WHERE t.entity_name = entities.name AND t.tag = ?)"
+        )
+        params.append("sector/" + sector.lower())
+
+    if marketcap:
+        where.append(
+            "EXISTS (SELECT 1 FROM entity_tags t "
+            "WHERE t.entity_name = entities.name AND t.tag = ?)"
+        )
+        params.append("market_cap/" + marketcap.lower())
+
+    if search:
+        # match name OR any sector tag (case-insensitive)
+        where.append(
+            "(LOWER(entities.name) LIKE LOWER(?) OR "
+            "EXISTS (SELECT 1 FROM entity_tags t "
+            "WHERE t.entity_name = entities.name AND LOWER(t.tag) LIKE LOWER(?)))"
+        )
+        params.extend([f"%{search}%", f"sector/%{search}%"])
+
+    where_clause = " AND ".join(where)
+
+    # Data query
+    cursor.execute(
+        f"SELECT name, entity_type, sector_classification, file_path "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        f"FROM entities WHERE {where_clause} ORDER BY name LIMIT ? OFFSET ?",
+        params + [limit, offset],
+    )
+    rows = cursor.fetchall()
+    entities = []
+
+    # Bulk-fetch tags for all returned entities from the normalized entity_tags table.
+    tags_by_entity = {}
+    if rows:
+        names = [r[0] for r in rows]
+        placeholders = ",".join("?" * len(names))
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT entity_name, tag FROM entity_tags WHERE entity_name IN ({placeholders})",  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            names,
+        )
+        for ename, tag in cur.fetchall():
+            tags_by_entity.setdefault(ename, []).append(tag)
+
+    for row in rows:
+        # Bundle C2: market_cap is derived from the market_cap/* tag (the
+        # column was dropped — tag is source of truth). tags_by_entity is
+        # already fetched above, so this adds zero queries.
+        tags = tags_by_entity.get(row[0], [])
+        mc_tag = next((t for t in tags if t.startswith("market_cap/")), None)
+        market_cap = mc_tag.split("/", 1)[1] if mc_tag else None
+        entity = {
+            "name": row[0],
+            "entity_type": row[1],
+            "sector_classification": row[2],
+            "market_cap": market_cap,
+            "enhanced_tags": sorted(tags),
+            "file_path": row[3],
+        }
+        entities.append(entity)
+
+    # Total count reuses the same WHERE clause.
+    cursor.execute(f"SELECT COUNT(*) FROM entities WHERE {where_clause}", params)  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+    total_count = cursor.fetchone()[0]
+
+    conn.close()
+
+    return jsonify(
+        {
+            "entities": entities,
+            "total_count": total_count,
+            "limit": limit,
+            "offset": offset,
+        }
+    )
+
+
+@app.route("/api/search")
+def api_search():
+    """Free-text search across ALL findata/ markdowns via the note_search FTS5 index.
+
+    Unlike /api/entities (which matches entity name + sector tag only), this
+    searches the full *body* text of company notes, sector notes, super-sector
+    notes, AND the newsletter corpora (The_Chatter, Points_And_Figures,
+    The_PlotLines). It finds content the name/tag search structurally cannot —
+    e.g. "shrimp feed" resolves to Avanti Feeds + a Points & Figures edition.
+
+    Query params:
+        q     (required) free-text query; FTS5 MATCH syntax (quoted phrases ok).
+        type  (optional) filter to one doc_type: company | sector |
+              super_sector | chatter | points_and_figures | plotlines.
+        limit (default 20), offset (default 0).
+
+    Returns a polymorphic hit list (results include non-entity newsletters, so
+    the key is `results`, not `entities`). Each hit carries a snippet() with
+    <mark>-highlighted matches.
+
+    Errors: 400 on empty/ malformed q; 503 if the FTS index hasn't been built.
+    """
+    q = request.args.get("q", "").strip()
+    doc_type = request.args.get("type", "").strip()
+    try:
+        limit = int(request.args.get("limit", 20))
+        offset = int(request.args.get("offset", 0))
+    except ValueError:
+        return jsonify({"error": "limit/offset must be integers"}), 400
+
+    if not q:
+        return jsonify({"error": "missing required param 'q'"}), 400
+
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    try:
+        # Guard: the note_search table may not exist yet (DB predates the FTS
+        # feature, or rebuild hasn't run). Surface a 503 rather than a 500.
+        exists = cursor.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='note_search'"
+        ).fetchone()
+        if not exists:
+            return jsonify({
+                "error": "search index not built; run "
+                         "helpers/maintenance/rebuild_note_search.py",
+            }), 503
+
+        # Build the WHERE. FTS5 MATCH against the whole-table index; an optional
+        # SQL-level AND on doc_type narrows to one corpus (simpler + as fast as
+        # the column-filter MATCH syntax, and avoids quoting pitfalls).
+        where = ["note_search MATCH ?"]
+        params: list = [q]
+        if doc_type:
+            where.append("doc_type = ?")
+            params.append(doc_type)
+        where_clause = " AND ".join(where)
+
+        # FTS5 MATCH raises on malformed queries (stray AND/OR, unbalanced
+        # quotes). Catch and return a 400 so a bad query never 500s.
+        try:
+            cursor.execute(
+                f"SELECT doc_type, file_path, title, sector, "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                f"snippet(note_search, 4, '<mark>', '</mark>', '…', 12) "
+                f"FROM note_search WHERE {where_clause} "
+                f"ORDER BY rank LIMIT ? OFFSET ?",
+                params + [limit, offset],
+            )
+            rows = cursor.fetchall()
+            cursor.execute(
+                f"SELECT COUNT(*) FROM note_search WHERE {where_clause}", params  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            )
+            total_count = cursor.fetchone()[0]
+        except Exception as exc:  # sqlite3.OperationalError on bad MATCH syntax
+            app.logger.info("search MATCH error for q=%r: %s", q, exc)
+            return jsonify({
+                "error": f"invalid query syntax: {exc}",
+            }), 400
+
+        results = [
+            {
+                "doc_type": row[0],
+                "file_path": row[1],
+                "title": row[2],
+                "sector": row[3],
+                "snippet": row[4],
+            }
+            for row in rows
+        ]
+        return jsonify(
+            {
+                "results": results,
+                "total_count": total_count,
+                "limit": limit,
+                "offset": offset,
+            }
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/api/entity/<path:entity_path>")
+def api_entity_detail(entity_path):
+    """API endpoint to get entity details including markdown content"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Try to find entity by file_path or name. Bundle Q1: rewritten from a
+    # single ``WHERE file_path = ? OR name = ?`` (which defeated both indexes
+    # and did a full SCAN) to a UNION of two indexed SELECTs. The file_path
+    # branch uses idx_entities_file_path; the name branch uses the PK.
+    cursor.execute(
+        """
+        SELECT name, entity_type, sector_classification, file_path
+        FROM entities WHERE file_path = ?
+        UNION
+        SELECT name, entity_type, sector_classification, file_path
+        FROM entities WHERE name = ?
+        LIMIT 1
+    """,
+        (entity_path, entity_path),
+    )
+
+    row = cursor.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": "Entity not found"}), 404
+
+    # Tags now live in the normalized entity_tags table.
+    tags = [
+        r[0]
+        for r in conn.execute(
+            "SELECT tag FROM entity_tags WHERE entity_name = ? ORDER BY tag",
+            (row[0],),
+        ).fetchall()
+    ]
+
+    # Bundle C2: market_cap derived from the market_cap/* tag (column dropped).
+    mc_tag = next((t for t in tags if t.startswith("market_cap/")), None)
+    market_cap = mc_tag.split("/", 1)[1] if mc_tag else None
+
+    entity = {
+        "name": row[0],
+        "entity_type": row[1],
+        "sector_classification": row[2],
+        "market_cap": market_cap,
+        "enhanced_tags": tags,
+        "file_path": row[3],
+    }
+
+    conn.close()
+
+    # Read markdown content
+    try:
+        project_root = Path(__file__).parent.resolve()
+        full_path = (project_root / entity["file_path"]).resolve()
+        # Defense in depth: file_path comes from the (trusted) DB, but verify
+        # the resolved path stays under the project root before opening it.
+        try:
+            if not full_path.is_relative_to(project_root):
+                return jsonify({"error": "Invalid file path"}), 400
+        except (OSError, ValueError):
+            return jsonify({"error": "Invalid file path"}), 400
+        if full_path.exists():
+            with open(full_path, encoding="utf-8") as f:
+                content = f.read()
+
+            frontmatter, markdown_content = parse_yaml_frontmatter(content)
+            entity["frontmatter"] = frontmatter
+            entity["content"] = markdown_content
+            entity["raw_content"] = content
+
+            # Update enhanced_tags to include tags from YAML frontmatter as well
+            yaml_tags = []
+            if "tags" in frontmatter and isinstance(frontmatter["tags"], list):
+                yaml_tags = frontmatter["tags"]
+
+            # Combine database tags with YAML frontmatter tags, avoiding duplicates
+            combined_tags = (
+                entity["enhanced_tags"].copy() if entity["enhanced_tags"] else []
+            )
+            for tag in yaml_tags:
+                if tag not in combined_tags:
+                    combined_tags.append(tag)
+
+            entity["enhanced_tags"] = combined_tags
+        else:
+            entity["content"] = "File not found"
+            entity["raw_content"] = "File not found"
+    except Exception as e:
+        entity["content"] = f"Error reading file: {str(e)}"
+        entity["raw_content"] = f"Error reading file: {str(e)}"
+
+    return jsonify(entity)
+
+
+@app.route("/api/sectors")
+def api_sectors():
+    """API endpoint to get all sectors"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT DISTINCT sector_classification
+        FROM entities
+        WHERE sector_classification IS NOT NULL
+        AND entity_type = 'company'
+        ORDER BY sector_classification
+    """)
+
+    sectors = [row[0] for row in cursor.fetchall()]
+
+    # Also get sector entities
+    cursor.execute("""
+        SELECT name, file_path
+        FROM entities
+        WHERE entity_type = 'sector'
+        ORDER BY name
+    """)
+
+    sector_entities = []
+    for row in cursor.fetchall():
+        try:
+            full_path = Path(__file__).parent / row[1]
+            if full_path.exists():
+                with open(full_path, encoding="utf-8") as f:
+                    content = f.read()
+                frontmatter, markdown_content = parse_yaml_frontmatter(content)
+                sector_entities.append(
+                    {
+                        "name": row[0],
+                        "file_path": row[1],
+                        "frontmatter": frontmatter,
+                        "content": markdown_content,
+                    }
+                )
+        except Exception:
+            sector_entities.append(
+                {
+                    "name": row[0],
+                    "file_path": row[1],
+                    "frontmatter": {},
+                    "content": "Error reading file",
+                }
             )
 
-            zip_filename = f"{processed_pdf_base}_output.zip"
-            zip_output_path = session_output_dir / zip_filename
-            individual_output_dir = session_output_dir / processed_pdf_base
-            create_zip_archive(individual_output_dir, zip_output_path)
+    conn.close()
 
-            download_url = url_for('download_file', session_id=session_id, filename=zip_filename, _external=True)
+    # Bundle M4: super-sector hierarchy. Returns the 9 super-sector groupings
+    # with their child sectors, sourced from the belongs_to edges. Additive —
+    # the existing `classifications` (flat sector list) and `sector_entities`
+    # keys are unchanged for backward compatibility.
+    super_sectors = _super_sector_hierarchy()
 
-            # Store results including preview data
-            processed_files_results.append({
-                "original_filename": original_filename, # Keep original name for display
-                "zip_filename": zip_filename,
-                "download_url": download_url,
-                "preview": {
-                    "markdown": markdown_content,
-                    "images": image_filenames,
-                    "pdf_base": processed_pdf_base # Use the sanitized base name returned by process_pdf
-                }
-            })
-            print(f"Successfully processed and zipped: {original_filename}")
+    return jsonify({
+        "classifications": sectors,
+        "sector_entities": sector_entities,
+        "super_sectors": super_sectors,
+    })
 
-        except Exception as e:
-            print(f"ERROR: Failed processing {original_filename}: {e}")
-            processing_errors.append(f"{original_filename}: Processing Error - {e}")
-        finally:
-            if temp_pdf_path.exists():
-                try: temp_pdf_path.unlink()
-                except OSError as unlink_err: print(f"Warning: Could not delete temp file {temp_pdf_path}: {unlink_err}")
 
-    # Cleanup session upload dir
+@app.route("/api/stats")
+def api_stats():
+    """API endpoint to get database statistics"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Get entity counts by type
+    cursor.execute("SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type")
+    entity_counts = dict(cursor.fetchall())
+
+    # Get sector counts
+    cursor.execute("""
+        SELECT sector_classification, COUNT(*)
+        FROM entities
+        WHERE sector_classification IS NOT NULL
+        AND entity_type = 'company'
+        GROUP BY sector_classification
+        ORDER BY COUNT(*) DESC
+        LIMIT 10
+    """)
+    top_sectors = dict(cursor.fetchall())
+
+    # Get market cap counts. Bundle C2: the entities.market_cap column was
+    # dropped; the market_cap/* tag is the source of truth. Strip the tag
+    # prefix and group by the resulting value.
+    cursor.execute("""
+        SELECT cap, COUNT(*) FROM (
+          SELECT e.name,
+                 substr(MIN(t.tag), length('market_cap/')+1) AS cap
+          FROM entities e
+          JOIN entity_tags t ON t.entity_name = e.name AND t.tag LIKE 'market_cap/%'
+          WHERE e.entity_type = 'company'
+          GROUP BY e.name
+        ) GROUP BY cap
+    """)
+    market_cap_counts = dict(cursor.fetchall())
+
+    conn.close()
+
+    return jsonify(
+        {
+            "entity_counts": entity_counts,
+            "top_sectors": top_sectors,
+            "market_cap_counts": market_cap_counts,
+            "total_entities": sum(entity_counts.values()),
+        }
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Graph API routes (DuckDB, design §9 / §12 Phase 3 item 2)                    #
+# --------------------------------------------------------------------------- #
+# These wrap helpers/graph/query.py for browser consumption. The connection is
+# held in get_graph_connection() and reused across requests (design §9). All
+# <path:name> params are resolved case-insensitively to the canonical entity
+# name via _resolve_entity_or_404 before being handed to the graph layer.
+
+
+@app.after_request
+def _graph_cache_headers(response):
+    """Add ETag + Cache-Control to GET /api/graph/* responses (Bundle C4).
+
+    The DuckDB cache is immutable between explicit POST /api/graph/refresh
+    calls, so the architecture is HTTP-cache-friendly by design. An ETag
+    derived from _build_meta.built_at lets browsers absorb repeat traffic as
+    a free 304; refresh bumps built_at, invalidating every cached response.
+
+    Policy: ``Cache-Control: no-cache`` — the browser MUST revalidate every
+    request (sends If-None-Match), but the server returns 304 when the ETag
+    matches. This favours correctness over stale-serving: data can change
+    only via refresh, and a 304 is as cheap as a stale hit would be.
+
+    Scoped to /api/graph/* GET 200s only. Non-graph routes, errors, and
+    write methods are passed through untouched. If the ETag can't be derived
+    (cold cache), the response gets Cache-Control but no ETag (worst case:
+    no 304s, identical to pre-C4 behaviour).
+    """
+    if (request.method == "GET"
+            and request.path.startswith("/api/graph/")
+            and response.status_code == 200):
+        response.headers["Cache-Control"] = "no-cache"
+        etag = _graph_build_etag()
+        if etag is not None:
+            response.headers["ETag"] = etag
+            # If-None-Match match check. Our ETag is weak (W/"..."); the bare
+            # token between the quotes is what contains_weak() compares.
+            bare = etag.split('"', 2)[1] if '"' in etag else etag
+            if request.if_none_match.contains_weak(bare):
+                # Strip the body; 304 must be empty per RFC 7232 §4.1.
+                empty = make_response("", 304)
+                empty.headers["ETag"] = etag
+                empty.headers["Cache-Control"] = "no-cache"
+                return empty
+    return response
+
+
+def _entity_file_path(name: str) -> str | None:
+    """Return file_path for an entity name, or None. Used so the UI can link
+    from a graph node straight to /entity/<path>."""
+    conn = get_db_connection()
     try:
-        shutil.rmtree(session_upload_dir)
-        print(f"Cleaned up session upload directory: {session_upload_dir}")
-    except OSError as rmtree_err:
-        print(f"Warning: Could not delete session upload directory {session_upload_dir}: {rmtree_err}")
+        row = conn.execute(
+            "SELECT file_path FROM entities WHERE name = ? COLLATE NOCASE",
+            (name,),
+        ).fetchone()
+    finally:
+        conn.close()
+    return row["file_path"] if row else None
 
-    if not processed_files_results and processing_errors:
-         return jsonify({"error": "All PDF processing attempts failed.", "details": processing_errors}), 500
-    elif not processed_files_results:
-         return jsonify({"error": "No files were processed successfully."}), 500
-    else:
-        # Return session_id along with results for constructing image URLs on frontend
+
+@app.route("/api/graph/peers/<path:name>")
+def api_graph_peers(name: str):
+    """Companies that compete with `name` (competes_with, symmetric)."""
+    company = _resolve_entity_or_404(name)
+    try:
+        from helpers.graph.query import peers
+        result = peers(get_graph_connection(), company)
+    except Exception as e:
+        app.logger.exception("graph peers failed for %r", company)
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+    return jsonify({"company": company, "peers": result})
+
+
+@app.route("/api/graph/neighbors/<path:name>")
+def api_graph_neighbors(name: str):
+    """Ego-network bundle for `name`. Branches on entity_type:
+
+      - company → sector, peers, JV partners, group siblings, acquisitions,
+        parent (subsidiary_of), suppliers, customers.
+      - sector  → member companies (with optional market_cap filter), size,
+        and market-cap distribution. The UI renders the sector as the focal
+        node with one edge per member.
+
+    Query params:
+      - `as_of` (optional YYYY / YYYY-MM / YYYY-MM-DD): filters out edges
+        that weren't valid at the given date. NULL valid_from is treated
+        as always-valid. Today only `acquired` edges carry valid_from;
+        structural edges survive.
+      - `market_cap` (sector focal only): narrows members.
+
+    One round trip gives the UI everything it needs to render the focal node
+    plus its 1-hop neighbourhood."""
+    canonical, entity_type = _resolve_entity_with_type_or_404(name)
+    as_of = _parse_as_of_or_400()
+
+    if entity_type == "sector":
+        return _sector_neighbors_bundle(canonical)
+    # Bundle M4: super_sector → its child sectors; sub_sector → its parent
+    # sector. Falls through to the company bundle for any other type.
+    if entity_type == "super_sector":
+        return _super_sector_neighbors_bundle(canonical)
+    if entity_type == "sub_sector":
+        return _sub_sector_neighbors_bundle(canonical)
+    # D4: theme → its exposed member companies (cross-sector). Themes cut
+    # across sectors, so membership is via the exposed_to edge, not part_of.
+    if entity_type == "theme":
+        return _theme_neighbors_bundle(canonical)
+    return _company_neighbors_bundle(canonical, as_of=as_of)
+
+
+def _company_neighbors_bundle(company: str, as_of: str | None = None):
+    """Build the ego-network bundle for a company focal node.
+
+    `as_of` (ISO date or None) threads the temporal filter into every
+    wrapper call.
+
+    Uses the coalesced single-round-trip `company_neighbors_bundle` (Bundle C1)
+    instead of seven serial GRAPH_TABLE queries: ~9ms vs ~45ms on the live
+    graph. The response shape is unchanged.
+    """
+    try:
+        from helpers.graph.query import company_neighbors_bundle
+        con = get_graph_connection()
+        bundle = company_neighbors_bundle(con, company, as_of=as_of)
+    except Exception as e:
+        app.logger.exception("graph neighbors failed for %r", company)
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+    return jsonify({
+        "entity_type": "company",
+        "company": company,
+        "as_of": as_of,
+        "file_path": _entity_file_path(company),
+        **bundle,
+    })
+
+
+def _sector_neighbors_bundle(sector: str):
+    """Build the ego-network bundle for a sector focal node.
+
+    Returns the sector's member companies plus aggregate stats. Caps the
+    members list at a sensible size to keep the response payload manageable
+    for large sectors (Automotive has 86 members; rendering all of them as
+    a cytoscape ego-network works but feels cluttered — the UI can opt to
+    show a subset and link to /api/graph/sector/<name> for the full list).
+
+    Bundle K2: members + market_cap come from ONE DuckDB GRAPH_TABLE
+    (sector_members_with_market_cap), not two hops. The market-cap bucketize
+    is done in Python from that single result set, preserving the
+    "sum(buckets) == member_count" invariant the old cross-DB hop documented
+    (DuckDB graph edges vs the SQLite column can drift — Bundle E5).
+    """
+    market_cap = request.args.get("market_cap") or None
+    try:
+        from helpers.graph.query import sector_members_with_market_cap
+        con = get_graph_connection()
+        pairs = sector_members_with_market_cap(con, sector, market_cap=market_cap)
+    except Exception as e:
+        app.logger.exception("graph sector-members failed for %r", sector)
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+
+    members = [name for name, _ in pairs]
+    # Bucketize market_cap from the same DuckDB result set (one source, one
+    # trip). None/empty -> 'unknown' to match the old SQLite GROUP BY shape.
+    market_cap_counts: dict[str, int] = {}
+    for _, cap in pairs:
+        key = cap or "unknown"
+        market_cap_counts[key] = market_cap_counts.get(key, 0) + 1
+
+    return jsonify({
+        "entity_type": "sector",
+        "sector": sector,
+        "file_path": _entity_file_path(sector),
+        "members": members,
+        "member_count": len(members),
+        "market_cap_counts": market_cap_counts,
+    })
+
+
+def _theme_neighbors_bundle(theme: str):
+    """Ego-network bundle for a cross-sector theme focal node (D4).
+
+    Returns the theme's exposed member companies. Themes cut across the GICS
+    hierarchy (China+1 = Electronics + EMS + Pharma API + Textiles), so
+    membership comes from the exposed_to edge, not part_of. Unlike a sector,
+    a theme has no market_cap dimension — members are simply companies whose
+    notes carry the theme's signal. Use the /api/graph/sector/<name> shape for
+    a sector; this is the cross-sector analogue.
+    """
+    try:
+        from helpers.graph.query import theme_members
+        con = get_graph_connection()
+        members = theme_members(con, theme)
+    except Exception as e:
+        app.logger.exception("graph theme-members failed for %r", theme)
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+    return jsonify({
+        "entity_type": "theme",
+        "theme": theme,
+        "file_path": _entity_file_path(theme),
+        "members": members,
+        "member_count": len(members),
+    })
+
+
+def _super_sector_neighbors_bundle(super_sector: str):
+    """Ego-network bundle for a super_sector focal node (Bundle M4).
+
+    Returns the super-sector's child sectors (via the belongs_to hierarchy).
+    No company members directly — those are reached 2 hops down (sector ->
+    company); callers compose via /api/graph/sector/<name> per child.
+    """
+    try:
+        from helpers.graph.query import sectors_in_super
+        con = get_graph_connection()
+        children = sectors_in_super(con, super_sector)
+    except Exception as e:
+        app.logger.exception(
+            "graph super-sector-children failed for %r", super_sector
+        )
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+    return jsonify({
+        "entity_type": "super_sector",
+        "super_sector": super_sector,
+        "file_path": _entity_file_path(super_sector),
+        "sectors": children,
+        "sector_count": len(children),
+    })
+
+
+def _sub_sector_neighbors_bundle(sub_sector: str):
+    """Ego-network bundle for a sub_sector focal node (Bundle M4).
+
+    Returns the parent sector this sub-category belongs to. A sub_sector is
+    a facet within a sector (e.g. Metals -> "Iron and Steel"), so its only
+    hierarchy edge points upward to the sector.
+    """
+    try:
+        # belongs_to for a sub_sector points to its parent SECTOR (not a
+        # super_sector). Read the SQLite edge directly — the DuckDB
+        # super_sector_of helper expects a sector source, but a sub_sector's
+        # belongs_to target is a sector, so we read it explicitly here.
+        conn = get_db_connection()
+        parent = conn.execute(
+            "SELECT target FROM graph_edges "
+            "WHERE source=? AND edge_type='belongs_to' LIMIT 1",
+            (sub_sector,)
+        ).fetchone()
+        parent_name = parent[0] if parent else None
+        conn.close()
+    except Exception as e:
+        app.logger.exception(
+            "graph sub-sector-parent failed for %r", sub_sector
+        )
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+    return jsonify({
+        "entity_type": "sub_sector",
+        "sub_sector": sub_sector,
+        "parent_sector": parent_name,
+    })
+
+
+@app.route("/api/events/<path:name>")
+def api_events(name: str):
+    """D7 — the timeline for one entity, ordered by event_date.
+
+    Returns every event row for ``name`` (acquisitions, JVs, guidance,
+    management changes) as a date-ordered list — the temporal spine the
+    roadmap proposed. Dated events come first (oldest -> newest); undated
+    events (many management changes / some guidance) sort last by id so they
+    remain visible rather than silently dropped. Optional ``?event_type=``
+    narrows to one type. Resolves the name case-insensitively against
+    entities.name (works for any entity that has events, though events are
+    company-scoped today)."""
+    canonical, entity_type = _resolve_entity_with_type_or_404(name)
+    event_type = request.args.get("event_type", "").strip() or None
+
+    conn = get_db_connection()
+    try:
+        params: list = [canonical]
+        type_clause = ""
+        if event_type:
+            type_clause = " AND event_type = ?"
+            params.append(event_type)
+        rows = conn.execute(
+            f"""
+            SELECT event_type, event_date, period, date_precision, magnitude,
+                   counterparty, source_quote, as_of_edition
+            FROM events
+            WHERE entity = ?
+            {type_clause}
+            ORDER BY event_date IS NULL, event_date, id
+            """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            params,
+        ).fetchall()
+    finally:
+        conn.close()
+
+    events = [{
+        "event_type": r["event_type"],
+        "event_date": r["event_date"],
+        "period": r["period"],
+        "date_precision": r["date_precision"],
+        "magnitude": r["magnitude"],
+        "counterparty": r["counterparty"],
+        "source_quote": r["source_quote"],
+        "as_of_edition": r["as_of_edition"],
+    } for r in rows]
+    return jsonify({
+        "entity": canonical,
+        "entity_type": entity_type,
+        "file_path": _entity_file_path(canonical),
+        "event_count": len(events),
+        "events": events,
+    })
+
+
+@app.route("/api/graph/shortest")
+def api_graph_shortest():
+    """Shortest path between two entities across all edge types (undirected).
+
+    Query params: a, b (both required), max_hops (optional, default 5),
+    as_of (optional YYYY / YYYY-MM / YYYY-MM-DD — temporal filter)."""
+    a = request.args.get("a", "").strip()
+    b = request.args.get("b", "").strip()
+    if not a or not b:
+        return jsonify({"error": "both 'a' and 'b' query params are required"}), 400
+    # Validate max_hops BEFORE entity resolution so a malformed value is
+    # reported as 400 regardless of whether the entities exist.
+    try:
+        max_hops = int(request.args.get("max_hops", "5"))
+    except ValueError:
+        return jsonify({"error": "max_hops must be an integer"}), 400
+    if max_hops < 1 or max_hops > 10:
+        return jsonify({"error": "max_hops must be between 1 and 10"}), 400
+    as_of = _parse_as_of_or_400()
+    a_canon = _resolve_entity_or_404(a)
+    b_canon = _resolve_entity_or_404(b)
+    try:
+        from helpers.graph.query import shortest_path
+        path = shortest_path(get_graph_connection(), a_canon, b_canon, max_hops,
+                             as_of=as_of)
+    except Exception as e:
+        app.logger.exception("graph shortest failed a=%r b=%r", a_canon, b_canon)
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+    if path is None:
         return jsonify({
-            "success": True,
-            "session_id": session_id, # ADDED session_id here
-            "results": processed_files_results, # Renamed from 'downloads'
-            "errors": processing_errors
-        }), 200
-
-# --- NEW ROUTE for serving images ---
-@app.route('/view_image/<session_id>/<pdf_base>/<filename>')
-def view_image(session_id, pdf_base, filename):
-    """Serves an extracted image file for inline display."""
-    safe_session_id = secure_filename(session_id)
-    safe_pdf_base = secure_filename(pdf_base)
-    safe_filename = secure_filename(filename)
-
-    # Construct path relative to the *pdf_base* specific output folder
-    directory = OUTPUT_FOLDER / safe_session_id / safe_pdf_base / "images"
-    file_path = directory / safe_filename
-
-    # Security check
-    if not str(file_path.resolve()).startswith(str(directory.resolve())):
-         return "Invalid path", 400
-    if not file_path.is_file():
-         return "Image not found", 404
-
-    print(f"Serving image: {file_path}")
-    # Send *without* as_attachment=True for inline display
-    return send_from_directory(directory, safe_filename)
+            "source": a_canon, "target": b_canon, "path": None, "hops": None,
+            "as_of": as_of,
+        })
+    return jsonify({
+        "source": a_canon,
+        "target": b_canon,
+        "path": [{"name": n, "hop": h} for n, h in path],
+        "hops": path[-1][1] if path else 0,
+        "as_of": as_of,
+    })
 
 
-@app.route('/download/<session_id>/<filename>')
-def download_file(session_id, filename):
-    """Serves the generated ZIP file for download."""
-    safe_session_id = secure_filename(session_id)
-    safe_filename = secure_filename(filename)
-    directory = OUTPUT_FOLDER / safe_session_id
-    file_path = directory / safe_filename
+@app.route("/api/graph/sector/<path:name>")
+def api_graph_sector(name: str):
+    """If `name` is a sector: return its member companies.
+    If `name` is a company: return its sector.
+    The path segment is resolved against entities.name case-insensitively."""
+    # Try sector first — sector names are unambiguous and a sector name never
+    # collides with a company name in this dataset.
+    conn = get_db_connection()
+    try:
+        sector_row = conn.execute(
+            "SELECT name FROM entities WHERE name = ? COLLATE NOCASE "
+            "AND entity_type = 'sector'",
+            (name,),
+        ).fetchone()
+        company_row = None if sector_row else conn.execute(
+            "SELECT name FROM entities WHERE name = ? COLLATE NOCASE "
+            "AND entity_type = 'company'",
+            (name,),
+        ).fetchone()
+    finally:
+        conn.close()
+    if sector_row is None and company_row is None:
+        abort(404, description=f"Entity not found: {name}")
+    try:
+        from helpers.graph.query import sector_members, sector_of
+        con = get_graph_connection()
+        if sector_row is not None:
+            canonical = sector_row["name"]
+            return jsonify({
+                "sector": canonical,
+                "members": sector_members(con, canonical),
+            })
+        if company_row is None:
+            abort(404, description=f"Entity not found: {name}")
+        canonical = company_row["name"]
+        return jsonify({
+            "company": canonical,
+            "sector": sector_of(con, canonical),
+        })
+    except Exception as e:
+        app.logger.exception("graph sector failed for %r", name)
+        return jsonify({"error": f"graph query failed: {e}"}), 500
 
-    if not str(file_path.resolve()).startswith(str(directory.resolve())): return "Invalid path", 400
-    if not file_path.is_file(): return "File not found", 404
 
-    print(f"Serving ZIP for download: {file_path}")
-    return send_from_directory(directory, safe_filename, as_attachment=True)
+@app.route("/api/graph/stats")
+def api_graph_stats():
+    """Graph-wide stats mirroring helpers/graph/stats.py.
 
-if __name__ == '__main__':
-    host = os.getenv('FLASK_HOST', '0.0.0.0')
-    port = int(os.getenv('FLASK_PORT', 5200))
-    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 't']
+    All-SQLite (no DuckDB needed). Used by the Graph tab's header summary."""
+    conn = get_db_connection()
+    try:
+        entity_counts = dict(conn.execute(
+            "SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type"
+        ).fetchall())
+        edge_rows = conn.execute(
+            "SELECT edge_type, COUNT(*) FROM graph_edges GROUP BY edge_type "
+            "ORDER BY COUNT(*) DESC"
+        ).fetchall()
+        edges_by_type = {row["edge_type"]: row[1] for row in edge_rows}
+        total_edges = sum(edges_by_type.values())
+        # Sector-size distribution across company-bearing sectors.
+        sector_sizes = conn.execute(
+            "SELECT sector_classification, COUNT(*) AS n FROM entities "
+            "WHERE entity_type = 'company' AND sector_classification IS NOT NULL "
+            "GROUP BY sector_classification ORDER BY n DESC"
+        ).fetchall()
+        sizes = [row["n"] for row in sector_sizes]
+        # C6: single "graph health" CTE — one WITH block, one round-trip.
+        # Named CTEs share table scans (companies, edges, tags) and add a
+        # conflicting_market_cap counter that didn't exist before (companies
+        # with >1 distinct market_cap tag — the latent A1/A2 trigger).
+        row = conn.execute(
+            """
+            WITH
+            mc_conflicts AS (
+                SELECT COUNT(*) AS n FROM (
+                    SELECT entity_name
+                    FROM entity_tags
+                    WHERE tag LIKE 'market_cap/%'
+                    GROUP BY entity_name
+                    HAVING COUNT(DISTINCT tag) > 1
+                )
+            ),
+            edge_issues AS (
+                SELECT
+                    SUM(CASE WHEN source = target THEN 1 ELSE 0 END) AS self_loops,
+                    SUM(CASE WHEN NOT EXISTS (
+                                SELECT 1 FROM entities e WHERE e.name = graph_edges.source)
+                            OR NOT EXISTS (
+                                SELECT 1 FROM entities e WHERE e.name = graph_edges.target)
+                            THEN 1 ELSE 0 END) AS orphan_edges
+                FROM graph_edges
+            ),
+            company_issues AS (
+                SELECT
+                    SUM(CASE WHEN (ticker IS NULL OR ticker = '') THEN 1 ELSE 0 END) AS no_ticker,
+                    SUM(CASE WHEN NOT EXISTS (
+                                SELECT 1 FROM graph_edges ge
+                                WHERE ge.edge_type = 'part_of' AND ge.source = entities.name)
+                            THEN 1 ELSE 0 END) AS orphan_companies
+                FROM entities
+                WHERE entity_type = 'company'
+            )
+            SELECT
+                ci.orphan_companies,
+                ci.no_ticker,
+                ei.self_loops,
+                ei.orphan_edges,
+                mc.n AS conflicting_market_cap,
+                (SELECT MAX(last_updated) FROM entities) AS most_recent_entity,
+                (SELECT MAX(computed_at) FROM graph_analytics) AS most_recent_analytics
+            FROM company_issues ci, edge_issues ei, mc_conflicts mc
+            """
+        ).fetchone()
+        orphan_companies = row["orphan_companies"]
+        no_ticker = row["no_ticker"]
+        self_loops = row["self_loops"]
+        orphan_edges = row["orphan_edges"]
+        conflicting_market_cap = row["conflicting_market_cap"]
+        most_recent_entity = row["most_recent_entity"]
+        most_recent_analytics = row["most_recent_analytics"]
+    finally:
+        conn.close()
+    stale = bool(
+        most_recent_entity
+        and most_recent_analytics
+        and most_recent_entity > most_recent_analytics
+    )
+
+    # Phase 2 (doc/improvements/archive/graph_algos.txt): whole-graph
+    # structural metrics via Onager on the app's cached graph connection.
+    # Advisory and fully degradable — if the graph layer is unavailable the
+    # block is null and the SQLite-side payload above stays authoritative.
+    structure = None
+    try:
+        from helpers.graph.algorithms import graph_metrics
+        structure = graph_metrics(con=get_graph_connection())
+    except Exception:
+        structure = None
+
+    return jsonify({
+        "structure": structure,
+        "entities": {
+            "total": sum(entity_counts.values()),
+            "by_type": entity_counts,
+        },
+        "edges": {
+            "total": total_edges,
+            "by_type": edges_by_type,
+        },
+        "sectors": {
+            "count": len(sector_sizes),
+            "top": [{"sector": row["sector_classification"], "n": row["n"]}
+                    for row in sector_sizes[:10]],
+            "size_distribution": {
+                "min": min(sizes) if sizes else 0,
+                "max": max(sizes) if sizes else 0,
+                "mean": round(sum(sizes) / len(sizes), 1) if sizes else 0,
+            },
+        },
+        "hygiene": {
+            "orphan_companies": orphan_companies,
+            "no_ticker": no_ticker,
+            "self_loops": self_loops,
+            "orphan_edges": orphan_edges,
+            "conflicting_market_cap": conflicting_market_cap,
+        },
+        "staleness": {
+            "stale": stale,
+            "most_recent_entity_update": most_recent_entity,
+            "most_recent_analytics_compute": most_recent_analytics,
+        },
+    })
+
+
+# Metrics whose values are scalar floats (sortable, rankable). The label
+# metrics (louvain_community, weakly_connected_component) carry int labels
+# that group rather than rank — handled separately below.
+_SCALAR_GRAPH_METRICS = {
+    "pagerank", "degree_centrality", "betweenness_centrality",
+    "local_clustering_coefficient", "closeness_centrality",
+    "eigenvector_centrality",  # last two added in Bundle G1
+}
+# Label metrics: value is an int community/component id. Ranked/grouped, not
+# sorted by value.
+_LABEL_GRAPH_METRICS = {"louvain_community", "weakly_connected_component"}
+# Union — the full allowlist served by /api/graph/metrics/<metric>.
+_GRAPH_METRIC_ALLOWLIST = _SCALAR_GRAPH_METRICS | _LABEL_GRAPH_METRICS
+
+
+@app.route("/api/graph/metrics/<metric>")
+def api_graph_metrics(metric: str):  # noqa: C901
+    """Serve a computed graph metric from graph_analytics (Bundle J3).
+
+    graph_analytics held pagerank/betweenness/louvain/wcc but no route read
+    it — the API exposed structural queries only. This endpoint surfaces the
+    computed centrality/community scores so consumers (UI, scripts) can ask
+    "top-N by PageRank" or "which community is X in?" without hitting the CLI.
+
+    All-SQLite (no DuckDB needed) — graph_analytics is refreshed by
+    `make recompute-graph`, not by the DuckDB cache rebuild.
+
+    Path param: metric (one of the allowlist below; 400 otherwise).
+    Query params:
+      - top=N  : limit scalar-metric rankings to the top N entities (default
+                 10, max 500). Ignored for label metrics.
+      - entity=<name> : optional — return only the row(s) for this entity
+                        (case-insensitive). For label metrics, still returns
+                        the entity's label only (use the ranking shape).
+
+    Response shape (scalar metrics):
+      {"metric": ..., "total": N, "ranked": [{"entity": ..., "value": float}, ...]}
+    Response shape (label metrics):
+      {"metric": ..., "total": N, "groups": [
+         {"label": int, "size": int, "members": [name, ...]}, ...]}
+    """
+    # Normalise + validate the metric name. graph_analytics stores metric
+    # names in lowercase; accept case-insensitively for URL friendliness.
+    metric_lc = metric.lower()
+    if metric_lc not in _GRAPH_METRIC_ALLOWLIST:
+        return jsonify({
+            "error": f"unknown metric {metric!r}",
+            "valid_metrics": sorted(_GRAPH_METRIC_ALLOWLIST),
+        }), 400
+
+    # Parse top= (scalar metrics only). Capped at 500 to bound payload size.
+    top = 10
+    raw_top = request.args.get("top")
+    if raw_top is not None:
+        try:
+            top = int(raw_top)
+        except ValueError:
+            return jsonify({"error": "top must be an integer"}), 400
+        if top < 1 or top > 500:
+            return jsonify({"error": "top must be between 1 and 500"}), 400
+
+    entity_filter = request.args.get("entity", "").strip() or None
+
+    conn = get_db_connection()
+    try:
+        if metric_lc in _SCALAR_GRAPH_METRICS:
+            # value JSON is {"value": float}. Bundle V2: push the json_extract
+            # + CAST + ORDER BY into SQL (was: per-row json.loads in Python +
+            # Python sort). json_extract returns the value; CAST(...AS REAL)
+            # filters non-numeric; ORDER BY ... DESC does the sort in SQLite.
+            # Malformed JSON → json_extract returns NULL → CAST fails →
+            # filtered out by the `v IS NOT NULL` guard (matches the old
+            # try/except + isinstance check).
+            if entity_filter:
+                rows = conn.execute(
+                    """
+                    SELECT entity_name,
+                           CAST(json_extract(value, '$.value') AS REAL) AS v
+                    FROM graph_analytics
+                    WHERE metric = ? AND entity_name = ? COLLATE NOCASE
+                      AND json_extract(value, '$.value') IS NOT NULL
+                    """,
+                    (metric_lc, entity_filter),
+                ).fetchall()
+                ranked = [{"entity": r["entity_name"], "value": float(r["v"])}
+                          for r in rows]
+                total = len(ranked)
+            else:
+                # B3: COUNT(*) OVER() piggybacks the total on the same scan
+                # the ranked query already does — one round-trip instead of
+                # two (avoids re-scanning graph_analytics for a bare COUNT).
+                rows = conn.execute(
+                    """
+                    SELECT entity_name,
+                           CAST(json_extract(value, '$.value') AS REAL) AS v,
+                           COUNT(*) OVER () AS total
+                    FROM graph_analytics
+                    WHERE metric = ?
+                      AND json_extract(value, '$.value') IS NOT NULL
+                    ORDER BY CAST(json_extract(value, '$.value') AS REAL) DESC
+                    LIMIT ?
+                    """,
+                    (metric_lc, top),
+                ).fetchall()
+                ranked = [{"entity": r["entity_name"], "value": float(r["v"])}
+                          for r in rows]
+                total = rows[0]["total"] if rows else 0
+            return jsonify({
+                "metric": metric_lc,
+                "total": total,
+                "ranked": ranked,
+            })
+        else:
+            # Label metric: value JSON is {"community": int} or
+            # {"componentId": int} (+ "modularity" for louvain, G2). Group by
+            # label; the per-label modularity (if present) is surfaced once
+            # at the top level, not duplicated per group.
+            label_key = "community" if metric_lc == "louvain_community" else "componentId"
+            rows = conn.execute(
+                "SELECT entity_name, value FROM graph_analytics "
+                "WHERE metric = ? ORDER BY entity_name",
+                (metric_lc,),
+            ).fetchall()
+            import json as _json
+            groups: dict[int, list[str]] = {}
+            modularity = None
+            for r in rows:
+                try:
+                    parsed = _json.loads(r["value"])
+                except (ValueError, TypeError):
+                    continue
+                label = parsed.get(label_key)
+                if isinstance(label, int):
+                    groups.setdefault(label, []).append(r["entity_name"])
+                if modularity is None and "modularity" in parsed:
+                    modularity = parsed["modularity"]
+            group_list = [
+                {"label": label, "size": len(members), "members": members}
+                for label, members in sorted(
+                    groups.items(), key=lambda kv: (-len(kv[1]), kv[0])
+                )
+            ]
+            payload = {
+                "metric": metric_lc,
+                "total": sum(len(m) for m in groups.values()),
+                "groups": group_list,
+            }
+            if modularity is not None:
+                payload["modularity"] = modularity
+            return jsonify(payload)
+    finally:
+        conn.close()
+
+
+@app.route("/api/graph/co-mentions")
+def api_graph_co_mentions():
+    """C1: Top entities by co-mention frequency.
+
+    Query params:
+      - top=N: number of entities (default 20, max 500).
+
+    Returns: {"ranked": [{"entity": ..., "co_mentions": int}, ...]}
+    """
+    from helpers.graph.query import co_mention_top
+    top = 20
+    raw_top = request.args.get("top")
+    if raw_top is not None:
+        try:
+            top = max(1, min(500, int(raw_top)))
+        except ValueError:
+            return jsonify({"error": "top must be an integer"}), 400
+    conn = get_db_connection()
+    try:
+        return jsonify({"ranked": co_mention_top(top, conn=conn)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/graph/bridges")
+def api_graph_bridges():
+    """C3: Cross-sector bridges — M&A and JV activity between sector pairs.
+
+    Returns: {"bridges": [{"edge_type": ..., "sector_a": ..., "sector_b": ...,
+             "count": int}, ...]}
+    """
+    from helpers.graph.query import cross_sector_bridges
+    conn = get_db_connection()
+    try:
+        return jsonify({"bridges": cross_sector_bridges(conn=conn)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/graph/edges-by-year")
+def api_graph_edges_by_year():
+    """C4: Temporal edge formation — M&A and JV activity by year.
+
+    Returns: {"timeline": [{"year": "YYYY", "edge_type": ..., "count": int}, ...]}
+    """
+    from helpers.graph.query import edges_by_year
+    conn = get_db_connection()
+    try:
+        return jsonify({"timeline": edges_by_year(conn=conn)})
+    finally:
+        conn.close()
+
+
+@app.route("/api/graph/refresh", methods=["POST"])
+def api_graph_refresh():
+    """Rebuild the disk-based DuckDB cache and reset the long-lived connection.
+
+    Call after parse_newsletter --apply / derive-relations / stub-batch runs
+    so the disk cache picks up new edges. Equivalent to ``make graph-rebuild``
+    but also drops the cached connection so the next request re-opens against
+    the freshly-built file. Idempotent; safe to call repeatedly.
+
+    Order matters: we reset (close) the long-lived connection FIRST so the
+    DuckDB file is free for rebuild to open it read-write. DuckDB allows
+    either one read-write OR many read-only connections per file, never
+    both — if we rebuilt before resetting, the Flask connection's read-
+    write lock would block the rebuild.
+
+    Returns 200 on success. On rebuild failure (e.g. the SQLite file is
+    mid-write) returns 500 with the error in the body — the connection is
+    still reset, so the next request will trigger a cold rebuild, but the
+    operator gets an honest failure signal rather than a false success.
+    """
+    _reset_graph_connection()
+    try:
+        from helpers.graph.query import rebuild
+        rebuild()
+    except Exception as e:
+        app.logger.error("graph rebuild failed: %s", e)
+        return jsonify({"status": "error", "message": f"rebuild failed: {e}"}), 500
+    return jsonify({"status": "ok", "message": "graph rebuilt and connection reset"})
+
+
+# --------------------------------------------------------------------------- #
+# JSON error handlers                                                          #
+# --------------------------------------------------------------------------- #
+# Scope to /api/ paths so browser navigation 404s (e.g. /entity/Unknown) keep
+# rendering HTML — only JSON-consuming clients get JSON. For non-API paths we
+# fall back to a minimal HTML page (Flask's default 404 handler is replaced
+# once a custom @app.errorhandler(404) is registered, so we have to render the
+# fallback ourselves).
+
+_DEFAULT_404_HTML = (
+    "<!DOCTYPE html><html><head><title>404 Not Found</title></head>"
+    "<body><h1>Not Found</h1>"
+    "<p>The requested URL was not found on the server.</p>"
+    "</body></html>"
+)
+
+
+@app.errorhandler(404)
+def _api_not_found(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": e.description or "not found"}), 404
+    return _DEFAULT_404_HTML, 404
+
+
+@app.errorhandler(400)
+def _api_bad_request(e):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": e.description or "bad request"}), 400
+    # Minimal HTML fallback for non-API paths (browser navigation etc.).
+    return (
+        "<!DOCTYPE html><html><head><title>400 Bad Request</title></head>"
+        f"<body><h1>Bad Request</h1><p>{e.description}</p></body></html>",
+        400,
+    )
+
+
+if __name__ == "__main__":
+    host = os.getenv("FLASK_HOST", "0.0.0.0")  # noqa: S104  # containerized deploy intentionally binds all interfaces
+    port = int(os.getenv("FLASK_PORT", 5200))
+    debug_mode = os.getenv("FLASK_DEBUG", "False").lower() in ["true", "1", "t"]
     app.run(host=host, port=port, debug=debug_mode)

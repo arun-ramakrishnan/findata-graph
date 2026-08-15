@@ -1,0 +1,738 @@
+# Findata Corpus Audit — markdown ↔ SQLite ↔ DuckDB ↔ graph coverage
+
+Source: read-only audit (2026-07-28) of the Obsidian markdown corpus
+(findata/) cross-checked against every storage layer: the SQLite source-of-
+truth (memory/research.db: entities, entity_tags, graph_edges,
+graph_analytics), the DuckDB property graph (memory/graph.duckdb), and the
+wikilink graph. Sibling to sqlite_improvs.txt / duckdb_improvs.txt /
+graph_improvs.txt / pending_improvs.txt — same methodology (every claim
+backed by a live query, file:line references), different scope (this file
+audits the *content* layers against each other; those track engine-surface
+improvements).
+
+Prompted by: "Examine the markdowns in findata/Sectors and findata/
+Companies and look for issues and if all aspects are captured in our
+duckdb/sqlite/graph layers."
+
+Methodology: 1176 .md files surveyed (1031 company + 42 sector entity
+notes + ~100 newsletter source files in findata/The_Chatter/,
+Points_And_Figures/, The_PlotLines/). Three parallel subagents audited
+(a) entity coverage, (b) relationship/edge coverage, (c) structured-vs-
+prose content coverage. Every headline number below was RE-VERIFIED
+directly against the live DB on 2026-07-28 (not just taken from the
+subagent reports). File:line references point at the current source.
+
+Environment as of this audit:
+  - 1031 company notes + 42 sector notes = 1073 entity notes on disk
+  - DB: 1073 entities (1031 company + 42 sector), 3269 entity_tags,
+    3507 graph_edges, 8500 graph_analytics; WAL mode, FK ON
+  - Edge distribution: co_mentioned_in=1329, has_company=1031,
+    part_of=1031, subsidiary_of=54, jv_with=25, acquired=22,
+    competes_with=7, same_group=4, supplier_to=3, customer_of=1
+
+================================================================================
+WHAT'S CAPTURED WELL (the solid foundation)
+================================================================================
+
+These dimensions are clean, consistent, and fully reconciled across all
+layers. No remediation needed.
+
+  - Entity identity: 1031 companies + 42 sectors = 1073 = DB rows.
+    0 markdown-only entities, 0 DB-only entities. Verified by full outer
+    join of filename stems against entities.normalized_name.
+  - Filename stem ↔ normalized_name: 0 mismatches across all 1031 files.
+    This is the cleanest dimension — the DB/file join key is solid.
+  - Sector membership: part_of + has_company = 1031 each, bidirectional,
+    0 orphans. YAML sector: ↔ parent directory ↔ entities.sector_
+    classification all agree (0 mismatches across all 1031 files).
+  - YAML core fields: title/type/normalized_name/permalink/tags/created/
+    last_modified present in 100% of entity notes; sector/market_cap in
+    100%. Only ticker is partially missing (10 unlisted entities).
+  - Acquisition provenance: 12/22 acquired edges have valid_from; spot-
+    checked 5 against source notes — ALL years accurate and traceable.
+    properties carries quote/year/stake/brand/seller/ref for acquired.
+  - SQLite ↔ DuckDB parity: every edge type matches 1:1 (e_acquired=22,
+    e_jv=25, e_subsidiary=54, e_belongs=1031, e_comention=1329, e_competes
+    =7, e_supplier=3, e_customer=1, e_group=4). No drift between stores.
+  - The Chatter co-mention graph: 1329 co_mentioned_in edges, 100% with
+    edition+newsletter provenance in properties.
+
+================================================================================
+ISSUES FOUND — ranked by severity
+================================================================================
+
+--------------------------------------------------------------------------------
+CRITICAL — confirmed data-loss bugs (the only true defects)
+--------------------------------------------------------------------------------
+
+C1. Three YAML tag namespaces silently dropped by sync_tags.py
+    helpers/core/sync_tags.py:50 — ALLOWED_CATEGORIES = ("entity_type",
+    "sector", "market_cap", "subsector")
+    VERIFIED LIVE 2026-07-28: the whitelist at sync_tags.py:50 drops
+    every tag outside those 4 namespaces. Tag-namespace row counts in
+    entity_tags:
+
+      geography/         ~1024 notes declare it   0 rows in entity_tags
+      business_model/    ~1012 notes declare it   0 rows in entity_tags
+      risk_investment/   ~970  notes declare it   0 rows in entity_tags
+      investment_theme/  sector notes declare it  0 rows in entity_tags
+
+    This is DOCUMENTED behaviour (docstring at sync_tags.py:10 lists only
+    the 4 kept namespaces), so it is a design decision — but it means
+    ~3000 tags authored in YAML are invisible to every tag-driven query,
+    the API, and the integrity check. The two representations (YAML tags
+    vs entity_tags) are out of contract: YAML says one thing, the DB
+    stores another. Either the namespace should be widened (one-line
+    change to ALLOWED_CATEGORIES + re-sync) or the YAML should stop
+    emitting tags that are silently discarded.
+    Severity: HIGH (silent data loss; the most-authoritative tag source
+    is the markdown, and 3 of its 7 namespaces never reach the DB).
+    DEFERRED (2026-07-28): explicit decision — tags like geography are
+    not useful in queries today, so widening ALLOWED_CATEGORIES adds DB
+    rows for no query benefit. The YAML frontmatter still carries these
+    namespaces for human readers; they just don't reach entity_tags.
+    Revisit only if a query use case for geography/business_model/
+    risk_investment/investment_theme emerges. The contract mismatch is
+    acknowledged but accepted.
+
+C2. market_cap column disagrees with market_cap/* tag for 126 companies [DONE]
+    entities.market_cap (TEXT) vs entity_tags tag market_cap/<value>
+    VERIFIED LIVE 2026-07-28: 126/1031 companies (12%) had
+    entities.market_cap disagreeing with their market_cap/* tag. The tag
+    is the source of truth (derived from the note via E5a logic at
+    sync_tags.py:175-206 and re-synced each run); the column was stale.
+    Examples:
+      Asian Paints        column=small_cap  tag=market_cap/large_cap
+      REC                 column=mid_cap    tag=market_cap/large_cap
+      Vardhman Textiles   column=large_cap  tag=market_cap/small_cap
+      Reliance Power      column=large_cap  tag=market_cap/mid_cap
+    Root cause: the E5a sector_classification sync (sync_tags.py:198-206)
+    updates sector_classification from the note, but there was NO analogous
+    sync for market_cap — so the column held whatever was written at
+    create time and rotted as companies crossed cap tiers.
+    Severity: HIGH (the column was queryable and 12% of it was wrong; any
+    market_cap-filtered query or API response was unreliable).
+    Fix (2026-07-28): dropped entities.market_cap entirely. The tag is now
+    the single source of truth — SQLite consumers derive it via
+    market_cap_sql() (helpers/core/db.py) or inline JOIN; DuckDB's v_node
+    materializes it from entity_tags at CTAS time
+    (_SCHEMA_VERSION bumped 3→4→5 — see below). The
+    idx_entities_market_cap index was dropped. API response fields
+    (market_cap, market_cap_counts) are preserved, now tag-derived. 2 new
+    live regression guards (test_live_entities_has_no_market_cap_column +
+    test_live_entities_has_no_index_membership_column) pin the drop.
+    C2-FIX (2026-07-28): the v4 LEFT JOIN entity_tags fanned out for 41
+    companies that had MULTIPLE conflicting market_cap/* tags (a data
+    error — e.g. Alkem Laboratories had both large_cap and mid_cap),
+    producing duplicate v_node/v_company rows (1071 vs 1030). Surfaced by
+    the TCI Express dedup (the count-mismatch test caught it). Replaced
+    the LEFT JOIN with a correlated subselect that picks exactly ONE tag
+    per entity via MIN(tag) (_SCHEMA_VERSION bumped 4→5 to force rebuild).
+    v_company now matches SQLite 1:1 (1030/1030, 0 duplicates).
+    C2-FIX-RESOLVED (2026-08-05): the 41 conflicting-tag companies were
+    fixed at the SOURCE (helpers/maintenance/dedupe_market_cap_tags.py
+    removed the wrong market_cap/* tag line from each note's YAML, using
+    the standalone market_cap: field as the tiebreaker; 9 notes also had a
+    duplicate standalone field, collapsed to last-wins). sync-tags rebuilt
+    entity_tags; the DuckDB MIN() tiebreak no longer matters because every
+    entity now has exactly one market_cap tag. A new ERROR-severity check
+    (check_market_cap_conflicts in database_integrity_check.py) guards
+    against regression — flags any entity with >1 market_cap/* tag.
+
+--------------------------------------------------------------------------------
+HIGH — coverage gaps between markdown and graph
+--------------------------------------------------------------------------------
+
+H1. Typed relationship edges capture ~10% of the available signal [MEASURED-IMPROVED]
+    graph_edges (acquired=22, subsidiary_of=54, jv_with=25 → 101 typed);
+    354/1031 company notes (34%) contain acquisition/subsidiary/JV/
+    demerger language
+    VERIFIED LIVE 2026-07-28: 354 notes carry relationship language but
+    only 101 typed edges exist. Verified misses on marquee names:
+      HDFC Bank      the defining HDFC Ltd. merger       0 edges
+      Reliance       JFS demerger, Samsung C&T, RCPL     0 edges
+                    (only BlackRock↔Jio captured)
+      Infosys        Optimum Healthcare + InLogik        0 edges
+      Tata Steel     Kalinganagar/Neelachal/BPSL/TSK     only JSW→BPSL
+    Only the most explicitly named, single-entity relationships get
+    extracted (Maruti→Suzuki, BlackRock↔Jio). Multi-entity corporate
+    actions (demergers, plant/JV footprints, listed-subsidiary chains)
+    and parenthetical mentions are systematically dropped.
+    Severity: HIGH (the typed-edge graph is the highest-value part of the
+    knowledge graph; at 10% coverage it's a sample, not a model).
+    Note: this is a precision/recall trade-off, not a bug. The current
+    graph is HIGH precision (verified: 5/5 sampled acquired edges are
+    accurate) and LOW recall. See also H4 below for the recall source.
+
+    MEASURED CORRECTION (2026-07-28): the "354 notes / 101 edges" framing
+    overstates the recall gap ~5×. Classifying the 172 zero-edge notes
+    that carry relationship keywords:
+      - 78 (45%) are GENERIC "acquisition" usage (customer/talent/client/
+        land acquisition) — not M&A. The keyword count double-counts these.
+      - 60 (35%) carry a genuine M&A/subsidiary verb, BUT ~47 reference a
+        target that is NOT an entity (foreign parents, unlisted subs,
+        trusts, business-unit names) → they correctly go to the H4 sidecar,
+        not the typed graph.
+      - 34 (20%) ambiguous (keyword with no clear entity target).
+    Realistic recoverable recall from pattern work alone: ~6-13 edges.
+
+    Root-cause analysis on the genuine misses (4 cases traced end-to-end):
+      (a) The existing `subsidiary_of` pattern WORKS — Force Motors,
+          Bosch, JTEKT, Swaraj Engines all extract correctly. The "Kingfa/
+          Bata should match but don't" symptom is a RESOLVER-AMBIGUITY
+          issue, not a pattern gap: the captured parent mention ("Bata",
+          "Kingfa Science & Technology Co") fuzzy-matches back to the
+          Indian listed entity (the section's own company), triggering the
+          self-edge guard. The real parent (Bata (BN) B.V. / Kingfa China)
+          isn't an entity. Not fixable by patterns.
+      (b) Genuine pattern gaps: `demerged from`, `merged with`, `formed
+          through merger`, and the anchored `listed subsidiary is X` form.
+          The bare "subsidiary <Name>" noun-adjunct form was measured at
+          ~92% false positives and deliberately NOT matched.
+
+    Fix (2026-07-28): added 4 patterns to extract_relations.py PATTERNS,
+    all mapping to EXISTING edge types (no schema change, no DuckDB bump):
+      - `demerged from X`           → acquired (reverse)
+      - `merged with X`             → acquired (reverse)
+      - `formed through merger of X`→ acquired (reverse)
+      - `listed subsidiary is X` /
+        `its Indian subsidiary is X`→ subsidiary_of (reverse, anchored only)
+    11 new tests (5 direct-regex in TestPatterns + 6 end-to-end in
+    TestH1NewVerbPatterns incl. the bare-noun-adjunct precision guard).
+
+    Applied `extract_relations.py findata/Companies --apply`. 5 new edges:
+      - Sapphire Foods --acquired--> Devyani International
+      - Samvardhana Motherson --acquired--> Motherson Sumi Wiring India
+      - Larsen and Toubro --acquired--> LTM
+      - Hindustan Unilever --subsidiary_of--> Unilever PLC
+      - Samsung SDI --subsidiary_of--> Samsung Electronics
+    Typed-edge count: 112 → 117 (acquired 22→25, subsidiary_of 54→56).
+    Dry-run triage: 0 false positives from the new patterns; the narrow
+    subsidiary anchor worked perfectly (no bare-noun-adjunct leakage).
+    The 2 JSW→Akzo Nobel would-be-inserts were correctly caught by the
+    existing _SUPPRESSED_EDGES set. Unresolvable targets (Clix Capital,
+    Adobe, Alphabet, etc.) went to the H4 sidecar as designed.
+
+    Residual: the binding constraint on H1 is MISSING COUNTERPARTY
+    ENTITIES, not patterns. ~47 genuine-miss notes reference targets that
+    don't exist as entities → they feed H4 (deferred). Closing that gap
+    requires creating entities for foreign parents / unlisted subsidiaries
+    (the M2/M3 modelling territory, also deferred). Reusing `acquired` for
+    demergers/mergers is an approximation (a true `demerged_from` type
+    would be semantically cleaner) but avoids graph-schema churn.
+
+H2. 45% of acquired edges lack valid_from (10/22), even when dated [RESOLVED-PARTIAL]
+    graph_edges.valid_from IS NULL for 10/22 acquired edges
+    VERIFIED LIVE 2026-07-28: 10 acquired edges have neither valid_from
+    nor properties.year, including several where the source quote states
+    the acquisition (Varun Beverages→Twizza "100% stake acquisition",
+    Coforge→Encora, Groww→Fisdom, Tata Technologies→ESTEC).
+    Severity: MEDIUM (the backfill script exists for exactly this).
+
+    Fix (2026-07-28): two root causes found; both fixed.
+    (a) HELPER BUG — `_extract_year_from_context` filtered standalone
+        years with `2018 <= y < current_year`, rejecting the current
+        year (2026). This silently dropped the ESTEC edge even though
+        its quote literally says "Acquired by Tata Technologies in
+        2026". Inconsistency proof: the live DB already carried 1
+        current-year acquired edge, so 2026 is a legitimately
+        represented year. Fixed: changed to `<= current_year` (only
+        truly-future years rejected). 2 regression tests added
+        (test_current_year_acquisition_is_kept,
+        test_current_year_picked_when_only_candidate).
+    (b) TOOL GAP — the backfill tool's tier-3 only mined the stored
+        `properties.quote` (a 240-char window captured from the SOURCE
+        note at extraction time). But the acquisition date frequently
+        lives in the TARGET company's own note ("Acquired by <source>
+        in <year>"), which that window never saw. Added tier-4: reads
+        the target entity's note via `entities.file_path`, finds the
+        sentence pairing an acquisition verb with a 4-digit year, and
+        mines it. Sentence-scoped so unrelated note dates (founding,
+        publication) are ignored. 5 new tests
+        (TestTargetNoteFallback).
+
+    Applied `backfill_valid_from.py --apply` (acquired). 3 edges
+    resolved:
+      - Coforge → Encora     2025-01-01  [tier-4: target note]
+      - Tata Technologies → ESTEC   2026-01-01  [tier-3: quote prose, post (a)]
+      - Varun Beverages → Twizza    2025-01-01  [tier-4: target note]
+    Result: 10/22 (45%) → 7/22 (32%) missing. The remaining 7 are a
+    genuine DATA GAP — their source notes contain no dated acquisition
+    sentence (dateless prose, or only founding/market-commentary
+    years): Anupam→Jayhawk, CSB→Catholic Syrian (1920 is founding),
+    Fabtech→Kelvin, Groww→Fisdom, ICRA→Fintellix, Kaynes→August
+    Electronics, Std Chartered→Kotak. These need source enrichment,
+    not tooling. Re-running the backfill is idempotent (0 updates).
+    TRACKED SINCE 2026-08-05: the missing-valid_from count is now
+    monitored by check_validity_window (WARNING-severity, in
+    database_integrity_check.py) so drift is visible each `make qa`
+    instead of rediscovered by audit. NOTE: the count has since drifted
+    up to ~21 (from 7) as new acquired edges were added without dates —
+    the check surfaces this; the underlying fix remains source enrichment
+    (the D8 concall / D9 filings adapters, both deferred).
+
+H3. Only 10% of companies are wikilinked from their sector note [DONE]
+    findata/Sectors/*.md contained 213 wikilinks total; 106 distinct
+    company targets resolvable; 925/1031 companies (90%) never appeared as
+    a [[link]] in their sector file
+    VERIFIED LIVE 2026-07-28: direct count — 106 of 1031 companies
+    (10%) were wikilinked from their sector file; 925 were reader-orphans
+    (no sector→company navigation path). Banking was the best-covered
+    sector (38 links); FMCG, Pharma, Metals, Telecom had effectively
+    zero company wikilinks. Symmetric problem: 83 wikilinks in sector
+    files pointed to non-existent company files (phantoms):
+      [[Citibank]] [[HSBC]] [[Deutsche Bank]] [[Standard Chartered]]
+      [[HPCL]] [[Neyveli Lignite]] [[Gujarat Gas]] [[SBI]] was missing
+      from Banking.md despite being India's largest bank.
+    Severity: MEDIUM (reader navigation; the membership graph is
+    complete in the DB, just not reflected in the markdown links).
+    Fix (2026-07-28): new helpers/maintenance/sync_sector_wikilinks.py
+    regenerates a "## All Companies (auto)" section in every sector note
+    from the SQLite source of truth. The section is ADDITIVE — hand-
+    curated "## Major Companies" sections (with editorial sub-groupings
+    like Banking's Public/Private/Small Finance subsections) are
+    preserved untouched. Links use the note's title: field (not
+    entities.name, which disagrees for 118 companies), guaranteeing
+    100% resolution with zero phantoms (verified: 1031/1031 links
+    resolve). Idempotent: re-running replaces the auto section; the
+    --check flag reports drift without writing. `make sync-sector-links`
+    target added. 10 tests in test_sync_sector_wikilinks.py pin the
+    contract (completeness, idempotency, curated-preservation, title-
+    based links, check-mode). Post-run: 42/42 sectors have the auto
+    section; 1031 company links total; 0 phantoms; 90% reader-orphan
+    rate eliminated.
+
+H4. _pending_relations.txt (333 rows) is ~85% extractor noise [DONE — 2026-08-11]
+    findata/_pending_relations.txt — extracted-but-unconfirmed relation mentions
+    COMPLETE after two passes (2026-08-11):
+      Pass 1 (H4): 484 rows → 95 unique pairs. 8 edges created + 3 stubs
+        (Xduce Infotech, Jindal Pipes, Tata AutoComp). 13 noise + 2 drops
+        (Clix Capital merger never completed; Adani Power→Jaiprakash existed).
+      Pass 2 (H4 follow-up, foreign-entity stubs): 15 stubs created —
+        Al Habtoor Group, Stanley Electric, Hyosung, General Atomics
+        Aeronautical Systems, MUFG, Indorama, Philip Morris International,
+        Mastercard, New York Life, Anthropic, Microsoft, Randstad, Carlsberg,
+        NSDL, Pizza Hut — + 15 main edges (12 jv_with, 2 competes_with,
+        1 acquired) + 30 sector edges (part_of + has_company). 2 rows dropped
+        as misparses (KSH International→MUFG and Vijaya Diagnostic Centre→
+        Hyosung both carried another source's identical deal quote text).
+      Backlog now EMPTY: 0 rows remain.
+    NOTE: the original H4 pass's 3 stubs (Xduce Infotech, Jindal Pipes, Tata
+    AutoComp) initially lacked sector edges; these were added in a follow-up
+    fix (6 edges, source_ref=manual:h4-sector-edges:2026-08-11).
+    Result: entities 1196→1211, edges 4066→4111, DuckDB rebuilt + snapshots
+    refreshed, note_search re-indexed (1227 docs), 88 fuzzy/relations tests
+    pass, all 16 mentions resolve via EntityResolver.
+    Severity was LOW (recall source for H1); the salvage yield was actually
+    higher than the original ~5-6% estimate once dedup was applied (484→95
+    pairs → 26 real edges/stubs created across both passes).
+
+--------------------------------------------------------------------------------
+MEDIUM — structured-vs-prose gaps (signal exists in markdown, not modelled)
+--------------------------------------------------------------------------------
+
+These are "the markdown models it, the DB doesn't" dimensions. Each is a
+DESIGN DECISION about whether to extend the schema, not a defect.
+
+M1. Financials are entirely prose (~199 notes with ## Financial Profile) [DONE — REMOVED]
+    Resolved 2026-07-29. Rather than promote these into a financials table
+    (the original deferred option — biggest scope, new table + Yahoo ingest
+    pipeline), the rotting point-in-time VALUATION RATIOS were REMOVED from
+    the notes. They were unconsumed (no DB column, no API/UI/graph feature
+    reads them, no validator requires them) and decay fast as snapshots.
+    helpers/maintenance/strip_valuation_ratios.py did segment-level surgery:
+    removed 400 valuation-ratio bullets (P/E, ROE, ROCE, P/B, EV/EBITDA,
+    PEG, dividend yield, EPS, Book Value) across 118 files (115 company +
+    3 sector notes), while PRESERVING Current Price, Market Cap, Employees,
+    Beta, Revenue, EBITDA, margins, Payout Ratio, and all prose/insights.
+    Packed lines like "- **Dividend Yield:** 1.18% | **Payout Ratio:**
+    41.1%" kept the Payout Ratio partner. Inline prose ("ROE of 22%") and
+    markdown tables untouched. Idempotent; reverts via git checkout.
+    Tests: tests/test_strip_valuation_ratios.py (20 tests). The "show me
+    ROE > 20% and P/E < 15" queryability use case remains impossible —
+    accepted as the explicit trade-off for not carrying stale snapshots.
+    NOTE: the rest of this M1 item's original framing (that graph_analytics
+    is network-topology-only, no financials table) remains accurate.
+
+M2. No person/executive model (286 notes with ## Management) [DEFERRED]
+    Deferred 2026-07-28 (explicit user decision — revisit later).
+    286 notes have a ## Management section (CEO, CFO, Chairman). SELECT
+    DISTINCT entity_type returns only company, sector — no person. No
+    led_by/ceo_of/executive edges. CEOs/CFOs/Chairmen are prose-only.
+    Severity: MEDIUM (286 notes carry the signal; modelling it needs a
+    person entity type + role edges). Decision needed.
+
+    SUBSIDIARY/HOLDING-COMPANY MODELLING (2026-07-29, post-deferral):
+    Ownership IS modelled via the subsidiary_of edge type (58 edges,
+    direction subsidiary->parent) plus same_group (4 group-sibling
+    edges) and acquired (25). A dry-run of extract_relations.py over
+    the 71 company notes that mention ownership in prose yielded 48
+    proposed edges but ALL were already in the DB (0 net-new) — the
+    earlier "71 with no edge" count was a name-normalization artifact
+    (filename stems vs display names); the true gap is 24, of which
+    only 2 had a resolvable parent already in the entity set. Those 2
+    (3M India->3M Company, Bata India->Bata (BN) BV) were added
+    (subsidiary_of 56->58, source_ref derive:company_note:<stem>).
+    The residual gap is structural: 5 parents are groups (Tata/YUM/
+    RJ Corp) needing a group entity type, 5 are foreign companies not
+    in entities, and 9 are vague prose. Separately, 5 holding companies
+    (Bajaj Finserv, Bata (BN) BV, Heineken Holding, Info Edge, Rane
+    Holdings) are now flagged via a new holding_company/yes tag
+    namespace (the one purpose-built addition to sync_tags
+    ALLOWED_CATEGORIES beyond the original 4; NOT the C1 deferral).
+    Queryable via entity_tags.tag='holding_company/yes'. static-checks
+    + 193 focused tests pass.
+
+M3. No product/segment model (460+ notes with ## Product Portfolio) [DEFERRED]
+    Deferred 2026-07-28 (explicit user decision — revisit later).
+    227 notes have ## Product Portfolio, 233 have ## Business Segments,
+    101 have ## Business Model. No products table, no has_product/sells
+    edges. Segment data appears only sporadically inside edge properties
+    JSON (e.g. Apollo Tyres↔CEAT competes_with carries {"subsector":
+    "tyres"}) — inconsistent and edge-scoped.
+    Severity: MEDIUM (460+ notes carry the signal). Decision needed.
+
+    EXPLORATION 2026-07-29 (re-evaluated after subsidiary/holding work):
+    A RELATIONAL model (products table + has_product edges) is NOT worth
+    it: 483 notes (47%) have product/segment sections and the content is
+    highly parseable (single regex extracts 3,560 category mentions; 78-
+    93% of sections are cleanly formatted as '- **Category**: detail'
+    bullets), BUT the extracted names don't form a controlled vocabulary
+    — 2,547 distinct names, 2,110 (83%) appearing exactly once, only
+    184 (7%) appearing >=3 times. The reused names are mostly generic
+    boilerplate ("applications", "quality standards", "technology") or
+    banking-specific (corporate banking, retail banking). Across sectors
+    the names are bespoke, so FK-linked product entities would replicate
+    the old subsector/* tag anti-pattern (68 tags each appearing once).
+    RECOMMENDATION: the RIGHT tool for this data shape is FULL-TEXT
+    SEARCH, not a relational model — FTS gives cross-company content
+    search without requiring deduplication/normalization. The existing
+    FTS5 deferral (sqlite_improvs.txt S4 / duckdb_improvs.txt N2) was
+    scoped to ENTITY-NAME typeahead only (correctly rejected: name
+    search is already sub-millisecond via the C2 covering index). A
+    different, untested use case is CONTENT search over note bodies,
+    which does NOT exist today — /api/entities search matches name OR
+    sector tag only (app.py:1085-1092), so "shrimp feed"/"drip
+    irrigation"/"parking brakes" return nothing. FTS5 PoC over all
+    1030 notes: 182 ms build, 5.7 MB index, 0.30-1.24 ms queries with
+    snippet() highlighting. See S4 re-evaluation for the adopt-scope.
+    M3 stays DEFERRED as a relational model; the viable path forward
+    (content FTS) is tracked under S4 (re-evaluated).
+
+    FTS IMPLEMENTED 2026-07-29 (the M3 content-searchability concern is
+    now addressed via FTS, not a relational model): a standalone FTS5
+    `note_search` table indexes ALL findata/**/*.md (companies, sectors,
+    super-sectors, AND the newsletter corpora — 1181 docs), exposed via
+    a new GET /api/search endpoint with <mark>-highlighted snippets +
+    BM25 ranking + per-corpus type filters. "shrimp feed" now resolves
+    to Avanti Feeds AND a Points & Figures newsletter hit. M3's core
+    gap ("product/segment data is in the notes but unsearchable") is
+    closed: the data remains prose (no relational model, correctly),
+    but it is now free-text searchable across the whole corpus.
+    Rebuilder: helpers/maintenance/rebuild_note_search.py (wired into
+    maint.py TIER2). 11 new tests. See sqlite_improvs.txt S4 for full
+    implementation notes.
+
+
+
+M4. No sector parent/child hierarchy (0 sector-to-sector edges) [DONE]
+    Sector notes describe hierarchy in prose (Banking.md ## Sector
+    Structure: "Parent Sector: Banking … Financial_Services (sub-sector)
+    … Insurance (sub-sector)"). 0 edges where both source and target are
+    sectors — edges touching sectors are exclusively part_of (company→
+    sector) and has_company (sector→company). Sub-sector info is flat
+    tags at best, inconsistently synced (68 distinct subsector/* tags,
+    each appearing exactly once — auto-generated per-company, not from a
+    controlled vocabulary).
+    Severity: MEDIUM (42 sector notes carry the signal). Decision needed.
+
+    Fix (2026-07-28): full 3-level hierarchy built — super-sector → sector
+    → sub-category. Decisions (per AskUserQuestion):
+      - Taxonomy: GICS-style 9 super-sectors.
+      - Depth: full stack (SQLite + DuckDB + API).
+      - Level 3: added for the 5 sectors that author `### Sub-Sectors`
+        headings (Metals, Aviation, Education_Training, Logistics,
+        Textiles — 21 nodes); the other 37 stay at super-sector → sector.
+
+    KEY DESIGN DECISION: a NEW edge type `belongs_to` for the hierarchy,
+    NOT overloading `part_of`. Blast-radius analysis showed overloading
+    part_of would (a) be silently dropped by the DuckDB EDGE_REGISTRY
+    (structurally binary company↔sector; sector-as-source isn't in
+    v_company), (b) break the integrity checker's po_src_bad/po_tgt_bad
+    (assume part_of is company→sector), (c) conflate two relationships.
+    belongs_to keeps part_of purely company→sector and adds one clean
+    registry entry + one clean integrity check.
+
+    Files:
+      - helpers/maintenance/build_sector_hierarchy.py (NEW) — the curated
+        taxonomy as data; creates entities + edges + 9 super-sector notes;
+        idempotent (INSERT OR IGNORE); --check mode for CI; runtime guard
+        against super_sector/sector name collisions.
+      - helpers/graph/query.py — v_node extended to 4 entity kinds;
+        v_super_sector/v_sub_sector projections; dedicated e_belongs_to
+        CTAS (mixed endpoints can't use the binary registry loop); declared
+        as BelongsToHierarchy in the property graph; 3 query helpers
+        (super_sector_of, sectors_in_super, sub_sectors_of); rebuild
+        drop-list updated; _SCHEMA_VERSION 5→6.
+      - helpers/misc/database_integrity_check.py — belongs_to added to
+        _KNOWN_EDGE_TYPES; bt_endpoint_bad check (source ∈ {sector,
+        sub_sector}, target ∈ {super_sector, sector}). Existing part_of
+        checks untouched.
+      - app.py — /api/sectors gains super_sectors key (hierarchical);
+        /api/graph/neighbors adds super_sector/sub_sector branches
+        (_super_sector_neighbors_bundle, _sub_sector_neighbors_bundle).
+        Existing keys/endpoints unchanged (additive).
+      - helpers/maintenance/normalize_field_order.py — super_sector field
+        added to CANONICAL_ORDER.
+      - findata/Super_Sectors/*.md — 9 auto-generated super-sector notes.
+
+    NAMING NOTE: 2 super-sectors (Healthcare, Energy) share their label
+    with a child sector; since entities.name is the PK, INSERT OR IGNORE
+    silently skipped them on first apply (7 not 9). Resolved by renaming
+    to Healthcare_Super / Energy_Super, with a runtime guard in
+    _validate_coverage that rejects any future taxonomy edit reintroducing
+    the collision. The other 7 keep their GICS names.
+
+    LEVEL 3 CORRECTION (2026-07-28): the first build sourced sub-categories
+    from ONLY 5 sector notes' `### Sub-Sectors` prose headings (Metals,
+    Aviation, Education_Training, Logistics, Textiles). That was the wrong
+    source — it ignored the 19 sectors that carry curated `subsector/*` YAML
+    tags (Banking: cooperative_banks/private_sector/...; Pharma: api/crams/
+    formulations/...). The two signals are completely DISJOINT (no sector
+    uses both), so the merged vocabulary is 24 sectors / 78 nodes, not 5/21.
+    Rebuilt SUB_CATEGORIES from both sources; 2 degenerate self-named entries
+    (subsector/packaging under Packaging, subsector/building_materials under
+    Building_Materials) dropped as redundant. A sub_sector-name collision
+    guard was added to _validate_coverage.
+
+    DEGENERATE-TAG REMOVAL (2026-07-29): since the DB is the source of
+    truth for the hierarchy, the two self-named tags were also pruned
+    from the source notes so the two representations agree. Removed
+    `subsector/building_materials` from Sectors/Building_Materials.md
+    and `subsector/packaging` from Sectors/Packaging.md; re-ran
+    make sync-tags (full rebuild of entity_tags), dropping the 2
+    corresponding entity_tags rows (subsector/* total 59 -> 57). Sector
+    entities untouched. static-checks + integrity (100%) + 97 focused
+    tests pass.
+
+    CHECK-CONSTRAINT FIX: the entities name-suffix CHECK (`name NOT LIKE
+    '%Private%'` etc., a company-name cleanup guard) was blanket and wrongly
+    rejected the 'Private_Sector' sub_sector (Banking). Scoped it to
+    entity_type='company' via a conditional CHECK (migrate_to_graph_edges.py
+    ENTITIES_DDL); moved to table-constraint position (SQLite parses inline
+    mid-column CHECKs ambiguously). +1 test (test_suffix_guard_is_company_
+    scoped) proving companies are still rejected while sub_sectors accept
+    'Private'.
+
+    BIDIRECTIONAL MAPPING (2026-07-28): the hierarchy was one-directional —
+    super-sector notes linked DOWN ([[Banking]]) but sector notes didn't
+    link UP. Added a `super_sector:` frontmatter field (after `type:`,
+    matches CANONICAL_ORDER) + an idempotent `## Super Sector (auto)`
+    sentinel-bracketed up-link section to all 42 sector notes (placed after
+    the H1 title). Now navigable both directions in Obsidian. The
+    build_sector_hierarchy.py --apply writes these alongside the edges.
+
+    Result: 1159 entities (1030 company + 42 sector + 9 super_sector + 78
+    sub_sector), 3630 edges (+120 belongs_to + 5 H1), 0 integrity errors
+    (bt_endpoint_bad=0, validation_rate 100%). DuckDB graph rebuilds cleanly
+    (v6); 3 query helpers verified live (super_sector_of, sectors_in_super,
+    sub_sectors_of); bidirectional navigation verified (Financials → Banking
+    → [Cooperative_Banks, Foreign_Banks, Private_Sector, Public_Sector]).
+    32 affected tests pass, static green.
+
+    Oddball assignments (per GICS, surfaced for review): Diversified→
+    Industrials (conglomerate/holding convention), International→Industrials
+    (holding-company bucket), Aviation→Consumer Discretionary (travel/
+    leisure), Education_Training→Consumer Discretionary (consumer services).
+    Override by editing SUPER_SECTORS in build_sector_hierarchy.py + re-run.
+
+M5. co_mentioned_in only captures newsletter clique, not in-note co-mention [DEFERRED]
+    Deferred 2026-07-28 (explicit user decision — revisit later).
+    All 1329 co_mentioned_in edges have source_ref='derive:co_mentioned:
+    The_Chatter'. The vault contains ZERO [[wikilinks]] in company notes
+    (verified: grep -rohE "\[\[[^]]+\]\]" findata/Companies/ returns 0),
+    and the extractor doesn't mine prose co-occurrence within a single
+    note — so a second co-mention channel (companies mentioned together
+    in a company note body) is untapped.
+    Severity: LOW-MEDIUM (one of two co-mention channels is captured).
+
+--------------------------------------------------------------------------------
+LOW — data hygiene
+--------------------------------------------------------------------------------
+
+L1. Ticker format inconsistency (203/1021 ≈ 20%) [DONE]
+    98 are literal "null"/"N/A" (unlisted entities — arguably correct);
+    84 are bare symbols missing the .NS/.BO suffix (WABCOINDIA, COSM, GM,
+    HYMTF) — some are real NSE symbols that lost their suffix. 3 outright
+    WRONG tickers in YAML vs DB: Wipro (YAML WIT vs DB WIPRO.NS),
+    LTIMindtree (LTIM.BO vs LTIM.NS), Bank_of_India (YAML SBIN.NS —
+    that's SBI's ticker).
+    Severity: LOW (display + external-link correctness).
+    Fix (2026-07-28):
+    (a) The 3 wrong tickers corrected in YAML: Wipro WIT→WIPRO.NS,
+        Bank_of_India SBIN.NS→BANKINDIA.NS (DB was already correct for
+        both). LTIMindtree's DB value (LTIM.NS) was also wrong; resolved
+        via the rename in (b).
+    (b) LTIMindtree renamed to LTM (the company renamed to "LTM Limited"
+        in March 2026 per Yahoo nameChangeDate; the CHECK enforces short-
+        form naming so the entity is "LTM"). rename_entity.py handled the
+        DB row + 2 source edges + 8 target edges + 3 tags + 8 analytics
+        rows via FK cascade, moved the file, updated YAML. Ticker set to
+        LTM.NS (verified correct via Yahoo).
+    (c) 8 bare-suffix Indian symbols resolved via Yahoo verification and
+        fixed (DB + YAML): PARADEEP→.NS, SHYAMMETL→.NS, TITAGARH→.NS,
+        SYNGENE→.NS, SOMANYCER→SOMANYCERA.NS (symbol renamed), JDCABLES→
+        .BO, SOLARIUM→.BO, TCIEXPRESS→TCIEXP.NS (symbol shortened).
+    (d) 7 bare symbols left as-is (verified unresolvable on NSE/BSE):
+        WABCOINDIA (delisted — ZF acquired 2020), DRDANGS, SIMPLEENERGY,
+        SPH (Suburban Diagnostics), COSM (cooperative bank), CPSH, CMTL
+        (govt). These are private/unlisted/cooperative/delisted entities
+        where a bare symbol is the honest representation.
+    (e) ~48 US/global bare tickers (AAPL-style: ABNB, ACN, AMD, AMZN,
+        GOOGL, NVDA, etc.) correctly bare for Yahoo US lookup — left
+        unchanged. ~13 OTC/ADR tickers (HCMLY, HYMTF, etc.) left as-is.
+    Net: 11 tickers fixed (3 wrong + 8 bare-suffix), 1 entity renamed, 7
+    bare symbols confirmed-unresolvable and left as-is. The 98 null/NA
+    tickers (unlisted entities) were ignored per the "fix the errors,
+    ignore the nulls" instruction.
+    FOLLOWUP (2026-07-28): the TCIEXPRESS -> TCIEXP.NS fix surfaced a
+    pre-existing duplicate — "Express Distribution" (Retail, mis-named,
+    mis-sectored) and "TCI Express" (Logistics, correct) were the same
+    company recorded twice. Merged: deleted "Express Distribution" (1
+    entity + 2 edges + 4 tags + 8 analytics rows cascaded); kept "TCI
+    Express" as the canonical survivor with the rich editorial content
+    (the Express Distribution note was 203 lines vs TCI Express's 32-line
+    stub). Post-dedup: duplicate-ticker check clean (0 groups); live
+    counts 1072 entities / 3505 edges / 8492 analytics (was 1073/3507/
+    8500).
+
+L2. index_membership is 99.4% empty (6/1031 populated) [DONE]
+    entities.index_membership was effectively dead — 6 rows populated, 3
+    of those literal '[]'.
+    Severity: LOW.
+    Fix (2026-07-28): dropped entities.index_membership entirely. Zero
+    DuckDB references (verified); zero read consumers. Removed from
+    ENTITIES_DDL, rebuild_schema._ENTITIES_COLS, and
+    normalize_field_order.CANONICAL_ORDER. Live regression guard
+    test_live_entities_has_no_index_membership_column pins the drop.
+
+L3. title ↔ filename stem drift (~17% of files, cosmetic) [DEFERRED]
+    Deferred 2026-07-28 (explicit user decision — revisit later; previously
+    noted as "we can visit later" during the H3/L4 cycle).
+    normalized_name == filename stem is perfect (0 mismatches), but the
+    display title: field drifts in ~17% of a 40-file sample — case drift
+    (Hdfc_Bank.md → "HDFC Bank"; Icici_Bank.md → "ICICI Bank") and
+    suffix/punctuation drift (Bharat_Wire_Ropes.md → "Bharat Wire Ropes
+    Limited"; Three_M_Company.md → "3M Company"). Matters for wikilink
+    resolution ([[HDFC Bank]] won't auto-resolve to Hdfc_Bank.md without
+    a NOCASE/title index).
+    Severity: LOW (display only; the DB join key is unaffected).
+
+L4. 68 distinct subsector/* tags each appear exactly once [DONE]
+    These looked auto-generated per-company rather than drawn from a
+    controlled vocabulary (subsector/aerospace, subsector/cement,
+    subsector/cooperative_banks).
+    VERIFIED LIVE 2026-07-28: the 68 tags split into two populations with
+    different semantics:
+      - 59 on sector entities — describe each sector's internal sub-
+        structure (Banking carries subsector/cooperative_banks +
+        public_sector + foreign_banks; Building_Materials carries
+        subsector/cement + ceramics + paints). Sourced from sector-note
+        YAML. Internally consistent; a legitimate sector-structure vocab.
+      - 9 on company entities — bespoke per-company classifications
+        (Thyrocare→diagnostics, Dollar Industries→apparel, Sagility→
+        healthcare_bpm, etc.). Sparse (0.9% of companies), uncontrolled,
+        and unused by any query or API. Incomplete noise implying a
+        coverage the data doesn't have.
+    Severity: LOW (tag hygiene).
+    Fix (2026-07-28): per explicit decision — KEEP the 59 sector-level
+    tags (legitimate vocabulary, no drift); DROP the 9 company-level tags
+    (sparse, uncontrolled, unused). Deleted the 9 rows from entity_tags
+    and the 9 `- subsector/` lines from the 7 company notes' YAML
+    frontmatter. The sector_classification column is the real company→
+    grouping signal; subsector tags on companies added nothing. Post-fix:
+    59 sector-level subsector tags remain; 0 company-level.
+
+================================================================================
+RECOMMENDED REMEDIATION ORDER
+================================================================================
+
+  Leverage-to-effort ordering:
+
+  1. C1 (sync_tags namespace drop)         — DEFERRED 2026-07-28 (tags not
+                                              useful in queries today)
+  2. C2 (market_cap column vs tag drift)   — DONE 2026-07-28 (column dropped)
+  3. H2 (backfill undated acquisitions)     — MEDIUM, run existing script
+  4. H1/H4 (typed-edge recall decision)     — design decision; H4 is the
+                                              recall source, ~5-6% salvage
+  5. H3 (sector→company wikilinks)          — DONE 2026-07-28 (auto section
+                                              in all 42 sectors; 0 phantoms)
+  6. M1-M5 (financials/people/products/     — M1 DONE-REMOVED 2026-07-29
+     hierarchy/co-mention)                    (valuation ratios stripped);
+                                              M2/M3/M5 remain schema-extension
+                                              decisions, M4 DONE
+  7. L1 (ticker fixes)                      — DONE 2026-07-28 (11 fixed,
+                                              1 entity renamed, 7 confirmed
+                                              unresolvable)
+  8. L2 (index_membership drop)             — DONE 2026-07-28 (column dropped)
+  9. L3 (title↔stem drift)                  — deferred; cosmetic
+  10. L4 (subsector tag vocabulary)         — DONE 2026-07-28 (kept 59
+                                              sector-level tags; dropped
+                                              9 company-level tags)
+
+================================================================================
+CROSS-CUTTING ASSESSMENT
+================================================================================
+
+The identity + taxonomy + membership layer is clean and fully consistent
+across markdown ↔ SQLite ↔ DuckDB — entity counts reconcile exactly
+(1031+42=1073), filename↔normalized_name is perfect, sector membership is
+bidirectional and complete, and SQLite↔DuckDB edge parity is 1:1. The
+acquisition graph that DOES exist is high-precision (5/5 sampled edges
+accurate with traceable provenance).
+
+RESOLVED (2026-07-28): C2 (market_cap column dropped — tag is source of
+truth), L2 (index_membership dropped — was 99.4% empty), L1 (11 tickers
+fixed + LTIMindtree renamed to LTM), H3 (sector→company wikilinks — auto
+index in all 42 sectors), L4 (9 company-level subsector tags dropped;
+59 sector-level kept). Two live regression guards pin the column drops;
+the DuckDB v_node CTAS now materializes market_cap from entity_tags
+(_SCHEMA_VERSION 3→4 forces the rebuild). C1 (3 tag namespaces dropped
+by sync_tags.py) DEFERRED — explicit decision that geography/business_
+model/risk_investment tags are not useful in queries today; YAML still
+carries them for human readers.
+
+The gaps fall into three classes:
+  (a) A documented-but-accepted contract mismatch (C1, DEFERRED) — 3 tag
+      namespaces in YAML never reach entity_tags. Accepted because the
+      tags have no query use case today.
+  (b) A deliberate precision/recall trade-off in relationship extraction
+      (H1, H2, H4) — the typed-edge graph is high-precision/low-recall.
+      _pending_relations.txt shows the recall ceiling is low (~5-6%
+      salvage), so this is "invest in a better extractor OR accept
+      curation", not a bug.
+  (c) Several "modelled in markdown, not in DB" dimensions (M1-M5) —
+      people, products, sector hierarchy, in-note co-mention. (M1 financials
+      RESOLVED 2026-07-29: valuation ratios removed rather than modelled;
+      M4 sector hierarchy DONE.)
+      Each is a future-capability design decision, not a defect.
+
+None of these block the current pipeline — the graph layer passes full
+QA and serves the live 1073-entity / 3507-edge graph. With C2/L2/L1/H3/
+L4 resolved, no remaining item qualifies as a bug; the rest are coverage/
+design decisions or deferred hygiene (C1, L3).
+
+Cross-references:
+  - sync_tags.py ALLOWED_CATEGORIES (C1, deferred): helpers/core/
+    sync_tags.py:50
+  - market_cap_sql() helper (C2 fix): helpers/core/db.py
+  - DuckDB v_node CTAS sourcing market_cap from entity_tags (C2 fix):
+    helpers/graph/query.py _materialise_vertices
+  - E5a sector_classification sync pattern: sync_tags.py:175-206
+  - backfill_valid_from.py (H2 fix): helpers/maintenance/backfill_valid_
+    from.py
+  - _pending_relations.txt (H4): findata/_pending_relations.txt
+  - Extraction pipeline (H1 recall): helpers/graph/extract_relations.py
+  - rename_entity.py (L1 LTIM rename): helpers/maintenance/rename_entity.py
+  - sync_sector_wikilinks.py (H3 fix): helpers/maintenance/sync_sector_
+    wikilinks.py

@@ -1,0 +1,508 @@
+# yfinance Enrichment Proposal — metric_improvs.txt
+# ============================================================
+# Date: 2026-08-10
+# Status: COMPLETE (implemented 2026-08-10, see implementation results below)
+# Related: doc/improvements/completed.md (parse_newsletter P0-P6),
+#          helpers/core/get_tickers.py (search_ticker rewrite)
+
+
+## 1. Motivation
+
+The FinData graph has 1051 companies, 931 with exchange tickers (.NS/.BO).
+The current edge distribution is structurally imbalanced:
+
+    co_mentioned_in      1329   ✅ rich (from newsletter parsing)
+    has_company          1051   ✅ full (every company → its sector)
+    part_of              1051   ✅ full (every company → its sector)
+    exposed_to            348   moderate (company → theme/sector)
+    belongs_to            120   moderate (company → sub_sector)
+    subsidiary_of          63   moderate (from newsletter text)
+    acquired               38   moderate (M&A events)
+    jv_with                35   moderate (JV events)
+    competes_with           7   ⚠️ SEVERELY underpopulated
+    supplier_to             5   barely seeded
+    customer_of             1   nonexistent
+
+The `competes_with` graph is nearly empty (7 edges for 1051 companies).
+The `peers()` query (query.py:1448) exists but returns nothing for almost
+every company. The `company_metrics` table has 1341 rows but 979 (73%) have
+NULL metric_label, many have inconsistent units (e.g. `bn_usd` on percentage
+values), and values came from noisy prose extraction.
+
+yfinance provides structured, reliable data for ~90% of .NS/.BO tickers.
+This document proposes an enrichment tool that fills these gaps.
+
+
+## 2. Data Availability Assessment (measured 2026-08-10)
+
+Tested 10 large-cap .NS tickers. Sample results:
+
+  Field               Availability   Notes
+  ---------------------------------------------------------------
+  sector              9/10           Yahoo sector (e.g. "Financial Services")
+  industry            9/10           Yahoo industry (e.g. "Credit Services")
+  marketCap           9/10           Exact ₹ market cap
+  totalRevenue        9/10           TTM revenue
+  totalDebt           9/10           Balance sheet debt
+  grossMargins        9/10           Decimal (0.338 = 33.8%)
+  operatingMargins    9/10           Decimal (0.123 = 12.3%)
+  profitMargins       9/10           Decimal (0.066 = 6.6%)
+  debtToEquity        7/10           Ratio
+  returnOnEquity      4/10           Often missing for Indian stocks
+  trailingPE          9/10           Price-to-earnings ratio
+  priceToBook         9/10           Price-to-book ratio
+  beta                9/10           Market sensitivity
+  sharesOutstanding   9/10           Share count
+  heldPercentInsiders 9/10           Promoter + insider %
+  heldPercentInstitutions 9/10       Institutional %
+  earningsGrowth      9/10           YoY earnings change
+  revenueGrowth       9/10           YoY revenue change
+  fullTimeEmployees   8/10           Headcount
+  ---------------------------------------------------------------
+  institutional_holders  1/10        Nearly empty for Indian stocks
+  sustainability/ESG     0/10        Empty for all .NS tickers
+  quarterly_financials   7/10        7 quarters P&L/BS/CF (pandas DF)
+
+Conclusion: .info snapshot fields are reliable (~90%). Institutional holder
+and ESG data is not available for Indian stocks and will NOT be fetched.
+
+
+## 3. Timing Measurement (measured 2026-08-10)
+
+Sequential (20 .NS/.BO tickers):
+    Total: 6.5s    Average: 0.32s/ticker
+    Projected for 931 tickers: 5.0 minutes
+
+Parallel ThreadPoolExecutor, 4 workers (same 20 tickers):
+    Total: 1.5s    Speedup: 4.4×
+    Projected for 931 tickers: 1.1 minutes
+
+Parallel ThreadPoolExecutor, 8 workers (same 20 tickers):
+    Total: 0.8s
+    Projected for 931 tickers: 0.6 minutes
+
+0 errors across all 60 fetches. No rate-limiting observed.
+
+Current maint-full total runtime: ~12s (10 steps, dominated by
+derive-insights at 1.6s + extract-relations at 2.7s + recompute-graph).
+
+yfinance enrichment at 8-worker parallelism (~1 min) adds ~8% to a
+typical maint-full run and is dominated by network I/O, not CPU.
+This is acceptable for maint-full but too slow for routine maint.
+
+
+## 4. Proposed Tool: helpers/maintenance/enrich_from_yfinance.py
+
+### 4.1 CLI Interface
+
+    python3 helpers/maintenance/enrich_from_yfinance.py [--dry-run] [--workers N]
+                                                        [--company NAME]
+                                                        [--max-age-days N]
+
+    --dry-run        Fetch and display, but don't write to DB or notes
+    --workers N      ThreadPool parallelism (default: 8)
+    --company X      Enrich only one company (by name or ticker; for testing)
+    --max-age-days N Skip companies whose yfinance data was refreshed within
+                     N days (default: 0 = refresh all)
+
+### 4.2 Data Flow
+
+  1. Query entities table for all companies with ticker != '' (931)
+     - Skip companies already enriched within 7 days (unless --force)
+  2. Fetch yfinance .info for each ticker via ThreadPoolExecutor(8)
+     - timeout=5 per fetch (reuses P6 timeout from search_ticker)
+     - On failure: log warning, skip that company, continue
+  3. Write to three destinations:
+     a. SQLite: company_metrics table (structured financials)
+     b. SQLite: graph_edges table (competes_with from shared industry)
+     c. Markdown: company note frontmatter + sentinel-wrapped section
+
+### 4.3 SQLite: company_metrics enrichment
+
+Insert clean, structured rows for each company. Source = 'yfinance'.
+
+  entity           metric_label         value_num   unit        period
+  ---------------------------------------------------------------------------
+  Infosys          revenue              5120000.0   crore       TTM
+  Infosys          operating_margin     20.6        percent     TTM
+  Infosys          net_profit_margin    15.4        percent     TTM
+  Infosys          debt_to_equity       0.09        ratio       TTM
+  Infosys          pe_ratio             24.3        ratio       TTM
+  Infosys          market_capitalization 780000.0    crore_inr   latest
+  Infosys          beta                 0.9         dimensionless latest
+  Infosys          revenue_growth_yoy   6.3         percent     TTM
+  Infosys          earnings_growth_yoy  4.5         percent     TTM
+
+Key fields to extract (from .info):
+    market_capitalization, totalRevenue, grossMargins, operatingMargins, profitMargins,
+    debtToEquity, trailingPE, priceToBook, beta, revenueGrowth,
+    earningsGrowth, heldPercentInsiders, heldPercentInstitutions,
+    sharesOutstanding, fullTimeEmployees
+
+Existing prose-extracted metrics (source_ref IS NULL or from derive_insights)
+are NOT touched — yfinance rows carry source_ref='yfinance' and are
+distinguished by that. A "purge yfinance" mode can be added later if needed.
+
+### 4.4 SQLite: graph_edges enrichment (competes_with)
+
+Derive competitor edges from shared yfinance `industry` field:
+
+  For each pair of companies with the same yfinance `industry`:
+    - Insert competes_with edge (symmetric, weight=1.0)
+    - source_ref = 'yfinance:industry:<industry_name>'
+    - Skip if edge already exists (idempotent)
+
+This is the single highest-value enrichment. Currently 7 competes_with
+edges → projected hundreds. The `industry` field is finer-grained than
+our 36 sectors:
+    - "Automotive" (86 companies) → "Auto Manufacturers" (12),
+      "Auto Parts" (15), "Rubber & Tires" (3)
+    - "Banking" (51) → "Banks - Regional" (30+), "Credit Services" (8)
+    - "Pharma" (46) → "Drug Manufacturers" (20+), "Biotechnology" (10)
+
+Edges are additive — if a human or newsletter-derived competes_with edge
+already exists between two companies, it is preserved (checked by
+source_ref pattern).
+
+### 4.5 Markdown: company note enrichment — STRUCTURAL DATA ONLY
+
+Yes, the notes get updated — but ONLY with structural data that rarely changes.
+Volatile financial data (market cap, P/E, margins) goes to the DB only, not the
+notes. This avoids daily git churn on 931 note files for data that's stale by
+the next trading day.
+
+The notes are the curated knowledge artifact; the DB is the analytics layer.
+This matches the existing pattern: derive_insights writes permanent concall
+quotes to notes AND volatile magnitudes to company_metrics.
+
+  A. Frontmatter: add `industry` field (structural — changes ~yearly)
+
+     ---
+     title: Infosys
+     type: company
+     ticker: INFY.NS
+     sector: Technology
+     market_cap: large_cap            ← KEEP (existing tier, unchanged)
+     industry: Information Technology Services  ← NEW (from yfinance)
+     normalized_name: Infosys
+     ---
+
+     No market_capitalization in frontmatter. Market cap is volatile (changes
+     daily); putting it in frontmatter means git churn on every refresh and
+     a stale number in the note. The exact value lives in company_metrics
+     (DB), queryable via SQL.
+
+  B. Body: sentinel-wrapped "## Company Profile (yfinance)" section
+
+     Contains only structural facts — not a market snapshot:
+
+     <!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+     ## Company Profile (yfinance)
+
+     - **Industry**: Information Technology Services
+     - **Employees**: 317,000
+     - **Promoter Holding**: 13.0%
+     - **Institutional Holding**: 36.0%
+     - **Business Summary**: Infosys Limited provides consulting, technology,
+       outsourcing and next-generation digital services in North America,
+       Europe, India, and internationally…
+
+     _Source: yfinance | Refreshed: 2026-08-10_
+     <!-- END auto company profile -->
+
+     What goes here (structural, changes slowly):
+       industry, fullTimeEmployees, heldPercentInsiders,
+       heldPercentInstitutions, longBusinessSummary (truncated to 300 chars)
+
+     What does NOT go here (volatile, goes to DB only):
+       marketCap, trailingPE, priceToBook, totalRevenue, operatingMargins,
+       profitMargins, debtToEquity, beta, revenueGrowth, earningsGrowth
+
+     Placement: after `## Company Overview` (or first `## ` heading),
+     before `## Key Figures (auto)` if present. Uses the same sentinel-
+     replace idempotency pattern as derive_insights — never touches
+     hand-written sections.
+
+  Rationale: industry classification and ownership structure are structural
+  facts that enhance a note's usefulness in Obsidian without going stale.
+  Promoter holding changes on quarterly filings, not daily. Business summary
+  is corporate boilerplate that changes once a year at most. Employee count
+  is announced in annual reports. None of this creates problematic churn.
+
+### 4.6 Idempotency & Refresh
+
+- company_metrics: DELETE WHERE source_ref='yfinance' AND entity=X,
+  then re-INSERT. This makes each run a clean refresh for that company.
+- graph_edges: DELETE competes_with WHERE source_ref LIKE 'yfinance:%',
+  then re-INSERT from fresh industry data.
+- Notes: sentinel-wrapped block is regex-replaced (same as derive_insights).
+- Frontmatter: market_capitalization is updated in place.
+- Skip-logic: --max-age-days N (default 0 = no skip) checks created_at on
+  existing yfinance company_metrics rows; skips companies refreshed within
+  N days. Off by default since this is a standalone target you invoke
+  deliberately.
+
+
+## 5. Standalone Make Target: metrics-rebuild
+
+### 5.1 Rationale: standalone, not in maint-full
+
+Enrichment is a deliberate, network-bound operation (~1 min for 931 tickers).
+It does not belong in `maint` or `maint-full` — those are deterministic,
+local-only pipelines. Adding 60s of yfinance fetches to every maint-full run
+bloats a 12s pipeline into 73s for data that doesn't need refreshing on every
+ingest cycle.
+
+Instead: a dedicated `make metrics-rebuild` target that you run explicitly
+(weekly or after batch ingest).
+
+### 5.2 Makefile target
+
+    metrics-rebuild:  ## Refresh company financials + industry edges from yfinance
+    	python3 helpers/maintenance/enrich_from_yfinance.py
+
+    # Also add to .PHONY
+    metrics-rebuild
+
+    # And to help text:
+    @echo "  metrics-rebuild refresh company financials + industry edges from yfinance (~1 min)"
+
+### 5.3 --max-age-days: opt-in, not default
+
+The script refreshes ALL companies by default. `--max-age-days N` is an
+opt-in flag for users who want to skip companies refreshed within N days:
+
+    # Full refresh (default — always fetches everything)
+    make metrics-rebuild
+    python3 helpers/maintenance/enrich_from_yfinance.py
+
+    # Only refresh stale data (>7 days old)
+    python3 helpers/maintenance/enrich_from_yfinance.py --max-age-days 7
+
+    # Single company (for testing)
+    python3 helpers/maintenance/enrich_from_yfinance.py --company Infosys
+
+    # Preview without writing
+    python3 helpers/maintenance/enrich_from_yfinance.py --dry-run
+
+Rationale: if you explicitly run `make metrics-rebuild`, you want a refresh.
+Silently skipping because data is "fresh" would be surprising. The flag is
+for scripting into cron/CI where partial refresh is desired.
+
+### 5.4 Recommended workflow
+
+    # After batch newsletter ingest:
+    make maint-full                    # ~12s — local pipeline
+    make metrics-rebuild               # ~1 min — yfinance refresh
+    make graph-rebuild                 # ~2s — rebuild DuckDB with new edges
+
+    # Weekly refresh (standalone):
+    make metrics-rebuild && make graph-rebuild && make maint
+
+### 5.5 Timing
+
+  Standalone metrics-rebuild: ~1 min (8 workers, 931 tickers, ~0.32s/ticker)
+  Subsequent graph-rebuild:   ~2s (rebuild DuckDB cache with new competes_with edges)
+  Total:                      ~62s
+
+  This keeps maint-full unchanged at ~12s and gives the user explicit control
+  over when the expensive network operation runs.
+
+
+## 6. New Graph Queries Unlocked
+
+### 6.1 competitors() — direct from competes_with edges
+
+  Already implemented: `peers()` in query.py:1448.
+  Currently returns [] for almost every company.
+  After enrichment: returns 5-15 peers per company based on shared industry.
+
+  Example query: "Who are CEAT's direct competitors?"
+  Before: [] (empty)
+  After:  [Apollo Tyres, MRF, Balkrishna Industries, Goodyear India, ...]
+
+### 6.2 Sector financial health — from company_metrics
+
+  "Rank all Pharma companies by operating margin":
+    SELECT entity, value_num FROM company_metrics
+    WHERE metric_label='operating_margin'
+      AND entity IN (SELECT name FROM entities WHERE sector_classification='Pharma')
+    ORDER BY value_num DESC;
+
+  "Which mid-caps have debt/equity > 2?":
+    SELECT cm.entity, cm.value_num FROM company_metrics cm
+    JOIN entities e ON e.name = cm.entity
+    WHERE cm.metric_label='debt_to_equity' AND cm.value_num > 2
+      AND e.sector_classification IS NOT NULL;
+
+  "Fastest growing companies by revenue (TTM)":
+    SELECT entity, value_num FROM company_metrics
+    WHERE metric_label='revenue_growth_yoy'
+    ORDER BY value_num DESC LIMIT 20;
+
+### 6.3 Valuation screening
+
+  "Cheapest stock in each sector by P/E":
+    WITH ranked AS (
+      SELECT cm.entity, e.sector_classification, cm.value_num as pe,
+             ROW_NUMBER() OVER (PARTITION BY e.sector_classification
+                                ORDER BY cm.value_num ASC) as rk
+      FROM company_metrics cm
+      JOIN entities e ON e.name = cm.entity
+      WHERE cm.metric_label='pe_ratio'
+    )
+    SELECT * FROM ranked WHERE rk = 1;
+
+### 6.4 Ownership structure queries
+
+  "Promoter-held companies with <25% institutional ownership":
+    SELECT entity FROM company_metrics
+    WHERE metric_label='held_percent_insiders' AND value_num > 0.25
+    INTERSECT
+    SELECT entity FROM company_metrics
+    WHERE metric_label='held_percent_institutions' AND value_num < 0.25;
+
+### 6.5 Market cap precision queries
+
+  "Companies between ₹5,000-50,000 crore":
+    SELECT entity FROM company_metrics
+    WHERE metric_label='market_cap'
+      AND value_num BETWEEN 5000 AND 50000
+    ORDER BY value_num DESC;
+
+  (Currently impossible — we only have text tiers, not numbers.)
+
+
+## 7. What NOT to Do
+
+- Do NOT fetch institutional_holders / mutualfund_holders — empty for .NS
+- Do NOT fetch sustainability/ESG — empty for .NS/.BO
+- Do NOT fetch analyst recommendations — noisy, changes daily, not structural
+- Do NOT fetch SEC filings — US-focused
+- Do NOT overwrite existing market_cap tier classification — add numeric alongside
+- Do NOT remove existing prose-extracted company_metrics — add yfinance rows
+  alongside (distinguishable by source_ref)
+- Do NOT add to routine `maint` (Tier 1) — too slow; belongs in Tier 2
+
+
+## 8. Implementation Plan
+
+  Step 1: Create helpers/maintenance/enrich_from_yfinance.py
+          - ThreadPoolExecutor fetch with --workers, timeout, --max-age-days
+          - .info extraction → company_metrics insert
+          - Industry → competes_with edge insert
+          - Note frontmatter update (industry field)
+          - Note body sentinel-wrapped section
+          - --dry-run and --company for testing
+
+  Step 2: Add 'subsector' tag category handling
+          - Sync_tags already has 'subsector' in ALLOWED_CATEGORIES
+          - yfinance industry slug → subsector/<slug> tag in frontmatter
+          - This enables sub-sector classification to flow from yfinance
+
+  Step 3: Add Makefile target
+          - metrics-rebuild: python3 helpers/maintenance/enrich_from_yfinance.py
+          - Add to .PHONY and help text
+          - Do NOT add to maint or maint-full (standalone target)
+
+  Step 4: Add perf benchmark
+          - Time enrich_from_yfinance --dry-run on 10 tickers (budget 15s)
+          - Add to run_perf_benchmarks.py
+
+  Step 5: Tests
+          - test_enrich_yfinance.py: mock yf.Ticker, verify metric insertion,
+            edge creation, note update, idempotency
+
+  Step 6: Update Makefile help text + maint-full description
+
+
+## 9. Schema Changes Required
+
+### entities table
+  No change. ticker already exists.
+
+### company_metrics table
+  No schema change needed. Uses existing columns:
+    metric_label, value_num, unit, period, source_ref
+  New rows have source_ref='yfinance', period='TTM' or 'latest'.
+
+### graph_edges table
+  No schema change. competes_with edges use edge_type='competes_with',
+  source_ref='yfinance:industry:<name>'.
+
+### Note frontmatter
+  Add: industry: <yfinance industry string> (e.g. "Information Technology Services")
+  KEEP: market_cap: <tier> (unchanged)
+  No market_capitalization (volatile — lives in DB only)
+
+### Note body
+  Add sentinel-wrapped section: ## Company Profile (yfinance)
+  Structural data only: industry, employees, holding %, business summary
+
+
+## 10. Risk Assessment
+
+  Risk: yfinance API changes / rate limiting
+    Mitigation: timeout=5, skip on error, --max-age-days 7 skip-logic
+
+  Risk: competes_with edges too aggressive (false positives)
+    Mitigation: yfinance industry is well-defined; companies in the same
+    Yahoo industry ARE competitors. Can add a minimum overlap filter later.
+
+  Risk: Note file conflicts with hand-written content
+    Mitigation: sentinel-wrapped pattern proven by derive_insights.
+    Hand-written sections are never clobbered.
+
+  Risk: Stale data (yfinance is a point-in-time snapshot)
+    Mitigation: Refresh on each maint-full run (7-day skip-logic).
+    company_metrics rows carry as_of_edition / created_at timestamps.
+
+
+
+## 11. Implementation Results (2026-08-10)
+
+**Status**: COMPLETE
+
+### Files created
+- `helpers/maintenance/enrich_from_yfinance.py` (~19 KB) — enrichment script with
+  ThreadPoolExecutor(8) parallel fetching, --dry-run / --workers / --company /
+  --max-age-days CLI flags
+- `tests/test_enrich_yfinance.py` (32 unit tests, all passing)
+- `doc/improvements/metric_improvs.txt` → moved to `doc/improvements/archive/` (this file)
+
+### Files modified
+- `Makefile` — added `metrics-rebuild` target + help entry
+- `tests/run_perf_benchmarks.py` — added enrich_yfinance benchmark (#15)
+
+### What the script writes
+1. **`company_metrics`** (SQLite) — 13 metrics per company with
+   `source_ref='yfinance'`: market_capitalization, total_revenue, gross_margin,
+   operating_margin, net_profit_margin, debt_to_equity, pe_ratio, price_to_book,
+   beta, revenue_growth_yoy, earnings_growth_yoy, held_percent_insiders,
+   held_percent_institutions. DELETE-then-INSERT per company (idempotent).
+2. **`graph_edges`** (SQLite) — `competes_with` edges from shared yfinance industry
+   classification. Projected **5900 edges across 86 industries** (vs 7 before).
+3. **Company notes** — structural data only:
+   - Frontmatter: adds `industry: <yfinance industry>` after `sector:`
+   - Body: sentinel-wrapped `## Company Profile (yfinance)` with employees,
+     promoter/institutional holding %, and business summary (truncated 300 chars)
+
+### Key design decisions
+- **Standalone `make metrics-rebuild`** — NOT in maint-full. Network-bound (~1 min);
+  doesn't belong in deterministic local pipeline.
+- **`--max-age-days` opt-in** — default 0 = always refresh all. If you explicitly run
+  the tool, you want a full refresh.
+- **Notes get structural data only** — industry, employees, holding %, business
+  summary. Volatile financials (market cap, P/E, margins) go to DB only — avoids
+  daily git churn on 931 files for stale numbers.
+- **Sentinel section** `## Company Profile (yfinance)` — regex-replace for idempotency,
+  never clobbers hand-written sections.
+- **USD→INR conversion** — some .NS tickers (e.g. INFY) report financialCurrency=USD;
+  script converts totalRevenue using rate ~83.0.
+
+### Verification
+- Dry-run on all 931 tickers: **801 fetched** (130 failed — bad tickers / recent IPOs),
+  **61.6s** total (0.077s/ticker)
+- 32/32 unit tests pass (test_enrich_yfinance.py)
+- 15/15 perf benchmarks pass (enrich_yfinance at 1.85s / 5s budget)
+- Idempotency verified: re-running on same company updates 0 notes (content unchanged)

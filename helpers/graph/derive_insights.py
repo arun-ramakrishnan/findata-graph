@@ -1,0 +1,1315 @@
+#!/usr/bin/env python3
+"""Derive the ``quotes`` + ``company_metrics`` tables — the concall-body
+capture layer that ``parse_newsletter.py`` defers to a manual Stage 4.
+
+THE GAP
+-------
+``parse_newsletter.py:extract_companies`` reads only each company's section
+*heading* line (`## Marico Ltd. | Large Cap | FMCG`). The entire concall body
+— paraphrase bullets, verbatim quotes, ``— Name, Title`` attributions,
+₹/%/bps figures — is never parsed. Stage 4 (``emit_worklist``) emits a
+``{name, section_line}`` JSON pointer and defers all insight extraction to a
+human/agent ("lift 3-5 bullets + 1 quote"). Result: only ~23% of company
+notes carry any newsletter-derived content. This module is the deterministic
+first pass that closes that gap.
+
+WHAT IT CAPTURES
+----------------
+Two tables, one shared concall segmenter:
+
+  * ``quotes`` — every verbatim executive quote with its speaker name + title
+    + the paraphrase that preceded it. Speakers are plain string attributes
+    (NOT entities) — this honors the D6 deferral (free-text rosters aren't
+    structured enough for first-class person nodes); a quote row is the
+    cheaper attribution carrier.
+  * ``company_metrics`` — financial magnitudes (₹X crore / X% / X bps /
+    $X bn / X GW) with verbatim provenance + best-effort ``metric_label``.
+    The narrow capture arm of D1 (deferred full metrics layer); the
+    newsletters are the recurring source that made D1's deferral moot.
+
+THE STRUCTURE IT PARSES (verified across the 78-file The_Chatter corpus)
+-----------------------------------------------------------------------
+Each company section looks like::
+
+    ## Marico Ltd. | Large Cap | FMCG
+    <one-line business descriptor>
+
+    ## [Concall]
+
+    <paraphrase paragraph — the editor's 1-2 line summary>
+
+    "<verbatim executive quote, often multi-line but one logical paragraph>"
+
+    <attribution line — one of these observed forms:
+        ## — Saugata Gupta, MD & CEO
+        — Saugata Gupta, MD & CEO
+        -Saugata Gupta, MD & CEO
+        Badal Bagri, Group CFO            (bare; most common)
+        - Suvankar Sen (MD & CEO)         (title in parens)
+        - Mohit Malhotra                  (name only)
+        ## Management, Executive          (anonymous/role-only)
+    >
+
+    <next paraphrase paragraph> ... (repeats)
+
+The unit is (paraphrase → quote → attribution). The segmenter anchors on the
+opening ``"`` of a quote and walks lines to the matching closing ``"``; the
+attribution is the first non-blank, non-quote, non-OCR-garble line after.
+
+WHAT IT WRITES BACK TO NOTES
+----------------------------
+For each company, the most recent edition's quotes are rendered into an
+auto-managed ``## The Chatter — <edition>`` block in the company note, using
+the established sentinel-marker convention (sync_sector_wikilinks.py):
+
+    <!-- BEGIN auto chatter block (derive_insights.py) -->
+    ## The Chatter — <edition>
+    ...
+    <!-- END auto chatter block -->
+
+**Curation-safety rule (the critical correctness property):** if the note
+already has a ``## The Chatter — <edition>`` heading that is NOT
+sentinel-wrapped (i.e. hand/agent-written), the auto block for that edition
+is SKIPPED — human work is never clobbered. Only sentinel-wrapped auto blocks
+are refreshed on re-run.
+
+NO LLM. Mirrors the derive_* / extract_relations.py conservative-deterministic
+design (derive_themes.py:10 cites "no LLM dependency" as a design principle).
+
+USAGE
+-----
+    python3 helpers/graph/derive_insights.py                 # dry-run
+    python3 helpers/graph/derive_insights.py findata/The_Chatter/Marico_DLF_BSE.md
+    python3 helpers/graph/derive_insights.py findata --apply  # write DB + notes
+    python3 helpers/graph/derive_insights.py --verbose        # list every quote
+"""
+from __future__ import annotations
+
+import argparse
+import bisect
+import json
+import re
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+# sys.path bootstrap so this works both as `python3 helpers/graph/...` (the
+# Makefile form) and as a package import. Mirrors derive_events.py:54-56.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from helpers.core.db import connect  # noqa: E402
+
+# --------------------------------------------------------------------------- #
+# Constants                                                                   #
+# --------------------------------------------------------------------------- #
+PROJECT_ROOT = _REPO_ROOT
+COMPANIES_DIR = PROJECT_ROOT / "findata" / "Companies"
+DB_PATH = PROJECT_ROOT / "memory" / "research.db"
+
+# source_ref prefixes — the LIKE 'derive:quotes:%' / 'derive:metrics:%' sweeps
+# in apply_quotes()/apply_metrics() clear derived rows on re-run (idempotency
+# contract; manual:/migration: rows preserved). Mirror of derive_events.py:73.
+QUOTES_PREFIX = "derive:quotes:"
+METRICS_PREFIX = "derive:metrics:"
+
+# Sentinel markers around the auto chatter block in company notes. Mirrors the
+# sync_sector_wikilinks.py:60-61 convention (paired HTML comments, regex-replace
+# for idempotency, curated sections outside the markers are never touched).
+_BEGIN = "<!-- BEGIN auto chatter block (derive_insights.py) -->"
+_END = "<!-- END auto chatter block -->"
+
+# The H1 of an edition's `## The Chatter — <edition>` block. The capture group
+# is the edition title (used by the curation-safety check to detect an existing
+# hand-written block for the same edition).
+_CHATTER_HEADING_RE = re.compile(r"^## The Chatter — (.+?)\s*$", re.MULTILINE)
+
+# Frontmatter strip (quotes/metrics live in prose, not YAML). Same regex shape
+# as derive_events.py:83.
+_FM_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
+
+
+# =========================================================================== #
+# STAGE 1 — segment + extract                                                  #
+# =========================================================================== #
+# --- company-section heading detection -------------------------------------
+# Reuse parse_newsletter's proven heading shape: `#{1,3} <name> [| Cap | Sector]`.
+# We don't import extract_companies directly because it yields canonical names
+# (Ltd stripped) and we need both the raw heading text AND the line range; the
+# canonicalization is applied once at emit time via the same SUFFIX_RE.
+_CAP_TOKENS = (
+    "large cap", "mid cap", "small cap", "micro cap", "nano cap", "mega cap",
+    "unlisted",
+)
+# P3 perf: compiled hot-path regexes (were inline re.search/re.match per call).
+_CONCALL_HEADING_RE = re.compile(r"^##\s*\[Concall\]\s*$", re.MULTILINE)
+_CONCALL_SUBHEADING_RE = re.compile(r"^#{2,}\s*\[?Concall\]?\s*$", re.I)
+# _unit_of patterns (called per-metric, ~5K times):
+_U_CRORE_RE = re.compile(r"crore|\bcr\b")
+_U_BN_RE = re.compile(r"\bbn\b|billion")
+_U_MN_RE = re.compile(r"\bmn\b|million")
+_U_GW_RE = re.compile(r"\bgw\b")
+_U_MW_RE = re.compile(r"\bmw\b")
+_CAP_CUT = re.compile(r"\s+(?:large|larg|mid|small|micro|nano|mega)\s*cap", re.I)
+SUFFIX_RE = re.compile(r"\s+(Limited|Ltd\.?|Private|Pvt\.?|Inc\.?|Corp\.?)$", re.I)
+_HEADING_RE = re.compile(r"^(#{1,3})\s+(.+)$", re.MULTILINE)
+# P3 perf: compiled heading classifiers for iter_company_sections (were inline
+# re.match per heading per file — 2834 section yields × 3-4 calls each).
+_ATTR_DASH_RE = re.compile(r"^(##\s+)?[-–—]\s")
+_ATTR_DASH_CAP_RE = re.compile(r"^(##\s+)?[-–—][A-Z]")
+_ROLE_HEADING_RE = re.compile(r"^(management|executive|leadership|board)\b")
+# Also pre-compiled for _canonicalize (was inline re.sub per call).
+_WS_CANON_RE = re.compile(r"\s+")
+_SUFFIX2_RE = re.compile(r"\s+(Limited|Ltd\.?|Private|Pvt\.?)$", re.I)
+# H1 title extraction in _edition_title (was inline re.match per newsletter).
+_H1_TITLE_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
+
+
+@dataclass
+class Quote:
+    """A derived quote row (mirrors the quotes table columns)."""
+    entity: str
+    quote_text: str
+    paraphrase: str | None = None
+    speaker_name: str | None = None
+    speaker_title: str | None = None
+    as_of_edition: str | None = None
+    source_ref: str = QUOTES_PREFIX
+    properties: dict = field(default_factory=dict)
+
+
+@dataclass
+class Metric:
+    """A derived company_metrics row."""
+    entity: str
+    value_raw: str
+    metric_label: str | None = None
+    value_num: float | None = None
+    unit: str | None = None
+    period: str | None = None
+    as_of_edition: str | None = None
+    source_quote: str | None = None
+    source_ref: str = METRICS_PREFIX
+    properties: dict = field(default_factory=dict)
+
+
+@dataclass
+class CompanySection:
+    """A company's concall body slice + its canonical name."""
+    canonical_name: str
+    heading_line: int       # 1-based line of the heading in the source file
+    body: str               # the section's text (heading through next heading)
+
+
+def _canonicalize(raw: str) -> str:
+    """Strip legal suffixes + collapse whitespace -> the entities.name shape.
+
+    Mirrors parse_newsletter.py:242-249 (SUFFIX_RE + Ltd/Private strip).
+    """
+    name = raw.split("|")[0].strip()
+    cut = _CAP_CUT.search(name)
+    if cut:
+        name = name[: cut.start()].strip()
+    name = _WS_CANON_RE.sub(" ", name).strip()
+    canonical = SUFFIX_RE.sub("", name).strip()
+    canonical = _SUFFIX2_RE.sub("", canonical).strip()
+    return canonical
+
+
+def iter_company_sections(content: str):  # noqa: C901
+    """Yield ``CompanySection`` for each company heading in a newsletter.
+
+    Slices each section's body from its heading line to the next COMPANY or
+    SECTOR heading — NOT every heading. A concall body is full of internal
+    sub-headings (``## [Concall]``, ``## — Attribution``, ``## Management``)
+    that must stay inside the slice; only structural boundaries (the next
+    company `## Foo | Cap | Sector` or sector `## FMCG`) terminate it.
+    """
+    # Precompute newline offsets for O(log n) line-number lookup.
+    nl_offsets = [i for i, c in enumerate(content) if c == "\n"]
+
+    def line_of(pos: int) -> int:
+        return bisect.bisect_right(nl_offsets, pos) + 1
+
+    matches = list(_HEADING_RE.finditer(content))
+    # Classify each heading: is it a STRUCTURAL boundary (company or sector)?
+    # A structural heading either carries a cap token/pipe (company) or is a
+    # bare sector word (FMCG, Real Estate, etc.). Sub-headings inside a concall
+    # block (## [Concall], ## — Name, Title, ## Management) are NOT structural.
+    # P3 perf: cache classification in the first pass so the second pass
+    # doesn't recompute lower/has_cap/has_pipe/canonical per heading.
+    structural: list[tuple[int, int, str | None]] = []
+    #                  ^start, ^idx, ^canonical (None = sector heading)
+    for idx, m in enumerate(matches):
+        raw = m.group(2).strip()
+        lower = raw.lower()
+        has_cap = any(tok in lower for tok in _CAP_TOKENS)
+        has_pipe = "|" in raw
+        # Sub-headings inside a concall block: ## [Concall], ## — Attribution,
+        # ## Management... These are NOT structural boundaries.
+        if lower.startswith("[concall]"):
+            continue
+        if _ATTR_DASH_RE.match(raw) or _ATTR_DASH_CAP_RE.match(raw):
+            # An attribution heading like "## — Saugata Gupta, MD & CEO".
+            continue
+        # Bare role heading "## Management" / "## Management, Executive".
+        if _ROLE_HEADING_RE.match(lower):
+            continue
+        # Newsletter chrome (## Comments, ## Discussion, ## Don't have a...).
+        if lower.startswith(("comment", "discussion", "don't", "share this",
+                             "subscribe", "about ", "welcome")):
+            continue
+        if not (has_cap or has_pipe):
+            # Sector heading (FMCG) — structural boundary.
+            structural.append((m.start(), idx, None))
+            continue
+        canonical = _canonicalize(raw)
+        if not canonical or len(canonical) < 3:
+            continue
+        structural.append((m.start(), idx, canonical))
+
+    # Now walk the structural headings; each company's body runs to the next
+    # structural heading (company or sector).
+    for si, (start, idx, canonical) in enumerate(structural):
+        if canonical is None:
+            continue  # this structural heading is a sector, not a company
+        # Body runs to the next structural heading, or EOF.
+        end = (structural[si + 1][0]
+               if si + 1 < len(structural) else len(content))
+        yield CompanySection(
+            canonical_name=canonical,
+            heading_line=line_of(start),
+            body=content[start:end],
+        )
+
+
+# --- quote/attribution extraction ------------------------------------------
+# Attribution line shapes observed in the corpus (see module docstring + the
+# attribution survey: ~80% of quotes have an attribution within 2 lines).
+# Forms, in descending frequency:
+#   Badal Bagri, Group CFO                  (bare Name, Title)
+#   — Saugata Gupta, MD & CEO               (em-dash / hyphen prefix)
+#   -Saugata Gupta, MD & CEO                (hyphen, no space)
+#   ## — Saugata Gupta, MD & CEO            (markdown heading + dash)
+#   - Suvankar Sen (MD & CEO)               (title in parens)
+#   - Mohit Malhotra                        (name only)
+#   ## Management, Executive                (anonymous/role-only — no quote speaker)
+# The name is 2-4 capitalized tokens; tolerant of single-letter initials
+# (K. / T. V. / K — Indian names like "K Krithivasan" lead with an initial).
+_NAME = r"[A-Z][\w.\-]*(?:\s+[A-Z][\w.\-]*){0,4}"
+# Match the attribution line; capture group 1 = name, 2 = title-after-comma,
+# 3 = title-in-parens. Anchored to line start; tolerates leading dash/heading.
+_ATTR_RE = re.compile(
+    r"^(?:##\s+)?[-–—]?\s*(" + _NAME + r")\s*(?:,\s*(.+?)|\s*\((.+?)\))?\s*$"
+)
+# Generic role headings that look like attributions but carry no person —
+# these mark the quote as anonymous (speaker stays NULL). Checked BEFORE the
+# non-attribution filter so `## Management, Executive` is recognized as an
+# anonymous attribution, not rejected as a generic heading.
+_ROLE_ONLY_RE = re.compile(
+    r"^(?:##\s+)?[-–—]?\s*(Management|Executive[s]?|Leadership|Board|"
+    r"Company Representative|Management,.+|Spokesperson)\s*$",
+    re.I,
+)
+# Lines that are NOT attributions — prose, the next quote, OCR garble, section
+# breaks. Used to decide when to stop scanning for an attribution after a quote.
+# NOTE: a `## — Name, Title` attribution HEADING must not be rejected here, so
+# the `#{2,}` alternative is scoped to headings WITHOUT a leading dash (a bare
+# `## FMCG` sector heading IS a non-attribution; `## — Saugata Gupta` is not).
+# `## Management` is handled by _ROLE_ONLY_RE (checked first).
+_NOT_ATTR_RE = re.compile(
+    r'^(?:"|##(?!\s*[-–—])|#{3,}|---|\*Source|!\[\[|<|http|www\.)',
+    re.I,
+)
+
+
+def _parse_attribution(line: str) -> tuple[str | None, str | None] | None:
+    """Parse an attribution line into ``(name, title)``.
+
+    Returns ``(name, title)`` (either may be None), or ``None`` if the line is
+    not an attribution. Role-only headings (``## Management, Executive``) return
+    ``(None, None)`` — they signal "anonymous quote" rather than no attribution.
+    """
+    s = line.strip()
+    if not s or len(s) > 100:
+        return None
+    # Role-only / anonymous: signal "anonymous quote" explicitly. Checked
+    # BEFORE the non-attribution filter so `## Management, Executive` isn't
+    # rejected as a generic heading.
+    if _ROLE_ONLY_RE.match(s):
+        return (None, None)
+    if _NOT_ATTR_RE.match(s):
+        return None
+    m = _ATTR_RE.match(s)
+    if not m:
+        return None
+    name = m.group(1).strip()
+    title = (m.group(2) or m.group(3) or "").strip() or None
+    # Require >=2 name tokens (reject single-word false hits like "Revenue,").
+    # BUT allow a single-letter-initial + surname shape ("K Krithivasan").
+    parts = name.split()
+    if len(parts) < 2:
+        return None
+    # Reject obvious prose that slipped through ("The company said...").
+    first = parts[0].lower()
+    if first in {"the", "this", "these", "those", "we", "our", "while", "after",
+                 "before", "following", "despite", "according"}:
+        return None
+    return (name, title)
+
+
+def _find_attribution(lines: list[str], start: int) -> tuple[int, tuple | None]:
+    """Find the attribution line after a closing quote.
+
+    Walks forward from ``start`` (the index AFTER the closing-quote line),
+    skipping blanks. Returns ``(index, attribution)`` where attribution is
+    ``(name, title)`` or ``(None, None)`` (anonymous), or ``(-1, None)`` if no
+    attribution-shaped line is found before the next quote/heading/prose.
+    """
+    for j in range(start, min(start + 3, len(lines))):
+        nj = lines[j].strip()
+        if not nj:
+            continue
+        attr = _parse_attribution(nj)
+        if attr is not None:
+            return (j, attr)
+        # Hit a non-attribution line (next quote / heading / prose) — stop.
+        return (-1, None)
+    return (-1, None)
+
+
+def extract_quotes(section: CompanySection, edition_title: str,  # noqa: C901
+                   source_stem: str) -> list[Quote]:
+    """Extract every (paraphrase → quote → attribution) unit from a section.
+
+    Algorithm: walk lines; when a verbatim quote opens (line starts with ``"``),
+    accumulate until the matching closing ``"``. The text between the previous
+    quote (or section start) and this quote is the paraphrase. The attribution
+    is found via ``_find_attribution`` immediately after the closing quote.
+    """
+    quotes: list[Quote] = []
+    # Restrict to the [Concall] block if present (skip the business descriptor).
+    body = section.body
+    concall_m = _CONCALL_HEADING_RE.search(body)
+    if concall_m:
+        body = body[concall_m.end():]
+
+    lines = body.splitlines()
+    paraphrase_lines: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        # A verbatim quote opens with a `"` and is long enough to be a quote
+        # (not a stray quoted phrase). It may close on the same line or span
+        # multiple lines.
+        if stripped.startswith('"') and len(stripped) > 40:
+            # Accumulate the quote until the line that closes it (ends with `"`).
+            quote_lines = [stripped]
+            j = i
+            # Same-line close?
+            if stripped.endswith('"') and len(stripped) > 1:
+                pass  # single-line quote
+            else:
+                j += 1
+                while j < len(lines):
+                    nxt = lines[j].rstrip()
+                    quote_lines.append(nxt)
+                    if nxt.endswith('"'):
+                        break
+                    j += 1
+            quote_text = "\n".join(quote_lines).strip().strip('"').strip()
+            paraphrase = "\n".join(paraphrase_lines).strip() or None
+            # Collapse whitespace in the paraphrase for cleaner storage.
+            if paraphrase:
+                paraphrase = _PARAPHRASE_WS_RE.sub(" ", paraphrase)
+            # Find the attribution after the closing quote.
+            attr_idx, attr = _find_attribution(lines, j + 1)
+            if attr is not None:
+                speaker_name, speaker_title = attr
+            else:
+                speaker_name, speaker_title = None, None
+            # Skip attribution-only / empty quotes.
+            if len(quote_text) < 30:
+                paraphrase_lines = []
+                i = j + 1
+                continue
+            quotes.append(Quote(
+                entity=section.canonical_name,
+                quote_text=quote_text,
+                paraphrase=paraphrase,
+                speaker_name=speaker_name,
+                speaker_title=speaker_title,
+                as_of_edition=edition_title,
+                source_ref=f"{QUOTES_PREFIX}{source_stem}:{section.heading_line}",
+            ))
+            # Reset paraphrase accumulator; resume after the attribution (if any)
+            # or after the closing quote.
+            i = (attr_idx + 1) if attr_idx >= 0 else (j + 1)
+            paraphrase_lines = []
+        else:
+            # Accumulate paraphrase (skip blank headings, OCR garble, image
+            # embeds, and stray horizontal rules that leak in from the source).
+            # NOTE: every branch here MUST fall through to `i += 1` at the
+            # bottom — an early `continue` without advancing i is an infinite
+            # loop (the line that triggered it is re-read forever).
+            if stripped and not stripped.startswith(("!", "<", "http", "www.")):
+                if stripped not in ("---", "***", "___"):
+                    if not _CONCALL_SUBHEADING_RE.match(stripped):
+                        paraphrase_lines.append(stripped)
+            i += 1
+    return quotes
+
+
+# --- magnitude extraction --------------------------------------------------
+# Reuse the proven precision-guard shape from backfill_magnitudes.py: require a
+# money/percent unit (kills bare `₹4,400` revenue fragments) and reject
+# non-financial contexts (employees, count of stores, etc.).
+# Standalone money: ₹/Rs./INR followed by digits + a unit word. The corpus
+# uses both the ₹ symbol and the "Rs." / "INR" prefix; both must match. Note
+# `Rs.2,75,972` has no space between the period and the digit, so the space
+# after the prefix is optional (rs\.?\s*).
+_INR_RE = re.compile(
+    r"(?:₹\s?|rs\.?\s*|inr\s*)[\d,]+(?:\.\d+)?\s*"
+    r"(?:crore[s]?|cr\b|lakh[s]?|bn\b|mn\b|billion|million)",
+    re.I,
+)
+_USD_RE = re.compile(
+    r"(?:usd\s|\$)\s?[\d,]+(?:\.\d+)?\s*(?:bn\b|mn\b|billion|million)",
+    re.I,
+)
+_PCT_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*[-–to ]+\s*\d+(?:\.\d+)?\s*%|\b\d+(?:\.\d+)?\s*%")
+_BPS_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*[-–to ]+\s*\d+\s*(?:bps|basis points)|\b\d+(?:\.\d+)?\s*(?:bps|basis points)", re.I)
+_GW_MW_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*(?:gw|mw)\b", re.I)
+# Multiples (5.3x debt-to-equity, 2.0x net debt/EBITDA). Only captured when a
+# ratio context word is within ~25 chars — the bare "Nx" in prose is too often
+# figurative ("100x demand", "10x productivity", "3x more productive") to
+# capture unconditionally. The context gate keeps the financial-ratio uses.
+_MULTIPLE_CONTEXT_RE = re.compile(
+    r"(?:debt|ebitda|equity|turnover|multiple|times|ratio|cover|lever(?:age|ed)?)",
+    re.I,
+)
+_MULTIPLE_RE = re.compile(r"\b\d+(?:\.\d+)?x\b")  # matched, then context-gated
+
+# P3 perf: compiled patterns used in hot loops (were inline re.search/re.split
+# per call — 50K+ invocations in extract_metrics alone).
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+_PARAPHRASE_WS_RE = re.compile(r"\s+")
+# Pre-compiled label classifiers for _label_from_window (were inline re.search).
+_L_MARGIN = re.compile(r"\bmargin[s]?\b|\bebitda\b|\boperating margin\b")
+_L_EBITDA = re.compile(r"\bebitda\b")
+_L_REVENUE = re.compile(r"\brevenue\b|\bturnover\b|\bnet sales\b|\btopline\b|\btop line\b")
+_L_PROFIT = re.compile(r"\bprofit\b|\bpat\b|\bnet income\b|\bearnings\b")
+_L_CAPEX = re.compile(r"\bcapex\b|\bcapital expenditure\b|\bspend\b|\bsanctioned\b")
+_L_AUM = re.compile(r"\baum\b|assets under management")
+_L_ORDER = re.compile(r"\border book\b|\border pipeline\b|\bbid pipeline\b")
+_L_GROWTH = re.compile(r"\bgrowth\b|\byoy\b|\bcagr\b")
+_L_MKT_SHARE = re.compile(r"\bmarket share\b")
+_L_STAKE = re.compile(r"\bstake\b")
+_L_DEBT = re.compile(r"\bdebt\b|\bborrowings?\b|\bnet debt\b")
+
+# Period tokens (FY / quarter / month-year) — reuse the derive_events shape.
+_FY_RE = re.compile(r"\b(?:Q[1-4]\s*)?FY\s?\d{2,4}\b|\bQ[1-4]\s*CY\s?\d{2,4}\b", re.I)
+_MONTH_YEAR_RE = re.compile(
+    r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(20\d{2})\b",
+    re.I,
+)
+
+# Non-financial contexts to reject (precision guard: these are counts/employees,
+# not money magnitudes — the dominant false-positive class in the corpus).
+_NON_FINANCIAL_CONTEXT = re.compile(
+    r"\b(employees?|stores?|outlets?|branches?|customers?|users?|subscribers?|"
+    r"people|passengers?|units?|vehicles?|cars?|two-wheelers?|"
+    r"stores opened|cities|countries|lives|beds|mw installed|screens?)\b",
+    re.I,
+)
+
+
+def _label_from_window(w: str) -> str | None:  # noqa: C901
+    """Classify a lowered text window to a metric label. Returns None if no
+    metric noun is present."""
+    if _L_MARGIN.search(w):
+        return "ebitda_margin" if _L_EBITDA.search(w) else "margin"
+    if _L_REVENUE.search(w):
+        return "revenue"
+    if _L_PROFIT.search(w):
+        return "profit"
+    if _L_CAPEX.search(w):
+        return "capex"
+    if _L_AUM.search(w):
+        return "aum"
+    if _L_ORDER.search(w):
+        return "order_book"
+    if _L_GROWTH.search(w):
+        return "growth"
+    if _L_MKT_SHARE.search(w):
+        return "market_share"
+    if _L_STAKE.search(w):
+        return "stake"
+    if _L_DEBT.search(w):
+        return "debt"
+    return None
+
+
+def _classify_metric(sentence: str, value_raw: str, figure_pos: int) -> str | None:
+    """Best-effort metric_label from the context AROUND the figure.
+
+    The metric noun usually PRECEDES its figure in English ("Revenue grew
+    23%", "EBITDA margin expanded 140bps"), so we classify from the preceding
+    ~30 chars first and only fall back to a following window if that's empty.
+    This keeps "Revenue grew 23% and EBITDA margin..." from mislabeling the
+    23% as ebitda_margin. The verbatim ``source_quote`` is the ground truth;
+    ``metric_label`` is a nullable convenience for grouping.
+    """
+    # Prefer the preceding window (noun before the number).
+    pre_start = max(0, figure_pos - 30)
+    pre = sentence[pre_start:figure_pos].lower()
+    label = _label_from_window(pre)
+    if label:
+        return label
+    # Fall back to a small following window ("X% margin", "X% growth").
+    post_end = min(len(sentence), figure_pos + len(value_raw) + 25)
+    post = sentence[figure_pos:post_end].lower()
+    return _label_from_window(post)
+
+
+def _parse_value_num(value_raw: str, unit: str | None) -> float | None:
+    """Extract a comparable numeric from a magnitude string (range lower bound)."""
+    nums = re.findall(r"[\d,]+(?:\.\d+)?", value_raw.replace("–", "-"))
+    if not nums:
+        return None
+    try:
+        return float(nums[0].replace(",", ""))
+    except ValueError:
+        return None
+
+
+def _unit_of(value_raw: str) -> str | None:
+    v = value_raw.lower()
+    if _U_CRORE_RE.search(v):
+        return "crore"
+    if "lakh" in v:
+        return "lakh"
+    if "bps" in v or "basis point" in v:
+        return "bps"
+    if "%" in v:
+        return "percent"
+    if _U_BN_RE.search(v) and ("$" in v or "usd" in v):
+        return "bn_usd"
+    if _U_MN_RE.search(v) and ("$" in v or "usd" in v):
+        return "mn_usd"
+    if _U_GW_RE.search(v):
+        return "gw"
+    if _U_MW_RE.search(v):
+        return "mw"
+    if v.endswith("x"):
+        return "x"
+    return None
+
+
+def extract_metrics(section: CompanySection, edition_title: str,  # noqa: C901
+                    source_stem: str) -> list[Metric]:
+    """Extract financial magnitudes from a section's concall prose.
+
+    Scans each quote + paraphrase for ₹/$/INR/USD + unit, %, bps, GW/MW, and
+    multiples. Applies the non-financial-context reject filter (employees,
+    stores, units) to kill the dominant false-positive class.
+    """
+    metrics: list[Metric] = []
+    body = section.body
+    concall_m = _CONCALL_HEADING_RE.search(body)
+    if concall_m:
+        body = body[concall_m.end():]
+    # Split into sentence-ish windows (newlines first, then sentence boundaries).
+    seen_spans: set[tuple[str, str]] = set()
+    for line in body.splitlines():
+        line = line.strip()
+        if not line or len(line) < 15:
+            continue
+        for sentence in _SENTENCE_SPLIT_RE.split(line):
+            sentence = sentence.strip()
+            if len(sentence) < 12:
+                continue
+            # Reject non-financial contexts (counts, employees, stores).
+            if _NON_FINANCIAL_CONTEXT.search(sentence):
+                continue
+            for pat in (_INR_RE, _USD_RE, _BPS_RE, _PCT_RE, _GW_MW_RE, _MULTIPLE_RE):
+                for m in pat.finditer(sentence):
+                    value_raw = m.group(0).strip()
+                    # Multiples need a ratio-context gate (debt/EBITDA/equity/...)
+                    # to exclude figurative "Nx" uses ("100x demand", "3x growth").
+                    if pat is _MULTIPLE_RE:
+                        ctx_start = max(0, m.start() - 25)
+                        ctx_end = min(len(sentence), m.end() + 25)
+                        if not _MULTIPLE_CONTEXT_RE.search(
+                            sentence[ctx_start:ctx_end]
+                        ):
+                            continue
+                    # De-dup identical (value, sentence) within one section.
+                    key = (value_raw, sentence[:60])
+                    if key in seen_spans:
+                        continue
+                    seen_spans.add(key)
+                    unit = _unit_of(value_raw)
+                    period_m = _FY_RE.search(sentence) or _MONTH_YEAR_RE.search(sentence)
+                    period = period_m.group(0).strip() if period_m else None
+                    metrics.append(Metric(
+                        entity=section.canonical_name,
+                        value_raw=value_raw,
+                        metric_label=_classify_metric(sentence, value_raw, m.start()),
+                        value_num=_parse_value_num(value_raw, unit),
+                        unit=unit,
+                        period=period,
+                        as_of_edition=edition_title,
+                        source_quote=sentence,
+                        source_ref=f"{METRICS_PREFIX}{source_stem}:{section.heading_line}",
+                    ))
+    return metrics
+
+
+# =========================================================================== #
+# STAGE 2 — edition title + entity resolution                                 #
+# =========================================================================== #
+def _edition_title(stem: str, content: str) -> str:
+    """Derive the edition title for ``as_of_edition`` + the note heading.
+
+    Prefers the newsletter's H1 (the documented convention, markdown_parse.md);
+    falls back to the filename stem with underscores/spaces normalized.
+    """
+    body = _FM_RE.sub("", content, count=1)
+    h1 = _H1_TITLE_RE.match(body)
+    if h1:
+        title = h1.group(1).strip()
+        # Drop a trailing edition tag if the H1 is just the newsletter name.
+        if 3 <= len(title) <= 80:
+            return title
+    return stem.replace("_", " ").strip()
+
+
+def _resolve_entities(conn, sections: list[CompanySection]) -> dict[str, str]:
+    """Map each section's canonical_name -> the actual entities.name row.
+
+    The parser canonicalizes headings (strips Ltd/Limited); the DB may hold the
+    entity under a slightly different name. Resolve case-insensitively, then by
+    normalized_name, so quotes/metrics land on the right entity row.
+    """
+    if not sections:
+        return {}
+    names = {s.canonical_name for s in sections}
+    # Exact (case-insensitive) match.
+    placeholders = ",".join("?" for _ in names)
+    rows = conn.execute(
+        f"SELECT name FROM entities WHERE name COLLATE NOCASE IN ({placeholders}) "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        f"AND entity_type='company'",
+        tuple(names),
+    ).fetchall()
+    resolved: dict[str, str] = {}
+    matched_db_names = {r["name"] for r in rows}
+    # Build a case-insensitive lookup from canonical -> db name.
+    db_by_lower = {n.lower(): n for n in matched_db_names}
+    for cn in names:
+        if cn.lower() in db_by_lower:
+            resolved[cn] = db_by_lower[cn.lower()]
+    # Resolve the rest via normalized_name (the entities-table sync key).
+    unresolved = names - set(resolved.keys())
+    if unresolved:
+        placeholders = ",".join("?" for _ in unresolved)
+        rows = conn.execute(
+            f"SELECT normalized_name, name FROM entities "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            f"WHERE normalized_name COLLATE NOCASE IN ({placeholders}) "
+            f"AND entity_type='company'",
+            tuple(unresolved),
+        ).fetchall()
+        norm_to_name = {(r["normalized_name"] or "").lower(): r["name"] for r in rows}
+        for cn in list(unresolved):
+            if cn.lower() in norm_to_name:
+                resolved[cn] = norm_to_name[cn.lower()]
+    return resolved
+
+
+# =========================================================================== #
+# STAGE 3 — persist                                                            #
+# =========================================================================== #
+_INSERT_QUOTE_SQL = """
+INSERT INTO quotes
+    (entity, quote_text, paraphrase, speaker_name, speaker_title,
+     as_of_edition, source_ref, properties)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+"""
+_INSERT_METRIC_SQL = """
+INSERT INTO company_metrics
+    (entity, metric_label, value_raw, value_num, unit, period,
+     as_of_edition, source_quote, source_ref, properties)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+"""
+
+
+def apply_quotes(quotes: list[Quote], *, conn=None, dry_run: bool = True) -> int:
+    """Persist quotes. DELETE-then-INSERT on ``source_ref LIKE 'derive:quotes:%'``.
+
+    Hand-seeded rows (``manual:`` / other prefixes) are preserved.
+    """
+    own_conn = conn is None
+    if own_conn:
+        conn = connect()
+    inserted = 0
+    try:
+        if dry_run:
+            return len(quotes)
+        with conn:
+            conn.execute(
+                "DELETE FROM quotes WHERE source_ref LIKE ?", (QUOTES_PREFIX + "%",)
+            )
+            for q in quotes:
+                props_json = json.dumps(q.properties, ensure_ascii=False,
+                                        sort_keys=True)
+                cur = conn.execute(
+                    _INSERT_QUOTE_SQL,
+                    (q.entity, q.quote_text, q.paraphrase, q.speaker_name,
+                     q.speaker_title, q.as_of_edition, q.source_ref, props_json),
+                )
+                inserted += cur.rowcount
+    finally:
+        if own_conn:
+            conn.close()
+    return inserted
+
+
+def apply_metrics(metrics: list[Metric], *, conn=None, dry_run: bool = True) -> int:
+    """Persist company_metrics. DELETE-then-INSERT on ``source_ref LIKE
+    'derive:metrics:%'``."""
+    own_conn = conn is None
+    if own_conn:
+        conn = connect()
+    inserted = 0
+    try:
+        if dry_run:
+            return len(metrics)
+        with conn:
+            conn.execute(
+                "DELETE FROM company_metrics WHERE source_ref LIKE ?",
+                (METRICS_PREFIX + "%",),
+            )
+            for m in metrics:
+                props_json = json.dumps(m.properties, ensure_ascii=False,
+                                        sort_keys=True)
+                cur = conn.execute(
+                    _INSERT_METRIC_SQL,
+                    (m.entity, m.metric_label, m.value_raw, m.value_num, m.unit,
+                     m.period, m.as_of_edition, m.source_quote, m.source_ref,
+                     props_json),
+                )
+                inserted += cur.rowcount
+    finally:
+        if own_conn:
+            conn.close()
+    return inserted
+
+
+# =========================================================================== #
+# STAGE 4 — render auto blocks into company notes                             #
+# =========================================================================== #
+def render_chatter_block(edition: str, quotes: list[Quote]) -> str:
+    """Render the auto ``## The Chatter — <edition>`` markdown block.
+
+    Shape mirrors the documented edition block (markdown_parse.md:310) so it
+    renders identically to a human-written block; the sentinel HTML comments
+    are invisible in Obsidian.
+    """
+    lines = [_BEGIN, "", f"## The Chatter — {edition}", ""]
+    lines.append(
+        f"<!-- Auto-generated by derive_insights.py from the {edition} concall. "
+        f"Edit the paraphrase/quote selection by replacing this block with a "
+        f"hand-written `## The Chatter — {edition}` section (this sentinel-"
+        f"wrapped block is refreshed on each `make derive-insights` run). -->"
+    )
+    lines.append("")
+    for q in quotes:
+        if q.paraphrase:
+            lines.append(f"- **{q.paraphrase[:140]}**" +
+                         ("…" if len(q.paraphrase) > 140 else ""))
+            lines.append("")
+        # Quote block (Obsidian blockquote).
+        quote_display = q.quote_text if len(q.quote_text) <= 280 else (
+            q.quote_text[:277] + "…")
+        lines.append(f'> "{quote_display}"')
+        if q.speaker_name or q.speaker_title:
+            parts = [p for p in (q.speaker_name, q.speaker_title) if p]
+            lines.append(f"> — {', '.join(parts)}")
+        lines.append("")
+    lines.append(f"*Source: The Chatter — {edition}*")
+    lines.extend(["", _END, ""])
+    return "\n".join(lines)
+
+
+def _find_insertion_point(text: str) -> int:
+    """Where to insert the auto chatter block in a company note.
+
+    Before the first existing curated `## The Chatter` / `## Key Insights` /
+    `## Management Insights` / `## Newsletter synthesis` heading if present
+    (keeps the auto block adjacent to related content); otherwise at end.
+    """
+    m = re.search(
+        r"^## (The Chatter|Key Insights|Management Insights|Newsletter synthesis)",
+        text, re.MULTILINE,
+    )
+    if m:
+        return m.start()
+    return len(text)
+
+
+def _existing_hand_block_for_edition(text: str, edition: str) -> bool:
+    """True iff a NON-sentinel `## The Chatter — <edition>` heading exists.
+
+    The curation-safety gate: a hand/agent-written block for this edition means
+    we skip the auto block entirely (never clobber human work).
+    """
+    # Strip sentinel-wrapped auto blocks first, then look for the heading.
+    auto_pattern = re.compile(
+        re.escape(_BEGIN) + r".*?" + re.escape(_END) + r"\n?", re.DOTALL
+    )
+    stripped = auto_pattern.sub("", text)
+    m = _CHATTER_HEADING_RE.search(stripped)
+    if not m:
+        return False
+    return m.group(1).strip().lower() == edition.strip().lower()
+
+
+def _replace_or_insert_block(text: str, edition: str,
+                             new_block: str) -> tuple[str, bool]:
+    """Refresh the sentinel-wrapped block for ``edition`` or insert a new one.
+
+    Returns ``(new_text, changed)``. If a hand-written block for this edition
+    exists, returns ``(text, False)`` (curation-safety: do not clobber).
+    """
+    if _existing_hand_block_for_edition(text, edition):
+        return (text, False)
+    # Replace any existing sentinel-wrapped block whose heading matches this
+    # edition (refresh on re-run). The DOTALL match spans the whole block.
+    pattern = re.compile(
+        re.escape(_BEGIN) + r".*?" + re.escape(_END) + r"\n?", re.DOTALL
+    )
+    replaced = False
+    # If there's exactly one auto block, replace it only if it's for a
+    # DIFFERENT edition (we'd otherwise stack duplicates). Simplest correct
+    # behavior: replace the existing auto block iff its edition == this one;
+    # if a different edition's auto block exists, append this one as new.
+    def _edition_of_block(blk: str) -> str | None:
+        hm = _CHATTER_HEADING_RE.search(blk)
+        return hm.group(1).strip() if hm else None
+
+    matches = list(pattern.finditer(text))
+    for m in matches:
+        if _edition_of_block(m.group(0)) == edition:
+            text = text[:m.start()] + new_block + text[m.end():]
+            replaced = True
+            break
+    if replaced:
+        return (text, True)
+    # No existing block for this edition — insert at the insertion point, but
+    # only if there isn't already a different-edition auto block (avoid stacking
+    # many auto blocks; the latest edition wins and we drop older auto blocks).
+    if matches:
+        # Replace the first (oldest) auto block with this one.
+        m = matches[0]
+        text = text[:m.start()] + new_block + text[m.end():]
+        return (text, True)
+    idx = _find_insertion_point(text)
+    prefix = text[:idx]
+    if prefix and not prefix.endswith("\n\n"):
+        prefix += "\n" if prefix.endswith("\n") else "\n\n"
+    new_text = prefix + new_block + text[idx:]
+    return (new_text, True)
+
+
+def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noqa: C901
+                 conn=None) -> tuple[int, int]:
+    """Render auto chatter blocks into company notes.
+
+    ``quotes_by_entity_edition`` maps ``(entity_name, edition)`` -> list[Quote].
+    For each entity, picks the latest edition's quotes (by source order in the
+    scan) and writes/refreshes the auto block in its note. Returns
+    ``(written, skipped_hand)``.
+    """
+    own_conn = conn is None
+    if own_conn:
+        conn = connect()
+    written = 0
+    skipped = 0
+    try:
+        # Resolve entity -> file_path once.
+        entities = list({e for e, _ in quotes_by_entity_edition})
+        if not entities:
+            return (0, 0)
+        placeholders = ",".join("?" for _ in entities)
+        rows = conn.execute(
+            f"SELECT name, file_path FROM entities WHERE name IN ({placeholders}) "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            f"AND file_path IS NOT NULL",
+            tuple(entities),
+        ).fetchall()
+        path_by_entity = {r["name"]: r["file_path"] for r in rows}
+
+        # Group quotes by entity, pick the latest edition per entity.
+        by_entity: dict[str, dict[str, list[Quote]]] = {}
+        for (entity, edition), qs in quotes_by_entity_edition.items():
+            by_entity.setdefault(entity, {})[edition] = qs
+
+        for entity, edict in by_entity.items():
+            file_path = path_by_entity.get(entity)
+            if not file_path:
+                continue
+            p = PROJECT_ROOT / file_path
+            if not p.exists():
+                continue
+            # Pick the latest edition (deterministic: highest source_stem line,
+            # captured in source_ref; fall back to dict order). For each note we
+            # render ALL editions that have quotes (each as its own block), so a
+            # note accumulates one auto block per edition scanned.
+            for edition, qs in edict.items():
+                if not qs:
+                    continue
+                text = p.read_text(encoding="utf-8", errors="replace")
+                # Dedup identical quotes within the edition (same quote_text).
+                seen: set[str] = set()
+                unique = []
+                for q in qs:
+                    if q.quote_text in seen:
+                        continue
+                    seen.add(q.quote_text)
+                    unique.append(q)
+                new_block = render_chatter_block(edition, unique)
+                new_text, changed = _replace_or_insert_block(text, edition, new_block)
+                if not changed:
+                    skipped += 1
+                    continue
+                if dry_run:
+                    written += 1
+                else:
+                    p.write_text(new_text, encoding="utf-8")
+                    written += 1
+    finally:
+        if own_conn:
+            conn.close()
+    return (written, skipped)
+
+
+# --- Key Figures (auto) block ---------------------------------------------
+# A second sentinel-wrapped section per company note that surfaces the captured
+# financial magnitudes. Separate sentinels from the chatter block so the two
+# refresh independently. Like the chatter block, it never touches curated
+# `## Financial Performance` / `## Key Metrics` sections (different heading).
+_KF_BEGIN = "<!-- BEGIN auto key figures (derive_insights.py) -->"
+_KF_END = "<!-- END auto key figures -->"
+_KF_HEADING = "## Key Figures (auto)"
+_KF_PATTERN = re.compile(
+    re.escape(_KF_BEGIN) + r".*?" + re.escape(_KF_END) + r"\n?", re.DOTALL
+)
+
+# Foreign auto-blocks can collide into the key-figures region because
+# enrich_from_yfinance shares the "after ## Company Overview" insertion anchor,
+# lodging e.g. the company-profile block between _KF_BEGIN and _KF_HEADING. A
+# naive BEGIN→END substitution would destroy it; _replace_or_insert_kf uses
+# this to rescue such nested foreign blocks and re-place them before our BEGIN.
+# The (?!key figures) guard excludes our own BEGIN marker.
+_NESTED_AUTO_BLOCK = re.compile(
+    r"<!-- BEGIN auto (?!key figures).*?-->.*?<!-- END auto .*?-->\n*",
+    re.DOTALL,
+)
+
+# Display order for metric labels (most-informative first); unmapped labels
+# append alphabetically. value_raw is the display string.
+_LABEL_ORDER = [
+    "revenue", "profit", "ebitda_margin", "margin", "growth",
+    "capex", "order_book", "aum", "debt", "market_share", "stake",
+]
+
+
+def render_key_figures_block(metrics: list[Metric]) -> str:
+    """Render the auto ``## Key Figures (auto)`` markdown block.
+
+    Groups the metrics by ``metric_label`` and dedups near-identical values
+    within a label. Each line shows the value + period (if any). The block is
+    a compact snapshot — the verbatim ``source_quote`` on each row is the
+    ground truth for query/analytics; this block is the human-readable view.
+    """
+    # Group by label; None-labeled figures go under "(other)".
+    by_label: dict[str, list[Metric]] = {}
+    for m in metrics:
+        key = m.metric_label or "(other)"
+        by_label.setdefault(key, []).append(m)
+
+    def _label_sort_key(lbl: str) -> tuple[int, str]:
+        try:
+            return (0, f"{_LABEL_ORDER.index(lbl):02d}")
+        except ValueError:
+            return (1, lbl)
+
+    lines = [_KF_BEGIN, "", _KF_HEADING, ""]
+    lines.append(
+        f"<!-- Auto-generated by derive_insights.py from concall magnitudes. "
+        f"{len(metrics)} figure(s) across {len(by_label)} metric(s). Refreshed "
+        f"on each `make derive-insights` run; do not edit by hand. -->"
+    )
+    lines.append("")
+    if not by_label:
+        lines.append("_(No financial magnitudes captured yet.)_")
+    else:
+        for label in sorted(by_label.keys(), key=_label_sort_key):
+            ms = by_label[label]
+            # Dedup by value_raw (keep the first; they're often restated).
+            seen_vals: set[str] = set()
+            for m in ms:
+                if m.value_raw in seen_vals:
+                    continue
+                seen_vals.add(m.value_raw)
+                period = f" ({m.period})" if m.period else ""
+                lines.append(f"- **{label}**: {m.value_raw}{period}")
+    lines.extend(["", _KF_END, ""])
+    return "\n".join(lines)
+
+
+def _kf_insertion_point(text: str) -> int:
+    """Where to insert the Key Figures block. After the Company Overview /
+    Financial Information sections if present (adjacent to related content);
+    otherwise before the first `## The Chatter` block, else at end."""
+    for heading in (r"^## Financial", r"^## Key Metrics", r"^## Company Overview"):
+        m = re.search(heading, text, re.MULTILINE)
+        if m:
+            # Insert right AFTER this heading's section — find the next heading.
+            nxt = re.search(r"^## ", text[m.end():], re.MULTILINE)
+            return m.end() + (nxt.start() if nxt else 0)
+    m = re.search(r"^## The Chatter", text, re.MULTILINE)
+    if m:
+        return m.start()
+    return len(text)
+
+
+def _replace_or_insert_kf(text: str, new_block: str) -> tuple[str, bool]:
+    """Refresh the sentinel-wrapped Key Figures block or insert a new one.
+
+    A foreign auto-block nested inside the key-figures region (the known
+    collision with enrich_from_yfinance's company-profile block, which shares
+    the "after ## Company Overview" insertion anchor) is rescued and re-placed
+    immediately before the BEGIN marker, so refreshing the figures never
+    deletes a sibling auto-section. The rescue is idempotent: once the foreign
+    block sits outside the region it is no longer matched here.
+    """
+    m = _KF_PATTERN.search(text)
+    if m:
+        rescued = _NESTED_AUTO_BLOCK.findall(m.group(0))
+        if rescued:
+            replacement = "\n\n".join(b.rstrip() for b in rescued) + "\n\n" + new_block
+        else:
+            replacement = new_block
+        replaced = text[:m.start()] + replacement + text[m.end():]
+        return (replaced, replaced != text)
+    idx = _kf_insertion_point(text)
+    prefix = text[:idx]
+    if prefix and not prefix.endswith("\n\n"):
+        prefix += "\n" if prefix.endswith("\n") else "\n\n"
+    new_text = prefix + new_block + text[idx:]
+    return (new_text, True)
+
+
+def render_metrics_notes(metrics_by_entity: dict, *, dry_run: bool = True,
+                         conn=None) -> int:
+    """Render the auto ``## Key Figures (auto)`` block into each company note.
+
+    ``metrics_by_entity`` maps ``entity_name`` -> list[Metric]. Returns the
+    count of notes written/would-write.
+    """
+    own_conn = conn is None
+    if own_conn:
+        conn = connect()
+    written = 0
+    try:
+        entities = list(metrics_by_entity.keys())
+        if not entities:
+            return 0
+        placeholders = ",".join("?" for _ in entities)
+        rows = conn.execute(
+            f"SELECT name, file_path FROM entities WHERE name IN ({placeholders}) "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            f"AND file_path IS NOT NULL",
+            tuple(entities),
+        ).fetchall()
+        path_by_entity = {r["name"]: r["file_path"] for r in rows}
+        for entity, ms in metrics_by_entity.items():
+            if not ms:
+                continue
+            file_path = path_by_entity.get(entity)
+            if not file_path:
+                continue
+            p = PROJECT_ROOT / file_path
+            if not p.exists():
+                continue
+            text = p.read_text(encoding="utf-8", errors="replace")
+            new_block = render_key_figures_block(ms)
+            new_text, changed = _replace_or_insert_kf(text, new_block)
+            if not changed:
+                continue
+            if dry_run:
+                written += 1
+            else:
+                p.write_text(new_text, encoding="utf-8")
+                written += 1
+    finally:
+        if own_conn:
+            conn.close()
+    return written
+
+
+# =========================================================================== #
+# Orchestration                                                               #
+# =========================================================================== #
+def _expand_paths(target: str) -> list[Path]:
+    """Resolve a CLI target (file / dir / glob) to a list of newsletter .md files."""
+    p = Path(target)
+    if p.is_file():
+        return [p]
+    if p.is_dir():
+        return sorted(p.rglob("*.md"))
+    # Treat as glob.
+    return sorted(PROJECT_ROOT.glob(target))
+
+
+# Newsletter chrome to skip (non-content). Mirrors the parse_newsletter skip set.
+_NEWSLETTER_CHROME_NAMES = {"image_map", "images"}
+
+
+def scan(target: str, conn) -> tuple[list[Quote], list[Metric]]:
+    """Scan one or more newsletter files; return ``(quotes, metrics)``."""
+    quotes: list[Quote] = []
+    metrics: list[Metric] = []
+    for md in _expand_paths(target):
+        if md.name == "image_map.md" or md.parent.name in _NEWSLETTER_CHROME_NAMES:
+            continue
+        content = md.read_text(encoding="utf-8", errors="replace")
+        stem = md.stem
+        edition = _edition_title(stem, content)
+        sections = list(iter_company_sections(content))
+        if not sections:
+            continue
+        resolved = _resolve_entities(conn, sections)
+        for section in sections:
+            entity_name = resolved.get(section.canonical_name)
+            if not entity_name:
+                continue  # unknown company — extract_relations handles sidecar
+            # Re-key the section's canonical_name to the resolved DB name so
+            # downstream rows reference the actual entity.
+            section.canonical_name = entity_name
+            quotes.extend(extract_quotes(section, edition, stem))
+            metrics.extend(extract_metrics(section, edition, stem))
+    return quotes, metrics
+
+
+def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
+    p = argparse.ArgumentParser(
+        description="Derive the quotes + company_metrics tables (the concall-body "
+                    "capture layer) from newsletter prose, and render auto "
+                    "`## The Chatter — <edition>` blocks into company notes.",
+    )
+    p.add_argument(
+        "target", nargs="?", default="findata",
+        help="Newsletter .md file, directory, or glob (default: findata). "
+             "Sectors/Companies subfolders are skipped (no concall sections).",
+    )
+    p.add_argument(
+        "--apply", action="store_true",
+        help="Write quote/metric rows + render note blocks (default: dry-run).",
+    )
+    p.add_argument(
+        "--verbose", "-v", action="store_true",
+        help="Print every quote + metric in addition to the summary.",
+    )
+    p.add_argument(
+        "--no-notes", action="store_true",
+        help="Skip the note-rendering pass (DB write only).",
+    )
+    args = p.parse_args(argv)
+
+    conn = connect()
+    try:
+        quotes, metrics = scan(args.target, conn)
+
+        # Summary.
+        by_speaker: dict[str, int] = {}
+        for q in quotes:
+            key = q.speaker_name or "(anonymous)"
+            by_speaker[key] = by_speaker.get(key, 0) + 1
+        entities_with_quotes = {q.entity for q in quotes}
+        entities_with_metrics = {m.entity for m in metrics}
+
+        print(
+            f"quotes={len(quotes)} metrics={len(metrics)} "
+            f"entities_quotes={len(entities_with_quotes)} "
+            f"entities_metrics={len(entities_with_metrics)} "
+            f"({'apply' if args.apply else 'dry-run'})",
+            file=sys.stderr,
+        )
+        if quotes:
+            attributed = sum(1 for q in quotes if q.speaker_name)
+            print(
+                f"  quotes_attributed={attributed} "
+                f"({100*attributed/len(quotes):.0f}%) "
+                f"distinct_speakers={len(by_speaker)}",
+                file=sys.stderr,
+            )
+        if metrics:
+            by_unit: dict[str, int] = {}
+            for m in metrics:
+                by_unit[m.unit or "(none)"] = by_unit.get(m.unit or "(none)", 0) + 1
+            print(f"  metrics_by_unit: {by_unit}", file=sys.stderr)
+
+        q_written = apply_quotes(quotes, conn=conn, dry_run=not args.apply)
+        m_written = apply_metrics(metrics, conn=conn, dry_run=not args.apply)
+        action = "inserted" if args.apply else "would insert"
+        print(f"{q_written} quotes {action}.", file=sys.stderr)
+        print(f"{m_written} metrics {action}.", file=sys.stderr)
+
+        # Note rendering: chatter blocks (quotes) + key-figures blocks (metrics).
+        if not args.no_notes:
+            by_entity_edition: dict[tuple[str, str | None], list[Quote]] = {}
+            for q in quotes:
+                key = (q.entity, q.as_of_edition)
+                bucket = by_entity_edition.get(key)
+                if bucket is None:
+                    bucket: list[Quote] = []
+                    by_entity_edition[key] = bucket
+                bucket.append(q)
+            written, skipped = render_notes(
+                by_entity_edition, dry_run=not args.apply, conn=conn
+            )
+            n_action = "wrote" if args.apply else "would write"
+            print(
+                f"{written} chatter blocks {n_action} ({skipped} skipped — "
+                f"existing hand-written block).",
+                file=sys.stderr,
+            )
+            # Key Figures (auto) blocks from metrics.
+            metrics_by_entity: dict[str, list[Metric]] = {}
+            for m in metrics:
+                metrics_by_entity.setdefault(m.entity, []).append(m)
+            kf_written = render_metrics_notes(
+                metrics_by_entity, dry_run=not args.apply, conn=conn
+            )
+            print(
+                f"{kf_written} key-figures blocks {n_action}.",
+                file=sys.stderr,
+            )
+
+        if args.verbose:
+            for q in sorted(quotes, key=lambda x: (x.entity, x.as_of_edition or "")):
+                spk = f"{q.speaker_name} ({q.speaker_title})" if q.speaker_name else "(anon)"
+                print(f"[Q] {q.entity} | {q.as_of_edition} | {spk} | "
+                      f"{q.quote_text[:90]}…")
+            for m in sorted(metrics, key=lambda x: (x.entity, x.as_of_edition or "")):
+                print(f"[M] {m.entity} | {m.as_of_edition} | {m.metric_label} | "
+                      f"{m.value_raw} | {m.unit} | {(m.source_quote or '')[:70]}")
+    finally:
+        conn.close()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(_cli())

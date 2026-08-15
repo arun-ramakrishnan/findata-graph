@@ -1,0 +1,20 @@
+# ty type checker config — Astral (uv + ruff) stack (2026-08-13).
+#
+# ty is the type checker from the same authors as ruff/uv, so it shares the
+# toolchain and config style. `make types` runs `ty check helpers app.py`.
+#
+# File selection:
+#   make qa / make types  →  `ty check helpers app.py`  (gate-failing, production only)
+#   make advisory          →  `ty check tests --extra-search-path helpers`  (non-gating)
+#
+# Tests are excluded from the qa gate because they use sys.path.insert,
+# monkeypatching, and mock proxies that ty cannot reason about statically.
+# The advisory pipeline surfaces test type issues for visibility without
+# blocking development. --extra-search-path helpers lets ty resolve the
+# sys.path.insert(0, 'helpers') imports without per-line suppressions.
+# [environment] pins python-version to the project interpreter (3.14) and points
+# ty at the project .venv for third-party import resolution.
+
+[environment]
+python-version = "3.14"
+python = ".venv"

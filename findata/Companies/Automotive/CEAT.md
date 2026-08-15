@@ -1,0 +1,115 @@
+---
+title: CEAT Limited
+type: company
+ticker: CEATLTD.NS
+sector: Automotive
+industry: Auto Parts
+market_cap: mid_cap
+normalized_name: CEAT
+file_path: findata/Companies/Automotive/CEAT.md
+permalink: /companies/automotive/ceat
+tags:
+- entity_type/company
+- sector/automotive
+- market_cap/mid_cap
+- geography/india
+- risk_investment/medium_risk
+- business_model/b2b
+created: 2026-01-25
+last_modified: 2026-07-17
+---
+
+# CEAT Limited
+
+## Company Overview
+
+CEAT Limited, founded in 1924 as CEAT Tyres of India and renamed in 1990, is headquartered in Mumbai and is a subsidiary of RPG Enterprises. The company manufactures automotive tyres, tubes, and flaps for a broad range of vehicles and applications. Its products serve scooters, motorcycles, two- and three-wheelers, passenger cars, buses, light commercial vehicles (LCVs), trucks, off-highway equipment, and tractors, including steel radial constructions. CEAT sells to OEM customers and through retail channels (dealers, distributors, online) and exports internationally.
+
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Parts
+- **Employees**: 10,222
+- **Promoter Holding**: 48.5%
+- **Institutional Holding**: 33.4%
+- **Business Summary**: CEAT Limited manufactures automotive tyres, tubes, and flaps in India and internationally. The company offers a range of tyres for rubber tires and tubes for scooters, bikes, two and three wheelers, cars, buses, LCVs, trucks, and tractors, as well as agricultural and industrial radial tyres. It a…
+
+_Source: yfinance | Refreshed: 2026-08-10_
+<!-- END auto company profile -->
+## Financial Profile (Yahoo Finance, Jun 2026)
+
+| Metric | Value |
+|---|---|
+| Market cap | ₹140.8B (mid_cap) |
+| Enterprise value | ₹152.1B |
+| Revenue (TTM) | ₹156.8B (+23.3% YoY) |
+| EBITDA (TTM) | ₹20.5B (13.1% margin) |
+| Net income (TTM) | ₹6.98B |
+| Profit margin | 4.5% |
+| Q4 earnings growth | +1451% (sharp recovery from low base) |
+| EPS (trailing) | ₹172.89 |
+| EPS (forward) | ₹231.40 |
+| P/E (trailing) | 20.2x |
+| P/E (forward) | 15.1x |
+| Price/Book | 2.40x |
+| Total debt | ₹32.7B |
+| Debt-to-equity | 64.7% |
+| Cash | ₹0.43B |
+| Promoter holding | 48.4% (RPG Enterprises) |
+| Institutional holding | 28.6% |
+| Dividend yield | 0.87% |
+| Payout ratio | 17.4% |
+| 52-week range | ₹3,001 – ₹4,438 |
+| ROE | 14.8% |
+| Gross margin | 39.4% |
+
+## Product Portfolio / Business Segments
+
+- **Two-/Three-Wheeler Tyres**: Scooters, motorcycles, and three-wheeler fitments.
+- **Passenger Car Tyres**: Steel radials for cars and UVs, OEM and replacement.
+- **Commercial Vehicle Tyres**: Truck and bus radials, LCV fitments.
+- **Off-Highway & Specialty**: OTR, industrial, and construction equipment tyres.
+- **Farm / Tractor Tyres**: Agricultural and tractor applications.
+- **Tubes & Flaps**: Rubber tubes and flap accessories across vehicle categories.
+- **Distribution Channels**: OEM supply, dealer/distributor retail, online sales, and international exports.
+
+## Management
+
+- **Mr. Arnab Banerjee** — CEO, Managing Director & Director (age 61)
+- **Mr. Kumar Subbiah** — Executive Director Finance & CFO
+- **Mr. Renji Issac** — Senior Vice President, R&D and Technology
+- **Mr. Lakshmi Narayanan B** — Chief Marketing Officer
+- **Mr. Vishal Pawar** — Senior Vice President, Global Sales & Supply Chain
+
+## The Chatter — Edition #52 (Mar 27, 2026)
+
+*Source: Zerodha "The Chatter" Edition #52, Mar 27, 2026*
+
+- **Disciplined capex**: ~₹1,000 cr for the current year, aligned with cash flows and within leverage guidance; capacity utilisation running high at 80–90%.
+- **Geopolitical impact timing**: Q4 largely unaffected (raw materials bought pre-conflict); Q1 to see impact across freight, currency (rupee depreciation), and crude-based derivatives — could spill into early Q2 (H1 FY27 bears the brunt).
+- **Raw-material inflation**: Price escalation of ~10%+ expected into May; supply disruptions and elevated prices persist even if the conflict ends.
+- **Tempered growth**: 15–20% FY27 growth now looks ambitious; double-digit growth seen as a reasonable outcome if the war stops.
+- **Pricing actions**: ~3% price hikes already announced in replacement (with lagged margin impact); OEM pricing indexed to raw materials and revised quarterly with partial pass-through.
+
+## The Chatter — Jio Financial, Wipro, Polycab, Piramal & More
+
+**RM cost escalation outpaced pricing:** Raw material prices up 15–16% in Q1 vs Q4, but price increases passed through only in single digits — margin squeeze in Q1.
+
+**Further RM inflation expected in Q2:** Q2 raw material prices likely up another 8–10% vs Q1; easing expected only in H2FY27.
+
+**Pricing actions underway:** Heavy price increase taken from July 1 in replacement market; healthy OEM price increases (indexed to RM) secured. More needed in replacement and international business.
+
+**Underlying demand robust:** Post-GST change, demand strong across replacement and OEM channels (CV, PV, two-wheelers).
+
+**Premiumization strategy:** Higher rim-size tyre fitment increasing from low base — margin accretive once RM situation eases.
+
+**Camso integration on track:** Direct customer management to begin by end-Q2 (September); already gross-margin-accretive even pre-integration — meaningful upside once full value chain controlled.
+
+**Double-digit FY27 growth target:** Targeting double-digit top-line growth for FY27; grew 18.5% standalone in Q1 — confident of gaining market share irrespective of industry growth.
+
+> "You'll be surprised to know that even now the Camso business gross margin is higher than CEAT's. That gives you an indication of the possibility when we handle the full value chain."
+> — Arnab Banerjee, Managing Director & CEO
+
+*Source: The Chatter — Jio Financial, Wipro, Polycab, Piramal & More (Edition #69, Q1FY27)*

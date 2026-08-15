@@ -1,0 +1,101 @@
+---
+title: Balkrishna Industries Limited
+type: company
+ticker: BALKRISIND.NS
+sector: Automotive
+industry: Auto Parts
+market_cap: mid_cap
+normalized_name: Balkrishna_Industries_Limited
+permalink: /companies/automotive/balkrishna_industries_limited
+tags:
+- business_model/b2b
+- entity_type/company
+- geography/india
+- market_cap/mid_cap
+- risk_investment/cyclical
+- sector/automotive
+- industry/off_highway_tires
+- industry/tyre_manufacturing
+- industry/specialty_tires
+created: '2025-12-28'
+last_modified: '2025-12-28'
+---
+
+Balkrishna Industries Limited | Mid Cap | Tyres 
+
+Balkrishna Industries Limited (BKT) is primarily engaged in the manufacturing anc sale of off-highway tires (OHT). These tires are used in specialized segments likeagriculture, construction, earthmoving, mining, and forestry. BKT is a leading play in the global off-highway tire market.
+
+# [Concall] 
+
+BKT unveiled a three-lever growth strategy targeting $117 \\%$ revenue expansion, with OHT contributing $70 \\%$, carbon black third-party sales $10 \\%$, and new Indian tyre segments $20 \\%$ of enhanced revenue, marking a strategic pivot toward domestic mar diversification.\n\"At BKT, we have set a clear and shared ambition. That is, to reach a revenue milestone approximately Rs 23,000 crore by 2030. To achieve this, we are moving forward along $w$ three levers of growth. Lever one, the OHT business of ours. Here, we aim to achieve 70! contribution on the enhanced revenue by financial year 2030. Lever two, carbon black. Here, we aim to achieve 10\\% contribution of enhanced revenue by 2030 from third-part sales. And lever three, we now plan to enter new tyre categories for the Indian market. 7 should deliver around 20\\% of enhanced revenue by the financial year 2030.\"\n
+- Rajiv Poddar, Joint Managing Director
+
+Phased domestic market entry timeline targets ₹ 80,000 crore TAM with disciplined execution approach. CVR pilot launches in Q4 FY26 followed by PCR in Q3 FY27, aiming for 5\\% market share in India's non-OHT segments, demonstrating measure expansion strategy rather than aggressive market grab in highly competitive categories.\n\"The commercial vehicle radial tyre pilot will launch in Q4 of financial year 25-26, and then it will gradually be ramped up. The PCR tyres pilot will follow in Q3 of financial yt 26-27, and then it will gradually ramp up. By 2030, these new verticals are expected to contribute to around $20 \\%$ of our overall sales, leading to approximately 5\\% market shar India, allowing BKT to participate in non-OHT total addressable market of additional 80,000 crores in India alone.\"\n
+- Rajiv Poddar, Joint Managing Director
+
+The $50 \\%$ capacity increase by early FY26, coupled with 24 MW additional cogeneration power, enhances cost competitiveness in tyre manufacturing while positioning for specialty carbon black third-party sales growth.\n\"To capitalize on synergies with our tyre operations and leverage energy and raw materi integration, the Board has approved the expansion of our carbon black plant from 200,6 to 300,000 metric tons per annum. Along with this, a 24-megawatt co-generation power plant, taking total co-gen power capacity to 64 megawatt at Bhuj. This expansion is expected to be completed by early 26. \"\n
+- Rajiv Poddar, Joint Managing Director
+
+US tariff cost-sharing arrangements demonstrate pricing power and strong custom relationships. Rather than fully absorbing or passing through $10 \\%$ US tariffs, BKT successfully negotiated burden-sharing with customers, indicating strong market position and collaborative partnerships in key export markets.\n\"So, it is being partly split between us and the customer. So, the tariff is over and above whatever was there existing. So $10 \\%$ is being split between us and the customer.\"\n
+- Rajiv Poddar, Joint Managing Director
+---
+
+## Duplicate Files Consolidated
+*Consolidated from:*
+- `Balkrishna_Industries.md` (basic file with minimal content)
+- `Balkrishna_Industries_Limited.md` (comprehensive detailed file with financial data, growth strategy, and earnings call content - retained as primary)
+
+*Consolidation completed: 2025-11-10 19:21:15*
+
+<!-- BEGIN auto chatter block (derive_insights.py) -->
+
+<!-- BEGIN auto key figures (derive_insights.py) -->
+
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Parts
+- **Employees**: 3,758
+- **Promoter Holding**: 58.6%
+- **Institutional Holding**: 30.8%
+- **Business Summary**: Balkrishna Industries Limited manufactures and sells tires in India, Europe, North America, and internationally. It provides manufacturing and selling of off-highway tires OHT for use in various applications, such as agricultural, mining, forestry, construction, industrial, earthmoving, port, all…
+
+_Source: yfinance | Refreshed: 2026-08-10_
+<!-- END auto company profile -->
+## Key Figures (auto)
+
+<!-- Auto-generated by derive_insights.py from concall magnitudes. 3 figure(s) across 1 metric(s). Refreshed on each `make derive-insights` run; do not edit by hand. -->
+
+- **(other)**: Rs 23,000 crore
+- **(other)**: ₹ 80,000 crore
+- **(other)**: 24 MW (FY26)
+
+<!-- END auto key figures -->
+## The Chatter — The Chatter: Decoding the Dialogue
+
+<!-- Auto-generated by derive_insights.py from the The Chatter: Decoding the Dialogue concall. Edit the paraphrase/quote selection by replacing this block with a hand-written `## The Chatter — The Chatter: Decoding the Dialogue` section (this sentinel-wrapped block is refreshed on each `make derive-insights` run). -->
+
+- **# Balkrishna Industries Limited |_Mid Cap | Tyres Balkrishna Industries Limited (BKT) is primarily engaged in the manufacturing anc sale of **…
+
+> "At BKT, we have set a clear and shared ambition. That is, to reach a revenue milestone approximately Rs 23,000 crore by 2030. To achieve this, we are moving forward along $w$ three levers of growth. Lever one, the OHT business of ours. Here, we aim to achieve 70! contribution …"
+> — Rajiv Poddar, Joint Managing Director
+
+- **Phased domestic market entry timeline targets ₹ 80,000 crore TAM with disciplined execution approach. CVR pilot launches in Q4 FY26 followed**…
+
+> "The commercial vehicle radial tyre pilot will launch in Q4 of financial year 25-26, and then it will gradually be ramped up. The PCR tyres pilot will follow in Q3 of financial yt 26-27, and then it will gradually ramp up. By 2030, these new verticals are expected to contribute…"
+
+- **- Rajiv Poddar, Joint Managing Director The $50 \%$ capacity increase by early FY26, coupled with 24 MW additional cogeneration power, enhan**…
+
+> "To capitalize on synergies with our tyre operations and leverage energy and raw materi integration, the Board has approved the expansion of our carbon black plant from 200,6 to 300,000 metric tons per annum. Along with this, a 24-megawatt co-generation power plant, taking tota…"
+> — Rajiv Poddar, Joint Managing Director
+
+- **US tariff cost-sharing arrangements demonstrate pricing power and strong custom relationships. Rather than fully absorbing or passing throug**…
+
+> "So, it is being partly split between us and the customer. So, the tariff is over and above whatever was there existing. So $10 \%$ is being split between us and the customer."
+> — Rajiv Poddar, Joint Managing Director
+
+*Source: The Chatter — The Chatter: Decoding the Dialogue*
+
+<!-- END auto chatter block -->

@@ -1,0 +1,119 @@
+LINT ANALYSIS — ruff replaces flake8 (FinData knowledge graph)
+==============================================================
+
+Created: 2026-08-13
+Last updated: 2026-08-13
+Status: RESOLVED (2026-08-13). ruff adopted as the project linter
+(ruff.toml + `make lint`, now also the FIRST step of `make qa`); flake8
+removed from the venv. All 166 findings cleared: 126 safe + 6 unsafe
+auto-fixed (F401/F541/F841/F811/E713); 16 E402 moved to ruff.toml
+per-file-ignores (the universal sys.path-bootstrap pattern — every match
+was intentional); and 16 manual fixes — including 1 REAL bug (a shadowed,
+never-collected test_merge_markers_detects_conflict — F811; pytest was
+silently running only the second definition) and 7 bare-except tightened
+to `except Exception` (E722). 0 false positives in the set. `make lint`
+is green and folded into `make qa`. The original "wait for test-harness
+slices B/C/D" gate was stale — all 5 slices were already done
+(completed.md item 91). See the resolution plan below for per-phase detail.
+
+SCOPE
+-----
+Adopt ruff as the single linter (subsumes flake8 + isort + most of
+pyupgrade/black-check). Goal was a focused, bug-catching config — NOT the
+full ruff default ruleset, which produces ~833 cosmetic findings
+(SIM/UP/RUF/PLC/TRY/DTZ/...) on this legacy codebase.
+
+Config delivered
+----------------
+- `ruff.toml`: `select = ["E", "F"]`, `ignore = ["E501"]` (line length),
+  `line-length = 100`. E501 is ignored because the repo permits long lines
+  (tests reach 259 chars) and the existing `static_checks.py` gate does not
+  enforce length.
+- `Makefile`: added `lint` target (`ruff check .`) and put `lint` in
+  `.PHONY`. Uses the existing `.RECIPEPREFIX := >` recipe style.
+- flake8 uninstalled from the venv (`command -v flake8` -> NONE).
+- `make qa` is UNCHANGED (still `static_checks.py`), so the existing gate
+  is not affected.
+
+Findings (ruff check . --statistics, after one fix)
+--------------------------------------------------
+166 errors total. Breakdown by code:
+
+  F401  unused-import                        99   (auto-fixable)
+  F541  f-string-missing-placeholder        21   (auto-fixable; review -- see note)
+  E402  module-import-not-at-top-of-file    18   (not auto-fixable)
+  F841  unused-variable                      8   (auto-fixable)
+  E722  bare-except                          7   (not auto-fixable; real safety)
+  E741  ambiguous-variable-name (l/O/I)      7   (not auto-fixable)
+  F811  redefined-while-unused               4   (not auto-fixable)
+  E713  not-in-test (`not x in y`)           1   (auto-fixable)
+  F821  undefined-name                       1   (benign -- see below)
+
+  126 of the 167 are auto-fixable with `ruff check --fix`
+  (6 more with --unsafe-fixes).
+
+Notable: ruff caught a REAL bug
+--------------------------------
+- `helpers/maintenance/db_maint.py:657` used `sys.stderr` but the file had
+  NO `import sys` anywhere (the only `import duckdb` at line 307 is inside a
+  `try`, unrelated). This is a genuine NameError on that error path.
+  FIXED 2026-08-13: added module-level `import sys`. (This took the count
+  from 167 -> 166.)
+- The single remaining F821 (`helpers/maintenance/snapshot_db.py:448`) is
+  BENIGN: `duckdb` is referenced only inside a string annotation
+  (`"duckdb.DuckDBPyConnection"`), and all `import duckdb` are deliberately
+  local (optional dependency). Not a runtime bug.
+
+Per-code notes for the later pass
+---------------------------------
+- F541 (21): auto-fix just strips the `f` prefix. If a `{}` placeholder was
+  genuinely forgotten, stripping `f` HIDES a real bug -- review each before
+  accepting the auto-fix.
+- F401 (99): mostly safe to remove, but verify none are re-exported via
+  `__init__` or used by string/dynamic references before deleting.
+- E722 (7) bare-except: real safety issue; add `except Exception:` with a
+  logger.
+- E402 / F811 / F841 / E741 / E713: manual, low-risk cleanups.
+
+Resolution plan (2026-08-13) — full cleanup → green `make lint`, then gate
+=======================================================================
+Decision: (a) auto-fix the safe findings, (b) manually fix the structural
+ones — NOT (c) per-file-ignores. The safe set has 0 latent bugs (F401
+re-export/dynamic-ref check clean; F541 = 0 forgotten placeholders), and
+the manual set contains exactly 1 REAL bug (a shadowed, never-collected
+test) plus 7 safety-relevant bare-excepts worth fixing properly. Target:
+`make lint` fully green, then folded into `make qa` (ruff is sub-second).
+166 = 126 safe auto-fix + 6 low-risk unsafe + 34 manual (reconciles exact).
+
+Phase 1 — Safe auto-fixes (126): `ruff check . --fix`.
+  F401 x99, F541 x21, F841 x2 (except-as-e), F811 x3 (dup imports),
+  E713 x1. Verify `ruff check . --statistics` -> 40 remaining, `make test`
+  green.
+
+Phase 2 — Unsafe F841 unused-locals (6): eyeball
+  `extract_relations.py:1898` (`resolver = EntityResolver(names)` — possibly
+  a real "meant-to-be-threaded" bug) BEFORE running
+  `ruff check . --fix --unsafe-fixes` for the rest (get_tickers currency,
+  db_maint wasted_kb, enrich now, test_derive_events path_to_name,
+  test_verify_notes descs — all pure-RHS dead stores).
+
+Phase 3 — Manual fixes (34):
+  3a. F811 dead test (REAL BUG, 1): test_static_checks.py defines
+      test_merge_markers_detects_conflict twice (:224 shadowed/never-
+      collected, :1087 live). Delete the dead def, port its stronger
+      `== 1` assertion into the survivor.
+  3b. E722 bare-except (7): -> `except Exception:` (app.py:698,
+      get_tickers.py x6).
+  3c. E402 (18): `# noqa: E402` on intentional sys.path-bootstrap imports.
+  3d. F821 (1): snapshot_db.py:448 -> TYPE_CHECKING-guarded `import duckdb`.
+  3e. E741 ambiguous `l` (7): rename -> label/line.
+
+Phase 4 — Verify green + gate: `ruff check .` -> 0; `make test` green;
+  add `ruff check .` as first line of `make qa` + update its echo/help.
+
+Phase 5 — Docs/memory: mark this file RESOLVED + move to archive/; add a
+  completed.md entry; write a lint-gate-ruff-ef-rules memory. Tree left
+  dirty (user commits manually).
+
+Net effect: `make lint` green + folded into `make qa` (no regression
+path); 1 real bug fixed; 7 bare-excepts tightened.

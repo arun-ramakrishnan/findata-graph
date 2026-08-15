@@ -1,0 +1,515 @@
+# DuckDB Improvements — core features, SQL, & extension surface
+
+Source: read-only survey (2026-07-27) prompted by "what new DuckDB features could
+help the project". Built on top of the closed Bundles A-F (pending_improvs.txt)
+and G-J (graph_improvs.txt). Scope here is deliberately DIFFERENT from
+graph_improvs: that file tracks graph ALGORITHM coverage; this file tracks the
+DUCKDB ENGINE surface — SQL features, extensions, data-access patterns, and
+the workarounds documented in doc/graph_design.txt §17 that new DuckDB/duckpgq
+releases could remove.
+
+Methodology: every claim is backed by file:line references verified against
+the live code, plus the external DuckDB 1.5.x release notes and the extension
+catalog (current as of 2026-07-27). Two findings re-derive concrete code
+locations read during the survey; the rest come from the §17 caveats and the
+F4 family of "Python doing what SQL could" patterns.
+
+Environment as of this survey:
+  - duckdb==1.5.4 (requirements.txt:28), duckpgq community ext f386a6c
+  - Live graph: 1073 entities, 3507 edges, 8 persisted metrics
+  - DuckDB used READ-ONLY for graph data; SQLite is the sole writer
+
+================================================================================
+CURRENT STATE — DuckDB surface today
+================================================================================
+
+Architecture recap: SQLite (memory/research.db) is source of truth; DuckDB +
+duckpgq is a read-derived graph-query cache (memory/graph.duckdb), attached
+via the sqlite extension. All DuckDB access funnels through
+helpers/graph/query.py::connect(); there is no other entry point (verified —
+parse_newsletter/derive_co_mentions/extract_relations all use helpers.core.db
+which is SQLite-only).
+
+SQL features actually used (catalog):
+  GRAPH_TABLE(MATCH ...)        query.py — 22 call sites (the workhorse)
+  CREATE PROPERTY GRAPH         query.py:487 — fin_graph declaration
+  ANY SHORTEST + path_length(p) query.py:685 — native single-label shortest path
+  WITH RECURSIVE                query.py:747 (walk), query.py:843 (find_cycles)
+  UNION ALL                     query.py:751, 845, 1102-1163 (10-way bundle)
+  json_extract_string + COALESCE query.py:910, 954 — venture/year extraction
+  array_contains + string_to_array query.py:766, 859 — token-exact cycle guard
+  row_number() OVER ()          query.py:389 — integer-PK generation (the §17.9 fix)
+  ATTACH '...' AS fin (sqlite)  query.py:247 — read-only SQLite bridge
+  CREATE TABLE AS SELECT        query.py:386-447 — materialise v_node/e_*
+
+SQL features NOT used (zero hits in Python code, verified by grep):
+  Parquet (read or COPY TO) · EXPORT/IMPORT DATABASE · FTS (fts extension) ·
+  vss (vector search) · spatial · ASOF joins · PIVOT/UNPIVOT · LIST/STRUCT
+  columns · generated columns · windowing beyond row_number() · httpfs
+
+Extensions loaded (exactly two, in every connect()):
+  sqlite (core)         — the SQLite bridge
+  duckpgq (community)   — CREATE PROPERTY GRAPH / pagerank / wcc / clustering /
+                          ANY SHORTEST. Native algorithm registry UNCHANGED
+                          from graph_improvs.txt Bundle I: still no louvain,
+                          no betweenness, no eigenvector, no closeness.
+
+Documented workarounds in doc/graph_design.txt §17 (the live hack list):
+  §17.2  No parameter binding in GRAPH_TABLE → _lit() string interpolation
+  §17.4  Mixed-label -[e]- rejected; native ANY SHORTEST returns path_length
+         only (not vertices) → dual-path shortest_path + recursive CTE fallback
+  §17.9  duckpgq merges vertex-table IDs on KEY collision; segfaults on string
+         KEYs → integer-PK v_node materialisation (~80 lines, ~150ms cold)
+  §17.10 ATTACH is session-scoped, never persisted → re-issued every connect()
+  §18.3  Staleness contract is entirely manual (no auto-detection)
+
+================================================================================
+BUNDLE K — Push Python-side work back into SQL (the F4 family)
+================================================================================
+
+STATUS: K1, K2, K3 DONE (2026-07-27). All three "Python doing what SQL could"
+  sites closed. K1 fixed the silent-failure regression in the bundle; K2
+  collapsed the cross-DB market_cap hop into one DuckDB query; K3 coalesced
+  the two remaining serial-query wrappers (neighbors, suppliers_and_customers)
+  into single UNION ALLs. 15 new tests across TestBundleK1JsonExtraction,
+  TestSectorMembersWithMarketCap, TestBundleK3CoalescedNeighbors + the
+  updated TestSectorBundleMarketCapInvariant.
+
+K2. _sector_neighbors_bundle does a cross-DB market_cap hop [DONE]
+    app.py:1446-1458
+    After sector_members() returned a Python list from DuckDB, the route fired
+    a SECOND SQLite query (WHERE name IN (?,?,...)) with len(members)
+    placeholders and Python-built the market_cap_counts dict. This was a
+    Python-mediated GROUP BY between two databases.
+    Severity: LOW (one extra round-trip per sector-neighbors request).
+    Fix: added sector_members_with_market_cap() in query.py — projects
+    c.market_cap alongside the name in the SAME GRAPH_TABLE that fetches the
+    members. _sector_neighbors_bundle now bucketizes in Python from that one
+    result set (no SQLite hop). The "sum(buckets) == member_count" invariant
+    the old code documented is preserved by construction (both come from the
+    same DuckDB row). sector_members() left untouched (5 callers expect
+    list[str]). 4 new tests in TestSectorMembersWithMarketCap (pairs shape,
+    market_cap filter narrows, agrees-with-sector_members, unknown sector) +
+    updated TestSectorBundleMarketCapInvariant to monkeypatch the new helper.
+
+K3. neighbors() and standalone suppliers_and_customers() fire serial queries [DONE]
+    helpers/graph/query.py:599-630 (neighbors, 4 GRAPH_TABLE), 1004-1042
+    (suppliers_and_customers, 4 GRAPH_TABLE)
+    Same multi-trip pattern that Bundle C1 collapsed into the bundle for the
+    /api path. These two wrappers were left multi-trip because they're used
+    by the CLI, not the API. Coalesceable into one UNION each.
+    Severity: LOW (CLI-only path; ~4 trips instead of 1).
+    Fix: both collapsed to one UNION ALL. neighbors() projects a uniform
+    (dir, other, label) shape across 4 arms; the F3 set-dedup + sort is
+    unchanged. suppliers_and_customers() projects a (role, x) shape with a
+    'supplier'/'customer' discriminator; Python buckets into two sets (same
+    dedup the old code did). 7 new tests in TestBundleK3CoalescedNeighbors
+    pin the coalesced shape against live seeds (CEAT neighbors, Talbros↔Tata
+    Motors PV supplier_to, GAIL→Indian Oil customer_of). Verified against the
+    bundle equivalence oracle (test_bundle_matches_individual_wrappers).
+
+K1. company_neighbors_bundle re-introduces the F4 anti-pattern [DONE]
+    helpers/graph/query.py:1173-1193
+    Bundle F4 pushed venture/year extraction into DuckDB via
+    COALESCE(json_extract_string(e.properties, '<key>'), '') for the single-
+    arm wrappers (jv_partners, acquisitions). But the coalesced 10-arm bundle
+    (Bundle C1) was left doing it in Python: _jv_list() and _acquired_list()
+    did _json.loads(props_json or "{}").get(...) per row with a bare
+    except Exception: ... = "" — the exact silent-JSON-failure pattern F4
+    removed. The bundle fetched e.properties raw via the UNION COLUMNS and
+    re-parsed in Python.
+    Severity: MEDIUM (silent failure regression + redundant parse work).
+    Fix: JvWith arm now projects
+    COALESCE(json_extract_string(e.properties, 'venture'), '') AS props,
+    AcquiredBy arm projects the same for 'year'. Dropped the in-function
+    `import json as _json` + both bare `except Exception` blocks in _jv_list
+    / _acquired_list (props is now the pre-extracted string). Malformed JSON
+    now surfaces as a query error (matches F4's data-quality contract).
+    Return-dict shape unchanged (verified: app.py:1410 consumer + the API
+    live tests). 4 new tests in TestBundleK1JsonExtraction pin the bundle
+    path against the same seeds F4 uses (BlackRock/Jio venture,
+    Reliance-missing-venture, CEAT/Camso year), plus a bundle-vs-single-arm
+    equivalence test for the JSON fields. make qa green.
+
+================================================================================
+BUNDLE L — DuckDB-native snapshot / portability
+================================================================================
+
+STATUS: L2 DONE (2026-07-27). L1 DONE (2026-08-11) — implemented + verified.
+  L2 promoted the `year` key out of e_acquired's properties JSON into a typed
+  VARCHAR column projected once at materialise time; acquisitions() and the
+  AcquiredBy arm of company_neighbors_bundle now read e.year directly (no
+  per-query json_extract_string). _SCHEMA_VERSION bumped 1→2 so warm files
+  rebuild.
+
+L1. Snapshot the materialised tables to Parquet [DONE — 2026-08-11]
+    helpers/maintenance/snapshot_db.py (export_parquet_duckdb /
+    export_parquet_sqlite / verify_parquet_snapshot)
+    Today's DuckDB snapshot is gzip-of-binary-.duckdb — not portable (DuckDB
+    binary format isn't stable across versions), not inspectable without
+    DuckDB, and a duckdb/duckpgq bump can make the snapshot unloadable. A
+    COPY (SELECT * FROM v_node) TO 'v_node.parquet' (FORMAT PARQUET) per
+    materialised table gives a portable, columnar, cross-tool snapshot
+    (readable by pandas/polars/arrow without DuckDB).
+    Severity: MEDIUM (snapshot longevity + portability).
+
+    IMPLEMENTATION (supersedes the original Fix sketch):
+    - `--format {binary|parquet|both}` CLI option (default: binary).
+    - export_parquet_duckdb: 20 materialised DuckDB tables → per-table
+      Parquet under db-backup/parquet/duckdb/ (single read-only connection;
+      native COPY ... TO ... (FORMAT PARQUET); no duckpgq needed).
+    - export_parquet_sqlite: 9 SQLite DATA tables → db-backup/parquet/sqlite/
+      via sqlite3 + pandas + pyarrow. Used pyarrow instead of DuckDB ATTACH
+      because DuckDB's strict timestamp parser rejects some legacy rows
+      ("invalid timestamp field format"); pyarrow preserves TEXT as-is.
+    - FTS5 virtual tables + shadow tables (note_search*, entities_fuzzy*)
+      excluded from the SQLite export.
+    - verify_parquet_snapshot: reads every .parquet back and compares row
+      counts against the live source DBs (29 tables checked, all OK).
+    - Makefile: `snapshot` and `snapshot-check` now produce/verify BOTH
+      formats by default (default `--format` is `both`). No separate
+      `snapshot-parquet` target — kept the design simple per user request
+      (2026-08-11).
+    - 6 new tests in tests/test_snapshot.py (round-trip, FTS5 exclusion,
+      mismatch detection, match pass, pandas readability, missing-DB skip).
+      All 9 tests in the file pass.
+
+    OUTCOME: 29 Parquet files (20 duckdb + 9 sqlite), ~7.5MB total, readable
+    by pandas/polars/pyarrow/DuckDB without the original engines. `make
+    snapshot` emits gzip binary AND Parquet; `make snapshot-check` verifies
+    both. Note: this snapshot covers both the DERIVED DuckDB tables AND the
+    SQLite source (source-of-truth data tables); the SQLite gzip snapshot
+    remains too.
+
+
+L2. Promote year/since out of properties JSON into a typed column [DONE]
+    helpers/graph/query.py:435-447 (_materialise_edges e_acquired arm),
+    :60 (_SCHEMA_VERSION bump), :984 (acquisitions reader), :1167 (bundle arm)
+    graph_edges.properties is JSON-in-TEXT, parsed per-read via
+    json_extract_string. backfill_valid_from.py already denormalizes year/
+    since on the SQLite side; DuckDB could use a generated column or a
+    typed projection in _materialise_edges so acquisitions() doesn't need
+    json_extract_string per read. E4 flagged this on the SQLite side
+    ("denormalization is permanent"); the DuckDB side has the same shape.
+    Severity: LOW (12 of 3507 edges carry valid_from; tiny read cost).
+    Fix: add a typed `year INTEGER` projection in the e_acquired CTAS;
+    acquisitions() reads it directly. Drops one json_extract_string per row.
+
+================================================================================
+BUNDLE M — Workarounds removable by DuckDB/duckpgq upstream progress
+================================================================================
+
+STATUS: All OPEN. These are NOT independently actionable — each is gated on a
+specific DuckDB or duckpgq feature landing. Tracked here so a `make update-
+extensions` bump can be paired with a regression test that flags when the
+feature unlocks. Re-derives graph_improvs.txt Bundle H with the §17 evidence.
+
+M1. Parameter binding in GRAPH_TABLE [OPEN — blocked on duckpgq]
+    doc/graph_design.txt §17.2 (table, last row); query.py:71-78 (_lit)
+    Every wrapper builds SQL with f-strings + _lit(company) instead of ?
+    placeholders because duckpgq rejects prepared-statement parameters in
+    GRAPH_TABLE. The _lit() shim has a strict-shape regex guard against
+    injection but it's a workaround. ~22 GRAPH_TABLE call sites affected.
+    Severity: LOW (security shim works; mostly cosmetic).
+    Fix: none until duckpgq ships parameter binding. When it does, replace
+    _lit() with parameterized execute() across all wrappers.
+
+M2. Mixed-label traversal -[e]- [OPEN — blocked on duckpgq]
+    doc/graph_design.txt §17.4; query.py:638-704 (dual-path shortest_path)
+    duckpgq rejects -[e]- without a label binding ("All patterns must bind
+    to a label"). shortest_path carries dual-path complexity purely to work
+    around this. Also H2 in graph_improvs.txt.
+    Severity: MEDIUM (architectural complexity).
+    Fix: none until duckpgq ships it. When fixed, shortest_path collapses
+    to one native path.
+
+M3. Native ANY SHORTEST exposing vertices(p) [OPEN — blocked on duckpgq]
+    doc/graph_design.txt §17.4; query.py:683-692
+    duckpgq exposes path_length(p) but not the intermediate vertex sequence.
+    So the "native" path is effectively dead for the production API (which
+    always needs the vertex sequence and falls through to the CTE). Also H3.
+    Severity: MEDIUM (native path is dead code for the common case).
+    Fix: none until duckpgq exposes vertices(p). When it does, drop the
+    CTE fallback for the non-temporal single-label case. Until then,
+    consider removing the native attempt entirely (it's measured-dead).
+
+M4. Integer-PK materialisation overhead [OPEN — blocked on duckpgq]
+    doc/graph_design.txt §17.3, §17.9; query.py:364-408
+    The whole _materialise_vertices / _materialise_edges / v_node + v_company
+    + v_sector projection machinery (~80 lines, ~150ms cold) exists because
+    duckpgq silently merges vertex-table IDs on KEY collision and segfaults
+    on string KEYs. If duckpgq handled string KEYs and per-table ID spaces
+    correctly, the materialisation could shrink dramatically.
+    Severity: MEDIUM (cold-connect cost + code complexity).
+    Fix: none until duckpgq fixes ID handling. Re-test on every bump.
+
+M5. Native louvain / betweenness / eigenvector / closeness [OPEN — blocked on duckpgq]
+    duckpgq f386a6c function registry (verified 2026-07-27): still only
+    pagerank, weakly_connected_component, local_clustering_coefficient,
+    shortestpath. CWI issue #132 lists louvain/betweenness/eigenvector/
+    closeness as "just proposed" — no branch, no PR, zero code activity
+    since Aug 2024. See graph_improvs.txt Bundle I for the full skip
+    rationale (networkx paths are 68ms/185ms; SQL port not justified).
+    Severity: LOW (networkx works fine; this is a dependency-hygiene want).
+    Fix: none until duckpgq ships. When it does, swap networkx → native
+    following the existing pagerank/wcc/clustering pattern.
+
+M6. ATTACH persistence in the .duckdb catalog [OPEN — blocked on DuckDB core]
+    doc/graph_design.txt §17.10; query.py:247
+    DuckDB refuses to persist cross-engine ATTACH statements; every
+    connect() must re-issue ATTACH '...' AS fin. ~50ms per warm connect.
+    Severity: LOW (one statement per warm connect; well-understood).
+    Fix: none until DuckDB core allows persisting ATTACH. Re-test on bumps.
+
+================================================================================
+BUNDLE N — New DuckDB 1.5.x features worth evaluating
+================================================================================
+
+STATUS: N1 EVALUATED (NOT ADOPTED, 2026-07-27); N3 DONE (documented,
+2026-07-27); N4 EVALUATED (NOT ADOPTED — blocked by segfault, 2026-07-27).
+N2 OPEN (defer). N5 ADOPTED (2026-08-09); N6 NOT APPLICABLE. DuckDB 1.5.0 (Mar 2026) shipped
+several features the project doesn't use yet. Each item below is a "this
+exists now; is it worth adopting?" question, ranked by applicability to
+this codebase. None are urgent — the project runs fine on 1.5.4 without
+them. Both DuckDB-1.5-native candidates that promised DRY/readability wins
+(N1 VARIANT, N4 macros) were killed by measurement: N1 is 2.6–3.1× slower
+and breaks json_extract_string; N4 segfaults duckpgq at CREATE MACRO time
+when the body contains a GRAPH_TABLE. Only N2 (FTS for typeahead) remains
+as a live evaluation candidate, deferred until a fuzzy-search use case
+appears.
+
+N1. VARIANT type for graph_edges.properties [EVALUATED — NOT ADOPTED]
+    DuckDB 1.5.0 introduced the VARIANT type (flexible typed column, like
+    JSON but queryable without json_extract). graph_edges.properties is
+    JSON-in-TEXT today, parsed per-read via json_extract_string.
+    Applicability: MEDIUM on paper, LOW after measurement.
+    Evaluation (2026-07-27, DuckDB 1.5.4):
+      - VARIANT is AVAILABLE; struct-style access works (p.venture,
+        p['venture'], p.year returns typed int/str); mixed-key rows work
+        (each row can carry different keys; missing keys -> NULL).
+      - BUT json_extract_string(p, key) FAILS on VARIANT columns
+        (InvalidInputException) — so switching is a breaking change for
+        the existing query patterns, not a drop-in.
+      - Measured 2.6–3.1× SLOWER than TEXT + json_extract_string across
+        100k–500k rows (venture projection: 18.5ms TEXT vs 49.0ms VARIANT;
+        edition over full scan: 14.5ms vs 45.7ms). VARIANT's raw scan is
+        already 5.6× slower (0.9ms vs 4.9ms) — the per-value type
+        metadata VARIANT carries costs more than json_extract_string on
+        TEXT, so the "no json_extract" promise doesn't pay off.
+      - Post-L2 the per-read json_extract_string surface shrank to ONE
+        key (venture, in jv_partners + the bundle's JvWith arm) on 25
+        jv_with edges (2 carry venture). The year key already moved to a
+        typed column (L2). edition (38.9% of rows) is write-only
+        provenance — never read via json_extract. So even a zero-cost
+        VARIANT migration would optimise ~2 reads out of 3507 edges.
+    Verdict: NOT ADOPTED. Slower, breaking, and the addressable surface
+    is now negligible post-L2. Revisit only if (a) a future DuckDB
+    version closes the perf gap AND (b) a read-heavy use case for the
+    long-tail property keys (quote, stake, seller) appears.
+    Action: none. Documented in doc/graph_design.txt v1.7 changelog.
+
+N2. FTS extension for entity typeahead [EVALUATE]
+    DuckDB's FTS extension (SQLite-FTS5-style inverted index) could replace
+    the current entity-name typeahead (app.py _resolve_entity_or_404 does
+    WHERE name = ? COLLATE NOCASE on SQLite). FTS would give fuzzy/prefix
+    matching across entity names + aliases.
+    Applicability: LOW-MEDIUM. The typeahead is already fast (idx_entities_
+    name_nocase, the C2 fix). FTS would help only if fuzzy matching (not
+    exact) becomes a requirement. Also: the resolver hits SQLite, not
+    DuckDB, so this would mean adding FTS on the SQLite side (sqlite's own
+    FTS5) rather than DuckDB's extension.
+    Action: defer unless a fuzzy-search use case appears.
+
+N3. COPY TO Parquet for ad-hoc export [DONE — documented]
+    Not a feature gap — just an unused capability. COPY (GRAPH_TABLE ...)
+    TO 'export.parquet' lets operators export any graph query result to a
+    portable Parquet file for sharing with external tools (pandas, polars,
+    BI). No code change needed; documented as a recipe.
+    Applicability: LOW (nice-to-have; no consumer asks for it).
+    Fix: added §18.9 "Exporting query results to Parquet / CSV" to
+    doc/graph_design.txt (v1.7). Verified on DuckDB 1.5.4 that
+    COPY (FROM GRAPH_TABLE ...) TO '...' (FORMAT PARQUET) works for both
+    GRAPH_TABLE queries and materialised tables; CSV works; typed columns
+    (e_acquired.year) round-trip correctly. JSON format is broken in
+    1.5.4 (DuckDB InternalException) — documented as a known limitation.
+    Two worked examples (Python + duckdb CLI) cover the common cases.
+
+N4. Macros (SQL functions) for the repeated GRAPH_TABLE patterns [EVALUATED — NOT ADOPTED, blocked by segfault]
+    DuckDB 1.5.0 promoted macros. The 10-arm company_neighbors_bundle and
+    the recursive CTEs share enough structure that a macro could DRY them.
+    Applicability: was LOW (patterns differ per arm); now BLOCKED.
+    Evaluation (2026-07-27, DuckDB 1.5.4 + duckpgq f386a6c):
+      - A DuckDB table macro CANNOT contain a GRAPH_TABLE body.
+        ``CREATE MACRO m() AS TABLE (SELECT ... FROM GRAPH_TABLE (...))``
+        SEGFAULTS the process during CREATE — confirmed isolated:
+          * plain GRAPH_TABLE works (returns rows);
+          * plain macro (no GRAPH_TABLE) works (returns rows);
+          * the moment a GRAPH_TABLE appears inside CREATE MACRO ... AS
+            TABLE (...), SIGSEGV (exit 139, core dumped).
+      - So the N4 premise ("a macro could DRY the 10-arm bundle") is not
+        just low-leverage — it's unimplementable on the current duckpgq.
+        The crash is at the parser/planner layer (duckpgq's GRAPH_TABLE
+        binder doesn't handle macro-body context), not a usage error.
+      - Even if macros worked, the bundle's arms vary along THREE axes
+        (edge label, direction -[e]-> vs -[e]-, property projection), so a
+        macro would need to accept the label as a parameter — which
+        duckpgq rejects anyway (labels must be statically known at plan
+        time; parameterised labels are the same class of limitation as M1).
+    Verdict: NOT ADOPTED. Blocked by a duckpgq segfault, not a design
+    choice. Re-test on every duckpgq bump (add to O1's capability-probe
+    list — see below). If a future duckpgq fixes the macro+GRAPH_TABLE
+    crash AND accepts parameterised labels, revisit; otherwise the Python
+    f-string composition in query.py stays (it's already readable and the
+    10 arms are deliberately explicit for the per-arm direction/props docs).
+    Action: none now. Add a probe to tests/test_duckpgq_capabilities.py
+    on the next duckpgq bump: ``CREATE MACRO ... AS TABLE (SELECT ...
+    FROM GRAPH_TABLE (...))`` — xfail while it segfaults, fail-loud when
+    it works (prompts re-evaluating N4). Tracked as a candidate addition
+    to O1's M-bundle probes; not added now to avoid a segfault-prone test
+    in the default suite (the crash is process-killing, not catchable).
+
+N5. vss (vector similarity search) [ADOPTED — 2026-08-09]
+    vss b833341 (core repo) loaded onto the DuckDB 1.5.4 connection in
+    helpers/graph/query.py connect(). Scalar functions array_cosine_similarity
+    and array_negative_inner_product verified against 1,050 company embeddings
+    (384-dim dry-run). Brute-force top-k scan at ~3ms (well under the 10ms
+    section 8.4 threshold). HNSW index-accelerated scan (hnsw_index_scan,
+    vss_match, vss_join, pragma_hnsw_index_info) still broken in b833341 —
+    functions register with empty parameter signatures. DuckDB does NOT auto-
+    use HNSW indexes for ORDER BY similarity queries. Track via quarterly
+    make update-extensions.
+    Delivered:
+      - helpers/graph/embeddings.py — populate_dry_run (SHA-256 pseudo-embs),
+        populate_api (OpenAI/Azure), CLI with --clear/--dims/--stats
+      - _materialise_embeddings() in query.py — projects v_embeddings from
+        fin.company_embeddings with SET sqlite_all_varchar=true +
+        CAST(ve.embedding AS FLOAT[]) for bridge type conversion
+      - semantic_neighbors() wrapper — dynamic dim detection (vss requires
+        fixed-length FLOAT[N] not FLOAT[]), cross_sector filter, CLI subcommand
+      - _SCHEMA_VERSION bumped 7->8
+
+N6. spatial / GEOMETRY [NOT APPLICABLE]
+    No geographic data in the project. DuckDB 1.5.0's built-in GEOMETRY type
+    and the spatial extension have no consumer here.
+
+================================================================================
+BUNDLE O — Maintenance / observability
+================================================================================
+
+STATUS: O1, O2, O3 all DONE (2026-07-27). Bundle O complete. O1 added 5
+  capability probes (M1/M2/M3/M5-louvain/M5-betweenness) that xfail-when-
+  blocked and fail-loud-when-unblocked, so a future `make update-extensions`
+  bump prompts collapsing the workaround. NOTABLE: the M3 probe caught that
+  vertices(p) EXISTS syntactically in duckpgq f386a6c but returns positional
+  indices (not vertex-table IDs) — so the function is buggy/incomplete and
+  the CTE fallback is still required. The probe distinguishes "function
+  exists" from "function works correctly", preventing a false "unblocked"
+  signal. O2 extended verify_duckdb_snapshot from a 2-table (v_node +
+  e_belongs) row-count check to full coverage of all 13 materialised tables
+  (3 vertex + 10 edge) PLUS a property-graph constructibility check that
+  re-declares fin_graph on the restored snapshot and runs a GRAPH_TABLE
+  query — catching structural breakage (dropped KEY columns, wrong
+  references) that row counts alone miss. KEY INSIGHT surfaced during O2:
+  CREATE PROPERTY GRAPH is session-scoped in duckpgq (same as ATTACH,
+  §17.10), NEVER persisted to the .duckdb file — so the verify can't check
+  "did the pg survive the restore" (it's never in the file); instead it
+  checks "can the restored tables RECONSTRUCT the pg". O3 documented the
+  read-only CHECKPOINT version assumption in doc/graph_design.txt §17.11
+  with the fallback path already in place.
+
+O1. duckpgq version-unlock regression test [DONE]
+    Bundles M1-M5 are gated on duckpgq features. `make update-extensions`
+    exists but nothing flagged when a bump unlocked a workaround. A test that
+    probes each gated feature (parameter binding in GRAPH_TABLE, mixed-label
+    -[e]-, vertices(p), native louvain) and fails-loud when the feature
+    becomes available prompts removing the workaround.
+    Severity: LOW (hygiene; prevents workaround rot).
+    Fix: tests/test_duckpgq_capabilities.py — 5 probes (M1 param binding,
+    M2 mixed-label, M3 vertices(p), M5 louvain, M5 betweenness). Each probe
+    builds a tiny in-memory property graph (A-[BelongsTo]->B->[BelongsTo]->C)
+    and tests BOTH acceptance AND correctness. Contract: xfail (with the
+    specific workaround + file:line to remove) while blocked; pytest.fail
+    (with a "remove workaround X" message) when unblocked. The M3 probe's
+    correctness bar caught the half-baked vertices(p) in f386a6c (returns
+    [0,1,2] positional indices, not the vertex-table IDs [1,2,3]). Runs in
+    make qa (5 xfailed, 0 xpassed, 0 failed).
+
+O2. Snapshot verify checks only v_node + e_belongs [DONE]
+    helpers/maintenance/snapshot_db.py (verify_duckdb_snapshot)
+    verify_duckdb_snapshot previously compared row counts for v_node and
+    e_belongs only. Didn't check e_jv, e_competes, e_acquired, etc., and
+    didn't verify the property graph declaration survived.
+    Severity: LOW (narrow verify; false confidence).
+    Fix: extended verify to COUNT all 13 materialised tables (v_node,
+    v_company, v_sector + 10 edge tables from EDGE_REGISTRY) on both the
+    snapshot and the source, with set + count comparison. Added a property-
+    graph constructibility check: re-declares fin_graph on the decompressed
+    snapshot (via _declare_property_graph) and runs a GRAPH_TABLE query,
+    catching structural breakage (dropped KEY columns, wrong references)
+    that row counts miss. Opens the snapshot read-WRITE because CREATE
+    PROPERTY GRAPH is DDL and duckpgq rejects it on read-only connections;
+    the temp file is discarded after verify. KEY INSIGHT: CREATE PROPERTY
+    GRAPH is session-scoped (never persisted to the .duckdb file, same as
+    ATTACH §17.10), so the verify checks "can the tables reconstruct the pg"
+    not "did the pg object survive". Result dict shape changed from
+    {v_node, e_belongs, match} to {tables, property_graph_ok, source_tables,
+    match}. 6 new tests in TestSnapshotVerifyCoverage pin the contract:
+    covers-all-tables, row-counts-match, pg-survives, flags-missing-table,
+    flags-broken-pg (drops a KEY column), no-source-path. CLI log line now
+    reads "v_node N/N | edges M/M | pg=ok -> OK".
+
+O3. read-only CHECKPOINT version assumption [DONE]
+    helpers/maintenance/db_maint.py:284-290
+    _backup_duckdb opens read-only and runs CHECKPOINT, with a comment
+    noting "read-only CHECKPOINT is supported on DuckDB 1.5+". This is a
+    version-sensitive assumption that a DuckDB bump could break.
+    Severity: LOW (has a fallback path).
+    Fix: documented the assumption in doc/graph_design.txt §17.11 (new
+    subsection "read-only CHECKPOINT assumption (Bundle O3, 2026-07-27)").
+    §17.11 records: DuckDB ≥ 1.5 allows a read-only connection to force WAL
+    merge via CHECKPOINT; no online-backup API like SQLite's conn.backup();
+    the fallback (plain file copy + WAL sidecar) degrades gracefully;
+    re-test on every pin bump; signal is a WARNING in logs. Cross-references
+    added in helpers/maintenance/db_maint.py (_backup_duckdb docstring +
+    inline comment) and helpers/maintenance/snapshot_db.py
+    (create_duckdb_snapshot docstring). No code change — the fallback path
+    was already correct; this closes the "undocumented assumption" gap.
+
+================================================================================
+RECOMMENDED SEQUENCING
+================================================================================
+
+  Leverage-to-effort ordering:
+
+  1. K1 (push JSON into the bundle's SQL)  — DONE 2026-07-27.
+  2. O1 (duckpgq capability probes)        — DONE 2026-07-27.
+  3. K3 (collapse neighbors / suppliers)   — DONE 2026-07-27.
+  4. K2 (sector-neighbors cross-DB hop)    — DONE 2026-07-27.
+  5. O2 (snapshot verify coverage)         — DONE 2026-07-27.
+  6. L2 (typed year column)                — DONE 2026-07-27.
+  7. O3 (read-only CHECKPOINT assumption)  — DONE 2026-07-27.
+  8. L1 (Parquet snapshot, opt-in)         — DONE 2026-08-11 (per-table Parquet
+                                              for 20 DuckDB + 9 SQLite tables).
+  9. N1 (VARIANT type)                   — EVALUATED 2026-07-27, NOT ADOPTED
+                                             (2.6–3.1× slower than TEXT;
+                                             breaks json_extract_string).
+  10. N3 (Parquet/CSV export recipe)      — DONE 2026-07-27 (§18.9 docs).
+  11. N4 (macros for GRAPH_TABLE)        — EVALUATED 2026-07-27, NOT ADOPTED
+                                             (duckpgq segfaults at CREATE
+                                             MACRO when body has GRAPH_TABLE).
+  12. N2 (FTS for typeahead)             — OPEN; defer (no fuzzy-search use
+                                             case; exact-match resolver is
+                                             already fast).
+  13. M1-M6 (upstream-gated)             — OPEN; track; not independently
+                                            actionable until duckpgq/DuckDB
+                                            ship the gating feature. O1's
+                                            probes will flag the unlock.
+
+Cross-cutting note: Bundles K and O are fully DONE (K1/K2/K3; O1/O2/O3).
+Bundle L is partially done (L2; L1 OPEN). Bundle N is essentially closed:
+N1 + N4 evaluated-and-rejected (both killed by measurement, not
+preference), N3 documented, N5 ADOPTED (vss scalar-function integration), N6 not applicable — only N2 remains open
+(deferred). Bundle M is upstream-gated, now with O1's capability probes
+so a bump doesn't silently leave a dead workaround in place. None block
+the current pipeline — the graph layer passes full QA and serves the live
+1073-entity / 3507-edge graph with sub-50ms queries.

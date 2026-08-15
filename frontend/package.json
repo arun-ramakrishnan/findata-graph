@@ -1,0 +1,14 @@
+{
+  "name": "findata-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "TypeScript source + esbuild build for the FinData viewer frontend (findata.bundle.js). Built output is committed to ../static/ so the Python deploy stays Node-free.",
+  "scripts": {
+    "build": "esbuild src/findata.ts --bundle --format=iife --target=es2020 --outfile=../static/findata.bundle.js --sourcemap --log-level=info",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "typescript": "7.0.2"
+  }
+}

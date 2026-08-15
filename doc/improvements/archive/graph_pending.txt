@@ -1,0 +1,27 @@
+# Graph Pending Items — Deferred (P2.2, P3.2, P3.3)
+# Generated 2026-08-08 after P3.1, P3.4, P3.6 landing.
+# P0/P1/P2.1/P2.3/P2.4/P2.5/P3.1/P3.4/P3.6 are DONE (see git log).
+# This file tracks intentional deferrals — not TODO debt.
+
+## P2.2 — Incremental DuckDB materialization (deferred)
+- Current: full DROP/CREATE v_node (1187) + 12 e_* + PROPERTY GRAPH on any generation bump (~0.9s via P1 cache, 2.9ms cached hit).
+- Trigger: when graph_edges >10k or derive-relations ingest >500 edges/run.
+- Plan: incremental_refresh() — LEFT JOIN fin.entities vs v_node for new/deleted/updated vertices (MAX(id)+1), per-e_* diff via edge_type, INSERT/DELETE not DROP. Falls back to full rebuild if delta >10% or schema_version bump. Depends on P0 gen + P1 cache (done).
+- Effort: ~2d
+- Status: DEFERRED — 4k edges, full rebuild OK.
+
+## P3.2 — Covering indexes (deferred)
+- Current: EXPLAIN already SEARCH via existing indexes; index_report 0 redundant.
+- Plan: add covering index entity_tags(tag, entity_name) if tag-intersection queries show TEMP B-TREE spill at 10k+ tags.
+- Effort: 0.5d
+- Status: DEFERRED — no spill observed (tag intersection uses TEMP B-TREE but <1ms).
+
+## P3.3 — Parquet export wrapper (deferred)
+- Current: docs mention COPY (GRAPH_TABLE…) TO … PARQUET, no helper.
+- Plan: helpers/graph/query.py:export_query(sql, path) wrapper for notebook use.
+- Effort: 0.5d
+- Status: DEFERRED — no notebook demand yet.
+
+## Notes
+- P3.5 PRAGMA optimize already shipped in db_maint P2.5.
+- To activate a deferred item: remove its entry here, implement, run make qa (per user request, qa deferred until all items done).

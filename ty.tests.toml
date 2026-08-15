@@ -1,0 +1,30 @@
+# ty config for test type-checking (non-gating, advisory only).
+#
+# Tests use monkeypatching, mock proxies, Optional .fetchone() narrowing,
+# and scipy guards that produce false-positive errors under strict checking.
+# These patterns are downgraded to warnings (advisory) so real type bugs in
+# test code still surface as errors while known test idioms don't.
+#
+# Usage:  ty check tests --extra-search-path helpers ... --config-file ty.tests.toml
+
+[environment]
+python-version = "3.14"
+python = ".venv"
+
+[[overrides]]
+include = ["tests/"]
+
+  [overrides.rules]
+  # Monkeypatch: app.get_db_connection = mock_fn
+  invalid-assignment = "warn"
+  # Optional narrowing: conn.execute(...).fetchone()[0] (COUNT(*) always returns a row)
+  not-subscriptable = "warn"
+  # scipy guard: _nx_pagerank is None when scipy is missing (pytest.importorskip)
+  call-non-callable = "warn"
+  no-matching-overload = "warn"
+  # Mock proxy objects (_FailingConn, _FlakyCon) don't match typed signatures
+  invalid-argument-type = "warn"
+  # Fixture yield type
+  invalid-return-type = "warn"
+  # Third-party stub gaps (yfinance.ticker_lookups)
+  unresolved-attribute = "warn"

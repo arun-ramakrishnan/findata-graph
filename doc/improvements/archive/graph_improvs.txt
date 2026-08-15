@@ -1,0 +1,331 @@
+# Graph Algorithm Improvements — coverage gaps & DuckDB extension surface
+
+Source: read-only audit (2026-07-26) of the graph algorithm layer, prompted by
+"what algorithms do we support and can DuckDB extend them". Built on top of
+the closed Bundles A-F in pending_improvs.txt (those fixed correctness,
+integrity, latency, ingest cost, schema hygiene, and cleanups). This file is
+deliberately scoped to algorithm COVERAGE and ENGINE EXTENSION — i.e. what
+metrics the graph layer can compute and whether more of that work can move
+into DuckDB instead of Python/NetworkX.
+
+Methodology: every claim is backed by file:line references and (for "not
+implemented" claims) verified by repo-wide search. The five "extension
+opportunities" are inferred from the architecture, not from a prior audit —
+they are candidates, not committed work. None are in pending_improvs.txt;
+that audit considered algorithm coverage "closed" via the DuckPGQ-primary +
+NetworkX-fallback split.
+
+================================================================================
+CURRENT STATE — what the graph layer computes today
+================================================================================
+
+Architecture: SQLite (memory/research.db) is the sole writer/source of truth.
+DuckDB + the DuckPGQ community extension (memory/graph.duckdb) is the PRIMARY
+read engine and graph-algorithm engine. NetworkX is a fallback for the two
+algorithms DuckPGQ does not expose. Graph scale: ~1070 entities / ~3501 edges;
+all graph ops run in <50ms.
+
+  | Algorithm                    | Primary engine        | Fallback    | File:line                     |
+  | ---                          | ---                   | ---         | ---                           |
+  | PageRank                     | DuckPGQ native        | —           | helpers/graph/query.py:1127   |
+  | Weakly Connected Components  | DuckPGQ native        | —           | query.py:1156                 |
+  | Local Clustering Coefficient | DuckPGQ native        | —           | query.py:1178                 |
+  | Shortest Path                | DuckPGQ ANY SHORTEST  | Recursive   | query.py:638 (CTE at :707)    |
+  |                              |                       | CTE         |                               |
+  | Betweenness Centrality       | —                     | NetworkX    | helpers/graph/algorithms.py   |
+  |                              |                       | (approx)    | :148                          |
+  | Louvain Communities          | —                     | NetworkX    | algorithms.py:185             |
+  | Degree Centrality            | trivial SQL           | NetworkX    | algorithms.py:217             |
+  | 1-hop ego network (neighbors)| DuckPGQ GRAPH_TABLE   | —           | query.py:960 (10-arm bundle)  |
+
+Persistence: graph_analytics(entity_name, metric, value, computed_at).
+Refreshed via `make recompute-graph` (= algorithms.py --all --apply). Persists
+5 of 6 computed metrics — clustering_coefficient is computed and printed but
+has NO graph_analytics mapping (diagnostic-only; see J2).
+
+NOT implemented anywhere: eigenvector centrality, closeness centrality,
+standalone cycle detection (only an inline cycle guard in the recursive CTE
+at query.py:766-767), modularity score (Louvain returns the partition only).
+
+API surface: /api/graph/* exposes structural queries only (peers, neighbors,
+shortest, sector, stats, refresh). No endpoint serves centrality/community
+scores from graph_analytics — those are CLI/consumed only (see J3).
+
+================================================================================
+BUNDLE G — Algorithm coverage gaps (metrics that could be added)
+================================================================================
+
+STATUS: G1, G2, G3 DONE (2026-07-27). All three coverage gaps closed.
+  G1: closeness_centrality + eigenvector_centrality added as NetworkX bridges
+    behind compute(); wired into the CLI (--all, _METRIC_TO_ANALYTICS_NAME,
+    cmd choices). Pure-Python power-iteration eigenvector (no scipy coupling
+    — important: networkx 3.6 made scipy the default pagerank backend too;
+    the reference nx_pagerank now documents that contract and its test skips
+    when scipy is absent). Live recompute persists both: graph_analytics now
+    holds 8 metrics (was 5 pre-J2/G1/G2). 5 new tests in TestCentralityCoverage.
+  G2: louvain_communities() returns a LouvainResult NamedTuple (labels +
+    modularity), co-producing the score so callers can't forget it. compute()
+    still returns just the labels dict (backward-compatible). The _cli apply
+    path captures modularity and attaches it to every louvain row as
+    {"community": label, "modularity": score}. Design note: the audit's
+    proposed "__graph__" sentinel fails — graph_analytics.entity_name FKs
+    entities(name) (FK enforcement verified live), so the score is co-located
+    on each node row (a graph-level quantity, consistent across all rows).
+    compute_louvain_modularity() helper for callers wanting just the float.
+    Live: modularity=0.7746, consistent across all 1073 rows. 4 new tests.
+  G3: find_cycles() in helpers/graph/query.py — recursive CTE that finds
+    directed cycles (path A→...→A of length 2..max_hops). Key insight from
+    implementation: the F1 cycle guard must be RELAXED for cycle detection
+    (allow the closing hop back to start, forbid only intermediate revisits).
+    CLI: `query.py cycles [--max-hops N] [--edge-label L] [--limit N]`.
+    Diagnostic finding: the live graph has 100 cycles in the mixed-type walk,
+    ALL of which are the legitimate part_of + has_company bidirectional
+    pairs (Sector→Co via has_company, Co→Sector via part_of). Every SINGLE
+    edge type is acyclic (0 cycles) — the real invariant G3 pins. 5 tests
+    including positive-detection (synthetic 2-cycle) + negative-control.
+
+G1. Closeness & eigenvector centrality not implemented [DONE]
+    No matches anywhere in the repo. Betweenness, degree, and PageRank are
+    present; the two other classic centrality measures are absent.
+    - Closeness centrality is computable in DuckDB SQL via a recursive CTE
+      that sums shortest-path lengths per node (same walk primitive as
+      _shortest_path_cte at query.py:707). O(V*(V+E)) — feasible at 1070
+      nodes but worth the k=sqrt(n) sampling trick used for betweenness.
+    - Eigenvector centrality is a power iteration; DuckDB's pagerank() is
+      the L1-normalized cousin. Either iterate in SQL (fixed-point via
+      recursive CTE until convergence) or add as a NetworkX bridge
+      (nx.eigenvector_centrality_numpy) following the betweenness pattern.
+    Severity: LOW (nice-to-have; no consumer asks for them today).
+    Fix: added closeness_centrality() + eigenvector_centrality() to
+    algorithms.py as NetworkX bridges (pure-Python power iteration for
+    eigenvector — no scipy dependency). compute() dispatches both; CLI
+    choices + _METRIC_TO_ANALYTICS_NAME extended; --all now runs 8 metrics.
+    Side-fix: documented the scipy/nx.pagerank latent bug (networkx 3.6
+    made scipy the default pagerank backend; reference test skips cleanly,
+    production uses duckpgq). 5 new tests in TestCentralityCoverage.
+
+G2. Louvain returns partition only, no modularity score [DONE]
+    helpers/graph/algorithms.py:185-211
+    louvain_communities() returns node->community labels but discards the
+    modularity score that nx.algorithms.community.quality.modularity()
+    computes for free. Without it, there's no single number to track whether
+    community structure is getting stronger/weaker across editions.
+    Severity: LOW (diagnostic value; one extra call).
+    Fix: louvain_communities() returns LouvainResult(labels, modularity)
+    NamedTuple. compute() still returns labels dict (back-compat). _cli
+    apply path attaches modularity to every louvain row. Sentinel approach
+    rejected (FK on entity_name). compute_louvain_modularity() helper added.
+    Live modularity=0.7746. 4 new tests.
+
+G3. No standalone cycle detection [DONE]
+    The only cycle handling is the inline guard in _shortest_path_cte
+    (query.py:766-767) — it prevents the recursive walk from looping but
+    can't answer "does this subgraph contain a cycle?" or "which edges form
+    a cycle?". Relevant for sanity-checking symmetric edges (same_group,
+    co_mentioned_in) which are declared symmetric=1 but stored as directed.
+    Severity: LOW (data-quality tool, not a hot path).
+    Fix: find_cycles() in query.py + `cycles` CLI subcommand. Relaxed F1
+    guard (allows closing hop to start). Live finding: every edge type is
+    acyclic (0 cycles); the 100 mixed-type cycles are all legitimate
+    part_of/has_company bidirectional pairs. 5 tests.
+
+================================================================================
+BUNDLE H — DuckPGQ capability unlocks (blocked on extension features)
+================================================================================
+
+STATUS: All OPEN. These are blocked on duckpgq features that don't exist in
+v1.5.4. Each is a "when duckpgq adds X, we can drop complexity Y" item. They
+are NOT independently actionable today (the CTE fallbacks already cover
+correctness); track upstream duckpgq releases via `make update-extensions`.
+
+H1. Only single ANY SHORTEST exposed; no all/k-shortest paths [OPEN]
+    helpers/graph/query.py:638-704
+    shortest_path() returns one path. DuckPGQ's SQL/PGQ spec defines
+    ALL SHORTEST and k SHORTEST which would let callers see alternative
+    connection routes (e.g. "how else is Company A linked to Company B").
+    The recursive CTE returns one path (ORDER BY depth LIMIT 1).
+    Severity: MEDIUM (limits path analysis; the spec feature exists).
+    Fix: when duckpgq exposes ALL SHORTEST / CHEAPEST, add
+    shortest_paths() (plural) wrappers; until then the CTE can be
+    extended to return all min-depth paths by dropping LIMIT 1.
+
+H2. Mixed-label traversal fails natively [OPEN]
+    helpers/graph/query.py:638-704 + doc/graph_design.txt §17.4
+    duckpgq v1.5 still rejects `-[e]-` without a label binding ("All
+    patterns must bind to a label"). shortest_path() carries dual-path
+    complexity (native for known label, CTE for unknown/mixed) purely to
+    work around this. A single query traversing all edge types natively
+    is impossible today.
+    Severity: MEDIUM (architectural complexity; spec-compliant feature).
+    Fix: none until duckpgq ships it. Track upstream; when fixed,
+    shortest_path() can collapse to one native path.
+
+H3. Native ANY SHORTEST returns path_length only, not vertices [OPEN]
+    helpers/graph/query.py:683-690
+    duckpgq v1.5 exposes path_length(p) but not the intermediate vertex
+    sequence. So even the "native" shortest_path falls back to the CTE
+    whenever the caller needs the actual path (the common case for the
+    /api/graph/shortest UI). The native path only wins for hop-count.
+    Severity: MEDIUM (native path is effectively unused for real queries).
+    Fix: none until duckpgq exposes vertices(p). Track upstream.
+
+================================================================================
+BUNDLE I — Move NetworkX fallbacks into DuckDB (drop a dependency)
+================================================================================
+
+STATUS: I1 + I2 SKIPPED (2026-07-27) after re-checking the duckpgq surface
+  and measuring the live timings. Rationale (measured, not estimated):
+
+  1. duckpgq re-checked at version f386a6c (the latest as of 2026-07-27;
+     UPDATE EXTENSIONS was a no-op). The native graph-algorithm function
+     registry is UNCHANGED from when the audit was written — still only
+     pagerank, weakly_connected_component, local_clustering_coefficient,
+     shortestpath. No louvain, no betweenness, no eigenvector, no closeness.
+     duckpgq's roadmap (github.com/cwida/duckpgq-extension issue #132) lists
+     all four as "just proposed" with no branch, no PR, no sub-issue, zero
+     code activity since Aug 2024. So there is no native-function swap path.
+
+  2. Measured live timings on the 1073-entity / 3507-edge graph:
+       Louvain (networkx)             68ms
+       Betweenness approx (default)  185ms
+       Betweenness exact (opt-in)    5.5s
+       Full --all (defaults)         <1s
+     The audit's "HIGH severity / >99% of --all wall time" framing for I2
+     was PRE-Bundle-D — the approximate k=sqrt(n) default (Bundle D, 34x
+     speedup) eliminated the bottleneck. --all is under 1 second with
+     defaults; the networkx paths are not a measured hot spot.
+
+  3. A SQL port would not meaningfully improve on these numbers:
+     - SQL Louvain (I1) is research-grade — greedy multi-pass modularity
+       maximization, ~100+ lines, uncertain correctness, 68ms payoff.
+     - SQL Brandes (I2) is doable but the win is only on the opt-in exact
+       path; the 185ms approximate default wouldn't beat networkx's
+       optimized C backend.
+
+  The networkx dependency is small, already working, and the only real cost
+  is the import + graph rebuild (which Bundle D1 already mitigated by
+  loading once per --all run). Honest accounting: the original premise is
+  stale. Revisit if (a) duckpgq ships native louvain/betweenness, (b) the
+  graph grows 10x and the networkx paths become a measured hot spot, or
+  (c) networkx itself becomes unmaintainable. Like Bundle E3/D2, this is a
+  measured-non-issue / premature-optimization skip, not a "won't do".
+
+I1. Louvain runs in NetworkX, not DuckDB [SKIPPED]
+    helpers/graph/algorithms.py:185-211
+    nx.algorithms.community.louvain_communities() requires NetworkX >= 3.0
+    and runs on an undirected projection. Modest cost at 1070 nodes but
+    adds a hard dependency for one algorithm.
+    Severity: MEDIUM (dependency + graph-rebuild cost).
+    Fix: option (a) upstream local_clustering's sibling to duckpgq;
+    option (b) implement via iterative SQL modularity maximization
+    (documented pattern; feasible but non-trivial); option (c) keep
+    NetworkX but isolate the import so cold-connect doesn't pay for it.
+    Skip reason: measured 68ms; SQL port is research-grade hard for a 68ms
+    payoff; duckpgq has no native louvain and #132 shows no progress. See
+    Bundle I STATUS for full rationale.
+
+I2. Betweenness runs in NetworkX, not DuckDB [SKIPPED]
+    helpers/graph/algorithms.py:148-182
+    The --all bottleneck. Mitigated by approximate k=sqrt(n) sampling
+    (Bundle D, 34x speedup, Pearson r=0.90 vs exact) but still the only
+    NetworkX-bound metric on the parse_newsletter --with-analytics path.
+    Brandes' algorithm is O(V*E) and admits SQL expression; DuckDB's
+    vectorized execution would likely beat NetworkX even at exact setting.
+    Severity: HIGH (ingest-path cost; the one remaining Python bottleneck).
+    Fix: SQL Brandes via recursive CTE + window aggregations, OR a DuckDB
+    UDF. Exact would become cheap enough that the approximate default
+    could be reconsidered.
+    Skip reason: the "HIGH severity / >99% of --all" framing was pre-Bundle-D.
+    Measured 185ms (approx default) / 5.5s (exact opt-in); --all is <1s with
+    defaults. SQL Brandes wouldn't beat the 185ms approximate path. duckpgq
+    has no native betweenness. See Bundle I STATUS for full rationale.
+
+================================================================================
+BUNDLE J — Temporal, persistence & consumer surface
+================================================================================
+
+STATUS: J2 + J3 DONE (2026-07-27). J1 OPEN (design change, deferred until a
+  real temporal-analytics use case appears). J2 was a 1-line mapping fix
+  closing the only consistency gap where a computed metric wasn't persisted
+  (5 → 6 persisted metrics). J3 added the consumer surface — the API now
+  serves every computed metric over HTTP (pagerank, betweenness, closeness,
+  eigenvector, degree, clustering, louvain with modularity, wcc).
+
+J1. Temporal subgraph algorithms not supported [OPEN]
+    doc/graph_design.txt §12.3
+    The as_of parameter is plumbed through every query wrapper
+    (_as_of_predicate at query.py:530) but DELIBERATELY not through
+    pagerank/WCC/clustering — they would need per-timestamp CSR rebuilds
+    inside duckpgq. So you can ask "who were A's peers as of 2024-01?"
+    but not "what was A's PageRank as of 2024-01?".
+    Severity: MEDIUM (temporal analytics gap; design intentional today).
+    Fix: either (a) materialize time-sliced edge tables per as_of and
+    rebuild the property graph on demand (expensive), or (b) wait for a
+    duckpgq extension that supports inline temporal subgraph selection.
+
+J2. clustering_coefficient computed but NOT persisted [DONE]
+    helpers/graph/algorithms.py:379-385
+    _METRIC_TO_ANALYTICS_NAME mapped 5 metrics; local_clustering_coefficient
+    had no entry. It was computed and printed in --all but never written to
+    graph_analytics. Inconsistency: the only DuckPGQ-native metric that
+    wasn't queryable after the fact.
+    Severity: LOW (consistency gap; trivial fix).
+    Fix: added "clustering" -> "local_clustering_coefficient" to the mapping.
+    Value shape is {"value": float}, same as pagerank/degree/betweenness
+    (handled by the _wrap_for_analytics default path — no shape change
+    needed). 3 new tests in TestClusteringPersistence: (1) the cmd has a
+    mapping, (2) every --all cmd has a mapping (pins the J2 invariant so no
+    future cmd can silently skip persistence), (3) end-to-end --apply
+    writes rows with the right metric name + JSON shape. Live recompute-graph
+    confirmed: "applied 6 metric(s), 6312 rows" (was 5 metrics / ~5265 rows);
+    local_clustering_coefficient now shows 1031 rows in graph_analytics.
+    make qa green; snapshot refreshed.
+
+J3. No /api endpoint serves centrality/community scores [DONE]
+    app.py graph routes at :1297-1670
+    graph_analytics holds pagerank/betweenness/louvain/wcc but no route
+    reads it. The API exposes structural queries only. Any consumer wanting
+    "top-10 by PageRank" or "which community is A in?" must hit the CLI.
+    Severity: MEDIUM (consumer surface; data is computed but inaccessible
+    over HTTP).
+    Fix: added GET /api/graph/metrics/<metric>?top=N&entity=<name>. All-SQLite
+    (no DuckDB). Whitelist of 8 metrics (_GRAPH_METRIC_ALLOWLIST): 7 scalar
+    (ranked desc, top-N capped at 500) + 2 label (louvain/wcc grouped by id).
+    Scalar response: {metric, total, ranked:[{entity,value}]}. Label response:
+    {metric, total, groups:[{label,size,members}]} + modularity at top level
+    for louvain (G2). Malformed value JSON skipped (not 500). Unknown metric
+    → 400 with the full allowlist for client self-correction. Case-insensitive
+    metric + entity names. 10 unit tests in TestGraphMetricsEndpoint (runs in
+    make qa; seeds graph_analytics rows in a temp DB).
+
+================================================================================
+RECOMMENDED SEQUENCING
+================================================================================
+
+  Leverage-to-effort ordering (not urgency — none are correctness bugs):
+
+  1. J2 (persist clustering)        — DONE 2026-07-27.
+  2. G2 (modularity score)          — DONE 2026-07-27.
+  3. J3 (API for centrality scores) — DONE 2026-07-27.
+  4. G1 (closeness/eigenvector)     — DONE 2026-07-27.
+  5. G3 (cycle detection)           — DONE 2026-07-27.
+  6. I1 + I2 (NetworkX → DuckDB)    — SKIPPED 2026-07-27 after re-checking
+                                      duckpgq (f386a6c, no native louvain/
+                                      betweenness; #132 zero progress) and
+                                      measuring live timings (68ms/185ms,
+                                      --all <1s). Stale premise post-Bundle-D.
+                                      Revisit if duckpgq ships native fns or
+                                      the graph grows 10x.
+  7. H1/H2/H3 (duckpgq unlocks)    — track upstream; not independently
+                                      actionable until duckpgq ships them.
+                                      Re-test on each `make update-extensions`.
+  8. J1 (temporal subgraph algos)   — design change; defer until a real
+                                      temporal-analytics use case appears.
+
+Cross-cutting note: every remaining OPEN item (H1/H2/H3, J1) is gated on
+either a duckpgq upstream release or a real use case appearing. The
+algorithm-coverage surface is now complete to the extent the current
+duckpgq/networkx split allows: 8 metrics computed, all persisted, all
+served over HTTP. None of the remaining items block the current pipeline —
+they are extensions to a graph layer that already passes full QA and
+serves the live 1073-entity / 3507-edge graph.

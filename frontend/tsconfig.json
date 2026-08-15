@@ -1,0 +1,21 @@
+{
+  // Type-check config for the findata frontend. esbuild emits the bundle
+  // (npm run build); tsc only type-checks (npm run typecheck / make
+  // frontend-check), so noEmit is set. esbuild is NOT a type-checker — this
+  // config is what catches API shape-drift under strict mode.
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "bundler",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    // No Node types leak in — this is a browser bundle. The CDN libs are
+    // declared as ambient globals in types/vendors.d.ts.
+    "types": []
+  },
+  "include": ["src", "types"]
+}
