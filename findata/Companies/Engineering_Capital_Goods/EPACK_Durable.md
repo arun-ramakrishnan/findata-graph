@@ -10,6 +10,7 @@ tags:
 - risk_investment/high_growth
 normalized_name: EPACK_Durable
 sector: Engineering_Capital_Goods
+industry: Furnishings, Fixtures & Appliances
 market_cap: small_cap
 geography: india
 ticker: EPACK.NS
@@ -40,6 +41,18 @@ EPACK Durable Ltd. is an OEM/ODM manufacturer of consumer durables, best known a
 - **(other)**: 6.5%
 
 <!-- END auto key figures -->
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Furnishings, Fixtures & Appliances
+- **Promoter Holding**: 52.5%
+- **Institutional Holding**: 5.1%
+- **Business Summary**: EPACK Durable Limited manufactures original design of room air conditioners in India. The company provides window air conditioners, window inverter air conditioners, indoor units, and outdoor units; small domestic appliances, including induction cooktops, mixer-grinders, air fryers, nutri blender…
+
+_Source: yfinance | Refreshed: 2026-08-15_
+<!-- END auto company profile -->
 ## The Chatter — Bosch Amara Zydus
 
 **RAC growth of 44%, beating the industry:** Q1 RAC revenue grew 44% (~30% volume + ~14% value from AOP increases + commodity pass-throughs). Expects to surpass the industry's ~20% FY27 growth forecast.
