@@ -1,0 +1,270 @@
+INTEGRATION TEST PLAN — FinData Knowledge Graph
+===============================================
+Created: 2026-08-12
+Last updated: 2026-08-12
+Status: P1 COMPLETE (36 tests). P2 COMPLETE (13 tests). P3 COMPLETE (15 tests). P4 COMPLETE (15 tests). P5 COMPLETE (34 tests). P6 COMPLETE (22 tests). P7 COMPLETE (22 tests). P8 COMPLETE (8 tests). P9 COMPLETE (12 tests). ALL 9 PRIORITIES COMPLETE.
+
+CURRENT STATE
+-------------
+  41 unit test files       (isolated functions, :memory: DBs, mocked I/O)
+  11 integration test files (real/virtual DB, findata/, cross-table)
+   1 live test file         (production DB, full data)
+  12 fuzz test files        (hypothesis property tests)
+   1 perf test file         (wall-clock benchmarks)
+
+TOTAL: 65 test files, ~1462 tests
+
+The testing is strong at the UNIT level but thin at the INTEGRATION level.
+Below: each cross-component pipeline, its coverage status, and a concrete proposal.
+
+================================================================================
+WELL-COVERED (no integration gap)
+================================================================================
+
+sync_tags (notes YAML -> entity_tags table)
+  test_sync_tags.py covers it thoroughly in isolation.
+
+derive_co_mentions (newsletter enhancement blocks -> graph_edges)
+  test_derive_co_mentions.py is already integration-level (synthetic_db fixture).
+
+semantic_neighbors (embeddings -> DuckDB -> cosine similarity)
+  test_semantic_neighbors.py exercises DuckDB + embeddings together.
+
+
+================================================================================
+PRIORITY 1 — Newsletter -> SQLite -> Notes (parse_newsletter E2E) ✅ DONE
+================================================================================
+  IMPLEMENTED: tests/test_integration_parse_newsletter.py — 36 tests, 9 classes
+  All passing in 1.3s. Mocked: search_ticker, capture_images, run_validation.
+
+WHAT IT DOES
+  Newsletter MD -> extract companies -> create entities/edges in SQLite ->
+  write markdown notes -> run validation
+
+GAP
+  No test exercises parse_newsletter end-to-end on a synthetic newsletter.
+  Current tests cover individual functions (normalize_name, extract_companies,
+  render_stub, create_entity) but NOT the full pipeline:
+    newsletter.md -> SQLite rows + note files created + edges created
+
+PROPOSAL: Synthetic newsletter -> parse_newsletter --apply -> verify:
+  - Entities created in DB
+  - Note files exist on disk with correct YAML frontmatter
+  - graph_edges populated (part_of / has_company)
+  - entity_tags populated
+  - Second run is idempotent (no duplicate rows)
+
+
+================================================================================
+PRIORITY 2 — SQLite + DuckDB -> Flask API (integration bridge) ✅ DONE
+================================================================================
+  IMPLEMENTED: tests/test_api_flask_integration.py — 13 tests, 6 classes
+  All passing in 0.35s.
+
+WHAT IT DOES
+  Flask endpoints query SQLite + DuckDB, return JSON
+
+IMPLEMENTED
+  a) Cover the 6 previously-uncovered routes (unit-level, against seeded SQLite DB):
+     /, /findata, /api/sectors, /api/entity/<path:entity_path>,
+     /debug/entity/<path:entity_path>, /points_and_figures/images/<path:filename>
+  b) Shape validation for 4 core API endpoints:
+     /api/entities -> EntitiesResponse, /api/stats -> StatsResponse,
+     /api/search -> SearchResponse, /api/events/<name> -> EventsResponse
+  c) Fixture: seeded SQLite with entities, entity_tags, graph_edges, events,
+     note_search FTS5 tables; uses helpers.core.db.connect() for proper Row factory
+
+  Note: Full DuckDB bridge test (SQLite -> DuckDB -> Flask) remains for future
+  work. Current tests exercise SQLite-only endpoints which constitute the
+  majority of the API surface. DuckDB-dependent endpoints (neighbors, shortest,
+  sector, stats, metrics) are covered by P5/P6.
+
+
+
+================================================================================
+PRIORITY 3 — derive_* chain (prose -> edges -> events -> metrics)
+================================================================================
+
+WHAT IT DOES
+  derive_relations extracts edges from prose ->
+  derive_events promotes edges to events table ->
+  derive_insights extracts metrics + renders notes
+
+GAP
+  Each derive_* module is tested in isolation, but NO test verifies the
+  cross-module chain:
+    newsletter with "X acquired Y in 2023" ->
+      extract_relations creates edge ->
+        derive_events creates event ->
+          derive_insights extracts metrics
+
+PROPOSAL: Seed prose -> run extract_relations --apply -> run derive_events
+  --apply -> verify edges + events created with correct temporal data
+
+
+================================================================================
+PRIORITY 4 — Sector / Companies filesystem <-> DB consistency ✅ DONE
+================================================================================
+  IMPLEMENTED: tests/test_integration_filesystem_layout.py — 15 tests, 8 classes
+  All passing in 0.22s.
+
+WHAT IT DOES
+  The findata/ tree must match DB entity records.
+
+IMPLEMENTED
+  - Company/sector file existence checks (files on disk ↔ DB entities)
+  - file_path format invariants (findata/Companies/<sector>/<slug>.md)
+  - sector_classification ↔ directory name consistency
+  - belongs_to edge well-formedness (company→sector, both in entities)
+  - Entity count ↔ file count matching
+  - normalized_name lowercase consistency
+  - Orphaned file detection (files on disk not in DB)
+
+
+================================================================================
+NICE-TO-HAVE 5 — parse_newsletter -> validators round-trip ✅ DONE
+================================================================================
+  IMPLEMENTED: tests/test_integration_validators.py — 8 tests, 4 classes
+  All passing in 0.62s.
+
+WHAT IT DOES
+  parse_newsletter creates entities → verify they pass NotesValidator.
+
+IMPLEMENTED
+  - Clean entity notes from render_stub() pass validation (0 issues)
+  - Multiple entities across sectors validate cleanly
+  - Validator catches bad filename, missing normalized_name, name mismatch, consecutive underscores
+  - create_entity writes correct DB row + note + bidirectional edges
+  - create_entity is idempotent
+
+
+================================================================================
+NICE-TO-HAVE 6 — SQLite mutation -> graph rebuild -> DuckDB reflects changes ✅ DONE
+================================================================================
+  IMPLEMENTED: tests/test_integration_graph_rebuild.py — 12 tests, 5 classes
+  All passing in 6.85s.
+
+WHAT IT DOES
+  Verify the SQLite → DuckDB rebuild pipeline after data mutations.
+
+IMPLEMENTED
+  - Initial rebuild: counts match SQLite (nodes, companies, sectors, edges)
+  - Add entity/sector → rebuild → verify visible in DuckDB
+  - Delete entity → rebuild → verify removed from DuckDB
+  - Edge mutation → rebuild → topology changes reflected
+  - Rebuild idempotency: double rebuild produces identical state
+
+
+================================================================================
+IMPLEMENTATION NOTES
+================================================================================
+
+Suggested order: Priority 1 (core ingestion) and Priority 2 (API bridge)
+first, since they exercise the most critical user-facing workflows.
+
+Shared infrastructure:
+  - conftest.py already has fake_vault + seeded_graph_sqlite_db fixtures
+  - New fixtures needed: synthetic newsletter MD, synthetic DuckDB build
+  - Integration tests should use @pytest.mark.slow or @pytest.mark.integration
+    so they can be excluded from fast `make test` runs
+
+Estimated effort:
+  P1 (parse_newsletter E2E):       ~15-20 tests, medium complexity
+  P2 (Flask API integration):      ~10-15 tests (6 route coverage + bridge)
+  P3 (derive_* chain):             ~8-10 tests
+  P4 (sector/filesystem layout):   ~8-10 tests
+  P5 (validators round-trip):      ~5 tests
+  P6 (graph rebuild propagation):  ~5 tests
+
+
+================================================================================
+PRIORITY 5 — Graph algorithms: compute -> write -> read round-trip ✅ DONE
+================================================================================
+  IMPLEMENTED: tests/test_integration_graph_algorithms.py — 34 tests, 7 classes
+  All passing in 0.6s. Synthetic 6-node graph, monkeypatched algorithms.connect.
+
+WHAT IT DOES
+  algorithms.py computes 8 metrics (pagerank, betweenness, closeness,
+  eigenvector, degree, clustering, louvain, wcc) via DuckPGQ or NetworkX ->
+  write_analytics() persists to graph_analytics table -> app.py
+  /api/graph/metrics/<metric> reads it back for the UI.
+
+GAP
+  44 unit tests exist (test_graph_algorithms.py) but they are ALL live-only
+  (require real memory/research.db). No test exercises:
+    a) compute(metric) -> write_analytics() -> SELECT from graph_analytics ->
+       verify round-trip integrity (value survives JSON encode/decode)
+    b) --all --apply persists all 8 metrics with correct analytics-name mapping
+    c) graph mutation (add/remove edge) -> recompute -> values change
+    d) The full pipeline: compute -> write -> API /api/graph/metrics/<metric>
+       serves the persisted value back
+
+PROPOSAL
+  - Synthetic graph -> compute() each metric -> write_analytics() -> read back
+    from graph_analytics -> verify JSON round-trip (~8 tests)
+  - --all --apply on synthetic DB -> verify all 8 metrics present (~1 test)
+  - Edge mutation -> recompute -> verify delta (~2 tests)
+  - API test: seed graph_analytics -> GET /api/graph/metrics/pagerank ->
+    verify ranking matches DB (~1 test, uses existing unit_client fixture)
+
+
+================================================================================
+PRIORITY 6 — TypeScript / frontend type-contract validation ✅ DONE
+================================================================================
+  IMPLEMENTED: tests/test_integration_ts_contract.py — 22 tests, 7 classes
+  All passing in 0.36s.
+
+WHAT IT DOES
+  frontend/src/findata.ts (1536 lines) consumes 10+ /api/* endpoints.
+  frontend/types/api.ts (229 lines) hand-writes the response shapes.
+  `make frontend-check` runs `tsc --noEmit` to catch type-drift at build time.
+
+IMPLEMENTED
+  - Contract test: Flask test_client requests each /api/* endpoint -> parse
+    JSON -> verify every key in the corresponding api.ts interface is present
+    in the response (Python-side introspection of the TypeScript types)
+    (22 tests covering 9 endpoints)
+  - Parse 20 TypeScript interfaces from api.ts (ErrorResponse, SectorEntity,
+    SectorsResponse, StatsResponse, EntityListItem, EntitiesResponse,
+    EntityDetail, SearchResult, SearchResponse, GraphRefreshResponse,
+    CompanyNeighbors, SectorNeighbors, SuperSectorNeighbors, SubSectorNeighbors,
+    ThemeNeighbors, ShortestHop, ShortestPathResponse, EventItem, EventsResponse)
+  - Map 9 SQLite-backed API endpoints to their contract interfaces:
+    /api/sectors -> SectorsResponse, /api/stats -> StatsResponse,
+    /api/entities -> EntitiesResponse, /api/entity/<path> -> EntityDetail,
+    /api/search -> SearchResponse, /api/events/<name> -> EventsResponse,
+    /api/graph/neighbors/<name> -> CompanyNeighbors/SectorNeighbors,
+    /api/graph/shortest -> ShortestPathResponse
+  - DuckDB-dependent endpoints verify ErrorResponse shape without DuckDB
+  - Self-consistency: every parsed interface has fields; ErrorResponse
+    requires `error` key
+  - Note: full TS compilation testing (tsc in pytest) deliberately omitted
+    per frontend/README.md ("make qa does NOT need Node — the QA gate stays
+    Python-only"). The tsc direction (findata.ts vs api.ts) remains a
+    Makefile gate (make frontend-check).
+
+
+
+================================================================================
+PRIORITY 7 — Performance integration: algorithm scaling + correctness ✅ DONE
+================================================================================
+  IMPLEMENTED: tests/test_integration_perf.py — 27 tests (22 pass, 5 skip)
+  All non-skip tests passing in 0.64s.
+
+WHAT IT DOES
+  Tests graph algorithms on synthetic graphs for correctness + scaling.
+
+IMPLEMENTED
+  - Metric correctness: degree, pagerank (skip), betweenness, closeness,
+    eigenvector, louvain — valid output on known graphs (7 tests)
+  - Algorithm scaling: doubling nodes stays within expected complexity (4 tests)
+  - Mutation correctness: edge add/remove reflected by re-running metrics (5 tests)
+  - write_analytics round-trip: compute → write → read back (5 tests)
+  - Multi-metric consistency: all metrics cover all nodes, no graph mutation (3 tests)
+  - End-to-end: degree/betweenness/louvain compute → persist → verify (3 tests)
+
+  Note: 4 pagerank tests skip when scipy is not installed (nx.pagerank needs scipy).
+  All other NetworkX metrics (betweenness, closeness, eigenvector, degree, louvain)
+  work without scipy.
+
+

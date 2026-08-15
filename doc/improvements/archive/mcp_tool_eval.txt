@@ -1,0 +1,699 @@
+================================================================================
+mcp_tool_eval.txt — codebase-memory-mcp hygiene audit (Aug 2026)
+================================================================================
+
+Source: the query_graph / search_graph / get_code_snippet runs documented in
+doc/architecture.md §10. Each candidate below was surfaced by a graph query
+(SIMILAR_TO edges, complexity ranking, or fan-in cross-reference), then
+evaluated by reading the actual source bodies + tracing callers before
+recommending an action.
+
+Legend:  DO = act now   |   DEFER = real but not worth it yet   |   DON'T = leave as-is
+
+--------------------------------------------------------------------------------
+SUMMARY
+--------------------------------------------------------------------------------
+
+  #  Candidate                                    Jaccard  Callers  Recommendation
+ ---  -------------------------------------------  -------  -------  --------------
+  (0)  search_ticker dead code + no tests           —        2→7     DONE
+  (1)  _strip_frontmatter × derive_events/themes    —        1 ea    DONE (consolidated)
+  (2)  _strip_yaml_front_matter (extract_relations)  —        3       DONE (consolidated)
+  (3)  rebuild_note_search._strip_frontmatter        —        1       DONE (consolidated as split_frontmatter_with_title)
+  (4)  split_front_matter vs split_fm               0.953    1 ea    DONE (consolidated)
+  (5)  _super_sector vs _theme neighbors_bundle     1.000    1 ea    DON'T (false dup)
+  (6)  _resolve_entity_or_404 vs _with_type         0.984    2 ea    DON'T (return type)
+  (7)  is_likely_correct_company empty-shortName     —        —       DONE
+
+Part 2 §D  apply_edges ×2 (co_mentions vs themes)   0.953    1 ea    DONE (2-way fold)
+
+NET: (0)+(7) done in prior session; §D done this session; (1)/(2)/(4) DONE
+2026-08-11: consolidated into helpers/core/frontmatter.py — strip_frontmatter()
+and split_frontmatter(). Net -54 lines. 236 tests passed across all affected modules.
+
+================================================================================
+(0) search_ticker — DONE this session   [for the record]
+================================================================================
+
+Finding: query_graph ranked search_ticker cyclo=46 (highest in repo) + no
+test file. get_code_snippet returned the 192-line body; inspection revealed
+~60 lines of dead duplicated code: an outer `except` duplicated the live
+exchange-variation loop + HTTP fallback, and a trailing copy sat after
+`return None, None` (unreachable).
+
+Action taken:
+  - Deleted 66 unreachable lines (helpers/core/get_tickers.py).
+  - Added tests/test_get_tickers.py (18 tests, all pass; mocks yfinance via
+    monkeypatch.setattr(gt, "yf", _FakeYf(...))).
+  - Re-indexed graph confirms: cyclo 46→30, cognitive 227→139, lines 192→126.
+  - BONUS: dead code was shadowing real callers — graph now shows callers
+    2→7. The function is more load-bearing than first appeared.
+
+Result: full suite 497 passed (was 479). Static checks green.
+
+================================================================================
+(1)+(2) Frontmatter regex strippers (3-way)   —   DONE (2026-08-11)
+================================================================================
+
+Three functions do the same job — strip a leading YAML frontmatter block,
+returning body-only — with near-identical bodies:
+
+  derive_events._strip_frontmatter        (callers: 1)   4 lines
+    m = _FM_RE.match(text); return text[m.end():] if m else text
+    _FM_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
+
+  derive_themes._strip_frontmatter        (callers: 1)   4 lines
+    >>> BYTE-FOR-BYTE IDENTICAL to derive_events (same regex, same body) <<<
+
+  extract_relations._strip_yaml_front_matter  (callers: 3)   9 lines
+    m = _YAML_FRONT_MATTER_RE.match(content)
+    if m: return content[m.end():]
+    return content
+    _YAML_FRONT_MATTER_RE = re.compile(r"\A---\s*\n.*?\n---\s*\n", re.DOTALL)
+
+Evidence for merge:
+  - derive_events and derive_themes versions are literally identical
+    (same 4 lines, same regex literal).
+  - extract_relations version is functionally identical but uses a STRICTLY
+    MORE LENIENT regex: `---\s*\n` vs `---\n` (tolerates trailing whitespace
+    after the `---` fence).
+
+Why DEFER, not DO:
+  [NOTE 2026-08-01: the original DEFER cited a "standalone-helper invariant"
+   as the binding constraint. That was based on a stale claim in
+   architecture.md §7 — the helpers/ tree has always been a layered DAG with
+   ~27 cross-helper imports (see the corrected §7). The invariant is NOT the
+   reason to defer. The real reasons are the two below.]
+
+  1. WIN IS TINY. Net savings ~6 lines after accounting for a shared module
+     + 3 imports. The functions are 4 lines each; the "duplication" is two
+     regex literals and two return statements. Not worth a shared module for.
+  2. REGEX SPLIT IS A REAL CHOICE. The strict (`---\n`) vs lenient
+     (`---\s*\n`) regexes encode different assumptions about note
+     formatting. Unifying requires picking one and validating every caller
+     still behaves — the derive_* family and extract_relations were written
+     independently and may rely on their specific tolerance. That validation
+     work dwarfs the ~6-line saving.
+
+No longer blocked on architecture. If helpers/core/frontmatter.py is ever
+created for another reason, fold these in then. Until then, accept the
+duplication — it's cheaper than the shared-module overhead.
+
+(3) rebuild_note_search._strip_frontmatter — DIFFERENT signature (returns
+    tuple[title|None, body]) but SAME conceptual job. Consolidated as
+    split_frontmatter_with_title() in helpers/core/frontmatter.py.
+    sync_tags.split_front_matter (tag extraction) also consolidated as
+    extract_tags().
+
+IMPLEMENTATION RESULTS (2026-08-11):
+    Created helpers/core/frontmatter.py with strip_frontmatter() (unified _FM_RE
+    with the more permissive \s*\n variant) and split_frontmatter().
+    Each source module keeps a backward-compatible alias:
+      - derive_events:    strip_frontmatter as _strip_frontmatter
+      - derive_themes:    strip_frontmatter as _strip_frontmatter
+      - extract_relations: strip_frontmatter as _strip_yaml_front_matter
+                          _FM_RE as _YAML_FRONT_MATTER_RE (for _parse_yaml_field)
+    Net -54 lines. 236 tests passed across all affected modules.
+
+================================================================================
+(4) split_front_matter vs split_fm   —   DONE (2026-08-11)
+================================================================================
+
+  move_sector.split_front_matter(text) -> tuple[str,str,str]   callers: 1
+    if not text.startswith("---"): return "", "", text
+    m = re.search(r"^---\s*$", text[3:], re.MULTILINE)
+    if not m: return "", "", text
+    end = m.start() + 3
+    return text[:3], text[3:end], text[end:]
+
+  rename_entity.split_fm(text) -> tuple[str,str,str]           callers: 1
+    >>> IDENTICAL LOGIC (same regex, same 3-tuple return) <<<
+    (only diff: split_front_matter has a docstring; split_fm has `# noqa: E402`)
+
+This is a TRUE clone — same signature, same regex, same return contract.
+Jaccard 0.953 confirms it.
+
+Why DEFER (real reasons; the "standalone invariant" cited here originally
+was stale — see the NOTE on #1/#2 above and the corrected architecture §7):
+  - 8-line functions; the duplication is harmless and the two scripts are
+    run independently (rename vs move-sector are different admin operations).
+    A shared util would couple two maintenance tools that have no other
+    reason to share code.
+  - The 3-tuple return (fence, yaml, body) is maintenance-specific; unlike
+    the derive_* body-only strippers, this doesn't belong in a general
+    frontmatter module anyway.
+  - If helpers/maintenance/_frontmatter.py is ever created, dedupe here.
+
+================================================================================
+(5) _super_sector vs _theme neighbors_bundle   —   DON'T (false duplicate)
+================================================================================
+
+Jaccard 1.000 — the highest similarity score in the audit. But reading the
+source shows this is STRUCTURAL BOILERPLATE similarity, not logic dup:
+
+  _super_sector_neighbors_bundle(super_sector):
+    children = sectors_in_super(con, super_sector)       # different query fn
+    return jsonify({"entity_type": "super_sector",
+                    "sectors": children,                  # different key
+                    "sector_count": len(children)})       # different key
+
+  _theme_neighbors_bundle(theme):
+    members = theme_members(con, theme)                  # different query fn
+    return jsonify({"entity_type": "theme",
+                    "members": members,                   # different key
+                    "member_count": len(members)})        # different key
+
+What's identical: the try/except/error-log envelope + the jsonify scaffold.
+What's different: the query function called, the payload keys, the entity
+semantics (super_sector returns child SECTORS; theme returns member
+COMPANIES). These are genuinely different API contracts (the frontend's
+tagged union in frontend/types/api.ts distinguishes them by entity_type).
+
+Why DON'T:
+  - The 1.000 jaccard is a false positive of the token-overlap metric — it
+    sees the shared boilerplate words (try, except, jsonify, return, len,
+    error) but not that the payloads are disjoint.
+  - Extracting a wrapper (e.g. _bundle_envelope(query_fn, ...)) would
+    obscure the genuinely-different payload shapes behind a generic
+    closure. Net readability loss.
+  - The frontend already depends on the distinct keys; a refactor that
+    unified them would risk the tagged-union contract.
+
+This is the canonical example of "high jaccard ≠ merge candidate." Worth
+remembering when reading future SIMILAR_TO results.
+
+================================================================================
+(6) _resolve_entity_or_404 vs _with_type_or_404   —   DON'T (return type)
+================================================================================
+
+Jaccard 0.984. The two differ by exactly one SQL column + return type:
+
+  _resolve_entity_or_404(name) -> str                      callers: 2
+    SELECT name FROM entities WHERE name = ? COLLATE NOCASE
+    ... return row["name"]
+
+  _resolve_entity_with_type_or_404(name) -> tuple[str,str] callers: 2
+    SELECT name, entity_type FROM entities WHERE name = ? COLLATE NOCASE
+    ... return row["name"], row["entity_type"]
+
+The docstring on the _with_type variant literally says "Same as
+_resolve_entity_or_404 but also returns entity_type."
+
+Why DON'T:
+  - The return types are DIFFERENT (str vs tuple[str,str]). Any merge needs
+    either (a) a `with_type: bool` flag returning `str | tuple[str,str]`
+    (Python can't express this cleanly without @overload, and callers must
+    narrow), or (b) always return both and have the 2 str-only callers
+    ignore entity_type (a silent query-cost + readability tax).
+  - Both are 2-caller, low-complexity (cyclo 2), and crystal-clear as-is.
+    The current naming makes the difference self-documenting.
+  - This is the "parameterize near-duplicates" trap: the duplication is real
+    but the unification makes the code worse, not better.
+
+Acceptable as-is. Maybe worth a one-line comment cross-referencing the two
+if anyone touches them, but no merge.
+
+================================================================================
+(7) is_likely_correct_company empty-shortName quirk   —   DONE (this session)
+================================================================================
+
+NOT a duplication — a BUG found while writing tests for (0). Was pinned in
+tests/test_get_tickers.py::test_empty_shortname_quirk_returns_true.
+
+  is_likely_correct_company(company_name, company_info):
+    ...
+    short_name = company_info.get('shortName', '').lower()   # '' when absent
+    ...
+    if (company_lower in long_name or long_name in company_lower or
+        company_lower in short_name or short_name in company_lower):
+        return True      # <-- BUG: short_name='' makes `'' in x` always True
+
+When shortName was absent (common — not every yfinance quote has it),
+`short_name in company_lower` evaluated `'' in 'tata motors'` → True, so
+ANY company was accepted as "likely correct."
+
+Fix applied (helpers/core/get_tickers.py, guarded the short_name branch):
+    if (company_lower in long_name or long_name in company_lower or
+        (short_name and (company_lower in short_name or short_name in company_lower))):
+        return True
+
+Test flipped: test_empty_shortname_does_not_false_match now asserts the fix
+(an absent shortName with a non-matching longName → False). All 18
+get_tickers tests pass; full suite 497 passed.
+
+================================================================================
+OVERALL VERDICT
+================================================================================
+
+The graph audit's highest-value finding was (0) search_ticker — already
+fixed (dead code + tests, cyclo 46→30). Of the remaining candidates:
+
+  - The two DEFER items (#1/#2 frontmatter strippers, #4 splitters) are
+    genuine duplication but blocked by the documented standalone-helper
+    invariant (architecture §7). Dedupe opportunistically when a shared
+    helper module is created for another reason; don't break the invariant
+    for 4-line functions.
+
+  - The two DON'T items (#5 bundles, #6 resolvers) are false positives of
+    the similarity metric — high jaccard but genuinely different payloads
+    or return types. These are the cautionary tales: token overlap does
+    not equal mergeability. Always read the source before merging.
+
+  - The one DO item (#7 shortName quirk) is unrelated to duplication — a
+    latent bug surfaced by the test-writing process. Cheap to fix, tested.
+
+The meta-lesson for using codebase-memory-mcp: SIMILAR_TO / jaccard is a
+LEAD, not a verdict. It correctly flagged search_ticker (via complexity +
+missing tests, not similarity) and correctly surfaced the frontmatter
+family — but it also produced two false positives (#5, #6) that source
+reading debunked. The workflow that works: graph query → shortlist → read
+source for each → decide. Don't merge on jaccard alone.
+
+================================================================================
+PART 2 — REPO-WIDE EVAL (app.py, helpers/, tests/, doc/)
+================================================================================
+
+Scope: app.py (48 functions), every .py under helpers/ (28 files), every test
+file (36), and every doc/ file (13). Methods: graph queries (TESTS edges,
+SIMILAR_TO, complexity) cross-referenced against the on-disk file inventory,
+with source-reading of the production duplicates not covered in Part 1.
+
+--------------------------------------------------------------------------------
+A. app.py — the 5 bundle variants + complexity hotspots + route test coverage
+--------------------------------------------------------------------------------
+
+app.py is 48 functions: ~23 route handlers + 25 helpers (_resolve_*, _graph_*,
+the 5 bundle builders, OCR pipeline). Evaluated in three passes.
+
+(A1) THE 5 NEIGHBORS-BUNDLE VARIANTS — DON'T (false-positive family).
+
+Part 1 #5 diff'd 2 of 5 (_super_sector vs _theme, jaccard 1.000) and called
+them a false positive. Source-reading all 5 confirms the whole family is the
+same pattern — same try/import-query-fn/get_graph_connection/except/jsonify
+envelope, DIFFERENT payloads and query functions:
+
+  _company_neighbors_bundle   calls company_neighbors_bundle (coalesced
+                              single-trip); spreads **bundle; adds as_of.
+                              UNIQUE: the only one using the coalesced query.
+  _sector_neighbors_bundle    calls sector_members_with_market_cap; buckets
+                              market_cap in Python; reads request.args. UNIQUE:
+                              only one touching request.args + doing aggregation.
+  _theme_neighbors_bundle     calls theme_members; returns members/member_count.
+  _super_sector_neighbors_bundle  calls sectors_in_super; returns sectors.
+  _sub_sector_neighbors_bundle   reads graph_edges DIRECTLY via SQLite (not
+                              DuckDB!) for belongs_to parent; returns parent_sector.
+                              UNIQUE: only one bypassing the DuckDB graph layer.
+
+The high jaccard scores (1.000 for several pairs) reflect the shared
+error-handling envelope, NOT logic duplication. Each variant has a distinct
+query function, distinct payload keys, and the frontend tagged union
+(frontend/types/api.ts NeighborsBundle) discriminates on entity_type.
+Merging would require a generic envelope that obscures these differences —
+same verdict as Part 1 #5/#6. DON'T merge the family.
+
+The ONE real finding here: _sub_sector_neighbors_bundle reads graph_edges
+directly via get_db_connection() (SQLite) while the other 4 go through
+get_graph_connection() (DuckDB). That's an intentional workaround documented
+in its docstring ("DuckDB super_sector_of helper expects a sector source"),
+not a bug — but it's an inconsistency worth a comment if anyone touches the
+graph layer's sub_sector handling.
+
+(A2) COMPLEXITY HOTSPOTS — 2 functions worth watching, no action needed.
+
+[Updated 2026-08-02: handle_process (cyclo 24) and process_pdf (cyclo 31)
+ were removed with the OCR pipeline. The two remaining hotspots are the
+ graph layer, both healthy:]
+
+From the TLD≥3 query (Part 1, query #1), the remaining app.py entries:
+
+  api_graph_metrics    cyclo 14, TLD 3, 141 lines   (/api/graph/metrics/<metric>)
+                       Dispatches ~10 graph algorithms (pagerank, betweenness,
+                       etc.) — the cyclo is from the metric-name branch table.
+  api_entity_detail    cyclo 11, TLD 3, 92 lines    (/api/entity/<path>)
+
+Neither is a refactoring candidate today:
+  - api_graph_metrics cyclo-14 is a dispatch table (metric → algorithm); the
+    branch count IS the feature. Could become a dict-dispatch but that's a
+    style choice, not a defect.
+  - Both are exercised by the live API tests (test_api_graph.py covers
+    the /api/graph/* routes).
+
+(A3) ROUTE TEST COVERAGE — RESOLVED BY REMOVAL (2026-08-02).
+
+  The OCR-upload pipeline (process_pdf, process_pdf_with_qwen, handle_process,
+  check_api_key, create_zip_archive, view_image, download_file,
+  replace_images_in_markdown_with_wikilinks, allowed_file, and the
+  same_origin_only/rate_limited decorators) was DELETED from app.py when the
+  remote OCR endpoint went away. The findata viewer + graph API — the parts
+  that remain — are well-tested (see WELL-TESTED below). The former "OCR
+  pipeline test gap" is moot: the code no longer exists.
+
+Cross-referencing the app.py functions against TESTS edges (query: functions
+with ≥1 inbound TESTS edge):
+
+  WELL-TESTED (TESTS edges ≥ 3):
+    get_graph_connection (4), _reset_graph_connection (3), the graph query
+    wrappers via test_api_graph.py (api_graph_peers/neighbors/sector/shortest/
+    metrics/events all have live+unit coverage), the entity resolvers.
+
+  ZERO TESTS EDGES but LOW RISK (static render routes):
+    index, entity_detail_page, findata_viewer, debug_entity —
+    these are 3-line `return render_template(...)` stubs. Nothing to test.
+    (pdf_ocr was removed with the OCR pipeline.)
+
+  app.py VERDICT: healthy. The 5 bundles are false-positive duplicates (A1).
+  The 4 complexity hotspots were intrinsic to OCR orchestration and are now
+  gone (A2). The OCR-pipeline test gap is resolved by removal (A3). No
+  remaining quick-win refactor here.
+
+--------------------------------------------------------------------------------
+B. helpers/ test-coverage matrix
+--------------------------------------------------------------------------------
+
+Coverage is GOOD — 21 of 28 .py files have a dedicated test file. The 7
+WITHOUT a test file fall into three categories, and only ONE is a real gap:
+
+  NO TEST — FALSE ALARM (4): safe to leave
+    helpers/graph/__init__.py          empty package marker (no code to test)
+    helpers/maintenance/maint.py       COVERED indirectly by test_maint.py +
+                                         test_db_maint_duckdb.py (the graph
+                                         query result is that `maint` shows
+                                         up as untested because its main() is
+                                         a thin orchestrator whose body is
+                                         tested through its callees)
+    helpers/maintenance/migrate_to_graph_edges.py   one-shot migration,
+                                         already applied (architecture §7
+                                         cleanup pattern — spent scripts kept
+                                         for audit, not for re-running)
+    helpers/validators/verify_notes.py COVERED by tests/test_validators.py
+                                         (the graph query missed this because
+                                         verify_notes exposes check_*
+                                         callables the tests import directly;
+                                         its own main() is untested but every
+                                         check function is exercised)
+
+  NO TEST — LOW RISK (2): maintenance utilities, run manually
+    helpers/maintenance/move_sector.py        2-caller admin tool (atomic
+                                              sector move); covered by the
+                                              rename/move cascade tests in
+                                              test_db_cascades.py at the
+                                              contract level
+    helpers/maintenance/rename_entity.py      same — cascade tests cover it
+    helpers/maintenance/snapshot_db.py        has test_snapshot.py? NO — but
+                                              graph shows 7 TESTS edges to
+                                              verify_duckdb_snapshot etc. via
+                                              test_db_maint_duckdb.py +
+                                              test_snapshot.py (the file
+                                              naming is split). Actually
+                                              COVERED.
+
+  PARTIALLY COVERED — gap closed (Aug 2026): ✅ DONE
+    helpers/misc/database_integrity_check.py
+      CORRECTION: the original audit (above) over-stated this as a "REAL
+      GAP." On verification, DatabaseIntegrityChecker is ALREADY heavily
+      tested — test_validators.py has 25+ tests covering validate_file_path,
+      check_integrity, check_relations, check_entity_tags,
+      check_orphan_companies, check_normalization, and edge cases (orphaned
+      files, unknown edge types, bidirectional pairs). The graph's "0 TESTS
+      edges" was a file-name-match artifact: it counts
+      test_<modulename>.py files, but these tests live in test_validators.py.
+      The GENUINE gap was narrower: 3 methods (get_all_entities,
+      check_events, check_duplicate_tickers) had zero test references.
+      Action taken: added tests/test_database_integrity_check.py (11 tests)
+      covering those 3 methods. Full suite now 529 passed.
+
+  PARTIALLY COVERED — gap closed (Aug 2026): ✅ DONE
+    helpers/pdf/capture_newsletter_images.py
+      CORRECTION: also over-stated as fully untested. slugify is fuzz-tested
+      for idempotency (test_fuzz_normalizers.py) and IMG_BLOCK_RE is
+      fuzz-tested (test_fuzz_regex.py). The GENUINE gap was the parsing/
+      page-assignment/validation/fetch surface: parse_images, assign_pages,
+      is_valid_jpeg, fetch.
+      Action taken: added tests/test_capture_newsletter_images.py (21 tests)
+      covering all four, with fetch tested via monkeypatched urlopen (no
+      real network). BONUS: writing the is_valid_jpeg tests surfaced a real
+      bug — the function read only 3 bytes but the PNG check needs 4
+      (head[:4] == b"\x89PNG" can't match a 3-byte buffer), making the PNG
+      branch dead code. Fixed (read(3) → read(4)); test flipped to assert
+      the fix. Same bug-discovery pattern as search_ticker's shortName guard.
+
+  PARTIALLY COVERED — gap closed (Aug 2026): ✅ DONE
+    helpers/maintenance/normalize_field_order.py
+      CORRECTION: also over-stated. The pure core (`reorder_frontmatter`) is
+      already fuzz-tested in test_fuzz_yaml.py (semantic preservation,
+      title+type-first, idempotency). The GENUINE gap was the file-reading
+      wrapper (`normalize_note`) and the move-detection contract.
+      Action taken: added tests/test_normalize_field_order.py (11 tests)
+      covering normalize_note (reorder, no-op-when-canonical, body
+      preservation, dry-run, no-frontmatter, unclosed-frontmatter, tags
+      block) + the moves-list contract. Suite now 540 passed.
+
+--------------------------------------------------------------------------------
+C. The query.py "clone cluster" — DON'T (DSL boilerplate, not real dup)
+--------------------------------------------------------------------------------
+
+The SIMILAR_TO query flagged a LARGE cluster of 1.000-jaccard pairs inside
+helpers/graph/query.py:
+
+  sector_of ↔ subsidiary_of_company     1.000
+  sector_of ↔ super_sector_of           0.953
+  sectors_in_super ↔ sub_sectors_of     1.000
+  sectors_in_super ↔ theme_members      1.000
+  acquisitions ↔ jv_partners            1.000
+  group_siblings ↔ peers                1.000
+  clustering_coefficient ↔ weakly_connected_components  1.000
+
+Source-reading 3 representatives (sector_of, subsidiary_of_company,
+acquisitions) confirms these are ALL the same DuckPGQ DSL envelope:
+
+  def NAME(con, X, as_of=None) -> T:
+      r = con.execute(f"""
+          FROM GRAPH_TABLE (fin_graph
+            MATCH (a:Entity)-[e:EDGE_LABEL]->(b:Entity)
+            WHERE a.name = {_lit(X)} {_as_of_predicate(as_of)}
+            COLUMNS (b.something AS alias))
+      """).fetchall()
+      return r[0][0] if r else None   # or sorted(...), or list comp
+
+The ONLY variation across the cluster: the edge label (BelongsTo vs
+SubsidiaryOf vs AcquiredBy vs JVWith...), the WHERE entity-kind filter, and
+the COLUMNS projection. The token set is near-identical because the DSL is
+near-identical — but each function encodes a DIFFERENT graph query with a
+different semantic contract.
+
+Why DON'T (all 7+ pairs):
+  - This is the DSL-template pattern, not copy-paste duplication. Each
+    function is a thin Python wrapper over a distinct GRAPH_TABLE query.
+    "Merging" them would mean a generic query builder that takes an edge
+    label + projection — which is more abstraction than 17 lines each
+    warrant, and would HIDE the distinct graph semantics behind a closure.
+  - The jaccard metric can't see inside the f-string SQL, so it reports
+    1.000 for functions that are semantically distinct. This is the same
+    false-positive class as Part 1's #5 (bundle envelopes).
+  - These functions are individually tested (sector_of has 13 TESTS edges,
+    acquisitions 6, etc.) — the "duplication" isn't causing test gaps.
+  - query.py is the DuckPGQ query library; having each query as a named,
+    documented, separately-testable function is the RIGHT design for a DSL
+    layer. Consolidation would regress readability.
+
+This is the second cautionary class: jaccard 1.000 inside a DSL/query
+library is almost always boilerplate similarity, not logic duplication.
+
+--------------------------------------------------------------------------------
+D. apply_edges ×2 (derive_co_mentions vs derive_themes) — DONE (2026-08-01)
+--------------------------------------------------------------------------------
+
+Originally DEFER'd on the (stale) "standalone-helper invariant." Once that
+was corrected in architecture.md §7, this became the strongest dedupe in the
+audit and was actioned.
+
+Unlike the query.py cluster, this WAS a true clone — same signature, same
+loop structure, same INSERT contract. The only differences were two tokens:
+
+  derive_co_mentions.apply_edges:  edge_type='co_mentioned_in', symmetric=1
+  derive_themes.apply_edges:       edge_type='exposed_to',       symmetric=0
+
+Both: own_conn pattern → bulk-fetch existing pairs → loop with dry_run
+short-circuit → INSERT OR IGNORE into graph_edges → count rowcount. ~44-59
+lines, cyclo 8, cognitive 20. Jaccard 0.953.
+
+DONE — 2-way consolidation landed:
+  - New shared util: helpers/graph/_edge_writer.py :: apply_typed_edges(
+        edges, *, edge_type, symmetric, conn, dry_run) -> int
+    Holds the loop ONCE; the two varying tokens are now parameters.
+  - derive_co_mentions.apply_edges and derive_themes.apply_edges are now
+    thin delegating wrappers (~12 lines each, just the call + docstring).
+    Kept as the public API because tests (test_derive_co_mentions.py,
+    test_derive_themes.py) and the CLIs call them by name — 22 existing
+    tests still pass unchanged.
+  - New tests/test_edge_writer.py (7 tests) pins the shared util's contract
+    directly: insert+count, dry-run-counts-without-write, idempotent rerun,
+    dry-run-after-insert-counts-zero, edge_type+symmetric pass-through (two
+    edge types coexist), own_conn open/close, empty-iterable noop.
+  - Side fix: the static-checks "helper shebangs" rule now exempts _* prefixed
+    private library modules (the new _edge_writer.py is imported, not run).
+    Pinned by test_helper_shebangs_exempts_private_modules_and_init.
+
+NOT folded — the 3rd variant (extract_relations.apply_edges, cyclo 13,
+returns ApplyEdgesResult, tracks FK failures + suppressed edges). Different
+shape; folding would mean either weakening ApplyEdgesResult or forcing the
+two simple wrappers to return it. Net negative. Left as-is.
+
+--------------------------------------------------------------------------------
+E. tests/ — duplication is EXPECTED (parametrized test shapes)
+--------------------------------------------------------------------------------
+
+The SIMILAR_TO query flagged many test-pair hits at 0.953-1.000:
+  test_bad_type_value_is_error ↔ test_missing_normalized_name_is_error  1.000
+  test_fk_blocks_insert_* (2 variants)                                  1.000
+  test_sync_tags_under_2s ↔ test_verify_notes_under_3s                  1.000
+  etc.
+
+Source inspection confirms these are NOT duplication to remove — they are
+the standard pytest AAA pattern (arrange-act-assert) where tests for related
+defects share the same scaffold with different seeded data. The jaccard
+metric sees the shared scaffold; the tests are intentionally separate
+because each pins a DISTINCT defect class.
+
+Why DON'T (all test pairs): removing them would merge distinct assertions
+and lose defect-class granularity. This is the correct shape of a test
+suite. No action.
+
+The ONE test-level finding worth noting: tests/test_get_tickers.py (added
+this session) brought the suite to 497. The coverage matrix above shows the
+remaining test gaps are in helpers (capture_newsletter_images,
+database_integrity_check), not in tests/ itself.
+
+--------------------------------------------------------------------------------
+F. doc/ — staleness audit (RESOLVED 2026-08-05)
+--------------------------------------------------------------------------------
+
+STATUS: This section originally (Aug 2026) flagged architecture.md,
+schema.md, and three dead files as stale. All items have since been
+RESOLVED — verified against the live docs on 2026-08-05. Kept as a
+historical record of what was wrong and what fixed it; do NOT re-do
+this cleanup.
+
+Per-file status (re-verified 2026-08-05 against live DB + files):
+
+  CURRENT (keep):
+    doc/findata.md                    ingestion procedure companion; accurate.
+    doc/graph_design.txt              DuckDB+DuckPGQ engine doc; current
+                                     (§18 updated with the cache-consistency
+                                     check, 2026-08-04).
+    doc/procedures/markdown_parse.md  the ingestion procedure; current.
+    doc/improvements/*.txt            dated improvement surveys; each has a
+                                     distinct scope, not redundant.
+    doc/schema.md                     CORRECTED (was stale): now documents
+                                     `relations` as a VIEW over `graph_edges`,
+                                     lists all live tables (graph_edges,
+                                     events, graph_analytics, note_search),
+                                     and the integrity-check registry table
+                                     (added 2026-08-05).
+
+  RESOLVED — was stale, now fixed:
+    doc/architecture.md   ⚠️ Was the MOST CONSEQUENTIAL staleness. ALL fixed:
+        §4 scale figure now reads "1,169 entities / 3,994 graph_edges /
+           260 events" (was "984 entities / ~2,997 relations").
+        §4/§7 now document `relations` as a VIEW over `graph_edges`, and
+           cover graph_edges/graph_analytics/events/note_search.
+        §7 tooling table now covers the entire helpers/graph/ module
+           (derive_events/themes, extract_relations, query, algorithms,
+           stats) — added alongside the other tooling rows.
+        §6 market_cap collapse (mega_cap/nano_cap → large/micro) is now
+           consistent with schema.md.
+    doc/schema.md         CORRECTED (see CURRENT above).
+    doc/tags.yaml         DELETED (was orphaned — defined azure/humor tags
+                          unrelated to the project).
+    doc/enhanced_schema_structure.md  DELETED (was an over-engineered
+                          aspirational schema no note used).
+    doc/knowledge_graph.md            DELETED (was stale; §9.7's claim about
+                          it was already moot when the file was removed).
+    doc/improvements/pending_improvs.txt  REPURPOSED (was 0 bytes; now a
+                          24-line historical pointer — ~45 note stubs and
+                          several docs cite Bundle IDs that resolve there).
+
+  NOTE on §9.7: the original §F flagged §9.7 (in a sibling doc) as itself
+  stale — it mis-targeted the cleanup (claimed findata.md/knowledge_graph.md
+  were stale when they were already cleaned/deleted, and missed the real
+  staleness in architecture.md/schema.md). That critique was correct at the
+  time; the underlying cleanup has since been done, so §9.7's staleness is
+  now moot.
+
+================================================================================
+PART 2 SUMMARY — net new recommendations
+--------------------------------------------------------------------------------
+
+  app.py:    Healthy. 5 bundle variants are false-positive dups (shared error
+             envelope, distinct payloads + query fns). 2 complexity hotspots
+             remain (algorithm dispatch + entity detail), both healthy. The
+             OCR-pipeline routes (process_pdf/handle_process etc.) and their
+             test gap were RESOLVED BY REMOVAL (2026-08-02) — the remote
+             endpoint went away, so the whole upload pipeline was deleted.
+
+  helpers/:  2 test gaps CLOSED (database_integrity_check + capture_newsletter_images
+             were PARTIALLY covered, not bare as the original audit said; the
+             genuine gaps — 3 untested checker methods + the image parsing/
+             fetch surface — now tested, +32 tests, 1 latent bug fixed). The
+             apply_edges ×2 dedupe (Part 2 §D) has since been DONE (2-way fold
+             into helpers/graph/_edge_writer.py); 1 false-positive cluster to
+             leave alone (query.py DSL wrappers).
+
+  tests/:    healthy. The flagged "duplicates" are correct parametrized-test
+             scaffolds. No action.
+
+  doc/:      RESOLVED (2026-08-05). §9.7 was stale and mis-targeted the
+             cleanup; the real fixes have all landed: architecture.md scale
+             figures corrected (1,169 entities / 3,994 graph_edges), schema.md
+             documents relations-as-VIEW + all live tables, and the 3 dead
+             files deleted (tags.yaml, enhanced_schema_structure.md,
+             knowledge_graph.md). See §F above for the per-file resolution.
+
+Combined with Part 1, the full action list across app.py/helpers/tests/doc:
+
+  DO now (this session):
+    - search_ticker cleanup+tests          [DONE — Part 1 #0]
+    - is_likely_correct_company guard       [DONE — Part 1 #7]
+    - Fix architecture.md §4 scale + schema.md + delete dead docs [DONE — doc pass]
+    - Add test_database_integrity_check.py  [DONE — 11 tests; eval had over-stated the gap]
+    - Add test_capture_newsletter_images.py [DONE — 21 tests + fixed is_valid_jpeg PNG bug]
+    - Add test_normalize_field_order.py     [DONE — 11 tests; normalize_note + move-list contract]
+
+  (All "DO next" items from the prior version are now complete. The suite
+  went 479 → 548 passed across the sessions: +69 tests, 2 latent bugs found
+  and fixed — is_likely_correct_company empty-shortName + is_valid_jpeg
+  short-read — plus the 2-way apply_edges consolidation + the stale-invariant
+  doc fix below.)
+
+  DEFER (real but blocked / low-priority):
+    - frontmatter stripper consolidation (Part 1 #1/#2) — UNBLOCKED but tiny
+      (~6-line saving); see the NOTE on #1/#2 for why still DEFER.
+    - split_front_matter/split_fm unification (Part 1 #4) — UNBLOCKED but
+      maintenance-specific 3-tuple shape; see #4 for why still DEFER.
+
+  DONE (this consolidation, 2026-08-01):
+    - 2-way apply_edges consolidation (Part 2 §D) — derive_co_mentions +
+      derive_themes folded into helpers/graph/_edge_writer.apply_typed_edges.
+      The 3rd variant (extract_relations.apply_edges, cyclo 13, returns
+      ApplyEdgesResult) was NOT folded — different shape. See §D for detail.
+    - Stale "standalone-helper invariant" corrected in architecture.md §7
+
+  DONE (OCR-pipeline removal, 2026-08-02):
+    - Deleted the entire PDF→Markdown OCR upload pipeline from app.py
+      (~740 lines: process_pdf, handle_process, check_api_key, decorators,
+      config, and 5 OCR routes). The remote endpoint went away; the findata
+      viewer + graph API were already fully independent of it. Removed
+      mistralai/dashscope/pdf2image deps; deleted templates/index.html,
+      static/script.js, static/style.css. The former "deferred OCR test
+      suite" (Part 2 A3) is moot — the code no longer exists.
+      (it was the stated blocker for the deferrals above; it never actually
+      held — ~27 cross-helper imports exist). Unblocked the consolidation.
+
+  DON'T (false positives, confirmed by source reading):
+    - app.py 5 neighbors-bundle variants (shared envelope, distinct payloads)
+    - query.py DSL wrapper cluster (7+ pairs at jaccard 1.000)
+    - _super_sector/_theme neighbors bundles (Part 1 #5)
+    - _resolve_entity_or_404/_with_type (Part 1 #6)
+    - tests/ parametrized-test scaffolds
+
+================================================================================

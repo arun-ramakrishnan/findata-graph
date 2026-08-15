@@ -1,0 +1,103 @@
+[project]
+name = "findata-knowledge-graph"
+version = "0.1.0"
+description = "FinData knowledge graph: SQLite + DuckDB graph layer and Flask API over a parsed newsletter/markdown corpus."
+requires-python = ">=3.14"
+
+# Runtime dependencies — migrated from requirements.txt (2026-08-13).
+# Kept unpinned to match the previous requirements.txt convention; the
+# `make qa` dependency-pinning advisory still nudges toward == pins.
+dependencies = [
+    # Flask web API (app.py).
+    "Flask",
+    # .env loading.
+    "python-dotenv",
+    # Werkzeug (WSGI / dev server).
+    "Werkzeug",
+    # Production WSGI server.
+    "gunicorn",
+    # Ticker data (helpers/core/get_tickers.py).
+    "yfinance",
+    # SQLite spellfix extension (helpers/core/db.py).
+    "sqlite-spellfix",
+    # YAML front-matter parsing in helpers/validators/verify_notes.py and the
+    # maintenance scripts. Not pulled in transitively by any other declared
+    # dependency, so must be declared explicitly.
+    "PyYAML",
+    # Graph query + algorithm layer (helpers/graph/{query,onager,algorithms}.py).
+    # The Onager graph-algorithm extension (Apache-2.0, DuckDB community repo)
+    # is installed at runtime via INSTALL onager FROM community — see
+    # doc/graph_design.txt. duckpgq and NetworkX were retired 2026-08-14;
+    # duckdb itself is unpinned (decision D8).
+    "duckdb",
+
+    # Parquet/Arrow I/O (helpers/maintenance/snapshot_db.py).
+    "pyarrow",
+    # DataFrame exports (helpers/maintenance/snapshot_db.py).
+    "pandas",
+    # OpenAI / Azure OpenAI embeddings (helpers/graph/embeddings.py, --api mode).
+    "openai",
+]
+
+[project.optional-dependencies]
+# Development / testing dependencies — migrated from requirements-dev.txt.
+dev = [
+    "pytest",
+    "pytest-cov",
+    "hypothesis",
+    # Dev tooling — lint / type-check / dependency audit.
+    "ruff",
+    "ty",
+    "deptry",
+]
+
+[tool.uv]
+# Non-packaged project: `uv sync` installs dependencies without building the
+# project itself (there is no [build-system]).
+package = false
+
+[tool.ruff]
+# Ruff linter config — replaces flake8 (2026-08-13).
+#
+# Scope: real-bug catches only (pycodestyle "E" + pyflakes "F"), mirroring
+# what flake8 enforced. Stylistic rule sets (SIM/UP/RUF/PLC/TRY/DTZ/S/...)
+# are intentionally NOT selected so the gate stays meaningful on this legacy
+# codebase. `make lint` runs `ruff check .`.
+#
+# E501 (line length) is ignored: the repo permits long lines (tests reach
+# 259 chars) and the existing `static_checks.py` gate does not enforce it.
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501"]
+
+# E402 (module-import-not-at-top): every match in this repo is an intentional,
+# structural sys.path / pytest.importorskip bootstrap — the helper scripts are
+# run directly (`python3 helpers/...`) and must put repo-root on sys.path before
+# importing the helpers package; test files do the same. Inline `# noqa` on
+# every such line would be pure noise, so these files opt out of E402 instead.
+# Scope is deliberately narrow (only files that actually bootstrap) so a real
+# late-import bug elsewhere still gets caught.
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["E402", "S101"]
+"helpers/core/get_tickers.py" = ["E402"]
+"helpers/core/parse_newsletter.py" = ["E402"]
+"helpers/graph/embeddings.py" = ["E402"]
+"helpers/validators/verify_notes.py" = ["E402"]
+
+[tool.deptry]
+# Treat the local package as first-party so it isn't flagged as an undeclared dep.
+# Reads [project].dependencies + [project.optional-dependencies] directly.
+known_first_party = ["helpers", "app", "core"]
+# The `dev` optional-dependencies group holds CLI/test tooling (pytest, hypothesis,
+# ruff, ty, deptry, ...) invoked from the command line or imported only from tests/,
+# so deptry cannot observe it as "used". Marking the group as dev suppresses the
+# spurious DEP002 (declared-but-unused) for those packages.
+optional_dependencies_dev_groups = ["dev"]
+# gunicorn (prod WSGI server, invoked by nixpacks.toml `cmd = "gunicorn app:app"`)
+# and werkzeug (WSGI/serving, pulled in transitively by Flask) are runtime deps that
+# are not imported in the codebase. They are genuinely used, so silence DEP002 for
+# them specifically (package-scoped, so a newly-unused dep would still be caught).
+per_rule_ignores = "DEP002=gunicorn|Werkzeug"

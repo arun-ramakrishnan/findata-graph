@@ -1,0 +1,143 @@
+STATEFUL / RELATIONAL TEST PLAN — FinData Knowledge Graph
+=========================================================
+Created: 2026-08-13
+Last updated: 2026-08-13
+Status: Slice 0 + A + B + C + D IMPLEMENTED (2026-08-13). 8 correctness tests (tests/test_sql_query_correctness.py: F1/F2/F3 green guards + 4 wrapper differential tests) + 3 perf-guard tests (tests/test_sql_perf_guards.py: source-filter / source+edge_type-filter / cross_sector_bridges index-plan tripwires) + 3 Slice C differential/equivalence tests (tests/test_graph_algorithms.py::TestSliceCDuckDBEquivalence: shortest_path & find_cycles vs NetworkX reference over the seeded graph + pagerank/wcc determinism on seed) + 5 Slice D transactional-hardening tests (tests/test_rename_entity.py::test_rename_to_existing_name_rolls_back + tests/test_maintenance_utils.py::TestMoveEntity: idempotent same-sector skip, dest-file-exists refused, non-canonical sector refused, rollback on relation-update error). All F1/F2/F3 APPLIED (verified live). Builds on the 97-test property/fuzz suite.
+        (make fuzz) and the existing relational/transactional pytest coverage.
+        Targets the silent-wrong-answer class (correctness, determinism,
+        semantic equivalence, perf-regression) that fuzzing cannot catch.
+
+SCOPE
+-----
+A deterministic, seeded-fixture, oracle-based test strategy for the stateful /
+relational layer: SQL builders (helpers/core/db.py, helpers/graph/query.py),
+the DuckDB graph analytics (duckpgq: pagerank / wcc / clustering / shortest_path
+/ find_cycles), the Flask /api/graph stats (app.py), and the transactional
+rename_entity / move_sector maintenance ops. This COMPLEMENTS (does not
+replace) the fuzz suite and the existing relational tests. It closes the gap
+the fuzzer cannot: wrong answers that do not raise.
+
+CURRENT STATE — ALREADY COVERED (do not duplicate)
+--------------------------------------------------
+  test_db_cascades.py            FK cascade integrity
+  test_db_maint_duckdb.py        DuckDB backup/restore (tmp_sqlite, tmp_duckdb fixtures)
+  test_graph_algorithms.py       networkx load + pagerank/wcc/betweenness/louvain/
+                                 clustering; duckpgq-vs-networkx dispatch;
+                                 approximate_betweenness IS deterministic; results
+                                 identical with/without passed graph
+  test_rename_entity.py          replace_field unit + rename_succeeds / cascades_edges /
+                                 with_ticker / not_found (tmp_path + monkeypatch)
+  test_api_graph_unit.py/live/   Flask /api/graph endpoints
+    metrics/bundles
+  test_database_integrity_check.py  integrity constraints (UNIQUE, json_valid, ...)
+So the gap is NARROW: semantic / determinism / equivalence assertions for the
+SQL builders and read-only wrappers, plus perf guards and transactional
+rollback / negative paths.
+
+THE GAP (silent wrong answers)
+------------------------------
+  F1  market_cap_sql() non-deterministic — db.py:94-96, no MIN. Latent until a
+      2nd market_cap/* tag appears (verified 0 today).
+  F2  /api/stats double-counts conflicting tags — app.py:730-755; customer count
+      != distinct-company cardinality.
+  F3  v_node ROW_NUMBER() OVER () lacks ORDER BY — query.py:653; nondeterministic
+      rank. APPLIED (2026-08-13): row_number() OVER (ORDER BY e.entity_type, e.name)
+      present in query.py — F3 test is a GREEN regression guard, not a red driver.
+  +   Read-only wrappers co_mention_top / cross_sector_bridges / edges_by_year /
+      sector_members_with_market_cap EXIST but are only smoke-tested, not checked
+      against a reference implementation.
+
+PLAN
+----
+0. SEEDED FIXTURE (foundation)
+   tests/fixtures/seed_research_db.py — build a tiny DETERMINISTIC DB from the
+   REAL DDL (graph_edges UNIQUE/CHECK, entities, entity_tags, relations) with:
+     * one company carrying TWO market_cap/* tags        (exercises F1)
+     * one company with TWO conflicting sector/* tags     (exercises F2)
+     * ~12 companies / 4 sectors; mixed edge_types; a few relations rows
+   Reuse the existing tmp_sqlite / tmp_duckdb fixtures.
+
+A. SQL-BUILDER CORRECTNESS — tests/test_sql_query_correctness.py
+   Asserts the F1-F3 contracts; all three are ALREADY APPLIED (verified 2026-08-13),
+   so these are GREEN regression guards that lock the fixes in.
+     * test_market_cap_sql_returns_deterministic_min
+         exec market_cap_sql(); two-tag company returns a single MIN; produced
+         SQL contains MIN(...).                                              (F1)
+     * test_sector_members_with_market_cap_dedups
+         counts == distinct-company cardinality.                            (F2)
+     * test_stats_customer_count_equals_distinct
+         via Flask test client; /api/stats must not double-count.           (F2, endpoint)
+     * test_co_mention_top_matches_reference
+     * test_cross_sector_bridges_matches_reference
+     * test_edges_by_year_matches_reference
+         brute-force Python reference over the fixture == query output.
+     * test_v_node_rank_deterministic        (only after F3 verification)
+
+B. PERF-REGRESSION GUARDS — tests/test_sql_perf_guards.py
+     * test_source_filter_uses_autoindex
+         EXPLAIN QUERY PLAN for a source-only graph_edges filter must use
+         sqlite_autoindex_graph_edges_1. Tripwire against index regressions
+         (see sql_query_improvements.txt, ge_source_idx note).
+
+C. DUCKDB ANALYTICS EQUIVALENCE — extend tests/test_graph_algorithms.py  [IMPLEMENTED 2026-08-13]
+   Reuse the existing duckpgq fixtures; add (class TestSliceCDuckDBEquivalence):
+     * test_shortest_path_matches_networkx  — duckpgq shortest_path distance/
+       existence vs NetworkX DiGraph built from the seed's BelongsTo edges.
+     * test_find_cycles_matches_networkx     (over the seeded graph) —
+       COMPLETENESS: every genuine simple cycle from NetworkX simple_cycles is
+       detected by duckpgq find_cycles.
+     * test_pagerank_wcc_deterministic_on_seed — pagerank + wcc identical across
+       two independent DuckDB builds of the seed (determinism guard).
+   FIXED (2026-08-13): find_cycles() previously emitted NON-SIMPLE closed
+     walks -- after a cycle closed it re-entered `start` and kept walking,
+     revisiting vertices (e.g. ICICI->Infosys->ICICI->Banking->ICICI on the
+     seed). Root cause: the closing guard `ge.target = w.start` was evaluated at
+     EVERY recursion step, so the walk did not stop when back at `start`. Fixed
+     in helpers/graph/query.py by adding `AND (w.depth = 0 OR w.node != w.start)`
+     to the recursive step (stop extending once back at `start` at depth >= 1).
+     On the seed it now returns 59 simple cycles (8 distinct vertex-sets) exactly
+     matching NetworkX simple_cycles. The test was upgraded to STRICT equality
+     (`dq_sets == nx_sets`) plus a per-cycle simplicity assert, so any regression
+     re-surfaces.
+
+D. TRANSACTIONAL HARDENING — extend tests/test_rename_entity.py /  [IMPLEMENTED 2026-08-13]
+   tests/test_maintenance_utils.py  (cascade + basic rename already covered)
+     * rename_entity -> rename to an EXISTING name (PK collision) rolls back
+       (DB + file unchanged)  [test_rename_to_existing_name_rolls_back]
+     * move_entity -> same-sector idempotent skip  [TestMoveEntity]
+     * move_entity -> destination file exists -> refused  [TestMoveEntity]
+     * move_entity -> non-canonical sector -> refused  [TestMoveEntity]
+     * move_entity -> rollback on relation-update error  [TestMoveEntity]
+   FIXED (2026-08-13): move_entity() previously performed the markdown FILE
+     move (src.rename) BEFORE the graph_edges DB writes, so a DB error after
+     the move rolled back the DB but left the file relocated -> split-brain.
+     Fixed in helpers/maintenance/move_sector.py by reordering move_entity so
+     all DB writes (entities UPDATE + graph_edges DELETE/INSERT) happen FIRST
+     and the filesystem move (rename + write) happens LAST, only after the DB
+     writes succeed. Now a DB/relation-update failure aborts before touching
+     the filesystem, so the markdown file stays in the old sector. The
+     rollback test (TestMoveEntity::test_rollback_on_relation_update_error)
+     was strengthened to assert the file is NOT moved.
+
+SEQUENCING & DEPENDENCIES
+-------------------------
+  1. F3 is APPLIED (ORDER BY present) — test_v_node_rank_deterministic is a GREEN
+     regression guard. Only F1 is open/red.
+  2. Land F1-F3 from sql_query_improvements.txt (or write slice A to assert the
+     fixed contract and let it drive the fix — TDD).
+  3. Build fixture (0) -> A -> B -> C/D.
+
+WHAT NOT TO DO
+-------------
+  * No Hypothesis random-input fuzzing here — no oracle, state-dependent,
+    non-hermetic.
+  * No duplication of existing cascade/backup/dispatch tests — extend them.
+
+PROPOSED FILES
+--------------
+  tests/fixtures/seed_research_db.py          (new)
+  tests/test_sql_query_correctness.py        (new)
+  tests/test_sql_perf_guards.py              (new)
+  tests/test_graph_algorithms.py             (extend)
+  tests/test_rename_entity.py                (extend)
+  tests/test_maintenance_utils.py            (extend)

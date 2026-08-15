@@ -1,0 +1,523 @@
+# Hierarchy Design Roadmap — enriching the notes ↔ DB ↔ graph knowledge model
+
+Source: forward-looking design review (2026-07-30) of the whole capture → store
+→ graph stack, prompted by "look at the structure of notes captured via
+markdown_parse, storage in findata/{Companies,Sectors}, SQLite, DuckDB etc and
+think about what design changes/improvements can enhance the richness of this
+hierarchy — are there more sources we can use, more things we can put in
+markdowns?"
+
+Sibling to the four other files here (sqlite_improvs / duckdb_improvs /
+graph_improvs / findata_corpus_audit) but DIFFERENT IN KIND: those audit what
+EXISTS (bugs, gaps, coverage holes in the current state, every claim verified
+live); this proposes what to ADD (design directions that would make the
+knowledge model RICHER). Items here are PROPOSED, not verified-against-a-bug —
+they are candidates prioritised by leverage, each with the concrete schema or
+pipeline change it implies.
+
+Methodology: a full structural map of the pipeline was rebuilt first — the
+8-stage procedure (doc/procedures/markdown_parse.md), the parse_newsletter.py
+orchestrator (Stages 0-3 + 5-6 automated; Stage 4 worklist emitted; Stage 8 =
+extract_relations), capture_newsletter_images.py (Stage 0), and
+extract_relations.py (Stage 8) — then cross-checked against the live schema
+(SQLite memory/research.db; DuckDB memory/graph.duckdb / fin_graph). The edge-
+mix diagnostic in §THE FRAMING FINDING is the live SELECT, not an estimate.
+file:line references point at current source.
+
+Environment as of this review:
+  - 1031 company + 42 sector + 78 sub_sector + 9 super_sector = 1160 entities
+  - 3634 graph_edges (see §THE FRAMING FINDING for the type mix)
+  - 8 graph_analytics metrics, ALL topology-only (no financial signals)
+  - DuckDB fin_graph: defined + catalogued but INERT under a plain connection
+    (duckpgq not autoloaded) — see D13
+  - markdown_parse procedure version 8.3; extract_relations.py 1867 lines
+
+How to read the tiers: TIER 1 needs NO new data source (the signal is already
+in the 75 newsletter editions on disk); TIER 2 adds entity types/dimensions
+that are also latent in existing notes; TIER 3 requires new external sources;
+TIER 4 is storage/engine hygiene that unblocks the rest.
+
+================================================================================
+THE FRAMING FINDING — the graph is 95% scaffolding, 5% signal
+================================================================================
+
+This single observation frames every proposal below. The live edge
+distribution (SELECT edge_type, count(*) FROM graph_edges GROUP BY 1):
+
+  | edge_type        | count | category          |
+  | ---              | ---   | ---               |
+  | co_mentioned_in  | 1329  | co-occurrence     |
+  | part_of          | 1031  | taxonomy/struct   |
+  | has_company      | 1031  | taxonomy/struct   |
+  | belongs_to       | 120   | hierarchy/struct  |
+  | subsidiary_of    | 58    | SEMANTIC          |
+  | acquired         | 25    | SEMANTIC          |
+  | jv_with          | 25    | SEMANTIC          |
+  | competes_with    | 7     | SEMANTIC          |
+  | same_group       | 4     | SEMANTIC          |
+  | supplier_to      | 3     | SEMANTIC          |
+  | customer_of      | 1     | SEMANTIC          |
+
+So ~3511 of 3634 edges are STRUCTURE + CO-OCCURRENCE. The genuinely commercial
+relationships — who competes with whom, who supplies whom, who is a customer —
+total ELEVEN (7+3+1, plus same_group's 4). The richest part of a financial
+knowledge graph is its thinnest part. Every TIER 1/2 proposal is aimed at
+rebalancing this. (Note: findata_corpus_audit.txt H1 already measured the
+typed-edge gap at "~10% of available signal" and closed the *extraction* side
+of it; the proposals here address the *modelling* side — capturing signal the
+current two-anchor, company-only design structurally cannot hold.)
+
+================================================================================
+CURRENT STATE — what each layer captures today (recap)
+================================================================================
+
+  Capture path: newsletter .md (expiring signed-URL <img> crops)
+    → Stage 0 capture_newsletter_images.py downloads + rewrites to ![[embeds]]
+    → Stage 1-3 parse_newsletter.py: extract_companies() regex, classify into
+      new/existing/uncertain, for NEW: guess_sector_for() → resolve_ticker()
+      (yfinance, .NS preferred) → INSERT entities row + stub note + bidirectional
+      part_of/has_company edges
+    → Stage 4 (MANUAL): emit <slug>_enhancement_worklist.json; an agent lifts
+      3-5 bullets + 1 verbatim quote per company into ## The Chatter — <edition>
+      blocks appended to each note
+    → Stage 5-6 validate (sync_tags + verify_notes + integrity) + opt-in analytics
+    → Stage 8 extract_relations.py: two-anchor regex mining of jv_with /
+      acquired / subsidiary_of / same_group / supplier_to / customer_of /
+      competes_with → graph_edges; unresolved → findata/_pending_relations.txt
+
+  What exists as nodes: company, sector, sub_sector, super_sector (4 kinds).
+  What exists as edges: 11 types (above). What is dated: acquired ONLY
+  (valid_from + properties.year; _EDGE_TYPES_WITH_PROSE_YEAR_EXTRACTION at
+  extract_relations.py:320 deliberately limits prose-year extraction to
+  'acquired' — ~80% false positives on other types).
+  What is NOT modelled (latent in notes, see TIER 2): quantitative metrics,
+  themes, products/brands, people, events.
+
+================================================================================
+TIER 1 — HIGH-LEVERAGE (no new sources required; signal already in 75 editions)
+================================================================================
+
+D1. Structured metrics layer — promote concall NUMBERS out of prose [DEFERRED]
+    doc/procedures/markdown_parse.md:379-390 (concall taxonomy: Guidance /
+    Margins / Capex / Segment color / Strategic / Risk — a WRITING convention
+    today, never captured as DATA); 286 ## The Chatter blocks across the corpus.
+    Every edition carries concrete quantitative signals — "FY27 revenue 10-12%",
+    "EBIT margin 16%", "₹40,000 cr Kusha order book FY29", "working capital 140
+    vs 176 days", "AI now 70% of retail applications" — that today live ONLY as
+    bullets inside ## The Chatter prose and are therefore unqueryable.
+    Proposed table (SQLite, source of truth; mirror to DuckDB like graph_edges):
+        company_metrics(
+          entity          TEXT FK->entities(name),
+          metric          TEXT,          -- revenue_growth, ebit_margin, order_book, ...
+          value           REAL,
+          unit            TEXT,          -- pct, inr_cr, days, multiple, ratio
+          period          TEXT,          -- FY27, Q1FY26, FY29
+          direction       TEXT,          -- guidance | actual | target
+          as_of_edition   TEXT,          -- the newsletter edition that sourced it
+          confidence      TEXT,          -- high | medium (from the quote)
+          source_quote    TEXT,          -- the verbatim audit trail
+          captured_at     DATETIME
+        )
+    Unlocks: guidance tracking (did they hit it next quarter?), management-
+    accuracy backtesting (L&T FY27 10-12% reiterated vs actuals), sector
+    aggregation (avg margin guidance across Engineering_Capital_Goods),
+    deviation alerts (a metric shifting >X between editions). This is a PURE
+    EXTRACTION WIN over editions already on disk and converts 75 editions of
+    qualitative commentary into a quantitative time-series — the temporal layer
+    the system currently lacks entirely.
+    DEFERRED 2026-07-30: the headline value of a metrics layer is TRACKING a
+    number over time against itself — guidance-vs-actual backtesting, quarter-
+    on-quarter deviation, management-accuracy scoring. That requires a REGULAR
+    cadence of guidance/earnings data (e.g. D8 concall transcripts, recurring
+    quarterly filings). Today the corpus is one-shot newsletter commentary with
+    no recurring per-company guidance series, so D1 would collapse to isolated
+    snapshots with nothing to track against. Un-defer WHEN a recurring source
+    lands (D8 transcripts, or a quarterly-earnings ingest). The schema above is
+    kept as the design; only the build is parked. Note D7 (events) does NOT
+    depend on D1 and remains in scope — events give every company a timeline
+    from existing dated prose (acquired/jv/board changes) without needing a
+    recurring metric series.
+    Leverage: HIGHEST (when un-deferred). Prerequisite beyond D3: a recurring
+    guidance/earnings source. See D7 (events) — the independent, still-in-scope
+    temporal proposal.
+
+D2. Thicken the semantic edges — sector-targetable relations + edge weights [DEFERRED]
+    extract_relations.py two-anchor design (design principle 1, lines 30-34):
+    BOTH endpoints must resolve to a COMPANY entity. This is deliberately strict
+    to avoid false positives — KEEP it for company<->company. The original
+    proposal (below) suggested letting supplier_to / customer_of / competes_with
+    target a SECTOR node (42 exist) and populating graph_edges.weight. DEFERRED
+    after measuring the sidecar against the live DB (2026-07-30): the salvage is
+    much smaller than implied and one sub-claim was wrong. Findings:
+      - findata/_pending_relations.txt has 199 supplier_to/competes_with drops.
+        Classification: ~130 are OCR garble / generic nouns ("ikea significantly
+        over competition", "approximately 3", "that", "major oems") correctly
+        rejected; ~34 would match a sector name.
+      - Of those 34: ~19 are SAME-sector supplier (a pharma co supplying "pharma")
+        — weak; ~15 are CROSS-sector supplier — genuine salvage; but ~15 of the
+        competes_with drops are the "international/global/foreign X manufacturers"
+        pattern, which would assert competes_with -> the International sector
+        node. That node holds 24 REAL globally-listed companies, so the edge would
+        read "competes with Vodafone/Apple/etc." — actively wrong. These are
+        "competes with unnamed foreign peers", not "competes with the sector".
+        The two-anchor design exists precisely to avoid this.
+      - So the realistic salvage is ~15 cross-sector supplier_to/customer_of
+        edges, NOT the broad rescue implied. competes_with targeting a sector is
+        a false-positive source and should NOT be done.
+      - CORRECTION to the original weight claim: PageRank sums to ~1.0 BY
+        DEFINITION (stationary distribution), so weighted PageRank STILL sums to
+        1.0 and CANNOT fix the failing test_graph_algorithms.py:329 guard
+        (0.9 < sum < 1.1; the 0.888 drift is a dangling-node/damping artifact on
+        a sparse disconnected subgraph, a pre-existing test-design issue, not a
+        missing-weights problem). The only credible weight source is co-mention
+        frequency, and that's on co_mentioned_in — the weak-signal edge type.
+    Narrow scope if revisited (PROPOSED-NARROW, not the original): let ONLY
+    supplier_to / customer_of (never competes_with) target a sector node, ONLY
+    for CROSS-sector relationships, with an explicit international|global|foreign
+    exclusion. That is a defensible ~15-edge salvage. Edge weights are not worth
+    pursuing until richer sources (D8/D9) supply non-unit signals.
+    Leverage: LOW-MEDIUM (was HIGH). Folded into the "thicken semantic edges"
+    direction; real gain waits on D8/D9 sourced edges.
+
+D3. Markdown schema normalization + frontmatter validator [DONE 2026-07-30 — PARTIAL]
+    DONE (this pass, conservative scope): fixed the C1 tag-drop at source and
+    added a drift-warning validator. DEFERRED to separate small passes: the
+    file_path / ticker-null / quote-style fills and the note-creator templates.
+    The corpus has drifted in ways that block programmatic use (measured live):
+    The corpus has drifted in ways that block programmatic use (measured live):
+      - TWO note vintages (concise "research" vs verbose "template") with
+        different section sets and financial-data rendering.
+      - risk_investment / geography / business_model are TOP-LEVEL YAML in ~76
+        notes but ONLY tags in ~929 — duplicated where present, missing where
+        not. (findata_corpus_audit C1 already flagged the tag-drop bug; this is
+        the upstream normalisation.)
+      - risk_investment has 33 DISTINCT tag values — uncontrolled vocabulary
+        (gold_backed, weather_dependent, automotive_cycle...). Needs an enum.
+      - title quoted in 421 notes, unquoted in 627. file_path present in only
+        187/1031. market_cap null in 17. 96 notes ticker:null with no listed:
+        false marker (unlisted is a meaningful category, currently implicit).
+    Proposed: a one-time normalisation pass + a frontmatter linter folded into
+    verify_notes (the existing Stage-5 validator) that pins an enum for
+    risk_investment/market_cap/business_model/geography and requires the
+    canonical field set on every entity type. Lower-glamour than D2/D4 but it
+    is the PREREQUISITE for automating anything off the notes — D4's theme
+    extractor, D6's people linker, D7's event linker all read frontmatter.
+    Leverage: HIGH (enabler). Should land first, before D4/D6/D7.
+
+    RESOLUTION 2026-07-30 (scope: tag-drop fix + validator, conservative vocab).
+    The dominant measured issue was the C1 tag-drop, NOT the quote/file_path
+    drift: business_model(1066)+geography(1049)+risk_investment(1024)+
+    investment_theme(36) = ~3,175 tags read from YAML but DROPPED by sync_tags.py
+    ALLOWED_CATEGORIES (helpers/core/sync_tags.py:56-62) before the INSERT. Fixed
+    by admitting the 4 namespaces. After `make sync-tags`, entity_tags went
+    3,271 -> 6,576 rows (+3,305); all four namespaces now present and queryable
+    (business_model 1089, geography 1095, risk_investment 1062, investment_theme
+    59). A drift-warning check was added to verify_notes (new tag_value WARNING
+    bucket): for controlled namespaces (entity_type/sector/market_cap/geography/
+    business_model/risk_investment/investment_theme) it WARNS on any value outside
+    a known-good set derived from the whole vault, so all existing values pass and
+    only NEW sprawl trips. Open-vocabulary namespaces (industry/
+    industry_characteristics/specialization/...) are left open. Vocabulary choice
+    was CONSERVATIVE: only the 1 unambiguous dupe collapsed (business_model/
+    b2b_b2c -> b2b2c, in 3 notes — 2 companies + 1 sector the validator itself
+    surfaced); risk_investment/business_model/geography tails kept verbatim as
+    genuinely multi-dimensional. Regression guarded: test_sync_tags now pins all
+    4 namespaces in ALLOWED_CATEGORIES and the round-trip (the guard that was
+    missing when C1 first recurred silently). make qa green: 438 tests, verify
+    notes 0 errors / 80 warnings (all pre-existing company_permalink), integrity
+    100%, snapshot OK.
+    REMAINING D3-DEFERRED ITEMS (re-measured 2026-07-30):
+    - file_path: NOT-A-DEFECT. The original "844 missing file_path" was chased
+      down and is ENTIRELY the 78 sub_sector entities, which are fileless
+      CLASSIFICATION NODES by design (Crop_Production, Electric_Vehicles, ...
+      have no backing .md anywhere in findata/, verified by exact + normalised
+      stem match: 0/78). file_path is nullable in the schema, sub_sectors carry
+      0 entity_tags and are not the source/target of any backfilled edge. Every
+      FILE-BACKED entity_type is fully populated: company 1031/1031, sector 42/42,
+      super_sector 9/9 all have file_path. The sync contract (sync_tags.py:15-16,
+      "Entity -> note joined via entities.file_path") is healthy; pointing a NULL
+      at a nonexistent file would VIOLATE it, not satisfy it. No action.
+    - listed:false: DONE 2026-07-30. All 106 unlisted companies now carry
+      `listed: false` explicitly — the 96 with `ticker: null` plus a further 10
+      whose `ticker` field was entirely ABSENT (validator surfaced these as a
+      third category; data.get('ticker') is None for both null and absent). The
+      10 ticker-absent notes also gained a `ticker: null` line. Unlisted is now
+      a queryable, explicit category rather than implicit-null. Regression
+      guarded: verify_notes now WARNS (listed_missing) on ticker:null without
+      `listed: false`, covering both null and absent ticker.
+    - quote-style title: DONE 2026-07-30. The canonical style is UNQUOTED (the
+      sector check at verify_notes.py:314 already mandated it; this pass
+      extended the same check to company notes and normalised 421 double-quoted
+      company titles). Verified YAML-safe to unquote: all 421 parse identically
+      and contain no inner quotes. Regression guarded: verify_notes now WARNS
+      (company_title_quoted). Code already tolerated both styles
+      (rebuild_note_search.py:128 strips quotes defensively) so the change is
+      cosmetic, not behavioural.
+    - render_stub note-creator template alignment: DONE 2026-07-30. The
+      generator at parse_newsletter.py:648 (render_stub, the sole new-note
+      template) was the LAST drift source: it emitted `title: "{name}"`
+      (quoted) and `ticker: null` without `listed: false` — i.e. it would
+      re-introduce both drifts on every new stub note. Fixed: title is now
+      UNQUOTED, and ticker:null now carries `listed: false` (listed companies
+      omit the field). New stubs are born validator-clean. Regression guarded:
+      3 tests in test_parse_newsletter_entities.py::TestRenderStubShape pin
+      the title-unquoted, unlisted-gets-listed-false, and listed-has-no-field
+      shapes. (get_tickers is a resolver, not a template — no shape to align.)
+    All D3 remainder items are now closed; the only sub-item left is monitoring
+    future vocab sprawl, which the tag_value WARNING already covers.
+
+================================================================================
+TIER 2 — MEDIUM-LEVERAGE (new entity types / dimensions, also latent in notes)
+================================================================================
+
+D4. Theme nodes — the cross-sector dimension analysts actually reason in [DONE]
+    Hierarchy today is super_sector(9) -> sector(42) -> sub_sector(78) ->
+    company(1031): clean, GICS-aligned, strictly hierarchical. But analysts
+    think orthogonally: "China+1 beneficiaries", "PLI scheme plays",
+    "premiumization", "defense indigenization", "data-center/AI infra" CUT ACROSS
+    sectors (China+1 = Electronics + EMS + Pharma API + Textiles). Today these
+    exist only as free-text investment_theme tags on a handful of sector notes.
+    Proposed: a theme ENTITY TYPE + exposed_to edges (company -> theme, with an
+    optional exposure weight). Promote the verbal clustering already present in
+    the ## Newsletter synthesis blocks into first-class queryable nodes. Unlocks
+    "show me all PLI beneficiaries" — impossible today.
+    Leverage: MEDIUM-HIGH. New node kind + one edge type; capture is LLM-assisted
+    over existing synthesis prose (same shape as D1's extractor).
+
+    RESOLUTION 2026-07-30 (scope: curated enum + deterministic keyword match;
+    directed exposed_to edge). The seed-source decision: NOT tag-promotion
+    (only 32 tagged entities, 23/34 singletons) and NOT LLM extraction (every
+    bolded-lead synthesis sentence is unique editorial, not a canonical label),
+    but a CURATED CANONICAL_THEMES set (8 themes: China_Plus_One, PLI_Scheme,
+    Premiumization, EV_Transition, Data_Center_Infrastructure, Renewable_Energy,
+    Make_In_India, Defense_Indigenization) + a deterministic keyword-matching
+    extractor (helpers/graph/derive_themes.py). Aliases are NARROW by design for
+    precision (PLI matches "pli scheme"/"pli benefit", NOT bare "pli" which is
+    boilerplate in 42/42 sector notes); the bare-pli guard is a pinned test.
+    Result: 8 theme entities + 358 exposed_to edges. CROSS-SECTOR VALUE PROVEN:
+    PLI_Scheme's 22 members span 9 sectors (Automotive, Diagnostics, EMS,
+    Engineering_Capital_Goods, Packaging, Renewables, Technology,
+    Telecommunications, Textiles) — the query that was impossible before.
+    Graph layer: v_theme projection + e_exposed_to CTAS (dedicated, like
+    belongs_to, because the company->theme endpoint is mixed-kind); _SCHEMA_VERSION
+    bumped 6->7; theme_members() query wrapper + /api/graph/neighbors/<theme>
+    branch. Integrity check extended (exposed_to allowlist + endpoint-type check +
+    theme fileless exemption, mirroring sub_sector). make qa green: 455 tests,
+    integrity 100%, validation 100%, snapshot OK (entities 1168, relations 3992).
+    STILL DEFERRED: per-theme Markdown notes (theme-members index via the
+    sync_sector_wikilinks pattern); exposure weights/buckets; LLM-assisted
+    extraction over synthesis prose for higher recall.
+
+D5. Product / brand nodes — structured asset relationships below companies [PROPOSED]
+    Companies own portfolios (HUL -> Dove/Knorr/Surf; Tata Capital -> Yog Loans).
+    acquired edges already SMUGGLE brands into JSON (properties.brand:"Dulux").
+    Proposed: a brand/product ENTITY TYPE + owns_brand edge. Turns "Tata Capital
+    acquired Yog Loans" into a structured asset relationship rather than a prose
+    footnote, and models divestments/spinoffs later. findata_corpus_audit M3
+    ("No product/segment model, 460+ notes with ## Product Portfolio") deferred
+    this; D5 is the narrower, higher-signal cut (brands/M&A targets, not full
+    segment revenue).
+    Leverage: MEDIUM.
+
+D6. Person nodes — management + quote attribution [DEFERRED]
+    Management names appear in every note (## Management, 286 notes) and every
+    quote attribution ("— Rajiv Sabharwal, CEO"). They are not entities.
+    findata_corpus_audit M2 deferred this. Proposed: a person ENTITY TYPE +
+    manages / on_board_of edges. Captures executive movement (a CEO change at an
+    NBFC is material) and lets you trace people across companies. Attribution
+    lines are already present, just unlinked.
+    Leverage: MEDIUM. Source lines are structured enough ("- <Name>, <Title>")
+    for deterministic extraction; the person<->company edge needs a role +
+    date range (ties to D7).
+
+D7. Event nodes — timestamped happenings, the temporal backbone [DONE]
+    Acquisitions, JVs, guidance changes, management changes, earnings are
+    TIMESTAMPED HAPPENINGS. Today ONLY acquired has valid_from. Proposed: a
+    first-class events concept (entity, event_type, date, magnitude, source)
+    giving every company a TIMELINE — the natural way to read financial history
+    and the foundation D1's metrics WOULD attach to (D1 itself is DEFERRED; D7
+    stands on its own — events from existing dated prose like acquired/jv/board
+    changes need no recurring source). Also lets temporal extraction (today
+    artificially limited to 'acquired' at extract_relations.py:320) generalise:
+    an event row can carry a date regardless of edge type, so the ~80% false-
+    positive risk is confined to the date column of a typed event, not spread
+    across all edges.
+    Leverage: MEDIUM-HIGH. D6 (people) wants to hang off dated events; D7 is a
+    useful spine independent of D1.
+
+    RESOLUTION 2026-07-31 (scope: a dedicated events TABLE, not graph vertices;
+    4 event types via 2 extraction arms). The model decision: a typed TABLE
+    (entity, event_type, event_date, period, date_precision, magnitude,
+    counterparty, source_quote, as_of_edition, source_ref, properties) — the
+    roadmap BODY's "event row / date column" language, not the "node" in the
+    title. A timeline is SELECT ... ORDER BY event_date; events are instances
+    (many per company), naturally tabular. Crucially this means NO graph-layer
+    changes (no v_event, no edge, no _SCHEMA_VERSION bump, no DROP-tuple /
+    fileless-exemption pitfalls D4 hit) — the events table is SQLite-only, FK->
+    entities(name) ON DELETE CASCADE, never mirrored to DuckDB.
+    Four event types (CANONICAL_EVENT_TYPES): acquisition, jv, guidance,
+    management_change (earnings deferred to D8 — no reliable date source).
+    Two extraction arms (helpers/graph/derive_events.py):
+      * ARM 1 (promote): lifts graph_edges acquired->acquisition / jv_with->jv
+        into event rows. Near-zero new FP risk — the counterparty + valid_from
+        were already resolved by extract_relations.py + backfill_valid_from.py.
+      * ARM 2 (extract): NEW prose extraction for guidance + management_change,
+        both NARROW by design to confine the roadmap's ~80%-FP warning:
+          - guidance requires THREE signals (fiscal token + metric + forward
+            projection) so a historical actual like "FY2025: delivered ₹275"
+            does NOT trigger (the D7 analogue of D4's bare-PLI guard).
+          - management_change requires change-verb + executive title, and
+            rejects "Appointed Actuary/Auditor" role-attribution false positives.
+        Date parsing reuses the proven _extract_year_from_context helper.
+    Idempotency: DELETE derived rows (source_ref LIKE 'derive:events:%') then
+    re-insert; hand-seeded manual:/migration: rows preserved. Integrity check
+    extended (check_events: unknown_type + orphaned + bad_properties, gated).
+    API: GET /api/events/<name> returns the date-ordered timeline (dated first
+    oldest->newest, undated last; optional ?event_type= filter).
+    Result: 259 events (25 acquisition, 25 jv, 208 guidance, 1 management_change)
+    across 174 companies; 49 dated / 210 undated. VALUE PROVEN: Larsen_and_
+    Toubro's timeline shows its FY27 guidance (10-12% order inflow) + the LTM
+    acquisition + an energy-margin event — the timeline that didn't exist before.
+    The thin management_change count (1) reflects the corpus: most management
+    prose carries only role+person, no change verb (D6 person-node extraction
+    would capture the broader set). make qa green: 479 tests, integrity 100%,
+    validation 100%, snapshot OK.
+    STILL DEFERRED: earnings (needs D8 concall transcripts); person-linking of
+    management_change events (the D6 follow-up that properties.person feeds);
+    relative-date resolution ("last quarter") against an edition->year map;
+    event->event graph edges (only if a query pattern needs traversal THROUGH
+    events).
+
+================================================================================
+TIER 3 — EXPANSION (new external data sources)
+================================================================================
+
+D8. Earnings concall TRANSCRIPTS (primary source) [PROPOSED]
+    The newsletters are DERIVATIVE of concall transcripts. Ingesting transcripts
+    directly captures guidance BEFORE it is editorialised and is the cleanest
+    source for D7 (events). Aggregated/historical transcripts are available.
+    NOTE: D8 is also the recurring-cadence source whose absence is the reason
+    D1 is DEFERRED — landing D8 (a quarterly transcript ingest) is the trigger
+    that un-defers D1, since it supplies the guidance/earnings series a metrics
+    layer needs to track against. Highest-value new source on its own merits
+    (events, D6 board changes, D9 filing cross-checks) AND the key to D1.
+    Leverage: HIGH (gated on a new ingest adapter).
+
+D9. BSE/NSE corporate FILINGS (regulatory, structured) [PROPOSED]
+    These are the GROUND TRUTH that acquired / subsidiary_of / jv_with edges
+    currently GUESS at from prose. A filing-sourced edge beats a prose-extracted
+    one. Also feeds D6 (board changes) and D7 (events) at source quality.
+    Leverage: HIGH for edge precision.
+
+D10. Annual reports via the EXISTING PDF pipeline [PROPOSED]
+    The repo has helpers/pdf/ (capture_newsletter_images) and a pdf skill
+    installed but ZERO integration for annual-report PDFs. Annual reports are
+    sitting ducks for the structured-data layer (segment revenue, capex plans,
+    risk factors). Reuses tooling already present.
+    Leverage: MEDIUM-HIGH.
+
+D11. Screener.in / Trendlyne — normalized 10-year financials + ratios [PROPOSED]
+    Directly feeds a financial time-series. Prompts a re-examination of the
+    strip_valuation_ratios.py decision: P/E, P/B, RoE are currently THROWN AWAY
+    deliberately (a whole analytical dimension). Storing them WITH A FRESHNESS
+    DATE may be better than dropping them. helpers/maintenance/strip_valuation_
+    ratios.py is the touchpoint.
+    Leverage: MEDIUM.
+
+D12. Index constituents — Nifty/Sensex membership [PROPOSED]
+    index_membership was DROPPED as a column (graph_design.txt C2/L2). Membership
+    in Nifty 50/500 is high-signal for flows. Proposed: an index ENTITY TYPE +
+    index_member edge (company -> index). Clean, bounded, regulatorily defined.
+    Leverage: MEDIUM.
+
+================================================================================
+TIER 4 — STORAGE / ENGINE HYGIENE (unblocks the rest)
+================================================================================
+
+D13. fin_graph is INERT under a plain DuckDB connection [EVALUATED NOT-ADOPTED]
+    Original claim: fin_graph (12 rows in __duckpgq_internal; 1 vertex label +
+    11 edge labels via v_node) is "defined but inert — PGQ installed not
+    autoloaded, so MATCH/GRAPH_TABLE fail under a plain connection". RE-CHECKED
+    2026-07-30 against the live code paths: the claim was MISDIAGNOSED. The
+    production connector helpers/graph/query.py::connect() ALREADY issues
+    INSTALL duckpgq FROM community + LOAD duckpgq (query.py:266-267, comment at
+    :263 "LOAD is always needed because it's per-process state"), and the full
+    GRAPH_TABLE API works end-to-end through it (verified: sector_members
+    ('Defense') returns 16 companies via `FROM GRAPH_TABLE (fin_graph MATCH
+    (c:Entity)-[e:BelongsTo]->(s:Entity) ...)`). All tests pass; nothing in the
+    repo opens a PGQ connection without the LOAD.
+    The only residual is a CLI ERGONOMICS wrinkle: `duckdb graph.duckdb -c
+    "LOAD duckpgq; MATCH..."` still parser-errors because the CLI runs each
+    statement with parser state that doesn't carry the PGQ grammar, and the
+    duckdb_extensions() view shows loaded=false for a per-statement probe. This
+    affects ad-hoc CLI exploration only — not worth a code change. Note: the
+    GQL syntax uses `COLUMNS (...)`, not `RETURN` — the earlier probe failures
+    were a syntax error (RETURN vs COLUMNS), not a load failure.
+    Leverage: NONE for code paths (already handled). CLI-only, deferred.
+
+D14. Extend graph_analytics with a FINANCIAL-SIGNAL namespace [PROPOSED]
+    graph_analytics (entity_name, metric, value, computed_at) holds 8 metrics,
+    ALL topological (pagerank, centralities, louvain, clustering, wcc). The
+    metric-first PK chosen in graph_design.txt Bundle P3 already supports adding
+    financial signals cleanly (WHERE metric=? stays a prefix SEARCH). Once D1
+    exists, extend graph_analytics (or a parallel table) with a metric namespace
+    for relative valuation vs sector, guidance-revision momentum, earnings
+    surprise — the financial analogue of the centrality scores. Today analytics
+    can tell you a company is structurally central but NOTHING about whether it
+    is cheap/expensive/improving.
+    Leverage: MEDIUM. Depends on D1, so DEFERRED until D1 is un-deferred (i.e.
+    until D8 supplies a recurring source).
+
+================================================================================
+IF YOU DO THREE THINGS
+================================================================================
+
+  1. D5 — product/brand nodes. Structured asset relationships below companies
+     (HUL -> Dove/Knorr/Surf); the 585 Product-Portfolio bullets are cleanly
+     structured but scattered across ~40 header variants.
+  2. D6 — person nodes. Management names + quote attribution are in every note
+     (## Management in 286 notes) but unlinked. NOW UNBLOCKED by D7: the
+     management_change events + their properties.person/role give D6 a ready
+     seed, and the temporal spine lets a person<->company edge carry a role +
+     date range.
+  3. D8 — concall transcripts (new source), which un-defers D1 (structured
+     metrics). OR D9 filing-sourced edges for edge precision.
+
+  (D3, D4, and D7 are DONE. D3: C1 tag-drop fixed (~3,300 tags restored),
+  listed:false/quote-style/render_stub normalised, drift-warning validator in
+  place. D4: 8 cross-sector theme nodes + 358 exposed_to edges via a curated-
+  enum + deterministic-keyword extractor (PLI members span 9 sectors). D7: 259
+  events (acquisition/jv/guidance/management_change) in a dedicated events
+  table via a 2-arm extractor — the temporal spine; D6 hangs off it. None is
+  pending.)
+
+(D1 — structured metrics — and D2 — semantic-edge thickening — were the original
+#1/#2 but are DEFERRED. D1 needs a recurring guidance/earnings source the corpus
+lacks; D2, when measured against the sidecar, salvages only ~15 cross-sector
+supplier edges and its weight/PageRank sub-claim was wrong. D8 lands a recurring
+source and un-defers D1; D9 filing-sourced edges make the semantic-edge
+direction real. See each item for its trigger.)
+
+Common thread: the newsletters ALREADY CONTAIN most of this — themes, people,
+events, supplier/customer context. The system captures it as RICH PROSE but not
+as QUERYABLE STRUCTURE. The hierarchy and storage design are sound; the gap is
+almost entirely on the extraction/structuring side, not the architecture.
+
+================================================================================
+STATUS LEDGER
+================================================================================
+
+  D1  structured metrics layer            DEFERRED  HIGHEST  (needs recurring source — D8)
+  D2  semantic edges + weights            DEFERRED  LOW-MED  (was HIGH; ~15-edge salvage, weight claim wrong)
+  D3  markdown schema normalisation       DONE  HIGH (tag-drop fixed; listed:false + quote-style + render_stub all normalised; file_path gaps = fileless sub_sector nodes, NOT-A-DEFECT; drift guards in place)
+  D4  theme nodes (cross-sector)          DONE  MED-HIGH (8 themes + 358 exposed_to edges; curated enum + keyword extractor)
+  D5  product/brand nodes                 PROPOSED  MEDIUM
+  D6  person nodes                        DEFERRED  MEDIUM (D7 DONE — now unblocked; management_change events seed it)
+  D7  event nodes (temporal spine)        DONE  MED-HIGH (259 events: 25 acq + 25 jv + 208 guidance + 1 mgmt; dedicated events table, 2-arm extractor)
+  D8  concall transcripts (new source)    DEFERRED  HIGH (un-defers D1; needs ingest adapter)
+  D9  BSE/NSE filings (new source)        DEFERRED  HIGH (edge precision; needs ingest adapter)
+  D10 annual reports via PDF pipeline     DEFERRED  MED-HIGH (needs PDF->structured adapter)
+  D11 Screener/Trendlyne financials       DEFERRED  MEDIUM (needs scraper adapter)
+  D12 index constituents                  DEFERRED  MEDIUM (needs index source adapter)
+  D13 fin_graph inert under plain conn    EVALUATED-NOT-ADOPTED  NONE (already handled in connect())
+  D14 financial-signal analytics          DEFERRED  MEDIUM (needs D1)

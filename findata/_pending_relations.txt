@@ -1,0 +1,27 @@
+# Unresolved relation mentions — triage backlog
+# EMPTY after the 2026-08-11 H4 follow-up pass (foreign-entity stubs).
+#
+# Full triage history:
+#   2026-08-03: 199 dupes + 102 generic-noise dropped; 6 false-positive aliases added;
+#     3 alias-miss edges created; 8 targets stubbed (incl. Ramkrishna reconciliation);
+#     2 quality fixes (Suzlon/Encora misparse, Figma/Adobe reversed); 2 non-entities dropped.
+#   2026-08-04 foreign-parent pass: 3 parents stubbed (Samsung Group, Totally Foxed
+#     Solutions, Brooks); P&G reconciled to existing Procter & Gamble Company; 6 alias-miss
+#     edges created; 10 aliases added.
+#   2026-08-04 one-off pass: 5 targets stubbed (Comfort Click, KSK Mahanadi, Meller,
+#     Velvette, Yog Loans) + acquired edges; 7 rows dropped as non-entities or misparses.
+#   2026-08-11 H4 pass: 484 rows deduped to 95 unique pairs. 8 edges created + 3 stubs
+#     (Xduce Infotech, Jindal Pipes, Tata AutoComp). 13 noise + 2 drops
+#     (Clix Capital merger never completed; Adani Power→Jaiprakash already existed).
+#   2026-08-11 H4 follow-up (foreign-entity stubs): 15 stubs created (Al Habtoor Group,
+#     Stanley Electric, Hyosung, General Atomics Aeronautical Systems, MUFG, Indorama,
+#     Philip Morris International, Mastercard, New York Life, Anthropic, Microsoft,
+#     Randstad, Carlsberg, NSDL, Pizza Hut) + 15 main edges + 30 sector edges.
+#     2 rows dropped as misparses (identical quote text to another source's deal):
+#       - KSH International → MUFG (same Shriram Finance/MUFG deal text, wrong attribution)
+#       - Vijaya Diagnostic Centre → Hyosung (same Quality Power/Hyosung GIIT deal text)
+#     Remaining ~46 noise items (generic descriptors, sentence fragments, geo, truncated)
+#     permanently dropped.
+#
+# NB: extract_relations.py appends (never dedups) — clear or re-dedup before the next batch.
+#     This file will accumulate new unresolved mentions on the next `make derive-relations` run.

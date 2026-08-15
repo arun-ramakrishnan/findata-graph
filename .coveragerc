@@ -1,0 +1,9 @@
+# Coverage configuration — `make cover` measures helpers/ over the test suite.
+# No threshold gate (baseline visibility only); branch + missing-line reporting
+# so dead functions (e.g. spent one-off CLIs) surface as uncovered lines.
+[run]
+source = helpers
+branch = True
+
+[report]
+show_missing = True

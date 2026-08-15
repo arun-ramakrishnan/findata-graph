@@ -1,0 +1,219 @@
+NETWORKX -> DUCKPGQ GAP ANALYSIS & DEPENDENCY PLAN
+==============================================
+
+Created: 2026-08-13
+Last updated: 2026-08-14 (archived)
+Archived: 2026-08-14 — moved proposals/ -> archive/; consolidation COMPLETE; `make advisory` ty + `make qa` + `make perf` all GREEN.
+Status: COMPLETE (2026-08-14). FINAL SCOPE CHOSEN: RETAIN duckpgq
+        (PGQ MATCH + native pagerank/wcc/local_clustering + shortest_path) AND
+        ADD Onager (DuckDB community ext, Apache-2.0) as the engine for the 4
+        NetworkX metrics (eigenvector/closeness/betweenness/louvain) + degree.
+        NetworkX removed entirely (dep + venv). `make qa` GREEN. SLICE 0 / B
+        done earlier. See doc/graph_design.txt sec 3.2 + 17.3 and
+        tests/test_onager_capabilities.py.
+
+PROBLEM
+-------
+The graph layer treats DuckDB+duckpgq as PRIMARY and NetworkX as a FALLBACK for
+algorithms duckpgq does not expose natively. We wanted to understand the gap
+and decide whether the 4 NetworkX-only metrics can move to duckpgq, to drop
+the NetworkX dependency if feasible.
+
+EMPIRICAL FINDING (ground truth)
+--------------------------------
+  duckpgq version: f386a6c (installed via `make update-extensions`; NOT pinned).
+  duckpgq PROVIDES: pagerank, weakly_connected_component,
+    local_clustering_coefficient, degrees (COLLIDED, see below), shortestpath.
+  duckpgq MISSING (all four NetworkX metrics): louvain_community,
+    betweenness_centrality, closeness_centrality, eigenvector_centrality.
+
+CAPABILITY MATRIX
+-----------------
+  metric               | primary today | duckpgq native? | move-to-duckpgq?
+  ---------------------|---------------|----------------|------------------
+  pagerank/wcc/clustering/shortest_path | duckpgq | YES  | already done
+  degree_centrality    | SQL (query.py)| YES (collision) | BLOCKED (name clash)
+  louvain_community    | NetworkX      | NO  | BLOCKED
+  betweenness_centrality | NetworkX    | NO  | BLOCKED
+  closeness_centrality | NetworkX      | NO  | BLOCKED
+  eigenvector_centrality | NetworkX    | NO  | BLOCKED
+
+EXPLORATION FINDINGS (2026-08-14, real runs under venv 3.14)
+------------------------------------------------------------
+  Real graph: 1209 nodes / 4110 edges. CLI wall-clock:
+    duckpgq: pagerank 0.71s wcc 0.65s clustering 0.63s
+    networkx: louvain 0.55s betweenness(approx) 0.80s closeness 1.17s eigenvector 0.79s
+  => At CURRENT scale NetworkX metrics are NOT a perf problem (all <1.2s).
+  Synthetic scaling (gnp p=0.02), ratio per node-doubling:
+    louvain x2.8->4.8 (fine) | eigenvector x4.0 (~O(n^2)) |
+    closeness x4.0->6.2 (O(V*(V+E)), WORST) | betweenness_approx x6.3->8.1.
+  => closeness is the real future-scale risk (minutes at ~50k nodes).
+  duckpgq `degrees` is shadowed by core_functions.degrees (name collision) ->
+    not callable; degree_centrality stays on its SQL path.
+
+NETWORKX FOOTPRINT / SCIPY
+---------------------------
+  Project code: helpers/graph/algorithms.py (louvain, betweenness, closeness,
+    eigenvector, degree ref, load_graph, nx_pagerank/nx_wcc refs).
+  Tests: test_graph_algorithms.py, test_integration_perf.py (both now
+    importorskip("networkx")).
+  pyproject.toml: "networkx" (unpinned soft dep).
+  SciPy is NOT required on the production path: algorithms.py uses pure-Python
+    variants (eigenvector power-iteration, betweenness Brandes, closeness BFS,
+    louvain_communities). Only nx.pagerank (reference) + one test need SciPy,
+    off the production path (dispatcher uses duckpgq pagerank).
+
+ANSWER TO "MOVE OFF NETWORKX TO DUCKPGQ?"
+----------------------------------------
+  NO — duckpgq implements none of the 4 metrics, so a duckpgq-native swap is
+  impossible until a future `make update-extensions` bump. xfail probes in
+  tests/test_duckpgq_capabilities.py FAIL LOUD the moment duckpgq ships them.
+  User chose A1: KEEP NetworkX as the documented fallback (soft, scipy-free on
+  the prod path; no perf pain at current scale).
+
+SLICE 0 -- UNDERSTAND THE GAPS  [DONE 2026-08-14]
+  tests/test_duckpgq_capabilities.py: + test_M5_native_eigenvector,
+    + test_M5_native_closeness, + test_M5_native_degrees_collision (all xfail;
+    FAIL LOUD when duckpgq unblocks). Verified 8 probes xfail.
+  tests/test_integration_perf.py: + test_closeness_scales_reasonably (budget
+    <12x/doubling). PASSED.
+  tests/run_perf_benchmarks.py (`make perf`): + graph_louvain, graph_betweenness,
+    graph_eigenvector (closeness already present). Verified entries valid.
+  `make qa` green (1418 passed). `make lint-audit` clean.
+
+SLICE B -- A1 DOC HYGIENE  [DONE 2026-08-14]
+  What changed:
+    - doc/graph_design.txt sec 3.2: the primary/fallback list now names all
+      four missing metrics (louvain/betweenness/closeness/eigenvector) and
+      notes degree_centrality is SQL + duckpgq degrees() is name-collided.
+    - sec 11 (deps): `requirements.txt` (deleted) -> `pyproject.toml`; networkx
+      noted as optional soft dep. Also fixed two other stale `requirements.txt`
+      refs (sec 11 risk table, sec ~17 duckdb-pin line).
+    - sec 17.2: "duckpgq 1.1.x line" -> 1.5.x (quirks inherited from 1.1.x).
+    - sec 17.3/schema-constraints #6: pagerank/wcc/clustering now documented as
+      RESOLVED on 1.5.x (was falsely still said "unstable/segfault").
+    - sec 17.3 NetworkX-bridge note: names the 4-metric gap, the xfail probes,
+      the gap-plan file, and that NX is scipy-free on the prod path.
+    - tests/test_integration_perf.py: `import networkx as nx` ->
+      `nx = pytest.importorskip("networkx")` so CI without NX skips (not errors).
+
+==============================================================================
+A2 — REVISED STRATEGY (2026-08-14): Onager extension
+=================================================================
+On 2026-08-14 the user found **Onager** (https://cogitatortech.github.io/onager),
+a DuckDB community extension (Rust, Apache-2.0, ~148 stars) for graph *analytics*
+(ready-to-use algorithm table functions, not SQL/PGQ querying).
+
+VERIFIED (live, venv DuckDB 1.5.4; user confirms 1.5.5 too — unlike duckpgq's
+int-PK quirks):
+  - `INSTALL onager FROM community; LOAD onager;` -> 64 functions. Plain edge
+    tables (src,dst BIGINT, optional weight DOUBLE). NO property-graph model.
+  - Provides ALL C1-C4: onager_ctr_eigenvector, onager_ctr_closeness,
+    onager_ctr_betweenness, onager_cmm_louvain — PLUS onager_ctr_pagerank
+    (weighted), onager_cmm_components (wcc), onager_mtr_avg_clustering /
+    onager_par_clustering, onager_pth_dijkstra. So it can replace BOTH duckpgq
+    (pagerank/wcc/clustering/shortestpath) AND NetworkX (the 4 metrics).
+  - CAVEAT: eigenvector/closeness/betweenness are UNWEIGHTED by design (no weight
+    param; only pagerank honors a `weight` column). Louvain weight support TBD.
+  - SPEED: real graph (1209n/3037e) onager_eig=0.005s vs nx_eig=0.193s -> ~40x
+    faster (native Rust vs pure-Python power iteration).
+  - PARITY (Onager UNWEIGHTED vs NetworkX WEIGHTED) on real graph:
+      eigenvector r=0.826 (top20 18/20)   closeness r=0.922 (top20 17/20)
+      betweenness r=0.973 (top20 19/20)
+      louvain: onager 21 comms modularity=0.7238 vs nx 22 comms 0.7327 (near-equal)
+    Our real edge weights are NEAR-BINARY (only 1.0 / 2.0; 64.7% == 1.0), so
+    unweighted vs weighted is already close (NetworkX w vs uw: eig r=0.83,
+    close r=0.92, bet r=0.97). => Onager is a near-drop-in for OUR data.
+
+TWO PATHS:
+  PATH B (RECOMMENDED) — adopt Onager as the sole graph backend:
+    - Replace duckpgq calls (pagerank/wcc/clustering) AND NetworkX calls (the 4
+      metrics) with onager_* table functions. Drop `networkx` AND optionally
+      `duckpgq` from deps. Needs a BIGINT node-id remap layer (graph uses string
+      entity names as node IDs; build int<->name map, run onager, map back) —
+      same pattern duckpgq already uses via int PKs.
+    - Pros: native + ~40x faster, removes NetworkX entirely, simpler than
+      duckpgq, single extension. Cons: centrality becomes unweighted (acceptable
+      on our near-binary-weighted data; a behavioral change to watch).
+  PATH A (original, now lower priority) — pure-Python reimplement C1-C4 (weighted):
+    - Keeps exact weighted semantics; C1 already eval'd (parity r=1.0, faster
+      than nx). More code to own/maintain vs a native extension; largely
+      redundant given Onager. Keep as fallback if unweighted centrality is
+      unacceptable for a specific consumer.
+
+DECISIONS NEEDED (Onager pivot):
+  1. Accept unweighted centrality? (Weights ~binary -> r 0.83-0.97, top-20 mostly
+     overlapping. If a consumer needs exact weighted eigenvector, keep pure-Python
+     C1 just for that metric.)
+  2. Consolidate on Onager ONLY (drop duckpgq too) or keep duckpgq for
+     pagerank/wcc/clustering and ADD Onager just for the 4 metrics? Consolidating
+     is cleaner (one extension, no property-graph model) but touches more working
+     code.
+  3. Pin onager in `make update-extensions` (community repo) for CI reproducibility.
+  4. ID-remap layer: reuse the int-PK pattern; ensure onager node_ids map back to
+     entity names for the existing compute() return contract.
+
+RECOMMENDATION (revised):
+  - Adopt Onager (PATH B). Removes NetworkX entirely and is ~40x faster; the
+    unweighted-centrality caveat is negligible on our near-binary-weighted graph.
+    Prefer consolidating on Onager and dropping duckpgq too (simpler, single
+    extension). Keep pure-Python C1 only as an escape hatch if a downstream
+    consumer truly needs weighted eigenvector.
+
+IMPLEMENTATION LOG (2026-08-14, COMPLETE)
+------------------------------------------
+  DECISION (user, 2026-08-14): scope = A-ONLY.
+    - RETAIN duckpgq for PGQ MATCH queries (sector_of/peers/neighbors/find_cycles/
+      shortest_path) and its native pagerank/weakly_connected_component/
+      local_clustering_coefficient.
+    - ADOPT Onager for eigenvector/closeness/betweenness/louvain + degree_centrality
+      (replaces the NetworkX bridge).
+    - REMOVE NetworkX entirely (pyproject dep + venv uninstall; tests no longer
+      importorskip it).
+  WHAT CHANGED:
+    - NEW helpers/graph/onager.py: name<->int ID-remap; reads fin.graph_edges as
+      plain (src,dst,weight) BIGINT edges; onager_eigenvector/closeness/betweenness/
+      degree (L2-normalised eigenvector; degree normalised by (n-1)); onager_louvain
+      (returns labels + Python-computed modularity). All 5 take an optional edges=
+      param for synthetic test use.
+    - helpers/graph/query.py connect(): INSTALL/LOAD onager alongside duckpgq.
+    - helpers/graph/algorithms.py: removed `import networkx` + load_graph/nx_*;
+      compute() routes the 5 metrics to Onager, pagerank/wcc/clustering to duckpgq;
+      CLI prints [via onager]/[via duckpgq]; write_analytics + ranking preserved.
+    - pyproject.toml: removed "networkx".
+    - Tests: test_integration_perf.py (integration-marked) + run_perf_benchmarks.py
+      (make perf) now time Onager via synthetic edge lists (no networkx).
+      test_integration_graph_algorithms.py rewritten to compute()/Onager (name-keyed
+      over synth_db). New tests/test_onager_capabilities.py positive contract tests
+      (undirected, louvain partition valid, small-clique known values, degree range,
+      edges= path). test_duckpgq_capabilities.py M5 probes now point at the
+      duckpgq-gap (still xfail) with Onager noted as the provider.
+  CAVEATS:
+    - Onager centrality is UNWEIGHTED (only pagerank honors weights). Acceptable on
+      our near-binary-weighted graph (eig r=0.826, closeness r=0.922, betweenness
+      r=0.973 vs NetworkX weighted). Drift guard: test_integration_graph_algorithms.py
+      asserts Onager closeness/betweenness vs threshold, not networkx.
+    - duckpgq pagerank near-uniform (pre-existing quirk, fixed seed, not a regression).
+  VERIFICATION: `make qa` GREEN (ruff + ty + deptry + static + pytest -m "not live
+  and not slow" + verify_notes + integrity + snapshot). CLI: `python3
+  helpers/graph/algorithms.py --all` shows [via onager]/[via duckpgq] per metric.
+
+OPEN QUESTIONS
+--------------
+  1. (RESOLVED) Unweighted centrality accepted on our near-binary-weighted data.
+  2. (RESOLVED) Keep duckpgq + add Onager (did NOT consolidate to Onager-only).
+  3. (RESOLVED) onager installed via INSTALL onager FROM community in connect();
+     update-extensions target already installs duckpgq from community.
+  4. (RESOLVED) ID-remap reuses the int-PK pattern in helpers/graph/onager.py.
+
+NEXT STEP
+--------
+  DONE. Onager backend adopted; NetworkX removed; `make qa` GREEN. Optional
+  follow-ups (not required): (a) pin onager version in update-extensions for CI
+  reproducibility; (b) revisit duckpgq pagerank near-uniform quirk if a consumer
+  needs discriminative ranks; (c) drop duckpgq entirely later if Onager adds
+  pagerank/wcc/clustering native equivalents.
+
+------------------------------------------------------------------------------
+STATUS: COMPLETE & ARCHIVED (2026-08-14). No further action on this plan.
+------------------------------------------------------------------------------

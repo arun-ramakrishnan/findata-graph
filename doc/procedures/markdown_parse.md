@@ -1,0 +1,508 @@
+# Markdown Parse Procedure
+
+Parse markdown documents to extract entities (companies, sectors), create synchronized SQLite records + markdown files with enhanced tags, then validate. **Newsletter inputs (`The_Chatter/`, `Points_And_Figures/`, `The_PlotLines/`) carry remote OCR-crop images that expire — capture them FIRST (see [Image Capture](#image-capture)), before any parsing.**
+
+## Workflow
+
+> **One-command entry point.** Stages 0–3 + 5–6 are automated by
+> `helpers/core/parse_newsletter.py`. Run it first; it emits a
+> `<slug>_enhancement_worklist.json` for the only manual step (Stage 4).
+>
+> ```bash
+> python3 helpers/core/parse_newsletter.py findata/The_Chatter/Foo.md                          # plan (dry-run)
+> python3 helpers/core/parse_newsletter.py findata/The_Chatter/Foo.md --apply                    # execute
+> python3 helpers/core/parse_newsletter.py findata/The_Chatter/Foo.md --apply --with-analytics   # also refresh graph_analytics
+> ```
+
+0. **Capture images** *(newsletter inputs only)* — download all remote `<img>` crops into a local `images/` dir and rewrite the source `.md` so figures embed inline next to their content (see [Image Capture](#image-capture)). Do this **before** parsing, since the signed URLs expire and the inline embeds are later used to attach figures to company notes.
+1. **Extract entities** — companies/sectors from document content.
+2. **Get tickers** — the orchestrator uses `get_tickers.search_ticker()` (which delegates to `fuzzy_match.word_overlap_match()` for name matching). **Prefer NSE (`.NS`) over BSE (`.BO`)** — NSE is the canonical Indian listing in this KB; use `.BO` only when a name is BSE-only (e.g. SME-only listings).
+3. **Add each NEW entity** — create SQLite record + markdown file + tags only for companies not already in the DB (see [Adding an Entity](#adding-an-entity)). When lifting insights from a newsletter, also embed the figure(s) that sit under that company's section as `![[images/<slug>_p{p}_img{N}.jpeg]]` so the chart travels with the insight.
+4. **Enhance existing entities** — for every company already in the DB that has a concall/management section in this newsletter, append a per-edition newsletter block to its note (see [Enhancing Existing Entities](#enhancing-existing-entities)). This is the default action when the entity already exists — do not skip it. *Not automated — the orchestrator emits the worklist; an agent lifts the insights.*
+5. **Create relationships** — bidirectional `part_of` / `has_company` between company and sector.
+6. **Validate** — run the two post-processing scripts (see [Validation](#validation)).
+7. **Refresh graph analytics** *(opt-in, `--with-analytics`)* — recompute PageRank / clustering / community detection across the updated graph and persist to `graph_analytics`. Use when you intend to consume graph metrics next; adds ~2–5s on the current 950-entity graph.
+8. **Re-derive structured relations** *(opt-in, separate command)* — re-scan newsletter prose AND synced company notes for `jv_with` / `acquired` / `subsidiary_of` / `same_group` / `supplier_to` / `customer_of` edges and write verified matches to `graph_edges`. Anything that names an unknown entity goes to `findata/_pending_relations.txt` for human triage.
+
+   ```bash
+   # Dry-run summary across all sources (recursive directory scan):
+   python3 helpers/graph/extract_relations.py findata
+
+   # Apply:
+   python3 helpers/graph/extract_relations.py findata --apply
+
+   # Or via make (canonical newsletters only):
+   make derive-relations
+   ```
+
+   Accepts files, directories (scanned recursively), or shell-expanded globs.
+   `image_map.md` and files under `images/` are skipped automatically.
+   Document type is auto-detected from YAML front matter:
+     - `type: company` notes (under `findata/Companies/`) are scanned as
+       single-section documents anchored to the note's `normalized_name`.
+       Edges carry `properties.doc_type='company'` and `properties.note` for
+       a distinct audit trail.
+     - `type: sector` notes (under `findata/Sectors/`) are skipped silently
+       (sectors don't anchor company relations).
+     - Files with no YAML are treated as newsletters (multi-section, pipe-
+       separated company headings).
+   Double-counting is avoided via the `UNIQUE(source, target, edge_type)`
+   constraint: an edge discovered in both a newsletter and a company note
+   is persisted once; whichever runs first wins the `source_ref`.
+
+   **Temporal extraction** for `acquired` edges: the helper also extracts
+   a year/month/FY-quarter from the surrounding prose (e.g. "in 2024",
+   "Dec 2025", "Q4 FY26") and populates the `valid_from` column (DB DATE)
+   plus `properties.year` (machine-friendly filter). Yahoo Finance
+   attribution lines are stripped as noise; future years filtered
+   (acquisitions are past-tense). When only the year is known,
+   `valid_from = YYYY-01-01` (sortable but loses month precision);
+   `properties.year` preserves the actual integer. To backfill existing
+   rows: `python3 helpers/maintenance/backfill_valid_from.py --apply`.
+
+   Idempotent via the `UNIQUE(source, target, edge_type)` constraint; safe to re-run after every newsletter batch. Re-run **after** the human reviewer has triaged `_pending_relations.txt` and added any new stub entities.
+
+9. **Refresh the events timeline** *(automatic with `make maint-full`, or manual)* — D7. The `events` table (acquisition / jv / guidance / management_change) is reconciled against the full corpus by `derive_events.py`, which (a) promotes `acquired`/`jv_with` edges into event rows and (b) extracts new guidance + management-change events from the `## The Chatter` blocks just enhanced in Stage 4. This runs automatically as the 6th step of `make maint-full` (post-ingest cleanup), so a normal ingest → enhance → `maint-full` cycle refreshes the timeline with no extra command. To run it standalone:
+
+   ```bash
+   make derive-events          # apply
+   python3 helpers/graph/derive_events.py        # dry-run summary
+   python3 helpers/graph/derive_events.py -v     # list every derived event
+   ```
+
+   Idempotent via DELETE-then-INSERT of derived rows (`source_ref LIKE 'derive:events:%'`); hand-seeded `manual:`/`migration:` rows are preserved. Query the timeline via `GET /api/events/<company>`.
+
+10. **Auto-extract concall quotes + magnitudes** *(standalone command)* — `derive_insights.py` reads each company's `## [Concall]` body and captures every verbatim quote + speaker attribution + paraphrase into the `quotes` table, plus financial magnitudes (₹/%/bps/$bn) into `company_metrics`. It renders the quotes into a sentinel-wrapped `## The Chatter — <edition>` block in each company note (the deterministic first pass of Stage 4; hand-written blocks are never clobbered). Run after the newsletter is parsed and entities exist:
+
+    ```bash
+    make derive-insights                                        # apply
+    python3 helpers/graph/derive_insights.py findata            # dry-run summary
+    python3 helpers/graph/derive_insights.py findata --verbose  # list every quote + metric
+    ```
+
+    Idempotent via DELETE-then-INSERT (`source_ref LIKE 'derive:quotes:%'` / `'derive:metrics:%'`). See [Auto-generated chatter blocks](#auto-generated-chatter-blocks-deterministic-first-pass) for the curation-safety rule and how to replace an auto block with a curated one.
+
+```python
+# Extraction patterns
+companies = re.findall(r'#[A-Z][a-zA-Z\s]+(?:Limited|Ltd|Private)', content)
+sectors   = re.findall(r'#(?:Banking|Healthcare|Technology)', content)
+```
+
+## Image Capture
+
+Newsletter inputs are OCR'd PDFs whose figures are served as **signed, expiring** remote URLs (`maas-watermark-prod-new.cn-wlcb.ufileos.com/...?Expires=<ts>&Signature=...`). Left as-is they (a) 404 after `Expires`, and (b) bloat the source as giant `<div><img ...></div>` blocks that aren't embedded in any note. Capture them **before** parsing.
+
+### Convention
+Prior newsletters already follow this pattern (e.g. `findata/Points_And_Figures/images/` holds ~960 files). Mirror it exactly:
+
+- **Location:** a sibling `images/` dir under the newsletter type: `findata/Points_And_Figures/images/`, `findata/The_Chatter/images/`, `findata/The_PlotLines/images/`.
+- **Filename:** `{slug}_p{page}_img{N}.jpeg` where
+  - `slug` = newsletter filename stem, spaces → underscores (e.g. `No_shortcuts_here.md` → `No_shortcuts_here`).
+  - `N`   = global 1-based image counter in document order — **the canonical link key**.
+  - `page` = 1-based OCR crop-group: a new page begins whenever the crop counter in the URL (`crop_<n>_<ts>`) returns to 1 (contiguous `1..K`). These are *OCR crop-group* pages, which may differ from physical PDF page numbers; `N` is what matters for linking.
+- **Source rewrite:** replace each remote block in the newsletter `.md` IN PLACE with an Obsidian embed at the same position, leaving **0** remote URLs:
+  ```
+  ![[images/{slug}_p{page}_img{N}.jpeg]]
+  ```
+- **Company notes:** when adding insights from a newsletter, embed the figure(s) sitting under that company's section using the same `![[images/...]]` syntax (e.g. `JSW_Steel.md` embeds `![[Context_beyond_the_charts_p32_img28.jpeg]]`). The rewritten source is the image→section map.
+
+### How to capture
+
+```bash
+# Download + verify + rewrite the source .md in place. Idempotent & resumable
+# (skips already-valid files, retries failures). Works for any newsletter path.
+python3 helpers/pdf/capture_newsletter_images.py <newsletter.md> --rewrite
+```
+
+The helper:
+1. Parses every `<div ...><img src='URL'></div>` in document order.
+2. Derives `{slug, page, imgN}` per the rules above.
+3. Downloads concurrently into `<newsletter_dir>/images/` with retries; verifies each file is a non-empty JPEG/PNG; re-fetches failures.
+4. Writes an audit manifest `<slug>_image_manifest.json` (`{imgN, page, line, file, url, bytes, ok}` per image).
+5. With `--rewrite`: replaces each remote block with `![[images/<file>]]`; idempotent (no re-download).
+
+### Detecting which notes still need capture
+```bash
+# Count remaining remote URLs per newsletter (0 = already converted)
+for f in findata/Points_And_Figures/*.md findata/The_Chatter/*.md findata/The_PlotLines/*.md; do
+  echo "$(grep -c ufileos "$f")  $(basename "$f")"
+done | sort -rn
+```
+
+### Image-capture checklist
+- [ ] All remote `<img>` URLs downloaded into `<newsletter_dir>/images/`
+- [ ] 0 download failures (or any failures re-fetched / flagged)
+- [ ] Every file is a non-empty JPEG/PNG (magic bytes)
+- [ ] Source `.md` rewritten: 0 `ufileos` URLs, 0 raw `<img>` tags, all `![[images/<slug>_p{p}_img{N}.jpeg]]`
+- [ ] Manifest written and line positions preserved
+
+> **Expiry is time-critical.** Run capture as soon as a newsletter is identified, before the signed URLs lapse. Always capture+rewrite **before** the extract/ticker/entity stages.
+
+## Naming & Sync Rules (MANDATORY)
+
+These rules apply to every file under `findata/Companies/` and `findata/Sectors/`.
+
+### Filename format (`normalized_name`)
+- **PascalCase** with **single underscores** only.
+- **No** special chars: `&`, spaces, `(`, `)`, `-`, consecutive `__`, or trailing `_`.
+- **≤ 100 characters.**
+- **Drop redundant suffixes** — omit `Company`, `Ltd`, `Limited` to save tokens.
+- Use consistent abbreviations (e.g., `Tech` not `Technology`).
+
+| ✅ Correct | ❌ Incorrect | Reason |
+|---|---|---|
+| `Asian_Paints.md` | `Asian_Paints_Company_Analysis.md` | extra words |
+| `Mahindra_Mahindra.md` | `Mahindra_&_Mahindra_Ltd.md` | `&`, `Ltd` |
+| `Jupiter_Alloys_Steel_India.md` | `Jupiter_Alloys___Steel_India_.md` | `__`, trailing `_` |
+
+### Synchronization (character-for-character)
+1. `normalized_name` **MUST** equal the filename (minus `.md`) exactly.
+2. `file_path` **MUST** point to an existing file.
+3. Paths use `findata/Companies/{Sector}/{Company}.md` or `findata/Sectors/{Sector}.md`.
+4. No duplicate `normalized_name`; no orphaned files.
+
+> Known legacy violations to avoid reintroducing: `Mahindra_&_Mahindra_Ltd.md`, `FSN_E-Commerce_Ventures_(Nykaa).md`, `5paisa_Capital.md` (→ `Five_Paisa_Capital.md`), and ad-hoc sector dirs vs the 42 canonical sectors in `findata/Sectors/` (see [Canonical sector list](#canonical-sector-list-42)).
+
+## Tags
+
+Categories (apply relevant ones; abbreviate to save tokens):
+
+```
+entity_type/     company | sector
+sector/          one of the 42 canonical sectors (see below)
+market_cap/      large_cap | mid_cap | small_cap
+geography/       india | global
+business_model/  b2b | b2c
+risk_investment/ dividend | high_growth | medium_risk
+```
+
+### Canonical sector list (42)
+Always classify into one of these. **Never create ad-hoc sector dirs** — if a company doesn't fit, use `Diversified` or propose a new sector explicitly. Carve-outs (in **bold**) must be checked before their parent catch-all during classification.
+
+```
+Agriculture · Automotive · Aviation · Banking · Building_Materials ·
+Capital_Markets · Chemicals · Consumer · Defense · **Diagnostics** ·
+Diversified · **EMS_Manufacturing** · Education_Training · Electronics ·
+Energy · Engineering_Capital_Goods · FMCG · Fertilizer · Financial_Services ·
+**Fintech_Payments** · Healthcare · **Hospitals** · **Housing_Finance** ·
+Infrastructure · Insurance · International · Logistics · Media_Entertainment ·
+Metals · Mining · **NBFC** · Packaging · **Pharma** · **Railways** ·
+Real_Estate · **Renewables** · Retail · **Semiconductors** · Technology ·
+Telecommunications · Textiles · Travel
+```
+
+**Classification precedence** (check carve-out before parent):
+- `Renewables` (solar/wind/biofuel) before `Energy`
+- `Pharma` / `Hospitals` / `Diagnostics` before `Healthcare`
+- `Semiconductors` / `EMS_Manufacturing` before `Technology`
+- `Railways` before `Engineering_Capital_Goods`
+- `Banking` / `NBFC` / `Housing_Finance` / `Capital_Markets` / `Fintech_Payments` / `Insurance` before `Financial_Services`
+
+The orchestrator's `guess_sector_for()` in `helpers/core/parse_newsletter.py` encodes these rules; the first match wins.
+
+Auto-detection by regex over content (first match wins per category; default to `geography/global`, `business_model/b2c`, `risk_investment/medium_risk`):
+
+```python
+def extract_enhanced_tags(content, entity_name, entity_type):
+    tags = [f'entity_type/{entity_type}']
+    sector_patterns = {
+        # Carve-outs first (more specific) — order matters, first match wins
+        'renewables':      r'\b(solar|wind|renewable|biofuel|biomass)\b',
+        'pharma':          r'\b(pharma|drug|api|formulation|vaccine)\b',
+        'hospitals':       r'\b(hospital|clinic chain)\b',
+        'diagnostics':     r'\b(diagnostic|pathlab|pathology|ivd)\b',
+        'semiconductors':  r'\b(semiconductor|chip|foundry|wafer)\b',
+        'nbfc':            r'\bnbfc\b',
+        'housing_finance': r'\b(housing finance|home loan)\b',
+        'fintech_payments':r'\b(fintech|payments|upi|wallet)\b',
+        # Parent catch-alls
+        'banking':         r'\b(bank|banking)\b',
+        'healthcare':      r'\b(healthcare|medical|wellness)\b',
+        'technology':      r'\b(software|it services|technology|saas|cloud)\b',
+        'energy':          r'\b(oil|gas|power|energy|petroleum|refiner)\b',
+    }
+    for sector, pattern in sector_patterns.items():
+        if re.search(pattern, content, re.IGNORECASE):
+            tags.append(f'sector/{sector}'); break
+    if re.search(r'\b(large cap|big cap)\b', content, re.I):    tags.append('market_cap/large_cap')
+    elif re.search(r'\b(mid cap|medium)\b', content, re.I):     tags.append('market_cap/mid_cap')
+    tags.append('geography/india' if re.search(r'\b(India|Mumbai|Delhi)\b', content, re.I) else 'geography/global')
+    tags.append('business_model/b2b' if re.search(r'\b(B2B|enterprise|wholesale)\b', content, re.I) else 'business_model/b2c')
+    if re.search(r'\b(dividend|yield)\b', content, re.I):       tags.append('risk_investment/dividend')
+    elif re.search(r'\b(growth|expansion)\b', content, re.I):   tags.append('risk_investment/high_growth')
+    else:                                                        tags.append('risk_investment/medium_risk')
+    return tags
+```
+
+## YAML Front Matter
+
+Template (build by string substitution; `normalized_name` and `file_path` are the sync-critical fields):
+
+```yaml
+---
+title: "{entity_name}"
+type: {entity_type}            # company | sector
+tags:
+- entity_type/{entity_type}
+- sector/{sector}
+- market_cap/{market_cap}
+- geography/{geography}
+- business_model/{business_model}
+- risk_investment/{risk_investment}
+normalized_name: {normalized_name}   # MUST match filename (minus .md)
+sector: {sector}
+market_cap: {market_cap}
+geography: {geography}
+ticker: {ticker}                      # prefer .NS (NSE) over .BO (BSE); e.g. INFY.NS
+created: YYYY-MM-DD
+last_modified: YYYY-MM-DD
+permalink: {permalink}
+---
+```
+
+**Permalink rule** (lowercase): `companies/{sector}/{name}` · `sectors/{name}` · fallback `{type}s/{name}`.
+
+## Adding an Entity
+
+For each entity: extract tags → compute `normalized_name` → resolve `file_path` → insert SQLite row → write markdown file. `normalized_name` must match the filename and `file_path` must resolve.
+
+```python
+def add_entity_with_tags(name, content, entity_type='company', sector=None, market_cap=None, ticker=None):
+    tags = extract_enhanced_tags(content, name, entity_type)
+    normalized_name = normalize_name(name)                       # MUST match filename exactly
+    sector_dir = get_sector_directory(sector) if sector else 'Other'
+    if entity_type == 'company':
+        file_path = f'findata/Companies/{sector_dir}/{normalized_name}.md'
+    elif entity_type == 'sector':
+        file_path = f'findata/Sectors/{normalized_name}.md'
+    else:
+        file_path = f'findata/{entity_type.title()}s/{normalized_name}.md'
+
+    sqlite_result = use_mcp_tool___sqlite___create_record({
+        'table': 'entities',
+        'data': {
+            'name': name, 'normalized_name': normalized_name, 'entity_type': entity_type,
+            'sector_classification': sector, 'market_cap': market_cap,
+            'file_path': file_path, 'ticker': ticker,
+            'last_updated': datetime.now().isoformat(),
+        },
+    })
+    yaml_content = create_yaml_front_matter(name, tags, normalized_name, entity_type, sector, ticker=ticker)
+    create_file_at_path(file_path, yaml_content + f"# {name}\n\n[Entity content from document]")
+    # NOTE: tags are NOT stored on the entities row. They live in the note YAML
+    # and are mirrored into the entity_tags table by sync_tags (see Validation).
+    return {'sqlite': sqlite_result, 'tags_applied': tags, 'file_path': file_path,
+            'normalized_name': normalized_name, 'ticker': ticker, 'validation_required': True}
+```
+
+`create_yaml_front_matter(...)` renders the YAML template above with the entity's values (`normalized_name`, `sector`, `market_cap`, `geography`, `ticker`, etc.).
+
+**Relationships** — create both directions per company↔sector pair:
+
+```python
+for company in companies:
+    for sector in sectors:
+        if related_in_context(company, sector, content):
+            use_mcp_tool___sqlite___create_record({'table': 'relations', 'data':
+                {'source': company, 'target': sector, 'relation_type': 'part_of'}})
+            use_mcp_tool___sqlite___create_record({'table': 'relations', 'data':
+                {'source': sector, 'target': company, 'relation_type': 'has_company'}})
+```
+
+## Enhancing Existing Entities
+
+When an entity already exists in the DB, the parsing action is **enhancement**, not creation — append a per-edition newsletter block to its note. This is mandatory for every existing company that has a concall / management / reference section in the source newsletter. One block per newsletter edition; editions accumulate over time (a company note may carry several `## The Chatter — …` blocks).
+
+### Block format
+
+Append to the company note (after existing content, before any closing matter):
+
+```markdown
+## The Chatter — <edition title>
+
+**<Insight headline>:** <1–2 line summary of the management point>
+
+**<Insight headline>:** <summary>
+
+> "<verbatim quote if notable>"
+> — <speaker>, <title>
+
+*Source: The Chatter — <edition title>*
+```
+
+Rules:
+- **Edition title** = the source newsletter's H1 stem (e.g. `HDFC, Groww, Yes Bank, Havells & More`). Use the same string in the heading and the `*Source:*` footer.
+- Pull **3–5 bullet insights** from the company's concall/reference section only — do not fabricate. Each bullet = one management point (margins, capex, volume, pricing, guidance, segment color).
+- Include **1 notable verbatim quote** with speaker + title when the transcript has one; omit the quote block otherwise.
+- **Do not touch the YAML front matter** except bumping `last_modified`. Do not rewrite existing sections.
+- **Skip the edition block if the note already has one for this edition** (idempotent — check for the `## The Chatter — <edition title>` heading first).
+- If a figure from the rewritten source sits directly under the company's section, embed it inline with `![[images/<slug>_p{p}_img{N}.jpeg]]` at the relevant bullet.
+
+### Finding the company's note
+
+```sql
+SELECT file_path FROM entities WHERE name = ?;   -- exact entity name
+```
+If multiple rows (legacy dupes), pick the one whose `file_path` resolves. If no row, the company is NEW — go to [Adding an Entity](#adding-an-entity) instead.
+
+### Sector-level expert commentary
+
+Newsletter editions often carry **interviews / podcasts / op-eds that are not tied to one company** but speak to a whole sector (e.g. a microfinance cycle, a regulatory shift, a commodity supercycle). Capture these on the **sector note**, not on any single company note. Same edition-block shape, but the heading uses the sector name and bullets synthesize the expert's thesis (not one company's numbers).
+
+Detection: a section listed under `## Interviews/Podcasts` (or otherwise lacking a `## <Company> | …` header) whose speaker is a journalist / advisor / regulator / consultant, and whose content ranges across multiple players or industry-wide dynamics. Map it to the closest canonical sector (see the 42-sector list); if none fits cleanly, skip — do not force-fit.
+
+```markdown
+## The Chatter — <edition title>
+
+**<Thesis headline>:** <1–2 line synthesis of the expert's point>
+
+> "<verbatim quote if notable>"
+> — <speaker>, <title>
+
+*Source: The Chatter — <edition title>*
+```
+
+Rules:
+- Append to the **sector note** (e.g. `findata/Sectors/NBFC.md`), after existing content.
+- Pull **3–5 bullets** that capture the sector-level thesis (cycle dynamics, regulatory drivers, structural shifts, what breaks the pattern). Do not lift single-company commentary — that goes on company notes.
+- Include **1–2 verbatim quotes** with speaker + title.
+- Same idempotency rule (check for an existing `## The Chatter — <edition title>` heading on the sector note first).
+- If the edition had **both** company-specific commentary *and* sector-level commentary, write one block on each relevant note — they don't overlap.
+
+### Cross-edition sector synthesis
+
+Beyond per-edition blocks, sector notes benefit from a **synthesis block** that distils the sector-level thesis across many editions into one place. This is the right vehicle when you want to capture the big picture (demand cycles, channel shifts, competitive structure, regulatory regime) rather than the events of any single quarter.
+
+Trigger: opportunistically, when the sector note has no synthesis block and you have ≥4 company sections across ≥3 editions in that sector. Do NOT block if material is thin — the block should feel authoritative, not padded.
+
+```markdown
+## Newsletter synthesis — <Sector> (multi-edition)
+
+**<Thesis headline>:** <synthesis of the cross-cutting theme — rural > urban, premiumisation, capacity cycle, regulatory reset, etc.>
+
+**<Thesis headline>:** <synthesis>
+
+> "<quote that crystallises the sector mood>"
+> — <speaker>, <title>, <company>
+
+*Sources: The Chatter — <edition1>; <edition2>; Points & Figures — <edition3>; Plotlines — <edition4> (<edition range>, <year>).*
+```
+
+Rules:
+- Heading MUST be `## Newsletter synthesis — <Sector> (multi-edition)` — source-agnostic, distinct from a single-edition `## The Chatter — <edition title>` (or `## Points & Figures — …`) block so the two don't collide. Single-edition sector blocks keep their source newsletter's name in the heading; **only the multi-source synthesis drops it**.
+- Pull **5–8 bullets**, each one a cross-cutting theme supported by ≥2 companies (do not lift a single company's view — that goes on its note). Use company attributions inline (e.g. "HUL, ITC and Britannia all flagged rural leading urban…").
+- Include **1–2 verbatim quotes** from CEOs/Chairmen that capture the sector's structural narrative — attribute with speaker, title, company.
+- Footer is `*Sources:*` (plural) listing editions actually drawn from, with each source newsletter named explicitly (The Chatter / Points & Figures / Plotlines).
+- Idempotent: if the synthesis block already exists, refresh it in place rather than appending a second one.
+- Treat `findata/The_PlotLines/` as a first-class source — its `# <Sector>` headers and `# Why It Matters:` / `## Watch For:` blocks are pre-digested sector synthesis and should be mined directly.
+
+### Management commentary capture (mandatory)
+
+The point of an edition block is to surface what management **said** — not to restate the business description. When enhancing a company note, each bullet MUST come from the concall / reference / interview section and capture one of:
+
+- **Guidance** — forward outlook, growth/margin/volume targets, order book commentary
+- **Margins** — beat/miss drivers, cost levers, pricing power, mix shifts
+- **Capex / capacity** — sanctioned vs spent, commissioning timelines, funding mix
+- **Segment / geography color** — which verticals accelerated/decelerated and why
+- **Strategic shifts** — new bets, M&A, reorganisations, client wins/losses, leadership changes
+- **Risk / macro response** — how mgmt is navigating headwinds (tariffs, rates, commodity, demand)
+
+Do NOT pad the block with the company's boilerplate description (already in the note). Each bullet should read as something an investor couldn't get from the website — a delta, a number, a judgement. Prefer concrete figures ("₹72,275 cr revenue, +13.9% YoY") over vague summaries.
+
+### Auto-generated chatter blocks (deterministic first pass)
+
+`helpers/graph/derive_insights.py` automates the *first pass* of Stage 4: it reads each company's `## [Concall]` body, extracts every verbatim quote + speaker attribution + paraphrase, and renders them into a sentinel-wrapped `## The Chatter — <edition>` block. It also captures financial magnitudes (₹/%/bps/$bn/GW) into the `company_metrics` table. This is the deterministic capture layer that fills empty notes — the manual curation above refines it.
+
+```bash
+# Dry-run summary across all sources:
+python3 helpers/graph/derive_insights.py findata
+
+# Apply (write quotes/metrics tables + render auto note blocks):
+python3 helpers/graph/derive_insights.py findata --apply
+
+# Or via make:
+make derive-insights
+
+# Verbose (list every quote + metric):
+python3 helpers/graph/derive_insights.py findata --verbose
+```
+
+**What it writes:**
+- `quotes` table — one row per verbatim quote (entity, quote_text, paraphrase, speaker_name, speaker_title, as_of_edition). Speakers are string attributes, NOT entities (the D6 person-node deferral is honored).
+- `company_metrics` table — one row per financial magnitude (value_raw, unit, period, source_quote, best-effort metric_label).
+- A `## The Chatter — <edition>` block in each company note, wrapped in `<!-- BEGIN auto chatter block (derive_insights.py) -->` … `<!-- END auto chatter block -->` sentinels (invisible in Obsidian render).
+
+**Curation-safety rule (critical):** the auto pass NEVER clobbers human work. If a note already has a `## The Chatter — <edition>` heading that is NOT sentinel-wrapped (hand/agent-written), that edition is skipped. Only sentinel-wrapped auto blocks are refreshed on re-run. To replace an auto block with a curated one, delete the sentinel markers and rewrite the block by hand — the next run will leave it alone.
+
+**What it does NOT do:** bullet curation (picking the best 3-5 quotes, rewriting paraphrases) remains a manual/LLM refinement step. The auto block surfaces ALL attributed quotes from the edition; a curator tightens it to the highlights. Idempotent via DELETE-then-INSERT on `source_ref LIKE 'derive:quotes:%'` / `'derive:metrics:%'`; re-run after any newsletter batch.
+
+## Validation
+
+After **all** companies are processed, run from the project root. Both exit `0` on success; `database_integrity_check.py` exits `1` below 95% validation rate:
+
+```bash
+python3 helpers/validators/verify_notes.py          # YAML validity, required fields, content completeness, duplicates
+python3 helpers/misc/database_integrity_check.py    # every file_path resolves, normalized_name sync, orphans
+python3 helpers/core/sync_tags.py                   # rebuild entity_tags from note YAML (run after creating/editing entities)
+```
+
+Fix any issue traceable to the current run, then re-run. Pre-existing unrelated issues may be deferred.
+
+### Inline sync checks (before relying on a created entity)
+
+```python
+def validate_normalized_name_format(filename, normalized_name):
+    for c in ['&', ' ', '(', ')', '-', '__']:
+        if c in filename: return False, f"Invalid char '{c}'"
+    if len(filename) > 100: return False, "Exceeds 100 chars"
+    if filename.replace('.md', '') != normalized_name: return False, "filename != normalized_name"
+    return True, "OK"
+
+def validate_entity_creation(entity_name):
+    entity = query_sqlite("SELECT normalized_name, file_path FROM entities WHERE name = ?", [entity_name])
+    if not entity: return False, "Not in SQLite"
+    entity = entity[0]
+    if not file_exists(entity['file_path']): return False, f"Missing file: {entity['file_path']}"
+    ok, msg = validate_normalized_name_format(entity['file_path'].split('/')[-1], entity['normalized_name'])
+    if not ok: return False, msg
+    dup = query_sqlite("SELECT COUNT(*) c FROM entities WHERE normalized_name = ?", [entity['normalized_name']])
+    if dup[0]['c'] > 1: return False, f"Duplicate normalized_name: {entity['normalized_name']}"
+    return True, "All sync rules validated"
+
+def validate_bidirectional_sync():
+    issues = []
+    for m in query_sqlite("SELECT name, file_path FROM entities WHERE file_path NOT LIKE 'findata/%'"):
+        issues.append(f"Bad path: {m['name']} -> {m['file_path']}")
+    for d in query_sqlite("SELECT normalized_name, COUNT(*) c FROM entities GROUP BY normalized_name HAVING c > 1"):
+        issues.append(f"Duplicate: {d['normalized_name']} ({d['c']})")
+    return not issues, issues
+```
+
+### Checklist
+- [ ] **(Newsletter inputs)** Images captured into `<newsletter_dir>/images/` and source `.md` rewritten (0 remote URLs) — see [Image Capture](#image-capture)
+- [ ] Filename: PascalCase, single underscores, no special chars, ≤100 chars
+- [ ] `normalized_name` matches filename exactly
+- [ ] `file_path` resolves to an existing file
+- [ ] No duplicate `normalized_name`
+- [ ] Bidirectional `part_of`/`has_company` relations created
+- [ ] Enhanced tags populated
+- [ ] **Existing entities enhanced** — every existing company with a concall/management section in the newsletter has a `## The Chatter — <edition>` block appended (see [Enhancing Existing Entities](#enhancing-existing-entities))
+- [ ] Short, token-efficient names (no `Ltd`/`Company` suffixes)
+- [ ] **(Newsletter inputs)** Relevant figures embedded in company notes via `![[images/<slug>_p{p}_img{N}.jpeg]]`
+- [ ] `verify_notes.py` exits 0
+- [ ] `database_integrity_check.py` exits 0 (≥95%)
+
+### Search examples
+```sql
+-- tags now live in the normalized entity_tags table (run sync_tags first):
+SELECT e.name FROM entities e JOIN entity_tags t ON t.entity_name = e.name
+WHERE t.tag = 'sector/healthcare' AND e.entity_type = 'company';
+
+-- large-cap technology companies (tag intersection)
+SELECT e.name FROM entities e
+JOIN entity_tags a ON a.entity_name = e.name AND a.tag = 'sector/technology'
+JOIN entity_tags b ON b.entity_name = e.name AND b.tag = 'market_cap/large_cap';
+```
+
+---
+*Version 8.3 | Renamed multi-edition synthesis heading to `## Newsletter synthesis — <Sector> (multi-edition)` (source-agnostic — was incorrectly prefixed `## The Chatter — …` despite drawing from Points & Figures and Plotlines too).*

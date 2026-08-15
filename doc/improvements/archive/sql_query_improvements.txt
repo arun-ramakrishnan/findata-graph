@@ -1,0 +1,177 @@
+SQL QUERY IMPROVEMENTS — FinData Knowledge Graph
+=============================================
+Created: 2026-08-12
+Last updated: 2026-08-13 (C-series applied)
+Status: A1-A3 APPLIED (2026-08-13). F1 is ACTIVE in production — 41 live companies carry conflicting market_cap/* tags, so the MIN fix matters now, not just latently. C-series + B-series remaining.
+        (memory/research.db: 1208 entities, 4107 edges, 6743 tags).
+
+SCOPE
+-----
+Audit of every SQL surface in the graph stack: the DuckDB materialization
+layer + GRAPH_TABLE wrappers (helpers/graph/query.py), the recursive-CTE
+fallbacks, the duckpgq algorithm functions, the SQLite analytics in
+app.py, the market_cap derivation (helpers/core/db.py), and the integrity
+checker. Findings split into (A) correctness/consistency fixes that are
+safe to apply now, (B) minor performance/quality items to measure first,
+and (C) new SQL capabilities the rich live graph can already support but
+nothing consumes yet.
+
+CURRENT SQL LANDSCAPE
+---------------------
+  DuckDB materialization   query.py:653-905   v_node CTAS (int PKs) + e_* tables + CREATE PROPERTY GRAPH
+  GRAPH_TABLE wrappers     query.py:1000-1750 sector_of, sector_members, peers, jv_partners,
+                                            group_siblings, acquisitions, suppliers_and_customers,
+                                            company_neighbors_bundle (10-UNION ALL ego-network)
+  Recursive-CTE fallback   query.py:1319-1343 _shortest_path_cte ; :1415 find_cycles
+                          (walk fin.graph_edges; DuckDB array_contains cycle guard)
+  duckpgq algorithms       query.py:1895-1945 pagerank / weakly_connected_component / local_clustering_coefficient
+  SQLite analytics         app.py:1170-1390   /api/graph/stats, /api/graph/metrics
+  market_cap derivation    db.py:75-96 (market_cap_sql) ; app.py:730-755 (/api/stats)
+  Integrity                database_integrity_check.py  reads relations VIEW over graph_edges
+
+================================================================================
+A. CORRECTNESS / CONSISTENCY FIXES (apply now — safe, low risk)
+================================================================================
+
+A1. market_cap_sql() is non-deterministic — helpers/core/db.py:94-96  APPLIED (verified 2026-08-13: subselect now uses MIN(t.tag) — deterministic)
+  The tag->value subselect has no MIN / LIMIT:
+    (SELECT substr(t.tag, length('market_cap/')+1)
+     FROM entity_tags t WHERE t.entity_name = entities.name
+     AND t.tag LIKE 'market_cap/%')
+  If a company ever carries two conflicting market_cap/* tags, SQLite returns
+  an ARBITRARY one, while the DuckDB v_node CTAS uses MIN(t.tag) (design
+  graph_design.txt 18.10: "alphabetically-first, deterministic"). The two
+  engines would then disagree. Data is clean TODAY (verified: 0 companies
+  with >1 distinct market_cap tag), but this silently diverges the moment a
+  conflict recurs.
+  FIX: wrap with MIN so the SQLite and DuckDB derivations match:
+    (SELECT substr(MIN(t.tag), length('market_cap/')+1)
+     FROM entity_tags t WHERE t.entity_name = entities.name
+     AND t.tag LIKE 'market_cap/%')
+  Existing test (tests/test_db.py) only asserts "AS market_cap" + "market_cap/%"
+  substrings — still passes.
+  SEVERITY: medium (latent; hidden until a 2nd market_cap tag appears).
+
+A2. /api/stats market_cap_counts double-counts under conflict — app.py:730-755  ✅ DONE
+  Current SQL:
+    SELECT substr(t.tag, length('market_cap/')+1) AS cap, COUNT(*)
+    FROM entities e JOIN entity_tags t
+      ON t.entity_name = e.name AND t.tag LIKE 'market_cap/%'
+    WHERE e.entity_type = 'company' GROUP BY cap
+  This counts EACH market_cap tag per company. With a conflict (e.g. the old
+  Alkem Labs large_cap+mid_cap) the company is counted twice, so bucket sums
+  no longer equal the company count — violating the invariant the DuckDB side
+  guarantees (sum(market_cap_counts) == member_count; asserted in
+  tests/test_api_graph_bundles.py).
+  FIX: dedup per company before grouping (also cheaper than correlated form):
+    SELECT cap, COUNT(*) FROM (
+      SELECT e.name, substr(MIN(t.tag), length('market_cap/')+1) AS cap
+      FROM entities e JOIN entity_tags t
+        ON t.entity_name = e.name AND t.tag LIKE 'market_cap/%'
+      WHERE e.entity_type = 'company' GROUP BY e.name
+    ) GROUP BY cap;
+  SEVERITY: medium (latent; same trigger as A1).
+
+A3. v_node row_number() has no ORDER BY — query.py:653  APPLIED (verified 2026-08-13: row_number() OVER (ORDER BY e.entity_type, e.name) present)
+    SELECT row_number() OVER () AS id, e.name, e.entity_type AS kind, ...
+  Vertex IDs are non-deterministic across rebuilds. Not a correctness bug
+  (ids are ephemeral within a session), but it makes the warm-cache vs
+  fresh-rebuild ID mapping un-reasonable and blocks any future id-based
+  persistence/debugging.
+  FIX: row_number() OVER (ORDER BY e.entity_type, e.name)
+  SEVERITY: low.
+
+================================================================================
+B. PERFORMANCE / SQL-QUALITY (measure before changing)
+================================================================================
+
+B1. _shortest_path_cte cycle guard re-parses the path every hop
+    query.py:1319-1343 uses string_to_array(w.path,'||') + array_contains per
+    hop (O(depth * |path|)). A `seen` column would be cheaper, but at <=6 hops
+    / 1208 nodes it is negligible. Leave unless profiling flags it.
+
+B2. GRAPH_TABLE ORDER BY now supported on DuckDB 1.5  ❌ SKIP (profiled)
+    Profiled 2026-08-13: Python sort is 2.5x FASTER than DuckDB ORDER BY at
+    this scale (1208 nodes, ≤51 members). duckpgq's GRAPH_TABLE planner adds
+    ~1.5ms fixed overhead that dwarfs the microsecond sort on small lists.
+    sector_members('Banking'): 0.74ms (Python) vs 1.83ms (DuckDB).
+
+B3. /api/graph/metrics issues 2-3 round-trips (ranked + COUNT(*))  ✅ DONE
+    app.py:1340-1390. Applied 2026-08-13. COUNT(*) OVER() piggybacks the total
+    on the same scan the ranked query already does. Profiled: 5.66ms → 1.66ms
+    (3.4x faster). The second COUNT(*) query re-scanned graph_analytics (1109
+    rows with json_extract) — now eliminated.
+
+B4. company_neighbors_bundle fires 10 GRAPH_TABLE planner passes  ❌ SKIP (profiled)
+    Profiled 2026-08-13: relational query is ~2.1x faster (12ms median saving)
+    but would require significant Python-side logic to replicate the bundle's
+    edge-direction handling, property extraction, and 8 result buckets. The
+    10-UNION bundle keeps all that in SQL. At 20-30ms total with tiny data
+    (4107 edges), the complexity tradeoff isn't worth it.
+
+================================================================================
+C. NEW CAPABILITIES (validated read-only on the live DB)
+================================================================================
+  Live edge inventory: co_mentioned_in 1329, has_company/part_of 1067 each,
+  exposed_to 348, belongs_to 120, subsidiary_of 63, jv_with 54, acquired 39,
+  competes_with 10, supplier_to 5, same_group 4, customer_of 1.
+  All queries below run in milliseconds at this scale.
+
+C1. Co-mention centrality (richest signal, currently unconsumed)  ✅ DONE
+    SELECT source, COUNT(*) AS co_cites FROM graph_edges
+    WHERE edge_type='co_mentioned_in' GROUP BY source ORDER BY co_cites DESC;
+    -> HDFC AMC 28, CEAT 25, Canara Bank 23, Bharat Forge 20, ...
+    Or reuse degree_centrality(con, 'CoMentionedIn') (duckpgq).
+  ACTION: add co_mention_top(n) wrapper + /api/graph/co-mentions endpoint.
+
+C2. Shared-supplier / shared-customer concentration (supply-chain risk)
+    SELECT a.source, b.source, a.target AS shared_supplier FROM graph_edges a
+    JOIN graph_edges b ON a.target=b.target AND a.source<b.source
+    WHERE a.edge_type='supplier_to' AND b.edge_type='supplier_to';
+    Returns 0 pairs TODAY (only 5 supplier_to edges, all distinct targets) —
+    query correct, data sparse. Becomes high-value as supplier_to/customer_of
+    fill in.
+  ACTION: add supply_chain_concentration() wrapper (gated on denser data).
+
+C3. Cross-sector bridges (where capital flows)  ✅ DONE
+    SELECT e.edge_type, c1.sector_classification, c2.sector_classification, COUNT(*)
+    FROM graph_edges e JOIN entities c1 ON c1.name=e.source
+    JOIN entities c2 ON c2.name=e.target
+    WHERE e.edge_type IN ('jv_with','acquired')
+      AND c1.sector_classification<>c2.sector_classification GROUP BY 1,2,3;
+    -> acquired FMCG<->Consumer 4, jv Automotive<->International 2, ...
+  ACTION: add cross_sector_bridges() wrapper + /api/graph/bridges endpoint.
+
+C4. Temporal edge formation  ✅ DONE
+    SELECT substr(valid_from,1,4) yr, edge_type, COUNT(*) FROM graph_edges
+    WHERE valid_from IS NOT NULL GROUP BY 1,2;
+    -> acquired: 2020x1, 2021x4, 2025x6 ... (only acquired/jv_with carry dates)
+  ACTION: add edges_by_year() wrapper (already doable; pairs with as_of views).
+
+C5. Weighted shortest path — feasible but MOOT today
+    A Dijkstra-style recursive CTE over graph_edges.weight works in DuckDB, but
+    EVERY one of the 4107 edges has weight = 1.0 (verified: weight distribution
+    {1.0: 4107}). So weighted == hop-count shortest path. To make this
+    meaningful, POPULATE weight (e.g. co-mention frequency, recency decay) —
+    that is a data task, not SQL. Leave until weights exist.
+
+C6. Single "graph health" CTE  ✅ DONE
+    Collapse the 6 hygiene subselects in /api/graph/stats (orphan companies,
+    no-ticker, self-loops, orphan edges, stale-analytics) into one WITH block,
+    and ADD a conflicting_market_cap counter (companies with >1 distinct
+    market_cap tag) that does not exist anywhere yet.
+
+================================================================================
+RECOMMENDED SEQUENCE
+================================================================================
+  1. ✅ DONE: A1 + A2 + A3 applied (2026-08-13). Tests/test_db.py + test_api_graph_bundles.py
+     + test_graph.py + test_api_graph_metrics.py + test_api_graph_unit.py all pass (132 tests).
+     Conflict-handling verified: injected dual market_cap tag → MIN + dedup correct.
+  2. ✅ Profiled B2/B3/B4 (2026-08-13). B3 APPLIED (3.4x faster). B2/B4 SKIP
+     (B2: Python sort faster; B4: complexity not worth 12ms saving).
+  3. ✅ DONE: C6 folded into /api/graph/stats (2026-08-13). CTE with named
+     subqueries + conflicting_market_cap tripwire. 3 new tests added.
+  4. ✅ DONE: C1, C3, C4 wrappers + endpoints implemented (2026-08-13).
+     co_mention_top(n), cross_sector_bridges(), edges_by_year() in query.py;
+     /api/graph/co-mentions, /api/graph/bridges, /api/graph/edges-by-year in app.py.
+     10 new tests in test_api_graph_unit.py. Gate C2/C5 on denser data.

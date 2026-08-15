@@ -1,0 +1,518 @@
+# Parse & Extraction Coverage Gaps — what the markdown pipeline drops
+
+Source: study of `doc/procedures/markdown_parse.md` + the three extractors
+(`helpers/core/parse_newsletter.py`, `helpers/graph/extract_relations.py`,
+`helpers/graph/derive_events.py`) against the live corpus (2026-08-06).
+
+Every claim below is backed by a file:line reference and (where a count is
+given) verified against `memory/research.db`. This file is a PROPOSAL, not a
+commit log — it scopes candidate work and records what is deliberately out of
+scope. Implementation is a separate planning step.
+
+================================================================================
+METHODOLOGY & HEADLINE
+================================================================================
+
+The procedure doc (`markdown_parse.md`) describes a rich ingest pipeline:
+capture images → extract entities → tickers → enhance → derive relations →
+derive events. The reality is that the *structured* capture stops at the
+section heading line. `parse_newsletter.py` reads only the company-section
+heading (plus a 3-line window fed to `guess_sector_for()`,
+parse_newsletter.py:886); the entire body — bullets, rupee figures, quotes,
+speakers, capex, margins — is never parsed. It emits a worklist of
+`{name, section_line}` pointers (parse_newsletter.py:746-767) and defers all
+insight extraction to a manual Stage 4 that lifts "3–5 bullet insights + 1
+verbatim quote" into prose. There is no structured capture of KPIs, dates, or
+magnitudes anywhere in the pipeline.
+
+What the live graph actually holds (verified 2026-08-06):
+
+  | Table / column                 | Count | Notes                                              |
+  | ---                            | ---   | ---                                                |
+  | entities by type               | 1186  | 1049 company, 78 sub_sector, 42 sector, 9 super_sector, 8 theme. ZERO people. |
+  | events.total                   | 277   | 210 guidance, 37 acquisition, 29 jv, 1 management_change. |
+  | events.magnitude populated     | 1/37  | of acquisition events, only 1 carries a deal value. |
+  | events.source_quote NULL       | 19/277| 13 acquisition + 6 jv events have no provenance text. (guidance: 0/210 — those always carry a quote.) |
+  | graph_edges total              | 4051  | dominated by structural: 1049 part_of/has_company, 1329 co_mentioned_in, 359 exposed_to, 120 belongs_to. |
+  | graph_edges *relationship*     | 145   | 62 subsidiary_of, 37 acquired, 29 jv_with, 7 competes_with, 5 supplier_to, 4 same_group, 1 customer_of. |
+
+The corpus, by contrast, is rich. Spot-checked grep over findata/The_Chatter +
+findata/Points_And_Figures (2026-08-06):
+
+  - Hundreds of `₹X crore` figures ("₹2,399 crore", "₹8,000 crore", "capex of
+    approximately INR 2,000 crores per quarter").
+  - 24+ "competition from", 40+ "partnership with", multiple "supplies to" /
+    "vendor to" mentions that do NOT become edges.
+  - Leadership-change signals in prose ("Incoming CEO", "Incoming CEO's
+    experience...") that do NOT become management_change events.
+
+The schema was DESIGNED to hold this (magnitude, counterparty, period,
+properties JSON, a broad relationship vocabulary). The extractors only
+populate a narrow slice. The gaps below are the delta.
+
+================================================================================
+GAP GROUPING
+================================================================================
+
+Five gaps are identified. G1, G2, G3 are PROPOSED for implementation (bounded,
+high ROI, reuse existing guards). G4, G6 are DEFERRED (no consumer yet / too
+thin a source). G5 was already deferred in the Aug 2026 audit (D6 person
+nodes) and is listed only for completeness.
+
+  | ID | Gap                              | Proposed | Yield estimate | Risk     | Cross-ref        |
+  | -- | ---                              | ---      | ---            | ---      | ---              |
+  | G1 | Relation-verb coverage           | YES      | +20–40 edges   | LOW      | sibling of D2    |
+  | G2 | management_change event coverage | YES      | +10–30 events  | LOW      | extends D7       |
+  | G3 | Acquisition/guidance magnitudes  | YES      | ~35 of 37 acq. | LOW      | narrow slice of D1 |
+  | G4 | Capex as a first-class event     | DEFERRED | —              | MEDIUM   | = D1 (capex arm) |
+  | G5 | People entities / quote edges    | DEFERRED | —              | (D6)     | = D6 / M2        |
+  | G6 | Plotlines target-threshold KPIs  | DEFERRED | —              | LOW/THIN | (new)            |
+
+CROSS-REFERENCE TO EXISTING DEFERRED ITEMS (swept 2026-08-06 across all 7 files
+in doc/improvements/). This proposal does NOT re-open any deferred item; it
+lists the intersections so the deferred-item rationale is honored:
+
+  - D1 (hierarchy_design_roadmap.txt:100) — structured metrics layer. DEFERRED
+    2026-07-30 on the grounds that a metrics table's value is TRACKING a number
+    across editions, which needs a recurring guidance/earnings source (D8/D9).
+    My G3 is the narrow magnitude-on-events slice that does NOT need a recurring
+    source — it backfills deal values onto existing acquired edges from one-shot
+    acquisition prose. G4 (capex event_type) is the recurring-source-dependent
+    arm and stays deferred for the same reason D1 does.
+  - D2 (hierarchy_design_roadmap.txt:144) — thicken semantic edges. DEFERRED
+    2026-07-30 after measuring the sidecar: the two-anchor (company<->company)
+    design is KEEP; relaxing competes_with to target a SECTOR node is wrong
+    (the "International" sector node holds 24 real globally-listed companies, so
+    the edge would read "competes with Vodafone/Apple" — actively false). Only
+    supplier_to/customer_of -> sector, CROSS-sector only, with an explicit
+    international|global|foreign exclusion, is a defensible ~15-edge salvage.
+    My G1 is ORTHOGONAL: it expands the *verbs* on the existing company<->
+    company path (tie-up, competition from, vendor to, owned by). It does NOT
+    relax the two-anchor rule or target sector nodes. The D2 PROPOSED-NARROW
+    (supplier_to/customer_of -> sector) remains a separate, optional follow-on.
+  - D6 / M2 (hierarchy_design_roadmap.txt:322, findata_corpus_audit.txt:352) —
+    person/executive model. DEFERRED: free-text management rosters aren't
+    structured enough to extract reliable person entities/edges. = my G5.
+    NOTE: D7's own rationale (hierarchy_design_roadmap.txt:~395) predicted the
+    thin management_change count: "most management prose carries only
+    role+person, no change verb (D6 person-node extraction would capture the
+    broader set)." My G2 adds a THIRD path D7 did not enumerate — adding the
+    `incoming` change-verb — which lifts the count WITHOUT the D6 entity-model
+    cost. G2 is the cheaper alternative to D6 for the management-change case.
+  - D7 (hierarchy_design_roadmap.txt:360) — events table. DONE. My G2 extends
+    it (more management_change rows); G3 enriches its magnitude column.
+  - H4 (findata_corpus_audit.txt:305) — _pending_relations.txt is ~85% noise.
+    DEFERRED 2026-07-28. Directly governs G1: expanded verbs WILL surface more
+    unresolved targets in the sidecar. Per H4's own recommendation, do NOT
+    batch-triage the sidecar; the realistic salvage is ~15-20 rows (5-6%).
+    G1's expected yield already assumes most new mentions land in the sidecar
+    and stay unresolved. The standing sidecar-hygiene practice (clear/dedup
+    before each derive-relations batch — see memory sidecar-append-only-noise)
+    applies.
+  - M5 (findata_corpus_audit.txt:544) — in-note co-mention channel untapped.
+    DEFERRED. NOT addressed here (different mechanism — prose co-occurrence,
+    not relation verbs). Listed only to note the second co-mention channel
+    remains open if richer edges are later wanted.
+  - L1 (duckdb_improvs.txt:147) Parquet snapshot, N2 (duckdb_improvs.txt:465)
+    FTS typeahead, M1-M6 (duckdb_improvs.txt:185-235) duckpgq-upstream — all
+    OPEN but UNRELATED to extraction coverage. Not addressed.
+
+No pending (non-deferred) items in any doc overlap with this proposal: the
+only OPEN items across all 7 files are upstream-gated (duckpgq M1-M6, J1, L1,
+N2) or engine-extent (graph H1/H2/H3), none of which concern markdown
+extraction.
+
+================================================================================
+G1 — RELATION-VERB COVERAGE (extract_relations.py)
+================================================================================
+
+Status: PROPOSED. Risk: LOW (existing guards contain false positives).
+Cross-ref: sibling of D2 (hierarchy_design_roadmap.txt:144). This expands the
+VERBS on the existing company<->company path; it does NOT relax the two-anchor
+rule or target sector nodes (D2 measured that as a false-positive source).
+
+extract_relations.py covers 7 edge types via the PATTERNS list
+(implicit; no EDGE_TYPES constant): jv_with, acquired, subsidiary_of,
+supplier_to, customer_of, competes_with, same_group. It MISSES frequent
+synonyms, especially Indian-English forms. Each miss below is a concrete
+prose signal present in the corpus that produces no edge today.
+
+G1.1 — JV synonyms (→ jv_with)
+  Currently matched: "joint venture with", "JV with/between"
+                      (extract_relations.py:378-397)
+  Missed:
+    - "tie-up with", "tied up with", "tie up with"   (very common IE form)
+    - "partnership with", "in partnership with"       (40+ hits in The_Chatter)
+    - "alliance with", "strategic alliance with"
+    - "collaboration with", "collaborates with"
+    - "formed a JV with", "entered into a JV with"    (current JV pattern
+                                                       requires the literal
+                                                       words "joint venture" or
+                                                       "JV with/between")
+  Proposed: add one PATTERNS entry with edge_type="jv_with", symmetric=True,
+            direction="forward", reusing the existing capture/lookahead shape.
+  FP guard: reuse _GENERIC_SUPPLIER_TARGETS + _NEWSLETTER_CHROME filters; add
+            "the government", "the state", "the JV" to a small stoplist after
+            a dry-run triage.
+
+G1.2 — Competes-with synonyms (→ competes_with)
+  Currently matched: "peers/competitors/rivals like/such as <List>",
+                      "competes with X", "rival(s|ry) X"
+                      (extract_relations.py:564-608)
+  Missed:
+    - "competition from <Name>"                       (24+ hits in The_Chatter)
+    - "competes against <Name>"
+    - "<Name>'s rivals are <List>" / "rivals include <List>"
+    - "going up against <Name>", "up against <Name>"
+  Proposed: add a "competition from <Name>" pattern (asymmetric → competes_with,
+            symmetric=True so the reverse edge also lands). Reuse the existing
+            _COMPETES_GROUPING_PREFIXES reject list
+            (extract_relations.py:802-816) and the heavy negative lookahead at
+            extract_relations.py:602 (reject nationalities/generics).
+  Note: the bare "competes with" was historically deferred for ~95% noise
+        (extract_relations.py:597 comment). "competition from <proper noun>" is
+        tighter and was not measured — needs a dry-run false-positive count
+        before --apply.
+
+  MEASURED & REVERTED 2026-08-06 (G1.2 implementation attempt): added the
+  pattern with a strengthened negative lookahead (extra rejects: foreign|
+  global|international|unnamed|new) and ran the dry-run. Result: 0 net new
+  resolved competes_with edges (count stayed at 7, all pre-existing). The
+  corpus's "competition from <Capital>" forms are dominated by capitalised
+  NON-COMPANY generics that pass the [A-Z] anchor but resolve to nothing:
+  "competition from IT" (4, = information technology), "China" (3), "OTT" (2,
+  over-the-top), "Ecuador" (2), "PSU" (1, public-sector undertaking); the only
+  plausibly-company token was "Intel" (1 hit). The sidecar already carries 40
+  competes_with entries, mostly this noise. Decision gate (≥3 real competitors
+  with ≤2 FPs) FAILED. Pattern reverted same day; G1.1/G1.3/G2/G3 unaffected.
+  Do NOT re-add without either (a) a company-name gazetteer pre-filter or
+  (b) requiring the target to resolve against the existing entities table
+  before emitting — the [A-Z] anchor alone is insufficient for this verb form.
+
+G1.3 — Supplier/customer synonyms (→ supplier_to / customer_of)
+  Currently matched: "supplier to/for X", "supplies/providing X% of Y",
+                      "securing/won <Company> orders", "major customers (X,Y)"
+                      (extract_relations.py:500-562)
+  Missed:
+    - "vendor to X", "vendor of X"                    (2+ hits)
+    - "supplies <Company>" WITHOUT a "to"             (current "supplies" pattern
+                                                       requires "to" after the
+                                                       optional product clause)
+    - "sources from X", "sourcing from X", "procures from X"
+                                                      (reverse-supply signal:
+                                                       the NAMED party is the
+                                                       supplier, not the
+                                                       customer — needs a
+                                                       reverse-direction pattern
+                                                       → supplier_to with
+                                                       source/target swapped)
+    - "counts X among (its) customers"
+    - "offtake agreement with X"
+  Proposed: add "vendor to/for X" (forward, supplier_to), "sources/procures
+            from X" (REVERSE — target X is the supplier), "counts X among
+            customers" (forward, customer_of). Reuse _GENERIC_SUPPLIER_TARGETS
+            (extract_relations.py:763).
+  FP risk: "supplies" without "to" is the noisiest — recommend NOT adding it
+           in the first pass and measuring it separately.
+
+G1.4 — Ownership / M&A synonyms (→ subsidiary_of / acquired)
+  Currently matched: "subsidiary of X", "parent company of X",
+                      "listed/indian/overseas/wholly-owned subsidiary is X",
+                      "acquired X", "acquired by/from X", "acquisition of X",
+                      "demerged from X", "merged with X"
+                      (extract_relations.py:399-498)
+  Missed:
+    - "owns X", "owned by X", "wholly owns X"         (→ subsidiary_of reverse)
+    - "holds a X% stake in Y", "held by X"            (→ subsidiary_of reverse)
+    - "arm of X", "unit of X", "division of X"        (common subsidiary synonyms)
+    - "associate of X", "associate company"           (→ subsidiary_of? or new type)
+    - "spun off from X", "spin-off of X"              (→ subsidiary_of reverse)
+    - "acquired a 51% stake in X"                     (current "acquired" lookahead
+                                                       terminates at "in"; the
+                                                       forward "acquired X" pattern
+                                                       would capture X but stop
+                                                       before "stake")
+    - "bought X", "buys X", "purchased X"             (→ acquired forward)
+  Proposed: add "owned by X" / "holds a X% stake in Y" (reverse subsidiary_of),
+            "bought/buys/purchased X" (forward acquired). DEFER "arm/unit of X"
+            (high false-positive — common in non-ownership prose) and
+            "associate of X" (semantic ambiguity, may need a new edge_type).
+  FP guard: reuse _GENERIC_ACquired_TARGETS (extract_relations.py:750);
+            stake-language needs the %  group captured into properties.stake.
+
+Expected yield: +20–40 edges total across the thinnest tables (competes_with 7,
+supplier_to 5, customer_of 1, same_group 4). Conservative because the resolver
+will fail to resolve many named targets (they land in
+findata/_pending_relations.txt for triage).
+
+Constraint reminders:
+  - extract_relations writes to graph_edges directly (NOT via sync_tags), so
+    edge additions are durable — a tag-rebuild does NOT wipe them.
+  - findata/_pending_relations.txt is APPEND-ONLY with ~75% generic noise
+    (see memory sidecar-append-only-noise). Expanded verbs WILL surface more
+    unresolved targets there; triage against the DB before each --apply, and
+    clear/dedup the sidecar per batch.
+  - _SUPPRESSED_EDGES (extract_relations.py:825) is the hand-correction set;
+    expect to add 2–5 entries after the first dry-run surfaces the predictable
+    attribution bleed-overs.
+
+================================================================================
+G2 — MANAGEMENT_CHANGE EVENT COVERAGE (derive_events.py)
+================================================================================
+
+Status: PROPOSED. Risk: LOW. Highest ROI of the five.
+Cross-ref: extends D7 (events table, DONE). D7's own rationale
+(hierarchy_design_roadmap.txt:~395) attributed the thin count (1) to "most
+management prose carries only role+person, no change verb" and pointed to D6
+(person nodes) as the fix. G2 is the cheaper third path — add the missing
+`incoming` change-verb — which lifts the count WITHOUT the D6 entity-model
+cost. D6 (full person model) stays deferred.
+
+derive_events.py extracts management_change only when a window has BOTH a
+change-verb (_CHANGE_VERB_RE, derive_events.py:125) AND an executive title
+(_TITLE_RE, derive_events.py:140). Result: 1 management_change event vs. ~294
+notes with a `## Management` heading.
+
+G2.1 — "Incoming <Title>" form (no verb)
+  Missed: "Incoming CEO", "Incoming CEO's experience...", "incoming MD".
+          The word "incoming" is NOT in _CHANGE_VERB_RE, and there is no verb
+          in these sentences. This is the dominant form for CEO successions in
+          the corpus (Walmart/John Furner, IndiGo — both surfaced in the
+          spot-check).
+  Proposed: add `incoming` to _CHANGE_VERB_RE.
+            derive_events.py:125 change:
+              r"\b(appointed|takes over|took over|taking over|stepped down|..."
+              → add `|incoming`
+  FP guard: requires a co-occurring _TITLE_RE match (already enforced at
+            derive_events.py:359), so "incoming revenue" / "incoming shipment"
+            cannot fire. Low risk.
+
+G2.2 — Title-before-verb order
+  Missed: "X appointed as CFO", "Riya named MD of <unit>". The current
+          _PERSON_RE + _CHANGE_VERB_RE scan is order-agnostic (both are
+          .search() over the window), so this is NOT actually a gap — confirmed
+          by re-reading derive_events.py:353-364. The real miss is the missing
+          verbs (G2.1) and the missing "named <Title>" form.
+  Proposed: add `named` to _CHANGE_VERB_RE ONLY when immediately followed by a
+            title (use a separate pattern, not the bare verb, to avoid the
+            "named in the suit" false positive the existing comment at
+            derive_events.py:121-124 warns about).
+
+G2.3 — Person-name capture robustness
+  _PERSON_RE (derive_events.py:149) = `([A-Z][a-zA-Z.]+(?:\s+[A-Z][a-zA-Z.]+){1,3})`
+  This is fine for Western names; it misses single-token Indian names and
+  names with lowercase particles. DEFER — low yield, high FP risk.
+
+Expected yield: +10–30 management_change events (from 1). The dominant lift
+comes from G2.1 alone. Idempotent via the existing DELETE-then-INSERT of
+derive:-prefixed rows (derive_events.py preserves manual:/migration: rows).
+
+================================================================================
+G3 — ACQUISITION / GUIDANCE MAGNITUDES (derive_events.py ARM 1 + properties)
+================================================================================
+
+Status: PROPOSED. Risk: LOW.
+Cross-ref: narrow slice of D1 (hierarchy_design_roadmap.txt:100). D1 proposes
+a full company_metrics table for guidance/margin/capex tracking and is
+DEFERRED on the recurring-source grounds. G3 does NOT build that table — it
+only fills the existing events.magnitude column for acquisition edges from
+one-shot deal-value prose, which needs no recurring source. G4 (capex
+event_type) is the D1-like arm that stays deferred with D1.
+
+The events.magnitude column is populated for 1 of 37 acquisitions. The
+newsletters name deal values and stakes constantly. The extraction path exists
+(derive_events.py:226-278 reads properties.stake/amount/value from the source
+edge) but the SOURCE edges rarely carry them — extract_relations.py does not
+extract "for ₹X cr" / "for X% stake" clauses into properties.
+
+G3.1 — Deal value into the acquired edge's properties
+  Missed: "acquired X for ₹2,500 cr", "acquired a 51% stake in X",
+          "acquisition of X for $1.2 billion".
+  Proposed: extend the acquired-pattern application to capture a trailing
+            money/stake clause into properties.value (₹/$/INR/USD + number +
+            unit) and properties.stake (X%). This is a capture-group addition
+            to the existing acquired patterns (extract_relations.py:399-459),
+            not a new pattern. backfill_valid_from.py
+            (helpers/maintenance/backfill_valid_from.py) is the existing model
+            for a one-shot backfill pass — mirror it for magnitudes.
+  Expected: ~35 of 37 acquisitions gain a magnitude (the 2 with no public deal
+            value stay null).
+
+G3.2 — Guidance magnitude: keep percent-only (NO change)
+  Guidance events store magnitude = percent snippet (derive_events.py:321-346).
+  Rupee capex/AUM figures sit in source_quote text only. This is ACCEPTABLE —
+  guidance magnitudes are inherently percent-shaped (growth/margin targets),
+  and a rupee figure would need a unit field the schema doesn't have. DEFER
+  any rupee-magnitude work to G4 (capex event type).
+
+Proposed implementation: a new helpers/maintenance/backfill_magnitudes.py that
+re-scans each acquired edge's source window for `₹X cr` / `X% stake` /
+`$X bn` and writes properties.value/stake, mirroring backfill_valid_from.py's
+dry-run/--apply shape. Re-runnable; idempotent (overwrites properties.value
+only when currently null, to preserve hand-curated values).
+
+================================================================================
+DEFERRED GAPS
+================================================================================
+
+G4 — Capex as a first-class event_type
+  Capex appears ONLY as a guidance keyword (derive_events.py:100-104
+  _MONEY_OR_KEYWORD_RE includes "capex"; _FORWARD_RE includes "capex"). Pure
+  capex announcements without a fiscal+forward triple are dropped; if they
+  pass all three legs they land as generic `guidance` with the rupee value
+  buried in source_quote. There is no `capex` event_type today (the
+  `event_type` column is unconstrained — the `acquisition|jv|guidance|
+  management_change` list in the schema is a COMMENT, not a CHECK, verified
+  by inserting a `capex` row that succeeded 2026-08-06). So no schema change
+  is needed. DEFERRED anyway: there is no downstream consumer that queries
+  capex events, and capex-as-guidance is acceptable for now. Revisit when a
+  capex-aware query/UI lands — the extractor arm would be a small addition
+  (a money+magnitude pass over capex-bearing bullets).
+
+G5 — People entities / quote attribution
+  ~1,072 attributed speaker lines exist; 0 people entities; 0 quote/officer
+  edges. This is item D6 from the Aug 2026 audit, already DEFERRED for lack of
+  a structured source (free-text management rosters aren't reliable enough to
+  extract person entities/edges). Do NOT re-propose here; see the deferred
+  decision in memory deferred-improvements-no-sources. Revisit if a
+  directors-roster / filings feed becomes available.
+
+G6 — Plotlines target-threshold KPIs
+  The_PlotLines carries `## Watch For` blocks with explicit target thresholds
+  ("Defense order execution exceeding ₹250 cr in FY26", "Tata EV market share
+  50%+ by Q2 FY26"). No schema concept exists for target-metric thresholds.
+  DEFERRED: only 2 Plotlines files in the corpus — the payoff is too thin to
+  justify a new (entity, metric, threshold, period) table today. Revisit if
+  Plotlines ingest expands.
+
+================================================================================
+PROPOSED IMPLEMENTATION ORDER & VERIFICATION
+================================================================================
+
+If/when this is taken to implementation, the suggested order (each is
+independently shippable):
+
+  1. G2.1 (add `incoming` to _CHANGE_VERB_RE) — smallest change, highest ROI.
+     Verify: management_change event count rises from 1; dry-run -v lists the
+     new events with sane entity/title/person triples.
+
+  2. G1.1 (JV synonyms) then G1.2 (competition from) — each a single PATTERNS
+     entry. Verify: dry-run summary; triage _pending_relations.txt; confirm
+     new edges survive a sync_tags run (they will — edges are not tag-synced).
+
+  3. G3.1 (acquisition magnitudes) — new backfill helper. Verify: 35/37
+     acquisitions gain a non-null magnitude; spot-check 5 deals against the
+     newsletter source.
+
+  4. G1.3 / G1.4 (supplier/customer, ownership) — broader verb expansion;
+     measure FP per pattern before --apply.
+
+Each step should be preceded by a dry-run and a sidecar triage, and followed
+by `python3 helpers/misc/database_integrity_check.py` (the
+check_validity_window WARNING will surface any newly-added acquired edges
+missing valid_from — expected, since G3 magnitudes don't carry dates).
+
+================================================================================
+IMPLEMENTATION OUTCOME (2026-08-06)
+================================================================================
+
+G2.1, G1.1, G1.3 SHIPPED; G1.2 MEASURED & REVERTED; G3 SHIPPED. The code +
+tests are landed (uncommitted, per the user-commits-manually convention). Full
+not-live suite 613 passed (was 584; +29 tests), make qa green, integrity 100%.
+
+G2.1 — SHIPPED. Added `incoming` to _CHANGE_VERB_RE (derive_events.py:128) +
+3 tests. NOTE on live yield: the `incoming CEO` form exists in the corpus but
+only in NEWSLETTER prose (3 hits), which derive_events does not scan — it works
+off company notes that Stage 4 enrichment would have populated (0 hits in
+company notes today). So the code change is a FORWARD FIX that activates as
+notes get enriched; the live management_change count does not rise yet. The
+tests prove correctness. D7's prediction ("thin count reflects corpus: most
+mgmt prose carries only role+person, no change verb") is confirmed — the
+`incoming` verb is the cheaper unenumerated third path, but its yield is gated
+on enrichment, not on the pattern.
+
+G1.1 — SHIPPED. One new PATTERNS entry (extract_relations.py:~398) matching
+tie-up/tied up/partnership/in partnership/alliance/strategic alliance with X →
+jv_with (symmetric). 4 tests. Dry-run shows jv_with candidates rising from
+~29 to 36 (the new synonyms contribute). Live edges NOT yet applied — per the
+standing constraint, the sidecar must be triaged before --apply (that is a
+separate, user-driven step).
+
+G1.2 — MEASURED & REVERTED (see the MEASURED & REVERTED note in the G1.2
+section above). The corpus's "competition from <Capital>" forms are dominated
+by capitalised non-company generics (IT/China/OTT/Ecuador/PSU) that pass the
+[A-Z] anchor; 0 net new resolved edges; decision gate failed. Reverted same
+day. Do NOT re-add without a company-name gazetteer pre-filter or a
+resolve-before-emit gate.
+
+G1.3 — SHIPPED. Two new PATTERNS entries (extract_relations.py:~565):
+  - "vendor to/for X" → supplier_to, forward.
+  - "sources/sourcing/procures from X" → supplier_to, REVERSE (named X is the
+    supplier; section company is the customer). 2 tests, including a
+    direction='reverse' assertion.
+Live yield ~0 today (the verb forms are rare in the corpus: only "sourcing from
+High/Morbi", both generic). Forward fix, activates as richer notes land.
+
+G3 — SHIPPED (helpers/maintenance/backfill_magnitudes.py + 17 tests). Mines
+deal values/stakes onto acquired edges + mirrors onto events.magnitude.
+PRECISION was the dominant engineering effort: the first dry-run surfaced
+false positives that drove four iterative gate refinements, each encoded as a
+regression test in TestPrecisionGuards:
+  1. Acquisition-verb proximity window (80 chars) — kills "Merged ... revenues
+     of ₹78,265 cr" (revenue near a deal verb, 109 chars apart).
+  2. Required money unit (crore/cr/bn/etc.) — kills bare "₹4,400" revenue
+     fragments.
+  3. Non-deal-context filter (revenue/market cap/orders/deal-ramp/FTEs) —
+     kills "$1B annual revenues", "₹926 cr confirmed orders", "$230 mn deal
+     ramp-up" (customer contract, not acquisition price).
+  4. Newline-aware sentence splitting + tightened stake regex (dropped bare
+     "X% of") — kills "30% of new stores" and section-block bleed.
+Final dry-run yield: 11/37 acquired edges gain a verified-clean magnitude
+(from 1/37). Spot-checked: Adobe→Figma $20bn, Tata Power→KSK ₹16,084cr,
+CEAT→Camso ₹1,000cr, Lunolux→Eureka ₹4,400cr, PAGAC→Nuvama ₹4,700cr, plus 6
+stakes (JSW Steel 61.2%, Titan 67%, Twizza/Bevco 100%, etc.). NOT yet applied
+to the live DB — dry-run-only per the constraint; user runs --apply after
+review. Idempotent (skips rows that already carry value/stake).
+
+NET: the corpus's current richness caps immediate live yield for G2.1/G1.1/
+G1.3 (the signals live in newsletter prose that the extractors don't yet
+scan, or are rare in notes). G3 is the immediate win (11 magnitudes ready to
+apply). The pattern work is forward infrastructure that pays off as the
+extraction surface broadens (D8 concall transcripts / D9 filings would feed
+all four).
+
+================================================================================
+OUT OF SCOPE
+================================================================================
+
+  - No changes to parse_newsletter.py's structural extraction (headings,
+    tickers, sector guess). The "body is never read" observation is the root
+    cause of the richness gap, but fixing it means either an LLM-based Stage 4
+    (already the manual contract) or a major new KPI-extraction subsystem.
+    Both are beyond a bounded extractor-improvement batch.
+
+    >>> ADDRESSED 2026-08-06 (the "major new KPI-extraction subsystem"): <<<
+    helpers/graph/derive_insights.py is the deterministic body-reader this
+    entry said was out of scope. It scans each company's ## [Concall] block,
+    extracts every verbatim quote + speaker attribution + paraphrase into a new
+    `quotes` table, and financial magnitudes into a new `company_metrics`
+    table, then renders a sentinel-wrapped ## The Chatter — <edition> block
+    into each note. 2534 quotes (78% attributed, 573 distinct speakers) +
+    1341 metrics across 328 companies on the first full apply. No LLM (the
+    conservative-deterministic design principle holds). Curation-safety:
+    hand-written ## The Chatter blocks are NEVER clobbered (sentinel-wrapped
+    auto blocks are refreshed; non-sentinel blocks are skipped). See the new
+    step 10 in doc/procedures/markdown_parse.md. This RE-OPENS the narrow D1
+    capture arm (single-edition magnitude snapshot; the newsletters are the
+    recurring source that mooted D1's deferral rationale) and supersedes G5
+    (quotes captured as string attributes, NOT person entities — D6 stays
+    deferred). Cross-edition time-series tracking (D1's deeper vision) remains
+    out of scope; this is the capture layer that makes a future D1 possible.
+
+  - No new entity types (people, products, KPIs) — those are G5/D6 and the
+    deferred-items decision.
+  - No DuckDB / algorithm changes — this file is about EXTRACTION coverage,
+    not graph computation. See graph_improvs.txt for the algorithm surface.
+  - No procedure-doc rewrite. markdown_parse.md accurately describes the
+    INTENDED pipeline; this file documents where the implementation
+    under-fills it.

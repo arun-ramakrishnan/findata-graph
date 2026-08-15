@@ -1,0 +1,7 @@
+access_rules:
+  - path: public/faq.md
+    access: public
+  - path: professional/cv.md
+    access: restricted
+  - path: private/humor.md
+    access: trusted

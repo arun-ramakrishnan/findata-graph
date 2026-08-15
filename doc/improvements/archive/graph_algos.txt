@@ -1,0 +1,342 @@
+# Proposal: Expand graph-algorithm coverage via Onager — link prediction,
+# graph metrics, and additional centralities
+
+Status: PHASES 1-3 COMPLETE (2026-08-15); Phase 4 DROPPED
+Date: 2026-08-14
+Author: agent (session: post-onager capabilities exploration)
+Related: doc/improvements/archive/duckpgq_retirement.txt (COMPLETE),
+         doc/improvements/archive/networkx_duckpgq_gap_plan.txt (COMPLETE),
+         doc/graph_design.txt §3.2/§10.
+
+## Motivation
+
+The 2026-08-14 Onager migration wired **8 of Onager's 64 table functions**:
+eigenvector, closeness, betweenness, degree, pagerank, wcc, local clustering,
+louvain. Everything else the extension ships is unexposed — and most of it is
+directly relevant to the knowledge graph. This proposal inventories the
+unwired surface (verified working live, 2026-08-14), recommends what to wire
+next, and closes the outstanding "pin onager" TODO from the Onager adoption.
+
+Verified live facts (2026-08-14, DuckDB 1.5.4, membership subgraph 2136
+edges / ~1110 nodes):
+
+  - onager_lnk_adamic_adar / _jaccard / _common_neighbors / _pref_attach /
+    _resource_alloc all return (node1, node2, score) over the same edge-table
+    contract onager.py already materialises (_onager_e). LINK PREDICTION is
+    a genuinely NEW capability — nothing in the repo computes candidate edges.
+  - onager_mtr_density / _diameter / _radius / _avg_path_length /
+    _transitivity / _triangles / _avg_clustering / _assortativity all return
+    whole-graph scalars. Currently `make graph-stats` reports only degree /
+    component-count style aggregates; no global structural metrics exist.
+  - onager_ctr_harmonic / _laplacian / _voterank / _local_reaching /
+    _personalized_pagerank return (node_id, value) — same shape as the 8
+    already wired, so they slot into the existing _onager_named() helper with
+    zero new plumbing.
+  - onager_ctr_katz works but REQUIRES a tuned alpha: the default converges
+    to NaN / errors on this graph ("Convergence failed after 100 iterations").
+    alpha=0.0001, beta=1.0 verified OK live.
+  - Path family (onager_pth_dijkstra / _bellman_ford / _floyd_warshall /
+    onager_par_shortest_paths / onager_par_bfs) returns (node_id, distance).
+    The repo already has a recursive-CTE shortest_path in query.py; these
+    add a weighted, single-source native option.
+  - Caveats (binding quirks): katz/dijkstra/k_hop/girvan_newman bind only
+    via NAMED parameters (source=1, communities=N), not positional;
+    personalized_pagerank wants a 4th BIGINT column in the edge table.
+
+## Current state
+
+Wired (helpers/graph/onager.py + algorithms.py dispatcher):
+  eigenvector, closeness, betweenness, degree, pagerank, wcc, local
+  clustering, louvain — all reachable via compute() and the CLI, persisted
+  to graph_analytics (8 metrics, 1068-1209 rows each).
+
+Unwired (verified live, this session):
+  link prediction (5), graph metrics (8), extra centralities (6), alt
+  community detection (4), weighted paths (5), MST (2), approx (4),
+  subgraph (3), generators (3) — 40 functions.
+
+## Scope
+
+Proposed additions (Phases below), each a small wrapper + dispatcher entry
+mirroring the existing onager_* / _run_* pattern:
+
+  1. Link prediction — NEW capability, highest value (addresses the H1 gap:
+     typed edges capture ~10% of the available signal; prediction suggests
+     candidate competes_with / supplier_to / jv_with edges).
+  2. Graph metrics — density, diameter, radius, avg_path_length,
+     transitivity, triangles, avg_clustering, assortativity. Feed
+     `make graph-stats` + `/api/graph/stats`.
+  3. Extra centralities — harmonic, katz, laplacian, voterank, local
+     reaching, personalized pagerank. Additive ranking signals, trivial
+     to wire (same _onager_named contract).
+  4. Onager version pin in `make update-extensions` — closes the single
+     open TODO from the Onager adoption plan.
+
+Explicitly OUT of scope (deferred / not adopted):
+  - weighted-path native wrappers (onager_pth_*) — the recursive-CTE
+    shortest_path already covers the unweighted case and returns the full
+    vertex sequence; native single-source would be additive but not needed
+    by any current consumer. Consider only if a weighted-shortest-path
+    consumer appears.
+  - MST / approximation / subgraph / generators — no consumer today;
+    generators are useful only for synthetic perf tests, which already
+    pass edges= lists.
+  - alt community detection (label_prop/spectral/infomap/girvan_newman) —
+    louvain is established; cross-validation is possible later via the
+    same wrapper pattern if a consumer asks for consensus communities.
+
+## Benefits
+
+1. Link prediction turns the graph into a hypothesis engine for the
+   relationship-extraction backlog (H1): given the existing structure,
+   rank (node1, node2, score) pairs most likely to be a missing typed edge.
+   The three symmetric edge types (competes_with, jv_with, same_group)
+   are the natural prediction targets.
+2. Whole-graph metrics give the stats surface a structural dimension
+   (density, diameter, avg path length, transitivity) beyond node counts
+   and degree distributions — useful for the Graph tab and snapshots.
+3. Extra centralities cost ~30 lines (wrapper + dispatcher + CLI choice)
+   each and are pure additive ranking for consumers.
+4. Pinning onager in update-extensions makes the community-extension
+   surface reproducible for CI — the one concrete open TODO left by the
+   Onager adoption.
+
+## Costs / risks
+
+1. Link-prediction scores on an unweighted membership graph are dominated
+   by sector-membership co-occurrence (companies sharing a sector look
+   "similar" trivially). Must project prediction over the NON-membership
+   edge types (co_mentioned_in, jv_with, competes_with, same_group) or
+   filter the shared-sector signal, or results are trivially predictable.
+2. onager_ctr_katz needs a documented default alpha (0.0001) or it errors;
+   any wrapper must fix beta/alpha or surface the error cleanly.
+3. Centrality values remain UNWEIGHTED (the known Onager caveat from the
+   adoption plan); our weights are near-binary so this is acceptable, but
+   it must stay documented.
+4. Graph metrics over the FULL edge set (all 12 types) vs a projected
+   subset can disagree substantially (e.g. diameter collapses with
+   co_mentioned_in present). Each metric wrapper should project an explicit
+   edge_type list, mirroring the _where() contract.
+5. `make perf` additions increase the gate wall-clock by a few seconds
+   (all verified sub-second live).
+
+## Implementation plan (phased, each lands green)
+
+Phase 1 — Link prediction (highest value)
+  - helpers/graph/onager.py: add onager_link_prediction(con, edge_types,
+    edges, method) -> list[tuple[name1, name2, score]] (or dict), one
+    wrapper over onager_lnk_adamic_adar / _jaccard / _common_neighbors /
+    _pref_attach / _resource_alloc, joining node ids back to names via
+    _onager_int (mirrors _onager_named but keeps both endpoints).
+  - Caller contract: an optional exclude_types= so shared-membership noise
+    can be filtered; default projects the NON-membership edge types.
+  - helpers/graph/algorithms.py: compute("link_prediction", method=...)
+    dispatcher entry + CLI `link-predict [--method jaccard|adamic-adar|
+    common-neighbors|pref-attach|resource-alloc] [--top N]`.
+  - Tests: tests/test_onager_capabilities.py — known tiny graphs (clique,
+    path, two disjoint triangles) with hand-computed Jaccard/AA scores;
+    name-keyed DB path via synth_db fixture; empty-list safety.
+
+Phase 2 — Graph metrics
+  - helpers/graph/onager.py: onager_graph_metrics(con, edge_types, edges)
+    -> dict[str, float] (density, diameter, radius, avg_path_length,
+    transitivity, triangles, avg_clustering, assortativity). triangles is
+    per-node (node_id, triangles) -> count + graph sum.
+  - helpers/graph/stats.py + /api/graph/stats: extend the output with the
+    metric dict (SQLite-side consumers unchanged; metrics computed on the
+    DuckDB connection, cost sub-second).
+  - Tests: known triangle/line graphs for transitivity/avg_clustering/
+    diameter values; empty-list safety.
+
+Phase 3 — Extra centralities
+  - helpers/graph/onager.py: onager_katz (defaults beta=1.0, alpha=0.0001),
+    onager_harmonic, onager_laplacian, onager_voterank, onager_local_reaching,
+    onager_personalized_pagerank (with the 4th-column edge projection).
+  - algorithms.py dispatcher entries + CLI choices.
+  - Tests: value-parity against known graphs (star, path) for harmonic/
+    katz; voterank seed-set semantics; empty-list safety.
+
+Phase 4 — Onager version pin
+  - helpers/graph/query.py update_extensions(): append "onager" with a
+    pinned version to the install list (version discovered via
+    onager_version() at pin time; document the pin rationale).
+  - Verification: `make update-extensions` installs the pinned build; a
+    fresh venv picks up the same version (CI reproducibility).
+
+## Verification checklist
+
+- [ ] make types (ty check helpers app.py) green
+- [ ] ty check tests advisory clean
+- [ ] make integration green
+- [ ] Full unit suite green
+- [ ] New onager capability tests (link prediction, metrics, centralities)
+      all green
+- [ ] make perf green with the new graph_* benchmark entries (budgets set
+      from the sub-second live measurements above)
+- [ ] make qa green
+- [ ] graph_analytics: no new metric persisted unless a consumer asks
+      (link prediction and metrics are read-side; --apply stays opt-in)
+
+## Open questions
+
+1. Link-prediction target set: predict candidates for which edge types?
+   Proposal: symmetric types (competes_with, jv_with, same_group) on the
+   co_mentioned_in + existing symmetric subgraph — a "might compete with"
+   hypothesis list for the H1 extraction backlog.
+2. Should link-prediction candidates feed findata/_pending_relations.txt
+   as suggestions (advisory) or a new graph_analytics metric? Proposal:
+   advisory CLI output only until a consumer wants persistence.
+3. Do we want alt community detection (infomap/spectral/label_prop) for a
+   consensus community view alongside louvain? Deferred unless asked.
+4. Pin version: pin onager to the current installed build (checked via
+   onager_version()) or leave version-less and pin only on CI breakage?
+   (The adoption plan's TODO asks for a pin; the user preference on pin
+   strictness for other community extensions — duckpgq was unpinned — says
+   "ask".)
+
+## Outcome log
+
+### Phase 1 — Link prediction: COMPLETE (2026-08-14)
+
+Landed as proposed, with two deviations worth recording:
+
+1. **Not registered in `_METRIC_DISPATCH`.** The dispatcher serves the
+   node-keyed `{entity_name: value}` contract; link prediction is
+   pair-valued. It ships as a dedicated `algorithms.link_prediction()` +
+   CLI `link-predict` instead, with persistence via
+   `_persist_link_prediction` (fan-out to both endpoints, per-node JSON
+   candidates + method/projection provenance, metric name
+   `link_prediction`).
+
+   Open question #2 was initially answered "advisory-only" and then
+   RE-ANSWERED the same day (user decision): the CLI now applies by
+   default — `--no-apply` opts out. `link-predict` is part of `--all`, so
+   `make recompute-graph` refreshes it along with the node metrics.
+   Read-only surfaces (`make graph-algos` smoke, the
+   `graph_link_prediction` perf benchmark) pass `--no-apply` explicitly.
+2. **Pair direction is NOT guaranteed canonical in Onager.** Verified live:
+   `onager_lnk_*` emits each unordered pair exactly once, but the direction
+   depends on layout ((lo,hi) on some edge orders, (hi,lo) on others). The
+   first implementation filtered `node1 < node2` and silently returned {}
+   on the bidirectional star layout. Fixed by canonicalising in SQL
+   (`LEAST`/`GREATEST` + `DISTINCT`) before the existing-edge exclusion.
+
+Verified semantics on hand-computed graphs (all green in
+tests/test_onager_capabilities.py, 11 new tests + 7 integration tests in
+tests/test_integration_graph_algorithms.py incl. CLI): jaccard, adamic-adar
+(1/ln deg, natural log), common-neighbors, resource-alloc, preferential-
+attachment (undirected degree product). Sub-second on the live graph
+(jaccard over the default projection: 1813 candidate pairs in 0.08s);
+`graph_link_prediction` benchmark added to `make perf` (0.76s / 2.0s
+budget, 19/19 green); `make graph-algos` smoke now also runs link-predict.
+
+Live top hypotheses (jaccard, default projection, 2026-08-14) look
+sensible: Diageo plc↔United Spirits, Jio Financial Services↔Reliance
+Industries (adamic-adar), Allianz↔Mastercard.
+
+### Phase 4 — Onager version pin: DROPPED (2026-08-14, user decision)
+
+No pin: onager evolves with DuckDB (now 1.5.5); it is updated by
+`make update-extensions` like every other community extension. Closes the
+adoption-plan TODO as "will not fix".
+
+### Amendment (same day): apply by default
+
+User decision re-answered open question #2: the `link-predict` CLI now
+persists to `graph_analytics` BY DEFAULT (metric `link_prediction`, 236
+entity rows / 3509 candidate pairs on the live graph, jaccard over the
+default projection); `--no-apply` opts out. `--top` caps display only —
+persistence keeps every positive-score candidate. `link-predict` joined
+`--all` (`make recompute-graph`). Smoke/benchmark surfaces stay read-only
+via `--no-apply`. Verified: 76 tests green (2 rewritten + 3 new
+persistence-contract tests), ruff/ty/lint-audit green, live apply +
+`--all --apply` + `make perf` 19/19 (snapshot refreshed after the writes).
+
+### Phase 2 — Graph metrics: COMPLETE (2026-08-14)
+
+Landed as proposed, verified semantics (all hand-checked on known graphs
+and cross-checked on the live full-edge-set projection, which is CONNECTED
+— 1209 endpoint nodes, 1 component):
+
+- ``onager_graph_metrics(con, edge_types, edges)`` (onager.py): one
+  round-trip over all eight ``onager_mtr_*`` functions -> dict of density,
+  diameter, radius, avg_path_length, transitivity, triangles (UNIQUE count
+  = per-node sum / 3), avg_clustering, assortativity. ``{}`` on an empty
+  edge set.
+- ``algorithms.graph_metrics(con, edge_types)`` dispatcher seam (mirrors
+  ``link_prediction``); consumers: ``make graph-stats`` (new "Structure
+  (Onager, full edge set)" section, degrades gracefully) and
+  ``/api/graph/stats`` (new ``structure`` block, null on graph-layer
+  failure — SQLite payload stays authoritative).
+- ``tests/conftest.py``: ``seeded_graph_sqlite_db`` now also patches
+  ``helpers.graph.query.connect`` (NOT ``app.get_graph_connection``) to pin
+  the temp DB, so the app's real lazy-init/TTL/locking machinery runs
+  hermetically and its guard tests keep passing. Teardown resets the
+  module-global ``_graph_con`` cache (it previously leaked across tests).
+
+Verified Onager semantics recorded in the wrapper docstring: metrics are
+UNWEIGHTED (weight=5 == weight=1); duplicate/reverse edge rows dedup;
+diameter/radius/avg_path_length are NULL on disconnected projections (no
+component collapse); assortativity is 0.0 (not NaN) on regular graphs;
+avg_clustering counts degree<=1 nodes as 0; density's node set = edge
+endpoints only.
+
+Live values (full edge set): density 0.0042, triangles 5460,
+transitivity 0.271, avg_clustering 0.193, assortativity -0.405,
+diameter 8, radius 5, avg_path_length 4.316.
+
+Tests: 9 synthetic capability tests (triangle/path/4-cycle/single-edge/
+disconnected/empty/weights-ignored/dedup/name-keyed star), 3 integration
+dispatcher tests (incl. the disconnected full projection and an
+edge_types-filtered connected one), 3 API unit tests (exact seeded-graph
+values incl. diameter 4 / radius 2 / APL 31/15 / transitivity 3/7 /
+avg_clustering 7/18; structure=null degradation; response shape), 2 live
+stats-section tests. 149 tests green; ruff/ty/lint-audit green.
+
+### Phase 3 — Extra centralities: COMPLETE (2026-08-15, with one amendment)
+
+Landed: `onager_harmonic`, `onager_katz`, `onager_laplacian`,
+`onager_local_reaching`, `onager_voterank` (+ dispatcher entries
+`harmonic_centrality` / `katz_centrality` / `laplacian_centrality` /
+`local_reaching_centrality` in `_METRIC_DISPATCH`, CLI commands
+`harmonic|katz|laplacian|local-reaching`, and the list-valued `voterank`
+CLI command persisted via `_persist_voterank` fan-out — same treatment as
+link-predict). `--all` (i.e. `make recompute-graph`) refreshes all of them.
+
+Verified semantics (each hand-checked before wrapping):
+- harmonic: unweighted, undirected, unreachable nodes contribute 0.
+- katz: PINNED alpha=1e-4, beta=1.0 — Onager's default alpha=0.1 DIVERGES
+  on the live graph ("Convergence failed after 100 iterations", 2026-08-14;
+  hub degree 89 pushes lambda_max past 10). Exact star-solution parity at
+  alpha=0.1 (leaf = (1+a)/(1-ka^2)); ranking stable across [1e-4, 1e-2].
+- laplacian: Qi et al. 2012, X(v) = d^2 + d + 2*sum_{u in N(v)} d(u)
+  (star: center 28 / leaves 10; P5: [6,12,14,12,6]).
+- local_reaching: Onager computes the 2-hop-neighbourhood size including
+  the node itself (P5 -> [3,4,5,4,3], C6 -> all 5) — NOT networkx's
+  average-reachable-fraction definition. Documented, kept as-is.
+- voterank: single ordered seed column (star -> [center]; P5 -> [1, 3]);
+  `num_seeds` caps it; persisted as {"seeds": [ordered names]} per seed
+  node (10 sector seeds on the live graph).
+- All five dedup reverse-direction duplicate edge rows (same contract as
+  the Phase 2 metrics) and return {} / [] on an empty edge set.
+
+AMENDMENT — personalized_pagerank DROPPED: probing the 4-column edge
+projection showed the personalization column is IGNORED entirely (any
+positive values give byte-identical output), the restart node is
+HARDCODED to node_id 1, and it raises "Personalization node 1 not found
+in graph" on any projection without a node id 1. That is an Onager bug
+(2026-08-15, DuckDB 1.5.4 build), documented in onager.py; the wrapper
+was not written. Revisit if a later Onager build wires the column
+through (or replace with a hand-rolled SQL power iteration).
+
+Live state after `--all --apply`: 14 metrics in graph_analytics (8
+original node metrics + link_prediction + 4 new node metrics at 1209 rows
+each + voterank at 10 rows). `make snapshot` refreshed; `make perf` 19/19.
+
+Tests: 11 capability tests (exact star/path parity for harmonic/katz/
+laplacian/local_reaching, voterank seed semantics + num_seeds, the katz
+divergence-raises guard on a 200-leaf star, beta linearity, empty-edge
+safety, reverse-direction dedup, name-keyed star) + 8 integration tests
+(compute() values on the two-component fixture, voterank order,
+apply-by-default / --no-apply / --all --apply CLI paths). 106 green in
+the two touched suites; ruff/ty/lint-audit green.
