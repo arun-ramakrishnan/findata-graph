@@ -8,7 +8,7 @@
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
 
-.PHONY: help qa test test-live perf cover fuzz integration snapshot snapshot-check sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild frontend frontend-check maint maint-full metrics-rebuild lint types lint-audit deptry advisory
+.PHONY: help qa test test-live perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild frontend frontend-check maint maint-full metrics-rebuild lint types lint-audit deptry advisory
 
 help:           ## Show available targets
 > @echo "FinData QA / maintenance targets:"
@@ -23,8 +23,9 @@ help:           ## Show available targets
 > @echo "  cover           run tests with coverage over helpers/ (branch + missing-line report)"
 > @echo "  fuzz            run Hypothesis property-based tests with a fixed seed (deterministic)"
 > @echo "  integration     run end-to-end cross-component pipeline tests (mocked, fast)"
-> @echo "  snapshot        refresh snapshots: gzip binary + Parquet (both formats)"
+> @echo "  snapshot        refresh snapshots: git-tracked Parquet (snapshots/) + local gzip (db-backup/)"
 > @echo "  snapshot-check  verify BOTH gzip + Parquet snapshots round-trip"
+> @echo "  snapshot-restore  rebuild memory/ DBs from snapshots/parquet/ (needs --force semantics)"
 > @echo "  maint           routine maintenance: db_maint + snapshot + graph-rebuild"
 > @echo "  metrics-rebuild  refresh company financials + industry edges from yfinance"
 > @echo "  maint-full      maint + sync-tags + recompute-graph + re-snapshot (post-ingest cleanup)"
@@ -79,10 +80,14 @@ integration:    ## Run end-to-end cross-component pipeline tests (parse_newslett
 
 snapshot:       ## Refresh the versioned DB snapshot
 > python3 helpers/maintenance/snapshot_db.py
-> @echo "✓ Snapshots refreshed (db-backup/*.gz + db-backup/parquet/)"
+> @echo "✓ Snapshots refreshed (snapshots/parquet/ [git] + db-backup/*.gz [local])"
 
 snapshot-check: ## Verify the snapshot round-trips against the live DB
 > python3 helpers/maintenance/snapshot_db.py --check
+
+snapshot-restore: ## Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)
+> python3 helpers/maintenance/snapshot_db.py --restore --force
+> @echo "✓ Live DBs rebuilt from snapshots/parquet/"
 
 maint:          ## Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)
 > python3 helpers/maintenance/maint.py

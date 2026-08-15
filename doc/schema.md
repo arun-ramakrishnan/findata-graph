@@ -221,8 +221,10 @@ counts toward the exit code, WARNING is advisory.
 - `python3 helpers/maintenance/db_maint.py` — VACUUM → ANALYZE →
   integrity_check → backup → REINDEX (`make maint`; + DuckDB CHECKPOINT/VACUUM).
 - Pre-structural-change backup: `sqlite3 memory/research.db ".backup '<path>'"`.
-- Versioned snapshot: `make snapshot` → `db-backup/research.snapshot.db.gz`
-  (+ `graph.snapshot.duckdb.gz`); `--check` round-trip-verifies.
+- Versioned snapshot: `make snapshot` → git-tracked Parquet under
+  `snapshots/parquet/` (per-table + `_schema.sqlite.sql`) + local gzip copies
+  under `db-backup/`; `--check` round-trip-verifies; `make snapshot-restore`
+  rebuilds `memory/` from the Parquet snapshot.
 
 ## Dropped tables / columns (history)
 

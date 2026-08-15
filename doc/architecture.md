@@ -30,8 +30,9 @@ verify_notes ✓  database_integrity_check ✓  db_maint ✓  snapshot ✓
 - **One database.** No second "Graph MCP" store, no sync daemon.
 - **DB = source of truth for identity/relations; markdown = source of truth
   for content.** Kept in sync by the procedure; verified by the validators.
-- **`memory/` is gitignored** — rebuilt from the vault + versioned snapshots
-  in `db-backup/` (`research.snapshot.db.gz`, `graph.snapshot.duckdb.gz`).
+- **`memory/` is gitignored** — rebuilt via `make snapshot-restore` from the
+  git-tracked Parquet snapshot under `snapshots/` (per-table .parquet +
+  captured schema DDL; gzip copies under `db-backup/` are local-only scratch).
 
 ## 3. Repository layout
 
@@ -39,7 +40,8 @@ verify_notes ✓  database_integrity_check ✓  db_maint ✓  snapshot ✓
 app.py                Flask: findata viewer + graph API (lazy-imports helpers.core.db,
                       helpers.graph.query, helpers.graph.algorithms)
 memory/               research.db (SQLite, WAL) + graph.duckdb (cache) — gitignored
-db-backup/            versioned gzip snapshots (git-tracked) + parquet/ L1 snapshot
+snapshots/            git-tracked Parquet snapshot (per-table + schema DDL) — restores memory/
+db-backup/            local scratch: gzip snapshots + raw *_backup.* copies (gitignored)
 findata/              the vault (see findata.md for layout & note format)
 helpers/              core/ graph/ maintenance/ misc/ pdf/ validators/
 doc/                  this file, schema.md, findata.md, graph_design.txt,

@@ -4,7 +4,10 @@ pdf-ocr-markdown/
 pdfs_to_process/
 pdfs-done/
 math/
+# Live runtime DBs (restored via `make snapshot-restore` from snapshots/parquet/)
 memory/
+# Local scratch: gzip snapshots + raw *_backup.* copies (NOT for git; the
+# tracked, restore-able snapshot lives in snapshots/parquet/)
 db-backup/
 backup/
 output/
@@ -15,6 +18,7 @@ findata/Folio/
 findata/Points_And_Figures/
 findata/The_Chatter/
 findata/The_PlotLines/
+findata/_pending_relations.txt
 
 # AI Config folders
 .llxprt/
