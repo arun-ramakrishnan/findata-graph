@@ -9,6 +9,7 @@ behaves correctly (content hits, idempotency, standalone-not-external-content,
 newsletter indexing without frontmatter).
 """
 
+import json
 import sqlite3
 import sys
 from pathlib import Path
@@ -197,5 +198,121 @@ class TestRebuild:
                 "WHERE note_search MATCH 'shrimp' AND doc_type = 'chatter'"
             ).fetchone()[0]
             assert n >= 1
+        finally:
+            con.close()
+
+
+class TestEmbeddingColumn:
+    """N5 item: note_search carries an `embedding` UNINDEXED column for hybrid
+    ranking. Populated by default with a deterministic pseudo-embedding; an
+    injected embed_fn overrides it (real-embedding path)."""
+
+    def test_schema_has_embedding_column(self, seeded_tree):
+        rns.rebuild(seeded_tree, write=True)
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            sql = con.execute(
+                "SELECT sql FROM sqlite_master WHERE name='note_search'"
+            ).fetchone()[0]
+            assert "embedding UNINDEXED" in sql
+        finally:
+            con.close()
+
+    def test_all_rows_get_pseudo_embedding(self, seeded_tree):
+        stats = rns.rebuild(seeded_tree, write=True)
+        assert stats["embedded"] == 3  # 1 company + 1 sector + 1 newsletter
+
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            rows = con.execute(
+                "SELECT embedding FROM note_search ORDER BY file_path"
+            ).fetchall()
+            assert len(rows) == 3
+            for (emb,) in rows:
+                assert emb is not None
+                vec = json.loads(emb)
+                assert len(vec) == 384
+        finally:
+            con.close()
+
+    def test_injected_embed_fn_is_used(self, seeded_tree):
+        def tiny_embed(text):
+            return [1.0, 0.0] if "Acme" in text else [0.0, 1.0]
+
+        stats = rns.rebuild(seeded_tree, write=True, embed_fn=tiny_embed)
+        assert stats["embedded"] == 3
+
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            row = con.execute(
+                "SELECT embedding FROM note_search WHERE title = 'Acme_Feeds'"
+            ).fetchone()
+            assert json.loads(row[0]) == [1.0, 0.0]
+        finally:
+            con.close()
+
+    def test_embed_fn_failure_keeps_row_searchable(self, seeded_tree):
+        def broken_embed(text):
+            raise RuntimeError("embedder down")
+
+        stats = rns.rebuild(seeded_tree, write=True, embed_fn=broken_embed)
+        # No crash; rows still indexed, just without embeddings.
+        assert stats["indexed"] == 3
+        assert stats["embedded"] == 0
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            row = con.execute(
+                "SELECT title FROM note_search WHERE note_search MATCH 'shrimp'"
+            ).fetchone()
+            assert row is not None
+        finally:
+            con.close()
+
+    def test_migrates_legacy_table_without_embedding(self, seeded_tree):
+        """A pre-embedding note_search (5 columns) must be dropped + recreated
+        with the embedding column, not error on the 6-column INSERT."""
+        # First build a legacy 5-column table.
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            con.execute(
+                "CREATE VIRTUAL TABLE note_search USING fts5("
+                "doc_type, file_path UNINDEXED, title, sector, content, "
+                "tokenize = 'porter unicode61')"
+            )
+            con.execute(
+                "INSERT INTO note_search (doc_type, file_path, title, sector, content) "
+                "VALUES ('company', 'findata/Companies/Agriculture/Acme_Feeds.md', "
+                "'Acme_Feeds', 'Agriculture', 'old body')"
+            )
+            con.commit()
+        finally:
+            con.close()
+
+        stats = rns.rebuild(seeded_tree, write=True)
+        assert stats["migrated"] is True
+        assert stats["indexed"] == 3
+
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            sql = con.execute(
+                "SELECT sql FROM sqlite_master WHERE name='note_search'"
+            ).fetchone()[0]
+            assert "embedding" in sql
+            # Old row gone (rebuilt from files).
+            n = con.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
+            assert n == 3
+        finally:
+            con.close()
+
+    def test_rebuild_is_idempotent_with_embeddings(self, seeded_tree):
+        rns.rebuild(seeded_tree, write=True)
+        s2 = rns.rebuild(seeded_tree, write=True)
+        assert s2["migrated"] is False
+        assert s2["indexed"] == 3
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            assert con.execute(
+                "SELECT COUNT(*) FROM note_search"
+            ).fetchone()[0] == 3
         finally:
             con.close()

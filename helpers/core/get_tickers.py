@@ -10,6 +10,7 @@ import yfinance as yf
 import os
 import sys
 import argparse
+import ast
 from datetime import datetime
 from pathlib import Path
 
@@ -205,8 +206,117 @@ def get_comprehensive_company_data(ticker):
 # Entity resolution: match ticker/company-name to known entities
 # ---------------------------------------------------------------------------
 
-def resolve_entity(ticker, info, entities, spellfix_conn=None):
-    """Match a Yahoo Finance result to a known entity via fuzzy_match."""
+def _candidate_vec(emb_str, dims):
+    """Parse a stored embedding string; None if unparsable or wrong dims."""
+    try:
+        vec = ast.literal_eval(emb_str)
+    except (ValueError, SyntaxError, TypeError):
+        return None
+    if len(vec) != dims:
+        return None
+    return vec
+
+
+def _pick_embedder(rows, embed_fn):
+    """Resolve the embedder for a query vector. Returns (embed_fn, dims) or
+    (None, 0) when no local embedder can reconstruct the query vector."""
+    first_emb = ast.literal_eval(rows[0][1])
+    dims = len(first_emb)
+    if dims < 1:
+        return None, 0
+    if embed_fn is not None:
+        return embed_fn, dims
+    model = rows[0][2] or ""
+    if model.startswith("dry-run"):
+        from helpers.graph.embeddings import _pseudo_embedding
+        return _pseudo_embedding, dims
+    # Real (API) model: cannot recompute the query vector without the
+    # provider key from this CLI. Caller may inject embed_fn instead.
+    return None, 0
+
+
+def _best_vss_match(qvec, rows, dims, entity_set):
+    """Scan stored embeddings, return (best_name, best_score) via cosine
+    (both vectors L2-normalized, so cosine == dot product)."""
+    best_name, best_score = None, 0.0
+    for name, emb_str, _model in rows:
+        if entity_set is not None and name not in entity_set:
+            continue
+        vec = _candidate_vec(emb_str, dims)
+        if vec is None:
+            continue
+        dot = sum(a * b for a, b in zip(qvec, vec))
+        if dot > best_score:
+            best_score, best_name = dot, name
+    return best_name, best_score
+
+
+def vss_match(
+    query,
+    entities,
+    conn=None,
+    db_path=None,
+    threshold=0.5,
+    embed_fn=None,
+):
+    """Best-effort vector-similarity fallback for entity resolution.
+
+    Matches a query string (e.g. a Yahoo ``longName``) against known
+    entities via cosine similarity over the ``company_embeddings`` table in
+    the SQLite source of truth. Returns ``(match_name, score)`` or
+    ``(None, 0.0)``.
+
+    The query is embedded with the same embedder that populated the table
+    (dry-run pseudo-embeddings by default). For real (API) models no local
+    embedder is available, so the stage returns no match unless ``embed_fn``
+    is supplied. The comparison is pure Python — no DuckDB dependency, so
+    ``get_tickers`` stays a standalone CLI.
+
+    ``conn``: optional open SQLite connection; if None, one is opened against
+    ``db_path`` (default ``memory/research.db``) and closed before returning.
+    ``embed_fn(query, dims) -> list[float]``: overrides the default
+    pseudo-embedder (used by tests for deterministic control).
+    """
+    owns = False
+    try:
+        if conn is None:
+            conn = connect(db_path, row_factory=None)
+            owns = True
+
+        rows = conn.execute(
+            "SELECT company_name, embedding, model FROM company_embeddings"
+        ).fetchall()
+    except Exception:  # noqa: S110  # best-effort; absent table is a valid no-match
+        if owns and conn is not None:
+            conn.close()
+        return None, 0.0
+
+    if owns and conn is not None:
+        conn.close()
+
+    if not rows:
+        return None, 0.0
+
+    try:
+        embed_fn, dims = _pick_embedder(rows, embed_fn)
+    except Exception:  # noqa: S110  # bad first row -> no match
+        return None, 0.0
+    if embed_fn is None:
+        return None, 0.0
+
+    qvec = embed_fn(query, dims)
+
+    entity_set = set(entities) if entities is not None else None
+    best_name, best_score = _best_vss_match(qvec, rows, dims, entity_set)
+
+    if best_name and best_score >= threshold:
+        return best_name, best_score
+    return None, 0.0
+
+
+def resolve_entity(ticker, info, entities, spellfix_conn=None, vss_conn=None):
+    """Match a Yahoo Finance result to a known entity via fuzzy_match, with a
+    vector-similarity fallback (deferred N5 item — VSS stage)."""
     if not _FUZZY_AVAILABLE or not entities:
         return None, None
     long_name = info.get('longName', '')
@@ -219,6 +329,16 @@ def resolve_entity(ticker, info, entities, spellfix_conn=None):
         match, method, score = fuzzy_match(short_name, entities, spellfix_conn=spellfix_conn)
         if match:
             return match, method
+
+    # VSS fallback (deferred N5 item): embed the Yahoo name and find the
+    # nearest known entity above a cosine threshold. Only fires when the
+    # heuristics above all miss.
+    for candidate in (long_name, short_name):
+        if not candidate:
+            continue
+        match, score = vss_match(candidate, entities, conn=vss_conn)
+        if match:
+            return match, "vss"
     return None, None
 
 

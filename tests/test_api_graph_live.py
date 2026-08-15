@@ -274,3 +274,33 @@ class TestGraphEndpointsLive:
         assert r.status_code == 500
         assert r.is_json
         assert "synthetic" in r.get_json()["error"]
+
+    def test_semantic_endpoint_live(self, live_client):
+        """/api/graph/semantic/<name> resolves CEAT and returns neighbours via
+        the live v_embeddings (VSS). The dry-run pseudo-embeddings produce
+        low but positive cosine scores; the shape must be correct."""
+        A._reset_graph_connection()  # clear any TTL-cached init error
+        r = live_client.get("/api/graph/semantic/CEAT?k=5")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["company"] == "CEAT"
+        assert data["k"] == 5
+        assert data["metric"] == "cosine"
+        assert data["cross_sector"] is False
+        assert len(data["neighbors"]) <= 5
+        for n in data["neighbors"]:
+            assert set(n) == {"name", "sector", "similarity"}
+            assert n["name"] != "CEAT"  # self excluded by the wrapper
+
+    def test_semantic_endpoint_cross_sector_live(self, live_client):
+        A._reset_graph_connection()  # clear any TTL-cached init error
+        r = live_client.get("/api/graph/semantic/CEAT?k=3&cross_sector=true")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["cross_sector"] is True
+        assert len(data["neighbors"]) <= 3
+
+    def test_semantic_endpoint_unknown_company_404_live(self, live_client):
+        r = live_client.get("/api/graph/semantic/NoSuchCompany")
+        assert r.status_code == 404
+        assert r.is_json

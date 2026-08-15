@@ -211,6 +211,7 @@ persistence), perf: `graph_link_prediction` benchmark.
 | Route | Backed by |
 |---|---|
 | `GET /api/graph/peers/<name>` | `query.peers` |
+| `GET /api/graph/semantic/<name>` | `query.semantic_neighbors` (VSS, `?k= ?metric= ?cross_sector=`) |
 | `GET /api/graph/neighbors/<name>` | ego bundle (sector+peers+jv+siblings+acq+parent+suppliers+customers), `?as_of=` |
 | `GET /api/graph/shortest?a=&b=` | `query.shortest_path` (+`as_of`) |
 | `GET /api/graph/sector/<name>` | `sector_of` / `sector_members` |

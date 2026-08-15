@@ -4,8 +4,8 @@
 has no injection seam — it calls `yf.Search(...)` and `yf.Ticker(...).info`
 directly — so the network is mocked at the module attribute level
 (`monkeypatch.setattr(gt, "yf", ...)`). The pure name-matching helpers
-(`is_name_match`, `is_likely_correct_company`) are tested directly without
-mocks.
+(`fuzzy_match` pipeline, `vss_match`, `is_likely_correct_company`) are tested
+directly without mocks.
 
 The new `get_basic_info` and `display_ticker` direct-symbol paths are also
 tested with fakes.
@@ -291,6 +291,117 @@ class TestDisplayTicker:
         captured = capsys.readouterr()
         assert "NOT FOUND" in captured.out
         assert result is None
+
+
+# ---------------------------------------------------------------------------
+# vss_match — vector-similarity fallback (deferred N5 item)
+# ---------------------------------------------------------------------------
+def _embed_db(tmp_path, names, dims=16, seed=1):
+    """Build a temp company_embeddings table from deterministic vectors.
+
+    Uses a seeded per-name hash embedder so distinct names get distinct but
+    repeatable vectors, and the query can be re-embedded the same way.
+    """
+    import hashlib
+
+    import sqlite3
+
+    db = tmp_path / "embeddings.db"
+    con = sqlite3.connect(db)
+    con.execute(
+        "CREATE TABLE company_embeddings ("
+        "company_name TEXT PRIMARY KEY, embedding TEXT, model TEXT)"
+    )
+
+    def _vec(name):
+        h = hashlib.sha256(f"{seed}:{name}".encode()).digest()
+        v = []
+        for i in range(dims):
+            b = h[i * 4:(i + 1) * 4]
+            val = int.from_bytes(b, byteorder="little", signed=True)
+            v.append(val / 2 ** 31)
+        norm = (sum(x * x for x in v)) ** 0.5
+        return [x / norm for x in v]
+
+    for name in names:
+        vec = _vec(name)
+        vec_str = "[" + ", ".join(repr(x) for x in vec) + "]"
+        con.execute(
+            "INSERT INTO company_embeddings VALUES (?, ?, ?)",
+            (name, vec_str, f"test-v{dims}"),
+        )
+    con.commit()
+    con.close()
+    return db, _vec
+
+
+def _test_embed_fn(vec_fn):
+    return lambda query, dims: vec_fn(query)
+
+
+class TestVssMatch:
+    def test_exact_name_matches(self, tmp_path):
+        db, vec_fn = _embed_db(tmp_path, ["Tata Consultancy Services", "Wipro"])
+        match, score = gt.vss_match(
+            "Tata Consultancy Services",
+            ["Tata Consultancy Services", "Wipro"],
+            db_path=db,
+            embed_fn=_test_embed_fn(vec_fn),
+        )
+        assert match == "Tata Consultancy Services"
+        assert score > 0.99
+
+    def test_restricted_to_entities_list(self, tmp_path):
+        db, vec_fn = _embed_db(tmp_path, ["Alpha", "Beta", "Gamma"])
+        # Gamma has the highest cosine to "Alpha" textually in this scheme,
+        # but is excluded by the entities allowlist.
+        match, score = gt.vss_match("Alpha", ["Alpha", "Beta"], db_path=db,
+                                    embed_fn=_test_embed_fn(vec_fn))
+        assert match == "Alpha"
+
+    def test_threshold_gates_low_similarity(self, tmp_path):
+        db, vec_fn = _embed_db(tmp_path, ["One", "Two", "Three"])
+        # A query that shares no hash-vector with any entity.
+        match, score = gt.vss_match("Zebra", ["One", "Two", "Three"],
+                                    db_path=db, embed_fn=_test_embed_fn(vec_fn))
+        assert match is None
+        assert score == 0.0
+
+    def test_empty_table_returns_none(self, tmp_path):
+        db, vec_fn = _embed_db(tmp_path, [])
+        match, score = gt.vss_match("Any", ["Any"], db_path=db,
+                                    embed_fn=_test_embed_fn(vec_fn))
+        assert match is None
+        assert score == 0.0
+
+    def test_missing_table_returns_none(self, tmp_path):
+        db = tmp_path / "no_table.db"
+        match, score = gt.vss_match("Any", ["Any"], db_path=db)
+        assert match is None
+        assert score == 0.0
+
+    def test_resolve_entity_vss_fallback(self, tmp_path, monkeypatch):
+        """fuzzy_match misses, VSS catches — method is 'vss'."""
+        db, vec_fn = _embed_db(tmp_path, ["Tata Consultancy Services", "Wipro"])
+        monkeypatch.setattr(gt, "vss_match", lambda q, e, conn=None: (
+            "Tata Consultancy Services", 0.98
+        ))
+        # "TataC Ltd" shares no distinctive token with the entity names
+        # ("tatac" vs "tata consultancy services" — zero overlap), so no
+        # heuristic fires and the VSS fallback catches it.
+        info = _FakeInfo(longName="TataC Ltd")
+        match, method = gt.resolve_entity("TCS.NS", info, ["Tata Consultancy Services", "Wipro"])
+        assert match == "Tata Consultancy Services"
+        assert method == "vss"
+
+    def test_resolve_entity_heuristic_wins_before_vss(self, tmp_path, monkeypatch):
+        """fuzzy_match's exact/word-overlap stage beats the VSS fallback."""
+        db, vec_fn = _embed_db(tmp_path, ["Tata Consultancy Services", "Wipro"])
+        monkeypatch.setattr(gt, "vss_match", lambda q, e, conn=None: ("Wipro", 1.0))
+        info = _FakeInfo(longName="Tata Consultancy Services")
+        match, method = gt.resolve_entity("TCS.NS", info, ["Tata Consultancy Services"])
+        assert match == "Tata Consultancy Services"
+        assert method == "exact"
 
 
 # ---------------------------------------------------------------------------
