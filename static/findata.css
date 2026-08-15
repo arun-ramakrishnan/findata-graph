@@ -590,6 +590,11 @@ main {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
     gap: 1.5rem;
+    /* This is a single child of the .stats-grid container — without spanning
+       all tracks it gets squeezed into one narrow column and its own cards
+       stack vertically in a strip. Spanning makes the inner grid flow
+       left-to-right across the full width. */
+    grid-column: 1 / -1;
 }
 
 .breakdown-card {
@@ -1670,6 +1675,55 @@ footer {
     display: block;
 }
 
+/* Zoom slider overlay (bottom-right of the graph canvas) */
+.graph-zoom-control {
+    position: absolute;
+    bottom: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: rgba(31, 41, 51, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    padding: 0.35rem 0.5rem;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.graph-zoom-btn,
+.graph-zoom-fit {
+    background: none;
+    border: none;
+    color: #d6dee6;
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.2rem 0.35rem;
+    border-radius: 4px;
+    line-height: 1;
+}
+
+.graph-zoom-btn:hover,
+.graph-zoom-fit:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+
+.graph-zoom-slider {
+    width: 110px;
+    height: 4px;
+    cursor: pointer;
+    accent-color: #48b0a1;
+}
+
+.graph-zoom-label {
+    color: #d6dee6;
+    font-size: 0.75rem;
+    min-width: 2.6rem;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
 .graph-empty {
     position: absolute;
     inset: 0;
@@ -1891,4 +1945,445 @@ footer {
     .graph-detail {
         max-height: 300px;
     }
+}
+/* --- Docs view (doc/ corpus browser) ------------------------------------- */
+
+.docs-toolbar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+}
+
+.docs-toolbar .search-box {
+    flex: 1 1 320px;
+    min-width: 260px;
+}
+
+.docs-layout-row {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 1rem;
+    align-items: start;
+    margin-bottom: 1rem;
+}
+
+.docs-sidebar {
+    max-height: 70vh;
+    overflow-y: auto;
+    background: #1f2933;
+    border-radius: 8px;
+    padding: 0.5rem;
+}
+
+.docs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.docs-row {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem 0.625rem;
+    cursor: pointer;
+    color: #e4e7eb;
+    font-family: inherit;
+    font-size: 0.875rem;
+}
+
+.docs-row:hover {
+    background: #2b3945;
+}
+
+.docs-row.active {
+    background: #0d7377;
+    color: #fff;
+}
+
+.docs-row-title {
+    display: block;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.docs-row-section {
+    display: block;
+    font-size: 0.75rem;
+    color: #7b8794;
+    margin-top: 0.15rem;
+}
+
+.docs-row.active .docs-row-section {
+    color: #cbd2d9;
+}
+
+.docs-row-snippet {
+    font-size: 0.75rem;
+    color: #9aa5b1;
+    margin-top: 0.25rem;
+    line-height: 1.4;
+}
+
+.docs-row-snippet mark {
+    background: #f4d03f;
+    color: #1f2933;
+    padding: 0 0.1rem;
+    border-radius: 2px;
+}
+
+.docs-content {
+    background: #1f2933;
+    border-radius: 8px;
+    min-height: 70vh;
+    overflow: hidden;
+}
+
+.docs-content-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    color: #7b8794;
+    text-align: center;
+    padding: 2rem;
+}
+
+.docs-content-empty i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #3e4c59;
+}
+
+.docs-content-empty .hint {
+    color: #7b8794;
+    font-size: 0.85rem;
+}
+
+.docs-content-pane {
+    padding: 1.5rem 2rem;
+    max-height: 70vh;
+    overflow-y: auto;
+    color: #e4e7eb;
+    line-height: 1.6;
+}
+
+.docs-article-header {
+    border-bottom: 1px solid #323f4b;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.docs-article-header h3 {
+    margin: 0 0 0.4rem;
+    color: #fff;
+}
+
+.docs-article-meta {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+    color: #7b8794;
+}
+
+.docs-article-body h1,
+.docs-article-body h2,
+.docs-article-body h3,
+.docs-article-body h4 {
+    color: #fff;
+    margin-top: 1.25rem;
+    scroll-margin-top: 1rem;
+}
+
+.docs-article-body a {
+    color: #48b0a1;
+}
+
+.docs-article-body code {
+    background: #2b3945;
+    padding: 0.15rem 0.3rem;
+    border-radius: 3px;
+    font-size: 0.85em;
+}
+
+.docs-article-body pre {
+    background: #111827;
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+}
+
+.docs-article-body pre code {
+    background: transparent;
+    padding: 0;
+}
+
+.docs-article-body table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 1rem 0;
+    display: block;
+    overflow-x: auto;
+}
+
+.docs-article-body th,
+.docs-article-body td {
+    border: 1px solid #323f4b;
+    padding: 0.4rem 0.6rem;
+    text-align: left;
+}
+
+.docs-article-body th {
+    background: #2b3945;
+    color: #fff;
+}
+
+.docs-article-body blockquote {
+    border-left: 3px solid #0d7377;
+    margin: 0.5rem 0;
+    padding-left: 1rem;
+    color: #9aa5b1;
+}
+
+.docs-article-body img {
+    max-width: 100%;
+    border-radius: 6px;
+}
+
+.docs-toc {
+    background: #2b3945;
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+}
+
+.docs-toc ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.docs-toc li {
+    margin: 0.2rem 0;
+    font-size: 0.85rem;
+}
+
+.docs-toc .toc-1 {
+    margin-top: 0.4rem;
+    font-weight: 600;
+}
+
+.docs-toc a {
+    color: #9aa5b1;
+    text-decoration: none;
+}
+
+.docs-toc a:hover {
+    color: #48b0a1;
+}
+
+@media (max-width: 768px) {
+    .docs-layout-row {
+        grid-template-columns: 1fr;
+    }
+    .docs-sidebar {
+        max-height: 40vh;
+    }
+    .docs-content {
+        min-height: 50vh;
+    }
+    .docs-content-pane {
+        padding: 1rem;
+        max-height: none;
+    }
+}
+
+@media (max-width: 768px) {
+    .graph-cloud-cols {
+        grid-template-columns: 1fr;
+    }
+    .graph-cloud-controls {
+        flex-wrap: wrap;
+    }
+    .graph-cloud-panel select {
+        max-width: 100%;
+    }
+}
+
+/* --- Graph Cloud (whole-graph force cloud) -------------------------------- */
+
+.graph-cloud-panel {
+    background: #fff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    margin-top: 1rem;
+    padding: 1rem;
+}
+
+.graph-cloud-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.cloud-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    font-weight: 600;
+}
+
+.graph-cloud-panel select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 0.875rem;
+    max-width: 320px;
+}
+
+.graph-cloud-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.graph-cloud-legend,
+.graph-relationship-cloud {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.75rem;
+}
+
+.cloud-legend-group {
+    margin-bottom: 0.6rem;
+}
+
+.cloud-legend-group strong {
+    font-size: 0.8rem;
+    color: #495057;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: block;
+    margin-bottom: 0.35rem;
+}
+
+.cloud-legend-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.cloud-legend-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8rem;
+    color: #495057;
+}
+
+.cloud-swatch {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.cloud-swatch.cloud-node-company { background: #5a6577; }
+.cloud-swatch.cloud-node-sector { background: #4a6fa5; }
+.cloud-swatch.cloud-node-sub_sector { background: #7d8597; }
+.cloud-swatch.cloud-node-super_sector { background: #8d99ae; }
+.cloud-swatch.cloud-node-theme { background: #e9c46a; }
+
+.rel-cloud-title {
+    font-size: 0.9rem;
+    color: #495057;
+    margin: 0 0 0.5rem;
+}
+
+.rel-cloud-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.rel-cloud-chip {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: left;
+    padding: 0.1rem 0.25rem;
+    transition: transform 0.1s ease;
+}
+
+.rel-cloud-chip:hover {
+    transform: scale(1.08);
+    text-decoration: underline;
+}
+
+.rel-cloud-count {
+    font-size: 0.7rem;
+    color: #6c757d;
+    font-weight: 400;
+    margin-left: 0.25rem;
+}
+
+/* --- Stats view: Graph Statistics block ----------------------------------- */
+
+.stats-graph-block {
+    width: 100%;
+    margin-top: 1.5rem;
+    /* Same spanning fix as .stats-breakdown: this is a single child of the
+       .stats-grid container; without spanning it lands in one narrow column.
+       The block itself is a grid so the Structure + Edge Types breakdown
+       cards flow side-by-side too. */
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 0.75rem;
+    align-items: start;
+}
+
+.stats-graph-header,
+.stats-graph-cards {
+    grid-column: 1 / -1;
+}
+
+.stats-graph-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.stats-graph-header h3 {
+    margin: 0;
+    color: #343a40;
+}
+
+.stats-graph-meta {
+    font-size: 0.8rem;
+    color: #868e96;
+}
+
+.stats-graph-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.stats-graph-structure {
+    margin-top: 0.5rem;
 }

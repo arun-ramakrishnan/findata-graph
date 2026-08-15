@@ -77,6 +77,7 @@ interface CySingular {
     data(): CyNodeData;
     edgesWith(other: CySingular): CyCollection;
     addClass(cls: string): this;
+    removeClass(cls: string): this;
 }
 
 interface CyElements {
@@ -86,6 +87,8 @@ interface CyElements {
     not(other: CyCollection): CyElements;
     removeClass(cls: string): void;
     addClass(cls: string): void;
+    /** Iterate the collection (cloud set-highlight needs per-element comp). */
+    forEach(cb: (el: CySingular) => void): void;
 }
 
 /** Builder returned by `cytoscape.stylesheet()`; chained `.selector().style()`. */
@@ -97,10 +100,17 @@ interface CyStylesheet {
 /** A live cytoscape graph instance. */
 interface CyInstance {
     on(evt: string, sel: string, cb: (e: { target: CySingular }) => void): void;
+    on(evt: string, cb: () => void): void;
+    on(evt: string, cb: (e: { target: CySingular }) => void): void;
     elements(): CyElements;
     add(els: CyElementInput[] | CyElementInput): CyElements;
     layout(opts: Record<string, unknown>): { run(): void };
     resize(): void;
+    // Zoom / panning (used by the graph zoom slider + fit button).
+    zoom(level?: number): number;
+    minZoom(): number;
+    maxZoom(): number;
+    fit(elements?: CyElements, padding?: number): CyInstance;
     // getElementById returns a chainable accessor whose own methods return
     // `this` so `.addClass(...).select()` type-checks; `length` lets callers
     // test existence (0 when absent).

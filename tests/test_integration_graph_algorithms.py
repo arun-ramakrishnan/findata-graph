@@ -610,6 +610,36 @@ class TestGraphMetrics:
     def test_unknown_edge_type_empty(self, synth_db):
         assert algos.graph_metrics(edge_types=["no_such_type"]) == {}
 
+    def test_result_cached_then_invalidated_by_clear(self, synth_db, monkeypatch):
+        """graph_metrics is generation-keyed in the query cache: repeated
+        calls with the same args return the cached dict, and clear_graph_cache
+        forces a recompute (next call returns a fresh dict). Guards the
+        hot-path fix that took /api/graph/stats from ~300ms to ~1ms."""
+        from helpers.graph import query as _q
+
+        _q._query_cache_clear()
+        m1 = algos.graph_metrics()
+        m2 = algos.graph_metrics()
+        assert m1 == m2
+        # The second call must have been served from cache (no re-execution).
+        key = ("graph_metrics", tuple(), _q._current_generation_for_cache())
+        assert _q._query_cache_get(key) == m1
+        # Invalidating the cache yields a recomputed (equal) result.
+        _q.clear_graph_cache()
+        m3 = algos.graph_metrics()
+        assert m3 == m1
+
+    def test_cache_key_distinguishes_edge_types(self, synth_db):
+        from helpers.graph import query as _q
+
+        _q._query_cache_clear()
+        m_all = algos.graph_metrics()
+        m_comp = algos.graph_metrics(edge_types=["competes_with"])
+        # Different projections -> different cached entries.
+        assert ("graph_metrics", (), _q._current_generation_for_cache()) in _q._QUERY_CACHE
+        assert ("graph_metrics", ("competes_with",), _q._current_generation_for_cache()) in _q._QUERY_CACHE
+        assert m_all != m_comp
+
 
 class TestPhase3Centralities:
     """Phase 3 of doc/improvements/archive/graph_algos.txt: the extra

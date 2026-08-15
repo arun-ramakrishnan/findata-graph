@@ -108,6 +108,10 @@ class TestApiTsParses:
             "EntitiesResponse", "EntityDetail", "SearchResponse",
             "GraphRefreshResponse", "CompanyNeighbors", "SectorNeighbors",
             "ShortestPathResponse", "EventsResponse",
+            "DocsResponse", "DocItem", "DocContentResponse",
+            "DocSearchResponse", "DocSearchHit",
+            "GraphCloudResponse", "GraphCloudNode", "GraphCloudEdge",
+            "RelationshipTypeSummary", "GraphStatsResponse",
         }
         found = set(_interfaces.keys())
         assert expected.issubset(found), f"missing: {expected - found}"
@@ -427,6 +431,107 @@ class TestEventsContract:
         data = r.get_json()
         for ev in data["events"]:
             _assert_keys(ev, "EventItem")
+
+
+# --------------------------------------------------------------------------- //
+# Docs endpoints — filesystem-backed, no DB needed
+# --------------------------------------------------------------------------- //
+
+class TestDocsContract:
+    """GET /api/docs, /api/docs/content, /api/docs/search are filesystem-
+    backed (doc/ corpus) — the DB-less contract_client is sufficient."""
+
+    def test_catalog_keys_match_docsresponse_and_docitem(self, contract_client):
+        r = contract_client.get("/api/docs")
+        assert r.status_code == 200
+        data = r.get_json()
+        _assert_keys(data, "DocsResponse")
+        assert data["docs"]
+        for doc in data["docs"]:
+            _assert_keys(doc, "DocItem")
+
+    def test_content_keys_match_doccontentresponse(self, contract_client):
+        # A real doc that always exists in the repo.
+        r = contract_client.get("/api/docs/content?path=architecture.md")
+        assert r.status_code == 200
+        _assert_keys(r.get_json(), "DocContentResponse")
+
+    def test_search_keys_match_docsearchresponse_and_hit(self, contract_client):
+        r = contract_client.get("/api/docs/search?q=graph")
+        assert r.status_code == 200
+        data = r.get_json()
+        _assert_keys(data, "DocSearchResponse")
+        for hit in data["results"]:
+            _assert_keys(hit, "DocSearchHit")
+
+    def test_search_empty_query_returns_error(self, contract_client):
+        r = contract_client.get("/api/docs/search")
+        assert r.status_code == 400
+        _assert_keys(r.get_json(), "ErrorResponse")
+
+    def test_content_unknown_path_returns_error(self, contract_client):
+        r = contract_client.get("/api/docs/content?path=nope.md")
+        assert r.status_code == 404
+        _assert_keys(r.get_json(), "ErrorResponse")
+
+
+# --------------------------------------------------------------------------- #
+# Graph cloud + graph stats — SQLite-backed, full contract verification
+# --------------------------------------------------------------------------- #
+
+class TestGraphCloudContract:
+    def test_cloud_response_keys_match_graphcloudresponse(self, contract_client):
+        r = contract_client.get("/api/graph/cloud")
+        assert r.status_code == 200
+        _assert_keys(r.get_json(), "GraphCloudResponse")
+
+    def test_cloud_node_keys_match_graphcloudnode(self, contract_client):
+        data = contract_client.get("/api/graph/cloud").get_json()
+        assert data["nodes"], "cloud should return at least the 5 seed entities"
+        for node in data["nodes"]:
+            _assert_keys(node, "GraphCloudNode")
+
+    def test_cloud_edge_keys_match_graphcloudedge(self, contract_client):
+        data = contract_client.get("/api/graph/cloud").get_json()
+        assert data["edges"], "cloud should return the seed edges"
+        for edge in data["edges"]:
+            _assert_keys(edge, "GraphCloudEdge")
+
+    def test_cloud_relationship_types_match(self, contract_client):
+        data = contract_client.get("/api/graph/cloud").get_json()
+        types = data["relationship_types"]
+        assert types, "cloud should summarise the seed edge types"
+        for t in types:
+            _assert_keys(t, "RelationshipTypeSummary")
+
+    def test_cloud_filtered_response_keeps_shape(self, contract_client):
+        r = contract_client.get("/api/graph/cloud?edge_type=competes_with")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["total_edges"] == 1
+        _assert_keys(data, "GraphCloudResponse")
+
+
+class TestGraphStatsContract:
+    def test_stats_response_keys_match_graphstatsresponse(self, contract_client):
+        r = contract_client.get("/api/graph/stats")
+        assert r.status_code == 200
+        data = r.get_json()
+        # GraphStatsResponse has inline object types ({...}) whose fields the
+        # flattened key-parser also picks up, so assert the top level + each
+        # declared nested block explicitly.
+        assert set(data) == {"structure", "entities", "edges", "sectors",
+                             "hygiene", "staleness"}
+        assert set(data["entities"]) == {"total", "by_type"}
+        assert set(data["edges"]) == {"total", "by_type"}
+        assert set(data["sectors"]) == {"count", "top", "size_distribution"}
+        assert set(data["hygiene"]) == {"orphan_companies", "no_ticker",
+                                        "self_loops", "orphan_edges",
+                                        "conflicting_market_cap"}
+        assert set(data["staleness"]) == {"stale", "most_recent_entity_update",
+                                          "most_recent_analytics_compute"}
+        # structure is None without the DuckDB graph layer (contract client).
+        assert data["structure"] is None
 
 
 # --------------------------------------------------------------------------- #

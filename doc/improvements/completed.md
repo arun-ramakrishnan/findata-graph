@@ -1469,3 +1469,341 @@ pseudo-vectors rarely align semantically). The plumbing — column, migration,
 embed_fn injection, RRF fusion, HTTP param — is complete and testable, and
 becomes genuinely semantic once real (`--api`) embeddings are populated on both
 the rebuild and (via the matching embed_fn) the query side.
+
+
+## 106. Hot-path caching — `graph_metrics` + `/api/sectors` (perf sweep)
+
+**Date:** 2026-08-15
+
+Whole-repo hot-path sweep driven by the codebase knowledge-graph complexity
+signals (`transitive_loop_depth`, `linear_scan_in_loop`, `alloc_in_loop`).
+Two real-time (per-request) bottlenecks found and fixed; the batch extractors
+flagged by the graph (extract_relations, derive_events, derive_insights) all
+measure well inside their `make perf` budgets and were left alone.
+
+### Hot path 1 — `graph_metrics` recomputed Onager metrics on every request
+
+`/api/graph/stats` called `helpers.graph.algorithms.graph_metrics()` → Onager
+`onager_graph_metrics`, which re-materialises the `_onager_int`/`_onager_e`
+temp tables and runs the 3-query whole-graph metric SQL on **every request**:
+~300ms (measured up to 600ms cold), with no caching. The query layer already
+had a generation-keyed result cache (`_with_generation_cache`, P2.3) — Onager
+bypassed it entirely.
+
+Fix: `graph_metrics()` now caches its dict keyed on
+`("graph_metrics", tuple(edge_types or []), generation)` in the same
+`_QUERY_CACHE` (FIFO-capped at 256), reusing `_current_generation_for_cache`
++ `_query_cache_get/set`. Correctness: the metrics are a pure function of the
+edge set, which only changes when the SQLite source bumps its generation
+(db_meta trigger on entities/graph_edges writes); `clear_graph_cache()` —
+already invoked on every rebuild/refresh — evicts the entry, so the first call
+after a data change recomputes. The synthetic `edges=` path of
+`onager_graph_metrics` (used by unit tests) is untouched — it bypasses
+`graph_metrics`.
+
+Result: `/api/graph/stats` **260–600ms → ~10ms warm** (the remaining ~9ms is
+the SQLite-side stats CTE). `graph_metrics()` itself 408ms → 1ms cached.
+2 new regression tests in `tests/test_integration_graph_algorithms.py::TestGraphMetrics`
+(cached-then-invalidated, edge-types key discrimination).
+
+### Hot path 2 — `/api/sectors` re-read 42 sector files per request
+
+`api_sectors` read + YAML-parsed ~42 sector markdown files from disk on every
+request (~33ms) and serialised ~510KB (frontend only renders `content`
+truncated to 150 chars). Fix: a module-level content-addressed cache in
+`app.py` — cheap per-file `(st_mtime_ns, st_size)` signature (~1ms for 42
+files); re-read only when the signature changes. Immune to test-DB swapping
+(the key is purely file-content based, no generation coupling) and
+auto-invalidates on any on-disk edit.
+
+Result: `/api/sectors` 42ms → ~5ms warm. Verified invalidation by editing a
+sector file (payload changes), then restoring (payload reverts).
+
+### Not changed (measured, already fine)
+
+- `semantic_neighbors` ~3ms, `company_neighbors_bundle` ~14ms (single UNION
+  ALL round-trip), `shortest_path` ~0.3ms, `/api/graph/metrics/*` ~3ms
+  (reads precomputed `graph_analytics`), `connect()` warm ~5ms.
+- Batch extractors (extract_relations 2.3s, derive_events 1.4s, derive_insights
+  1.7s, enrich_yfinance 2.0s) all pass their `make perf` budgets; the graph's
+  `linear_scan_in_loop` flags there are per-bullet regex scans over bounded
+  windows, not quadratic.
+
+Verification: `pytest -m "not live"` 1523 passed (+2 new); ruff + ty green;
+live graph suites pass.
+
+Note: the hot-path discovery used the codebase-memory knowledge graph
+(`query_graph` on complexity/loop signals) — a follow-up lesson from this
+session is to route structural follow-ups (callers, defs, decorators) through
+`trace_path`/`search_graph`/`query_graph` rather than ripgrep.
+
+## 107. Doc browser & search — `/api/docs*` endpoints + Docs tab in the web app
+
+**Date:** 2026-08-15
+
+The `doc/` corpus (~28 design/improvement documents: architecture, schema,
+graph_design, the run log, deferred backlog, and the archived proposals) was
+only reachable via grep/filesystem — invisible to the note-search FTS5 index
+(which covers findata/ notes + newsletters only) and absent from the web app.
+Added a "Docs" tab that catalogs, searches, and renders the corpus.
+
+### Backend (app.py — filesystem-backed, no DB, no FTS index)
+
+- `GET /api/docs` — catalog: `{docs: [{path, name, section, title, size_bytes,
+  mtime}]}`, sorted by path, optional `?q=` substring filter on the path.
+  `section` = subdir relative to `doc/` ("" for top-level).
+- `GET /api/docs/content?path=` — raw markdown/plain-text body, served for
+  client-side rendering (marked.js was already loaded). Path-traversal guard
+  `_resolve_doc_path()`: resolve + `relative_to(_DOC_ROOT)` check → rejects
+  `../`, absolute paths, NUL bytes, symlink escapes (404).
+- `GET /api/docs/search?q=&limit=` — naive linear scan (corpus is ~180KB so an
+  FTS5 table would be over-engineering): word-match x3, word-boundary x2,
+  title x5, path x4; sorted score-desc/title-asc. Snippet mirrors the FTS5
+  convention (literal `<mark>` tags) so the frontend reuses `highlightSnippet()`.
+- Helpers: `_iter_doc_files()` (sorted rglob, `.md`/`.txt`), `_doc_title()`
+  (first `#` heading → `.txt` first non-empty line → filename stem),
+  `_snippet()` (case-insensitive `<mark>` wrap on the first word anchor).
+
+### Frontend (findata.ts + findata.html + findata.css)
+
+- `ViewName` gains `"docs"`; 5th nav link (`#docs`) + `#docs-view` section.
+- Docs toolbar: debounced search box (`/api/docs/search`) + Catalog reset
+  button (`/api/docs`).
+- Two-pane layout: sidebar rows (title + section + snippet for search hits)
+  and a reader pane rendering the selected doc via `processRichContent()`
+  (tables, code highlighting, TOC already handled). `formatBytes()` helper
+  added for the size readout. All user-facing text goes through `escapeHtml()`.
+
+### Tests
+
+- `tests/test_api_docs.py` (21 tests): catalog shape/ordering/sections/
+  corpus coverage/filtering; title derivation; content + traversal guard
+  (5 escape vectors incl. URL-encoded + NUL); search ranking/snippet/
+  limit-clamp/400s.
+- TS contract: `TestDocsContract` in `tests/test_integration_ts_contract.py`
+  (5 tests) + 5 new interfaces in `frontend/types/api.ts`
+  (`DocsResponse`/`DocItem`/`DocContentResponse`/`DocSearchResponse`/`DocSearchHit`).
+
+Verification: ruff + ty + deptry + `make lint-audit` green; `make frontend`
+rebuilds the bundle, `make frontend-check` (tsc strict) green; full QA —
+`pytest -m "not live"` **1549 passed** (+21), integration 209 passed, live
+197 passed. Smoke: catalog 28 docs, `completed.md` (82KB) renders,
+`q=graph cache` returns 25 ranked hits.
+
+One ty lesson reused from #105: dict-valued sort keys (`d["score"]`) widen to
+`int | str` unions — carry the rank key as a typed tuple instead
+(`ranked: list[tuple[int, str, dict]]`), same pattern as `_hybrid_search_results`.
+
+## 108. Graph cloud — whole-graph relationship modelling + Graph Statistics block
+
+**Date:** 2026-08-15
+
+The Graph tab only rendered *ego networks* (one company at a time). There was
+no way to see the full corpus of entities + all 12 relationship types at once,
+and the Statistics page said nothing about the graph. Added (1) a force-directed
+**Graph Cloud** mode to the Graph tab and (2) a **Graph Statistics** block to the
+Statistics view.
+
+### Backend (app.py)
+
+- `GET /api/graph/cloud` — SQLite-only, no DuckDB needed. Returns `{nodes,
+  edges, relationship_types, total_nodes, total_edges}`: every entity
+  (`id/label/entity_type` — company/sector/sub_sector/super_sector/theme) plus
+  every typed edge (`source/target/edge_type`), with optional `?edge_type=`
+  to isolate ONE relationship (only incident nodes returned, so the cloud
+  stays focused). `relationship_types` is the whole-corpus GROUP BY count
+  (edge_type → count) enriched with `symmetric` + `semantics` from the new
+  `_EDGE_SEMANTICS` map (mirrors `doc/graph_design.txt` §4: e.g. `part_of` →
+  "Company → sector (legacy pair)", `jv_with` symmetric, `acquired` →
+  "Acquirer → acquired (temporal)"). Unknown edge types degrade to
+  `symmetric=False` + "custom / derived edge type" — no crash.
+
+### Frontend — Graph tab (findata.ts + findata.html + findata.css)
+
+- "Graph Cloud" toolbar toggle swaps between ego-network and whole-graph mode.
+  Cloud mode fetches `/api/graph/cloud`, builds one cytoscape node per entity
+  (`group` = entity_type so company/theme/sector/… are coloured + shaped
+  distinctly) and one edge per relationship, then runs the bundled `cose`
+  force layout. Symmetric edges (`co_mentioned_in`, `jv_with`,
+  `competes_with`, `same_group`) render arrow-less.
+- **Legend** (`#graph-cloud-legend`): entity-type swatches + relationship
+  colour chips, both derived from the live response.
+- **Relationship cloud card** (`#graph-relationship-cloud`): one
+  size-proportional chip per edge type (log-ish scale, colour + ↔/→ direction,
+  count, tooltip semantics). Clicking a chip filters the cloud to that
+  relationship; the `#graph-cloud-type` select does the same.
+- Ego controls (search / as-of / edge-filter) exit cloud mode; tapping a cloud
+  node shows its detail panel instead of re-centring.
+
+### Frontend — Statistics view
+
+- `loadStats()` additionally fetches `/api/graph/stats` (independent, so a
+  failure there doesn't hide `/api/stats`) and renders a **Graph Statistics**
+  block: cards for total edges / edge types / graph entities / company sectors
+  / top sector / staleness (stale flag colour-coded), plus a Structure
+  breakdown card (density, diameter, radius, avg path length, transitivity,
+  triangles, avg clustering, assortativity — via Onager `graph_metrics`,
+  reusing the #106 generation-keyed cache). `structure` is null-degradable
+  (note shown when the DuckDB layer is absent).
+
+### Types + tests
+
+- `frontend/types/api.ts`: `GraphCloudResponse`/`GraphCloudNode`/
+  `GraphCloudEdge`/`RelationshipTypeSummary`/`GraphStatsResponse` (incl.
+  `GraphStructure`).
+- `tests/test_api_graph_unit.py::TestGraphCloud` + `TestGraphCloudEdgeSemantics`
+  (7 tests): response shape, seed-edge match, relationship summary flags,
+  `?edge_type=` isolation + unknown-type fallback, entity-type defaults.
+- TS contract: `TestGraphCloudContract` + `TestGraphStatsContract` (6 tests).
+  Note: `GraphStatsResponse` has inline object types whose fields the flattened
+  key-parser also picks up, so its contract test asserts the top-level set +
+  each nested block explicitly (same reason `_assert_keys` isn't used there).
+
+Verification: ruff + ty + deptry + `make lint-audit` green; `make frontend`
+rebuilds the bundle, `make frontend-check` (tsc strict) green; full QA —
+`pytest -m "not live"` **1562 passed** (+13), contract suite 33 passed, live
+graph tests 24 passed. Live smoke: cloud = 1209 entities / 4110 edges across
+12 relationship types; `/api/graph/stats` structure metrics present
+(density 0.0042, diameter 8, 5460 triangles).
+
+## 109. Graph zoom slider + Edge Types breakdown on the Statistics page
+
+**Date:** 2026-08-15
+
+Two usability improvements on top of #108.
+
+### Graph widget zoom slider
+
+The graph canvas (cytoscape) had wheel/pinch zoom but no discoverable control.
+Added a compact overlay (bottom-right of `#graph-canvas`):
+
+- `#graph-zoom` — range slider (`min 0.2, max 3`, step 0.05) mapped onto
+  cytoscape zoom. The instance's `minZoom`/`maxZoom` clamp values.
+- `#graph-zoom-in` / `#graph-zoom-out` buttons (×1.25 steps).
+- `#graph-zoom-fit` — `cy.fit(undefined, 30)` (fit graph to view with padding).
+- `#graph-zoom-label` — live % readout, tabular-nums so it doesn't jitter.
+
+Two-way sync via `_initGraphZoom()` (wired once in `loadGraphView`): slider
+`input` → `cy.zoom(z)`; `cy.on("zoom")` and `cy.on("layoutstop")` → slider +
+label updated, so wheel/pinch/layout re-zooms stay in sync. `frontend/types/
+vendors.d.ts` gained the `zoom`/`minZoom`/`maxZoom`/`fit` methods on
+`CyInstance` plus the 2-arg `on(evt, cb)` overload.
+
+### Edge Types breakdown (type / count / percent)
+
+The Graph Statistics block (from `/api/graph/stats`) already had cards but no
+per-type breakdown. Added an **Edge Types** `breakdown-card` after the
+Structure card — same rendering as the "Entity Types" card on the same page
+(label / count / `NN.N%`), sorted by count desc. `formatLabel()` gained an
+`edge_type` branch (snake_case → "Co Mentioned In") so the labels are readable;
+the symmetric ↔ / directed → hint stays available in the graph cloud.
+
+Verification: `make frontend-check` (tsc strict) green, `make frontend` rebuilds
+the bundle, ruff green, `pytest tests/test_integration_ts_contract.py
+tests/test_api_graph_unit.py tests/test_api_docs.py` — 116 passed. Live smoke:
+page serves the zoom controls + bundle contains `_initGraphZoom` and the Edge
+Types card.
+
+## 110. Graph cloud rendering performance — eliminate the jitter + render cost
+
+**Date:** 2026-08-15
+
+The whole-graph cloud (1209 entities / 4110 edges) was near-unusable: the
+default force-directed `cose` layout ran **animated** on every iteration (the
+"jitters"), every edge rendered a text label (4110 canvas text objects), and
+every edge used bezier control-point curves. Fixed on three fronts.
+
+### Layout (the jitter)
+
+- Default cloud layout is now **`concentric` by degree centrality** — O(n),
+  deterministic, instant, no animation. Degree is computed client-side from
+  the live edge set (`degree[e.source] += 1`, `O(E)`), so hubs sit at the
+  cloud's core. Force-directed `cose` is still one click away in the layout
+  dropdown, and when picked in cloud mode it now runs **non-animated with
+  bounded iterations** (`randomize`, `numIter: 300`, `initialTemp: 200`,
+  `coolingFactor: 0.8`, `minTemp: 1.0`, `gravity: 2`) instead of annealing
+  forever on screen.
+- `_runGraphLayout(name, cloud = false)` gained the `cloud` flag: `animate:
+  !cloud`. After the cloud layout, `cy.fit(undefined, 30)` frames the whole
+  graph. The toolbar layout-dropdown handler is cloud-aware too (non-animated
+  + fit when in cloud mode).
+
+### Render cost
+
+Every cloud element carries `data.cloud = "1"`; the shared stylesheet now has
+cloud-mode selectors (the #1, #2, #3 render costs gone):
+
+- `edge[cloud="1"]` → `curve-style: straight`, `width: 1`, `label: ""`,
+  `text-opacity: 0`, `font-size: 0` — no more 4110 edge labels and no bezier
+  control-point math.
+- `node[cloud="1"]` → `font-size: 9`, `text-outline-width: 1`,
+  `min-zoomed-font-size: 6` — node labels only appear once you zoom in, so the
+  fit-view renders 1209 nodes without 1209 label draws.
+
+Ego-network mode is untouched (no `cloud` flag → original bezier + labelled
+edges).
+
+Verification: `make frontend-check` (tsc strict) green; `make frontend` rebuilds
+the bundle; smoke: bundle contains the cloud selectors, degree centrality, and
+the non-animated cloud layout path.
+
+## 111. Statistics view — left-to-right card flow (no more vertical strip)
+
+**Date:** 2026-08-15
+
+The Statistics view's cards were rendering in a narrow vertical strip. Root
+cause: `#stats-container` is a `.stats-grid` (auto-fit columns), and the two
+wrapper blocks `.stats-breakdown` and `.stats-graph-block` are each a single
+grid child — without spanning they landed in one ~250px column, collapsing
+their inner grids to 1 column (cards stacked, empty space to the right).
+
+Fix (CSS only):
+- `.stats-breakdown { grid-column: 1 / -1 }` — spans the full grid width, so
+  its 3 breakdown cards (Entity Types / Top Sectors / Market Cap) flow
+  left-to-right.
+- `.stats-graph-block { grid-column: 1 / -1; display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) }` — spans full
+  width and is itself a grid, so the Structure + Edge Types breakdown cards
+  sit side-by-side; header + card row span `1 / -1`.
+
+Result: stat cards in one row, then full-width breakdown rows, all flowing
+left-to-right instead of a scrolling vertical strip. No JS/DOM change.
+
+Verification: CSS shipped (spanning + grid rules present), 116 tests pass
+(CSS-only, no behaviour change).
+
+## 112. Graph cloud — separate connected sets + highlight set on node selection
+
+**Date:** 2026-08-15
+
+Two graph-cloud improvements:
+
+1. **Separate the connected node sets.** Previously the cloud default was
+   `concentric` by degree, which piled high-degree hubs (sectors/companies)
+   onto the same central rings so dense clusters stacked on top of each
+   other. Now:
+   - Every cloud element carries a `component` data field (union-find root id
+     computed in `loadGraphCloud`).
+   - The default cloud layout is adaptive: **multiple connected components**
+     → a new `components` layout (`_cloudComponentPositions`) that grid-packs
+     each connected set into its own cell (hub at centre, members orbiting);
+     **one giant component** (the whole corpus) → non-animated `cose`, whose
+     repulsion separates the dense clusters (1209 nodes: 1284 overlapping
+     pairs vs 6828 before).
+   - The layout dropdown gained a "Connected sets (separated)" option
+     (degrades to concentric for ego networks, which lack component ids).
+
+2. **Highlight a set on node selection.** Tapping/selecting a node in cloud
+   mode now highlights every element sharing its component (`in-set` class:
+   bright gold edges + node border) and fades everything else
+   (`.faded` opacity). Tapping empty canvas, exiting cloud mode, or reloading
+   the cloud clears the highlight. New methods: `_highlightCloudSet`,
+   `_clearCloudHighlight`.
+
+Backend unchanged (`/api/graph/cloud` already returns the full edge set).
+Vendor types extended minimally (`CyElements.forEach`, `CySingular.removeClass`,
+event-target `on` overload).
+
+Verification: frontend type-check (strict) ✓, ruff ✓, 95 graph+contract tests
+pass ✓, Playwright end-to-end (cloud load, part_of filter → 42 components,
+highlight on tap, ego network) ✓.

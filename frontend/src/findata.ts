@@ -13,10 +13,17 @@
 
 import type {
     CompanyNeighbors,
+    DocContentResponse,
+    DocSearchResponse,
+    DocItem,
+    DocsResponse,
     EntitiesResponse,
     EntityListItem,
+    GraphCloudResponse,
     GraphRefreshResponse,
+    GraphStatsResponse,
     NeighborsBundle,
+    RelationshipTypeSummary,
     SectorNeighbors,
     SectorsResponse,
     SearchResponse,
@@ -25,7 +32,7 @@ import type {
 } from "../types/api";
 
 /** Union of the entity-type strings the view can be centred on. */
-type ViewName = "companies" | "sectors" | "stats" | "graph";
+type ViewName = "companies" | "sectors" | "stats" | "graph" | "docs";
 
 /** Union of the graph relationship filters from the #graph-filter dropdown. */
 type GraphFilter = "all" | "peers" | "jv" | "acquired" | "subsidiary" | "supply";
@@ -57,6 +64,10 @@ interface GraphElement {
         source?: string;
         target?: string;
         type?: string;
+        /** Set to "1" on every cloud-mode element (drives cheap cloud styling). */
+        cloud?: string;
+        /** Connected-component root id (cloud mode) — enables set separation + highlight. */
+        component?: string;
         props?: Record<string, unknown>;
     };
 }
@@ -68,6 +79,8 @@ interface GraphState {
     elements: GraphElement[] | null;
     entitiesLoaded: boolean;
     entityType?: "sector" | "company";
+    /** True when the whole-graph cloud is showing (vs an ego network). */
+    cloudMode: boolean;
 }
 
 // `viewer` is referenced as a bare global by inline onclick handlers in the
@@ -129,6 +142,9 @@ class FinDataViewer {
 
     // --- graph-tab state (lazy-initialized in loadGraphView) -------------- //
     graph: GraphState | null = null;
+
+    // --- docs-tab state --------------------------------------------------- //
+    docs: { activePath: string | null } = { activePath: null };
 
     constructor() {
         this.init();
@@ -219,12 +235,41 @@ class FinDataViewer {
                 this.closeLightbox();
             }
         });
+
+        // Docs view: debounced search + reset-to-catalog.
+        const docsSearch = getEl("docs-search") as HTMLInputElement;
+        const docsClear = getEl("docs-search-clear") as HTMLElement;
+        docsSearch.addEventListener("input", (e) => {
+            const target = e.target as HTMLInputElement;
+            docsClear.style.display = target.value ? "block" : "none";
+            this.debounceDocsSearch();
+        });
+        docsClear.addEventListener("click", () => {
+            docsSearch.value = "";
+            docsClear.style.display = "none";
+            this.loadDocsCatalog();
+        });
+        getEl("docs-reset").addEventListener("click", () => {
+            docsSearch.value = "";
+            docsClear.style.display = "none";
+            this.loadDocsCatalog();
+        });
     }
 
     debounceSearch(): void {
         clearTimeout(this.searchTimeout);
         this.searchTimeout = setTimeout(() => {
             this.searchEntities();
+        }, 300);
+    }
+
+    /** Debounce timer handle for the docs search input. */
+    private docsSearchTimeout: ReturnType<typeof setTimeout> | undefined;
+
+    debounceDocsSearch(): void {
+        clearTimeout(this.docsSearchTimeout);
+        this.docsSearchTimeout = setTimeout(() => {
+            this.runDocsSearch();
         }, 300);
     }
 
@@ -265,6 +310,18 @@ class FinDataViewer {
             }
         } catch (error) {
             console.error("Error loading stats:", error);
+        }
+        // Graph statistics block (edge types, structure, hygiene, staleness).
+        // Fetched independently so a failure here doesn't hide /api/stats.
+        try {
+            const response = await fetch("/api/graph/stats");
+            const data: GraphStatsResponse = await response.json();
+            if (this.currentView === "stats") {
+                this.displayGraphStats(data);
+            }
+        } catch (error) {
+            console.error("Error loading graph stats:", error);
+            this.displayGraphStatsError();
         }
     }
 
@@ -590,6 +647,99 @@ class FinDataViewer {
         container.appendChild(breakdownSection);
     }
 
+    /** Full graph-stats block for the Statistics view (from /api/graph/stats). */
+    displayGraphStats(data: GraphStatsResponse): void {
+        const container = getEl("stats-container");
+        if (!container) return;
+
+        const section = document.createElement("div");
+        section.className = "stats-graph-block";
+        section.innerHTML = `
+            <div class="stats-graph-header">
+                <h3><i class="fas fa-project-diagram"></i> Graph Statistics</h3>
+                ${data.structure ? '<span class="stats-graph-meta">via Onager graph metrics</span>' : ""}
+            </div>
+            <div class="stats-graph-cards">${this._graphStatsCards(data)}</div>
+        `;
+
+        // Structure metrics (density, clustering, etc.) — nullable.
+        if (data.structure) {
+            const structure = data.structure;
+            const items: [string, number | null][] = [
+                ["Density", structure.density],
+                ["Diameter", structure.diameter],
+                ["Radius", structure.radius],
+                ["Avg path length", structure.avg_path_length],
+                ["Transitivity", structure.transitivity],
+                ["Triangles", structure.triangles],
+                ["Avg clustering", structure.avg_clustering],
+                ["Assortativity", structure.assortativity],
+            ];
+            const metrics = document.createElement("div");
+            metrics.className = "breakdown-card stats-graph-structure";
+            metrics.innerHTML = `<h4>Structure</h4><div class="breakdown-items">` +
+                items.map(([label, v]) => `
+                    <div class="breakdown-item">
+                        <span class="breakdown-label">${this.escapeHtml(label)}</span>
+                        <span class="breakdown-value">${v === null ? "—" : typeof v === "number" ? v.toFixed(4) : this.escapeHtml(String(v))}</span>
+                    </div>`).join("") +
+                `</div>`;
+            section.appendChild(metrics);
+        } else {
+            const note = document.createElement("div");
+            note.className = "hint";
+            note.textContent = "Structure metrics unavailable (graph analysis layer not connected).";
+            section.appendChild(note);
+        }
+
+        // Edge Types breakdown — type/count/percent, sorted by count desc.
+        const byType = data.edges.by_type || {};
+        const sorted: Record<string, number> = {};
+        Object.keys(byType)
+            .sort((a, b) => byType[b] - byType[a])
+            .forEach((k) => { sorted[k] = byType[k]; });
+        section.appendChild(this.createBreakdownCard("Edge Types", sorted, "edge_type"));
+
+        container.appendChild(section);
+    }
+
+    /** Inner stat cards for the graph block (edges + entities + sectors). */
+    _graphStatsCards(data: GraphStatsResponse): string {
+        const hy = data.hygiene || {};
+        const stale = data.staleness?.stale;
+        const staleColor = stale ? "#e63946" : "#2a9d8f";
+        const staleLabel = stale ? "Stale" : "Fresh";
+        return `
+            <div class="stat-card stat-primary">
+                <div class="stat-content"><h3>${data.edges.total.toLocaleString()}</h3><p>Total Edges</p></div>
+            </div>
+            <div class="stat-card stat-secondary">
+                <div class="stat-content"><h3>${Object.keys(data.edges.by_type || {}).length}</h3><p>Edge Types</p></div>
+            </div>
+            <div class="stat-card stat-secondary">
+                <div class="stat-content"><h3>${data.entities.total.toLocaleString()}</h3><p>Graph Entities</p></div>
+            </div>
+            <div class="stat-card stat-secondary">
+                <div class="stat-content"><h3>${data.sectors?.count ?? 0}</h3><p>Company Sectors</p></div>
+            </div>
+            <div class="stat-card stat-secondary">
+                <div class="stat-content"><h3>${data.sectors?.top?.[0]?.sector ?? "—"}</h3><p>Top Sector</p></div>
+            </div>
+            <div class="stat-card stat-secondary">
+                <div class="stat-content"><h3 style="color:${staleColor}">${staleLabel}</h3><p>Data Staleness</p></div>
+            </div>`;
+    }
+
+    /** Degraded fallback when /api/graph/stats is unreachable. */
+    displayGraphStatsError(): void {
+        const container = getEl("stats-container");
+        if (!container) return;
+        const note = document.createElement("div");
+        note.className = "hint";
+        note.textContent = "Graph statistics could not be loaded.";
+        container.appendChild(note);
+    }
+
     createStatCard(title: string, value: number, icon: string, theme: string): HTMLElement {
         const card = document.createElement("div");
         card.className = `stat-card stat-${theme}`;
@@ -635,6 +785,10 @@ class FinDataViewer {
     formatLabel(key: string, type: string): string {
         if (type === "market_cap") {
             return key.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
+        }
+        if (type === "edge_type") {
+            // snake_case edge types → readable "Co Mentioned In".
+            return key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
         }
         return key;
     }
@@ -856,7 +1010,148 @@ class FinDataViewer {
             case "graph":
                 this.loadGraphView();
                 break;
+            case "docs":
+                this.loadDocsCatalog();
+                break;
         }
+    }
+
+    // ---------------------------------------------------------------- //
+    // Docs view (doc/ corpus browser — catalog, search, reader)         //
+    // ---------------------------------------------------------------- //
+
+    /** Load the full catalog (GET /api/docs) into the sidebar. */
+    async loadDocsCatalog(): Promise<void> {
+        this.docs.activePath = null;
+        this.hideDocsContentPane();
+        try {
+            const response = await fetch("/api/docs");
+            const data: DocsResponse = await response.json();
+            this.renderDocsList(data.docs.map((d) => ({
+                path: d.path,
+                name: d.name,
+                section: d.section,
+                title: d.title,
+                snippet: "",
+            })));
+            getEl("docs-count").textContent = `${data.docs.length} documents`;
+        } catch (error) {
+            console.error("Error loading docs:", error);
+            getEl("docs-list").innerHTML =
+                '<div class="no-results">Could not load the document catalog.</div>';
+        }
+    }
+
+    /** Run a corpus search (GET /api/docs/search) and render the hits. */
+    async runDocsSearch(): Promise<void> {
+        const query = (getEl("docs-search") as HTMLInputElement).value.trim();
+        this.docs.activePath = null;
+        this.hideDocsContentPane();
+        if (!query) {
+            this.loadDocsCatalog();
+            return;
+        }
+        try {
+            const url = `/api/docs/search?q=${encodeURIComponent(query)}`;
+            const response = await fetch(url);
+            const data: DocSearchResponse = await response.json();
+            this.renderDocsList(data.results);
+            const total = data.results.length;
+            getEl("docs-count").textContent =
+                total === 0 ? "No matches" : `${total} match${total === 1 ? "" : "es"}`;
+        } catch (error) {
+            console.error("Error searching docs:", error);
+            getEl("docs-list").innerHTML =
+                '<div class="no-results">Search failed. Try again.</div>';
+        }
+    }
+
+    /**
+     * Render the sidebar: one clickable row per doc. Rows built from search
+     * hits carry a <mark>-highlighted snippet; catalog rows are plain.
+     */
+    renderDocsList(items: { path: string; name: string; section: string; title: string; snippet: string }[]): void {
+        const list = getEl("docs-list");
+        list.innerHTML = "";
+        if (items.length === 0) {
+            list.innerHTML = '<div class="no-results">No documents match.</div>';
+            return;
+        }
+        items.forEach((item) => {
+            const row = document.createElement("button");
+            row.type = "button";
+            row.className = "docs-row";
+            row.dataset.path = item.path;
+            const safeSection = item.section
+                ? `<span class="docs-row-section">${this.escapeHtml(item.section)}</span>`
+                : "";
+            const safeSnippet = item.snippet
+                ? `<div class="docs-row-snippet">${this.highlightSnippet(item.snippet)}</div>`
+                : "";
+            row.innerHTML = `
+                <span class="docs-row-title">${this.escapeHtml(item.title)}</span>
+                ${safeSection}
+                ${safeSnippet}
+            `;
+            row.addEventListener("click", () => this.openDoc(item.path));
+            list.appendChild(row);
+        });
+    }
+
+    /** Fetch + render one doc's raw markdown/text (GET /api/docs/content). */
+    async openDoc(path: string): Promise<void> {
+        this.docs.activePath = path;
+        document.querySelectorAll<HTMLElement>(".docs-row").forEach((row) => {
+            row.classList.toggle("active", row.dataset.path === path);
+        });
+        try {
+            const url = `/api/docs/content?path=${encodeURIComponent(path)}`;
+            const response = await fetch(url);
+            const data: DocContentResponse = await response.json();
+            const { html, headings } = this.processRichContent(data.content);
+            getEl("docs-content-empty").style.display = "none";
+            const pane = getEl("docs-content-pane");
+            pane.style.display = "block";
+            pane.innerHTML = `
+                <header class="docs-article-header">
+                    <h3>${this.escapeHtml(data.title)}</h3>
+                    <div class="docs-article-meta">
+                        <span>${this.escapeHtml(data.path)}</span>
+                        <span>${this.escapeHtml(data.section || "top-level")}</span>
+                        <span>${this.formatBytes(data.size_bytes)}</span>
+                    </div>
+                </header>
+                ${headings.length > 1 ? this.renderDocsToc(headings) : ""}
+                <div class="docs-article-body">${html}</div>
+            `;
+        } catch (error) {
+            console.error("Error opening doc:", error);
+            getEl("docs-content-pane").style.display = "none";
+            getEl("docs-content-empty").style.display = "block";
+            getEl("docs-content-empty").innerHTML =
+                '<p class="error">Could not load this document.</p>';
+        }
+    }
+
+    /** Simple TOC linking the <h1..h6 id> headings marked.js produces. */
+    renderDocsToc(headings: TocHeading[]): string {
+        const items = headings
+            .map((h) => `<li class="toc-${h.level}"><a href="#${encodeURIComponent(h.id)}">${this.escapeHtml(h.text)}</a></li>`)
+            .join("");
+        return `<nav class="docs-toc"><ul>${items}</ul></nav>`;
+    }
+
+    /** Reset the reader pane to its empty state. */
+    hideDocsContentPane(): void {
+        getEl("docs-content-pane").style.display = "none";
+        getEl("docs-content-pane").innerHTML = "";
+        const empty = getEl("docs-content-empty");
+        empty.style.display = "block";
+        empty.innerHTML = `
+            <i class="fas fa-book-open"></i>
+            <p>Select a document to read it here.</p>
+            <p class="hint">Browse the catalog or search the corpus.</p>
+        `;
     }
 
     // ---------------------------------------------------------------- //
@@ -873,6 +1168,7 @@ class FinDataViewer {
                 central: null, // currently-centred entity name
                 elements: null, // last-rendered {nodes, edges} for filter swaps
                 entitiesLoaded: false,
+                cloudMode: false,
             };
         }
         // Build the cytoscape instance if it doesn't exist yet.
@@ -894,38 +1190,56 @@ class FinDataViewer {
                 minZoom: 0.2,
                 maxZoom: 3,
             });
-            // Click handler: re-centre on the clicked node.
+            // Click handler: re-centre on the clicked node (ego-network mode
+            // only — in cloud mode tapping a node shows its detail panel and
+            // highlights the connected set it belongs to).
             this.graph.cy.on("tap", "node", async (evt) => {
                 const name = evt.target.data().id;
+                if (this.graph!.cloudMode) {
+                    this._highlightCloudSet(evt.target.data());
+                    this._renderGraphDetail(evt.target.data());
+                    return;
+                }
                 if (name && name !== this.graph!.central) {
                     (getEl("graph-search") as HTMLInputElement).value = name;
                     await this.loadEgoNetwork(name);
                 }
             });
-            // Selection handler: populate side panel.
+            // Selection handler: populate side panel (+ highlight cloud set).
             this.graph.cy.on("select", "node", (evt) => {
+                if (this.graph!.cloudMode) this._highlightCloudSet(evt.target.data());
                 this._renderGraphDetail(evt.target.data());
+            });
+            // Tapping empty canvas clears the set highlight in cloud mode.
+            this.graph.cy.on("tap", (evt: { target: CySingular }) => {
+                if (!this.graph!.cloudMode) return;
+                const isNode = (evt.target as CySingular & { isNode?: () => boolean }).isNode?.();
+                if (!isNode) this._clearCloudHighlight();
             });
             // Wire toolbar events once.
             getEl("graph-search-btn").addEventListener("click", async () => {
                 const name = (getEl("graph-search") as HTMLInputElement).value.trim();
-                if (name) await this.loadEgoNetwork(name);
+                if (name) { this._exitCloudMode(); await this.loadEgoNetwork(name); }
             });
             (getEl("graph-search") as HTMLInputElement).addEventListener("keydown", async (e) => {
                 if (e.key === "Enter") {
                     const name = (e.target as HTMLInputElement).value.trim();
-                    if (name) await this.loadEgoNetwork(name);
+                    if (name) { this._exitCloudMode(); await this.loadEgoNetwork(name); }
                 }
             });
             (getEl("graph-layout") as HTMLSelectElement).addEventListener("change", (e) => {
-                this._runGraphLayout((e.target as HTMLSelectElement).value);
+                const inCloud = !!this.graph && this.graph.cloudMode;
+                this._runGraphLayout((e.target as HTMLSelectElement).value, inCloud);
+                if (inCloud) this.graph!.cy!.fit(undefined, 30);
             });
             getEl("graph-filter").addEventListener("change", () => {
                 // Re-render the same central entity with the new filter.
+                this._exitCloudMode();
                 if (this.graph!.central) this.loadEgoNetwork(this.graph!.central);
             });
             getEl("graph-as-of").addEventListener("change", () => {
                 // Re-render with the new temporal filter applied.
+                this._exitCloudMode();
                 if (this.graph!.central) this.loadEgoNetwork(this.graph!.central);
             });
             getEl("graph-refresh-db").addEventListener("click", async () => {
@@ -948,6 +1262,16 @@ class FinDataViewer {
             });
             getEl("shortest-btn").addEventListener("click", () => this.loadShortestPath());
             getEl("shortest-clear").addEventListener("click", () => this.clearShortestPath());
+
+            // Cloud-mode toggle: switch between the ego-network view and the
+            // whole-graph force cloud (all entities, all relationship types).
+            getEl("graph-cloud-toggle").addEventListener("click", () => this.toggleGraphCloud());
+            // Edge-type filter inside the cloud panel re-fetches the cloud
+            // restricted to that relationship.
+            getEl("graph-cloud-type").addEventListener("change", () => {
+                if (this.graph && this.graph.cloudMode) this.loadGraphCloud();
+            });
+            this._initGraphZoom();
         }
         // Populate the typeahead (one-time; small query).
         if (!this.graph.entitiesLoaded) {
@@ -986,6 +1310,253 @@ class FinDataViewer {
             // Non-fatal: typeahead is a convenience, not essential.
             console.warn("graph typeahead load failed", e);
         }
+    }
+
+    // --- Cloud mode: whole-graph force cloud ------------------------------- //
+    // "Cloud" renders EVERY entity + EVERY typed edge at once (GET
+    // /api/graph/cloud), coloured by relationship type, with a legend +
+    // relationship cloud card. Complements the ego-network view: search / as-of
+    // / edge-filter exit back to ego mode (see _exitCloudMode).
+
+    /** Edge-type → colour palette shared by the legend + cytoscape styles. */
+    private readonly EDGE_COLORS: Record<string, string> = {
+        co_mentioned_in: "#7fd1ae",
+        part_of: "#4a6fa5",
+        has_company: "#3d5a80",
+        exposed_to: "#e9c46a",
+        belongs_to: "#8d99ae",
+        subsidiary_of: "#43aa8b",
+        jv_with: "#2a9d8f",
+        acquired: "#9d4edd",
+        competes_with: "#f4a261",
+        supplier_to: "#577590",
+        customer_of: "#e5989b",
+        same_group: "#b5838d",
+    };
+
+    /** Toggle the whole-graph cloud on/off. */
+    async toggleGraphCloud(): Promise<void> {
+        if (!this.graph) return;
+        this.graph.cloudMode = !this.graph.cloudMode;
+        if (this.graph.cloudMode) {
+            await this.loadGraphCloud();
+        } else {
+            this._exitCloudMode();
+        }
+    }
+    /** Leave cloud mode: hide the cloud panel + restore the ego canvas. */
+    _exitCloudMode(): void {
+        if (!this.graph) return;
+        this.graph.cloudMode = false;
+        this._clearCloudHighlight();
+        getEl("graph-cloud-panel").style.display = "none";
+        getEl("graph-cloud-toggle").classList.remove("active");
+        // Restore the empty-state prompt when no ego network is on screen.
+        if (!this.graph.central) {
+            getEl("graph-empty").style.display = "flex";
+        }
+    }
+
+    /** Fetch + render the whole graph (optionally one relationship type). */
+    async loadGraphCloud(): Promise<void> {
+        if (!this.graph || !this.graph.cy) return;
+        this._setGraphStatus("Loading full graph...");
+        getEl("graph-cloud-toggle").classList.add("active");
+        getEl("graph-cloud-panel").style.display = "block";
+        const filter = (getEl("graph-cloud-type") as HTMLSelectElement).value;
+        const url = `/api/graph/cloud` + (filter ? `?edge_type=${encodeURIComponent(filter)}` : "");
+        let data: GraphCloudResponse;
+        try {
+            const r = await fetch(url);
+            if (!r.ok) {
+                const err = await r.json().catch((): { error?: string } => ({ error: r.statusText }));
+                throw new Error(err.error || `HTTP ${r.status}`);
+            }
+            data = await r.json() as GraphCloudResponse;
+        } catch (e) {
+            this._setGraphStatus(`Error: ${(e as Error).message}`);
+            return;
+        }
+
+        this.graph.cloudMode = true;
+        this.graph.central = null;
+        this.graph.entityType = undefined;
+        // Clear any set highlight from a previous cloud view.
+        this._clearCloudHighlight();
+
+        // Degree centrality from the live edge set (cheap O(E)); used by the
+        // default concentric layout so hubs sit at the core of the cloud.
+        const degree: Record<string, number> = {};
+        data.edges.forEach((e) => {
+            degree[e.source] = (degree[e.source] || 0) + 1;
+            degree[e.target] = (degree[e.target] || 0) + 1;
+        });
+
+        // Connected components via union-find — every node/edge is tagged with
+        // its component's root id so (a) the layout can separate the connected
+        // sets instead of stacking them, and (b) tapping a node can highlight
+        // the whole set it belongs to.
+        const root = new Map<string, string>();
+        const find = (x: string): string => {
+            if (root.get(x) !== x) root.set(x, find(root.get(x)!));
+            return root.get(x)!;
+        };
+        const union = (a: string, b: string): void => {
+            const ra = find(a);
+            const rb = find(b);
+            if (ra !== rb) root.set(ra, rb);
+        };
+        data.nodes.forEach((n) => root.set(n.id, n.id));
+        data.edges.forEach((e) => union(e.source, e.target));
+
+        // Rebuild the canvas: one node per entity (group = entity_type so the
+        // stylesheet colours companies/sectors/... distinctly) + one edge per
+        // typed relationship. Every element carries `cloud: "1"` so the shared
+        // stylesheet applies the cheap cloud styling (no edge labels, straight
+        // thin curves, smaller node text that only appears when zoomed in).
+        const elements: GraphElement[] = data.nodes.map((n) => ({
+            data: {
+                id: n.id,
+                label: n.label,
+                group: n.entity_type,
+                cloud: "1",
+                centrality: degree[n.id] || 0,
+                component: find(n.id),
+            },
+        }));
+        data.edges.forEach((e) => {
+            elements.push({
+                data: {
+                    id: `${e.source}__${e.target}__${e.edge_type}`,
+                    source: e.source,
+                    target: e.target,
+                    type: e.edge_type,
+                    label: "", // no per-edge text — 4110 labels is the #1 render cost
+                    cloud: "1",
+                    component: find(e.source),
+                },
+            });
+        });
+
+        this.graph.cy.elements().remove();
+        this.graph.cy.add(elements as unknown as CyElementInput[]);
+        this.graph.elements = elements;
+
+        // Default cloud layout:
+        //  - Multiple connected components → the component layout, which packs
+        //    each connected set into its own grid cell (no stacking).
+        //  - One giant component (the whole corpus is connected) → force-
+        //    directed cose, whose repulsion separates the dense clusters that
+        //    concentric rings would pile on top of one another.
+        const componentCount = new Set(elements
+            .filter((e) => e.data.id && !e.data.source)
+            .map((e) => e.data.component)).size;
+        this._runGraphLayout(componentCount > 1 ? "components" : "cose", true);
+        this.graph.cy.fit(undefined, 30);
+        getEl("graph-empty").style.display = "none";
+
+        // Legend + relationship cloud card from the summary block.
+        this._renderCloudLegend(data);
+        this._renderRelationshipCloud(data.relationship_types);
+
+        const typeLabel = filter || "all relationships";
+        this._setGraphStatus(
+            `Full graph — ${data.total_nodes} entities · ${data.total_edges} ${typeLabel}`
+            + (data.total_edges !== 1 ? "s" : ""));
+    }
+
+    /**
+     * Highlight the connected set (component) a tapped node belongs to: every
+     * element sharing its component root gets the `in-set` style (bright
+     * edges), everything else fades to background.
+     */
+    _highlightCloudSet(nodeData: CyNodeData): void {
+        const cy = this.graph && this.graph.cy;
+        if (!cy || !this.graph || !this.graph.cloudMode) return;
+        const comp = nodeData.component as string | undefined;
+        cy.elements().removeClass("in-set faded");
+        if (!comp) return;
+        cy.elements().forEach((el) => {
+            if (el.data().component === comp) {
+                el.removeClass("faded").addClass("in-set");
+            } else {
+                el.addClass("faded").removeClass("in-set");
+            }
+        });
+    }
+
+    /** Remove the cloud set-highlight (restores full opacity to all elements). */
+    _clearCloudHighlight(): void {
+        if (this.graph && this.graph.cy) {
+            this.graph.cy.elements().removeClass("in-set faded");
+        }
+    }
+
+    /** Legend: entity-type swatches + edge-type colour chips. */
+    _renderCloudLegend(data: GraphCloudResponse): void {
+        const legend = getEl("graph-cloud-legend");
+        const nodeTypes = [...new Set(data.nodes.map((n) => n.entity_type))].sort();
+        const edgeTypes = [...new Set(data.edges.map((e) => e.edge_type))].sort();
+        const nodeHtml = nodeTypes.map((t) => `
+            <span class="cloud-legend-chip">
+                <span class="cloud-swatch cloud-node-${CSS.escape(t)}">${this.escapeHtml(t)}</span>
+            </span>`).join("");
+        const edgeHtml = edgeTypes.map((t) => `
+            <span class="cloud-legend-chip">
+                <span class="cloud-swatch" style="background:${this.EDGE_COLORS[t] || "#5a6577"}">${this.escapeHtml(t)}</span>
+            </span>`).join("");
+        legend.innerHTML = `
+            <div class="cloud-legend-group"><strong>Entities</strong><div class="cloud-legend-chips">${nodeHtml}</div></div>
+            <div class="cloud-legend-group"><strong>Relationships</strong><div class="cloud-legend-chips">${edgeHtml}</div></div>`;
+    }
+
+    /** Relationship cloud card: one size-proportional chip per edge type. */
+    _renderRelationshipCloud(types: RelationshipTypeSummary[]): void {
+        const card = getEl("graph-relationship-cloud");
+        // Populate the isolate-relationship select (preserving the current pick).
+        const select = getEl("graph-cloud-type") as HTMLSelectElement;
+        const current = select.value;
+        const currentSemantics = types.find((t) => t.edge_type === current);
+        const opts = [`<option value="">All relationships</option>`];
+        types.forEach((t) => {
+            const arrow = t.symmetric ? "↔" : "→";
+            opts.push(`<option value="${this.escapeHtml(t.edge_type)}">${this.escapeHtml(t.edge_type)} (${t.count}) ${arrow}</option>`);
+        });
+        select.innerHTML = opts.join("");
+        if (current && currentSemantics) select.value = current;
+        else select.value = "";
+
+        if (!types.length) {
+            card.innerHTML = '<p class="hint">No relationships in the graph.</p>';
+            return;
+        }
+        const max = Math.max(...types.map((t) => t.count), 1);
+        const chips = types.map((t) => {
+            // Size-proportional font (log-ish scale so big types don't dominate).
+            const ratio = t.count / max;
+            const size = 0.85 + ratio * 1.35;
+            const color = this.EDGE_COLORS[t.edge_type] || "#5a6577";
+            const arrow = t.symmetric ? "↔" : "→";
+            return `<button type="button" class="rel-cloud-chip"
+                        title="${this.escapeHtml(`${t.semantics} — ${t.count} edge${t.count !== 1 ? "s" : ""}`)}"
+                        data-edge-type="${this.escapeHtml(t.edge_type)}"
+                        style="font-size:${size.toFixed(2)}rem; color:${color};">
+                    ${this.escapeHtml(t.edge_type)}
+                    <span class="rel-cloud-count">${t.count} ${arrow}</span>
+                </button>`;
+        }).join("");
+        card.innerHTML = `<h4 class="rel-cloud-title"><i class="fas fa-cloud"></i> Relationship Cloud</h4>
+                          <div class="rel-cloud-chips">${chips}</div>`;
+        // Clicking a chip filters the cloud to that relationship type.
+        card.querySelectorAll<HTMLButtonElement>(".rel-cloud-chip").forEach((chip) => {
+            chip.addEventListener("click", () => {
+                const et = chip.dataset.edgeType;
+                if (!et) return;
+                const select = getEl("graph-cloud-type") as HTMLSelectElement;
+                select.value = et;
+                this.loadGraphCloud();
+            });
+        });
     }
 
     async loadEgoNetwork(name: string): Promise<void> {
@@ -1178,13 +1749,87 @@ class FinDataViewer {
         return [...nodes, ...edges];
     }
 
-    _runGraphLayout(name: string): void {
+    /** Wire the zoom slider / buttons / fit to the cytoscape instance. */
+    _initGraphZoom(): void {
+        if (!this.graph || !this.graph.cy) return;
+        const slider = getEl("graph-zoom") as HTMLInputElement;
+        const label = getEl("graph-zoom-label");
+        const cy = this.graph.cy;
+
+        // Slider → cytoscape (drag or direct value set).
+        const applyZoom = (): void => {
+            const z = parseFloat(slider.value) || 1;
+            cy.zoom(z);
+            label.textContent = `${Math.round(z * 100)}%`;
+        };
+        slider.addEventListener("input", applyZoom);
+        getEl("graph-zoom-in").addEventListener("click", () => {
+            const next = Math.min(cy.maxZoom(), cy.zoom() * 1.25);
+            cy.zoom(next);
+        });
+        getEl("graph-zoom-out").addEventListener("click", () => {
+            const next = Math.max(cy.minZoom(), cy.zoom() / 1.25);
+            cy.zoom(next);
+        });
+        getEl("graph-zoom-fit").addEventListener("click", () => cy.fit(undefined, 30));
+
+        // cytoscape → slider (wheel / pinch / buttons stay in sync).
+        cy.on("zoom", () => {
+            const z = cy.zoom();
+            slider.value = String(z);
+            label.textContent = `${Math.round(z * 100)}%`;
+        });
+
+        // After any layout, keep the slider truthful (layout may re-zoom).
+        cy.on("layoutstop", () => {
+            const z = cy.zoom();
+            slider.value = String(z);
+            label.textContent = `${Math.round(z * 100)}%`;
+        });
+    }
+
+    _runGraphLayout(name: string, cloud = false): void {
         if (!this.graph || !this.graph.cy || this.graph.cy.elements().length === 0) return;
-        const opts: Record<string, unknown> = { name, animate: true, animationDuration: 300 };
+
+        // Component-separating layout: each connected set gets its own region
+        // (grid-packed centres, members on a circle with the hub in the middle)
+        // instead of everything piling onto the same concentric rings. Only
+        // available when the elements carry component ids (cloud mode); ego
+        // networks fall back to concentric.
+        if (name === "components") {
+            const els = this.graph.elements || [];
+            if (els.some((e) => e.data.component)) {
+                const positions = this._cloudComponentPositions(els);
+                if (Object.keys(positions).length) {
+                    this.graph.cy.layout({
+                        name: "preset",
+                        positions,
+                        animate: !cloud,
+                        animationDuration: 300,
+                    }).run();
+                    return;
+                }
+            }
+            // No component data (ego network) — degrade to concentric.
+            name = "concentric";
+        }
+
+        const opts: Record<string, unknown> = { name, animate: !cloud, animationDuration: 300 };
         if (name === "cose") {
             opts.nodeRepulsion = () => 8000;
             opts.idealEdgeLength = () => 100;
             opts.nodeOverlap = 20;
+            if (cloud) {
+                // Large whole-graph cloud: no animation, bounded iterations so
+                // the force layout converges in one pass instead of jittering
+                // for minutes. randomize gives a good spread for big graphs.
+                opts.randomize = true;
+                opts.numIter = 300;
+                opts.initialTemp = 200;
+                opts.coolingFactor = 0.8;
+                opts.minTemp = 1.0;
+                opts.gravity = 2;
+            }
         } else if (name === "concentric") {
             opts.concentric = (n: CySingular) => (n.data().centrality as number) || 0;
             opts.levelWidth = () => 1;
@@ -1195,6 +1840,59 @@ class FinDataViewer {
             opts.roots = this.graph.central ? `#${CSS.escape(this.graph.central)}` : undefined;
         }
         this.graph.cy.layout(opts).run();
+    }
+
+    /**
+     * Positions for the component-separating cloud layout. Each connected
+     * component (all nodes sharing a union-find root id) is packed into its
+     * own grid cell: the component's highest-degree hub sits at the cell
+     * centre and the remaining members orbit on a circle around it. Grid
+     * cells are sized by the largest component so sets never overlap.
+     */
+    _cloudComponentPositions(els: GraphElement[]): Record<string, { x: number; y: number }> {
+        const nodes = els.filter((e) => e.data.id && !e.data.source);
+        if (!nodes.length) return {};
+        // Group node ids by their component root.
+        const compMap = new Map<string, string[]>();
+        nodes.forEach((n) => {
+            const c = n.data.component || n.data.id;
+            if (!compMap.has(c)) compMap.set(c, []);
+            compMap.get(c)!.push(n.data.id);
+        });
+        const comps = [...compMap.values()].sort((a, b) => b.length - a.length);
+        // Degree per node (hubs get the centre of their set).
+        const degree: Record<string, number> = {};
+        els.forEach((e) => {
+            if (e.data.source && e.data.target) {
+                degree[e.data.source] = (degree[e.data.source] || 0) + 1;
+                degree[e.data.target] = (degree[e.data.target] || 0) + 1;
+            }
+        });
+        const nodeSpacing = 40;
+        const cellPad = 90;
+        // Cell size from the largest set so circles never collide.
+        const cellRadius = (n: number): number => Math.max(30, Math.sqrt(n) * nodeSpacing / 2);
+        const maxR = Math.max(...comps.map((c) => cellRadius(c.length)));
+        const cell = maxR * 2 + cellPad;
+        const cols = Math.max(1, Math.ceil(Math.sqrt(comps.length)));
+        const positions: Record<string, { x: number; y: number }> = {};
+        comps.forEach((comp, i) => {
+            const cx = (i % cols) * cell + cell / 2;
+            const cy = (Math.floor(i / cols)) * cell + cell / 2;
+            const r = cellRadius(comp.length);
+            // Hub (highest degree) at the centre; the rest on a circle.
+            const sorted = [...comp].sort((a, b) => (degree[b] || 0) - (degree[a] || 0));
+            const hub = sorted[0];
+            positions[hub] = { x: cx, y: cy };
+            sorted.slice(1).forEach((id, j) => {
+                const ang = (j / (sorted.length - 1)) * Math.PI * 2;
+                positions[id] = {
+                    x: cx + Math.cos(ang) * r,
+                    y: cy + Math.sin(ang) * r,
+                };
+            });
+        });
+        return positions;
     }
 
     _renderGraphDetail(nodeData: CyNodeData | null): void {
@@ -1291,6 +1989,20 @@ class FinDataViewer {
             .selector('node[group="parent"]').style({ "background-color": "#43aa8b" })
             .selector('node[group="supplier"]').style({ "background-color": "#577590" })
             .selector('node[group="customer"]').style({ "background-color": "#577590" })
+            // Whole-graph cloud node groups (entity_type from the DB).
+            .selector('node[group="company"]').style({ "background-color": "#5a6577" })
+            .selector('node[group="theme"]').style({
+                "background-color": "#e9c46a", "shape": "hexagon",
+                "width": 24, "height": 24,
+            })
+            .selector('node[group="super_sector"]').style({
+                "background-color": "#8d99ae", "shape": "rectangle",
+                "width": 54, "height": 32,
+            })
+            .selector('node[group="sub_sector"]').style({
+                "background-color": "#7d8597", "shape": "round-rectangle",
+                "width": 44, "height": 28,
+            })
             .selector('node[group="sector"]').style({
                 "background-color": "#4a6fa5", "shape": "rectangle",
                 "width": 50, "height": 30,
@@ -1325,12 +2037,51 @@ class FinDataViewer {
             .selector('edge[type="supplies_to"]').style({ "line-color": "#577590", "target-arrow-color": "#577590" })
             .selector('edge[type="part_of"]').style({ "line-color": "#4a6fa5", "target-arrow-color": "#4a6fa5" })
             .selector('edge[type="has_company"]').style({ "line-color": "#3d5a80", "target-arrow-color": "#3d5a80" })
+            // Cloud-only edge types.
+            .selector('edge[type="co_mentioned_in"]').style({ "line-color": "#7fd1ae", "target-arrow-color": "#7fd1ae" })
+            .selector('edge[type="exposed_to"]').style({ "line-color": "#e9c46a", "target-arrow-color": "#e9c46a" })
+            .selector('edge[type="belongs_to"]').style({ "line-color": "#8d99ae", "target-arrow-color": "#8d99ae" })
+            .selector('edge[type="supplier_to"]').style({ "line-color": "#577590", "target-arrow-color": "#577590" })
+            .selector('edge[type="customer_of"]').style({ "line-color": "#e5989b", "target-arrow-color": "#e5989b" })
+            .selector('edge[type="same_group"]').style({ "line-color": "#b5838d", "target-arrow-color": "#b5838d" })
+            // Symmetric relationships have no direction — hide the arrowhead.
+            .selector('edge[type="co_mentioned_in"], edge[type="jv_with"], edge[type="competes_with"], edge[type="same_group"]').style({ "target-arrow-shape": "none" })
             .selector("edge.highlighted").style({
                 "width": 4, "line-color": "#ffd166", "target-arrow-color": "#ffd166",
                 "z-index": 10,
             })
             .selector("node.highlighted").style({
                 "border-width": 3, "border-color": "#ffd166", "z-index": 10,
+            })
+            // Whole-graph cloud mode (every element carries data.cloud="1").
+            // Edges: straight curves + no text — bezier control points and
+            // 4110 edge labels are the two biggest per-frame costs. Node text
+            // is gated on zoom so the fit-view renders without 1209 labels.
+            .selector('edge[cloud="1"]').style({
+                "curve-style": "straight",
+                "width": 1,
+                "label": "",
+                "text-opacity": 0,
+                "font-size": 0,
+            })
+            .selector('node[cloud="1"]').style({
+                "font-size": 9,
+                "text-outline-width": 1,
+                "min-zoomed-font-size": 6,
+            })
+            // Cloud set highlight: edges inside the tapped node's connected
+            // component light up (bright + wider) while the rest dims.
+            .selector("edge.in-set").style({
+                "width": 4,
+                "line-color": "#ffd166",
+                "target-arrow-color": "#ffd166",
+                "z-index": 12,
+                "overlay-opacity": 0,
+            })
+            .selector("node.in-set").style({
+                "border-width": 3,
+                "border-color": "#ffd166",
+                "z-index": 12,
             })
             .selector(".faded").style({ "opacity": 0.25 });
     }
@@ -1527,6 +2278,19 @@ class FinDataViewer {
     truncateText(text: string, maxLength: number): string {
         if (text.length <= maxLength) return text;
         return text.substring(0, maxLength) + "...";
+    }
+
+    /** Human-readable byte size (e.g. "9.3 KB"). */
+    formatBytes(bytes: number): string {
+        if (bytes < 1024) return `${bytes} B`;
+        const units = ["KB", "MB", "GB"];
+        let value = bytes;
+        let unit = -1;
+        do {
+            value /= 1024;
+            unit += 1;
+        } while (value >= 1024 && unit < units.length - 1);
+        return `${value.toFixed(1)} ${units[unit]}`;
     }
 }
 

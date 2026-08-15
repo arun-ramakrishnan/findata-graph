@@ -29,6 +29,28 @@
       };
       // --- graph-tab state (lazy-initialized in loadGraphView) -------------- //
       this.graph = null;
+      // --- docs-tab state --------------------------------------------------- //
+      this.docs = { activePath: null };
+      // --- Cloud mode: whole-graph force cloud ------------------------------- //
+      // "Cloud" renders EVERY entity + EVERY typed edge at once (GET
+      // /api/graph/cloud), coloured by relationship type, with a legend +
+      // relationship cloud card. Complements the ego-network view: search / as-of
+      // / edge-filter exit back to ego mode (see _exitCloudMode).
+      /** Edge-type → colour palette shared by the legend + cytoscape styles. */
+      this.EDGE_COLORS = {
+        co_mentioned_in: "#7fd1ae",
+        part_of: "#4a6fa5",
+        has_company: "#3d5a80",
+        exposed_to: "#e9c46a",
+        belongs_to: "#8d99ae",
+        subsidiary_of: "#43aa8b",
+        jv_with: "#2a9d8f",
+        acquired: "#9d4edd",
+        competes_with: "#f4a261",
+        supplier_to: "#577590",
+        customer_of: "#e5989b",
+        same_group: "#b5838d"
+      };
       this.init();
     }
     init() {
@@ -94,11 +116,34 @@
           this.closeLightbox();
         }
       });
+      const docsSearch = getEl("docs-search");
+      const docsClear = getEl("docs-search-clear");
+      docsSearch.addEventListener("input", (e) => {
+        const target = e.target;
+        docsClear.style.display = target.value ? "block" : "none";
+        this.debounceDocsSearch();
+      });
+      docsClear.addEventListener("click", () => {
+        docsSearch.value = "";
+        docsClear.style.display = "none";
+        this.loadDocsCatalog();
+      });
+      getEl("docs-reset").addEventListener("click", () => {
+        docsSearch.value = "";
+        docsClear.style.display = "none";
+        this.loadDocsCatalog();
+      });
     }
     debounceSearch() {
       clearTimeout(this.searchTimeout);
       this.searchTimeout = setTimeout(() => {
         this.searchEntities();
+      }, 300);
+    }
+    debounceDocsSearch() {
+      clearTimeout(this.docsSearchTimeout);
+      this.docsSearchTimeout = setTimeout(() => {
+        this.runDocsSearch();
       }, 300);
     }
     async loadInitialData() {
@@ -133,6 +178,16 @@
         }
       } catch (error) {
         console.error("Error loading stats:", error);
+      }
+      try {
+        const response = await fetch("/api/graph/stats");
+        const data = await response.json();
+        if (this.currentView === "stats") {
+          this.displayGraphStats(data);
+        }
+      } catch (error) {
+        console.error("Error loading graph stats:", error);
+        this.displayGraphStatsError();
       }
     }
     async loadEntities(resetPage = true) {
@@ -395,6 +450,88 @@
       breakdownSection.appendChild(this.createBreakdownCard("Market Cap Distribution", data.market_cap_counts, "market_cap"));
       container.appendChild(breakdownSection);
     }
+    /** Full graph-stats block for the Statistics view (from /api/graph/stats). */
+    displayGraphStats(data) {
+      const container = getEl("stats-container");
+      if (!container) return;
+      const section = document.createElement("div");
+      section.className = "stats-graph-block";
+      section.innerHTML = `
+            <div class="stats-graph-header">
+                <h3><i class="fas fa-project-diagram"></i> Graph Statistics</h3>
+                ${data.structure ? '<span class="stats-graph-meta">via Onager graph metrics</span>' : ""}
+            </div>
+            <div class="stats-graph-cards">${this._graphStatsCards(data)}</div>
+        `;
+      if (data.structure) {
+        const structure = data.structure;
+        const items = [
+          ["Density", structure.density],
+          ["Diameter", structure.diameter],
+          ["Radius", structure.radius],
+          ["Avg path length", structure.avg_path_length],
+          ["Transitivity", structure.transitivity],
+          ["Triangles", structure.triangles],
+          ["Avg clustering", structure.avg_clustering],
+          ["Assortativity", structure.assortativity]
+        ];
+        const metrics = document.createElement("div");
+        metrics.className = "breakdown-card stats-graph-structure";
+        metrics.innerHTML = `<h4>Structure</h4><div class="breakdown-items">` + items.map(([label, v]) => `
+                    <div class="breakdown-item">
+                        <span class="breakdown-label">${this.escapeHtml(label)}</span>
+                        <span class="breakdown-value">${v === null ? "\u2014" : typeof v === "number" ? v.toFixed(4) : this.escapeHtml(String(v))}</span>
+                    </div>`).join("") + `</div>`;
+        section.appendChild(metrics);
+      } else {
+        const note = document.createElement("div");
+        note.className = "hint";
+        note.textContent = "Structure metrics unavailable (graph analysis layer not connected).";
+        section.appendChild(note);
+      }
+      const byType = data.edges.by_type || {};
+      const sorted = {};
+      Object.keys(byType).sort((a, b) => byType[b] - byType[a]).forEach((k) => {
+        sorted[k] = byType[k];
+      });
+      section.appendChild(this.createBreakdownCard("Edge Types", sorted, "edge_type"));
+      container.appendChild(section);
+    }
+    /** Inner stat cards for the graph block (edges + entities + sectors). */
+    _graphStatsCards(data) {
+      const hy = data.hygiene || {};
+      const stale = data.staleness?.stale;
+      const staleColor = stale ? "#e63946" : "#2a9d8f";
+      const staleLabel = stale ? "Stale" : "Fresh";
+      return `
+            <div class="stat-card stat-primary">
+                <div class="stat-content"><h3>${data.edges.total.toLocaleString()}</h3><p>Total Edges</p></div>
+            </div>
+            <div class="stat-card stat-secondary">
+                <div class="stat-content"><h3>${Object.keys(data.edges.by_type || {}).length}</h3><p>Edge Types</p></div>
+            </div>
+            <div class="stat-card stat-secondary">
+                <div class="stat-content"><h3>${data.entities.total.toLocaleString()}</h3><p>Graph Entities</p></div>
+            </div>
+            <div class="stat-card stat-secondary">
+                <div class="stat-content"><h3>${data.sectors?.count ?? 0}</h3><p>Company Sectors</p></div>
+            </div>
+            <div class="stat-card stat-secondary">
+                <div class="stat-content"><h3>${data.sectors?.top?.[0]?.sector ?? "\u2014"}</h3><p>Top Sector</p></div>
+            </div>
+            <div class="stat-card stat-secondary">
+                <div class="stat-content"><h3 style="color:${staleColor}">${staleLabel}</h3><p>Data Staleness</p></div>
+            </div>`;
+    }
+    /** Degraded fallback when /api/graph/stats is unreachable. */
+    displayGraphStatsError() {
+      const container = getEl("stats-container");
+      if (!container) return;
+      const note = document.createElement("div");
+      note.className = "hint";
+      note.textContent = "Graph statistics could not be loaded.";
+      container.appendChild(note);
+    }
     createStatCard(title, value, icon, theme) {
       const card = document.createElement("div");
       card.className = `stat-card stat-${theme}`;
@@ -435,6 +572,9 @@
     formatLabel(key, type) {
       if (type === "market_cap") {
         return key.replace("_", " ").replace(/\b\w/g, (l) => l.toUpperCase());
+      }
+      if (type === "edge_type") {
+        return key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
       }
       return key;
     }
@@ -606,7 +746,131 @@
         case "graph":
           this.loadGraphView();
           break;
+        case "docs":
+          this.loadDocsCatalog();
+          break;
       }
+    }
+    // ---------------------------------------------------------------- //
+    // Docs view (doc/ corpus browser — catalog, search, reader)         //
+    // ---------------------------------------------------------------- //
+    /** Load the full catalog (GET /api/docs) into the sidebar. */
+    async loadDocsCatalog() {
+      this.docs.activePath = null;
+      this.hideDocsContentPane();
+      try {
+        const response = await fetch("/api/docs");
+        const data = await response.json();
+        this.renderDocsList(data.docs.map((d) => ({
+          path: d.path,
+          name: d.name,
+          section: d.section,
+          title: d.title,
+          snippet: ""
+        })));
+        getEl("docs-count").textContent = `${data.docs.length} documents`;
+      } catch (error) {
+        console.error("Error loading docs:", error);
+        getEl("docs-list").innerHTML = '<div class="no-results">Could not load the document catalog.</div>';
+      }
+    }
+    /** Run a corpus search (GET /api/docs/search) and render the hits. */
+    async runDocsSearch() {
+      const query = getEl("docs-search").value.trim();
+      this.docs.activePath = null;
+      this.hideDocsContentPane();
+      if (!query) {
+        this.loadDocsCatalog();
+        return;
+      }
+      try {
+        const url = `/api/docs/search?q=${encodeURIComponent(query)}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        this.renderDocsList(data.results);
+        const total = data.results.length;
+        getEl("docs-count").textContent = total === 0 ? "No matches" : `${total} match${total === 1 ? "" : "es"}`;
+      } catch (error) {
+        console.error("Error searching docs:", error);
+        getEl("docs-list").innerHTML = '<div class="no-results">Search failed. Try again.</div>';
+      }
+    }
+    /**
+     * Render the sidebar: one clickable row per doc. Rows built from search
+     * hits carry a <mark>-highlighted snippet; catalog rows are plain.
+     */
+    renderDocsList(items) {
+      const list = getEl("docs-list");
+      list.innerHTML = "";
+      if (items.length === 0) {
+        list.innerHTML = '<div class="no-results">No documents match.</div>';
+        return;
+      }
+      items.forEach((item) => {
+        const row = document.createElement("button");
+        row.type = "button";
+        row.className = "docs-row";
+        row.dataset.path = item.path;
+        const safeSection = item.section ? `<span class="docs-row-section">${this.escapeHtml(item.section)}</span>` : "";
+        const safeSnippet = item.snippet ? `<div class="docs-row-snippet">${this.highlightSnippet(item.snippet)}</div>` : "";
+        row.innerHTML = `
+                <span class="docs-row-title">${this.escapeHtml(item.title)}</span>
+                ${safeSection}
+                ${safeSnippet}
+            `;
+        row.addEventListener("click", () => this.openDoc(item.path));
+        list.appendChild(row);
+      });
+    }
+    /** Fetch + render one doc's raw markdown/text (GET /api/docs/content). */
+    async openDoc(path) {
+      this.docs.activePath = path;
+      document.querySelectorAll(".docs-row").forEach((row) => {
+        row.classList.toggle("active", row.dataset.path === path);
+      });
+      try {
+        const url = `/api/docs/content?path=${encodeURIComponent(path)}`;
+        const response = await fetch(url);
+        const data = await response.json();
+        const { html, headings } = this.processRichContent(data.content);
+        getEl("docs-content-empty").style.display = "none";
+        const pane = getEl("docs-content-pane");
+        pane.style.display = "block";
+        pane.innerHTML = `
+                <header class="docs-article-header">
+                    <h3>${this.escapeHtml(data.title)}</h3>
+                    <div class="docs-article-meta">
+                        <span>${this.escapeHtml(data.path)}</span>
+                        <span>${this.escapeHtml(data.section || "top-level")}</span>
+                        <span>${this.formatBytes(data.size_bytes)}</span>
+                    </div>
+                </header>
+                ${headings.length > 1 ? this.renderDocsToc(headings) : ""}
+                <div class="docs-article-body">${html}</div>
+            `;
+      } catch (error) {
+        console.error("Error opening doc:", error);
+        getEl("docs-content-pane").style.display = "none";
+        getEl("docs-content-empty").style.display = "block";
+        getEl("docs-content-empty").innerHTML = '<p class="error">Could not load this document.</p>';
+      }
+    }
+    /** Simple TOC linking the <h1..h6 id> headings marked.js produces. */
+    renderDocsToc(headings) {
+      const items = headings.map((h) => `<li class="toc-${h.level}"><a href="#${encodeURIComponent(h.id)}">${this.escapeHtml(h.text)}</a></li>`).join("");
+      return `<nav class="docs-toc"><ul>${items}</ul></nav>`;
+    }
+    /** Reset the reader pane to its empty state. */
+    hideDocsContentPane() {
+      getEl("docs-content-pane").style.display = "none";
+      getEl("docs-content-pane").innerHTML = "";
+      const empty = getEl("docs-content-empty");
+      empty.style.display = "block";
+      empty.innerHTML = `
+            <i class="fas fa-book-open"></i>
+            <p>Select a document to read it here.</p>
+            <p class="hint">Browse the catalog or search the corpus.</p>
+        `;
     }
     // ---------------------------------------------------------------- //
     // Graph view (cytoscape.js — lazy-init on first visit)              //
@@ -623,7 +887,8 @@
           // currently-centred entity name
           elements: null,
           // last-rendered {nodes, edges} for filter swaps
-          entitiesLoaded: false
+          entitiesLoaded: false,
+          cloudMode: false
         };
       }
       if (!this.graph.cy) {
@@ -643,31 +908,52 @@
         });
         this.graph.cy.on("tap", "node", async (evt) => {
           const name = evt.target.data().id;
+          if (this.graph.cloudMode) {
+            this._highlightCloudSet(evt.target.data());
+            this._renderGraphDetail(evt.target.data());
+            return;
+          }
           if (name && name !== this.graph.central) {
             getEl("graph-search").value = name;
             await this.loadEgoNetwork(name);
           }
         });
         this.graph.cy.on("select", "node", (evt) => {
+          if (this.graph.cloudMode) this._highlightCloudSet(evt.target.data());
           this._renderGraphDetail(evt.target.data());
+        });
+        this.graph.cy.on("tap", (evt) => {
+          if (!this.graph.cloudMode) return;
+          const isNode = evt.target.isNode?.();
+          if (!isNode) this._clearCloudHighlight();
         });
         getEl("graph-search-btn").addEventListener("click", async () => {
           const name = getEl("graph-search").value.trim();
-          if (name) await this.loadEgoNetwork(name);
+          if (name) {
+            this._exitCloudMode();
+            await this.loadEgoNetwork(name);
+          }
         });
         getEl("graph-search").addEventListener("keydown", async (e) => {
           if (e.key === "Enter") {
             const name = e.target.value.trim();
-            if (name) await this.loadEgoNetwork(name);
+            if (name) {
+              this._exitCloudMode();
+              await this.loadEgoNetwork(name);
+            }
           }
         });
         getEl("graph-layout").addEventListener("change", (e) => {
-          this._runGraphLayout(e.target.value);
+          const inCloud = !!this.graph && this.graph.cloudMode;
+          this._runGraphLayout(e.target.value, inCloud);
+          if (inCloud) this.graph.cy.fit(void 0, 30);
         });
         getEl("graph-filter").addEventListener("change", () => {
+          this._exitCloudMode();
           if (this.graph.central) this.loadEgoNetwork(this.graph.central);
         });
         getEl("graph-as-of").addEventListener("change", () => {
+          this._exitCloudMode();
           if (this.graph.central) this.loadEgoNetwork(this.graph.central);
         });
         getEl("graph-refresh-db").addEventListener("click", async () => {
@@ -687,6 +973,11 @@
         });
         getEl("shortest-btn").addEventListener("click", () => this.loadShortestPath());
         getEl("shortest-clear").addEventListener("click", () => this.clearShortestPath());
+        getEl("graph-cloud-toggle").addEventListener("click", () => this.toggleGraphCloud());
+        getEl("graph-cloud-type").addEventListener("change", () => {
+          if (this.graph && this.graph.cloudMode) this.loadGraphCloud();
+        });
+        this._initGraphZoom();
       }
       if (!this.graph.entitiesLoaded) {
         await this.loadGraphEntityList();
@@ -712,6 +1003,192 @@
       } catch (e) {
         console.warn("graph typeahead load failed", e);
       }
+    }
+    /** Toggle the whole-graph cloud on/off. */
+    async toggleGraphCloud() {
+      if (!this.graph) return;
+      this.graph.cloudMode = !this.graph.cloudMode;
+      if (this.graph.cloudMode) {
+        await this.loadGraphCloud();
+      } else {
+        this._exitCloudMode();
+      }
+    }
+    /** Leave cloud mode: hide the cloud panel + restore the ego canvas. */
+    _exitCloudMode() {
+      if (!this.graph) return;
+      this.graph.cloudMode = false;
+      this._clearCloudHighlight();
+      getEl("graph-cloud-panel").style.display = "none";
+      getEl("graph-cloud-toggle").classList.remove("active");
+      if (!this.graph.central) {
+        getEl("graph-empty").style.display = "flex";
+      }
+    }
+    /** Fetch + render the whole graph (optionally one relationship type). */
+    async loadGraphCloud() {
+      if (!this.graph || !this.graph.cy) return;
+      this._setGraphStatus("Loading full graph...");
+      getEl("graph-cloud-toggle").classList.add("active");
+      getEl("graph-cloud-panel").style.display = "block";
+      const filter = getEl("graph-cloud-type").value;
+      const url = `/api/graph/cloud` + (filter ? `?edge_type=${encodeURIComponent(filter)}` : "");
+      let data;
+      try {
+        const r = await fetch(url);
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({ error: r.statusText }));
+          throw new Error(err.error || `HTTP ${r.status}`);
+        }
+        data = await r.json();
+      } catch (e) {
+        this._setGraphStatus(`Error: ${e.message}`);
+        return;
+      }
+      this.graph.cloudMode = true;
+      this.graph.central = null;
+      this.graph.entityType = void 0;
+      this._clearCloudHighlight();
+      const degree = {};
+      data.edges.forEach((e) => {
+        degree[e.source] = (degree[e.source] || 0) + 1;
+        degree[e.target] = (degree[e.target] || 0) + 1;
+      });
+      const root = /* @__PURE__ */ new Map();
+      const find = (x) => {
+        if (root.get(x) !== x) root.set(x, find(root.get(x)));
+        return root.get(x);
+      };
+      const union = (a, b) => {
+        const ra = find(a);
+        const rb = find(b);
+        if (ra !== rb) root.set(ra, rb);
+      };
+      data.nodes.forEach((n) => root.set(n.id, n.id));
+      data.edges.forEach((e) => union(e.source, e.target));
+      const elements = data.nodes.map((n) => ({
+        data: {
+          id: n.id,
+          label: n.label,
+          group: n.entity_type,
+          cloud: "1",
+          centrality: degree[n.id] || 0,
+          component: find(n.id)
+        }
+      }));
+      data.edges.forEach((e) => {
+        elements.push({
+          data: {
+            id: `${e.source}__${e.target}__${e.edge_type}`,
+            source: e.source,
+            target: e.target,
+            type: e.edge_type,
+            label: "",
+            // no per-edge text — 4110 labels is the #1 render cost
+            cloud: "1",
+            component: find(e.source)
+          }
+        });
+      });
+      this.graph.cy.elements().remove();
+      this.graph.cy.add(elements);
+      this.graph.elements = elements;
+      const componentCount = new Set(elements.filter((e) => e.data.id && !e.data.source).map((e) => e.data.component)).size;
+      this._runGraphLayout(componentCount > 1 ? "components" : "cose", true);
+      this.graph.cy.fit(void 0, 30);
+      getEl("graph-empty").style.display = "none";
+      this._renderCloudLegend(data);
+      this._renderRelationshipCloud(data.relationship_types);
+      const typeLabel = filter || "all relationships";
+      this._setGraphStatus(
+        `Full graph \u2014 ${data.total_nodes} entities \xB7 ${data.total_edges} ${typeLabel}` + (data.total_edges !== 1 ? "s" : "")
+      );
+    }
+    /**
+     * Highlight the connected set (component) a tapped node belongs to: every
+     * element sharing its component root gets the `in-set` style (bright
+     * edges), everything else fades to background.
+     */
+    _highlightCloudSet(nodeData) {
+      const cy = this.graph && this.graph.cy;
+      if (!cy || !this.graph || !this.graph.cloudMode) return;
+      const comp = nodeData.component;
+      cy.elements().removeClass("in-set faded");
+      if (!comp) return;
+      cy.elements().forEach((el) => {
+        if (el.data().component === comp) {
+          el.removeClass("faded").addClass("in-set");
+        } else {
+          el.addClass("faded").removeClass("in-set");
+        }
+      });
+    }
+    /** Remove the cloud set-highlight (restores full opacity to all elements). */
+    _clearCloudHighlight() {
+      if (this.graph && this.graph.cy) {
+        this.graph.cy.elements().removeClass("in-set faded");
+      }
+    }
+    /** Legend: entity-type swatches + edge-type colour chips. */
+    _renderCloudLegend(data) {
+      const legend = getEl("graph-cloud-legend");
+      const nodeTypes = [...new Set(data.nodes.map((n) => n.entity_type))].sort();
+      const edgeTypes = [...new Set(data.edges.map((e) => e.edge_type))].sort();
+      const nodeHtml = nodeTypes.map((t) => `
+            <span class="cloud-legend-chip">
+                <span class="cloud-swatch cloud-node-${CSS.escape(t)}">${this.escapeHtml(t)}</span>
+            </span>`).join("");
+      const edgeHtml = edgeTypes.map((t) => `
+            <span class="cloud-legend-chip">
+                <span class="cloud-swatch" style="background:${this.EDGE_COLORS[t] || "#5a6577"}">${this.escapeHtml(t)}</span>
+            </span>`).join("");
+      legend.innerHTML = `
+            <div class="cloud-legend-group"><strong>Entities</strong><div class="cloud-legend-chips">${nodeHtml}</div></div>
+            <div class="cloud-legend-group"><strong>Relationships</strong><div class="cloud-legend-chips">${edgeHtml}</div></div>`;
+    }
+    /** Relationship cloud card: one size-proportional chip per edge type. */
+    _renderRelationshipCloud(types) {
+      const card = getEl("graph-relationship-cloud");
+      const select = getEl("graph-cloud-type");
+      const current = select.value;
+      const currentSemantics = types.find((t) => t.edge_type === current);
+      const opts = [`<option value="">All relationships</option>`];
+      types.forEach((t) => {
+        const arrow = t.symmetric ? "\u2194" : "\u2192";
+        opts.push(`<option value="${this.escapeHtml(t.edge_type)}">${this.escapeHtml(t.edge_type)} (${t.count}) ${arrow}</option>`);
+      });
+      select.innerHTML = opts.join("");
+      if (current && currentSemantics) select.value = current;
+      else select.value = "";
+      if (!types.length) {
+        card.innerHTML = '<p class="hint">No relationships in the graph.</p>';
+        return;
+      }
+      const max = Math.max(...types.map((t) => t.count), 1);
+      const chips = types.map((t) => {
+        const ratio = t.count / max;
+        const size = 0.85 + ratio * 1.35;
+        const color = this.EDGE_COLORS[t.edge_type] || "#5a6577";
+        const arrow = t.symmetric ? "\u2194" : "\u2192";
+        return `<button type="button" class="rel-cloud-chip"
+                        title="${this.escapeHtml(`${t.semantics} \u2014 ${t.count} edge${t.count !== 1 ? "s" : ""}`)}"
+                        data-edge-type="${this.escapeHtml(t.edge_type)}"
+                        style="font-size:${size.toFixed(2)}rem; color:${color};">
+                    ${this.escapeHtml(t.edge_type)}
+                    <span class="rel-cloud-count">${t.count} ${arrow}</span>
+                </button>`;
+      }).join("");
+      card.innerHTML = `<h4 class="rel-cloud-title"><i class="fas fa-cloud"></i> Relationship Cloud</h4>
+                          <div class="rel-cloud-chips">${chips}</div>`;
+      card.querySelectorAll(".rel-cloud-chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const et = chip.dataset.edgeType;
+          if (!et) return;
+          const select2 = getEl("graph-cloud-type");
+          select2.value = et;
+          this.loadGraphCloud();
+        });
+      });
     }
     async loadEgoNetwork(name) {
       this._setGraphStatus(`Loading ${name}...`);
@@ -889,13 +1366,69 @@
       });
       return [...nodes, ...edges];
     }
-    _runGraphLayout(name) {
+    /** Wire the zoom slider / buttons / fit to the cytoscape instance. */
+    _initGraphZoom() {
+      if (!this.graph || !this.graph.cy) return;
+      const slider = getEl("graph-zoom");
+      const label = getEl("graph-zoom-label");
+      const cy = this.graph.cy;
+      const applyZoom = () => {
+        const z = parseFloat(slider.value) || 1;
+        cy.zoom(z);
+        label.textContent = `${Math.round(z * 100)}%`;
+      };
+      slider.addEventListener("input", applyZoom);
+      getEl("graph-zoom-in").addEventListener("click", () => {
+        const next = Math.min(cy.maxZoom(), cy.zoom() * 1.25);
+        cy.zoom(next);
+      });
+      getEl("graph-zoom-out").addEventListener("click", () => {
+        const next = Math.max(cy.minZoom(), cy.zoom() / 1.25);
+        cy.zoom(next);
+      });
+      getEl("graph-zoom-fit").addEventListener("click", () => cy.fit(void 0, 30));
+      cy.on("zoom", () => {
+        const z = cy.zoom();
+        slider.value = String(z);
+        label.textContent = `${Math.round(z * 100)}%`;
+      });
+      cy.on("layoutstop", () => {
+        const z = cy.zoom();
+        slider.value = String(z);
+        label.textContent = `${Math.round(z * 100)}%`;
+      });
+    }
+    _runGraphLayout(name, cloud = false) {
       if (!this.graph || !this.graph.cy || this.graph.cy.elements().length === 0) return;
-      const opts = { name, animate: true, animationDuration: 300 };
+      if (name === "components") {
+        const els = this.graph.elements || [];
+        if (els.some((e) => e.data.component)) {
+          const positions = this._cloudComponentPositions(els);
+          if (Object.keys(positions).length) {
+            this.graph.cy.layout({
+              name: "preset",
+              positions,
+              animate: !cloud,
+              animationDuration: 300
+            }).run();
+            return;
+          }
+        }
+        name = "concentric";
+      }
+      const opts = { name, animate: !cloud, animationDuration: 300 };
       if (name === "cose") {
         opts.nodeRepulsion = () => 8e3;
         opts.idealEdgeLength = () => 100;
         opts.nodeOverlap = 20;
+        if (cloud) {
+          opts.randomize = true;
+          opts.numIter = 300;
+          opts.initialTemp = 200;
+          opts.coolingFactor = 0.8;
+          opts.minTemp = 1;
+          opts.gravity = 2;
+        }
       } else if (name === "concentric") {
         opts.concentric = (n) => n.data().centrality || 0;
         opts.levelWidth = () => 1;
@@ -906,6 +1439,54 @@
         opts.roots = this.graph.central ? `#${CSS.escape(this.graph.central)}` : void 0;
       }
       this.graph.cy.layout(opts).run();
+    }
+    /**
+     * Positions for the component-separating cloud layout. Each connected
+     * component (all nodes sharing a union-find root id) is packed into its
+     * own grid cell: the component's highest-degree hub sits at the cell
+     * centre and the remaining members orbit on a circle around it. Grid
+     * cells are sized by the largest component so sets never overlap.
+     */
+    _cloudComponentPositions(els) {
+      const nodes = els.filter((e) => e.data.id && !e.data.source);
+      if (!nodes.length) return {};
+      const compMap = /* @__PURE__ */ new Map();
+      nodes.forEach((n) => {
+        const c = n.data.component || n.data.id;
+        if (!compMap.has(c)) compMap.set(c, []);
+        compMap.get(c).push(n.data.id);
+      });
+      const comps = [...compMap.values()].sort((a, b) => b.length - a.length);
+      const degree = {};
+      els.forEach((e) => {
+        if (e.data.source && e.data.target) {
+          degree[e.data.source] = (degree[e.data.source] || 0) + 1;
+          degree[e.data.target] = (degree[e.data.target] || 0) + 1;
+        }
+      });
+      const nodeSpacing = 40;
+      const cellPad = 90;
+      const cellRadius = (n) => Math.max(30, Math.sqrt(n) * nodeSpacing / 2);
+      const maxR = Math.max(...comps.map((c) => cellRadius(c.length)));
+      const cell = maxR * 2 + cellPad;
+      const cols = Math.max(1, Math.ceil(Math.sqrt(comps.length)));
+      const positions = {};
+      comps.forEach((comp, i) => {
+        const cx = i % cols * cell + cell / 2;
+        const cy = Math.floor(i / cols) * cell + cell / 2;
+        const r = cellRadius(comp.length);
+        const sorted = [...comp].sort((a, b) => (degree[b] || 0) - (degree[a] || 0));
+        const hub = sorted[0];
+        positions[hub] = { x: cx, y: cy };
+        sorted.slice(1).forEach((id, j) => {
+          const ang = j / (sorted.length - 1) * Math.PI * 2;
+          positions[id] = {
+            x: cx + Math.cos(ang) * r,
+            y: cy + Math.sin(ang) * r
+          };
+        });
+      });
+      return positions;
     }
     _renderGraphDetail(nodeData) {
       const panel = getEl("graph-detail");
@@ -980,7 +1561,22 @@
         "height": 44,
         "font-size": 14,
         "font-weight": "bold"
-      }).selector('node[group="peer"]').style({ "background-color": "#f4a261" }).selector('node[group="jv"]').style({ "background-color": "#2a9d8f" }).selector('node[group="sibling"]').style({ "background-color": "#8d99ae" }).selector('node[group="acquired"]').style({ "background-color": "#9d4edd" }).selector('node[group="parent"]').style({ "background-color": "#43aa8b" }).selector('node[group="supplier"]').style({ "background-color": "#577590" }).selector('node[group="customer"]').style({ "background-color": "#577590" }).selector('node[group="sector"]').style({
+      }).selector('node[group="peer"]').style({ "background-color": "#f4a261" }).selector('node[group="jv"]').style({ "background-color": "#2a9d8f" }).selector('node[group="sibling"]').style({ "background-color": "#8d99ae" }).selector('node[group="acquired"]').style({ "background-color": "#9d4edd" }).selector('node[group="parent"]').style({ "background-color": "#43aa8b" }).selector('node[group="supplier"]').style({ "background-color": "#577590" }).selector('node[group="customer"]').style({ "background-color": "#577590" }).selector('node[group="company"]').style({ "background-color": "#5a6577" }).selector('node[group="theme"]').style({
+        "background-color": "#e9c46a",
+        "shape": "hexagon",
+        "width": 24,
+        "height": 24
+      }).selector('node[group="super_sector"]').style({
+        "background-color": "#8d99ae",
+        "shape": "rectangle",
+        "width": 54,
+        "height": 32
+      }).selector('node[group="sub_sector"]').style({
+        "background-color": "#7d8597",
+        "shape": "round-rectangle",
+        "width": 44,
+        "height": 28
+      }).selector('node[group="sector"]').style({
         "background-color": "#4a6fa5",
         "shape": "rectangle",
         "width": 50,
@@ -1010,7 +1606,7 @@
         "text-background-color": "#1f2933",
         "text-background-padding": 2,
         "text-background-opacity": 0.7
-      }).selector('edge[type="competes_with"]').style({ "line-color": "#f4a261", "target-arrow-color": "#f4a261" }).selector('edge[type="jv_with"]').style({ "line-color": "#2a9d8f", "target-arrow-color": "#2a9d8f" }).selector('edge[type="acquired"]').style({ "line-color": "#9d4edd", "target-arrow-color": "#9d4edd" }).selector('edge[type="subsidiary_of"]').style({ "line-color": "#43aa8b", "target-arrow-color": "#43aa8b" }).selector('edge[type="supplies_to"]').style({ "line-color": "#577590", "target-arrow-color": "#577590" }).selector('edge[type="part_of"]').style({ "line-color": "#4a6fa5", "target-arrow-color": "#4a6fa5" }).selector('edge[type="has_company"]').style({ "line-color": "#3d5a80", "target-arrow-color": "#3d5a80" }).selector("edge.highlighted").style({
+      }).selector('edge[type="competes_with"]').style({ "line-color": "#f4a261", "target-arrow-color": "#f4a261" }).selector('edge[type="jv_with"]').style({ "line-color": "#2a9d8f", "target-arrow-color": "#2a9d8f" }).selector('edge[type="acquired"]').style({ "line-color": "#9d4edd", "target-arrow-color": "#9d4edd" }).selector('edge[type="subsidiary_of"]').style({ "line-color": "#43aa8b", "target-arrow-color": "#43aa8b" }).selector('edge[type="supplies_to"]').style({ "line-color": "#577590", "target-arrow-color": "#577590" }).selector('edge[type="part_of"]').style({ "line-color": "#4a6fa5", "target-arrow-color": "#4a6fa5" }).selector('edge[type="has_company"]').style({ "line-color": "#3d5a80", "target-arrow-color": "#3d5a80" }).selector('edge[type="co_mentioned_in"]').style({ "line-color": "#7fd1ae", "target-arrow-color": "#7fd1ae" }).selector('edge[type="exposed_to"]').style({ "line-color": "#e9c46a", "target-arrow-color": "#e9c46a" }).selector('edge[type="belongs_to"]').style({ "line-color": "#8d99ae", "target-arrow-color": "#8d99ae" }).selector('edge[type="supplier_to"]').style({ "line-color": "#577590", "target-arrow-color": "#577590" }).selector('edge[type="customer_of"]').style({ "line-color": "#e5989b", "target-arrow-color": "#e5989b" }).selector('edge[type="same_group"]').style({ "line-color": "#b5838d", "target-arrow-color": "#b5838d" }).selector('edge[type="co_mentioned_in"], edge[type="jv_with"], edge[type="competes_with"], edge[type="same_group"]').style({ "target-arrow-shape": "none" }).selector("edge.highlighted").style({
         "width": 4,
         "line-color": "#ffd166",
         "target-arrow-color": "#ffd166",
@@ -1019,6 +1615,26 @@
         "border-width": 3,
         "border-color": "#ffd166",
         "z-index": 10
+      }).selector('edge[cloud="1"]').style({
+        "curve-style": "straight",
+        "width": 1,
+        "label": "",
+        "text-opacity": 0,
+        "font-size": 0
+      }).selector('node[cloud="1"]').style({
+        "font-size": 9,
+        "text-outline-width": 1,
+        "min-zoomed-font-size": 6
+      }).selector("edge.in-set").style({
+        "width": 4,
+        "line-color": "#ffd166",
+        "target-arrow-color": "#ffd166",
+        "z-index": 12,
+        "overlay-opacity": 0
+      }).selector("node.in-set").style({
+        "border-width": 3,
+        "border-color": "#ffd166",
+        "z-index": 12
       }).selector(".faded").style({ "opacity": 0.25 });
     }
     async loadShortestPath() {
@@ -1176,6 +1792,18 @@
     truncateText(text, maxLength) {
       if (text.length <= maxLength) return text;
       return text.substring(0, maxLength) + "...";
+    }
+    /** Human-readable byte size (e.g. "9.3 KB"). */
+    formatBytes(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      const units = ["KB", "MB", "GB"];
+      let value = bytes;
+      let unit = -1;
+      do {
+        value /= 1024;
+        unit += 1;
+      } while (value >= 1024 && unit < units.length - 1);
+      return `${value.toFixed(1)} ${units[unit]}`;
     }
   };
   var viewer = new FinDataViewer();
