@@ -69,7 +69,8 @@ Three invariants hold the design together:
 | `doc/` | architecture, schema, vault spec, graph design, procedures, improvement log |
 | `tests/` | 80 pytest modules (1,610 tests) + conftest, fixtures, perf-benchmark runner |
 | `frontend/` | TypeScript sources; built bundle is committed to `static/` so serving stays Node-free |
-| `memory/`, `db-backup/` | runtime DB + snapshots — **gitignored**, see Quickstart |
+| `memory/`, `db-backup/` | runtime DB + local gzip scratch — **gitignored**, see Quickstart |
+| `snapshots/` | **git-tracked** Parquet snapshot of both DBs + schema DDL (`make snapshot-restore` rebuilds `memory/` from it) |
 
 ## Quickstart
 
@@ -79,10 +80,11 @@ Requires Python ≥ 3.14 and [uv](https://docs.astral.sh/uv/). Node is optional
 ```bash
 uv sync --all-extras          # runtime + dev dependencies
 
-# The database is not in git. Either restore local snapshots:
-mkdir -p memory
-gzip -dc db-backup/research.snapshot.db.gz   > memory/research.db
-gzip -dc db-backup/graph.snapshot.duckdb.gz  > memory/graph.duckdb
+# The database is not in git as a live file; the git-tracked Parquet
+# snapshot under snapshots/ is the restorable state:
+make snapshot-restore          # rebuilds memory/*.db from snapshots/parquet/
+# (byte-exact local alternative, if db-backup/ has fresh gzip copies:
+#  mkdir -p memory && gzip -dc db-backup/*.gz > memory/…)
 # …or start from an empty canonical schema:
 # uv run python3 helpers/maintenance/rebuild_schema.py
 

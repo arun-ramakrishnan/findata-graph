@@ -1,41 +1,50 @@
 #!/usr/bin/env python3
 """
-Versioned gzip snapshot of memory/research.db (+ memory/graph.duckdb).
+Versioned snapshot of memory/research.db (+ memory/graph.duckdb).
 
-The SQLite DB runs in WAL mode, so a naive ``cp research.db`` would miss
-the ``-wal`` file and yield a stale/corrupt copy. This uses SQLite's
-online backup API, which produces a transactionally consistent,
-self-contained file with all committed WAL data merged in, then
-gzip-compresses it.
+Two artifact families, two roles:
 
-The DuckDB file (``memory/graph.duckdb``) is also snapshotted when
-present. DuckDB uses its own WAL (``graph.duckdb.wal``); before copying
-we issue ``CHECKPOINT`` on a read-only connection (or fall back to
-copying the WAL sidecar alongside the main file).
+1. Parquet (Bundle L1) — the GIT-TRACKED artifact under ``snapshots/parquet/``.
+   Each materialised DuckDB table (v_node, v_company, e_*) and each SQLite
+   data table (entities, graph_edges, ...) is exported to its own .parquet
+   file under ``snapshots/parquet/duckdb/`` and ``snapshots/parquet/sqlite/``.
+   Portable + columnar: readable by pandas/polars/pyarrow/duckdb without
+   needing the original DB engines. Alongside the data, the replayable
+   schema DDL is captured (``_schema.sqlite.sql`` / ``_schema.duckdb.sql``)
+   so the snapshot is fully self-describing. FTS5 derived shadows
+   (``note_search_data``/``_idx``/``_docsize``/``_config``) are excluded,
+   but the FTS5 *content* shadow (``note_search_content``) IS exported —
+   it carries the indexed text, and ``--restore`` regenerates the index
+   from it via the FTS5 ``('rebuild')`` command.
 
-``memory/`` is gitignored, so the live databases are not recoverable
-from git. Run this after each ingest (or any DB-affecting change) to
-keep a reconstructable snapshot committed under ``db-backup/``.
+2. gzip binary — LOCAL-ONLY byte-exact copies under ``db-backup/`` (gitignored).
+   The SQLite DB runs in WAL mode, so a naive ``cp research.db`` would miss
+   the ``-wal`` file and yield a stale/corrupt copy. This uses SQLite's
+   online backup API, which produces a transactionally consistent,
+   self-contained file with all committed WAL data merged in, then
+   gzip-compresses it. The DuckDB file is checkpointed before copying.
+   Fastest disaster recovery (``gunzip -c ... > memory/research.db``), but
+   binary DBs churn badly in git — hence parquet-for-checkins.
+
+Both ``memory/`` (live DBs) and ``db-backup/`` (gzip scratch) are
+gitignored; ``snapshots/parquet/`` is the committed, restorable state.
 
 Usage:
   python3 helpers/maintenance/snapshot_db.py            # snapshot gzip + Parquet (both formats) + verify
   python3 helpers/maintenance/snapshot_db.py --check     # verify existing snapshots (BOTH formats)
   python3 helpers/maintenance/snapshot_db.py --no-duckdb # SQLite only
   python3 helpers/maintenance/snapshot_db.py --format binary   # gzip .db.gz only
-  python3 helpers/maintenance/snapshot_db.py --format parquet  # Parquet only
+  python3 helpers/maintenance/snapshot_db.py --format parquet  # Parquet only (git checkin path)
 
-Parquet (Bundle L1):
-  Each materialised DuckDB table (v_node, v_company, e_*) and each SQLite
-  data table (entities, graph_edges, ...) is exported to its own .parquet
-  file under db-backup/parquet/duckdb/ and db-backup/parquet/sqlite/.
-  Portable + columnar: readable by pandas/polars/pyarrow/duckdb without
-  needing the original DB engines. FTS5 shadow tables (note_search*,
-  entities_fuzzy*) are excluded. BOTH formats (gzip binary + Parquet) are
-  produced and verified by default; --format narrows to one or the other.
+Restore (from the git-tracked Parquet snapshot):
+  make snapshot-restore        # or: python3 helpers/maintenance/snapshot_db.py --restore [--force]
+  Rebuilds memory/research.db + memory/graph.duckdb from snapshots/parquet/:
+  apply schema DDL → load every .parquet → FTS5 ('rebuild') → integrity
+  checks → atomic replace of the live files. Refuses to overwrite an
+  existing live DB unless --force.
 
-Restore:
-  gunzip -c db-backup/research.snapshot.db.gz > memory/research.db
-  gunzip -c db-backup/graph.snapshot.duckdb.gz > memory/graph.duckdb
+  (Local gzip alternative: gunzip -c db-backup/research.snapshot.db.gz
+  > memory/research.db)
 
 See also: ``helpers/maintenance/maint.py`` — the orchestrator that runs
 db_maint → snapshot_db → graph-rebuild in the right order. Prefer
@@ -74,6 +83,8 @@ DEFAULT_DB = "memory/research.db"
 DEFAULT_OUT = "db-backup/research.snapshot.db.gz"
 DEFAULT_DUCKDB = "memory/graph.duckdb"
 DEFAULT_DUCKDB_OUT = "db-backup/graph.snapshot.duckdb.gz"
+# Git-tracked, restoreable Parquet snapshot (see module docstring).
+DEFAULT_PARQUET = "snapshots/parquet"
 
 
 def _compute_root() -> Path:
@@ -432,8 +443,10 @@ _DUCKDB_PARQUET_TABLES = [
     "_build_meta",
 ]
 
-# SQLite data tables to export (skip FTS5 shadow tables: note_search_*,
-# entities_fuzzy, entities_fuzzy_vocab, note_search_config).
+# SQLite data tables to export. FTS5 derived shadows (note_search_data/
+# _idx/_docsize/_config, entities_fuzzy*) are skipped; note_search_content
+# (the FTS5 content shadow = the indexed text) IS exported so --restore can
+# ('rebuild') the index.
 SQLITE_PARQUET_TABLES = [
     "entities",
     "graph_edges",
@@ -444,10 +457,12 @@ SQLITE_PARQUET_TABLES = [
     "company_embeddings",
     "graph_analytics",
     "db_meta",
+    "note_search_content",
 ]
 
-PARQUET_DUCKDB_DIR = "db-backup/parquet/duckdb"
-PARQUET_SQLITE_DIR = "db-backup/parquet/sqlite"
+# Default Parquet snapshot location (git-tracked; see DEFAULT_PARQUET).
+PARQUET_DUCKDB_DIR = "snapshots/parquet/duckdb"
+PARQUET_SQLITE_DIR = "snapshots/parquet/sqlite"
 
 
 def _list_duckdb_tables(con: duckdb.DuckDBPyConnection) -> list[str]:
@@ -461,16 +476,77 @@ def _list_duckdb_tables(con: duckdb.DuckDBPyConnection) -> list[str]:
 
 
 def _list_sqlite_tables(con: sqlite3.Connection) -> list[str]:
-    """Return the names of all data tables (skip FTS5 shadow tables)."""
+    """Return the names of all data tables (skip FTS5 *derived* shadows).
+
+    ``note_search_content`` is deliberately KEPT: for a regular (non
+    external-content) FTS5 table it holds the indexed column values, so a
+    Parquet restore can regenerate the index via ``('rebuild')``. The
+    derived shadows (``_data``/``_idx``/``_docsize``/``_config``) are
+    excluded — they are rebuilt, not data.
+    """
     cur = con.execute(
         "SELECT name FROM sqlite_master WHERE type='table' "
         "AND name NOT LIKE 'sqlite_%' "
-        "AND name NOT LIKE 'note_search%' "
+        "AND NOT (name LIKE 'note_search%' AND name != 'note_search_content') "
         "AND name NOT LIKE 'entities_fuzzy%' "
         "AND sql NOT LIKE '%VIRTUAL TABLE%fts5%' "
         "ORDER BY name"
     )
     return [r[0] for r in cur.fetchall()]
+
+
+def _export_sqlite_schema(con: sqlite3.Connection) -> str:
+    """Replayable DDL for a Parquet restore: base tables, FTS5 virtual
+    tables, indexes, views, triggers — in dependency-safe creation order
+    (``sqlite_master`` rowid ≈ creation order), excluding derived FTS5
+    shadows and spellfix leftovers (regenerated / not wanted).
+    """
+    def stmts(kind: str, where: str = "") -> list[str]:
+        rows = con.execute(
+            "SELECT sql FROM sqlite_master WHERE type=? AND sql IS NOT NULL "
+            f"AND name NOT LIKE 'sqlite_%' {where} ORDER BY rowid",
+            (kind,),
+        ).fetchall()
+        return [r[0].rstrip().rstrip(";") + ";" for r in rows]
+
+    # FTS5 virtual tables FIRST: ``CREATE VIRTUAL TABLE ... USING fts5``
+    # creates every shadow table (incl. ``note_search_content``) itself, so
+    # the plain-table pass must not try to create them again.
+    vtables = stmts(
+        "table", "AND sql LIKE '%VIRTUAL TABLE%' AND name NOT LIKE 'entities_fuzzy%'"
+    )
+    base_tables = stmts(
+        "table",
+        "AND sql NOT LIKE '%VIRTUAL TABLE%' "
+        "AND name NOT LIKE 'note_search%' "
+        "AND name NOT LIKE 'entities_fuzzy%'",
+    )
+    # ``sql IS NOT NULL`` drops sqlite_autoindex_* (auto-created) — good.
+    parts = (
+        ["PRAGMA foreign_keys=OFF;"]
+        + vtables
+        + base_tables
+        + stmts("index")
+        + stmts("view")
+        + stmts("trigger")
+    )
+    return "\n\n".join(parts) + "\n"
+
+
+def _export_duckdb_schema(con: duckdb.DuckDBPyConnection) -> str:
+    """Replayable DuckDB DDL: base tables then views, in creation order
+    (oid order) so FK/view dependencies are satisfied on replay."""
+    parts: list[str] = []
+    for (sql,) in con.execute(
+        "SELECT sql FROM duckdb_tables() WHERE NOT internal ORDER BY table_oid"
+    ).fetchall():
+        parts.append(sql.rstrip().rstrip(";") + ";")
+    for (sql,) in con.execute(
+        "SELECT sql FROM duckdb_views() WHERE NOT internal AND sql IS NOT NULL "
+        "ORDER BY view_oid"
+    ).fetchall():
+        parts.append(sql.rstrip().rstrip(";") + ";")
+    return "\n\n".join(parts) + "\n"
 
 
 def export_parquet_duckdb(
@@ -493,6 +569,11 @@ def export_parquet_duckdb(
     # Single read-only connection; COPY on base tables needs no extensions.
     con = duckdb.connect(str(duckdb_path), read_only=True)
     try:
+        # Replayable DDL (tables + views, in dependency-safe order).
+        schema_path = out_dir.parent / "_schema.duckdb.sql"
+        schema_path.write_text(_export_duckdb_schema(con))
+        logger.info(f"  Parquet DuckDB: schema DDL → {schema_path}")
+
         tables = _list_duckdb_tables(con)
         # Filter to only data tables (skip internal/system tables; the
         # __duckpgq_internal tables no longer exist post-retirement, but the
@@ -544,6 +625,12 @@ def export_parquet_sqlite(
     except Exception:
         tables = list(SQLITE_PARQUET_TABLES)
 
+    # Capture replayable DDL next to the data so the snapshot restores
+    # without any schema knowledge baked into this script.
+    schema_path = out_dir.parent / "_schema.sqlite.sql"
+    schema_path.write_text(_export_sqlite_schema(con))
+    logger.info(f"  Parquet SQLite: schema DDL → {schema_path}")
+
     results: dict[str, dict] = {}
     total_bytes = 0
     for t in tables:
@@ -554,7 +641,10 @@ def export_parquet_sqlite(
             continue
         out_path = out_dir / f"{t}.parquet"
         table = pa.Table.from_pandas(df, preserve_index=False)
-        pq.write_table(table, out_path)
+        # gzip codec: the SQLite tables are TEXT/BLOB-heavy (note text,
+        # embeddings) and snappy leaves them ~3x larger than needed for a
+        # git-tracked artifact.
+        pq.write_table(table, out_path, compression="gzip")
         sz = out_path.stat().st_size
         total_bytes += sz
         results[t] = {"bytes": sz, "rows": len(df)}
@@ -648,9 +738,140 @@ def verify_parquet_snapshot(  # noqa: C901
     return result
 
 
+# ---------------------------------------------------------------------------
+# Restore: rebuild the live databases from the git-tracked Parquet snapshot
+# ---------------------------------------------------------------------------
+
+
+def _parquet_rows(path: Path) -> tuple[list[str], list[tuple]]:
+    """Columns + row tuples from one .parquet file (NaN → NULL)."""
+    import pandas as pd
+
+    df = pd.read_parquet(path)
+    cols = list(df.columns)
+    df = df.astype(object).where(pd.notna(df), None)
+    return cols, list(df.itertuples(index=False, name=None))
+
+
+def restore_sqlite_from_parquet(
+    parquet_dir: Path, target: Path, logger: logging.Logger
+) -> dict:
+    """Rebuild a SQLite DB at ``target`` from ``parquet_dir``/*.parquet.
+
+    Applies ``_schema.sqlite.sql`` (from the snapshot dir's parent), loads
+    every Parquet file, rebuilds the FTS5 index from its exported content
+    shadow, runs ``PRAGMA foreign_key_check``, then atomically replaces
+    ``target``. The caller is responsible for any overwrite guard.
+    """
+    schema_path = parquet_dir.parent / "_schema.sqlite.sql"
+    if not schema_path.exists():
+        raise FileNotFoundError(
+            f"Schema DDL not found next to the Parquet dir: {schema_path}"
+        )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(target.name + ".restore-tmp")
+    tmp.unlink(missing_ok=True)
+
+    con = sqlite3.connect(str(tmp))
+    restored: dict[str, int] = {}
+    try:
+        con.executescript(schema_path.read_text())
+        # executescript() commits and leaves scripted pragmas behind; the
+        # load itself must not enforce FKs (table order is alphabetical).
+        con.execute("PRAGMA foreign_keys=OFF")
+        con.execute("PRAGMA journal_mode=OFF")  # fresh build: max speed
+        for pf in sorted(parquet_dir.glob("*.parquet")):
+            tname = pf.stem
+            cols, rows = _parquet_rows(pf)
+            if not cols:
+                continue
+            collist = ", ".join(f"[{c}]" for c in cols)
+            marks = ", ".join("?" * len(cols))
+            con.executemany(
+                f"INSERT INTO [{tname}] ({collist}) VALUES ({marks})",  # noqa: S608  # identifiers come from the snapshot's own file names
+                rows,
+            )
+            restored[tname] = len(rows)
+            logger.info(f"  Restore SQLite: {tname} ← {len(rows):,} rows")
+        # Regenerate the FTS5 index from its exported content shadow.
+        if con.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='note_search'"
+        ).fetchone():
+            con.execute("INSERT INTO note_search(note_search) VALUES('rebuild')")
+            logger.info("  Restore SQLite: FTS5 note_search index rebuilt")
+        con.commit()
+        fk_issues = con.execute("PRAGMA foreign_key_check").fetchall()
+        if fk_issues:
+            raise sqlite3.IntegrityError(
+                f"foreign_key_check failed after restore: {fk_issues[:5]}"
+            )
+    finally:
+        con.close()
+
+    tmp.replace(target)
+    logger.info(
+        f"Restore SQLite: {target} ({len(restored)} tables, "
+        f"{sum(restored.values()):,} rows)"
+    )
+    return {"target": str(target), "tables": restored}
+
+
+def restore_duckdb_from_parquet(
+    parquet_dir: Path, target: Path, logger: logging.Logger
+) -> dict:
+    """Rebuild a DuckDB file at ``target`` from ``parquet_dir``/*.parquet.
+
+    Applies ``_schema.duckdb.sql`` (creation-ordered tables then views),
+    bulk-loads each Parquet via ``read_parquet``, checkpoints, then
+    atomically replaces ``target``.
+    """
+    import duckdb
+
+    schema_path = parquet_dir.parent / "_schema.duckdb.sql"
+    if not schema_path.exists():
+        raise FileNotFoundError(
+            f"Schema DDL not found next to the Parquet dir: {schema_path}"
+        )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    tmp = target.with_name(target.name + ".restore-tmp")
+    for stale in (tmp, Path(str(tmp) + ".wal")):
+        stale.unlink(missing_ok=True)
+
+    con = duckdb.connect(str(tmp))
+    restored: dict[str, int] = {}
+    try:
+        con.execute(schema_path.read_text())
+        for pf in sorted(parquet_dir.glob("*.parquet")):
+            tname = pf.stem
+            con.execute(
+                f"INSERT INTO {tname} SELECT * FROM read_parquet('{pf}')"  # noqa: S608  # identifiers come from the snapshot's own file names
+            )
+            row = con.execute(  # noqa: S608  # identifiers come from the snapshot's own file names
+                f"SELECT COUNT(*) FROM {tname}"
+            ).fetchone()
+            assert row is not None  # COUNT(*) always returns a row
+            cnt = row[0]
+            restored[tname] = cnt
+            logger.info(f"  Restore DuckDB: {tname} ← {cnt:,} rows")
+        con.execute("CHECKPOINT")
+    finally:
+        con.close()
+
+    tmp.replace(target)
+    logger.info(
+        f"Restore DuckDB: {target} ({len(restored)} tables, "
+        f"{sum(restored.values()):,} rows)"
+    )
+    return {"target": str(target), "tables": restored}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Versioned gzip snapshot of the research DB + DuckDB graph cache."
+        description=(
+            "Versioned snapshot of the research DB + DuckDB graph cache: "
+            "git-tracked Parquet under snapshots/ (restorable via --restore) "
+            "+ local gzip copies under db-backup/."
+        )
     )
     parser.add_argument(
         "--db", default=DEFAULT_DB, help="Source SQLite DB (relative to repo root)."
@@ -684,6 +905,21 @@ def main() -> int:
              "Always checks BOTH formats (gzip binary + Parquet when present); "
              "--format only gates the create path.",
     )
+    parser.add_argument(
+        "--parquet-dir", default=DEFAULT_PARQUET,
+        help="Root dir for the Parquet snapshot (git-tracked default: "
+             "snapshots/parquet).",
+    )
+    parser.add_argument(
+        "--restore", action="store_true",
+        help="Rebuild the LIVE databases from the Parquet snapshot "
+             "(schema DDL + data + FTS5 rebuild). Refuses to overwrite "
+             "existing live files unless --force.",
+    )
+    parser.add_argument(
+        "--force", action="store_true",
+        help="With --restore: overwrite existing live DB files.",
+    )
     parser.add_argument("--log", default="INFO", help="Logging level.")
     args = parser.parse_args()
 
@@ -700,11 +936,41 @@ def main() -> int:
     duckdb_path = duckdb_path if duckdb_path.is_absolute() else root / duckdb_path
     duckdb_out = Path(args.duckdb_out)
     duckdb_out = duckdb_out if duckdb_out.is_absolute() else root / duckdb_out
-    parquet_base = root / "db-backup" / "parquet"
+    parquet_path = Path(args.parquet_dir)
+    parquet_base = parquet_path if parquet_path.is_absolute() else root / parquet_path
     parquet_duckdb_dir = parquet_base / "duckdb"
     parquet_sqlite_dir = parquet_base / "sqlite"
 
     try:
+        if args.restore:
+            # Rebuild the live DBs from the git-tracked Parquet snapshot.
+            # Refuse to clobber an existing live DB without --force.
+            if db_path.exists() and not args.force:
+                logger.error(
+                    f"Refusing to overwrite existing {db_path} — pass --force"
+                )
+                return 1
+            if args.with_duckdb and duckdb_path.exists() and not args.force:
+                logger.error(
+                    f"Refusing to overwrite existing {duckdb_path} — pass --force"
+                )
+                return 1
+            if parquet_sqlite_dir.exists():
+                restore_sqlite_from_parquet(parquet_sqlite_dir, db_path, logger)
+            else:
+                logger.error(f"Parquet snapshot not found: {parquet_sqlite_dir}")
+                return 1
+            if args.with_duckdb:
+                if parquet_duckdb_dir.exists():
+                    restore_duckdb_from_parquet(
+                        parquet_duckdb_dir, duckdb_path, logger
+                    )
+                else:
+                    logger.warning(
+                        f"DuckDB Parquet snapshot not found: {parquet_duckdb_dir}"
+                    )
+            return 0
+
         if args.check:
             # --check ALWAYS verifies both formats (gzip binary + Parquet),
             # regardless of --format (which only gates the create path).

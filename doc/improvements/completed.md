@@ -1807,3 +1807,59 @@ event-target `on` overload).
 Verification: frontend type-check (strict) ✓, ruff ✓, 95 graph+contract tests
 pass ✓, Playwright end-to-end (cloud load, part_of filter → 42 components,
 highlight on tap, ego network) ✓.
+
+
+## 113. Parquet-first DB shipping: `snapshots/` tracked, `--restore` rebuilds `memory/`
+
+**Date:** 2026-08-15
+
+Live DBs (61M) must never enter git: research.db alone is 47M (GitHub blocks
+blobs at 100M), binary DBs delta-compress to nothing so every refresh adds a
+full copy, and a mid-write copy can be torn. The snapshot machinery already
+existed; this wires it into the commit/clone flow properly.
+
+### Layout (option B)
+
+- **`snapshots/parquet/` — git-tracked** (~15M): per-table `.parquet` for both
+  DBs (`sqlite/` incl. `note_search_content`, `duckdb/` incl. `_build_meta`) +
+  captured replayable DDL (`_schema.sqlite.sql`, `_schema.duckdb.sql`). SQLite
+  files use the gzip codec (TEXT/BLOB-heavy: 22M snappy → 15M; zstd measured
+  no better).
+- **`db-backup/` — local scratch, ignored**: gzip byte-exact snapshots +
+  raw `*_backup.*` copies. `memory/` now gitignored outright.
+- New `make snapshot-restore` = `snapshot_db.py --restore --force`.
+
+### Restore path (`--restore`)
+
+Apply schema DDL → load every parquet → FTS5 `('rebuild')` → integrity +
+foreign_key checks → atomic replace of the live file (refuses to overwrite
+existing DBs without `--force`). Two correctness details found the hard way:
+
+- FTS5 virtual tables must be created BEFORE plain tables — the vtable create
+  makes its own shadow tables (incl. `note_search_content`), so a plain CREATE
+  of the content shadow first collides. `_export_sqlite_schema` emits vtables
+  first.
+- `note_search_content` (the FTS5 content shadow) is now EXPORTED — it holds
+  the indexed text; `('rebuild')` regenerates `_data`/`_idx`/`_docsize` from
+  it. Derived shadows stay excluded.
+
+### Verified against the live DBs
+
+Restored into temp targets and compared with `memory/`: SQLite — 10 table
+sets equal, all row counts equal, `MATCH 'revenue'` 775 = 775, integrity ok,
+foreign_key_check clean, 7 views+triggers, embedding BLOBs intact (1050 ×
+8364 bytes). DuckDB — 20 tables equal, all counts equal, `_build_meta`
+preserved (schema_version 9, generation 24249).
+
+### Tests
+
+`tests/test_snapshot_db.py` +5 (15 total): content-shadow inclusion, full
+SQLite restore round-trip incl. FTS MATCH + NULL fidelity + missing-schema
+error, DuckDB restore round-trip incl. NULL round-trip, and `main()
+--restore` refusal to clobber an existing target without `--force`.
+
+Docs: README (layout table + Quickstart), architecture.md §2/§3, schema.md
+(maintenance section), graph_design.txt (snapshot + layout sections) — all
+now point at `snapshots/` as the tracked artifact and `make
+snapshot-restore` as the clone-side path. Fixed the long-stale
+"db-backup/ (git-tracked)" claim in architecture.md.

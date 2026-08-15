@@ -260,9 +260,10 @@ rm note) are mechanical; see git history for worked examples.
 - **Concurrency:** DuckDB allows one RW or many RO connections — never both.
   `/api/graph/refresh` rebuilds + resets the Flask connection in one call.
 - **Snapshots/maintenance:** `make snapshot` snapshots both SQLite and
-  DuckDB (CHECKPOINT then gzip-copy; `--no-duckdb` to skip); `make maint`
-  adds CHECKPOINT + VACUUM (`--skip-duckdb` to skip). Committed snapshot:
-  `db-backup/graph.snapshot.duckdb.gz`; `memory/*.duckdb*` gitignored.
+  DuckDB (Parquet into git-tracked `snapshots/parquet/` + gzip copies into
+  local `db-backup/`; `--no-duckdb` to skip); `make maint` adds CHECKPOINT +
+  VACUUM (`--skip-duckdb` to skip); `make snapshot-restore` rebuilds
+  `memory/` from the Parquet snapshot; `memory/*.duckdb*` gitignored.
 - **Extensions:** `make update-extensions` (weekly; `connect()` never calls
   UPDATE — 5s round-trip).
 - **CLI inspection:** duckdb/sqlite3 CLIs are fine for one-off looks
@@ -325,7 +326,8 @@ tests/           test_graph.py test_graph_disk.py test_onager_capabilities.py
                  test_api_graph*.py
 doc/             graph_design.txt (this file)
 memory/          research.db(+wal)  graph.duckdb(+wal, gitignored)
-db-backup/       research.snapshot.db.gz  graph.snapshot.duckdb.gz
+snapshots/       parquet/ (git-tracked, restorable)  _schema.*.sql
+db-backup/       *.snapshot.*.gz  (local scratch, gitignored)
 ```
 
 Make targets: `graph-smoke` `graph-stats` `graph-algos` `graph-rebuild`
