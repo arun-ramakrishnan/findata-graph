@@ -399,6 +399,88 @@ class TestResolveAnd404:
         assert "error" in r.get_json()
 
 
+# ----- /api/graph/semantic/<name> (VSS, deferred N5 item) ------------------ #
+
+class TestGraphSemantic:
+    """GET /api/graph/semantic/<name> — vector-similarity neighbours.
+
+    The route resolves the entity case-insensitively (404 if unknown), then
+    delegates to ``helpers.graph.query.semantic_neighbors``. DuckDB is stubbed
+    so the tests run under `make qa` (no live embeddings required)."""
+
+    def test_semantic_response_shape(self, unit_client, monkeypatch):
+        import helpers.graph.query as q
+
+        seen = {}
+
+        def fake_semantic(con, company, k=10, metric="cosine",
+                          cross_sector=False):
+            seen.update(company=company, k=k, metric=metric,
+                        cross_sector=cross_sector)
+            return [("Infosys", "Technology", 0.9),
+                    ("TCS", "Technology", 0.85)]
+
+        monkeypatch.setattr(q, "semantic_neighbors", fake_semantic)
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get("/api/graph/semantic/hdfc%20bank?k=2&metric=cosine")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["company"] == "HDFC Bank"  # canonical name
+        assert data["k"] == 2
+        assert data["metric"] == "cosine"
+        assert data["cross_sector"] is False
+        assert data["neighbors"] == [
+            {"name": "Infosys", "sector": "Technology", "similarity": 0.9},
+            {"name": "TCS", "sector": "Technology", "similarity": 0.85},
+        ]
+        assert seen["company"] == "HDFC Bank"
+        assert seen["k"] == 2
+
+    def test_semantic_cross_sector_flag(self, unit_client, monkeypatch):
+        import helpers.graph.query as q
+
+        seen = {}
+        monkeypatch.setattr(q, "semantic_neighbors",
+                            lambda con, company, k=10, metric="cosine",
+                            cross_sector=False: (seen.update(
+                                cross_sector=cross_sector), [])[1])
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        unit_client.get("/api/graph/semantic/HDFC%20Bank?cross_sector=true")
+        assert seen["cross_sector"] is True
+
+    def test_semantic_unknown_company_404(self, unit_client):
+        r = unit_client.get("/api/graph/semantic/Nonexistent")
+        assert r.status_code == 404
+        assert r.is_json
+        assert "Nonexistent" in r.get_json()["error"]
+
+    def test_semantic_bad_k_returns_400(self, unit_client):
+        r = unit_client.get("/api/graph/semantic/HDFC%20Bank?k=abc")
+        assert r.status_code == 400
+
+    def test_semantic_negative_k_returns_400(self, unit_client):
+        r = unit_client.get("/api/graph/semantic/HDFC%20Bank?k=-1")
+        assert r.status_code == 400
+
+    def test_semantic_bad_metric_returns_400(self, unit_client):
+        r = unit_client.get("/api/graph/semantic/HDFC%20Bank?metric=bogus")
+        assert r.status_code == 400
+
+    def test_semantic_empty_neighbors_not_error(self, unit_client, monkeypatch):
+        """No embeddings / no neighbours → 200 with an empty list (mirrors the
+        CLI's no-results behaviour), not a 500."""
+        import helpers.graph.query as q
+
+        monkeypatch.setattr(q, "semantic_neighbors", lambda *a, **k: [])
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get("/api/graph/semantic/HDFC%20Bank")
+        assert r.status_code == 200
+        assert r.get_json()["neighbors"] == []
+
+
 # ----- /api/graph/* cache headers (C4, SQLite-only) ----------------------- #
 
 class TestGraphCacheHeaders:

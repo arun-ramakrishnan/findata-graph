@@ -21,6 +21,13 @@ load_dotenv()
 
 app = Flask(__name__)
 
+# Cache for /api/sectors sector_entity file reads (read 42 markdown files +
+# YAML-parse on every request otherwise). Keyed on (mtime_ns, size) per file,
+# so any content change on disk auto-invalidates — no generation coupling,
+# and immune to test-DB swapping because the key is purely file-content based.
+_SECTOR_ENTITY_CACHE: tuple[tuple[tuple[int, int], ...], list[dict]] | None = None
+_SECTOR_ENTITY_LOCK = threading.Lock()
+
 # Configure logging. In production gunicorn handles stdout handlers; in dev
 # we attach a basic one. Level overridable via LOG_LEVEL.
 if not app.logger.handlers:
@@ -457,6 +464,83 @@ def api_entities():
     )
 
 
+def _hybrid_search_results(rows, query: str, limit: int, offset: int) -> list[dict]:
+    """RRF-fuse BM25 rank with vector cosine over an FTS5 candidate page.
+
+    ``rows`` are the FTS5 result rows (already ordered by BM25 `rank`) with the
+    shape (doc_type, file_path, title, sector, embedding, rank, snippet). The
+    page was fetched as the top ``limit+offset`` candidates so a global
+    re-rank + slice preserves pagination semantics.
+
+    Fusion is Reciprocal Rank Fusion (RRF): each doc's position in the BM25
+    ranking and in the cosine ranking contribute ``1/(k + position)``, summed.
+    This avoids score-calibration between two incommensurable scorers. Docs
+    with a missing/invalid embedding get cosine-position 0 (ranked worst) but
+    still contribute their BM25 score — a degraded embedding must not drop a
+    strong lexical match off the page.
+
+    The query is embedded with the same pseudo-embedder the rebuild used by
+    default (see rebuild_note_search._default_embed), so dry-run hybrid is
+    lexical-ish; real semantic ranking needs matching embed_fn on both sides.
+    """
+    import json
+    import math
+
+    try:
+        from helpers.graph.embeddings import _pseudo_embedding
+        from helpers.maintenance.rebuild_note_search import _EMBED_DIMS
+
+        q_vec = _pseudo_embedding(query, _EMBED_DIMS)
+    except Exception:  # noqa: S110  # embedding unavailable -> fall back to BM25
+        q_vec = None
+
+    def _cosine(a, b):
+        dot = sum(x * y for x, y in zip(a, b))
+        na = math.sqrt(sum(x * x for x in a))
+        nb = math.sqrt(sum(x * x for x in b))
+        if na == 0 or nb == 0:
+            return 0.0
+        return dot / (na * nb)
+
+    # scored: list of (orig_index, row, similarity) — tuples keep the Row type
+    # through the re-rank (a dict would widen the row slot to the union of all
+    # value types). orig_index = BM25 position (rows arrive rank-sorted).
+    scored: list[tuple[int, Any, float]] = []
+    for orig_index, row in enumerate(rows):
+        embedding = row[4]
+        vec = None
+        if embedding:
+            try:
+                vec = json.loads(embedding)
+            except (TypeError, ValueError):
+                vec = None
+        sim = _cosine(q_vec, vec) if (q_vec and vec) else 0.0
+        scored.append((orig_index, row, sim))
+
+    # Cosine ranking: position 0 = most similar.
+    cosine_order = sorted(scored, key=lambda t: t[2], reverse=True)
+    cos_pos: dict[int, int] = {idx: i for i, (idx, _r, _s) in enumerate(cosine_order)}
+
+    k = 60  # standard RRF constant
+    fused = []
+    for idx, row, sim in scored:
+        rrf = (1.0 / (k + idx + 1)) + (1.0 / (k + cos_pos[idx] + 1))
+        fused.append((rrf, row, sim))
+    fused.sort(key=lambda t: t[0], reverse=True)
+
+    results = []
+    for _rrf, row, sim in fused[offset: offset + limit]:
+        results.append({
+            "doc_type": row[0],
+            "file_path": row[1],
+            "title": row[2],
+            "sector": row[3],
+            "snippet": row[6],
+            "similarity": round(sim, 6),
+        })
+    return results
+
+
 @app.route("/api/search")
 def api_search():
     """Free-text search across ALL findata/ markdowns via the note_search FTS5 index.
@@ -472,15 +556,23 @@ def api_search():
         type  (optional) filter to one doc_type: company | sector |
               super_sector | chatter | points_and_figures | plotlines.
         limit (default 20), offset (default 0).
+        hybrid (optional) "1"/"true" — RRF-fuse the BM25 ranking with vector
+              cosine similarity against each row's stored embedding. The query
+              is embedded with the same pseudo-embedder the rebuild used by
+              default, so out of the box this re-ranks by *lexical* proximity
+              of the hash vectors; with real embeddings (embed_fn injected into
+              rebuild_note_search) it becomes genuinely semantic. Degrades to
+              pure FTS ranking when the embedding column is absent.
 
     Returns a polymorphic hit list (results include non-entity newsletters, so
     the key is `results`, not `entities`). Each hit carries a snippet() with
-    <mark>-highlighted matches.
+    <mark>-highlighted matches and a `similarity` (null unless hybrid=true).
 
     Errors: 400 on empty/ malformed q; 503 if the FTS index hasn't been built.
     """
     q = request.args.get("q", "").strip()
     doc_type = request.args.get("type", "").strip()
+    hybrid = request.args.get("hybrid", "").strip().lower() in ("1", "true", "yes", "on")
     try:
         limit = int(request.args.get("limit", 20))
         offset = int(request.args.get("offset", 0))
@@ -504,6 +596,21 @@ def api_search():
                          "helpers/maintenance/rebuild_note_search.py",
             }), 503
 
+        if hybrid:
+            # Hybrid needs the embedding column. A pre-embedding schema (old
+            # rebuild, or a DB built before this feature) lacks it — downgrade
+            # to plain FTS ranking rather than 500 on the column reference.
+            has_embedding = cursor.execute(
+                "SELECT 1 FROM pragma_table_info('note_search') "
+                "WHERE name = 'embedding'"
+            ).fetchone()
+            if not has_embedding:
+                app.logger.info(
+                    "search hybrid requested but note_search lacks embedding "
+                    "column; degrading to FTS-only"
+                )
+                hybrid = False
+
         # Build the WHERE. FTS5 MATCH against the whole-table index; an optional
         # SQL-level AND on doc_type narrows to one corpus (simpler + as fast as
         # the column-filter MATCH syntax, and avoids quoting pitfalls).
@@ -517,12 +624,21 @@ def api_search():
         # FTS5 MATCH raises on malformed queries (stray AND/OR, unbalanced
         # quotes). Catch and return a 400 so a bad query never 500s.
         try:
+            # Hybrid mode pulls the embedding column + FTS rank so we can
+            # RRF-fuse cosine with BM25 in Python. Plain mode stays a single
+            # SQL round-trip (unchanged behaviour).
+            select_cols = (
+                "doc_type, file_path, title, sector, embedding, rank, "
+                "snippet(note_search, 4, '<mark>', '</mark>', '…', 12)"
+                if hybrid else
+                "doc_type, file_path, title, sector, "
+                "snippet(note_search, 4, '<mark>', '</mark>', '…', 12)"
+            )
             cursor.execute(
-                f"SELECT doc_type, file_path, title, sector, "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-                f"snippet(note_search, 4, '<mark>', '</mark>', '…', 12) "
+                f"SELECT {select_cols} "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
                 f"FROM note_search WHERE {where_clause} "
                 f"ORDER BY rank LIMIT ? OFFSET ?",
-                params + [limit, offset],
+                params + ([limit + offset, 0] if hybrid else [limit, offset]),
             )
             rows = cursor.fetchall()
             cursor.execute(
@@ -535,16 +651,20 @@ def api_search():
                 "error": f"invalid query syntax: {exc}",
             }), 400
 
-        results = [
-            {
-                "doc_type": row[0],
-                "file_path": row[1],
-                "title": row[2],
-                "sector": row[3],
-                "snippet": row[4],
-            }
-            for row in rows
-        ]
+        if hybrid and rows:
+            results = _hybrid_search_results(rows, q, limit, offset)
+        else:
+            results = [
+                {
+                    "doc_type": row[0],
+                    "file_path": row[1],
+                    "title": row[2],
+                    "sector": row[3],
+                    "snippet": row[4],
+                    "similarity": None,
+                }
+                for row in rows
+            ]
         return jsonify(
             {
                 "results": results,
@@ -677,30 +797,52 @@ def api_sectors():
     """)
 
     sector_entities = []
-    for row in cursor.fetchall():
-        try:
+    global _SECTOR_ENTITY_CACHE
+    with _SECTOR_ENTITY_LOCK:
+        cursor.execute("""
+            SELECT name, file_path
+            FROM entities
+            WHERE entity_type = 'sector'
+            ORDER BY name
+        """)
+        sector_rows = cursor.fetchall()
+        # Content signature: (mtime_ns, size) per existing file. Computing it
+        # is cheap (~1ms for ~42 files) and any on-disk edit auto-invalidates.
+        sig = []
+        for row in sector_rows:
             full_path = Path(__file__).parent / row[1]
             if full_path.exists():
-                with open(full_path, encoding="utf-8") as f:
-                    content = f.read()
-                frontmatter, markdown_content = parse_yaml_frontmatter(content)
-                sector_entities.append(
-                    {
-                        "name": row[0],
-                        "file_path": row[1],
-                        "frontmatter": frontmatter,
-                        "content": markdown_content,
-                    }
-                )
-        except Exception:
-            sector_entities.append(
-                {
-                    "name": row[0],
-                    "file_path": row[1],
-                    "frontmatter": {},
-                    "content": "Error reading file",
-                }
-            )
+                st = full_path.stat()
+                sig.append((st.st_mtime_ns, st.st_size))
+        sig = tuple(sig)
+        if _SECTOR_ENTITY_CACHE is not None and _SECTOR_ENTITY_CACHE[0] == sig:
+            sector_entities = _SECTOR_ENTITY_CACHE[1]
+        else:
+            for row in sector_rows:
+                try:
+                    full_path = Path(__file__).parent / row[1]
+                    if full_path.exists():
+                        with open(full_path, encoding="utf-8") as f:
+                            content = f.read()
+                        frontmatter, markdown_content = parse_yaml_frontmatter(content)
+                        sector_entities.append(
+                            {
+                                "name": row[0],
+                                "file_path": row[1],
+                                "frontmatter": frontmatter,
+                                "content": markdown_content,
+                            }
+                        )
+                except Exception:
+                    sector_entities.append(
+                        {
+                            "name": row[0],
+                            "file_path": row[1],
+                            "frontmatter": {},
+                            "content": "Error reading file",
+                        }
+                    )
+            _SECTOR_ENTITY_CACHE = (sig, sector_entities)
 
     conn.close()
 
@@ -1122,6 +1264,56 @@ def api_graph_shortest():
         "path": [{"name": n, "hop": h} for n, h in path],
         "hops": path[-1][1] if path else 0,
         "as_of": as_of,
+    })
+
+
+@app.route("/api/graph/semantic/<path:name>")
+def api_graph_semantic(name: str):
+    """Semantic neighbours for `name` via vector embeddings (VSS).
+
+    Finds companies with embeddings most similar to `name` using cosine
+    similarity over the DuckDB `v_embeddings` table (populated by
+    `helpers/graph/embeddings.py`). Mirrors the `semantic-neighbors` CLI
+    command (deferred N5 item).
+
+    Query params:
+      - `k` (default 10): number of neighbours to return (clamped >= 0).
+      - `metric` (default "cosine"): "cosine" or "ip".
+      - `cross_sector` (default false): exclude same-sector companies.
+
+    Returns 404 if the entity is unknown. Returns an empty `neighbors` list
+    when embeddings aren't populated or the reference company has no
+    embedding (matches the CLI's no-results behaviour, not an error).
+    """
+    company = _resolve_entity_or_404(name)
+    try:
+        k = int(request.args.get("k", "10"))
+    except ValueError:
+        return jsonify({"error": "k must be an integer"}), 400
+    if k < 0:
+        return jsonify({"error": "k must be non-negative"}), 400
+    metric = request.args.get("metric", "cosine")
+    if metric not in ("cosine", "ip"):
+        return jsonify({"error": "metric must be 'cosine' or 'ip'"}), 400
+    cross_sector = request.args.get("cross_sector", "false").lower() in ("1", "true", "yes")
+    try:
+        from helpers.graph.query import semantic_neighbors
+        results = semantic_neighbors(
+            get_graph_connection(), company, k=k,
+            metric=metric, cross_sector=cross_sector,
+        )
+    except Exception as e:
+        app.logger.exception("graph semantic failed for %r", company)
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+    return jsonify({
+        "company": company,
+        "k": k,
+        "metric": metric,
+        "cross_sector": cross_sector,
+        "neighbors": [
+            {"name": n, "sector": s, "similarity": sim}
+            for n, s, sim in results
+        ],
     })
 
 

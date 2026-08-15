@@ -26,10 +26,18 @@ The table (one row per markdown document):
         title,               -- entities.title / normalized_name, or newsletter H1
         sector,              -- entities.sector_classification for entity docs; '' otherwise
         content,             -- body text (frontmatter stripped; OCR/HTML noise dropped)
+        embedding UNINDEXED, -- JSON vector for hybrid ranking (cosine x BM25); not indexed
         tokenize = 'porter unicode61'
     );
 
 porter unicode61: case-folds + stem-folds ("batteries" matches "battery").
+
+`embedding` is a JSON-encoded float vector stored per row (UNINDEXED = kept in
+the table but never tokenized). It enables hybrid ranking: /api/search?hybrid=true
+embeds the query, computes cosine similarity against each candidate row's
+embedding, and fuses the BM25 rank with the cosine rank (RRF). The embedding is
+a deterministic pseudo-embedding by default (see helpers/graph/embeddings.py
+_pseudo_embedding); inject a real embed_fn for semantic hybrid ranking.
 
 Full rebuild each run (DELETE + reinsert) -> idempotent, self-correcting.
 Mirrors the sync_tags.py full-rebuild pattern. Captured automatically by
@@ -45,6 +53,7 @@ Exit codes: 0 success, 1 DB not found / fatal error.
 
 import argparse
 import hashlib
+import json
 import re
 import sys
 from pathlib import Path
@@ -65,7 +74,10 @@ FINDATA = _REPO_ROOT / "findata"
 
 # FTS5 DDL. standalone table (no content='' external-content link) so we can
 # index body text read from files + the newsletter corpora (which have no
-# entity rows). file_path is UNINDEXED so path strings aren't searched.
+# entity rows). file_path is UNINDEXED so path strings aren't searched;
+# embedding is UNINDEXED too — stored per row for hybrid cosine ranking but
+# never tokenized (hybrid ranking, N5 item). FTS5 doesn't support ALTER TABLE
+# ADD COLUMN, so a schema change requires DROP + recreate (see _migrate_schema).
 NOTE_SEARCH_DDL = (
     "CREATE VIRTUAL TABLE IF NOT EXISTS note_search USING fts5("
     "doc_type, "            # 0
@@ -73,9 +85,14 @@ NOTE_SEARCH_DDL = (
     "title, "               # 2
     "sector, "              # 3
     "content, "             # 4
+    "embedding UNINDEXED, " # 5
     "tokenize = 'porter unicode61'"
     ")"
 )
+
+# Columns we expect in note_search. Used by _migrate_schema to detect a stale
+# (pre-embedding) table and drop it so the new DDL takes effect.
+_NOTE_SEARCH_COLUMNS = {"doc_type", "file_path", "title", "sector", "content", "embedding"}
 
 # Path prefix (under findata/) -> doc_type. Order matters: longer prefixes
 # first so 'Super_Sectors' isn't shadowed by a hypothetical 'S' rule. The
@@ -131,6 +148,40 @@ def _newsletter_title(text: str) -> str:
     return m.group(1).strip() if m else ""
 
 
+# Default embedding dimension for the pseudo-embedding fallback. Must match the
+# dims used by helpers/graph/embeddings.py::populate_dry_run so a query embedded
+# with the same default is comparable against stored rows.
+_EMBED_DIMS = 384
+
+
+def _default_embed(text: str) -> list[float]:
+    """Default per-doc embedder: deterministic pseudo-embedding (hash-based).
+
+    Mirrors helpers/graph/embeddings.py::_pseudo_embedding so dry-run searches
+    are reproducible without API costs. Swap for a real embed_fn to get
+    meaningful semantic hybrid ranking (same caveat as get_tickers.vss_match).
+    """
+    from helpers.graph.embeddings import _pseudo_embedding
+
+    return _pseudo_embedding(text, _EMBED_DIMS)
+
+
+def _embedding_json(embed_fn, title: str, sector: str, content: str) -> str | None:
+    """Embed one doc and serialize to a JSON string, or None on failure.
+
+    Text basis mirrors _get_company_text in embeddings.py: title + sector +
+    body. A short deterministic prefix on the body keeps the vector dominated
+    by the title/sector for name-typed queries while still capturing the body.
+    """
+    try:
+        vec = embed_fn(f"{title}\n{sector}\n{content[:8000]}")
+    except Exception:  # noqa: S110  # best-effort; missing/empty rows stay searchable
+        return None
+    if not vec:
+        return None
+    return json.dumps(vec)
+
+
 def _iter_findata_docs():
     """Yield (doc_type, abs_path, rel_path) for every indexable markdown doc."""
     for p in sorted(FINDATA.rglob("*.md")):
@@ -145,14 +196,16 @@ def _iter_findata_docs():
         yield dtype, p, rel
 
 
-def _collect_rows(conn) -> list[tuple]:
+def _collect_rows(conn, embed_fn=None) -> list[tuple]:
     """Build the full FTS row set by reading files + one bulk entity lookup.
 
-    Returns a list of (doc_type, file_path, title, sector, content) tuples.
+    Returns a list of (doc_type, file_path, title, sector, content, embedding)
+    tuples. embedding is a JSON string (or None if embedding failed/unavailable).
     Entity docs (company/sector/super_sector) get their canonical title +
     sector_classification from the entities table via a single file_path->row
     map (avoids N+1). Newsletters have no entity row; their title is the H1.
     """
+    embed_fn = embed_fn or _default_embed
     # Bulk entity lookup: file_path -> (title via normalized_name, sector).
     # title fallback chain: entities.title doesn't exist as a column; the
     # note's YAML title is human form. Use normalized_name (the DB key) as the
@@ -178,12 +231,18 @@ def _collect_rows(conn) -> list[tuple]:
             # the YAML title if the entity isn't in the DB (shouldn't happen
             # for entity docs, but be defensive).
             title = norm_name or fm_title or ""
-            rows.append((dtype, rel_posix, title, sector or "", body.strip()))
+            rows.append(
+                (dtype, rel_posix, title, sector or "", body.strip(),
+                 _embedding_json(embed_fn, title, sector or "", body.strip()))
+            )
         else:
             # Newsletter: no frontmatter, no entity row. Title = H1.
             title = _newsletter_title(text) or abs_path.stem
             body = _clean_body(text)
-            rows.append((dtype, rel_posix, title, "", body))
+            rows.append(
+                (dtype, rel_posix, title, "", body,
+                 _embedding_json(embed_fn, title, "", body))
+            )
     return rows
 
 
@@ -213,20 +272,45 @@ def _file_fingerprint(abs_path: Path, title: str, sector: str, content: str) -> 
     h = hashlib.blake2b(f"{title}\x00{sector}\x00{content}".encode(), digest_size=8).hexdigest()
     return mtime, h
 
-def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dict:  # noqa: C901
+
+def _migrate_schema(conn) -> bool:
+    """Drop a stale (pre-embedding) note_search so the new DDL applies.
+
+    FTS5 virtual tables can't ALTER TABLE ADD COLUMN, so adding the
+    `embedding` column requires DROP + recreate. Since the rebuild fully
+    repopulates the table every run (DELETE + reinsert), dropping is safe —
+    the shadow tables are recreated by CREATE VIRTUAL TABLE.
+
+    Returns True if a migration (drop) happened, else False.
+    """
+    sql = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='note_search'"
+    ).fetchone()
+    if not sql:
+        return False  # no table yet — fresh create will have the new schema
+    if "embedding" in sql[0]:
+        return False  # already current
+    conn.execute("DROP TABLE note_search")
+    return True
+
+def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noqa: C901
+            embed_fn=None) -> dict:
     """Rebuild the note_search FTS index. Returns a stats dict."""
     conn = connect(db_path)
     stats: dict = {}
     try:
+        migrated = _migrate_schema(conn)
         conn.execute(NOTE_SEARCH_DDL)
         conn.execute(NOTE_SEARCH_META_DDL)
-        rows = _collect_rows(conn)
+        rows = _collect_rows(conn, embed_fn=embed_fn)
 
         # Per-doc_type counts for the report.
         from collections import Counter
         by_type = Counter(r[0] for r in rows)
         stats["by_type"] = dict(by_type)
         stats["total_docs"] = len(rows)
+        stats["embedded"] = sum(1 for r in rows if r[5])
+        stats["migrated"] = migrated
 
         if not write:
             print(f"(--check mode: would index {len(rows)} docs)", file=sys.stderr)
@@ -239,8 +323,8 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dic
                 if rows:
                     conn.executemany(
                         "INSERT INTO note_search "
-                        "(doc_type, file_path, title, sector, content) "
-                        "VALUES (?, ?, ?, ?, ?)",
+                        "(doc_type, file_path, title, sector, content, embedding) "
+                        "VALUES (?, ?, ?, ?, ?, ?)",
                         rows,
                     )
                 # Refresh meta for incremental next run
@@ -256,7 +340,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dic
                     r = rows_by_path.get(rel_posix)
                     if r is None:
                         continue
-                    _, _, title, sector, content = r
+                    _, _, title, sector, content, _emb = r
                     mtime, chash = _file_fingerprint(abs_path, title, sector, content)
                     meta_rows.append((rel_posix, mtime, chash))
                 if meta_rows:
@@ -289,7 +373,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dic
                 row = rows_by_path.get(rel_posix)
                 if row is None:
                     continue
-                _, _, title, sector, content = row
+                _, _, title, sector, content, _emb = row
                 mtime, chash = _file_fingerprint(abs_path, title, sector, content)
                 prev = existing.get(rel_posix)
                 if prev is None or prev[0] != mtime or prev[1] != chash:
@@ -302,10 +386,10 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dic
                     conn.execute("DELETE FROM note_search WHERE file_path = ?", (fp,))
                     conn.execute("DELETE FROM note_search_meta WHERE file_path = ?", (fp,))
                 for row, mtime, chash in to_upsert:
-                    dtype, fpath, title, sector, content = row
+                    dtype, fpath, title, sector, content, _emb = row
                     conn.execute("DELETE FROM note_search WHERE file_path = ?", (fpath,))
                     conn.execute(
-                        "INSERT INTO note_search (doc_type, file_path, title, sector, content) VALUES (?, ?, ?, ?, ?)",
+                        "INSERT INTO note_search (doc_type, file_path, title, sector, content, embedding) VALUES (?, ?, ?, ?, ?, ?)",
                         row,
                     )
                     conn.execute(
@@ -354,6 +438,12 @@ def main(argv: list[str] | None = None) -> int:
     )
     if not args.check:
         print(f"indexed {stats.get('indexed', 0)} rows", file=sys.stderr)
+        if stats.get("migrated"):
+            print("(schema migrated: note_search recreated with embedding column)",
+                  file=sys.stderr)
+        emb = stats.get("embedded")
+        if emb is not None:
+            print(f"embedded {emb} rows", file=sys.stderr)
     return 0
 
 

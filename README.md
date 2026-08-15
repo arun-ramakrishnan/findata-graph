@@ -14,7 +14,8 @@ JSON API / explorer UI on top.
 | **Tests** | 1,610 across 80 modules — unit / integration / fuzz / perf / live gates |
 
 Source material is a family of market newsletters (Points & Figures, The
-Chatter, The PlotLines), OCR'd to markdown outside this repo. Everything
+Chatter, The PlotLines), OCR'd to markdown outside this repo with
+[GLM-OCR](https://ocr.z.ai). Everything
 after the markdown arrives lives here: ingestion into entities, tickers,
 relations, events, quotes and metrics; validators that keep DB and vault in
 sync; graph analytics; and the serving layer.
@@ -22,7 +23,7 @@ sync; graph analytics; and the serving layer.
 ## How it fits together
 
 ```
-Reports/*.pdf ──(external OCR)──>  findata/{Points_And_Figures,The_Chatter,The_PlotLines}/*.md
+Reports/*.pdf ──(GLM-OCR)──>  findata/{Points_And_Figures,The_Chatter,The_PlotLines}/*.md
                                     inputs, gitignored
         │
         │  doc/procedures/markdown_parse.md  (the ingestion procedure)
@@ -155,5 +156,6 @@ Insights). Note `tags:` are mirrored into `entity_tags` by
 
 This repository began as a Mistral-OCR PDF→markdown pipeline
 (`pdf-markdown-ocr.ipynb` + Flask upload app); that layer was removed at the
-FinData base commit and the repo now starts from the OCR'd markdown. The
-upstream history is preserved below it.
+FinData base commit and the repo now starts from the OCR'd markdown — the
+corpus itself was OCR'd with [GLM-OCR](https://ocr.z.ai). The upstream
+history is preserved below it.

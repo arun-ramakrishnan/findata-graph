@@ -102,6 +102,11 @@ export interface SearchResult {
     sector: string | null;
     /** FTS5 snippet with literal `<mark>...</mark>` around matches. */
     snippet: string;
+    /**
+     * Cosine similarity vs the query embedding, when `hybrid=true` was
+     * requested and the index carries embeddings; otherwise null.
+     */
+    similarity: number | null;
 }
 
 export interface SearchResponse {

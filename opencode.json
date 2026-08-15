@@ -40,6 +40,7 @@
   "mcp": {
     "sqlite": {
         "type": "local",
+        "enabled": false,
         "command": ["npx",
         "-y",
         "mcp-sqlite-tools",
@@ -62,6 +63,7 @@
     },
     "YahooFin": {
 		"type": "local",
+        "enabled": false,
 		"command": ["uvx",
 		"yfmcp@latest"
 		]

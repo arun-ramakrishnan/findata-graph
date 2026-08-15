@@ -63,6 +63,9 @@ from helpers.core.db import connect  # noqa: E402
 # Metric wrappers from query.py — Onager-backed since Phase A of the
 # duckpgq-retirement proposal (formerly duckpgq-native):
 from helpers.graph.query import (  # noqa: E402
+    _current_generation_for_cache,
+    _query_cache_get,
+    _query_cache_set,
     clustering_coefficient as _graph_clustering,
     connect as duckdb_connect,
     pagerank as _graph_pagerank,
@@ -327,16 +330,35 @@ def graph_metrics(
     disconnected projection; ``triangles`` is the unique-triangle count.
     Returns ``{}`` on an empty edge set. Consumers:
     ``make graph-stats`` and ``/api/graph/stats`` (structure block).
+
+    Result is cached per (generation, edge_types) in the query-result cache
+    (P2.3) — the metrics are a pure function of the edge set, which only
+    changes when the SQLite source bumps its generation. Computing them is
+    ~300ms (two temp-table materialisations + a 3-query metric run); the
+    cache makes repeat calls (every ``/api/graph/stats`` request, repeated
+    ``make graph-stats`` runs) near-free. ``clear_graph_cache()`` (invoked
+    on every rebuild/refresh) evicts the entry, so the first call after a
+    data change recomputes.
     """
+    try:
+        gen = _current_generation_for_cache()
+    except Exception:  # noqa: S110  # best-effort; absence of generation just disables the cache
+        gen = None
+    key = ("graph_metrics", tuple(edge_types or []), gen)
+    cached = _query_cache_get(key)
+    if cached is not None:
+        return cached
     own = False
     if con is None:
         con = duckdb_connect()
         own = True
     try:
-        return onager_graph_metrics(con, edge_types=edge_types)
+        result = onager_graph_metrics(con, edge_types=edge_types)
     finally:
         if own:
             con.close()
+    _query_cache_set(key, result)
+    return result
 
 
 # --------------------------------------------------------------------------- #

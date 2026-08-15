@@ -300,9 +300,9 @@ similarity search over company embeddings, integrated into the FinData knowledge
 **Verification**: 1,050 companies x 384-dim pseudo-embeddings; CEAT (auto/tires) returns semantically similar companies across sectors (Pharma, Consumer, Retail, FMCG, NBFC); `cross_sector` filter excludes same-sector neighbors; CLI subcommand exit code 0; performance ~0.7-3.5ms after warm-up
 
 **Next steps** (deferred):
-- Replace Python-side `is_name_match()` in `get_tickers.py` with vector similarity
-- Add embedding column to `note_search` FTS5 table in `rebuild_note_search.py` for hybrid ranking
-- Add `/api/graph/semantic/<name>` endpoint in `app.py`
+- ~~Replace Python-side `is_name_match()` in `get_tickers.py` with vector similarity~~ — **DONE 2026-08-15** (see #103): `resolve_entity` now has a `vss_match()` fallback stage over `company_embeddings` (pure-Python cosine, no DuckDB dep). Effective with real embeddings; inert on dry-run pseudo-embeddings (hash-based).
+- ~~Add embedding column to `note_search` FTS5 table in `rebuild_note_search.py` for hybrid ranking~~ — **DONE 2026-08-15** (see #105)
+- ~~Add `/api/graph/semantic/<name>` endpoint in `app.py`~~ — **DONE 2026-08-15** (see #104)
 - Re-evaluate HNSW index macros via quarterly `make update-extensions` (section 18.5)
 
 
@@ -1295,7 +1295,6 @@ subset via `v_company`, which the integration fixture's raw-attach mock
 doesn't build — worth knowing if CLI-testing those three). 58 passed; ruff/ty
 green.
 
-
 ## 102. Doc-drift fixes: schema.md integrity table (12→15), stale duckpgq-era comments
 
 **Date:** 2026-08-15
@@ -1331,3 +1330,142 @@ README rewrite itself went into the base stack's `graph` patch):
 
 Comment/docstring-only changes; ruff + `make types` green. No behavior
 change.
+
+## 103. Project venv bumped to DuckDB ≥ 1.5.5 (closes pending.md)
+
+**Date:** 2026-08-15
+
+`uv sync` upgraded the project venv from 1.5.4 to 1.5.5 — the last (and only)
+item in `pending.md`, safe since the duckpgq retirement (#91/#92). Verified on
+the 1.5.5 venv: `helpers.graph.query.connect()` loads and the Onager layer
+loads cleanly (onager build `49ad15b` on 1.5.5, vs `eaaf2ea` on 1.5.4).
+`pending.md` now empty.
+
+## 104. VSS fallback stage in `get_tickers.resolve_entity` (closes deferred N5 item)
+
+**Date:** 2026-08-15
+
+Closed the first deferred N5 "Next steps" item: "Replace Python-side
+`is_name_match()` in `get_tickers.py` with vector similarity".
+
+Context: `is_name_match` (a pure string-containment/token heuristic) had
+already been superseded by the `fuzzy_match` hybrid (exact → abbreviation →
+word-overlap → spellfix1) in `helpers/core/fuzzy_match.py`, but the deferred
+item's actual intent — vector similarity — was never wired in.
+
+What landed:
+- `vss_match(query, entities, conn=None, db_path=None, threshold=0.5,
+  embed_fn=None)` in `helpers/core/get_tickers.py`: pure-Python cosine scan
+  over the SQLite `company_embeddings` table (no DuckDB dependency, keeping
+  get_tickers a standalone CLI). Query is embedded with the same embedder
+  used at population time (dry-run pseudo-embeddings by default); real (API)
+  models skip unless `embed_fn` is injected. Restricts to the `entities`
+  allowlist, returns `(name, score)` or `(None, 0.0)`, never raises.
+- `resolve_entity(..., vss_conn=None)` gains a VSS fallback stage: fires only
+  after every heuristic misses, returns `method="vss"`.
+
+Honest limitation (documented in the docstring): with dry-run hash-based
+pseudo-embeddings the stage is effectively inert for fuzzy names (hashes of
+different strings don't align — verified cosine 0.08 for CEAT name vs note).
+It becomes meaningful when real (OpenAI/`--api`) embeddings are populated,
+where "Tata Consultancy Services" and "Tata Consultancy Services Limited" are
+semantically close.
+
+Tests: 7 new in `tests/test_get_tickers.py` (exact-name match, entities
+allowlist restriction, threshold gating, empty table, missing table,
+resolve_entity VSS-fallback, heuristic-wins-before-VSS ordering). 35 passed
+(was 28);
+ruff/ty green. Test-file header updated (still referenced removed
+`is_name_match`).
+
+Related doc edits: `completed.md` N5 "Next steps" line marked DONE.
+
+
+## 105. `/api/graph/semantic/<name>` endpoint — VSS neighbours over HTTP (closes deferred N5 item)
+
+**Date:** 2026-08-15
+
+Closed the second deferred N5 "Next steps" item: "Add `/api/graph/semantic/<name>`
+endpoint in `app.py`". The VSS stage already existed on the CLI side
+(`semantic-neighbors` in `helpers/graph/query.py`); this exposes it over HTTP.
+
+What landed:
+- `GET /api/graph/semantic/<name>` in `app.py` (registered before
+  `/api/graph/sector/<name>` so `<path:name>` never swallows `sector`).
+- Resolves `<name>` case-insensitively through `_resolve_entity_or_404` →
+  JSON 404 for unknown entities (matches `/api/graph/peers` behaviour).
+- Query params: `k` (default 10, non-negative int, 400 on bad/negative),
+  `metric` (`cosine` | `ip`, 400 on unknown), `cross_sector` (bool-ish).
+- Delegates to `helpers.graph.query.semantic_neighbors`, returns
+  `{company, k, metric, cross_sector, neighbors: [{name, sector, similarity}]}`.
+  Empty `neighbors` is a valid 200 (no embeddings in the DB), not an error.
+- Documented in the `graph_design.txt` API table.
+
+Verification:
+- Unit tests (7) in `tests/test_api_graph_unit.py::TestGraphSemantic`: response
+  shape + canonical-name plumbing (monkeypatched `semantic_neighbors`), Ducks/
+  cross_sector flag, 404 unknown, 400 bad/negative k, 400 bad metric, empty
+  neighbours → 200. 55 passed in that file.
+- Live tests (3) in `tests/test_api_graph_live.py`: CEAT?k=5 shape + self
+  excluded, cross_sector=true, 404 unknown — 24 passed in that file (fresh
+  `_reset_graph_connection()` first, since the module's synthetic-connect-failure
+  test TTL-caches a broken graph connection).
+- Live smoke: `GET /api/graph/semantic/CEAT?k=3` → 200, 3 neighbours
+  (Emcure Pharmaceuticals 0.178, Bevco 0.149, Ethos 0.137); unknown → 404;
+  `k=abc` / `metric=bogus` / `k=-1` → 400.
+- ruff + ty green on `app.py` and both test files.
+
+Honest limitation (shared with #103): with dry-run hash-based pseudo-embeddings
+the neighbours are low-similarity (max ~0.18) and only loosely topical; the
+endpoint is fully wired and tested, and becomes genuinely useful once real
+(OpenAI/`--api`) embeddings are populated.
+
+
+## 106. `note_search` embedding column + hybrid ranking (closes deferred N5 item)
+
+**Date:** 2026-08-15
+
+Closed the third deferred N5 "Next steps" item: "Add embedding column to
+`note_search` FTS5 table in `rebuild_note_search.py` for hybrid ranking".
+
+What landed:
+
+- **`rebuild_note_search.py`**: `note_search` gains an `embedding UNINDEXED`
+  FTS5 column (stored per row, never tokenized). `_collect_rows` now emits
+  6-tuples; each doc is embedded over `title + sector + body` (truncated to
+  8k chars) with a deterministic pseudo-embedding by default (`_default_embed`
+  → `helpers.graph.embeddings._pseudo_embedding`, 384-dim), or any injected
+  `embed_fn(text) -> list[float]` for the real-embedding path. Embedder
+  failure degrades to a NULL embedding (row stays searchable, never raises).
+- **Schema migration**: FTS5 can't `ALTER TABLE ADD COLUMN`, so `_migrate_schema`
+  drops a stale pre-embedding table and lets the new DDL recreate it (safe:
+  the rebuild repopulates every run). `stats["migrated"]` reports it; the CLI
+  prints an explicit `(schema migrated: ...)` line + `embedded N rows`.
+- **`app.py` `/api/search`**: new `hybrid=1|true` param. When set, the query is
+  embedded with the same pseudo-embedder, each candidate's cosine similarity is
+  computed, and the BM25 + cosine ranks are fused with Reciprocal Rank Fusion
+  (RRF, k=60). Pagination is preserved by fetching the top `limit+offset`
+  candidates then slicing after fusion. Each hit gains `similarity` (float;
+  `null` in plain mode). Degrades gracefully to FTS-only (no 500) when the
+  `embedding` column is absent (pre-migration schema).
+- **`frontend/types/api.ts`**: `SearchResult.similarity: number | null`.
+
+Verification:
+- Rebuild: 1226 docs indexed + embedded on the live DB; schema migrated.
+- Unit tests: 6 new in `tests/test_rebuild_note_search.py::TestEmbeddingColumn`
+  (schema has column, all rows embedded, injected embed_fn used, embedder
+  failure keeps row searchable, legacy-table migration, idempotence) — 10 pass
+  in that file. 5 new in `tests/test_api_search.py::TestHybridSearch` (shape +
+  similarity float, plain → null, RRF re-orders vs plain, pagination window,
+  graceful degradation on missing column) — 12 pass in that file.
+- `pytest -m "not live"` 1521 passed; `make frontend-check` (tsc strict) green;
+  ruff + ty + deptry green; TS-contract SearchResult updated and green.
+- Live smoke: `?q=shrimp feed&hybrid=true` re-orders Thai_Union_Frozen_Products
+  (highest cosine 0.11) above Avanti/Sharat under RRF.
+
+Honest limitation (shared with #103/#104): the default pseudo-embedding is
+hash-based, so out-of-the-box hybrid re-ranking is lexical-ish (query and doc
+pseudo-vectors rarely align semantically). The plumbing — column, migration,
+embed_fn injection, RRF fusion, HTTP param — is complete and testable, and
+becomes genuinely semantic once real (`--api`) embeddings are populated on both
+the rebuild and (via the matching embed_fn) the query side.
