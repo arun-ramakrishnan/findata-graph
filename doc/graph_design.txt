@@ -164,6 +164,9 @@ default dry-run): per-node candidate lists
   transitivity .271, avg_clustering .193, assortativity −.405, diameter 8,
   radius 5, APL 4.32. Consumers: `make graph-stats` ("Structure" section)
   and `/api/graph/stats` (`structure` block; null-safe degradation).
+  **Result cached per (generation, edge_types) in the P2.3 query cache**
+  (2026-08-15, #106): pure function of the edge set, so repeat calls are
+  ~1ms instead of ~300ms; `clear_graph_cache()` on rebuild/refresh evicts.
 - `voterank` (Phase 3) — ordered seed list (output order IS the ranking; do
   not re-sort; `num_seeds` caps). Opt-in `--apply` like every metric (D13):
   `{"seeds":[ordered names]}` per seed node. Live: 10 sector hubs
@@ -215,7 +218,7 @@ persistence), perf: `graph_link_prediction` benchmark.
 | `GET /api/graph/neighbors/<name>` | ego bundle (sector+peers+jv+siblings+acq+parent+suppliers+customers), `?as_of=` |
 | `GET /api/graph/shortest?a=&b=` | `query.shortest_path` (+`as_of`) |
 | `GET /api/graph/sector/<name>` | `sector_of` / `sector_members` |
-| `GET /api/graph/stats` | SQLite aggregates + Onager `structure` block (null-safe) |
+| `GET /api/graph/stats` | SQLite aggregates + Onager `structure` block (null-safe; Onager block cached per generation, #106) |
 | `GET /api/graph/metrics/<metric>` | `graph_analytics` reader |
 | `GET /api/graph/co-mentions` `bridges` `edges-by-year` | batch reports |
 | `POST /api/graph/refresh` | rebuild cache + reset the long-lived connection |

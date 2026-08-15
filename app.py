@@ -677,6 +677,228 @@ def api_search():
         conn.close()
 
 
+# --------------------------------------------------------------------------- #
+# /api/docs — browse + search the design/improvement docs under doc/           #
+# --------------------------------------------------------------------------- #
+# The docs corpus lives on disk (markdown + plain-text), NOT in the DB, so
+# these routes read the filesystem directly. The corpus is small (~27 files,
+# ~180KB), so search is a linear scan with naive word scoring — no FTS5 table
+# to build or maintain.
+
+_DOC_ROOT = Path(__file__).resolve().parent / "doc"
+_DOC_EXTS = {".md", ".txt"}
+
+
+def _iter_doc_files():
+    """Yield (rel_path, full_path) for every browseable doc under doc/.
+
+    Uses the project-root doc/ directory. Symlinks / non-doc extensions are
+    skipped. Returns a stable (sorted) listing.
+    """
+    if not _DOC_ROOT.is_dir():
+        return
+    for full in sorted(_DOC_ROOT.rglob("*")):
+        if full.is_file() and full.suffix.lower() in _DOC_EXTS:
+            yield full.relative_to(_DOC_ROOT).as_posix(), full
+
+
+def _doc_title(rel_path: str, full_path: Path) -> str:
+    """Derive a human-readable title for a doc file.
+
+    Priority: first Markdown heading line (`# ...`) → the filename stem
+    (underscores → spaces). Plain-text files usually have no headings, so the
+    filename stem is the sensible fallback.
+    """
+    try:
+        for line in full_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                return stripped.lstrip("#").strip()
+            # First non-empty line of a .txt file is often the title.
+            if stripped and full_path.suffix.lower() == ".txt":
+                return stripped[:120]
+            if stripped:
+                break
+    except OSError:
+        pass
+    return Path(rel_path).stem.replace("_", " ")
+
+
+def _resolve_doc_path(rel_path: str) -> Path | None:
+    """Resolve a doc rel-path to a safe absolute path inside doc/.
+
+    Guards against path traversal (`../`, absolute paths, symlink escapes):
+    the resolved path must stay within _DOC_ROOT and be a real file.
+    """
+    if not rel_path or "\x00" in rel_path:
+        return None
+    candidate = (_DOC_ROOT / rel_path).resolve()
+    try:
+        candidate.relative_to(_DOC_ROOT.resolve())
+    except ValueError:
+        return None
+    if not candidate.is_file() or not candidate.exists():
+        return None
+    return candidate
+
+
+@app.route("/api/docs")
+def api_docs():
+    """Catalog of the design/improvement docs under doc/.
+
+    Query params:
+        q (optional) — substring filter on the relative path; case-insensitive.
+
+    Returns: {"docs": [{"path", "name", "section", "title", "size_bytes",
+    "mtime"}]} sorted by path. `section` is the subdirectory ("" for the
+    top-level files, e.g. "improvements" or "improvements/archive").
+    """
+    q = request.args.get("q", "").strip().lower()
+    docs = []
+    for rel_path, full in _iter_doc_files():
+        if q and q not in rel_path.lower():
+            continue
+        try:
+            st = full.stat()
+        except OSError:
+            continue
+        docs.append({
+            "path": rel_path,
+            "name": full.name,
+            "section": str(Path(rel_path).parent) if Path(rel_path).parent != Path(".") else "",
+            "title": _doc_title(rel_path, full),
+            "size_bytes": st.st_size,
+            "mtime": int(st.st_mtime),
+        })
+    return jsonify({"docs": docs})
+
+
+@app.route("/api/docs/content")
+def api_docs_content():
+    """Raw content of one doc (markdown or plain text).
+
+    Query params:
+        path (required) — the doc's relative path under doc/.
+
+    Returns: {"path", "name", "section", "title", "content", "size_bytes",
+    "mtime"}. 404 on unknown or out-of-tree paths.
+
+    The body is served raw and rendered client-side with marked.js (the
+    frontend already loads it) so the browse view shows faithful formatting.
+    """
+    rel_path = request.args.get("path", "").strip()
+    full = _resolve_doc_path(rel_path)
+    if full is None:
+        return jsonify({"error": f"no such doc: {rel_path!r}"}), 404
+    try:
+        content = full.read_text(encoding="utf-8")
+        st = full.stat()
+    except OSError:
+        return jsonify({"error": "unable to read doc"}), 500
+    return jsonify({
+        "path": rel_path,
+        "name": full.name,
+        "section": str(full.relative_to(_DOC_ROOT).parent) if full.relative_to(_DOC_ROOT).parent != _DOC_ROOT else "",
+        "title": _doc_title(rel_path, full),
+        "content": content,
+        "size_bytes": st.st_size,
+        "mtime": int(st.st_mtime),
+    })
+
+
+def _snippet(text: str, q: str, radius: int = 140) -> str:
+    """First-match context window around the query, <mark>-wrapped.
+
+    Mirrors the FTS5 snippet convention (literal `<mark>...</mark>` tags) so
+    the frontend can reuse its existing highlightSnippet() escaping logic.
+    Multi-word queries anchor the window on the first word that actually
+    appears in the text.
+    """
+    words = [w for w in q.split() if w]
+    anchor = next((w for w in words if w.lower() in text.lower()), None)
+    if anchor is None:
+        return text[: radius * 2].replace("\n", " ").strip()
+    pos = text.lower().find(anchor.lower())
+    start = max(0, pos - radius)
+    end = min(len(text), pos + len(anchor) + radius)
+    snippet = text[start:end].replace("\n", " ").strip()
+    if start > 0:
+        snippet = "…" + snippet
+    if end < len(text):
+        snippet = snippet + "…"
+    # Wrap the literal anchor substring in <mark> (first occurrence),
+    # case-insensitively so "DuckDB" still matches a "duckdb" query.
+    import re as _re
+
+    snippet = _re.sub(
+        _re.escape(anchor),
+        lambda m: f"<mark>{m.group(0)}</mark>",
+        snippet,
+        count=1,
+        flags=_re.IGNORECASE,
+    )
+    return snippet
+
+
+@app.route("/api/docs/search")
+def api_docs_search():
+    """Search the doc/ corpus.
+
+    Query params:
+        q (required) — free-text query. The corpus is tiny, so this is a
+          case-insensitive substring scan over each doc's content with naive
+          word scoring (exact-word matches rank above substring matches, and
+          filename/title hits get a bonus). No index to build or maintain.
+        limit (default 25) — max results.
+
+    Returns: {"query", "results": [{"path", "name", "section", "title",
+    "snippet"}]} sorted by descending score.
+    """
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify({"error": "missing required param 'q'"}), 400
+    try:
+        limit = int(request.args.get("limit", 25))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
+    limit = max(1, min(limit, 100))
+
+    words = [w.lower() for w in q.split() if w]
+    ranked: list[tuple[int, str, dict[str, str | int]]] = []
+    for rel_path, full in _iter_doc_files():
+        try:
+            content = full.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        low = content.lower()
+        title = _doc_title(rel_path, full)
+        title_low = title.lower()
+        score = 0
+        for w in words:
+            score += 3 * low.count(f" {w} ")          # word match in body
+            score += 2 * low.count(f" {w}")            # word-boundary substring
+            score += 5 * title_low.count(w)            # in the title
+            if w in rel_path.lower():
+                score += 4                              # in the path
+        if score <= 0:
+            continue
+        section = str(Path(rel_path).parent) if Path(rel_path).parent != Path(".") else ""
+        doc_item = {
+            "path": rel_path,
+            "name": full.name,
+            "section": section,
+            "title": title,
+            "snippet": _snippet(content, q),
+        }
+        # Carry the rank key (score, title_lower) as typed locals in the tuple
+        # — dict-indexing (d["score"]) widens to `int | str` unions under ty.
+        ranked.append((score, title.lower(), doc_item))
+    # Sort by (desc score, asc title).
+    ranked.sort(key=lambda t: (-t[0], t[1]))
+    docs_out = [d for _score, _title, d in ranked[:limit]]
+    return jsonify({"query": q, "results": docs_out})
+
+
 @app.route("/api/entity/<path:entity_path>")
 def api_entity_detail(entity_path):
     """API endpoint to get entity details including markdown content"""
@@ -1489,6 +1711,144 @@ def api_graph_stats():
             "most_recent_entity_update": most_recent_entity,
             "most_recent_analytics_compute": most_recent_analytics,
         },
+    })
+
+
+# Relationship-type semantics for the graph cloud + relationship cloud card.
+# Mirrors the edge-type table in doc/graph_design.txt §4. Every live edge type
+# is listed; `symmetric` drives arrow rendering, `semantics` feeds the tooltip.
+_EDGE_SEMANTICS: dict[str, dict[str, object]] = {
+    "co_mentioned_in": {
+        "symmetric": True,
+        "semantics": "Newsletter co-mention (derived)",
+    },
+    "part_of": {
+        "symmetric": False,
+        "semantics": "Company → sector (legacy pair)",
+    },
+    "has_company": {
+        "symmetric": False,
+        "semantics": "Sector → company (legacy pair)",
+    },
+    "exposed_to": {
+        "symmetric": False,
+        "semantics": "Company → theme (cross-sector)",
+    },
+    "belongs_to": {
+        "symmetric": False,
+        "semantics": "Sector → super-sector / sub-sector → sector",
+    },
+    "subsidiary_of": {
+        "symmetric": False,
+        "semantics": "Subsidiary → parent",
+    },
+    "jv_with": {
+        "symmetric": True,
+        "semantics": "Company ↔ company (JV)",
+    },
+    "acquired": {
+        "symmetric": False,
+        "semantics": "Acquirer → acquired (temporal)",
+    },
+    "competes_with": {
+        "symmetric": True,
+        "semantics": "Company ↔ company (peers)",
+    },
+    "supplier_to": {
+        "symmetric": False,
+        "semantics": "Supplier → customer",
+    },
+    "customer_of": {
+        "symmetric": False,
+        "semantics": "Customer → supplier",
+    },
+    "same_group": {
+        "symmetric": True,
+        "semantics": "Company ↔ company (promoter group)",
+    },
+}
+
+
+@app.route("/api/graph/cloud")
+def api_graph_cloud():
+    """Whole-graph cloud for the Graph tab's cloud mode.
+
+    Returns EVERY entity and EVERY typed edge (SQLite-only, no DuckDB needed),
+    plus a ``relationship_types`` summary (edge_type → count + symmetric +
+    semantics) for the relationship cloud card.
+
+    Query params:
+        edge_type (optional) — restrict the edge set to one relationship
+          type; only entities incident to those edges are returned (so the
+          cloud stays focused when isolating a relationship).
+
+    Returns:
+        {"nodes": [{"id", "label", "entity_type"}],
+         "edges": [{"source", "target", "edge_type"}],
+         "relationship_types": [{"edge_type", "count", "symmetric", "semantics"}],
+         "total_nodes": int, "total_edges": int}
+    """
+    edge_type = request.args.get("edge_type", "").strip() or None
+    conn = get_db_connection()
+    try:
+        if edge_type:
+            edge_rows = conn.execute(
+                "SELECT source, target, edge_type FROM graph_edges "
+                "WHERE edge_type = ?",
+                (edge_type,),
+            ).fetchall()
+        else:
+            edge_rows = conn.execute(
+                "SELECT source, target, edge_type FROM graph_edges"
+            ).fetchall()
+        entity_rows = conn.execute(
+            "SELECT name, entity_type FROM entities"
+        ).fetchall()
+        # Relationship-type counts (full edge set — the summary card always
+        # shows the whole corpus, even when the canvas is filtered).
+        count_rows = conn.execute(
+            "SELECT edge_type, COUNT(*) AS n FROM graph_edges "
+            "GROUP BY edge_type ORDER BY n DESC"
+        ).fetchall()
+    finally:
+        conn.close()
+
+    entity_types = {row[0]: row[1] for row in entity_rows}
+
+    nodes = []
+    seen: set[str] = set()
+    edges = []
+    for row in edge_rows:
+        source, target, et = row[0], row[1], row[2]
+        edges.append({"source": source, "target": target, "edge_type": et})
+        for name in (source, target):
+            if name not in seen:
+                seen.add(name)
+                nodes.append({
+                    "id": name,
+                    "label": name,
+                    "entity_type": entity_types.get(name, "unknown"),
+                })
+    # Sort by type so the legend/rendering order is stable.
+    nodes.sort(key=lambda n: (n["entity_type"], n["id"]))
+
+    relationship_types = [
+        {
+            "edge_type": row[0],
+            "count": row[1],
+            "symmetric": bool(_EDGE_SEMANTICS.get(row[0], {}).get("symmetric", False)),
+            "semantics": str(_EDGE_SEMANTICS.get(row[0], {}).get(
+                "semantics", "custom / derived edge type")),
+        }
+        for row in count_rows
+    ]
+
+    return jsonify({
+        "nodes": nodes,
+        "edges": edges,
+        "relationship_types": relationship_types,
+        "total_nodes": len(nodes),
+        "total_edges": len(edges),
     })
 
 

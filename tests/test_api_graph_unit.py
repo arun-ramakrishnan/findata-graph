@@ -817,3 +817,88 @@ class TestGraphConnectionThreadSafety:
             "all threads must share the single connection"
 
 
+
+
+# ----- /api/graph/cloud (whole-graph force cloud) --------------------------- #
+
+class TestGraphCloud:
+    def test_cloud_response_shape(self, unit_client):
+        r = unit_client.get("/api/graph/cloud")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert set(data) == {"nodes", "edges", "relationship_types",
+                             "total_nodes", "total_edges"}
+        # Seed: 6 entities, 7 edges (all entity pairs covered).
+        assert data["total_edges"] == len(_UNIT_EDGES)
+        # Every edge endpoint is present as a node; no duplicates.
+        node_ids = [n["id"] for n in data["nodes"]]
+        assert len(node_ids) == len(set(node_ids))
+        assert set(node_ids) == {"HDFC Bank", "ICICI Bank", "Infosys",
+                                 "No Ticker Co", "Banking", "Technology"}
+        # Nodes carry entity_type for colouring.
+        by_id = {n["id"]: n for n in data["nodes"]}
+        assert by_id["HDFC Bank"]["entity_type"] == "company"
+        assert by_id["Banking"]["entity_type"] == "sector"
+
+    def test_cloud_edges_match_seed(self, unit_client):
+        data = unit_client.get("/api/graph/cloud").get_json()
+        edge_tuples = {(e["source"], e["target"], e["edge_type"])
+                       for e in data["edges"]}
+        assert edge_tuples == {(s, t, et) for s, t, et, _ in _UNIT_EDGES}
+
+    def test_cloud_relationship_types_summary(self, unit_client):
+        data = unit_client.get("/api/graph/cloud").get_json()
+        types = {t["edge_type"]: t for t in data["relationship_types"]}
+        # Ordered by count desc: part_of (4), then 1 each.
+        assert data["relationship_types"][0]["edge_type"] == "part_of"
+        assert types["part_of"]["count"] == 4
+        assert types["part_of"]["symmetric"] is False
+        assert types["part_of"]["semantics"]  # non-empty human description
+        # Symmetric relationships flagged for arrow-less rendering.
+        assert types["competes_with"]["symmetric"] is True
+        assert types["competes_with"]["count"] == 1
+
+    def test_cloud_edge_type_filter_isolates(self, unit_client):
+        data = unit_client.get("/api/graph/cloud?edge_type=competes_with").get_json()
+        assert data["total_edges"] == 1
+        assert data["edges"][0]["edge_type"] == "competes_with"
+        # Only incident nodes (HDFC Bank, ICICI Bank) remain.
+        node_ids = {n["id"] for n in data["nodes"]}
+        assert node_ids == {"HDFC Bank", "ICICI Bank"}
+
+    def test_cloud_edge_type_filter_unknown_returns_empty(self, unit_client):
+        data = unit_client.get("/api/graph/cloud?edge_type=zzz").get_json()
+        assert data["total_edges"] == 0
+        assert data["nodes"] == []
+        assert data["edges"] == []
+        # Summary card still reflects the whole corpus.
+        assert {t["edge_type"] for t in data["relationship_types"]} == \
+            {e[2] for e in _UNIT_EDGES}
+    def test_cloud_unknown_entity_type_defaults_to_unknown(self, unit_client):
+        """Nodes with no entities row still render (colour = 'unknown')."""
+        data = unit_client.get("/api/graph/cloud").get_json()
+        assert all(n["entity_type"] for n in data["nodes"])
+
+
+# ----- /api/graph/cloud: unknown semantics fallback ------------------------ #
+
+class TestGraphCloudEdgeSemantics:
+    def test_custom_edge_type_gets_default_semantics(self, tmp_path):
+        """An edge_type not in _EDGE_SEMANTICS still gets a sensible default
+        (custom/derived) rather than crashing."""
+        import sqlite3
+        from tests.conftest import seeded_graph_sqlite_db
+
+        with seeded_graph_sqlite_db(tmp_path) as c:
+            conn = sqlite3.connect(str(tmp_path / "unit_graph.db"))
+            conn.execute(
+                "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
+                "VALUES (?,?,?,?)",
+                ("HDFC Bank", "Infosys", "custom_link", "test"),
+            )
+            conn.commit()
+            conn.close()
+            data = c.get("/api/graph/cloud").get_json()
+            types = {t["edge_type"]: t for t in data["relationship_types"]}
+            assert types["custom_link"]["symmetric"] is False
+            assert "custom" in types["custom_link"]["semantics"]

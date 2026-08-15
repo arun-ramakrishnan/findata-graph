@@ -1,0 +1,145 @@
+# Doc Browser & Search — web UI for the doc/ corpus
+# Proposed 2026-08-15. COMPLETE (2026-08-15) — logged as #107 in
+# doc/improvements/completed.md; moved to archive/ per convention.
+
+## Scope / Motivation
+
+The repo carries ~27 design/improvement documents under `doc/` (~180KB):
+architecture.md, findata.md, graph_design.txt, schema.md,
+prime-agent-refine-patch.md, procedures/markdown_parse.md,
+improvements/completed.md (the run log), improvements/pending.md (the
+deferred backlog), and 19 proposals/analyses under improvements/archive/.
+They are plain Markdown + plain-text files on disk — NOT in the research DB
+and invisible to the existing note-search FTS5 index (which only covers
+findata/ note bodies + newsletters via /api/search).
+
+Today there is no in-app way to browse or search this corpus; a human must
+grep or hop between files. This proposal adds a dedicated "Docs" view to the
+FinData web app that catalogs, searches, and renders the doc/ corpus.
+
+## Design decisions
+
+1. Corpus lives on disk, so the new routes read the filesystem directly —
+   no DB table, no FTS5 index, no rebuild step. The corpus is tiny (~27
+   files, ~180KB), so search is a linear case-insensitive scan with naive
+   word scoring. This is deliberately NOT wired into note_search/rebuild:
+   those are for findata/ notes, and building a parallel index would add
+   maintenance with zero scale benefit at 27 files.
+
+2. Content is served RAW (markdown or plain text) and rendered client-side.
+   The frontend already loads marked.js v12 (findata.html) and has
+   processRichContent()/highlightSnippet() helpers, so rendering is
+   consistent with the rest of the app and the .md/.txt split needs no
+   server-side handling.
+
+3. Path traversal safety: every content fetch goes through _resolve_doc_path()
+   which resolves the requested path and asserts it stays within
+   _DOC_ROOT (doc/). Absolute paths, "../", NUL bytes, and symlink escapes
+   are rejected (404).
+
+4. Title derivation (doc/ has no frontmatter): first Markdown heading line
+   ("# ...") wins; plain-text files fall back to their first non-empty line
+   (capped at 120 chars); final fallback is the filename stem with
+   underscores -> spaces.
+
+5. Search snippet mirrors the FTS5 convention: literal <mark>...</mark>
+   tags around the first word match, so the frontend reuses its existing
+   highlightSnippet() escape-then-restore logic verbatim.
+
+## Backend API (implemented in app.py, after /api/search)
+
+### GET /api/docs
+- Query: q (optional, case-insensitive substring filter on the rel path).
+- Returns: `{ "docs": [ { "path", "name", "section", "title",
+                           "size_bytes", "mtime" } ] }`
+- section = subdirectory relative to doc/ ("" for top-level, e.g.
+  "improvements", "improvements/archive"). Sorted by path.
+
+### GET /api/docs/content
+- Query: path (required, rel path under doc/, traversal-guarded).
+- Returns: `{ "path", "name", "section", "title", "content",
+               "size_bytes", "mtime" }`
+- 404 on unknown/out-of-tree path; 500 on read failure.
+
+### GET /api/docs/search
+- Query: q (required), limit (default 25, clamped to 1..100).
+- Returns: `{ "query", "results": [ { "path", "name", "section", "title",
+                                       "snippet" } ] }`
+- Naive word scoring: word match in body (x3) + word-boundary substring
+  (x2) + title hit (x5) + path hit (x4). Sorted by score desc, title asc.
+  snippet() anchors the <mark> window on the first word that appears.
+
+### Helpers
+- `_iter_doc_files()` — sorted rglob of _DOC_ROOT, .md/.txt only.
+- `_doc_title()` — heading line -> .txt first line -> filename stem.
+- `_resolve_doc_path()` — traversal guard (resolve + relative_to check).
+- `_snippet()` — <mark>-wrapped context window around first word match.
+
+## Frontend (implemented)
+
+1. `frontend/types/api.ts`: add DocItem/DocsResponse, DocContentResponse,
+   DocSearchHit/DocSearchResponse interfaces (mirror the jsonify shapes
+   above). tsc-strict catches shape drift.
+2. `templates/findata.html`: add a 5th nav link (data-view="docs",
+   #docs) + a #docs-view <section class="view-section"> with:
+   - a docs search box (debounced, like #search-input)
+   - a catalog list (grouped or flat by section) with click-to-open
+   - a content pane that renders the selected doc via marked.js +
+     processRichContent() (tables, code highlighting, TOC already handled).
+3. `frontend/src/findata.ts`: extend ViewName with "docs"; wire switchView()
+   case "docs" -> loadDocs()/loadDocsSearch(); reuse highlightSnippet() for
+   search result snippets; escapeHtml() everywhere user text lands in HTML.
+4. `static/findata.css`: view layout styles (list + content panes).
+5. Rebuild the bundle: `make frontend` (esbuild) — never hand-edit
+   static/findata.bundle.js. `make frontend-check` (tsc --noEmit strict)
+   must stay green.
+
+## Test plan
+
+Backend unit tests (new file tests/test_api_docs.py, `make qa` unit set,
+no live marker):
+- catalog: returns 27 docs, sorted by path, section field correct for
+  top-level vs improvements/archive; ?q= filter narrows.
+- content: known path returns raw content + title derivation (heading,
+  .txt first-line, fallback); unknown path -> 404; traversal attempts
+  ("../app.py", absolute, NUL) -> 404.
+- search: q returns ranked results; empty q -> 400; results carry
+  <mark>-wrapped snippet; no results -> empty list; limit clamp.
+- API is DB-independent (no get_db_connection) so it needs only the
+  Flask test_client + the real doc/ tree on disk.
+
+TS contract (tests/test_integration_ts_contract.py): register the 3 new
+endpoints against the new api.ts interfaces (one-directional _assert_keys:
+every declared key must appear in the response).
+
+Frontend: `make frontend-check` green; manual smoke via the running app
+(catalog renders, click opens rendered markdown, search ranks + highlights).
+
+## Verification so far (backend smoke, .venv/bin/python)
+
+- `GET /api/docs`                   -> 200, 27 docs, sorted, sections correct
+- `GET /api/docs?q=graph`           -> 200, 4 docs
+- `GET /api/docs/content?path=architecture.md` -> 200, title "Architecture —
+                                      FinData Knowledge Graph", raw body served
+- `GET /api/docs/content?path=../app.py`        -> 404 (traversal blocked)
+- `GET /api/docs/content?path=nope.md`          -> 404
+- `GET /api/docs/search?q=duckdb`   -> 200, 23 ranked results, <mark> snippets
+
+## Open questions (resolved during implementation)
+
+- Docs tab sits as a 5th nav item with its own local search box — the top
+  search section stays untouched (no disruption to companies/sectors flows).
+- Catalog is a flat list with a per-row section label (grouping deferred).
+
+## Files touched
+
+- `app.py` — /api/docs, /api/docs/content, /api/docs/search + helpers.
+- `frontend/types/api.ts` — DocsResponse/DocItem/DocContentResponse/
+  DocSearchResponse/DocSearchHit.
+- `templates/findata.html` — 5th nav link + #docs-view section.
+- `frontend/src/findata.ts` — ViewName "docs", switchView case, loadDocsCatalog/
+  runDocsSearch/openDoc/renderDocsList/renderDocsToc/formatBytes.
+- `static/findata.css` — docs view layout.
+- `tests/test_api_docs.py` (21 tests) + `tests/test_integration_ts_contract.py`
+  (TestDocsContract).
+- `doc/improvements/archive/doc_browser.txt` — this proposal (COMPLETE → #107).

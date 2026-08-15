@@ -232,3 +232,127 @@ export interface EventsResponse {
     event_count: number;
     events: EventItem[];
 }
+
+// --------------------------------------------------------------------------- //
+// GET /api/docs, /api/docs/content, /api/docs/search (doc/ corpus browser)    //
+// --------------------------------------------------------------------------- //
+/** One entry in the doc/ catalog. `section` is the subdir relative to doc/
+ * ("" for top-level, e.g. "improvements", "improvements/archive"). */
+export interface DocItem {
+    path: string;
+    name: string;
+    section: string;
+    title: string;
+    size_bytes: number;
+    mtime: number;
+}
+
+export interface DocsResponse {
+    docs: DocItem[];
+}
+
+/** Raw markdown/plain-text body of one doc, served for client-side rendering. */
+export interface DocContentResponse {
+    path: string;
+    name: string;
+    section: string;
+    title: string;
+    content: string;
+    size_bytes: number;
+    mtime: number;
+}
+
+/** A search hit. `snippet` carries literal `<mark>...</mark>` around matches
+ * (mirrors the FTS5 /api/search convention — reuse highlightSnippet()). */
+export interface DocSearchHit {
+    path: string;
+    name: string;
+    section: string;
+    title: string;
+    snippet: string;
+}
+
+export interface DocSearchResponse {
+    query: string;
+    results: DocSearchHit[];
+}
+
+// --------------------------------------------------------------------------- //
+// GET /api/graph/cloud (whole-graph force cloud)                              //
+// --------------------------------------------------------------------------- //
+/** One entity rendered in the graph cloud. `entity_type` colours the node
+ * (company vs sector vs theme etc.). */
+export interface GraphCloudNode {
+    id: string;
+    label: string;
+    entity_type: string;
+}
+
+/** One typed edge in the graph cloud. */
+export interface GraphCloudEdge {
+    source: string;
+    target: string;
+    edge_type: string;
+}
+
+/** Relationship-type summary for the cloud card: count + direction flag +
+ * human-readable semantics (mirrors the graph_design.txt edge-type table). */
+export interface RelationshipTypeSummary {
+    edge_type: string;
+    count: number;
+    symmetric: boolean;
+    semantics: string;
+}
+
+export interface GraphCloudResponse {
+    nodes: GraphCloudNode[];
+    edges: GraphCloudEdge[];
+    relationship_types: RelationshipTypeSummary[];
+    total_nodes: number;
+    total_edges: number;
+}
+
+// --------------------------------------------------------------------------- //
+// GET /api/graph/stats (graph stats block for the Statistics view)            //
+// --------------------------------------------------------------------------- //
+/** Whole-graph structural metrics via Onager (null when unavailable). */
+export interface GraphStructure {
+    density: number | null;
+    diameter: number | null;
+    radius: number | null;
+    avg_path_length: number | null;
+    transitivity: number | null;
+    triangles: number | null;
+    avg_clustering: number | null;
+    assortativity: number | null;
+}
+
+export interface GraphStatsResponse {
+    /** null when the Onager/DuckDB layer is unavailable (degradable). */
+    structure: GraphStructure | null;
+    entities: {
+        total: number;
+        by_type: Record<string, number>;
+    };
+    edges: {
+        total: number;
+        by_type: Record<string, number>;
+    };
+    sectors: {
+        count: number;
+        top: { sector: string; n: number }[];
+        size_distribution: { min: number; max: number; mean: number };
+    };
+    hygiene: {
+        orphan_companies: number;
+        no_ticker: number;
+        self_loops: number;
+        orphan_edges: number;
+        conflicting_market_cap: number;
+    };
+    staleness: {
+        stale: boolean;
+        most_recent_entity_update: string | null;
+        most_recent_analytics_compute: string | null;
+    };
+}

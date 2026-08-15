@@ -42,6 +42,9 @@
                 <a href="#graph" class="nav-link" data-view="graph">
                     <i class="fas fa-project-diagram"></i> Graph
                 </a>
+                <a href="#docs" class="nav-link" data-view="docs">
+                    <i class="fas fa-book-open"></i> Docs
+                </a>
             </nav>
         </header>
 
@@ -158,6 +161,7 @@
                     </div>
                     <div class="filters">
                         <select id="graph-layout" title="Layout">
+                            <option value="components">Connected sets (separated)</option>
                             <option value="cose">Force-directed (cose)</option>
                             <option value="circle">Circle</option>
                             <option value="concentric">Concentric</option>
@@ -181,10 +185,30 @@
                             <option value="2022">As of: 2022</option>
                             <option value="2021">As of: 2021</option>
                         </select>
+                        <button id="graph-cloud-toggle" class="btn-secondary"
+                                title="Toggle the whole-graph force cloud (every entity + every relationship type)">
+                            <i class="fas fa-cloud"></i> Graph Cloud
+                        </button>
                         <button id="graph-refresh-db" class="btn-secondary"
                                 title="Re-open the graph connection (use after new data is parsed)">
                             <i class="fas fa-sync"></i> Refresh DB
                         </button>
+                    </div>
+                </div>
+                <div class="graph-cloud-panel" id="graph-cloud-panel" style="display: none;">
+                    <div class="graph-cloud-controls">
+                        <label for="graph-cloud-type" class="cloud-label">Isolate relationship:</label>
+                        <select id="graph-cloud-type" title="Restrict the cloud to one relationship type">
+                            <option value="">All relationships</option>
+                        </select>
+                    </div>
+                    <div class="graph-cloud-cols">
+                        <div class="graph-cloud-legend" id="graph-cloud-legend">
+                            <!-- Legend rendered from the cloud response -->
+                        </div>
+                        <div class="graph-relationship-cloud" id="graph-relationship-cloud">
+                            <!-- Relationship cloud card rendered here -->
+                        </div>
                     </div>
                 </div>
                 <div class="graph-layout-row">
@@ -194,6 +218,18 @@
                             <i class="fas fa-project-diagram"></i>
                             <p>Search for a company above to explore its relationship graph.</p>
                             <p class="hint">Try: <em>CEAT</em>, <em>Tata Motors</em>, <em>HDFC Bank</em></p>
+                        </div>
+                        <div class="graph-zoom-control" id="graph-zoom-control">
+                            <button id="graph-zoom-out" class="graph-zoom-btn" title="Zoom out"
+                                    aria-label="Zoom out"><i class="fas fa-minus"></i></button>
+                            <input type="range" id="graph-zoom" class="graph-zoom-slider"
+                                   min="0.2" max="3" step="0.05" value="1"
+                                   title="Zoom level" aria-label="Zoom level">
+                            <button id="graph-zoom-in" class="graph-zoom-btn" title="Zoom in"
+                                    aria-label="Zoom in"><i class="fas fa-plus"></i></button>
+                            <span id="graph-zoom-label" class="graph-zoom-label">100%</span>
+                            <button id="graph-zoom-fit" class="graph-zoom-fit" title="Fit graph to view"
+                                    aria-label="Fit graph to view"><i class="fas fa-expand"></i></button>
                         </div>
                     </div>
                     <aside id="graph-detail" class="graph-detail">
@@ -219,6 +255,45 @@
                         </button>
                     </div>
                     <div id="shortest-result" class="shortest-result"></div>
+                </div>
+            </section>
+
+            <!-- Docs View (doc/ corpus browser) -->
+            <section id="docs-view" class="view-section" style="display: none;">
+                <div class="view-header">
+                    <h2><i class="fas fa-book-open"></i> Design Docs</h2>
+                    <div class="view-controls">
+                        <span id="docs-count" class="count-label"></span>
+                    </div>
+                </div>
+                <div class="docs-toolbar">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="docs-search"
+                               placeholder="Search design docs, proposals, archives..."
+                               autocomplete="off">
+                        <button id="docs-search-clear" class="btn-clear" style="display: none;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <button id="docs-reset" class="btn-secondary" title="Show full catalog">
+                        <i class="fas fa-list"></i> Catalog
+                    </button>
+                </div>
+                <div class="docs-layout-row">
+                    <div class="docs-sidebar">
+                        <div id="docs-list" class="docs-list">
+                            <!-- Doc catalog / search results load here -->
+                        </div>
+                    </div>
+                    <div class="docs-content">
+                        <div class="docs-content-empty" id="docs-content-empty">
+                            <i class="fas fa-book-open"></i>
+                            <p>Select a document to read it here.</p>
+                            <p class="hint">Browse the catalog or search the corpus.</p>
+                        </div>
+                        <article id="docs-content-pane" class="docs-content-pane" style="display: none;"></article>
+                    </div>
                 </div>
             </section>
 
