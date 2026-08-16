@@ -15,7 +15,7 @@ tags:
 - risk_investment/growth
 - sector/chemicals
 created: '2025-11-16'
-last_modified: 2026-07-07
+last_modified: 2026-08-16
 ---
 # Solar Industries
 
@@ -79,3 +79,20 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - Global geography tag indicates international exposure in its addressable market.
 - B2B model with long-term contracts and high entry barriers in regulated explosives manufacturing.
 - Covered within the chemicals segment of the newsletter's coverage universe.
+
+## The Chatter — RBI's Governor, Canara Bank, IRCTC, & More
+
+**₹14,000 cr revenue guidance this year:** Against ₹9,800 cr prior year — 40%+ growth; Q1 started well and management may revise the guide after half-year results.
+
+**Defense is the growth driver (+123% YoY):** Defense top line grew 123% with a visible ₹4,500 cr for the current year; the defense order book is ~₹18,000 cr with Pinaka the largest contributor.
+
+**Margins ~28% is the new normal:** 28% held despite commodity volatility, on strong execution, supply-chain efficiency and the defense mix — a sustainable baseline at this growth stage.
+
+**Domestic +30–35% (vol ~12%, price 18–20%):** Electricity/mining demand, Dhulla commercialisation and Dholpur expansion drive domestic growth; Odisha and South India plants to come over the next 1–2 years.
+
+**Pinaka extended-range order expected before year-end:** Currently in negotiation; the ~₹18,000 cr defense order book would add meaningfully once it lands. Bhairavastra trials near completion, with orders expected from next year.
+
+> "Coming to Pinaka: yes, we have an order book of around ₹18,000 crore from defence, where Pinaka is the largest contributor. We expect the Pinaka extended-range order to come in soon; it is currently in the negotiation stage, and we do see the order coming in before the end of this year."
+> — Shalinee Mandhana, Joint CFO
+
+*Source: The Chatter — RBI's Governor, Canara Bank, IRCTC, & More*
