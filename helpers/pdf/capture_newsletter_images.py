@@ -37,6 +37,10 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+# slugify is shared with pdf_conv_md.py (see helpers/pdf/common.py).
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from helpers.pdf.common import slugify  # noqa: E402
 
 UA = "Mozilla/5.0 (compatible; findata-image-capture/1.0)"
 # Match a full remote image block. tolerate single or double quotes and spacing.
@@ -47,11 +51,6 @@ IMG_BLOCK_RE = re.compile(
 CROP_RE = re.compile(r"crop_(\d+)_(\d+)")
 
 
-def slugify(stem: str) -> str:
-    # spaces -> underscore; collapse runs; strip; keep existing case/underscores.
-    s = re.sub(r"\s+", "_", stem.strip())
-    s = re.sub(r"__+", "_", s).strip("_")
-    return s
 
 
 def parse_images(md_path: Path):

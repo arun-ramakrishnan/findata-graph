@@ -1863,3 +1863,48 @@ Docs: README (layout table + Quickstart), architecture.md §2/§3, schema.md
 now point at `snapshots/` as the tracked artifact and `make
 snapshot-restore` as the clone-side path. Fixed the long-stale
 "db-backup/ (git-tracked)" claim in architecture.md.
+
+
+## 114. Paddle parse_pages hardening + slugify consolidation + pdf_conv_md fuzz tests
+
+**Date:** 2026-08-16
+**Status:** COMPLETE
+**Proposal:** `doc/improvements/archive/pdf_conv_md_hardening_fuzz.md`
+
+Hardened the new PDF→Markdown (Paddle OCR) pipeline path in `markdown_parse.md`
+and consolidated a duplicated helper, then added Hypothesis fuzz coverage for the
+module's pure transforms.
+
+### Implementation
+
+- `parse_pages()` (`helpers/pdf/pdf_conv_md.py`) — the untrusted-API boundary
+  blindly indexed `line["result"]["layoutParsingResults"][0]` and nested keys, so
+  a malformed Paddle JSONL line raised `KeyError`/`IndexError` and aborted the
+  whole conversion. Now skips (with a `warn:` print) any line that is not a dict
+  or lacks `result` / `layoutParsingResults` / `markdown`, returning only
+  successfully parsed pages. Preserves the 4-key output shape.
+- `slugify()` — was byte-identical in `pdf_conv_md.py` and
+  `capture_newsletter_images.py`. Moved to a new `helpers/pdf/common.py`; both
+  scripts import it via a `__package__`-guarded `sys.path` bootstrap +
+  `# noqa: E402` (required because `helpers/` has no `__init__.py`, so script
+  mode needs repo root on path). No behavior change.
+- New `tests/test_fuzz_pdf_conv_md.py` (Hypothesis) pins "never raises" +
+  output contracts for `slugify`, `parse_pages`, `image_extension`, `plan_images`,
+  `to_wikilinks`, `resolve_markdown`. Runs inside `make qa`.
+
+### Files
+
+- `helpers/pdf/common.py` (new), `helpers/pdf/pdf_conv_md.py`,
+  `helpers/pdf/capture_newsletter_images.py`, `tests/test_fuzz_pdf_conv_md.py`
+  (new), `doc/improvements/proposals/pdf_conv_md_hardening_fuzz.md` → archive.
+
+### Verification
+
+- `pytest tests/test_fuzz_pdf_conv_md.py tests/test_pdf_conv_md.py
+  tests/test_capture_newsletter_images.py tests/test_fuzz_normalizers.py
+  tests/test_fuzz_images.py` → 45 passed.
+- `make qa` → exit 0 (lint + types + deptry + static + pytest + notes +
+  integrity + snapshot). Static check required a `#!` shebang on
+  `helpers/pdf/common.py` (every `helpers/**/*.py` must start with one).
+- Script-mode smoke: `python3 helpers/pdf/pdf_conv_md.py --help` and
+  `python3 helpers/pdf/capture_newsletter_images.py --help` succeed.

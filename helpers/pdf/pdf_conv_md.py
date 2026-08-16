@@ -37,6 +37,10 @@ import sys
 import time
 from pathlib import Path
 from urllib.parse import urlparse
+# slugify is shared with capture_newsletter_images.py (see helpers/pdf/common.py).
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from helpers.pdf.common import slugify  # noqa: E402
 
 import requests
 
@@ -66,10 +70,6 @@ CONTENT_TYPE_EXT = {
 DEFAULT_EXT = ".jpeg"
 
 
-def slugify(stem: str) -> str:
-    s = re.sub(r"\s+", "_", stem.strip())
-    s = re.sub(r"__+", "_", s).strip("_")
-    return s
 
 
 def submit_job(
@@ -122,16 +122,38 @@ def download_jsonl(url: str) -> list[dict]:
 
 
 def parse_pages(lines: list[dict]) -> list[dict]:
-    """Extract one page object per JSONL line (the Reports/ eval shape)."""
+    """Extract one page object per JSONL line (the Reports/ eval shape).
+
+    Robust to unexpected Paddle JSONL shapes (an error object, a missing or
+    empty ``result``/``layoutParsingResults``, or a page whose ``markdown`` key
+    is absent): such lines are skipped with a warning instead of raising, so a
+    single malformed page cannot abort the whole conversion.
+
+    Returns only successfully parsed pages.
+    """
     pages = []
-    for line in lines:
-        lpr = line["result"]["layoutParsingResults"][0]
+    for idx, line in enumerate(lines):
+        if not isinstance(line, dict):
+            print(f"  warn: parse_pages[{idx}]: not a JSON object, skip")
+            continue
+        result = line.get("result")
+        if not isinstance(result, dict):
+            print(f"  warn: parse_pages[{idx}]: missing/non-dict 'result', skip")
+            continue
+        lpr_list = result.get("layoutParsingResults")
+        if not isinstance(lpr_list, list) or not lpr_list:
+            print(f"  warn: parse_pages[{idx}]: empty/missing layoutParsingResults, skip")
+            continue
+        lpr = lpr_list[0]
+        if not isinstance(lpr, dict) or "markdown" not in lpr:
+            print(f"  warn: parse_pages[{idx}]: lpr[0] missing 'markdown', skip")
+            continue
         pages.append(
             {
-                "prunedResult": lpr["prunedResult"],
+                "prunedResult": lpr.get("prunedResult"),
                 "markdown": lpr["markdown"],
-                "outputImages": lpr["outputImages"],
-                "inputImage": lpr["inputImage"],
+                "outputImages": lpr.get("outputImages", []),
+                "inputImage": lpr.get("inputImage"),
             }
         )
     return pages
