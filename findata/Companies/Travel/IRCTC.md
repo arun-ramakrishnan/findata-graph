@@ -15,7 +15,7 @@ tags:
 - business_model/b2c
 - risk_investment/low_risk
 created: '2025-12-05'
-last_modified: '2026-07-03'
+last_modified: '2026-08-16'
 ---
 
 # IRCTC
@@ -306,3 +306,20 @@ that they are going to introduce 260 Vande Bharat train sets. So these trains ar
 **Rail Neer Untapped Demand (only 50-60% served):**
 > "Around 50% and 60%, depending upon season is being served."
 > - Sanjay Kumar Jain, Chairman and Managing Director
+
+## The Chatter — RBI's Governor, Canara Bank, IRCTC, & More
+
+**Revenue +₹210 cr YoY, catering leads the mix:** Q1 revenue ₹1,370 cr vs ₹1,160 cr; catering ₹732 cr, internet ticketing ₹361 cr, tourism ₹168 cr, Rail Neer ₹109 cr.
+
+**Margin drag is structural mix, not one-off:** 181 of the ₹210 cr incremental growth came from low-margin catering (10–12% margin, ~54% of revenue) — the primary reason profits scaled slower than sales.
+
+**Three one-offs hit the quarter:** West Asia crisis raised Rail Neer resin costs (₹55 cr → ₹61 cr); an HR decision lifted the gratuity limit to ₹25 lakh with post-retirement benefits (~₹10 cr on catering); 6 POC trains cost ~₹4.7 cr.
+
+**EBITDA margin guidance 30%+:** With the West Asia crisis stabilised, HR impact non-recurring and POC train drag tapering (4 trains in Q2, 2 in Q3), the new Vande Bharat sleeper trains should restore 30%+ margins.
+
+**Ticketing platform revamp:** Beta launched July 15; full-fledged website expected within the quarter — no ads, no CAPTCHAs, no pop-ups for a faster booking experience (watch non-fare revenue from lost ad inventory).
+
+> "So these were the retrograde factors which caused our EBITDA margin to come down. West Asia crisis has stabilised, the HR impact will not repeat, and there is a tapering in POC train impact. With all these factors, and with the introduction of new Vande Bharat sleeper trains, we will try to maintain an EBITDA margin of 30% plus."
+> — Rahul Himalian, Chairman and Managing Director
+
+*Source: The Chatter — RBI's Governor, Canara Bank, IRCTC, & More*

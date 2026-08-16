@@ -18,7 +18,7 @@ tags:
 - risk_investment/cyclical
 - investment_theme/financial_inclusion
 created: '2025-11-16'
-last_modified: '2026-07-11'
+last_modified: '2026-08-16'
 ---
 
 # Banking
@@ -222,6 +222,27 @@ A bank-only cross-edition synthesis (distinct from the broader Financial_Service
 > — Ashok Chandra, MD and CEO, Punjab National Bank
 
 *Sources: The Chatter — HDFC, Groww, Havells & More; Tailwinds building (Edition #46, 13 Feb 2026); Edition #52 (Mar 27, 2026); TCS, Indian Bank, Amagi & More; Infosys, Adani, Tata Motors & More; Reliance, Infosys, VBL & More; Anchor and Ambitions; Embracing the Unknown; Weights and Measures (Edition #43, 23 Jan 2026); Scaling Through Slowdowns; Swiggy, Hyundai, Shree Cement & More. Points & Figures — Context Beyond the Charts. (Nov 2025 – Jul 2026).*
+
+## The Chatter — RBI's Governor, Canara Bank, IRCTC, & More
+
+*Regulator keynote — FIBAC 2026 address by RBI Governor Sanjay Malhotra on the AI playbook for Indian banking.*
+
+**AI is the defining theme of the decade — on par with liberalisation and digitalisation:** Governor Malhotra frames AI as the structural shift that "will define this decade of Indian banking" the way liberalisation defined the 1990s and digitalisation the 2010s — a change in how banks evaluate risk, serve customers and price capital, not a technology to be procured.
+
+**AI changes the economics of credit delivery:** Alternative data (GST filings, utility payments, digital footprints) extends the "frontier of bankable India" to new-to-credit borrowers, gig workers and small enterprises at a fraction of the marginal cost of manual underwriting — opening retail and MSME growth segments.
+
+**Operational efficiency is the clearest near-term lever:** Document processing, reconciliation, internal audit sampling and regulatory return preparation are "ripe for AI-assisted automation" — scope to reduce cost-to-income ratios / intermediation costs across operations, sales, customer service and credit & collections.
+
+**Fraud defence flips from rules to real-time ML:** Fraud now moves at the speed of an API call; rules-based engines are perpetually one step behind, so machine-learning models that continuously learn from transaction patterns and flag anomalies in real time become the counter.
+
+**Three risks the regulator is watching:** (1) black-box opacity — inability to explain credit decisions undermines accountability; (2) concentration/herding — a shared foundation-model/vendor layer turns one bank's error into a systemic one and can amplify stressed-market volatility; (3) erosion of human judgment — "the model decided" is never an acceptable answer; human oversight to explain, intervene and override must be a design principle.
+
+**What banks must do now:** Board-approved AI governance policies with accountability for outcomes, explainability for materially customer-affecting decisions, red-teaming and stress-testing AI before and during deployment. Regulatory roadmap: standardised credit-risk approach, ECL framework, EIR changes, project finance / related-party / dividend / NOP norms, and all applicable Basel III guidelines live from April 1, 2027 on a calibrated glide path.
+
+> "The theme of the conference – Artificial Intelligence - has been well chosen. It is apt and timely. It is a theme that, I believe, will define this decade of Indian banking as decisively liberalisation defined the 1990s and digitalisation defined the 2010s."
+> — Shri Sanjay Malhotra, Governor, Reserve Bank of India
+
+*Source: The Chatter — RBI's Governor, Canara Bank, IRCTC, & More*
 
 ---
 

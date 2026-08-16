@@ -37,6 +37,8 @@ dependencies = [
     "pandas",
     # OpenAI / Azure OpenAI embeddings (helpers/graph/embeddings.py, --api mode).
     "openai",
+    # OCR Pipeline (helpers/pdf/pdf_conv_md.py).
+    "requests",
 ]
 
 [project.optional-dependencies]

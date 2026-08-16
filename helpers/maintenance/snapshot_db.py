@@ -503,7 +503,7 @@ def _export_sqlite_schema(con: sqlite3.Connection) -> str:
     """
     def stmts(kind: str, where: str = "") -> list[str]:
         rows = con.execute(
-            "SELECT sql FROM sqlite_master WHERE type=? AND sql IS NOT NULL "
+            "SELECT sql FROM sqlite_master WHERE type=? AND sql IS NOT NULL "  # noqa: S608  # `where` is a hardcoded constant from callers below
             f"AND name NOT LIKE 'sqlite_%' {where} ORDER BY rowid",
             (kind,),
         ).fetchall()
@@ -846,10 +846,11 @@ def restore_duckdb_from_parquet(
             con.execute(
                 f"INSERT INTO {tname} SELECT * FROM read_parquet('{pf}')"  # noqa: S608  # identifiers come from the snapshot's own file names
             )
-            row = con.execute(  # noqa: S608  # identifiers come from the snapshot's own file names
-                f"SELECT COUNT(*) FROM {tname}"
+            row = con.execute(
+                f"SELECT COUNT(*) FROM {tname}"  # noqa: S608  # identifiers come from the snapshot's own file names
             ).fetchone()
-            assert row is not None  # COUNT(*) always returns a row
+            if row is None:  # COUNT(*) always returns a row
+                raise RuntimeError(f"COUNT(*) returned no row for {tname}")
             cnt = row[0]
             restored[tname] = cnt
             logger.info(f"  Restore DuckDB: {tname} ← {cnt:,} rows")
@@ -863,6 +864,109 @@ def restore_duckdb_from_parquet(
         f"{sum(restored.values()):,} rows)"
     )
     return {"target": str(target), "tables": restored}
+
+
+def _cmd_restore(
+    db_path: Path,
+    duckdb_path: Path,
+    parquet_sqlite_dir: Path,
+    parquet_duckdb_dir: Path,
+    with_duckdb: bool,
+    force: bool,
+    logger: logging.Logger,
+) -> int:
+    """--restore: rebuild live DBs from the git-tracked Parquet snapshot."""
+    if db_path.exists() and not force:
+        logger.error(f"Refusing to overwrite existing {db_path} — pass --force")
+        return 1
+    if with_duckdb and duckdb_path.exists() and not force:
+        logger.error(
+            f"Refusing to overwrite existing {duckdb_path} — pass --force"
+        )
+        return 1
+    if parquet_sqlite_dir.exists():
+        restore_sqlite_from_parquet(parquet_sqlite_dir, db_path, logger)
+    else:
+        logger.error(f"Parquet snapshot not found: {parquet_sqlite_dir}")
+        return 1
+    if with_duckdb:
+        if parquet_duckdb_dir.exists():
+            restore_duckdb_from_parquet(parquet_duckdb_dir, duckdb_path, logger)
+        else:
+            logger.warning(
+                f"DuckDB Parquet snapshot not found: {parquet_duckdb_dir}"
+            )
+    return 0
+
+
+def _cmd_check(
+    out_path: Path,
+    db_path: Path,
+    duckdb_out: Path,
+    duckdb_path: Path,
+    parquet_base: Path,
+    with_duckdb: bool,
+    logger: logging.Logger,
+) -> int:
+    """--check: verify gzip binary + Parquet snapshots round-trip."""
+    # --check ALWAYS verifies both formats (gzip binary + Parquet),
+    # regardless of --format (which only gates the create path).
+    # Each verify gracefully skips whatever isn't present.
+    ok = True
+    r = verify_snapshot(out_path, db_path, logger)
+    ok = ok and r["match"]
+    if with_duckdb:
+        rd = verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)
+        ok = ok and rd["match"]
+    rp = verify_parquet_snapshot(
+        parquet_base,
+        duckdb_path if with_duckdb else None,
+        db_path,
+        logger,
+    )
+    ok = ok and rp["match"]
+    return 0 if ok else 1
+
+
+def _cmd_create(
+    db_path: Path,
+    out_path: Path,
+    duckdb_path: Path,
+    duckdb_out: Path,
+    parquet_base: Path,
+    parquet_sqlite_dir: Path,
+    parquet_duckdb_dir: Path,
+    fmt: str,
+    with_duckdb: bool,
+    logger: logging.Logger,
+) -> int:
+    """Default: create the snapshot (binary / parquet / both) and verify."""
+    ok = True
+
+    # --- Binary (gzip) snapshot ---
+    if fmt in ("binary", "both"):
+        create_snapshot(db_path, out_path, logger)
+        r = verify_snapshot(out_path, db_path, logger)
+        ok = ok and r["match"]
+        if with_duckdb:
+            create_duckdb_snapshot(duckdb_path, duckdb_out, logger)
+            rd = verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)
+            ok = ok and rd["match"]
+
+    # --- Parquet snapshot ---
+    if fmt in ("parquet", "both"):
+        export_parquet_sqlite(db_path, parquet_sqlite_dir, logger)
+        if with_duckdb:
+            export_parquet_duckdb(duckdb_path, parquet_duckdb_dir, logger)
+        rp = verify_parquet_snapshot(
+            parquet_base,
+            duckdb_path if with_duckdb else None,
+            db_path,
+            logger,
+        )
+        ok = ok and rp["match"]
+
+    return 0 if ok else 1
 
 
 def main() -> int:
@@ -943,79 +1047,20 @@ def main() -> int:
 
     try:
         if args.restore:
-            # Rebuild the live DBs from the git-tracked Parquet snapshot.
-            # Refuse to clobber an existing live DB without --force.
-            if db_path.exists() and not args.force:
-                logger.error(
-                    f"Refusing to overwrite existing {db_path} — pass --force"
-                )
-                return 1
-            if args.with_duckdb and duckdb_path.exists() and not args.force:
-                logger.error(
-                    f"Refusing to overwrite existing {duckdb_path} — pass --force"
-                )
-                return 1
-            if parquet_sqlite_dir.exists():
-                restore_sqlite_from_parquet(parquet_sqlite_dir, db_path, logger)
-            else:
-                logger.error(f"Parquet snapshot not found: {parquet_sqlite_dir}")
-                return 1
-            if args.with_duckdb:
-                if parquet_duckdb_dir.exists():
-                    restore_duckdb_from_parquet(
-                        parquet_duckdb_dir, duckdb_path, logger
-                    )
-                else:
-                    logger.warning(
-                        f"DuckDB Parquet snapshot not found: {parquet_duckdb_dir}"
-                    )
-            return 0
-
+            return _cmd_restore(
+                db_path, duckdb_path, parquet_sqlite_dir, parquet_duckdb_dir,
+                args.with_duckdb, args.force, logger,
+            )
         if args.check:
-            # --check ALWAYS verifies both formats (gzip binary + Parquet),
-            # regardless of --format (which only gates the create path).
-            # Each verify gracefully skips whatever isn't present.
-            ok = True
-            r = verify_snapshot(out_path, db_path, logger)
-            ok = ok and r["match"]
-            if args.with_duckdb:
-                rd = verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)
-                ok = ok and rd["match"]
-            rp = verify_parquet_snapshot(
-                parquet_base,
-                duckdb_path if args.with_duckdb else None,
-                db_path,
-                logger,
+            return _cmd_check(
+                out_path, db_path, duckdb_out, duckdb_path, parquet_base,
+                args.with_duckdb, logger,
             )
-            ok = ok and rp["match"]
-            return 0 if ok else 1
-
-        ok = True
-
-        # --- Binary (gzip) snapshot ---
-        if args.format in ("binary", "both"):
-            create_snapshot(db_path, out_path, logger)
-            r = verify_snapshot(out_path, db_path, logger)
-            ok = ok and r["match"]
-            if args.with_duckdb:
-                create_duckdb_snapshot(duckdb_path, duckdb_out, logger)
-                rd = verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)
-                ok = ok and rd["match"]
-
-        # --- Parquet snapshot ---
-        if args.format in ("parquet", "both"):
-            export_parquet_sqlite(db_path, parquet_sqlite_dir, logger)
-            if args.with_duckdb:
-                export_parquet_duckdb(duckdb_path, parquet_duckdb_dir, logger)
-            rp = verify_parquet_snapshot(
-                parquet_base,
-                duckdb_path if args.with_duckdb else None,
-                db_path,
-                logger,
-            )
-            ok = ok and rp["match"]
-
-        return 0 if ok else 1
+        return _cmd_create(
+            db_path, out_path, duckdb_path, duckdb_out, parquet_base,
+            parquet_sqlite_dir, parquet_duckdb_dir, args.format,
+            args.with_duckdb, logger,
+        )
     except Exception as e:  # pragma: no cover
         print(f"ERROR: {e}", file=sys.stderr)
         return 1

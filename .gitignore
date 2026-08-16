@@ -53,6 +53,10 @@ htmlcov/
 .env
 .venv
 
+# Tool settings
+coc-settings.json
+opencode.json
+
 # Frontend: the built bundle (static/findata.bundle.js*) is committed so the
 # Python deploy stays Node-free; only the TypeScript deps are git-ignored.
 frontend/node_modules/

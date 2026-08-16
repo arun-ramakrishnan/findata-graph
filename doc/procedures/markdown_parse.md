@@ -1,12 +1,16 @@
 # Markdown Parse Procedure
 
-Parse markdown documents to extract entities (companies, sectors), create synchronized SQLite records + markdown files with enhanced tags, then validate. **Newsletter inputs (`The_Chatter/`, `Points_And_Figures/`, `The_PlotLines/`) carry remote OCR-crop images that expire — capture them FIRST (see [Image Capture](#image-capture)), before any parsing.**
+Parse documents to extract entities (companies, sectors), create synchronized SQLite records + markdown files with enhanced tags, then validate.
+
+**Inputs are either (a) an existing markdown newsletter or (b) a source PDF.** For a PDF, first convert it to markdown with `helpers/pdf/pdf_conv_md.py` (see [PDF → Markdown](#pdf--markdown)) — that step also downloads + embeds the figures, so no separate image capture is needed. For an existing markdown, **capture its remote OCR-crop images FIRST (see [Image Capture](#image-capture)), before any parsing** — the signed URLs expire and the inline embeds are later used to attach figures to company notes.
+
+> **Output destination — ask the user; never assume.** There is no safe way to infer the destination from the input. For a **PDF**, ask the user which directory to store the converted `.md` in before running `pdf_conv_md.py`. For an **existing markdown**, capture is in-place (the source `.md` is rewritten and figures land in its own `images/` dir), so confirm the markdown's location with the user rather than relocating it.
 
 ## Workflow
 
-> **One-command entry point.** Stages 0–3 + 5–6 are automated by
+> **One-command entry point.** Stages 1–4 + 6–7 are automated by
 > `helpers/core/parse_newsletter.py`. Run it first; it emits a
-> `<slug>_enhancement_worklist.json` for the only manual step (Stage 4).
+> `<slug>_enhancement_worklist.json` for the only manual step (Stage 5).
 >
 > ```bash
 > python3 helpers/core/parse_newsletter.py findata/The_Chatter/Foo.md                          # plan (dry-run)
@@ -14,15 +18,16 @@ Parse markdown documents to extract entities (companies, sectors), create synchr
 > python3 helpers/core/parse_newsletter.py findata/The_Chatter/Foo.md --apply --with-analytics   # also refresh graph_analytics
 > ```
 
-0. **Capture images** *(newsletter inputs only)* — download all remote `<img>` crops into a local `images/` dir and rewrite the source `.md` so figures embed inline next to their content (see [Image Capture](#image-capture)). Do this **before** parsing, since the signed URLs expire and the inline embeds are later used to attach figures to company notes.
-1. **Extract entities** — companies/sectors from document content.
-2. **Get tickers** — the orchestrator uses `get_tickers.search_ticker()` (which delegates to `fuzzy_match.word_overlap_match()` for name matching). **Prefer NSE (`.NS`) over BSE (`.BO`)** — NSE is the canonical Indian listing in this KB; use `.BO` only when a name is BSE-only (e.g. SME-only listings).
-3. **Add each NEW entity** — create SQLite record + markdown file + tags only for companies not already in the DB (see [Adding an Entity](#adding-an-entity)). When lifting insights from a newsletter, also embed the figure(s) that sit under that company's section as `![[images/<slug>_p{p}_img{N}.jpeg]]` so the chart travels with the insight.
-4. **Enhance existing entities** — for every company already in the DB that has a concall/management section in this newsletter, append a per-edition newsletter block to its note (see [Enhancing Existing Entities](#enhancing-existing-entities)). This is the default action when the entity already exists — do not skip it. *Not automated — the orchestrator emits the worklist; an agent lifts the insights.*
-5. **Create relationships** — bidirectional `part_of` / `has_company` between company and sector.
-6. **Validate** — run the two post-processing scripts (see [Validation](#validation)).
-7. **Refresh graph analytics** *(opt-in, `--with-analytics`)* — recompute PageRank / clustering / community detection across the updated graph and persist to `graph_analytics`. Use when you intend to consume graph metrics next; adds ~2–5s on the current 950-entity graph.
-8. **Re-derive structured relations** *(opt-in, separate command)* — re-scan newsletter prose AND synced company notes for `jv_with` / `acquired` / `subsidiary_of` / `same_group` / `supplier_to` / `customer_of` edges and write verified matches to `graph_edges`. Anything that names an unknown entity goes to `findata/_pending_relations.txt` for human triage.
+0. **Convert PDF → markdown** *(PDF inputs only)* — **ask the user for the destination directory first** (there is no safe way to infer it). Then convert the source PDF with `helpers/pdf/pdf_conv_md.py` into a The_Chatter-style `.md` in that directory. The script also downloads + embeds the figures as `![[images/<slug>_p{p}_img{N}.jpeg]]` into a sibling `images/` dir, so **no separate image capture is needed for PDF inputs** (see [PDF → Markdown](#pdf--markdown)). Then proceed to Stage 1.
+1. **Capture images** *(existing-markdown inputs only)* — **confirm the markdown's location with the user first** (capture is in-place: it rewrites the source `.md` and drops figures into its own `images/` dir). Then download all remote `<img>` crops and rewrite the source `.md` so figures embed inline next to their content (see [Image Capture](#image-capture)). Do this **before** parsing, since the signed URLs expire and the inline embeds are later used to attach figures to company notes. *(Skipped for PDF inputs — already done by Stage 0.)*
+2. **Extract entities** — companies/sectors from document content.
+3. **Get tickers** — the orchestrator uses `get_tickers.search_ticker()` (which delegates to `fuzzy_match.word_overlap_match()` for name matching). **Prefer NSE (`.NS`) over BSE (`.BO`)** — NSE is the canonical Indian listing in this KB; use `.BO` only when a name is BSE-only (e.g. SME-only listings).
+4. **Add each NEW entity** — create SQLite record + markdown file + tags only for companies not already in the DB (see [Adding an Entity](#adding-an-entity)). When lifting insights from a newsletter, also embed the figure(s) that sit under that company's section as `![[images/<slug>_p{p}_img{N}.jpeg]]` so the chart travels with the insight.
+5. **Enhance existing entities** — for every company already in the DB that has a concall/management section in this newsletter, append a per-edition newsletter block to its note (see [Enhancing Existing Entities](#enhancing-existing-entities)). This is the default action when the entity already exists — do not skip it. *Not automated — the orchestrator emits the worklist; an agent lifts the insights.*
+6. **Create relationships** — bidirectional `part_of` / `has_company` between company and sector.
+7. **Validate** — run the two post-processing scripts (see [Validation](#validation)).
+8. **Refresh graph analytics** *(opt-in, `--with-analytics`)* — recompute PageRank / clustering / community detection across the updated graph and persist to `graph_analytics`. Use when you intend to consume graph metrics next; adds ~2–5s on the current 950-entity graph.
+9. **Re-derive structured relations** *(opt-in, separate command)* — re-scan newsletter prose AND synced company notes for `jv_with` / `acquired` / `subsidiary_of` / `same_group` / `supplier_to` / `customer_of` edges and write verified matches to `graph_edges`. Anything that names an unknown entity goes to `findata/_pending_relations.txt` for human triage.
 
    ```bash
    # Dry-run summary across all sources (recursive directory scan):
@@ -62,7 +67,7 @@ Parse markdown documents to extract entities (companies, sectors), create synchr
 
    Idempotent via the `UNIQUE(source, target, edge_type)` constraint; safe to re-run after every newsletter batch. Re-run **after** the human reviewer has triaged `_pending_relations.txt` and added any new stub entities.
 
-9. **Refresh the events timeline** *(automatic with `make maint-full`, or manual)* — D7. The `events` table (acquisition / jv / guidance / management_change) is reconciled against the full corpus by `derive_events.py`, which (a) promotes `acquired`/`jv_with` edges into event rows and (b) extracts new guidance + management-change events from the `## The Chatter` blocks just enhanced in Stage 4. This runs automatically as the 6th step of `make maint-full` (post-ingest cleanup), so a normal ingest → enhance → `maint-full` cycle refreshes the timeline with no extra command. To run it standalone:
+10. **Refresh the events timeline** *(automatic with `make maint-full`, or manual)* — D7. The `events` table (acquisition / jv / guidance / management_change) is reconciled against the full corpus by `derive_events.py`, which (a) promotes `acquired`/`jv_with` edges into event rows and (b) extracts new guidance + management-change events from the `## The Chatter` blocks just enhanced in Stage 5. This runs automatically as the 6th step of `make maint-full` (post-ingest cleanup), so a normal ingest → enhance → `maint-full` cycle refreshes the timeline with no extra command. To run it standalone:
 
    ```bash
    make derive-events          # apply
@@ -72,7 +77,7 @@ Parse markdown documents to extract entities (companies, sectors), create synchr
 
    Idempotent via DELETE-then-INSERT of derived rows (`source_ref LIKE 'derive:events:%'`); hand-seeded `manual:`/`migration:` rows are preserved. Query the timeline via `GET /api/events/<company>`.
 
-10. **Auto-extract concall quotes + magnitudes** *(standalone command)* — `derive_insights.py` reads each company's `## [Concall]` body and captures every verbatim quote + speaker attribution + paraphrase into the `quotes` table, plus financial magnitudes (₹/%/bps/$bn) into `company_metrics`. It renders the quotes into a sentinel-wrapped `## The Chatter — <edition>` block in each company note (the deterministic first pass of Stage 4; hand-written blocks are never clobbered). Run after the newsletter is parsed and entities exist:
+11. **Auto-extract concall quotes + magnitudes** *(standalone command)* — `derive_insights.py` reads each company's `## [Concall]` body and captures every verbatim quote + speaker attribution + paraphrase into the `quotes` table, plus financial magnitudes (₹/%/bps/$bn) into `company_metrics`. It renders the quotes into a sentinel-wrapped `## The Chatter — <edition>` block in each company note (the deterministic first pass of Stage 5; hand-written blocks are never clobbered). Run after the newsletter is parsed and entities exist:
 
     ```bash
     make derive-insights                                        # apply
@@ -88,9 +93,32 @@ companies = re.findall(r'#[A-Z][a-zA-Z\s]+(?:Limited|Ltd|Private)', content)
 sectors   = re.findall(r'#(?:Banking|Healthcare|Technology)', content)
 ```
 
+## PDF → Markdown
+
+When the input is a source PDF (rather than an existing newsletter markdown), convert it first. `helpers/pdf/pdf_conv_md.py` submits the PDF to the Paddle AI Studio PP-StructureV3 job API, polls for completion, and writes a The_Chatter-style `.md` **plus** the figures already downloaded and embedded — so a PDF input skips the [Image Capture](#image-capture) step entirely.
+
+**Destination directory — always ask the user.** The `<output_dir>` argument is explicit and required; there is no safe way to infer it. Ask the user which directory to write into (a newsletter dir like `findata/The_Chatter/`, or any other path they choose) before running the converter, and use exactly that.
+
+```bash
+# Convert a PDF into <output_dir>; requires PADDLE_API_KEY in the environment.
+python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir>
+
+# Optional flags: --model <name> --token <key> --timeout <sec> --no-images
+```
+
+Outputs (written under the user-chosen `<output_dir>`, e.g. `findata/The_Chatter/` for a Chatter edition):
+
+- `<slug>.md` — combined markdown in the newsletter style, with images embedded inline as Obsidian wikilinks `![[images/<slug>_p{page}_img{N}.jpeg]]`. Filename is just the PDF stem (company names, spaces → underscores), no model suffix — e.g. `RBI_Canara_Bank_IRCTC.pdf` → `RBI_Canara_Bank_IRCTC.md`.
+- `<slug>.json` — raw per-page structured result (the shape used by the Reports/ eval JSONs), for audit/debugging.
+- `images/<slug>_p{page}_img{N}.jpeg` — downloaded figures, one file per figure, matching the [convention](#convention) below (`slug` = PDF stem with spaces→underscores; `page` = 1-based physical PDF page; `N` = global 1-based counter in document order).
+
+The script names images exactly like [Image Capture](#convention) does (`.jpeg`, `<slug>_p{page}_img{N}`), so downstream stages (embedding figures into company notes in Stage 4) work identically whether the newsletter came from a PDF or was captured later. `--no-images` skips the download and leaves absolute `<img src=...>` URLs in the markdown.
+
+> **The Chatter / Points & Figures / Plotlines editions are OCR'd PDFs.** If you have the PDF, use this converter and skip image capture. Only fall back to [Image Capture](#image-capture) for an existing markdown whose figures are still remote URLs.
+
 ## Image Capture
 
-Newsletter inputs are OCR'd PDFs whose figures are served as **signed, expiring** remote URLs (`maas-watermark-prod-new.cn-wlcb.ufileos.com/...?Expires=<ts>&Signature=...`). Left as-is they (a) 404 after `Expires`, and (b) bloat the source as giant `<div><img ...></div>` blocks that aren't embedded in any note. Capture them **before** parsing.
+Existing newsletter markdown inputs whose figures are served as **signed, expiring** remote URLs (`maas-watermark-prod-new.cn-wlcb.ufileos.com/...?Expires=<ts>&Signature=...`). Left as-is they (a) 404 after `Expires`, and (b) bloat the source as giant `<div><img ...></div>` blocks that aren't embedded in any note. Capture them **before** parsing. *(For PDF inputs this is already handled by the converter above — skip this section.)*
 
 ### Convention
 Prior newsletters already follow this pattern (e.g. `findata/Points_And_Figures/images/` holds ~960 files). Mirror it exactly:
@@ -107,6 +135,8 @@ Prior newsletters already follow this pattern (e.g. `findata/Points_And_Figures/
 - **Company notes:** when adding insights from a newsletter, embed the figure(s) sitting under that company's section using the same `![[images/...]]` syntax (e.g. `JSW_Steel.md` embeds `![[Context_beyond_the_charts_p32_img28.jpeg]]`). The rewritten source is the image→section map.
 
 ### How to capture
+
+The helper writes in-place: figures go into the markdown's own `images/` dir and the source `.md` is rewritten where it already lives. Confirm that location with the user before running — do not move or copy the markdown to relocate the output.
 
 ```bash
 # Download + verify + rewrite the source .md in place. Idempotent & resumable
@@ -411,7 +441,7 @@ Do NOT pad the block with the company's boilerplate description (already in the 
 
 ### Auto-generated chatter blocks (deterministic first pass)
 
-`helpers/graph/derive_insights.py` automates the *first pass* of Stage 4: it reads each company's `## [Concall]` body, extracts every verbatim quote + speaker attribution + paraphrase, and renders them into a sentinel-wrapped `## The Chatter — <edition>` block. It also captures financial magnitudes (₹/%/bps/$bn/GW) into the `company_metrics` table. This is the deterministic capture layer that fills empty notes — the manual curation above refines it.
+`helpers/graph/derive_insights.py` automates the *first pass* of Stage 5: it reads each company's `## [Concall]` body, extracts every verbatim quote + speaker attribution + paraphrase, and renders them into a sentinel-wrapped `## The Chatter — <edition>` block. It also captures financial magnitudes (₹/%/bps/$bn/GW) into the `company_metrics` table. This is the deterministic capture layer that fills empty notes — the manual curation above refines it.
 
 ```bash
 # Dry-run summary across all sources:
@@ -479,7 +509,7 @@ def validate_bidirectional_sync():
 ```
 
 ### Checklist
-- [ ] **(Newsletter inputs)** Images captured into `<newsletter_dir>/images/` and source `.md` rewritten (0 remote URLs) — see [Image Capture](#image-capture)
+- [ ] **(Existing-markdown inputs)** Images captured into `<newsletter_dir>/images/` and source `.md` rewritten (0 remote URLs) — see [Image Capture](#image-capture). **(PDF inputs)** Converter ran and produced `<slug>.md` + `images/` — see [PDF → Markdown](#pdf--markdown)
 - [ ] Filename: PascalCase, single underscores, no special chars, ≤100 chars
 - [ ] `normalized_name` matches filename exactly
 - [ ] `file_path` resolves to an existing file
@@ -505,4 +535,4 @@ JOIN entity_tags b ON b.entity_name = e.name AND b.tag = 'market_cap/large_cap';
 ```
 
 ---
-*Version 8.3 | Renamed multi-edition synthesis heading to `## Newsletter synthesis — <Sector> (multi-edition)` (source-agnostic — was incorrectly prefixed `## The Chatter — …` despite drawing from Points & Figures and Plotlines too).*
+*Version 8.6 | Output destination is now explicit: **ask the user where output goes — never assume**. PDF inputs: ask for the `<output_dir>` before running `pdf_conv_md.py`. Markdown inputs: capture is in-place (rewrites the source `.md`, figures into its own `images/`), so confirm the markdown's location with the user. Prior 8.5: filenames are just the PDF stem (no `_by_<Model>` suffix); Stage 0 → markdown.*

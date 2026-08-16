@@ -15,7 +15,7 @@ tags:
 - risk_investment/growth
 - sector/pharma
 created: '2025-11-16'
-last_modified: 2026-07-07
+last_modified: 2026-08-16
 ---
 
 # Wockhardt Limited
@@ -203,5 +203,22 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "I know my peak is 1.5 to 2 billion for the life of the product."
 > — Dr. Habil Khorakiwala, Founder & Chairman, Wockhardt Limited
+
+## The Chatter — RBI's Governor, Canara Bank, IRCTC, & More
+
+**Turnaround locked in:** Top-line growth ~26% and EBITDA back in positive territory at ₹107 cr (was negative last year) — the operational inflection is now visible.
+
+**International business is the engine:** A major part of revenue growth comes from the international segment, which management expects to sustain through the year.
+
+**20%+ base growth plus new molecules:** Core operations should grow at least 20% over 12–18 months; new molecules (Zidebactam) are additional upside on top of the base.
+
+**FY28–FY29 hockey stick:** Rapid growth begins FY28, "hockey stick" from FY29 onwards as global trials and launches commercialise.
+
+**R&D intensity held at 10–12% of revenue:** Consistent R&D spend over the next 3–5 years funds global clinical trials (Emrok, Miqnof) and advances WCK 6777, a once-a-day antibiotic, into Phase 2/3.
+
+> "Definitely FY28. In FY28, we would see the very beginning of rapid growth, and from FY29 onwards, you will see our growth like a hockey stick."
+> — Habil Khorakiwala, Founder and Chairman
+
+*Source: The Chatter — RBI's Governor, Canara Bank, IRCTC, & More*
 
 *Source: The Chatter — Asian Paints, NMDC, IndiGo, Glenmark & More*

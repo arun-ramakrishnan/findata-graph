@@ -151,7 +151,9 @@ def test_parquet_sqlite_export_roundtrips(tmp_path):
 
 
 def test_parquet_sqlite_excludes_fts5_shadow_tables(tmp_path):
-    """FTS5 virtual tables and their shadow tables must not be exported."""
+    """FTS5 derived shadow tables (_data/_idx/_docsize/_config) must not be
+    exported; the content shadow (_content) is kept so restore can rebuild
+    the index via ``('rebuild')``."""
     from maintenance.snapshot_db import _list_sqlite_tables
 
     db = tmp_path / "src.db"
@@ -160,9 +162,12 @@ def test_parquet_sqlite_excludes_fts5_shadow_tables(tmp_path):
     con = sqlite3.connect(db)
     tables = _list_sqlite_tables(con)
     con.close()
-    assert "note_search" not in tables
-    assert "note_search_content" not in tables
-    assert "note_search_data" not in tables
+    assert "note_search" not in tables            # virtual table itself
+    assert "note_search_content" in tables         # content shadow — needed for rebuild
+    assert "note_search_data" not in tables        # derived shadow
+    assert "note_search_idx" not in tables         # derived shadow
+    assert "note_search_docsize" not in tables     # derived shadow
+    assert "note_search_config" not in tables      # derived shadow
     assert "entities" in tables
 
 

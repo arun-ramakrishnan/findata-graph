@@ -15,7 +15,7 @@ tags:
 - risk_investment/dividend
 - sector/banking
 created: '2025-11-16'
-last_modified: '2026-06-28'
+last_modified: '2026-08-16'
 ---
 # Canara Bank
 
@@ -161,3 +161,20 @@ credible achievement, I tell you. And slippage also, it is in absolute control."
 ![[images/Infosys_Adani_Tata_Motors_p3_img6.jpeg]]
 
 *Source: The Chatter — Infosys, Adani, Tata Motors, Canara & More*
+
+## The Chatter — RBI's Governor, Canara Bank, IRCTC, & More
+
+**CD ratio at 80%, pushing toward 82%:** The bank moved its credit-deposit ratio from 75% to 80% to earn better yields on advances (~8%) versus investments (~6.9%); management sees room for 1–2 more percentage points before liquidity becomes a constraint.
+
+**Replacing bulk deposits with retail:** High-cost bulk deposits are being run down and replaced with retail term deposits / CASA to support the upward margin trajectory.
+
+**FCNR fundraise ahead of target:** Raised over $2bn against a $1.5bn FCNR(B) target; total FY27 overseas guidance is $2.3–2.5bn across FCNR(B), ECB and OFCB.
+
+**FCNR economics:** The RBI's concessional ~3% swap plus no CRR/SLR makes foreign-currency funding cost ~1.5% effective (vs 7%+ bulk repricing) — saving ~1.5% plus another 22–23bps.
+
+**Loan growth guidance to be beaten:** Expects to better the 12% growth guidance on the back of MSME emergency credit, higher overseas-line utilization and dollar asset repricing; demand seen in power, green energy, energy storage and data centres.
+
+> "It is helping us not directly on the margin count, but on repricing some of our high-cost bulk rates. Last month, whatever we were repricing was above 7%, whereas here we are offering 6.5%. But that also comes with the concessional swap, the 3 swap offered by the Reserve Bank of India, which costs somewhere around 3%. So we are only paying around 1.5% there, saving about 1.5%. Again, this does not attract CRR and SLR, saving another 22 to 23 basis points. So it is definitely helping us."
+> — Brajesh Kumar Singh, MD & CEO
+
+*Source: The Chatter — RBI's Governor, Canara Bank, IRCTC, & More*

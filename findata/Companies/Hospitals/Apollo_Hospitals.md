@@ -15,7 +15,7 @@ tags:
 - risk_investment/growth
 - sector/hospitals
 created: '2025-11-16'
-last_modified: 2026-07-07
+last_modified: 2026-08-16
 ---
 # Apollo Hospitals
 
@@ -145,3 +145,22 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > — Sunita Reddy, Managing Director
 
 *Source: The Chatter — Tata Steel, LIC, Vodafone, BPCL & More*
+
+## The Chatter — RBI's Governor, Canara Bank, IRCTC, & More
+
+**Growth 22%, balanced between volume and price:** Hospital revenue ₹3,562 cr, +22% — 13% volume, occupancy +10%, ARPOB +11% (insurance now 46% of mix); not just pricing, patients are coming.
+
+**Path to >20% growth:** Established units deliver 12–13%, new units add ~7% — keeping overall growth above 20% at a 74% sustainable occupancy level.
+
+**₹8,000 cr capex largely FCF-funded:** ~₹800 cr annual free cash flow plus existing reserves fund most of the expansion; only a small debt raise near the end of the cycle.
+
+**New hospitals break even fast:** Gurugram EBITDA break-even expected in 12 months; Sarjapur faster.
+
+**International patients +24%:** Medical tourism is a high-margin tailwind; Gurugram could reach up to 30% international mix, and the Navi Mumbai airport will boost inflows.
+
+**Structural cost reduction ~150bps:** Established hospitals run at 29.2% EBITDA margin; a ~150bps structural cost cut should lift overall group EBITDA to ~25% within 18 months.
+
+> "Speaking of the drivers of growth in the hospital space, we had a revenue of ₹3,562 crore representing a growth of 22%. Of this, 13% is volume growth. In terms of occupancy, we grew by 10%. There was an ARPOB growth of about 11%, driven by the insurance sector which forms 46% of our mix. The rest of it was price."
+> — Suneeta Reddy, Managing Director
+
+*Source: The Chatter — RBI's Governor, Canara Bank, IRCTC, & More*
