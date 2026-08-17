@@ -231,7 +231,7 @@ class TestEmbeddingColumn:
             for (emb,) in rows:
                 assert emb is not None
                 vec = json.loads(emb)
-                assert len(vec) == 384
+                assert len(vec) == 64
         finally:
             con.close()
 

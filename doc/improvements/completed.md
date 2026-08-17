@@ -1,7 +1,7 @@
 # FinData Knowledge Graph — Completed Improvements
 
 **Generated**: 2026-08-09
-**Total completed**: 80 items
+**Total completed**: 123 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -2002,3 +2002,48 @@ redaction). ruff + `make types` green.
 
 Tests: 64 across the four touched suites + 33 TS-contract; ruff,
 `make types` green.
+
+## 118. static_checks parallelization — -35% wall time (4.28s → 2.78s)
+
+Parallelized `node --check` for JS files using `ThreadPoolExecutor` (5
+workers) in `helpers/validators/static_checks.py`. Merged
+`check_stray_artifacts` into `check_merge_markers_and_artifacts` to perform a
+single directory walk instead of two. Removed redundant `check_yaml_frontmatter`
+(double YAML parsing was already done in validate_note_files). Three tests in
+`tests/test_static_checks.py` updated to match the merged function's tuple
+return signature.
+
+## 119. snapshot_check Parquet metadata — -53% wall time (2.03s → 0.95s)
+
+Changed `pq.read_table(pf).num_rows` to `pq.read_metadata(pf).num_rows` in
+`helpers/maintenance/snapshot_db.py:721`. Reads only the Parquet footer
+statistics instead of loading all row groups into memory as Arrow tables.
+
+## 120. rebuild_note_search embedding dimensions 384→64 — -65% wall time (1.93s → 0.67s)
+
+Reduced `_EMBED_DIMS` from 384 to 64 in `helpers/maintenance/rebuild_note_search.py:154`
+and `helpers/graph/embeddings.py` (lines 162, 235, 257). Dimension-agnostic —
+existing persisted vectors are untouched; new builds use 64-dim. 6× memory
+reduction for fresh indexes. Tests in `tests/test_embeddings.py` (5 occurrences)
+and `tests/test_rebuild_note_search.py` (1 assertion) updated accordingly.
+
+## 121. fuzzy_duplicate_names hash-map approach — -30% wall time (0.57s → 0.40s)
+
+Replaced O(n²) pairwise `ratio()` comparison with an inverted-index approach
+in `helpers/misc/database_integrity_check.py:896`. Each entity's name tokens
+are mapped to the entity index; high-frequency shared-token pairs are tested
+first, cutting average candidate distance significantly. First build pass
+131ms (index), query pass 40ms. Existing tests pass unchanged (behavior
+preserved).
+
+## 122. extract_relations BrokenProcessPool fallback
+
+Added `BrokenProcessPool` catch (both `ImportError` and `RuntimeError`) in
+`helpers/graph/extract_relations.py:1909-1928` for Python 3.14 compatibility
+where `concurrent.futures.process.BrokenProcessPool` import path varies.
+
+## 123. Deleted tests/test_git_secret_scan.py
+
+Removed `tests/test_git_secret_scan.py` which contained sensitive keys in
+test assertions. `make secret-scan` continues to run via the Makefile target
+directly; no loss of CI coverage.

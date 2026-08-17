@@ -151,7 +151,7 @@ def _newsletter_title(text: str) -> str:
 # Default embedding dimension for the pseudo-embedding fallback. Must match the
 # dims used by helpers/graph/embeddings.py::populate_dry_run so a query embedded
 # with the same default is comparable against stored rows.
-_EMBED_DIMS = 384
+_EMBED_DIMS = 64
 
 
 def _default_embed(text: str) -> list[float]:

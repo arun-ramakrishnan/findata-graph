@@ -1911,14 +1911,23 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         # EntityResolver and runs the CPU-bound extract_relations. DB writes
         # stay serial in the parent (single-writer contract).
         from concurrent.futures import ProcessPoolExecutor
+        from concurrent.futures.process import BrokenProcessPool
 
         workers = min(4, os.cpu_count() or 1)
         chunks = [
             ([str(p) for p in nl_paths[i::workers]], names)
             for i in range(workers)
         ]
-        with ProcessPoolExecutor(max_workers=workers) as ex:
-            batch_results = list(ex.map(_extract_batch_arg, chunks))
+        try:
+            with ProcessPoolExecutor(max_workers=workers) as ex:
+                batch_results = list(ex.map(_extract_batch_arg, chunks))
+        except BrokenProcessPool:
+            # Fallback to serial processing if child processes crash
+            # (e.g., under memory pressure or OOM killer).
+            import sys as _sys
+            print("WARNING: ProcessPoolExecutor crashed, falling back to serial",
+                  file=_sys.stderr)
+            batch_results = [_extract_batch(chunk[0], chunk[1]) for chunk in chunks]
         # Flatten worker results into per-file tuples, preserving order.
         file_results = []
         for batch in batch_results:

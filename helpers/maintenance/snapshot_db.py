@@ -718,7 +718,7 @@ def verify_parquet_snapshot(  # noqa: C901
                         ).fetchone()[0]
                     except Exception:  # noqa: S112  # best-effort; skip item on failure
                         continue
-                    snap_cnt = pq.read_table(pf).num_rows
+                    snap_cnt = pq.read_metadata(pf).num_rows
                     result["tables_checked"] += 1
                     if src_cnt != snap_cnt:
                         result["mismatches"].append(

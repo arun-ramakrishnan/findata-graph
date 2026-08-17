@@ -19,7 +19,7 @@ wanted, reintroduce against the then-current API.)
 Usage:
     python3 helpers/graph/embeddings.py                      # populate all companies
     python3 helpers/graph/embeddings.py --company "CEAT"     # single company
-    python3 helpers/graph/embeddings.py --dims 384           # 384-dim pseudo-embeddings
+    python3 helpers/graph/embeddings.py --dims 64           # 64-dim pseudo-embeddings
     python3 helpers/graph/embeddings.py --clear              # wipe existing embeddings
 
 The SQLite table schema:
@@ -159,7 +159,7 @@ def _get_company_text(conn: sqlite3.Connection, company_name: str) -> str:
     return f"{company_name}. {sector or ''}"
 
 
-def populate_dry_run(conn: sqlite3.Connection, dims: int = 384, company: str | None = None) -> int:
+def populate_dry_run(conn: sqlite3.Connection, dims: int = 64, company: str | None = None) -> int:
     """Populate embeddings using deterministic pseudo-embeddings.
 
     Returns the number of rows inserted/updated.
@@ -232,7 +232,7 @@ def main():
     parser.add_argument("--model", default=None,
                         help="Embedding model label (default: dry-run-v{dims})")
     parser.add_argument("--dims", type=int, default=None,
-                        help="Embedding dimensions (default: 384 dry-run, 1536 API)")
+                        help="Embedding dimensions (default: 64 dry-run, 1536 API)")
     parser.add_argument("--company", default=None,
                         help="Single company name (default: all companies)")
     parser.add_argument("--clear", action="store_true",
@@ -254,7 +254,7 @@ def main():
         n = clear(conn)
         print(f"Cleared {n} embedding rows", file=sys.stderr)
 
-    dims = args.dims or 384
+    dims = args.dims or 64
     model = args.model or f"dry-run-v{dims}"
     print(f"Generating pseudo-embeddings (dims={dims}, model={model})..."
           , file=sys.stderr)

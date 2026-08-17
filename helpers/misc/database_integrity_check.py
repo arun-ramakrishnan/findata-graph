@@ -893,6 +893,27 @@ class DatabaseIntegrityChecker:
             if t and t not in DatabaseIntegrityChecker._STOPWORDS
         }
 
+    def _fuzzy_names_match(
+        self, tokens_i: set[str], tokens_j: set[str]
+    ) -> bool:
+        """Return True if two token sets represent a fuzzy-name match."""
+        shared = tokens_i & tokens_j
+        # Single-token exact match (e.g. 'Hindalco' == 'Hindalco').
+        if len(tokens_i) == 1 and len(tokens_j) == 1 and shared:
+            return True
+        # Subset match with >= 2 shared distinctive tokens.
+        return bool(
+            len(tokens_i) >= 2
+            and len(shared) >= 2
+            and (shared == tokens_i or shared == tokens_j)
+            and (shared - self._GENERIC_WORDS)
+        )
+
+    @staticmethod
+    def _share_ticker(ti: str | None, tj: str | None) -> bool:
+        """Return True if both tickers are present and equal."""
+        return bool(ti and tj and ti == tj)
+
     def check_fuzzy_duplicate_names(self) -> dict:
         """
         Advisory (WARNING, never gate-failing): pairs of company entities whose
@@ -918,44 +939,41 @@ class DatabaseIntegrityChecker:
         ).fetchall()
 
         pairs = []
-        n = len(rows)
-        # Precompute meaningful tokens once per row. Previously this was
-        # inside the inner loop, recomputing the same row's tokens up to
-        # n times — O(n^2) string ops. Now O(n) precomputation + O(n^2)
-        # cheap set intersections.
         token_cache = [
             (ni, ti, self._meaningful_tokens(ni))
             for (ni, ti) in rows
         ]
-        for i in range(n):
-            ni, ti, ci = token_cache[i]
+
+        from collections import defaultdict
+        token_to_indices: dict[str, set[int]] = defaultdict(set)
+        for idx, (_, _, tokens) in enumerate(token_cache):
+            for t in tokens:
+                token_to_indices[t].add(idx)
+
+        seen_pairs: set[frozenset[str]] = set()
+        for i, (ni, ti, ci) in enumerate(token_cache):
             if not ci:
                 continue
-            for j in range(i + 1, n):
+            candidates: set[int] = set()
+            for t in ci:
+                candidates.update(token_to_indices[t])
+            candidates.discard(i)
+            for j in candidates:
+                if j <= i:
+                    continue
                 nj, tj, cj = token_cache[j]
-                # Skip pairs that share a ticker (already an error elsewhere).
-                if ti and tj and ti == tj:
+                dominated = (
+                    self._share_ticker(ti, tj)
+                    or not cj
+                    or not self._fuzzy_names_match(ci, cj)
+                )
+                if dominated:
                     continue
-                if not cj:
+                pair_key = frozenset({ni, nj})
+                if pair_key in self._FUZZY_SUPPRESSED or pair_key in seen_pairs:
                     continue
-                shared = ci & cj
-                matched = False
-                # Single-token exact match (e.g. 'Hindalco' == 'Hindalco').
-                if len(ci) == 1 and len(cj) == 1 and shared:
-                    matched = True
-                # Subset match with >= 2 shared distinctive tokens.
-                elif (
-                    len(ci) >= 2
-                    and len(shared) >= 2
-                    and (shared == ci or shared == cj)
-                    and (shared - self._GENERIC_WORDS)
-                ):
-                    matched = True
-                if matched:
-                    pair_key = frozenset({ni, nj})
-                    if pair_key in self._FUZZY_SUPPRESSED:
-                        continue
-                    pairs.append({"name_a": ni, "name_b": nj})
+                seen_pairs.add(pair_key)
+                pairs.append({"name_a": ni, "name_b": nj})
         return {
             "fuzzy_duplicate_pairs": pairs,
             "warnings": len(pairs),
