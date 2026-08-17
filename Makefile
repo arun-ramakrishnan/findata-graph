@@ -8,7 +8,7 @@
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
 
-.PHONY: help qa test test-live perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild frontend frontend-check maint maint-full metrics-rebuild lint types lint-audit deptry advisory
+.PHONY: help qa test test-live perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild frontend frontend-check maint maint-full metrics-rebuild lint types lint-audit deptry advisory secret-scan
 
 help:           ## Show available targets
 > @echo "FinData QA / maintenance targets:"
@@ -36,6 +36,7 @@ help:           ## Show available targets
 > @echo "  graph-rebuild   rebuild the disk-based DuckDB cache (run after parse_newsletter/derive-relations)"
 > @echo "  update-extensions  update all installed DuckDB extensions to latest"
 > @echo "  recompute-graph write all algorithm metrics to graph_analytics"
+> @echo "  secret-scan     incremental git-history secret scan (helpers/misc/git_secret_scan.py)"
 > @echo "  derive-themes-rebuild  derive theme entities+edges AND rebuild the DuckDB cache (the paired run themes require)"
 > @echo "  frontend        build the TypeScript frontend bundle into static/findata.bundle.js (needs Node)"
 > @echo "  frontend-check  type-check the TypeScript frontend without emitting (needs Node)"
@@ -132,6 +133,10 @@ graph-rebuild:  ## Rebuild the disk-based DuckDB cache from SQLite (run after pa
 update-extensions: ## Update all installed DuckDB extensions to latest (weekly cadence)
 > python3 helpers/graph/query.py update-extensions
 > @echo "✓ DuckDB extensions checked/updated"
+
+secret-scan: ## Incremental git-history secret scan (state under .git/secret-scan/)
+> python3 helpers/misc/git_secret_scan.py
+> @echo "✓ Secret scan complete (incremental; state: .git/secret-scan/state.json)"
 
 recompute-graph: ## Recompute all graph analytics and persist to graph_analytics
 > python3 helpers/graph/algorithms.py --all --apply

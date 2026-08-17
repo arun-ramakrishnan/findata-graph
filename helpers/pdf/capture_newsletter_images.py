@@ -36,6 +36,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 # slugify is shared with pdf_conv_md.py (see helpers/pdf/common.py).
 if __package__ in (None, ""):
@@ -90,11 +91,17 @@ def is_valid_jpeg(p: Path) -> bool:
 
 
 def fetch(url: str, dest: Path, retries: int = 3):
+    # SEC-6 (doc/improvements/archive/security_evaluation.txt): URLs come
+    # from regex-extracted OCR markdown, so the scheme MUST be allowlisted
+    # before urlopen — otherwise a poisoned OCR file could point us at
+    # file:// or internal hosts. https only (the newsletter CDN serves https).
+    if not url.startswith("https://"):
+        return f"skipped non-https scheme: {urlsplit(url).scheme or '(relative)'}"
     last = None
     for _ in range(retries):
         try:
-            req = Request(url, headers={"User-Agent": UA})  # noqa: S310  # https fetch of newsletter images (scheme-limited)
-            with urlopen(req, timeout=30) as r:  # noqa: S310  # https fetch of newsletter images (scheme-limited)
+            req = Request(url, headers={"User-Agent": UA})  # noqa: S310  # https-only scheme enforced above
+            with urlopen(req, timeout=30) as r:  # noqa: S310  # https-only scheme enforced above
                 data = r.read()
             if data and (data[:2] == b"\xff\xd8" or data[:4] == b"\x89PNG"):
                 dest.write_bytes(data)

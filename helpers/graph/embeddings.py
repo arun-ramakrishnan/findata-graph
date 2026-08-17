@@ -8,24 +8,19 @@ materialised into DuckDB by ``helpers/graph/query.py::_materialise_embeddings()`
 on the next ``connect()`` / ``rebuild`` cycle, and queried via
 ``semantic_neighbors()``.
 
-Two modes:
-
-  1. --dry-run     Generate deterministic pseudo-embeddings from a hash of
-                   the company name + sector. No external API calls. Useful
-                   for testing the VSS pipeline end-to-end without incurring
-                   LLM costs.
-
-  2. --api         Fetch real embeddings from an LLM provider (OpenAI
-                   text-embedding-3-small by default). Requires OPENAI_API_KEY
-                   in the environment. This is the production path.
+One mode: deterministic pseudo-embeddings. (A real-API path — OpenAI /
+Azure text-embedding-3-small via `--api`/`--provider` — existed from the
+module's introduction but was never invoked anywhere: no Makefile target,
+procedure, or test called it, and the live DB + tracked snapshot contained
+only dry-run vectors. Removed 2026-08-17; see completed.md #115. The
+`openai` dependency was dropped with it. If real embeddings are ever
+wanted, reintroduce against the then-current API.)
 
 Usage:
-    python3 helpers/graph/embeddings.py                      # dry-run, populate all
-    python3 helpers/graph/embeddings.py --api                 # real embeddings via OpenAI
-    python3 helpers/graph/embeddings.py --api --provider azure  # Azure OpenAI
-    python3 helpers/graph/embeddings.py --company "CEAT" --api  # single company
-    python3 helpers/graph/embeddings.py --dry-run --dims 384   # 384-dim pseudo-embeddings
-    python3 helpers/graph/embeddings.py --clear                # wipe existing embeddings
+    python3 helpers/graph/embeddings.py                      # populate all companies
+    python3 helpers/graph/embeddings.py --company "CEAT"     # single company
+    python3 helpers/graph/embeddings.py --dims 384           # 384-dim pseudo-embeddings
+    python3 helpers/graph/embeddings.py --clear              # wipe existing embeddings
 
 The SQLite table schema:
     CREATE TABLE company_embeddings (
@@ -44,7 +39,6 @@ import argparse
 import hashlib
 import json
 import math
-import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -165,27 +159,6 @@ def _get_company_text(conn: sqlite3.Connection, company_name: str) -> str:
     return f"{company_name}. {sector or ''}"
 
 
-def _get_openai_client():
-    """Create an OpenAI client (lazy import, only needed in --api mode)."""
-    try:
-        from openai import OpenAI
-        return OpenAI()
-    except ImportError:
-        raise ImportError(
-            "openai package not installed. Run: pip install openai"
-        )
-
-
-def _fetch_openai_embedding(client, text: str, model: str = "text-embedding-3-small", dims: int = 1536) -> list[float]:
-    """Fetch a real embedding from OpenAI API."""
-    resp = client.embeddings.create(
-        model=model,
-        input=text,
-        dimensions=dims,
-    )
-    return resp.data[0].embedding
-
-
 def populate_dry_run(conn: sqlite3.Connection, dims: int = 384, company: str | None = None) -> int:
     """Populate embeddings using deterministic pseudo-embeddings.
 
@@ -215,68 +188,6 @@ def populate_dry_run(conn: sqlite3.Connection, dims: int = 384, company: str | N
 
     conn.commit()
     return count
-
-
-def populate_api(conn: sqlite3.Connection, model: str = "text-embedding-3-small", 
-                 dims: int = 1536, company: str | None = None,
-                 provider: str = "openai") -> int:
-    """Populate embeddings using a real LLM API.
-
-    Returns the number of rows inserted/updated.
-    """
-    _ensure_schema(conn, dims)
-
-    client = _get_openai_client() if provider == "openai" else _get_azure_client()
-
-    if company:
-        names = [company]
-    else:
-        # Skip companies that already have embeddings with this model
-        existing = set(
-            r[0] for r in conn.execute(
-                "SELECT company_name FROM company_embeddings WHERE model = ?", (model,)
-            ).fetchall()
-        )
-        names = [r[0] for r in conn.execute(
-            "SELECT name FROM entities WHERE entity_type = 'company' ORDER BY name"
-        ).fetchall() if r[0] not in existing]
-
-    count = 0
-    for name in names:
-        text = _get_company_text(conn, name)
-        try:
-            vec = _fetch_openai_embedding(client, text, model, dims)
-        except Exception as e:
-            print(f"  skip {name}: API error ({e})", file=sys.stderr)
-            continue
-
-        vec_str = "[" + ", ".join(repr(v) for v in vec) + "]"
-        conn.execute(
-            "INSERT OR REPLACE INTO company_embeddings (company_name, embedding, model) "
-            "VALUES (?, ?, ?)",
-            (name, vec_str, model)
-        )
-        count += 1
-
-        if count % 10 == 0:
-            conn.commit()  # batch commits for large runs
-
-    conn.commit()
-    return count
-
-
-def _get_azure_client():
-    """Create an Azure OpenAI client."""
-    try:
-        from openai import AzureOpenAI
-    except ImportError:
-        raise ImportError("openai package not installed. Run: pip install openai")
-
-    return AzureOpenAI(
-        api_key=os.environ.get("AZURE_OPENAI_API_KEY", ""),
-        api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2024-02-15-preview"),
-        azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", ""),
-    )
 
 
 def clear(conn: sqlite3.Connection) -> int:
@@ -318,14 +229,8 @@ def main():
     parser = argparse.ArgumentParser(
         description="Generate and persist company embeddings for VSS vector search."
     )
-    parser.add_argument("--api", action="store_true", 
-                        help="Use OpenAI API for real embeddings (requires OPENAI_API_KEY). "
-                             "Default: dry-run pseudo-embeddings.")
-    parser.add_argument("--provider", choices=["openai", "azure"], default="openai",
-                        help="LLM provider (default: openai)")
     parser.add_argument("--model", default=None,
-                        help="Embedding model name (default: text-embedding-3-small for API, "
-                             "dry-run-v384 for dry-run)")
+                        help="Embedding model label (default: dry-run-v{dims})")
     parser.add_argument("--dims", type=int, default=None,
                         help="Embedding dimensions (default: 384 dry-run, 1536 API)")
     parser.add_argument("--company", default=None,
@@ -349,19 +254,11 @@ def main():
         n = clear(conn)
         print(f"Cleared {n} embedding rows", file=sys.stderr)
 
-    if args.api:
-        model = args.model or "text-embedding-3-small"
-        dims = args.dims or 1536
-        print(f"Fetching real embeddings via OpenAI {model} (dims={dims})..."
-              , file=sys.stderr)
-        count = populate_api(conn, model=model, dims=dims, 
-                            company=args.company, provider=args.provider)
-    else:
-        dims = args.dims or 384
-        model = args.model or f"dry-run-v{dims}"
-        print(f"Generating pseudo-embeddings (dims={dims}, model={model})..."
-              , file=sys.stderr)
-        count = populate_dry_run(conn, dims=dims, company=args.company)
+    dims = args.dims or 384
+    model = args.model or f"dry-run-v{dims}"
+    print(f"Generating pseudo-embeddings (dims={dims}, model={model})..."
+          , file=sys.stderr)
+    count = populate_dry_run(conn, dims=dims, company=args.company)
 
     print(f"Inserted/updated {count} embeddings", file=sys.stderr)
     print(f"Stats: {json.dumps(stats(conn))}", file=sys.stderr)

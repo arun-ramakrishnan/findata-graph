@@ -170,8 +170,8 @@ class EntityDetailPage {
         titleSection.appendChild(titleElement);
 
         const typeBadge = document.createElement('div');
-        typeBadge.className = `entity-type-badge ${this.entity.entity_type}`;
-        typeBadge.innerHTML = `<i class="fas fa-${this.getEntityIcon(this.entity.entity_type)}"></i> ${this.entity.entity_type || 'Entity'}`;
+        typeBadge.className = `entity-type-badge ${this.escapeHtml(this.entity.entity_type || 'entity')}`;
+        typeBadge.innerHTML = `<i class="fas fa-${this.getEntityIcon(this.entity.entity_type)}"></i> ${this.escapeHtml(this.entity.entity_type || 'Entity')}`;
         titleSection.appendChild(typeBadge);
 
         container.appendChild(titleSection);

@@ -354,12 +354,6 @@ def findata_viewer():
     return render_template("findata.html")
 
 
-@app.route("/debug/entity/<path:entity_path>")
-def debug_entity(entity_path):
-    """Debug route to check entity path"""
-    return f"Debug: Entity path received: {entity_path}"
-
-
 @app.route("/api/entities")
 def api_entities():
     """API endpoint to get all entities with filtering"""
@@ -2090,6 +2084,34 @@ def api_graph_refresh():
 
 
 # --------------------------------------------------------------------------- #
+# Security headers                                                             #
+# --------------------------------------------------------------------------- #
+# SEC-3 hardening (doc/improvements/archive/security_evaluation.txt, Phase 3):
+# all scripts/styles are vendored under /static/vendor/ (same-origin), so the
+# CSP can be closed to 'self'. Two deliberate deviations from the strictest
+# form, both documented:
+#   - style-src 'unsafe-inline': the templates use inline style="" attributes
+#     (display toggles) and the syntax highlighters emit per-token inline
+#     styles. Blocking those would break the UI; no external styles exist.
+#   - img-src data: lightbox/thumbnail placeholders use data: URIs.
+@app.after_request
+def _security_headers(response):
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "font-src 'self'; "
+        "connect-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'self'"
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+# --------------------------------------------------------------------------- #
 # JSON error handlers                                                          #
 # --------------------------------------------------------------------------- #
 # Scope to /api/ paths so browser navigation 404s (e.g. /entity/Unknown) keep
@@ -2118,9 +2140,13 @@ def _api_bad_request(e):
     if request.path.startswith("/api/"):
         return jsonify({"error": e.description or "bad request"}), 400
     # Minimal HTML fallback for non-API paths (browser navigation etc.).
+    # e.description can carry request-derived text (e.g. abort(400,
+    # description=str(e))), so it MUST be escaped before interpolation.
+    from markupsafe import escape
+
     return (
         "<!DOCTYPE html><html><head><title>400 Bad Request</title></head>"
-        f"<body><h1>Bad Request</h1><p>{e.description}</p></body></html>",
+        f"<body><h1>Bad Request</h1><p>{escape(e.description or 'bad request')}</p></body></html>",
         400,
     )
 

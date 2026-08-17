@@ -8,7 +8,6 @@ from helpers.graph.embeddings import (
     _pseudo_embedding,
     _ensure_schema,
     _get_company_text,
-    _get_openai_client,
     populate_dry_run,
     clear,
     stats,
@@ -342,21 +341,3 @@ class TestPopulateDryRun:
         populate_dry_run(conn, dims=32, company="TestCo")  # replace
         rows = conn.execute("SELECT COUNT(*) FROM company_embeddings").fetchone()[0]
         assert rows == 1  # OR REPLACE, not INSERT
-
-
-# ---------------------------------------------------------------------------
-# _get_openai_client
-# ---------------------------------------------------------------------------
-class TestGetOpenAIClient:
-    def test_import_error(self, monkeypatch):
-        import builtins
-        real_import = builtins.__import__
-
-        def mock_import(name, *args, **kwargs):
-            if name == "openai":
-                raise ImportError("No module named 'openai'")
-            return real_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", mock_import)
-        with pytest.raises(ImportError, match="openai package not installed"):
-            _get_openai_client()

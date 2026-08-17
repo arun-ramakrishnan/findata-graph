@@ -12,6 +12,7 @@ from helpers.pdf.capture_newsletter_images import (  # noqa: E402
     parse_images,
     assign_pages,
     is_valid_jpeg,
+    fetch,
 )
 
 
@@ -138,3 +139,55 @@ def test_is_valid_jpeg_too_small(tmp_path):
     p = tmp_path / "tiny.jpg"
     p.write_bytes(b"\xff\xd8")
     assert is_valid_jpeg(p) is False
+
+
+# ---------------------------------------------------------------------------
+# fetch — SEC-6 scheme allowlist (security proposal Phase 1b/5)
+# ---------------------------------------------------------------------------
+class TestFetchSchemeAllowlist:
+    """URLs come from OCR markdown; only https:// may ever be opened."""
+
+    def test_file_scheme_skipped_without_urlopen(self, monkeypatch, tmp_path):
+        def _boom(*a, **kw):  # any network attempt fails the test
+            raise AssertionError("urlopen must not be called for file://")
+
+        monkeypatch.setattr("helpers.pdf.capture_newsletter_images.urlopen", _boom)
+        result = fetch("file:///etc/passwd", tmp_path / "x.jpeg")
+        assert result is not True
+        assert "non-https" in str(result)
+        assert not (tmp_path / "x.jpeg").exists()
+
+    def test_http_scheme_skipped(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            "helpers.pdf.capture_newsletter_images.urlopen",
+            lambda *a, **kw: (_ for _ in ()).throw(AssertionError("http opened")),
+        )
+        result = fetch("http://example.com/img.jpg", tmp_path / "y.jpeg")
+        assert "non-https" in str(result)
+
+    def test_relative_url_skipped(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(
+            "helpers.pdf.capture_newsletter_images.urlopen",
+            lambda *a, **kw: (_ for _ in ()).throw(AssertionError("relative opened")),
+        )
+        result = fetch("/local/path.jpg", tmp_path / "z.jpeg")
+        assert "non-https" in str(result)
+
+    def test_https_proceeds(self, monkeypatch, tmp_path):
+        """https still fetches (mocked urlopen returning a fake JPEG)."""
+
+        class _FakeResp:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def read(self):
+                return b"\xff\xd8\xff\xe0FAKEJPEGDATA"
+
+        monkeypatch.setattr(
+            "helpers.pdf.capture_newsletter_images.urlopen", lambda *a, **kw: _FakeResp()
+        )
+        assert fetch("https://example.com/img.jpg", tmp_path / "ok.jpeg") is True
+        assert (tmp_path / "ok.jpeg").read_bytes().startswith(b"\xff\xd8")
