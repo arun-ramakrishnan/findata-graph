@@ -1076,12 +1076,14 @@ def test_shebangs_empty_file(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# check_merge_markers — with temp directory
+# check_merge_markers_and_artifacts — with temp directory
 # ---------------------------------------------------------------------------
 def test_merge_markers_clean(tmp_path, monkeypatch):
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
     (tmp_path / "code.py").write_text("x = 1\n")
-    assert sc.check_merge_markers() == []
+    merge_failures, artifact_failures = sc.check_merge_markers_and_artifacts()
+    assert merge_failures == []
+    assert artifact_failures == []
 
 
 def test_merge_markers_detects_conflict(tmp_path, monkeypatch):
@@ -1094,14 +1096,17 @@ def test_merge_markers_detects_conflict(tmp_path, monkeypatch):
         "a = 2\n"
         ">>>>>>> feature\n"
     )
-    failures = sc.check_merge_markers()
-    assert len(failures) == 1
+    merge_failures, artifact_failures = sc.check_merge_markers_and_artifacts()
+    assert len(merge_failures) == 1
+    assert artifact_failures == []
 
 
 def test_merge_markers_skips_binary(tmp_path, monkeypatch):
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
     (tmp_path / "image.png").write_bytes(b"\x89PNG\x00\x00\x00")
-    assert sc.check_merge_markers() == []
+    merge_failures, artifact_failures = sc.check_merge_markers_and_artifacts()
+    assert merge_failures == []
+    assert artifact_failures == []
 
 
 # ---------------------------------------------------------------------------

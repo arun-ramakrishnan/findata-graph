@@ -27,6 +27,7 @@ import py_compile
 import re
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 # yaml / sqlite3 are optional in principle but always available in this
@@ -104,27 +105,42 @@ def check_js_syntax() -> list[str]:
     """node --check every .js under static/. Skipped if node isn't installed."""
     if not _has_node():
         return []  # advisory skip; not a failure
-    failures = []
     static = REPO_ROOT / "static"
     if not static.is_dir():
         return []
-    for p in static.rglob("*.js"):
-        if any(part in SKIP_DIRS for part in p.parts):
-            continue
+    js_files = [
+        p for p in static.rglob("*.js")
+        if not any(part in SKIP_DIRS for part in p.parts)
+    ]
+    if not js_files:
+        return []
+
+    def _check_one(p: Path) -> str | None:
         rc = subprocess.run(  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
             ["node", "--check", str(p)],  # noqa: S607  # PATH-resolved interpreter/binary (python3/node/grep) by design
             capture_output=True,
             text=True,
         )
         if rc.returncode != 0:
-            # First line of stderr usually has the syntax error.
             first = rc.stderr.strip().splitlines()[0] if rc.stderr else "unknown error"
-            failures.append(f"{p.relative_to(REPO_ROOT)}: {first}")
+            return f"{p.relative_to(REPO_ROOT)}: {first}"
+        return None
+
+    failures: list[str] = []
+    with ThreadPoolExecutor(max_workers=min(len(js_files), 8)) as pool:
+        for result in pool.map(_check_one, js_files):
+            if result:
+                failures.append(result)
     return failures
 
 
 def check_stray_artifacts() -> list[str]:
-    """No committed __pycache__, .pyc, .DS_Store, *.swp, *.bak."""
+    """No committed __pycache__, .pyc, .DS_Store, *.swp, *.bak.
+
+    NOTE: This check is now combined with check_merge_markers into
+    check_merge_markers_and_artifacts() for a single walk.
+    This standalone function is kept for backward compatibility.
+    """
     failures = []
     for p in _all_files():
         rel = str(p.relative_to(REPO_ROOT))
@@ -163,11 +179,16 @@ def check_helper_shebangs() -> list[str]:
     return failures
 
 
-def check_merge_markers() -> list[str]:
-    """No leftover git merge conflict markers in any tracked-able file."""
-    failures = []
+def check_merge_markers_and_artifacts() -> tuple[list[str], list[str]]:
+    """Single walk: check for merge markers AND stray artifacts in one pass."""
+    merge_failures: list[str] = []
+    artifact_failures: list[str] = []
     for p in _all_files():
-        # Skip binary files (cheap check via extension).
+        rel = str(p.relative_to(REPO_ROOT))
+        # Stray artifacts check (was check_stray_artifacts)
+        if ARTIFACT_PATTERNS.search(rel):
+            artifact_failures.append(rel)
+        # Merge markers check (was check_merge_markers)
         if p.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".gz", ".db", ".pkl"}:
             continue
         try:
@@ -175,8 +196,8 @@ def check_merge_markers() -> list[str]:
         except Exception:  # noqa: S112  # best-effort; skip item on failure
             continue
         if MERGE_MARKER_RE.search(text):
-            failures.append(f"{p.relative_to(REPO_ROOT)}: merge conflict markers")
-    return failures
+            merge_failures.append(f"{rel}: merge conflict markers")
+    return merge_failures, artifact_failures
 
 
 def check_yaml_frontmatter() -> list[str]:
@@ -583,10 +604,8 @@ def check_db_meta_generation() -> list[str]:
 CHECKS = [
     ("Python syntax",      check_python_syntax),
     ("JS syntax",          check_js_syntax),
-    ("Stray artifacts",    check_stray_artifacts),
+    ("Merge markers + artifacts", check_merge_markers_and_artifacts),
     ("Helper shebangs",    check_helper_shebangs),
-    ("Merge markers",      check_merge_markers),
-    ("YAML frontmatter",   check_yaml_frontmatter),
     ("Required files",     check_required_files),
     ("Orphan markdown",    check_orphan_markdown_files),
     # Combined single-walk: tags + permalink/sector + date sanity in one pass
@@ -605,7 +624,11 @@ def main() -> int:  # noqa: C901
     for label, fn in CHECKS:
         result = fn()
         if isinstance(result, tuple):
-            failures, advisory = result
+            # Handle (fatal, advisory) or (fatal_list, advisory_list)
+            if len(result) == 2 and isinstance(result[0], list) and isinstance(result[1], list):
+                failures, advisory = result
+            else:
+                failures, advisory = result, []
         else:
             failures, advisory = result, []
         if failures:

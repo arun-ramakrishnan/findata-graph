@@ -95,7 +95,7 @@ def _make_embed_db(tmp_path, with_table=False, existing_dims=None):
 class TestEnsureSchema:
     def test_creates_table(self, tmp_path):
         conn, _ = _make_embed_db(tmp_path)
-        _ensure_schema(conn, 384)
+        _ensure_schema(conn, 64)
         r = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='company_embeddings'"
         ).fetchone()
@@ -103,7 +103,7 @@ class TestEnsureSchema:
 
     def test_creates_index(self, tmp_path):
         conn, _ = _make_embed_db(tmp_path)
-        _ensure_schema(conn, 384)
+        _ensure_schema(conn, 64)
         r = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='index' AND name='idx_emb_company'"
         ).fetchone()
@@ -111,8 +111,8 @@ class TestEnsureSchema:
 
     def test_idempotent(self, tmp_path):
         conn, _ = _make_embed_db(tmp_path)
-        _ensure_schema(conn, 384)
-        _ensure_schema(conn, 384)  # second call should be no-op
+        _ensure_schema(conn, 64)
+        _ensure_schema(conn, 64)  # second call should be no-op
         assert True  # no error
 
     def test_dimension_mismatch_drops_and_recreates(self, tmp_path):
@@ -226,7 +226,7 @@ class TestGetCompanyText:
 # ---------------------------------------------------------------------------
 class TestClear:
     def test_clear_empty(self, tmp_path):
-        conn, _ = _make_embed_db(tmp_path, with_table=True, existing_dims=384)
+        conn, _ = _make_embed_db(tmp_path, with_table=True, existing_dims=64)
         n = clear(conn)
         assert n == 0
 
@@ -256,7 +256,7 @@ class TestStats:
         assert s["sample_dim"] is None
 
     def test_empty_table(self, tmp_path):
-        conn, _ = _make_embed_db(tmp_path, with_table=True, existing_dims=384)
+        conn, _ = _make_embed_db(tmp_path, with_table=True, existing_dims=64)
         s = stats(conn)
         assert s["total"] == 0
         assert s["models"] == []
