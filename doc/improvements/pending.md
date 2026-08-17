@@ -16,3 +16,12 @@
   `index_membership` column was dropped 2026-07-28; the edge was never built.
   Requires a re-ingest pass extracting `index_membership:` from company YAML
   frontmatter before it can be materialised. Deferred by design.
+
+- **Security Phase 4 (deploy-time; app confirmed NOT deployed 2026-08-17)**
+  (archived proposal: `doc/improvements/archive/security_evaluation.txt`;
+  Phases 1/1b/2/3/5 DONE — completed.md #116/#117; SEC-9 closed: key
+  revoked, GitHub never had the blobs — standing caution: never
+  `git push --mirror` / push `main.stgit`; keep running `make secret-scan`
+  after big pushes). Activates only if the Flask app is ever deployed
+  publicly: dev-default `FLASK_HOST=127.0.0.1`; auth/shared-secret in
+  front of `POST /api/graph/refresh`; `uv lock`.

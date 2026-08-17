@@ -1908,3 +1908,97 @@ module's pure transforms.
   `helpers/pdf/common.py` (every `helpers/**/*.py` must start with one).
 - Script-mode smoke: `python3 helpers/pdf/pdf_conv_md.py --help` and
   `python3 helpers/pdf/capture_newsletter_images.py --help` succeed.
+
+## 115. Remove dead real-API embedding path (`--api`/`--provider azure`) + drop `openai` dependency
+
+**Date**: 2026-08-17 · **Trigger**: security evaluation
+(`doc/improvements/archive/security_evaluation.txt`, SEC-7 follow-up)
+
+`helpers/graph/embeddings.py` carried a real-API embedding path
+(`populate_api`, `_get_openai_client`, `_fetch_openai_embedding`,
+`_get_azure_client`, CLI `--api`/`--provider`) from its introduction, and
+`AZURE_OPENAI_API_KEY` was read in exactly one place on that path. Usage
+investigation proved the whole path dead:
+
+- No Makefile target, test, procedure, or doc ever invoked `--api`.
+- Live `memory/research.db` AND the tracked snapshot both contain only
+  `dry-run-v384` vectors (1,050 rows) — the API path never ran.
+- The only consumers of embeddings (app.py search fallback,
+  get_tickers.py resolution, query.py v_embeddings materialisation) use the
+  pseudo-embeddings or read the table — none touch the API path.
+
+Removed: the four functions + two CLI flags + the `openai` dependency from
+`pyproject.toml` (its only importer was the dead path) + the
+`TestGetOpenAIClient` ImportError test. Credential surface is now exactly
+one (`PADDLE_API_KEY`). Revertable from git; docstring documents how to
+reintroduce real embeddings if ever wanted.
+
+## 116. Git-history secret scan executed + incremental scanner in-repo (`make secret-scan`)
+
+**Date**: 2026-08-17 · **Trigger**: security evaluation SEC-9
+(`doc/improvements/archive/security_evaluation.txt`)
+
+The twice-aborted history scan (per-commit greps were quadratic over
+10,857 commits) was done properly: single pass over UNIQUE blobs
+(`rev-list --all --objects` -> batch-check <=1MB filter ->
+`cat-file --batch` streaming, feeder threads to avoid pipe deadlocks).
+22,855 blobs scanned in ~35s; 52 binary skipped.
+
+Result: 14 hits, all one REAL Google API key (`AIzaSy...`, 39 chars) in
+the deleted `helpers/pdf/pdf_send_gemini.py` + preserved in stgit
+patch-metadata blobs (`stg pop`/`drop` do not GC; stack metadata keeps
+deleted content reachable). Key ALREADY REVOKED by the user same day.
+
+CORRECTION (2026-08-17, same day): reachability verification proved
+GitHub NEVER received these blobs — the remote was created from an
+already-cleaned tree, and none of the 14 blobs appear under
+`git rev-list origin/main --objects` (decisive test:
+`git fetch origin <sha>` from a throwaway repo ->
+"upload-pack: not our ref"). Exposure was local-only (via
+refs/heads/main.stgit); no history purge or force-push is needed. The
+standing caution is to never mirror-push this clone.
+
+Scanner productionized as `helpers/misc/git_secret_scan.py` + Makefile
+target `secret-scan`: incremental by default (state =
+`.git/secret-scan/state.json` with `last_scan_utc` 2026-08-17T05:06:51Z
+baseline + exact scanned-SHA set — blobs are content-addressed and
+immutable, so the set is a precise resume cursor), `--full` to rescan,
+progress meter + `DONE cur_process_cnt/total_cnt` output. Tests:
+tests/test_git_secret_scan.py (11: pattern true/false positives incl.
+the SEC-9 key shape, delta computation, immutability rationale,
+redaction). ruff + `make types` green.
+
+## 117. Security hardening Phases 1/1b/2/3/5 — XSS routes, escapes, CSP, vendored assets, regression suite
+
+**Date**: 2026-08-17 · **Proposal**:
+`doc/improvements/archive/security_evaluation.txt` (SEC-1..SEC-6)
+
+- **Phase 1 (SEC-1, SEC-2)**: deleted the `/debug/entity` echo route
+  (confirmed-live reflected XSS) and escaped `e.description` with
+  markupsafe in the non-API 400 HTML fallback. The pinned happy-path test
+  (test_api_flask_integration.py) was REPLACED with a 404 pin.
+- **Phase 1b (SEC-6)**: `capture_newsletter_images.fetch()` now refuses
+  any non-`https://` URL before urlopen (file://, http://, relative all
+  skip); the noqa comments now describe the real control.
+- **Phase 2 (SEC-4)**: escapeHtml() wrapped on the three previously-bare
+  interpolations (findata.ts entity_type + sector_classification card
+  spans; entity_detail.js type badge incl. className); esbuild bundle
+  rebuilt.
+- **Phase 3 (SEC-3)**: all 9 CDN assets vendored under static/vendor/
+  (marked, DOMPurify, prism core + autoloader + 10 grammars via
+  data-autoloader-path, highlight.js, cytoscape, font-awesome CSS + 8
+  webfonts, prism/hljs themes; pinned versions). Templates now reference
+  only same-origin assets. Strict CSP added via after_request
+  (`script-src 'self'; object-src 'none'; ...`) with two documented
+  deviations (style-src 'unsafe-inline' for template/highlighter inline
+  styles; img-src data: for lightbox) + X-Content-Type-Options nosniff.
+- **Phase 5 (regression armor)**: new tests/test_security_headers.py —
+  SEC-1 404 vectors, SEC-2 escape, CSP/nosniff on / and /findata, static
+  template scan (zero remote asset refs; all vendor paths exist), SEC-4
+  bundle/source assertions. Scheme tests in
+  test_capture_newsletter_images.py (4). Phase 4 (deploy-time: 127.0.0.1
+  default, auth before /api/graph/refresh, uv lock) stays deliberately
+  deferred.
+
+Tests: 64 across the four touched suites + 33 TS-contract; ruff,
+`make types` green.

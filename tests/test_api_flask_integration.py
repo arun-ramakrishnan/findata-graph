@@ -263,18 +263,17 @@ class TestApiEntityDetailRoute:
 
 
 class TestDebugEntityRoute:
-    """Route GET /debug/entity/<path:entity_path> — debug page."""
+    """GET /debug/entity/<path:entity_path> — REMOVED (SEC-1, 2026-08-17).
 
-    def test_debug_entity_returns_200(self, p2_client):
-        # Debug route just echoes the path back; no DB lookup so always 200
+    The route echoed the raw path into a text/html response (reflected
+    XSS, confirmed live). It was deleted; the regression test now pins
+    the removal. Full vector coverage lives in
+    tests/test_security_headers.py::TestSec1DebugEntityRemoved.
+    """
+
+    def test_debug_entity_removed(self, p2_client):
         r = p2_client.get("/debug/entity/HDFC%20Bank")
-        assert r.status_code == 200
-        assert "Debug" in r.get_data(as_text=True)
-
-    def test_debug_entity_returns_200_for_missing_path(self, p2_client):
-        # Debug route has no lookups - returns 200 for any path
-        r = p2_client.get("/debug/entity/Does%20Not%20Exist")
-        assert r.status_code == 200
+        assert r.status_code == 404
 
 
 class TestPointsAndFiguresImagesRoute:

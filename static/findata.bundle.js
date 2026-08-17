@@ -350,13 +350,13 @@
                 <h3 class="card-title">${this.escapeHtml(entity.name)}</h3>
                 <div class="card-type">
                     <i class="fas fa-building"></i>
-                    <span>${entity.entity_type || "company"}</span>
+                    <span>${this.escapeHtml(entity.entity_type || "company")}</span>
                 </div>
             </div>
             <div class="card-body">
                 <div class="card-sector">
                     <i class="fas fa-industry"></i>
-                    <span>${entity.sector_classification || "Unknown"}</span>
+                    <span>${this.escapeHtml(entity.sector_classification || "Unknown")}</span>
                 </div>
                 ${marketCapTag ? `<div class="card-market-cap">
                     <i class="fas fa-chart-line"></i>
