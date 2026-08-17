@@ -512,8 +512,14 @@ def _export_sqlite_schema(con: sqlite3.Connection) -> str:
     # FTS5 virtual tables FIRST: ``CREATE VIRTUAL TABLE ... USING fts5``
     # creates every shadow table (incl. ``note_search_content``) itself, so
     # the plain-table pass must not try to create them again.
+    # A1: vec0 virtual tables (note_search_vec) are excluded too — they need
+    # the sqlite-vec extension loaded to replay and are derived (rebuilt by
+    # rebuild_note_search / lazily on first hybrid search), like FTS shadows.
     vtables = stmts(
-        "table", "AND sql LIKE '%VIRTUAL TABLE%' AND name NOT LIKE 'entities_fuzzy%'"
+        "table",
+        "AND sql LIKE '%VIRTUAL TABLE%' "
+        "AND name NOT LIKE 'entities_fuzzy%' "
+        "AND sql NOT LIKE '%vec0%'",
     )
     base_tables = stmts(
         "table",

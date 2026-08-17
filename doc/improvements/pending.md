@@ -25,3 +25,12 @@
   after big pushes). Activates only if the Flask app is ever deployed
   publicly: dev-default `FLASK_HOST=127.0.0.1`; auth/shared-secret in
   front of `POST /api/graph/refresh`; `uv lock`.
+
+- **Technology avenues triaged** (proposals/tech_avenues.txt,
+  2026-08-17): A1 sqlite-vec KNN DONE (completed.md #124; ~7ms accepted).
+  Shortlist = frontmatter JSON-Schema contract (B1), GraphRAG-lite
+  context packs (C1). Obsidian-dependent items DROPPED per user 2026-08-17 —
+  Obsidian is not an active use case outside of the YAML itself; MCP server
+  (D) PARKED same day — not a priority. Explicitly blocked: C4 Kùzu
+  (upstream archived 2025-10-10); anti-recommendations on record
+  (LanceDB/third vector store, Turso, pgvector, YAML anchors).

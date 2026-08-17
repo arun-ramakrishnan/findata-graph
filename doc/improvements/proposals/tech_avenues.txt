@@ -1,0 +1,233 @@
+================================================================================
+PROPOSAL: Technology avenues — databases, YAML richness, graph, MCP exposure
+================================================================================
+Status:    TRIAGED 2026-08-17 (user decisions): (1) Obsidian is NOT an active
+           use case outside YAML frontmatter — vault/UI-plugin avenues
+           dropped; (2) MCP exposure is NOT a priority — Avenue D parked;
+           (3) A1 EXECUTED same day (completed.md #124): vec0 mirror +
+           whole-corpus KNN cosine leg, ~7ms accepted over the 0.7ms
+           Python page loop for global-rank semantics. Shortlist: B1
+           schema contract, C1 context packs (+ optional C2/A3/C3/B2).
+Date:      2026-08-17
+Author:    agent exploration pass (user request: "explore new areas of
+           technology we can do here incl databases, yaml richness, graphs etc")
+Method:    grounded in codebase-memory-mcp graph facts (19,960 nodes / 34,836
+           edges; architecture, clusters, hotspots; search_graph on the
+           embedding/YAML/algo surfaces) + live DB introspection + web
+           verification of every fast-moving external dependency (receipts in
+           §9). No code changed.
+
+--------------------------------------------------------------------------------
+1. Current state (facts, all verified today)
+--------------------------------------------------------------------------------
+Engines
+  - SQLite memory/research.db (~47 MB): FTS5 `note_search`
+    (doc_type, file_path, title, sector, content, embedding UNINDEXED,
+    tokenize=porter unicode61; 1,227 rows). Embeddings are stored as JSON TEXT
+    and cosine similarity is computed ROW-BY-ROW IN PYTHON inside /api/search
+    (app.py ~465-560). spellfix1 lives in its own attached DB, not here.
+  - DuckDB memory/graph.duckdb (~14 MB): relational star layout — 12 `e_*`
+    edge tables (e_acquired … e_supplier), 6 `v_*` node tables, `_build_meta`,
+    and `v_embeddings(company_name, id, embedding FLOAT[])` with 1,046 rows of
+    NATIVE FLOAT[] vectors. No vector index; brute-force VSS only.
+  - Parquet snapshots/ tracked in git (Option B); pyarrow + pandas present.
+  - Deps are minimal and deliberate: Flask, duckdb (unpinned, D8), PyYAML,
+    sqlite-spellfix, yfinance, pyarrow, pandas, requests. numpy only transitive.
+    NetworkX + duckpgq retired 2026-08-14; Onager provides louvain /
+    link-prediction / pagerank; katz_centrality is hand-rolled
+    (helpers/graph/algorithms.py:242-262).
+
+YAML / vault
+  - Rich typed-ish frontmatter per note (title, type, ticker, listed, sector,
+    market_cap, geography, business_model, risk_investment, normalized_name,
+    file_path, permalink, tags[], created, last_modified) — see
+    findata/Companies/Building_Materials/JSW_Paints.md.
+  - Validation is custom-code: static_checks.check_yaml_frontmatter,
+    verify_notes check_yaml_structure, extract_relations_yaml ingestion,
+    app.parse_yaml_frontmatter (329-342).
+  - No JSON Schema, no Obsidian-native database views, no sidecar relation
+    files; pending relations flow through findata/_pending_relations.txt.
+
+Graph / API
+  - 24 Flask routes incl. graph API: peers, neighbors, shortest, semantic
+    (kNN+hop expansion), sector, cloud, metrics/<metric>, co-mentions,
+    bridges, edges-by-year, refresh. Frontend Cytoscape.js (vendored).
+  - Hotspot hubs (fan-in): query.connect 341, EntityResolver.resolve 105,
+    db.connect 56, extract_relations 46. One frontend cluster (cohesion .96).
+
+--------------------------------------------------------------------------------
+2. AVENUE A — Databases
+--------------------------------------------------------------------------------
+A1. sqlite-vec for note_search (DONE 2026-08-17 — completed.md #124)
+    - What: load `sqlite-vec` extension in research.db; add a
+      vec0 virtual table keyed on file_path with FLOAT[blob] vectors; replace
+      the Python per-row cosine loop in /api/search hybrid ranking with a
+      single KNN SELECT + the existing BM25 half.
+    - Why here: embeddings ALREADY exist as JSON in the same DB; the swap is
+      local to rebuild_note_search + app.py search; sqlite-vec supports
+      metadata columns + filtering (Nov 2024 release) and KNN-as-SQL with
+      distance constraints (verified, §9). Python>=3.14 wheels exist via pip
+      `sqlite-vec`.
+    - Risks: extension-load policy (we already ship sqlite-spellfix the same
+      way); planner limits on JOIN+WHERE KNN filters (issue #196) — our
+      filter set (sector) is one WHERE, fine.
+    - Sizing: ~1 day + tests (suite pattern: test_rebuild_note_search,
+      test_api_search already pin hybrid behavior).
+
+A2. DuckDB vss HNSW on v_embeddings (= existing deferred N5-5; UNCHANGED)
+    - The extension is officially experimental and HNSW indexes are
+      in-memory-only unless an experimental persistence flag is set (§9).
+      Brute force at 1k vectors is ~3 ms — already tracked in pending.md;
+      keep the quarterly re-eval cadence. Do not build on experimental
+      persistence for a git-snapshotted DB.
+
+A3. Parquet-first analytics ("lakehouse mode") (OPTIONAL, medium)
+    - snapshots/parquet is already the transport of record. DuckDB can query
+      the parquet tree directly; a `make analytics` entry point running
+      read-only SQL over snapshots/ would give git-diffable, DB-less
+      analytics (year-over-year edge growth, sector churn) without touching
+      live DBs. Cheap because Option B did the hard part.
+    - Not a replacement for research.db (FTS5 + spellfix have no parquet
+      equivalent).
+
+A4. SQLite core richness (MICRO-WINS)
+    - Generated columns for normalized_name/ticker-upper; JSONB functions for
+      embedding JSON during an A1 migration; `PRAGMA optimize` on close.
+    - Only worth bundling with A1's migration, not standalone.
+
+ANTI-RECOMMENDATIONS (deliberate no's)
+    - LanceDB / Chroma / FAISS: a THIRD store for 1,046 vectors adds sync
+      surface for zero recall gain at this scale.
+    - Turso/libSQL: single-user local repo; networked SQLite buys nothing.
+    - Kùzu: see C4 — upstream archived Oct 2025.
+    - Postgres/pgvector: contradicts the embedded, git-shippable design.
+
+--------------------------------------------------------------------------------
+3. AVENUE B — YAML richness (pipeline-native; Obsidian explicitly out of scope)
+--------------------------------------------------------------------------------
+    [User decision 2026-08-17: Obsidian is not an active use case outside of
+    the YAML itself. Nothing in this avenue may depend on Obsidian plugins,
+    .base files, Dataview, or vault-UI behaviour.]
+
+B1. Typed frontmatter contract (JSON Schema) (RECOMMENDED, small)
+    - Formalize the de-facto keys (per note type: company/theme/sector/…)
+      into doc/schema/frontmatter.company.v1.json etc.; validate in
+      static_checks via `jsonschema` (new dev-only dep); generate the key
+      list in doc/ from the schema so humans and validators share one
+      source. Catches drift the custom checks miss (wrong types like
+      market_cap: "null" string, rogue keys).
+    - Keeps YAML human-first: schema is a validator, not a generator.
+      Purely for OUR pipeline (static_checks, verify_notes,
+      extract_relations, app.parse_yaml_frontmatter).
+
+B2. Relation sidecars with provenance (MEDIUM, builds on H4 cleanup)
+    - Promote structured edges to per-relation YAML sidecars (e.g.
+      _relations/JSW_Paints.yaml) carrying edge_type, counterparties,
+      as_of, confidence, source permalink — the _pending_relations.txt
+      queue already proved the review workflow; sidecars make accepted
+      edges auditable and re-ingestible (extract_relations already speaks
+      YAML).
+    - Review surface = our own tools (CLI report + tests), not any vault UI.
+
+B3. ANTI-RECOMMENDATION: YAML anchors/merge keys in frontmatter.
+    - Maintenance scripts (static_checks, verify_notes, extract_relations)
+      parse flat YAML with grep-able structure; anchors break the flat-file
+      grep-ability they rely on and complicate PyYAML round-trips.
+    - Keep frontmatter flat; share structure via the B1 schema instead.
+4. AVENUE C — Graph
+--------------------------------------------------------------------------------
+C1. GraphRAG-lite "context packs" (RECOMMENDED, small-medium, high leverage)
+    - We already have every ingredient: /api/graph/semantic/<name> (kNN seed
+      + hop expansion), peers/neighbors/shortest routes, frontmatter
+      context. Package a `context_pack(entity, hops, budget)` helper that
+      serializes a scored subgraph to markdown (entities, edges with types/
+      years, sector rollup) — the exact artifact an LLM (or the D5 agent
+      workflow) consumes. No new deps; pure composition.
+    - This is the highest value-per-line item in the graph avenue.
+
+C2. Link-prediction as a suggestion workflow (MEDIUM)
+    - onager_link_prediction exists and is tested. Productize: nightly
+      top-N predicted edges NOT already present -> appended to
+      _pending_relations.txt with confidence -> human accepts via
+      existing review flow -> parse_newsletter ingestion unchanged.
+      Closed-loop "suggested relations" with zero new UI.
+
+C3. Temporal graph analytics (MEDIUM, optional)
+    - edges-by-year route + as_of normalization already exist (tests pin
+      _normalise_as_of). Add time-sliced metrics (per-year degree,
+      community drift via louvain per year) feeding A3's analytics views.
+
+C4. Kùzu / property-graph engine (BLOCKED — do not adopt now)
+    - Kùzu was ARCHIVED 2025-10-10 after Apple acquired the company;
+      maintenance passes to community forks (Bighorn by Kineviz et al.)
+      which are weeks old (§9). We also just retired duckpgq in favor of
+      recursive CTEs (D-decision 2026-08-14) and Onager. Revisit only if
+      (a) a fork stabilizes with releases, AND (b) Cypher path queries
+      measurably beat the CTE layer on our 12-table star.
+
+C5. Visualization (DEFER)
+    - Cytoscape canvas is comfortable at 1,209 entities. WebGL (Cosmograph/
+    sigma.js) only if entity count grows 10x.
+
+--------------------------------------------------------------------------------
+5. AVENUE D — MCP server exposure (PARKED 2026-08-17: not a priority)
+--------------------------------------------------------------------------------
+    [User decision 2026-08-17: MCP is not a priority. No work in this avenue
+    until re-opened; the seam analysis below stays valid for whenever that
+    happens.]
+    - Design sketch (kept for the record): a thin `mcp_server.py` (official
+      python SDK / FastMCP) wrapping EXISTING pure functions — search_ticker,
+      entity lookup, graph neighbors/peers/shortest/semantic, context_pack
+      (C1), secret-scan status — read-only, stdio transport local-only,
+      zero Flask coupling. Tools map 1:1 onto helpers/graph/query.py +
+      helpers/core functions (the 341-fan-in query.connect hub is the
+      natural seam). Security posture inherits #117.
+    - None of the shortlist items depend on this avenue.
+6. Priority matrix
+--------------------------------------------------------------------------------
+  Item  Ave  Effort      Impact                Risk
+  B1    B    small       medium (drift armor)  none
+  A1    A    small       high (search perf +   low (ext load pattern
+                     correctness)             already used for spellfix)
+  C1    C    small-med   high (LLM leverage)   none
+  C2    C    medium      medium                low
+  A3    A    medium      medium                none
+  B2    B    medium      medium                medium (ingest changes)
+  C3    C    medium      low-med               none
+  A4    A    micro       low                   none
+  C4    —    —           BLOCKED (archived upstream)
+  A5(Lance/Turso/pg) —  ANTI (third store / wrong shape)
+  Obsidian-UI items — DROPPED 2026-08-17 (not an active use case)
+  D (MCP server)     —  PARKED 2026-08-17 (not a priority)
+
+--------------------------------------------------------------------------------
+7. Recommended sequence
+--------------------------------------------------------------------------------
+  Wave 1 (contract value):     B1 frontmatter JSON-Schema contract
+  Wave 2 (engine value):       A1 sqlite-vec KNN → C1 context packs
+  Later / opportunistic:       C2 suggestions, A3 analytics, B2 sidecars, C3
+  Parked:                      D MCP server (re-open on request); A2 quarterly
+  Blocked / revisit:           A2 (quarterly, existing), C4 (fork watch)
+
+--------------------------------------------------------------------------------
+8. Decision requested
+--------------------------------------------------------------------------------
+  Triage this list: approve waves, or cherry-pick. Each wave is independently
+  shippable and none touches live data destructively (A1 is additive: new
+  vec0 table + fallback to the JSON column path).
+
+--------------------------------------------------------------------------------
+9. External verification receipts (websearch 2026-08-17)
+--------------------------------------------------------------------------------
+  - sqlite-vec: metadata columns + filtering (alexgarcia.xyz 2024-11-20);
+    KNN-as-SQL with distance constraints; known planner limit on JOIN+WHERE
+    filters (github.com/asg017/sqlite-vec issue #196).
+  - DuckDB vss: "experimental extension" (duckdb.org docs current); HNSW
+    in-memory unless experimental persistence flag (duckdb.org/2024/05/03;
+    medium persistent-vector-indexes writeup).
+  - Kùzu: repo archived 2025-10-10 after Apple acquisition; community forks
+    incl. Bighorn (github.com/kuzudb/kuzu; gdotv.com weekly-edge 2025-10-24).
+  - MCP python SDK: official SDK rework supporting 2026-07-28 spec
+    (github.com/modelcontextprotocol/python-sdk); FastMCP framework at
+    gofastmcp.com.
+================================================================================

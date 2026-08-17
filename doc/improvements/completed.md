@@ -2047,3 +2047,38 @@ where `concurrent.futures.process.BrokenProcessPool` import path varies.
 Removed `tests/test_git_secret_scan.py` which contained sensitive keys in
 test assertions. `make secret-scan` continues to run via the Makefile target
 directly; no loss of CI coverage.
+
+
+## 124. A1: sqlite-vec KNN for note_search hybrid ranking
+
+Added `helpers/core/vec_search.py`: a `note_search_vec` vec0 virtual-table
+mirror of the FTS5 `embedding` column (native float32 blobs, cosine
+distance_metric), synced by `rebuild_note_search` on both full and
+incremental paths (with a zero-delta self-heal that backfills a bare table),
+plus a lazy backfill on first hybrid query after snapshot restore.
+`/api/search?hybrid=1` now computes the RRF cosine leg from one
+whole-corpus KNN query (`k=None` so every page doc keeps its exact
+similarity; float32 vs float64 delta < 1e-7) instead of a Python
+JSON-decode + dot-product loop per page row. Semantic refinement: the
+cosine leg's rank is now each doc's GLOBAL cosine rank, not its rank within
+the BM25 page. Benchmarked live (1,227-doc index): whole-corpus KNN ~7ms vs
+~0.7ms for the page-bound Python loop; the ~7ms accepted by the user
+(2026-08-17) for the global-rank semantics and future-ready vector
+infrastructure. Every KNN-path failure degrades to the original Python
+cosine (never 500). `snapshot_db` schema export excludes vec0 DDL (derived,
+extension-dependent — like FTS5 derived shadows; data already excluded by
+the `note_search%` filter). `sqlite-vec>=0.1.9` added to deps, loaded
+per-connection exactly like sqlite-spellfix. Tests: `tests/test_vec_search.py`
+(13), `TestVecMirror` in `tests/test_rebuild_note_search.py` (4, incl. a
+KNN-vs-float64-cosine equivalence pin that caught the raw-cosine/negative
+clamp contract), `TestHybridKnnPath` in `tests/test_api_search.py` (3, spy +
+fallback + behavior-preservation). Suites: 42 + snapshot 24 green; ruff,
+make types clean. Live DB rebuilt: 1,227/1,227 docs mirrored.
+
+Decision notes: (1) a page point-lookup variant (vec_distance_cosine +
+file_path IN) measured 1.8ms — still corpus-bound at vec0 v0.1.9 (no PK
+index); revisit if vec0 grows one. (2) The vec0 table is the hook for
+future real embeddings and KNN-as-candidate-generation beyond the BM25
+page. (3) RRF tie behavior documented in tests: a doc pair that merely
+swaps BM25/cosine ranks contributes identical RRF sums (stable sort keeps
+BM25 order) — test fixtures must break rank symmetry to observe reorders.
