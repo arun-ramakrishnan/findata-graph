@@ -10,6 +10,7 @@ requires-python = ">=3.14"
 dependencies = [
     # Flask web API (app.py).
     "Flask",
+    "markupsafe",
     # .env loading.
     "python-dotenv",
     # Werkzeug (WSGI / dev server).
@@ -30,13 +31,17 @@ dependencies = [
     # doc/graph_design.txt. duckpgq and NetworkX were retired 2026-08-14;
     # duckdb itself is unpinned (decision D8).
     "duckdb",
-
     # Parquet/Arrow I/O (helpers/maintenance/snapshot_db.py).
     "pyarrow",
     # DataFrame exports (helpers/maintenance/snapshot_db.py).
     "pandas",
     # OCR Pipeline (helpers/pdf/pdf_conv_md.py).
     "requests",
+    # sqlite-vec vector index for note_search hybrid ranking (A1,
+    # helpers/core/vec_search.py). Loaded per-connection exactly like
+    # sqlite-spellfix above; KNN degrades to a Python cosine fallback when
+    # the extension is unavailable.
+    "sqlite-vec",
 ]
 
 [project.optional-dependencies]

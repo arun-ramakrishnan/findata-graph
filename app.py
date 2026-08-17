@@ -458,7 +458,69 @@ def api_entities():
     )
 
 
-def _hybrid_search_results(rows, query: str, limit: int, offset: int) -> list[dict]:
+def _scored_rows(rows, q_vec, knn: dict[str, float] | None) -> list[tuple[int, Any, float]]:
+    """Per-row cosine similarity, from the A1 KNN map when available.
+
+    scored: list of (orig_index, row, similarity) — tuples keep the Row type
+    through the re-rank (a dict would widen the row slot to the union of all
+    value types). orig_index = BM25 position (rows arrive rank-sorted).
+
+    A1 path: similarity straight off the whole-corpus KNN map; docs without
+    a vec row (missing/invalid embedding) get 0.0, same contract as the
+    Python path below.
+    """
+    import json
+    import math
+
+    def _cosine(a, b):
+        dot = sum(x * y for x, y in zip(a, b))
+        na = math.sqrt(sum(x * x for x in a))
+        nb = math.sqrt(sum(x * x for x in b))
+        if na == 0 or nb == 0:
+            return 0.0
+        return dot / (na * nb)
+
+    out: list[tuple[int, Any, float]] = []
+    for orig_index, row in enumerate(rows):
+        if knn is not None:
+            sim = knn.get(row[1], 0.0)
+        else:
+            embedding = row[4]
+            vec = None
+            if embedding:
+                try:
+                    vec = json.loads(embedding)
+                except (TypeError, ValueError):
+                    vec = None
+            sim = _cosine(q_vec, vec) if (q_vec and vec) else 0.0
+        out.append((orig_index, row, sim))
+    return out
+
+
+def _cosine_positions(
+    rows, knn: dict[str, float] | None, scored: list[tuple[int, Any, float]]
+) -> dict[int, int]:
+    """Cosine-leg position per page index: 0 = most similar.
+
+    A1 path (knn is not None): position = the doc's GLOBAL KNN rank. Page
+    docs not in the map (only missing-embedding docs, since k covers the
+    whole corpus) rank after every KNN hit; orig_index keeps their relative
+    order deterministic. Their BM25 leg is unaffected.
+
+    Fallback path: position within the page-local Python cosine ranking.
+    """
+    if knn is not None:
+        knn_order = sorted(knn, key=lambda fp: knn[fp], reverse=True)
+        knn_rank = {fp: pos for pos, fp in enumerate(knn_order)}
+        worst = len(knn_order)
+        return {
+            idx: knn_rank.get(row[1], worst + idx) for idx, row in enumerate(rows)
+        }
+    cosine_order = sorted(scored, key=lambda t: t[2], reverse=True)
+    return {idx: i for i, (idx, _r, _s) in enumerate(cosine_order)}
+
+
+def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> list[dict]:
     """RRF-fuse BM25 rank with vector cosine over an FTS5 candidate page.
 
     ``rows`` are the FTS5 result rows (already ordered by BM25 `rank`) with the
@@ -473,13 +535,26 @@ def _hybrid_search_results(rows, query: str, limit: int, offset: int) -> list[di
     still contribute their BM25 score — a degraded embedding must not drop a
     strong lexical match off the page.
 
+    A1 (sqlite-vec, 2026-08-17): the cosine leg comes from a single KNN
+    query over the vec0 mirror table (helpers/core.vec_search) instead of
+    a Python loop that JSON-decodes and dot-products every page row.
+    ``k=None`` sizes the KNN to the whole corpus so every page doc keeps
+    its EXACT similarity value (float32 quantization differs from the
+    Python cosine by <1e-7). One deliberate semantic refinement: the
+    cosine leg's RANK is the doc's GLOBAL cosine rank, not its rank within
+    the BM25 page — a doc's vector similarity no longer depends on which
+    docs BM25 happened to surface. Benchmarked on the live 1,227-doc
+    index: ~7ms whole-corpus KNN vs ~0.7ms for the page-bound Python loop;
+    the ~7ms was accepted by the user (2026-08-17) for the global-rank
+    semantics and the future-ready vector infrastructure (real embeddings,
+    KNN-as-candidate generation). Any KNN-path failure (package missing,
+    extension won't load, table absent) falls back to the original
+    page-local Python cosine — hybrid must degrade, never 500.
+
     The query is embedded with the same pseudo-embedder the rebuild used by
     default (see rebuild_note_search._default_embed), so dry-run hybrid is
     lexical-ish; real semantic ranking needs matching embed_fn on both sides.
     """
-    import json
-    import math
-
     try:
         from helpers.graph.embeddings import _pseudo_embedding
         from helpers.maintenance.rebuild_note_search import _EMBED_DIMS
@@ -488,32 +563,19 @@ def _hybrid_search_results(rows, query: str, limit: int, offset: int) -> list[di
     except Exception:  # noqa: S110  # embedding unavailable -> fall back to BM25
         q_vec = None
 
-    def _cosine(a, b):
-        dot = sum(x * y for x, y in zip(a, b))
-        na = math.sqrt(sum(x * x for x in a))
-        nb = math.sqrt(sum(x * x for x in b))
-        if na == 0 or nb == 0:
-            return 0.0
-        return dot / (na * nb)
+    # A1: whole-corpus KNN first (k=None -> exact per-doc similarities);
+    # None result = unavailable -> Python cosine loop below.
+    knn: dict[str, float] | None = None
+    if q_vec is not None:
+        try:
+            from helpers.core.vec_search import knn_similarities
 
-    # scored: list of (orig_index, row, similarity) — tuples keep the Row type
-    # through the re-rank (a dict would widen the row slot to the union of all
-    # value types). orig_index = BM25 position (rows arrive rank-sorted).
-    scored: list[tuple[int, Any, float]] = []
-    for orig_index, row in enumerate(rows):
-        embedding = row[4]
-        vec = None
-        if embedding:
-            try:
-                vec = json.loads(embedding)
-            except (TypeError, ValueError):
-                vec = None
-        sim = _cosine(q_vec, vec) if (q_vec and vec) else 0.0
-        scored.append((orig_index, row, sim))
+            knn = knn_similarities(conn, q_vec, None, _EMBED_DIMS)
+        except Exception:  # noqa: S110  # KNN unavailable -> Python cosine below
+            knn = None
 
-    # Cosine ranking: position 0 = most similar.
-    cosine_order = sorted(scored, key=lambda t: t[2], reverse=True)
-    cos_pos: dict[int, int] = {idx: i for i, (idx, _r, _s) in enumerate(cosine_order)}
+    scored = _scored_rows(rows, q_vec, knn)
+    cos_pos = _cosine_positions(rows, knn, scored)
 
     k = 60  # standard RRF constant
     fused = []
@@ -646,7 +708,7 @@ def api_search():
             }), 400
 
         if hybrid and rows:
-            results = _hybrid_search_results(rows, q, limit, offset)
+            results = _hybrid_search_results(conn, rows, q, limit, offset)
         else:
             results = [
                 {

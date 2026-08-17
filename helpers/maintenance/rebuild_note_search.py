@@ -67,6 +67,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.vec_search import sync_vec_table  # noqa: E402
 from helpers.core.frontmatter import split_frontmatter_with_title as _strip_frontmatter  # noqa: E402
 
 DEFAULT_DB = _REPO_ROOT / "memory" / "research.db"
@@ -352,6 +353,10 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
             n = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
             stats["indexed"] = n
             stats["mode"] = "full"
+            # A1: mirror the embedding column into the sqlite-vec vec0 table
+            # (after the FTS commit — sync is idempotent and best-effort; the
+            # JSON column stays the source of truth).
+            stats["vec_rows"] = sync_vec_table(conn, _EMBED_DIMS, full=True)
             return stats
         else:
             # P2.1 incremental: diff against meta, only touch changed/deleted files
@@ -401,6 +406,14 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
             stats["mode"] = "incremental"
             stats["upserts"] = len(to_upsert)
             stats["deletes"] = len(to_delete)
+            # A1: mirror the same delta into the vec0 table (file_path ->
+            # embedding JSON; None embedding removes the vec row).
+            stats["vec_rows"] = sync_vec_table(
+                conn,
+                _EMBED_DIMS,
+                upsert_rows=[(r[1], r[5]) for r, _m, _c in to_upsert],
+                delete_paths=to_delete,
+            )
             return stats
     finally:
         conn.close()

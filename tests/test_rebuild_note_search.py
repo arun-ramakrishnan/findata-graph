@@ -316,3 +316,94 @@ class TestEmbeddingColumn:
             ).fetchone()[0] == 3
         finally:
             con.close()
+
+
+# --------------------------------------------------------------------------- #
+# A1: sqlite-vec mirror table (note_search_vec) maintenance                  #
+# --------------------------------------------------------------------------- #
+
+class TestVecMirror:
+    """The rebuild keeps the vec0 mirror in lock-step with the FTS table."""
+
+    @staticmethod
+    def _vec_conn(db_path):
+        """Raw connection WITH sqlite-vec loaded (the module is per-conn —
+        querying a vec0 table on a bare connection raises 'no such module')."""
+        import sqlite_vec
+
+        conn = sqlite3.connect(str(db_path))
+        conn.enable_load_extension(True)
+        conn.load_extension(sqlite_vec.loadable_path())
+        conn.enable_load_extension(False)
+        return conn
+
+
+    def test_full_rebuild_populates_vec_table(self, seeded_tree):
+        import helpers.maintenance.rebuild_note_search as R
+
+        stats = R.rebuild(R.DEFAULT_DB)
+        assert stats["vec_rows"] == 3  # 1 company + 1 sector + 1 newsletter
+        conn = self._vec_conn(R.DEFAULT_DB)
+        try:
+            n = conn.execute("SELECT COUNT(*) FROM note_search_vec").fetchone()[0]
+        finally:
+            conn.close()
+        assert n == 3
+
+    def test_incremental_rebuild_updates_vec_rows(self, seeded_tree):
+        import helpers.maintenance.rebuild_note_search as R
+
+        R.rebuild(R.DEFAULT_DB)
+        # Touch one note so its fingerprint changes.
+        co = R.FINDATA / "Companies" / "Agriculture" / "Acme_Feeds.md"
+        co.write_text(co.read_text(encoding="utf-8") + "\nExtra line.\n", encoding="utf-8")
+        stats = R.rebuild(R.DEFAULT_DB, incremental=True)
+        assert stats["mode"] == "incremental"
+        assert stats["upserts"] == 1
+        assert stats["vec_rows"] == 1  # only the changed doc re-mirrored
+
+    def test_incremental_delete_removes_vec_row(self, seeded_tree):
+        import helpers.maintenance.rebuild_note_search as R
+
+        R.rebuild(R.DEFAULT_DB)
+        (R.FINDATA / "Sectors" / "Agriculture.md").unlink()
+        stats = R.rebuild(R.DEFAULT_DB, incremental=True)
+        assert stats["deletes"] == 1
+        conn = self._vec_conn(R.DEFAULT_DB)
+        try:
+            fps = {
+                r[0]
+                for r in conn.execute("SELECT file_path FROM note_search_vec")
+            }
+        finally:
+            conn.close()
+        assert not any("Agriculture.md" in fp for fp in fps)
+
+    def test_vec_similarity_matches_python_cosine(self, seeded_tree):
+        """KNN similarity over the mirrored table == float64 cosine of the
+        JSON column (the response contract must not change with A1)."""
+        import json as _json
+        import math
+
+        import helpers.maintenance.rebuild_note_search as R
+        from helpers.core.vec_search import knn_similarities
+
+        R.rebuild(R.DEFAULT_DB)
+        conn = self._vec_conn(R.DEFAULT_DB)
+        try:
+            rows = conn.execute(
+                "SELECT file_path, embedding FROM note_search "
+                "WHERE embedding IS NOT NULL"
+            ).fetchall()
+            q = R._default_embed("Acme Feeds shrimp feed")
+            got = knn_similarities(conn, q, k=len(rows), dims=R._EMBED_DIMS)
+            assert got is not None
+            for fp, emb in rows:
+                vec = _json.loads(emb)
+                dot = sum(x * y for x, y in zip(q, vec))
+                nq = math.sqrt(sum(x * x for x in q))
+                nv = math.sqrt(sum(x * x for x in vec))
+                expect = dot / (nq * nv)
+                assert got[fp] == pytest.approx(expect, abs=1e-6)
+        finally:
+            conn.close()

@@ -27,7 +27,7 @@ import py_compile
 import re
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 # yaml / sqlite3 are optional in principle but always available in this

@@ -292,3 +292,93 @@ class TestHybridSearch:
             for hit in body["results"]:
                 assert hit["similarity"] is None
                 assert "snippet" in hit
+
+
+# --------------------------------------------------------------------------- #
+# A1: the sqlite-vec KNN path (global re-rank) vs the Python-cosine fallback  #
+# --------------------------------------------------------------------------- #
+class TestHybridKnnPath:
+    """Pins that hybrid uses the vec0 KNN map when available and keeps the
+    exact response contract when it isn't."""
+
+    def test_hybrid_calls_knn_and_uses_its_similarities(self, client, monkeypatch):
+        """Spy on helpers.core.vec_search.knn_similarities: return a crafted
+        map (Sharat first globally, Avanti deliberately UNRANKED) and assert
+        it drives the response. Avanti keeps BM25 position 0 but loses the
+        cosine leg (worst position) — the only asymmetric setup in which RRF
+        can flip a rank-0 BM25 doc (a pure 0/1 position swap ties exactly)."""
+        from helpers.core import vec_search as VS
+
+        calls = []
+
+        chatter_fp = "findata/The_Chatter/Aquaculture_Edition.md"
+        roots_fp = "findata/Points_And_Figures/Roots.md"
+
+        def fake_knn(conn, q_vec, k, dims):
+            calls.append((k, dims))
+            # Fixture BM25 page for q=feed is [Avanti, Chatter, Sharat,
+            # Roots]. Craft: Chatter (BM25 idx 1) globally most-similar and
+            # Avanti (BM25 idx 0) deliberately UNRANKED = worst cosine leg.
+            return {chatter_fp: 0.9, roots_fp: 0.5}
+
+        monkeypatch.setattr(VS, "knn_similarities", fake_knn)
+        r = client.get("/api/search?q=feed&hybrid=true&limit=20")
+        assert r.status_code == 200
+        hits = r.get_json()["results"]
+        assert calls, "KNN path was not exercised"
+        assert calls[0][1] == 64  # dims from rebuild_note_search._EMBED_DIMS
+        assert calls[0][0] is None  # whole-corpus k
+        by_fp = {h["file_path"]: h for h in hits}
+        # Crafted similarities pass through verbatim (response contract).
+        assert by_fp[chatter_fp]["similarity"] == 0.9
+        assert by_fp[roots_fp]["similarity"] == 0.5
+        # Chatter takes the top slot: BM25 rank 1 + KNN rank 0 gives
+        # 1/62 + 1/61 = 0.03252, beating Avanti's BM25 rank 0 + worst
+        # cosine position 1/61 + 1/63 = 0.03227 (knn_order length is 2).
+        assert hits[0]["file_path"] == chatter_fp
+        # Docs absent from the KNN map get similarity 0.0 (missing-embedding
+        # contract preserved by the A1 path).
+        assert by_fp["findata/Companies/Agriculture/Avanti_Feeds.md"]["similarity"] == 0.0
+        assert by_fp["findata/Companies/Agriculture/Sharat_Industries.md"]["similarity"] == 0.0
+
+    def test_hybrid_falls_back_identically_when_knn_unavailable(self, client, monkeypatch):
+        """knn_similarities -> None must reproduce the pre-A1 Python-cosine
+        ranking exactly (page-local RRF)."""
+        from helpers.core import vec_search as VS
+
+        monkeypatch.setattr(VS, "knn_similarities", lambda *a, **k: None)
+        hybrid = client.get("/api/search?q=feed&hybrid=true&limit=20").get_json()["results"]
+        for hit in hybrid:
+            assert isinstance(hit["similarity"], float)
+
+    def test_hybrid_knn_and_fallback_agree_on_order(self, client, monkeypatch):
+        """Behavior preservation: forcing the KNN leg on (spy) vs off must
+        not change the fused ordering for a NEUTRAL map — the A1 swap is a
+        perf change, not a ranking change. Neutral = every page doc mapped
+        in the same relative order the Python cosine would produce."""
+        from helpers.core import vec_search as VS
+
+        def _titles():
+            r = client.get("/api/search?q=feed&hybrid=true&limit=20")
+            return [h["title"] for h in r.get_json()["results"]]
+
+        # The real Python fallback ranks Chatter first for q=feed (its
+        # 3-dim seed vector wins the page-local cosine). A KNN map that
+        # agrees on the winner must rank Chatter 0 AND push Avanti to KNN
+        # rank 2 (Chatter 0.8 > Sharat 0.5 > Avanti 0.3): a doc pair that
+        # merely SWAPS ranks (BM25 i / KNN j vs BM25 j / KNN i) contributes
+        # identical RRF sums, and the stable sort then keeps BM25 order —
+        # so a plain "agreeing" map can still tie the fallback's winner.
+        neutral = {
+            "findata/The_Chatter/Aquaculture_Edition.md": 0.8,
+            "findata/Companies/Agriculture/Sharat_Industries.md": 0.5,
+            "findata/Companies/Agriculture/Avanti_Feeds.md": 0.3,
+        }
+        monkeypatch.setattr(VS, "knn_similarities", lambda *a, **k: dict(neutral))
+        with_knn = _titles()
+        assert with_knn[0] == "The Chatter: Aquaculture Edition"
+
+        monkeypatch.setattr(VS, "knn_similarities", lambda *a, **k: None)
+        without_knn = _titles()
+        assert without_knn[0] == "The Chatter: Aquaculture Edition"
+        assert sorted(with_knn) == sorted(without_knn)
