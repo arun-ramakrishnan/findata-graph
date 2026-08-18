@@ -28,8 +28,9 @@
 
 - **Technology avenues triaged** (proposals/tech_avenues.txt,
   2026-08-17): A1 sqlite-vec KNN DONE (completed.md #124; ~7ms accepted).
-  B1 frontmatter JSON-Schema contract DONE (completed.md #125;
-  4 drift notes fixed). Shortlist = GraphRAG-lite context packs (C1). Obsidian-dependent items DROPPED per user 2026-08-17 —
+  B1 DONE (completed.md #125), C1 context packs DONE (completed.md #127;
+  A1 vec0 sidecar regression fixed en route, #126). Shortlist complete —
+  remaining avenues are optional (C2/A3/B2/C3). Obsidian-dependent items DROPPED per user 2026-08-17 —
   Obsidian is not an active use case outside of the YAML itself; MCP server
   (D) PARKED same day — not a priority. Explicitly blocked: C4 Kùzu
   (upstream archived 2025-10-10); anti-recommendations on record

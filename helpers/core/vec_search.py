@@ -14,6 +14,13 @@ path all keep working untouched); the vec table is a derived index, exactly
 like the FTS5 shadow tables. It is excluded from Parquet snapshots for the
 same reason — it is rebuilt, not shipped.
 
+The mirror lives in a SIDECAR SQLite database (``<main>_vec.db``, ATTACHed
+as ``vecdb``), never in research.db itself: DuckDB's SQLite scanner cannot
+catalog-scan a database containing vec0 virtual tables ("no such module:
+vec0" on ATTACH — the same regression class as spellfix1 tables). The
+sidecar is derived state: safe to delete, rebuilt by rebuild_note_search
+or lazily backfilled on the first hybrid search.
+
 Three entry points:
 
 - ``vec_available(conn)``     — extension load + table present (read path gate)
@@ -46,6 +53,44 @@ import struct  # noqa: E402  # after sys.path bootstrap
 from collections.abc import Iterable, Sequence  # noqa: E402
 
 VEC_TABLE = "note_search_vec"
+# The vec0 virtual table must NOT live in research.db itself: DuckDB's
+# SQLite scanner chokes on extension virtual tables during ATTACH catalog
+# scans ("no such module: vec0" — same failure class as spellfix1, see
+# memory: spellfix1_tables_must_not_live_in_research_db). It lives in a
+# sidecar database attached to the same connection as schema ``vecdb``.
+VEC_SCHEMA = "vecdb"
+
+
+def qualified() -> str:
+    """Schema-qualified vec table name (``vecdb.note_search_vec``)."""
+    return f"{VEC_SCHEMA}.{VEC_TABLE}"
+
+
+def _sidecar_path(conn: sqlite3.Connection) -> str:
+    """Sidecar DB path derived from the connection's main file.
+
+    ``memory/research.db`` -> ``memory/research.db_vec.db``. In-memory or
+    temporary connections get an anonymous in-memory sidecar so tests and
+    throwaway conns stay isolated.
+    """
+    for _seq, name, file in conn.execute("PRAGMA database_list").fetchall():
+        if name == "main" and file:
+            return str(Path(file).with_name(Path(file).name + "_vec.db"))
+    return ":memory:"
+
+
+def _attach_vec_db(conn: sqlite3.Connection) -> None:
+    """Idempotently ATTACH the sidecar DB as ``vecdb`` on this connection."""
+    have = conn.execute(
+        "SELECT 1 FROM pragma_database_list WHERE name = ?", (VEC_SCHEMA,)
+    ).fetchone()
+    if have:
+        return
+    path = _sidecar_path(conn)
+    if path == ":memory:":
+        conn.execute(f"ATTACH DATABASE ':memory:' AS {VEC_SCHEMA}")
+    else:
+        conn.execute(f"ATTACH DATABASE ? AS {VEC_SCHEMA}", (path,))
 
 # Keep module importable (and unit-testable) without the package installed.
 try:  # pragma: no cover - exercised implicitly via vec_available()
@@ -74,9 +119,19 @@ def _pack(vec: Sequence[float]) -> bytes:
     return struct.pack(f"{len(vec)}f", *vec)
 
 
+def _attach_ok(conn: sqlite3.Connection) -> bool:
+    """Best-effort sidecar attach; False when the main DB is unusable."""
+    try:
+        _attach_vec_db(conn)
+    except sqlite3.Error:
+        return False
+    return True
+
+
 def _table_exists(conn: sqlite3.Connection) -> bool:
+    _attach_vec_db(conn)
     row = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?",
+        f"SELECT 1 FROM {VEC_SCHEMA}.sqlite_master WHERE type='table' AND name = ?",  # noqa: S608  # schema/name constants
         (VEC_TABLE,),
     ).fetchone()
     return row is not None
@@ -86,9 +141,10 @@ def _create_table(conn: sqlite3.Connection, dims: int) -> bool:
     """Create the vec0 table; False when the extension is unavailable."""
     if not _load_vec_extension(conn):
         return False
+    _attach_vec_db(conn)
     try:
         conn.execute(
-            f"CREATE VIRTUAL TABLE IF NOT EXISTS {VEC_TABLE} "  # noqa: S608  # identifier is the module constant above
+            f"CREATE VIRTUAL TABLE IF NOT EXISTS {qualified()} "  # noqa: S608  # identifier is the qualified() constant above
             "USING vec0(file_path TEXT PRIMARY KEY, "
             f"embedding FLOAT[{int(dims)}] distance_metric=cosine)"
         )
@@ -104,6 +160,8 @@ def backfill_from_fts(conn: sqlite3.Connection, dims: int) -> int:
     Used both by the rebuild write path and lazily on first hybrid search
     after a snapshot restore (the vec table is snapshot-excluded by design).
     """
+    if not _attach_ok(conn):
+        return 0
     try:
         rows = conn.execute(
             "SELECT file_path, embedding FROM note_search "
@@ -120,9 +178,9 @@ def backfill_from_fts(conn: sqlite3.Connection, dims: int) -> int:
         except (TypeError, ValueError):
             continue
         try:
-            conn.execute(f"DELETE FROM {VEC_TABLE} WHERE file_path = ?", (file_path,))  # noqa: S608  # VEC_TABLE constant
+            conn.execute(f"DELETE FROM {qualified()} WHERE file_path = ?", (file_path,))  # noqa: S608  # qualified() constant
             conn.execute(
-                f"INSERT INTO {VEC_TABLE} (file_path, embedding) VALUES (?, ?)",  # noqa: S608  # VEC_TABLE constant
+                f"INSERT INTO {qualified()} (file_path, embedding) VALUES (?, ?)",  # noqa: S608  # qualified() constant
                 (file_path, _pack(vec)),
             )
             written += 1
@@ -148,7 +206,7 @@ def vec_available(conn: sqlite3.Connection, dims: int, *, lazy_backfill: bool = 
         conn.commit()
         backfill_from_fts(conn, dims)
         conn.commit()
-    n = conn.execute(f"SELECT COUNT(*) FROM {VEC_TABLE}").fetchone()[0]  # noqa: S608  # VEC_TABLE constant
+    n = conn.execute(f"SELECT COUNT(*) FROM {qualified()}").fetchone()[0]  # noqa: S608  # qualified() constant
     return n > 0
 
 
@@ -179,12 +237,12 @@ def knn_similarities(
     if not vec_available(conn, dims, lazy_backfill=True):
         return None
     if k is None:
-        k = conn.execute(f"SELECT COUNT(*) FROM {VEC_TABLE}").fetchone()[0]  # noqa: S608  # VEC_TABLE constant
+        k = conn.execute(f"SELECT COUNT(*) FROM {qualified()}").fetchone()[0]  # noqa: S608  # qualified() constant
     if k < 1:
         return None
     try:
         hits = conn.execute(
-            f"SELECT file_path, distance FROM {VEC_TABLE} "  # noqa: S608  # VEC_TABLE constant
+            f"SELECT file_path, distance FROM {qualified()} "  # noqa: S608  # qualified() constant
             "WHERE embedding MATCH ? AND k = ?",
             (_pack(q_vec), int(k)),
         ).fetchall()
@@ -210,7 +268,7 @@ def _upsert_vec_rows(
     written = 0
     for file_path, embedding_json in upsert_rows:
         conn.execute(
-            f"DELETE FROM {VEC_TABLE} WHERE file_path = ?", (file_path,)  # noqa: S608  # VEC_TABLE constant
+            f"DELETE FROM {qualified()} WHERE file_path = ?", (file_path,)  # noqa: S608  # qualified() constant
         )
         if not embedding_json:
             continue
@@ -221,7 +279,7 @@ def _upsert_vec_rows(
         if not isinstance(vec, list) or len(vec) != dims:
             continue
         conn.execute(
-            f"INSERT INTO {VEC_TABLE} (file_path, embedding) VALUES (?, ?)",  # noqa: S608  # VEC_TABLE constant
+            f"INSERT INTO {qualified()} (file_path, embedding) VALUES (?, ?)",  # noqa: S608  # qualified() constant
             (file_path, _pack(vec)),
         )
         written += 1
@@ -255,11 +313,11 @@ def sync_vec_table(
     try:
         with conn:
             if full:
-                conn.execute(f"DELETE FROM {VEC_TABLE}")  # noqa: S608  # VEC_TABLE constant
+                conn.execute(f"DELETE FROM {qualified()}")  # noqa: S608  # qualified() constant
                 written = backfill_from_fts(conn, dims)
             for file_path in delete_paths:
                 conn.execute(
-                    f"DELETE FROM {VEC_TABLE} WHERE file_path = ?", (file_path,)  # noqa: S608  # VEC_TABLE constant
+                    f"DELETE FROM {qualified()} WHERE file_path = ?", (file_path,)  # noqa: S608  # qualified() constant
                 )
             written += _upsert_vec_rows(conn, dims, upsert_rows)
     except sqlite3.Error:
@@ -268,7 +326,7 @@ def sync_vec_table(
         # Incremental with an empty delta (first run after adding A1, or
         # right after a snapshot restore) leaves a bare table — mirror the
         # whole FTS embedding column once so stats report real coverage.
-        n = conn.execute(f"SELECT COUNT(*) FROM {VEC_TABLE}").fetchone()[0]  # noqa: S608  # VEC_TABLE constant
+        n = conn.execute(f"SELECT COUNT(*) FROM {qualified()}").fetchone()[0]  # noqa: S608  # qualified() constant
         if n == 0:
             with conn:
                 written = backfill_from_fts(conn, dims)
@@ -289,7 +347,7 @@ def main() -> int:  # pragma: no cover - manual diagnostic
     try:
         ok = vec_available(conn, args.dims, lazy_backfill=False)
         n = conn.execute(
-            f"SELECT COUNT(*) FROM {VEC_TABLE}"  # noqa: S608  # identifier is the VEC_TABLE module constant
+            f"SELECT COUNT(*) FROM {qualified()}"  # noqa: S608  # identifier is the qualified() constant
         ).fetchone()[0] if ok else 0
         fts = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
         print(f"extension+table: {'ok' if ok else 'unavailable'}")

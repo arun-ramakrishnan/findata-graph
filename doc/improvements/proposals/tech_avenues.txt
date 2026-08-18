@@ -8,8 +8,10 @@ Status:    TRIAGED 2026-08-17 (user decisions): (1) Obsidian is NOT an active
            whole-corpus KNN cosine leg, ~7ms accepted over the 0.7ms
            Python page loop for global-rank semantics. (4) B1 EXECUTED
            same day (completed.md #125): doc/schema/*.v1.json + static
-           check + generated key doc, 4 drift notes fixed. Shortlist: C1
-           context packs (+ optional C2/A3/C3/B2).
+           check + generated key doc, 4 drift notes fixed. (5) C1 EXECUTED
+           2026-08-18 (completed.md #127; A1 vec0-in-research.db regression
+           fixed en route, #126). Shortlist COMPLETE; remaining avenues are
+           optional (C2/A3/B2/C3).
 Date:      2026-08-17
 Author:    agent exploration pass (user request: "explore new areas of
            technology we can do here incl databases, yaml richness, graphs etc")
@@ -138,7 +140,7 @@ B3. ANTI-RECOMMENDATION: YAML anchors/merge keys in frontmatter.
     - Keep frontmatter flat; share structure via the B1 schema instead.
 4. AVENUE C — Graph
 --------------------------------------------------------------------------------
-C1. GraphRAG-lite "context packs" (RECOMMENDED, small-medium, high leverage)
+C1. GraphRAG-lite "context packs" (DONE 2026-08-18 — completed.md #127)
     - We already have every ingredient: /api/graph/semantic/<name> (kNN seed
       + hop expansion), peers/neighbors/shortest routes, frontmatter
       context. Package a `context_pack(entity, hops, budget)` helper that

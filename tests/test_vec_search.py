@@ -76,7 +76,7 @@ class TestVecAvailable:
         _seed_fts(fts_conn, list(VECS.items()) + [("d.md", None)])
         assert VS.vec_available(fts_conn, DIMS, lazy_backfill=True) is True
         n = fts_conn.execute(
-            f"SELECT COUNT(*) FROM {VS.VEC_TABLE}"  # noqa: S608  # identifier is the VEC_TABLE module constant
+            f"SELECT COUNT(*) FROM {VS.qualified()}"  # noqa: S608  # schema-qualified via the module helper
         ).fetchone()[0]
         assert n == 3  # d.md has no embedding -> not mirrored
 
@@ -123,7 +123,7 @@ class TestSyncVecTable:
         assert VS.sync_vec_table(fts_conn, DIMS, full=True) == 3
         assert VS.sync_vec_table(fts_conn, DIMS, full=True) == 3  # no dupes
         n = fts_conn.execute(
-            f"SELECT COUNT(*) FROM {VS.VEC_TABLE}"  # noqa: S608  # identifier is the VEC_TABLE module constant
+            f"SELECT COUNT(*) FROM {VS.qualified()}"  # noqa: S608  # schema-qualified via the module helper
         ).fetchone()[0]
         assert n == 3
 

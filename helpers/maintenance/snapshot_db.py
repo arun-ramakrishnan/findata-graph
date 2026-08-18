@@ -512,9 +512,12 @@ def _export_sqlite_schema(con: sqlite3.Connection) -> str:
     # FTS5 virtual tables FIRST: ``CREATE VIRTUAL TABLE ... USING fts5``
     # creates every shadow table (incl. ``note_search_content``) itself, so
     # the plain-table pass must not try to create them again.
-    # A1: vec0 virtual tables (note_search_vec) are excluded too — they need
-    # the sqlite-vec extension loaded to replay and are derived (rebuilt by
+    # A1: vec0 virtual tables are excluded too — derived state (rebuilt by
     # rebuild_note_search / lazily on first hybrid search), like FTS shadows.
+    # Since the A1-regression fix (2026-08-18) the vec0 table lives in a
+    # SIDECAR db (research.db_vec.db), not research.db, so this filter is a
+    # belt-and-braces guard against it ever migrating back (a vec0 table in
+    # research.db breaks DuckDB's ATTACH catalog scan — see vec_search.py).
     vtables = stmts(
         "table",
         "AND sql LIKE '%VIRTUAL TABLE%' "
