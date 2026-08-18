@@ -8,7 +8,7 @@
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
 
-.PHONY: help qa test test-live perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild frontend frontend-check maint maint-full metrics-rebuild lint types lint-audit deptry advisory secret-scan
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild frontend frontend-check maint maint-full metrics-rebuild lint types lint-audit deptry advisory secret-scan analytics suggest-relations live-invariants
 
 help:           ## Show available targets
 > @echo "FinData QA / maintenance targets:"
@@ -18,7 +18,7 @@ help:           ## Show available targets
 > @echo "  sync-tags       rebuild entity_tags table from note YAML (run after editing notes)"
 > @echo "  sync-sector-links regenerate the auto company index in each sector note"
 > @echo "  test            pytest unit tests (deselects 'live'; see also: perf, integration)"
-> @echo "  test-live       pytest including live invariant tests"
+> @echo "  live-invariants pytest -m live only (~60s; skip-safe without the DBs)"
 > @echo "  perf            run wall-clock perf benchmarks, print timing table, append to perf_report.txt"
 > @echo "  cover           run tests with coverage over helpers/ (branch + missing-line report)"
 > @echo "  fuzz            run Hypothesis property-based tests with a fixed seed (deterministic)"
@@ -61,8 +61,9 @@ qa:             ## Run lint + types + deptry + static checks + pytest + notes + 
 test:           ## pytest unit tests only (no live DB, no slow benchmarks)
 > pytest -m "not live"
 
-test-live:      ## pytest including live invariant tests
-> pytest
+live-invariants: ## Run ONLY the live-marked invariant tests (-m live; skip-safe on pristine clone)
+> pytest -m live -q
+> @echo "✓ live invariant tests passed"
 
 perf:           ## Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt
 > python3 tests/run_perf_benchmarks.py
@@ -121,6 +122,12 @@ graph-smoke:    ## Quick smoke test of the graph query layer (sector-of + neighb
 
 graph-stats:    ## Print a one-shot summary of the graph state (entities, edges, sectors, hygiene)
 > python3 helpers/graph/stats.py
+
+analytics:       ## Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)
+> python3 helpers/graph/analytics.py $(REPORT)
+
+suggest-relations: ## Print link-prediction relation suggestions (C2; append with --append)
+> python3 helpers/graph/suggest_relations.py
 
 graph-algos:    ## Smoke test the Onager algorithm layer (all 14 metrics, no writes)
 > python3 helpers/graph/algorithms.py --all --no-apply
@@ -191,7 +198,7 @@ lint-audit:     ## Run ruff S/UP/C901 audits (security + modernization + complex
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks: ty on tests, frontend type-check, graph algos, integration, lint-audit
+advisory:       ## Run advisory (non-gating) checks: ty on tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit
 > ty check tests --extra-search-path helpers --extra-search-path helpers/core --extra-search-path helpers/maintenance --extra-search-path helpers/misc --config-file ty.tests.toml --exit-zero-on-warning || true
-> $(MAKE) -k frontend-check graph-algos integration lint-audit
+> $(MAKE) -k live-invariants frontend-check graph-algos analytics suggest-relations integration lint-audit
 > @echo "✓ Advisory checks complete (these do NOT block \`make qa\`)"

@@ -2194,3 +2194,60 @@ internal statistics. The function is a no-op if the connection is already
 closed. New code should prefer `close_connection()` over bare
 `conn.close()`. Existing callsites are not bulk-migrated (opt-in
 adoption). Tests: 76 across touched suites + 19 perf benchmarks — green.
+
+
+## 128. C2 link-prediction suggestions + A3 Parquet analytics
+
+**C2 — suggested relations (helpers/graph/suggest_relations.py).**
+Closed-loop suggestions with zero new UI: ``onager_link_prediction`` (jaccard
+over the non-membership projection) ranks MISSING pairs -> C2 filters (score
+floor 0.3 default, company-only endpoints, no existing typed edge of ANY
+kind either direction, no prior identical suggestion) -> JSONL rows appended
+to ``findata/_pending_relations.txt`` -> human triages via the exact H4
+workflow. Rows keep the Unresolved contract (edge_type/source/
+target_mention/quote/edition) plus ``origin: "link_prediction"``, ``score``,
+``method``; ``edge_type: "suggested"`` deliberately — the projection cannot
+know which typed edge is missing, the human assigns it. Dry-run by default;
+``--append`` writes (idempotent: deduped against graph_edges pairs AND prior
+suggestions). ``make suggest-relations`` target. Connection handling reuses
+``query.connect()`` (the onager DB path needs the ``fin`` attach — a raw
+read_only con fails with "schema fin does not exist").
+**A3 — snapshot analytics (helpers/graph/analytics.py).** Read-only DuckDB
+over the git-tracked ``snapshots/parquet`` tree — DB-less, git-diffable
+analytics; pure function of the snapshot. Four reports (``summary``,
+``edge-growth``, ``sector-growth``, ``top-entities``) as aligned markdown or
+``--json``; all SQL parameterized via ``read_parquet($N)`` (no f-string SQL
+— a noqa cannot live inside a triple-quoted f-string, so the paths bind as
+parameters instead). ``make analytics [REPORT=name]``. Edge-growth years are
+INGEST years (created_at); event time stays in valid_from/e_acquired.year —
+noted in report footers.
+Live: top suggestions Allianz<->Mastercard / Anthropic<->Ramkrishna
+Forgings (jaccard 1.0); Diageo plc<->United Spirits correctly suppressed by
+the existing-edge filter. Tests: test_suggest_relations.py (12: filters,
+sidecar contract/dedup, CLI dry-run vs append, live e2e) +
+test_analytics.py (13: synthetic parquet snapshot tree, all four reports,
+render determinism, CLI, live tree) — 25 passing. Gates: ruff, lint-audit,
+make types, ty advisory, static-checks — green. Procedure doc + findata.md
+note the new sidecar row kind.
+**Advisory wiring (user decision 2026-08-18):** both targets joined
+``make advisory``'s ``-k`` smoke list (graph-algos class — read-only,
+execution smoke against the built workspace; plain ``make test`` deselects
+``-m live`` so advisory is the only automated sweep that runs these paths).
+NOT added to ``perf``: analytics has no latency contract, and
+suggest-relations' algorithmic core already has the
+``graph_link_prediction`` budget row (the C2 delta is just connect() + a
+3.9k-row dedup scan).
+**Live invariants joined advisory too (2026-08-18).** Premise check: the
+repo has NO CI workflows, ``make qa``/``test`` deselect ``-m live``, and the old
+``make test-live`` was a manual-only opt-in — so the 200 live invariant
+tests ran on NO regular cadence (the A1 v_embeddings-empty regression,
+shipped 2026-08-17 and caught only 2026-08-18 while building C1, is the
+exact failure class a live sweep catches on day one). New
+``make live-invariants`` target runs just the delta (``pytest -m live -q``,
+~60s; **replaces** ``test-live``, which is REMOVED — its 1886-test full
+run equals ``test`` + ``live-invariants``, so the manual alias was pure
+redundancy; references updated in README + pytest.ini); skip-safe on a
+pristine clone (module-level skips when memory/research.db is absent).
+Wired FIRST in advisory's ``-k`` chain — as a real target, not a recipe
+line, so a live failure surfaces in the final ``-k`` status without
+suppressing the rest of the sweep.
