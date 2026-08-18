@@ -127,7 +127,7 @@ default). duckpgq and NetworkX were retired in Aug 2026.
 | Target | Purpose |
 |---|---|
 | `make qa` | the canonical gate: lint, types, deptry, static checks, tests, note + DB integrity, snapshot round-trip |
-| `make test` · `integration` · `test-live` · `fuzz` · `perf` | tiered test entry points |
+| `make test` · `integration` · `live-invariants` · `fuzz` · `perf` | tiered test entry points |
 | `make static-checks` · `sync-tags` · `graph-stats` | fast hygiene + summaries |
 | `make derive-relations` · `derive-themes-rebuild` · `derive-events` · `derive-insights` · `metrics-rebuild` | edge/event/quote/metric producers (`metrics-rebuild` = yfinance refresh) |
 | `make graph-rebuild` · `recompute-graph` · `graph-algos` | cache rebuild · persist all metrics · dry-run smoke |

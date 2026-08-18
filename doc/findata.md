@@ -15,7 +15,7 @@ findata/
 ├── Sectors/{Sector_Name}.md                  # 42 canonical sector notes
 ├── Super_Sectors/                            # super-sector notes (hierarchy tier)
 ├── Points_And_Figures/ The_Chatter/ The_PlotLines/   # OCR'd newsletter INPUTS (gitignored, not synced)
-├── _pending_relations.txt                    # H4 relations parked pending entity stubs
+├── _pending_relations.txt                    # review queue: extraction misses (H4) + link-prediction suggestions (C2, origin=link_prediction)
 └── verify_notes_report.txt                   # last validator output
 ```
 
