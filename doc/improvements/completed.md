@@ -955,7 +955,7 @@ transactional maintenance ops). All slices implemented and green:
   green regression guards + 4 wrapper differential tests (co_mention_top,
   cross_sector_bridges, edges_by_year, sector_members_with_market_cap) vs independent
   SQL/Python references.
-- **Slice B**: 3 perf-guard tripwires (`tests/test_sql_perf_guards.py`) asserting
+- **Slice B**: 3 perf-guard tripwires (now in `tests/test_query_plans.py`) asserting
   index usage (sqlite_autoindex_graph_edges_1 / entities_1) and no bare SCAN.
 - **Slice C**: 3 DuckDB↔NetworkX equivalence tests (`tests/test_graph_algorithms.py::
   TestSliceCDuckDBEquivalence`) — shortest_path & find_cycles vs NetworkX over the
@@ -1082,9 +1082,9 @@ flakiness) + 2 connection-reuse units (get_connection memoization, idempotent
 close). The `slow` marker was removed from pytest.ini (it had no users left;
 --strict-markers guards reintroduction) and `-m "not live and not slow"`
 simplified to `-m "not live"` in `make qa`/`make test`. The empty
-`tests/test_sql_perf_guards.py` (0-byte husk since the 2026-08-13 squash; its
+`tests/test_sql_perf_guards.py` husk (0-byte, from the 2026-08-13 squash; its
 Slice-B autoindex tripwires were superseded by `tests/test_query_plans.py`)
-was deleted. Verified: 1633 tests collect, `make perf` 18/18 green.
+was removed from the working tree. Verified: 1633 tests collect, `make perf` 18/18 green.
 ## 94. Onager link prediction — candidate missing-edge hypotheses (graph_algos Phase 1)
 
 **Date:** 2026-08-14

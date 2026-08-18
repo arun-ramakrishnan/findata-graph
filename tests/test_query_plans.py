@@ -44,6 +44,7 @@ def _plan_detail(conn, sql, params=()):
     return " ".join(row[-1] for row in plan)
 
 
+@pytest.mark.live
 class TestEntityQueryPlans:
     """Hot queries on the entities table."""
 
@@ -89,6 +90,7 @@ class TestEntityQueryPlans:
             con.close()
 
 
+@pytest.mark.live
 class TestGraphAnalyticsQueryPlans:
     """Hot queries on graph_analytics."""
 
@@ -113,6 +115,7 @@ class TestGraphAnalyticsQueryPlans:
             con.close()
 
 
+@pytest.mark.live
 class TestEntityTagsQueryPlans:
     """Hot queries on entity_tags."""
 
@@ -136,6 +139,7 @@ class TestEntityTagsQueryPlans:
     # The scan is the documented, accepted behavior — not a regression.
 
 
+@pytest.mark.live
 class TestGraphEdgesQueryPlans:
     """Hot queries on graph_edges."""
 
@@ -201,5 +205,39 @@ class TestGraphEdgesQueryPlans:
             assert "SEARCH" in detail, (
                 f"triple lookup scanning: {detail}"
             )
+        finally:
+            con.close()
+
+    def test_cross_sector_bridges_uses_index(self, tmp_db):
+        """C3 guard: cross_sector_bridges() filters graph_edges to
+        edge_type IN ('jv_with','acquired') then joins entities twice (source,
+        target). The edge_type filter must use ge_type_idx and both entity
+        joins must hit the entities PK — no full SCAN. This is the Slice-B plan
+        tripwire (test_cross_sector_bridges_plan_uses_indexes) that the empty
+        tests/test_sql_perf_guards.py husk was meant to hold; it lives here now.
+        """
+        con = sqlite3.connect(str(tmp_db))
+        try:
+            sql = """
+                SELECT e.edge_type,
+                       c1.sector_classification AS sector_a,
+                       c2.sector_classification AS sector_b,
+                       COUNT(*) AS n
+                FROM graph_edges e
+                JOIN entities c1 ON c1.name = e.source
+                JOIN entities c2 ON c2.name = e.target
+                WHERE e.edge_type IN ('jv_with', 'acquired')
+                  AND c1.sector_classification IS NOT NULL
+                  AND c2.sector_classification IS NOT NULL
+                  AND c1.sector_classification <> c2.sector_classification
+                GROUP BY e.edge_type, c1.sector_classification, c2.sector_classification
+                ORDER BY n DESC, e.edge_type
+            """
+            detail = _plan_detail(con, sql)
+            assert "SEARCH" in detail, f"cross_sector_bridges scanning: {detail}"
+            assert "ge_type_idx" in detail, (
+                f"edge_type filter not using ge_type_idx: {detail}"
+            )
+            assert "SCAN" not in detail, f"cross_sector_bridges full scan: {detail}"
         finally:
             con.close()
