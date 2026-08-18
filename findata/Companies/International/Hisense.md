@@ -8,6 +8,8 @@ tags:
 - business_model/b2c
 normalized_name: Hisense
 sector: International
+ticker: null
+market_cap: null
 geography: global
 listed: false
 created: '2026-08-13'

@@ -266,6 +266,13 @@ def extract_enhanced_tags(content, entity_name, entity_type):
 
 ## YAML Front Matter
 
+**Structural contract: [`doc/schema/frontmatter_keys.md`](../schema/frontmatter_keys.md) (GENERATED from the JSON Schemas in `doc/schema/`) — enforced by the "Frontmatter schema" static check (`helpers/validators/frontmatter_schema.py`).** When creating notes, the schema's rules apply in full; the four that most often bite:
+
+- `ticker: null` when unlisted — never the string `"N/A"` (the schema rejects it)
+- Quote the dates (`created: '2025-11-16'`) — unquoted YAML auto-parses into date objects (the validator normalizes, but quoting is the canonical form)
+- Permalink segments are lowercase `[a-z0-9_]` — underscores, no hyphens (`/companies/defense/apollo_micro_systems`, not `apollo-micro-systems`)
+- No rogue keys — only the keys in the generated reference (schema is `additionalProperties: false`); a new key means a schema update first
+
 Template (build by string substitution; `normalized_name` and `file_path` are the sync-critical fields):
 
 ```yaml
@@ -474,7 +481,10 @@ After **all** companies are processed, run from the project root. Both exit `0` 
 python3 helpers/validators/verify_notes.py          # YAML validity, required fields, content completeness, duplicates
 python3 helpers/misc/database_integrity_check.py    # every file_path resolves, normalized_name sync, orphans
 python3 helpers/core/sync_tags.py                   # rebuild entity_tags from note YAML (run after creating/editing entities)
+python3 -m helpers.validators.frontmatter_schema    # B1: JSON-Schema contract (also part of `make static-checks`)
 ```
+
+If a run legitimately introduces a NEW frontmatter key or value class: update `doc/schema/frontmatter.<type>.v1.json`, regenerate the reference (`python3 -m helpers.validators.frontmatter_schema --emit-doc`), then re-run the check — do not weaken the schema to pass.
 
 Fix any issue traceable to the current run, then re-run. Pre-existing unrelated issues may be deferred.
 
@@ -521,6 +531,7 @@ def validate_bidirectional_sync():
 - [ ] **(Newsletter inputs)** Relevant figures embedded in company notes via `![[images/<slug>_p{p}_img{N}.jpeg]]`
 - [ ] `verify_notes.py` exits 0
 - [ ] `database_integrity_check.py` exits 0 (≥95%)
+- [ ] `frontmatter_schema` exits 0 (no rogue keys, no `"N/A"`/wrong-typed values, ISO dates, underscore permalinks)
 
 ### Search examples
 ```sql
@@ -535,4 +546,4 @@ JOIN entity_tags b ON b.entity_name = e.name AND b.tag = 'market_cap/large_cap';
 ```
 
 ---
-*Version 8.6 | Output destination is now explicit: **ask the user where output goes — never assume**. PDF inputs: ask for the `<output_dir>` before running `pdf_conv_md.py`. Markdown inputs: capture is in-place (rewrites the source `.md`, figures into its own `images/`), so confirm the markdown's location with the user. Prior 8.5: filenames are just the PDF stem (no `_by_<Model>` suffix); Stage 0 → markdown.*
+*Version 8.7 | B1 frontmatter contract wired in: schema reference + the four drift rules (no `"N/A"` tickers, quoted ISO dates, underscore-only permalink segments, no rogue keys), schema check in Validation + checklist, schema-evolution path documented. Prior 8.6: Output destination is now explicit: **ask the user where output goes — never assume**. PDF inputs: ask for the `<output_dir>` before running `pdf_conv_md.py`. Markdown inputs: capture is in-place (rewrites the source `.md`, figures into its own `images/`), so confirm the markdown's location with the user. Prior 8.5: filenames are just the PDF stem (no `_by_<Model>` suffix); Stage 0 → markdown.*

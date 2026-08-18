@@ -753,9 +753,17 @@ def _iter_doc_files():
     """
     if not _DOC_ROOT.is_dir():
         return
-    for full in sorted(_DOC_ROOT.rglob("*")):
-        if full.is_file() and full.suffix.lower() in _DOC_EXTS:
-            yield full.relative_to(_DOC_ROOT).as_posix(), full
+    # Sort by POSIX string, NOT by Path: Path comparison is tuple-of-parts,
+    # so doc/schema/frontmatter_keys.md ('schema' < 'schema.md', prefix rule)
+    # would sort BEFORE doc/schema.md — contradicting the plain-string order
+    # clients (and the API's own "sorted by path" contract) expect.
+    for rel in sorted(
+        p.relative_to(_DOC_ROOT).as_posix()
+        for p in _DOC_ROOT.rglob("*")
+        if p.is_file() and p.suffix.lower() in _DOC_EXTS
+    ):
+        full = _DOC_ROOT / rel
+        yield rel, full
 
 
 def _doc_title(rel_path: str, full_path: Path) -> str:

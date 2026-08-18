@@ -6,8 +6,10 @@ Status:    TRIAGED 2026-08-17 (user decisions): (1) Obsidian is NOT an active
            dropped; (2) MCP exposure is NOT a priority — Avenue D parked;
            (3) A1 EXECUTED same day (completed.md #124): vec0 mirror +
            whole-corpus KNN cosine leg, ~7ms accepted over the 0.7ms
-           Python page loop for global-rank semantics. Shortlist: B1
-           schema contract, C1 context packs (+ optional C2/A3/C3/B2).
+           Python page loop for global-rank semantics. (4) B1 EXECUTED
+           same day (completed.md #125): doc/schema/*.v1.json + static
+           check + generated key doc, 4 drift notes fixed. Shortlist: C1
+           context packs (+ optional C2/A3/C3/B2).
 Date:      2026-08-17
 Author:    agent exploration pass (user request: "explore new areas of
            technology we can do here incl databases, yaml richness, graphs etc")
@@ -109,7 +111,7 @@ ANTI-RECOMMENDATIONS (deliberate no's)
     the YAML itself. Nothing in this avenue may depend on Obsidian plugins,
     .base files, Dataview, or vault-UI behaviour.]
 
-B1. Typed frontmatter contract (JSON Schema) (RECOMMENDED, small)
+B1. Typed frontmatter contract (JSON Schema) (DONE 2026-08-17 — completed.md #125)
     - Formalize the de-facto keys (per note type: company/theme/sector/…)
       into doc/schema/frontmatter.company.v1.json etc.; validate in
       static_checks via `jsonschema` (new dev-only dep); generate the key

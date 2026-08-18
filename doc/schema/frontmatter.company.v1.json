@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "frontmatter.company.v1.json",
+  "title": "Company note frontmatter (v1)",
+  "description": "Structural contract for findata/Companies/<Sector>/<Name>.md YAML frontmatter. Formalizes the de-facto keys surveyed across the 1,068 live notes (2026-08-17). Relational rules (normalized_name == filename, permalink sector == directory, canonical sector names) stay in helpers/validators/verify_notes.py and static_checks.py; this schema covers structure: key presence, value types, formats and rogue keys.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "type",
+    "sector",
+    "normalized_name",
+    "permalink",
+    "tags",
+    "created",
+    "last_modified",
+    "ticker",
+    "market_cap"
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable company name (display title)."
+    },
+    "type": {
+      "const": "company",
+      "description": "Note type discriminator \u2014 always 'company' in Companies/."
+    },
+    "sector": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Canonical CAPITALIZED sector name; must equal the parent directory title (relational check)."
+    },
+    "normalized_name": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9&._\\- ]+$",
+      "description": "Filename-derived canonical name; MUST match the filename minus .md char-for-char (enforced by verify_notes)."
+    },
+    "permalink": {
+      "type": "string",
+      "pattern": "^/companies/[a-z0-9_]+/[a-z0-9_]+$",
+      "description": "Stable lowercased identifier: /companies/<sector_slug>/<company_slug> (underscores, leading slash)."
+    },
+    "tags": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_]+/[a-z0-9_]+$"
+      },
+      "description": "Namespaced lowercase tags (prefix/value), e.g. entity_type/company, sector/pharma, market_cap/mid_cap, geography/india."
+    },
+    "created": {
+      "$ref": "#/$defs/isoDate"
+    },
+    "last_modified": {
+      "$ref": "#/$defs/isoDate"
+    },
+    "ticker": {
+      "description": "Exchange ticker, or null when unlisted. Indian: SYMBOL.NS / SYMBOL.BO (NSE/BOM). US: bare uppercase. Never the literal string 'N/A' \u2014 use null.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^([A-Z0-9&\\-]{1,20}\\.(NS|BO)|[A-Z0-9.\\-]{1,10})$"
+        }
+      ]
+    },
+    "market_cap": {
+      "description": "Cap classification used for tags and search facets, or null when unknown.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "enum": [
+            "large_cap",
+            "mid_cap",
+            "small_cap",
+            "micro_cap"
+          ]
+        }
+      ]
+    },
+    "industry": {
+      "description": "Optional GICS-style industry description (present on ~87% of notes).",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        }
+      ]
+    },
+    "geography": {
+      "type": "string",
+      "pattern": "^[a-z_]+$",
+      "description": "Optional lowercase geography tag value (india, usa, global, south_korea, ...)."
+    },
+    "file_path": {
+      "type": "string",
+      "pattern": "^findata/",
+      "description": "Legacy vault-relative path recorded by early writers; optional."
+    },
+    "listed": {
+      "type": "boolean",
+      "description": "Optional explicit listing flag (used to record known-unlisted companies)."
+    },
+    "business_model": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Optional business-model classification (b2b, b2c, ...)."
+    },
+    "risk_investment": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Optional risk/investment classification (growth, medium_risk, ...)."
+    },
+    "exchange": {
+      "enum": [
+        "NSE",
+        "NASDAQ",
+        "NYSE"
+      ],
+      "description": "Optional listing exchange (observed set; extend the schema when a new one appears)."
+    },
+    "index_membership": {
+      "type": "null",
+      "description": "Dropped key (2026-07-28); tolerated as null on legacy notes, absent on new ones."
+    }
+  },
+  "$defs": {
+    "isoDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO calendar date (YYYY-MM-DD). NOTE: unquoted YAML dates are auto-parsed into date objects by PyYAML; the validator normalizes these to ISO strings before checking."
+    }
+  }
+}

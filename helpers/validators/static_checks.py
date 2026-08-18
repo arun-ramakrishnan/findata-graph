@@ -489,6 +489,22 @@ def check_findata_yaml() -> tuple[list[str], list[str]]:
     return fatal, advisory
 
 
+def check_frontmatter_schema_contract() -> tuple[list[str], list[str]]:
+    """B1: JSON-Schema structural validation of note frontmatter.
+
+    Thin wrapper over helpers/validators/frontmatter_schema.py, which loads
+    doc/schema/frontmatter.<type>.v1.json and checks key presence, value
+    types, formats/enums and rogue keys for Companies/Sectors/Super_Sectors
+    notes (the frontmatter-bearing note types). Degrades to an advisory when
+    the dev-only jsonschema package is absent.
+    """
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from helpers.validators.frontmatter_schema import check_frontmatter_schema
+
+    return check_frontmatter_schema()
+
+
 def check_dependency_pinning() -> tuple[list[str], list[str]]:
     """Advisory only: [project].dependencies using loose (>=, >, <, <=) pins.
 
@@ -611,6 +627,8 @@ CHECKS = [
     # Combined single-walk: tags + permalink/sector + date sanity in one pass
     # over the 1102-file corpus (was 3 separate walks + 3× YAML parse).
     ("Findata YAML",       check_findata_yaml),
+    # B1: structural frontmatter contract (doc/schema/*.json)
+    ("Frontmatter schema", check_frontmatter_schema_contract),
     ("Dependency pinning", check_dependency_pinning),
     ("SQLite helper usage", check_sqlite_helper_usage),
     ("DB meta generation", check_db_meta_generation),

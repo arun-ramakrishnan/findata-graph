@@ -21,7 +21,17 @@ findata/
 
 ## YAML Front Matter
 
-### Company (verified against live notes, 2026-08)
+**Authoritative key reference: [`doc/schema/frontmatter_keys.md`](schema/frontmatter_keys.md)
+(GENERATED from the JSON Schemas in `doc/schema/` — do not edit by hand).**
+The schemas are enforced structurally by `make static-checks`
+("Frontmatter schema" check → `helpers/validators/frontmatter_schema.py`);
+relational rules (normalized_name == filename, permalink sector == directory)
+stay in `verify_notes` / `static_checks`. Schema targets are the
+frontmatter-bearing note types: Companies (1,068), Sectors (42),
+Super_Sectors (9). Newsletter editions (The_Chatter, Points_And_Figures,
+The_PlotLines) intentionally carry no frontmatter.
+
+### Company (example — see generated reference for the full contract)
 ```yaml
 ---
 title: "Aarti Drugs"
@@ -29,7 +39,7 @@ type: company
 ticker: AARTIDRUGS.NS          # null if unlisted (use `listed: false` to record why)
 listed: false                  # optional, for known-unlisted
 sector: Pharma                 # CAPITALIZED canonical sector name
-industry: Drug Manufacturers - Specialty & Generic   # optional (GICS-style, 924/1068 have it)
+industry: Drug Manufacturers - Specialty & Generic   # optional (GICS-style)
 market_cap: mid_cap            # large_cap | mid_cap | small_cap | micro_cap | null
 normalized_name: Aarti_Drugs   # MUST match filename minus .md, char-for-char
 permalink: /companies/pharma/aarti_drugs   # lowercase, leading slash, includes sector
@@ -42,19 +52,11 @@ Body sections: Overview → Financial Profile (Yahoo Finance, dated) →
 Product Portfolio / Segments → Management → Key Insights (newsletter, with
 edition citation).
 
-### Sector
-```yaml
----
-title: "Pharma"
-type: sector
-normalized_name: Pharma
-permalink: /sectors/pharma
-market_size: large             # large | medium | small
-tags: [entity_type/sector, sector/pharma]
-created: 'YYYY-MM-DD'
-last_modified: 'YYYY-MM-DD'
----
-```
+### Sector / Super_Sector
+Key sets differ (sector adds `super_sector`; super_sector adds `file_path`;
+neither has ticker/market_cap) — see the generated reference. Note: the
+formerly documented `market_size` key does not exist in live notes and was
+removed from this doc 2026-08-17 (schema-era correction).
 
 ## Tag System
 

@@ -2082,3 +2082,45 @@ future real embeddings and KNN-as-candidate-generation beyond the BM25
 page. (3) RRF tie behavior documented in tests: a doc pair that merely
 swaps BM25/cosine ranks contributes identical RRF sums (stable sort keeps
 BM25 order) — test fixtures must break rank symmetry to observe reorders.
+
+
+## 125. B1: frontmatter JSON-Schema contract (doc/schema/ + static check)
+
+Formalized the de-facto frontmatter of the three frontmatter-bearing note
+types into versioned JSON Schemas (Draft 2020-12):
+`doc/schema/frontmatter.company.v1.json` (1,068 notes),
+`frontmatter.sector.v1.json` (42), `frontmatter.super_sector.v1.json` (9) —
+`additionalProperties: false`, required keys, value types, patterns/enums
+derived from a full census of the live corpus. New
+`helpers/validators/frontmatter_schema.py` loads them, normalizes
+PyYAML-parsed date objects to ISO strings (the unquoted-date quirk —
+97 created / 245 last_modified notes), and validates structure: key
+presence, types, formats, enums, rogue keys. Wired into
+`make static-checks` as the "Frontmatter schema" check (degrades to an
+advisory without the dev-only jsonschema dep; runtime imports unaffected).
+Newsletter editions (Chatter/PnF/PlotLines) carry no frontmatter by design
+and are not targets. Relational rules (normalized_name == filename,
+permalink sector == directory) remain in verify_notes/static_checks —
+the schema is the structural layer, not a replacement.
+
+First run caught 4 drift items, all fixed:
+`ticker: "N/A"` (Shigan Quantum, NSE Clearing → null), hyphenated permalink
+segment (Apollo Micro Systems → underscores; no DB/consumer references to
+the old string), missing `last_modified` (Zomato), missing
+ticker/market_cap (Hisense → nulls). Corpus now validates 0 fatal.
+
+`doc/schema/frontmatter_keys.md` is GENERATED from the schemas
+(`python3 -m helpers.validators.frontmatter_schema --emit-doc`) so the human
+reference and the validator share one source of truth; doc/findata.md §YAML
+Front Matter now points there (its stale hand-maintained sector example —
+including a `market_size` key that never existed live — was corrected).
+jsonschema>=4.26.0 added to dev extras with rationale. Tests:
+tests/test_frontmatter_schema.py (29) — self-validating schemas, all
+violation classes, date normalization, synthetic-tree walker, live-corpus
+cleanliness, generated-doc determinism/freshness + markdown table
+integrity. Gates: static-checks (11 checks), ruff, lint-audit, make types,
+ty advisory — all green; 108 passed across touched suites.
+doc/procedures/markdown_parse.md updated to v8.7: schema reference linked
+in the YAML Front Matter section with the four drift rules, schema check
+added to Validation commands + checklist, and the schema-evolution path
+documented (update schema → --emit-doc → re-run; never weaken to pass).
