@@ -21,7 +21,7 @@ that are easy to forget and silently break the schema:
      available by passing `row_factory=None`.
 
 Usage:
-    from helpers.core.db import connect
+    from helpers.core.db import connect, close_connection
     with connect() as conn:                 # auto-commit/rollback
         conn.execute("UPDATE entities ...")
     # or:
@@ -29,7 +29,7 @@ Usage:
     try:
         ...
     finally:
-        conn.close()
+        close_connection(conn)
 
 `connect()` is idempotent with respect to the on-disk file: it does NOT
 create tables or run migrations. For schema bootstrap see
@@ -162,6 +162,22 @@ def connect(
             pass
     return conn
 
+
+def close_connection(conn: sqlite3.Connection) -> None:
+    """Close a SQLite connection after running ``PRAGMA optimize``.
+
+    SQLite recommends running ``PRAGMA optimize`` once at the end of each
+    application session (or on a representative connection close) so the
+    query planner can update its internal statistics.  This is a no-op if
+    the connection is already closed.
+
+    Prefer this over bare ``conn.close()`` in new code.
+    """
+    try:
+        conn.execute("PRAGMA optimize")
+    except sqlite3.Error:
+        pass
+    conn.close()
 
 
 

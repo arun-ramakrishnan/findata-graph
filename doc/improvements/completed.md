@@ -1,7 +1,7 @@
 # FinData Knowledge Graph — Completed Improvements
 
 **Generated**: 2026-08-09
-**Total completed**: 123 items
+**Total completed**: 128 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -2124,3 +2124,73 @@ doc/procedures/markdown_parse.md updated to v8.7: schema reference linked
 in the YAML Front Matter section with the four drift rules, schema check
 added to Validation commands + checklist, and the schema-evolution path
 documented (update schema → --emit-doc → re-run; never weaken to pass).
+
+
+## 126. A1 regression fix: vec0 table moved to sidecar DB (graph layer healed)
+
+While building C1, the graph layer turned out broken since A1 landed: the
+``note_search_vec`` vec0 virtual table lived in research.db itself, and
+DuckDB's SQLite scanner fails any catalog scan over such a database
+("no such module: vec0" on ATTACH — the exact failure class as the spellfix1
+regression). Symptom chain: query.connect's ``_materialise_embeddings``
+probe raised -> ``table_exists=False`` -> ``v_embeddings`` materialised EMPTY
+(0 rows) -> semantic_neighbors() returned [] for every company.
+
+Fix: the vec0 mirror now lives in a sidecar SQLite database
+(``<main>_vec.db``, ATTACHed as ``vecdb``; path derived from the connection's
+main file so tests stay isolated). helpers/core/vec_search.py gained
+``qualified()``/``_attach_vec_db()`` (idempotent per-connection ATTACH) and
+all SQL references the schema-qualified name. Live migration: dropped the
+research.db table (module loaded first — even SQLite can't parse the schema
+without vec0 registered), rebuilt the sidecar (1,227/1,227 rows, 0 FTS-vec
+coverage gaps), graph rebuild repopulated v_embeddings 0 -> 1,046 and
+semantic neighbors work again. Hybrid search outputs are byte-identical to
+the pre-migration receipts (Thai_Union 0.2575 etc. — verified; an apparent
+top-3 change was just limit=3 narrowing the BM25 candidate window).
+snapshot_db's vec0 DDL exclusion kept as belt-and-braces with an updated
+comment; sidecar is derived state (gitignored under memory/). Tests updated
+to the qualified name (test_vec_search 2 sites, TestVecMirror 2 +
+sidecar-attach in its raw-conn helper). Gates: ruff, lint-audit, make types,
+78 tests across the six touched suites — all green.
+
+
+## 127. C1: GraphRAG-lite context packs
+
+New ``helpers/graph/context_pack.py``: ``build_context_pack(con, name, hops=1,
+budget=40, k_semantic=8)`` serializes a scored ego-subgraph to Markdown —
+the exact artifact an LLM (or the D5 agent workflow) consumes. Pure
+composition over the existing graph layer, no new deps. Sources:
+- all ten star edge tables (subsidiary/acquired/jv/supplier/customer/group/
+  competes/belongs_to/exposed_to/comention), directionalized with
+  subject→object semantics and name-joined via a two-pass id resolution
+  (co-mention partners are outside the expansion set, so names resolve for
+  every referenced id);
+- v_node profile (kind/sector/market_cap/ticker);
+- semantic_neighbors (embedding kNN, cosine + sector per row);
+- sector rollup of every entity that made the pack.
+
+Budget semantics (user decision 2026-08-17): fact-count — ``budget`` bounds
+relation facts; profile/semantic/rollup are small fixed sections; footer
+reports facts kept/available AND a char estimate (len/4). Ranking: edge-type
+priority (ownership/structural first, co-mention last) then weight desc then
+name — trimming drops the least informative tail first. ``hops=1`` is the
+ego pack (seed-touching edges only); ``hops=N>1`` adds N-1 structured-edge
+expansion rounds (comention excluded from expansion — it would swallow the
+graph). Entity resolution: exact -> case-insensitive -> ticker. CLI with
+the standard sys.path bootstrap (subprocess-safe from any cwd). Depends on
+#126: packs on the live graph now include real semantic neighbors again.
+Tests: tests/test_context_pack.py (12 — synthetic star-schema fixture
+covering every edge type, budget/priority trimming, hops semantics, rollup,
+determinism, footer contract, + one live-graph test). Gates: ruff,
+lint-audit, make types, ty advisory, static-checks — green; 78 tests across
+touched suites.
+
+## 128. A4 micro-win: PRAGMA optimize on close
+
+Added `close_connection(conn)` helper in `helpers/core/db.py` that runs
+`PRAGMA optimize` before closing a SQLite connection. SQLite recommends
+this once per application session so the query planner can update its
+internal statistics. The function is a no-op if the connection is already
+closed. New code should prefer `close_connection()` over bare
+`conn.close()`. Existing callsites are not bulk-migrated (opt-in
+adoption). Tests: 76 across touched suites + 19 perf benchmarks — green.

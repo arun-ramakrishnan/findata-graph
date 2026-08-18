@@ -331,10 +331,13 @@ class TestVecMirror:
         querying a vec0 table on a bare connection raises 'no such module')."""
         import sqlite_vec
 
+        from helpers.core.vec_search import _attach_vec_db
+
         conn = sqlite3.connect(str(db_path))
         conn.enable_load_extension(True)
         conn.load_extension(sqlite_vec.loadable_path())
         conn.enable_load_extension(False)
+        _attach_vec_db(conn)  # the vec0 table lives in the sidecar (vecdb)
         return conn
 
 
@@ -345,7 +348,11 @@ class TestVecMirror:
         assert stats["vec_rows"] == 3  # 1 company + 1 sector + 1 newsletter
         conn = self._vec_conn(R.DEFAULT_DB)
         try:
-            n = conn.execute("SELECT COUNT(*) FROM note_search_vec").fetchone()[0]
+            from helpers.core.vec_search import qualified
+
+            n = conn.execute(
+                f"SELECT COUNT(*) FROM {qualified()}"  # noqa: S608  # qualified() constant
+            ).fetchone()[0]
         finally:
             conn.close()
         assert n == 3
@@ -369,11 +376,15 @@ class TestVecMirror:
         (R.FINDATA / "Sectors" / "Agriculture.md").unlink()
         stats = R.rebuild(R.DEFAULT_DB, incremental=True)
         assert stats["deletes"] == 1
+        from helpers.core.vec_search import qualified
+
         conn = self._vec_conn(R.DEFAULT_DB)
         try:
             fps = {
                 r[0]
-                for r in conn.execute("SELECT file_path FROM note_search_vec")
+                for r in conn.execute(
+                    f"SELECT file_path FROM {qualified()}"  # noqa: S608  # qualified() constant
+                )
             }
         finally:
             conn.close()
