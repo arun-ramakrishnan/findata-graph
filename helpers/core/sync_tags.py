@@ -90,6 +90,52 @@ def allowed_tags(tags):
     return out
 
 
+# Source-note tag namespaces mirrored into note_tags (newsletter_notes_
+# adoption.md S4). Separate whitelist from ALLOWED_CATEGORIES: these describe
+# newsletter EDITION notes (series/publisher, company/ coverage later), not
+# entities — the notes have no entity rows by design.
+NOTE_TAG_CATEGORIES = ("series", "publisher", "company")
+
+
+def rebuild_note_tags(conn, root: Path | None = None) -> tuple[int, int]:
+    """Rebuild ``note_tags`` (note_path x tag) from the source trees.
+
+    Full rebuild (DELETE + reinsert) mirroring entity_tags: the notes' YAML
+    is the single source of truth. Trees are the DIR_TO_TYPE entries typed
+    ``newsletter`` (helpers/validators/frontmatter_schema.py) — a future
+    source tree registers there and is picked up here automatically.
+    Chrome (image maps, images/) is skipped like everywhere else. Returns
+    (notes_with_tags, tag_rows_inserted).
+    """
+    root = Path(root or _REPO_ROOT)
+    from helpers.validators.frontmatter_schema import DIR_TO_TYPE
+
+    trees = sorted(d for d, t in DIR_TO_TYPE.items() if t == "newsletter")
+    bulk: list[tuple[str, str]] = []
+    for d in trees:
+        tree_dir = root / "findata" / d
+        if not tree_dir.is_dir():
+            continue
+        for p in sorted(tree_dir.rglob("*.md")):
+            if p.name == "image_map.md" or "images" in p.parts:
+                continue
+            tags = split_front_matter(
+                p.read_text(encoding="utf-8", errors="replace")
+            )
+            for t in tags:
+                t = t.strip()
+                if t.split("/", 1)[0] in NOTE_TAG_CATEGORIES and "/" in t:
+                    bulk.append((p.relative_to(root).as_posix(), t))
+    with conn:
+        conn.execute("DELETE FROM note_tags")
+        if bulk:
+            conn.executemany(
+                "INSERT OR IGNORE INTO note_tags (note_path, tag) VALUES (?, ?)",
+                bulk,
+            )
+    return len({n for n, _ in bulk}), len(bulk)
+
+
 def main():  # noqa: C901
     ap = argparse.ArgumentParser(description="Sync note tags -> entity_tags table.")
     ap.add_argument(
@@ -123,6 +169,12 @@ def main():  # noqa: C901
                     ON DELETE CASCADE ON UPDATE CASCADE
             );
             CREATE INDEX IF NOT EXISTS idx_entity_tags_tag ON entity_tags(tag);
+            CREATE TABLE IF NOT EXISTS note_tags (
+                note_path TEXT NOT NULL,
+                tag       TEXT NOT NULL,
+                PRIMARY KEY (note_path, tag)
+            );
+            CREATE INDEX IF NOT EXISTS idx_note_tags_tag ON note_tags(tag);
             """
         )
 
@@ -206,10 +258,15 @@ def main():  # noqa: C901
         inserted = conn.execute("SELECT COUNT(*) FROM entity_tags").fetchone()[0]
         total_entities = len(rows)
 
+        # Source newsletter trees -> note_tags (S4; separate mirror from
+        # entity_tags — editions have no entity rows).
+        nt_notes, nt_tags = rebuild_note_tags(conn)
+
         print(
             f"sync_tags: {inserted} tags across {seen_entities} entities "
             f"(of {total_entities} total)."
         )
+        print(f"note_tags: {nt_tags} tags across {nt_notes} source notes.")
         if sector_changed:
             print(
                 f"  sector_classification: {sector_changed} row(s) updated "

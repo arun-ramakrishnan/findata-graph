@@ -5,7 +5,7 @@ Property-based tests (via Hypothesis) for the pure functions in
 invariants for the transforms that operate on untrusted/arbitrary input
 (Paddle OCR JSONL output, newsletter markdown). Runs inside `make qa`.
 
-Invariants pinned (see doc/improvements/proposals/pdf_conv_md_hardening_fuzz.md):
+Invariants pinned (see doc/improvements/archive/pdf_conv_md_hardening_fuzz.md):
   1. slugify: never raises on arbitrary text; result has no whitespace, no "__",
      no leading/trailing "_".
   2. parse_pages: never raises on arbitrary JSON-ish list; returns a list of

@@ -100,6 +100,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.frontmatter import bump_generated  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Constants                                                                   #
@@ -118,6 +119,10 @@ METRICS_PREFIX = "derive:metrics:"
 # sync_sector_wikilinks.py:60-61 convention (paired HTML comments, regex-replace
 # for idempotency, curated sections outside the markers are never touched).
 _BEGIN = "<!-- BEGIN auto chatter block (derive_insights.py) -->"
+
+# OKF v0.2 actor string for the generated/stale_after bump on every auto
+# block rewrite (okf_adoption.md §2.3). v-suffixed per the actor convention.
+_OKF_ACTOR = "derive_insights.py/v1"
 _END = "<!-- END auto chatter block -->"
 
 # The H1 of an edition's `## The Chatter — <edition>` block. The capture group
@@ -986,6 +991,10 @@ def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noq
                 if dry_run:
                     written += 1
                 else:
+                    # OKF: content changed -> bump generated/stale_after in the
+                    # note's frontmatter (preserves verified + all other keys;
+                    # no-op when the note has no frontmatter).
+                    new_text = bump_generated(new_text, _OKF_ACTOR)
                     p.write_text(new_text, encoding="utf-8")
                     written += 1
     finally:
@@ -1151,6 +1160,9 @@ def render_metrics_notes(metrics_by_entity: dict, *, dry_run: bool = True,
             if dry_run:
                 written += 1
             else:
+                # OKF: same bump as the chatter block (single generated key
+                # per note — last writer wins, which is the freshest derive).
+                new_text = bump_generated(new_text, _OKF_ACTOR)
                 p.write_text(new_text, encoding="utf-8")
                 written += 1
     finally:

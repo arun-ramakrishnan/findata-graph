@@ -505,6 +505,32 @@ def check_frontmatter_schema_contract() -> tuple[list[str], list[str]]:
     return check_frontmatter_schema()
 
 
+def check_okf_conformance_contract() -> tuple[list[str], list[str]]:
+    """OKF v0.2 §11 sweep (doc/okf.md) — whole-vault, ADVISORY-ONLY.
+
+    Thin wrapper over frontmatter_schema.check_okf_conformance: every
+    non-reserved findata note must carry parseable frontmatter with a
+    non-empty ``type`` (OKF §11's two hard rules), newsletter OKF blocks
+    get the producer-shape check (actor/at/bundle-relative resources), and
+    the provenance census (trust tiers + staleness) reports adoption
+    progress. Advisory-only in ``make qa`` by design: the B1 schema check
+    (check_frontmatter_schema_contract) already gates the derived trees,
+    and OKF §11 forbids consumers from rejecting over optional-key issues
+    on the OCR-source trees — missing ``type`` on a newsletter surfaces in
+    ``--okf`` CLI output rather than failing the build.
+    """
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from helpers.validators.frontmatter_schema import check_okf_conformance
+
+    fatal, advisory = check_okf_conformance()
+    # Downgrade the §11 structural fatals to advisories for qa (see
+    # docstring); the CLI --okf mode keeps them fatal for manual runs.
+    for line in fatal:
+        advisory.append(line)
+    return [], advisory
+
+
 def check_dependency_pinning() -> tuple[list[str], list[str]]:
     """Advisory only: [project].dependencies using loose (>=, >, <, <=) pins.
 
@@ -629,6 +655,7 @@ CHECKS = [
     ("Findata YAML",       check_findata_yaml),
     # B1: structural frontmatter contract (doc/schema/*.json)
     ("Frontmatter schema", check_frontmatter_schema_contract),
+    ("OKF conformance",    check_okf_conformance_contract),
     ("Dependency pinning", check_dependency_pinning),
     ("SQLite helper usage", check_sqlite_helper_usage),
     ("DB meta generation", check_db_meta_generation),

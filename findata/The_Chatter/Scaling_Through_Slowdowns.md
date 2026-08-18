@@ -1,4 +1,5 @@
 ---
+type: newsletter
 permalink: the-chatter/the-chatter-scaling-through-slowdowns-output
 tags:
 - series/the_chatter

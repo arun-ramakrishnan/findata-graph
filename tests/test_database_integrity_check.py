@@ -785,3 +785,55 @@ class TestGetConnection:
             checker.get_connection()
             checker.close()
             assert checker._conn is None
+
+
+# --- check_note_tags (newsletter_notes_adoption S4) --------------------------
+
+
+class TestCheckNoteTags:
+    def _note(self, tags: str) -> str:
+        return f"---\ntype: newsletter\ntags:\n{tags}\n---\n# Ed\n"
+
+    def test_clean_rows_zero_errors(self, tmp_path):
+        with _make_checker_db(tmp_path) as (db_path, checker):
+            note = tmp_path / "findata" / "The_Chatter" / "Ed.md"
+            note.parent.mkdir(parents=True)
+            note.write_text(self._note("- series/the_chatter"))
+            conn = sqlite3.connect(db_path)
+            conn.execute(
+                "CREATE TABLE note_tags (note_path TEXT NOT NULL, "
+                "tag TEXT NOT NULL, PRIMARY KEY (note_path, tag))"
+            )
+            conn.execute(
+                "INSERT INTO note_tags VALUES "
+                "('findata/The_Chatter/Ed.md', 'series/the_chatter')"
+            )
+            conn.commit()
+            conn.close()
+            assert checker.check_note_tags() == {
+                "total": 1, "stale": 0, "errors": 0}
+
+    def test_missing_note_and_dropped_tag_flagged(self, tmp_path):
+        with _make_checker_db(tmp_path) as (db_path, checker):
+            note = tmp_path / "findata" / "The_Chatter" / "Ed.md"
+            note.parent.mkdir(parents=True)
+            note.write_text(self._note("- publisher/zerodha"))  # tag gone
+            conn = sqlite3.connect(db_path)
+            conn.execute(
+                "CREATE TABLE note_tags (note_path TEXT NOT NULL, "
+                "tag TEXT NOT NULL, PRIMARY KEY (note_path, tag))"
+            )
+            conn.executemany(
+                "INSERT INTO note_tags VALUES (?, ?)",
+                [("findata/The_Chatter/Ed.md", "series/the_chatter"),
+                 ("findata/The_Chatter/Gone.md", "series/the_chatter")],
+            )
+            conn.commit()
+            conn.close()
+            r = checker.check_note_tags()
+            assert r == {"total": 2, "stale": 2, "errors": 2}
+
+    def test_missing_table_returns_zeros(self, tmp_path):
+        with _make_checker_db(tmp_path) as (db_path, checker):
+            assert checker.check_note_tags() == {
+                "total": 0, "stale": 0, "errors": 0}

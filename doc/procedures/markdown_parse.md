@@ -18,7 +18,7 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
 > python3 helpers/core/parse_newsletter.py findata/The_Chatter/Foo.md --apply --with-analytics   # also refresh graph_analytics
 > ```
 
-0. **Convert PDF → markdown** *(PDF inputs only)* — **ask the user for the destination directory first** (there is no safe way to infer it). Then convert the source PDF with `helpers/pdf/pdf_conv_md.py` into a The_Chatter-style `.md` in that directory. The script also downloads + embeds the figures as `![[images/<slug>_p{p}_img{N}.jpeg]]` into a sibling `images/` dir, so **no separate image capture is needed for PDF inputs** (see [PDF → Markdown](#pdf--markdown)). Then proceed to Stage 1.
+0. **Convert PDF → markdown** *(PDF inputs only)* — **ask the user for the destination directory first** (there is no safe way to infer it). Then convert the source PDF with `helpers/pdf/pdf_conv_md.py` into a The_Chatter-style `.md` in that directory. The script also emits the note's frontmatter (OKF provenance + namespaced `series/`/`publisher/` tags derived from the destination directory — see [Tags](#tags)) and downloads + embeds the figures as `![[images/<slug>_p{p}_img{N}.jpeg]]` into a sibling `images/` dir, so **no separate image capture is needed for PDF inputs** (see [PDF → Markdown](#pdf--markdown)). Then proceed to Stage 1.
 1. **Capture images** *(existing-markdown inputs only)* — **confirm the markdown's location with the user first** (capture is in-place: it rewrites the source `.md` and drops figures into its own `images/` dir). Then download all remote `<img>` crops and rewrite the source `.md` so figures embed inline next to their content (see [Image Capture](#image-capture)). Do this **before** parsing, since the signed URLs expire and the inline embeds are later used to attach figures to company notes. *(Skipped for PDF inputs — already done by Stage 0.)*
 2. **Extract entities** — companies/sectors from document content.
 3. **Get tickers** — the orchestrator uses `get_tickers.search_ticker()` (which delegates to `fuzzy_match.word_overlap_match()` for name matching). **Prefer NSE (`.NS`) over BSE (`.BO`)** — NSE is the canonical Indian listing in this KB; use `.BO` only when a name is BSE-only (e.g. SME-only listings).
@@ -80,7 +80,7 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
 11. **Auto-extract concall quotes + magnitudes** *(standalone command)* — `derive_insights.py` reads each company's `## [Concall]` body and captures every verbatim quote + speaker attribution + paraphrase into the `quotes` table, plus financial magnitudes (₹/%/bps/$bn) into `company_metrics`. It renders the quotes into a sentinel-wrapped `## The Chatter — <edition>` block in each company note (the deterministic first pass of Stage 5; hand-written blocks are never clobbered). Run after the newsletter is parsed and entities exist:
 
     ```bash
-    make derive-insights                                        # apply
+    make derive-insights                                        # apply (also bumps OKF generated/stale_after on notes whose blocks changed; maint-full runs --no-notes and never mutates notes)
     python3 helpers/graph/derive_insights.py findata            # dry-run summary
     python3 helpers/graph/derive_insights.py findata --verbose  # list every quote + metric
     ```
@@ -195,7 +195,17 @@ These rules apply to every file under `findata/Companies/` and `findata/Sectors/
 
 ## Tags
 
-Categories (apply relevant ones; abbreviate to save tokens):
+The categories below apply to the DERIVED notes (Companies/Sectors/Super_Sectors) and are mirrored into the `entity_tags` table by `sync_tags.py`. The SOURCE newsletter notes (The_Chatter/The_PlotLines/Points_And_Figures) use their own namespaced vocabulary (same `^[a-z0-9_]+/[a-z0-9_]+$` grammar, validated by `doc/schema/frontmatter.newsletter.v1.json` and mirrored into the `note_tags` table):
+
+```
+series/          the_chatter | points_and_figures | the_plotlines (from the note's tree)
+publisher/       zerodha (per-series map; omitted when unknown)
+company/         <entity-slug> coverage (deferred slice, S5)
+```
+
+Source-note tags are fully machine-written: `pdf_conv_md.py` emits them at conversion, and `helpers/misc/backfill_okf_provenance.py --sources --apply` backfills/migrates them on pre-existing notes. See `doc/improvements/archive/newsletter_notes_adoption.md`.
+
+Categories for derived notes (apply relevant ones; abbreviate to save tokens):
 
 ```
 entity_type/     company | sector
