@@ -2251,3 +2251,200 @@ pristine clone (module-level skips when memory/research.db is absent).
 Wired FIRST in advisory's ``-k`` chain — as a real target, not a recipe
 line, so a live failure surfaces in the final ``-k`` status without
 suppressing the rest of the sweep.
+
+
+## 130. OKF v0.2 provenance vocabulary adopted (writers + schema gate)
+
+Executed the okf_adoption.md plan (§2.x) — OKF v0.2's optional
+provenance/trust/lifecycle keys become queryable note frontmatter,
+written where the data is generated and validated by the existing B1
+schema gate. All proposal decisions accepted as recommended.
+
+- **helpers/core/frontmatter.py** (shared OKF layer): render_frontmatter
+  (order-preserving YAML block), iso_now_utc, moddate_to_iso_date (both
+  PDF ``D:YYYYMMDDHHmmSS+HH'mm'`` — numeric offset applied, UTC date — and
+  poppler's human-readable ``Thu Aug 13 09:01:08 2026 IST`` form, which a
+  live end-to-end check revealed is what every Reports/*.pdf actually
+  emits; named tzs take the local date since IST et al. are ambiguous),
+  bump_generated — YAML read/modify/write (never regex splice) that sets
+  ``generated`` + recomputes ``stale_after`` = max(sources[].last_modified)
+  + 180d else derive-date + 180d, preserves every existing key INCLUDING
+  hand-written ``verified``, returns notes with missing/broken frontmatter
+  unchanged, and is shape-idempotent for a fixed timestamp. Deep
+  _stringify_dates: hand-written YAML timestamps (``at: ...T12:00:00``
+  without Z) load as datetime objects and are re-emitted as ISO strings
+  (UTC datetimes keep the OKF ``Z`` suffix).
+- **helpers/validators/frontmatter_schema.py**: _normalize extended with a
+  deep walker for nested OKF values — without it a hand-written
+  ``verified[].at`` YAML timestamp would fail the schema's string pattern
+  (top-level B1 semantics unchanged: datetime -> date-only ISO).
+- **helpers/pdf/pdf_conv_md.py** (§2.2): every converted note now carries
+  ``type: newsletter`` + ``generated`` (actor ``pdf_conv_md.py/<model>``)
+  + a ``sources[]`` entry — id=stem, bundle-relative ``/Reports/...``
+  resource (ONLY when the PDF is under Reports/, Q1), pdfinfo Title
+  fallback stem, ``author: process:pdf_conv_md``, ModDate -> ISO
+  last_modified. pdfinfo resolved via shutil.which (S607); note title =
+  first markdown heading else stem. Output dirs (The_Chatter &c.) are
+  outside the validated trees by design; verified safe against every
+  downstream consumer (extract_relations/derive_insights/parse_newsletter
+  are heading/regex-based and ignore a leading YAML block;
+  rebuild_note_search strips frontmatter and indexes the body only;
+  verify_notes + the schema walker scope the three schema trees only).
+- **helpers/graph/derive_insights.py** (§2.3): both auto-block write paths
+  (chatter + key figures) bump ``generated`` (``derive_insights.py/v1``)
+  via bump_generated when — and only when — the block content changed
+  (unchanged blocks skip the write, so generated.at stays honest).
+- **Tests (+36)**: test_frontmatter_schema.py OKF overlay validates all
+  three types + 13 negative cases (empty generated.by, missing at,
+  non-ISO verified.at, bare-map verified, sources missing resource/id,
+  bad last_modified, bad status enum, all-good status values, bad
+  stale_after, rogue key inside generated, YAML-timestamp normalization);
+  test_pdf_conv_md.py ModDate matrix (offset day-shifts both directions,
+  short forms, garbage), block shape, sources-only-under-Reports (Q1),
+  title fallbacks, write_outputs prepend + legacy shape; test_derive_
+  insights.py bump round-trips (verified preserved, stale_after rule,
+  body byte-exact, key order, no-FM/broken-YAML no-ops, idempotency,
+  schema-clean after bump) + render_notes integration (apply bumps,
+  dry-run untouched).
+- Corpus: 0 fatal / 0 advisory with the extended schemas. Gates: ruff,
+  lint-audit, make types, ty advisory, static-checks — green; 258 tests
+  across the five touched suites. Gradual rollout: existing notes gain
+  keys on their next derive; new conversions carry provenance from day
+  one (accepted Q5 — no backfill).
+
+
+## 131. OKF conformance sweep (--okf mode + make qa wiring)
+
+Closes the verification gap from #130: the OKF §11 conformance rules
+existed only as prose in doc/okf.md; now a check runs them.
+
+- **frontmatter_schema.check_okf_conformance()** (+ ``--okf`` CLI mode):
+  walks EVERY non-reserved ``findata/**/*.md`` — both populations: derived
+  notes (Companies/Sectors/Super_Sectors, the bump_generated surface) and
+  OCR source notes (the three newsletter trees, pdf_conv_md output).
+  Checks §11's two hard rules (parseable frontmatter, non-empty ``type``),
+  the producer shape on OCR-source OKF blocks (non-empty generated.by,
+  ISO 8601 generated.at, bundle-relative sources[].resource that resolves
+  under the repo root), and emits a provenance census (trust tiers per
+  §5.3 + stale_after count per §5.5) — the vocabulary's first consumer.
+- **Fatal/advisory calibration** (per OKF's own must-not-reject rule):
+  schema-tree §11 breaks stay fatal (self-contained duplication of the B1
+  check); newsletter shape issues are individual advisories; the 107
+  pre-adoption OCR source notes aggregate to ONE rollout-progress advisory
+  (gradual rollout, accepted Q5) — never 107 fatals of alarmism. Reserved
+  files (index.md/log.md) and newsletter chrome (image_map.md, images/)
+  skip, matching the pipeline's own skip sets.
+- **PyYAML timestamp trap, second instance**: the sweep must ``_normalize``
+  frontmatter BEFORE shape inspection — raw loads give datetime OBJECTS
+  for generated.at/verified[].at (even Z-suffixed), which would false-
+  positive the ISO string patterns. (First instance was #130's writer;
+  both are now regression-pinned.)
+- **static_checks**: check_okf_conformance_contract wired into the CHECKS
+  registry → ``make qa``/``make static-checks`` run it ADVISORY-ONLY
+  (§11 fatals surface in manual ``--okf`` CLI runs; qa gates structure via
+  the B1 schema check on the derived trees).
+- **Drift found & fixed by the sweep on its first live run**:
+  findata/The_Chatter/Scaling_Through_Slowdowns.md — Zerodha-import
+  frontmatter (permalink/visibility/language) with no ``type``; now
+  ``type: newsletter``.
+- Live result: 0 fatal / 2 advisory (107-note rollout advisory + census
+  "1227 notes — 0 human-reviewed, 0 machine-confirmed, 1227 unverified").
+  Tests: +11 in test_frontmatter_schema.py (sweep: Z-datetime non-FP,
+  shape advisories, root-relative resource resolution, missing-type fatal,
+  pre-adoption aggregation, reserved/chrome skips, tier census,
+  stale_after flagging, CLI modes). Gates: ruff, lint-audit, make types,
+  ty advisory, static-checks — green; 270 across touched suites.
+  Helpers extracted (_okf_visit_note/_okf_census_note) to stay under C901.
+- **x-okf-version schema annotation (user decision, same day)**: the five
+  OKF properties in all three doc/schema/*.v1.json carry
+  ``"x-okf-version": "0.2"`` — machine-readable tracking of WHICH OKF
+  vocabulary version each field was adopted from (JSON-Schema ignores
+  unknown x- extensions; zero validator impact). Notes deliberately do
+  NOT carry an ``okf_version`` key (Q6 stands: bundle-root concept, no
+  consumer, extra enumeration). Applied via json.dumps round-trip with
+  ensure_ascii default — the first attempt (ensure_ascii=False) would
+  have un-escaped every \u2014/\u00a7 in the files for zero benefit;
+  the diff is exactly 5 added lines per schema. Pinned by
+  TestOkfVersionAnnotation (all props annotated in all schemas; notes
+  with okf_version still REJECTED — the no-note-key decision is itself
+  test-enforced). Key doc regenerated (descriptions already read "OKF
+  v0.2", so the rendered table is unchanged).
+
+## 132. Source newsletter notes: namespaced tags + schema gate + note_tags sync
+
+**Date**: 2026-08-19. Proposal: `archive/newsletter_notes_adoption.md`
+(all §6 open questions resolved as recommended; S5 `company/` coverage
+DEFERRED). Executed S1–S4 + S6:
+
+- **S1**: new `doc/schema/frontmatter.newsletter.v1.json` (title+type
+  required; namespaced tags optional; publish chrome — permalink/
+  visibility/language/last_updated — tolerated; full OKF overlay);
+  `DIR_TO_TYPE` now gates The_Chatter/The_PlotLines/Points_And_Figures
+  under the B1 corpus check (chrome `image_map.md` skipped). Supersedes
+  okf_adoption §2.2's "no schema needed" stance. The OKF sweep's
+  pre-rollout advisory now applies only to UNREGISTERED trees — a
+  frontmatter-less note in a registered tree is a §11 fatal.
+- **S2**: `pdf_conv_md.py` emits `series/<out_dir-slug>` (+ mapped
+  `publisher/`, omit-when-unknown) at conversion (accepted Q1).
+- **S3**: `backfill_okf_provenance.py --sources` gained the tag pass —
+  applied to all 108 notes (2 tags each; `Scaling_Through_Slowdowns`'
+  flat `zerodha`/`chatter` migrated to namespaced via the fixed map;
+  unknown flat tags would be kept + reported, never silently dropped).
+  Idempotent: re-run writes 0 notes.
+- **S4**: `note_tags(note_path, tag)` table in research.db, full-rebuild
+  from note YAML inside `sync_tags.py` (mirrors the entity_tags pattern;
+  whitelist series/publisher/company). Live: 216 tags / 108 notes.
+  `database_integrity_check.py` registry gained `check_note_tags` (rows
+  must resolve to notes still carrying the tag).
+- **S6**: markdown_parse.md §Tags documents the source vocabulary +
+  Stage 0 notes tag emission; okf.md §4 cross-references the follow-up.
+
+Census after: 1227 notes, 1227 machine-confirmed, 0 unverified.
+
+## 133. OKF provenance backfill (all 1,227 notes) + group-scoped census
+
+**Date**: 2026-08-19. Supersedes okf_adoption.md Q5 ("gradual rollout, no
+backfill") — a user-directed one-off backfill realized provenance on the
+entire corpus the day after the keys shipped.
+
+- **Why**: `make derive-insights` bumps `generated` only on notes whose
+  auto-blocks change (a full corpus re-run touched ~300 of 1,100); the
+  rest carried no provenance keys at all. The first stamping attempt
+  also produced a uniform `stale_after: 2027-02-15` (stamp-time + 180d)
+  — honest dates needed per-note anchoring.
+- **Tool**: new `helpers/misc/backfill_okf_provenance.py` (actor
+  `process:okf_backfill`), two idempotent modes (re-runs write 0 notes):
+  - **derived (default)** — Companies/Sectors/Super_Sectors:
+    `generated.at` anchored to the note's own `last_modified` (fallback
+    `created`); edition references mined from the body (`## The Chatter
+    — <edition>` headings + source footer) resolve against a normalized
+    index of the source notes into `sources[]` entries whose
+    `last_modified` is the source note's git add-date (memoized);
+    `stale_after` = max(source last_modified) + 180d, mirroring
+    bump_generated's Q3 rule. Notes already carrying a real-writer
+    `generated.by` keep it — only `sources`/`stale_after` are augmented
+    (last-writer-wins honesty). Resolution is honest, not fabricated:
+    467/1,068 companies resolved (659 edition links); the misses are
+    yfinance/Yahoo/existing-note/sector-overview footers, which
+    correctly get no `sources`.
+  - **`--sources`** — the three newsletter trees: existing keys
+    preserved, `type: newsletter` defaulted, title frontmatter → first
+    heading → stem, `generated.at` from the linked PDF's ModDate (else
+    git add-date, else now). The tag half of this mode is #132 S3.
+- **YAML round-trip safety**: `stringify_dates` promoted to public in
+  `helpers/core/frontmatter.py` — the augment path renders parsed
+  frontmatter directly, and without it PyYAML re-shapes ISO date
+  strings into its own datetime form (caught by a round-trip test).
+- **Live result**: 1,119 derived + 108 source notes stamped; census
+  1,227 machine-confirmed / 0 unverified; 199 past `stale_after` — an
+  honest lifecycle signal (sources older than 180d), not an error.
+- **Census grouping** (user follow-up, same day): the `--okf` census now
+  reports per group — `derived: 1119 (1119 machine-confirmed; 199 past
+  stale_after); OCR sources: 108 (108 machine-confirmed)` — with
+  "other" catching unregistered trees, instead of one undifferentiated
+  pool.
+- **Tests**: +14 in `tests/test_backfill_okf_provenance.py` (dry-run,
+  per-note dates, edition→sources, real-writer skip/augment incl. the
+  datetime round-trip, sources-mode PDF-link/tags/migration/
+  unknown-flat-warn/preserve/idempotency). Advisory-clean (S607 fixed
+  via `shutil.which("git")`; C901 refactors split the mode drivers).

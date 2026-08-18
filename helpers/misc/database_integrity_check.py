@@ -26,6 +26,7 @@ if str(_REPO_ROOT) not in sys.path:
 # self-contained when run as a subprocess (the static check requires any
 # helpers.* import to be preceded by a sys.path bootstrap).
 from helpers.validators.static_checks import CANONICAL_EVENT_TYPES  # noqa: E402
+from helpers.core.frontmatter import extract_tags as _note_yaml_tags  # noqa: E402
 
 # Canonical edge-type allowlist. Must match EDGE_REGISTRY keys in
 # helpers/graph/query.py. The relations view (now unfiltered — see
@@ -70,6 +71,7 @@ class Check:
 _CHECKS: tuple[Check, ...] = (
     Check("relations", "check_relations", "error", "Relations"),
     Check("entity_tags", "check_entity_tags", "error", "Entity Tags"),
+    Check("note_tags", "check_note_tags", "error", "Note Tags (source trees)"),
     Check("events", "check_events", "error", "Events"),
     Check("quotes", "check_quotes", "error", "Quotes"),
     Check("company_metrics", "check_company_metrics", "error", "Company Metrics"),
@@ -397,6 +399,42 @@ class DatabaseIntegrityChecker:
             "total": total,
             "orphaned": orphaned,
             "errors": orphaned,
+        }
+
+    def check_note_tags(self) -> dict:
+        """Integrity of the ``note_tags`` table (newsletter_notes_adoption S4).
+
+        ``note_tags`` mirrors the source newsletter notes' YAML tags (no FK
+        — editions have no entity rows), so drift = rows whose note is gone
+        or whose YAML no longer carries the tag. sync_tags full-rebuilds the
+        table each run; between syncs this check surfaces the leak. Tolerates
+        a DB without the table (pre-S4 snapshots).
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        if (
+            cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='note_tags' AND type='table'"
+            ).fetchone()
+            is None
+        ):
+            return {"total": 0, "stale": 0, "errors": 0}
+
+        rows = cur.execute("SELECT note_path, tag FROM note_tags").fetchall()
+        stale = 0
+        for note_path, tag in rows:
+            p = self.base_path / note_path
+            try:
+                text = p.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                stale += 1
+                continue
+            if tag not in _note_yaml_tags(text):
+                stale += 1
+        return {
+            "total": len(rows),
+            "stale": stale,
+            "errors": stale,
         }
 
     def check_events(self) -> dict:

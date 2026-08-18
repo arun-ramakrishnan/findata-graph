@@ -244,6 +244,35 @@ class TestSectorYamlConsistency:
         descs = [i["description"] for i in v.issues["yaml_structure"]]
         assert any("should not be quoted" in d for d in descs)
 
+    def test_okf_fields_allowed(self):
+        # OKF v0.2 provenance keys are schema-optional on sector notes; the
+        # strict allowlist must mirror the schemas (backfill stamps them).
+        v = make_verifier()
+        v.check_sector_yaml_consistency(
+            "/path/Banking.md",
+            {
+                "title": "Banking",
+                "type": "sector",
+                "normalized_name": "Banking",
+                "permalink": "/sectors/banking",
+                "created": "2025-01-01",
+                "last_modified": "2025-01-02",
+                "generated": {"by": "process:okf_backfill",
+                              "at": "2026-08-19T03:03:17Z"},
+                "verified": [{"by": "human:arun",
+                              "at": "2026-06-01T10:00:00Z"}],
+                "sources": [{"id": "x", "resource": "/Reports/x.pdf"}],
+                "status": "stable",
+                "stale_after": "2027-02-15",
+            },
+            "title: Banking\ntype: sector\npermalink: /sectors/banking\n"
+            "created: '2025-01-01'\nlast_modified: '2025-01-02'\n"
+            "generated:\n  by: process:okf_backfill\n"
+            "  at: '2026-08-19T03:03:17Z'\nstale_after: '2027-02-15'",
+        )
+        descs = [i["description"] for i in v.issues["yaml_structure"]]
+        assert not any("Unexpected fields" in d for d in descs)
+
 
 # ---------------------------------------------------------------------------
 # check_super_sector_yaml_consistency
@@ -286,6 +315,32 @@ class TestSuperSectorYaml:
         )
         descs = [i["description"] for i in v.issues["yaml_structure"]]
         assert any("Unexpected fields" in d for d in descs)
+
+    def test_okf_fields_allowed(self):
+        # Mirror of the sector test: OKF keys are schema-optional here too.
+        v = make_verifier()
+        v.check_super_sector_yaml_consistency(
+            "/path/Financials.md",
+            {
+                "title": "Financials",
+                "type": "super_sector",
+                "normalized_name": "Financials",
+                "file_path": "findata/Super_Sectors/Financials.md",
+                "permalink": "/super_sectors/financials",
+                "tags": ["entity_type/super_sector"],
+                "created": "2025-01-01",
+                "last_modified": "2025-01-02",
+                "generated": {"by": "process:okf_backfill",
+                              "at": "2026-08-19T03:03:17Z"},
+                "stale_after": "2027-02-15",
+            },
+            "title: Financials\ntype: super_sector\npermalink: /super_sectors/financials\n"
+            "created: '2025-01-01'\nlast_modified: '2025-01-02'\n"
+            "generated:\n  by: process:okf_backfill\n"
+            "  at: '2026-08-19T03:03:17Z'\nstale_after: '2027-02-15'",
+        )
+        descs = [i["description"] for i in v.issues["yaml_structure"]]
+        assert not any("Unexpected fields" in d for d in descs)
 
 
 # ---------------------------------------------------------------------------

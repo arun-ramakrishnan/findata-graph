@@ -9,6 +9,7 @@ synthetic tree, and the determinism/content of the generated key doc.
 from __future__ import annotations
 
 import json
+import datetime as _dt
 import sys
 from pathlib import Path
 
@@ -58,6 +59,115 @@ GOOD_SUPER = {
     "last_modified": "2026-08-10",
 }
 
+GOOD_NEWSLETTER = {
+    "title": "The Chatter: SBI, Delhivery, Titan & More",
+    "type": "newsletter",
+    "tags": ["series/the_chatter", "publisher/zerodha"],
+}
+
+
+# OKF v0.2 provenance overlay (doc/okf.md §3.2) — every key optional.
+OKF_GENERATED: dict = {"by": "derive_insights.py/v1", "at": "2026-08-18T09:00:00Z"}
+OKF_SOURCE: dict = {
+    "id": "bosch-amara-zydus",
+    "resource": "/Reports/Bosch_Amara_Zydus.pdf",
+    "title": "The Chatter: Bosch, Amara, Zydus & More",
+    "author": "process:pdf_conv_md",
+    "last_modified": "2026-08-13",
+}
+OKF_KEYS = {
+    "generated": OKF_GENERATED,
+    "verified": [{"by": "human:arun", "at": "2026-08-18T12:00:00Z"}],
+    "sources": [OKF_SOURCE],
+    "status": "stable",
+    "stale_after": "2027-02-14",
+}
+
+
+class TestOkfKeys:
+    """OKF v0.2 provenance/trust/lifecycle keys (all optional, all types)."""
+
+    @pytest.mark.parametrize("base,note_type", [
+        (GOOD_COMPANY, "company"),
+        (GOOD_SECTOR, "sector"),
+        (GOOD_SUPER, "super_sector"),
+        (GOOD_NEWSLETTER, "newsletter"),
+    ])
+    def test_okf_overlay_validates_every_type(self, base, note_type):
+        assert FMS.validate_frontmatter(dict(base, **OKF_KEYS), note_type) == []
+
+    def test_notes_without_okf_keys_still_valid(self):
+        # gradual rollout: absence carries meaning, never an error (OKF §5)
+        assert FMS.validate_frontmatter(dict(GOOD_COMPANY), "company") == []
+
+    def test_minimal_generated_only(self):
+        fm = dict(GOOD_COMPANY, generated={"by": "pdf_conv_md.py/PP-StructureV3",
+                                           "at": "2026-08-18T09:00:00Z"})
+        assert FMS.validate_frontmatter(fm, "company") == []
+
+    def test_empty_generated_by_rejected(self):
+        fm = dict(GOOD_COMPANY, generated={"by": "", "at": "2026-08-18T09:00:00Z"})
+        assert FMS.validate_frontmatter(fm, "company") != []
+
+    def test_generated_missing_at_rejected(self):
+        fm = dict(GOOD_COMPANY, generated={"by": "derive_insights.py/v1"})
+        assert FMS.validate_frontmatter(fm, "company") != []
+
+    def test_non_iso_verified_at_rejected(self):
+        fm = dict(GOOD_COMPANY, verified=[{"by": "human:arun",
+                                           "at": "16/11/2025"}])
+        assert FMS.validate_frontmatter(fm, "company") != []
+
+    def test_verified_entry_missing_by_rejected(self):
+        fm = dict(GOOD_COMPANY, verified=[{"at": "2026-08-18T12:00:00Z"}])
+        assert FMS.validate_frontmatter(fm, "company") != []
+
+    def test_bare_map_verified_rejected(self):
+        # deliberate stricter-than-spec deviation: array at write time only
+        fm = dict(GOOD_COMPANY, verified={"by": "human:arun",
+                                          "at": "2026-08-18T12:00:00Z"})
+        assert FMS.validate_frontmatter(fm, "company") != []
+
+    def test_source_missing_resource_rejected(self):
+        fm = dict(GOOD_COMPANY, sources=[{"id": "x"}])
+        assert FMS.validate_frontmatter(fm, "company") != []
+
+    def test_source_missing_id_rejected(self):
+        # second deliberate deviation: id required (footnote join safety)
+        fm = dict(GOOD_COMPANY, sources=[{"resource": "/Reports/x.pdf"}])
+        assert FMS.validate_frontmatter(fm, "company") != []
+
+    def test_source_bad_last_modified_rejected(self):
+        fm = dict(GOOD_COMPANY, sources=[dict(OKF_SOURCE, last_modified="2026/08/13")])
+        assert FMS.validate_frontmatter(fm, "company") != []
+
+    def test_bad_status_enum_rejected(self):
+        fm = dict(GOOD_COMPANY, status="archived")
+        assert FMS.validate_frontmatter(fm, "company") != []
+
+    def test_all_status_values_valid(self):
+        for s in ("draft", "stable", "deprecated"):
+            fm = dict(GOOD_COMPANY, status=s)
+            assert FMS.validate_frontmatter(fm, "company") == []
+
+    def test_bad_stale_after_rejected(self):
+        fm = dict(GOOD_COMPANY, stale_after="2027-02-14T00:00:00Z")
+        assert FMS.validate_frontmatter(fm, "company") != []
+
+    def test_rogue_key_inside_generated_rejected(self):
+        fm = dict(GOOD_COMPANY, generated=dict(OKF_GENERATED, okf_version="0.2"))
+        assert FMS.validate_frontmatter(fm, "company") != []
+
+    def test_yaml_timestamp_verified_at_normalizes(self):
+        # Hand-written `at: 2026-08-18T12:00:00` (no Z) parses as a datetime
+        # object; _normalize_nested must stringify it before the pattern check.
+        import yaml as _yaml
+        block = "---\ntitle: T\nverified:\n- by: human:arun\n  at: 2026-08-18T12:00:00\n---\n"
+        raw = _yaml.safe_load(block.split("\n---\n")[0][4:])
+        assert isinstance(raw["verified"][0]["at"], _dt.datetime)
+        fm = dict(GOOD_COMPANY, verified=raw["verified"])
+        assert FMS.validate_frontmatter(fm, "company") == []
+
 
 class TestSchemasSelfValidate:
     def test_all_three_schemas_are_valid_draft2020(self):
@@ -76,6 +186,7 @@ class TestValidFrontmatter:
             (GOOD_COMPANY, "company"),
             (GOOD_SECTOR, "sector"),
             (GOOD_SUPER, "super_sector"),
+            (GOOD_NEWSLETTER, "newsletter"),
         ],
     )
     def test_good_fixtures_pass(self, fm, note_type):
@@ -99,6 +210,57 @@ class TestValidFrontmatter:
     def test_us_bare_ticker_and_bo_suffix(self):
         assert FMS.validate_frontmatter(dict(GOOD_COMPANY, ticker="AAPL"), "company") == []
         assert FMS.validate_frontmatter(dict(GOOD_COMPANY, ticker="KOTAKBANK.BO"), "company") == []
+
+
+class TestNewsletterSchema:
+    """frontmatter.newsletter.v1.json (newsletter_notes_adoption.md S1)."""
+
+    def test_minimal_title_type_only(self):
+        assert FMS.validate_frontmatter(
+            {"title": "Ed", "type": "newsletter"}, "newsletter"
+        ) == []
+
+    def test_full_producer_shape(self):
+        fm = dict(
+            GOOD_NEWSLETTER,
+            permalink="the-chatter/edition-1-output",
+            visibility="public",
+            language="en",
+            last_updated="2025-10-25",
+            **OKF_KEYS,
+        )
+        assert FMS.validate_frontmatter(fm, "newsletter") == []
+
+    def test_flat_tags_rejected(self):
+        errs = FMS.validate_frontmatter(
+            dict(GOOD_NEWSLETTER, tags=["zerodha", "chatter"]), "newsletter"
+        )
+        assert errs
+
+    def test_company_tags_not_valid_here(self):
+        # entity_type/company is grammar-valid but these are not entity
+        # notes; only the schema's pattern applies (it passes the pattern —
+        # the vocabulary restriction is semantic, not structural).
+        errs = FMS.validate_frontmatter(
+            dict(GOOD_NEWSLETTER, tags=["entity_type/company"]), "newsletter"
+        )
+        assert errs == []
+
+    def test_missing_title_rejected(self):
+        assert FMS.validate_frontmatter(
+            {"type": "newsletter"}, "newsletter"
+        ) != []
+
+    def test_wrong_type_const(self):
+        assert FMS.validate_frontmatter(
+            dict(GOOD_NEWSLETTER, type="company"), "newsletter"
+        ) != []
+
+    def test_rogue_key_rejected(self):
+        errs = FMS.validate_frontmatter(
+            dict(GOOD_NEWSLETTER, send_to_kindle="yes"), "newsletter"
+        )
+        assert any("send_to_kindle" in e for e in errs)
 
 
 class TestViolationClasses:
@@ -179,7 +341,10 @@ class TestCorpusWalker:
             "last_modified: '2025-01-01'\nticker: N/A\nmarket_cap: huge_cap\n---\n"
         )
         (root / "findata" / "The_Chatter").mkdir(parents=True)
-        (root / "findata" / "The_Chatter" / "Edition_1.md").write_text("# no frontmatter\n")
+        (root / "findata" / "The_Chatter" / "Edition_1.md").write_text(
+            "---\ntitle: Edition 1\ntype: newsletter\n"
+            "tags:\n- series/the_chatter\n- publisher/zerodha\n---\nbody\n"
+        )
         return root
 
     def test_synthetic_tree_reports_only_the_bad_note(self, tmp_path):
@@ -189,14 +354,24 @@ class TestCorpusWalker:
         assert len(fatal) == 2
         assert all("Bad.md" in e for e in fatal)
         assert not any("Good.md" in e for e in fatal)
+        assert not any("Edition_1" in e for e in fatal)
         assert advisory == []
 
-    def test_newsletters_and_images_skipped(self, tmp_path):
+    def test_newsletters_validated_chrome_and_images_skipped(self, tmp_path):
         root = self._tree(tmp_path)
-        (root / "findata" / "The_Chatter" / "images").mkdir()
-        (root / "findata" / "The_Chatter" / "images" / "x.md").write_text("---\nbad: [\n")
+        chatter = root / "findata" / "The_Chatter"
+        # flat tag = gate-fatal under the namespaced grammar (S3 migrates
+        # these on the live corpus; this pins the gate side of the contract)
+        (chatter / "Flat.md").write_text(
+            "---\ntitle: Flat\ntype: newsletter\ntags:\n- zerodha\n---\n"
+        )
+        (chatter / "image_map.md").write_text("chrome, no frontmatter\n")
+        (chatter / "images").mkdir()
+        (chatter / "images" / "x.md").write_text("---\nbad: [\n")
         fatal, _ = FMS.check_frontmatter_schema(root)
-        assert len(fatal) == 2  # unchanged — chatter + images not walked
+        assert len(fatal) == 3  # Bad.md x2 + Flat.md namespaced-tag violation
+        assert any("Flat.md" in e for e in fatal)
+        assert not any("image_map" in e or "images" in e for e in fatal)
 
     def test_live_corpus_is_clean(self):
         fatal, advisory = FMS.check_frontmatter_schema()
@@ -243,3 +418,159 @@ class TestGeneratedKeyDoc:
         for line in FMS.emit_key_doc().splitlines():
             if line.startswith("| `"):
                 assert line.count("|") == 6, line
+
+
+class TestOkfConformanceSweep:
+    """--okf mode: OKF §11 sweep + producer shape + provenance census."""
+
+    def _vault(self, root: Path):
+        fd = root / "findata" / "The_Chatter"
+        fd.mkdir(parents=True)
+        (root / "Reports").mkdir()
+        (root / "Reports" / "X.pdf").write_bytes(b"%PDF")
+        return fd
+
+    def test_z_datetime_objects_are_not_false_positives(self, tmp_path):
+        # PyYAML loads even Z-suffixed ISO timestamps as datetime OBJECTS;
+        # the sweep must normalize before the string-pattern shape check.
+        fd = self._vault(tmp_path)
+        (fd / "G.md").write_text(
+            "---\ntype: newsletter\ntitle: T\ngenerated:\n"
+            "  by: pdf_conv_md.py/PP-StructureV3\n  at: 2026-08-18T09:00:00Z\n"
+            "sources:\n- id: x\n  resource: /Reports/X.pdf\n"
+            "  last_modified: 2026-08-13\n---\n\n# body\n")
+        fatal, advisory = FMS.check_okf_conformance(tmp_path)
+        assert fatal == []
+        assert not any("G.md" in a for a in advisory)
+
+    def test_shape_issues_are_advisory_and_specific(self, tmp_path):
+        fd = self._vault(tmp_path)
+        (fd / "B.md").write_text(
+            "---\ntype: newsletter\ngenerated:\n  by: ''\n  at: 1/2/34\n"
+            "sources:\n- resource: Reports/x.pdf\n---\n")
+        fatal, advisory = FMS.check_okf_conformance(tmp_path)
+        assert fatal == []  # must-not-reject: shape issues never fatal
+        hits = [a for a in advisory if "B.md" in a]
+        assert any("malformed" in h for h in hits)
+        assert any("bundle-relative" in h for h in hits)
+
+    def test_resource_resolution_against_passed_root(self, tmp_path):
+        fd = self._vault(tmp_path)
+        (fd / "R.md").write_text(
+            "---\ntype: newsletter\nsources:\n- id: x\n"
+            "  resource: /Reports/X.pdf\n---\n")
+        (fd / "R2.md").write_text(
+            "---\ntype: newsletter\nsources:\n- id: y\n"
+            "  resource: /Reports/absent.pdf\n---\n")
+        fatal, advisory = FMS.check_okf_conformance(tmp_path)
+        assert not any("R.md" in a for a in advisory)
+        assert any("does not resolve" in a for a in advisory if "R2.md" in a)
+
+    def test_missing_type_is_fatal(self, tmp_path):
+        fd = self._vault(tmp_path)
+        (fd / "N.md").write_text("---\ntitle: x\n---\n")
+        fatal, _ = FMS.check_okf_conformance(tmp_path)
+        assert any("N.md" in f and "non-empty `type`" in f for f in fatal)
+
+    def test_pre_adoption_ocr_notes_aggregate_to_one_advisory(self, tmp_path):
+        # Unregistered FUTURE source tree: frontmatter-less notes aggregate
+        # as one pre-rollout advisory (gradual rollout, Q5).
+        self._vault(tmp_path)
+        new = tmp_path / "findata" / "New_Series"
+        new.mkdir(parents=True)
+        (new / "Old1.md").write_text("# no fm\n")
+        (new / "Old2.md").write_text("<div>no fm</div>\n")
+        fatal, advisory = FMS.check_okf_conformance(tmp_path)
+        assert fatal == []
+        assert sum(1 for a in advisory if "OCR source notes" in a) == 1
+        assert any("2 OCR source notes" in a for a in advisory)
+
+    def test_no_fm_in_registered_tree_is_fatal(self, tmp_path):
+        # Since S1 (newsletter_notes_adoption) the source trees are
+        # schema-gated: a frontmatter-less note there is a hard §11 break —
+        # pre-rollout tolerance applies only to unregistered trees.
+        fd = self._vault(tmp_path)
+        (fd / "Old.md").write_text("# no fm\n")
+        fatal, advisory = FMS.check_okf_conformance(tmp_path)
+        assert any("Old.md" in f and "no parseable frontmatter" in f
+                   for f in fatal)
+        assert not any("OCR source notes" in a for a in advisory)
+
+    def test_reserved_and_chrome_files_skipped(self, tmp_path):
+        fd = self._vault(tmp_path)
+        (fd / "image_map.md").write_text("# chrome\n")
+        (fd / "index.md").write_text("# listing\n")
+        (fd / "log.md").write_text("# log\n")
+        fatal, advisory = FMS.check_okf_conformance(tmp_path)
+        assert not any("image_map" in x or "index.md" in x or "log.md" in x
+                       for x in fatal + advisory)
+
+    def test_trust_tiers_and_census(self, tmp_path):
+        fd = self._vault(tmp_path)
+        (fd / "H.md").write_text(  # human-reviewed
+            "---\ntype: newsletter\ngenerated:\n  by: process:x\n"
+            "  at: 2026-08-18T09:00:00Z\nverified:\n- by: human:arun\n"
+            "  at: 2026-08-18T12:00:00Z\n---\n")
+        (fd / "M.md").write_text(  # machine-confirmed (generated, no verified)
+            "---\ntype: newsletter\ngenerated:\n  by: process:x\n"
+            "  at: 2026-08-18T09:00:00Z\n---\n")
+        (fd / "U.md").write_text("---\ntype: newsletter\n---\n")
+        _, advisory = FMS.check_okf_conformance(tmp_path)
+        # Census is group-scoped: these newsletter-tree notes fall under
+        # the "OCR sources" group with per-tier counts in its parens.
+        census = next(a for a in advisory if a.startswith("OKF census:"))
+        assert "OCR sources" in census
+        assert "1 human-reviewed" in census
+        assert "1 machine-confirmed" in census
+        assert "1 unverified" in census
+        assert "derived:" not in census  # no derived notes in this vault
+
+    def test_stale_after_flags_past_due(self, tmp_path):
+        fd = self._vault(tmp_path)
+        (fd / "S.md").write_text(
+            "---\ntype: newsletter\nstale_after: 2020-01-01\n---\n")
+        (fd / "F.md").write_text(
+            "---\ntype: newsletter\nstale_after: 2099-01-01\n---\n")
+        _, advisory = FMS.check_okf_conformance(tmp_path)
+        assert any("1 past stale_after" in a for a in advisory)
+
+    def test_cli_okf_mode_runs(self, tmp_path, capsys):
+        self._vault(tmp_path)
+        (tmp_path / "findata" / "The_Chatter" / "E.md").write_text(
+            "---\ntype: newsletter\n---\n")
+        rc = FMS.main(["--okf", "--root", str(tmp_path)])
+        out = capsys.readouterr().out
+        assert rc == 0
+        assert "OKF census" in out and "0 fatal" in out
+
+    def test_cli_okf_mode_fatals_on_missing_type(self, tmp_path, capsys):
+        self._vault(tmp_path)
+        (tmp_path / "findata" / "The_Chatter" / "E.md").write_text(
+            "---\ntitle: x\n---\n")
+        rc = FMS.main(["--okf", "--root", str(tmp_path)])
+        assert rc == 1
+        assert "non-empty `type`" in capsys.readouterr().out
+
+
+class TestOkfVersionAnnotation:
+    """x-okf-version: schema-side OKF vocabulary version tracking (Q6:
+    metadata in the schemas, never a note key)."""
+
+    OKF_PROPS = ("generated", "verified", "sources", "status", "stale_after")
+
+    def test_every_okf_prop_annotated_in_every_schema(self):
+        for fname in FMS.SCHEMA_FILES.values():
+            schema = json.loads((FMS.SCHEMA_DIR / fname).read_text())
+            for prop in self.OKF_PROPS:
+                assert schema["properties"][prop].get("x-okf-version") == "0.2", \
+                    f"{fname}:{prop}"
+
+    def test_no_okf_version_note_key_wanted(self):
+        # Q6 decision: okf_version is NOT a frontmatter key — the schemas
+        # must reject it (additionalProperties: false + not enumerated).
+        assert "okf_version" not in json.loads(
+            (FMS.SCHEMA_DIR / FMS.SCHEMA_FILES["company"]).read_text()
+        )["properties"]
+        errs = FMS.validate_frontmatter(
+            dict(GOOD_COMPANY, okf_version="0.2"), "company")
+        assert errs != []

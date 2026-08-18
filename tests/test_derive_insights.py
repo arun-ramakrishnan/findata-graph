@@ -858,3 +858,140 @@ def test_unit_of_none():
 def test_edition_title_from_stem():
     result = di._edition_title("Newsletter_2024_01_15_Tech", "")
     assert result is not None
+
+
+# --------------------------------------------------------------------------- #
+# OKF v0.2 generated/stale_after bump (okf_adoption.md §2.3)                    #
+# --------------------------------------------------------------------------- #
+import yaml  # noqa: E402
+
+from helpers.core.frontmatter import bump_generated  # noqa: E402
+
+_OKF_NOTE = """---
+title: Marico
+type: company
+sector: FMCG
+created: 2025-11-16
+verified:
+- by: human:arun
+  at: 2026-08-18T12:00:00Z
+tags: [entity_type/company, sector/fmcg]
+---
+
+## Company Overview
+
+Marico body.
+"""
+
+
+class TestOkfBumpGenerated:
+    def test_generated_and_stale_after_set(self):
+        out = bump_generated(_OKF_NOTE, "derive_insights.py/v1",
+                             now="2026-08-18T09:00:00Z")
+        fm = yaml.safe_load(out.split("\n---\n")[0][4:])
+        assert fm["generated"] == {"by": "derive_insights.py/v1",
+                                   "at": "2026-08-18T09:00:00Z"}
+        # no sources -> base = derive date + 180d
+        assert fm["stale_after"] == "2027-02-14"
+
+    def test_verified_survives_bump_byte_exact(self):
+        out = bump_generated(_OKF_NOTE, "derive_insights.py/v1",
+                             now="2026-08-18T09:00:00Z")
+        fm = yaml.safe_load(out.split("\n---\n")[0][4:])
+        assert fm["verified"] == [{"by": "human:arun",
+                                   "at": "2026-08-18T12:00:00Z"}]
+
+    def test_stale_after_uses_max_source_last_modified(self):
+        note = _OKF_NOTE.replace(
+            "tags:",
+            "sources:\n- id: a\n  resource: /Reports/A.pdf\n"
+            "  last_modified: 2026-08-01\n"
+            "- id: b\n  resource: /Reports/B.pdf\n"
+            "  last_modified: 2026-08-13\ntags:",
+        )
+        out = bump_generated(note, "x", now="2026-08-18T09:00:00Z")
+        fm = yaml.safe_load(out.split("\n---\n")[0][4:])
+        assert fm["stale_after"] == "2027-02-09"  # 2026-08-13 + 180
+
+    def test_body_preserved_byte_exact(self):
+        out = bump_generated(_OKF_NOTE, "x", now="2026-08-18T09:00:00Z")
+        assert out.endswith("---\n\n## Company Overview\n\nMarico body.\n")
+
+    def test_key_order_preserved(self):
+        out = bump_generated(_OKF_NOTE, "x", now="2026-08-18T09:00:00Z")
+        keys = list(yaml.safe_load(out.split("\n---\n")[0][4:]))
+        assert keys[:3] == ["title", "type", "sector"]
+
+    def test_no_frontmatter_unchanged(self):
+        assert bump_generated("# bare note\n", "x") == "# bare note\n"
+
+    def test_broken_yaml_unchanged(self):
+        bad = "---\ntitle: [unclosed\n---\nbody"
+        assert bump_generated(bad, "x") == bad
+
+    def test_idempotent_shape_when_now_fixed(self):
+        a = bump_generated(_OKF_NOTE, "x", now="2026-08-18T09:00:00Z")
+        b = bump_generated(a, "x", now="2026-08-18T09:00:00Z")
+        assert a == b
+
+    def test_schema_clean_after_bump(self):
+        from helpers.validators.frontmatter_schema import validate_frontmatter
+        out = bump_generated(_OKF_NOTE, "derive_insights.py/v1",
+                             now="2026-08-18T09:00:00Z")
+        fm = yaml.safe_load(out.split("\n---\n")[0][4:])
+        fm.update(normalized_name="Marico",
+                  permalink="/companies/fmcg/marico",
+                  last_modified="2026-07-07", market_cap="large_cap",
+                  ticker=None)  # required key; null = unlisted
+        assert validate_frontmatter(fm, "company") == []
+
+
+class TestRenderNotesBumpsFrontmatter:
+    """render_notes (apply path) bumps generated on every note write."""
+
+    NOTE = _OKF_NOTE
+
+    def _setup(self, tmp_path):
+        conn = _connect(tmp_path)
+        note = tmp_path / "Marico.md"
+        note.write_text(self.NOTE, encoding="utf-8")
+        conn.execute(
+            "INSERT INTO entities(name, file_path) VALUES (?, ?)",
+            ("Marico", str(note)),
+        )
+        conn.commit()
+        return conn, note
+
+    def test_write_bumps_generated(self, tmp_path):
+        conn, note = self._setup(tmp_path)
+        quotes = [di.Quote(entity="Marico", quote_text="q1",
+                           speaker_name="A", speaker_title="B",
+                           as_of_edition="Marico DLF BSE",
+                           source_ref="derive:quotes:X:1")]
+        try:
+            written, _ = di.render_notes(
+                {("Marico", "Marico DLF BSE"): quotes},
+                dry_run=False, conn=conn,
+            )
+            assert written == 1
+            fm = yaml.safe_load(note.read_text().split("\n---\n")[0][4:])
+            assert fm["generated"]["by"] == di._OKF_ACTOR
+            assert fm["verified"] == [{"by": "human:arun",
+                                       "at": "2026-08-18T12:00:00Z"}]
+            assert "BEGIN auto chatter block" in note.read_text()
+        finally:
+            conn.close()
+
+    def test_dry_run_leaves_note_untouched(self, tmp_path):
+        conn, note = self._setup(tmp_path)
+        quotes = [di.Quote(entity="Marico", quote_text="q1",
+                           speaker_name="A", speaker_title="B",
+                           as_of_edition="Marico DLF BSE",
+                           source_ref="derive:quotes:X:1")]
+        try:
+            before = note.read_text()
+            di.render_notes({("Marico", "Marico DLF BSE"): quotes},
+                            dry_run=True, conn=conn)
+            assert note.read_text() == before  # no generated key yet
+        finally:
+            conn.close()

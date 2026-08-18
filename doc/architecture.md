@@ -44,7 +44,7 @@ snapshots/            git-tracked Parquet snapshot (per-table + schema DDL) — 
 db-backup/            local scratch: gzip snapshots + raw *_backup.* copies (gitignored)
 findata/              the vault (see findata.md for layout & note format)
 helpers/              core/ graph/ maintenance/ misc/ pdf/ validators/
-doc/                  this file, schema.md, findata.md, graph_design.txt,
+doc/                  this file, schema.md, findata.md, okf.md, graph_design.txt,
                       procedures/, improvements/{pending,completed,archive}
 tests/                pytest suite (~1.6k tests; qa gate = not-live subset)
 frontend/             TypeScript UI sources

@@ -54,6 +54,104 @@
     },
     "last_modified": {
       "$ref": "#/$defs/isoDate"
+    },
+    "generated": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "OKF v0.2 \u00a75.2 \u2014 who wrote this content and when (provenance).",
+      "properties": {
+        "by": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Actor convention: <producer>/<version> | human:<id> | process:<id>."
+        },
+        "at": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}[Tt].*$",
+          "description": "ISO 8601 datetime of last meaningful content change (UTC recommended)."
+        }
+      },
+      "required": [
+        "by",
+        "at"
+      ],
+      "x-okf-version": "0.2"
+    },
+    "verified": {
+      "type": "array",
+      "description": "OKF v0.2 \u00a75.2/\u00a75.3 \u2014 independent confirmations. Array (never bare map) at write time.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "by": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Verifier; human:<id> => human-reviewed trust tier."
+          },
+          "at": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}[Tt].*$",
+            "description": "ISO 8601 datetime of the verification."
+          }
+        },
+        "required": [
+          "by",
+          "at"
+        ]
+      },
+      "x-okf-version": "0.2"
+    },
+    "sources": {
+      "type": "array",
+      "description": "OKF v0.2 \u00a75.1 \u2014 materials this concept derives from.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Stable key; joins body footnotes [^id]."
+          },
+          "resource": {
+            "type": "string",
+            "minLength": 1,
+            "description": "REQUIRED. URL or bundle-relative (/Reports/...) path."
+          },
+          "title": {
+            "type": "string",
+            "description": "Human-readable source title."
+          },
+          "author": {
+            "type": "string",
+            "description": "Optional OKF \u00a75.1 credibility signal (actor convention, \u00a77)."
+          },
+          "last_modified": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "description": "Credibility signal; YYYY-MM-DD."
+          }
+        },
+        "required": [
+          "id",
+          "resource"
+        ]
+      },
+      "x-okf-version": "0.2"
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "stable",
+        "deprecated"
+      ],
+      "description": "OKF v0.2 \u00a75.4 \u2014 lifecycle state; absent = stable.",
+      "x-okf-version": "0.2"
+    },
+    "stale_after": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "OKF v0.2 \u00a75.5 \u2014 absolute stale date (YYYY-MM-DD); today >= stale_after => stale.",
+      "x-okf-version": "0.2"
     }
   },
   "$defs": {

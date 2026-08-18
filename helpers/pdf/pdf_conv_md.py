@@ -41,8 +41,21 @@ from urllib.parse import urlparse
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from helpers.pdf.common import slugify  # noqa: E402
+from helpers.core.frontmatter import (  # noqa: E402
+    iso_now_utc,
+    moddate_to_iso_date,
+    render_frontmatter,
+)
 
 import requests
+
+# Known series -> publisher (newsletter_notes_adoption.md S2, accepted Q1:
+# omit-when-unknown — extend this map when a new series lands).
+_PUBLISHER_BY_SERIES = {
+    "the_chatter": "zerodha",
+    "points_and_figures": "zerodha",
+    "the_plotlines": "zerodha",
+}
 
 JOB_URL = "https://paddleocr.aistudio-app.com/api/v2/ocr/jobs"
 DEFAULT_MODEL = "PP-StructureV3"
@@ -212,8 +225,104 @@ def resolve_markdown(text: str, images: dict) -> str:
     return IMGSRC_RE.sub(lambda m: f'src="{images.get(m.group(1), m.group(1))}"', text)
 
 
-def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: bool) -> None:
-    """Write combined .md, raw .json, and (optionally) download images."""
+def _pdf_metadata(pdf_path: Path) -> dict[str, str]:
+    """Title/ModDate from pdfinfo; {} when pdfinfo is missing or fails.
+
+    The values feed the OKF ``sources[]`` credibility signals
+    (okf_adoption.md §2.2); absence is tolerated — keys are simply omitted.
+    """
+    import shutil
+    import subprocess
+
+    pdfinfo = shutil.which("pdfinfo")
+    if pdfinfo is None:
+        return {}
+    try:
+        proc = subprocess.run(  # noqa: S603  # resolved absolute path, no shell
+            [pdfinfo, str(pdf_path)],
+            capture_output=True, text=True, timeout=30, check=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return {}
+    out: dict[str, str] = {}
+    for line in proc.stdout.splitlines():
+        if ":" not in line:
+            continue
+        key, _, val = line.partition(":")
+        if key.strip() in ("Title", "ModDate") and val.strip():
+            out[key.strip()] = val.strip()
+    return out
+
+
+def _first_heading_title(pages: list[dict], stem: str) -> str:
+    """First markdown heading across the pages, else the file stem."""
+    for page in pages:
+        for line in (page.get("markdown") or {}).get("text", "").splitlines():
+            if line.startswith("#"):
+                return line.lstrip("# ").strip() or stem
+    return stem
+
+
+def build_okf_frontmatter(
+    pages: list[dict], pdf_path: Path, model: str, stem: str,
+    *, now: str | None = None, out_dir: Path | str | None = None,
+) -> str:
+    """Render the OKF v0.2 provenance frontmatter for a converted note.
+
+    - ``type: newsletter`` — self-describing; validated by
+      doc/schema/frontmatter.newsletter.v1.json since the source trees came
+      under the B1 gate (newsletter_notes_adoption.md S1/S2).
+    - ``tags``: namespaced source vocabulary — ``series/<out_dir slug>``
+      always, plus ``publisher/<slug>`` when the series is in the known map
+      (accepted Q1: omitted when unknown, never guessed).
+    - ``generated``: ``pdf_conv_md.py/<model>`` actor + ISO 8601 UTC time.
+    - ``sources``: exactly one entry, and ONLY when the source PDF sits
+      under ``Reports/`` (accepted decision Q1) — ``resource`` is the
+      bundle-relative path with a leading ``/``; ``title`` falls back to
+      the stem when pdfinfo has none; ``last_modified`` is the PDF's
+      ModDate converted to an ISO UTC date (omitted when unknown).
+    """
+    repo_root = Path(__file__).resolve().parents[2]
+    try:
+        rel = pdf_path.resolve().relative_to(repo_root)
+    except ValueError:
+        rel = None
+    fm: dict = {"type": "newsletter"}
+    fm["title"] = _first_heading_title(pages, stem)
+    tags: list[str] = []
+    if out_dir is not None:
+        series = re.sub(r"[^a-z0-9]+", "_",
+                        Path(out_dir).name.lower()).strip("_")
+        if series:
+            tags.append(f"series/{series}")
+            publisher = _PUBLISHER_BY_SERIES.get(series)
+            if publisher:
+                tags.append(f"publisher/{publisher}")
+    if tags:
+        fm["tags"] = tags
+    fm["generated"] = {"by": f"pdf_conv_md.py/{model}", "at": now or iso_now_utc()}
+    if rel is not None and rel.parts[:1] == ("Reports",):
+        meta = _pdf_metadata(pdf_path)
+        src = {
+            "id": stem,
+            "resource": "/" + rel.as_posix(),
+            "title": meta.get("Title") or pdf_path.stem,
+            "author": "process:pdf_conv_md",
+        }
+        lm = moddate_to_iso_date(meta.get("ModDate"))
+        if lm:
+            src["last_modified"] = lm
+        fm["sources"] = [src]
+    return render_frontmatter(fm)
+
+
+def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: bool,
+                   frontmatter: str | None = None) -> None:
+    """Write combined .md, raw .json, and (optionally) download images.
+
+    ``frontmatter`` (OKF provenance block, §okf_adoption 2.2) is prepended
+    to the combined markdown when given.
+"""
     out_dir.mkdir(parents=True, exist_ok=True)
     json_path = out_dir / f"{stem}.json"
     json_path.write_text(json.dumps(pages, ensure_ascii=False), encoding="utf-8")
@@ -248,7 +357,10 @@ def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: boo
             md_parts.append(resolve_markdown(md["text"], images_map))
 
     md_path = out_dir / f"{stem}.md"
-    md_path.write_text("\n\n".join(md_parts), encoding="utf-8")
+    body = "\n\n".join(md_parts)
+    md_path.write_text(
+        (frontmatter + "\n" + body) if frontmatter else body, encoding="utf-8"
+    )
     print(f"wrote {md_path} ({md_path.stat().st_size} bytes)")
 
     if fetch_images and img_dir.exists():
@@ -293,7 +405,9 @@ def main() -> int:
 
     pages = parse_pages(lines)
     stem = slugify(pdf_path.stem)
-    write_outputs(pages, Path(args.output_dir), stem, not args.no_images)
+    fm = build_okf_frontmatter(pages, pdf_path, args.model, stem,
+                               out_dir=Path(args.output_dir))
+    write_outputs(pages, Path(args.output_dir), stem, not args.no_images, fm)
     return 0
 
 

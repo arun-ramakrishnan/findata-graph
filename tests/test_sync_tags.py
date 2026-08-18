@@ -347,3 +347,68 @@ def test_allowed_tags_all_valid():
     tags = ["entity_type/company", "sector/Banking", "market_cap/Large", "geography/India"]
     result = sync_tags.allowed_tags(tags)
     assert len(result) == 4
+
+
+# --- note_tags (newsletter_notes_adoption S4) --------------------------------
+
+
+def _newsletter_note(tags: list[str]) -> str:
+    tag_lines = "\n".join(f"- {t}" for t in tags)
+    return f"---\ntype: newsletter\ntags:\n{tag_lines}\n---\n# Ed\nbody\n"
+
+
+class TestNoteTags:
+    def test_rebuilt_from_source_trees(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(sync_tags, "_REPO_ROOT", tmp_path)
+        chatter = tmp_path / "findata" / "The_Chatter"
+        chatter.mkdir(parents=True)
+        (chatter / "Ed_One.md").write_text(
+            _newsletter_note(["series/the_chatter", "publisher/zerodha",
+                              "company/x_co"])
+        )
+        (chatter / "image_map.md").write_text("chrome\n")  # skipped
+
+        db_path = tmp_path / "test.db"
+        _seed_db(db_path, [])
+        assert _run_sync(db_path) == 0
+
+        rows = sqlite3.connect(db_path).execute(
+            "SELECT tag FROM note_tags ORDER BY tag"
+        ).fetchall()
+        assert rows == [("company/x_co",), ("publisher/zerodha",),
+                        ("series/the_chatter",)]
+
+    def test_only_whitelisted_namespaces_mirrored(self, tmp_path, monkeypatch):
+        # entity_type/company is valid YAML on any note, but note_tags
+        # mirrors only the source vocabulary (series/publisher/company).
+        monkeypatch.setattr(sync_tags, "_REPO_ROOT", tmp_path)
+        chatter = tmp_path / "findata" / "The_Chatter"
+        chatter.mkdir(parents=True)
+        (chatter / "Ed.md").write_text(
+            _newsletter_note(["series/the_chatter", "entity_type/company",
+                              "mystery/tag"])
+        )
+        db_path = tmp_path / "test.db"
+        _seed_db(db_path, [])
+        _run_sync(db_path)
+        rows = sqlite3.connect(db_path).execute(
+            "SELECT tag FROM note_tags"
+        ).fetchall()
+        assert rows == [("series/the_chatter",)]
+
+    def test_full_rebuild_drops_stale_rows(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(sync_tags, "_REPO_ROOT", tmp_path)
+        chatter = tmp_path / "findata" / "The_Chatter"
+        chatter.mkdir(parents=True)
+        note = chatter / "Ed.md"
+        note.write_text(_newsletter_note(["series/the_chatter"]))
+        db_path = tmp_path / "test.db"
+        _seed_db(db_path, [])
+        _run_sync(db_path)
+        # Tag removed from the note -> next sync must drop the row.
+        note.write_text(_newsletter_note(["publisher/zerodha"]))
+        _run_sync(db_path)
+        rows = sqlite3.connect(db_path).execute(
+            "SELECT tag FROM note_tags"
+        ).fetchall()
+        assert rows == [("publisher/zerodha",)]
