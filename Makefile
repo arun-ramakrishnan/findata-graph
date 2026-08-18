@@ -62,7 +62,7 @@ test:           ## pytest unit tests only (no live DB, no slow benchmarks)
 > pytest -m "not live"
 
 live-invariants: ## Run ONLY the live-marked invariant tests (-m live; skip-safe on pristine clone)
-> pytest -m live -q
+> pytest -m live 
 > @echo "✓ live invariant tests passed"
 
 perf:           ## Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt
