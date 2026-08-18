@@ -2196,7 +2196,7 @@ closed. New code should prefer `close_connection()` over bare
 adoption). Tests: 76 across touched suites + 19 perf benchmarks — green.
 
 
-## 128. C2 link-prediction suggestions + A3 Parquet analytics
+## 129. C2 link-prediction suggestions + A3 Parquet analytics
 
 **C2 — suggested relations (helpers/graph/suggest_relations.py).**
 Closed-loop suggestions with zero new UI: ``onager_link_prediction`` (jaccard
@@ -2229,7 +2229,7 @@ test_analytics.py (13: synthetic parquet snapshot tree, all four reports,
 render determinism, CLI, live tree) — 25 passing. Gates: ruff, lint-audit,
 make types, ty advisory, static-checks — green. Procedure doc + findata.md
 note the new sidecar row kind.
-**Advisory wiring (user decision 2026-08-18):** both targets joined
+**Advisory wiring (user decision 2026-08-18; entry #129 supersedes the duplicate #128 numbering):** both targets joined
 ``make advisory``'s ``-k`` smoke list (graph-algos class — read-only,
 execution smoke against the built workspace; plain ``make test`` deselects
 ``-m live`` so advisory is the only automated sweep that runs these paths).
