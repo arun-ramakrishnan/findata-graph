@@ -1,3 +1,14 @@
+---
+type: newsletter
+title: 'Points and Figures: From Visual Noise to Narrative'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
+tags:
+- series/points_and_figures
+- publisher/zerodha
+---
 # Points and Figures: From Visual Noise to Narrative 
 
 Edition \#1

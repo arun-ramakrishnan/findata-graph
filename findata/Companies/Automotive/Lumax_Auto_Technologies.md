@@ -16,6 +16,19 @@ tags:
 - risk_investment/medium_risk
 created: '2025-11-21'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: A_Strange_Quarter_With_Very_Real_Cracks
+  resource: /findata/The_Chatter/A_Strange_Quarter_With_Very_Real_Cracks.md
+  title: 'The Chatter: A Strange Quarter With Very Real Cracks'
+  last_modified: '2026-08-15'
 ---
 
 # Lumax Auto Technologies

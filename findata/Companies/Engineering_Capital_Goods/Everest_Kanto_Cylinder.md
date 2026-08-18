@@ -16,8 +16,25 @@ tags:
 - geography/india
 - business_model/b2b
 - risk_investment/medium_risk
-created: 2026-07-04
-last_modified: 2026-07-04
+created: '2026-07-04'
+last_modified: '2026-07-04'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-04T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: TCS_IFB_Gulf_Oil
+  resource: /findata/The_Chatter/TCS_IFB_Gulf_Oil.md
+  title: 'The Chatter: TCS, IFB, Gulf Oil, Hinduja & More'
+  last_modified: '2026-08-15'
+- id: Underneath_the_Noise
+  resource: /findata/The_Chatter/Underneath_the_Noise.md
+  title: 'The Chatter: Underneath the Noise'
+  last_modified: '2026-08-15'
 ---
 
 # Everest Kanto Cylinder

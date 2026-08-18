@@ -16,8 +16,21 @@ tags:
 - geography/india
 - business_model/b2b
 - risk_investment/high_growth
-created: 2026-06-29
-last_modified: 2026-06-29
+created: '2026-06-29'
+last_modified: '2026-06-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Havells_Ambuja_Cipla
+  resource: /findata/The_Chatter/Havells_Ambuja_Cipla.md
+  title: 'The Chatter: Havells, Ambuja, Cipla & More'
+  last_modified: '2026-08-15'
 ---
 
 # Pajson Agro India

@@ -1,3 +1,20 @@
+---
+type: newsletter
+title: 'The Chatter: Dixon, Motherson, Biocon, Glenmark & More'
+sources:
+- id: Dixon_Motherson_Biocon
+  resource: /Reports/Dixon_Motherson_Biocon.pdf
+  title: 'The Chatter: Dixon, Motherson, Biocon, Glenmark & More'
+  author: process:pdf_conv_md
+  last_modified: '2026-08-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-03'
+tags:
+- series/the_chatter
+- publisher/zerodha
+---
 <div align="center">
 
 # The Chatter: Dixon, Motherson, Biocon, Glenmark & More

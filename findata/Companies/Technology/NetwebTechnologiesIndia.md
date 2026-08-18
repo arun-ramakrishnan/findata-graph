@@ -15,8 +15,12 @@ tags:
 - geography/india
 - risk_investment/medium_risk
 - business_model/b2b
-created: 2026-01-25
-last_modified: 2026-01-25
+created: '2026-01-25'
+last_modified: '2026-01-25'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-25T00:00:00Z'
+stale_after: '2026-07-24'
 ---
 # Netweb Technologies India
 

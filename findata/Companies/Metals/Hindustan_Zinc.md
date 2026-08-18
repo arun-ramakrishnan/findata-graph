@@ -1,7 +1,7 @@
 ---
 title: Hindustan Zinc
 type: company
-ticker: "HINDZINC.NS"
+ticker: HINDZINC.NS
 sector: Metals
 industry: Other Industrial Metals & Mining
 market_cap: large_cap
@@ -9,14 +9,31 @@ normalized_name: Hindustan_Zinc
 file_path: findata/Companies/Metals/Hindustan_Zinc.md
 permalink: /companies/metals/hindustan_zinc
 tags:
-  - entity_type/company
-  - sector/metals
-  - market_cap/large_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/dividend
-created: 2026-01-21
-last_modified: 2026-01-21
+- entity_type/company
+- sector/metals
+- market_cap/large_cap
+- geography/india
+- business_model/b2b
+- risk_investment/dividend
+created: '2026-01-21'
+last_modified: '2026-01-21'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-21T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Management_in_Motion
+  resource: /findata/The_Chatter/Management_in_Motion.md
+  title: 'The Chatter: Management in Motion'
+  last_modified: '2026-08-15'
+- id: Reliance_Infosys_VBL
+  resource: /findata/The_Chatter/Reliance_Infosys_VBL.md
+  title: 'The Chatter: Reliance, Infosys, VBL, Hind Zir & More'
+  last_modified: '2026-08-15'
 ---
 
 # Hindustan Zinc | Large Cap | Metals

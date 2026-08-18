@@ -1,7 +1,7 @@
 ---
 title: Tips Music
 type: company
-ticker: "TIPSMUSIC.NS"
+ticker: TIPSMUSIC.NS
 sector: Media_Entertainment
 industry: Entertainment
 market_cap: small_cap
@@ -9,14 +9,18 @@ normalized_name: Tips_Music
 file_path: findata/Companies/Media_Entertainment/Tips_Music.md
 permalink: /companies/media_entertainment/tips_music
 tags:
-  - entity_type/company
-  - sector/media_entertainment
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/medium_risk
-created: 2026-01-21
-last_modified: 2026-01-21
+- entity_type/company
+- sector/media_entertainment
+- market_cap/small_cap
+- geography/india
+- business_model/b2b
+- risk_investment/medium_risk
+created: '2026-01-21'
+last_modified: '2026-01-21'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-21T00:00:00Z'
+stale_after: '2026-07-20'
 ---
 
 # Tips Music | Small Cap | Media & Entertainment

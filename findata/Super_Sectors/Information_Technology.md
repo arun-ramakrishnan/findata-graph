@@ -9,6 +9,10 @@ tags:
 - super_sector/information_technology
 created: '2026-08-10'
 last_modified: '2026-08-10'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-10T00:00:00Z'
+stale_after: '2027-02-06'
 ---
 
 # Information Technology

@@ -16,6 +16,19 @@ tags:
 - risk_investment/growth
 created: '2025-11-16'
 last_modified: '2026-06-25'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-25T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Bajaj_Mahindra_Persistent
+  resource: /findata/The_Chatter/Bajaj_Mahindra_Persistent.md
+  title: 'The Chatter: Bajaj, Mahindra, Persistent Indian Hotels & More'
+  last_modified: '2026-08-15'
+- id: Half_a_century_in
+  resource: /findata/The_Chatter/Half_a_century_in.md
+  title: 'The Chatter: Half a century in'
+  last_modified: '2026-08-15'
 ---
 
 # Precision Camshafts

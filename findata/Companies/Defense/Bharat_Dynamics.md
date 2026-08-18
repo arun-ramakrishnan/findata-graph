@@ -16,6 +16,10 @@ tags:
 - sector/defense
 created: '2025-11-16'
 last_modified: '2025-12-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-28T00:00:00Z'
+stale_after: '2026-06-26'
 ---
 
 # Bharat Dynamics Limited

@@ -10,16 +10,25 @@ file_path: findata/Companies/FMCG/Sapphire_Foods_India.md
 permalink: /companies/fmcg/sapphire_foods_india
 exchange: NSE
 tags:
-  - entity_type/company
-  - sector/fmcg
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2c
-  - risk_investment/high_risk
-  - industry/restaurants
-  - industry/qsr
+- entity_type/company
+- sector/fmcg
+- market_cap/small_cap
+- geography/india
+- business_model/b2c
+- risk_investment/high_risk
+- industry/restaurants
+- industry/qsr
 created: '2026-01-10'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
 ---
 
 # Sapphire Foods India Limited

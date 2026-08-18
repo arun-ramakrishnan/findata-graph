@@ -16,6 +16,27 @@ tags:
 - risk_investment/dividend
 created: '2025-12-10'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: BEL_HUL_Tata_Capital
+  resource: /findata/The_Chatter/BEL_HUL_Tata_Capital.md
+  title: Bharat Electronics Limited | Large Cap | Aerospace & Defence
+  last_modified: '2026-08-15'
+- id: Clarity_Beneath_the_Complexity
+  resource: /findata/Points_And_Figures/Clarity_Beneath_the_Complexity.md
+  title: 'Points \& Figures: Clarity Beneath the Complexity'
+  last_modified: '2026-08-15'
+- id: Reliance_Infosys_VBL
+  resource: /findata/The_Chatter/Reliance_Infosys_VBL.md
+  title: 'The Chatter: Reliance, Infosys, VBL, Hind Zir & More'
+  last_modified: '2026-08-15'
 ---
 
 # Tata Capital

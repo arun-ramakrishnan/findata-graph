@@ -17,6 +17,27 @@ tags:
 - risk_investment/medium_risk
 created: '2026-01-14'
 last_modified: '2026-06-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: TCS_ICICI_Pru_HDB_Financials
+  resource: /findata/The_Chatter/TCS_ICICI_Pru_HDB_Financials.md
+  title: 'The Chatter: TCS, ICICI Pru, HDB Financials More'
+  last_modified: '2026-08-15'
+- id: Weight_in_the_Whispers
+  resource: /findata/Points_And_Figures/Weight_in_the_Whispers.md
+  title: 'Points &amp; Figures: Weight in the Whispers'
+  last_modified: '2026-08-15'
 ---
 
 # Krishana Phoschem

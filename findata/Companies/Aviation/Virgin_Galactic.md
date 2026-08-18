@@ -17,6 +17,10 @@ tags:
 - risk_investment/high_growth
 created: '2025-12-05'
 last_modified: '2025-12-05'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-05T00:00:00Z'
+stale_after: '2026-06-03'
 ---
 
 # Virgin Galactic

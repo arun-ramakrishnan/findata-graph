@@ -16,6 +16,10 @@ tags:
 - risk_investment/high_growth
 created: '2025-12-16'
 last_modified: '2025-12-31'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-31T00:00:00Z'
+stale_after: '2026-06-29'
 ---
 # Purple United Sales
 

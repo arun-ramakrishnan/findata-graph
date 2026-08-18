@@ -8,7 +8,7 @@ market_cap: large_cap
 normalized_name: Voltas
 file_path: findata/Companies/Consumer/Voltas.md
 permalink: /companies/consumer/voltas
-index_membership:
+index_membership: null
 tags:
 - entity_type/company
 - sector/consumer
@@ -20,6 +20,19 @@ tags:
 - financial_tags/dividend_paying
 created: '2026-06-28'
 last_modified: '2026-06-28'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-28T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Titan_Dixon_Cipla
+  resource: /findata/The_Chatter/Titan_Dixon_Cipla.md
+  title: 'The Chatter: Titan, Dixon, JSW Steel, Cipla & More'
+  last_modified: '2026-08-15'
 ---
 
 # Voltas

@@ -15,8 +15,25 @@ tags:
 - geography/india
 - business_model/b2b
 - risk_investment/medium_risk
-created: 2026-06-23
+created: '2026-06-23'
 last_modified: '2026-07-11'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-11T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Patience_and_payoff
+  resource: /findata/The_Chatter/Patience_and_payoff.md
+  title: 'The Chatter: Patience & payoff'
+  last_modified: '2026-08-15'
+- id: TCS_Indian_Bank_Amagi
+  resource: /findata/The_Chatter/TCS_Indian_Bank_Amagi.md
+  title: 'The Chatter: TCS, Indian Bank, Amagi, CMR Green & More'
+  last_modified: '2026-08-15'
 ---
 
 # Premier Explosives

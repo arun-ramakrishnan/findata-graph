@@ -15,8 +15,12 @@ tags:
 - geography/india
 - business_model/b2b
 - risk_investment/medium_risk
-created: 2026-06-23
-last_modified: 2026-06-23
+created: '2026-06-23'
+last_modified: '2026-06-23'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-23T00:00:00Z'
+stale_after: '2026-12-20'
 ---
 
 # Indag Rubber

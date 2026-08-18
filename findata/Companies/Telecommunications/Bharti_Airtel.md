@@ -16,6 +16,15 @@ tags:
 - sector/telecommunications
 created: '2025-11-16'
 last_modified: '2026-06-24'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-24T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Threads_in_the_data
+  resource: /findata/The_Chatter/Threads_in_the_data.md
+  title: 'The Chatter: Threads in the data'
+  last_modified: '2026-08-15'
 ---
 # Bharti Airtel
 

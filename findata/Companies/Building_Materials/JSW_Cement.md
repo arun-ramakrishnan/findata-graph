@@ -1,6 +1,5 @@
 ---
 title: JSW Cement Limited
-title: JSW Cement Limited
 type: company
 ticker: JSWCEMENT.NS
 sector: Building_Materials
@@ -20,6 +19,19 @@ tags:
 - industry/infrastructure
 created: '2025-12-28'
 last_modified: '2025-12-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-28T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: The_Truth_Behind_the_Trendlines
+  resource: /findata/Points_And_Figures/The_Truth_Behind_the_Trendlines.md
+  title: 'Points \& Figures: The Truth Behind the'
+  last_modified: '2026-08-15'
 ---
 
 # JSW Cement Limited

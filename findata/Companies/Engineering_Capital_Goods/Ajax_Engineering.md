@@ -1,7 +1,7 @@
 ---
 title: Ajax Engineering
 type: company
-ticker: 
+ticker: null
 sector: Engineering_Capital_Goods
 industry: Entertainment
 market_cap: mid_cap
@@ -24,6 +24,15 @@ tags:
 - investment_theme/automation
 created: '2025-11-16'
 last_modified: '2025-12-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-28T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Beyond_Results_Into_the_Plot
+  resource: /findata/The_PlotLines/Beyond_Results_Into_the_Plot.md
+  title: 'Plotlines: Beyond Results, Into the Plot'
+  last_modified: '2026-08-15'
 ---
 
 # Ajax Engineering Limited

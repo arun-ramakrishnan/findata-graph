@@ -24,6 +24,15 @@ tags:
 - investment_theme/government_owned
 created: '2025-11-16'
 last_modified: '2025-12-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-28T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Where_Data_meets_Direction
+  resource: /findata/Points_And_Figures/Where_Data_meets_Direction.md
+  title: 'Points \& Figures: Where Data meets Directic'
+  last_modified: '2026-08-15'
 ---
 
 # NTPC Parmanu Urja Nigam Limited

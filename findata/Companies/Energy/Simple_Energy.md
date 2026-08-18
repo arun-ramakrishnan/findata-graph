@@ -1,7 +1,7 @@
 ---
 title: Simple Energy
 type: company
-ticker: 
+ticker: null
 sector: Energy
 industry: null
 market_cap: large_cap
@@ -17,6 +17,10 @@ tags:
 - sector/energy
 created: '2025-11-16'
 last_modified: '2026-08-05'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-05T00:00:00Z'
+stale_after: '2027-02-01'
 ---
 
 # Simple Energy

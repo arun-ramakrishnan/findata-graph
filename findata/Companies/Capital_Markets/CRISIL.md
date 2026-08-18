@@ -16,6 +16,27 @@ tags:
 - risk_investment/dividend
 created: '2025-12-10'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Clarity_Beneath_the_Complexity
+  resource: /findata/Points_And_Figures/Clarity_Beneath_the_Complexity.md
+  title: 'Points \& Figures: Clarity Beneath the Complexity'
+  last_modified: '2026-08-15'
+- id: Grain_in_the_graphs
+  resource: /findata/Points_And_Figures/Grain_in_the_graphs.md
+  title: 'Points & Figures: Grain in the graphs'
+  last_modified: '2026-08-15'
+- id: Management_in_Motion
+  resource: /findata/The_Chatter/Management_in_Motion.md
+  title: 'The Chatter: Management in Motion'
+  last_modified: '2026-08-15'
 ---
 
 # CRISIL Limited

@@ -16,6 +16,19 @@ tags:
 - risk_investment/growth
 created: '2026-08-03'
 last_modified: '2026-08-03'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-03T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Pressure_Points
+  resource: /findata/The_Chatter/Pressure_Points.md
+  title: 'The Chatter: Pressure Points'
+  last_modified: '2026-08-15'
 ---
 # Adobe
 

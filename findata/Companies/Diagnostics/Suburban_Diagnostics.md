@@ -1,7 +1,7 @@
 ---
 title: Suburban Diagnostics
 type: company
-ticker: 
+ticker: null
 sector: Diagnostics
 industry: Utilities - Regulated Gas
 market_cap: mid_cap
@@ -15,7 +15,11 @@ tags:
 - risk_investment/growth
 - sector/diagnostics
 created: '2025-11-16'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-01-03'
 ---
 # Suburban Diagnostics
 

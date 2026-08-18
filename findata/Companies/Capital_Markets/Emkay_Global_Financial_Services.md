@@ -16,6 +16,10 @@ tags:
 - risk_investment/high_growth
 created: '2026-01-07'
 last_modified: '2026-01-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-07T00:00:00Z'
+stale_after: '2026-07-06'
 ---
 # Emkay Global Financial Services Ltd.
 

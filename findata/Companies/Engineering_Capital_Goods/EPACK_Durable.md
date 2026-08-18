@@ -17,6 +17,19 @@ ticker: EPACK.NS
 created: '2026-08-13'
 last_modified: '2026-08-13'
 permalink: /companies/engineering_capital_goods/epack_durable
+generated:
+  by: process:okf_backfill
+  at: '2026-08-13T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Bosch_Amara_Zydus
+  resource: /findata/The_Chatter/Bosch_Amara_Zydus.md
+  title: Zydus Lifesciences Ltd.|Large Cap| Pharmaceuticals
+  last_modified: '2026-08-15'
 ---
 
 # EPACK Durable

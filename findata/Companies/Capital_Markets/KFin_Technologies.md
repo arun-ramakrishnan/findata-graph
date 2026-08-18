@@ -9,15 +9,19 @@ normalized_name: KFin_Technologies
 file_path: findata/Companies/Financial_Services/KFin_Technologies.md
 permalink: /companies/capital_markets/kfin_technologies
 tags:
-  - entity_type/company
-  - sector/capital_markets
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/growth
-  - financial_tags/profitable
+- entity_type/company
+- sector/capital_markets
+- market_cap/small_cap
+- geography/india
+- business_model/b2b
+- risk_investment/growth
+- financial_tags/profitable
 created: '2026-06-17'
 last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2026-12-14'
 ---
 
 # KFin Technologies

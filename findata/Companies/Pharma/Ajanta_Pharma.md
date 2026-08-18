@@ -18,6 +18,15 @@ tags:
 - sector/pharma
 created: '2025-11-16'
 last_modified: '2026-08-05'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-05T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Reading_the_terrain
+  resource: /findata/The_Chatter/Reading_the_terrain.md
+  title: 'The Chatter: Reading the terrain'
+  last_modified: '2026-08-15'
 ---
 
 # Ajanta Pharma Limited

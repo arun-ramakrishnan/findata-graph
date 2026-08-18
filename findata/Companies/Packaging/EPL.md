@@ -16,6 +16,27 @@ tags:
 - sector/packaging
 created: '2025-11-16'
 last_modified: '2026-06-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Havells_Ambuja_Cipla
+  resource: /findata/The_Chatter/Havells_Ambuja_Cipla.md
+  title: 'The Chatter: Havells, Ambuja, Cipla & More'
+  last_modified: '2026-08-15'
+- id: No_shortcuts_here
+  resource: /findata/Points_And_Figures/No_shortcuts_here.md
+  title: 'Points & Figures: No shortcuts here'
+  last_modified: '2026-08-15'
+- id: Tariffs__Tailwinds.
+  resource: /findata/The_Chatter/Tariffs__Tailwinds..md
+  title: 'The Chatter: Tariffs \& Tailwinds.'
+  last_modified: '2026-08-15'
 ---
 
 # EPL Limited (formerly Essel Propack Limited)

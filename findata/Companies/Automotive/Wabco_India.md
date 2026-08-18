@@ -1,7 +1,7 @@
 ---
 title: Wabco India
 type: company
-ticker: 
+ticker: null
 sector: Automotive
 industry: null
 market_cap: large_cap
@@ -17,6 +17,10 @@ tags:
 - sector/automotive
 created: '2025-11-16'
 last_modified: '2025-12-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-28T00:00:00Z'
+stale_after: '2026-06-26'
 ---
 
 # Wabco India

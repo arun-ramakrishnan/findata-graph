@@ -16,6 +16,15 @@ tags:
 - risk_investment/medium_risk
 created: '2025-11-16'
 last_modified: '2026-06-24'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-24T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Tata_Steel_LIC
+  resource: /findata/The_Chatter/Tata_Steel_LIC.md
+  title: 'The Chatter: Tata Steel, LIC, Vodafone, BPCL & More'
+  last_modified: '2026-08-15'
 ---
 
 # Godawari Power & Ispat

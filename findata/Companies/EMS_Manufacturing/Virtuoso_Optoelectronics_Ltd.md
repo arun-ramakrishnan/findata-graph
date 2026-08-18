@@ -16,6 +16,10 @@ tags:
 - risk_investment/medium_risk
 created: '2025-12-03'
 last_modified: '2025-12-03'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-03T00:00:00Z'
+stale_after: '2026-06-01'
 ---
 # Virtuoso Optoelectronics Limited
 

@@ -20,6 +20,10 @@ tags:
 - risk_investment/medium_risk
 created: '2026-07-19'
 last_modified: '2026-07-19'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-19T00:00:00Z'
+stale_after: '2027-01-15'
 ---
 
 # Holcim

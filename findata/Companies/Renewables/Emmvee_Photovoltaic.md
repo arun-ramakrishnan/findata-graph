@@ -1,7 +1,7 @@
 ---
 title: Emmvee Photovoltaic
 type: company
-ticker: "EMMVEE.NS"
+ticker: EMMVEE.NS
 sector: Renewables
 industry: null
 market_cap: small_cap
@@ -9,14 +9,18 @@ normalized_name: Emmvee_Photovoltaic
 file_path: findata/Companies/Engineering_Capital_Goods/Emmvee_Photovoltaic.md
 permalink: /companies/renewables/emmvee_photovoltaic
 tags:
-  - entity_type/company
-  - sector/renewables
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/growth
-created: 2026-01-21
-last_modified: 2026-07-07
+- entity_type/company
+- sector/renewables
+- market_cap/small_cap
+- geography/india
+- business_model/b2b
+- risk_investment/growth
+created: '2026-01-21'
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-01-03'
 ---
 
 # Emmvee Photovoltaic | Small Cap | Engineering & Capital Goods

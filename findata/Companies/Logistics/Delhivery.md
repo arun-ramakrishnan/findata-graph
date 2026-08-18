@@ -16,6 +16,23 @@ tags:
 - sector/logistics
 created: '2025-11-16'
 last_modified: '2026-03-01'
+generated:
+  by: process:okf_backfill
+  at: '2026-03-01T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Contours_of_Change
+  resource: /findata/The_Chatter/Contours_of_Change.md
+  title: 'The Chatter: Contours of Change'
+  last_modified: '2026-08-15'
+- id: SBI_Delhivery_Titan
+  resource: /findata/The_Chatter/SBI_Delhivery_Titan.md
+  title: 'The Chatter: SBI, Delhivery, Titan & More'
+  last_modified: '2026-08-15'
 ---
 
 # Delhivery

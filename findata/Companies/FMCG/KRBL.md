@@ -16,6 +16,23 @@ tags:
 - risk_investment/medium_risk
 created: '2026-06-20'
 last_modified: '2026-06-20'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-20T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: Bets and blueprints
+  resource: /findata/The_Chatter/Bets and blueprints.md
+  title: 'The Chatter: Bets and blueprints'
+  last_modified: '2026-08-15'
+- id: The Shape of Change
+  resource: /findata/Points_And_Figures/The Shape of Change.md
+  title: 'Points & Figures: The Shape of Change'
+  last_modified: '2026-08-15'
 ---
 
 # KRBL Limited

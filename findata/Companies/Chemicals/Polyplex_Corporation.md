@@ -16,8 +16,17 @@ tags:
 - geography/india
 - business_model/b2b
 - risk_investment/medium_risk
-created: 2025-01-24
-last_modified: 2026-06-17
+created: '2025-01-24'
+last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Grain_in_the_graphs
+  resource: /findata/Points_And_Figures/Grain_in_the_graphs.md
+  title: 'Points & Figures: Grain in the graphs'
+  last_modified: '2026-08-15'
 ---
 
 # Polyplex Corporation

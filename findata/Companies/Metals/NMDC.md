@@ -16,6 +16,15 @@ tags:
 - risk_investment/dividend
 created: '2025-11-16'
 last_modified: '2026-06-24'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-24T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Asian_Paints_NMDC_IndiGo
+  resource: /findata/The_Chatter/Asian_Paints_NMDC_IndiGo.md
+  title: 'The Chatter: Asian Paints, NMDC, IndiGo, Glenmark & More'
+  last_modified: '2026-08-15'
 ---
 
 # NMDC

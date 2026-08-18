@@ -16,6 +16,19 @@ tags:
 - risk_investment/high_growth
 created: '2026-07-03'
 last_modified: '2026-07-03'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-03T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Nvidia_Samsung_Cloudflare
+  resource: /findata/The_Chatter/Nvidia_Samsung_Cloudflare.md
+  title: 'Global Chatter: Nvidia, Samsung, Cloudflare & More'
+  last_modified: '2026-08-15'
 ---
 
 # Zoom Communications

@@ -8,7 +8,7 @@ market_cap: small_cap
 normalized_name: Ceinsys_Tech
 file_path: findata/Companies/Technology/Ceinsys_Tech.md
 permalink: /companies/technology/ceinsys_tech
-index_membership:
+index_membership: null
 tags:
 - entity_type/company
 - sector/technology
@@ -18,6 +18,15 @@ tags:
 - risk_investment/high_growth
 created: '2026-06-28'
 last_modified: '2026-06-28'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-28T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: No_shortcuts_here
+  resource: /findata/Points_And_Figures/No_shortcuts_here.md
+  title: 'Points & Figures: No shortcuts here'
+  last_modified: '2026-08-15'
 ---
 
 # Ceinsys Tech

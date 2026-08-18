@@ -9,6 +9,10 @@ tags:
 - sector/capital_markets
 created: '2026-07-05'
 last_modified: '2026-07-11'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-11T00:00:00Z'
+stale_after: '2027-01-07'
 ---
 
 # Capital Markets

@@ -16,6 +16,35 @@ tags:
 - sector/nbfc
 created: '2025-11-16'
 last_modified: '2026-08-03'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-03T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: Indian_Oil_Muthoot_Maruti
+  resource: /findata/The_Chatter/Indian_Oil_Muthoot_Maruti.md
+  title: 'The Chatter: Indian Oil, Muthoot, Maruti Suzuki & More'
+  last_modified: '2026-08-15'
+- id: Tailwinds_building
+  resource: /findata/The_Chatter/Tailwinds_building.md
+  title: 'The Chatter: Tailwinds building'
+  last_modified: '2026-08-15'
+- id: The Shape of Change
+  resource: /findata/Points_And_Figures/The Shape of Change.md
+  title: 'Points & Figures: The Shape of Change'
+  last_modified: '2026-08-15'
+- id: Titan_Dixon_Cipla
+  resource: /findata/The_Chatter/Titan_Dixon_Cipla.md
+  title: 'The Chatter: Titan, Dixon, JSW Steel, Cipla & More'
+  last_modified: '2026-08-15'
 ---
 # Muthoot Finance Limited
 

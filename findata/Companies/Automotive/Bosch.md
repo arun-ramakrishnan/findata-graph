@@ -18,6 +18,27 @@ tags:
 - sector/automotive
 created: '2025-11-16'
 last_modified: '2026-06-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Bosch_Amara_Zydus
+  resource: /findata/The_Chatter/Bosch_Amara_Zydus.md
+  title: Zydus Lifesciences Ltd.|Large Cap| Pharmaceuticals
+  last_modified: '2026-08-15'
+- id: TCS_ICICI_Pru_HDB_Financials
+  resource: /findata/The_Chatter/TCS_ICICI_Pru_HDB_Financials.md
+  title: 'The Chatter: TCS, ICICI Pru, HDB Financials More'
+  last_modified: '2026-08-15'
+- id: Tata_Steel_LIC
+  resource: /findata/The_Chatter/Tata_Steel_LIC.md
+  title: 'The Chatter: Tata Steel, LIC, Vodafone, BPCL & More'
+  last_modified: '2026-08-15'
 ---
 
 # Bosch Limited

@@ -18,6 +18,10 @@ tags:
 - sector/logistics
 created: '2025-11-16'
 last_modified: '2026-08-05'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-05T00:00:00Z'
+stale_after: '2027-02-01'
 ---
 
 # Blue Dart Express Limited

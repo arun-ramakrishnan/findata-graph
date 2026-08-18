@@ -16,6 +16,15 @@ tags:
 - risk_investment/medium_risk
 created: '2026-06-30'
 last_modified: '2026-06-30'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-30T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Titan_Dixon_Cipla
+  resource: /findata/The_Chatter/Titan_Dixon_Cipla.md
+  title: 'The Chatter: Titan, Dixon, JSW Steel, Cipla & More'
+  last_modified: '2026-08-15'
 ---
 
 # Shree Renuka Sugars

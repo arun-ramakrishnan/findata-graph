@@ -16,6 +16,15 @@ tags:
 - risk_investment/medium_risk
 created: '2025-12-16'
 last_modified: '2025-12-31'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-31T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Playing_the_Long_Game
+  resource: /findata/The_Chatter/Playing_the_Long_Game.md
+  title: 'The Chatter: Playing the Long Game'
+  last_modified: '2026-08-15'
 ---
 # Jain Resource Recycling
 

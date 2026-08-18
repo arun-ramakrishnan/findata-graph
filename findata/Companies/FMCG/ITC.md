@@ -15,8 +15,21 @@ tags:
 - geography/india
 - business_model/b2c
 - risk_investment/dividend
-created: 2026-06-23
-last_modified: 2026-06-23
+created: '2026-06-23'
+last_modified: '2026-06-23'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-23T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Patience_and_payoff
+  resource: /findata/The_Chatter/Patience_and_payoff.md
+  title: 'The Chatter: Patience & payoff'
+  last_modified: '2026-08-15'
 ---
 
 # ITC

@@ -15,7 +15,28 @@ tags:
 - business_model/b2b2c
 - risk_investment/medium_risk
 created: '2026-01-25'
-last_modified: 2026-07-17
+last_modified: '2026-07-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Jio_Financial_Wipro_Polycab
+  resource: /findata/The_Chatter/Jio_Financial_Wipro_Polycab.md
+  title: 'The Chatter: Jio Financial, Wipro, Polycab, Piramal & More'
+  last_modified: '2026-08-15'
+- id: Meesho_Marico_Bajaj
+  resource: /findata/The_Chatter/Meesho_Marico_Bajaj.md
+  title: Meesho_Marico_Bajaj
+  last_modified: '2026-08-15'
+- id: Scaling_Through_Slowdowns
+  resource: /findata/The_Chatter/Scaling_Through_Slowdowns.md
+  title: 'The Chatter: Scaling Through Slowdowns'
+  last_modified: '2026-08-15'
 ---
 
 # Polycab India

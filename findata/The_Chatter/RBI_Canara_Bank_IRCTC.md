@@ -1,3 +1,20 @@
+---
+type: newsletter
+title: 'The Chatter: RBI''s Governor, Canara Bank, IRCTC, & More'
+sources:
+- id: RBI_Canara_Bank_IRCTC
+  resource: /Reports/RBI_Canara_Bank_IRCTC.pdf
+  title: 'The Chatter: RBI''s Governor, Canara Bank, IRCTC, & More'
+  author: process:pdf_conv_md
+  last_modified: '2026-08-16'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-16T00:00:00Z'
+stale_after: '2027-02-12'
+tags:
+- series/the_chatter
+- publisher/zerodha
+---
 # The Chatter: RBI's Governor, Canara Bank, IRCTC, & More  
 
 Q1FY27 | Edition #80

@@ -16,8 +16,12 @@ tags:
 - geography/india
 - business_model/b2b
 - risk_investment/high_growth
-created: 2026-06-24
-last_modified: 2026-06-24
+created: '2026-06-24'
+last_modified: '2026-06-24'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-24T00:00:00Z'
+stale_after: '2026-12-21'
 ---
 
 # Justo Realfintech

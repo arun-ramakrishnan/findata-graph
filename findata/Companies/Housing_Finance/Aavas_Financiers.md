@@ -17,6 +17,15 @@ tags:
 - specialization/housing_finance
 created: '2025-11-16'
 last_modified: '2025-12-21'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-21T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
 ---
 
 # Aavas Financiers Limited

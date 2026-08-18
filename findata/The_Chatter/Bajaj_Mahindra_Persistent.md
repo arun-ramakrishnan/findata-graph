@@ -1,3 +1,14 @@
+---
+type: newsletter
+title: 'The Chatter: Bajaj, Mahindra, Persistent Indian Hotels & More'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
+tags:
+- series/the_chatter
+- publisher/zerodha
+---
 <div align="center">
 
 # The Chatter: Bajaj, Mahindra, Persistent Indian Hotels & More

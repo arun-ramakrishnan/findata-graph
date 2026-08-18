@@ -19,6 +19,10 @@ tags:
 - risk_investment/growth
 created: '2025-12-03'
 last_modified: '2025-12-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-28T00:00:00Z'
+stale_after: '2026-06-26'
 ---
 
 # Wardwizard Innovations & Mobility Limited

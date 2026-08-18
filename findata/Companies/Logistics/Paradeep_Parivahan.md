@@ -14,6 +14,10 @@ tags:
 - geography/india
 created: '2025-11-28'
 last_modified: '2025-11-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-28T00:00:00Z'
+stale_after: '2026-05-27'
 ---
 
 # Paradeep Parivahan | Nano Cap | Logistics | **PARADEEP**

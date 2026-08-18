@@ -13,8 +13,21 @@ tags:
 - market_cap/large_cap
 - geography/global
 - business_model/b2c
-created: 2025-12-05
-last_modified: 2025-12-31
+created: '2025-12-05'
+last_modified: '2025-12-31'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-31T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Nvidia_Samsung_Cloudflare
+  resource: /findata/The_Chatter/Nvidia_Samsung_Cloudflare.md
+  title: 'Global Chatter: Nvidia, Samsung, Cloudflare & More'
+  last_modified: '2026-08-15'
 ---
 # Walmart Inc
 

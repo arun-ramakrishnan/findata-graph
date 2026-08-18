@@ -17,6 +17,10 @@ tags:
 - industry_characteristics/regulatory
 created: '2026-06-20'
 last_modified: '2026-06-20'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-20T00:00:00Z'
+stale_after: '2026-12-17'
 ---
 
 # Monika Alcobev

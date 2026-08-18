@@ -9,15 +9,19 @@ normalized_name: Shakti_Pumps
 file_path: findata/Companies/Engineering_Capital_Goods/Shakti_Pumps.md
 permalink: /companies/agriculture/shakti_pumps
 tags:
-  - entity_type/company
-  - sector/agriculture
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/growth
-  - financial_tags/dividend_paying
+- entity_type/company
+- sector/agriculture
+- market_cap/small_cap
+- geography/india
+- business_model/b2b
+- risk_investment/growth
+- financial_tags/dividend_paying
 created: '2026-06-17'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-01-03'
 ---
 
 # Shakti Pumps

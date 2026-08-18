@@ -20,6 +20,15 @@ tags:
 - sector/logistics
 created: '2025-11-16'
 last_modified: '2025-11-16'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Closing_the_Year_Without_Closure
+  resource: /findata/The_Chatter/Closing_the_Year_Without_Closure.md
+  title: 'The Chatter: Closing the Year Without Closure'
+  last_modified: '2026-08-15'
 ---
 
 # Transport Corporation of India (TCI)

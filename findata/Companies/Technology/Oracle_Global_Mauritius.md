@@ -19,6 +19,10 @@ tags:
 - risk_investment/medium_risk
 created: '2026-07-20'
 last_modified: '2026-07-20'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-20T00:00:00Z'
+stale_after: '2027-01-16'
 ---
 
 # Oracle Global Mauritius

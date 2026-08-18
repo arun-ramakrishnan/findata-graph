@@ -16,6 +16,31 @@ tags:
 - business_model/b2c
 created: '2025-01-15'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: Reliance_PayTM_Nykaa
+  resource: /findata/The_Chatter/Reliance_PayTM_Nykaa.md
+  title: 'The Chatter: Reliance, PayTM, Nykaa & More'
+  last_modified: '2026-08-15'
+- id: Signals_in_Silence
+  resource: /findata/The_Chatter/Signals_in_Silence.md
+  title: 'The Chatter: Signals in Silence'
+  last_modified: '2026-08-15'
+- id: The Shape of Change
+  resource: /findata/Points_And_Figures/The Shape of Change.md
+  title: 'Points & Figures: The Shape of Change'
+  last_modified: '2026-08-15'
 ---
 
 # Jubilant Foodworks Limited

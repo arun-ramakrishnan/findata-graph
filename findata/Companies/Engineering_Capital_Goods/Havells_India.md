@@ -16,6 +16,31 @@ tags:
 - risk_investment/growth
 created: '2025-11-16'
 last_modified: '2026-06-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Havells_Ambuja_Cipla
+  resource: /findata/The_Chatter/Havells_Ambuja_Cipla.md
+  title: 'The Chatter: Havells, Ambuja, Cipla & More'
+  last_modified: '2026-08-15'
+- id: Known_Unknowns
+  resource: /findata/The_Chatter/Known_Unknowns.md
+  title: 'The Chatter: Known Unknowns'
+  last_modified: '2026-08-15'
+- id: Reliance_Axis_Bank_UltraTech
+  resource: /findata/The_Chatter/Reliance_Axis_Bank_UltraTech.md
+  title: 'The Chatter: Reliance, Axis Bank, Tata Powe UltraTech Cement & More'
+  last_modified: '2026-08-15'
+- id: The_Known_Unknowns
+  resource: /findata/The_Chatter/The_Known_Unknowns.md
+  title: 'The Chatter: The Known Unknowns'
+  last_modified: '2026-08-15'
 ---
 
 # Havells India

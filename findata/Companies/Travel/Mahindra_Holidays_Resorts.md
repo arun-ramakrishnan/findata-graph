@@ -16,6 +16,19 @@ tags:
 - risk_investment/medium_risk
 created: '2026-06-30'
 last_modified: '2026-06-30'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-30T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Reliance_Infosys_VBL
+  resource: /findata/The_Chatter/Reliance_Infosys_VBL.md
+  title: 'The Chatter: Reliance, Infosys, VBL, Hind Zir & More'
+  last_modified: '2026-08-15'
 ---
 
 # Mahindra Holidays & Resorts

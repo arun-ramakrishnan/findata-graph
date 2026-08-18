@@ -16,6 +16,15 @@ tags:
 - risk_investment/high_growth
 created: '2026-06-26'
 last_modified: '2026-06-26'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-26T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Reading_the_terrain
+  resource: /findata/The_Chatter/Reading_the_terrain.md
+  title: 'The Chatter: Reading the terrain'
+  last_modified: '2026-08-15'
 ---
 # Adani Total Gas
 

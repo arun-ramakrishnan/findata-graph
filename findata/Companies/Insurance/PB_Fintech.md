@@ -17,6 +17,19 @@ tags:
 - market_cap/large_cap
 created: '2025-11-16'
 last_modified: '2026-08-05'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-05T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Reliance_PayTM_Nykaa
+  resource: /findata/The_Chatter/Reliance_PayTM_Nykaa.md
+  title: 'The Chatter: Reliance, PayTM, Nykaa & More'
+  last_modified: '2026-08-15'
 ---
 # Companies/Technology/PB Fintech
 # PB Fintech Limited

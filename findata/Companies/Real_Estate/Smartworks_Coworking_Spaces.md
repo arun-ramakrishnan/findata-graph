@@ -1,7 +1,7 @@
 ---
 title: Smartworks Coworking Spaces
 type: company
-ticker: "SMARTWORKS.BO"
+ticker: SMARTWORKS.BO
 sector: Real_Estate
 industry: Real Estate Services
 market_cap: small_cap
@@ -9,14 +9,18 @@ normalized_name: Smartworks_Coworking_Spaces
 file_path: findata/Companies/Real_Estate/Smartworks_Coworking_Spaces.md
 permalink: /companies/real_estate/smartworks_coworking_spaces
 tags:
-  - entity_type/company
-  - sector/real_estate
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2c
-  - risk_investment/growth
-created: 2026-01-21
-last_modified: 2026-01-21
+- entity_type/company
+- sector/real_estate
+- market_cap/small_cap
+- geography/india
+- business_model/b2c
+- risk_investment/growth
+created: '2026-01-21'
+last_modified: '2026-01-21'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-21T00:00:00Z'
+stale_after: '2026-07-20'
 ---
 
 # Smartworks Coworking Spaces | Small Cap | Real Estate

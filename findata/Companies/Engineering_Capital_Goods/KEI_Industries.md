@@ -16,6 +16,39 @@ tags:
 - sector/engineering_capital_goods
 created: '2025-11-16'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Infosys_Adani_Tata_Motors
+  resource: /findata/The_Chatter/Infosys_Adani_Tata_Motors.md
+  title: 'The Chatter: Infosys, Adani, Tata Motors, Canara & More'
+  last_modified: '2026-08-15'
+- id: Moves_and_Motives
+  resource: /findata/The_Chatter/Moves_and_Motives.md
+  title: 'The Chatter: Moves and Motives'
+  last_modified: '2026-08-15'
+- id: Patterns_Beneath_the_Surface
+  resource: /findata/Points_And_Figures/Patterns_Beneath_the_Surface.md
+  title: 'Points and Figures: Patterns Beneath the Surface'
+  last_modified: '2026-08-15'
+- id: Signals_in_Silence
+  resource: /findata/The_Chatter/Signals_in_Silence.md
+  title: 'The Chatter: Signals in Silence'
+  last_modified: '2026-08-15'
+- id: Still_in_Play
+  resource: /findata/The_Chatter/Still_in_Play.md
+  title: 'The Chatter: Still in Play'
+  last_modified: '2026-08-15'
+- id: Tariffs__Tailwinds.
+  resource: /findata/The_Chatter/Tariffs__Tailwinds..md
+  title: 'The Chatter: Tariffs \& Tailwinds.'
+  last_modified: '2026-08-15'
 ---
 
 # KEI Industries Limited

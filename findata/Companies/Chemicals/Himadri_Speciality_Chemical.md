@@ -9,14 +9,18 @@ normalized_name: Himadri_Speciality_Chemical
 file_path: findata/Companies/Chemicals/Himadri_Speciality_Chemical.md
 permalink: /companies/chemicals/himadri_speciality_chemical
 tags:
-  - entity_type/company
-  - sector/chemicals
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/growth
-created: 2026-01-21
-last_modified: 2026-01-21
+- entity_type/company
+- sector/chemicals
+- market_cap/small_cap
+- geography/india
+- business_model/b2b
+- risk_investment/growth
+created: '2026-01-21'
+last_modified: '2026-01-21'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-21T00:00:00Z'
+stale_after: '2026-07-20'
 ---
 
 # Himadri Speciality Chemical | Small Cap | Chemicals

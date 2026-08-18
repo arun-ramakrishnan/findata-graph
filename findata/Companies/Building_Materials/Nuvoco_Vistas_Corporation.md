@@ -1,7 +1,7 @@
 ---
 title: Nuvoco Vistas Corporation
 type: company
-ticker: "NUVOCO.NS"
+ticker: NUVOCO.NS
 sector: Building_Materials
 industry: Building Materials
 market_cap: small_cap
@@ -9,14 +9,18 @@ normalized_name: Nuvoco_Vistas_Corporation
 file_path: findata/Companies/Building_Materials/Nuvoco_Vistas_Corporation.md
 permalink: /companies/building_materials/nuvoco_vistas_corporation
 tags:
-  - entity_type/company
-  - sector/building_materials
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/growth
-created: 2026-01-21
-last_modified: 2026-01-21
+- entity_type/company
+- sector/building_materials
+- market_cap/small_cap
+- geography/india
+- business_model/b2b
+- risk_investment/growth
+created: '2026-01-21'
+last_modified: '2026-01-21'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-21T00:00:00Z'
+stale_after: '2026-07-20'
 ---
 
 # Nuvoco Vistas Corporation | Small Cap | Building Materials

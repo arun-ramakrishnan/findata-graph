@@ -16,6 +16,23 @@ tags:
 - risk_investment/government
 created: '2025-11-16'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: BEL_HUL_Tata_Capital
+  resource: /findata/The_Chatter/BEL_HUL_Tata_Capital.md
+  title: Bharat Electronics Limited | Large Cap | Aerospace & Defence
+  last_modified: '2026-08-15'
+- id: Tata_Steel_LIC
+  resource: /findata/The_Chatter/Tata_Steel_LIC.md
+  title: 'The Chatter: Tata Steel, LIC, Vodafone, BPCL & More'
+  last_modified: '2026-08-15'
 ---
 # Bharat Electronics
 ## Company Overview

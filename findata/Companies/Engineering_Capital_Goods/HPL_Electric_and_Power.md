@@ -17,6 +17,10 @@ tags:
 - risk_investment/growth
 created: '2025-11-16'
 last_modified: '2025-12-04'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-04T00:00:00Z'
+stale_after: '2026-06-02'
 ---
 
 # HPL Electric & Power

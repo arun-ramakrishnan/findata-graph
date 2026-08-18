@@ -17,7 +17,28 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2025-11-21'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Micron_SpaceX_Palantir
+  resource: /findata/The_Chatter/Micron_SpaceX_Palantir.md
+  title: 'Global Chatter: Micron, SpaceX, Palantir & More'
+  last_modified: '2026-08-15'
+- id: Nvidia_Samsung_Cloudflare
+  resource: /findata/The_Chatter/Nvidia_Samsung_Cloudflare.md
+  title: 'Global Chatter: Nvidia, Samsung, Cloudflare & More'
+  last_modified: '2026-08-15'
+- id: The_Push_and_Pull
+  resource: /findata/The_Chatter/The_Push_and_Pull.md
+  title: 'The Chatter: The Push and Pull'
+  last_modified: '2026-08-15'
 ---
 
 # NVIDIA Corporation

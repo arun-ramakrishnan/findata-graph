@@ -9,14 +9,27 @@ normalized_name: Aztec_Fluids_Machinery
 file_path: findata/Companies/Engineering_Capital_Goods/Aztec_Fluids_Machinery.md
 permalink: /companies/engineering_capital_goods/aztec_fluids_machinery
 tags:
-  - entity_type/company
-  - sector/engineering_capital_goods
-  - market_cap/micro_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/high_growth
+- entity_type/company
+- sector/engineering_capital_goods
+- market_cap/micro_cap
+- geography/india
+- business_model/b2b
+- risk_investment/high_growth
 created: '2026-01-14'
 last_modified: '2026-01-14'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-14T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: Weight_in_the_Whispers
+  resource: /findata/Points_And_Figures/Weight_in_the_Whispers.md
+  title: 'Points &amp; Figures: Weight in the Whispers'
+  last_modified: '2026-08-15'
 ---
 
 # Aztec Fluids & Machinery

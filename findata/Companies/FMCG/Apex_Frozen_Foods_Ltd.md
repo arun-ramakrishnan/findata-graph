@@ -16,6 +16,23 @@ tags:
 - risk_investment/medium_risk
 created: '2025-12-03'
 last_modified: '2025-12-03'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-03T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: TCS_IFB_Gulf_Oil
+  resource: /findata/The_Chatter/TCS_IFB_Gulf_Oil.md
+  title: 'The Chatter: TCS, IFB, Gulf Oil, Hinduja & More'
+  last_modified: '2026-08-15'
+- id: The_Mood_in_the_Room
+  resource: /findata/The_Chatter/The_Mood_in_the_Room.md
+  title: 'The Chatter: The Mood in the Room'
+  last_modified: '2026-08-15'
 ---
 # Apex Frozen Foods Limited
 

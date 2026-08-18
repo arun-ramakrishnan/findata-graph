@@ -1,3 +1,14 @@
+---
+type: newsletter
+title: Spandana Sphoorty Financial Limited | Small Cap | NBFC - Microfinance
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
+tags:
+- series/the_chatter
+- publisher/zerodha
+---
 ![[images/Infosys_Adani_Power_p1_img1.jpeg]]
 
 Welcome to the 71st edition of The Chatter a weekly newsletter where we dig through what India's biggest companies are saying and bring you the most interesting bits of insight, whether about the business, its sector, or the wider economy. We read every major Indian earnings call and listen to the interviews so you don't have to.

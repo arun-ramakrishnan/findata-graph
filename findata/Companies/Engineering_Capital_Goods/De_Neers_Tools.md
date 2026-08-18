@@ -16,6 +16,10 @@ tags:
 - risk_investment/growth
 created: '2025-11-26'
 last_modified: '2025-11-26'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-26T00:00:00Z'
+stale_after: '2026-05-25'
 ---
 
 # De Neers Tools Limited

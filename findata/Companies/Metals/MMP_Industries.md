@@ -10,15 +10,19 @@ normalized_name: MMP_Industries
 file_path: findata/Companies/Metals/MMP_Industries.md
 permalink: /companies/metals/mmp_industries
 tags:
-  - entity_type/company
-  - sector/metals
-  - market_cap/micro_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/growth
-  - financial_tags/profitable
+- entity_type/company
+- sector/metals
+- market_cap/micro_cap
+- geography/india
+- business_model/b2b
+- risk_investment/growth
+- financial_tags/profitable
 created: '2026-06-17'
 last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2026-12-14'
 ---
 
 # MMP Industries

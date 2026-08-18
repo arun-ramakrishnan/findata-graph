@@ -17,6 +17,23 @@ tags:
 - risk_investment/defensive
 created: '2025-11-16'
 last_modified: '2026-02-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-02-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Reliance_Axis_Bank_UltraTech
+  resource: /findata/The_Chatter/Reliance_Axis_Bank_UltraTech.md
+  title: 'The Chatter: Reliance, Axis Bank, Tata Powe UltraTech Cement & More'
+  last_modified: '2026-08-15'
+- id: Tariffs__Tailwinds.
+  resource: /findata/The_Chatter/Tariffs__Tailwinds..md
+  title: 'The Chatter: Tariffs \& Tailwinds.'
+  last_modified: '2026-08-15'
 ---
 
 # Axis Bank | Large Cap | Banking

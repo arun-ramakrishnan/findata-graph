@@ -16,8 +16,12 @@ tags:
 - geography/india
 - business_model/b2b
 - risk_investment/medium_risk
-created: 2025-01-24
-last_modified: 2025-01-24
+created: '2025-01-24'
+last_modified: '2025-01-24'
+generated:
+  by: process:okf_backfill
+  at: '2025-01-24T00:00:00Z'
+stale_after: '2025-07-23'
 ---
 
 # Candour Techtex

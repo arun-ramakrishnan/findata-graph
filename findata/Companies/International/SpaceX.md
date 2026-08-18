@@ -17,6 +17,19 @@ tags:
 - risk_investment/high_growth
 created: '2026-07-05'
 last_modified: '2026-07-05'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-05T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Micron_SpaceX_Palantir
+  resource: /findata/The_Chatter/Micron_SpaceX_Palantir.md
+  title: 'Global Chatter: Micron, SpaceX, Palantir & More'
+  last_modified: '2026-08-15'
 ---
 
 # SpaceX

@@ -15,8 +15,25 @@ tags:
 - geography/global
 - business_model/b2b
 - risk_investment/high_growth
-created: 2026-01-17
-last_modified: 2026-07-16
+created: '2026-01-17'
+last_modified: '2026-07-16'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: LTM_HCL_ICICI_Prudential
+  resource: /findata/The_Chatter/LTM_HCL_ICICI_Prudential.md
+  title: 'The Chatter: LTM, HCL, L&T, ICICI Prudential & More'
+  last_modified: '2026-08-15'
+- id: Tariffs__Tailwinds.
+  resource: /findata/The_Chatter/Tariffs__Tailwinds..md
+  title: 'The Chatter: Tariffs \& Tailwinds.'
+  last_modified: '2026-08-15'
 ---
 
 # HCL Technologies

@@ -14,6 +14,19 @@ tags:
 - geography/india
 created: '2025-11-28'
 last_modified: '2025-11-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-28T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Asian_Paints_NMDC_IndiGo
+  resource: /findata/The_Chatter/Asian_Paints_NMDC_IndiGo.md
+  title: 'The Chatter: Asian Paints, NMDC, IndiGo, Glenmark & More'
+  last_modified: '2026-08-15'
 ---
 
 # Titagarh Rail Systems | Small Cap | Engineering & Capital Goods | **TITAGARH**

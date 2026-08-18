@@ -17,7 +17,20 @@ tags:
 - risk_investment/growth
 - financial_tags/high_growth
 created: '2026-06-17'
-last_modified: 2026-07-10
+last_modified: '2026-07-10'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-10T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Tata_Steel_LIC
+  resource: /findata/The_Chatter/Tata_Steel_LIC.md
+  title: 'The Chatter: Tata Steel, LIC, Vodafone, BPCL & More'
+  last_modified: '2026-08-15'
 ---
 
 # Honasa Consumer

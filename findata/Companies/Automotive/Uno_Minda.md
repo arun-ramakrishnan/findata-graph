@@ -22,6 +22,23 @@ tags:
 - specialization/electronic_components
 created: '2025-11-16'
 last_modified: '2026-08-06'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-06T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Marico_DLF_BSE
+  resource: /findata/The_Chatter/Marico_DLF_BSE.md
+  title: Marico_DLF_BSE
+  last_modified: '2026-08-15'
+- id: Swiggy_Hyundai_Shree_Cement
+  resource: /findata/The_Chatter/Swiggy_Hyundai_Shree_Cement.md
+  title: 'The Chatter: Swiggy, Hyundai, Shree Cemen & More'
+  last_modified: '2026-08-15'
 ---
 
 # Uno Minda Limited

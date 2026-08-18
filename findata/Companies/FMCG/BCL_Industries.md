@@ -16,6 +16,10 @@ tags:
 - risk_investment/medium_risk
 created: '2025-11-19'
 last_modified: '2025-12-29'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-29T00:00:00Z'
+stale_after: '2026-06-27'
 ---
 
 # BCL Industries

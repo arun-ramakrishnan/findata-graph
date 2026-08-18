@@ -15,8 +15,17 @@ tags:
 - geography/india
 - risk_investment/medium_risk
 - business_model/b2b
-created: 2026-01-25
-last_modified: 2026-07-17
+created: '2026-01-25'
+last_modified: '2026-07-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Jio_Financial_Wipro_Polycab
+  resource: /findata/The_Chatter/Jio_Financial_Wipro_Polycab.md
+  title: 'The Chatter: Jio Financial, Wipro, Polycab, Piramal & More'
+  last_modified: '2026-08-15'
 ---
 
 # CEAT Limited

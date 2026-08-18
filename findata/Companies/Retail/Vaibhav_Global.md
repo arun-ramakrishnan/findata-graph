@@ -19,6 +19,10 @@ tags:
 - international_operations/us_uk_germany_austria
 created: '2025-12-02'
 last_modified: '2025-12-02'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-02T00:00:00Z'
+stale_after: '2026-05-31'
 ---
 # Vaibhav Global Ltd
 

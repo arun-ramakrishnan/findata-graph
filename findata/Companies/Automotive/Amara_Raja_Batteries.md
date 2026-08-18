@@ -19,6 +19,27 @@ tags:
 - industry/energy_storage
 created: '2025-12-28'
 last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Bosch_Amara_Zydus
+  resource: /findata/The_Chatter/Bosch_Amara_Zydus.md
+  title: Zydus Lifesciences Ltd.|Large Cap| Pharmaceuticals
+  last_modified: '2026-08-15'
+- id: ONGC_Divis_LG
+  resource: /findata/The_Chatter/ONGC_Divis_LG.md
+  title: 'The Chatter: ONGC, Divi''s, LG, Pinelabs & More'
+  last_modified: '2026-08-15'
+- id: Tailwinds_building
+  resource: /findata/The_Chatter/Tailwinds_building.md
+  title: 'The Chatter: Tailwinds building'
+  last_modified: '2026-08-15'
 ---
 
 # Amara Raja Batteries Limited

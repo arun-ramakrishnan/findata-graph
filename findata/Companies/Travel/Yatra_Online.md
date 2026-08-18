@@ -16,6 +16,15 @@ tags:
 - sector/travel
 created: '2025-11-16'
 last_modified: '2026-06-24'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-24T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Half_a_century_in
+  resource: /findata/The_Chatter/Half_a_century_in.md
+  title: 'The Chatter: Half a century in'
+  last_modified: '2026-08-15'
 ---
 # Yatra Online
 

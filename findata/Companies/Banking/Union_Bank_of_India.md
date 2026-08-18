@@ -9,14 +9,27 @@ normalized_name: Union_Bank_of_India
 file_path: findata/Companies/Banking/Union_Bank_of_India.md
 permalink: /companies/banking/union_bank_of_india
 tags:
-  - entity_type/company
-  - sector/banking
-  - market_cap/large_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/medium_risk
-created: 2026-01-17
-last_modified: 2026-01-17
+- entity_type/company
+- sector/banking
+- market_cap/large_cap
+- geography/india
+- business_model/b2b
+- risk_investment/medium_risk
+created: '2026-01-17'
+last_modified: '2026-01-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Embracing_the_Unknown
+  resource: /findata/The_Chatter/Embracing_the_Unknown.md
+  title: 'The Chatter: Embracing the Unknown'
+  last_modified: '2026-08-15'
 ---
 
 # Union Bank of India

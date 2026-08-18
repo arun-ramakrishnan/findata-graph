@@ -17,6 +17,19 @@ tags:
 - risk_investment/growth
 created: '2025-11-16'
 last_modified: '2026-08-03'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-03T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Indian_Oil_Muthoot_Maruti
+  resource: /findata/The_Chatter/Indian_Oil_Muthoot_Maruti.md
+  title: 'The Chatter: Indian Oil, Muthoot, Maruti Suzuki & More'
+  last_modified: '2026-08-15'
 ---
 
 # Bajaj Finserv

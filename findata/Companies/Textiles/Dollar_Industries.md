@@ -17,6 +17,23 @@ tags:
 - product_category/hosiery
 created: '2025-11-19'
 last_modified: '2026-06-24'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-24T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: Half_a_century_in
+  resource: /findata/The_Chatter/Half_a_century_in.md
+  title: 'The Chatter: Half a century in'
+  last_modified: '2026-08-15'
+- id: The_Truth_Behind_the_Trendlines
+  resource: /findata/Points_And_Figures/The_Truth_Behind_the_Trendlines.md
+  title: 'Points \& Figures: The Truth Behind the'
+  last_modified: '2026-08-15'
 ---
 
 # Dollar Industries

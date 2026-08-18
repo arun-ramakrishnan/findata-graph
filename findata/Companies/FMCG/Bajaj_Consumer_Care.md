@@ -16,7 +16,16 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2026-02-16'
-last_modified: 2026-07-16
+last_modified: '2026-07-16'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: LTM_HCL_ICICI_Prudential
+  resource: /findata/The_Chatter/LTM_HCL_ICICI_Prudential.md
+  title: 'The Chatter: LTM, HCL, L&T, ICICI Prudential & More'
+  last_modified: '2026-08-15'
 ---
 
 

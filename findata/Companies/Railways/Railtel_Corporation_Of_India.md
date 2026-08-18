@@ -8,7 +8,7 @@ market_cap: small_cap
 normalized_name: Railtel_Corporation_Of_India
 file_path: findata/Companies/Engineering_Capital_Goods/Railtel_Corporation_Of_India.md
 permalink: /companies/railways/railtel_corporation_of_india
-index_membership:
+index_membership: null
 tags:
 - entity_type/company
 - sector/railways
@@ -18,6 +18,15 @@ tags:
 - risk_investment/dividend
 created: '2026-06-28'
 last_modified: '2026-06-28'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-28T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: No_shortcuts_here
+  resource: /findata/Points_And_Figures/No_shortcuts_here.md
+  title: 'Points & Figures: No shortcuts here'
+  last_modified: '2026-08-15'
 ---
 
 # Railtel Corporation Of India

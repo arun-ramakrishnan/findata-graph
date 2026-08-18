@@ -15,7 +15,20 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-07-03'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: ONGC_Divis_LG
+  resource: /findata/The_Chatter/ONGC_Divis_LG.md
+  title: 'The Chatter: ONGC, Divi''s, LG, Pinelabs & More'
+  last_modified: '2026-08-15'
 ---
 
 # Aarti Pharmalabs

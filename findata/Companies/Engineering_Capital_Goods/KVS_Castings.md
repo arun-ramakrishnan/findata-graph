@@ -16,6 +16,15 @@ tags:
 - risk_investment/medium_risk
 created: '2025-12-10'
 last_modified: '2025-12-10'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-10T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Clarity_Beneath_the_Complexity
+  resource: /findata/Points_And_Figures/Clarity_Beneath_the_Complexity.md
+  title: 'Points \& Figures: Clarity Beneath the Complexity'
+  last_modified: '2026-08-15'
 ---
 # KVS Castings
 

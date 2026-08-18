@@ -16,7 +16,20 @@ tags:
 - risk_investment/low_risk
 - sector/retail
 created: '2025-11-16'
-last_modified: 2026-07-10
+last_modified: '2026-07-10'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-10T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: ONGC_Divis_LG
+  resource: /findata/The_Chatter/ONGC_Divis_LG.md
+  title: 'The Chatter: ONGC, Divi''s, LG, Pinelabs & More'
+  last_modified: '2026-08-15'
 ---
 
 # Aditya Birla Fashion and Retail

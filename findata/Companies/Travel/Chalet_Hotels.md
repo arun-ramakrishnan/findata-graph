@@ -16,6 +16,19 @@ tags:
 - sector/travel
 created: '2025-11-16'
 last_modified: '2025-12-31'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-31T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Decoding_Capex_Capacity_and_Consumer_Trends
+  resource: /findata/The_Chatter/Decoding_Capex_Capacity_and_Consumer_Trends.md
+  title: 'The Chatter: Decoding Capex, Capacity, and Consumer Trends'
+  last_modified: '2026-08-15'
 ---
 
 # Chalet Hotels

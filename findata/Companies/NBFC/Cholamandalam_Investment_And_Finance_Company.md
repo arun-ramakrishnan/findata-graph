@@ -15,6 +15,10 @@ tags:
 - business_model/b2b
 created: '2025-01-15'
 last_modified: '2025-11-15'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-15T00:00:00Z'
+stale_after: '2026-05-14'
 ---
 # Cholamandalam Investment and Finance Company
 

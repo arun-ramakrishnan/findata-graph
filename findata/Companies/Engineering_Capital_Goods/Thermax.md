@@ -17,6 +17,15 @@ tags:
 - risk_investment/medium_risk
 created: '2026-02-16'
 last_modified: '2026-02-16'
+generated:
+  by: process:okf_backfill
+  at: '2026-02-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Bajaj_Mahindra_Persistent
+  resource: /findata/The_Chatter/Bajaj_Mahindra_Persistent.md
+  title: 'The Chatter: Bajaj, Mahindra, Persistent Indian Hotels & More'
+  last_modified: '2026-08-15'
 ---
 
 ## Thermax | Large Cap | Engineering & Capital Goods

@@ -1,11 +1,16 @@
 ---
 permalink: the-chatter/the-chatter-scaling-through-slowdowns-output
 tags:
-- zerodha
-- chatter
+- series/the_chatter
+- publisher/zerodha
 visibility: public
 language: en
-last_updated: 2025-10-25
+last_updated: '2025-10-25'
+title: 'The Chatter: Scaling Through Slowdowns'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
 ---
 
 # The Chatter: Scaling Through Slowdowns 

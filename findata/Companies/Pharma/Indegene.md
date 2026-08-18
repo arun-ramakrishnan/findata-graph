@@ -9,14 +9,18 @@ normalized_name: Indegene
 file_path: findata/Companies/Healthcare/Indegene.md
 permalink: /companies/pharma/indegene
 tags:
-  - entity_type/company
-  - sector/pharma
-  - market_cap/small_cap
-  - geography/global
-  - business_model/b2b
-  - risk_investment/high_growth
-created: 2026-01-17
-last_modified: 2026-07-07
+- entity_type/company
+- sector/pharma
+- market_cap/small_cap
+- geography/global
+- business_model/b2b
+- risk_investment/high_growth
+created: '2026-01-17'
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-01-03'
 ---
 
 # Indegene

@@ -1,3 +1,14 @@
+---
+type: newsletter
+title: 'The Chatter: Threads and Tensions'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
+tags:
+- series/the_chatter
+- publisher/zerodha
+---
 1/16/26, 8:02 PM
 The Chatter: Threads and Tensions - The Chatter by Zerodha
 

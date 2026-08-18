@@ -16,6 +16,31 @@ tags:
 - sector/energy
 created: '2025-11-16'
 last_modified: '2026-06-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Reliance_Axis_Bank_UltraTech
+  resource: /findata/The_Chatter/Reliance_Axis_Bank_UltraTech.md
+  title: 'The Chatter: Reliance, Axis Bank, Tata Powe UltraTech Cement & More'
+  last_modified: '2026-08-15'
+- id: Reliance_Infosys_VBL
+  resource: /findata/The_Chatter/Reliance_Infosys_VBL.md
+  title: 'The Chatter: Reliance, Infosys, VBL, Hind Zir & More'
+  last_modified: '2026-08-15'
+- id: Reliance_PayTM_Nykaa
+  resource: /findata/The_Chatter/Reliance_PayTM_Nykaa.md
+  title: 'The Chatter: Reliance, PayTM, Nykaa & More'
+  last_modified: '2026-08-15'
+- id: Reliance_Vedanta_Gillette
+  resource: /findata/The_Chatter/Reliance_Vedanta_Gillette.md
+  title: 'The Chatter: Reliance, Vedanta, Gillette, Prestige & More'
+  last_modified: '2026-08-15'
 ---
 
 # Reliance Industries

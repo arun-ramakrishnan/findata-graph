@@ -9,15 +9,28 @@ normalized_name: BlackBuck
 file_path: findata/Companies/Technology/BlackBuck.md
 permalink: /companies/technology/blackbuck
 tags:
-  - entity_type/company
-  - sector/technology
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/growth
-  - financial_tags/profitable
+- entity_type/company
+- sector/technology
+- market_cap/small_cap
+- geography/india
+- business_model/b2b
+- risk_investment/growth
+- financial_tags/profitable
 created: '2026-06-17'
 last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Tata_Steel_LIC
+  resource: /findata/The_Chatter/Tata_Steel_LIC.md
+  title: 'The Chatter: Tata Steel, LIC, Vodafone, BPCL & More'
+  last_modified: '2026-08-15'
 ---
 
 # BlackBuck

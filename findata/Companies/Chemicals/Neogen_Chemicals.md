@@ -1,6 +1,5 @@
 ---
 title: Neogen Chemicals Limited
-title: Neogen Chemicals Limited
 type: company
 ticker: NEOGEN.NS
 sector: Chemicals
@@ -21,6 +20,10 @@ tags:
 - sector/chemicals
 created: '2025-12-28'
 last_modified: '2025-12-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-28T00:00:00Z'
+stale_after: '2026-06-26'
 ---
 
 # Neogen Chemicals Limited

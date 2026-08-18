@@ -17,6 +17,23 @@ tags:
 - risk_investment/medium_risk
 created: '2026-02-16'
 last_modified: '2026-02-16'
+generated:
+  by: process:okf_backfill
+  at: '2026-02-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Infosys_Adani_Tata_Motors
+  resource: /findata/The_Chatter/Infosys_Adani_Tata_Motors.md
+  title: 'The Chatter: Infosys, Adani, Tata Motors, Canara & More'
+  last_modified: '2026-08-15'
+- id: Management_in_Motion
+  resource: /findata/The_Chatter/Management_in_Motion.md
+  title: 'The Chatter: Management in Motion'
+  last_modified: '2026-08-15'
 ---
 
 ## Adani Enterprises | Large Cap | Conglomerate

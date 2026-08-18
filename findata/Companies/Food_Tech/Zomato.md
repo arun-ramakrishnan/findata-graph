@@ -1,22 +1,26 @@
 ---
-title: 'Zomato'
-type: 'company'
+title: Zomato
+type: company
 ticker: null
-listed: false  # ZOMATO.NS not available on Yahoo Finance with full data
-sector: 'Retail'
-market_cap: 'mid_cap'
-normalized_name: 'Zomato'
-file_path: 'findata/Companies/Food_Tech/Zomato.md'
-permalink: '/companies/food_tech/zomato'
+listed: false
+sector: Retail
+market_cap: mid_cap
+normalized_name: Zomato
+file_path: findata/Companies/Food_Tech/Zomato.md
+permalink: /companies/food_tech/zomato
 tags:
-  - entity_type/company
-  - sector/retail
-  - market_cap/mid_cap
-  - geography/india
-  - business_model/digital_platform
-  - risk_investment/growth
+- entity_type/company
+- sector/retail
+- market_cap/mid_cap
+- geography/india
+- business_model/digital_platform
+- risk_investment/growth
 created: '2026-08-09'
 last_modified: '2026-08-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-17T00:00:00Z'
+stale_after: '2027-02-13'
 ---
 
 # Zomato

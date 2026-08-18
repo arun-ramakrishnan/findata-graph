@@ -15,7 +15,24 @@ tags:
 - risk_investment/growth
 - sector/chemicals
 created: '2025-11-16'
-last_modified: 2026-08-16
+last_modified: '2026-08-16'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-16T00:00:00Z'
+stale_after: '2027-02-12'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Contours_of_Change
+  resource: /findata/The_Chatter/Contours_of_Change.md
+  title: 'The Chatter: Contours of Change'
+  last_modified: '2026-08-15'
+- id: RBI_Canara_Bank_IRCTC
+  resource: /findata/The_Chatter/RBI_Canara_Bank_IRCTC.md
+  title: 'The Chatter: RBI''s Governor, Canara Bank, IRCTC, & More'
+  last_modified: '2026-08-16'
 ---
 # Solar Industries
 

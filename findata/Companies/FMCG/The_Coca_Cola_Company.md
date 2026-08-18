@@ -15,7 +15,16 @@ tags:
 - risk_investment/growth
 - sector/fmcg
 created: '2025-11-16'
-last_modified: 2026-07-10
+last_modified: '2026-07-10'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-10T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Scaling_Through_Slowdowns
+  resource: /findata/The_Chatter/Scaling_Through_Slowdowns.md
+  title: 'The Chatter: Scaling Through Slowdowns'
+  last_modified: '2026-08-15'
 ---
 
 # The Coca-Cola Company

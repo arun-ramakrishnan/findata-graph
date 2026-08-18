@@ -16,7 +16,11 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-02-12'
-last_modified: 2026-07-10
+last_modified: '2026-07-10'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-10T00:00:00Z'
+stale_after: '2027-01-06'
 ---
 
 # Gravita India

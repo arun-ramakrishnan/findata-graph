@@ -15,8 +15,12 @@ tags:
 - geography/india
 - business_model/b2b
 - risk_investment/medium_risk
-created: 2026-01-21
-last_modified: 2026-01-21
+created: '2026-01-21'
+last_modified: '2026-01-21'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-21T00:00:00Z'
+stale_after: '2026-07-20'
 ---
 
 # Trishakti Industries | Nano Cap | IT Services
