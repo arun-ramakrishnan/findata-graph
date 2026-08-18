@@ -16,7 +16,7 @@ geography: india
 ticker: APOLLOMICRO.NS
 created: 2026-08-10
 last_modified: 2026-08-10
-permalink: /companies/defense/apollo-micro-systems
+permalink: /companies/defense/apollo_micro_systems
 ---
 
 # Apollo Micro Systems

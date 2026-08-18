@@ -16,6 +16,7 @@ tags:
   - business_model/digital_platform
   - risk_investment/growth
 created: '2026-08-09'
+last_modified: '2026-08-17'
 ---
 
 # Zomato

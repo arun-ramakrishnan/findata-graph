@@ -1,7 +1,7 @@
 ---
 title: NSE Clearing
 type: company
-ticker: N/A
+ticker: null
 sector: Capital_Markets
 market_cap: null
 normalized_name: NSE_Clearing

@@ -42,6 +42,9 @@ dependencies = [
     # sqlite-spellfix above; KNN degrades to a Python cosine fallback when
     # the extension is unavailable.
     "sqlite-vec",
+    # JSON-Schema validation of findata note frontmatter (
+    # helpers/validators/frontmatter_schema.py; schemas in doc/schema/).
+    "jsonschema",
 ]
 
 [project.optional-dependencies]
