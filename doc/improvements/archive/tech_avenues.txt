@@ -1,18 +1,18 @@
 ================================================================================
 PROPOSAL: Technology avenues — databases, YAML richness, graph, MCP exposure
 ================================================================================
-Status:    TRIAGED 2026-08-17 (user decisions): (1) Obsidian is NOT an active
-           use case outside YAML frontmatter — vault/UI-plugin avenues
-           dropped; (2) MCP exposure is NOT a priority — Avenue D parked;
-           (3) A1 EXECUTED same day (completed.md #124): vec0 mirror +
-           whole-corpus KNN cosine leg, ~7ms accepted over the 0.7ms
-           Python page loop for global-rank semantics. (4) B1 EXECUTED
-           same day (completed.md #125): doc/schema/*.v1.json + static
-           check + generated key doc, 4 drift notes fixed. (5) C1 EXECUTED
-           2026-08-18 (completed.md #127; A1 vec0-in-research.db regression
-           fixed en route, #126). Shortlist COMPLETE; remaining avenues are
-           optional (C2/A3/B2/C3).
-Date:      2026-08-17
+Status:    CLOSED & ARCHIVED 2026-08-18 — every avenue resolved. Lifecycle:
+           triaged 2026-08-17 (user decisions: Obsidian NOT a use case,
+           MCP parked), executed 2026-08-17→18. DONE: A1 sqlite-vec KNN
+           (#124; vec0 sidecar regression fixed en route #126), B1 JSON
+           Schema contract (#125), C1 context packs (#127), C2 link-
+           prediction suggestions + A3 parquet analytics (#129, with the
+           advisory/live-invariants Makefile overhaul), A4 PRAGMA-optimize
+           micro-win (#128). Optional leftovers (not planned): B2 relation
+           sidecars, C3 temporal analytics. DROPPED: Obsidian-UI.
+           PARKED: D MCP server (§5 sketch preserved). BLOCKED: C4 Kùzu.
+           ANTI-RECS on record: §2/§3.
+Date:      2026-08-17 (triaged) · 2026-08-18 (closed & archived)
 Author:    agent exploration pass (user request: "explore new areas of
            technology we can do here incl databases, yaml richness, graphs etc")
 Method:    grounded in codebase-memory-mcp graph facts (19,960 nodes / 34,836
@@ -85,7 +85,7 @@ A2. DuckDB vss HNSW on v_embeddings (= existing deferred N5-5; UNCHANGED)
       keep the quarterly re-eval cadence. Do not build on experimental
       persistence for a git-snapshotted DB.
 
-A3. Parquet-first analytics ("lakehouse mode") (OPTIONAL, medium)
+A3. Parquet-first analytics ("lakehouse mode") (DONE 2026-08-18 — completed.md #129)
     - snapshots/parquet is already the transport of record. DuckDB can query
       the parquet tree directly; a `make analytics` entry point running
       read-only SQL over snapshots/ would give git-diffable, DB-less
@@ -94,7 +94,7 @@ A3. Parquet-first analytics ("lakehouse mode") (OPTIONAL, medium)
     - Not a replacement for research.db (FTS5 + spellfix have no parquet
       equivalent).
 
-A4. SQLite core richness (MICRO-WINS)
+A4. SQLite core richness (MICRO-WINS; PRAGMA-optimize-on-close done 2026-08-18 — completed.md #128)
     - Generated columns for normalized_name/ticker-upper; JSONB functions for
       embedding JSON during an A1 migration; `PRAGMA optimize` on close.
     - Only worth bundling with A1's migration, not standalone.
@@ -149,7 +149,7 @@ C1. GraphRAG-lite "context packs" (DONE 2026-08-18 — completed.md #127)
       workflow) consumes. No new deps; pure composition.
     - This is the highest value-per-line item in the graph avenue.
 
-C2. Link-prediction as a suggestion workflow (MEDIUM)
+C2. Link-prediction as a suggestion workflow (DONE 2026-08-18 — completed.md #129)
     - onager_link_prediction exists and is tested. Productize: nightly
       top-N predicted edges NOT already present -> appended to
       _pending_relations.txt with confidence -> human accepts via
@@ -214,7 +214,7 @@ C5. Visualization (DEFER)
   Blocked / revisit:           A2 (quarterly, existing), C4 (fork watch)
 
 --------------------------------------------------------------------------------
-8. Decision requested
+8. Decision requested — ANSWERED (see Status header; waves executed in order)
 --------------------------------------------------------------------------------
   Triage this list: approve waves, or cherry-pick. Each wave is independently
   shippable and none touches live data destructively (A1 is additive: new

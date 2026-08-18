@@ -26,12 +26,15 @@
   publicly: dev-default `FLASK_HOST=127.0.0.1`; auth/shared-secret in
   front of `POST /api/graph/refresh`; `uv lock`.
 
-- **Technology avenues triaged** (proposals/tech_avenues.txt,
-  2026-08-17): A1 sqlite-vec KNN DONE (completed.md #124; ~7ms accepted).
-  B1 DONE (completed.md #125), C1 context packs DONE (completed.md #127;
-  A1 vec0 sidecar regression fixed en route, #126). Shortlist complete —
-  remaining avenues are optional (C2/A3/B2/C3). Obsidian-dependent items DROPPED per user 2026-08-17 —
-  Obsidian is not an active use case outside of the YAML itself; MCP server
-  (D) PARKED same day — not a priority. Explicitly blocked: C4 Kùzu
-  (upstream archived 2025-10-10); anti-recommendations on record
-  (LanceDB/third vector store, Turso, pgvector, YAML anchors).
+- **Technology avenues EXECUTED & ARCHIVED** (archived proposal:
+  `doc/improvements/archive/tech_avenues.txt`, 2026-08-17→18): every
+  shortlist item done — A1 sqlite-vec KNN (#124; ~7ms accepted; vec0
+  sidecar regression fixed en route #126), B1 JSON-Schema contract
+  (#125), C1 context packs (#127), C2 link-prediction suggestions +
+  A3 parquet analytics (#129; advisory/live-invariants Makefile overhaul
+  same entry), A4 PRAGMA optimize micro-win (#128). Optional leftovers
+  if ever wanted: B2 relation sidecars, C3 temporal analytics. Dropped:
+  Obsidian-UI (not an active use case). Parked: D MCP server (seam
+  sketch preserved in the archived proposal). Blocked: C4 Kùzu (upstream
+  archived 2025-10-10). Anti-recs on record: LanceDB/third vector store,
+  Turso, pgvector, YAML anchors.
