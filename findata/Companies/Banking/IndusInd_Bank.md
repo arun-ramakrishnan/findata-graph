@@ -17,8 +17,12 @@ tags:
 - business_model/b2c
 - risk_investment/defensive
 - investment_theme/vehicle_finance
-created: 2026-01-17
-last_modified: 2026-01-17
+created: '2026-01-17'
+last_modified: '2026-01-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-17T00:00:00Z'
+stale_after: '2026-07-16'
 ---
 
 # IndusInd Bank

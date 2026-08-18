@@ -17,6 +17,15 @@ tags:
 - sector/ems_manufacturing
 created: '2025-11-16'
 last_modified: '2026-07-11'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-11T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: TCS_Indian_Bank_Amagi
+  resource: /findata/The_Chatter/TCS_Indian_Bank_Amagi.md
+  title: 'The Chatter: TCS, Indian Bank, Amagi, CMR Green & More'
+  last_modified: '2026-08-15'
 ---
 Kaynes Technologies |_Mid Cap |_Engineering Capital Goods
 

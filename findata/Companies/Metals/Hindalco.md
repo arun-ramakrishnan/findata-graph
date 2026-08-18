@@ -16,6 +16,27 @@ tags:
 - risk_investment/dividend
 created: '2025-11-26'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: Tailwinds_building
+  resource: /findata/The_Chatter/Tailwinds_building.md
+  title: 'The Chatter: Tailwinds building'
+  last_modified: '2026-08-15'
+- id: Tata_Steel_LIC
+  resource: /findata/The_Chatter/Tata_Steel_LIC.md
+  title: 'The Chatter: Tata Steel, LIC, Vodafone, BPCL & More'
+  last_modified: '2026-08-15'
+- id: The Shape of Change
+  resource: /findata/Points_And_Figures/The Shape of Change.md
+  title: 'Points & Figures: The Shape of Change'
+  last_modified: '2026-08-15'
 ---
 # Hindalco Industries
 

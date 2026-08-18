@@ -9,15 +9,19 @@ normalized_name: Dachepalli_Publishers
 file_path: findata/Companies/Media_Entertainment/Dachepalli_Publishers.md
 permalink: /companies/media_entertainment/dachepalli_publishers
 tags:
-  - entity_type/company
-  - sector/media_entertainment
-  - market_cap/micro_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/growth
-  - financial_tags/profitable
+- entity_type/company
+- sector/media_entertainment
+- market_cap/micro_cap
+- geography/india
+- business_model/b2b
+- risk_investment/growth
+- financial_tags/profitable
 created: '2026-06-17'
 last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2026-12-14'
 ---
 
 # Dachepalli Publishers

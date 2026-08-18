@@ -16,6 +16,19 @@ market_cap: small_cap
 permalink: /companies/banking/ujjivan_small_finance_bank
 created: '2026-07-26'
 last_modified: '2026-07-26'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-26T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Infosys_Adani_Power
+  resource: /findata/The_Chatter/Infosys_Adani_Power.md
+  title: Spandana Sphoorty Financial Limited | Small Cap | NBFC - Microfinance
+  last_modified: '2026-08-15'
 ---
 
 # Ujjivan Small Finance Bank

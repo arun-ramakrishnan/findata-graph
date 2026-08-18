@@ -8,7 +8,7 @@ market_cap: micro_cap
 normalized_name: Shree_Digvijay_Cement
 file_path: findata/Companies/Building_Materials/Shree_Digvijay_Cement.md
 permalink: /companies/building_materials/shree_digvijay_cement
-index_membership:
+index_membership: null
 tags:
 - entity_type/company
 - sector/building_materials
@@ -19,6 +19,19 @@ tags:
 - financial_tags/dividend_paying
 created: '2026-06-28'
 last_modified: '2026-06-28'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-28T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Swiggy_Hyundai_Shree_Cement
+  resource: /findata/The_Chatter/Swiggy_Hyundai_Shree_Cement.md
+  title: 'The Chatter: Swiggy, Hyundai, Shree Cemen & More'
+  last_modified: '2026-08-15'
 ---
 
 # Shree Digvijay Cement

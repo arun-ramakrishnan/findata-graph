@@ -16,6 +16,10 @@ tags:
 - risk_investment/medium_risk
 created: '2026-08-03'
 last_modified: '2026-08-03'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-03T00:00:00Z'
+stale_after: '2027-01-30'
 ---
 # SML Isuzu
 

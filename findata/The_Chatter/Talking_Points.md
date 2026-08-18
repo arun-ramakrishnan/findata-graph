@@ -1,3 +1,14 @@
+---
+type: newsletter
+title: 'The Chatter: Talking Points'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
+tags:
+- series/the_chatter
+- publisher/zerodha
+---
 1/10/26, 9:12 AM
 The Chatter: Talking Points - The Chatter by Zerodha
 

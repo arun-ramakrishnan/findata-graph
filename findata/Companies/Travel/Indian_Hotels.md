@@ -12,6 +12,23 @@ tags:
 - sector/travel
 created: '2025-11-16'
 last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Bajaj_Mahindra_Persistent
+  resource: /findata/The_Chatter/Bajaj_Mahindra_Persistent.md
+  title: 'The Chatter: Bajaj, Mahindra, Persistent Indian Hotels & More'
+  last_modified: '2026-08-15'
+- id: Grain_in_the_graphs
+  resource: /findata/Points_And_Figures/Grain_in_the_graphs.md
+  title: 'Points & Figures: Grain in the graphs'
+  last_modified: '2026-08-15'
+- id: Titan_Dixon_Cipla
+  resource: /findata/The_Chatter/Titan_Dixon_Cipla.md
+  title: 'The Chatter: Titan, Dixon, JSW Steel, Cipla & More'
+  last_modified: '2026-08-15'
 ---
 
 # Indian Hotels

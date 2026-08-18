@@ -17,6 +17,23 @@ tags:
 - sector/engineering_capital_goods
 created: '2025-11-16'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: BEL_HUL_Tata_Capital
+  resource: /findata/The_Chatter/BEL_HUL_Tata_Capital.md
+  title: Bharat Electronics Limited | Large Cap | Aerospace & Defence
+  last_modified: '2026-08-15'
+- id: Meesho_Marico_Bajaj
+  resource: /findata/The_Chatter/Meesho_Marico_Bajaj.md
+  title: Meesho_Marico_Bajaj
+  last_modified: '2026-08-15'
 ---
 # Larsen and Toubro
 

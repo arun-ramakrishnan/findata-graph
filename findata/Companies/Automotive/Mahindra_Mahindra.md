@@ -10,18 +10,51 @@ file_path: findata/Companies/Automotive/Mahindra_Mahindra.md
 permalink: /companies/automotive/mahindra_mahindra
 exchange: NSE
 tags:
-  - entity_type/company
-  - sector/automotive
-  - market_cap/large_cap
-  - geography/global
-  - business_model/b2c
-  - risk_investment/medium_risk
-  - industry/automobiles
-  - industry/suvs
-  - industry/electric_vehicles
-  - industry/farm_equipment
+- entity_type/company
+- sector/automotive
+- market_cap/large_cap
+- geography/global
+- business_model/b2c
+- risk_investment/medium_risk
+- industry/automobiles
+- industry/suvs
+- industry/electric_vehicles
+- industry/farm_equipment
 created: '2026-01-10'
 last_modified: '2026-07-31'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-31T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Bajaj_Mahindra_Persistent
+  resource: /findata/The_Chatter/Bajaj_Mahindra_Persistent.md
+  title: 'The Chatter: Bajaj, Mahindra, Persistent Indian Hotels & More'
+  last_modified: '2026-08-15'
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: Meesho_Marico_Bajaj
+  resource: /findata/The_Chatter/Meesho_Marico_Bajaj.md
+  title: Meesho_Marico_Bajaj
+  last_modified: '2026-08-15'
+- id: RBI_Tata_Steel
+  resource: /findata/The_Chatter/RBI_Tata_Steel.md
+  title: RBI_Tata_Steel
+  last_modified: '2026-08-15'
+- id: Tailwinds_building
+  resource: /findata/The_Chatter/Tailwinds_building.md
+  title: 'The Chatter: Tailwinds building'
+  last_modified: '2026-08-15'
+- id: The Shape of Change
+  resource: /findata/Points_And_Figures/The Shape of Change.md
+  title: 'Points & Figures: The Shape of Change'
+  last_modified: '2026-08-15'
 ---
 
 # Mahindra Mahindra

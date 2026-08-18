@@ -1,7 +1,7 @@
 ---
 title: Philip Morris International
 type: company
-ticker:
+ticker: null
 sector: FMCG
 listed: false
 market_cap: large_cap
@@ -19,6 +19,10 @@ tags:
 - risk_investment/medium_risk
 created: '2026-08-11'
 last_modified: '2026-08-11'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-11T00:00:00Z'
+stale_after: '2027-02-07'
 ---
 # Philip Morris International
 

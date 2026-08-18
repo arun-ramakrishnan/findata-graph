@@ -15,8 +15,21 @@ tags:
 - geography/india
 - business_model/b2b
 - risk_investment/dividend
-created: 2026-07-04
-last_modified: 2026-07-04
+created: '2026-07-04'
+last_modified: '2026-07-04'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-04T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Reliance_Vedanta_Gillette
+  resource: /findata/The_Chatter/Reliance_Vedanta_Gillette.md
+  title: 'The Chatter: Reliance, Vedanta, Gillette, Prestige & More'
+  last_modified: '2026-08-15'
 ---
 
 # Redington

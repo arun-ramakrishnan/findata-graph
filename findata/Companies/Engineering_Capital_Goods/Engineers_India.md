@@ -17,6 +17,15 @@ tags:
 - investment_theme/infrastructure_development
 created: '2026-06-20'
 last_modified: '2026-06-20'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-20T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Bets and blueprints
+  resource: /findata/The_Chatter/Bets and blueprints.md
+  title: 'The Chatter: Bets and blueprints'
+  last_modified: '2026-08-15'
 ---
 
 # Engineers India Limited

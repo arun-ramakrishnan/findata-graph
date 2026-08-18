@@ -15,8 +15,37 @@ tags:
 - geography/global
 - business_model/b2b
 - risk_investment/high_growth
-created: 2026-01-17
-last_modified: 2026-07-26
+created: '2026-01-17'
+last_modified: '2026-07-26'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-26T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Bets and blueprints
+  resource: /findata/The_Chatter/Bets and blueprints.md
+  title: 'The Chatter: Bets and blueprints'
+  last_modified: '2026-08-15'
+- id: Grain_in_the_graphs
+  resource: /findata/Points_And_Figures/Grain_in_the_graphs.md
+  title: 'Points & Figures: Grain in the graphs'
+  last_modified: '2026-08-15'
+- id: Infosys_Adani_Power
+  resource: /findata/The_Chatter/Infosys_Adani_Power.md
+  title: Spandana Sphoorty Financial Limited | Small Cap | NBFC - Microfinance
+  last_modified: '2026-08-15'
+- id: Infosys_Adani_Tata_Motors
+  resource: /findata/The_Chatter/Infosys_Adani_Tata_Motors.md
+  title: 'The Chatter: Infosys, Adani, Tata Motors, Canara & More'
+  last_modified: '2026-08-15'
+- id: Reliance_Infosys_VBL
+  resource: /findata/The_Chatter/Reliance_Infosys_VBL.md
+  title: 'The Chatter: Reliance, Infosys, VBL, Hind Zir & More'
+  last_modified: '2026-08-15'
 ---
 
 # Infosys

@@ -1,3 +1,14 @@
+---
+type: newsletter
+title: 'Plotlines: The Pilot'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
+tags:
+- series/the_plotlines
+- publisher/zerodha
+---
 # Plotlines: The Pilot 
 
 ## Edition \#1

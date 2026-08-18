@@ -16,6 +16,19 @@ tags:
 - risk_investment/consumer_cyclical
 created: '2025-11-16'
 last_modified: '2026-06-25'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-25T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Management_in_Motion
+  resource: /findata/The_Chatter/Management_in_Motion.md
+  title: 'The Chatter: Management in Motion'
+  last_modified: '2026-08-15'
 ---
 
 # Marvel Decor

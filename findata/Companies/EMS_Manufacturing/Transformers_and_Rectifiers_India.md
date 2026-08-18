@@ -9,14 +9,31 @@ normalized_name: Transformers_and_Rectifiers_India
 file_path: findata/Companies/Engineering_Capital_Goods/Transformers_and_Rectifiers_India.md
 permalink: /companies/ems_manufacturing/transformers_and_rectifiers_india
 tags:
-  - entity_type/company
-  - sector/ems_manufacturing
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/high_growth
+- entity_type/company
+- sector/ems_manufacturing
+- market_cap/small_cap
+- geography/india
+- business_model/b2b
+- risk_investment/high_growth
 created: '2026-01-14'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: Weight_in_the_Whispers
+  resource: /findata/Points_And_Figures/Weight_in_the_Whispers.md
+  title: 'Points &amp; Figures: Weight in the Whispers'
+  last_modified: '2026-08-15'
 ---
 
 # Transformers and Rectifiers (India)

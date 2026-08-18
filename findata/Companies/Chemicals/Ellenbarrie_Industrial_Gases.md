@@ -17,6 +17,10 @@ tags:
 - risk_investment/medium_risk
 created: '2026-02-16'
 last_modified: '2026-02-16'
+generated:
+  by: process:okf_backfill
+  at: '2026-02-16T00:00:00Z'
+stale_after: '2026-08-15'
 ---
 
 ## Ellenbarrie Industrial Gases | Large Cap | Chemicals

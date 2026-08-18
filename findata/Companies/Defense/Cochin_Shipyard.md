@@ -15,7 +15,28 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Between_the_Numbers
+  resource: /findata/The_Chatter/Between_the_Numbers.md
+  title: 'The Chatter: Between the Numbers'
+  last_modified: '2026-08-15'
+- id: From_Visual_Noise_to_Narrative
+  resource: /findata/Points_And_Figures/From_Visual_Noise_to_Narrative.md
+  title: 'Points and Figures: From Visual Noise to Narrative'
+  last_modified: '2026-08-15'
+- id: Patterns_Beneath_the_Surface
+  resource: /findata/Points_And_Figures/Patterns_Beneath_the_Surface.md
+  title: 'Points and Figures: Patterns Beneath the Surface'
+  last_modified: '2026-08-15'
 ---
 
 # Cochin Shipyard

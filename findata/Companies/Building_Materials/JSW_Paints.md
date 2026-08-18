@@ -19,6 +19,10 @@ tags:
 - risk_investment/medium_risk
 created: '2026-07-18'
 last_modified: '2026-07-18'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-18T00:00:00Z'
+stale_after: '2027-01-14'
 ---
 
 # JSW Paints

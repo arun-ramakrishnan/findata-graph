@@ -15,8 +15,21 @@ tags:
 - risk_investment/growth
 - sector/technology
 created: '2025-11-16'
-last_modified: 2026-07-28
+last_modified: '2026-07-28'
 file_path: findata/Companies/Technology/LTM.md
+generated:
+  by: process:okf_backfill
+  at: '2026-07-28T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: LTM_HCL_ICICI_Prudential
+  resource: /findata/The_Chatter/LTM_HCL_ICICI_Prudential.md
+  title: 'The Chatter: LTM, HCL, L&T, ICICI Prudential & More'
+  last_modified: '2026-08-15'
 ---
 
 # LTIMindtree

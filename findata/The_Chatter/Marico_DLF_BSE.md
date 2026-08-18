@@ -1,3 +1,20 @@
+---
+type: newsletter
+title: Marico_DLF_BSE
+sources:
+- id: Marico_DLF_BSE
+  resource: /Reports/Marico_DLF_BSE.pdf
+  title: 'The Chatter: Marico, DLF, BSE, Nykaa & More'
+  author: process:pdf_conv_md
+  last_modified: '2026-08-06'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-02'
+tags:
+- series/the_chatter
+- publisher/zerodha
+---
 ![[images/Marico_DLF_BSE_p1_img1.jpeg]]
 
 Welcome to the 76th edition of The Chatter a newsletter where we dig through what India's biggest companies are saying and bring you the most interesting bits of insight, whether about the business, its sector, or the wider economy. We read every major Indian earnings call and listen to the interviews so you don't have to.

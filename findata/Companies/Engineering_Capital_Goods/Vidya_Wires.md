@@ -10,16 +10,25 @@ file_path: findata/Companies/Engineering_Capital_Goods/Vidya_Wires.md
 permalink: /companies/engineering_capital_goods/vidya_wires
 exchange: NSE
 tags:
-  - entity_type/company
-  - sector/engineering_capital_goods
-  - market_cap/micro_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/high_risk
-  - industry/winding_wires
-  - industry/electrical_equipment
+- entity_type/company
+- sector/engineering_capital_goods
+- market_cap/micro_cap
+- geography/india
+- business_model/b2b
+- risk_investment/high_risk
+- industry/winding_wires
+- industry/electrical_equipment
 created: '2026-01-10'
 last_modified: '2026-01-10'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-10T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
 ---
 
 # Vidya Wires

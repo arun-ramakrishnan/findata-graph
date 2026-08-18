@@ -9,14 +9,27 @@ normalized_name: CyientDlm
 file_path: findata/Companies/Engineering_Capital_Goods/CyientDlm.md
 permalink: /companies/ems_manufacturing/cyientdlm
 tags:
-  - entity_type/company
-  - sector/ems_manufacturing
-  - market_cap/small_cap
-  - geography/india
-  - risk_investment/medium_risk
-  - business_model/b2b
-created: 2026-01-25
-last_modified: 2026-01-25
+- entity_type/company
+- sector/ems_manufacturing
+- market_cap/small_cap
+- geography/india
+- risk_investment/medium_risk
+- business_model/b2b
+created: '2026-01-25'
+last_modified: '2026-01-25'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-25T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Tariffs__Tailwinds.
+  resource: /findata/The_Chatter/Tariffs__Tailwinds..md
+  title: 'The Chatter: Tariffs \& Tailwinds.'
+  last_modified: '2026-08-15'
 ---
 # Cyient DLM
 

@@ -20,6 +20,10 @@ tags:
 - sector/chemicals
 created: '2025-11-26'
 last_modified: '2025-12-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-28T00:00:00Z'
+stale_after: '2026-06-26'
 ---
 
 # Platinum Industries Limited

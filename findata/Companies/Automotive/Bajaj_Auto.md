@@ -15,8 +15,29 @@ tags:
 - geography/india
 - business_model/b2c
 - risk_investment/high_growth
-created: 2026-06-23
-last_modified: 2026-06-23
+created: '2026-06-23'
+last_modified: '2026-06-23'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-23T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Bajaj_Mahindra_Persistent
+  resource: /findata/The_Chatter/Bajaj_Mahindra_Persistent.md
+  title: 'The Chatter: Bajaj, Mahindra, Persistent Indian Hotels & More'
+  last_modified: '2026-08-15'
+- id: Meesho_Marico_Bajaj
+  resource: /findata/The_Chatter/Meesho_Marico_Bajaj.md
+  title: Meesho_Marico_Bajaj
+  last_modified: '2026-08-15'
+- id: Short-Term_Pain_Long-Term_Gain
+  resource: /findata/The_Chatter/Short-Term_Pain_Long-Term_Gain.md
+  title: 'The Chatter: Short-Term Pain, Long-Term Gain'
+  last_modified: '2026-08-15'
 ---
 
 # Bajaj Auto

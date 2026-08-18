@@ -15,8 +15,12 @@ tags:
 - geography/india
 - business_model/b2b
 - risk_investment/medium_risk
-created: 2026-06-23
-last_modified: 2026-07-07
+created: '2026-06-23'
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-01-03'
 ---
 
 # Power Mech Projects

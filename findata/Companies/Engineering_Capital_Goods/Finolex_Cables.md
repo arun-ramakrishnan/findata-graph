@@ -16,6 +16,19 @@ tags:
 - risk_investment/dividend
 created: '2025-11-19'
 last_modified: '2026-06-24'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-24T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Half_a_century_in
+  resource: /findata/The_Chatter/Half_a_century_in.md
+  title: 'The Chatter: Half a century in'
+  last_modified: '2026-08-15'
+- id: Reliance_Vedanta_Gillette
+  resource: /findata/The_Chatter/Reliance_Vedanta_Gillette.md
+  title: 'The Chatter: Reliance, Vedanta, Gillette, Prestige & More'
+  last_modified: '2026-08-15'
 ---
 
 # Finolex Cables Limited

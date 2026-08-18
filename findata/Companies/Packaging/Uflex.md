@@ -17,6 +17,10 @@ tags:
 - risk_investment/growth
 created: '2025-11-16'
 last_modified: '2026-01-09'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-09T00:00:00Z'
+stale_after: '2026-07-08'
 ---
 
 # Uflex Limited

@@ -16,7 +16,11 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2025-12-28'
-last_modified: 2026-07-12
+last_modified: '2026-07-12'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-12T00:00:00Z'
+stale_after: '2027-01-08'
 ---
 # SBI Cards and Payment Services
 

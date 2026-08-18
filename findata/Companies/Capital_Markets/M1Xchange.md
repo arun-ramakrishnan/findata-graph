@@ -1,10 +1,10 @@
 ---
 title: M1Xchange
 type: company
-ticker:
+ticker: null
 sector: Capital_Markets
 listed: false
-market_cap:
+market_cap: null
 normalized_name: M1Xchange
 permalink: /companies/capital_markets/m1xchange
 tags:
@@ -15,6 +15,10 @@ tags:
 - risk_investment/medium_risk
 created: '2026-08-03'
 last_modified: '2026-08-03'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-03T00:00:00Z'
+stale_after: '2027-01-30'
 ---
 # M1Xchange
 

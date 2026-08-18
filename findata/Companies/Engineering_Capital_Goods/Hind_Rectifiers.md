@@ -16,6 +16,19 @@ tags:
 - risk_investment/growth
 created: '2025-11-16'
 last_modified: '2026-06-25'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-25T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Risks_Rewards_and_Revelations
+  resource: /findata/The_Chatter/Risks_Rewards_and_Revelations.md
+  title: 'The Chatter: Risks, Rewards, and Revelation'
+  last_modified: '2026-08-15'
 ---
 
 # Hind Rectifiers

@@ -15,8 +15,17 @@ tags:
 - geography/india
 - business_model/b2c
 - risk_investment/high_growth
-created: 2026-07-04
-last_modified: 2026-07-07
+created: '2026-07-04'
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Infosys_Adani_Tata_Motors
+  resource: /findata/The_Chatter/Infosys_Adani_Tata_Motors.md
+  title: 'The Chatter: Infosys, Adani, Tata Motors, Canara & More'
+  last_modified: '2026-08-15'
 ---
 
 # Q-Line Biotech

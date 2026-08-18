@@ -12,6 +12,27 @@ tags:
 - sector/agriculture
 created: '2025-11-16'
 last_modified: '2025-11-16'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: Management_in_Motion
+  resource: /findata/The_Chatter/Management_in_Motion.md
+  title: 'The Chatter: Management in Motion'
+  last_modified: '2026-08-15'
+- id: The Shape of Change
+  resource: /findata/Points_And_Figures/The Shape of Change.md
+  title: 'Points & Figures: The Shape of Change'
+  last_modified: '2026-08-15'
 ---
 # UPL Limited | Global Agrochemical Leader
 

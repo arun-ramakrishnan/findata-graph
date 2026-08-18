@@ -9,15 +9,19 @@ normalized_name: Prostarm_Info_Systems
 file_path: findata/Companies/Engineering_Capital_Goods/Prostarm_Info_Systems.md
 permalink: /companies/ems_manufacturing/prostarm_info_systems
 tags:
-  - entity_type/company
-  - sector/ems_manufacturing
-  - market_cap/micro_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/growth
-  - financial_tags/profitable
+- entity_type/company
+- sector/ems_manufacturing
+- market_cap/micro_cap
+- geography/india
+- business_model/b2b
+- risk_investment/growth
+- financial_tags/profitable
 created: '2026-06-17'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-01-03'
 ---
 
 # Prostarm Info Systems

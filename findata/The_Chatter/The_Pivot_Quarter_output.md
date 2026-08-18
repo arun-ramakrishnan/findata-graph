@@ -1,3 +1,14 @@
+---
+type: newsletter
+title: 'The Chatter: The Pivot Quarter'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
+tags:
+- series/the_chatter
+- publisher/zerodha
+---
 12/19/25, 9:13 PM
 The Chatter: The Pivot Quarter - The Chatter by Zerodha
 

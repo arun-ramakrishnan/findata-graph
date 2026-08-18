@@ -1,6 +1,5 @@
 ---
 title: Restaurant Brands Asia Limited
-title: Restaurant Brands Asia Limited
 type: company
 ticker: RBA.NS
 sector: Travel
@@ -21,7 +20,20 @@ tags:
 - risk_investment/growth
 - sector/travel
 created: '2025-12-28'
-last_modified: 2026-07-10
+last_modified: '2026-07-10'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-10T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Echoes_from_the_Boardroom
+  resource: /findata/The_Chatter/Echoes_from_the_Boardroom.md
+  title: 'The Chatter: Echoes from the Boardroom'
+  last_modified: '2026-08-15'
 ---
 
 # Restaurant Brands Asia Limited

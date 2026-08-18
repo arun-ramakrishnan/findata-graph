@@ -16,6 +16,23 @@ tags:
 - sector/insurance
 created: '2025-11-16'
 last_modified: '2025-11-16'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: TCS_ICICI_Pru_HDB_Financials
+  resource: /findata/The_Chatter/TCS_ICICI_Pru_HDB_Financials.md
+  title: 'The Chatter: TCS, ICICI Pru, HDB Financials More'
+  last_modified: '2026-08-15'
+- id: Tariffs__Tailwinds.
+  resource: /findata/The_Chatter/Tariffs__Tailwinds..md
+  title: 'The Chatter: Tariffs \& Tailwinds.'
+  last_modified: '2026-08-15'
 ---
 
 # ICICI Prudential Life Insurance

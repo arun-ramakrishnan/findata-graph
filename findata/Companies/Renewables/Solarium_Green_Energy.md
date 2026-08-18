@@ -13,7 +13,11 @@ tags:
 - market_cap/micro_cap
 - geography/india
 created: '2025-11-28'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-01-03'
 ---
 
 # Solarium Green Energy | Micro Cap | Engineering & Capital Goods | **SOLARIUM**

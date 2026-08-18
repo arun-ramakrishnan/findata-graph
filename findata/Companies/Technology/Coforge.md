@@ -15,8 +15,25 @@ tags:
 - geography/india
 - risk_investment/medium_risk
 - business_model/b2b
-created: 2026-01-25
+created: '2026-01-25'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: BEL_HUL_Tata_Capital
+  resource: /findata/The_Chatter/BEL_HUL_Tata_Capital.md
+  title: Bharat Electronics Limited | Large Cap | Aerospace & Defence
+  last_modified: '2026-08-15'
+- id: Reliance_Vedanta_Gillette
+  resource: /findata/The_Chatter/Reliance_Vedanta_Gillette.md
+  title: 'The Chatter: Reliance, Vedanta, Gillette, Prestige & More'
+  last_modified: '2026-08-15'
 ---
 # Coforge
 

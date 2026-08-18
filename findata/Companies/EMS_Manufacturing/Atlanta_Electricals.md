@@ -9,14 +9,18 @@ normalized_name: Atlanta_Electricals
 file_path: findata/Companies/Engineering_Capital_Goods/Atlanta_Electricals.md
 permalink: /companies/ems_manufacturing/atlanta_electricals
 tags:
-  - entity_type/company
-  - sector/ems_manufacturing
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/medium_risk
-created: 2026-01-21
-last_modified: 2026-07-07
+- entity_type/company
+- sector/ems_manufacturing
+- market_cap/small_cap
+- geography/india
+- business_model/b2b
+- risk_investment/medium_risk
+created: '2026-01-21'
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-01-03'
 ---
 
 # Atlanta Electricals | Small Cap | Engineering & Capital Goods

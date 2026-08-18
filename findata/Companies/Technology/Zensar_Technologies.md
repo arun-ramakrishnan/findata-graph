@@ -16,6 +16,10 @@ tags:
 - sector/technology
 created: '2025-11-16'
 last_modified: '2025-12-18'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-18T00:00:00Z'
+stale_after: '2026-06-16'
 ---
 # Zensar Technologies
 

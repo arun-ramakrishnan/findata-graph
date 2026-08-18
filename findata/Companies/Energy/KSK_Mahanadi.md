@@ -1,7 +1,7 @@
 ---
 title: KSK Mahanadi
 type: company
-ticker:
+ticker: null
 sector: Energy
 listed: false
 market_cap: mid_cap
@@ -19,6 +19,10 @@ tags:
 - risk_investment/medium_risk
 created: '2026-08-04'
 last_modified: '2026-08-04'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-04T00:00:00Z'
+stale_after: '2027-01-31'
 ---
 # KSK Mahanadi
 

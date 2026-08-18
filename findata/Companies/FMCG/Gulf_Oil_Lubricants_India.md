@@ -15,7 +15,28 @@ tags:
 - business_model/b2b2c
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: From_Visual_Noise_to_Narrative
+  resource: /findata/Points_And_Figures/From_Visual_Noise_to_Narrative.md
+  title: 'Points and Figures: From Visual Noise to Narrative'
+  last_modified: '2026-08-15'
+- id: Opportunity_Between_The_Lines
+  resource: /findata/Points_And_Figures/Opportunity_Between_The_Lines.md
+  title: 'Points and Figures: Opportunity Between TI Lines'
+  last_modified: '2026-08-15'
+- id: TCS_IFB_Gulf_Oil
+  resource: /findata/The_Chatter/TCS_IFB_Gulf_Oil.md
+  title: 'The Chatter: TCS, IFB, Gulf Oil, Hinduja & More'
+  last_modified: '2026-08-15'
 ---
 
 # Gulf Oil Lubricants India

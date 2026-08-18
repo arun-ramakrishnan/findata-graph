@@ -18,6 +18,19 @@ tags:
 - risk_investment/medium_risk
 created: '2026-01-21'
 last_modified: '2026-06-26'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-26T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Tariffs__Tailwinds.
+  resource: /findata/The_Chatter/Tariffs__Tailwinds..md
+  title: 'The Chatter: Tariffs \& Tailwinds.'
+  last_modified: '2026-08-15'
 ---
 
 # Tech Mahindra | Large Cap | IT Services

@@ -10,21 +10,38 @@ file_path: findata/Companies/Automotive/Samvardhana_Motherson_International.md
 permalink: /companies/automotive/samvardhana_motherson_international
 exchange: NSE
 tags:
-  - entity_type/company
-  - sector/automotive
-  - market_cap/large_cap
-  - geography/global
-  - business_model/b2b
-  - risk_investment/medium_risk
-  - industry/auto_components
-  - industry/wiring_harness
-  - industry/vision_systems
-  - industry/polymer_products
-  - industry/manufacturing
-  - industry/aerospace
-  - industry/logistics
+- entity_type/company
+- sector/automotive
+- market_cap/large_cap
+- geography/global
+- business_model/b2b
+- risk_investment/medium_risk
+- industry/auto_components
+- industry/wiring_harness
+- industry/vision_systems
+- industry/polymer_products
+- industry/manufacturing
+- industry/aerospace
+- industry/logistics
 created: '2026-01-10'
 last_modified: '2026-08-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-07T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Dixon_Motherson_Biocon
+  resource: /findata/The_Chatter/Dixon_Motherson_Biocon.md
+  title: 'The Chatter: Dixon, Motherson, Biocon, Glenmark & More'
+  last_modified: '2026-08-15'
+- id: Tailwinds_building
+  resource: /findata/The_Chatter/Tailwinds_building.md
+  title: 'The Chatter: Tailwinds building'
+  last_modified: '2026-08-15'
 ---
 
 # Samvardhana Motherson International Limited

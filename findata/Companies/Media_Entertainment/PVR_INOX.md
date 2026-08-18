@@ -9,14 +9,23 @@ normalized_name: PVR_INOX
 file_path: findata/Companies/Media_Entertainment/PVR_INOX.md
 permalink: /companies/media_entertainment/pvr_inox
 tags:
-  - entity_type/company
-  - sector/media_entertainment
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2c
-  - risk_investment/high_growth
-created: 2026-01-17
-last_modified: 2026-06-17
+- entity_type/company
+- sector/media_entertainment
+- market_cap/small_cap
+- geography/india
+- business_model/b2c
+- risk_investment/high_growth
+created: '2026-01-17'
+last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Tailwinds_building
+  resource: /findata/The_Chatter/Tailwinds_building.md
+  title: 'The Chatter: Tailwinds building'
+  last_modified: '2026-08-15'
 ---
 
 # PVR INOX Limited

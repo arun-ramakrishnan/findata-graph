@@ -16,8 +16,21 @@ tags:
 - geography/india
 - business_model/b2c
 - risk_investment/medium_risk
-created: 2026-06-24
-last_modified: 2026-06-24
+created: '2026-06-24'
+last_modified: '2026-06-24'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-24T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: ONGC_Divis_LG
+  resource: /findata/The_Chatter/ONGC_Divis_LG.md
+  title: 'The Chatter: ONGC, Divi''s, LG, Pinelabs & More'
+  last_modified: '2026-08-15'
+- id: Threads_in_the_data
+  resource: /findata/The_Chatter/Threads_in_the_data.md
+  title: 'The Chatter: Threads in the data'
+  last_modified: '2026-08-15'
 ---
 
 # LG Electronics India

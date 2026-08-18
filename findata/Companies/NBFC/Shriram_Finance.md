@@ -10,17 +10,26 @@ file_path: findata/Companies/Financial_Services/Shriram_Finance.md
 permalink: /companies/nbfc/shriram_finance
 exchange: NSE
 tags:
-  - entity_type/company
-  - sector/nbfc
-  - market_cap/large_cap
-  - geography/india
-  - business_model/b2c
-  - risk_investment/medium_risk
-  - industry/nbfc
-  - industry/vehicle_finance
-  - industry/personal_loans
+- entity_type/company
+- sector/nbfc
+- market_cap/large_cap
+- geography/india
+- business_model/b2c
+- risk_investment/medium_risk
+- industry/nbfc
+- industry/vehicle_finance
+- industry/personal_loans
 created: '2026-01-10'
 last_modified: '2026-01-10'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-10T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
 ---
 
 # Shriram Finance

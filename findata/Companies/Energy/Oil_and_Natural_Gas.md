@@ -16,6 +16,19 @@ tags:
 - sector/energy
 created: '2025-11-16'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: ONGC_Divis_LG
+  resource: /findata/The_Chatter/ONGC_Divis_LG.md
+  title: 'The Chatter: ONGC, Divi''s, LG, Pinelabs & More'
+  last_modified: '2026-08-15'
+- id: Tailwinds_building
+  resource: /findata/The_Chatter/Tailwinds_building.md
+  title: 'The Chatter: Tailwinds building'
+  last_modified: '2026-08-15'
 ---
 # Oil and Natural Gas Corporation Limited (ONGC)
 

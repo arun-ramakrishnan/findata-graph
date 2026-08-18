@@ -12,6 +12,15 @@ tags:
 - sector/real_estate
 created: '2025-11-16'
 last_modified: '2025-11-16'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Between_the_Numbers
+  resource: /findata/The_Chatter/Between_the_Numbers.md
+  title: 'The Chatter: Between the Numbers'
+  last_modified: '2026-08-15'
 ---
 
 # Indiqube Spaces

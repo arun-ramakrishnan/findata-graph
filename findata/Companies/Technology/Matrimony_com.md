@@ -16,6 +16,19 @@ tags:
 - sector/technology
 created: '2025-11-16'
 last_modified: '2025-11-16'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Echoes_from_the_Boardroom
+  resource: /findata/The_Chatter/Echoes_from_the_Boardroom.md
+  title: 'The Chatter: Echoes from the Boardroom'
+  last_modified: '2026-08-15'
 ---
 # Matrimony.com
 

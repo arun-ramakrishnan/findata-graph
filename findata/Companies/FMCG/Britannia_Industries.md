@@ -15,7 +15,28 @@ tags:
 - risk_investment/low_risk
 - sector/fmcg
 created: '2025-11-16'
-last_modified: 2026-07-10
+last_modified: '2026-07-10'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-10T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Bets and blueprints
+  resource: /findata/The_Chatter/Bets and blueprints.md
+  title: 'The Chatter: Bets and blueprints'
+  last_modified: '2026-08-15'
+- id: Discovering_Hidden_Signals
+  resource: /findata/The_Chatter/Discovering_Hidden_Signals.md
+  title: 'The Chatter: Discovering Hidden Signals'
+  last_modified: '2026-08-15'
+- id: Grain_in_the_graphs
+  resource: /findata/Points_And_Figures/Grain_in_the_graphs.md
+  title: 'Points & Figures: Grain in the graphs'
+  last_modified: '2026-08-15'
 ---
 # Britannia Industries
 

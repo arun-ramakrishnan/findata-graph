@@ -17,6 +17,15 @@ tags:
 - risk_investment/medium_risk
 created: '2026-02-12'
 last_modified: '2026-02-12'
+generated:
+  by: process:okf_backfill
+  at: '2026-02-12T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
 ---
 
 # Jindal Stainless

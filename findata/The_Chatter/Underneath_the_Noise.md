@@ -1,3 +1,14 @@
+---
+type: newsletter
+title: 'The Chatter: Underneath the Noise'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
+tags:
+- series/the_chatter
+- publisher/zerodha
+---
 # The Chatter: Underneath the Noise 
 
 ## Edition \#24

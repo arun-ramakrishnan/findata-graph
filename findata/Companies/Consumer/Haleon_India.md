@@ -14,7 +14,11 @@ tags:
 - geography/india
 - sector/consumer
 created: '2025-11-16'
-last_modified: 2026-07-12
+last_modified: '2026-07-12'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-12T00:00:00Z'
+stale_after: '2027-01-08'
 ---
 # Haleon India
 

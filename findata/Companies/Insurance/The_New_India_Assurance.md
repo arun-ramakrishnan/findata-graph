@@ -16,8 +16,17 @@ tags:
 - geography/india
 - business_model/b2c
 - risk_investment/medium_risk
-created: 2026-06-29
-last_modified: 2026-06-29
+created: '2026-06-29'
+last_modified: '2026-06-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Reliance_PayTM_Nykaa
+  resource: /findata/The_Chatter/Reliance_PayTM_Nykaa.md
+  title: 'The Chatter: Reliance, PayTM, Nykaa & More'
+  last_modified: '2026-08-15'
 ---
 
 # The New India Assurance

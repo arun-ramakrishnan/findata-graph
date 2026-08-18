@@ -1,10 +1,10 @@
 ---
 title: Imperial Blue
 type: company
-ticker:
+ticker: null
 sector: Consumer
 listed: false
-market_cap:
+market_cap: null
 normalized_name: Imperial_Blue
 permalink: /companies/consumer/imperial_blue
 tags:
@@ -14,6 +14,10 @@ tags:
 - business_model/b2c
 created: '2026-08-03'
 last_modified: '2026-08-03'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-03T00:00:00Z'
+stale_after: '2027-01-30'
 ---
 # Imperial Blue
 

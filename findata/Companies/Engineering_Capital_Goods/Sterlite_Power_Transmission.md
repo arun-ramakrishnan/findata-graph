@@ -24,7 +24,16 @@ tags:
 - investment_theme/grid_modernization
 - investment_theme/energy_transition
 created: '2025-11-16'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Moving_Pieces
+  resource: /findata/The_Chatter/Moving_Pieces.md
+  title: 'The Chatter: Moving Pieces'
+  last_modified: '2026-08-15'
 ---
 
 # Sterlite Power Transmission Limited

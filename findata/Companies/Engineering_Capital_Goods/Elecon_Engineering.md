@@ -15,7 +15,24 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: 2026-07-16
+last_modified: '2026-07-16'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: In_the_Middle_of_Things
+  resource: /findata/The_Chatter/In_the_Middle_of_Things.md
+  title: 'The Chatter: In the Middle of Things'
+  last_modified: '2026-08-15'
+- id: LTM_HCL_ICICI_Prudential
+  resource: /findata/The_Chatter/LTM_HCL_ICICI_Prudential.md
+  title: 'The Chatter: LTM, HCL, L&T, ICICI Prudential & More'
+  last_modified: '2026-08-15'
 ---
 
 # Elecon Engineering

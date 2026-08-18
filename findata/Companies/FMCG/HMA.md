@@ -15,6 +15,15 @@ tags:
 - entity_type/company
 created: '2025-11-16'
 last_modified: '2025-11-16'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Beyond_Results_Into_the_Plot
+  resource: /findata/The_PlotLines/Beyond_Results_Into_the_Plot.md
+  title: 'Plotlines: Beyond Results, Into the Plot'
+  last_modified: '2026-08-15'
 ---
 # HMA (Hindustan Meat Export Company)
 

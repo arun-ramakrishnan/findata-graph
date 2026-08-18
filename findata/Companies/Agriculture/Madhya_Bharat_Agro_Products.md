@@ -16,6 +16,10 @@ tags:
 - risk_investment/growth
 created: '2025-12-28'
 last_modified: '2026-06-25'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-25T00:00:00Z'
+stale_after: '2026-12-22'
 ---
 
 # Madhya Bharat Agro Products

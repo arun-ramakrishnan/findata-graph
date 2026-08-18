@@ -1,3 +1,14 @@
+---
+type: newsletter
+title: 'The Chatter: Closing the Year Without Closure'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
+tags:
+- series/the_chatter
+- publisher/zerodha
+---
 12/27/25, 12:26 PM
 The Chatter: Closing the Year Without Closure
 

@@ -16,6 +16,19 @@ tags:
 - risk_investment/growth
 created: '2025-11-16'
 last_modified: '2026-06-25'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-25T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: From_Visual_Noise_to_Narrative
+  resource: /findata/Points_And_Figures/From_Visual_Noise_to_Narrative.md
+  title: 'Points and Figures: From Visual Noise to Narrative'
+  last_modified: '2026-08-15'
+- id: Patterns_Beneath_the_Surface
+  resource: /findata/Points_And_Figures/Patterns_Beneath_the_Surface.md
+  title: 'Points and Figures: Patterns Beneath the Surface'
+  last_modified: '2026-08-15'
 ---
 
 # Krishna Defence and Allied Industries

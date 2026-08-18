@@ -16,6 +16,10 @@ tags:
 - market_cap/small_cap
 created: '2025-01-07'
 last_modified: '2026-08-05'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-05T00:00:00Z'
+stale_after: '2027-02-01'
 ---
 
 # Logica Infoway

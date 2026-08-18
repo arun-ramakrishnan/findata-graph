@@ -16,6 +16,10 @@ tags:
 - sector/banking
 created: '2025-11-16'
 last_modified: '2025-11-18'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-18T00:00:00Z'
+stale_after: '2026-05-17'
 ---
 
 # NKGSB Co-operative Bank

@@ -16,6 +16,19 @@ tags:
 - sector/building_materials
 created: '2025-11-16'
 last_modified: '2025-11-16'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Known_Unknowns
+  resource: /findata/The_Chatter/Known_Unknowns.md
+  title: 'The Chatter: Known Unknowns'
+  last_modified: '2026-08-15'
+- id: The_Known_Unknowns
+  resource: /findata/The_Chatter/The_Known_Unknowns.md
+  title: 'The Chatter: The Known Unknowns'
+  last_modified: '2026-08-15'
 ---
 # India Cements
 

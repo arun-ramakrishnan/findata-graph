@@ -16,6 +16,27 @@ tags:
 - sector/fmcg
 created: '2025-11-16'
 last_modified: '2026-06-28'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-28T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: No_shortcuts_here
+  resource: /findata/Points_And_Figures/No_shortcuts_here.md
+  title: 'Points & Figures: No shortcuts here'
+  last_modified: '2026-08-15'
+- id: Reliance_Infosys_VBL
+  resource: /findata/The_Chatter/Reliance_Infosys_VBL.md
+  title: 'The Chatter: Reliance, Infosys, VBL, Hind Zir & More'
+  last_modified: '2026-08-15'
+- id: Swiggy_Hyundai_Shree_Cement
+  resource: /findata/The_Chatter/Swiggy_Hyundai_Shree_Cement.md
+  title: 'The Chatter: Swiggy, Hyundai, Shree Cemen & More'
+  last_modified: '2026-08-15'
 ---
 
 # Varun Beverages Limited

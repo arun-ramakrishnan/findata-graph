@@ -16,6 +16,15 @@ tags:
 - risk_investment/growth
 created: '2025-11-16'
 last_modified: '2026-06-25'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-25T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: On_Record
+  resource: /findata/The_Chatter/On_Record.md
+  title: 'The Chatter: On Record'
+  last_modified: '2026-08-15'
 ---
 
 # Jupiter Wagons

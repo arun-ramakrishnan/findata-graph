@@ -16,6 +16,15 @@ tags:
 - sector/infrastructure
 created: '2025-11-16'
 last_modified: '2025-11-16'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Inflection_Watch
+  resource: /findata/The_Chatter/Inflection_Watch.md
+  title: 'The Chatter: Inflection Watch'
+  last_modified: '2026-08-15'
 ---
 
 

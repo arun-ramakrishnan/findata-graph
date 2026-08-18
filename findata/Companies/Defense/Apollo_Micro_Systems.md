@@ -14,9 +14,22 @@ industry: null
 market_cap: small_cap
 geography: india
 ticker: APOLLOMICRO.NS
-created: 2026-08-10
-last_modified: 2026-08-10
+created: '2026-08-10'
+last_modified: '2026-08-10'
 permalink: /companies/defense/apollo_micro_systems
+generated:
+  by: process:okf_backfill
+  at: '2026-08-10T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: SBI_Delhivery_Titan
+  resource: /findata/The_Chatter/SBI_Delhivery_Titan.md
+  title: 'The Chatter: SBI, Delhivery, Titan & More'
+  last_modified: '2026-08-15'
 ---
 
 # Apollo Micro Systems

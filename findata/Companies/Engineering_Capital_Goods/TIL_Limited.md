@@ -19,6 +19,15 @@ tags:
 - sector/engineering_capital_goods
 created: '2025-12-28'
 last_modified: '2025-12-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-28T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Beyond_Results_Into_the_Plot
+  resource: /findata/The_PlotLines/Beyond_Results_Into_the_Plot.md
+  title: 'Plotlines: Beyond Results, Into the Plot'
+  last_modified: '2026-08-15'
 ---
 # TIL Limited
 

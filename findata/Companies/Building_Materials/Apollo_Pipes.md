@@ -15,7 +15,16 @@ tags:
 - business_model/b2b
 - risk_investment/dividend
 created: '2025-12-10'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Clarity_Beneath_the_Complexity
+  resource: /findata/Points_And_Figures/Clarity_Beneath_the_Complexity.md
+  title: 'Points \& Figures: Clarity Beneath the Complexity'
+  last_modified: '2026-08-15'
 ---
 
 # Apollo Pipes

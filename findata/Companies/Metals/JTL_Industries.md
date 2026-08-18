@@ -17,6 +17,10 @@ tags:
 - risk_investment/medium_risk
 created: '2026-02-12'
 last_modified: '2026-02-12'
+generated:
+  by: process:okf_backfill
+  at: '2026-02-12T00:00:00Z'
+stale_after: '2026-08-11'
 ---
 
 # JTL Industries

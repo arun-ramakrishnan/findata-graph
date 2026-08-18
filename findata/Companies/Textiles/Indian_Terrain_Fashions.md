@@ -9,15 +9,19 @@ normalized_name: Indian_Terrain_Fashions
 file_path: findata/Companies/Textiles/Indian_Terrain_Fashions.md
 permalink: /companies/textiles/indian_terrain_fashions
 tags:
-  - entity_type/company
-  - sector/textiles
-  - market_cap/micro_cap
-  - geography/india
-  - business_model/b2c
-  - risk_investment/medium_risk
-  - financial_tags/loss_making
+- entity_type/company
+- sector/textiles
+- market_cap/micro_cap
+- geography/india
+- business_model/b2c
+- risk_investment/medium_risk
+- financial_tags/loss_making
 created: '2026-06-17'
 last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2026-12-14'
 ---
 
 # Indian Terrain Fashions

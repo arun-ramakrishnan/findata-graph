@@ -9,14 +9,18 @@ normalized_name: Sobha
 file_path: findata/Companies/Real_Estate/Sobha.md
 permalink: /companies/real_estate/sobha
 tags:
-  - entity_type/company
-  - sector/real_estate
-  - market_cap/small_cap
-  - geography/india
-  - risk_investment/medium_risk
-  - business_model/b2b
-created: 2026-01-25
-last_modified: 2026-01-25
+- entity_type/company
+- sector/real_estate
+- market_cap/small_cap
+- geography/india
+- risk_investment/medium_risk
+- business_model/b2b
+created: '2026-01-25'
+last_modified: '2026-01-25'
+generated:
+  by: process:okf_backfill
+  at: '2026-01-25T00:00:00Z'
+stale_after: '2026-07-24'
 ---
 # Sobha
 

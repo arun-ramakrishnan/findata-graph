@@ -16,6 +16,23 @@ tags:
 - risk_investment/dividend
 created: '2025-12-03'
 last_modified: '2026-07-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Jio_Financial_Wipro_Polycab
+  resource: /findata/The_Chatter/Jio_Financial_Wipro_Polycab.md
+  title: 'The Chatter: Jio Financial, Wipro, Polycab, Piramal & More'
+  last_modified: '2026-08-15'
+- id: TCS_ICICI_Pru_HDB_Financials
+  resource: /findata/The_Chatter/TCS_ICICI_Pru_HDB_Financials.md
+  title: 'The Chatter: TCS, ICICI Pru, HDB Financials More'
+  last_modified: '2026-08-15'
 ---
 
 # ICICI Lombard General Insurance

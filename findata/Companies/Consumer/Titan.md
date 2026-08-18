@@ -23,6 +23,35 @@ tags:
 - industry/wearables
 created: '2026-01-10'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: Bets and blueprints
+  resource: /findata/The_Chatter/Bets and blueprints.md
+  title: 'The Chatter: Bets and blueprints'
+  last_modified: '2026-08-15'
+- id: SBI_Delhivery_Titan
+  resource: /findata/The_Chatter/SBI_Delhivery_Titan.md
+  title: 'The Chatter: SBI, Delhivery, Titan & More'
+  last_modified: '2026-08-15'
+- id: The Shape of Change
+  resource: /findata/Points_And_Figures/The Shape of Change.md
+  title: 'Points & Figures: The Shape of Change'
+  last_modified: '2026-08-15'
+- id: Titan_Dixon_Cipla
+  resource: /findata/The_Chatter/Titan_Dixon_Cipla.md
+  title: 'The Chatter: Titan, Dixon, JSW Steel, Cipla & More'
+  last_modified: '2026-08-15'
 ---
 
 # Titan Company Limited

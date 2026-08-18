@@ -16,6 +16,19 @@ tags:
 - sector/automotive
 created: '2025-11-16'
 last_modified: '2025-11-16'
+generated:
+  by: process:okf_backfill
+  at: '2025-11-16T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Patience_and_payoff
+  resource: /findata/The_Chatter/Patience_and_payoff.md
+  title: 'The Chatter: Patience & payoff'
+  last_modified: '2026-08-15'
 ---
 
 # Schaeffler India

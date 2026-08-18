@@ -1,6 +1,5 @@
 ---
 title: Globus Agronics Limited
-title: Globus Agronics Limited
 type: company
 ticker: GMED.NS
 sector: Chemicals
@@ -21,6 +20,10 @@ tags:
 - sector/chemicals
 created: '2025-12-28'
 last_modified: '2025-12-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-28T00:00:00Z'
+stale_after: '2026-06-26'
 ---
 
 # Globus Agronics Limited

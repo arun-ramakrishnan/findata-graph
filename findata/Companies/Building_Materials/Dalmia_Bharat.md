@@ -17,6 +17,15 @@ tags:
 - risk_investment/growth
 created: '2026-02-12'
 last_modified: '2026-02-12'
+generated:
+  by: process:okf_backfill
+  at: '2026-02-12T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Weights_and_Measures
+  resource: /findata/The_Chatter/Weights_and_Measures.md
+  title: 'The Chatter: Weights and Measures'
+  last_modified: '2026-08-15'
 ---
 
 # Dalmia Bharat

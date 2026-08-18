@@ -15,7 +15,11 @@ tags:
 - risk_investment/growth
 - sector/engineering_capital_goods
 created: '2025-11-16'
-last_modified: 2026-07-10
+last_modified: '2026-07-10'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-10T00:00:00Z'
+stale_after: '2027-01-06'
 ---
 
 # Tega Industries

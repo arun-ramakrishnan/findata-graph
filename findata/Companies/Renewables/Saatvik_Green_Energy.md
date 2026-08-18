@@ -24,7 +24,11 @@ tags:
 - investment_theme/sustainability
 - investment_theme/energy_transition
 created: '2025-11-16'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-01-03'
 ---
 
 # Saatvik Green Energy Limited

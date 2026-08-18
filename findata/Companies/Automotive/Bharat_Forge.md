@@ -16,6 +16,31 @@ tags:
 - risk_investment/medium_risk
 created: '2025-12-20'
 last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Embracing_the_Unknown
+  resource: /findata/The_Chatter/Embracing_the_Unknown.md
+  title: 'The Chatter: Embracing the Unknown'
+  last_modified: '2026-08-15'
+- id: Meesho_Marico_Bajaj
+  resource: /findata/The_Chatter/Meesho_Marico_Bajaj.md
+  title: Meesho_Marico_Bajaj
+  last_modified: '2026-08-15'
+- id: Tailwinds_building
+  resource: /findata/The_Chatter/Tailwinds_building.md
+  title: 'The Chatter: Tailwinds building'
+  last_modified: '2026-08-15'
+- id: The_Pivot_Quarter_output
+  resource: /findata/The_Chatter/The_Pivot_Quarter_output.md
+  title: 'The Chatter: The Pivot Quarter'
+  last_modified: '2026-08-15'
 ---
 
 # Bharat Forge

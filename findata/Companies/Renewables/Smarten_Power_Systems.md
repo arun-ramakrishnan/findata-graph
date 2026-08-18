@@ -10,16 +10,25 @@ file_path: findata/Companies/Energy/Smarten_Power_Systems.md
 permalink: /companies/renewables/smarten_power_systems
 exchange: NSE
 tags:
-  - entity_type/company
-  - sector/renewables
-  - market_cap/micro_cap
-  - geography/india
-  - business_model/b2c
-  - risk_investment/high_risk
-  - industry/power_backup
-  - industry/solar_energy
+- entity_type/company
+- sector/renewables
+- market_cap/micro_cap
+- geography/india
+- business_model/b2c
+- risk_investment/high_risk
+- industry/power_backup
+- industry/solar_energy
 created: '2026-01-10'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
 ---
 
 # Smarten Power Systems Limited

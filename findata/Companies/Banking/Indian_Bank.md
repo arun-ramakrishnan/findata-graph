@@ -15,8 +15,21 @@ tags:
 - geography/india
 - risk_investment/medium_risk
 - business_model/b2b
-created: 2026-01-25
+created: '2026-01-25'
 last_modified: '2026-07-11'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-11T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: TCS_Indian_Bank_Amagi
+  resource: /findata/The_Chatter/TCS_Indian_Bank_Amagi.md
+  title: 'The Chatter: TCS, Indian Bank, Amagi, CMR Green & More'
+  last_modified: '2026-08-15'
+- id: Weights_and_Measures
+  resource: /findata/The_Chatter/Weights_and_Measures.md
+  title: 'The Chatter: Weights and Measures'
+  last_modified: '2026-08-15'
 ---
 # Indian Bank
 

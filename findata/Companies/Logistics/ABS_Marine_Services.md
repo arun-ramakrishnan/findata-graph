@@ -15,6 +15,10 @@ tags:
 - business_model/b2b
 created: '2025-12-17'
 last_modified: '2025-12-17'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-17T00:00:00Z'
+stale_after: '2026-06-15'
 ---
 
 # ABS Marine Services

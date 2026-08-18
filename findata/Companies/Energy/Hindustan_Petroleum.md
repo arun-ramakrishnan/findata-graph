@@ -16,6 +16,10 @@ tags:
 - risk_investment/dividend
 created: '2025-11-16'
 last_modified: '2026-06-26'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-26T00:00:00Z'
+stale_after: '2026-12-23'
 ---
 # Hindustan Petroleum
 

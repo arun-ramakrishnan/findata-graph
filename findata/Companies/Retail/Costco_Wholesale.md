@@ -16,8 +16,12 @@ tags:
 - geography/global
 - business_model/b2c
 - risk_investment/dividend
-created: 2026-06-24
-last_modified: 2026-07-12
+created: '2026-06-24'
+last_modified: '2026-07-12'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-12T00:00:00Z'
+stale_after: '2027-01-08'
 ---
 
 # Costco Wholesale

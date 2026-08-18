@@ -19,6 +19,27 @@ tags:
 - industry/passenger_vehicles
 created: '2025-12-28'
 last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Beneath_the_pixels
+  resource: /findata/Points_And_Figures/Beneath_the_pixels.md
+  title: 'Points \& Figures: The pulse beneath the pixels'
+  last_modified: '2026-08-15'
+- id: Infosys_Adani_Tata_Motors
+  resource: /findata/The_Chatter/Infosys_Adani_Tata_Motors.md
+  title: 'The Chatter: Infosys, Adani, Tata Motors, Canara & More'
+  last_modified: '2026-08-15'
+- id: Tailwinds_building
+  resource: /findata/The_Chatter/Tailwinds_building.md
+  title: 'The Chatter: Tailwinds building'
+  last_modified: '2026-08-15'
+- id: The_Truth_Behind_the_Trendlines
+  resource: /findata/Points_And_Figures/The_Truth_Behind_the_Trendlines.md
+  title: 'Points \& Figures: The Truth Behind the'
+  last_modified: '2026-08-15'
 ---
 
 # Tata Motors Passenger Vehicles Limited

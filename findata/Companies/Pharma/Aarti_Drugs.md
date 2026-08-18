@@ -15,7 +15,16 @@ tags:
 - risk_investment/growth
 - sector/pharma
 created: '2025-11-16'
-last_modified: 2026-07-07
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Patterns_Beneath_the_Surface
+  resource: /findata/Points_And_Figures/Patterns_Beneath_the_Surface.md
+  title: 'Points and Figures: Patterns Beneath the Surface'
+  last_modified: '2026-08-15'
 ---
 # Aarti Drugs
 

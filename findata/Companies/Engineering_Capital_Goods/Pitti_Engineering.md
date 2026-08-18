@@ -9,15 +9,19 @@ normalized_name: Pitti_Engineering
 file_path: findata/Companies/Engineering_Capital_Goods/Pitti_Engineering.md
 permalink: /companies/engineering_capital_goods/pitti_engineering
 tags:
-  - entity_type/company
-  - sector/engineering_capital_goods
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/growth
-  - financial_tags/profitable
+- entity_type/company
+- sector/engineering_capital_goods
+- market_cap/small_cap
+- geography/india
+- business_model/b2b
+- risk_investment/growth
+- financial_tags/profitable
 created: '2026-06-17'
 last_modified: '2026-06-17'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-17T00:00:00Z'
+stale_after: '2026-12-14'
 ---
 
 # Pitti Engineering

@@ -1,7 +1,7 @@
 ---
 title: Inox India
 type: company
-ticker: 'INOXINDIA.NS'
+ticker: INOXINDIA.NS
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -12,8 +12,21 @@ sector: Engineering_Capital_Goods
 industry: Specialty Industrial Machinery
 permalink: /companies/engineering_capital_goods/inox_india
 created: '2026-08-06'
-last_modified: 2026-08-06
+last_modified: '2026-08-06'
 file_path: findata/Companies/Engineering_Capital_Goods/Inox_India.md
+generated:
+  by: process:okf_backfill
+  at: '2026-08-06T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Marico_DLF_BSE
+  resource: /findata/The_Chatter/Marico_DLF_BSE.md
+  title: Marico_DLF_BSE
+  last_modified: '2026-08-15'
 ---
 
 # Inox India

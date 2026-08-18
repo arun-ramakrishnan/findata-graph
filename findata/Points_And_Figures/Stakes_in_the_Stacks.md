@@ -1,3 +1,14 @@
+---
+type: newsletter
+title: 'Points &amp; Figures: Stakes in the Stacks'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
+tags:
+- series/points_and_figures
+- publisher/zerodha
+---
 1/21/26, 4:34 PM
 Points &amp; Figures: Stakes in the Stacks
 

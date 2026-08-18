@@ -1,7 +1,7 @@
 ---
 title: Wall Education
 type: company
-ticker: 
+ticker: null
 sector: Education_Training
 industry: Lodging
 market_cap: mid_cap
@@ -15,7 +15,11 @@ tags:
 - risk_investment/growth
 - sector/education_training
 created: '2025-11-16'
-last_modified: 2026-07-10
+last_modified: '2026-07-10'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-10T00:00:00Z'
+stale_after: '2027-01-06'
 ---
 # Wall Education
 

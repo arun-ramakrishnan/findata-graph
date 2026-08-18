@@ -1,3 +1,14 @@
+---
+type: newsletter
+title: 'Points \& Figures: What the Slides Don''t Say'
+generated:
+  by: process:okf_backfill
+  at: '2026-08-15T00:00:00Z'
+stale_after: '2027-02-11'
+tags:
+- series/points_and_figures
+- publisher/zerodha
+---
 # Points \& Figures: What the Slides Don't Say 
 
 ## Edition \#5

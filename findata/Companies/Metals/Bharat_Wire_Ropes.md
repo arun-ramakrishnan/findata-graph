@@ -1,6 +1,5 @@
 ---
 title: Bharat Wire Ropes Limited
-title: Bharat Wire Ropes Limited
 type: company
 ticker: BHARATWIRE.NS
 sector: Metals
@@ -21,6 +20,10 @@ tags:
 - sector/metals
 created: '2025-12-28'
 last_modified: '2025-12-28'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-28T00:00:00Z'
+stale_after: '2026-06-26'
 ---
 
 # Bharat Wire Ropes Limited

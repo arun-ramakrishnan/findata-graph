@@ -10,18 +10,22 @@ file_path: findata/Companies/Engineering_Capital_Goods/Ksh_International.md
 permalink: /companies/engineering_capital_goods/ksh_international
 exchange: NSE
 tags:
-  - entity_type/company
-  - sector/engineering_capital_goods
-  - market_cap/small_cap
-  - geography/global
-  - business_model/b2b
-  - risk_investment/high_risk
-  - industry/winding_wires
-  - industry/transformers
-  - industry/ev_components
-  - industry/electrical_equipment
+- entity_type/company
+- sector/engineering_capital_goods
+- market_cap/small_cap
+- geography/global
+- business_model/b2b
+- risk_investment/high_risk
+- industry/winding_wires
+- industry/transformers
+- industry/ev_components
+- industry/electrical_equipment
 created: '2026-01-10'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-01-25'
 ---
 
 # KSH International Limited

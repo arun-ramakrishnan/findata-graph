@@ -16,6 +16,19 @@ tags:
 - risk_investment/high_growth
 created: '2025-12-27'
 last_modified: '2025-12-27'
+generated:
+  by: process:okf_backfill
+  at: '2025-12-27T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Closing_the_Year_Without_Closure
+  resource: /findata/The_Chatter/Closing_the_Year_Without_Closure.md
+  title: 'The Chatter: Closing the Year Without Closure'
+  last_modified: '2026-08-15'
 ---
 
 # Anupam Rasayan India

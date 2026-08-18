@@ -1,7 +1,7 @@
 ---
 title: Waaree Renewable Technologies
 type: company
-ticker: "WAAREERTL.NS"
+ticker: WAAREERTL.NS
 sector: Renewables
 industry: Engineering & Construction
 market_cap: small_cap
@@ -9,14 +9,18 @@ normalized_name: Waaree_Renewable_Technologies
 file_path: findata/Companies/Energy/Waaree_Renewable_Technologies.md
 permalink: /companies/renewables/waaree_renewable_technologies
 tags:
-  - entity_type/company
-  - sector/renewables
-  - market_cap/small_cap
-  - geography/india
-  - business_model/b2b
-  - risk_investment/growth
-created: 2026-01-21
-last_modified: 2026-07-07
+- entity_type/company
+- sector/renewables
+- market_cap/small_cap
+- geography/india
+- business_model/b2b
+- risk_investment/growth
+created: '2026-01-21'
+last_modified: '2026-07-07'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-07T00:00:00Z'
+stale_after: '2027-01-03'
 ---
 
 # Waaree Renewable Technologies | Small Cap | Energy

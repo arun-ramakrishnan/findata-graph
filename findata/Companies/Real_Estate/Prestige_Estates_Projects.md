@@ -16,6 +16,15 @@ tags:
 - risk_investment/high_growth
 created: '2025-11-16'
 last_modified: '2026-06-26'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-26T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: Reliance_Vedanta_Gillette
+  resource: /findata/The_Chatter/Reliance_Vedanta_Gillette.md
+  title: 'The Chatter: Reliance, Vedanta, Gillette, Prestige & More'
+  last_modified: '2026-08-15'
 ---
 # Prestige Estates Projects
 

@@ -12,6 +12,19 @@ tags:
 - sector/technology
 created: '2025-11-16'
 last_modified: '2026-06-24'
+generated:
+  by: process:okf_backfill
+  at: '2026-06-24T00:00:00Z'
+stale_after: '2027-02-11'
+sources:
+- id: A_Quarter_That_Refuses_To_Behave
+  resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
+  title: 'The Chatter: A Quarter That Refuses To Behave'
+  last_modified: '2026-08-15'
+- id: Discovering_Hidden_Signals
+  resource: /findata/The_Chatter/Discovering_Hidden_Signals.md
+  title: 'The Chatter: Discovering Hidden Signals'
+  last_modified: '2026-08-15'
 ---
 # Happiest Minds Technologies
 

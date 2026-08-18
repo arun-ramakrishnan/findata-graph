@@ -17,6 +17,10 @@ tags:
 - sector/semiconductors
 created: '2025-11-16'
 last_modified: '2026-07-29'
+generated:
+  by: process:okf_backfill
+  at: '2026-07-29T00:00:00Z'
+stale_after: '2027-01-25'
 ---
 # Western Digital Corporation (WDC) | Technology/Computer Hardware
 
