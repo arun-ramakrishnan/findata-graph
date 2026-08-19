@@ -10,6 +10,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.maintenance.enrich_from_yfinance import (  # noqa: E402
+    _auto_region_spans,
     _format_value,
     _convert_value,
     _outside_auto_region,
@@ -85,6 +86,38 @@ def test_outside_auto_region_inside():
     start = text.find("<!-- BEGIN auto foo -->")
     result = _outside_auto_region(text, start + 10)
     assert result == start
+
+
+def test_outside_auto_region_nested_regions():
+    """2026-08-19 regression: regions nest (a chatter region encloses the
+    key-figures region). A non-greedy BEGIN.*?END pairs the outer BEGIN with
+    the FIRST inner END, so a pos between the inner END and the true outer
+    END was considered 'outside' — profiles landed inside the chatter region
+    (10 of 58 restored notes). The stack walk pairs markers correctly."""
+    text = (
+        "<!-- BEGIN auto chatter block (derive_insights.py) -->\n"
+        "<!-- BEGIN auto key figures -->\n- figures\n<!-- END auto key figures -->\n"
+        "## The Chatter — Ed\ncontent\n"
+        "<!-- END auto chatter block -->\nrest"
+    )
+    outer_start = text.find("<!-- BEGIN auto chatter block")
+    # pos sits AFTER the inner KF END but INSIDE the true chatter region.
+    inner_end = text.find("<!-- END auto key figures -->") + len(
+        "<!-- END auto key figures -->") + 2
+    assert _outside_auto_region(text, inner_end) == outer_start
+
+
+def test_auto_region_spans_nested_maximal():
+    text = (
+        "<!-- BEGIN auto chatter block -->x"
+        "<!-- BEGIN auto key figures -->y<!-- END auto key figures -->"
+        "z<!-- END auto chatter block -->tail"
+    )
+    spans = _auto_region_spans(text)
+    assert len(spans) == 1  # one maximal region, not a mis-paired partial
+    s, e = spans[0]
+    assert text[s:e].startswith("<!-- BEGIN auto chatter block -->")
+    assert text[s:e].endswith("<!-- END auto chatter block -->")
 
 
 # ---------------------------------------------------------------------------

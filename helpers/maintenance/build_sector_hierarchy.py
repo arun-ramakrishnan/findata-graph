@@ -45,6 +45,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from datetime import date
 from pathlib import Path
@@ -354,7 +355,20 @@ def build(*, write: bool) -> int:  # noqa: C901
     )
 
     if not write:
-        print("(--check mode: no writes performed)", file=sys.stderr)
+        # Drift gate (2026-08-19, mirroring sync_sector_wikilinks --check):
+        # the taxonomy maps may be fine while the NOTES lag a missed --apply.
+        stale_ss = _check_super_notes()
+        stale_up = len(_uplink_changes(conn))
+        if stale_ss or stale_up:
+            print(
+                f"✗ drift: {stale_ss} super-sector note(s) + {stale_up} "
+                "sector uplink(s) stale — re-run with --apply",
+                file=sys.stderr,
+            )
+            conn.close()
+            return 1
+        print("(--check mode: taxonomy + notes fresh, no writes performed)",
+              file=sys.stderr)
         conn.close()
         return 0
 
@@ -406,14 +420,43 @@ _UP_BEGIN = "<!-- BEGIN auto super-sector uplink (build_sector_hierarchy.py) -->
 _UP_END = "<!-- END auto super-sector uplink -->"
 
 
-def _sync_sector_uplinks(conn) -> None:
-    """Write a `super_sector:` frontmatter field + an auto `## Super Sector
-    (auto)` up-link section into each of the 42 sector notes.
+_CHILD_BEGIN = "<!-- BEGIN auto child sectors (build_sector_hierarchy.py) -->"
+_CHILD_END = "<!-- END auto child sectors -->"
 
-    Idempotent: the section is bracketed by sentinel markers so re-runs
-    replace it cleanly without touching curated content. The `super_sector:`
-    field is set/updated in the YAML frontmatter (placed after `type:` to
-    match CANONICAL_ORDER). Skips sector notes whose file_path is missing.
+
+def _check_super_notes() -> int:
+    """Count super-sector notes whose Child Sectors (auto) region drifted.
+
+    Region-scoped, NOT full-file: other writers legitimately extend these
+    notes (the OKF backfill adds generated/sources/stale_after frontmatter),
+    so only the sentinel-bracketed section this tool owns decides drift.
+    """
+    stale = 0
+    for ss, members in SUPER_SECTORS.items():
+        note_path = SUPER_SECTORS_DIR / f"{_normalize(ss)}.md"
+        if not note_path.exists():
+            stale += 1
+            continue
+        actual_region = _child_region(note_path.read_text(encoding="utf-8"))
+        expected_region = _child_region(_super_sector_note(ss, members))
+        if actual_region != expected_region:
+            stale += 1
+    return stale
+
+
+def _child_region(text: str) -> str | None:
+    """The sentinel-bracketed Child Sectors region, or None when absent."""
+    m = re.search(
+        rf"{re.escape(_CHILD_BEGIN)}(.*?){re.escape(_CHILD_END)}", text, re.S
+    )
+    return m.group(1) if m else None
+
+
+def _uplink_changes(conn) -> list[tuple[Path, str, str]]:
+    """Sector notes whose super-sector up-link content is stale.
+
+    Returns ``(note_path, current_content, expected_content)`` triples —
+    the writer applies them; the --check drift gate counts them.
     """
     # Build sector -> super_sector lookup from the belongs_to edges.
     sector_to_super = {
@@ -424,7 +467,7 @@ def _sync_sector_uplinks(conn) -> None:
         ).fetchall()
     }
     sectors_dir = VAULT_ROOT / "Sectors"
-    n_updated = 0
+    changes: list[tuple[Path, str, str]] = []
     for sector, super_name in sector_to_super.items():
         note_path = sectors_dir / f"{sector}.md"
         if not note_path.exists():
@@ -432,9 +475,20 @@ def _sync_sector_uplinks(conn) -> None:
         content = note_path.read_text(encoding="utf-8")
         new_content = _inject_uplink(content, super_name)
         if new_content != content:
-            note_path.write_text(new_content, encoding="utf-8")
-            n_updated += 1
-    print(f"synced super-sector up-links in {n_updated} sector note(s)",
+            changes.append((note_path, content, new_content))
+    return changes
+
+
+def _sync_sector_uplinks(conn) -> None:
+    """Write the `super_sector:` frontmatter field + the auto up-link
+    section into each stale sector note (applies ``_uplink_changes``).
+
+    Idempotent (sentinel-bracketed replace; curated content untouched).
+    """
+    changes = _uplink_changes(conn)
+    for note_path, _old, new_content in changes:
+        note_path.write_text(new_content, encoding="utf-8")
+    print(f"synced super-sector up-links in {len(changes)} sector note(s)",
           file=sys.stderr)
 
 

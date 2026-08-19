@@ -282,3 +282,58 @@ def test_inject_uplink_no_h1_appends():
     content = "---\ntitle: X\ntype: sector\n---\n\nNo heading here"
     result = bsh._inject_uplink(content, "Financials")
     assert "[[Financials]]" in result
+
+
+# --------------------------------------------------------------------------- #
+# --check drift gate (2026-08-19): taxonomy maps may be fine while the       #
+# NOTES lag a missed --apply. Region-scoped: other writers (OKF backfill)    #
+# legitimately extend these notes, so only the sentinel regions decide.      #
+# --------------------------------------------------------------------------- #
+class TestCheckDrift:
+    def test_check_fresh_after_apply(self, tmp_path):
+        db = _build_db(tmp_path)
+        assert _run_build(db, "apply", tmp_path) == 0
+        assert _run_build(db, "check", tmp_path) == 0
+
+    def test_check_writes_nothing(self, tmp_path):
+        db = _build_db(tmp_path)
+        _run_build(db, "apply", tmp_path)
+        notes = sorted((tmp_path / "findata" / "Super_Sectors").glob("*.md"))
+        before = [p.read_text() for p in notes]
+        assert _run_build(db, "check", tmp_path) == 0
+        assert [p.read_text() for p in notes] == before
+
+    def test_drifted_child_sector_region_fails_check(self, tmp_path):
+        db = _build_db(tmp_path)
+        assert _run_build(db, "apply", tmp_path) == 0
+        note = tmp_path / "findata" / "Super_Sectors" / "Industrials.md"
+        note.write_text(note.read_text().replace("[[Defense]]", "[[DefenseX]]"))
+        assert _run_build(db, "check", tmp_path) == 1
+
+    def test_okf_frontmatter_additions_are_not_drift(self, tmp_path):
+        # The OKF backfill adds generated/stale_after frontmatter to
+        # super-sector notes — a full-file compare would false-positive
+        # (and --apply would clobber the keys). The gate must stay
+        # region-scoped.
+        db = _build_db(tmp_path)
+        _run_build(db, "apply", tmp_path)
+        note = next((tmp_path / "findata" / "Super_Sectors").glob("*.md"))
+        note.write_text(note.read_text().replace(
+            "---\n",
+            "---\ngenerated:\n  by: process:okf_backfill\n"
+            "  at: '2026-08-19T00:00:00Z'\n", 1))
+        assert _run_build(db, "check", tmp_path) == 0
+
+    def test_drifted_uplink_fails_check(self, tmp_path):
+        db = _build_db(tmp_path)
+        _run_build(db, "apply", tmp_path)
+        sectors_dir = tmp_path / "findata" / "Sectors"
+        sectors_dir.mkdir(parents=True)
+        # Defense belongs to Industrials (curated taxonomy).
+        defense = sectors_dir / "Defense.md"
+        defense.write_text("# Defense\n", encoding="utf-8")
+        _run_build(db, "apply", tmp_path)          # writes the uplink
+        assert "Industrials" in defense.read_text()
+        defense.write_text(
+            defense.read_text().replace("Industrials", "Wrong_Super"))
+        assert _run_build(db, "check", tmp_path) == 1

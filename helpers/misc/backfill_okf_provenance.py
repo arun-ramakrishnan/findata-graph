@@ -33,6 +33,13 @@ a content derive; the next real machine rewrite overwrites ``generated``
 the YAML round-trip. Re-runs are no-ops when nothing changed (dates are
 read from git/frontmatter, not the clock).
 
+Role since okf_sources_maintenance §3.2: derive_insights maintains
+``sources[]`` on the derived trees AT RENDER TIME (the splice), so for
+rendered notes this backfill is no longer the routine path. It remains
+the tool for pre-OKF notes a real writer never touches, the real-writer
+``generated`` augment path, the source-tree stamping mode, and future OKF
+schema migrations. Rarely needed; kept for bootstrap.
+
 Usage:
     python3 helpers/misc/backfill_okf_provenance.py                 # derived, dry-run
     python3 helpers/misc/backfill_okf_provenance.py --apply         # derived, write
@@ -44,10 +51,7 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import re
-import shutil
-import subprocess
 import sys
-import unicodedata
 from pathlib import Path
 
 import yaml
@@ -57,6 +61,15 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core import edition_index as _ei  # noqa: E402
+from helpers.core.edition_index import (  # noqa: E402
+    CHROME_FILES,
+    DERIVED_TREES,
+    merged_sources,
+    note_title,
+    source_note_index,
+    source_trees,
+)
 from helpers.core.frontmatter import (  # noqa: E402
     bump_generated,
     moddate_to_iso_date,
@@ -71,14 +84,6 @@ from helpers.pdf.pdf_conv_md import (  # noqa: E402
 
 # OKF §7 actor convention: process:<id> for a non-content machine pass.
 _ACTOR = "process:okf_backfill"
-
-_DERIVED_TREES = ("Companies", "Sectors", "Super_Sectors")
-# Listing/chrome files: OKF §4 reserved names + the pipeline's image map.
-_CHROME_FILES = {"image_map.md", "index.md", "log.md"}
-
-_SERIES_RE = r"(the\s+chatter|points\s*(?:&|and)\s*figures|the\s+plotlines|plotlines)"
-_EDITION_H_RE = re.compile(rf"^##\s+{_SERIES_RE}\s*[—:-]*(.+)$", re.M | re.I)
-_SOURCE_FOOTER_RE = re.compile(r"^\*?Source:\s*(.+?)\*?\s*$", re.M | re.I)
 
 # Fixed migration for the one flat-tagged outlier (Scaling_Through_Slowdowns).
 # Unknown flat tags are NOT migrated — reported and left in place; the
@@ -111,52 +116,6 @@ def _source_tags(existing, tree_name: str) -> tuple[list[str], bool, list[str]]:
     return tags, bool(migrated), unknown_flat
 
 
-def _norm(s: str) -> str:
-    """Fuzzy-match key: NFKD, lowercase, all non-alphanumerics to spaces."""
-    s = unicodedata.normalize("NFKD", s)
-    return " ".join(re.sub(r"[^a-z0-9]+", " ", s.lower()).split())
-
-
-def _git_add_date(path: Path) -> str | None:
-    """Date the file entered the repo (``git log --diff-filter=A``), or None.
-
-    Memoized: the same edition note is queried once per derived note that
-    references it, but its date never changes within a run.
-    """
-    key = str(path)
-    if key in _GIT_DATE_MEMO:
-        return _GIT_DATE_MEMO[key]
-    git = shutil.which("git")
-    d: str | None = None
-    if git is not None:
-        try:
-            out = subprocess.run(  # noqa: S603  # resolved absolute path, fixed argv, no shell
-                [git, "log", "--follow", "--diff-filter=A", "--format=%as",
-                 "--", str(path)],
-                capture_output=True, text=True, timeout=30, check=True,
-                cwd=_REPO_ROOT,
-            ).stdout.splitlines()
-            d = out[-1].strip() if out else None
-        except (OSError, subprocess.SubprocessError):
-            d = None
-    _GIT_DATE_MEMO[key] = d
-    return d
-
-
-_GIT_DATE_MEMO: dict[str, str | None] = {}
-
-
-def _note_title(text: str, stem: str) -> str:
-    """Frontmatter title -> first markdown heading -> file stem."""
-    m = re.search(r"^title:\s*(.+)$", text, re.M)
-    if m and m.group(1).strip():
-        return m.group(1).strip()
-    m = re.search(r"^#\s+(.+)$", text, re.M)
-    if m and m.group(1).strip():
-        return m.group(1).strip()
-    return stem
-
-
 def _parse_fm(text: str) -> dict | None:
     """Frontmatter mapping, or None when the note has no parseable block."""
     opener, fm_text, _ = split_frontmatter(text)
@@ -179,85 +138,6 @@ def _body(text: str) -> str:
     return rest
 
 
-def _source_note_index(vault: Path) -> dict[str, Path]:
-    """norm-key -> source-note path, over every non-derived findata tree."""
-    index: dict[str, Path] = {}
-    for tree in _source_trees(vault):
-        for p in sorted(tree.rglob("*.md")):
-            if p.name in _CHROME_FILES or "images" in p.parts:
-                continue
-            text = p.read_text(encoding="utf-8", errors="replace")
-            title = _note_title(text, p.stem)
-            keys = {_norm(p.stem), _norm(title)}
-            if ":" in title:
-                keys.add(_norm(title.split(":")[-1]))
-            for key in filter(None, keys):
-                index.setdefault(key, p)
-    return index
-
-
-def _source_trees(vault: Path) -> list[Path]:
-    """Every vault subtree that is NOT one of the derived trees."""
-    return sorted(
-        (d for d in vault.iterdir()
-         if d.is_dir() and d.name not in _DERIVED_TREES and not d.name.startswith(".")),
-        key=lambda d: d.name,
-    )
-
-
-def _resolve_editions(text: str, index: dict[str, Path]) -> list[Path]:
-    """Source notes referenced by a derived note's body, deduped, sorted.
-
-    Candidates: auto-block ``## <series> — <edition>`` headings and the
-    trailing ``*Source: <edition>*`` footer. Each is normalized (series
-    prefix, edition numbers, attribution/date tails stripped) and matched
-    against the source-note index (exact key, then containment both ways
-    for short/long title variants). Unmatchable candidates (Yahoo Finance,
-    yfinance, "existing company note", ...) simply resolve to nothing.
-    """
-    cands = [m.group(2).strip() for m in _EDITION_H_RE.finditer(text)]
-    cands += [f.strip() for f in _SOURCE_FOOTER_RE.findall(text)]
-    matched: set[Path] = set()
-    for c in cands:
-        if not c:
-            continue
-        variants = [c]
-        variants += re.split(r"[,;(]?\b[Ee]dition\s*#?\d+", c)
-        variants += [re.split(
-            r",\s*(?:Zerodha|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b)",
-            c)[0]]
-        m = re.match(rf"{_SERIES_RE}\s*[—:-]*(.*)$", c, re.I)
-        if m:
-            variants.append(m.group(1))
-        for v in variants:
-            k = _norm(v)
-            if not k:
-                continue
-            if k in index:
-                matched.add(index[k])
-                break
-            for key, p in index.items():
-                if len(k) >= 8 and (k in key or key in k):
-                    matched.add(p)
-                    break
-    return sorted(matched, key=lambda p: p.name)
-
-
-def _edition_source_entry(src: Path, vault: Path) -> dict:
-    """sources[] entry for an edition note (last_modified = git add-date)."""
-    entry = {
-        "id": src.stem,
-        "resource": f"/{vault.name}/{src.relative_to(vault).as_posix()}",
-        "title": _note_title(
-            src.read_text(encoding="utf-8", errors="replace"), src.stem
-        ),
-    }
-    d = _git_add_date(src)
-    if d:
-        entry["last_modified"] = d
-    return entry
-
-
 def _iso_date(v) -> str | None:
     """YAML date object or ISO date string -> 'YYYY-MM-DD', else None."""
     if isinstance(v, _dt.date):
@@ -275,17 +155,6 @@ def _stale_from_sources(entries: list[dict], fallback: str) -> str:
     if not base:
         base = fallback
     return (_dt.date.fromisoformat(base) + _dt.timedelta(days=180)).isoformat()
-
-
-def _merged_sources(fm: dict, text: str, index: dict, vault: Path) -> list[dict]:
-    """Existing frontmatter sources + newly resolved edition entries, deduped."""
-    entries = [_edition_source_entry(s, vault)
-               for s in _resolve_editions(_body(text), index)]
-    existing = ([e for e in fm["sources"]
-                 if isinstance(e, dict)] if isinstance(
-                     fm.get("sources"), list) else [])
-    return existing + [e for e in entries
-                       if e["id"] not in {x.get("id") for x in existing}]
 
 
 def _augment_real_writer(fm: dict, text: str, all_entries: list[dict]) -> str | None:
@@ -323,9 +192,9 @@ def _stamp_derived(fm: dict, text: str, all_entries: list[dict]) -> str:
 
 def backfill(vault: Path, *, apply: bool) -> dict[str, dict[str, int]]:
     """Stamp OKF provenance on every derived-tree note. See module docstring."""
-    index = _source_note_index(vault)
+    index = source_note_index(vault)
     counts: dict[str, dict[str, int]] = {}
-    for tree in _DERIVED_TREES:
+    for tree in DERIVED_TREES:
         c = {"stamped": 0, "augmented": 0, "unchanged": 0,
              "skipped_real_writer": 0, "no_frontmatter": 0, "sourced": 0}
         for p in sorted((vault / tree).rglob("*.md")):
@@ -337,7 +206,7 @@ def backfill(vault: Path, *, apply: bool) -> dict[str, dict[str, int]]:
             gen = fm.get("generated")
             real_writer = (isinstance(gen, dict)
                            and gen.get("by") not in (None, _ACTOR))
-            all_entries = _merged_sources(fm, text, index, vault)
+            all_entries = merged_sources(fm, text, index, vault)
             if real_writer:
                 if not all_entries:
                     c["skipped_real_writer"] += 1
@@ -385,9 +254,9 @@ def _source_at(fm: dict, p: Path, repo_root: Path) -> tuple[str | None, bool]:
             fm["sources"] = [entry]
             if lm:
                 return f"{lm}T00:00:00Z", True
-            d = _git_add_date(p)  # PDF lacks ModDate -> git date, not now
+            d = _ei.git_add_date(p)  # PDF lacks ModDate -> git date, not now
             return (f"{d}T00:00:00Z" if d else None), True
-    d = _git_add_date(p)
+    d = _ei.git_add_date(p)
     return (f"{d}T00:00:00Z" if d else None), False
 
 
@@ -412,7 +281,7 @@ def _prep_source_fm(text: str, p: Path, tree: Path,
     fm = dict(fm)
     fm.setdefault("type", "newsletter")
     if not str(fm.get("title") or "").strip():
-        fm["title"] = _note_title(_body(text), p.stem)
+        fm["title"] = note_title(_body(text), p.stem)
     tags, migrated, unknown_flat = _source_tags(fm.get("tags"), tree.name)
     for t in unknown_flat:
         print(f"WARNING {p.relative_to(vault)}: unmigrated flat tag "
@@ -426,11 +295,11 @@ def backfill_sources(vault: Path, *, apply: bool,
     """Construct/augment the producer OKF block on every source-tree note."""
     repo_root = repo_root or _REPO_ROOT
     counts: dict[str, dict[str, int]] = {}
-    for tree in _source_trees(vault):
+    for tree in source_trees(vault):
         c = {"stamped": 0, "unchanged": 0, "skipped_real_writer": 0,
              "pdf_linked": 0, "tag_migrations": 0}
         for p in sorted(tree.rglob("*.md")):
-            if p.name in _CHROME_FILES or "images" in p.parts:
+            if p.name in CHROME_FILES or "images" in p.parts:
                 continue
             text = p.read_text(encoding="utf-8", errors="replace")
             prepped = _prep_source_fm(text, p, tree, vault)

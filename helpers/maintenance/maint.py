@@ -16,7 +16,15 @@ Chains the always-safe maintenance steps in the right order:
 
 With ``--full``, additionally runs after step 3:
   4. ``sync_tags.py``    — rebuild entity_tags from note YAML.
-  5. ``sync_sector_wikilinks.py`` — regenerate auto company index in sector notes.
+  5. ``sync_sector_wikilinks.py --check`` — GATE only: abort when sector-
+                           note company indexes are stale; the WRITE is the
+                           explicit ``make sync-sector-links`` (housekeeping
+                           never mutates notes).
+  5b. ``build_sector_hierarchy.py --check`` — GATE only: abort on taxonomy
+                           coverage errors or drifted Child Sectors (auto) /
+                           up-link regions; the WRITE (which also writes
+                           entities + belongs_to edges) is the explicit
+                           ``--apply`` run.
   6. ``rebuild_note_search.py`` — rebuild FTS over findata markdowns.
   7. ``algorithms.py --all --apply`` — refresh pagerank/betweenness/louvain.
   8. ``derive_insights.py findata --apply --no-notes`` — scan newsletter concall
@@ -24,10 +32,12 @@ With ``--full``, additionally runs after step 3:
                            quotes/company_metrics tables ONLY (DB-write).
                            Note-rendering (`## The Chatter` / `## Key Figures`
                            blocks) is deliberately OFF here so a housekeeping
-                           run never mutates notes — run ``make derive-insights``
-                           standalone to render/refresh those blocks.
+                           run never mutates notes — run ``derive_insights.py
+                           findata --apply`` standalone (make derive-insights
+                           is only the dry-run preview) to render/refresh
+                           those blocks.
                            derive-events (step 9) reads note prose rendered by
-                           the last standalone ``make derive-insights``, so this
+                           the last standalone apply, so this
                            step and step 9 are no longer within-run coupled.
   9. ``derive_events.py --apply`` — refresh the events timeline (D7) from the
                            newly-synced note prose + existing edges.
@@ -77,8 +87,17 @@ TIER1_STEPS: list[tuple[str, list[str]]] = [
 TIER2_STEPS: list[tuple[str, list[str]]] = [
     ("sync-tags (rebuild entity_tags from note YAML)",
      ["python3", "helpers/core/sync_tags.py"]),
-    ("sync-sector-links (regenerate auto company index in sector notes)",
-     ["python3", "helpers/maintenance/sync_sector_wikilinks.py"]),
+    # sync-sector-links CHECKS only (2026-08-19): the write mutates sector
+    # notes, so it is an explicit `make sync-sector-links` — housekeeping
+    # never mutates notes. The check gates: stale sector indexes abort
+    # maint-full with the exact remediation in the step's own output.
+    ("sync-sector-links --check (gate: sector-note company indexes fresh)",
+     ["python3", "helpers/maintenance/sync_sector_wikilinks.py", "--check"]),
+    # Same doctrine for the hierarchy notes: taxonomy + Child Sectors (auto)
+    # regions + sector up-links are CHECKED here; the write (which also
+    # writes entities/belongs_to edges) is the explicit --apply run.
+    ("sector-hierarchy --check (gate: taxonomy + super-sector notes fresh)",
+     ["python3", "helpers/maintenance/build_sector_hierarchy.py", "--check"]),
     ("rebuild-note-search (rebuild FTS over findata markdowns)",
      ["python3", "helpers/maintenance/rebuild_note_search.py"]),
     ("recompute-graph (refresh analytics in graph_analytics)",
@@ -94,12 +113,13 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     # derive-insights runs --no-notes here: it scans newsletter sources and
     # writes ONLY the quotes/company_metrics tables (SQLite-only, no note
     # mutation). derive-events reads NOTE prose (## The Chatter / analyst
-    # bullets) rendered by the last STANDALONE `make derive-insights` run, not
+    # bullets) rendered by the last STANDALONE apply
+    # (`derive_insights.py findata --apply [--stale-only]`; `make
+    # derive-insights` is only the dry-run preview), not
     # this step's DB rows — so freshly-captured chatter enters the events
-    # timeline one `make derive-insights` cycle later. Keeping note-rendering
+    # timeline one apply cycle later. Keeping note-rendering
     # out of maint-full means a housekeeping run can never mutate notes (the
-    # maint-full placement invariant); order retained for stability. See
-    # `make derive-insights` for the note-rendering path.
+    # maint-full placement invariant); order retained for stability.
     ("derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
      ["python3", "helpers/graph/derive_insights.py", "findata", "--apply", "--no-notes"]),
     ("derive-events (refresh events timeline from note prose + edges)",
@@ -107,6 +127,11 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     ("snapshot (re-snapshot to include recomputed analytics + events)",
      ["python3", "helpers/maintenance/snapshot_db.py"]),
 ]
+# NOTE: sync-sector-links used to WRITE here (regenerating the auto company
+# index in sector notes). Since 2026-08-19 maint-full only CHECKS it; the
+# write is the explicit `make sync-sector-links` (it mutates notes, and a
+# housekeeping run must never mutate notes — same rule that keeps
+# derive-insights note-rendering out of TIER2).
 
 
 def _run_step(

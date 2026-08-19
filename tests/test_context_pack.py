@@ -60,7 +60,8 @@ def con(tmp_path: Path):
         ("e_exposed_to", 1, 8, 0.3, None),
     ]
     for tbl in ("e_subsidiary", "e_acquired", "e_jv", "e_supplier", "e_customer",
-                "e_group", "e_competes", "e_belongs_to", "e_exposed_to", "e_comention"):
+                "e_group", "e_competes", "e_belongs_to", "e_exposed_to",
+                "e_cited_in", "e_comention"):
         cols = {"e_subsidiary": ("subsidiary_name", "parent_name"),
                 "e_acquired": ("acquirer_name", "target_name"),
                 "e_jv": ("a_name", "b_name"),
@@ -70,6 +71,7 @@ def con(tmp_path: Path):
                 "e_competes": ("a_name", "b_name"),
                 "e_belongs_to": ("child_id", "parent_id"),
                 "e_exposed_to": ("company_id", "theme_id"),
+                "e_cited_in": ("company_id", "edition_id"),
                 "e_comention": ("a_name", "b_name")}[tbl]
         c.execute(
             f"CREATE TABLE {tbl}({cols[0]} BIGINT, {cols[1]} BIGINT, weight DOUBLE,"
@@ -126,6 +128,23 @@ class TestBuildContextPack:
         # Competitor<->Far Co does not touch Acme -> excluded at hops=1
         pack = CP.build_context_pack(con, "Acme", budget=50)
         assert "Competitor —co_mentioned_with→ Far Co" not in pack
+
+    def test_cited_in_fact_renders_but_never_expands_hops(self, con):
+        # okf_activation P: cited_in (company -> edition) renders as a
+        # display fact ranked LAST (trims with the firehose), and hop
+        # expansion never runs through editions — Far Co citing the same
+        # edition must NOT enter Acme's pack via the edition.
+        con.execute(
+            "INSERT INTO v_node VALUES (10, 'Edition_Q1', 'edition', NULL, NULL, NULL)")
+        con.execute("INSERT INTO e_cited_in VALUES (1, 10, 1.0, NULL, 'okf', NULL, NULL)")
+        con.execute("INSERT INTO e_cited_in VALUES (9, 10, 1.0, NULL, 'okf', NULL, NULL)")
+        pack = CP.build_context_pack(con, "Acme", budget=50)
+        assert "Acme —cited_in→ Edition_Q1" in pack
+        # Far Co enters via the co-mention edge, never via the shared edition:
+        # exactly ONE fact mentions Far Co, and the Far Co->edition edge (no
+        # endpoint in the pack's id set) is never collected.
+        assert pack.count("Far Co") == 1
+        assert "Far Co —cited_in→ Edition_Q1" not in pack
 
     def test_budget_trims_comention_first(self, con):
         full = CP.build_context_pack(con, "Acme", budget=50)

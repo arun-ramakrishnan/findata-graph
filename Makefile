@@ -8,7 +8,7 @@
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild frontend frontend-check maint maint-full metrics-rebuild lint types lint-audit deptry advisory secret-scan analytics suggest-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild lint types lint-audit deptry advisory secret-scan analytics suggest-relations live-invariants
 
 help:           ## Show available targets
 > @echo "FinData QA / maintenance targets:"
@@ -107,7 +107,7 @@ sync-tags:      ## Rebuild entity_tags from note YAML (mirrors entity_type/secto
 > python3 helpers/core/sync_tags.py
 > @echo "✓ entity_tags synced from notes"
 
-sync-sector-links: ## Regenerate the auto company index in each sector note (Bundle H3)
+sync-sector-links: ## WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)
 > python3 helpers/maintenance/sync_sector_wikilinks.py
 > @echo "✓ sector wikilinks synced from DB"
 
@@ -165,18 +165,59 @@ derive-events: ## Promote relation edges + extract guidance/management events in
 > python3 helpers/graph/derive_events.py --apply
 > @echo "✓ events table refreshed (acquisition/jv/guidance/management_change)"
 
-# Note-rendering path: this target renders `## The Chatter` + `## Key Figures`
-# blocks into company notes. maint-full runs derive_insights with --no-notes
-# (DB-only) so housekeeping never mutates notes; run THIS target standalone to
-# refresh the rendered blocks (and to self-heal any marker-nesting collisions).
-derive-insights: ## Extract concall quotes + financial magnitudes into quotes/company_metrics tables and render auto `## The Chatter` blocks into company notes
-> python3 helpers/graph/derive_insights.py findata --apply
-> @echo "✓ quotes + company_metrics refreshed; auto chatter blocks rendered (hand-written blocks preserved)"
+# Note-rendering path — DELIBERATELY DRY-RUN (2026-08-19): a bare `make
+# derive-insights` previews what would be written and never mutates notes
+# (mass note rewrites must be an explicit decision). The preview runs
+# --stale-only (okf_activation I) so it shows the real incremental
+# worklist: notes gated as evidence-unchanged vs would-render. To apply:
+#   python3 helpers/graph/derive_insights.py findata --apply --stale-only
+#       # the usual path: only notes whose evidence moved since their last
+#       # render (first run after an OKF backfill re-renders all sourced
+#       # notes; gating engages from the second run).
+#   python3 helpers/graph/derive_insights.py findata --apply
+#       # full re-render of every sourced note (forced pass).
+# maint-full runs derive_insights with --apply --no-notes (DB-only) so
+# housekeeping never mutates notes.
+derive-insights: ## DRY-RUN stale-only preview of quotes/company_metrics + auto `## The Chatter` blocks (writes nothing; apply yourself — see comment above)
+> python3 helpers/graph/derive_insights.py findata --stale-only
+> @echo "✓ dry-run only (nothing written) — apply: python3 helpers/graph/derive_insights.py findata --apply --stale-only"
 
 derive-themes-rebuild: ## derive-themes + graph-rebuild — the paired run themes require (writes edges, then rebuilds the DuckDB cache to match)
 > python3 helpers/graph/derive_themes.py --apply
 > python3 helpers/graph/query.py rebuild
 > @echo "✓ themes derived AND DuckDB cache rebuilt (derive-themes + graph-rebuild)"
+
+derive-cited-in: ## Derive cited_in (note -> edition) edges from OKF sources[] frontmatter (okf_activation P)
+> python3 helpers/graph/derive_cited_in.py --apply
+> @echo "✓ edition entities + cited_in edges refreshed (pair with graph-rebuild)"
+
+derive-cited-in-rebuild: ## derive-cited-in + graph-rebuild — the paired run cited_in requires (writes entities+edges, then rebuilds the DuckDB cache to match)
+> python3 helpers/graph/derive_cited_in.py --apply
+> python3 helpers/graph/query.py rebuild
+> @echo "✓ editions derived AND DuckDB cache rebuilt (derive-cited-in + graph-rebuild)"
+
+# READ-ONLY preview of the whole derive-* family (2026-08-19): the companion
+# to the all-writes-explicit doctrine — every apply is opt-in, so this is the
+# one-command "what would change" audit. Nothing is written anywhere:
+# derive-insights previews the --stale-only worklist; extract_relations runs
+# with --no-write-sidecar (its dry-run would otherwise APPEND to
+# findata/_pending_relations.txt). Excluded: metrics-rebuild (no dry-run —
+# network fetch + note writes) and suggest-relations (review tool, not a
+# derivation preview).
+derive-all: ## READ-ONLY preview of every derive-* step (dry-runs; nothing written, sidecar suppressed)
+> @echo "=== derive-insights (stale-only worklist) ==="
+> python3 helpers/graph/derive_insights.py findata --stale-only
+> @echo "=== derive-relations (pending edges; sidecar suppressed) ==="
+> python3 helpers/graph/extract_relations.py findata/The_Chatter findata/Points_And_Figures findata/The_Plotlines --no-write-sidecar
+> @echo "=== derive-co-mentions ==="
+> python3 helpers/graph/derive_co_mentions.py --newsletter The_Chatter
+> @echo "=== derive-themes ==="
+> python3 helpers/graph/derive_themes.py
+> @echo "=== derive-cited-in ==="
+> python3 helpers/graph/derive_cited_in.py
+> @echo "=== derive-events ==="
+> python3 helpers/graph/derive_events.py
+> @echo "✓ derive-all preview complete — nothing written"
 
 frontend: ## Build the TypeScript frontend bundle into static/findata.bundle.js (needs Node)
 > cd frontend && npm ci && npm run build

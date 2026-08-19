@@ -138,6 +138,98 @@ class TestCLI:
         rc = AN.main(["--snapshots", str(snap)])
         assert rc == 0 and "# Snapshot summary" in capsys.readouterr().out
 
+
+@pytest.fixture()
+def cov_snap(tmp_path: Path) -> Path:
+    """Coverage-shaped snapshot: editions + note_tags + cited_in edges.
+
+    Separate from ``snap`` — its summary/edge-growth tests pin exact
+    table counts, so cited_in/entities additions live here only.
+    """
+    con = duckdb.connect()
+    try:
+        (tmp_path / "duckdb").mkdir()
+        (tmp_path / "sqlite").mkdir()
+        con.execute("CREATE TABLE meta(key VARCHAR, value VARCHAR)")
+        con.executemany("INSERT INTO meta VALUES (?, ?)",
+                        [("schema_version", "10"), ("generation", "43")])
+        con.execute("COPY meta TO '" + str(tmp_path / "duckdb" / "_build_meta.parquet") + "'")
+        con.execute(
+            "CREATE TABLE entities(name VARCHAR, entity_type VARCHAR, created_at VARCHAR,"
+            " file_path VARCHAR, last_updated VARCHAR, normalized_name VARCHAR,"
+            " sector_classification VARCHAR, ticker VARCHAR)")
+        con.executemany(
+            "INSERT INTO entities VALUES (?, ?, NULL, ?, NULL, NULL, ?, NULL)",
+            [("A", "company", None, "S1"),
+             ("B", "company", None, "S1"),
+             ("C", "company", None, "S2"),
+             ("Agri", "sector", None, None),
+             ("Ed1", "edition", "findata/The_Chatter/Ed1.md", None),
+             ("Ed2", "edition", "findata/Points_And_Figures/Ed2.md", None)],
+        )
+        con.execute("COPY entities TO '" + str(tmp_path / "sqlite" / "entities.parquet") + "'")
+        con.execute("CREATE TABLE note_tags(note_path VARCHAR, tag VARCHAR)")
+        con.executemany("INSERT INTO note_tags VALUES (?, ?)", [
+            ("findata/The_Chatter/Ed1.md", "series/the_chatter"),
+            ("findata/The_Chatter/Ed1.md", "publisher/zerodha"),
+            ("findata/Points_And_Figures/Ed2.md", "series/points_and_figures"),
+        ])
+        con.execute("COPY note_tags TO '" + str(tmp_path / "sqlite" / "note_tags.parquet") + "'")
+        con.execute(
+            "CREATE TABLE graph_edges(id BIGINT, source VARCHAR, target VARCHAR,"
+            " edge_type VARCHAR, weight DOUBLE, properties VARCHAR, valid_from VARCHAR,"
+            " valid_to INTEGER, source_ref VARCHAR, is_symmetric BIGINT, created_at VARCHAR)")
+        con.executemany(
+            "INSERT INTO graph_edges VALUES (?, ?, ?, 'cited_in', 1.0, ?, NULL, NULL,"
+            " 'derive:cited_in', 0, '2026-08-19 12:00:00')",
+            [(1, "A", "Ed1", '{"n_quotes": 2, "resource": "/findata/The_Chatter/Ed1.md"}'),
+             (2, "B", "Ed1", '{"n_quotes": 0, "resource": "/findata/The_Chatter/Ed1.md"}'),
+             (3, "C", "Ed2", '{"n_quotes": 1}'),
+             # sector note citing an edition: matrix-excluded, rollup-counted
+             (4, "Agri", "Ed1", "{}")],
+        )
+        con.execute("COPY graph_edges TO '" + str(tmp_path / "sqlite" / "graph_edges.parquet") + "'")
+    finally:
+        con.close()
+    return tmp_path
+
+
+class TestCoverage:
+    def test_matrix_joins_series_sector_and_quote_depth(self, cov_snap):
+        r = AN.fetch("coverage", cov_snap)
+        got = {(row[0], row[1]): row for row in r.rows}
+        assert got[("series/the_chatter", "S1")][2:5] == ["2", "1", "2"]
+        assert got[("series/points_and_figures", "S2")][2:5] == ["1", "1", "1"]
+        # the sector-note edge never lands in the company matrix
+        assert ("series/the_chatter", "Agri") not in got
+
+    def test_rollup_and_hygiene_in_note(self, cov_snap):
+        r = AN.fetch("coverage", cov_snap)
+        assert "the_chatter 1 editions / 2 companies / 1 sector-notes / 2 quotes" in r.note
+        assert ("points_and_figures 1 editions / 1 companies"
+                " / 0 sector-notes / 1 quotes") in r.note
+        assert "4/4 cited_in edges joined" in r.note
+        assert "drift" not in r.note
+
+    def test_unjoined_edges_flag_drift(self, cov_snap):
+        # an edition entity with no series tag: its edge joins nothing
+        con = duckdb.connect()
+        try:
+            con.execute(
+                "COPY (SELECT * FROM read_parquet('" + str(cov_snap / "sqlite" / "graph_edges.parquet") + "')"  # noqa: S608  # fixture-local tmp path
+                " UNION ALL SELECT 5, 'A', 'Ed3', 'cited_in', 1.0, '{}', NULL, NULL,"
+                " 'derive:cited_in', 0, '2026-08-19 12:00:00')"
+                " TO '" + str(cov_snap / "sqlite" / "graph_edges.parquet") + "'")
+        finally:
+            con.close()
+        r = AN.fetch("coverage", cov_snap)
+        assert "4/5 cited_in edges joined" in r.note
+        assert "drift" in r.note
+
+    def test_publisher_tags_dont_pollute_series(self, cov_snap):
+        r = AN.fetch("coverage", cov_snap)
+        assert all(row[0].startswith("series/") for row in r.rows)
+
     def test_main_bad_report_is_cli_error(self, snap, capsys):
         try:
             AN.main(["nope", "--snapshots", str(snap)])

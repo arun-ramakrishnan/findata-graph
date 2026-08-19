@@ -293,3 +293,11 @@ The date-object normalization quirk already handled by
   `doc/improvements/archive/newsletter_notes_adoption.md` (supersedes the
   "newsletter notes need no schema" note in §3.1; their OKF block is now
   schema-validated).
+- **Activation (2026-08-19, `doc/improvements/archive/okf_activation.md`):**
+  the OKF metadata became operational — editions are graph nodes with
+  `cited_in` edges projected from `sources[]` (canonical edition key = note
+  STEM; `quotes.as_of_edition` is free text, never a join key), the
+  `make analytics REPORT=coverage` matrix reads those joins, and
+  `derive_insights.py --stale-only` renders only notes whose evidence moved
+  past `generated.at`. Edition staleness (`stale_after` census) is covered
+  by the `--okf` sweep's group-scoped report.

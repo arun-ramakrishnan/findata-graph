@@ -180,7 +180,7 @@ def _with_generation_cache(fn):
 # longer declared — pattern queries are plain SQL JOINs over the e_* tables.
 # The bump forces every existing .duckdb cache cold so no stale fin_graph /
 # __duckpgq_internal catalog entries survive.
-_SCHEMA_VERSION = "9"
+_SCHEMA_VERSION = "10"  # 10: + v_edition / e_cited_in (okf_activation P)
 
 # Metadata table inside the .duckdb file tracking what was built + when.
 # Used to detect "is this file warm or cold" and to record provenance.
@@ -559,8 +559,8 @@ def _build_graph(con: duckdb.DuckDBPyConnection) -> None:
     # (theme projection) + e_exposed_to (company -> theme edge), also declared
     # outside the registry for the same mixed-endpoint reason.
     for t in ("v_node", "v_company", "v_sector",
-              "v_super_sector", "v_sub_sector", "v_theme",
-              "v_embeddings", "e_belongs_to", "e_exposed_to"):
+              "v_super_sector", "v_sub_sector", "v_theme", "v_edition",
+              "v_embeddings", "e_belongs_to", "e_exposed_to", "e_cited_in"):
         con.execute(f"DROP TABLE IF EXISTS {t}")
 
     _materialise_vertices(con)
@@ -684,7 +684,7 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
                e.ticker
         FROM fin.entities e
         WHERE e.entity_type IN ('company', 'sector', 'super_sector',
-                                'sub_sector', 'theme')
+                                'sub_sector', 'theme', 'edition')
         """
     )
     # Filtered projections used by edge-table JOINs (resolve by name → id).
@@ -715,6 +715,12 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
     # EDGE_REGISTRY loop (which only resolves company<->sector).
     con.execute(
         "CREATE TABLE v_theme AS SELECT id, name FROM v_node WHERE kind='theme'"
+    )
+    # okf_activation P: edition projection. Newsletter-edition nodes (name =
+    # note stem) are the target of cited_in (company/sector -> edition).
+    # Out-of-registry like v_theme for the same mixed-endpoint reason.
+    con.execute(
+        "CREATE TABLE v_edition AS SELECT id, name FROM v_node WHERE kind='edition'"
     )
     # P2.5: v_embeddings — vector embeddings for semantic similarity search.
     # Sourced from fin.company_embeddings (FLOAT[emb_dim]) if it exists in the
@@ -888,6 +894,25 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
         JOIN v_node dst ON dst.name = ge.target
                       AND dst.kind = 'theme'
         WHERE ge.edge_type = 'exposed_to'
+        """
+    )
+    # okf_activation P: the cited_in edge (company/sector -> edition) — OKF
+    # provenance made traversable. Same out-of-registry reason as the two
+    # above: mixed endpoint kinds. Created unconditionally so it exists
+    # cleanly when empty.
+    con.execute(
+        """
+        CREATE TABLE e_cited_in AS
+        SELECT src.id AS company_id,
+               dst.id AS edition_id,
+               ge.weight, ge.properties, ge.source_ref,
+               ge.valid_from, ge.valid_to
+        FROM fin.graph_edges ge
+        JOIN v_node src ON src.name = ge.source
+                      AND src.kind IN ('company', 'sector', 'super_sector')
+        JOIN v_node dst ON dst.name = ge.target
+                      AND dst.kind = 'edition'
+        WHERE ge.edge_type = 'cited_in'
         """
     )
 

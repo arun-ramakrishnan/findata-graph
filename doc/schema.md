@@ -98,7 +98,8 @@ One row per derived/manual company event. Populated by
 ## `quotes` — concall quote capture
 
 Verbatim executive quotes from `## [Concall]` blocks, extracted by
-`helpers/graph/derive_insights.py` (`make derive-insights`) as
+`helpers/graph/derive_insights.py --apply` (`make derive-insights` is the
+dry-run preview) as
 paraphrase → quote → `— Name, Title` units. Speakers are string
 attributes, NOT entities (D6 deferral).
 

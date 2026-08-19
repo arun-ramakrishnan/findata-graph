@@ -43,22 +43,24 @@ class TestPlan:
         ]
 
     def test_tier2_has_seven_steps(self):
-        assert len(maint.TIER2_STEPS) == 7
+        assert len(maint.TIER2_STEPS) == 8
 
     def test_tier2_steps_order(self):
         # Post-ingest cleanup: structural work first (sync-tags settles
-        # entity sector_classification, sync-sector-links regenerates the
-        # company index, rebuild-note-search reads it into the FTS index;
-        # recompute-graph mutates SQLite), then derive-insights scans
-        # newsletter concall bodies into the quotes/company_metrics tables
-        # ONLY (--no-notes: housekeeping never mutates notes), then
-        # derive-events refreshes the events timeline (D7) from note prose
-        # rendered by the last standalone `make derive-insights`, then
-        # re-snapshot captures the full post-ingest state.
+        # entity sector_classification, sync-sector-links CHECKS the
+        # company index — the write is explicit, housekeeping never
+        # mutates notes — rebuild-note-search reads notes into the FTS
+        # index; recompute-graph mutates SQLite), then derive-insights
+        # scans newsletter concall bodies into the quotes/company_metrics
+        # tables ONLY (--no-notes), then derive-events refreshes the events
+        # timeline (D7) from note prose rendered by the last standalone
+        # derive_insights --apply, then re-snapshot captures the full
+        # post-ingest state.
         labels = [label for label, _ in maint.TIER2_STEPS]
         assert labels == [
             "sync-tags (rebuild entity_tags from note YAML)",
-            "sync-sector-links (regenerate auto company index in sector notes)",
+            "sync-sector-links --check (gate: sector-note company indexes fresh)",
+            "sector-hierarchy --check (gate: taxonomy + super-sector notes fresh)",
             "rebuild-note-search (rebuild FTS over findata markdowns)",
             "recompute-graph (refresh analytics in graph_analytics)",
             "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
@@ -70,7 +72,7 @@ class TestPlan:
         # Ordering retained for stability: with --no-notes, derive-insights
         # writes only the quotes/company_metrics DB tables (no note prose),
         # and derive-events reads note prose rendered by the last standalone
-        # `make derive-insights` — so there is no longer a within-run data
+        # derive_insights --apply — so there is no longer a within-run data
         # dependency. Order kept so a future revert to in-maint-full note-
         # rendering would keep working, and for log readability.
         labels = [label for label, _ in maint.TIER2_STEPS]
@@ -141,7 +143,7 @@ class TestCommands:
     def test_derive_insights_in_maint_full_is_db_only(self):
         # maint-full must run derive-insights with --no-notes so a housekeeping
         # run never mutates company notes (the placement invariant). Note-
-        # rendering lives in the standalone `make derive-insights` target.
+        # rendering lives in the standalone derive_insights --apply path (make is dry-run).
         # Removing --no-notes here reintroduces the profile-stripping class
         # of bug.
         cmd = dict(maint.TIER2_STEPS)[
@@ -190,8 +192,8 @@ class TestDryRun:
             maint.main(["--full", "--dry-run"])
         output = caplog.text
         all_steps = maint.TIER1_STEPS + maint.TIER2_STEPS
-        # 3 tier1 (db_maint, snapshot, graph-rebuild) + 7 tier2.
-        assert len(all_steps) == 10
+        # 3 tier1 (db_maint, snapshot, graph-rebuild) + 8 tier2.
+        assert len(all_steps) == 11
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
 

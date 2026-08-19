@@ -80,8 +80,8 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
 11. **Auto-extract concall quotes + magnitudes** *(standalone command)* — `derive_insights.py` reads each company's `## [Concall]` body and captures every verbatim quote + speaker attribution + paraphrase into the `quotes` table, plus financial magnitudes (₹/%/bps/$bn) into `company_metrics`. It renders the quotes into a sentinel-wrapped `## The Chatter — <edition>` block in each company note (the deterministic first pass of Stage 5; hand-written blocks are never clobbered). Run after the newsletter is parsed and entities exist:
 
     ```bash
-    make derive-insights                                        # apply (also bumps OKF generated/stale_after on notes whose blocks changed; maint-full runs --no-notes and never mutates notes)
-    python3 helpers/graph/derive_insights.py findata            # dry-run summary
+    make derive-insights                                        # DRY-RUN preview (writes nothing)
+    python3 helpers/graph/derive_insights.py findata --apply     # the actual write (bumps OKF generated/stale_after on notes whose blocks changed; maint-full runs --no-notes and never mutates notes)
     python3 helpers/graph/derive_insights.py findata --verbose  # list every quote + metric
     ```
 
@@ -204,6 +204,34 @@ company/         <entity-slug> coverage (deferred slice, S5)
 ```
 
 Source-note tags are fully machine-written: `pdf_conv_md.py` emits them at conversion, and `helpers/misc/backfill_okf_provenance.py --sources --apply` backfills/migrates them on pre-existing notes. See `doc/improvements/archive/newsletter_notes_adoption.md`.
+
+### Edition identity & provenance activation (okf_activation)
+
+The **note STEM is the canonical edition key** everywhere (`sources[].id`,
+wikilinks, `entities.name` for edition nodes). `quotes.as_of_edition` is
+free text that matches note titles only 28/71 — never use it as a join
+key; resolve free-text edition references with
+`helpers/core/edition_index.py` (`resolve_edition_string`), which
+reports misses instead of guessing. The activation targets built on this:
+
+- `make derive-cited-in-rebuild` — edition entities + `cited_in` edges
+  projected from OKF `sources[]` (idempotent; pair with the DuckDB
+  rebuild, which the target runs).
+- `make analytics REPORT=coverage` — series × sector coverage matrix from
+  clean entity/note_tags/cited_in joins (no fuzzy bridge).
+- `python3 helpers/graph/derive_insights.py findata --apply --stale-only`
+  — render only notes whose evidence moved since their last render
+  (a `sources[].last_modified` newer than `generated.at`, OR a scanned
+  edition whose stem is missing from `sources[]`); notes without
+  `sources[]` always render. Rendered notes also get newly referenced
+  editions **spliced into `sources[]`** (okf_sources_maintenance §3.2 —
+  entry builders live in `edition_index.py`), so the evidence list and
+  the gate read the same world; `stale_after` re-bases from the spliced
+  sources. Opt-in; the first run after an OKF backfill re-renders every
+  sourced note (backfill stamps are not render stamps).
+- Post-render chain: `derive_insights --apply [--stale-only]` →
+  `make derive-cited-in-rebuild` (new citations become edges) →
+  `make maint-full` (snapshot captures everything).
 
 Categories for derived notes (apply relevant ones; abbreviate to save tokens):
 
@@ -467,7 +495,8 @@ python3 helpers/graph/derive_insights.py findata
 # Apply (write quotes/metrics tables + render auto note blocks):
 python3 helpers/graph/derive_insights.py findata --apply
 
-# Or via make:
+# Preview only (make target is deliberately dry-run — mass note
+# rewrites must be an explicit --apply decision):
 make derive-insights
 
 # Verbose (list every quote + metric):
