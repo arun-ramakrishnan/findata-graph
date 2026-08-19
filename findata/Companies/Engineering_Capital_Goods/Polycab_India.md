@@ -17,8 +17,8 @@ tags:
 created: '2026-01-25'
 last_modified: '2026-07-17'
 generated:
-  by: process:okf_backfill
-  at: '2026-07-17T00:00:00Z'
+  by: derive_insights.py/v1
+  at: '2026-08-19T13:01:38Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
