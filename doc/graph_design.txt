@@ -9,10 +9,11 @@ and adds the full algorithm catalog (§5).
 
 ## 1. Problem & Scope
 
-The knowledge graph stores 1,209 entities in SQLite (`memory/research.db`) —
-1,068 companies, 42 sectors, 78 sub_sectors, 9 super_sectors, 12 themes —
-connected by 4,110 edges across 12 semantic edge types (§4). At ~1k nodes /
-~4k edges a server-grade graph DB is overkill; DuckDB gives in-process graph
+The knowledge graph stores 1,317 entities in SQLite (`memory/research.db`) —
+1,068 companies, 42 sectors, 78 sub_sectors, 9 super_sectors, 12 themes,
+108 editions —
+connected by 5,126 edges across 13 semantic edge types (§4). At ~1k nodes /
+~5k edges a server-grade graph DB is overkill; DuckDB gives in-process graph
 SQL + analytics attached read-only to the existing SQLite — zero new infra.
 
 ## 2. Architecture
@@ -91,7 +92,7 @@ CREATE VIEW relations AS                -- backward-compat (READ-ONLY!)
     SELECT source, target, edge_type AS relation_type FROM graph_edges;
 ```
 
-Edge types (extensible; TEXT column). Live counts 2026-08-15:
+Edge types (extensible; TEXT column). Live counts 2026-08-19:
 
 | edge_type | Direction / semantics | sym | rows |
 |---|---|---|---|
@@ -99,12 +100,24 @@ Edge types (extensible; TEXT column). Live counts 2026-08-15:
 | `part_of` / `has_company` | company ↔ sector (legacy two-row pair) | – | 1068 each |
 | `exposed_to` | company → theme (cross-sector) | 0 | 348 |
 | `belongs_to` | sector → super_sector / sub_sector → sector (hierarchy) | 0 | 120 |
+| `cited_in` | company/sector → edition (OKF provenance; okf_activation P) | 0 | 1005 |
 | `subsidiary_of` | subsidiary → parent | 0 | 63 |
 | `jv_with` | company ↔ company (JV) | 1 | 54 |
 | `acquired` | acquirer → acquired (temporal; set valid_to) | 0 | 39 |
 | `competes_with` | company ↔ company | 1 | 10 |
 | `supplier_to` / `customer_of` | company → company (asymmetric, one direction) | 0 | 6 / 1 |
 | `same_group` | company ↔ company (promoter group) | 1 | 4 |
+
+**Edition nodes (okf_activation P, 2026-08-19):** editions are entities
+(`entity_type='edition'`, name = note STEM — the canonical edition key;
+quotes.as_of_edition is free text matching titles only 28/71, so it is
+never a join key). `cited_in` edges project the OKF `sources[]`
+frontmatter into the graph (props `{resource, n_quotes}`); fan-in is hub-
+skewed (`A_Quarter_That_Refuses_To_Behave` = 360/1,005), so analytics
+exclude it from activity views (`_MEMBERSHIP_TYPES`), link-prediction's
+default projection omits it, and context packs rank it last and never
+expand hops through it. Standalone target `make derive-cited-in-rebuild`
+(writes entities+edges, then rebuilds this DuckDB cache).
 
 **Symmetric convention:** one row per pair in canonical alphabetical order
 (`source LE target`). Legacy `part_of`/`has_company` keep the two-row

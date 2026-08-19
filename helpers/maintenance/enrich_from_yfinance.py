@@ -69,9 +69,27 @@ _PROFILE_PATTERN = re.compile(
 # derive_insights key-figures region) — the root cause of the historical
 # profile-block-stripping collision, where a profile lodged between the KF
 # BEGIN/END markers got destroyed on the next `derive_insights --apply`.
-_AUTO_REGION = re.compile(
-    r"<!-- BEGIN auto .*?-->.*?<!-- END auto .*?-->", re.DOTALL
-)
+# Marker pairs are matched with a STACK walk, not a non-greedy regex: the
+# regions nest (a chatter region can enclose the key-figures region), and a
+# non-greedy `BEGIN.*?END` pairs the outer BEGIN with the FIRST inner END,
+# misplacing the region boundary (2026-08-19: 10 of 58 restored profiles
+# landed inside the true chatter region this way).
+_AUTO_MARKER = re.compile(r"<!--\s*(BEGIN|END)\s+auto\b.*?-->", re.DOTALL)
+
+
+def _auto_region_spans(text: str) -> list[tuple[int, int]]:
+    """Maximal (start, end) spans of top-level auto-block regions."""
+    spans: list[tuple[int, int]] = []
+    stack: list[int] = []
+    for m in _AUTO_MARKER.finditer(text):
+        if m.group(1) == "BEGIN":
+            stack.append(m.start())
+        elif stack:
+            start = stack.pop()
+            if not stack:  # outermost pair closed
+                spans.append((start, m.end()))
+        # END without BEGIN: corrupted note — ignore that marker
+    return spans
 
 
 def _outside_auto_region(text: str, pos: int) -> int:
@@ -80,9 +98,9 @@ def _outside_auto_region(text: str, pos: int) -> int:
     Ensures the profile is placed before a sibling auto-block's BEGIN marker
     rather than nested inside it.
     """
-    for m in _AUTO_REGION.finditer(text):
-        if m.start() <= pos < m.end():
-            return m.start()
+    for start, end in _auto_region_spans(text):
+        if start <= pos < end:
+            return start
     return pos
 
 # yfinance fields that go to company_metrics (volatile, DB-only)

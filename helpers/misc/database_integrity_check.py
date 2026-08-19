@@ -40,6 +40,7 @@ _KNOWN_EDGE_TYPES: tuple[str, ...] = (
     "acquired", "subsidiary_of", "co_mentioned_in",
     "belongs_to",  # Bundle M4: sector hierarchy (sector->super_sector, sub_sector->sector)
     "exposed_to",  # D4: cross-sector theme membership (company -> theme)
+    "cited_in",    # okf_activation P: OKF provenance (company/sector -> edition)
 )
 
 
@@ -175,8 +176,11 @@ class DatabaseIntegrityChecker:
         if not self._check_directory_structure(file_path, entity_type):
             return False, f"Invalid directory structure: {file_path}"
 
-        # Check filename format
-        if not self._check_filename_format(file_path):
+        # Check filename format. Editions are exempt: their filenames come
+        # from the OCR conversion pipeline, not the entity-naming convention
+        # (5 live stems legitimately break PascalCase, e.g. "Bets and
+        # blueprints.md" — okf_activation P).
+        if entity_type != "edition" and not self._check_filename_format(file_path):
             return False, f"Invalid filename format: {file_path}"
 
         return True, "Valid"
@@ -190,6 +194,8 @@ class DatabaseIntegrityChecker:
           - sector        -> findata/Sectors/{Entity}.md (subdirs ok)
           - super_sector  -> findata/Super_Sectors/{Entity}.md (Bundle M4)
           - sub_sector    -> no note expected (facets; exempt from this check)
+          - edition       -> findata/{The_Chatter|The_PlotLines|Points_And_
+                             Figures}/{Edition}.md (okf_activation P)
         """
         # Bundle M4: sub_sectors are intra-sector facets (Iron and Steel,
         # Airlines, ...) with no dedicated note — file_path is legitimately
@@ -206,6 +212,12 @@ class DatabaseIntegrityChecker:
         elif file_path.startswith("findata/Super_Sectors/"):
             parts = file_path.split("/")
             return len(parts) == 3  # findata, Super_Sectors, {Entity}.md
+        elif (entity_type == "edition"
+              and file_path.startswith(
+                  ("findata/The_Chatter/", "findata/The_PlotLines/",
+                   "findata/Points_And_Figures/"))):
+            parts = file_path.split("/")
+            return len(parts) == 3  # findata, {tree}, {Edition}.md
         return False
 
     def _check_filename_format(self, file_path: str) -> bool:
@@ -787,11 +799,15 @@ class DatabaseIntegrityChecker:
 
         bad_format = []
         file_mismatches = []  # WARNING
-        for name, nn, fp in cur.execute(
-            "SELECT name, normalized_name, file_path FROM entities"
+        for name, nn, fp, etype in cur.execute(
+            "SELECT name, normalized_name, file_path, entity_type FROM entities"
         ).fetchall():
             nn = nn or ""
-            if nn and (not name_ok.match(nn) or "__" in nn or nn.endswith("_")):
+            # Editions follow the OCR filename convention, not the entity-
+            # naming one (5 live stems legitimately break PascalCase — same
+            # rationale as the filename exemption in validate_file_path).
+            if (nn and etype != "edition"
+                    and (not name_ok.match(nn) or "__" in nn or nn.endswith("_"))):
                 bad_format.append({"name": name, "normalized_name": nn})
             stem = Path(fp).stem if fp else ""
             if nn and stem and nn != stem:
@@ -1332,14 +1348,16 @@ class DatabaseIntegrityChecker:
 
         mismatches: list = []
 
-        # v_node: one row per entity of the 5 modeled kinds.
+        # v_node: one row per entity of the modeled kinds (the same list as
+        # _materialise_vertices in helpers/graph/query.py — currently 6,
+        # editions joined via okf_activation P).
         try:
             duck_n = duck_con.execute("SELECT COUNT(*) FROM v_node").fetchone()[0]
         except Exception:
             duck_n = None
         sqlite_n = self.get_connection().execute(
             "SELECT COUNT(*) FROM entities WHERE entity_type IN "
-            "('company','sector','super_sector','sub_sector','theme')"
+            "('company','sector','super_sector','sub_sector','theme','edition')"
         ).fetchone()[0]
         if duck_n is None or duck_n != sqlite_n:
             mismatches.append(

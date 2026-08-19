@@ -11,6 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import helpers.misc.backfill_okf_provenance as bk  # noqa: E402
+from helpers.core import edition_index as ei  # noqa: E402
 from helpers.misc.backfill_okf_provenance import (  # noqa: E402
     _ACTOR,
     backfill,
@@ -112,9 +113,9 @@ def test_edition_reference_becomes_sources_entry(tmp_path, monkeypatch):
         "Hand-written body.\n\n## The Chatter — Big Edition\n\n- q\n",
     )
     acme.write_text(text)
-    monkeypatch.setattr(bk, "_GIT_DATE_MEMO",
+    monkeypatch.setattr(ei, "_GIT_DATE_MEMO",
                         {str(v / "The_Chatter" / "edition.md"): None})
-    monkeypatch.setattr(bk, "_git_add_date",
+    monkeypatch.setattr(ei, "git_add_date",
                         lambda p: "2026-08-15"
                         if p.name == "edition.md" else None)
     counts = backfill(v, apply=True)
@@ -149,7 +150,7 @@ def test_real_writer_stamp_preserved_but_augmented(tmp_path, monkeypatch):
         "  at: 2026-08-18T09:00:00Z\nverified:",
     )
     acme.write_text(text)
-    monkeypatch.setattr(bk, "_git_add_date",
+    monkeypatch.setattr(ei, "git_add_date",
                         lambda p: "2026-08-15"
                         if p.name == "edition.md" else None)
     backfill(v, apply=True)
@@ -196,7 +197,7 @@ def test_sources_mode_constructs_frontmatter(tmp_path, monkeypatch):
     v = _make_vault(tmp_path)
     note = v / "The_Chatter" / "Hot_Edition.md"
     note.write_text("# The Chatter: Hot Edition\n\nprose\n")
-    monkeypatch.setattr(bk, "_git_add_date", lambda p: "2026-08-15")
+    monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     counts = backfill_sources(v, apply=True, repo_root=tmp_path)
     fm = _fm_of(note)
     assert fm["type"] == "newsletter"
@@ -243,7 +244,7 @@ def test_sources_mode_tags_untagged_notes(tmp_path, monkeypatch):
     v = _make_vault(tmp_path)
     plot = v / "The_PlotLines" / "Deep_Dive.md"
     plot.write_text("# Deep Dive\n")
-    monkeypatch.setattr(bk, "_git_add_date", lambda p: "2026-08-15")
+    monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     backfill_sources(v, apply=True, repo_root=tmp_path)
     assert _fm_of(plot)["tags"] == ["series/the_plotlines",
                                     "publisher/zerodha"]
@@ -257,7 +258,7 @@ def test_sources_mode_migrates_flat_tags(tmp_path, monkeypatch):
     note.write_text(
         "---\ntype: newsletter\ntags:\n- zerodha\n- chatter\n---\nbody\n"
     )
-    monkeypatch.setattr(bk, "_git_add_date", lambda p: "2026-08-15")
+    monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     counts = backfill_sources(v, apply=True, repo_root=tmp_path)
     fm = _fm_of(note)
     assert fm["tags"] == ["series/the_chatter", "publisher/zerodha"]
@@ -269,7 +270,7 @@ def test_sources_mode_keeps_unknown_flat_tags_and_warns(
     v = _make_vault(tmp_path)
     note = v / "The_Chatter" / "edition.md"
     note.write_text("---\ntype: newsletter\ntags:\n- mystery\n---\nbody\n")
-    monkeypatch.setattr(bk, "_git_add_date", lambda p: "2026-08-15")
+    monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     backfill_sources(v, apply=True, repo_root=tmp_path)
     fm = _fm_of(note)
     assert fm["tags"] == ["series/the_chatter", "publisher/zerodha",
@@ -283,7 +284,7 @@ def test_sources_mode_preserves_namespaced_tags(tmp_path, monkeypatch):
     note.write_text(
         "---\ntype: newsletter\ntags:\n- company/avanti_feeds\n---\nbody\n"
     )
-    monkeypatch.setattr(bk, "_git_add_date", lambda p: "2026-08-15")
+    monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     backfill_sources(v, apply=True, repo_root=tmp_path)
     assert _fm_of(note)["tags"] == ["series/the_chatter",
                                     "publisher/zerodha",
@@ -292,7 +293,7 @@ def test_sources_mode_preserves_namespaced_tags(tmp_path, monkeypatch):
 
 def test_sources_mode_idempotent(tmp_path, monkeypatch):
     v = _make_vault(tmp_path)
-    monkeypatch.setattr(bk, "_git_add_date", lambda p: "2026-08-15")
+    monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     backfill_sources(v, apply=True, repo_root=tmp_path)
     snap = {p: p.read_bytes() for p in v.rglob("*.md")}
     counts = backfill_sources(v, apply=True, repo_root=tmp_path)

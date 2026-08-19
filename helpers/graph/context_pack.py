@@ -48,7 +48,10 @@ import duckdb  # noqa: E402
 DEFAULT_DUCKDB = Path("memory") / "graph.duckdb"
 
 # (table, subject_col, object_col, label, priority). Priority asc = keep
-# first; co-mention is the firehose so it trims first.
+# first; co-mention is the firehose so it trims first. okf_activation P:
+# cited_in is provenance/display-only (priority 11, trims with/after the
+# firehose) and excluded from _STRUCTURED_TABLES so hops never expand
+# through editions (a quarterly-roundup hub would pull in half the graph).
 _EDGE_SPECS: tuple[tuple[str, str, str, str, int], ...] = (
     ("e_subsidiary", "subsidiary_name", "parent_name", "subsidiary_of", 1),
     ("e_acquired", "acquirer_name", "target_name", "acquired", 2),
@@ -60,9 +63,12 @@ _EDGE_SPECS: tuple[tuple[str, str, str, str, int], ...] = (
     ("e_belongs_to", "child_id", "parent_id", "belongs_to", 8),
     ("e_exposed_to", "company_id", "theme_id", "exposed_to", 9),
     ("e_comention", "a_name", "b_name", "co_mentioned_with", 10),
+    ("e_cited_in", "company_id", "edition_id", "cited_in", 11),
 )
+# Hop expansion runs over these; firehose/display tables stay out.
+_NON_STRUCTURED = frozenset({"co_mentioned_with", "cited_in"})
 _STRUCTURED_TABLES = tuple(
-    s[0] for s in _EDGE_SPECS if s[3] != "co_mentioned_with"
+    s[0] for s in _EDGE_SPECS if s[3] not in _NON_STRUCTURED
 )
 
 

@@ -2448,3 +2448,63 @@ entire corpus the day after the keys shipped.
   datetime round-trip, sources-mode PDF-link/tags/migration/
   unknown-flat-warn/preserve/idempotency). Advisory-clean (S607 fixed
   via `shutil.which("git")`; C901 refactors split the mode drivers).
+
+## 134. okf_activation — cited_in edges, coverage analytics, --stale-only derive
+
+**Date**: 2026-08-19. Proposal: `archive/okf_activation.md` (Q1 decided
+(b) P-first; Q2–Q6 as recommended; Q4 amended — PDFs dropped from the
+edge set). All four workstreams shipped the same day:
+
+- **F0 shared edition keys**: `helpers/core/edition_index.py` — the note
+  STEM is the canonical edition key; `norm_key`/`source_note_index`/
+  `resolve_edition_string`/`resolve_editions` lifted out of the OKF
+  backfill (19 tests pin behavior; `quotes.as_of_edition` is free text
+  matching titles only 28/71 and is never a join key).
+- **P cited_in**: `derive_cited_in.py` + `make derive-cited-in[-rebuild]`
+  — 108 `entity_type='edition'` entities (name = normalized_name = stem,
+  theme precedent) + 1,005 `cited_in` edges from OKF `sources[]` (props
+  `{resource, n_quotes}`), live + idempotent (re-run 0/0). Consumers:
+  DuckDB `v_edition`/`e_cited_in` (`_SCHEMA_VERSION` 9→10), context
+  packs rank cited_in last + never expand hops through editions,
+  analytics exclude it, link-prediction projection omits it, integrity
+  check validates edition paths (OCR filename exemption).
+- **C2 coverage**: `make analytics REPORT=coverage` — series × sector
+  matrix over clean entity/note_tags/cited_in joins; hygiene line
+  reports joined/total edges (live 1005/1005: the_chatter 432 companies
+  / 2,236 quotes; points_and_figures 62; the_plotlines 5). C1 fuzzy
+  bridge superseded/skipped.
+- **I --stale-only**: `derive_insights.py --stale-only` — skip a note's
+  re-render iff `generated.by` is the derive writer AND
+  `max(sources[].last_modified) <= generated.at`; no-sources always
+  render; opt-in. First apply = the `notes_refresh` patch (323 notes
+  re-stamped); fixed point proven (328 gated, 0 would write).
+- **Post-ship hardening (same day)**: `make derive-insights` is now a
+  DRY-RUN `--stale-only` preview (apply explicit); maint-full gates
+  instead of writing notes (sync-sector-links `--check`;
+  build_sector_hierarchy `--check` region-scoped note-drift gate —
+  full-file compare would false-positive on OKF frontmatter and --apply
+  would clobber it); `make derive-all` = read-only preview of the whole
+  derive family (extract_relations with `--no-write-sidecar`; excludes
+  metrics-rebuild/suggest-relations).
+- Gates green once at end (qa 1,793 tests / perf 19/19 / advisory);
+  gate-caught fixes: edition shebang/allowlist/cache-kind-list,
+  `normalized_name`=stem repair (108 rows), PascalCase exemption.
+  Known follow-up PROPOSED: `okf_sources_maintenance.md` (`sources[]`
+  lifecycle + the `--stale-only` evidence hole).
+- **#135 — OKF `sources[]` maintenance at render time**
+  (`okf_sources_maintenance.md`, EXECUTED 2026-08-19).
+  Closed the lifecycle gap where `sources[]` only grew via one-off
+  backfill: `derive_insights` now SPLICES newly referenced editions into
+  `sources[]` at render time (entry builders lifted into
+  `helpers/core/edition_index.py` — `merged_sources`/`edition_source_
+  entry`/`git_add_date`, reimported by the backfill), and the
+  `--stale-only` gate re-opens when a scanned edition's stem is missing
+  from `sources[]` (§3.2b; key-figures metrics reach the splice as extra
+  stems since their blocks carry no edition reference). Render + splice
+  + gate read the same world; pinned end-to-end by convergence tests
+  (second `--stale-only` run writes 0). Perf: batch git add-dates (one
+  `git log` pass), memoized edition-string resolution, title cache —
+  derive_insights 10.97s → 3.4s (budget 4.0). Docs:
+  `markdown_parse.md` post-render chain; backfill docstring now marks
+  its reduced (bootstrap) role. Live convergence apply (52+45 notes, all
+  stem-leg) held at dry-run for the operator.

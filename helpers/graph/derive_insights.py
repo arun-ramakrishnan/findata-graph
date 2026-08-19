@@ -82,16 +82,23 @@ USAGE
     python3 helpers/graph/derive_insights.py findata/The_Chatter/Marico_DLF_BSE.md
     python3 helpers/graph/derive_insights.py findata --apply  # write DB + notes
     python3 helpers/graph/derive_insights.py --verbose        # list every quote
+    python3 helpers/graph/derive_insights.py findata --apply --stale-only
+        # okf_activation I: render only notes whose evidence moved (a
+        # sources[].last_modified newer than generated.at, or no sources
+        # yet); the rest are skipped without reads/rewrites.
 """
 from __future__ import annotations
 
 import argparse
 import bisect
+import datetime as _dt
 import json
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import yaml
 
 # sys.path bootstrap so this works both as `python3 helpers/graph/...` (the
 # Makefile form) and as a package import. Mirrors derive_events.py:54-56.
@@ -100,7 +107,19 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
-from helpers.core.frontmatter import bump_generated  # noqa: E402
+from helpers.core.edition_index import (  # noqa: E402
+    _body,
+    edition_source_entry,
+    merged_sources,
+    resolve_edition_string,
+    source_note_index,
+)
+from helpers.core.frontmatter import (  # noqa: E402
+    bump_generated,
+    render_frontmatter,
+    split_frontmatter,
+    stringify_dates,
+)
 
 # --------------------------------------------------------------------------- #
 # Constants                                                                   #
@@ -124,6 +143,123 @@ _BEGIN = "<!-- BEGIN auto chatter block (derive_insights.py) -->"
 # block rewrite (okf_adoption.md §2.3). v-suffixed per the actor convention.
 _OKF_ACTOR = "derive_insights.py/v1"
 _END = "<!-- END auto chatter block -->"
+
+
+def _iso_date(value) -> _dt.date | None:
+    """Date part of an ISO string ('2026-08-15' or '2026-08-15T…Z'), or None."""
+    if not isinstance(value, str):
+        return None
+    try:
+        return _dt.date.fromisoformat(value[:10])
+    except ValueError:
+        return None
+
+
+def _stale_only_skip(text: str,
+                     scanned_stems: frozenset[str] = frozenset()) -> bool | None:
+    """``--stale-only`` gate (okf_activation I). True=skip, False=render,
+    None=no evidence (render anyway — safe default, accepted Q3).
+
+    Skip iff the note was last rendered by THIS tool (``generated.by ==
+    _OKF_ACTOR``; a ``process:okf_backfill`` stamp does NOT count — the
+    first --stale-only run after the backfill re-renders every sourced
+    note, then only notes whose ``sources[].last_modified`` moved past
+    ``generated.at`` re-render after that) AND sources[] is non-empty AND
+    no source is newer than the render date. Blocks can only change if
+    quotes changed; quotes can only change if an edition changed; the
+    edition's git add-date IS ``sources[].last_modified``.
+
+    Gate amendment (okf_sources_maintenance §3.2b): ``scanned_stems`` are
+    the source-note stems behind the editions THIS run scanned for the
+    note. Any stem absent from sources[] forces a render — the splice that
+    would add it only runs at render time, so skipping here would lock the
+    note out forever while its evidence keeps moving.
+    """
+    opener, fm_text, _ = split_frontmatter(text)
+    if not opener:
+        return None
+    try:
+        fm = yaml.safe_load(fm_text)
+    except yaml.YAMLError:
+        return None
+    if not isinstance(fm, dict):
+        return None
+    gen = fm.get("generated")
+    if not (isinstance(gen, dict) and gen.get("by") == _OKF_ACTOR):
+        return None
+    at = _iso_date(gen.get("at"))
+    if at is None:
+        return None
+    srcs = fm.get("sources")
+    if not isinstance(srcs, list) or not srcs:
+        return None
+    ids = {s.get("id") for s in srcs if isinstance(s, dict)}
+    if any(stem not in ids for stem in scanned_stems):
+        return False
+    dates = [d for d in (
+        _iso_date(s.get("last_modified"))
+        for s in srcs if isinstance(s, dict)
+    ) if d is not None]
+    if not dates:
+        return None
+    return max(dates) <= at
+
+
+def _scanned_stems(editions, index: dict,
+                   memo: dict[str, str | None]) -> frozenset[str]:
+    """Scanned edition free-text keys -> source-note stems (§3.2b input).
+
+    Unmatchable editions (legacy free-text, "Yahoo Finance", ...) resolve
+    to nothing and are ignored — the gate only trusts stems the index can
+    see. ``memo`` is per-renderer-run: one edition key recurs across
+    dozens of company notes.
+    """
+    stems: set[str] = set()
+    for e in editions:
+        if not e:
+            continue
+        if e not in memo:
+            p = resolve_edition_string(e, index)
+            memo[e] = p.stem if p is not None else None
+        stem = memo[e]
+        if stem:
+            stems.add(stem)
+    return frozenset(stems)
+
+
+def _splice_sources(text: str, index: dict, vault: Path,
+                    extra_stems: frozenset[str] = frozenset(),
+                    memo: dict | None = None) -> tuple[str, bool]:
+    """Merge edition entries into frontmatter ``sources[]`` (§3.2a).
+
+    Body-driven via :func:`merged_sources` — auto-block ``## <series> —
+    <edition>`` headings and ``*Source: …*`` footers resolve exactly like
+    the OKF backfill's one-off pass. ``extra_stems`` covers evidence with
+    no body footprint (key-figures metrics never name their editions).
+    Existing entries are kept verbatim (Q2), no cap (Q3); never invents
+    frontmatter and never touches a note with nothing to add. Returns
+    ``(new_text, changed)``. ``memo`` caches edition-string resolution
+    across calls (one edition key recurs across dozens of notes).
+    """
+    opener, fm_text, _ = split_frontmatter(text)
+    if not opener:
+        return (text, False)
+    try:
+        fm = yaml.safe_load(fm_text)
+    except yaml.YAMLError:
+        return (text, False)
+    if not isinstance(fm, dict):
+        return (text, False)
+    merged = merged_sources(fm, text, index, vault, memo)
+    have = {e.get("id") for e in merged if isinstance(e, dict)}
+    for stem in sorted(extra_stems - have):
+        p = resolve_edition_string(stem, index, memo)
+        if p is not None and p.stem == stem:
+            merged.append(edition_source_entry(p, vault))
+    if not merged or merged == fm.get("sources"):
+        return (text, False)
+    fm["sources"] = merged
+    return (render_frontmatter(stringify_dates(fm)) + _body(text), True)
 
 # The H1 of an edition's `## The Chatter — <edition>` block. The capture group
 # is the edition title (used by the curation-safety check to detect an existing
@@ -827,7 +963,7 @@ def render_chatter_block(edition: str, quotes: list[Quote]) -> str:
         f"<!-- Auto-generated by derive_insights.py from the {edition} concall. "
         f"Edit the paraphrase/quote selection by replacing this block with a "
         f"hand-written `## The Chatter — {edition}` section (this sentinel-"
-        f"wrapped block is refreshed on each `make derive-insights` run). -->"
+        f"wrapped block is refreshed on each `--apply` run of this script). -->"
     )
     lines.append("")
     for q in quotes:
@@ -848,19 +984,57 @@ def render_chatter_block(edition: str, quotes: list[Quote]) -> str:
     return "\n".join(lines)
 
 
+def _auto_region_spans(text: str) -> list[tuple[int, int]]:
+    """Maximal (start, end) spans of top-level auto-block regions.
+
+    Stack-walks the BEGIN/END markers (mirrors
+    enrich_from_yfinance._auto_region_spans) — a non-greedy regex pairs the
+    outer BEGIN with the FIRST inner END whenever regions nest, which is
+    how insertion points kept landing inside sibling regions.
+    """
+    spans: list[tuple[int, int]] = []
+    stack: list[int] = []
+    for m in _AUTO_MARKER_RE.finditer(text):
+        if m.group(1) == "BEGIN":
+            stack.append(m.start())
+        elif stack:
+            start = stack.pop()
+            if not stack:  # outermost pair closed
+                spans.append((start, m.end()))
+        # END without BEGIN: corrupted note — ignore that marker
+    return spans
+
+
+def _outside_auto_regions(text: str, pos: int) -> int:
+    """``pos`` moved before any auto-block region that contains it.
+
+    Insertion points keyed on headings (``## The Chatter`` …) regularly
+    resolve to a heading INSIDE an existing sentinel region — inserting
+    there splits the region's BEGIN from its heading and stacks degenerate
+    markers (2026-08-19: 66 notes). Inserting before the whole region
+    keeps every block intact and adjacent.
+    """
+    for start, end in _auto_region_spans(text):
+        if start <= pos < end:
+            return start
+    return pos
+
+
 def _find_insertion_point(text: str) -> int:
     """Where to insert the auto chatter block in a company note.
 
     Before the first existing curated `## The Chatter` / `## Key Insights` /
     `## Management Insights` / `## Newsletter synthesis` heading if present
     (keeps the auto block adjacent to related content); otherwise at end.
+    The position is bumped OUT of any auto region — a heading match inside
+    a sibling region must not split it.
     """
     m = re.search(
         r"^## (The Chatter|Key Insights|Management Insights|Newsletter synthesis)",
         text, re.MULTILINE,
     )
     if m:
-        return m.start()
+        return _outside_auto_regions(text, m.start())
     return len(text)
 
 
@@ -887,6 +1061,11 @@ def _replace_or_insert_block(text: str, edition: str,
 
     Returns ``(new_text, changed)``. If a hand-written block for this edition
     exists, returns ``(text, False)`` (curation-safety: do not clobber).
+    Replacing an existing chatter region first RESCUES any foreign
+    auto-blocks nested inside it (key-figures / yfinance profile) and
+    re-places them before this block — see :func:`_extract_nested_blocks`;
+    unbalanced nested sentinels skip the replacement rather than risk
+    destroying content.
     """
     if _existing_hand_block_for_edition(text, edition):
         return (text, False)
@@ -895,7 +1074,6 @@ def _replace_or_insert_block(text: str, edition: str,
     pattern = re.compile(
         re.escape(_BEGIN) + r".*?" + re.escape(_END) + r"\n?", re.DOTALL
     )
-    replaced = False
     # If there's exactly one auto block, replace it only if it's for a
     # DIFFERENT edition (we'd otherwise stack duplicates). Simplest correct
     # behavior: replace the existing auto block iff its edition == this one;
@@ -904,22 +1082,26 @@ def _replace_or_insert_block(text: str, edition: str,
         hm = _CHATTER_HEADING_RE.search(blk)
         return hm.group(1).strip() if hm else None
 
+    def _swap(m) -> tuple[str, bool]:
+        rescued = _extract_nested_blocks(m.group(0))
+        if rescued is None:
+            return (text, False)  # unbalanced sentinels — never risk content
+        replacement = (("\n\n".join(b.rstrip() for b in rescued) + "\n\n"
+                        + new_block) if rescued else new_block)
+        return (text[:m.start()] + replacement + text[m.end():], True)
+
     matches = list(pattern.finditer(text))
     for m in matches:
         if _edition_of_block(m.group(0)) == edition:
-            text = text[:m.start()] + new_block + text[m.end():]
-            replaced = True
-            break
-    if replaced:
-        return (text, True)
-    # No existing block for this edition — insert at the insertion point, but
-    # only if there isn't already a different-edition auto block (avoid stacking
-    # many auto blocks; the latest edition wins and we drop older auto blocks).
-    if matches:
-        # Replace the first (oldest) auto block with this one.
-        m = matches[0]
-        text = text[:m.start()] + new_block + text[m.end():]
-        return (text, True)
+            return _swap(m)
+    # No auto block for THIS edition: insert a new one. Other editions'
+    # auto blocks are NEVER evicted (a note accumulates one block per
+    # scanned edition) — the old matches[0] swap made the last-rendered
+    # edition destroy a sibling's block whenever a note had quotes from
+    # 2+ editions, silently dropping that edition's chatter AND starving
+    # the sources splice, so --stale-only re-forced the render forever
+    # (2026-08-19: the 31-note non-convergence). Repeated runs stay
+    # idempotent: each edition replaces only its own block.
     idx = _find_insertion_point(text)
     prefix = text[:idx]
     if prefix and not prefix.endswith("\n\n"):
@@ -928,32 +1110,74 @@ def _replace_or_insert_block(text: str, edition: str,
     return (new_text, True)
 
 
+def _markers_balanced(text: str) -> bool:
+    """Equal BEGIN/END auto-marker counts (the cheap degenerate-structure
+    invariant — stacked BEGINs with orphaned bodies keep counts equal, but
+    a COUNT break always means the render mangled regions)."""
+    kinds = [m.group(1) for m in _AUTO_MARKER_RE.finditer(text)]
+    return kinds.count("BEGIN") == kinds.count("END")
+
+
+def _balanced_or_skipped(original: str, new: str, name: str) -> bool:
+    """Belt-and-suspenders write gate (2026-08-19): refuse a render that
+    would break the auto-marker balance of a previously-balanced note."""
+    if _markers_balanced(original) and not _markers_balanced(new):
+        print(f"WARNING: {name}: render would leave unbalanced auto "
+              f"markers — write skipped, note left unchanged.",
+              file=sys.stderr)
+        return False
+    return True
+
+
+def _paths_by_entity(conn, entities: list[str]) -> dict[str, str]:
+    """entity -> repo-relative note path (shared by both note renderers)."""
+    if not entities:
+        return {}
+    placeholders = ",".join("?" for _ in entities)
+    rows = conn.execute(
+        f"SELECT name, file_path FROM entities WHERE name IN ({placeholders}) "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        f"AND file_path IS NOT NULL",
+        tuple(entities),
+    ).fetchall()
+    return {r["name"]: r["file_path"] for r in rows}
+
+
 def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noqa: C901
-                 conn=None) -> tuple[int, int]:
+                 conn=None, stale_only: bool = False,
+                 index: dict | None = None) -> tuple[int, int, int]:
     """Render auto chatter blocks into company notes.
 
     ``quotes_by_entity_edition`` maps ``(entity_name, edition)`` -> list[Quote].
-    For each entity, picks the latest edition's quotes (by source order in the
-    scan) and writes/refreshes the auto block in its note. Returns
-    ``(written, skipped_hand)``.
+    For each entity, refreshes every edition block that has quotes, then
+    splices newly referenced editions into frontmatter ``sources[]``
+    (okf_sources_maintenance §3.2a). The splice runs even when every block
+    is byte-identical — a note whose only delta is new sources gets the
+    repair write (and its ``stale_after`` recompute) rather than forcing a
+    full re-render on every subsequent run. Returns ``(written, skipped,
+    gated)`` — notes written/would-write (block and/or sources change),
+    edition blocks skipped because a hand-written block for that edition
+    was preserved, and notes gated out by ``stale_only``.
+
+    ``index`` is the edition_index norm-key -> source-note map; built from
+    ``PROJECT_ROOT/findata`` when omitted.
     """
     own_conn = conn is None
     if own_conn:
         conn = connect()
     written = 0
     skipped = 0
+    gated = 0
     try:
         # Resolve entity -> file_path once.
-        entities = list({e for e, _ in quotes_by_entity_edition})
-        if not entities:
-            return (0, 0)
-        placeholders = ",".join("?" for _ in entities)
-        rows = conn.execute(
-            f"SELECT name, file_path FROM entities WHERE name IN ({placeholders}) "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-            f"AND file_path IS NOT NULL",
-            tuple(entities),
-        ).fetchall()
-        path_by_entity = {r["name"]: r["file_path"] for r in rows}
+        path_by_entity = _paths_by_entity(
+            conn, list({e for e, _ in quotes_by_entity_edition}))
+        if not path_by_entity:
+            return (0, 0, 0)
+        vault = PROJECT_ROOT / "findata"
+        if index is None:
+            index = source_note_index(vault)
+        stem_memo: dict[str, str | None] = {}
+        res_memo: dict[str, Path | None] = {}
 
         # Group quotes by entity, pick the latest edition per entity.
         by_entity: dict[str, dict[str, list[Quote]]] = {}
@@ -967,14 +1191,22 @@ def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noq
             p = PROJECT_ROOT / file_path
             if not p.exists():
                 continue
-            # Pick the latest edition (deterministic: highest source_stem line,
-            # captured in source_ref; fall back to dict order). For each note we
-            # render ALL editions that have quotes (each as its own block), so a
-            # note accumulates one auto block per edition scanned.
+            text = p.read_text(encoding="utf-8", errors="replace")
+            original_text = text
+            # --stale-only gate: one decision per NOTE (covers all its
+            # edition blocks — the evidence basis is note-level sources[]).
+            # A scanned edition missing from sources[] forces the render
+            # (§3.2b): only the render-path splice can add it.
+            if stale_only and _stale_only_skip(
+                    text, _scanned_stems(edict, index, stem_memo)) is True:
+                gated += 1
+                continue
+            # Render ALL editions that have quotes (one auto block per
+            # edition scanned, so a note accumulates its edition history).
+            text_changed = False
             for edition, qs in edict.items():
                 if not qs:
                     continue
-                text = p.read_text(encoding="utf-8", errors="replace")
                 # Dedup identical quotes within the edition (same quote_text).
                 seen: set[str] = set()
                 unique = []
@@ -984,23 +1216,34 @@ def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noq
                     seen.add(q.quote_text)
                     unique.append(q)
                 new_block = render_chatter_block(edition, unique)
-                new_text, changed = _replace_or_insert_block(text, edition, new_block)
-                if not changed:
-                    skipped += 1
-                    continue
-                if dry_run:
-                    written += 1
+                text, changed = _replace_or_insert_block(text, edition, new_block)
+                if changed:
+                    text_changed = True
                 else:
-                    # OKF: content changed -> bump generated/stale_after in the
-                    # note's frontmatter (preserves verified + all other keys;
-                    # no-op when the note has no frontmatter).
-                    new_text = bump_generated(new_text, _OKF_ACTOR)
-                    p.write_text(new_text, encoding="utf-8")
-                    written += 1
+                    skipped += 1
+            # Splice sources[] even when no block changed (convergence: a
+            # gated-clean note with new evidence absorbs it here, once).
+            text, sources_changed = _splice_sources(text, index, vault,
+                                                    memo=res_memo)
+            if not (text_changed or sources_changed):
+                continue
+            if not _balanced_or_skipped(original_text, text, p.name):
+                skipped += 1
+                continue
+            if dry_run:
+                written += 1
+            else:
+                # OKF: the note changed -> bump generated/stale_after in the
+                # note's frontmatter (bump recomputes stale_after from the
+                # spliced sources; preserves verified + all other keys; no-op
+                # when the note has no frontmatter).
+                text = bump_generated(text, _OKF_ACTOR)
+                p.write_text(text, encoding="utf-8")
+                written += 1
     finally:
         if own_conn:
             conn.close()
-    return (written, skipped)
+    return (written, skipped, gated)
 
 
 # --- Key Figures (auto) block ---------------------------------------------
@@ -1015,16 +1258,44 @@ _KF_PATTERN = re.compile(
     re.escape(_KF_BEGIN) + r".*?" + re.escape(_KF_END) + r"\n?", re.DOTALL
 )
 
-# Foreign auto-blocks can collide into the key-figures region because
-# enrich_from_yfinance shares the "after ## Company Overview" insertion anchor,
-# lodging e.g. the company-profile block between _KF_BEGIN and _KF_HEADING. A
-# naive BEGIN→END substitution would destroy it; _replace_or_insert_kf uses
-# this to rescue such nested foreign blocks and re-place them before our BEGIN.
-# The (?!key figures) guard excludes our own BEGIN marker.
-_NESTED_AUTO_BLOCK = re.compile(
-    r"<!-- BEGIN auto (?!key figures).*?-->.*?<!-- END auto .*?-->\n*",
-    re.DOTALL,
-)
+# Foreign auto-blocks can collide into a sibling renderer's sentinel region:
+# enrich_from_yfinance shares the "after ## Company Overview" insertion anchor
+# with both renderers, and the two derive_insights insertion heuristics can
+# interleave so the key-figures region sits INSIDE the chatter sentinels. A
+# naive BEGIN→END substitution then destroys everything nested in the region —
+# the 2026-08-10 profile-stripping incident (KF side) and the 2026-08-19
+# incident where the chatter renderer deleted the KF block + profile from 58
+# notes (the metrics pass re-inserted an identical KF block, so only the
+# profile was visibly lost). Both _replace_or_insert_* paths now rescue nested
+# foreign blocks via _extract_nested_blocks before replacing a region.
+_AUTO_MARKER_RE = re.compile(r"<!--\s*(BEGIN|END)\s+auto\b.*?-->", re.DOTALL)
+
+
+def _extract_nested_blocks(region: str) -> list[str] | None:
+    """Maximal complete auto-blocks nested inside one sentinel region.
+
+    ``region`` is a renderer's full BEGIN→END span (own markers included).
+    A stack walk pairs the markers; blocks closed while the region's own
+    BEGIN is still open are direct children, returned verbatim with their
+    own nested content intact (deeper pairs are contained in a returned
+    span — never returned separately, never duplicated). Returns None when
+    the nested markers are unbalanced: the caller must then skip the
+    replacement rather than risk destroying content.
+    """
+    stack: list[int] = []
+    blocks: list[str] = []
+    for m in _AUTO_MARKER_RE.finditer(region):
+        if m.group(1) == "BEGIN":
+            stack.append(m.start())
+        elif stack:
+            start = stack.pop()
+            if len(stack) == 1:  # direct child of the outermost region
+                blocks.append(region[start:m.end()])
+        else:
+            return None  # END without BEGIN — unbalanced
+    if stack:
+        return None  # unclosed BEGIN
+    return blocks
 
 # Display order for metric labels (most-informative first); unmapped labels
 # append alphabetically. value_raw is the display string.
@@ -1058,7 +1329,7 @@ def render_key_figures_block(metrics: list[Metric]) -> str:
     lines.append(
         f"<!-- Auto-generated by derive_insights.py from concall magnitudes. "
         f"{len(metrics)} figure(s) across {len(by_label)} metric(s). Refreshed "
-        f"on each `make derive-insights` run; do not edit by hand. -->"
+        f"on each `--apply` run of this script; do not edit by hand. -->"
     )
     lines.append("")
     if not by_label:
@@ -1081,16 +1352,20 @@ def render_key_figures_block(metrics: list[Metric]) -> str:
 def _kf_insertion_point(text: str) -> int:
     """Where to insert the Key Figures block. After the Company Overview /
     Financial Information sections if present (adjacent to related content);
-    otherwise before the first `## The Chatter` block, else at end."""
+    otherwise before the first `## The Chatter` block, else at end. The
+    position is bumped OUT of any auto region — this fallback is the
+    original cause of the KF-nested-inside-chatter layouts (inserting
+    "before the first ## The Chatter" landed inside the chatter region,
+    between its BEGIN and its heading)."""
     for heading in (r"^## Financial", r"^## Key Metrics", r"^## Company Overview"):
         m = re.search(heading, text, re.MULTILINE)
         if m:
             # Insert right AFTER this heading's section — find the next heading.
             nxt = re.search(r"^## ", text[m.end():], re.MULTILINE)
-            return m.end() + (nxt.start() if nxt else 0)
+            return _outside_auto_regions(text, m.end() + (nxt.start() if nxt else 0))
     m = re.search(r"^## The Chatter", text, re.MULTILINE)
     if m:
-        return m.start()
+        return _outside_auto_regions(text, m.start())
     return len(text)
 
 
@@ -1102,11 +1377,14 @@ def _replace_or_insert_kf(text: str, new_block: str) -> tuple[str, bool]:
     the "after ## Company Overview" insertion anchor) is rescued and re-placed
     immediately before the BEGIN marker, so refreshing the figures never
     deletes a sibling auto-section. The rescue is idempotent: once the foreign
-    block sits outside the region it is no longer matched here.
+    block sits outside the region it is no longer matched here. Unbalanced
+    nested sentinels skip the replacement (see _extract_nested_blocks).
     """
     m = _KF_PATTERN.search(text)
     if m:
-        rescued = _NESTED_AUTO_BLOCK.findall(m.group(0))
+        rescued = _extract_nested_blocks(m.group(0))
+        if rescued is None:
+            return (text, False)  # unbalanced sentinels — never risk content
         if rescued:
             replacement = "\n\n".join(b.rstrip() for b in rescued) + "\n\n" + new_block
         else:
@@ -1122,53 +1400,64 @@ def _replace_or_insert_kf(text: str, new_block: str) -> tuple[str, bool]:
 
 
 def render_metrics_notes(metrics_by_entity: dict, *, dry_run: bool = True,
-                         conn=None) -> int:
+                         conn=None, stale_only: bool = False,
+                         index: dict | None = None) -> tuple[int, int]:
     """Render the auto ``## Key Figures (auto)`` block into each company note.
 
-    ``metrics_by_entity`` maps ``entity_name`` -> list[Metric]. Returns the
-    count of notes written/would-write.
+    ``metrics_by_entity`` maps ``entity_name`` -> list[Metric]. Returns
+    ``(written, gated)`` — notes written/would-write (key-figures block
+    and/or sources splice) and notes gated out by ``stale_only`` (same
+    note-level evidence gate as render_notes). The block itself carries no
+    edition reference, so the scanned editions reach the gate directly and
+    the splice adds them as extra stems — without that, a metrics-only
+    note could never satisfy the gate and would re-render on every run.
     """
     own_conn = conn is None
     if own_conn:
         conn = connect()
     written = 0
+    gated = 0
     try:
-        entities = list(metrics_by_entity.keys())
-        if not entities:
-            return 0
-        placeholders = ",".join("?" for _ in entities)
-        rows = conn.execute(
-            f"SELECT name, file_path FROM entities WHERE name IN ({placeholders}) "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-            f"AND file_path IS NOT NULL",
-            tuple(entities),
-        ).fetchall()
-        path_by_entity = {r["name"]: r["file_path"] for r in rows}
+        path_by_entity = _paths_by_entity(conn, list(metrics_by_entity.keys()))
+        if not path_by_entity:
+            return (0, 0)
+        vault = PROJECT_ROOT / "findata"
+        if index is None:
+            index = source_note_index(vault)
+        stem_memo: dict[str, str | None] = {}
+        res_memo: dict[str, Path | None] = {}
         for entity, ms in metrics_by_entity.items():
-            if not ms:
-                continue
             file_path = path_by_entity.get(entity)
-            if not file_path:
-                continue
-            p = PROJECT_ROOT / file_path
-            if not p.exists():
+            p = PROJECT_ROOT / file_path if file_path else None
+            if not ms or p is None or not p.exists():
                 continue
             text = p.read_text(encoding="utf-8", errors="replace")
+            stems = _scanned_stems(
+                {m.as_of_edition for m in ms}, index, stem_memo)
+            if stale_only and _stale_only_skip(text, stems) is True:
+                gated += 1
+                continue
+            original_text = text
             new_block = render_key_figures_block(ms)
-            new_text, changed = _replace_or_insert_kf(text, new_block)
-            if not changed:
+            text, changed = _replace_or_insert_kf(text, new_block)
+            text, sources_changed = _splice_sources(text, index, vault,
+                                                    extra_stems=stems,
+                                                    memo=res_memo)
+            if (not (changed or sources_changed)
+                    or not _balanced_or_skipped(original_text, text, p.name)):
                 continue
             if dry_run:
                 written += 1
             else:
                 # OKF: same bump as the chatter block (single generated key
                 # per note — last writer wins, which is the freshest derive).
-                new_text = bump_generated(new_text, _OKF_ACTOR)
-                p.write_text(new_text, encoding="utf-8")
+                text = bump_generated(text, _OKF_ACTOR)
+                p.write_text(text, encoding="utf-8")
                 written += 1
     finally:
         if own_conn:
             conn.close()
-    return written
+    return (written, gated)
 
 
 # =========================================================================== #
@@ -1238,6 +1527,16 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "--no-notes", action="store_true",
         help="Skip the note-rendering pass (DB write only).",
     )
+    p.add_argument(
+        "--stale-only", action="store_true",
+        help="Render only notes whose evidence moved: skip notes whose "
+             "generated.by is this tool AND max(sources[].last_modified) "
+             "<= generated.at AND every scanned edition is already in "
+             "sources[]. Notes without sources always render; rendered "
+             "notes also get newly referenced editions spliced into "
+             "sources[]. The first run after an OKF backfill re-renders "
+             "all sourced notes (backfill stamps are not render stamps).",
+    )
     args = p.parse_args(argv)
 
     conn = connect()
@@ -1289,24 +1588,34 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                     bucket: list[Quote] = []
                     by_entity_edition[key] = bucket
                 bucket.append(q)
-            written, skipped = render_notes(
-                by_entity_edition, dry_run=not args.apply, conn=conn
+            # One edition index shared by both renderers (the splice +
+            # gate-amendment machinery resolves edition strings through it).
+            index = source_note_index(PROJECT_ROOT / "findata")
+            written, skipped, gated = render_notes(
+                by_entity_edition, dry_run=not args.apply, conn=conn,
+                stale_only=args.stale_only, index=index,
             )
             n_action = "wrote" if args.apply else "would write"
             print(
-                f"{written} chatter blocks {n_action} ({skipped} skipped — "
-                f"existing hand-written block).",
+                f"{written} notes {n_action} (chatter block and/or sources "
+                f"splice; {skipped} edition blocks skipped — hand-written "
+                f"block preserved"
+                + (f"; {gated} notes gated by --stale-only"
+                   if args.stale_only else "") + ").",
                 file=sys.stderr,
             )
             # Key Figures (auto) blocks from metrics.
             metrics_by_entity: dict[str, list[Metric]] = {}
             for m in metrics:
                 metrics_by_entity.setdefault(m.entity, []).append(m)
-            kf_written = render_metrics_notes(
-                metrics_by_entity, dry_run=not args.apply, conn=conn
+            kf_written, kf_gated = render_metrics_notes(
+                metrics_by_entity, dry_run=not args.apply, conn=conn,
+                stale_only=args.stale_only, index=index,
             )
             print(
-                f"{kf_written} key-figures blocks {n_action}.",
+                f"{kf_written} key-figures notes {n_action}"
+                + (f" ({kf_gated} notes gated by --stale-only)"
+                   if args.stale_only else "") + ".",
                 file=sys.stderr,
             )
 
