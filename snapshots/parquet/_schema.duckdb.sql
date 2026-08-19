@@ -4,6 +4,8 @@ CREATE TABLE e_belongs(company_name BIGINT, sector_name BIGINT, weight VARCHAR, 
 
 CREATE TABLE e_belongs_to(child_id BIGINT, parent_id BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
+CREATE TABLE e_cited_in(company_id BIGINT, edition_id BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
+
 CREATE TABLE e_comention(a_name BIGINT, b_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
 CREATE TABLE e_competes(a_name BIGINT, b_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
@@ -23,6 +25,8 @@ CREATE TABLE e_subsidiary(subsidiary_name BIGINT, parent_name BIGINT, weight VAR
 CREATE TABLE e_supplier(supplier_name BIGINT, customer_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
 CREATE TABLE v_company(id BIGINT, "name" VARCHAR, sector_classification VARCHAR, market_cap VARCHAR, ticker VARCHAR);
+
+CREATE TABLE v_edition(id BIGINT, "name" VARCHAR);
 
 CREATE TABLE v_embeddings(company_name VARCHAR, id BIGINT, embedding FLOAT[]);
 
