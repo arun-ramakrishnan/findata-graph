@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Derive ``cited_in`` edges (company/sector -> edition) from OKF ``sources[]``.
 
-okf_activation P (doc/improvements/archive/okf_activation.md): editions
+okf_activation P (doc/improvements/archive/okf/okf_activation.md): editions
 become first-class graph nodes and the provenance already stamped in note
 frontmatter becomes traversable. The source of truth is the YAML
 ``sources[]`` the OKF backfill resolved from derived-note bodies (F0

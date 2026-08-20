@@ -577,7 +577,7 @@ class TestAPIGraphMetrics:
 # --------------------------------------------------------------------------- #
 
 class TestGraphMetrics:
-    """Phase 2 of doc/improvements/archive/graph_algos.txt: whole-graph
+    """Phase 2 of doc/improvements/archive/graph/graph_algos.txt: whole-graph
     structural metrics via the algorithms dispatcher seam."""
 
     def test_full_projection_disconnected(self, synth_db):
@@ -642,7 +642,7 @@ class TestGraphMetrics:
 
 
 class TestPhase3Centralities:
-    """Phase 3 of doc/improvements/archive/graph_algos.txt: the extra
+    """Phase 3 of doc/improvements/archive/graph/graph_algos.txt: the extra
     centralities through the compute() dispatcher, plus the list-valued
     VoteRank CLI (opt-in --apply, mirroring link-predict — D13).
 
@@ -768,7 +768,7 @@ class TestPhase3Centralities:
 
 
 class TestLinkPrediction:
-    """Phase 1 of doc/improvements/archive/graph_algos.txt: candidate
+    """Phase 1 of doc/improvements/archive/graph/graph_algos.txt: candidate
     missing-edge hypotheses via Onager link prediction. Persisted to
     graph_analytics (per-node candidate lists, metric `link_prediction`)
     only with an explicit --apply (D13); the CLI is dry-run by default."""

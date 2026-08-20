@@ -15,7 +15,7 @@ Public API:
     bump_generated(text, by, ...)      -> str                  # OKF generated/stale_after
 
 The last four implement the OKF v0.2 provenance vocabulary (doc/okf.md,
-doc/improvements/archive/okf_adoption.md), shared by the two generators
+doc/improvements/archive/okf/okf_adoption.md), shared by the two generators
 that own the data: pdf/pdf_conv_md.py emits generated+sources at conversion
 time; graph/derive_insights.py bumps generated on each auto-block rewrite.
 """

@@ -1732,7 +1732,7 @@ def api_graph_stats():
         and most_recent_entity > most_recent_analytics
     )
 
-    # Phase 2 (doc/improvements/archive/graph_algos.txt): whole-graph
+    # Phase 2 (doc/improvements/archive/graph/graph_algos.txt): whole-graph
     # structural metrics via Onager on the app's cached graph connection.
     # Advisory and fully degradable — if the graph layer is unavailable the
     # block is null and the SQLite-side payload above stays authoritative.
@@ -2156,7 +2156,7 @@ def api_graph_refresh():
 # --------------------------------------------------------------------------- #
 # Security headers                                                             #
 # --------------------------------------------------------------------------- #
-# SEC-3 hardening (doc/improvements/archive/security_evaluation.txt, Phase 3):
+# SEC-3 hardening (private security review, Phase 3):
 # all scripts/styles are vendored under /static/vendor/ (same-origin), so the
 # CSP can be closed to 'self'. Two deliberate deviations from the strictest
 # form, both documented:

@@ -31,7 +31,7 @@ Storage summary
   ``_onager_int`` (name -> int id) and ``_onager_e`` (remapped edges), inside
   the caller's DuckDB connection.
 * duckpgq: RETIRED entirely (Phases A-E, 2026-08-14 — see
-  doc/improvements/archive/duckpgq_retirement.txt). There is no property
+  doc/improvements/archive/graph/duckpgq_retirement.txt). There is no property
   graph; ``query.py`` materialises plain ``v_node`` / ``e_*`` tables and all
   pattern queries are plain SQL JOINs. See doc/graph_design.txt.
 """
@@ -391,7 +391,7 @@ def onager_louvain(
 
 
 # --------------------------------------------------------------------------- #
-# Link prediction (Phase 1, doc/improvements/archive/graph_algos.txt)
+# Link prediction (Phase 1, doc/improvements/archive/graph/graph_algos.txt)
 # --------------------------------------------------------------------------- #
 # Onager's link-prediction table functions share the same (src, dst, weight)
 # edge contract and return (node1, node2, score) — one row per unordered
@@ -492,7 +492,7 @@ def onager_link_prediction(
 
 
 # --------------------------------------------------------------------------- #
-# Whole-graph structural metrics (Phase 2, doc/improvements/archive/graph_algos.txt)
+# Whole-graph structural metrics (Phase 2, doc/improvements/archive/graph/graph_algos.txt)
 # --------------------------------------------------------------------------- #
 _GRAPH_METRIC_SQL = """
     WITH ee AS (SELECT src, dst, weight FROM _onager_e)
@@ -592,7 +592,7 @@ def _modularity(
 
 
 # --------------------------------------------------------------------------- #
-# Extra centralities (Phase 3, doc/improvements/archive/graph_algos.txt)
+# Extra centralities (Phase 3, doc/improvements/archive/graph/graph_algos.txt)
 #
 # NOTE: onager_ctr_personalized_pagerank from the same family is
 # deliberately NOT wrapped: its 4-column edge projection's personalization

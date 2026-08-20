@@ -87,7 +87,7 @@ class TestConnect:
         # What connect() must guarantee now: the materialised v_node vertex
         # table + e_belongs edge table exist and join correctly (the plain
         # SQL the pattern queries are written against — see
-        # doc/improvements/archive/duckpgq_retirement.txt).
+        # doc/improvements/archive/graph/duckpgq_retirement.txt).
         r = con.execute(
             """
             SELECT v_c.name AS company, v_s.name AS sector
@@ -535,7 +535,7 @@ class TestPhase3NativeAlgorithms:
     """Tests for the native duckpgq algorithm wrappers (pagerank, wcc, lcc).
 
     These work on duckdb 1.5+ thanks to integer vertex PKs. See
-    the duckpgq era (archive/duckpgq_retirement.txt) — earlier versions segfaulted.
+    the duckpgq era (archive/graph/duckpgq_retirement.txt) — earlier versions segfaulted.
     """
 
     def test_pagerank_returns_named_scores(self, con):

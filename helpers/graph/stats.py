@@ -11,7 +11,7 @@ here, queried directly:
   - ``graph_analytics`` freshness (a cache, not a data-integrity concern)
   - notes-on-disk vs company-entity count (a sanity counter, advisory)
   - whole-graph structural metrics (density/diameter/etc.) via Onager —
-    Phase 2 of doc/improvements/archive/graph_algos.txt
+    Phase 2 of doc/improvements/archive/graph/graph_algos.txt
 
 Usage:
     python3 helpers/graph/stats.py

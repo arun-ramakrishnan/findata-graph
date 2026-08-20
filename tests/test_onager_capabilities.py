@@ -4,7 +4,7 @@ Onager is a DuckDB community extension (Apache-2.0) adopted 2026-08-14 to
 replace the old NetworkX bridge for `eigenvector_centrality`,
 `closeness_centrality`, `betweenness_centrality`, `louvain_community`, and
 `degree_centrality` — and, since Phase A of the duckpgq-retirement proposal
-(doc/improvements/archive/duckpgq_retirement.txt), also `pagerank`,
+(doc/improvements/archive/graph/duckpgq_retirement.txt), also `pagerank`,
 `weakly_connected_component`, and `local_clustering_coefficient`
 (`onager_pagerank` / `onager_components` / `onager_clustering`).
 duckpgq itself was fully retired 2026-08-14 (Phases A-E) — the property
@@ -311,7 +311,7 @@ def test_onager_clustering_name_keyed_via_edge_types(synth_db):
 
 
 # --------------------------------------------------------------------------- #
-# Link prediction (Phase 1, doc/improvements/archive/graph_algos.txt)
+# Link prediction (Phase 1, doc/improvements/archive/graph/graph_algos.txt)
 # --------------------------------------------------------------------------- #
 def _cycle4():
     """Bidirectional 4-cycle 0-1-2-3-0 (edges 0-1, 1-2, 2-3, 3-0)."""
@@ -418,7 +418,7 @@ def test_onager_link_prediction_default_projection_non_membership(synth_db):
 
 
 # --------------------------------------------------------------------------- #
-# Whole-graph structural metrics (Phase 2, doc/improvements/archive/graph_algos.txt)
+# Whole-graph structural metrics (Phase 2, doc/improvements/archive/graph/graph_algos.txt)
 # --------------------------------------------------------------------------- #
 def test_graph_metrics_triangle_clique():
     m = onager_mod.onager_graph_metrics(edges=_clique(3))
@@ -511,7 +511,7 @@ def test_graph_metrics_name_keyed_star(synth_db):
 
 
 # --------------------------------------------------------------------------- #
-# Extra centralities (Phase 3, doc/improvements/archive/graph_algos.txt)
+# Extra centralities (Phase 3, doc/improvements/archive/graph/graph_algos.txt)
 # --------------------------------------------------------------------------- #
 _STAR5 = [(0, i, 1.0) for i in range(1, 5)]  # center 0, 4 leaves
 _PATH5 = [(i, i + 1, 1.0) for i in range(4)]  # chain 0-1-2-3-4

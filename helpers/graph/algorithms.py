@@ -2,7 +2,7 @@
 """Graph algorithms for the FinData knowledge graph.
 
 **Architecture (post-duckpgq-retirement, 2026-08-14):** duckpgq was fully
-retired (Phases A-E, doc/improvements/archive/duckpgq_retirement.txt) —
+retired (Phases A-E, doc/improvements/archive/graph/duckpgq_retirement.txt) —
 it was the sole reason DuckDB was pinned to 1.5.4. Everything now runs on
 plain SQL (pattern queries as JOINs over the materialised e_* tables in
 ``helpers/graph/query.py``; shortest_path as a recursive CTE) plus the
@@ -31,7 +31,7 @@ The query wrappers live in ``helpers/graph/query.py`` (plain SQL) and
   - ``write_analytics()`` — persist results to ``graph_analytics`` (UPSERT).
   - CLI: ``python3 helpers/graph/algorithms.py {degree|pagerank|betweenness|louvain|wcc|clustering|closeness|eigenvector} [--apply]``,
     plus the ``link-predict`` command (Phase 1 of
-    doc/improvements/archive/graph_algos.txt — candidate missing-edge
+    doc/improvements/archive/graph/graph_algos.txt — candidate missing-edge
     hypotheses; persisted to ``graph_analytics`` as per-node candidate
     lists under the ``link_prediction`` metric). Writes are opt-in
     ``--apply`` for every metric (D13); dry-run by default.
@@ -222,7 +222,7 @@ def degree_centrality(
 
 
 # --------------------------------------------------------------------------- #
-# Extra centralities (Phase 3, doc/improvements/archive/graph_algos.txt)
+# Extra centralities (Phase 3, doc/improvements/archive/graph/graph_algos.txt)
 # --------------------------------------------------------------------------- #
 def harmonic_centrality(
     con: Any | None = None, edges: list[tuple[int, int, float]] | None = None
@@ -316,7 +316,7 @@ def voterank_seeds(
 
 
 # --------------------------------------------------------------------------- #
-# Whole-graph structural metrics (Phase 2, doc/improvements/archive/graph_algos.txt)
+# Whole-graph structural metrics (Phase 2, doc/improvements/archive/graph/graph_algos.txt)
 # --------------------------------------------------------------------------- #
 def graph_metrics(
     con: Any | None = None, edge_types: list[str] | None = None
@@ -362,7 +362,7 @@ def graph_metrics(
 
 
 # --------------------------------------------------------------------------- #
-# Link prediction (Phase 1, doc/improvements/archive/graph_algos.txt)
+# Link prediction (Phase 1, doc/improvements/archive/graph/graph_algos.txt)
 # --------------------------------------------------------------------------- #
 def link_prediction(
     con: Any | None = None,

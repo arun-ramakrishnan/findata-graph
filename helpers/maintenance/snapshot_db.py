@@ -268,7 +268,7 @@ def verify_duckdb_snapshot(  # noqa: C901
     had round-tripped.
 
     Structural check (formerly the property-graph check): duckpgq was
-    retired (2026-08-14, doc/improvements/archive/duckpgq_retirement.txt)
+    retired (2026-08-14, doc/improvements/archive/graph/duckpgq_retirement.txt)
     — the graph layer is now plain SQL over the materialised ``v_node`` /
     ``e_*`` tables. What still needs verifying is that those tables are
     structurally sound: every edge table's source/destination columns must

@@ -18,7 +18,7 @@
   frontmatter before it can be materialised. Deferred by design.
 
 - **Security Phase 4 (deploy-time; app confirmed NOT deployed 2026-08-17)**
-  (archived proposal: `doc/improvements/archive/security_evaluation.txt`;
+  (private security review under doc/local, untracked;
   Phases 1/1b/2/3/5 DONE — completed.md #116/#117; SEC-9 closed: key
   revoked, GitHub never had the blobs — standing caution: never
   `git push --mirror` / push `main.stgit`; keep running `make secret-scan`
@@ -27,7 +27,7 @@
   front of `POST /api/graph/refresh`; `uv lock`.
 
 - **Technology avenues EXECUTED & ARCHIVED** (archived proposal:
-  `doc/improvements/archive/tech_avenues.txt`, 2026-08-17→18): every
+  `doc/improvements/archive/tooling/tech_avenues.txt`, 2026-08-17→18): every
   shortlist item done — A1 sqlite-vec KNN (#124; ~7ms accepted; vec0
   sidecar regression fixed en route #126), B1 JSON-Schema contract
   (#125), C1 context packs (#127), C2 link-prediction suggestions +

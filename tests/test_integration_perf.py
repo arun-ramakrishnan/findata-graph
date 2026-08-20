@@ -15,7 +15,7 @@ eigenvector/closeness/betweenness/louvain/degree. Synthetic graphs are plain
 ``(src, dst, weight)`` integer edge lists (exactly what Onager consumes) — no
 NetworkX graph objects are involved.
 
-See doc/improvements/archive/integration_plan.txt § Priority 7.
+See doc/improvements/archive/testing/integration_plan.txt § Priority 7.
 """
 from __future__ import annotations
 

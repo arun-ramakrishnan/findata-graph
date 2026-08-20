@@ -142,4 +142,4 @@ Frontend: `make frontend-check` green; manual smoke via the running app
 - `static/findata.css` — docs view layout.
 - `tests/test_api_docs.py` (21 tests) + `tests/test_integration_ts_contract.py`
   (TestDocsContract).
-- `doc/improvements/archive/doc_browser.txt` — this proposal (COMPLETE → #107).
+- `doc/improvements/archive/tooling/doc_browser.txt` — this proposal (COMPLETE → #107).

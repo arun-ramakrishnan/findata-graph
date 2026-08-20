@@ -4,7 +4,7 @@
 Covers the 6 routes from app.py that have zero unit/integration test coverage.
 Uses a seeded SQLite DB via the conftest seeded_graph_sqlite_db fixture pattern.
 
-See doc/improvements/archive/integration_plan.txt § Priority 2 for full rationale.
+See doc/improvements/archive/testing/integration_plan.txt § Priority 2 for full rationale.
 """
 from __future__ import annotations
 

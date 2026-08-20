@@ -4,8 +4,8 @@
 Status: PHASES 1-3 COMPLETE (2026-08-15); Phase 4 DROPPED
 Date: 2026-08-14
 Author: agent (session: post-onager capabilities exploration)
-Related: doc/improvements/archive/duckpgq_retirement.txt (COMPLETE),
-         doc/improvements/archive/networkx_duckpgq_gap_plan.txt (COMPLETE),
+Related: doc/improvements/archive/graph/duckpgq_retirement.txt (COMPLETE),
+         doc/improvements/archive/graph/networkx_duckpgq_gap_plan.txt (COMPLETE),
          doc/graph_design.txt §3.2/§10.
 
 ## Motivation

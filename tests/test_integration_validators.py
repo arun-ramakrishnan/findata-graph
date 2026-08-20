@@ -4,7 +4,7 @@
 Verifies that entities created by parse_newsletter pass NotesValidator
 checks, and that malformed entities are caught.
 
-See doc/improvements/archive/integration_plan.txt § Nice-to-have 5.
+See doc/improvements/archive/testing/integration_plan.txt § Nice-to-have 5.
 """
 from __future__ import annotations
 

@@ -8,7 +8,7 @@ Verifies the cross-module pipeline:
 Each derive_* module is tested in isolation by existing unit tests, but NO
 test verifies the full chain end-to-end.  This suite closes that gap.
 
-See doc/improvements/archive/integration_plan.txt § Priority 3.
+See doc/improvements/archive/testing/integration_plan.txt § Priority 3.
 """
 from __future__ import annotations
 
