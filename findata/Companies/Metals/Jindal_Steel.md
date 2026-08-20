@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2025-11-16'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:37Z'
+  at: '2026-08-20T05:41:43Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -104,12 +104,14 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **# Jindal Steel |_Mid Cap | Metals [Concall] Commissioned 4.6 million ton blast furnace and 3 million ton BOF in Q2, more tha doubling Angul **…
 
 > "The second quarter of FY26 was a defining quarter for Jindal Steel at Angul. We commissioned two major plants. The 4.6 million ton per annum Bhagwati Subhadra bla furnace 2 which more than doubles the hot metal capacity at Angul to 8.85 million tons annum from the earlier 4.25…"
-> — Gautam Malhotra, CEO
+> — Gautam Malhotra, CEO [^chatter-Known_Unknowns]
 
 - **Extensive AI deployment across operations including IoT sensors for predictive maintenance, computer vision for safety and automation, and p**…
 
 > "At Jindal Steel, artificial intelligence is transforming the way we operate, making our processes safer, faster, smarter, and more efficient. We've deployed IoT sensors on critic. equipment to predict failures early, enhance asset reliability, and prevent unplanned shutdown. W…"
-> — Gautam Malhotra, CEO
+> — Gautam Malhotra, CEO [^chatter-Known_Unknowns]
+
+[^chatter-Known_Unknowns]: The Chatter: Known Unknowns — [[Known_Unknowns]]
 
 *Source: The Chatter — The Chatter: Known Unknowns*
 
@@ -123,21 +125,23 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **Excessive steel supply from China is flooding global markets and putting pressure on international prices. Investors should be aware that th**…
 
 > "The downtrend in Chinese steel demand continues to outpace the decline in domestic s production, resulting in historic exports of 119 million tons in calendar year 2025."
-> — Gautam Manohar, CEO
+> — Gautam Manohar, CEO [^chatter-Patience_and_payoff]
 
 - **The Indian government has implemented protective taxes on imported steel to sup domestic manufacturers for the next three years. This regula**…
 
 > "Ministry of Finance has notified the definitive safeguard duty on select steel imports for period of 3 years... The step down will be 12% in year 1, 11.5% in year 2, and 11% in year 3."
-> — Gautam Manohar, CEO
+> — Gautam Manohar, CEO [^chatter-Patience_and_payoff]
 
 - **Domestic steel prices have started to rise again after a difficult period of price declines. Management expects this upward trend to continu**…
 
 > "Prices have recovered since mid-December 2025 after a prolonged correction and furth support is expected in Q4 with improving overall demand dynamics."
-> — Gautam Manohar, CEO
+> — Gautam Manohar, CEO [^chatter-Patience_and_payoff]
 
 - **The average price the company received for its steel dropped because they produced more basic steel products to ramp up new plants. While th**…
 
 > "Our blended steel NSR was down... as the incremental volumes were skewed towards H which carried the lowest realizations and margins in our product basket."
+
+[^chatter-Patience_and_payoff]: Patience and payoff — [[Patience_and_payoff]]
 
 *Source: The Chatter — Patience and payoff*
 

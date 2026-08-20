@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2025-11-16'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:37Z'
+  at: '2026-08-20T05:41:43Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -128,12 +128,12 @@ ABB India Limited is a leading technology company specializing in electrificatio
 - **# ABB India Limited | Large Cap | Engineering and Capital Goods ABB India Limited is a technology company that operates with four business a**…
 
 > "Base orders grew by 10\%. This is despite the fact that we also had a large order in the $l_{l}$ quarter, and we could make it in this quarter as well. What's more encouraging is to see base order is growing while the large order is definitely something which come as per the C…"
-> — T.K. Sridhar, CFO
+> — T.K. Sridhar, CFO [^chatter-Management_in_Motion]
 
 - **Export orders surged $40 \%$ year-on-year during global trade tensions, suggesting AB India is gaining allocated export markets and benefiti**…
 
 > "In fact, we had quite a good expansion of our export orders compared to last quarter. it was about $40 \%$ increase... So, our exports increased $40 \%$ year-on-year basis... And India such, the way the trade system is, seems to be net positive for us, for our industries."
-> — Sanjeev Sharma, Country Managing Director
+> — Sanjeev Sharma, Country Managing Director [^chatter-Management_in_Motion]
 
 - **Process Automation business experiencing customer decision delays due to global ; domestic uncertainties, though projects remain "in the pip**…
 
@@ -142,12 +142,14 @@ ABB India Limited is a leading technology company specializing in electrificatio
 ---
 
 held back the decisions. And we do believe those projects are still in the pipeline and the d…"
-> — Sanjeev Sharma, Country Managing Director
+> — Sanjeev Sharma, Country Managing Director [^chatter-Management_in_Motion]
 
 - **Orders from Tier-3 and Tier-4 cities improved substantially, validating the geograp penetration strategy and demonstrating success in captur**…
 
 > "So, this is something which is pretty interesting and as we see another thing which I wo definitely look at it is that the orders from Tier-3 and 4 have improved substantially compared to the previous quarter. This is a welcome fact and is also resonating with our efforts whic…"
-> — T.K. Sridhar, CFO
+> — T.K. Sridhar, CFO [^chatter-Management_in_Motion]
+
+[^chatter-Management_in_Motion]: The Chatter: Management in Motion — [[Management_in_Motion]]
 
 *Source: The Chatter — The Chatter: Management in Motion*
 
@@ -161,12 +163,12 @@ held back the decisions. And we do believe those projects are still in the pipel
 - **The company is launching new energy-efficient products while increasing the local manufacturing of these items. Higher localization helps lo**…
 
 > "We added a new line for energy-efficient drives and launched the next generation of machinery drives. When we introduce these, we focus on localization, which opens up new market segments and provides deeper penetration into the existing customer base."
-> — Sanjeev Sharma, Managing Director
+> — Sanjeev Sharma, Managing Director [^chatter-Patience_and_payoff]
 
 - **The new trade agreement between India and Europe is expected to streamline the company's supply chain and technology access. Investors shoul**…
 
 > "The India-Europe Free Trade Agreement (FTA) has been signed. While it may take about 6 months to be ratified and for the benefits to show, it is a net positive for India. It creates two-way street of confidence, allowing us to deploy more portfolio and integrate our supply cha…"
-> — Sanjeev Sharma, Managing Director
+> — Sanjeev Sharma, Managing Director [^chatter-Patience_and_payoff]
 
 - **The company pre-purchased imported materials to navigate new quality control regulations in India. This move secures supply but will result **…
 
@@ -175,18 +177,20 @@ held back the decisions. And we do believe those projects are still in the pipel
 - **Demand for data center infrastructure is accelerating rapidly as projects scale from megawatts to gigawatts. This high-growth sector represe**…
 
 > "We see a very strong pipeline [in data centers]. Both hyperscalers and large Indian busin houses have big plans. Beyond hyperscale, we see momentum in co-locations. The AI summit has also highlighted future demand. We are seeing capacities moving from megawatt to gigawatt levels."
-> — Sanjeev Sharma, Managing Director
+> — Sanjeev Sharma, Managing Director [^chatter-Patience_and_payoff]
 
 - **The automation segment is recovering as customers in heavy industries finally move forward with delayed investment decisions. This revival i**…
 
 > "Our Process Automation division is seeing a revival. Decision-making stalled in the first half of 2025 but has started moving. We see good opportunities in oil and gas, power generation, and specialty chemicals."
-> — Sanjeev Sharma, Managing Director
+> — Sanjeev Sharma, Managing Director [^chatter-Patience_and_payoff]
 
 - **Data centers now make up a significant tenth of the total order backlog, showing it no longer just a niche market. The company is using prem**…
 
 > "Data centers represent roughly 10-11% of our 10,471 crore backlog. Regarding pricing, customers always want lower prices, but we balance this by localizing and focusing on
 
 professional premiumization."
+
+[^chatter-Patience_and_payoff]: Patience and payoff — [[Patience_and_payoff]]
 
 *Source: The Chatter — Patience and payoff*
 

@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-07-07'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:36Z'
+  at: '2026-08-20T05:41:42Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -110,11 +110,13 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **## Mankind Pharma | Large Cap | Healthcare Mankind Pharma Limited is a company involved in the development, manufacturin and marketing of ph**…
 
 > "During the year, our gross margin have increased by 190 basis point to $71.6 \%$ from 69.7 in Q4 FY24. This increase is driven by combination of sales price increase effect as well favorable sales mix for the full year. For the full year, our gross margins have increased b 260…"
-> — Ashutosh Dhawan, Group CFO
+> — Ashutosh Dhawan, Group CFO [^chatter-Contours_of_Change]
 
 - **Discussing the widespread presence of trade generics across market segments, noti their impact on pharmaceutical market growth while highlig**…
 
 > "It is not only in smaller cities or bigger cities in metros, everywhere trade generic is thel these kind of challenges are always there. But please understand, whenever somebody btl trade generic, the chemist gives him the medicine, patient does not get that medicine at econom…"
+
+[^chatter-Contours_of_Change]: The Chatter: Contours of Change — [[Contours_of_Change]]
 
 *Source: The Chatter — The Chatter: Contours of Change*
 
@@ -128,17 +130,17 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **## Mankind Pharma Limited | Large Cap | Pharmaceuticals & Drugs Mankind Pharma is a leading Indian pharmaceutical company with a dominant po**…
 
 > "Mankind's chronic share increased by 120 basis points year-on-year to approximately 4 during the quarter and 190 basis points to approximately 39% for the full year FY26. We expect this growth momentum to continue. We witnessed a 1.1x outperformance of the in cardiac and a 2.1…"
-> — Rajeev Juneja, Vice Chairman and Managing Director
+> — Rajeev Juneja, Vice Chairman and Managing Director [^chatter-Tata_Steel_LIC]
 
 - **The company achieved its highest organic growth rate in the domestic market since acquiring Bharat Serums and Vaccines. This indicates that **…
 
 > "In Q4 FY26, our domestic revenue grew 13.4% year-on-year to 2,886 crores. More importantly, our organic growth excluding OTC stood at 10.1% ,the highest level since the BSV acquisition. This growth was broad-based, driven by improving execution across therapies, sustained mome…"
-> — Sheetal Arora, Chief Executive Officer and Whole-time Director
+> — Sheetal Arora, Chief Executive Officer and Whole-time Director [^chatter-Tata_Steel_LIC]
 
 - **The company is ramping up capital investment to build a state-of-the-art biotechnology manufacturing plant. This move signals a significant **…
 
 > "As highlighted by Rajeev, in line with our enhanced focus on R&D and specialized products, we are setting up a new biotech facility in Vadodara. Accordingly, our capex guidance for FY27 is expected to be in the range of 6% to 7% of FY27 revenue."
-> — Ashutosh Dhawan, Global Chief Financial Officer
+> — Ashutosh Dhawan, Global Chief Financial Officer [^chatter-Tata_Steel_LIC]
 
 - **Despite minor quarterly variations, management insists that the long-term potential for chronic care in India remains massive and untapped. **…
 
@@ -151,7 +153,9 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **Investors should prepare for a significant jump in the company's tax rate as historic tax exemptions expire. This will put pressure on net p**…
 
 > "For FY27, the expected tax rate will be in the range of 25% to 26%. The 80-IC exemption we have been enjoying ended with FY26. That is why our effective rate was in the 15-16 range previously."
-> — Ashutosh Dhawan, Global Chief Financial Officer
+> — Ashutosh Dhawan, Global Chief Financial Officer [^chatter-Tata_Steel_LIC]
+
+[^chatter-Tata_Steel_LIC]: Tata Steel LIC — [[Tata_Steel_LIC]]
 
 *Source: The Chatter — Tata Steel LIC*
 

@@ -19,7 +19,7 @@ created: '2026-02-12'
 last_modified: '2026-02-12'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:37Z'
+  at: '2026-08-20T05:41:43Z'
 stale_after: '2027-02-11'
 sources:
 - id: Weights_and_Measures
@@ -171,7 +171,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Our growth strategy focuses on expanding into totally new and untapped regions or increasing capacity in existing areas where we are already operating at high utilization c cater to white spaces." "Before committing to the Jaisalmer project in the North, we wot like to wait fo…"
 
 > "Our realization improvement has outpaced industry price increases, reflecting improvit sales quality."
-> — Puneet Yadu Dalmia, MD
+> — Puneet Yadu Dalmia, MD [^chatter-Making_It_Work]
 
 - **Indicates disciplined financial management balancing aggressive growth with leves prudence, which reduces risk and limits cost of capital. T**…
 
@@ -182,14 +182,16 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "We have a strong legal case to challenge the constitutional validity of the Revocation $\Lambda$ and will vigorously defend ourselves."
 
 > "An interim stay has been granted on income tax reassessment from FY2010-11. We bei the department's case is unsustainable."
-> — Puneet Yadu Dalmia, MD
+> — Puneet Yadu Dalmia, MD [^chatter-Making_It_Work]
 
 - **Cost leadership is critical in this commoditized industry for margin resilience, especially when pricing could be volatile.**
 
 > "It is a 3-year journey to reduce cost per ton by Rs 150-200; some savings will become visible by H2 FY26."
 
 > "Renewable energy commissioning and logistics efficiency are main cost levers."
-> — Puneet Yadu Dalmia, MD
+> — Puneet Yadu Dalmia, MD [^chatter-Making_It_Work]
+
+[^chatter-Making_It_Work]: The Chatter: Making It Work — [[Making_It_Work]]
 
 *Source: The Chatter — The Chatter: Making It Work*
 
@@ -203,22 +205,24 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **## Dalmia Bharat | Mid Cap | Building Materials Dalmia Bharat Limited is a prominent cement company in India known for its innovation, excel**…
 
 > "In the long term, I think prices will be driven by consolidation. Barriers to entry in this business are rising and higher consolidation will mean higher prices over the medium to long term."
-> — Puneet Dalmia, Managing Director and CEO
+> — Puneet Dalmia, Managing Director and CEO [^chatter-Weights_and_Measures]
 
 - **Despite demand growth, the cement sector’s all-India capacity utilization is expected to remain around 70% in the near future due to ongoing**…
 
 > "The all-India capacity utilization of the sector is around 70%. There is reasonable cap expansion in the pipeline...So we do not expect a material increase in capacity utilization the sector over the next few years."
-> — Puneet Dalmia, Managing Director and CEO
+> — Puneet Dalmia, Managing Director and CEO [^chatter-Weights_and_Measures]
 
 - **While short-term pricing remains cautious, the company expects prices to increase over the medium to long term, assuming rational behavior w**…
 
 > "I believe that assuming rational behavior in the sector, pricing is going to move up over medium term. I remain cautious in the short term but reasonably optimistic in the medium to long term."
-> — Puneet Dalmia, Managing Director and CEO
+> — Puneet Dalmia, Managing Director and CEO [^chatter-Weights_and_Measures]
 
 - **The company’s strong cash generation and conservative net debt to EBITDA ratio (0.6x against a 2.0x target) provide ample financial flexibil**…
 
 > "Even in a bad year, we generate 3,000-4,000 crores of cash...we are steady in terms of funding our growth journey through our leverages. We want to stay within a net debt to EBITDA target of 2.0x, and we are currently at 0.6x."
-> — Puneet Dalmia, Managing Director and CEO
+> — Puneet Dalmia, Managing Director and CEO [^chatter-Weights_and_Measures]
+
+[^chatter-Weights_and_Measures]: Weights and Measures — [[Weights_and_Measures]]
 
 *Source: The Chatter — Weights and Measures*
 

@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-07-31'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:36Z'
+  at: '2026-08-20T05:41:42Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -58,18 +58,20 @@ Eicher Motors Limited is a leading Indian automotive company operating through t
 - **Royal Enfield crosses historic 1 million motorcycle milestone while dramatically shifting customer demographics from 38-40 years average age**…
 
 > "Over the period, we have added products which have actually brought the average age ( Royal Enfield customers lower. Hunter, when we launched, it actually brought in at aboi 24-26 years as the average age. Meteor when we brought in, that also brought in the younger audience, s…"
-> — B. Govindarajan, Managing Director, Eicher Motors \& CEO, Royal Enfield
+> — B. Govindarajan, Managing Director, Eicher Motors \& CEO, Royal Enfield [^chatter-Management_in_Motion]
 
 - **Strategic entry into electric vehicles with Flying Flea brand represents major busin model expansion, with management indicating strong glob**…
 
 > "We made our big move into our electric with the Flying Flea in-house brand of Royal Enfield. We began with the showcase of Flying Flea at EICMA, followed by the unveilit the two models FF C6 and FF S6, which has received very strong interest from customer over the globe. We ar…"
-> — B. Govindarajan, Managing Director, Eicher Motors \& CEO, Royal Enfield
+> — B. Govindarajan, Managing Director, Eicher Motors \& CEO, Royal Enfield [^chatter-Management_in_Motion]
 
 - **International expansion accelerates with local manufacturing in Thailand and Bangladesh, achieving top-3 market positions globally including**…
 
 > "We inaugurated our first fully owned CKD assembly plant outside India and Thailand. also began operations of a manufacturing facility and flagship showroom in Bangladesh We are \#1 in UK in the middleweight, \#2 in Argentina market and \#3 in Brazil market.'
 
 - B. Govindarajan…"
+
+[^chatter-Management_in_Motion]: The Chatter: Management in Motion — [[Management_in_Motion]]
 
 *Source: The Chatter — The Chatter: Management in Motion*
 
@@ -83,47 +85,49 @@ Eicher Motors Limited is a leading Indian automotive company operating through t
 - **Royal Enfield maintains strong dominance and continues to gain market share in th middle-sized motorcycle segment, reinforcing its leadershi**…
 
 > "We continue to gain market share across the board, particularly in the middle-sized motorcycle segment, where Royal Enfield has been able to continue its dominance at 88 exit market share."
-> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield
+> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
 
 - **Royal Enfield's partnership with Amazon India to enable online sales for its 350cc range aims to enhance customer accessibility and streamli**…
 
 > "To improve ease of purchase, we announced a partnership with Amazon India, enablin customers in select cities to buy Royal Enfield Motorcycles online through seamless end end digital journey for the 350cc range."
-> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield
+> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
 
 - **Eicher Motors is investing INR 958 crores in a brownfield expansion at its Cheyyar facility to increase Royal Enfield's annual production ca**…
 
 > "EML Board has just approved a proposal for capacity expansion at Royal Enfield. This will be achieved through a brownfield expansion at Cheyyar manufacturing facility at Tamil Nadu, taking our annual production capacity to 20 lakh units per year from the current 1.4 million to…"
-> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield
+> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
 
 - **While 450cc and 650cc segments have adequate capacity with current utilization, the significant demand growth in the 350cc segment is drivin**…
 
 > "So for 450cc and 650cc, there is a capacity which is built, which is good enough because currently, the utilization is slightly lower. With the debottlenecking and a bit of automations, we can cater to the coming year's growth. And 350cc, obviously, because during the festive …"
-> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield
+> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
 
 - **A new trade deal could significantly reduce tariffs on U.S. exports to 18%, down fro 41-42% (including steel/aluminum tariffs), potentially **…
 
 > "With the latest trade deal, which has been done, the rate is 18%. However, there is a steep and aluminum tariff, that, there is no clarity as of now. We are waiting for a bit more clear on that. With that, the weighted average tariff is almost about 41% to 42% currently. If it…"
-> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield
+> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
 
 - **The 650cc and 450cc segments are showing signs of recovery after a post-GST drop with new product launches like the Classic 650 and Bullet 6**…
 
 > "It went as good as almost about 40%, but the rate of recovery of 650 cc started showing positive sign within about a month's time and 450 cc has started showing the rate of recovery now. So with the Classic 650, which we launched, Bullet 650, which we have launched, now the in…"
-> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield
+> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
 
 - **Both rural and semi-urban markets are experiencing significant growth, with all 35 models, including Classic, showing strong traction post-G**…
 
 > "Rural and semi-urbans are really, really growing. So when there is a growth, then the new cut which we are talking about is which product is actually showing a lot of traction. Pos GST, if I have to give you some color, all our 350cc models are equally growing, including Classic."
-> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield
+> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
 
 - **Royal Enfield remains focused on the 250cc-750cc middleweight segment, with cur capacity expansion primarily addressing immediate strong dem**…
 
 > "Our focus has always been the middleweight 250cc to 750cc. Currently, we are at about 350cc, 450cc and 650cc. You will see the adjacencies which are there, but the demand as now is 350cc. So here and now, the task in hand is how do I fulfill that demand and the capacity built …"
-> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield
+> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
 
 - **Royal Enfield is cautiously approaching the electric mobility market with its "Flyin Flea" brand, preparing to launch the Classic-styled C6 **…
 
 > "So Flying Flea is our endorsed brand of Royal Enfield for the city, city plus electric mobility. We have 2 products, which we unveiled, one is called C6, which is a Classic sty one, another one is an S6, which is a Scrambler version. C6 is almost ready for production You will …"
-> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield
+> — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
+
+[^chatter-Bets and blueprints]: Bets and blueprints — [[Bets and blueprints]]
 
 *Source: The Chatter — Bets and blueprints*
 
@@ -137,17 +141,19 @@ Eicher Motors Limited is a leading Indian automotive company operating through t
 - **# Eicher Motors | Large Cap | Auto Ancillary Eicher Motors is a global automobile company based in Chennai, India, known for owning Royal En**…
 
 > "The GST reforms by the government of India have made motorcycles under 350cc morc accessible and the customer's response is a clear testament to this during this window. $T$ festive season was a truly outstanding one for Royal Enfield, with over about 2.49 lakh motorcycles sol…"
-> — B. Govind Rajan, MD Eicher Motors and CEO Royal Enfield
+> — B. Govind Rajan, MD Eicher Motors and CEO Royal Enfield [^chatter-The_Blind_Spots]
 
 - **Current capacity ramped to 1.3-1.35 million motorcycles; additional module capacit being added to start production from Q1 FY27 in Cheyyar f**…
 
 > "We have ramped up the capacity to almost about 1.3 to 1.35 million motorcycles. But looking at the demand, looking at the inquiry and the interest and what we have done is between we also kick started additional module capacity, which will also start picking ir from the first …"
-> — B. Govind Rajan, MD Eicher Motors and CEO Royal Enfield
+> — B. Govind Rajan, MD Eicher Motors and CEO Royal Enfield [^chatter-The_Blind_Spots]
 
 - **Inquiry-to-booking conversion improved 10 percentage points from 20-21\% to 25\% post-GST cuts, indicating strong demand momentum and sales **…
 
 > "Our working conversion has gone up. Our conversion has gone up. Our online conversi. have gone up. So the E2B, we normally say Inquiry to Booking conversion, has actually s a 10 percentage point growth during this point of time. It used to be almost about 20-21 it has gone alm…"
-> — B. Govind Rajan, MD Eicher Motors and CEO Royal Enfield
+> — B. Govind Rajan, MD Eicher Motors and CEO Royal Enfield [^chatter-The_Blind_Spots]
+
+[^chatter-The_Blind_Spots]: The Chatter: The Blind Spots — [[The_Blind_Spots]]
 
 *Source: The Chatter — The Chatter: The Blind Spots*
 

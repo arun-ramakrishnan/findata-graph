@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-06-24'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:36Z'
+  at: '2026-08-20T05:41:42Z'
 stale_after: '2027-02-11'
 sources:
 - id: Half_a_century_in
@@ -44,34 +44,36 @@ Yatra Online Pvt. Ltd. is an online travel company providing information, pricin
 - **## Yatra Online | Small Cap | Tourism \& Hospitality Yatra Online Pvt. Ltd., an online travel company, provides information, pricing, availa**…
 
 > "So, what we've been focused on moving more and more towards our corporate business, right? So, what we've done is replace effectively lower volume B2C bookings with high-v corporate bookings. The margins and the absolute realization on corporate travel are significantly higher…"
-> — Dhruv Shringi, CEO
+> — Dhruv Shringi, CEO [^chatter-Between_Seasons]
 
 - **Management explains how will it manage working capital, since working capital da on B2B side of business is relatively higher**
 
 > "So on the working capital side, we continue to work not just with banks on factoring services, which are available to us, but also work closely with our corporate customers tc migrate some of these corporate bookings from credit on to a credit card platform. This journey that …"
-> — Dhruv Shringi, CEO
+> — Dhruv Shringi, CEO [^chatter-Between_Seasons]
 
 - **Management prioritizes aggressive growth and market share in the corporate segm in the short-to-medium term, even if it means deploying work**…
 
 > "So I do believe it's important for us to continue to grow faster in the short- to mediumterm as opposed to worrying more about the cash flow from operations. I would focus, a would request you also to focus on the profitability at the moment, right, and how we ar driving profi…"
-> — Dhruv Shringi, CEO
+> — Dhruv Shringi, CEO [^chatter-Between_Seasons]
 
 - **Lower customer acquisition cost is the new normal for them as it falls from almost about $4.7 \%$ in FY '24 to essentially as low as $2.8 \%**…
 
 > "So in terms of looking at customer acquisition costs, I think we should start looking at I current run rate to be the new normal. We should be trending at these levels with some variation on account of seasonality or some variation in terms of competitive pressures times. But …"
-> — Dhruv Shringi, CEO
+> — Dhruv Shringi, CEO [^chatter-Between_Seasons]
 
 - **Management explains it's venture into SaaS and fintech**
 
 > "So on the SaaS side, the SaaS obviously is our corporate travel platform that we have, ti is a platform that we provide to all our business travel customers. More than $70 \%$ of our transactions are done by the customers using this platform. This platform then deeply integrat…"
 
 > "So, on the expense management and card solutions, I'm a lot more bullish on that, righ do see that as a very healthy opportunity. And if I look at this 3 to 5 years down the roa do think that from an income point of view, one third of our income could potentially cc from these…"
-> — Dhruv Shringi, CEO
+> — Dhruv Shringi, CEO [^chatter-Between_Seasons]
 
 - **Management explains why B2B price realizations are 50\% higher then B2C when it comes to air tickets and hotel bookings**
 
 > "That is right because corporate travelers will typically book at the last minute and the $l$ much more bundled fares, which will include seat, meal bags included in that, there is a much higher mix of business and first-class in corporate versus consumer. So, the averag realiz…"
-> — Dhruv Shringi, CEO
+> — Dhruv Shringi, CEO [^chatter-Between_Seasons]
+
+[^chatter-Between_Seasons]: The Chatter: Between Seasons — [[Between_Seasons]]
 
 *Source: The Chatter — The Chatter: Between Seasons*
 
@@ -85,32 +87,34 @@ Yatra Online Pvt. Ltd. is an online travel company providing information, pricin
 - **The new expense management software is gaining traction quickly and serves as a vital entry point for new corporate accounts. This tool incr**…
 
 > "The early response to our expense management solution has been very,very encouragir We have onboarded 8 new customers in one quarter itself."
-> — Siddhartha Gupta, Chief Executive Officer
+> — Siddhartha Gupta, Chief Executive Officer [^chatter-Half_a_century_in]
 
 - **A large majority of corporate travel in India is still handled through manual, offline processes, presenting a massive growth opportunity. Y**…
 
 > "Online penetration in the corporate travel market is just about 23%. We have laid a very strong foundation for chasing this potential."
-> — Siddhartha Gupta, Chief Executive Officer
+> — Siddhartha Gupta, Chief Executive Officer [^chatter-Half_a_century_in]
 
 - **The company is now acting as a supplier to other travel platforms and offline agent by providing access to its deep hotel inventory via APIs**…
 
 > "We are beginning to monetize the inventory capabilities that we have built over the course of the last decade."
-> — Dhruv Shringi, Executive Chairperson and Whole-Time Director
+> — Dhruv Shringi, Executive Chairperson and Whole-Time Director [^chatter-Half_a_century_in]
 
 - **Meetings, Incentives, Conferences, and Exhibitions (MICE) bookings provide exceptionally high profit margins compared to standard flight tic**…
 
 > "MICE is a very margin accretive business... from a net contribution point of view, it's a business with contribution margins in excess of 50%."
-> — Dhruv Shringi, Executive Chairperson and Whole-Time Director
+> — Dhruv Shringi, Executive Chairperson and Whole-Time Director [^chatter-Half_a_century_in]
 
 - **Management opted to use short-term bank debt to manage temporary working capi spikes rather than breaking long-term fixed deposits. This ind**…
 
 > "We do have overdraft facilities with the banks. And those are what we have dipped into during this period."
-> — Dhruv Shringi, Executive Chairperson and Whole-Time Director
+> — Dhruv Shringi, Executive Chairperson and Whole-Time Director [^chatter-Half_a_century_in]
 
 - **By allowing corporate clients to see both their private negotiated rates and Yatra's retail rates, the company has successfully increased ho**…
 
 > "The inertia was broken by bringing in flexibility in our technology platform to incorpor corporate rates as well and retail rates."
-> — Dhruv Shringi, Executive Chairperson and Whole-Time Director
+> — Dhruv Shringi, Executive Chairperson and Whole-Time Director [^chatter-Half_a_century_in]
+
+[^chatter-Half_a_century_in]: Half a century in — [[Half_a_century_in]]
 
 *Source: The Chatter — Half a century in*
 

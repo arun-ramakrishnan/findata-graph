@@ -20,7 +20,7 @@ created: '2025-11-16'
 last_modified: '2026-02-17'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:36Z'
+  at: '2026-08-20T05:41:42Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -125,22 +125,24 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **Domestic loan growth accelerated sharply to $3.3 \%$ QoQ from $1.5 \%$ in Q1, while CAs deposits grew $9.7 \%$ YoY, indicating improving mom**…
 
 > "Average deposits grew by 9.1\% year-on-year and 1.6\% sequentially, and average curren. and savings account deposits grew by $9.7 \%$ year-on-year and $2.7 \%$ sequentially in this quarter. Total deposits grew by $7.7 \%$ year-on-year and $0.3 \%$ sequentially at September 3 2…"
-> — Sandeep Bakhshi, MD \& CEO
+> — Sandeep Bakhshi, MD \& CEO [^chatter-Scaling_Through_Slowdowns]
 
 - **Business banking emerged as the fastest-growing segment at $24.8 \%$ YoY and $6.5 \%$ QoQ, while retail grew $6.6 \%$ YoY, indicating the ba**…
 
 > "The retail loan portfolio grew by $6.6 \%$ year-on-year and $2.6 \%$ sequentially including $n c$ fund based outstanding. The retail portfolio was $42.9 \%$ of the total portfolio. The rural portfolio declined by $1 \%$ year-on-year and grew by $2.8 \%$ sequentially. The busin…"
-> — Sandeep Bakhshi, MD \& CEO
+> — Sandeep Bakhshi, MD \& CEO [^chatter-Scaling_Through_Slowdowns]
 
 - **Net NPA ratio improved to $0.39 \%$ from $0.42 \%$ YoY with total provisions at just $5.4 \%$ core operating profit, while the bank maintain**…
 
 > "The net NPA ratio was $0.39 \%$ at September 30, 2025 compared to $0.41 \%$ at June 30, 20 and $0.42 \%$ at September 30, 2024. During the quarter, there were net additions of 13.86 billion rupees to gross NPA excluding write-offs and sales. The total provisions during th quar…"
-> — Sandeep Bakhshi, MD \& CEO
+> — Sandeep Bakhshi, MD \& CEO [^chatter-Scaling_Through_Slowdowns]
 
 - **Cost of deposits fell sharply to $4.64 \%$ from $4.85 \%$ QoQ and $4.88 \%$ YoY, while $55 \%$ of domestic loans remain linked to external b**…
 
 > "Of the total domestic loans, interest rates on about 55\% of the loans are linked to the $r$ rate and other external benchmarks, $14 \%$ to MCLR and other older benchmarks and the remaining $31 \%$ of loans have fixed interest rates. The domestic NIM was $4.37 \%$ in this quar…"
-> — Anindya Banerjee, CFO
+> — Anindya Banerjee, CFO [^chatter-Scaling_Through_Slowdowns]
+
+[^chatter-Scaling_Through_Slowdowns]: Scaling Through Slowdowns — [[Scaling_Through_Slowdowns]]
 
 *Source: The Chatter — Scaling Through Slowdowns*
 
@@ -171,6 +173,8 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Our average LCR is very comfortable at about 126% for the quarter. Deposit flows are healthy and more than adequate, so deposit growth will not be a constraint for our loan growth."
 
+[^chatter-HDFC_Groww_Havells]: HDFC Groww Havells — [[HDFC_Groww_Havells]]
+
 *Source: The Chatter — HDFC Groww Havells*
 
 <!-- END auto chatter block -->
@@ -189,32 +193,34 @@ the terms …"
 > "First of all, RBI, as you are aware, does an annual inspection as part of the cycle. We have been doing this portfolio since 2012, and RBI has made an assessment that the terms of the facilities were not fully in compliance with the regulatory requirement for PSL. I also want …"
 
 > "I repeat, these loans are standard and secured in nature. And the standard asset provision will continue until the assets are repaid or renewed in conformity with the PSL guideline So, from a customer angle, we are very happy. As you are aware, the provisioning requirement for…"
-> — Sandeep Batra, Executive Director
+> — Sandeep Batra, Executive Director [^chatter-Anchor_and_Ambitions]
 
 - **ICICI Bank has assessed its portfolio, including MSME, against US tariff threats and remains confident in the quality and resilience of its **…
 
 > "We continue to assess our portfolio. As you are aware, India is largely a domestically focused economy, and we made an assessment of the impact of US tariffs. Of course, wh we are assessing our customers, we prioritise resilience through strong balance sheet from customer pers…"
-> — Sandeep Batra, Executive Director
+> — Sandeep Batra, Executive Director [^chatter-Anchor_and_Ambitions]
 
 - **ICICI Bank anticipates its Net Interest Margins (NIMs) to remain range-bound, influenced by loan and investment repricing and competitive pr**…
 
 > "Looking ahead, we do expect NIMs to remain more or less range bound, reflecting the repricing of the external benchmarks on loans and investments, as you rightly pointed out And of course, competition intensity. This would get offset by retail term repricing and we will contin…"
-> — Sandeep Batra, Executive Director
+> — Sandeep Batra, Executive Director [^chatter-Anchor_and_Ambitions]
 
 - **ICICI Bank observes increased corporate loan demand and continues to grow its corporate portfolio on a 360-degree basis, adapting to client **…
 
 > "We have seen a bit of an increase on the corporate side in the current quarter. A s you aware, there has been some significant pickup. We focus on corporate clients and if you aware, corporate clients have got multiple options including getting money from equity and they also …"
-> — Sandeep Batra, Executive Director
+> — Sandeep Batra, Executive Director [^chatter-Anchor_and_Ambitions]
 
 - **ICICI Bank infused capital into ICICI Home Finance to meet regulatory and expansion needs, indicating confidence in the subsidiary's strong **…
 
 > "I think ICICI Home Finance has been doing exceedingly well. We are happy to infuse t capital to meet the regulatory requirement and expansion that is required from their business point of view. So, it is an important subsidiary. They have improved their NPA provisions, and jus…"
-> — Sandeep Batra, Executive Director
+> — Sandeep Batra, Executive Director [^chatter-Anchor_and_Ambitions]
 
 - **ICICI Bank acknowledged that current single-digit PAT growth is suboptimal but explained it as an expected impact of the RBI's 125 basis poi**…
 
 > "Of course, we can do much better. I hope we do much better. So, to that extent, we are never happy with the results that we get. We would like to do more, a nd of course, this year's growth has to be structurally seen in the context of RBI reprice, the monetary policy which ha…"
-> — Sandeep Batra, Executive Director
+> — Sandeep Batra, Executive Director [^chatter-Anchor_and_Ambitions]
+
+[^chatter-Anchor_and_Ambitions]: Anchor and Ambitions — [[Anchor_and_Ambitions]]
 
 *Source: The Chatter — Anchor and Ambitions*
 
@@ -228,7 +234,7 @@ the terms …"
 - **## ICICI Bank | Large Cap | Financial Services ICICI Bank Limited is a leading private sector bank in India offering a wide range financial **…
 
 > "At ICICI Bank, our strategic focus continues to be on growing profit before tax excludi1 treasury through the 360-degree customer centric approach and by serving opportunitiest across ecosystems and micromarkets... Maintaining high standards of governance, deepening coverage a…"
-> — Mr. Sandeep Bakhshi, Managing Director \& CEO
+> — Mr. Sandeep Bakhshi, Managing Director \& CEO [^chatter-The_Known_Unknowns]
 
 - **Management's measured optimism about loan growth despite challenging external conditions reflects confidence in the bank's positioning to ca**…
 
@@ -237,14 +243,16 @@ the terms …"
 > "One would expect the business banking piece to grow faster than the overall loan book therefore that proportion should gradually go up."
 
 > "Credit costs today are negligible. So, they may go up slightly. But the portfolio is granul and tightly monitored."
-> — Anindya Banerjee, CFO
+> — Anindya Banerjee, CFO [^chatter-The_Known_Unknowns]
 
 - **Management conveys confidence in the credit cost run-rate stabilization, supporter robust provisioning buffers. This presents a realistic an**…
 
 > "We have always said that currently, the underlying level would be more like about 50 bc points. Can that inch up? It could, but I don't see any major movement."
 
 > "The total provisions other than specific provisions were 226.64 billion Rupees or 1.7\% c loans. This includes contingency provisions of 131 billion Rupees."
-> — Anindya Banerjee, CFO
+> — Anindya Banerjee, CFO [^chatter-The_Known_Unknowns]
+
+[^chatter-The_Known_Unknowns]: The Chatter: The Known Unknowns — [[The_Known_Unknowns]]
 
 *Source: The Chatter — The Chatter: The Known Unknowns*
 

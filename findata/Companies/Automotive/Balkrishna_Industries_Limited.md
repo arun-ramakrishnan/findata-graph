@@ -21,7 +21,7 @@ created: '2025-12-28'
 last_modified: '2025-12-28'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:36Z'
+  at: '2026-08-20T05:41:42Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -73,11 +73,13 @@ US tariff cost-sharing arrangements demonstrate pricing power and strong custom 
 - **The recently signed FTA between India and the EU is expected to facilitate smooth trade, potentially benefiting Balkrishna Industries' Europ**…
 
 > "I would like to take this opportunity to thank and congratulate the Government of India for their remarkable efforts on signing the landmark FTA with the EU. we believe this will allow for further seamless trade between the two geographies."
-> — Rajiv Poddar, Joint Managing Director
+> — Rajiv Poddar, Joint Managing Director [^chatter-Anchor_and_Ambitions]
 
 - **The strong growth in the Indian business is driven by positive sentiment from government GST reductions and improved demand following good m**…
 
 > "As mentioned in my opening comments, the government's role in reducing GST has driven sentiments across the entire auto sector, and we are benefiting from that. Better rains during the season have also led to improved demand."
+
+[^chatter-Anchor_and_Ambitions]: Anchor and Ambitions — [[Anchor_and_Ambitions]]
 
 *Source: The Chatter — Anchor and Ambitions*
 
@@ -91,7 +93,7 @@ US tariff cost-sharing arrangements demonstrate pricing power and strong custom 
 - **# Balkrishna Industries Limited |_Mid Cap | Tyres Balkrishna Industries Limited (BKT) is primarily engaged in the manufacturing anc sale of **…
 
 > "At BKT, we have set a clear and shared ambition. That is, to reach a revenue milestone approximately Rs 23,000 crore by 2030. To achieve this, we are moving forward along $w$ three levers of growth. Lever one, the OHT business of ours. Here, we aim to achieve 70! contribution …"
-> — Rajiv Poddar, Joint Managing Director
+> — Rajiv Poddar, Joint Managing Director [^chatter-Decoding_the_Dialogue]
 
 - **Phased domestic market entry timeline targets ₹ 80,000 crore TAM with disciplined execution approach. CVR pilot launches in Q4 FY26 followed**…
 
@@ -100,12 +102,14 @@ US tariff cost-sharing arrangements demonstrate pricing power and strong custom 
 - **- Rajiv Poddar, Joint Managing Director The $50 \%$ capacity increase by early FY26, coupled with 24 MW additional cogeneration power, enhan**…
 
 > "To capitalize on synergies with our tyre operations and leverage energy and raw materi integration, the Board has approved the expansion of our carbon black plant from 200,6 to 300,000 metric tons per annum. Along with this, a 24-megawatt co-generation power plant, taking tota…"
-> — Rajiv Poddar, Joint Managing Director
+> — Rajiv Poddar, Joint Managing Director [^chatter-Decoding_the_Dialogue]
 
 - **US tariff cost-sharing arrangements demonstrate pricing power and strong custom relationships. Rather than fully absorbing or passing throug**…
 
 > "So, it is being partly split between us and the customer. So, the tariff is over and above whatever was there existing. So $10 \%$ is being split between us and the customer."
-> — Rajiv Poddar, Joint Managing Director
+> — Rajiv Poddar, Joint Managing Director [^chatter-Decoding_the_Dialogue]
+
+[^chatter-Decoding_the_Dialogue]: The Chatter: Decoding the Dialogue — [[Decoding_the_Dialogue]]
 
 *Source: The Chatter — The Chatter: Decoding the Dialogue*
 

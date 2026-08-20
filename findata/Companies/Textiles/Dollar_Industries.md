@@ -19,7 +19,7 @@ created: '2025-11-19'
 last_modified: '2026-06-24'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:36Z'
+  at: '2026-08-20T05:41:43Z'
 stale_after: '2027-02-11'
 sources:
 - id: Beneath_the_pixels
@@ -265,21 +265,23 @@ Dollar Industries aims to:
 > "No new capex is being planned, and for the next two to three years, we are not plannin; any major capex in the company.
 
 For EBO, we don't require any capex because it is on FOCO model, franchise-owned company-operated model. Sorry, FOFO model, franchise-owned franchise-operat…"
-> — Ankit Gupta, President - Marketing
+> — Ankit Gupta, President - Marketing [^chatter-Echoes_from_the_Boardroom]
 
 - **Premiumization strategy is showing traction, with these categories contributing nearly a third of total FY25 revenue.**
 
 > "Dollar Protect, our rainwear segment, recorded an impressive volume growth of 40.3\% year-on-year basis. Force NXT registered a 13.4\% year-on-year volume growth, while ot thermal segment grew $21 \%$ in volume over the same period. [The high margin and premi categories have c…"
-> — Ankit Gupta, President - Marketing
+> — Ankit Gupta, President - Marketing [^chatter-Echoes_from_the_Boardroom]
 
 - **Modern Retail \& E-commerce Channels Surge, Now 8.2\% of Revenue**
 
 > "Moving on to the channel-wise performance of Dollar Industries in FY25, [the modern trade and e-commerce channels demonstrated remarkable momentum with value growtl $63 \%$ and volume growth of $67 \%$ year-on-year.] These channels contributed $8.2 \%$ to total revenue as agai…"
-> — Gaurav Gupta, Vice President - Strategy
+> — Gaurav Gupta, Vice President - Strategy [^chatter-Echoes_from_the_Boardroom]
 
 - **Expects stable raw material prices to continue, with potential for a slight $0.5-1 \%$ improvement in gross margins.**
 
 > "Currently, the raw material prices are stagnant. In terms of gross margins, on a yearly basis, we are standing somewhere around $33.5 \%$. And there might be improvement of 0 .! to $1 \%$, but nothing more than that as of now."
+
+[^chatter-Echoes_from_the_Boardroom]: The Chatter: Echoes from the Boardroom — [[Echoes_from_the_Boardroom]]
 
 *Source: The Chatter — The Chatter: Echoes from the Boardroom*
 
@@ -293,34 +295,36 @@ For EBO, we don't require any capex because it is on FOCO model, franchise-owned
 - **The premium brand Force NXT is growing rapidly and becoming a larger part of the company's total sales. Investors should view this as a posi**…
 
 > "Force NXT continued its strong momentum, registering a year-on-year value growth of 26.5% and volume growth of 48.1% in quarter 3 FY '26."
-> — Gaurav Gupta, Vice President - Strategy
+> — Gaurav Gupta, Vice President - Strategy [^chatter-Half_a_century_in]
 
 - **The company is finding it hard to raise prices because the market is so competitive This means that profit growth will have to come from cos**…
 
 > "Until and unless there's a very high rate increase or price increase in raw materials, AS hike is very difficult, given the competitive nature of what the industry is going through
 
 right now."
-> — Gaurav Gupta, Vice President - Strategy
+> — Gaurav Gupta, Vice President - Strategy [^chatter-Half_a_century_in]
 
 - **The marketing strategy is shifting toward digital platforms to better target consum while controlling costs. This more targeted approach cou**…
 
 > "We are limiting our advertisement costs or shifting our advertisement cost to digital media as well. A huge chunk goes to digital media now, which didn't use to go earlier and focus on our premium products."
-> — Ankit Gupta, President - Marketing
+> — Ankit Gupta, President - Marketing [^chatter-Half_a_century_in]
 
 - **Management is refusing to join a price war by offering excessive discounts like its competitors. This disciplined approach protects brand va**…
 
 > "If someone is involved in the deep discounting of, let's say, 4% to 5%, we are in -- like we are giving around 1%, 1.5%. We are not going down to 5% kind of a thing."
-> — Ankit Gupta, President - Marketing
+> — Ankit Gupta, President - Marketing [^chatter-Half_a_century_in]
 
 - **The merger of group companies will save several crores in annual expenses and simplify the business structure. This move improves corporate **…
 
 > "Overall, we analyze around INR 5 crores to INR 7 crores of expenses is to be rationaliz due to this merger. And more than this, the net worth of the company... increased."
-> — Ajay Patodia, Chief Financial Officer
+> — Ajay Patodia, Chief Financial Officer [^chatter-Half_a_century_in]
 
 - **While management expects some increase in raw material costs, they do not anticip the extreme inflation seen in previous years. This suggest**…
 
 > "The yarn market might become a little tighter for sure, but we do not expect it to becon way tighter, what happened during COVID... where the yarn prices shot up by, say, 30%, 35%."
-> — Gaurav Gupta, Vice President - Strategy
+> — Gaurav Gupta, Vice President - Strategy [^chatter-Half_a_century_in]
+
+[^chatter-Half_a_century_in]: Half a century in — [[Half_a_century_in]]
 
 *Source: The Chatter — Half a century in*
 
