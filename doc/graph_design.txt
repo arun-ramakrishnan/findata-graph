@@ -110,8 +110,10 @@ Edge types (extensible; TEXT column). Live counts 2026-08-19:
 
 **Edition nodes (okf_activation P, 2026-08-19):** editions are entities
 (`entity_type='edition'`, name = note STEM — the canonical edition key;
-quotes.as_of_edition is free text matching titles only 28/71, so it is
-never a join key). `cited_in` edges project the OKF `sources[]`
+quotes/company_metrics.as_of_edition now STORE stems too — normalized at
+the derive write boundary via edition_index, #136: 99.4%/99.7% of sourced
+rows join directly; 4 known mangled/unresolvable titles stay verbatim and
+are reported, never guessed). `cited_in` edges project the OKF `sources[]`
 frontmatter into the graph (props `{resource, n_quotes}`); fan-in is hub-
 skewed (`A_Quarter_That_Refuses_To_Behave` = 360/1,005), so analytics
 exclude it from activity views (`_MEMBERSHIP_TYPES`), link-prediction's

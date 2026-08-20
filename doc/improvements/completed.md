@@ -2508,3 +2508,114 @@ edge set). All four workstreams shipped the same day:
   `markdown_parse.md` post-render chain; backfill docstring now marks
   its reduced (bootstrap) role. Live convergence apply (52+45 notes, all
   stem-leg) held at dry-run for the operator.
+
+## 136. as_of_edition normalized to edition stems at the derive write boundary
+
+**Date**: 2026-08-19. The deferral-revisit item shipped standalone ("take
+#2 now, one hour, permanent"); the N1/N3 read-side bundle lives in
+`proposals/okf_readside.md`, N4 (C3 temporal) in pending.md. Now archived: `archive/okf_readside.md`.
+
+- **Why**: okf_activation F0 made the note STEM the canonical edition key
+  "everywhere" — but the capture layer still wrote free-text H1 titles to
+  `quotes/company_metrics.as_of_edition` (71 distinct, only 28/71 matching
+  anything), so the DB still needed the fuzzy bridge at query time.
+- **Fix at the write boundary, not extraction**: `apply_quotes`/
+  `apply_metrics` take an optional `index` (edition_index map); stored
+  `as_of_edition` = `resolve_edition_string(title).stem`, verbatim on
+  unresolvable (honest-miss discipline). The in-memory field keeps the
+  display title — render headings still key on it. No index → verbatim
+  (back-compat for tests/direct callers). `_cli` builds the index once
+  post-scan and shares it with both applies AND the render splice path
+  (one build per run instead of two).
+- **No migration script**: tables are DELETE-then-INSERT derived state;
+  one live `--apply --stale-only` run rewrote every row through the new
+  boundary (notes untouched — fixed point held: 0 wrote, 328+230 gated).
+- **Live result**: quotes 2,548/2,564 joinable to edition entities
+  (99.4%; was 99 rows); sourced metrics 1,366/1,370 (99.7%; the 373
+  non-joining are NULL yfinance rows where edition does not apply).
+  Stragglers verbatim + reported, never guessed: `Adani Green | Large Cap
+  | Energy` (mangled heading), `Blue Star`, `United Breweries`, `Tata
+  Power`.
+- **Tests**: +4 (`TestAsOfEditionStems`: stem when resolvable, verbatim on
+  miss, verbatim without index, metrics same). 155 across the three
+  derive suites green; ruff/lint-audit/make types green.
+- **Docs**: schema.md column notes, markdown_parse.md quote-table note,
+  graph_design.txt F0 caveat updated (free-text warning replaced by the
+  join rate).
+
+## 137. okf_readside N1+N3 — per-claim footnotes + human verify helper
+
+**Date**: 2026-08-19. Proposal: `archive/okf_readside.md` (EXECUTED,
+live apply held at dry-run — operator decision per the footprint rule).
+
+- **N1 footnotes**: `render_chatter_block(edition, quotes, index=None,
+  memo=None)` — with an edition index, each quote attribution carries
+  `[^chatter-<stem>]` and the block defines
+  `[^chatter-<stem>]: <title> — [[<stem>]]` before the Source footer.
+  Namespaced `chatter-` ids (hand footnotes can't collide); unresolvable
+  editions get zero footnotes (honest miss); no index → legacy byte-exact
+  output (all existing 2-arg callers/tests unchanged). `render_notes` now
+  passes its shared index + Path-memo through.
+- **N3 `helpers/misc/okf_verify.py`**: `verify_note(path, by, apply=False)`
+  appends `verified: [{by, at: now-UTC}]` via the safe round-trip
+  (`_body` strips closing dashes + exactly one newline — the rule the raw
+  `split_frontmatter` third element breaks). Idempotent per actor
+  (second run = zero-byte no-op); `--by` must be `human:<id>` (adoption
+  Q2 — machine confirmation is `generated`, never `verified`); dry-run
+  default, `--apply` performs the write. Activates the census's
+  human-reviewed tier.
+- **Tests**: +5 `TestChatterFootnotes` (footnote+definition, honest miss,
+  no-index back-compat, byte-identical re-render, namespace safety) and
+  the shared round-trip module `tests/test_okf_verify.py` (9: dry-run
+  default, preservation incl. `generated` + byte-identical body,
+  per-actor idempotency, second-actor append, no-frontmatter, schema
+  validation of the result, CLI actor rejection + apply flag). One
+  pre-existing test stub relaxed (`*args` — render signature grew);
+  187 across six suites green; ruff/lint-audit/make types/static-checks
+  green; one PRE-EXISTING ty warning (unrelated, advisory).
+- **Live state**: nothing written. N1 full propagation = one apply
+  without `--stale-only` (dry-run: 314 + 173 would write); `--stale-only`
+  alone never adds footnotes (evidence-unchanged gate holds — footnotes
+  ride the next real re-render, or the operator forces the one-time
+  churn). N3 demo dry-run on one note: `would stamp`.
+
+## 138. Makefile help regenerated — complete + alphabetical, with drift guard
+
+- **Was**: 31 of 43 targets echoed (the whole derive-* family minus
+  themes-rebuild, plus lint/analytics/suggest-relations, had silently gone
+  missing as targets were added); ad-hoc grouping, no order.
+- **Now**: all 42 non-help targets, alphabetical, generated from the `##`
+  annotations (single source of truth). Descriptions quoted verbatim from
+  the annotations; backticks/double-quotes sanitized for plain `echo`.
+  `make help` verified.
+- **Drift guard**: `TestMakefileHelpCompleteness` in test_static_checks.py
+  — echoes-every-annotated-target set equality + alphabetical-order check,
+  so a new target missing from help fails qa rather than silently hiding.
+
+## 139. --stale-only renderer-drift awareness + render idempotency guard
+
+**Date**: 2026-08-20. Found by the operator: `--stale-only` showed 0
+would-write after the #137 footnote change — the gate is evidence-keyed,
+so renderer drift is invisible to it (the sources-maintenance §2.3 hole
+class: "evidence fresh ⇒ content current" is false whenever the renderer
+changes).
+
+- **Byte-identical guard** (`_replace_or_insert_block._swap`): a swap that
+  produces identical bytes is now `(text, False)` — also fixes the latent
+  churn where an identical re-render rewrote the note and bumped
+  `generated.at` every run (previously masked by the gate).
+- **Gate fall-through**: a gated note is no longer skipped before render;
+  it falls through so drift propagates, and is counted gated only when
+  nothing changed. `--stale-only` is now evidence-keyed AND
+  renderer-drift-aware; the no-churn property holds via the byte guard.
+  Consequence: the #137 footnote propagation needs no special full apply —
+  the next ordinary `--stale-only --apply` heals it.
+- **Live dry-run after the fix**: 314 chatter notes would write (was 0),
+  14 truly gated; wall 3.98s vs the 4.0s derive_insights perf budget.
+- **Tests**: `test_stale_only_heals_then_holds_fixed_point` (fresh-stamped
+  note MISSING its block is drift → heal, then byte-identical fixed point,
+  0 wrote, gated). Phase-2 inline because the shared `_run` helper
+  re-creates its fixture note each call (that helper quirk also explains
+  an initial false failure). 187 across six suites; ruff/lint-audit/
+  make types/ty all green.
+

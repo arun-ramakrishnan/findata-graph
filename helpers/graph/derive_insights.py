@@ -872,6 +872,24 @@ def _resolve_entities(conn, sections: list[CompanySection]) -> dict[str, str]:
 # =========================================================================== #
 # STAGE 3 — persist                                                            #
 # =========================================================================== #
+def _edition_stem(edition: str | None, index: dict | None,
+                  memo: dict[str, str]) -> str | None:
+    """Canonical edition STEM for a display-title ``as_of_edition`` value.
+
+    No index (tests / direct callers) or unresolvable title -> the value is
+    stored verbatim (the honest-miss discipline of the OKF backfill).
+    """
+    if edition is None or index is None:
+        return edition
+    cached = memo.get(edition)
+    if cached is not None:
+        return cached
+    p = resolve_edition_string(edition, index)
+    stem = p.stem if p is not None else edition
+    memo[edition] = stem
+    return stem
+
+
 _INSERT_QUOTE_SQL = """
 INSERT INTO quotes
     (entity, quote_text, paraphrase, speaker_name, speaker_title,
@@ -886,15 +904,22 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 
-def apply_quotes(quotes: list[Quote], *, conn=None, dry_run: bool = True) -> int:
+def apply_quotes(quotes: list[Quote], *, conn=None, dry_run: bool = True,
+                index: dict | None = None) -> int:
     """Persist quotes. DELETE-then-INSERT on ``source_ref LIKE 'derive:quotes:%'``.
 
-    Hand-seeded rows (``manual:`` / other prefixes) are preserved.
+    Hand-seeded rows (``manual:`` / other prefixes) are preserved. With
+    ``index`` (edition_index norm-key map), the stored ``as_of_edition`` is
+    the canonical edition STEM (okf_activation F0 — joinable to
+    ``entities.name`` / ``sources[].id``); unresolvable titles are stored
+    verbatim (honest miss). The in-memory field keeps the display title —
+    render headings key on it.
     """
     own_conn = conn is None
     if own_conn:
         conn = connect()
     inserted = 0
+    stem_memo: dict[str, str] = {}
     try:
         if dry_run:
             return len(quotes)
@@ -908,7 +933,9 @@ def apply_quotes(quotes: list[Quote], *, conn=None, dry_run: bool = True) -> int
                 cur = conn.execute(
                     _INSERT_QUOTE_SQL,
                     (q.entity, q.quote_text, q.paraphrase, q.speaker_name,
-                     q.speaker_title, q.as_of_edition, q.source_ref, props_json),
+                     q.speaker_title,
+                     _edition_stem(q.as_of_edition, index, stem_memo),
+                     q.source_ref, props_json),
                 )
                 inserted += cur.rowcount
     finally:
@@ -917,13 +944,15 @@ def apply_quotes(quotes: list[Quote], *, conn=None, dry_run: bool = True) -> int
     return inserted
 
 
-def apply_metrics(metrics: list[Metric], *, conn=None, dry_run: bool = True) -> int:
+def apply_metrics(metrics: list[Metric], *, conn=None, dry_run: bool = True,
+                  index: dict | None = None) -> int:
     """Persist company_metrics. DELETE-then-INSERT on ``source_ref LIKE
     'derive:metrics:%'``."""
     own_conn = conn is None
     if own_conn:
         conn = connect()
     inserted = 0
+    stem_memo: dict[str, str] = {}
     try:
         if dry_run:
             return len(metrics)
@@ -938,7 +967,9 @@ def apply_metrics(metrics: list[Metric], *, conn=None, dry_run: bool = True) -> 
                 cur = conn.execute(
                     _INSERT_METRIC_SQL,
                     (m.entity, m.metric_label, m.value_raw, m.value_num, m.unit,
-                     m.period, m.as_of_edition, m.source_quote, m.source_ref,
+                     m.period,
+                     _edition_stem(m.as_of_edition, index, stem_memo),
+                     m.source_quote, m.source_ref,
                      props_json),
                 )
                 inserted += cur.rowcount
@@ -951,13 +982,29 @@ def apply_metrics(metrics: list[Metric], *, conn=None, dry_run: bool = True) -> 
 # =========================================================================== #
 # STAGE 4 — render auto blocks into company notes                             #
 # =========================================================================== #
-def render_chatter_block(edition: str, quotes: list[Quote]) -> str:
+def render_chatter_block(edition: str, quotes: list[Quote],
+                         index: dict | None = None,
+                         memo: dict | None = None) -> str:
     """Render the auto ``## The Chatter — <edition>`` markdown block.
 
     Shape mirrors the documented edition block (markdown_parse.md:310) so it
     renders identically to a human-written block; the sentinel HTML comments
     are invisible in Obsidian.
+
+    With ``index`` (edition_index map), each quote attribution carries a
+    per-claim footnote (okf_readside N1): ``— Name, Title [^chatter-<stem>]``
+    plus one definition inside the block —
+    ``[^chatter-<stem>]: <edition title> — [[<stem>]]``. IDs are
+    ``chatter-``-namespaced so hand-written footnotes can never collide; an
+    unresolvable edition gets NO footnotes (honest miss, same discipline as
+    the sources splice). ``memo`` is the shared resolve_edition_string cache.
     """
+    stem: str | None = None
+    if index is not None:
+        p = resolve_edition_string(edition, index, memo)
+        if p is not None:
+            stem = p.stem
+    footnote = f" [^chatter-{stem}]" if stem else ""
     lines = [_BEGIN, "", f"## The Chatter — {edition}", ""]
     lines.append(
         f"<!-- Auto-generated by derive_insights.py from the {edition} concall. "
@@ -977,7 +1024,10 @@ def render_chatter_block(edition: str, quotes: list[Quote]) -> str:
         lines.append(f'> "{quote_display}"')
         if q.speaker_name or q.speaker_title:
             parts = [p for p in (q.speaker_name, q.speaker_title) if p]
-            lines.append(f"> — {', '.join(parts)}")
+            lines.append(f"> — {', '.join(parts)}{footnote}")
+        lines.append("")
+    if stem:
+        lines.append(f"[^chatter-{stem}]: {edition} — [[{stem}]]")
         lines.append("")
     lines.append(f"*Source: The Chatter — {edition}*")
     lines.extend(["", _END, ""])
@@ -1088,7 +1138,12 @@ def _replace_or_insert_block(text: str, edition: str,
             return (text, False)  # unbalanced sentinels — never risk content
         replacement = (("\n\n".join(b.rstrip() for b in rescued) + "\n\n"
                         + new_block) if rescued else new_block)
-        return (text[:m.start()] + replacement + text[m.end():], True)
+        new_text = text[:m.start()] + replacement + text[m.end():]
+        if new_text == text:
+            # Byte-identical re-render (idempotency guard #139): the note's
+            # block already matches what the current renderer produces.
+            return (text, False)
+        return (new_text, True)
 
     matches = list(pattern.finditer(text))
     for m in matches:
@@ -1196,11 +1251,14 @@ def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noq
             # --stale-only gate: one decision per NOTE (covers all its
             # edition blocks — the evidence basis is note-level sources[]).
             # A scanned edition missing from sources[] forces the render
-            # (§3.2b): only the render-path splice can add it.
-            if stale_only and _stale_only_skip(
-                    text, _scanned_stems(edict, index, stem_memo)) is True:
-                gated += 1
-                continue
+            # (§3.2b): only the render-path splice can add it. A gated note
+            # is NOT skipped outright: it falls through to the render loop
+            # so renderer drift (e.g. the #137 footnotes) still propagates
+            # — the byte-identical guard makes this a zero-write no-op when
+            # the note is current, so the gate's "no churn" property holds.
+            gated_candidate = (
+                stale_only and _stale_only_skip(
+                    text, _scanned_stems(edict, index, stem_memo)) is True)
             # Render ALL editions that have quotes (one auto block per
             # edition scanned, so a note accumulates its edition history).
             text_changed = False
@@ -1215,7 +1273,8 @@ def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noq
                         continue
                     seen.add(q.quote_text)
                     unique.append(q)
-                new_block = render_chatter_block(edition, unique)
+                new_block = render_chatter_block(edition, unique, index,
+                                                 res_memo)
                 text, changed = _replace_or_insert_block(text, edition, new_block)
                 if changed:
                     text_changed = True
@@ -1226,6 +1285,8 @@ def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noq
             text, sources_changed = _splice_sources(text, index, vault,
                                                     memo=res_memo)
             if not (text_changed or sources_changed):
+                if gated_candidate:
+                    gated += 1
                 continue
             if not _balanced_or_skipped(original_text, text, p.name):
                 skipped += 1
@@ -1572,8 +1633,13 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 by_unit[m.unit or "(none)"] = by_unit.get(m.unit or "(none)", 0) + 1
             print(f"  metrics_by_unit: {by_unit}", file=sys.stderr)
 
-        q_written = apply_quotes(quotes, conn=conn, dry_run=not args.apply)
-        m_written = apply_metrics(metrics, conn=conn, dry_run=not args.apply)
+        # One edition index for the whole run: normalizes as_of_edition to
+        # stems at the write boundary + the render-side splice machinery.
+        index = source_note_index(PROJECT_ROOT / "findata")
+        q_written = apply_quotes(quotes, conn=conn, dry_run=not args.apply,
+                                 index=index)
+        m_written = apply_metrics(metrics, conn=conn, dry_run=not args.apply,
+                                  index=index)
         action = "inserted" if args.apply else "would insert"
         print(f"{q_written} quotes {action}.", file=sys.stderr)
         print(f"{m_written} metrics {action}.", file=sys.stderr)
@@ -1588,9 +1654,9 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                     bucket: list[Quote] = []
                     by_entity_edition[key] = bucket
                 bucket.append(q)
-            # One edition index shared by both renderers (the splice +
-            # gate-amendment machinery resolves edition strings through it).
-            index = source_note_index(PROJECT_ROOT / "findata")
+            # Reuse the run-level index built above the apply calls (the
+            # splice + gate-amendment machinery resolves edition strings
+            # through it).
             written, skipped, gated = render_notes(
                 by_entity_edition, dry_run=not args.apply, conn=conn,
                 stale_only=args.stale_only, index=index,

@@ -88,7 +88,7 @@ One row per derived/manual company event. Populated by
 | `magnitude` | TEXT | `Rs 708 cr AUM` \| `10-12%` \| `58.96% stake` |
 | `counterparty` | TEXT | acq/jv party; NULL for guidance/mgmt |
 | `source_quote` | TEXT | verbatim audit trail |
-| `as_of_edition` | TEXT | sourcing newsletter edition |
+| `as_of_edition` | TEXT | sourcing newsletter edition — canonical edition STEM (joinable to `entities.name`); unresolvable titles verbatim (#136) |
 | `source_ref` | TEXT | `derive:events:…` \| `manual:…` \| `migration:…` |
 | `properties` | TEXT | JSON, json_valid CHECK |
 | `created_at` | DATETIME | |
@@ -110,7 +110,7 @@ attributes, NOT entities (D6 deferral).
 | `quote_text` | TEXT | verbatim |
 | `paraphrase` | TEXT | editor's 1-2 line summary |
 | `speaker_name` / `speaker_title` | TEXT | NULL name for anonymous/role-only |
-| `as_of_edition` | TEXT | edition_title |
+| `as_of_edition` | TEXT | edition STEM (as quotes, #136) |
 | `source_ref` | TEXT | `derive:quotes:<stem>:<line>` — LIKE sweep = idempotency key |
 | `properties` | TEXT | JSON, json_valid CHECK |
 | `created_at` | DATETIME | |

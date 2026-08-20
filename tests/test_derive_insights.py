@@ -656,12 +656,38 @@ class TestCliStaleOnly:
             rc = di._cli([*extra_args, str(nl)])
         return rc, err.getvalue(), gated
 
-    def test_stale_only_leaves_fresh_note_byte_identical(self, tmp_path, monkeypatch):
+    def test_stale_only_heals_then_holds_fixed_point(self, tmp_path, monkeypatch):
+        """#139: a fresh-stamped note missing its chatter block is DRIFT, not
+        fresh — the first --stale-only apply heals it (block + generated
+        bump); the second is byte-identical (byte-guard no-op) and gated."""
         rc, err, after = self._run(tmp_path, monkeypatch, ["--apply", "--stale-only"])
         assert rc == 0
-        assert after.read_text() == _note_with_fm(
+        healed = after.read_text()
+        assert "BEGIN auto chatter block" in healed      # the heal wrote it
+        assert healed != _note_with_fm(                  # generated.at advanced
             "derive_insights.py/v1", "2026-08-16T00:00:00Z", [("Ed1", "2026-08-15")])
-        assert "gated by --stale-only" in err
+        (tmp_path / "test_insights.db").unlink()  # helper recreates it
+        # Phase 2 bypasses _run (it re-creates the fixture note); rebuild only
+        # the DB and re-invoke so the healed note is what runs.
+        db_path = tmp_path / "test_insights.db"
+        db_path.unlink(missing_ok=True)
+        init = sqlite3.connect(db_path)
+        init.row_factory = sqlite3.Row
+        init.executescript(_schema_sql())
+        init.execute(
+            "INSERT INTO entities(name, entity_type, file_path) "
+            "VALUES ('Marico','company','findata/Companies/FMCG/Marico.md')")
+        init.commit()
+        init.close()
+        import contextlib
+        import io as _io
+        err2 = _io.StringIO()
+        with contextlib.redirect_stderr(err2):
+            rc2 = di._cli(["--apply", "--stale-only", str(tmp_path / "nl.md")])
+        assert rc2 == 0
+        assert after.read_text() == healed              # byte-identical
+        assert "0 notes wrote" in err2.getvalue()
+        assert "gated by --stale-only" in err2.getvalue()
 
     def test_stale_only_renders_note_with_newer_evidence(self, tmp_path, monkeypatch):
         note = tmp_path / "findata" / "Companies" / "FMCG" / "Marico.md"
@@ -1160,9 +1186,11 @@ class TestNestedBlockRescue:
         """Double nesting yields ONE maximal span (KF with the profile inside),
         never the profile again as a separate block (no duplication)."""
         note, _, _ = self._juniper_shape_note()
-        region = re.search(
+        m = re.search(
             re.escape(di._BEGIN) + r".*?" + re.escape(di._END), note, re.DOTALL
-        ).group(0)
+        )
+        assert m is not None  # _juniper_shape_note always nests a chatter block
+        region = m.group(0)
         blocks = di._extract_nested_blocks(region)
         assert blocks is not None
         assert len(blocks) == 1
@@ -1332,7 +1360,7 @@ class TestInsertionPlacement:
 
         _orig_render = di.render_chatter_block
 
-        def _degenerate(edition, quotes):
+        def _degenerate(edition, quotes, *args, **kwargs):
             return _orig_render(edition, quotes).replace(
                 di._END + "\n", "", 1)  # drop the END marker
 
@@ -1655,3 +1683,110 @@ class TestRenderNotesBumpsFrontmatter:
             assert note.read_text() == before  # no generated key yet
         finally:
             conn.close()
+
+
+class TestAsOfEditionStems:
+    """N2 (okf_readside): apply_* normalize as_of_edition to edition STEMS
+    at the write boundary when an edition_index is supplied; verbatim
+    otherwise (back-compat + honest miss)."""
+
+    def _index(self):
+        # Hand-built edition index (norm_key -> Path), mirroring
+        # edition_index.source_note_index's shape — no real-vault coupling.
+        from helpers.core.edition_index import norm_key
+        return {norm_key("Threads in the Data"):
+                Path("findata/The_Chatter/Threads_in_the_Data.md")}
+
+    def _quote(self, edition):
+        return di.Quote(
+            entity="Marico",
+            quote_text="Parachute delivered 10% volume growth this quarter.",
+            speaker_name="Saugata Gupta", speaker_title="MD & CEO",
+            as_of_edition=edition,
+            source_ref="derive:quotes:Threads_in_the_Data:12")
+
+    def test_stem_written_when_resolvable(self, tmp_path):
+        conn = _connect(tmp_path)
+        di.apply_quotes([self._quote("Threads in the Data")], conn=conn,
+                        dry_run=False, index=self._index())
+        got = conn.execute("SELECT as_of_edition FROM quotes").fetchone()[0]
+        assert got == "Threads_in_the_Data"  # stem, not the title
+        conn.close()
+
+    def test_verbatim_when_unresolvable(self, tmp_path):
+        conn = _connect(tmp_path)
+        di.apply_quotes([self._quote("Blue Star")], conn=conn, dry_run=False,
+                        index=self._index())
+        got = conn.execute("SELECT as_of_edition FROM quotes").fetchone()[0]
+        assert got == "Blue Star"  # honest miss — never guessed
+        conn.close()
+
+    def test_verbatim_without_index(self, tmp_path):
+        """Back-compat: no index (tests, direct callers) -> title verbatim."""
+        conn = _connect(tmp_path)
+        di.apply_quotes([self._quote("Threads in the Data")], conn=conn,
+                        dry_run=False)
+        got = conn.execute("SELECT as_of_edition FROM quotes").fetchone()[0]
+        assert got == "Threads in the Data"  # unchanged behavior
+        conn.close()
+
+    def test_metrics_stem_too(self, tmp_path):
+        conn = _connect(tmp_path)
+        m = di.Metric(entity="Marico", value_raw="Rs 4,400 crore",
+                      metric_label="Revenue", value_num=4400.0, unit="crore",
+                      period="FY26", as_of_edition="Threads in the Data",
+                      source_quote="revenue grew to Rs 4,400 crore",
+                      source_ref="derive:metrics:Threads_in_the_Data:12")
+        di.apply_metrics([m], conn=conn, dry_run=False, index=self._index())
+        got = conn.execute(
+            "SELECT as_of_edition FROM company_metrics").fetchone()[0]
+        assert got == "Threads_in_the_Data"
+        conn.close()
+
+
+class TestChatterFootnotes:
+    """okf_readside N1: per-claim [^chatter-<stem>] footnotes in auto chatter
+    blocks, when an edition index is supplied. No index -> legacy output."""
+
+    def _index(self):
+        from helpers.core.edition_index import norm_key
+        return {norm_key("Threads in the Data"):
+                Path("findata/The_Chatter/Threads_in_the_Data.md")}
+
+    def _quote(self):
+        return di.Quote(entity="Marico",
+                        quote_text="Parachute delivered 10% volume growth this quarter.",
+                        speaker_name="Saugata Gupta", speaker_title="MD & CEO",
+                        as_of_edition="Threads in the Data",
+                        source_ref="derive:quotes:T:1")
+
+    def test_footnote_on_attribution_plus_definition(self):
+        block = di.render_chatter_block("Threads in the Data", [self._quote()],
+                                        index=self._index())
+        assert "> — Saugata Gupta, MD & CEO [^chatter-Threads_in_the_Data]" in block
+        assert "[^chatter-Threads_in_the_Data]: Threads in the Data — [[Threads_in_the_Data]]" in block
+        # definition sits inside the sentinel (before the Source footer, after END? no:)
+        assert block.index("[^chatter-Threads_in_the_Data]:") < block.index("*Source:")
+
+    def test_no_footnote_when_unresolvable(self):
+        block = di.render_chatter_block("Blue Star", [self._quote()],
+                                        index=self._index())
+        assert "[^chatter-" not in block  # honest miss, zero footnotes
+
+    def test_no_footnote_without_index(self):
+        """Back-compat: the 2-arg form (tests/direct callers) is unchanged."""
+        block = di.render_chatter_block("Threads in the Data", [self._quote()])
+        assert "[^chatter-" not in block
+        assert "> — Saugata Gupta, MD & CEO" in block
+
+    def test_second_render_byte_identical(self):
+        q = self._quote()
+        a = di.render_chatter_block("Threads in the Data", [q], index=self._index())
+        b = di.render_chatter_block("Threads in the Data", [q], index=self._index())
+        assert a == b  # deterministic — the --stale-only fixed point holds
+
+    def test_hand_written_footnote_namespace_safe(self):
+        """chatter- namespace: a hand footnote id can never collide."""
+        block = di.render_chatter_block("Threads in the Data", [self._quote()],
+                                        index=self._index())
+        assert block.count("[^chatter-Threads_in_the_Data]:") == 1

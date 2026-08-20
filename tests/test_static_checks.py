@@ -1223,3 +1223,26 @@ def test_db_meta_generation_missing_table(tmp_path, monkeypatch):
     failures = sc.check_db_meta_generation()
     assert len(failures) >= 1
     assert "db_meta" in failures[0]
+
+
+class TestMakefileHelpCompleteness:
+    """Help output = every annotated target, alphabetically (drift guard).
+    Added when the help block was regenerated (#138): 11 targets had
+    silently gone missing from it."""
+
+    def test_help_echoes_every_annotated_target(self):
+        """Every `name: ## desc` target appears in the help echo block."""
+        mk = (Path(__file__).resolve().parents[1] / "Makefile").read_text()
+        import re
+        annotated = {m.group(1) for m in re.finditer(
+            r"^([a-z0-9-]+):[^#\n]*##", mk, re.M)} - {"help"}
+        echoed = set(re.findall(r'@echo "  ([a-z0-9-]+)', mk))
+        assert annotated == echoed, (
+            f"missing from help: {sorted(annotated - echoed)}; "
+            f"stale in help: {sorted(echoed - annotated)}")
+
+    def test_help_lines_are_alphabetical(self):
+        mk = (Path(__file__).resolve().parents[1] / "Makefile").read_text()
+        import re
+        names = re.findall(r'@echo "  ([a-z0-9-]+)', mk)
+        assert names == sorted(names), "help lines drifted out of alphabetical order"
