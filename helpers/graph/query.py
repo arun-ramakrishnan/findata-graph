@@ -11,7 +11,7 @@ Architecture (see doc/graph_design.txt §3, §5, §8):
     the Onager community extension via helpers/graph/onager.py.
   - duckpgq (SQL/PGQ: CREATE PROPERTY GRAPH / MATCH / GRAPH_TABLE) was
     RETIRED 2026-08-14 — Phases A-E of
-    doc/improvements/archive/duckpgq_retirement.txt — which unpinned
+    doc/improvements/archive/graph/duckpgq_retirement.txt — which unpinned
     DuckDB (duckpgq had no build for 1.5.5+).
   - Disk-based: DuckDB persists to ``memory/graph.duckdb`` so warm
     connects skip the ~150ms materialisation step. SQLite is re-ATTACHed
@@ -397,7 +397,7 @@ def connect(  # noqa: C901
             # Phase E (duckpgq retirement): duckpgq is no longer loaded —
             # the graph algorithms run on onager and the pattern queries are
             # plain SQL over the materialised e_* tables. See
-            # doc/improvements/archive/duckpgq_retirement.txt.
+            # doc/improvements/archive/graph/duckpgq_retirement.txt.
             # P2.5: Load VSS (vector similarity search) for array_cosine_*
             # scalar functions used by semantic_neighbors(). The HNSW index
             # accelerated scan macros (hnsw_index_scan, vss_match) are broken
@@ -1183,7 +1183,7 @@ def shortest_path(con: duckdb.DuckDBPyConnection, src: str, dst: str,
     """Shortest path src → dst via the given edge label (recursive CTE).
 
     Phase C of the duckpgq-retirement proposal
-    (doc/improvements/archive/duckpgq_retirement.txt): the recursive-CTE
+    (doc/improvements/archive/graph/duckpgq_retirement.txt): the recursive-CTE
     walk over ``fin.graph_edges`` is now the primary (and only)
     implementation. The former duckpgq ANY SHORTEST branch returned only the
     two endpoints + hop count (duckpgq v1.5 could not expose the intermediate
@@ -1957,7 +1957,7 @@ def semantic_neighbors(
 # Metric algorithm wrappers (Onager-backed; formerly duckpgq-native)
 #
 # Phase A of the duckpgq-retirement proposal
-# (doc/improvements/archive/duckpgq_retirement.txt): pagerank /
+# (doc/improvements/archive/graph/duckpgq_retirement.txt): pagerank /
 # weakly_connected_component / local_clustering_coefficient now run via the
 # Onager extension over a plain (src, dst, weight) projection of the label's
 # graph_edges rows — the same rows the e_* tables / fin_graph were built

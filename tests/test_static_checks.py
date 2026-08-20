@@ -595,7 +595,7 @@ def test_graph_edges_rejects_malformed_properties():
 def test_graph_edges_indexes_constants_are_valid_ddl():
     """GRAPH_EDGES_INDEXES are valid DDL that create the production indexes
     on a fresh graph_edges table. Mirrors the E1 test for ENTITIES_INDEXES;
-    closes the gap noted in doc/improvements/sqlite_improvs.txt (the edges indexes had no
+    closes the gap noted in doc/improvements/archive/database/sql_query_improvements.txt (the edges indexes had no
     validity test even on :memory:).
 
     ge_source_idx was removed (2026-08-04): a standalone index on graph_edges(source)

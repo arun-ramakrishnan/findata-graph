@@ -203,7 +203,7 @@ publisher/       zerodha (per-series map; omitted when unknown)
 company/         <entity-slug> coverage (deferred slice, S5)
 ```
 
-Source-note tags are fully machine-written: `pdf_conv_md.py` emits them at conversion, and `helpers/misc/backfill_okf_provenance.py --sources --apply` backfills/migrates them on pre-existing notes. See `doc/improvements/archive/newsletter_notes_adoption.md`.
+Source-note tags are fully machine-written: `pdf_conv_md.py` emits them at conversion, and `helpers/misc/backfill_okf_provenance.py --sources --apply` backfills/migrates them on pre-existing notes. See `doc/improvements/archive/okf/newsletter_notes_adoption.md`.
 
 ### Edition identity & provenance activation (okf_activation)
 

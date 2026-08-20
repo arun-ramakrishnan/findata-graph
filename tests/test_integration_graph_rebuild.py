@@ -7,7 +7,7 @@ workflow:
   - Mutate SQLite (add entity/edge) → rebuild → verify new data visible
   - Mutate SQLite (delete entity) → rebuild → verify removal reflected
 
-See doc/improvements/archive/integration_plan.txt § Nice-to-have 6.
+See doc/improvements/archive/testing/integration_plan.txt § Nice-to-have 6.
 """
 from __future__ import annotations
 

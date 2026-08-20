@@ -1,6 +1,6 @@
 """
 Security-regression tests (security proposal Phase 5,
-doc/improvements/archive/security_evaluation.txt).
+the private security review under doc/local (untracked)).
 
 One test per finding so a reintroduction fails the suite:
 

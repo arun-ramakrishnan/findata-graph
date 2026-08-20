@@ -3,7 +3,7 @@
 Where OKF fits in this codebase: the reference vocabulary for **note
 frontmatter provenance, trust, and lifecycle** fields. This is a design/reference
 document, not a work plan — implementation steps, effort, and open questions
-live in `doc/improvements/archive/okf_adoption.md` (proposal, executed
+live in `doc/improvements/archive/okf/okf_adoption.md` (proposal, executed
 2026-08-18/19).
 
 Upstream: [`GoogleCloudPlatform/knowledge-catalog/okf/SPEC.md`](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md)
@@ -290,10 +290,10 @@ The date-object normalization quirk already handled by
 - **Source-tree tags/sync follow-up:** the OCR source trees gained their own
   schema (`doc/schema/frontmatter.newsletter.v1.json`), a namespaced tag
   vocabulary, and a `note_tags` SQL mirror AFTER this design landed — see
-  `doc/improvements/archive/newsletter_notes_adoption.md` (supersedes the
+  `doc/improvements/archive/okf/newsletter_notes_adoption.md` (supersedes the
   "newsletter notes need no schema" note in §3.1; their OKF block is now
   schema-validated).
-- **Activation (2026-08-19, `doc/improvements/archive/okf_activation.md`):**
+- **Activation (2026-08-19, `doc/improvements/archive/okf/okf_activation.md`):**
   the OKF metadata became operational — editions are graph nodes with
   `cited_in` edges projected from `sources[]` (canonical edition key = note
   STEM; `quotes.as_of_edition` is free text, never a join key), the

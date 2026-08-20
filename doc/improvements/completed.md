@@ -168,7 +168,7 @@ full pipeline (`perf_improvs.txt`, archived). All 4 unit test suites pass
 (113 tests); 4 new perf-gate tests added to `test_performance.py` to guard
 against regression. `make perf` now covers 16 benchmarks + 3 scaling tests.
 
-Full analysis and before/after timings: `doc/improvements/archive/perf_improvs.txt`.
+Full analysis and before/after timings: `doc/improvements/archive/tooling/perf_improvs.txt`.
 
 ### P0 — closeness_centrality weighted Dijkstra → unweighted BFS  [CRITICAL]
 
@@ -330,7 +330,7 @@ reporting in USD.
 `tests/test_enrich_yfinance.py` (32 tests), Makefile `metrics-rebuild` target.
 
 **Verification**: 801/931 tickers fetched (130 bad), 61.6s, 32/32 unit tests,
-15/15 perf benchmarks. Details: `doc/improvements/archive/metric_improvs.txt` § 11.
+15/15 perf benchmarks. Details: `doc/improvements/archive/pipeline/metric_improvs.txt` § 11.
 70. **Frontmatter dedup — consolidate all 7 duplicate functions** (2026-08-11)
 
 Created `helpers/core/frontmatter.py` as the single canonical frontmatter module
@@ -381,7 +381,7 @@ File reduced from 183KB/484 rows → 8KB/18 rows.
 
 **Date**: 2026-08-11
 **Status**: COMPLETE
-**Proposal**: `doc/improvements/archive/duckdb_improvs.txt` Bundle L, item L1
+**Proposal**: `doc/improvements/archive/database/duckdb_improvs.txt` Bundle L, item L1
 
 Export all materialised DuckDB tables (20 tables) and SQLite data tables
 (9 tables, excluding FTS5 virtual tables) to portable Parquet files under
@@ -435,7 +435,7 @@ db-backup/parquet/
 
 **Date**: 2026-08-11
 **Status**: COMPLETE
-**Proposal**: `doc/improvements/archive/findata_corpus_audit.txt` item H4
+**Proposal**: `doc/improvements/archive/pipeline/findata_corpus_audit.txt` item H4
 
 Closed out the 18 deferred foreign-entity rows left by the H4 pass. All
 `_pending_relations.txt` rows are now resolved — the backlog is EMPTY.
@@ -872,7 +872,7 @@ duckpgq behavior (CSR construction fails on empty tables).
 
 87. **SQL Query Improvements A1-A3: cross-engine consistency fixes** (2026-08-13)
 
-Three correctness/consistency fixes from `doc/improvements/archive/sql_query_improvements.txt`:
+Three correctness/consistency fixes from `doc/improvements/archive/database/sql_query_improvements.txt`:
 
 - **A1**: `market_cap_sql()` (db.py) — wrapped tag with `MIN()` so the SQLite
   correlated subselect matches DuckDB's deterministic alphabetically-first
@@ -970,7 +970,7 @@ transactional maintenance ops). All slices implemented and green:
   writes happen first, file move last.
 
 Two production bugs found by the differential/transactional tests are now fixed.
-Full plan + status: `doc/improvements/archive/stateful_relational_test_plan.txt`.
+Full plan + status: `doc/improvements/archive/testing/stateful_relational_test_plan.txt`.
 
 92. **ruff lint cleanup — 166 → 0, lint gated into `make qa`** (2026-08-13)
 
@@ -1002,9 +1002,9 @@ pytest**. Deleted the dead definition and ported its stronger `== 1` assertion
 **Gate:** `make lint` is green; `ruff check .` added as the first step of
 `make qa` (fastest fail) so the 166 can't regress. ruff 0.16.2 caught a prior
 real bug too (`db_maint.py` referenced `sys.stderr` with no `import sys` —
-fixed at adoption time). Full detail: `doc/improvements/archive/lint_analysis.txt`.## 91. duckpgq retirement, Phase A — Onager-backed pagerank / WCC / clustering
+fixed at adoption time). Full detail: `doc/improvements/archive/testing/lint_analysis.txt`.## 91. duckpgq retirement, Phase A — Onager-backed pagerank / WCC / clustering
 
-**Date:** 2026-08-14 · **Proposal:** `doc/improvements/archive/duckpgq_retirement.txt`
+**Date:** 2026-08-14 · **Proposal:** `doc/improvements/archive/graph/duckpgq_retirement.txt`
 
 Replaced the three duckpgq-native algorithm wrappers with Onager equivalents
 (`onager_pagerank` / `onager_components` / `onager_clustering` in
@@ -1034,7 +1034,7 @@ known-value tests in `tests/test_onager_capabilities.py`; all affected
 suites green (187 targeted tests); ruff + ty clean on touched files.
 ## 92. duckpgq retirement, Phases B/C/E — plain-SQL pattern queries, CTE shortest-path, infrastructure removed
 
-**Date:** 2026-08-14 · **Proposal:** `doc/improvements/archive/duckpgq_retirement.txt` (now COMPLETE)
+**Date:** 2026-08-14 · **Proposal:** `doc/improvements/archive/graph/duckpgq_retirement.txt` (now COMPLETE)
 
 **Phase B** — all 26 `GRAPH_TABLE` MATCH sites in 17 query functions rewritten
 as parameterised JOINs over the materialised `e_*`/`v_node` tables (`?` params
@@ -1869,7 +1869,7 @@ snapshot-restore` as the clone-side path. Fixed the long-stale
 
 **Date:** 2026-08-16
 **Status:** COMPLETE
-**Proposal:** `doc/improvements/archive/pdf_conv_md_hardening_fuzz.md`
+**Proposal:** `doc/improvements/archive/pipeline/pdf_conv_md_hardening_fuzz.md`
 
 Hardened the new PDF→Markdown (Paddle OCR) pipeline path in `markdown_parse.md`
 and consolidated a duplicated helper, then added Hypothesis fuzz coverage for the
@@ -1912,7 +1912,7 @@ module's pure transforms.
 ## 115. Remove dead real-API embedding path (`--api`/`--provider azure`) + drop `openai` dependency
 
 **Date**: 2026-08-17 · **Trigger**: security evaluation
-(`doc/improvements/archive/security_evaluation.txt`, SEC-7 follow-up)
+(private security review under doc/local, SEC-7 follow-up)
 
 `helpers/graph/embeddings.py` carried a real-API embedding path
 (`populate_api`, `_get_openai_client`, `_fetch_openai_embedding`,
@@ -1936,7 +1936,7 @@ reintroduce real embeddings if ever wanted.
 ## 116. Git-history secret scan executed + incremental scanner in-repo (`make secret-scan`)
 
 **Date**: 2026-08-17 · **Trigger**: security evaluation SEC-9
-(`doc/improvements/archive/security_evaluation.txt`)
+(private security review under doc/local)
 
 The twice-aborted history scan (per-commit greps were quadratic over
 10,857 commits) was done properly: single pass over UNIQUE blobs
@@ -1971,7 +1971,7 @@ redaction). ruff + `make types` green.
 ## 117. Security hardening Phases 1/1b/2/3/5 — XSS routes, escapes, CSP, vendored assets, regression suite
 
 **Date**: 2026-08-17 · **Proposal**:
-`doc/improvements/archive/security_evaluation.txt` (SEC-1..SEC-6)
+the private security review under doc/local (SEC-1..SEC-6)
 
 - **Phase 1 (SEC-1, SEC-2)**: deleted the `/debug/entity` echo route
   (confirmed-live reflected XSS) and escaped `e.description` with
@@ -2372,7 +2372,7 @@ existed only as prose in doc/okf.md; now a check runs them.
 
 ## 132. Source newsletter notes: namespaced tags + schema gate + note_tags sync
 
-**Date**: 2026-08-19. Proposal: `archive/newsletter_notes_adoption.md`
+**Date**: 2026-08-19. Proposal: `archive/okf/newsletter_notes_adoption.md`
 (all §6 open questions resolved as recommended; S5 `company/` coverage
 DEFERRED). Executed S1–S4 + S6:
 
@@ -2451,7 +2451,7 @@ entire corpus the day after the keys shipped.
 
 ## 134. okf_activation — cited_in edges, coverage analytics, --stale-only derive
 
-**Date**: 2026-08-19. Proposal: `archive/okf_activation.md` (Q1 decided
+**Date**: 2026-08-19. Proposal: `archive/okf/okf_activation.md` (Q1 decided
 (b) P-first; Q2–Q6 as recommended; Q4 amended — PDFs dropped from the
 edge set). All four workstreams shipped the same day:
 
@@ -2513,7 +2513,7 @@ edge set). All four workstreams shipped the same day:
 
 **Date**: 2026-08-19. The deferral-revisit item shipped standalone ("take
 #2 now, one hour, permanent"); the N1/N3 read-side bundle lives in
-`proposals/okf_readside.md`, N4 (C3 temporal) in pending.md. Now archived: `archive/okf_readside.md`.
+`proposals/okf_readside.md`, N4 (C3 temporal) in pending.md. Now archived: `archive/okf/okf_readside.md`.
 
 - **Why**: okf_activation F0 made the note STEM the canonical edition key
   "everywhere" — but the capture layer still wrote free-text H1 titles to
@@ -2545,7 +2545,7 @@ edge set). All four workstreams shipped the same day:
 
 ## 137. okf_readside N1+N3 — per-claim footnotes + human verify helper
 
-**Date**: 2026-08-19. Proposal: `archive/okf_readside.md` (EXECUTED,
+**Date**: 2026-08-19. Proposal: `archive/okf/okf_readside.md` (EXECUTED,
 live apply held at dry-run — operator decision per the footprint rule).
 
 - **N1 footnotes**: `render_chatter_block(edition, quotes, index=None,
@@ -2618,4 +2618,25 @@ changes).
   re-creates its fixture note each call (that helper quirk also explains
   an initial false failure). 187 across six suites; ruff/lint-audit/
   make types/ty all green.
+
+## 140. Archive consolidated topic-wise + README index
+
+- `doc/improvements/archive/` reorganized into 6 topic dirs (graph,
+  database, okf, testing, pipeline, tooling); 26 proposals moved via
+  `git mv` (history preserved). `archive/README.md` indexes every file
+  with title + derived completed.md entry numbers. The security review
+  was REMOVED from the public archive the same day — it stays private
+  under `doc/local/` (now gitignored); all git-managed references say
+  "the private security review under doc/local" instead of a path.
+- **Zero-byte stub removed**: `sqlite_improvs.txt` (empty since the
+  initial commit, referenced by nothing except one stale test docstring
+  pointing at a never-existing `doc/improvements/sqlite_improvs.txt`
+  path — corrected to `archive/database/sql_query_improvements.txt`).
+- **All 71 path references updated across 30 files**: app.py, 12
+  helpers/, 14 tests/, doc/{okf,graph_design,markdown_parse},
+  completed.md (17), pending.md (2), and cross-refs inside two archived
+  files themselves. Verified zero stale flat-path references remain.
+- Gates: api_docs + static_checks + the 6 touched test files (218
+  tests) green; py_compile over touched modules; ruff + make types +
+  static-checks green. Comment-only code changes (no behavior).
 

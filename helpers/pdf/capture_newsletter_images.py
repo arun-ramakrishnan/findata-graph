@@ -91,7 +91,7 @@ def is_valid_jpeg(p: Path) -> bool:
 
 
 def fetch(url: str, dest: Path, retries: int = 3):
-    # SEC-6 (doc/improvements/archive/security_evaluation.txt): URLs come
+    # SEC-6 (private security review, 2026-08): URLs come
     # from regex-extracted OCR markdown, so the scheme MUST be allowlisted
     # before urlopen — otherwise a poisoned OCR file could point us at
     # file:// or internal hosts. https only (the newsletter CDN serves https).

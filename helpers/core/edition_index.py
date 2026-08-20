@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Canonical edition keys + fuzzy resolution over source-note trees.
 
-F0 of doc/improvements/archive/okf_activation.md: edition identity is
+F0 of doc/improvements/archive/okf/okf_activation.md: edition identity is
 fragmented — ``sources[].id`` and wikilinks key on the note STEM,
 ``note_tags.note_path`` on the path, and ``quotes.as_of_edition`` is
 free text that matches note titles only 28/71. The canonical key is the

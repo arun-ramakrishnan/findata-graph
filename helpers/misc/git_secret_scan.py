@@ -12,7 +12,7 @@ set) is written under .git/secret-scan/ — repo-local, never tracked, never
 pushed. A fresh clone simply runs full mode.
 
 2026-08-17 full scan: 22,850 blobs, 14 hits, all one already-revoked
-GOOGLE_API_KEY (see doc/improvements/archive/security_evaluation.txt
+GOOGLE_API_KEY (see the private security review under doc/local (untracked)
 SEC-9). Run via `make secret-scan`.
 """
 from __future__ import annotations

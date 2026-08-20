@@ -12,7 +12,7 @@ entities/graph_edges tables:
 
 Builds a synthetic findata tree + seeded DB, then runs invariant checks.
 
-See doc/improvements/archive/integration_plan.txt § Priority 4.
+See doc/improvements/archive/testing/integration_plan.txt § Priority 4.
 """
 from __future__ import annotations
 
