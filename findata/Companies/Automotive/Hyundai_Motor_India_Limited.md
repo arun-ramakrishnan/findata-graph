@@ -17,7 +17,7 @@ created: '2025-11-16'
 last_modified: '2026-06-28'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:37Z'
+  at: '2026-08-20T05:41:44Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -161,6 +161,8 @@ experience. The SUVation and premiumization strategy has helped us to garner hig
 
 > "Having said that uh we are working on an aggressive localization strategy uh for the EI especially. So you already know that uh we have already localized the battery pack asser: with the Creta electric. uh we are already working with a local partner uh to localize the battery …"
 
+[^chatter-Signals_in_Silence]: The Chatter: Signals in Silence — [[Signals_in_Silence]]
+
 *Source: The Chatter — The Chatter: Signals in Silence*
 
 <!-- END auto chatter block -->
@@ -173,37 +175,39 @@ experience. The SUVation and premiumization strategy has helped us to garner hig
 - **Government policies in 2025, including income tax cuts, GST 2.0 reforms, and inter rate reductions, significantly boosted consumer demand an**…
 
 > "Reflecting on calendar year 2025, the Indian automobile industry benefited from series of supportive policy measures by the Indian government that strengthened consumer demand sentiments. 2025 started with the government announcing income tax cuts, which acted as a direct cata…"
-> — Tarun Garg, Managing Director and Chief Executive Officer
+> — Tarun Garg, Managing Director and Chief Executive Officer [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The company is successfully expanding its footprint in rural India, which now accounts for nearly a quarter of its total domestic sales. Thi**…
 
 > "Rural markets continued to be a key growth driver for us. With sustained focus and targeted initiatives, we achieved our highest ever quarterly rural contribution to domest sales, exceeding 24%."
-> — Tarun Garg, Managing Director and CEO
+> — Tarun Garg, Managing Director and CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The company is realizing higher revenue per vehicle through a combination of strategic price hikes and a shift toward premium models. Higher**…
 
 > "Our blended ASP this quarter improved by 5% year-on-year, reflecting our strong sales and prudent pricing strategy.Notably, the improvement in ASP was seen both in domestic and exports with a growth of 4% and 8% respectively."
-> — Tarun Garg, Managing Director and CEO
+> — Tarun Garg, Managing Director and CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **Alternate fuel options like CNG are becoming a significant part of the product mix consumers look for cost-efficient mobility. Maintaining a**…
 
 > "CNG continued to see strong traction, contributing 16% to domestic volumes, while di penetration was at 21% during the quarter."
-> — K S Hariharan, Head of Investor Relations
+> — K S Hariharan, Head of Investor Relations [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **New product launches like the Venue initially carry lower margins due to introduct pricing strategies. Profitability for these models is exp**…
 
 > "At the same time, when a model is launched, it is typically launched at the lowest level profit and then improves as we have headroom to increase prices and localization happen This was the first quarter of the Venue launch and an introductory price was in place."
-> — Tarun Garg, Managing Director and CEO
+> — Tarun Garg, Managing Director and CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **Increasing the percentage of locally sourced parts is a key pillar of the company's strategy to reduce costs and mitigate supply chain risks**…
 
 > "Our localization level is already at 84% compared to 82% last year. We are continuous working on localizing high-technology parts. We feel we can manage the supply chain without hindrance."
-> — Tarun Garg, Managing Director and CEO
+> — Tarun Garg, Managing Director and CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The company's product mix is shifting toward SUVs, which typically command high margins and better consumer demand. The aggressive plan to l**…
 
 > "Overall SUV contribution went from 54% to 56.2%. We are well on our way to meeting numbers we promised at Investor Day across 26 models and facelifts."
-> — Tarun Garg, Managing Director and CEO
+> — Tarun Garg, Managing Director and CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
+
+[^chatter-Swiggy_Hyundai_Shree_Cement]: Swiggy Hyundai Shree Cement — [[Swiggy_Hyundai_Shree_Cement]]
 
 *Source: The Chatter — Swiggy Hyundai Shree Cement*
 

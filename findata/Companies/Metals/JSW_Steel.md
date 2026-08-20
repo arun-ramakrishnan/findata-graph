@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-06-26'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:37Z'
+  at: '2026-08-20T05:41:44Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -141,17 +141,19 @@ Both prefab modular structures and sandwich insulated panels are poised for str 
 - **Board approved 1 million ton EAF structural steel plant in Andhra Pradesh (FY29 completion) taking India capacity to 42.9 million tons, whil**…
 
 > "The board has now approved to set up a project of 1 million ton based on EAF in Karapada, Andhra Pradesh by end of FY29. The plant will incorporate a section mill to produce structural steel widely used in construction and infrastructure. As construction transitions to becomin…"
-> — Jayant Acharya, Joint MD \& CEO
+> — Jayant Acharya, Joint MD \& CEO [^chatter-Scaling_Through_Slowdowns]
 
 - **Supreme Court dismissed appeals on BPSL resolution plan (September 26, 2025) acknowledging JSW's turnaround efforts.**
 
 > "In the case of BPSL, I'm happy to share that on September 26th, 2025, the Supreme Cc dismissed the appeals filed by the former promoters and certain operational creditors. $T$ court upheld the NCLT 2021 order, which had approved JSW Steel's resolution plan for BPSL. The court …"
-> — Jayant Acharya, Joint MD \& CEO
+> — Jayant Acharya, Joint MD \& CEO [^chatter-Scaling_Through_Slowdowns]
 
 - **Steel imports increased in last two months despite absolute decline, driven by glob; tariff spillovers making India natural destination, wit**…
 
 > "If you were to see on an absolute basis your imports have come down. So only thing is $t$ in the last two months imports have again shown an increase. Primarily these are becau: of the tariff headwinds which we are seeing in the world. Various countries are announc different t…"
-> — Jayant Acharya, Joint MD \& CEO
+> — Jayant Acharya, Joint MD \& CEO [^chatter-Scaling_Through_Slowdowns]
+
+[^chatter-Scaling_Through_Slowdowns]: Scaling Through Slowdowns — [[Scaling_Through_Slowdowns]]
 
 *Source: The Chatter — Scaling Through Slowdowns*
 
@@ -165,6 +167,8 @@ Both prefab modular structures and sandwich insulated panels are poised for str 
 - **JSW Steel asserts that India's 11.5% safeguard duty is balanced and lower than global protection levels (25-50%) , thus mitigating the risk **…
 
 > "India is one of the more balanced countries with respect to protection as you see it worldwide today. We are seeing protection between 25% to 50% in various parts of the world. Every country is trying to safeguard their shores from trade flows which can be adverse for that cou…"
+
+[^chatter-Titan_Dixon_Cipla]: Titan Dixon Cipla — [[Titan_Dixon_Cipla]]
 
 *Source: The Chatter — Titan Dixon Cipla*
 

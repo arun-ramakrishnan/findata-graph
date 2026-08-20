@@ -20,7 +20,7 @@ created: '2025-11-16'
 last_modified: '2026-06-24'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:36Z'
+  at: '2026-08-20T05:41:42Z'
 stale_after: '2027-02-11'
 sources:
 - id: Half_a_century_in
@@ -56,17 +56,19 @@ Talbros Automotive Components is a leading Indian manufacturer of gaskets, heat 
 ---
 
 very heavily in the…"
-> — Anoj Talwar, Joint Managing Director
+> — Anoj Talwar, Joint Managing Director [^chatter-Decoding_the_Dialogue]
 
 - **Management provided detailed visibility on export recovery with JCB expecting 30$35 \%$ growth, Jaguar Land Rover targeting 10-15\% expansio**…
 
 > "JCB of course the last phase got developed in the last quarter and full impact you can s we can see a growth of 30 to $35 \%$ in this business in the next year. Other businesses we a doing in UK Jaguar Land Rover - we are seeing a growth of minimum 10 to $15 \%$ in this busine…"
-> — Anoj Talwar, Joint Managing Director
+> — Anoj Talwar, Joint Managing Director [^chatter-Decoding_the_Dialogue]
 
 - **Talbros secured single-sourcing status for Maruti's upcoming EV launch starting J1 2025, positioning the company as a critical supplier in I**…
 
 > "All the book is we are this year they will start the business on third quarter from July th will be supplying parts to the Maruti EV vehicle. They are single sourcing that. The vehi is going to launch in June or July. We foresee that next year this business should grow by mini…"
-> — Anoj Talwar, Joint Managing Director
+> — Anoj Talwar, Joint Managing Director [^chatter-Decoding_the_Dialogue]
+
+[^chatter-Decoding_the_Dialogue]: The Chatter: Decoding the Dialogue — [[Decoding_the_Dialogue]]
 
 *Source: The Chatter — The Chatter: Decoding the Dialogue*
 
@@ -80,27 +82,29 @@ very heavily in the…"
 - **The new FTA with the EU is expected to provide a significant boost to export volur and strategic partnerships. This positioning helps the co**…
 
 > "The recently signed India-linked EU free trade agreement opens up opportunities for the auto com industry, not only in exports but also technology collaborations and investment led growth."
-> — Anuj Talwar, Managing Director
+> — Anuj Talwar, Managing Director [^chatter-Half_a_century_in]
 
 - **A massive new order win of INR 1,000 crores provides strong revenue visibility for next five years. The high proportion of export and EV-rel**…
 
 > "We secured new orders worth INR 1,000 crores to be executed over the next five years, which nearly INR 700 crores are export orders, including large orders from very large OEMs, and about INR 100 crores of these orders are for electric vehicle cars."
-> — Anuj Talwar, Managing Director
+> — Anuj Talwar, Managing Director [^chatter-Half_a_century_in]
 
 - **The Forging division is heavily reliant on the international market, with nearly 90% business linked to global OEMs. This high export exposu**…
 
 > "Forging export is 56% and this is a direct export. And we have an indirect export of BM and other European car manufacturers, which is to the extent of 30%. So 85% to 90% is export this business directly, indirectly."
-> — Navin Juneja, Director and Group Chief Financial Officer
+> — Navin Juneja, Director and Group Chief Financial Officer [^chatter-Half_a_century_in]
 
 - **A significant INR 500 crore forging order from Europe is set to begin production by late 2026. This specific win will likely drive substanti**…
 
 > "We have recently received an order of INR 500 crores in the Forging division from Europe... the commercial production will start in the last quarter of the calendar year."
-> — Navin Juneja, Director and Group Chief Financial Officer
+> — Navin Juneja, Director and Group Chief Financial Officer [^chatter-Half_a_century_in]
 
 - **The company expects the Chassis and Rubber divisions to lead growth, diversifying away from traditional engine-based products. This shift he**…
 
 > "I think chassis, rubber, forging, and heat shield from the Gasket division [will outgrow others]... the chassis business will do very well."
-> — Anuj Talwar, Managing Director
+> — Anuj Talwar, Managing Director [^chatter-Half_a_century_in]
+
+[^chatter-Half_a_century_in]: Half a century in — [[Half_a_century_in]]
 
 *Source: The Chatter — Half a century in*
 

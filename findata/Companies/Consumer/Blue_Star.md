@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-06-29'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:36Z'
+  at: '2026-08-20T05:41:42Z'
 stale_after: '2027-02-11'
 sources:
 - id: Havells_Ambuja_Cipla
@@ -126,17 +126,17 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **# Blue Star | Mid Cap | Consumer Durables April RAC growth was only $\sim 5 \%$ vs. internal target of $25-30 \%$ and industry's $15-20 \%$ **…
 
 > "Now, April had not been a month which delivered in line with that outlook. First probl, was in March itself, materials were lifted in significant quantities, which resulted in, in I estimate, more than 4 million units in the market. In my view, it was anywhere between million …"
-> — B Thiagarajan, Managing Director
+> — B Thiagarajan, Managing Director [^chatter-Embracing_the_Unknown]
 
 - **Confirms the commercial refrigeration segment faced headwinds from regulations FY24, remaining flat in Q4, but is now seeing significant gro**…
 
 > "Now, it's an all-round performance, except for the commercial refrigeration business, $t$ performance of which was impacted due to regulatory changes which we had disclosed $t$ you in Q1 itself. These are regulatory changes that continued and the business has recovered and it …"
-> — B Thiagarajan, Managing Director
+> — B Thiagarajan, Managing Director [^chatter-Embracing_the_Unknown]
 
 - **Blue Star confirms it has provisioned for potential liabilities related to Extended Producer Responsibility (EPR) rate hikes and FTA-related**…
 
 > "And you might have read about an article about e-waste, extended producer responsibi Companies are filing suit against the government for increasing the rates. Blue Star has filed a petition. The question here is whether the revised rate, when it came into effect, 1 provided f…"
-> — B Thiagarajan, Managing Director
+> — B Thiagarajan, Managing Director [^chatter-Embracing_the_Unknown]
 
 - **Highlights key growth drivers for the high-margin MEP [Mechanical, Electrical, an Plumbing] business: data centers and manufacturing benefit**…
 
@@ -145,6 +145,8 @@ _Source: yfinance | Refreshed: 2026-08-10_
 ---
 
 segments s…"
+
+[^chatter-Embracing_the_Unknown]: The Chatter: Embracing the Unknown — [[Embracing_the_Unknown]]
 
 *Source: The Chatter — The Chatter: Embracing the Unknown*
 
@@ -190,28 +192,30 @@ segments s…"
 - **A one-time expense related to new labor regulations significantly reduced the repo net profit for the quarter. This is a non-recurring item **…
 
 > "Pursuant to the notification of the labor codes... the company has recognized an incremental impact of gratuity and leave encashment amounting to 56 crores on an estimated basis."
-> — Nikhil Sohoni, Group Chief Financial Officer
+> — Nikhil Sohoni, Group Chief Financial Officer [^chatter-Reading_the_terrain]
 
 - **Management proactively cleared old stock to prepare for new government energy efficiency standards. This prevented the need for aggressive d**…
 
 > "We took that decision much earlier to slow down production and move towards the new energy label products... so that we would not be saddled with inventory."
-> — B. Thiagarajan, Managing Director
+> — B. Thiagarajan, Managing Director [^chatter-Reading_the_terrain]
 
 - **Despite a GST reduction, consumers will likely face a net price increase of approximately 10% due to higher costs from energy label changes,**…
 
 > "GST reduction is available, but the energy label change, commodity prices, and exchange rates will result in an estimated 10% net increase to the consumers."
-> — B. Thiagarajan, Managing Director
+> — B. Thiagarajan, Managing Director [^chatter-Reading_the_terrain]
 
 - **The company's current inventory levels are lean, allowing for better cash flow and flexibility. They are prepared to stock up aggressively t**…
 
 > "For Blue Star, it [inventory] is lower, likely 5-6 weeks... In March or April, we are even comfortable with 12 weeks of inventory if we expect a strong summer."
-> — B. Thiagarajan, Managing Director
+> — B. Thiagarajan, Managing Director [^chatter-Reading_the_terrain]
 
 - **Blue Star holds a dominant position in providing cooling infrastructure for highgrowth tech sectors like data centers. This leadership provi**…
 
 > "In the EPC part of data centers and semiconductor space, we are already market leade
 
 - B. Thiagarajan, Managing Director"
+
+[^chatter-Reading_the_terrain]: Reading the terrain — [[Reading_the_terrain]]
 
 *Source: The Chatter — Reading the terrain*
 

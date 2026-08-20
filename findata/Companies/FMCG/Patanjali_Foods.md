@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-06-25'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:37Z'
+  at: '2026-08-20T05:41:44Z'
 stale_after: '2027-02-11'
 sources:
 - id: Threads_in_the_data
@@ -106,6 +106,8 @@ budget that should start spurring the consumer demand."
 
 > "So a lot of strategies are being worked on. So with reasonable confidence is there that $t$ the ethnic foods category which saw a distinct decline we should not only be able to rese but we'll continue to grow between 8 to $10 \%$ growth that we set for ourselves."
 
+[^chatter-Signals_in_Silence]: The Chatter: Signals in Silence — [[Signals_in_Silence]]
+
 *Source: The Chatter — The Chatter: Signals in Silence*
 
 <!-- END auto chatter block -->
@@ -122,22 +124,24 @@ budget that should start spurring the consumer demand."
 — Sanjeev Asthana, Chief Executive Officer
 
 The edible oil segment is successfully transitioning from unbr…"
-> — Sanjeev Asthana, Chief Executive Officer
+> — Sanjeev Asthana, Chief Executive Officer [^chatter-Threads_in_the_data]
 
 - **A significant portion of the company's oil palm plantation is entering its most productive lifecycle phase. This maturity profile suggests u**…
 
 > "At the end of the calendar year, the area under cultivation stood at 1,08,000 hectares, nearly 39% of plantation in prime yield years of 7 to 25 years."
-> — Sanjeev Asthana, Chief Executive Officer
+> — Sanjeev Asthana, Chief Executive Officer [^chatter-Threads_in_the_data]
 
 - **Southern and Northern India remain the company's strongest geographic pillars, accounting for over 60% of total revenue. Investors should tr**…
 
 > "Zone-wise, mix 33% is contributed by South, the largest. If I were to look at the overall North is 31%, East is 18%, Central is 9% and West is 9%."
-> — Sanjeev Asthana, Chief Executive Officer
+> — Sanjeev Asthana, Chief Executive Officer [^chatter-Threads_in_the_data]
 
 - **Patanjali is aggressively expanding its oil palm plantation footprint to reduce dependence on imported raw materials. This expansion is a ke**…
 
 > "This year, our target is that we should do close to 40,000 additional hectares, which is a mix of 20,000 in the northeastern part of the country and 20,000 in the South India."
-> — Sanjeev Asthana, Chief Executive Officer
+> — Sanjeev Asthana, Chief Executive Officer [^chatter-Threads_in_the_data]
+
+[^chatter-Threads_in_the_data]: Threads in the data — [[Threads_in_the_data]]
 
 *Source: The Chatter — Threads in the data*
 

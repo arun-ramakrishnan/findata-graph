@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-08-16'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:36Z'
+  at: '2026-08-20T05:41:43Z'
 stale_after: '2027-02-12'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -57,27 +57,29 @@ Canara Bank is a major Indian public sector bank (large-cap) with an extensive b
 - **While the bank saw strong overall profit growth, its core interest margins faced some pressure over the last year. Investors should monitor **…
 
 > "When we talk about profitability, the bank grew its net profit by 12.69% year-over-year 19,187 crores in financial year 2025-26, which is very good, with operating profit growir by 5.19% year-over-year to 33,019 crores. The net interest margin of the bank declined b 22 basis p…"
-> — Brajesh Kumar Singh, MD and CEO
+> — Brajesh Kumar Singh, MD and CEO [^chatter-Infosys_Adani_Tata_Motors]
 
 - **The bank is increasing its investment in technology to stay competitive with digita first private banks. Higher tech spending should improve**…
 
 > "To Hiranand Kotwani, innovation is constant for us. We spend 7-8% on technology and aim to increase this to 10% to enhance customer experience, cyber security, and digital platforms."
-> — Brajesh Kumar Singh, MD and CEO
+> — Brajesh Kumar Singh, MD and CEO [^chatter-Infosys_Adani_Tata_Motors]
 
 - **The bank has built a massive gold loan business but is keeping risks low by lending only a fraction of the gold's value. This conservative a**…
 
 > "Our gold loan portfolio of 2.45 lakh crores represents 18% of our total portfolio, which avoids concentration risk. We maintain a conservative Loan-to-Value (LTV) ratio of around 65%, providing a 35% margin."
-> — Brajesh Kumar Singh, MD and CEO
+> — Brajesh Kumar Singh, MD and CEO [^chatter-Infosys_Adani_Tata_Motors]
 
 - **Management expects its interest margins to bottom out and start improving slightl the coming year. This forecast is important for investors **…
 
 > "For Mr. Bhide, our NIM was 2.51% last year. While repo rate changes reprice 50% of o book quickly, deposits have a lag. Our guidance for NIM is 2.52% to 2.60%."
-> — Brajesh Kumar Singh, MD and CEO
+> — Brajesh Kumar Singh, MD and CEO [^chatter-Infosys_Adani_Tata_Motors]
 
 - **The bank is actively rebalancing its loan book to favor retail and small business loa over large corporate debt. This shift is designed to c**…
 
 > "To Mr. Saha, our RAM mix is currently 59%, with 41% corporate. We aim to tilt this m toward RAM for better risk mitigation."
-> — Brajesh Kumar Singh, MD and CEO
+> — Brajesh Kumar Singh, MD and CEO [^chatter-Infosys_Adani_Tata_Motors]
+
+[^chatter-Infosys_Adani_Tata_Motors]: Infosys Adani Tata Motors — [[Infosys_Adani_Tata_Motors]]
 
 *Source: The Chatter — Infosys Adani Tata Motors*
 
@@ -97,7 +99,9 @@ Now, due to the latest RBI regulations, there may be a reduction in the availabi
 - **- Ashok Chandra, Executive Director While overall slippage ratio improved YoY, the sequential increase was primarily driven by higher slippa**…
 
 > "It is only the three sectors, that is MSME is 1250 [crores]. The Agriculture is 750 [crores The Retail is 650 [crores]. We have seen that only the earlier MSME was used to slip aro 1000 crores, that has gone to the 1250 [crores]. Only that much difference is there, not $m$ mor…"
-> — Satyanarayana Raju K., MD \& CEO
+> — Satyanarayana Raju K., MD \& CEO [^chatter-Embracing_the_Unknown]
+
+[^chatter-Embracing_the_Unknown]: The Chatter: Embracing the Unknown — [[Embracing_the_Unknown]]
 
 *Source: The Chatter — The Chatter: Embracing the Unknown*
 
@@ -111,59 +115,61 @@ Now, due to the latest RBI regulations, there may be a reduction in the availabi
 - **Management has met or exceeded almost all strategic targets for the fiscal year except for margin-related metrics. This demonstrates strong **…
 
 > "In the beginning of the year, we have given guidance numbers for 13 parameters, and we have easily surpassed and comfortably surpassed 11 parameters, except CASA and NIM which is industry challenge."
-> — Shri Hardeep Singh Ahluwalia, MD & CEO
+> — Shri Hardeep Singh Ahluwalia, MD & CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The bank plans to lean into its strong retail lending momentum to drive future crec growth. This shift towards granular retail loans typical**…
 
 > "Our strategy going ahead is to further capitalize because if you see our guidance number on advances, our advances growth is more than 13.59%. So... to capitalize on this Retail momentum that has been built."
-> — Shri Hardeep Singh Ahluwalia, MD & CEO
+> — Shri Hardeep Singh Ahluwalia, MD & CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The transition to new accounting standards for bad loan provisions will require an estimated 10,000 crore buffer. The ability to spread this**…
 
 > "In the ECL under Stage 2... provisioning increases from 0.4 to 5%. And there we see that 2,500 crores additional provision will be required... If I total that one, it will come around 10,000 crores, and that can be amortized in 4 years. The impact may come to 2,000 to 2,500 cr…"
-> — Shri Hardeep Singh Ahluwalia, MD & CEO
+> — Shri Hardeep Singh Ahluwalia, MD & CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The stock of potential problem loans is declining even as the overall loan book grow This suggests that the bank's underwriting standards ar**…
 
 > "Total SMA is 35,604 crores. Last year in December, it was 43,917 crores... Our SMA, o absolute numbers, it has come down from 43,917 crores to 35,604 crores. So, that's a
 
 credible achievement, I tell you. And slippage also, it is in absolute control."
-> — Shri Hardeep Singh Ahluwalia, MD & CEO
+> — Shri Hardeep Singh Ahluwalia, MD & CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The bank continues to benefit from selling its excess priority sector lending credits other banks. This provides a high-margin, sustainable **…
 
 > "From a PSLC perspective, we don't see much difference... There will always be surplus deficient players of PSLC, and Canara Bank has that advantage."
-> — Shri S.K. Majumdar, Executive Director
+> — Shri S.K. Majumdar, Executive Director [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **Operating expenses this quarter were elevated by roughly 250 crores due to one-time costs related to subsidiary listings and employee benefi**…
 
 > "One was IPO charges for Canara Robeco and Canara HSBC. That needs to be absorbe by the promoter. So, for that, there is a fee of around 80 crores. Another 80 crores is of depreciation... that is around 160 crores. This is more or less around 250 crore, which is additional, whi…"
-> — Shri S.K. Majumdar, Executive Director
+> — Shri S.K. Majumdar, Executive Director [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **Divestments in subsidiary companies contributed over 2,000 crores to the bank's quarterly profit. This unlocks value from non-banking units **…
 
 > "In Q3, due to listing profits of Canara Robeco and Canara HSBC... in Canara HSBC w offloaded 14.5% stake, and in Canara Robeco we offloaded 13% stake and could gain 2, crores."
-> — Shri Hardeep Singh Ahluwalia, MD & CEO
+> — Shri Hardeep Singh Ahluwalia, MD & CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The bank is intentionally slowing its lending to large NBFCs to avoid low-yielding loans. This disciplined approach prioritizes margin prote**…
 
 > "The NBFC exposure is at 1,51,000 crores, and it is growing at 6.09%... normally the AA AAA rated NBFCs, when they approach us, but the rates are not competitive, then we a shying away from that because protection of NIM is also our major criteria."
-> — Shri Hardeep Singh Ahluwalia, MD & CEO
+> — Shri Hardeep Singh Ahluwalia, MD & CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **Canara Bank is investing 1,000 crores annually into technology, including a dedicat AI department for fraud and default prediction. These in**…
 
 > "A vertical has been created separately for AI which is working on identification of use cases that can be implemented in the bank... Around 1,000 crores we are spending annu on digital initiatives."
-> — Shri Hardeep Singh Ahluwalia, MD & CEO
+> — Shri Hardeep Singh Ahluwalia, MD & CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The bank generates enough internal profit to fund its growth without needing to is new shares. This is positive for investors as it avoids e**…
 
 > "We are adding around 17,000 to 20,000 profit per annum. So there is no reason... I mean as of now, we are adequately capitalized to do business... In the immediate future, I don't think bank will require that [QIP]."
-> — Shri S.K. Majumdar, Executive Director
+> — Shri S.K. Majumdar, Executive Director [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The bank's fastest-growing segments are also its high-yielding segments, particular gold and retail loans. This alignment between growth and**…
 
 > "RAM sector is the strength which is growing at 18.70% and where the yield is also 8.889 gold is also growing at 30% where the yield is around 9%."
-> — Shri Hardeep Singh Ahluwalia, MD & CEO
+> — Shri Hardeep Singh Ahluwalia, MD & CEO [^chatter-Swiggy_Hyundai_Shree_Cement]
+
+[^chatter-Swiggy_Hyundai_Shree_Cement]: Swiggy Hyundai Shree Cement — [[Swiggy_Hyundai_Shree_Cement]]
 
 *Source: The Chatter — Swiggy Hyundai Shree Cement*
 

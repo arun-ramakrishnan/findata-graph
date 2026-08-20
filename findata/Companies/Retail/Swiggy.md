@@ -17,7 +17,7 @@ created: '2025-11-16'
 last_modified: '2026-06-28'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:36Z'
+  at: '2026-08-20T05:41:42Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -55,17 +55,17 @@ Swiggy has expanded through strategic acquisitions like Dineout and by launching
 - **## Swiggy |_Mid_Cap |_Retail [Call recording] Swiggy is doubling down on a category that Zomato(Eternal) recently abandoned:**
 
 > "Bolt has grown at a fast clip and contributes 12\% of overall order volumes today. Havir said that look this is a category by itself in a way u and I dare say not just in India but globally and it is a less than 6 months vintage so we are building it very purposefully anc thou…"
-> — Rohit Kapoor, CEO, Food Marketplace
+> — Rohit Kapoor, CEO, Food Marketplace [^chatter-Discovering_Hidden_Signals]
 
 - **Clear admission that pressure isn't just from known players - new entrants are increasing.**
 
 > "We have seen you know competitive pressure you know continuing to you know increas not only from the existing players but also there are a set of new players who are enterin, the market."
-> — Rahul Bothra, CFO
+> — Rahul Bothra, CFO [^chatter-Discovering_Hidden_Signals]
 
 - **Swiggy shifts its breakeven guide but frames it as flexibility, not failure.**
 
 > "We are seeking flexibility to you know over two more quarters it could be it would happ in December it could happen in the June quarter of the next you know calendar year."
-> — Rahul Bothra, CFO
+> — Rahul Bothra, CFO [^chatter-Discovering_Hidden_Signals]
 
 - **They're saying retention keeps improving with each cohort and happens without needing ongoing discounts, hinting at habit formation.**
 
@@ -74,22 +74,24 @@ Swiggy has expanded through strategic acquisitions like Dineout and by launching
 - **ALSO:**
 
 > "Retention in fact in our more recent cohorts has been 4 to 6\% higher than the same me for our prior cohorts."
-> — Amitesh Jha, CEO of Swiggy Instamart
+> — Amitesh Jha, CEO of Swiggy Instamart [^chatter-Discovering_Hidden_Signals]
 
 - **Relaxo Footwears | Small Cap | Retail Major strategic shift from wholesale to distribution-led model, focusing on second sales and improving**…
 
 > "The work is going on and we are facing good resistance from a lot of distributors becau they don't want to become really fully transparent. This Distributor Management Syster (DMS) what we are implementing, a lot of people we are facing resistance. And then we, from primary mo…"
-> — Ramesh Kumar Dua, Chairman \& MD
+> — Ramesh Kumar Dua, Chairman \& MD [^chatter-Discovering_Hidden_Signals]
 
 - **Confirms volume pressure stems specifically from the mass-market Hawaii segmen (lower ASPs), indicating stress among lower-income consumers,**…
 
 > "Regarding volume, you know, our Hawaii segment was under pressure. Our, you know, poorer segment, middle income segment, there has been what we experienced, pressure c demand, maybe the poor people are really struggling more. So as volume gets affected fo Hawaii, because there…"
-> — Ramesh Kumar Dua, Chairman \& MD
+> — Ramesh Kumar Dua, Chairman \& MD [^chatter-Discovering_Hidden_Signals]
 
 - **Actively evaluating export opportunities in the UK market, considering both ownbrand and private label strategies, potentially opening a new**…
 
 > "We already in touch with few leads in UK. But we need to see how we can explore this opportunity seeing own branded footwear sales or the private label. So we are open with both the ideas and we'll see how the opportunity come and we will surely crack them anı capitalize that.…"
-> — Ritesh Dua, EVP Finance
+> — Ritesh Dua, EVP Finance [^chatter-Discovering_Hidden_Signals]
+
+[^chatter-Discovering_Hidden_Signals]: The Chatter: Discovering Hidden Signals — [[Discovering_Hidden_Signals]]
 
 *Source: The Chatter — The Chatter: Discovering Hidden Signals*
 
@@ -103,7 +105,7 @@ Swiggy has expanded through strategic acquisitions like Dineout and by launching
 - **Increasing the volume of orders per store allows the company to use its existing infrastructure more efficiently. This scale also gives the **…
 
 > "The scale of operation, which effectively is measured in either Gross Order Value (GOV per store or the number of orders per store, will have an impact on better utilization of o infrastructure... Regarding the movement for all the items that we sell, there is a bigger opportu…"
-> — Amitesh Jha, CEO, Instamart
+> — Amitesh Jha, CEO, Instamart [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The company has significantly expanded its warehouse footprint to bring products closer to customers and lower transport costs. Investors sh**…
 
@@ -112,17 +114,17 @@ Swiggy has expanded through strategic acquisitions like Dineout and by launching
 — Rahul Bothra, CFO
 
 …"
-> — Amitesh Jha, CEO, Instamart
+> — Amitesh Jha, CEO, Instamart [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **The MaxSaver initiative, which encourages users to build larger grocery baskets, is successfully improving profits per order. High customer **…
 
 > "We reiterate our commitment to MaxSaver because it increases profitability in terms of revenue per order... The retention of MaxSaver customers is actually similar to or higher than what we see for non-MaxSaver customers."
-> — Amitesh Jha, CEO, Instamart
+> — Amitesh Jha, CEO, Instamart [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **Long-term users are ordering more frequently, which provides a stable foundation the business. Management is avoiding ultra-low-cost orders **…
 
 > "Our mature cohorts are growing faster, showing customers are becoming more sticky. We believe such interventions will always be required, and that is why we want flexibility in how we spend. However, vanity metrics based on 99-rupee orders are not conducive to h we are buildin…"
-> — Amitesh Jha, CEO, Instamart
+> — Amitesh Jha, CEO, Instamart [^chatter-Swiggy_Hyundai_Shree_Cement]
 
 - **Sales of items like electronics and home goods now make up nearly a third of the qu commerce business. Management expects this mix to stabil**…
 
@@ -135,6 +137,8 @@ Swiggy has expanded through strategic acquisitions like Dineout and by launching
 - **Currently, 30% of the company's local delivery areas are profitable, and they need to reach 50% to break even as a whole. They are working t**…
 
 > "More than half of our business in terms of polygons will have to be positive for break-ev to happen. Today that number is closer to 30%. As we add monetization and improve the Contribution Margin journey, more stores and polygons will become positive."
+
+[^chatter-Swiggy_Hyundai_Shree_Cement]: Swiggy Hyundai Shree Cement — [[Swiggy_Hyundai_Shree_Cement]]
 
 *Source: The Chatter — Swiggy Hyundai Shree Cement*
 

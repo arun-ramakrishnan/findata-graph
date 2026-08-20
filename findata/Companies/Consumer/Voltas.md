@@ -22,7 +22,7 @@ created: '2026-06-28'
 last_modified: '2026-06-28'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:37Z'
+  at: '2026-08-20T05:41:44Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -128,6 +128,8 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "The rules allow brands and channel partners to sell old table products until the end of June. Like our competitors, we have stocks of old table products. Our focus is to liquidat the old table stock first."
 
+[^chatter-Swiggy_Hyundai_Shree_Cement]: Swiggy Hyundai Shree Cement — [[Swiggy_Hyundai_Shree_Cement]]
+
 *Source: The Chatter — Swiggy Hyundai Shree Cement*
 
 <!-- END auto chatter block -->
@@ -140,17 +142,17 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **The AC industry experienced a 10-12% de-growth in FY26, but Voltas anticipates a 20% market growth in the next year due to the weak base.**
 
 > "The industry had a difficult year last year with a de-growth of roughly 10-12%. Total primary sales for the industry were 14.3 million units. We expect the market to grow 15 next year because of the weak base."
-> — K V Sridhar, Chief Financial Officer
+> — K V Sridhar, Chief Financial Officer [^chatter-Titan_Dixon_Cipla]
 
 - **Following a weak previous year, Voltas observed strong positive traction in April and May, driven by a severe heatwave across India, leading**…
 
 > "Compared to the weak summer and unseasonal rains last year, we have seen very positive traction in April, which has continued into May. There is a serious heatwave in many parts of the country. Positive growth is occurring and secondaries are moving fast."
-> — K V Sridhar, Chief Financial Officer
+> — K V Sridhar, Chief Financial Officer [^chatter-Titan_Dixon_Cipla]
 
 - **Voltas experienced record high sales in March, with April and May also performing strongly, indicating a positive outlook for the current qu**…
 
 > "March was a superb month and our record high in our history. April was also extremely buoyant and very close to that number. May is also looking good. ... We feel this will be a very good quarter."
-> — K V Sridhar, Chief Financial Officer
+> — K V Sridhar, Chief Financial Officer [^chatter-Titan_Dixon_Cipla]
 
 - **For 40-50% of its domestic and some international projects order books, Voltas has price variation clauses that allow commodity, material, a**…
 
@@ -159,27 +161,29 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **-Kкликация — K V Sridhar, Chief Financial Officer Commercial Air Conditioning (CAC), a B2B segment with significant growth poten (12-15% ind**…
 
 > "Commercial air conditioning (CAC) is a B2B business driven by offices, restaurants, and the manufacturing sector... We are under-leveraged here, and it represents a huge headrow for growth. Much of our capex is going into CAC, as it is likely to be our next growth engine along…"
-> — K V Sridhar, Chief Financial Officer
+> — K V Sridhar, Chief Financial Officer [^chatter-Titan_Dixon_Cipla]
 
 - **Voltas implemented a 7-8% price hike for new products, followed by another increase for pre-war commodity prices, and anticipates passing th**…
 
 > "The blended increase of 7-8% mentioned earlier was purely on account of new table products. We took another rate increase for commodity prices that rose pre-war. ... We a talking about double-digit inflation. It will be passed through as costs hit us."
-> — K V Sridhar, Chief Financial Officer
+> — K V Sridhar, Chief Financial Officer [^chatter-Titan_Dixon_Cipla]
 
 - **Despite intense competition from 60 brands, Voltas differentiates itself through the Tata trust, extensive distribution, and a refreshed mar**…
 
 > "We know current competition is severe; almost 60 brands operate in this space. But what we bring to the table is the Tata trust, plus the fact that our distribution reach is phenomenal. You would have also noticed that we have refreshed our entire marketing campaign this time."
-> — Mukundan Menon, Managing Director
+> — Mukundan Menon, Managing Director [^chatter-Titan_Dixon_Cipla]
 
 - **Elevated inventory levels in Q4 FY26 were a strategic move for summer prepared new launches, and supply chain resilience, with normalization**…
 
 > "Inventory levels during the quarter remained moderately elevated, primarily driven by proactive readiness for the peak summer season, strategic stocking for new product launches, and precautionary planning in response to supply chain volatility and geopolitical disruptions. Ho…"
-> — K V Sridhar, Chief Financial Officer
+> — K V Sridhar, Chief Financial Officer [^chatter-Titan_Dixon_Cipla]
 
 - **Geopolitical tensions in the Middle East caused operational disruptions for Voltas's international projects, but the company mitigated risks**…
 
 > "In the international projects business, geopolitical tensions and the Middle East conflict created operational disruptions across travel, logistics, site execution, and commercial settlements. Despite these challenges, Voltas responded with agility and discipline by activating…"
-> — K V Sridhar, Chief Financial Officer
+> — K V Sridhar, Chief Financial Officer [^chatter-Titan_Dixon_Cipla]
+
+[^chatter-Titan_Dixon_Cipla]: Titan Dixon Cipla — [[Titan_Dixon_Cipla]]
 
 *Source: The Chatter — Titan Dixon Cipla*
 

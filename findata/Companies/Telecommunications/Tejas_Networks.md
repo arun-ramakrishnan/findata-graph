@@ -18,7 +18,7 @@ created: '2025-11-26'
 last_modified: '2026-06-29'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T17:25:36Z'
+  at: '2026-08-20T05:41:43Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -310,26 +310,28 @@ Enhanced with comprehensive telecommunications sector analysis, telecom equipmen
 - **## Tejas Networks | Small Cap | Telecom Tejas Networks Limited specializes in designing, developing, and selling highperformance products to**…
 
 > "So first of all uh let's see we came off in FY25 we came off on the back of a really large project this BSNL 100,000 sites which we had to deliver in a very accelerated way and $t_{i}$ kind of resulted in a huge bump up of our revenues from FY24 to FY25. So obviously yo know w…"
-> — Arnab Roy, COO \& MD
+> — Arnab Roy, COO \& MD [^chatter-In_the_Middle_of_Things]
 
 - **The 18,000 additional sites and some customer shipments were delayed due to inventory and clearance issues, making this a one-off quarter. T**…
 
 > "And 18,000 sites add-on sites and got delayed a bit plus a few other customer shipmenı got a bit delayed because of inventory and clearances. So, so in a way, yes, this is a one-1 quarter where things got pushed out more than anything else and we should be able to se the resul…"
-> — Sumit Dhingra, CFO
+> — Sumit Dhingra, CFO [^chatter-In_the_Middle_of_Things]
 
 - **Receivables are largely tied to the recently completed BSNL 4G project. These will collected over time based on project milestones, and the **…
 
 > "Yeah see receivables I think uh there are two points to sort of highlight here. I think uh what you see as reported vis receivables are to a large extent or significantly of account the BSNL 4G project that got executed over the past few quarters. In fact the last quarte was t…"
-> — Sumit Dhingra, CFO
+> — Sumit Dhingra, CFO [^chatter-In_the_Middle_of_Things]
 
 - **The BSNL project deployed 100,000 sites, which is insufficient for a nationwide network. An expansion is expected, starting with 18,000 addi**…
 
 > "BSNL business but as far as the network plans are concerned if you see they have deplc 100,000 sites which is not adequate for a pan national network. So there will be expansi in their network and the initial phase was they were planning to do you know 26,000 sit as an add-on …"
-> — Arnab Roy, COO \& MD
+> — Arnab Roy, COO \& MD [^chatter-In_the_Middle_of_Things]
 
 - **The company aims to have $30-40 \%$ of its business come from international markets soon as possible, considering it a key milestone.**
 
 > "yeah so it's hard to hard to give a number but I would say um you know we certainly wi to see you know um close to $30 \%-40 \%$ of our business is going to international as soon a possible that will be a good milestone"
+
+[^chatter-In_the_Middle_of_Things]: The Chatter: In the Middle of Things — [[In_the_Middle_of_Things]]
 
 *Source: The Chatter — The Chatter: In the Middle of Things*
 
@@ -367,7 +369,7 @@ networks."
 - **Management anticipates a long-term surge in network demand as artificial intelligence traffic forces service providers to upgrade their infr**…
 
 > "Looking forward, AI will drive network transformation. By 2030, AI traffic is predicted be more than 60% of total network traffic. This will require low latency and jitter. This trend will drive a network infrastructure build super cycle."
-> — Arnab Roy, MD and CEO
+> — Arnab Roy, MD and CEO [^chatter-TCS_ICICI_Pru_HDB_Financials]
 
 - **The company expects future investments to be centered around high-speed opt networks and edge infrastructure to handle AI-driven workloads.**
 
@@ -384,6 +386,8 @@ networks."
 - **Management framed current investments as enabling multi-fold growth rather incremental improvement, especially as global opportunities scale**…
 
 > "Our investments are aimed at significant growth—multiples of what we did in FY26... While projects like BSNL create spikes, the underlying trend without those one-offs show consistent growth."
+
+[^chatter-TCS_ICICI_Pru_HDB_Financials]: TCS ICICI Pru HDB Financials — [[TCS_ICICI_Pru_HDB_Financials]]
 
 *Source: The Chatter — TCS ICICI Pru HDB Financials*
 
