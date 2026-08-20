@@ -14,10 +14,8 @@ output/
 venv/
 Reports/
 Telegram/
-findata/Folio/
-findata/Points_And_Figures/
-findata/The_Chatter/
-findata/The_PlotLines/
+findata/**/images
+findata/**/*.json
 findata/_pending_relations.txt
 
 # AI Config folders

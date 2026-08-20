@@ -504,7 +504,7 @@ python3 helpers/graph/derive_insights.py findata --verbose
 ```
 
 **What it writes:**
-- `quotes` table — one row per verbatim quote (entity, quote_text, paraphrase, speaker_name, speaker_title, as_of_edition). Speakers are string attributes, NOT entities (the D6 person-node deferral is honored).
+- `quotes` table — one row per verbatim quote (entity, quote_text, paraphrase, speaker_name, speaker_title, as_of_edition). Speakers are string attributes, NOT entities (the D6 person-node deferral is honored). `as_of_edition` stores the canonical edition STEM (normalized at the write boundary via edition_index, #136; note headings keep the display title) — join it straight to `entities.name` / `sources[].id`.
 - `company_metrics` table — one row per financial magnitude (value_raw, unit, period, source_quote, best-effort metric_label).
 - A `## The Chatter — <edition>` block in each company note, wrapped in `<!-- BEGIN auto chatter block (derive_insights.py) -->` … `<!-- END auto chatter block -->` sentinels (invisible in Obsidian render).
 
