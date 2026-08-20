@@ -230,6 +230,25 @@ def _pick_embedder(rows, embed_fn):
     if model.startswith("dry-run"):
         from helpers.graph.embeddings import _pseudo_embedding
         return _pseudo_embedding, dims
+    # Local bge-small model (local_embeddings, 2026-08-20): query-side
+    # embed_query against index rows embedded with embed_document. Warn on
+    # unavailability — the table holds real vectors but we cannot embed the
+    # query into the same space, so the stage yields no match rather than a
+    # garbage-scored one.
+    from helpers.core import local_embedder
+
+    if model == local_embedder.MODEL_ID:
+        if dims != local_embedder.DIM:
+            return None, 0
+        if not local_embedder.available():
+            print(
+                f"WARNING: company_embeddings model is {model!r} but the local "
+                "embedder is unavailable — VSS match skipped "
+                "(see helpers/core/local_embedder.py).",
+                file=sys.stderr,
+            )
+            return None, 0
+        return (lambda q, _d: local_embedder.embed_query(q)), dims
     # Real (API) model: cannot recompute the query vector without the
     # provider key from this CLI. Caller may inject embed_fn instead.
     return None, 0
@@ -267,10 +286,12 @@ def vss_match(
     ``(None, 0.0)``.
 
     The query is embedded with the same embedder that populated the table
-    (dry-run pseudo-embeddings by default). For real (API) models no local
-    embedder is available, so the stage returns no match unless ``embed_fn``
-    is supplied. The comparison is pure Python — no DuckDB dependency, so
-    ``get_tickers`` stays a standalone CLI.
+    (dry-run pseudo-embeddings by default; the local bge-small model when
+    company_embeddings carries its label — see _pick_embedder, which keeps
+    query-side and index-side on the same model). For other (API) models no
+    local embedder is available, so the stage returns no match unless
+    ``embed_fn`` is supplied. The comparison is pure Python — no DuckDB
+    dependency, so ``get_tickers`` stays a standalone CLI.
 
     ``conn``: optional open SQLite connection; if None, one is opened against
     ``db_path`` (default ``memory/research.db``) and closed before returning.

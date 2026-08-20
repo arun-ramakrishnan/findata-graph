@@ -9,6 +9,10 @@ pdfs-done/
 math/
 # Live runtime DBs (restored via `make snapshot-restore` from snapshots/parquet/)
 memory/
+
+# Local embedding model artifact (bge-small-en-v1.5 GGUF, ~35MB; fetched via
+# the documented download command + sha256 pin in helpers/core/local_embedder.py)
+models/
 # Local scratch: gzip snapshots + raw *_backup.* copies (NOT for git; the
 # tracked, restore-able snapshot lives in snapshots/parquet/)
 db-backup/

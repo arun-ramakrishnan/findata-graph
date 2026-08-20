@@ -551,15 +551,25 @@ def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> l
     extension won't load, table absent) falls back to the original
     page-local Python cosine — hybrid must degrade, never 500.
 
-    The query is embedded with the same pseudo-embedder the rebuild used by
-    default (see rebuild_note_search._default_embed), so dry-run hybrid is
-    lexical-ish; real semantic ranking needs matching embed_fn on both sides.
+    The query is embedded on the SAME side of the asymmetry as the index was:
+    rebuild_note_search.query_embedder() resolves to embed_query of the local
+    bge-small model when available (the index used embed_document of it), and
+    to the pseudo-embedder otherwise. A vector-space mismatch — index rebuilt
+    with a different model than the query side now resolves to — is detected
+    via the stored dims and DEGRADES to BM25-only rather than computing
+    zip-truncated garbage cosine over mismatched dimensions.
     """
     try:
-        from helpers.graph.embeddings import _pseudo_embedding
-        from helpers.maintenance.rebuild_note_search import _EMBED_DIMS
+        from helpers.maintenance.rebuild_note_search import (
+            query_embedder,
+            stored_embed_dims,
+        )
 
-        q_vec = _pseudo_embedding(query, _EMBED_DIMS)
+        embed_q, _dims = query_embedder()
+        q_vec = embed_q(query)
+        idx_dims = stored_embed_dims(conn)
+        if idx_dims is not None and idx_dims != len(q_vec):
+            q_vec = None  # index/query vector spaces differ -> BM25 only
     except Exception:  # noqa: S110  # embedding unavailable -> fall back to BM25
         q_vec = None
 
@@ -570,7 +580,7 @@ def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> l
         try:
             from helpers.core.vec_search import knn_similarities
 
-            knn = knn_similarities(conn, q_vec, None, _EMBED_DIMS)
+            knn = knn_similarities(conn, q_vec, None, len(q_vec))
         except Exception:  # noqa: S110  # KNN unavailable -> Python cosine below
             knn = None
 

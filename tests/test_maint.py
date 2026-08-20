@@ -42,26 +42,29 @@ class TestPlan:
             "graph-rebuild (refresh DuckDB cache)",
         ]
 
-    def test_tier2_has_seven_steps(self):
-        assert len(maint.TIER2_STEPS) == 8
+    def test_tier2_has_nine_steps(self):
+        assert len(maint.TIER2_STEPS) == 9
 
     def test_tier2_steps_order(self):
         # Post-ingest cleanup: structural work first (sync-tags settles
         # entity sector_classification, sync-sector-links CHECKS the
         # company index — the write is explicit, housekeeping never
         # mutates notes — rebuild-note-search reads notes into the FTS
-        # index; recompute-graph mutates SQLite), then derive-insights
-        # scans newsletter concall bodies into the quotes/company_metrics
-        # tables ONLY (--no-notes), then derive-events refreshes the events
-        # timeline (D7) from note prose rendered by the last standalone
-        # derive_insights --apply, then re-snapshot captures the full
-        # post-ingest state.
+        # index and company-embeddings --maint refreshes the derived
+        # company_embeddings table over the same note text (cached,
+        # best-effort, never auto-upgrading); recompute-graph mutates
+        # SQLite), then derive-insights scans newsletter concall bodies
+        # into the quotes/company_metrics tables ONLY (--no-notes), then
+        # derive-events refreshes the events timeline (D7) from note prose
+        # rendered by the last standalone derive_insights --apply, then
+        # re-snapshot captures the full post-ingest state.
         labels = [label for label, _ in maint.TIER2_STEPS]
         assert labels == [
             "sync-tags (rebuild entity_tags from note YAML)",
             "sync-sector-links --check (gate: sector-note company indexes fresh)",
             "sector-hierarchy --check (gate: taxonomy + super-sector notes fresh)",
             "rebuild-note-search (rebuild FTS over findata markdowns)",
+            "company-embeddings --maint (cached refresh of company_embeddings)",
             "recompute-graph (refresh analytics in graph_analytics)",
             "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
             "derive-events (refresh events timeline from note prose + edges)",
@@ -186,14 +189,14 @@ class TestDryRun:
         for label, _ in maint.TIER1_STEPS:
             assert label in output, f"tier1 step missing from dry-run output: {label}"
 
-    def test_dry_run_full_lists_all_ten_steps(self, caplog):
+    def test_dry_run_full_lists_all_steps(self, caplog):
         import logging
         with caplog.at_level(logging.INFO, logger="maint"):
             maint.main(["--full", "--dry-run"])
         output = caplog.text
         all_steps = maint.TIER1_STEPS + maint.TIER2_STEPS
-        # 3 tier1 (db_maint, snapshot, graph-rebuild) + 8 tier2.
-        assert len(all_steps) == 11
+        # 3 tier1 (db_maint, snapshot, graph-rebuild) + 9 tier2.
+        assert len(all_steps) == 12
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
 

@@ -401,6 +401,34 @@ def seeded_graph_sqlite_db(tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def _no_local_embedder():
+    """Pin the local bge embedder OFF for every unit test (local_embeddings,
+    2026-08-20): the suite must behave identically on machines with and
+    without the models/ GGUF artifact + llama-cpp backend. Everything then
+    takes the deterministic 64-dim pseudo path. Tests that exercise the real
+    or faked local path opt in explicitly (test_local_embedder.py re-enables
+    it; consumer tests monkeypatch available/embed_* behind the same
+    interface).
+
+    Deliberately NOT using monkeypatch: an autouse fixture that requests
+    monkeypatch instantiates it BEFORE fixtures like unit_client, so at
+    teardown unit_client's restore (helpers.graph.query.connect) runs first
+    and monkeypatch's snapshot-restore then RE-APPLIES the mock — the leak
+    behind the test_integration_graph_rebuild failures (found 2026-08-21).
+    A plain save/restore in this fixture keeps the ordering untouched."""
+    from helpers.core import local_embedder
+
+    orig = local_embedder.available
+
+    def _unavailable() -> bool:
+        return False
+
+    local_embedder.available = _unavailable  # ty: ignore[invalid-assignment]
+    yield
+    local_embedder.available = orig
+
+
+@pytest.fixture(autouse=True)
 def _clear_graph_query_cache():
     """Isolation: the process-global query result cache must not leak
     between tests.

@@ -514,3 +514,88 @@ def test_print_recommendations_none(capsys):
     gt._print_recommendations_section(None, None)
     captured = capsys.readouterr()
     assert captured.out == ""
+
+
+# ---------------------------------------------------------------------------
+# local_embeddings (2026-08-20): _pick_embedder routes bge-labeled rows
+# through local_embedder.embed_query, or yields (None, 0) with a warning when
+# the query can't be embedded into the SAME vector space as the stored rows.
+# ---------------------------------------------------------------------------
+class TestPickEmbedderLocalModel:
+    @staticmethod
+    def _rows(model, dims=384):
+        vec_str = "[" + ", ".join(repr(0.02) for _ in range(dims)) + "]"
+        return [("Acme", vec_str, model)]
+
+    def test_local_label_uses_embed_query(self, monkeypatch):
+        from helpers.core import local_embedder as LE
+
+        monkeypatch.setattr(LE, "available", lambda: True)
+        monkeypatch.setattr(LE, "embed_query", lambda t: [0.5] * 384)
+        fn, dims = gt._pick_embedder(self._rows(LE.MODEL_ID), None)
+        assert fn is not None
+        assert dims == 384
+        assert fn("anything", 384) == [0.5] * 384  # (query, dims) interface
+
+    def test_local_label_unavailable_warns_and_skips(self, monkeypatch, capsys):
+        from helpers.core import local_embedder as LE
+
+        monkeypatch.setattr(LE, "available", lambda: False)
+        fn, dims = gt._pick_embedder(self._rows(LE.MODEL_ID), None)
+        assert (fn, dims) == (None, 0)
+        assert "local embedder is unavailable" in capsys.readouterr().err
+
+    def test_local_label_wrong_dims_skips(self, monkeypatch):
+        from helpers.core import local_embedder as LE
+
+        monkeypatch.setattr(LE, "available", lambda: True)
+        # bge label on 64-dim rows: different vector space — no match rather
+        # than zip-truncated garbage cosine.
+        fn, dims = gt._pick_embedder(self._rows(LE.MODEL_ID, dims=64), None)
+        assert (fn, dims) == (None, 0)
+
+    def test_unknown_api_label_still_none(self):
+        # Non-dry-run, non-local label: no local embedder can reconstruct the
+        # query vector — unchanged pre-local_embeddings behaviour.
+        fn, dims = gt._pick_embedder(self._rows("text-embedding-3-small"), None)
+        assert (fn, dims) == (None, 0)
+
+    def test_vss_match_end_to_end_with_local_model(self, tmp_path, monkeypatch):
+        """Rows embedded by a fake embed_document are matched by queries sent
+        through (a fake) embed_query — the full local-model contract."""
+        import hashlib
+        import sqlite3
+
+        from helpers.core import local_embedder as LE
+
+        def vec(text, dims=384):
+            h = hashlib.sha256(f"7:{text}".encode()).digest()
+            v = []
+            for i in range(dims):
+                b = h[(i * 4) % len(h):(i * 4) % len(h) + 4]
+                v.append(int.from_bytes(b, byteorder="little", signed=True) / 2**31)
+            n = (sum(x * x for x in v)) ** 0.5
+            return [x / n for x in v]
+
+        db = tmp_path / "local.db"
+        con = sqlite3.connect(db)
+        con.execute(
+            "CREATE TABLE company_embeddings ("
+            "company_name TEXT PRIMARY KEY, embedding TEXT, model TEXT)"
+        )
+        for name in ("Avanti Feeds", "Ramkrishna Exports"):
+            vs = "[" + ", ".join(repr(x) for x in vec(name)) + "]"
+            con.execute(
+                "INSERT INTO company_embeddings VALUES (?, ?, ?)",
+                (name, vs, LE.MODEL_ID),
+            )
+        con.commit()
+        con.close()
+
+        monkeypatch.setattr(LE, "available", lambda: True)
+        monkeypatch.setattr(LE, "embed_query", lambda t: vec(t))
+        match, score = gt.vss_match(
+            "Avanti Feeds", ["Avanti Feeds", "Ramkrishna Exports"], db_path=db
+        )
+        assert match == "Avanti Feeds"
+        assert score > 0.99

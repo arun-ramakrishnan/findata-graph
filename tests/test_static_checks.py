@@ -1246,3 +1246,72 @@ class TestMakefileHelpCompleteness:
         import re
         names = re.findall(r'@echo "  ([a-z0-9-]+)', mk)
         assert names == sorted(names), "help lines drifted out of alphabetical order"
+
+
+# ---------------------------------------------------------------------------
+# check_merge_markers_and_artifacts — stgit stack scope (2026-08-21)
+# ---------------------------------------------------------------------------
+def test_stack_scope_scans_only_stack_files(tmp_path, monkeypatch):
+    """With a stack present, ONLY files touched by applied patches are
+    scanned — the merged base is trusted by graduation."""
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    (tmp_path / "in_stack.py").write_text("<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> b\n")
+    (tmp_path / "not_in_stack.py").write_text("<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> b\n")
+    monkeypatch.setattr(sc, "_stack_files", lambda: {tmp_path / "in_stack.py"})
+    merge_failures, _advisory = sc.check_merge_markers_and_artifacts()
+    assert len(merge_failures) == 1
+    assert "in_stack.py" in merge_failures[0]
+
+
+def test_stack_scope_artifacts_and_stray_dirs(tmp_path, monkeypatch):
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    (tmp_path / "helpers").mkdir()
+    (tmp_path / "helpers" / "x.bak").write_text("junk")
+    (tmp_path / "helpers" / "__pycache__").mkdir()
+    (tmp_path / "helpers" / "__pycache__" / "m.py").write_text("ok")
+    monkeypatch.setattr(
+        sc, "_stack_files",
+        lambda: {tmp_path / "helpers" / "x.bak",
+                 tmp_path / "helpers" / "__pycache__" / "m.py"},
+    )
+    merge_failures, advisory = sc.check_merge_markers_and_artifacts()
+    assert merge_failures == []
+    assert any("x.bak" in a for a in advisory)          # artifact advisory
+    assert any("__pycache__" in a for a in advisory)    # stray dir, no recursion
+
+
+def test_fallback_flags_stray_dirs_without_recursing(tmp_path, monkeypatch):
+    """No stack (plain checkout): cache/venv dirs are flagged once and
+    their contents never scanned."""
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    (tmp_path / "code.py").write_text("x = 1\n")
+    pycache = tmp_path / "__pycache__"
+    pycache.mkdir()
+    (pycache / "gen.py").write_text("<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> b\n")
+    (tmp_path / "venv").mkdir()
+    (tmp_path / "venv" / "lib.py").write_text("<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> b\n")
+    monkeypatch.setattr(sc, "_stack_files", lambda: None)
+    merge_failures, advisory = sc.check_merge_markers_and_artifacts()
+    assert merge_failures == []  # markers inside pruned dirs not scanned
+    assert any("__pycache__" in a for a in advisory)
+    assert any("venv" in a for a in advisory)
+
+
+def test_fallback_skips_dotfile_binaries(tmp_path, monkeypatch):
+    """.coverage is a suffix-less dotfile: name check, not suffix check."""
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    (tmp_path / ".coverage").write_text("<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> b\n")
+    (tmp_path / "model.gguf").write_bytes(b"<<<<<<<\x00\x01")
+    monkeypatch.setattr(sc, "_stack_files", lambda: None)
+    merge_failures, _advisory = sc.check_merge_markers_and_artifacts()
+    assert merge_failures == []
+
+
+def test_fallback_used_when_not_a_stack_repo(tmp_path, monkeypatch):
+    """A REPO_ROOT outside any stgit stack naturally degrades to the walk
+    (the existing tmp_path tests exercise this implicitly; this pins it)."""
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+    (tmp_path / "conflict.py").write_text("<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> b\n")
+    # The real _stack_files runs here: tmp_path is outside any stack -> None.
+    merge_failures, _advisory = sc.check_merge_markers_and_artifacts()
+    assert len(merge_failures) == 1

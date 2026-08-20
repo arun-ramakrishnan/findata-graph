@@ -176,3 +176,36 @@ class TestFallbackRobustness:
         assert VS.vec_available(fts_conn, DIMS, lazy_backfill=True) is False
         assert VS.knn_similarities(fts_conn, [1, 0, 0, 0], k=3, dims=DIMS) is None
         assert VS.sync_vec_table(fts_conn, DIMS, full=True) == 0
+
+
+class TestStoredDimsAndRecreate:
+    """local_embeddings (2026-08-20): stored_dims feeds app.py's vector-space
+    gate, and a dims change (model swap) must recreate the vec0 table — an
+    IF-NOT-EXISTS CREATE alone would leave a FLOAT[N] table the new dims
+    can never write into, silently serving stale vectors to KNN."""
+
+    def test_stored_dims_none_without_table(self, fts_conn):
+        assert VS.stored_dims(fts_conn) is None
+
+    def test_stored_dims_after_sync(self, fts_conn):
+        _seed_fts(fts_conn, list(VECS.items()))
+        VS.sync_vec_table(fts_conn, DIMS, full=True)
+        assert VS.stored_dims(fts_conn) == DIMS
+
+    def test_dims_change_recreates_table(self, fts_conn):
+        _seed_fts(fts_conn, list(VECS.items()))
+        assert VS.sync_vec_table(fts_conn, DIMS, full=True) == 3
+        assert VS.stored_dims(fts_conn) == DIMS
+
+        # Model swap: the FTS JSON column becomes 2-dim; sync at the new dims.
+        for fp in VECS:
+            fts_conn.execute(
+                "UPDATE note_search SET embedding = ? WHERE file_path = ?",
+                (json.dumps([0.6, 0.8]), fp),
+            )
+        fts_conn.commit()
+        written = VS.sync_vec_table(fts_conn, 2, full=True)
+        assert written == 3  # all rows re-mirrored at the new width
+        assert VS.stored_dims(fts_conn) == 2
+        got = VS.knn_similarities(fts_conn, [1.0, 0.0], k=3, dims=2)
+        assert got is not None and len(got) == 3

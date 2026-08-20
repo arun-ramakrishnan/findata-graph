@@ -19,6 +19,8 @@ commit, referenced by nothing). Entry numbers point at
 
 - [`duckdb_improvs.txt`](database/duckdb_improvs.txt) — DuckDB Improvements — core features, SQL, & extension surface — completed.md #72
 - [`sql_query_improvements.txt`](database/sql_query_improvements.txt) — SQL QUERY IMPROVEMENTS — FinData Knowledge Graph — completed.md #73
+- [`local_embeddings.md`](database/local_embeddings.md) — In-House Semantic Embeddings via a Local bge-small-en Model — completed.md #141
+- [`company_embeddings_maint.md`](database/company_embeddings_maint.md) — Proposal: Cached Company-Embeddings Refresh in maint-full — completed.md #142
 
 ## okf/ — OKF v0.2 — provenance vocabulary, activation, sources maintenance, read-side
 

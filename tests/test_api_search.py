@@ -137,6 +137,25 @@ def client(tmp_path):
         yield c
 
 
+@pytest.fixture(autouse=True)
+def _three_dim_query_space(monkeypatch):
+    """Pin the hybrid query embedder to the 3-dim space of this module's
+    hand-crafted seed vectors (local_embeddings, 2026-08-20).
+
+    The production resolver returns 384 (local bge) or 64 (pseudo); against
+    3-dim seeds app.py's vector-space gate correctly degrades to BM25-only,
+    which would silently switch every hybrid test onto the degraded path.
+    The fixed [0, 1, 0] query keeps the seeded geometry deterministic:
+    Chatter ([0,1,0]) is the exact-cosine winner for any query, Avanti
+    ([1,0,0]) is near-orthogonal. Tests of the gate itself re-patch
+    query_embedder to a mismatching width."""
+    from helpers.maintenance import rebuild_note_search as RNS
+
+    monkeypatch.setattr(
+        RNS, "query_embedder", lambda: ((lambda text: [0.0, 1.0, 0.0]), 3)
+    )
+
+
 def _results(resp):
     return resp.get_json()["results"]
 
@@ -326,7 +345,7 @@ class TestHybridKnnPath:
         assert r.status_code == 200
         hits = r.get_json()["results"]
         assert calls, "KNN path was not exercised"
-        assert calls[0][1] == 64  # dims from rebuild_note_search._EMBED_DIMS
+        assert calls[0][1] == 3  # dims = len(q_vec) from the module's query fixture
         assert calls[0][0] is None  # whole-corpus k
         by_fp = {h["file_path"]: h for h in hits}
         # Crafted similarities pass through verbatim (response contract).
@@ -382,3 +401,30 @@ class TestHybridKnnPath:
         without_knn = _titles()
         assert without_knn[0] == "The Chatter: Aquaculture Edition"
         assert sorted(with_knn) == sorted(without_knn)
+
+    def test_hybrid_degrades_on_vector_space_mismatch(self, client, monkeypatch):
+        """local_embeddings gate: when the query embedder resolves to a width
+        that doesn't match the stored index vectors (e.g. index built with
+        bge-384, model file since gone -> pseudo-64 query), the cosine leg is
+        meaningless — hybrid must degrade to BM25-only (knn NOT called,
+        similarity None) instead of zip-truncating garbage cosines."""
+        from helpers.core import vec_search as VS
+        from helpers.maintenance import rebuild_note_search as RNS
+
+        calls = []
+        monkeypatch.setattr(
+            VS, "knn_similarities",
+            lambda conn, q_vec, k, dims: calls.append((k, dims)) or {},
+        )
+        # Seeds are 3-dim; resolve the query side to 64-dim pseudo.
+        monkeypatch.setattr(
+            RNS, "query_embedder",
+            lambda: ((lambda text: [0.1] * 64), 64),
+        )
+        r = client.get("/api/search?q=feed&hybrid=true&limit=20")
+        assert r.status_code == 200
+        assert calls == []  # gate fired before any KNN
+        # Degraded contract: similarity collapses to 0.0 floats (q_vec None),
+        # ordering is pure BM25 — but the endpoint never 500s.
+        for hit in r.get_json()["results"]:
+            assert hit["similarity"] == 0.0

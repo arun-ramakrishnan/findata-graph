@@ -39,6 +39,15 @@ from pathlib import Path
 
 import yaml
 
+# C-accelerated loader when libyaml is built into PyYAML (it is on this
+# box); pure-Python fallback otherwise. This module parses the frontmatter
+# of every findata note on each static_checks run (~2.4k safe_loads), where
+# the pure-Python scanner dominates the wall clock (~5s of 8s before this).
+try:
+    from yaml import CSafeLoader as _SafeLoader
+except ImportError:  # pragma: no cover - libyaml not built
+    from yaml import SafeLoader as _SafeLoader
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_DIR = REPO_ROOT / "doc" / "schema"
 KEY_DOC = SCHEMA_DIR / "frontmatter_keys.md"
@@ -141,7 +150,7 @@ def parse_frontmatter(path: Path) -> dict | None:
     if end < 0:
         return None
     try:
-        fm = yaml.safe_load(text[4:end])
+        fm = yaml.load(text[4:end], Loader=_SafeLoader)
     except yaml.YAMLError:
         return None
     return fm if isinstance(fm, dict) else None

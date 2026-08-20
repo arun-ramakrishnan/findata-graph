@@ -26,6 +26,12 @@ With ``--full``, additionally runs after step 3:
                            entities + belongs_to edges) is the explicit
                            ``--apply`` run.
   6. ``rebuild_note_search.py`` — rebuild FTS over findata markdowns.
+  6b. ``embeddings.py --maint`` — cached refresh of ``company_embeddings``
+                             over the same note text (Q3 sidecar cache; GC
+                             of deleted companies). Best-effort: exits 0
+                             with a WARNING (no writes) when the local
+                             embedder is unavailable or the table isn't
+                             bge-populated — never an auto-upgrade.
   7. ``algorithms.py --all --apply`` — refresh pagerank/betweenness/louvain.
   8. ``derive_insights.py findata --apply --no-notes`` — scan newsletter concall
                            bodies; capture quotes + magnitudes into the
@@ -100,6 +106,21 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
      ["python3", "helpers/maintenance/build_sector_hierarchy.py", "--check"]),
     ("rebuild-note-search (rebuild FTS over findata markdowns)",
      ["python3", "helpers/maintenance/rebuild_note_search.py"]),
+    # company_embeddings refresh (2026-08-21, company_embeddings_maint
+    # proposal): cached populate + GC of deleted companies — both this and
+    # rebuild-note-search refresh derived indexes over note text, and notes
+    # are not rewritten later in the stack. SQLite-only (company_embeddings
+    # table; no entities/graph_edges writes -> no paired graph rebuild),
+    # so maint-full-eligible per the placement invariant. Best-effort by
+    # contract: --maint exits 0 with a WARNING when the local embedder is
+    # unavailable or the table isn't bge-populated — maint never
+    # auto-upgrades company embeddings (the upgrade is the user-held apply,
+    # doc/procedures/embeddings.md). Warm no-change cycles cost reads +
+    # hashes only (Q3 sidecar cache). v_embeddings.parquet drift after a
+    # run that changed vectors is handled by the existing snapshot regen
+    # flow (step 10 re-snapshots; DuckDB materialises on connect()).
+    ("company-embeddings --maint (cached refresh of company_embeddings)",
+     ["python3", "helpers/graph/embeddings.py", "--maint"]),
     ("recompute-graph (refresh analytics in graph_analytics)",
      ["python3", "helpers/graph/algorithms.py", "--all", "--apply"]),
     # D7 — refresh the events timeline (acquisition/jv/guidance/management_
