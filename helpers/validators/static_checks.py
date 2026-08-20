@@ -11,18 +11,18 @@ with the offending file/line, so a single run surfaces every issue.
 Checks (in order, cheapest first):
   1. Python syntax    — py_compile every .py under repo (excluding venv/git)
   2. JS syntax        — node --check every .js under static/ (skipped if no node)
-  3. Stray artifacts  — no committed __pycache__, .pyc, .DS_Store, *.swp
+  3. Merge markers + artifacts — stgit-stack-scoped conflict-marker scan
+                        (applied patches' files; fallback: pruned repo walk)
   4. Helper shebangs  — every helpers/**/*.py starts with a #! line
-  5. Merge markers    — no <<<<<<< ======= >>>>>>> leftover in tracked files
-  6. YAML parse       — every findata/**/*.md frontmatter parses as YAML
-  7. Trailing whitespace on *.py / *.md / *.js (advisory; counted not fatal)
-  8. Required files   — pytest.ini, pyproject.toml, Makefile exist
+  5. YAML parse       — every findata/**/*.md frontmatter parses as YAML
+  6. Required files   — pytest.ini, pyproject.toml, Makefile exist
 
 Usage:
     python3 helpers/validators/static_checks.py
 """
 from __future__ import annotations
 
+import os
 import py_compile
 import re
 import subprocess
@@ -65,6 +65,72 @@ ARTIFACT_PATTERNS = re.compile(
 MERGE_MARKER_RE = re.compile(
     r"^(<{7}|={7}|>{7})( |$)", re.MULTILINE
 )
+
+# Cache/dependency dirs that must never be committed. Encountered ones are
+# FLAGGED (advisory) and pruned from any walk — never recursed into.
+STRAY_DIR_NAMES = {"__pycache__", "venv", ".venv", "node_modules", ".pytest_cache"}
+
+# Binary suffixes a merge-marker scan can never match in. Guard for the
+# FALLBACK walk only (the stgit stack scope touches source/doc files) —
+# without it the walk reads+decodes ~83MB of gguf/duckdb/parquet per run
+# (found 2026-08-21; the .gguf arrived with the local embedder).
+_BINARY_SUFFIXES = {
+    ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".gz", ".db",
+    ".pkl", ".gguf", ".duckdb", ".parquet", ".wal", ".so", ".node",
+    ".ttf", ".woff", ".woff2", ".map",
+}
+# Dotfiles with no suffix — Path(".coverage").suffix is "", so these need a
+# name check.
+_BINARY_NAMES = {".coverage", ".DS_Store"}
+
+
+def _is_text_candidate(p: Path) -> bool:
+    """True when a merge-marker scan should read this file's content."""
+    return p.suffix.lower() not in _BINARY_SUFFIXES and p.name not in _BINARY_NAMES
+
+
+def _stack_files() -> set[Path] | None:
+    """Union of files touched by the APPLIED stgit patches.
+
+    ``stg series --applied`` -> ``stg files <name>`` per patch (git-status
+    style output). Returns None when stgit is unavailable or REPO_ROOT
+    isn't a stack (plain checkouts, tests) — callers fall back to the
+    filesystem walk. Unapplied patches are deliberately skipped: their
+    content isn't in the working tree, and a push conflict leaves markers
+    in applied-surface files where the next run catches them.
+    """
+    try:
+        series = subprocess.run(  # noqa: S603  # list-form call; controlled stgit CLI
+            ["stg", "series", "--applied"],  # noqa: S607  # PATH-resolved stgit by design
+            capture_output=True, text=True, check=True, cwd=str(REPO_ROOT),
+        ).stdout
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    names: list[str] = []
+    for line in series.splitlines():
+        # Applied patches print as '+ name' (or '> name' for the top).
+        if line[:1] in "+>":
+            name = line[1:].strip()
+            if name:
+                names.append(name)
+    files: set[Path] = set()
+    for name in names:
+        try:
+            out = subprocess.run(  # noqa: S603  # list-form call; controlled stgit CLI
+                ["stg", "files", name],  # noqa: S607  # PATH-resolved stgit by design
+                capture_output=True, text=True, check=True, cwd=str(REPO_ROOT),
+            ).stdout
+        except (OSError, subprocess.CalledProcessError):
+            continue
+        for line in out.splitlines():
+            # 'XY <path>' (single-letter status is common: 'M file').
+            _status, _sep, path_part = line.partition(" ")
+            path_part = path_part.strip()
+            if " -> " in path_part:  # rename: take the destination
+                path_part = path_part.rsplit(" -> ", 1)[1]
+            if path_part:
+                files.add(REPO_ROOT / path_part)
+    return files
 
 
 def _walk(root: Path, suffix: str):
@@ -179,26 +245,77 @@ def check_helper_shebangs() -> list[str]:
     return failures
 
 
-def check_merge_markers_and_artifacts() -> tuple[list[str], list[str]]:
-    """Single walk: check for merge markers AND stray artifacts in one pass."""
-    merge_failures: list[str] = []
+def _scan_file_for_markers(p: Path, rel: str) -> tuple[list[str], list[str]]:
+    """Scan one file for merge-conflict markers + stray artifact patterns.
+
+    Returns (merge_failures, artifact_failures). Non-text files and unreadable
+    paths are skipped best-effort. Stray-dir discovery is left to the caller so
+    the stgit-stack and plain-checkout code paths can track them differently.
+    """
     artifact_failures: list[str] = []
-    for p in _all_files():
-        rel = str(p.relative_to(REPO_ROOT))
-        # Stray artifacts check (was check_stray_artifacts)
-        if ARTIFACT_PATTERNS.search(rel):
-            artifact_failures.append(rel)
-        # Merge markers check (was check_merge_markers)
-        if p.suffix.lower() in {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".gz", ".db", ".pkl"}:
-            continue
-        try:
-            text = p.read_text(encoding="utf-8", errors="replace")
-        except Exception:  # noqa: S112  # best-effort; skip item on failure
-            continue
-        if MERGE_MARKER_RE.search(text):
-            merge_failures.append(f"{rel}: merge conflict markers")
+    merge_failures: list[str] = []
+    if ARTIFACT_PATTERNS.search(rel):
+        artifact_failures.append(rel)
+    if not _is_text_candidate(p):
+        return merge_failures, artifact_failures
+    try:
+        text = p.read_text(encoding="utf-8", errors="replace")
+    except Exception:  # noqa: S112  # best-effort; skip item on failure
+        return merge_failures, artifact_failures
+    if MERGE_MARKER_RE.search(text):
+        merge_failures.append(f"{rel}: merge conflict markers")
     return merge_failures, artifact_failures
 
+
+def check_merge_markers_and_artifacts() -> tuple[list[str], list[str]]:
+    """Merge markers + stray artifacts, scoped to the APPLIED stgit stack.
+
+    stgit surface (2026-08-21): markers enter through patches — a push or
+    rebase conflict leaves <<<<<<< in the working tree and a hasty refresh
+    folds it in — so the scan covers the union of files touched by applied
+    patches (`_stack_files`). Every patch is checked while it lives in the
+    stack; main is trusted by graduation (a marker in the merged base is a
+    one-time manual `git grep '<<<<<<<'`, not a recurring gate cost).
+
+    Fallback (no stgit / not a stack — plain checkouts, tests): walk the
+    repo, pruning cache/dependency dirs (flagged as advisory, never
+    recursed) and binary suffixes.
+
+    Returns (merge_failures, advisories) — artifacts and stray dirs are
+    advisory, matching the pre-existing contract.
+    """
+    merge_failures: list[str] = []
+    artifact_failures: list[str] = []
+    stray_dirs: set[str] = set()
+
+    stack = _stack_files()
+    if stack is not None:
+        for p in sorted(stack):
+            try:
+                rel = p.relative_to(REPO_ROOT).as_posix()
+            except ValueError:
+                continue  # patch path outside the repo — nothing to scan
+            stray_dirs.update(d for d in p.parts[:-1] if d in STRAY_DIR_NAMES)
+            m, a = _scan_file_for_markers(p, rel)
+            merge_failures.extend(m)
+            artifact_failures.extend(a)
+    else:
+        for root, dirs, files in os.walk(REPO_ROOT):
+            rel_root = Path(root).relative_to(REPO_ROOT)
+            for d in list(dirs):
+                if d in STRAY_DIR_NAMES or d == ".git":
+                    if d in STRAY_DIR_NAMES:
+                        stray_dirs.add((rel_root / d).as_posix())
+                    dirs.remove(d)  # prune: never descend into caches/venvs
+            for name in files:
+                p = Path(root) / name
+                rel = (rel_root / name).as_posix()
+                m, a = _scan_file_for_markers(p, rel)
+                merge_failures.extend(m)
+                artifact_failures.extend(a)
+
+    advisory = artifact_failures + sorted(stray_dirs)
+    return merge_failures, advisory
 
 def check_yaml_frontmatter() -> list[str]:
     """Every .md under findata/ must start with valid YAML frontmatter."""

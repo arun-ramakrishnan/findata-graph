@@ -37,6 +37,7 @@ a vector index is absent.
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -59,6 +60,9 @@ VEC_TABLE = "note_search_vec"
 # memory: spellfix1_tables_must_not_live_in_research_db). It lives in a
 # sidecar database attached to the same connection as schema ``vecdb``.
 VEC_SCHEMA = "vecdb"
+
+# Dims of an existing vec0 table, parsed from its DDL ("... FLOAT[384] ...").
+_DIM_RE = re.compile(r"FLOAT\[(\d+)\]")
 
 
 def qualified() -> str:
@@ -151,6 +155,30 @@ def _create_table(conn: sqlite3.Connection, dims: int) -> bool:
     except sqlite3.Error:
         return False
     return True
+
+
+def stored_dims(conn: sqlite3.Connection) -> int | None:
+    """Dims of the existing vec0 table, parsed from its DDL (None if absent).
+
+    Read-path gate for hybrid search: the query vector must live in the same
+    vector space as the mirrored rows. An embedding-model swap (pseudo 64 →
+    bge 384) changes the DDL; callers compare this against len(q_vec) and
+    degrade to BM25-only on mismatch instead of computing garbage cosine.
+    """
+    if not _attach_ok(conn):
+        return None
+    try:
+        row = conn.execute(
+            f"SELECT sql FROM {VEC_SCHEMA}.sqlite_master "  # noqa: S608  # schema/name constants
+            "WHERE type='table' AND name = ?",
+            (VEC_TABLE,),
+        ).fetchone()
+    except sqlite3.Error:
+        return None
+    if not row or not row[0]:
+        return None
+    m = _DIM_RE.search(row[0])
+    return int(m.group(1)) if m else None
 
 
 def backfill_from_fts(conn: sqlite3.Connection, dims: int) -> int:
@@ -309,6 +337,20 @@ def sync_vec_table(
     """
     if not _create_table(conn, dims):
         return 0
+    # Embedding-model swap (pseudo 64 -> bge 384): the existing vec0 table
+    # pins the OLD dims (CREATE ... IF NOT EXISTS is a no-op), so every new
+    # insert would fail its dimension check per-row and the stale vectors
+    # would keep serving KNN. Detect the mismatch and rebuild the derived
+    # index at the new dims — it is a mirror, never a source of truth.
+    existing = stored_dims(conn)
+    if existing is not None and existing != dims:
+        with conn:
+            conn.execute(f"DROP TABLE {qualified()}")  # noqa: S608  # qualified() constant
+        if not _create_table(conn, dims):
+            return 0
+        with conn:
+            written = backfill_from_fts(conn, dims)
+        return written
     written = 0
     try:
         with conn:

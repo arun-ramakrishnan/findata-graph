@@ -48,6 +48,19 @@
   ~2 h. Not in the okf_readside bundle (archive/; no note-writing, no shared test
   path).
 
+- **OpenViking context-server pilot DEFERRED** (2026-08-20; proposal with
+  full fact-check at `doc/local/openviking_pilot_proposal.md`). The gap
+  it targeted — real semantic embeddings — is pursued in-house first:
+  `doc/improvements/archive/database/local_embeddings.md` (local bge-small-en,
+  no new service). Revive only for the context-server differentiators
+  (L0/L1 hierarchy, automatic memory extraction, retrieval traces); the
+  labeled eval set built for the in-house proposal transfers verbatim.
+  Known-if-revived: default embedder is Chinese-tuned with a one-model
+  registry (swap needs `model_path` + explicit `dimension` + full
+  rebuild — upstream issue #1523); `vlm` key is `api_base`; OKF-RFC
+  claim unverified; ZCode already has cross-session memory (agent
+  premise corrected from `opencode-go`).
+
 - **OKF read-side live propagation (operator-held, 2026-08-19)**: the N1
   footnote churn and the first N3 `verified[]` stamps are confirmed working
   and deliberately left for manual runs. N1 (#139 update): the ordinary

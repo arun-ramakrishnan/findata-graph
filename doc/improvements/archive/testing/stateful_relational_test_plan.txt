@@ -1,8 +1,8 @@
 STATEFUL / RELATIONAL TEST PLAN — FinData Knowledge Graph
 =========================================================
 Created: 2026-08-13
-Last updated: 2026-08-13
-Status: Slice 0 + A + B + C + D IMPLEMENTED (2026-08-13). 8 correctness tests (tests/test_sql_query_correctness.py: F1/F2/F3 green guards + 4 wrapper differential tests) + 3 perf-guard tests (tests/test_sql_perf_guards.py: source-filter / source+edge_type-filter / cross_sector_bridges index-plan tripwires) + 3 Slice C differential/equivalence tests (tests/test_graph_algorithms.py::TestSliceCDuckDBEquivalence: shortest_path & find_cycles vs NetworkX reference over the seeded graph + pagerank/wcc determinism on seed) + 5 Slice D transactional-hardening tests (tests/test_rename_entity.py::test_rename_to_existing_name_rolls_back + tests/test_maintenance_utils.py::TestMoveEntity: idempotent same-sector skip, dest-file-exists refused, non-canonical sector refused, rollback on relation-update error). All F1/F2/F3 APPLIED (verified live). Builds on the 97-test property/fuzz suite.
+Last updated: 2026-08-20
+Status: Slice 0 + A + B + C + D IMPLEMENTED (2026-08-13). 8 correctness tests (tests/test_sql_query_correctness.py: F1/F2/F3 green guards + 4 wrapper differential tests) + 3 perf-guard tests (tests/test_query_plans.py — SUPERSEDED tests/test_sql_perf_guards.py husk, 0-byte since 2026-08-13 squash; Slice-B tripwires now live in test_query_plans.py: source-filter / source+edge_type-filter / cross_sector_bridges index-plan tripwires) + 3 Slice C differential/equivalence tests (tests/test_graph_algorithms.py::TestSliceCDuckDBEquivalence: shortest_path & find_cycles vs NetworkX reference over the seeded graph + pagerank/wcc determinism on seed) + 5 Slice D transactional-hardening tests (tests/test_rename_entity.py::test_rename_to_existing_name_rolls_back + tests/test_maintenance_utils.py::TestMoveEntity: idempotent same-sector skip, dest-file-exists refused, non-canonical sector refused, rollback on relation-update error). All F1/F2/F3 APPLIED (verified live). Builds on the 97-test property/fuzz suite.
         (make fuzz) and the existing relational/transactional pytest coverage.
         Targets the silent-wrong-answer class (correctness, determinism,
         semantic equivalence, perf-regression) that fuzzing cannot catch.
@@ -73,11 +73,13 @@ A. SQL-BUILDER CORRECTNESS — tests/test_sql_query_correctness.py
          brute-force Python reference over the fixture == query output.
      * test_v_node_rank_deterministic        (only after F3 verification)
 
-B. PERF-REGRESSION GUARDS — tests/test_sql_perf_guards.py
-     * test_source_filter_uses_autoindex
+B. PERF-REGRESSION GUARDS — tests/test_query_plans.py [SUPERSEDED tests/test_sql_perf_guards.py — husk was 0-byte since 2026-08-13 squash; deleted, see doc/improvements/completed.md #93 and tests/test_query_plans.py:217]
+     * test_source_filter_uses_autoindex  (now tests/test_query_plans.py::TestGraphEdgesQueryPlans::test_edges_by_source_uses_index)
          EXPLAIN QUERY PLAN for a source-only graph_edges filter must use
          sqlite_autoindex_graph_edges_1. Tripwire against index regressions
-         (see sql_query_improvements.txt, ge_source_idx note).
+         (see sql_query_improvements.txt, ge_source_idx note). Do NOT recreate
+         tests/test_sql_perf_guards.py — its tripwires were folded into
+         tests/test_query_plans.py (TestGraphEdgesQueryPlans + cross_sector_bridges).
 
 C. DUCKDB ANALYTICS EQUIVALENCE — extend tests/test_graph_algorithms.py  [IMPLEMENTED 2026-08-13]
    Reuse the existing duckpgq fixtures; add (class TestSliceCDuckDBEquivalence):
@@ -137,7 +139,7 @@ PROPOSED FILES
 --------------
   tests/fixtures/seed_research_db.py          (new)
   tests/test_sql_query_correctness.py        (new)
-  tests/test_sql_perf_guards.py              (new)
+  tests/test_sql_perf_guards.py              (REMOVED — 0-byte husk since 2026-08-13 squash; superseded by tests/test_query_plans.py — do not recreate)
   tests/test_graph_algorithms.py             (extend)
   tests/test_rename_entity.py                (extend)
   tests/test_maintenance_utils.py            (extend)

@@ -341,3 +341,299 @@ class TestPopulateDryRun:
         populate_dry_run(conn, dims=32, company="TestCo")  # replace
         rows = conn.execute("SELECT COUNT(*) FROM company_embeddings").fetchone()[0]
         assert rows == 1  # OR REPLACE, not INSERT
+
+
+# ---------------------------------------------------------------------------
+# local_embeddings (2026-08-20): populate_local + clear-then-populate guard
+# ---------------------------------------------------------------------------
+from helpers.graph.embeddings import populate_local  # noqa: E402
+
+
+def _add_entities(conn):
+    conn.execute("""
+        CREATE TABLE entities (
+            name TEXT PRIMARY KEY,
+            entity_type TEXT,
+            file_path TEXT,
+            sector_classification TEXT
+        )
+    """)
+    conn.execute("INSERT INTO entities VALUES ('TestCo', 'company', '', 'Tech')")
+    conn.execute("INSERT INTO entities VALUES ('Sector', 'sector', '', '')")
+    conn.commit()
+
+
+class TestPopulateLocal:
+    def test_inserts_model_id_rows(self, tmp_path, monkeypatch):
+        import ast
+
+        from helpers.core import local_embedder as LE
+
+        conn, _ = _make_embed_db(tmp_path)
+        _add_entities(conn)
+        monkeypatch.setattr(LE, "available", lambda: True)
+        monkeypatch.setattr(
+            LE, "embed_documents",
+            lambda texts: [[0.25] * LE.DIM for _ in texts],
+        )
+        n = populate_local(conn)
+        assert n == 1  # companies only, not sectors
+        row = conn.execute(
+            "SELECT model, embedding FROM company_embeddings"
+        ).fetchone()
+        assert row[0] == "bge-small-en-v1.5"
+        assert len(ast.literal_eval(row[1])) == LE.DIM
+
+    def test_unavailable_exits_with_setup_hint(self, tmp_path):
+        # conftest pins available() -> False: the CLI must fail loudly with
+        # the setup pointer, not silently write pseudo vectors.
+        conn, _ = _make_embed_db(tmp_path)
+        _add_entities(conn)
+        with pytest.raises(SystemExit, match="local_embedder"):
+            populate_local(conn)
+
+
+class TestModelPurityGuard:
+    def test_populate_local_blocked_by_foreign_rows(self, tmp_path, monkeypatch):
+        from helpers.core import local_embedder as LE
+
+        conn, _ = _make_embed_db(tmp_path, with_table=True, existing_dims=384)
+        vec = "[" + ", ".join("0.5" for _ in range(384)) + "]"
+        conn.execute(
+            "INSERT INTO company_embeddings (company_name, embedding, model) "
+            "VALUES ('X', ?, 'dry-run-v64')",
+            (vec,),
+        )
+        conn.commit()
+        monkeypatch.setattr(LE, "available", lambda: True)
+        with pytest.raises(SystemExit, match="--clear"):
+            populate_local(conn)
+
+    def test_populate_dry_run_blocked_by_local_rows(self, tmp_path):
+        from helpers.graph.embeddings import _ensure_schema
+
+        conn, _ = _make_embed_db(tmp_path)
+        _ensure_schema(conn, 64)
+        conn.execute(
+            "INSERT INTO company_embeddings (company_name, embedding, model) "
+            "VALUES ('X', ?, 'bge-small-en-v1.5')",
+            ("[" + ", ".join("0.5" for _ in range(64)) + "]",),
+        )
+        conn.commit()
+        with pytest.raises(SystemExit, match="--clear"):
+            populate_dry_run(conn, dims=64)
+
+    def test_same_model_rerun_allowed(self, tmp_path):
+        conn, _ = _make_embed_db(tmp_path)
+        _add_entities(conn)
+        populate_dry_run(conn, dims=64)
+        populate_dry_run(conn, dims=64)  # same label: no guard trip
+        assert conn.execute("SELECT COUNT(*) FROM company_embeddings").fetchone()[0] == 1
+
+
+class TestStatsMixedWarning:
+    def test_mixed_models_flagged(self, tmp_path):
+        conn, _ = _make_embed_db(tmp_path, with_table=True, existing_dims=2)
+        conn.execute(
+            "INSERT INTO company_embeddings (company_name, embedding, model) "
+            "VALUES ('A', '[0.1, 0.2]', 'model_a')"
+        )
+        conn.execute(
+            "INSERT INTO company_embeddings (company_name, embedding, model) "
+            "VALUES ('B', '[0.3, 0.4]', 'bge-small-en-v1.5')"
+        )
+        conn.commit()
+        s = stats(conn)
+        assert "warning" in s
+        assert "mixed" in s["warning"]
+
+    def test_single_model_no_warning(self, tmp_path):
+        conn, _ = _make_embed_db(tmp_path, with_table=True, existing_dims=2)
+        conn.execute(
+            "INSERT INTO company_embeddings (company_name, embedding, model) "
+            "VALUES ('A', '[0.1, 0.2]', 'bge-small-en-v1.5')"
+        )
+        conn.commit()
+        assert "warning" not in stats(conn)
+
+
+# ---------------------------------------------------------------------------
+# company_embeddings_maint (2026-08-21): cached populate + GC + --maint gate
+# ---------------------------------------------------------------------------
+from helpers.graph.embeddings import maint_refresh  # noqa: E402
+
+
+def _fake_local(monkeypatch):
+    """Pin the local embedder as available with a recording batch embedder.
+
+    Returns the call log (one entry per embed_documents invocation, each the
+    list of texts that invocation embedded)."""
+    from helpers.core import local_embedder as LE
+
+    calls: list[list[str]] = []
+
+    def fake_embed(texts):
+        calls.append(list(texts))
+        return [[0.25] * LE.DIM for _ in texts]
+
+    monkeypatch.setattr(LE, "available", lambda: True)
+    monkeypatch.setattr(LE, "embed_documents", fake_embed)
+    return calls
+
+
+def _add_two_companies(conn):
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS entities (
+            name TEXT PRIMARY KEY,
+            entity_type TEXT,
+            file_path TEXT,
+            sector_classification TEXT
+        )
+    """)
+    conn.execute("INSERT INTO entities VALUES ('CoA', 'company', '', 'Tech')")
+    conn.execute("INSERT INTO entities VALUES ('CoB', 'company', '', 'Energy')")
+    conn.commit()
+
+
+class TestPopulateLocalCached:
+    def test_cold_seeds_cache_then_warm_hits_without_embedding(self, tmp_path, monkeypatch, capsys):
+        from helpers.core import local_embedder as LE
+        from helpers.core.vec_search import _attach_vec_db
+
+        conn, _ = _make_embed_db(tmp_path)
+        _add_two_companies(conn)
+        calls = _fake_local(monkeypatch)
+
+        n1 = populate_local(conn)
+        assert n1 == 2
+        assert len(calls) == 1 and len(calls[0]) == 2  # one batch, both texts
+        assert "0 hits, 2 misses" in capsys.readouterr().err
+
+        _attach_vec_db(conn)  # idempotent: populate already attached it
+        seeded = conn.execute(
+            "SELECT COUNT(*) FROM vecdb.note_search_emb_cache WHERE model = ?",
+            (LE.MODEL_ID,),
+        ).fetchone()[0]
+        assert seeded == 2
+
+        n2 = populate_local(conn)
+        assert n2 == 2
+        assert len(calls) == 1  # warm: NO new embed call at all
+        assert "2 hits, 0 misses" in capsys.readouterr().err
+
+    def test_changed_text_reembeds_exactly_that_company(self, tmp_path, monkeypatch):
+        conn, _ = _make_embed_db(tmp_path)
+        _add_two_companies(conn)
+        calls = _fake_local(monkeypatch)
+
+        populate_local(conn)
+        # CoA's text basis changes (sector feeds _get_company_text).
+        conn.execute(
+            "UPDATE entities SET sector_classification = 'Banking' WHERE name = 'CoA'"
+        )
+        conn.commit()
+
+        populate_local(conn)
+        assert len(calls) == 2
+        assert len(calls[1]) == 1  # only CoA re-embedded
+        assert "Banking" in calls[1][0]
+
+    def test_gcs_rows_of_deleted_companies(self, tmp_path, monkeypatch, capsys):
+        conn, _ = _make_embed_db(tmp_path)
+        _add_two_companies(conn)
+        _fake_local(monkeypatch)
+
+        populate_local(conn)
+        assert conn.execute(
+            "SELECT COUNT(*) FROM company_embeddings"
+        ).fetchone()[0] == 2
+
+        conn.execute("DELETE FROM entities WHERE name = 'CoB'")
+        conn.commit()
+        capsys.readouterr()  # clear
+
+        n = populate_local(conn)
+        assert n == 1  # only CoA inserted/updated
+        remaining = [r[0] for r in conn.execute(
+            "SELECT company_name FROM company_embeddings"
+        ).fetchall()]
+        assert remaining == ["CoA"]
+        assert "gc: removed 1" in capsys.readouterr().err
+
+
+class TestMaintRefresh:
+    def test_unavailable_warns_and_writes_nothing(self, tmp_path, capsys):
+        # conftest's autouse pin leaves the embedder unavailable here.
+        conn, _ = _make_embed_db(tmp_path)
+        _add_two_companies(conn)
+
+        rc = maint_refresh(conn)
+        assert rc == 0
+        err = capsys.readouterr().err
+        assert "WARNING" in err and "unavailable" in err
+        # No table was created — the gate must not even build schema.
+        r = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' "
+            "AND name='company_embeddings'"
+        ).fetchone()
+        assert r is None
+
+    def test_empty_table_warns_apply_first(self, tmp_path, monkeypatch, capsys):
+        from helpers.core import local_embedder as LE
+
+        conn, _ = _make_embed_db(tmp_path)
+        _add_two_companies(conn)
+        _ensure_schema(conn, LE.DIM)  # table exists, zero rows
+        _fake_local(monkeypatch)
+
+        rc = maint_refresh(conn)
+        assert rc == 0
+        err = capsys.readouterr().err
+        assert "WARNING" in err and "empty" in err and "apply" in err
+        assert conn.execute(
+            "SELECT COUNT(*) FROM company_embeddings"
+        ).fetchone()[0] == 0  # never auto-populates
+
+    def test_pseudo_table_never_auto_upgrades(self, tmp_path, monkeypatch, capsys):
+        conn, _ = _make_embed_db(tmp_path, with_table=True, existing_dims=384)
+        conn.execute(
+            "INSERT INTO company_embeddings (company_name, embedding, model) "
+            "VALUES ('X', ?, 'dry-run-v64')",
+            ("[" + ", ".join("0.5" for _ in range(384)) + "]",),
+        )
+        conn.commit()
+        _fake_local(monkeypatch)
+
+        rc = maint_refresh(conn)
+        assert rc == 0
+        err = capsys.readouterr().err
+        assert "WARNING" in err and "--clear" in err
+        row = conn.execute(
+            "SELECT model FROM company_embeddings"
+        ).fetchone()
+        assert row[0] == "dry-run-v64"  # untouched
+
+    def test_applied_table_refreshes_warm(self, tmp_path, monkeypatch, capsys):
+        conn, _ = _make_embed_db(tmp_path)
+        _add_two_companies(conn)
+        calls = _fake_local(monkeypatch)
+
+        populate_local(conn)  # the user-held apply equivalent (seeds cache)
+        capsys.readouterr()  # clear
+
+        rc = maint_refresh(conn)
+        assert rc == 0
+        err = capsys.readouterr().err
+        assert "refreshed 2 row(s)" in err
+        assert "2 hits, 0 misses" in err  # warm: served by the seeded cache
+        assert len(calls) == 1  # no new embedding happened
+
+    def test_cli_maint_wiring(self, tmp_path, monkeypatch):
+        import helpers.graph.embeddings as emb
+
+        conn, db = _make_embed_db(tmp_path)
+        _add_two_companies(conn)
+        monkeypatch.setattr(emb, "DEFAULT_DB_PATH", db)
+        monkeypatch.setattr(emb, "db_connect", lambda _p: conn)
+
+        assert emb.main(["--maint"]) == 0  # unavailable gate -> WARNING + 0

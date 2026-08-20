@@ -35,9 +35,10 @@ porter unicode61: case-folds + stem-folds ("batteries" matches "battery").
 `embedding` is a JSON-encoded float vector stored per row (UNINDEXED = kept in
 the table but never tokenized). It enables hybrid ranking: /api/search?hybrid=true
 embeds the query, computes cosine similarity against each candidate row's
-embedding, and fuses the BM25 rank with the cosine rank (RRF). The embedding is
-a deterministic pseudo-embedding by default (see helpers/graph/embeddings.py
-_pseudo_embedding); inject a real embed_fn for semantic hybrid ranking.
+embedding, and fuses the BM25 rank with the cosine rank (RRF). Since 2026-08-20
+(local_embeddings proposal) the default embedder is the local bge-small-en-v1.5
+model (helpers/core/local_embedder.py) when available; the deterministic
+pseudo-embedding remains as the offline fallback (see resolve_embedder).
 
 Full rebuild each run (DELETE + reinsert) -> idempotent, self-correcting.
 Mirrors the sync_tags.py full-rebuild pattern. Captured automatically by
@@ -48,6 +49,10 @@ Usage:
     python3 helpers/maintenance/rebuild_note_search.py --db PATH  # alternate DB
     python3 helpers/maintenance/rebuild_note_search.py --check    # count only, no writes
 
+--check writes no research.db rows, but DOES warm the sidecar embedding
+cache (derived state, Q3) — running --check first is a legitimate way to
+pre-pay the one-off cold embed cost before the applying rebuild.
+
 Exit codes: 0 success, 1 DB not found / fatal error.
 """
 
@@ -56,6 +61,7 @@ import hashlib
 import json
 import re
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 # Repo root: helpers/maintenance/rebuild_note_search.py -> parents[2]. Must be
@@ -149,22 +155,110 @@ def _newsletter_title(text: str) -> str:
     return m.group(1).strip() if m else ""
 
 
-# Default embedding dimension for the pseudo-embedding fallback. Must match the
-# dims used by helpers/graph/embeddings.py::populate_dry_run so a query embedded
-# with the same default is comparable against stored rows.
-_EMBED_DIMS = 64
+# Embedding resolution (local_embeddings proposal, 2026-08-20): the index
+# uses the real local bge-small model when the backend + pinned model file
+# are present (helpers/core/local_embedder.py), else falls back to the
+# deterministic 64-dim pseudo-embedding with a one-time WARNING — a missing
+# model must never break `make maint`. The QUERY side of hybrid search
+# (app.py) resolves through query_embedder() so both sides always come from
+# the same model; vec_search.stored_dims gates the read path against a
+# rebuilt-with-a-different-model index.
+_PSEUDO_DIMS = 64
+
+_pseudo_warned = False
+
+
+def resolve_embedder() -> tuple[Callable[[str], list[float]], int, str]:
+    """Index-side embedder: (embed_fn(text) -> list[float], dims, model_label).
+
+    Real local model when available, pseudo fallback otherwise. Resolved
+    once per rebuild and threaded through _collect_rows; the label is
+    recorded in the stats report.
+    """
+    global _pseudo_warned
+    from helpers.core import local_embedder
+
+    if local_embedder.available():
+        return local_embedder.embed_document, local_embedder.DIM, local_embedder.MODEL_ID
+    if not _pseudo_warned:
+        print(
+            "WARNING: local bge-small embedder unavailable — using 64-dim "
+            "pseudo-embeddings (hybrid ranking stays lexical-ish). Setup: "
+            "helpers/core/local_embedder.py module docstring.",
+            file=sys.stderr,
+        )
+        _pseudo_warned = True
+
+    def _pseudo(text: str) -> list[float]:
+        from helpers.graph.embeddings import _pseudo_embedding
+
+        return _pseudo_embedding(text, _PSEUDO_DIMS)
+
+    return _pseudo, _PSEUDO_DIMS, f"dry-run-v{_PSEUDO_DIMS}"
+
+
+def query_embedder() -> tuple[Callable[[str], list[float]], int]:
+    """Query-side counterpart for hybrid search (app.py): same availability
+    gate, embed_query semantics (BGE retrieval prefix). Must resolve to the
+    same model the index was built with — callers enforce that via
+    stored_embed_dims()."""
+    from helpers.core import local_embedder
+
+    if local_embedder.available():
+        return local_embedder.embed_query, local_embedder.DIM
+
+    def _pseudo(text: str) -> list[float]:
+        from helpers.graph.embeddings import _pseudo_embedding
+
+        return _pseudo_embedding(text, _PSEUDO_DIMS)
+
+    return _pseudo, _PSEUDO_DIMS
+
+
+def stored_embed_dims(conn) -> int | None:
+    """Dims of the first stored note_search embedding (source of truth), or
+    None when the index is empty/unembedded.
+
+    Hybrid-search gate: the query vector must share the vector space of the
+    STORED rows, whatever model produced them (e.g. index built with bge-384,
+    query side now resolving to pseudo-64 because the model file is gone).
+    A mismatch means every cosine — KNN or the Python fallback — is zip-
+    truncated garbage, so the caller degrades to BM25-only instead."""
+    try:
+        row = conn.execute(
+            "SELECT embedding FROM note_search "
+            "WHERE embedding IS NOT NULL AND embedding != '' LIMIT 1"
+        ).fetchone()
+    except Exception:
+        return None
+    if not row or not row[0]:
+        return None
+    try:
+        vec = json.loads(row[0])
+    except (TypeError, ValueError):
+        return None
+    return len(vec) if isinstance(vec, list) and vec else None
 
 
 def _default_embed(text: str) -> list[float]:
-    """Default per-doc embedder: deterministic pseudo-embedding (hash-based).
+    """Default per-doc embedder: whatever resolve_embedder() picks. Kept as a
+    named function for tests and external callers."""
+    fn, _dims, _label = resolve_embedder()
+    return fn(text)
 
-    Mirrors helpers/graph/embeddings.py::_pseudo_embedding so dry-run searches
-    are reproducible without API costs. Swap for a real embed_fn to get
-    meaningful semantic hybrid ranking (same caveat as get_tickers.vss_match).
-    """
-    from helpers.graph.embeddings import _pseudo_embedding
 
-    return _pseudo_embedding(text, _EMBED_DIMS)
+# --- Q3 vector cache (§4.4 of the local_embeddings proposal) -----------------
+# Measured 2026-08-20: with the real bge model a FULL note_search refresh
+# costs minutes of CPU (maint step 6 rebuilds full every run), busting the
+# maint budget. Remedy per the proposal: a (sha256(text), model) -> vector
+# cache so unchanged docs never re-embed. It lives in the vec SIDECAR
+# (<db>_vec.db, schema vecdb) — derived, snapshot-excluded, lazily rebuilt
+# state, exactly like the vec0 mirror; a new table in research.db would
+# collide with the schema-drift guards and DuckDB scanner expectations.
+# Extracted to helpers/core/embed_cache.py (2026-08-21) when the company-
+# embeddings populate became the second consumer; the sidecar table keeps
+# its note_search_emb_cache name (renaming would orphan warm caches).
+from helpers.core.embed_cache import CachedEmbed  # noqa: E402
 
 
 def _embedding_json(embed_fn, title: str, sector: str, content: str) -> str | None:
@@ -303,7 +397,35 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
         migrated = _migrate_schema(conn)
         conn.execute(NOTE_SEARCH_DDL)
         conn.execute(NOTE_SEARCH_META_DDL)
+        # Resolve the embedder once: real local model when available, pseudo
+        # fallback otherwise. The resolved dims flow into the vec0 mirror so
+        # the KNN table always matches the JSON column's vector space.
+        # Internally-resolved embedders get the Q3 sidecar cache (unchanged
+        # docs never re-embed); injected test embed_fn stay raw.
+        embed_dims = _PSEUDO_DIMS
+        cache = None
+        if embed_fn is None:
+            embed_fn, embed_dims, model_label = resolve_embedder()
+            stats["embed_model"] = model_label
+            cache = CachedEmbed(embed_fn, model_label, conn) if (
+                # Pseudo embedding is a hash — caching it would only bloat
+                # the sidecar; only the real model costs CPU per doc.
+                model_label != f"dry-run-v{_PSEUDO_DIMS}"
+            ) else None
+            if cache is not None:
+                embed_fn = cache
         rows = _collect_rows(conn, embed_fn=embed_fn)
+        if cache is not None:
+            stats["embed_cache_hits"] = cache.hits
+            stats["embed_cache_misses"] = cache.misses
+            if cache.dirty:
+                # Commit cache rows NOW, not with the later note_search
+                # transaction: --check returns before that transaction, and
+                # uncommitted inserts would roll back on close (observed in
+                # the warm measurement: hits=0 after a --check pre-warm).
+                # The cache is content-addressed, so committing early is
+                # safe even if the FTS write later fails.
+                conn.commit()
 
         # Per-doc_type counts for the report.
         from collections import Counter
@@ -356,7 +478,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
             # A1: mirror the embedding column into the sqlite-vec vec0 table
             # (after the FTS commit — sync is idempotent and best-effort; the
             # JSON column stays the source of truth).
-            stats["vec_rows"] = sync_vec_table(conn, _EMBED_DIMS, full=True)
+            stats["vec_rows"] = sync_vec_table(conn, embed_dims, full=True)
             return stats
         else:
             # P2.1 incremental: diff against meta, only touch changed/deleted files
@@ -410,7 +532,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
             # embedding JSON; None embedding removes the vec row).
             stats["vec_rows"] = sync_vec_table(
                 conn,
-                _EMBED_DIMS,
+                embed_dims,
                 upsert_rows=[(r[1], r[5]) for r, _m, _c in to_upsert],
                 delete_paths=to_delete,
             )
@@ -457,6 +579,12 @@ def main(argv: list[str] | None = None) -> int:
         emb = stats.get("embedded")
         if emb is not None:
             print(f"embedded {emb} rows", file=sys.stderr)
+            if "embed_cache_hits" in stats:
+                print(
+                    f"embed cache: {stats['embed_cache_hits']} hits, "
+                    f"{stats['embed_cache_misses']} misses",
+                    file=sys.stderr,
+                )
     return 0
 
 

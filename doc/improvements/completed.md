@@ -2640,3 +2640,63 @@ changes).
   tests) green; py_compile over touched modules; ruff + make types +
   static-checks green. Comment-only code changes (no behavior).
 
+
+## 141. Local bge-small-en-v1.5 embeddings — all four vector surfaces
+
+- Replaced the SHA-256 pseudo-embeddings with real local bge-small-en-v1.5
+  vectors (384-dim, offline, Apache/MIT stack): new
+  `helpers/core/local_embedder.py` (single owner of the BGE query/document
+  prefix rule, sha256-pinned GGUF artifact, llama-cpp-python 0.3.35 built
+  from sdist on py3.14), four consumers wired (`embeddings.py`
+  `populate_local` + model-purity guard, `rebuild_note_search` index/query
+  resolvers + `stored_embed_dims` mismatch gate, `app.py` hybrid BM25-only
+  degradation on vector-space mismatch, `get_tickers._pick_embedder`
+  bge-label routing), `vec_search` dims-change vec0 recreate, and the Q3
+  content-hash embed cache in the vec sidecar (cold 16m13s → warm 0.8s on
+  1,227 docs; --check pre-warm persists it, regression-tested).
+- Live apply user-run 2026-08-21 (1,068 companies, single model label;
+  note_search 384-dim; snapshot regen green). §6 eval
+  (`helpers/misc/embed_eval{.py,_questions.json}`): hybrid recall@5 1.00
+  vs BM25 0.93 (exact 1.00→1.00, no regression; rescues incl. "defence
+  electronics"→BEL); vss 12/12 Yahoo longNames; neighbors 5/10 strict with
+  all misses being cross-sector business peers (vectors beat the coarse
+  sector labels — criterion was the wrong yardstick).
+- New procedure doc `doc/procedures/embeddings.md` (apply template,
+  pre-warm mechanics, new-letter refresh model), indexed in README +
+  architecture.md. Follow-up proposal landed the same day as #142
+  (cached maint-full refresh).
+- Gates: make qa + perf + advisory green 2026-08-21. Fixes en route:
+  embed_eval raw sqlite3.connect (static-checks rule), `callable` →
+  `Callable` annotations (ty), conftest autouse monkeypatch fixture
+  ordering leak (it re-applied `_mock_q_connect` after unit_client's
+  restore — the test_integration_graph_rebuild failure), static_checks
+  CSafeLoader for frontmatter_schema + merge-marker binary-skip extension
+  (8.5s → 3.0s).
+
+## 142. Cached company-embeddings refresh in maint-full
+
+- `company_embeddings_maint.md` (archived under `archive/database/`):
+  `populate_local` now routes through the shared Q3 content-hash cache —
+  new module `helpers/core/embed_cache.py` (per-text `CachedEmbed` moved
+  verbatim from rebuild_note_search + `cached_embed_batch`, which
+  bulk-loads the model's cache slice, embeds only the misses in ONE batch
+  call, and commits inside the call; short embedder replies raise instead
+  of silently shifting vectors onto the wrong companies). The interactive
+  apply therefore SEEDS the company side of the cache; populate GCs rows
+  whose company left `entities`. Sidecar table keeps the
+  `note_search_emb_cache` name so warm caches aren't orphaned.
+- maint-full step 6b: `embeddings.py --maint` (TIER2 → 9 steps) —
+  three-way gate: embedder unavailable or table not exactly [bge] → one
+  WARNING, zero writes, exit 0 (never an auto-upgrade; the user-held
+  apply stays authoritative); applied → cached refresh + GC, seconds on a
+  no-change cycle. Makefile untouched (standalone `--model` stays the
+  upgrade path). `main()` gained an `argv` param (house pattern).
+- Live run 2026-08-21: seeding populate + first maint-full green —
+  `embed cache: 1068 hits, 0 misses`; sidecar 2,295 entries (1,227
+  note_search + 1,068 company); table 1,068 rows single-label.
+- Tests: new `tests/test_embed_cache.py` + classes in
+  `tests/test_embeddings.py` (cold/warm, changed-text, GC, all three
+  --maint gates, CLI wiring) + maint placement updates; 272 green across
+  the blast radius; ruff (E+F and S,UP,C901) + ty clean.
+- `doc/procedures/embeddings.md` updated (apply step 3 now seeds the
+  cache; step-6b refresh economics; the one-time seeding note).

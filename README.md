@@ -152,6 +152,7 @@ Insights). Note `tags:` are mirrored into `entity_tags` by
 | [`doc/findata.md`](doc/findata.md) | vault layout, YAML/tag spec, sync rules |
 | [`doc/graph_design.txt`](doc/graph_design.txt) | graph engine, algorithm catalog, decision log |
 | [`doc/procedures/markdown_parse.md`](doc/procedures/markdown_parse.md) | the newsletter ingestion procedure |
+| [`doc/procedures/embeddings.md`](doc/procedures/embeddings.md) | local embeddings & note-search: apply procedure, pre-warm, refresh model |
 | [`doc/improvements/`](doc/improvements/) | numbered completion log + archived proposals |
 
 ## Provenance

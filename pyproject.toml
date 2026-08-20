@@ -45,6 +45,10 @@ dependencies = [
     # JSON-Schema validation of findata note frontmatter (
     # helpers/validators/frontmatter_schema.py; schemas in doc/schema/).
     "jsonschema",
+    # Local embedding backend (helpers/core/local_embedder.py): bge-small-en-v1.5
+    # GGUF via llama.cpp, CPU-only, no torch. Built from sdist on first install
+    # (gcc/cmake needed); the model file itself is gitignored under models/.
+    "llama-cpp-python",
 ]
 
 [project.optional-dependencies]

@@ -319,6 +319,201 @@ class TestEmbeddingColumn:
 
 
 # --------------------------------------------------------------------------- #
+# local_embeddings (2026-08-20): the resolver picks the local bge model when  #
+# available, threads its dims into the vec0 mirror, and self-heals a          #
+# dims change on the next rebuild. Fakes stand in for the model (hermetic).   #
+# --------------------------------------------------------------------------- #
+
+def _fake_384(text: str) -> list[float]:
+    """Deterministic fake 384-dim unit vector (position 0 = text length)."""
+    import math as _math
+
+    v = [0.0] * 384
+    v[len(text) % 384] = 1.0
+    n = _math.sqrt(sum(x * x for x in v))
+    return [x / n for x in v]
+
+
+@pytest.fixture
+def fake_local(monkeypatch):
+    """Make local_embedder claim availability + serve fake vectors."""
+    from helpers.core import local_embedder as LE
+
+    seen: list[str] = []
+    monkeypatch.setattr(LE, "available", lambda: True)
+    monkeypatch.setattr(LE, "embed_document", _fake_384)
+    monkeypatch.setattr(LE, "embed_query",
+                        lambda t: _fake_384("Q:" + t))
+    monkeypatch.setattr(LE, "embed_documents",
+                        lambda texts: [_fake_384(t) for t in texts])
+    monkeypatch.setattr(LE, "_seen", seen, raising=False)
+    return LE
+
+
+class TestLocalEmbedderWiring:
+    def test_resolve_embedder_picks_local(self, fake_local):
+        fn, dims, label = rns.resolve_embedder()
+        assert fn is fake_local.embed_document
+        assert dims == 384
+        assert label == "bge-small-en-v1.5"
+
+    def test_resolve_embedder_falls_back_with_warning(self, seeded_tree, capsys, monkeypatch):
+        # conftest autouse pin has available()->False here; the pseudo
+        # fallback must announce itself exactly once no matter how many
+        # resolutions happen. (The once-flag is module state: reset it so
+        # earlier tests in this process don't consume the warning.)
+        monkeypatch.setattr(rns, "_pseudo_warned", False)
+        for _ in range(3):
+            fn, dims, label = rns.resolve_embedder()
+            assert dims == 64
+            assert label.startswith("dry-run-v")
+            assert fn("x")  # callable, deterministic
+        err = capsys.readouterr().err
+        assert err.count("WARNING") == 1
+
+    def test_rebuild_uses_local_dims_and_label(self, seeded_tree, fake_local):
+        stats = rns.rebuild(seeded_tree, write=True)
+        assert stats["embed_model"] == "bge-small-en-v1.5"
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            rows = con.execute("SELECT embedding FROM note_search").fetchall()
+            assert len(rows) == 3
+            for (emb,) in rows:
+                assert len(json.loads(emb)) == 384
+        finally:
+            con.close()
+
+    def test_vec_mirror_follows_dims_change(self, seeded_tree, fake_local, monkeypatch):
+        """Index at 384 with the local model, then a machine where the model
+        is gone (pseudo 64): the rebuild must recreate the vec0 table at 64 —
+        not silently keep serving a FLOAT[384] table the 64-dim sync can't
+        write into."""
+        from helpers.core import vec_search as VS
+
+        rns.rebuild(seeded_tree, write=True)
+        # vec sidecar lives next to the db file; query via a vec-loaded conn
+        import sqlite_vec
+
+        def _vec_conn():
+            c = sqlite3.connect(str(seeded_tree))
+            c.enable_load_extension(True)
+            c.load_extension(sqlite_vec.loadable_path())
+            c.enable_load_extension(False)
+            VS._attach_vec_db(c)
+            return c
+
+        c = _vec_conn()
+        try:
+            assert VS.stored_dims(c) == 384
+            n384 = c.execute(f"SELECT COUNT(*) FROM {VS.qualified()}").fetchone()[0]  # noqa: S608
+        finally:
+            c.close()
+        assert n384 == 3
+
+        # Model gone -> pseudo rebuild at 64.
+        monkeypatch.setattr(fake_local, "available", lambda: False)
+        stats = rns.rebuild(seeded_tree, write=True)
+        assert stats["embed_model"].startswith("dry-run-v")
+
+        c = _vec_conn()
+        try:
+            assert VS.stored_dims(c) == 64
+            n64 = c.execute(f"SELECT COUNT(*) FROM {VS.qualified()}").fetchone()[0]  # noqa: S608
+        finally:
+            c.close()
+        assert n64 == 3
+
+    def test_stored_embed_dims_gate_helper(self, seeded_tree):
+        rns.rebuild(seeded_tree, write=True)
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            assert rns.stored_embed_dims(con) == 64  # pseudo under autouse pin
+        finally:
+            con.close()
+
+    def test_embed_cache_cold_then_warm(self, seeded_tree, fake_local):
+        """Q3 cache: a cold full rebuild embeds every doc once; a warm
+        rebuild with unchanged docs re-embeds NOTHING; an edited doc
+        re-embeds exactly itself. Vectors are identical across runs (the
+        cache round-trips JSON faithfully)."""
+        s1 = rns.rebuild(seeded_tree, write=True)
+        assert s1["embed_cache_misses"] == 3
+        assert s1["embed_cache_hits"] == 0
+
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            cold = con.execute(
+                "SELECT file_path, embedding FROM note_search ORDER BY file_path"
+            ).fetchall()
+        finally:
+            con.close()
+
+        s2 = rns.rebuild(seeded_tree, write=True)
+        assert s2["embed_cache_hits"] == 3
+        assert s2["embed_cache_misses"] == 0
+
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            warm = con.execute(
+                "SELECT file_path, embedding FROM note_search ORDER BY file_path"
+            ).fetchall()
+        finally:
+            con.close()
+        assert warm == cold  # byte-identical vectors via the cache
+
+        co = rns.FINDATA / "Companies" / "Agriculture" / "Acme_Feeds.md"
+        co.write_text(co.read_text(encoding="utf-8") + "\nNew product line.\n",
+                      encoding="utf-8")
+        s3 = rns.rebuild(seeded_tree, write=True, incremental=True)
+        assert s3["embed_cache_misses"] == 1  # only the edited doc
+        assert s3["embed_cache_hits"] == 2
+
+    def test_check_mode_prewarms_cache(self, seeded_tree, fake_local):
+        """--check (write=False) must PERSIST cache rows: the documented
+        pre-warm flow depends on it. Regression: inserts used to roll back
+        on close because only the writing transaction committed them."""
+        from helpers.core import vec_search as VS
+
+        rns.rebuild(seeded_tree, write=False)
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            VS._attach_vec_db(con)
+            n = con.execute(
+                "SELECT COUNT(*) FROM vecdb.note_search_emb_cache"
+            ).fetchone()[0]
+        finally:
+            con.close()
+        assert n == 3
+        # The applying rebuild then hits every entry.
+        s = rns.rebuild(seeded_tree, write=True)
+        assert s["embed_cache_hits"] == 3
+        assert s["embed_cache_misses"] == 0
+
+    def test_embed_cache_keyed_by_model_label(self, seeded_tree, fake_local, monkeypatch):
+        """A model swap must re-embed even unchanged docs — the cache key
+        includes the model label, so a new label never serves another
+        model's vectors."""
+        from helpers.core import vec_search as VS
+
+        rns.rebuild(seeded_tree, write=True)  # cache under the bge label
+        monkeypatch.setattr(fake_local, "MODEL_ID", "bge-small-en-v1.5-tmp")
+        s2 = rns.rebuild(seeded_tree, write=True)
+        assert s2["embed_cache_misses"] == 3  # label changed -> no hits
+        assert s2["embed_cache_hits"] == 0
+
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            VS._attach_vec_db(con)
+            groups = dict(con.execute(
+                "SELECT model, COUNT(*) FROM vecdb.note_search_emb_cache "
+                "GROUP BY model"
+            ).fetchall())
+        finally:
+            con.close()
+        assert groups == {"bge-small-en-v1.5": 3, "bge-small-en-v1.5-tmp": 3}
+
+
+# --------------------------------------------------------------------------- #
 # A1: sqlite-vec mirror table (note_search_vec) maintenance                  #
 # --------------------------------------------------------------------------- #
 
@@ -407,7 +602,7 @@ class TestVecMirror:
                 "WHERE embedding IS NOT NULL"
             ).fetchall()
             q = R._default_embed("Acme Feeds shrimp feed")
-            got = knn_similarities(conn, q, k=len(rows), dims=R._EMBED_DIMS)
+            got = knn_similarities(conn, q, k=len(rows), dims=R._PSEUDO_DIMS)
             assert got is not None
             for fp, emb in rows:
                 vec = _json.loads(emb)
