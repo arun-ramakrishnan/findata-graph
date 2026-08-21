@@ -124,7 +124,7 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 69 company note(s) in FMCG. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 68 company note(s) in FMCG. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Acrysil]]
 - [[Allied_Blenders_and_Distillers|Allied Blenders and Distillers]]
@@ -174,7 +174,6 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 - [[Radico_Khaitan|Radico Khaitan]]
 - [[Reliance_Consumer_Products|Reliance Consumer Products]]
 - [[Reliance_Retail|Reliance Retail]]
-- [[Ruchi_Soya_Industries|Ruchi Soya Industries]]
 - [[Sapphire_Foods_India|Sapphire Foods India]]
 - [[Sharat_Industries|Sharat Industries]]
 - [[Shree_Renuka_Sugars|Shree Renuka Sugars]]

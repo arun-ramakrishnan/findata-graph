@@ -25,6 +25,7 @@ from helpers.graph.query import (  # noqa: E402
     edition_companies,
     near_duplicate_notes,
     notes_like_entity,
+    notes_like_text,
     similar_notes,
     _is_warm,
 )
@@ -251,6 +252,45 @@ class TestNotesLikeEntity:
     def test_unknown_entity_returns_none(self, note_con):
         con, _ = note_con
         assert notes_like_entity(con, "No Such Co") is None
+
+
+class TestNotesLikeText:
+    def test_text_matches_nearest_company(self, note_con):
+        con, _ = note_con
+        res = notes_like_text(con, "HDFC Bank", embed_fn=lambda _t: _VEC_HDFC)
+        assert res is not None
+        # External text has no self-exclusion: both HDFC rows rank first
+        # (exact-duplicate vectors tie), Infosys is orthogonal → filtered.
+        assert res[0][0] == "findata/Companies/Banking/Hdfc_Bank.md"
+        assert all("Infosys" not in p for p, _t, _s in res)
+
+    def test_doc_type_filter(self, note_con):
+        con, _ = note_con
+        res = notes_like_text(
+            con, "bank chatter", doc_type="chatter", embed_fn=lambda _t: _VEC_CHATTER)
+        assert res is not None
+        assert [p for p, _t, _s in res] == ["findata/The_Chatter/Bank_Chatter.md"]
+
+    def test_min_sim_and_k(self, note_con):
+        con, _ = note_con
+        # Anti-parallel text vector → all cosines ≤ 0 → filtered by the
+        # sim > 0 guard (an exact-duplicate fixture vector would survive
+        # any min_sim < 1.0, so this is the deterministic empty case).
+        assert notes_like_text(
+            con, "x", embed_fn=lambda _t: [-1.0, 0.0, 0.0, 0.0]) == []
+        res = notes_like_text(con, "x", k=1, embed_fn=lambda _t: _VEC_HDFC)
+        assert res is not None and len(res) == 1
+
+    def test_dims_mismatch_returns_none(self, note_con):
+        con, _ = note_con
+        assert notes_like_text(con, "x", embed_fn=lambda _t: [1.0, 0.0]) is None
+
+    def test_no_embedder_returns_none(self, note_con):
+        # conftest's autouse _no_local_embedder pin makes the default
+        # path take the unavailable branch — the parse --cross-check
+        # "warn and skip" contract depends on this None.
+        con, _ = note_con
+        assert notes_like_text(con, "HDFC Bank") is None
 
 
 class TestEditionCompanies:

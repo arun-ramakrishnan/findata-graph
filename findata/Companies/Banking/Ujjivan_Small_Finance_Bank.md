@@ -35,7 +35,7 @@ sources:
 
 ## Company Overview
 
-Ujjivan Small Finance Bank is a mass-market retail bank in India focused on financial inclusion through micro-banking and diversified retail assets. The bank is strategically transitioning its portfolio toward secured lending segments — affordable housing, MSME, and gold loans.
+Ujjivan Small Finance Bank is a mass-market retail bank in India focused on financial inclusion through micro-banking and diversified retail assets. The bank is strategically transitioning its portfolio toward secured lending segments — affordable housing, MSME, and gold loans. It is the surviving entity of the 2023 merger in which its former parent holding company, Ujjivan Financial Services Limited, was absorbed into the bank.
 
 <!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
 

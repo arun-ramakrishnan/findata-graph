@@ -50,7 +50,8 @@ import sys
 import threading
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 import duckdb
 
@@ -2480,8 +2481,56 @@ def notes_like_entity(
     return [(row[0], row[1], row[2]) for row in r]
 
 
+def notes_like_text(
+    con: duckdb.DuckDBPyConnection, text: str, k: int = 5,
+    doc_type: str = "company", min_sim: float = 0.0,
+    embed_fn: Callable[[str], list[float]] | None = None,
+) -> list[tuple[str, str, float]] | None:
+    """Embedded notes closest to arbitrary TEXT (not an existing note).
+
+    The parse_newsletter --cross-check primitive: a NEW-flagged company
+    has no note yet, so notes_like_entity cannot resolve it — embed the
+    text itself (query prefix; the get_tickers vss_match pattern) and
+    KNN over ``v_note_embeddings``. ``embed_fn`` overrides the embedder
+    (tests inject fakes); the default is local_embedder.embed_query
+    when the model is available, else ``None`` is returned so callers
+    treat the check as unavailable. Returns ``list[(file_path, title,
+    sim)]`` or ``None`` when the embedder / vector table is unusable.
+    """
+    dim = _note_emb_dims(con)
+    if dim == 0:
+        return None
+    if embed_fn is None:
+        from helpers.core import local_embedder
+        if not local_embedder.available():
+            return None
+        embed_fn = local_embedder.embed_query
+    vec = embed_fn(text)
+    if not vec or len(vec) != dim:
+        return None
+    k = max(0, int(k))
+    r = con.execute(
+        f"""
+        SELECT file_path, title, sim FROM (
+          SELECT file_path, title,
+                 array_cosine_similarity(
+                     CAST(emb AS FLOAT[{dim}]),
+                     CAST(? AS FLOAT[{dim}])) AS sim
+          FROM v_note_embeddings
+          WHERE doc_type = ?
+        )
+        WHERE sim IS NOT NULL AND sim > ?
+        ORDER BY sim DESC
+        LIMIT {int(k)}
+        """,  # noqa: S608  # parameterized; interpolated parts are int casts / schema-constant identifiers
+        [vec, doc_type, float(min_sim)],
+    ).fetchall()
+    return [(row[0], row[1], row[2]) for row in r]
+
+
 @_with_generation_cache
 def edition_companies(con: duckdb.DuckDBPyConnection, edition: str,
+                      k: int = 10) -> list[tuple[str, str, float]] | None:
     """Companies most similar to an edition (newsletter) note.
 
     ``edition`` is resolved against the newsletter doc types by exact
