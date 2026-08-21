@@ -199,12 +199,20 @@ L2. Promote year/since out of properties JSON into a typed column [DONE]
 BUNDLE M — Workarounds removable by DuckDB/duckpgq upstream progress
 ================================================================================
 
-STATUS: All OPEN. These are NOT independently actionable — each is gated on a
-specific DuckDB or duckpgq feature landing. Tracked here so a `make update-
-extensions` bump can be paired with a regression test that flags when the
-feature unlocks. Re-derives graph_improvs.txt Bundle H with the §17 evidence.
+STATUS (updated 2026-08-21): M1/M2/M3 CLOSED IN PRODUCTION by
+sql_capability_unlocks (completed.md #143) — the walk/shortest-path
+surface left GRAPH_TABLE for plain SQL (BFS over a materialised
+undirected adjacency + bind parameters), so those duckpgq gaps no
+longer gate anything in production; the XFAIL capability probes were
+retired with the workarounds. M4/M6 still OPEN (blocked upstream).
+M5 OPEN upstream; its fallback is Onager since 2026-08-14 (NetworkX is
+gone). These are NOT independently actionable — each remaining item is
+gated on a specific DuckDB or duckpgq feature landing. Tracked here so
+a `make update-extensions` bump can be paired with a regression test
+that flags when the feature unlocks. Re-derives graph_improvs.txt
+Bundle H with the §17 evidence.
 
-M1. Parameter binding in GRAPH_TABLE [OPEN — blocked on duckpgq]
+M1. Parameter binding in GRAPH_TABLE [CLOSED IN PRODUCTION 2026-08-21 — #143]
     doc/graph_design.txt §17.2 (table, last row); query.py:71-78 (_lit)
     Every wrapper builds SQL with f-strings + _lit(company) instead of ?
     placeholders because duckpgq rejects prepared-statement parameters in
@@ -213,8 +221,14 @@ M1. Parameter binding in GRAPH_TABLE [OPEN — blocked on duckpgq]
     Severity: LOW (security shim works; mostly cosmetic).
     Fix: none until duckpgq ships parameter binding. When it does, replace
     _lit() with parameterized execute() across all wrappers.
+    CLOSE NOTE (#143, 2026-08-21): Part C converted every production
+    walk + semantic_neighbors query to ? binds over plain SQL; _lit()
+    now has ZERO production call sites (it survives only inside
+    _shortest_path_cte, the test oracle). GRAPH_TABLE remains only for
+    pagerank/wcc/clustering, which construct SQL from literals only.
+    duckpgq itself still rejects binds — moot for production.
 
-M2. Mixed-label traversal -[e]- [OPEN — blocked on duckpgq]
+M2. Mixed-label traversal -[e]- [CLOSED IN PRODUCTION 2026-08-21 — #143]
     doc/graph_design.txt §17.4; query.py:638-704 (dual-path shortest_path)
     duckpgq rejects -[e]- without a label binding ("All patterns must bind
     to a label"). shortest_path carries dual-path complexity purely to work
@@ -222,8 +236,13 @@ M2. Mixed-label traversal -[e]- [OPEN — blocked on duckpgq]
     Severity: MEDIUM (architectural complexity).
     Fix: none until duckpgq ships it. When fixed, shortest_path collapses
     to one native path.
+    CLOSE NOTE (#143, 2026-08-21): the BFS rewrite traverses the
+    materialised doubled adjacency e_all_und; edge_label=None (or an
+    unrecognized label) crosses all edge types natively. The dual-path
+    CTE is demoted to the test oracle. If duckpgq ever ships -[e]- it
+    would be informational only, not a production unlock.
 
-M3. Native ANY SHORTEST exposing vertices(p) [OPEN — blocked on duckpgq]
+M3. Native ANY SHORTEST exposing vertices(p) [CLOSED IN PRODUCTION 2026-08-21 — #143]
     doc/graph_design.txt §17.4; query.py:683-692
     duckpgq exposes path_length(p) but not the intermediate vertex sequence.
     So the "native" path is effectively dead for the production API (which
@@ -232,6 +251,10 @@ M3. Native ANY SHORTEST exposing vertices(p) [OPEN — blocked on duckpgq]
     Fix: none until duckpgq exposes vertices(p). When it does, drop the
     CTE fallback for the non-temporal single-label case. Until then,
     consider removing the native attempt entirely (it's measured-dead).
+    CLOSE NOTE (#143, 2026-08-21): the BFS returns the full vertex
+    sequence at true hop-shortest semantics in ~10ms (50ms unreachable
+    worst case) — the capability this item wanted exists in plain SQL.
+    The CTE survives as the equivalence-test oracle only.
 
 M4. Integer-PK materialisation overhead [OPEN — blocked on duckpgq]
     doc/graph_design.txt §17.3, §17.9; query.py:364-408
@@ -253,6 +276,8 @@ M5. Native louvain / betweenness / eigenvector / closeness [OPEN — blocked on 
     Severity: LOW (networkx works fine; this is a dependency-hygiene want).
     Fix: none until duckpgq ships. When it does, swap networkx → native
     following the existing pagerank/wcc/clustering pattern.
+    UPDATE (2026-08-14): the fallback is Onager now (NetworkX removed
+    entirely); a future native duckpgq would swap Onager → native instead.
 
 M6. ATTACH persistence in the .duckdb catalog [OPEN — blocked on DuckDB core]
     doc/graph_design.txt §17.10; query.py:247
