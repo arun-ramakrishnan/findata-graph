@@ -125,6 +125,12 @@ CREATE TABLE company_metrics (
 
 CREATE TABLE db_meta ( key TEXT PRIMARY KEY, value TEXT NOT NULL);
 
+CREATE TABLE note_tags (
+                note_path TEXT NOT NULL,
+                tag       TEXT NOT NULL,
+                PRIMARY KEY (note_path, tag)
+            );
+
 CREATE TABLE company_embeddings (
             company_name TEXT PRIMARY KEY,
             embedding    FLOAT[384],
@@ -132,12 +138,6 @@ CREATE TABLE company_embeddings (
             created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
             CHECK (json_array_length(embedding) = 384)
         );
-
-CREATE TABLE note_tags (
-                note_path TEXT NOT NULL,
-                tag       TEXT NOT NULL,
-                PRIMARY KEY (note_path, tag)
-            );
 
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 
@@ -171,9 +171,9 @@ CREATE INDEX idx_metrics_entity_label ON company_metrics(entity, metric_label);
 
 CREATE INDEX idx_metrics_edition ON company_metrics(as_of_edition);
 
-CREATE INDEX idx_emb_company ON company_embeddings(company_name);
-
 CREATE INDEX idx_note_tags_tag ON note_tags(tag);
+
+CREATE INDEX idx_emb_company ON company_embeddings(company_name);
 
 CREATE VIEW relations AS
     SELECT source, target, edge_type AS relation_type

@@ -541,6 +541,26 @@ def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
         con.execute("INSERT OR REPLACE INTO _build_meta(key, value) VALUES (?, ?)", (k, v))
 
 
+# Vertex/hierarchy/embedding tables materialised OUTSIDE the EDGE_REGISTRY
+# loop (projections + mixed-endpoint edges; see the Bundle M4/D4 notes in
+# _build_graph). _build_meta is stamped by connect() after the build
+# (CREATE TABLE IF NOT EXISTS), so it is manifest-only — never dropped in
+# the build pass. MATERIALISED_TABLES is the single-source manifest of
+# every DuckDB table the materialisation owns: _build_graph's drop pass
+# reads _EXTRA_MATERIALIZED, and snapshot_db.export_parquet_duckdb
+# refuses to snapshot anything outside MATERIALISED_TABLES (stray scratch
+# tables are skipped + warned — the 2026-08-21 e_all_und benchmark
+# leftover otherwise shipped an orphan parquet into a snapshot commit).
+_EXTRA_MATERIALIZED = (
+    "v_node", "v_company", "v_sector", "v_super_sector", "v_sub_sector",
+    "v_theme", "v_edition", "v_embeddings", "e_belongs_to", "e_exposed_to",
+    "e_cited_in",
+)
+MATERIALISED_TABLES = frozenset(
+    spec["table"] for spec in EDGE_REGISTRY.values()
+).union(_EXTRA_MATERIALIZED, {"_build_meta"})
+
+
 def _build_graph(con: duckdb.DuckDBPyConnection) -> None:
     """Materialise vertices + edges + declare the property graph.
 
@@ -558,9 +578,7 @@ def _build_graph(con: duckdb.DuckDBPyConnection) -> None:
     # belongs_to edge table (declared outside EDGE_REGISTRY). D4 adds v_theme
     # (theme projection) + e_exposed_to (company -> theme edge), also declared
     # outside the registry for the same mixed-endpoint reason.
-    for t in ("v_node", "v_company", "v_sector",
-              "v_super_sector", "v_sub_sector", "v_theme", "v_edition",
-              "v_embeddings", "e_belongs_to", "e_exposed_to", "e_cited_in"):
+    for t in _EXTRA_MATERIALIZED:
         con.execute(f"DROP TABLE IF EXISTS {t}")
 
     _materialise_vertices(con)
