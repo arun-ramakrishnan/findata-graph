@@ -1790,3 +1790,91 @@ class TestChatterFootnotes:
         block = di.render_chatter_block("Threads in the Data", [self._quote()],
                                         index=self._index())
         assert block.count("[^chatter-Threads_in_the_Data]:") == 1
+
+
+# --------------------------------------------------------------------------- #
+# Stable writes: no-op re-apply preserves id + created_at                      #
+# --------------------------------------------------------------------------- #
+
+class TestStableWrites:
+    """The prefix replace keeps content-identical rows byte-stable.
+
+    A no-op derive cycle used to DELETE+INSERT every row (fresh
+    created_at, reshuffled ids) — guaranteeing quotes/company_metrics
+    parquet churn in every snapshot. The multiset content match keeps
+    unchanged rows untouched.
+    """
+
+    def test_reapply_identical_quotes_keeps_ids_and_created_at(self, tmp_path):
+        conn = _connect(tmp_path)
+        di.apply_quotes(_APPLY_QUOTES(), conn=conn, dry_run=False)
+        # Pin old timestamps so a same-second restamp cannot hide a regression.
+        conn.execute("UPDATE quotes SET created_at = '2000-01-01 00:00:00'")
+        conn.commit()
+        before = conn.execute(
+            "SELECT id, quote_text, created_at FROM quotes ORDER BY id").fetchall()
+        di.apply_quotes(_APPLY_QUOTES(), conn=conn, dry_run=False)
+        after = conn.execute(
+            "SELECT id, quote_text, created_at FROM quotes ORDER BY id").fetchall()
+        assert [tuple(r) for r in before] == [tuple(r) for r in after]
+        conn.close()
+
+    def test_reapply_identical_metrics_keeps_ids_and_created_at(self, tmp_path):
+        conn = _connect(tmp_path)
+        m = [di.Metric(entity="Marico", metric_label="revenue",
+                       value_raw="₹9,000 crore", value_num=9000.0,
+                       unit="crore", period="FY26",
+                       as_of_edition="Marico DLF BSE",
+                       source_ref="derive:metrics:Marico_DLF_BSE:45")]
+        di.apply_metrics(m, conn=conn, dry_run=False)
+        conn.execute("UPDATE company_metrics SET created_at = '2000-01-01 00:00:00'")
+        conn.commit()
+        before = conn.execute(
+            "SELECT id, created_at FROM company_metrics ORDER BY id").fetchall()
+        di.apply_metrics(m, conn=conn, dry_run=False)
+        after = conn.execute(
+            "SELECT id, created_at FROM company_metrics ORDER BY id").fetchall()
+        assert [tuple(r) for r in before] == [tuple(r) for r in after]
+        conn.close()
+
+    def test_changed_row_gets_fresh_id_sibling_kept(self, tmp_path):
+        """Content change = delete + fresh insert; the unchanged sibling
+        keeps its id (stable anchors for downstream references)."""
+        conn = _connect(tmp_path)
+        qs = _APPLY_QUOTES()
+        di.apply_quotes(qs, conn=conn, dry_run=False)
+        kept_id = conn.execute(
+            "SELECT id FROM quotes WHERE quote_text = ?",
+            (qs[0].quote_text,)).fetchone()[0]
+        changed = [qs[0],
+                   di.Quote(entity="Marico",
+                            quote_text="Rewritten quote text.",
+                            speaker_name="Saugata Gupta",
+                            speaker_title="MD & CEO",
+                            as_of_edition="Marico DLF BSE",
+                            source_ref=qs[1].source_ref)]
+        di.apply_quotes(changed, conn=conn, dry_run=False)
+        still = conn.execute(
+            "SELECT id FROM quotes WHERE quote_text = ?",
+            (qs[0].quote_text,)).fetchone()
+        assert still is not None and still[0] == kept_id
+        texts = {r["quote_text"] for r in conn.execute(
+            "SELECT quote_text FROM quotes").fetchall()}
+        assert texts == {qs[0].quote_text, "Rewritten quote text."}
+        conn.close()
+
+
+def _APPLY_QUOTES():
+    """Two-quote payload mirroring TestApplyQuotes._quotes."""
+    return [
+        di.Quote(entity="Marico",
+                 quote_text="Parachute delivered 10% volume growth.",
+                 speaker_name="Saugata Gupta", speaker_title="MD & CEO",
+                 as_of_edition="Marico DLF BSE",
+                 source_ref="derive:quotes:Marico_DLF_BSE:45"),
+        di.Quote(entity="Marico",
+                 quote_text="Copra prices corrected meaningfully this quarter.",
+                 speaker_name="Saugata Gupta", speaker_title="MD & CEO",
+                 as_of_edition="Marico DLF BSE",
+                 source_ref="derive:quotes:Marico_DLF_BSE:45"),
+    ]

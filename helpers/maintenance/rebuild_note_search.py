@@ -291,7 +291,23 @@ def _iter_findata_docs():
         yield dtype, p, rel
 
 
-def _collect_rows(conn, embed_fn=None) -> list[tuple]:
+def _carry_row(row: tuple, dtype: str, rel_posix: str,
+               ent_by_path: dict[str, tuple[str, str | None]]) -> bool:
+    """P2.2: can the stored note_search row be carried verbatim?
+
+    Entity docs take title/sector from the entities table, so they must
+    also match their current entities-row — a DB-side rename/reclassify
+    without touching the file returns False and gets reprocessed (the
+    content-hash diff then upserts it instead of carrying staleness).
+    """
+    if dtype in ("company", "sector", "super_sector"):
+        norm, sec = ent_by_path.get(rel_posix, ("", None))
+        return (norm or "") == row[2] and (sec or "") == row[3]
+    return True
+
+
+def _collect_rows(conn, embed_fn=None, reuse: dict[str, tuple[float, tuple]] | None = None,
+                  carried: set[str] | None = None) -> list[tuple]:
     """Build the full FTS row set by reading files + one bulk entity lookup.
 
     Returns a list of (doc_type, file_path, title, sector, content, embedding)
@@ -299,6 +315,18 @@ def _collect_rows(conn, embed_fn=None) -> list[tuple]:
     Entity docs (company/sector/super_sector) get their canonical title +
     sector_classification from the entities table via a single file_path->row
     map (avoids N+1). Newsletters have no entity row; their title is the H1.
+
+    P2.2 fast path (incremental no-op cycles): ``reuse`` maps file_path to
+    (stored_mtime, existing row tuple). When the file's stat mtime matches,
+    the stored row is carried over VERBATIM — no read, no body clean, no
+    cache lookup, no vector JSON round-trip (the stored embedding is already
+    correct for unchanged content); the path is recorded in ``carried`` so
+    the diff loop can skip re-hashing it. Entity docs additionally verify
+    their entities-table title/sector, so a DB-side rename/reclassify is
+    never carried stale even when the file's mtime is untouched. mtime is
+    the change key on this path otherwise (same-mtime content edits are
+    the full rebuild's job — the non-incremental mode stays the
+    self-healing convergence pass).
     """
     embed_fn = embed_fn or _default_embed
     # Bulk entity lookup: file_path -> (title via normalized_name, sector).
@@ -315,6 +343,18 @@ def _collect_rows(conn, embed_fn=None) -> list[tuple]:
     rows = []
     for dtype, abs_path, rel in _iter_findata_docs():
         rel_posix = f"findata/{rel.as_posix()}"
+        if reuse is not None and rel_posix in reuse:
+            try:
+                mtime = abs_path.stat().st_mtime
+            except OSError:
+                mtime = None
+            if mtime is not None and mtime == reuse[rel_posix][0]:
+                row = reuse[rel_posix][1]
+                if _carry_row(row, dtype, rel_posix, ent_by_path):
+                    rows.append(row)
+                    if carried is not None:
+                        carried.add(rel_posix)
+                    continue
         try:
             text = abs_path.read_text(encoding="utf-8", errors="replace")
         except OSError:
@@ -435,7 +475,26 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
             ) else None
             if cache is not None:
                 embed_fn = cache
-        rows = _collect_rows(conn, embed_fn=embed_fn)
+        # P2.2 fast path: in incremental mode, preload the meta table and
+        # the existing rows so _collect_rows can carry over mtime-unchanged
+        # files without reading/cleaning/embedding them.
+        existing: dict[str, tuple[float, str]] = {}
+        reuse: dict[str, tuple[float, tuple]] | None = None
+        carried: set[str] | None = None
+        if incremental:
+            existing = {r[0]: (r[1], r[2]) for r in conn.execute(
+                "SELECT file_path, mtime, content_hash FROM note_search_meta")}
+            reuse = {}
+            for r in conn.execute(
+                "SELECT doc_type, file_path, title, sector, content, embedding "
+                "FROM note_search"
+            ):
+                prev = existing.get(r[1])
+                if prev is not None:
+                    reuse[r[1]] = (prev[0], tuple(r))
+            carried = set()
+        rows = _collect_rows(conn, embed_fn=embed_fn, reuse=reuse,
+                             carried=carried)
         if cache is not None:
             stats["embed_cache_hits"] = cache.hits
             stats["embed_cache_misses"] = cache.misses
@@ -512,8 +571,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
             return stats
         else:
             # P2.1 incremental: diff against meta, only touch changed/deleted files
-            # Load existing meta
-            existing = {r[0]: (r[1], r[2]) for r in conn.execute("SELECT file_path, mtime, content_hash FROM note_search_meta")}
+            # (existing / reuse / carried were preloaded above for the fast path)
             # Build map file_path -> (dtype, abs_path, row_tuple)
             rows_by_path = {r[1]: r for r in rows}
             # Track which file_paths we saw on disk
@@ -530,9 +588,18 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
                 row = rows_by_path.get(rel_posix)
                 if row is None:
                     continue
+                prev = existing.get(rel_posix)
+                if (prev is not None and carried is not None
+                        and rel_posix in carried):
+                    # DB-carried row whose mtime still matches: the content
+                    # is by construction the stored one — skip the re-hash.
+                    try:
+                        if abs_path.stat().st_mtime == prev[0]:
+                            continue
+                    except OSError:
+                        pass
                 _, _, title, sector, content, _emb = row
                 mtime, chash = _file_fingerprint(abs_path, title, sector, content)
-                prev = existing.get(rel_posix)
                 if prev is None or prev[0] != mtime or prev[1] != chash:
                     # P2 perf: stash (row, mtime, chash) so the apply loop
                     # below doesn't recompute the fingerprint a second time.

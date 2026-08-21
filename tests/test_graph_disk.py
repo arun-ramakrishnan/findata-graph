@@ -18,6 +18,7 @@ Marked ``live`` (requires the production SQLite file to exist).
 """
 from __future__ import annotations
 
+import shutil
 import sqlite3
 from pathlib import Path
 
@@ -50,22 +51,84 @@ from helpers.graph.query import (  # noqa: E402
 # --------------------------------------------------------------------------- #
 # Fixtures                                                                     #
 # --------------------------------------------------------------------------- #
+# A-fix (2026-08-21): downsample the production copy. A full-corpus cold
+# build costs ~1.2s and these build-mechanics tests build up to 3x each
+# (~35s for the module); the contract under test is cold/warm/rebuild/meta
+# behavior, not live scale. Every non-company entity is kept, plus CEAT
+# (the name the assertions pin) and a deterministic alphabetical company
+# sample; anything referencing a dropped entity goes with it.
+#
+# The trimmed DB is built ONCE per session (template) and each test gets a
+# byte-copy: the trim pass costs ~0.35s (the note_search FTS delete alone
+# is ~0.17s) and the post-delete file stays production-sized (~50MB) until
+# VACUUM, so per-test re-trimming + copying that costs ~8s of module wall
+# time collapses to one trim + ~ms copies of a few-MB compacted file.
+_KEEP_COMPANIES = 120
+
+
+@pytest.fixture(scope="session")
+def _trimmed_template(tmp_path_factory) -> Path:
+    """The downsampled, VACUUMed production copy; tmp_db copies it per test."""
+    template = tmp_path_factory.mktemp("template") / "template.db"
+    src = sqlite3.connect(str(DB_PATH))
+    dst = sqlite3.connect(str(template))
+    try:
+        src.backup(dst)
+        # LIMIT lives inside the subquery so it bounds only the company
+        # sample, not the whole compound select.
+        dst.execute(
+            "CREATE TEMP TABLE keep AS "
+            "SELECT name FROM entities WHERE entity_type != 'company' "
+            "UNION SELECT 'CEAT' "
+            "UNION SELECT name FROM (SELECT name FROM entities "
+            "  WHERE entity_type = 'company' AND name != 'CEAT' "
+            "  ORDER BY name LIMIT ?)",
+            (_KEEP_COMPANIES,),
+        )
+        dst.execute(
+            "DELETE FROM graph_edges "
+            "WHERE source NOT IN (SELECT name FROM keep) "
+            "   OR target NOT IN (SELECT name FROM keep)")
+        # FK children first (FKs are off on this raw connection, but keep
+        # the copy tidy for tests that later connect with FKs on).
+        for tbl, col in (("entity_tags", "entity_name"),
+                         ("graph_analytics", "entity_name"),
+                         ("events", "entity"),
+                         ("quotes", "entity"),
+                         ("company_metrics", "entity"),
+                         ("company_embeddings", "company_name")):
+            dst.execute(
+                f"DELETE FROM {tbl} WHERE {col} NOT IN (SELECT name FROM keep)")  # noqa: S608  # parameterized; interpolated parts are schema-constant identifiers
+        dst.execute("DELETE FROM entities WHERE name NOT IN (SELECT name FROM keep)")
+        # note_search feeds v_note_embeddings: keep the kept entities' docs
+        # plus a small newsletter slice so the doc_type mix stays realistic.
+        dst.execute(
+            "DELETE FROM note_search WHERE file_path NOT IN "
+            "  (SELECT file_path FROM entities WHERE file_path IS NOT NULL) "
+            "AND file_path NOT IN "
+            "  (SELECT file_path FROM note_search WHERE doc_type IN "
+            "   ('chatter','points_and_figures','plotlines') LIMIT 30)")
+        dst.commit()
+        # DELETE doesn't shrink the file (50MB production-sized) and leaves
+        # FTS tombstones in the note_search shadow — VACUUM compacts both,
+        # which is what makes the per-test copy cheap.
+        dst.execute("VACUUM")
+    finally:
+        dst.close()
+        src.close()
+    return template
+
+
 @pytest.fixture
-def tmp_db(tmp_path) -> Path:
-    """A copy of the production SQLite DB at tmp_path/test.db.
+def tmp_db(_trimmed_template, tmp_path) -> Path:
+    """A byte-copy of the trimmed template at tmp_path/test.db.
 
     Each test gets a fresh copy so SQLite-side mutations (if any) don't
     leak. The DuckDB cache for this DB lands at tmp_path/test.duckdb
     (the test-isolation fallback in ``connect()``).
     """
     out = tmp_path / "test.db"
-    src = sqlite3.connect(str(DB_PATH))
-    dst = sqlite3.connect(str(out))
-    try:
-        src.backup(dst)
-    finally:
-        dst.close()
-        src.close()
+    shutil.copyfile(_trimmed_template, out)
     return out
 
 
