@@ -147,7 +147,7 @@ The Banking sector in India encompasses commercial banks, cooperative banks, and
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 51 company note(s) in Banking. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 50 company note(s) in Banking. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Au_Small_Finance_Bank|AU Small Finance Bank Limited]]
 - [[Abhyudaya_Co_operative_Bank|Abhyudaya Co-operative Bank]]
@@ -196,7 +196,6 @@ The Banking sector in India encompasses commercial banks, cooperative banks, and
 - [[Tamilnad_Mercantile_Bank|Tamilnad Mercantile Bank]]
 - [[Thane_Janata_Sahakari_Bank_TJSB|Thane Janata Sahakari Bank TJSB]]
 - [[UCO_Bank|UCO Bank]]
-- [[Ujjivan_Financial_Services]]
 - [[Ujjivan_Small_Finance_Bank|Ujjivan Small Finance Bank]]
 - [[Union_Bank_of_India|Union Bank of India]]
 - [[Yes_Bank|Yes Bank]]

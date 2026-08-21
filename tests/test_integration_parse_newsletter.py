@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 import pytest
@@ -686,3 +687,78 @@ class TestNonCompanyHeadings:
         wl = json.loads(wl_path.read_text())
         total = len(wl["new_entities"]) + len(wl["existing_entities_to_enhance"])
         assert total == 3
+
+
+# --------------------------------------------------------------------------- #
+# Tests: Stage 2b --cross-check (semantic NEW-name guard)
+# --------------------------------------------------------------------------- #
+
+class TestCrossCheck:
+    """--cross-check annotates NEW names via query.notes_like_text."""
+
+    def test_flag_routes_new_names(self, synth_project, monkeypatch):
+        """--cross-check calls cross_check_new with the NEW-classified names
+        (existing companies like HDFC Bank are not passed)."""
+        calls = []
+        monkeypatch.setattr(pn, "cross_check_new",
+                            lambda names, min_sim=0.55: calls.append(names))
+        rel = str(synth_project["newsletter"].relative_to(synth_project["root"]))
+        monkeypatch.setattr(sys, "argv",
+                            ["parse_newsletter.py", rel, "--cross-check"])
+        try:
+            pn.main()
+        except SystemExit:
+            pass
+        assert len(calls) == 1
+        assert "Acme Banking Corp" in calls[0] and "Zeta Technologies" in calls[0]
+        assert "HDFC Bank" not in calls[0]
+
+    def test_no_flag_no_cross_check(self, synth_project, monkeypatch):
+        calls = []
+        monkeypatch.setattr(pn, "cross_check_new",
+                            lambda names, min_sim=0.55: calls.append(names))
+        _run_dry(synth_project, monkeypatch)
+        assert calls == []
+
+    def test_hits_printed(self, synth_project, monkeypatch, capsys):
+        """Monkeypatched notes_like_text hits become ⚠ annotation lines."""
+        import helpers.graph.query as gq
+
+        def fake_notes_like_text(con, text, k=5, doc_type="company",
+                                 min_sim=0.0, embed_fn=None):
+            if text == "Acme Banking Corp":
+                return [("findata/Companies/Banking/Hdfc_Bank.md",
+                         "HDFC Bank", 0.81)]
+            return []
+
+        monkeypatch.setattr(gq, "notes_like_text", fake_notes_like_text)
+        monkeypatch.setattr(gq, "connect", lambda *a, **kw: SimpleNamespace(close=lambda: None))
+        pn.cross_check_new(["Acme Banking Corp", "Zeta Technologies"])
+        out = capsys.readouterr().out
+        assert "NEW 'Acme Banking Corp'" in out
+        assert "Hdfc_Bank" in out and "0.81" in out
+        assert "1 of 2 NEW name(s)" in out
+
+    def test_unavailable_embedder_warns_once(self, synth_project, monkeypatch, capsys):
+        """notes_like_text None → one unavailable line, no per-name noise."""
+        import helpers.graph.query as gq
+
+        monkeypatch.setattr(
+            gq, "notes_like_text",
+            lambda *a, **kw: None)
+        monkeypatch.setattr(gq, "connect", lambda *a, **kw: SimpleNamespace(close=lambda: None))
+        pn.cross_check_new(["A", "B", "C"])
+        out = capsys.readouterr().out
+        assert "unavailable" in out
+        assert out.count("unavailable") == 1
+
+    def test_connect_failure_warns_and_skips(self, synth_project, monkeypatch, capsys):
+        import helpers.graph.query as gq
+
+        def boom(*a, **kw):
+            raise RuntimeError("no graph.duckdb")
+
+        monkeypatch.setattr(gq, "connect", boom)
+        pn.cross_check_new(["A"])
+        out = capsys.readouterr().out
+        assert "graph connect failed" in out

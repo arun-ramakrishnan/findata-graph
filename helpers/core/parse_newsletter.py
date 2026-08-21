@@ -664,6 +664,53 @@ def run_graph_analytics():
 
 
 # ===========================================================================
+# Stage 2b (--cross-check): semantic guard for the NEW/known extractor gap
+# ===========================================================================
+def cross_check_new(new_names, min_sim=0.55):
+    """Flag NEW-classified names that look like EXISTING company notes.
+
+    The known extractor gap: dry-run classification can miss an existing
+    company (different spelling/alias) and flag it NEW, which --apply
+    would stub as a duplicate entity. For each NEW name, embed the name
+    (query prefix) and KNN it against the existing company notes in the
+    warm graph's ``v_note_embeddings`` (query.notes_like_text). Read-only;
+    surfaces close matches for manual confirmation before --apply.
+
+    Degrades to a single WARNING line when the local embedder or the
+    graph connection is unavailable — never blocks the parse run.
+    """
+    try:
+        from helpers.graph.query import connect as graph_connect
+        from helpers.graph.query import notes_like_text
+    except Exception as exc:
+        log("2b", f"⚠ cross-check unavailable (import failed: {exc})")
+        return
+
+    try:
+        gcon = graph_connect()
+    except Exception as exc:
+        log("2b", f"⚠ cross-check unavailable (graph connect failed: {exc})")
+        return
+
+    try:
+        flagged = 0
+        for name in new_names:
+            hits = notes_like_text(gcon, name, k=3, min_sim=min_sim)
+            if hits is None:
+                log("2b", "⚠ embedder/vectors unavailable — skipping cross-check")
+                return
+            if not hits:
+                continue
+            flagged += 1
+            for path, title, sim in hits:
+                stem = path.rsplit("/", 1)[-1].removesuffix(".md")
+                log("2b", f"  ⚠ NEW '{name}'  ~=  existing '{title}' ({stem}) sim={sim:.2f}")
+        log("2b", f"{flagged} of {len(new_names)} NEW name(s) have close semantic matches")
+    finally:
+        gcon.close()
+
+
+# ===========================================================================
 # main
 # ===========================================================================
 def main():  # noqa: C901
@@ -673,6 +720,15 @@ def main():  # noqa: C901
         "--apply",
         action="store_true",
         help="Execute writes (default: dry-run plan only)",
+    )
+    ap.add_argument(
+        "--cross-check",
+        action="store_true",
+        help="After Stage 2, semantically match each NEW-flagged company "
+        "name against existing embedded company notes (v_note_embeddings) "
+        "and flag close hits — guards the mis-flag-NEW extractor gap "
+        "before --apply. Read-only; needs the local embedder + a warm "
+        "graph.duckdb, else warns and skips.",
     )
     ap.add_argument(
         "--with-analytics",
@@ -720,6 +776,8 @@ def main():  # noqa: C901
     )
     for u in uncertain_cos:
         log("2", f"  ? {u['candidate']}  ~=  existing '{u['likely_existing']}'")
+    if args.cross_check and new_cos:
+        cross_check_new([name for name, _line in new_cos])
     print()
 
     # Stage 3: new entities
