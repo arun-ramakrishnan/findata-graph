@@ -35,8 +35,8 @@ the vault (content source of truth)           entities · graph_edges · entity_
                                               graph_analytics · note_search (FTS5)
         │
         ▼  reads only
-memory/graph.duckdb  — DuckDB disk cache: v_node + 12 e_* edge tables
-        ├── pattern queries, shortest paths, cycles … plain SQL / recursive CTEs
+memory/graph.duckdb  — DuckDB disk cache: v_node + 14 e_* edge tables
+        ├── pattern queries, shortest paths (BFS), cycles … plain SQL
         └── centralities, communities, link prediction … Onager extension
         │
         ▼
@@ -117,7 +117,9 @@ default). duckpgq and NetworkX were retired in Aug 2026.
 | `GET /api/entity/<name>` · `/api/events/<name>` | note + DB bundle, event timeline |
 | `GET /api/graph/neighbors/<name>` | ego bundle: sector, peers, JV, siblings, M&A, suppliers, customers (`?as_of=`) |
 | `GET /api/graph/peers/<name>` · `/api/graph/sector/<name>` | peer competitors, sector members |
-| `GET /api/graph/shortest?a=&b=` | shortest path (recursive CTE, temporal `as_of`) |
+| `GET /api/graph/shortest?a=&b=` | shortest path (BFS, temporal `as_of`, `max_hops` ≤ 8) |
+| `GET /api/graph/similar/<path>` | notes nearest a note by embedding cosine (`?k=`, `?doc_type=`) |
+| `GET /api/graph/edition_companies?edition=` | companies nearest an edition note (`?k=`) |
 | `GET /api/graph/metrics/<metric>` | persisted `graph_analytics` reader |
 | `GET /api/graph/stats` · `/co-mentions` · `/bridges` · `/edges-by-year` | aggregates + batch reports |
 | `POST /api/graph/refresh` | rebuild cache + reset connection |

@@ -72,7 +72,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from helpers.core.db import connect  # noqa: E402
+from helpers.core.db import connect, bump_generation  # noqa: E402
 from helpers.core.vec_search import sync_vec_table  # noqa: E402
 from helpers.core.frontmatter import split_frontmatter_with_title as _strip_frontmatter  # noqa: E402
 
@@ -388,6 +388,26 @@ def _migrate_schema(conn) -> bool:
     conn.execute("DROP TABLE note_search")
     return True
 
+def _stamp_note_model(conn, model_label: str) -> None:
+    """Record the note_search embedding model in db_meta (A1, apply path only).
+
+    note_search rows carry no model column, so db_meta is the only SQL-side
+    home; query.py::_is_warm compares it against the DuckDB _build_meta
+    stamp to catch same-dims model swaps (a dims probe alone can't see a
+    384->384 swap). Never called from --check: the stamp must describe the
+    table's CONTENT, and --check writes no rows.
+    """
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS db_meta "
+        "(key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+    )
+    conn.execute(
+        "INSERT OR REPLACE INTO db_meta(key, value) VALUES ('note_embed_model', ?)",
+        (model_label,),
+    )
+    conn.commit()
+
+
 def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noqa: C901
             embed_fn=None) -> dict:
     """Rebuild the note_search FTS index. Returns a stats dict."""
@@ -404,6 +424,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
         # docs never re-embed); injected test embed_fn stay raw.
         embed_dims = _PSEUDO_DIMS
         cache = None
+        model_label = None
         if embed_fn is None:
             embed_fn, embed_dims, model_label = resolve_embedder()
             stats["embed_model"] = model_label
@@ -479,6 +500,15 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
             # (after the FTS commit — sync is idempotent and best-effort; the
             # JSON column stays the source of truth).
             stats["vec_rows"] = sync_vec_table(conn, embed_dims, full=True)
+            # B4 (sql_capability_unlocks): note_search is invisible to the
+            # entities/graph_edges generation triggers (FTS5 can't carry
+            # them), so the apply path bumps manually — a warm DuckDB whose
+            # v_note_embeddings projection reads this table goes cold on the
+            # next connect. --check/sidecar-only paths never reach here.
+            # A1: the model stamp rides along (same-only-SQL-side-home rule).
+            if model_label is not None:
+                _stamp_note_model(conn, model_label)
+            stats["generation_bumped"] = bump_generation(conn)
             return stats
         else:
             # P2.1 incremental: diff against meta, only touch changed/deleted files
@@ -536,6 +566,13 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
                 upsert_rows=[(r[1], r[5]) for r, _m, _c in to_upsert],
                 delete_paths=to_delete,
             )
+            # B4: same writer-side bump as the full branch, but only when the
+            # incremental pass actually changed rows — an empty delta leaves
+            # the generation (and the warm DuckDB) untouched.
+            if to_upsert or to_delete:
+                if model_label is not None:
+                    _stamp_note_model(conn, model_label)
+                stats["generation_bumped"] = bump_generation(conn)
             return stats
     finally:
         conn.close()

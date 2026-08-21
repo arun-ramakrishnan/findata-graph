@@ -399,6 +399,103 @@ class TestShortestPath:
         assert path is not None
         assert path[0][0] == "CEAT" and path[-1][0] == "MRF"
 
+
+class TestBfsShortestPath:
+    """sql_capability_unlocks B2: shortest_path is a level-by-level BFS over
+    the materialised e_all_und adjacency. _shortest_path_cte (the retired
+    production path) stays importable as the ORACLE — on small max_hops its
+    cost is irrelevant and its independence from the BFS implementation is
+    the point. Equivalence is pinned on (depth, endpoints); the specific
+    tie-break among equal-depth paths is unspecified in the contract (the
+    CTE picked arbitrarily too; BFS picks MIN(a_id) deterministically)."""
+
+    # Known-shape pairs from the live seed data (see the tests above):
+    # 1-hop company→sector, sector→company, 1-hop competitors, 2-hop via
+    # sector, cross-sector competitors (label-sensitive), disconnected.
+    PAIRS = [
+        ("CEAT", "Automotive"),
+        ("Automotive", "CEAT"),
+        ("Engineering_Capital_Goods", "Polycab India"),
+        ("CEAT", "MRF"),
+        ("Indigo Paints", "Kansai Nerolac Paints"),
+        ("TCS", "MRF"),
+    ]
+
+    @staticmethod
+    def _shape(path):
+        """Reduce a path to its contract-observable shape (depth +
+        endpoints) for oracle comparison."""
+        if path is None:
+            return None
+        return (len(path), path[0][0], path[-1][0])
+
+    def test_bfs_matches_cte_oracle(self, con):
+        from helpers.graph.query import _shortest_path_cte
+        for a, b in self.PAIRS:
+            for hops in (1, 2, 3):
+                for label in ("BelongsTo", "CompetesWith", "NoSuchLabel"):
+                    bfs = shortest_path(con, a, b, max_hops=hops, edge_label=label)
+                    cte = _shortest_path_cte(con, a, b, max_hops=hops, edge_label=label)
+                    assert self._shape(bfs) == self._shape(cte), (
+                        f"divergence at ({a!r}, {b!r}, hops={hops}, "
+                        f"label={label!r}): bfs={self._shape(bfs)} "
+                        f"cte={self._shape(cte)}"
+                    )
+
+    def test_bfs_matches_cte_oracle_temporal(self, con):
+        from helpers.graph.query import _shortest_path_cte
+        # edge_label=None on BOTH sides — shortest_path's signature default
+        # is "BelongsTo" while the oracle's is None, so the label must be
+        # pinned explicitly or the sweep compares different filters.
+        for a, b in self.PAIRS:
+            for as_of in ("2020-01-01", "2026-01-01"):
+                bfs = shortest_path(con, a, b, max_hops=3, edge_label=None, as_of=as_of)
+                cte = _shortest_path_cte(con, a, b, max_hops=3, edge_label=None, as_of=as_of)
+                assert self._shape(bfs) == self._shape(cte), (
+                    f"temporal divergence at ({a!r}, {b!r}, as_of={as_of}): "
+                    f"bfs={self._shape(bfs)} cte={self._shape(cte)}"
+                )
+
+    def test_bfs_path_invariants(self, con):
+        """Whatever path BFS returns: contiguous hop indexes from 0, no
+        repeated vertices, endpoints exactly (src, 0) and (dst, len-1)."""
+        for a, b in self.PAIRS:
+            path = shortest_path(con, a, b, max_hops=3, edge_label="NoSuchLabel")
+            if path is None:
+                continue
+            assert path[0] == (a, 0)
+            assert path[-1] == (b, len(path) - 1)
+            assert all(h == i for i, (_, h) in enumerate(path))
+            assert len({n for n, _ in path}) == len(path)  # simple path
+
+    def test_bfs_contract_pins(self, con):
+        # src == dst (known vertex) → [(src, 0)] without touching edges.
+        assert shortest_path(con, "CEAT", "CEAT", max_hops=3) == [("CEAT", 0)]
+        # Unknown src or dst → None (the old CTE never seeded/matched).
+        assert shortest_path(con, "NoSuch", "CEAT", max_hops=3) is None
+        assert shortest_path(con, "CEAT", "NoSuch", max_hops=3) is None
+        assert shortest_path(con, "NoSuch", "AlsoMissing", max_hops=3) is None
+        # hops == 0 with src != dst → None (no levels to walk).
+        assert shortest_path(con, "CEAT", "MRF", max_hops=0) is None
+        # Unreachable within the cap → None (bounded full-graph traversal).
+        assert shortest_path(con, "TCS", "MRF", max_hops=2) is None
+        # Negative cap is a caller bug, not a "no path".
+        with pytest.raises(ValueError, match="max_hops must be >= 0"):
+            shortest_path(con, "CEAT", "MRF", max_hops=-1)
+
+    def test_bfs_honors_edge_label(self, con):
+        # Competitors in different sectors: CompetesWith connects them,
+        # BelongsTo does not (label filter is load-bearing in e_all_und).
+        a, b = "Indigo Paints", "Kansai Nerolac Paints"
+        assert shortest_path(con, a, b, max_hops=3, edge_label="CompetesWith") is not None
+        assert shortest_path(con, a, b, max_hops=3, edge_label="BelongsTo") is None
+
+    def test_bfs_binds_hostile_names_safely(self, con):
+        """Part C: names travel as bind parameters — a NUL/control-char
+        payload must not be able to crack the SQL text (the fuzz-discovered
+        _lit() class is gone from this path)."""
+        assert shortest_path(con, "No\x00Such'", "CEAT", max_hops=2) is None
+
 class TestCompanyNeighborsBundle:
     """C1: the coalesced mega-query must reproduce the 7 serial wrappers
     exactly, honor as_of, and degrade gracefully for unknown companies.
@@ -970,6 +1067,7 @@ class TestFindCycles:
                 source TEXT NOT NULL, target TEXT NOT NULL, edge_type TEXT NOT NULL,
                 weight REAL NOT NULL DEFAULT 1.0, properties TEXT NOT NULL DEFAULT '{}',
                 source_ref TEXT NOT NULL DEFAULT 'test',
+                valid_from DATE, valid_to DATE,
                 CHECK (source != target)
             );
             INSERT INTO entities VALUES ('Alpha', 'company'), ('Beta', 'company'), ('Gamma', 'company');
@@ -984,11 +1082,19 @@ class TestFindCycles:
         scon.commit()
         scon.close()
 
-        # Attach the temp SQLite to a fresh in-memory DuckDB (no duckpgq
-        # needed — find_cycles uses only the recursive CTE on fin.graph_edges).
+        # Attach the temp SQLite to a fresh in-memory DuckDB and mount the
+        # walk substrate find_cycles reads (sql_capability_unlocks B1: the
+        # directed walk goes over the materialised e_dir, joined to a
+        # minimal v_node — same CTAS as the production build).
         dcon = _ddb.connect()
         dcon.execute("INSTALL sqlite; LOAD sqlite;")
         dcon.execute(f"ATTACH '{sqlite_path}' AS fin (TYPE sqlite, READ_ONLY);")
+        from helpers.graph.query import _materialise_walk_substrate
+        dcon.execute(
+            "CREATE TABLE v_node AS "
+            "SELECT row_number() OVER () AS id, name, entity_type AS kind "
+            "FROM fin.entities")
+        _materialise_walk_substrate(dcon)
         try:
             cycles = find_cycles(dcon, edge_label="AcquiredBy", max_hops=4)
             # Must find the Alpha↔Beta 2-cycle (in both rotational orderings
@@ -1013,6 +1119,7 @@ class TestFindCycles:
                 source TEXT NOT NULL, target TEXT NOT NULL, edge_type TEXT NOT NULL,
                 weight REAL NOT NULL DEFAULT 1.0, properties TEXT NOT NULL DEFAULT '{}',
                 source_ref TEXT NOT NULL DEFAULT 'test',
+                valid_from DATE, valid_to DATE,
                 CHECK (source != target)
             );
             INSERT INTO entities VALUES ('A', 'company'), ('B', 'company');
@@ -1024,6 +1131,12 @@ class TestFindCycles:
         dcon = _ddb.connect()
         dcon.execute("INSTALL sqlite; LOAD sqlite;")
         dcon.execute(f"ATTACH '{sqlite_path}' AS fin (TYPE sqlite, READ_ONLY);")
+        from helpers.graph.query import _materialise_walk_substrate
+        dcon.execute(
+            "CREATE TABLE v_node AS "
+            "SELECT row_number() OVER () AS id, name, entity_type AS kind "
+            "FROM fin.entities")
+        _materialise_walk_substrate(dcon)
         try:
             assert find_cycles(dcon, max_hops=4) == []
         finally:

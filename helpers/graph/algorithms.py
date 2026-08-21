@@ -5,7 +5,8 @@
 retired (Phases A-E, doc/improvements/archive/graph/duckpgq_retirement.txt) —
 it was the sole reason DuckDB was pinned to 1.5.4. Everything now runs on
 plain SQL (pattern queries as JOINs over the materialised e_* tables in
-``helpers/graph/query.py``; shortest_path as a recursive CTE) plus the
+``helpers/graph/query.py``; shortest_path as a level-by-level BFS over the
+materialised e_all_und adjacency — sql_capability_unlocks B2) plus the
 Onager community extension (Apache-2.0) for all graph algorithms.
 NetworkX was retired earlier (2026-08-14 consolidation).
 
@@ -14,7 +15,7 @@ NetworkX was retired earlier (2026-08-14 consolidation).
 | pagerank                       | Onager        |
 | weakly_connected_component     | Onager        |
 | local_clustering_coefficient   | Onager        |
-| shortest_path (single label)   | recursive CTE |
+| shortest_path (single label)   | BFS over e_all_und |
 | louvain_community              | Onager        |
 | betweenness_centrality         | Onager        |
 | degree_centrality             | Onager        |

@@ -637,3 +637,36 @@ class TestMaintRefresh:
         monkeypatch.setattr(emb, "db_connect", lambda _p: conn)
 
         assert emb.main(["--maint"]) == 0  # unavailable gate -> WARNING + 0
+
+    def test_populate_bumps_generation_only_on_change(self, tmp_path, monkeypatch):
+        """B4 (sql_capability_unlocks): company_embeddings writes bump
+        db_meta.generation (the table is invisible to the entities/
+        graph_edges triggers), but ONLY when content actually changed —
+        an all-hits no-GC refresh rewrote identical bytes and must not
+        force a DuckDB rebuild. Tolerates bare fixtures without db_meta
+        (no consumer to invalidate there)."""
+        from helpers.core.db import get_generation
+
+        conn, _ = _make_embed_db(tmp_path)
+        _add_two_companies(conn)
+        _fake_local(monkeypatch)
+        # Bare fixture: no db_meta -> bump is a no-op, populate still works.
+        populate_local(conn)
+        assert get_generation(conn) is None
+
+        # With db_meta present: first populate (misses > 0) bumps.
+        conn.execute(
+            "CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        conn.execute("INSERT INTO db_meta VALUES ('generation', '100')")
+        conn.commit()
+        conn.execute(
+            "UPDATE entities SET sector_classification = 'Changed' WHERE name = 'CoA'"
+        )
+        conn.commit()
+        populate_local(conn)
+        assert get_generation(conn) == 101
+
+        # Warm re-populate (all hits, no GC) leaves the generation alone.
+        populate_local(conn)
+        assert get_generation(conn) == 101

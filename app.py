@@ -1537,8 +1537,12 @@ def api_graph_shortest():
         max_hops = int(request.args.get("max_hops", "5"))
     except ValueError:
         return jsonify({"error": "max_hops must be an integer"}), 400
-    if max_hops < 1 or max_hops > 10:
-        return jsonify({"error": "max_hops must be between 1 and 10"}), 400
+    # Cap at the graph diameter (8, sql_capability_unlocks B3): with the BFS
+    # implementation cost is linear per hop, so the cap's job is semantic —
+    # beyond the diameter every pair is reachable and "shortest path" stops
+    # discriminating. No existing caller passes an explicit max_hops.
+    if max_hops < 1 or max_hops > 8:
+        return jsonify({"error": "max_hops must be between 1 and 8 (the graph diameter)"}), 400
     as_of = _parse_as_of_or_400()
     a_canon = _resolve_entity_or_404(a)
     b_canon = _resolve_entity_or_404(b)
@@ -1609,6 +1613,95 @@ def api_graph_semantic(name: str):
         "neighbors": [
             {"name": n, "sector": s, "similarity": sim}
             for n, s, sim in results
+        ],
+    })
+
+
+@app.route("/api/graph/similar/<path:note_path>")
+def api_graph_similar(note_path: str):
+    """Notes most similar to a note, by embedding cosine (v_note_embeddings).
+
+    sql_capability_unlocks A4: read-only GET over the similar_notes
+    wrapper. `note_path` is a findata-relative markdown path, e.g.
+    `Companies/Agriculture/Avanti_Feeds.md`.
+
+    Query params:
+      - `k` (default 10): number of neighbours (clamped >= 0).
+      - `doc_type` (optional): restrict candidates to one doc_type
+        ('company', 'sector', 'chatter', ...).
+
+    Returns 404 for an unknown/unembedded note (parity with the other
+    graph routes); empty `neighbors` when the note is the only one.
+    """
+    try:
+        k = int(request.args.get("k", "10"))
+    except ValueError:
+        return jsonify({"error": "k must be an integer"}), 400
+    if k < 0:
+        return jsonify({"error": "k must be non-negative"}), 400
+    doc_type = request.args.get("doc_type") or None
+    # Accept both a findata-relative and a repo-relative path form; the
+    # wrapper keys on the exact note_search file_path ('findata/...').
+    if not note_path.startswith("findata/"):
+        note_path = f"findata/{note_path}"
+    try:
+        from helpers.graph.query import similar_notes
+        results = similar_notes(
+            get_graph_connection(), note_path, k=k, doc_type=doc_type
+        )
+    except Exception as e:
+        app.logger.exception("graph similar failed for %r", note_path)
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+    if results is None:
+        return jsonify({"error": f"no embedded note for path: {note_path}"}), 404
+    return jsonify({
+        "note": note_path,
+        "k": k,
+        "doc_type": doc_type,
+        "neighbors": [
+            {"file_path": p, "title": t, "similarity": sim}
+            for p, t, sim in results
+        ],
+    })
+
+
+@app.route("/api/graph/edition_companies")
+def api_graph_edition_companies():
+    """Companies most similar to an edition (newsletter) note.
+
+    sql_capability_unlocks A4: read-only GET over the edition_companies
+    wrapper — the edge-free reverse of cited_in. `edition` is resolved by
+    exact title, full path, or filename stem (with or without .md).
+
+    Query params:
+      - `edition` (required): edition title or file stem.
+      - `k` (default 10): number of companies (clamped >= 0).
+
+    Returns 404 for an unresolvable edition.
+    """
+    edition = request.args.get("edition", "").strip()
+    if not edition:
+        return jsonify({"error": "'edition' query param is required"}), 400
+    try:
+        k = int(request.args.get("k", "10"))
+    except ValueError:
+        return jsonify({"error": "k must be an integer"}), 400
+    if k < 0:
+        return jsonify({"error": "k must be non-negative"}), 400
+    try:
+        from helpers.graph.query import edition_companies
+        results = edition_companies(get_graph_connection(), edition, k=k)
+    except Exception as e:
+        app.logger.exception("graph edition_companies failed for %r", edition)
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+    if results is None:
+        return jsonify({"error": f"no edition note matches: {edition}"}), 404
+    return jsonify({
+        "edition": edition,
+        "k": k,
+        "companies": [
+            {"file_path": p, "title": t, "similarity": sim}
+            for p, t, sim in results
         ],
     })
 

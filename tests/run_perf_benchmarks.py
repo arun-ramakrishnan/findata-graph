@@ -38,6 +38,10 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
                                "--no-apply"], 2.0),
 
     ("graph_rebuild",        ["helpers/graph/query.py", "rebuild"], 5.0),
+    # sql_capability_unlocks B2 gate: BFS shortest_path steady-state
+    # (<100ms on the default request AND the unreachable-dst full
+    # component traversal, asserted inside the script).
+    ("shortest_path_bfs",    ["tests/bench_shortest_path.py"], 5.0),
     ("extract_relations",    ["helpers/graph/extract_relations.py",
                               "findata/The_Chatter", "findata/Points_And_Figures",
                               "findata/The_PlotLines", "--no-write-sidecar"], 5.0),

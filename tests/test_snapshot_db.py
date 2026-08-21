@@ -273,31 +273,36 @@ def test_main_restore_refuses_existing_target_without_force(
 def test_export_skips_and_warns_on_stray_tables(tmp_path, caplog):
     """Manifest guard (2026-08-21): a DuckDB table outside
     MATERIALISED_TABLES is scratch state — it gets NO parquet file, NO
-    schema-DDL line, and a loud WARNING naming it (the e_all_und benchmark
-    leftover leaked an orphan parquet into a snapshot commit through this
-    exact hole; snapshot-check passed because a stray on both sides is
-    'consistent')."""
+    schema-DDL line, and a loud WARNING naming it (a benchmark leftover
+    leaked an orphan parquet into a snapshot commit through this exact
+    hole; snapshot-check passed because a stray on both sides is
+    'consistent'). The scratch table is named e_bench_scratch, NOT
+    e_all_und — that one became a real manifest member the same day
+    (sql_capability_unlocks B1 materialises it as the BFS substrate)."""
     duckdb = pytest.importorskip("duckdb")
     from helpers.graph.query import MATERIALISED_TABLES
 
     src = tmp_path / "cache.duckdb"
     con = duckdb.connect(str(src))
     con.execute("CREATE TABLE v_node (id BIGINT, name VARCHAR)")
-    con.execute("CREATE TABLE e_all_und (a VARCHAR, b VARCHAR)")
-    con.execute("INSERT INTO e_all_und VALUES ('X', 'Y')")
+    con.execute("CREATE TABLE e_bench_scratch (a VARCHAR, b VARCHAR)")
+    con.execute("INSERT INTO e_bench_scratch VALUES ('X', 'Y')")
     con.close()
 
     out_dir = tmp_path / "pq" / "duckdb"
     with caplog.at_level(logging.WARNING, logger="test_snapshot"):
         res = export_parquet_duckdb(src, out_dir, _log)
 
-    assert "v_node" in res["tables"]          # manifest table exported
-    assert "e_all_und" not in res["tables"]   # stray skipped
+    assert "v_node" in res["tables"]             # manifest table exported
+    assert "e_bench_scratch" not in res["tables"]  # stray skipped
     assert (out_dir / "v_node.parquet").exists()
-    assert not (out_dir / "e_all_und.parquet").exists()
+    assert not (out_dir / "e_bench_scratch.parquet").exists()
     schema = (tmp_path / "pq" / "_schema.duckdb.sql").read_text()
     assert "v_node" in schema
-    assert "e_all_und" not in schema          # no DDL leak either
-    assert "e_all_und" in caplog.text         # the warning names the stray
-    # Guard must not be vacuous — the manifest covers the real tables.
-    assert {"v_node", "v_embeddings", "_build_meta"} <= MATERIALISED_TABLES
+    assert "e_bench_scratch" not in schema       # no DDL leak either
+    assert "e_bench_scratch" in caplog.text      # the warning names the stray
+    # Guard must not be vacuous — the manifest covers the real tables,
+    # including the walk substrates + note vectors added by
+    # sql_capability_unlocks B1/A1.
+    assert {"v_node", "v_embeddings", "v_note_embeddings", "e_all_und",
+            "e_dir", "_build_meta"} <= MATERIALISED_TABLES
