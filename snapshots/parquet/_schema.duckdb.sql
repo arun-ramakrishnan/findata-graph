@@ -1,5 +1,7 @@
 CREATE TABLE e_acquired(acquirer_name BIGINT, target_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR, "year" VARCHAR);
 
+CREATE TABLE e_all_und(a_id BIGINT, b_id BIGINT, edge_type VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
+
 CREATE TABLE e_belongs(company_name BIGINT, sector_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
 CREATE TABLE e_belongs_to(child_id BIGINT, parent_id BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
@@ -11,6 +13,8 @@ CREATE TABLE e_comention(a_name BIGINT, b_name BIGINT, weight VARCHAR, propertie
 CREATE TABLE e_competes(a_name BIGINT, b_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
 CREATE TABLE e_customer(customer_name BIGINT, supplier_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
+
+CREATE TABLE e_dir(a_id BIGINT, b_id BIGINT, edge_type VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
 CREATE TABLE e_exposed_to(company_id BIGINT, theme_id BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
@@ -31,6 +35,8 @@ CREATE TABLE v_edition(id BIGINT, "name" VARCHAR);
 CREATE TABLE v_embeddings(company_name VARCHAR, id BIGINT, embedding FLOAT[]);
 
 CREATE TABLE v_node(id BIGINT, "name" VARCHAR, kind VARCHAR, sector_classification VARCHAR, market_cap VARCHAR, ticker VARCHAR);
+
+CREATE TABLE v_note_embeddings(file_path VARCHAR, doc_type VARCHAR, title VARCHAR, emb FLOAT[384]);
 
 CREATE TABLE v_sector(id BIGINT, "name" VARCHAR);
 
