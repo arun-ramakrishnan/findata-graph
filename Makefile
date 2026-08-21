@@ -40,6 +40,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
 > @echo "  maint-full               Post-ingest cleanup: maint + sync-tags + recompute-graph + re-snapshot"
 > @echo "  metrics-rebuild          Refresh company financials + industry edges from yfinance (~1 min, 931 tickers)"
+> @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt"
 > @echo "  qa                       Run lint + types + deptry + static checks + pytest + notes + integrity + snapshot checks"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
@@ -147,6 +148,10 @@ graph-algos:    ## Smoke test the Onager algorithm layer (all 14 metrics, no wri
 graph-rebuild:  ## Rebuild the disk-based DuckDB cache from SQLite (run after parse_newsletter --apply / derive-relations)
 > python3 helpers/graph/query.py rebuild
 > @echo "✓ DuckDB graph cache rebuilt (memory/graph.duckdb)"
+
+near-duplicates: ## Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY — triage by hand, remediation is user-held)
+> python3 helpers/graph/query.py near-duplicates --min-sim 0.9
+> @echo "✓ Near-duplicate report complete (nothing written)"
 
 update-extensions: ## Update all installed DuckDB extensions to latest (weekly cadence)
 > python3 helpers/graph/query.py update-extensions

@@ -481,6 +481,122 @@ class TestGraphSemantic:
         assert r.get_json()["neighbors"] == []
 
 
+class TestGraphSimilarNotes:
+    """GET /api/graph/similar/<path:note_path> — sql_capability_unlocks A4.
+
+    Read-only GET over helpers.graph.query.similar_notes (v_note_embeddings
+    KNN). 404 for an unknown/unembedded note; a findata-relative path gets
+    the findata/ prefix added; k/doc_type validated."""
+
+    def test_similar_response_shape(self, unit_client, monkeypatch):
+        import helpers.graph.query as q
+
+        seen = {}
+
+        def fake_similar(con, file_path, k=10, doc_type=None):
+            seen.update(file_path=file_path, k=k, doc_type=doc_type)
+            return [("findata/Companies/Banking/ICICI_Bank.md", "ICICI Bank", 0.93)]
+
+        monkeypatch.setattr(q, "similar_notes", fake_similar)
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get(
+            "/api/graph/similar/Companies/Banking/Hdfc_Bank.md?k=1&doc_type=company"
+        )
+        assert r.status_code == 200
+        data = r.get_json()
+        # findata/ prefix added when the caller passes a vault-relative path.
+        assert data["note"] == "findata/Companies/Banking/Hdfc_Bank.md"
+        assert data["k"] == 1
+        assert data["doc_type"] == "company"
+        assert data["neighbors"] == [
+            {"file_path": "findata/Companies/Banking/ICICI_Bank.md",
+             "title": "ICICI Bank", "similarity": 0.93}
+        ]
+        assert seen["file_path"] == "findata/Companies/Banking/Hdfc_Bank.md"
+        assert seen["k"] == 1
+
+    def test_similar_prefixed_path_unchanged(self, unit_client, monkeypatch):
+        import helpers.graph.query as q
+
+        seen = {}
+        monkeypatch.setattr(
+            q, "similar_notes",
+            lambda con, fp, k=10, doc_type=None: (seen.update(file_path=fp), [])[1])
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get("/api/graph/similar/findata/Sectors/Banking.md")
+        assert r.status_code == 200
+        assert seen["file_path"] == "findata/Sectors/Banking.md"
+
+    def test_similar_unknown_note_404(self, unit_client, monkeypatch):
+        import helpers.graph.query as q
+
+        monkeypatch.setattr(q, "similar_notes", lambda *a, **k: None)
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get("/api/graph/similar/Companies/Nope.md")
+        assert r.status_code == 404
+        assert "no embedded note" in r.get_json()["error"]
+
+    def test_similar_bad_k_returns_400(self, unit_client):
+        r = unit_client.get("/api/graph/similar/Companies/X.md?k=abc")
+        assert r.status_code == 400
+
+    def test_similar_negative_k_returns_400(self, unit_client):
+        r = unit_client.get("/api/graph/similar/Companies/X.md?k=-1")
+        assert r.status_code == 400
+
+
+class TestGraphEditionCompanies:
+    """GET /api/graph/edition_companies — sql_capability_unlocks A4.
+
+    Read-only GET over helpers.graph.query.edition_companies (edge-free
+    reverse of cited_in). 400 without ?edition=, 404 unresolvable."""
+
+    def test_edition_companies_response_shape(self, unit_client, monkeypatch):
+        import helpers.graph.query as q
+
+        seen = {}
+
+        def fake_edition(con, edition, k=10):
+            seen.update(edition=edition, k=k)
+            return [("findata/Companies/Defense/Bharat_Electronics.md",
+                     "Bharat_Electronics", 0.84)]
+
+        monkeypatch.setattr(q, "edition_companies", fake_edition)
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get("/api/graph/edition_companies?edition=BEL_HUL_Tata_Capital&k=5")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["edition"] == "BEL_HUL_Tata_Capital"
+        assert data["k"] == 5
+        assert data["companies"] == [
+            {"file_path": "findata/Companies/Defense/Bharat_Electronics.md",
+             "title": "Bharat_Electronics", "similarity": 0.84}
+        ]
+        assert seen["k"] == 5
+
+    def test_edition_required_400(self, unit_client):
+        r = unit_client.get("/api/graph/edition_companies")
+        assert r.status_code == 400
+        assert "edition" in r.get_json()["error"]
+
+    def test_edition_unresolvable_404(self, unit_client, monkeypatch):
+        import helpers.graph.query as q
+
+        monkeypatch.setattr(q, "edition_companies", lambda *a, **k: None)
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get("/api/graph/edition_companies?edition=Nope")
+        assert r.status_code == 404
+
+    def test_edition_bad_k_returns_400(self, unit_client):
+        r = unit_client.get("/api/graph/edition_companies?edition=X&k=abc")
+        assert r.status_code == 400
+
+
 # ----- /api/graph/* cache headers (C4, SQLite-only) ----------------------- #
 
 class TestGraphCacheHeaders:
@@ -603,6 +719,22 @@ class TestShortestParamValidation:
             "/api/graph/shortest?a=HDFC%20Bank&b=ICICI%20Bank&max_hops=99"
         )
         assert r.status_code == 400
+
+    def test_max_hops_boundary_eight_ok_nine_400(self, unit_client, monkeypatch):
+        """sql_capability_unlocks B3: the cap is the graph diameter (8).
+        9 is rejected with the diameter rationale in the message; 8 passes
+        validation (any later failure is a connection concern, not the
+        max_hops 400 — the monkeypatched connection makes it 500)."""
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+        r = unit_client.get(
+            "/api/graph/shortest?a=HDFC%20Bank&b=ICICI%20Bank&max_hops=9"
+        )
+        assert r.status_code == 400
+        assert "between 1 and 8" in r.get_json()["error"]
+        r8 = unit_client.get(
+            "/api/graph/shortest?a=HDFC%20Bank&b=ICICI%20Bank&max_hops=8"
+        )
+        assert r8.status_code != 400
 
 
 # ----- _normalise_as_of + as_of validation (pure unit, runs in QA) -------- #

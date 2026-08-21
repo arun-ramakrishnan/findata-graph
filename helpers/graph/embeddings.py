@@ -71,7 +71,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from helpers.core.db import connect as db_connect, DEFAULT_DB_PATH
+from helpers.core.db import connect as db_connect, DEFAULT_DB_PATH, bump_generation
 
 
 def _ensure_schema(conn: sqlite3.Connection, dims: int) -> None:
@@ -257,6 +257,15 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     ).rowcount
 
     conn.commit()
+    # B4 (sql_capability_unlocks): company_embeddings is invisible to the
+    # entities/graph_edges generation triggers, so this writer bumps the
+    # generation manually — flipping _is_warm so a DuckDB whose v_embeddings
+    # projection reads this table rebuilds on the next connect. ONLY when
+    # content actually changed (cache misses re-embedded or GC removed
+    # rows): an all-hits no-GC cycle rewrote byte-identical vectors and
+    # must not cost the ~2s rebuild.
+    if cache_stats["misses"] or gc:
+        bump_generation(conn)
     if cache_stats["hits"] or cache_stats["misses"]:
         print(
             f"embed cache: {cache_stats['hits']} hits, {cache_stats['misses']} misses",

@@ -202,6 +202,39 @@ def get_user_version(conn: sqlite3.Connection) -> int | None:
         return None
 
 
+def bump_generation(conn: sqlite3.Connection, by: int = 1) -> int | None:
+    """Manually bump db_meta.generation (writer-side staleness signal).
+
+    The entities/graph_edges triggers can't see derived-index writes:
+    note_search (FTS5) and company_embeddings are invisible to the trigger
+    set (sql_capability_unlocks B4), so a warm DuckDB cache whose
+    v_note_embeddings/v_embeddings projections depend on them would keep
+    serving stale vectors. Writers that change those tables call this
+    AFTER their commit — the generation mismatch flips _is_warm and the
+    next connect() rebuilds (~2s, correctness over warm-up). --check /
+    dry-run / sidecar-only paths must NEVER call it.
+
+    No-op (returns None) when db_meta doesn't exist — bare test fixtures
+    bypass ensure_db_meta, and a DB without db_meta has no
+    generation-keyed consumer to invalidate.
+
+    Returns the new generation value.
+    """
+    has_meta = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='db_meta'"
+    ).fetchone()
+    if not has_meta:
+        return None
+    conn.execute(
+        "UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+? AS TEXT) "
+        "WHERE key='generation'",
+        (int(by),),
+    )
+    conn.commit()
+    row = conn.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
+    return int(row[0]) if row else None
+
+
 def ensure_db_meta(conn: sqlite3.Connection) -> int:
     """Idempotently create db_meta + generation triggers + user_version.
 

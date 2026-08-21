@@ -2700,3 +2700,45 @@ changes).
   the blast radius; ruff (E+F and S,UP,C901) + ty clean.
 - `doc/procedures/embeddings.md` updated (apply step 3 now seeds the
   cache; step-6b refresh economics; the one-time seeding note).
+
+## 143. SQL capability unlocks — note vectors in DuckDB, BFS shortest path, bind hardening
+
+- `sql_capability_unlocks.md` (archived under `archive/database/`): three
+  parts landed together. **B (P0):** `shortest_path` is now a
+  level-by-level BFS over the materialised undirected adjacency
+  `e_all_und` (temp-table frontier/visited/parents, deterministic
+  `MIN(a_id)` parent, v_node seeding; 10ms default / 50ms
+  unreachable-worst-case steady-state vs the old CTE's multi-second
+  path enumeration). `e_dir` (stored direction) replaces
+  `fin.graph_edges` as the `find_cycles` substrate — the doubled table
+  would read every edge as a false 2-cycle. The old CTE survives as the
+  test oracle (`TestBfsShortestPath` equivalence sweep over
+  pairs × hops × labels × temporal dates). `/api/graph/shortest` caps
+  `max_hops` at the diameter (8).
+- **A:** `v_note_embeddings` (1,227 × 384 live) materialised from the
+  note_search embedding JSON (dims probe + empty-typed fallback);
+  `_SCHEMA_VERSION` 11; warm-path drift stamps `note_embed_dims` +
+  `note_embed_model` (the latter catches same-dims 384→384 model swaps
+  the dims gate can't see; written by rebuild_note_search's APPLY path
+  only). Four wrappers: `similar_notes` (self-excluding),
+  `notes_like_entity`, `edition_companies`, `near_duplicate_notes`
+  (rename tripwire — live top pairs: Patanjali↔Ruchi Soya 0.942,
+  Ujjivan/Piramal/Muthoot clusters) + CLI subcommands, `make
+  near-duplicates` (read-only), and two endpoints
+  (`/api/graph/similar/<path>`, `/api/graph/edition_companies`, 404
+  parity).
+- **B4:** writer-side generation bumps for trigger-invisible derived
+  tables — `bump_generation()` in db.py; note-search apply ( +
+  model stamp) and `populate_local` bump only on real change (cache
+  misses or GC), so a no-change maint-full stays warm; `--check`/
+  sidecar never bump. **C:** bind parameters replace `_lit()`
+  interpolation across the walk paths and `semantic_neighbors`.
+- Incidental fix: `_is_warm`'s SQLite probe now tries the colocated
+  `.db` first and stops at the first existing candidate (latent
+  fixture-isolation fall-through to the live research.db, exposed by
+  the new warm-path tests; production unaffected).
+- Snapshot: 25 manifest DuckDB tables (+ e_all_und/e_dir/
+  v_note_embeddings parquets); snapshot-check green at generation 25481.
+- Gates: `make qa` fully green; `make perf` 20/20 with the new
+  `shortest_path_bfs` gate (tests/bench_shortest_path.py, <100ms
+  steady-state on the default and the unreachable worst case).

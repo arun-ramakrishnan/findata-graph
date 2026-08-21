@@ -512,6 +512,36 @@ class TestLocalEmbedderWiring:
             con.close()
         assert groups == {"bge-small-en-v1.5": 3, "bge-small-en-v1.5-tmp": 3}
 
+    def test_generation_bump_apply_only(self, seeded_tree, fake_local):
+        """B4 (sql_capability_unlocks): note_search is an FTS5 virtual
+        table and can't carry the entities/graph_edges generation
+        triggers, so the APPLY path bumps db_meta.generation after the
+        FTS commit; --check (whose only writes are sidecar cache rows)
+        never does."""
+        from helpers.core.db import get_generation
+
+        con = sqlite3.connect(str(seeded_tree))
+        con.execute(
+            "CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        con.execute("INSERT INTO db_meta VALUES ('generation', '50')")
+        con.commit()
+        con.close()
+
+        # --check: sidecar cache may commit, the generation must not move.
+        rns.rebuild(seeded_tree, write=False)
+        con = sqlite3.connect(str(seeded_tree))
+        assert get_generation(con) == 50
+        con.close()
+
+        # apply: exactly the one writer-side increment (nothing here writes
+        # entities/graph_edges, so no trigger bumps mix in).
+        stats = rns.rebuild(seeded_tree, write=True)
+        con = sqlite3.connect(str(seeded_tree))
+        assert get_generation(con) == 51
+        con.close()
+        assert stats["generation_bumped"] == 51
+
 
 # --------------------------------------------------------------------------- #
 # A1: sqlite-vec mirror table (note_search_vec) maintenance                  #

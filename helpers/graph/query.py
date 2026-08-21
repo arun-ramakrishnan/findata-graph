@@ -180,7 +180,7 @@ def _with_generation_cache(fn):
 # longer declared — pattern queries are plain SQL JOINs over the e_* tables.
 # The bump forces every existing .duckdb cache cold so no stale fin_graph /
 # __duckpgq_internal catalog entries survive.
-_SCHEMA_VERSION = "10"  # 10: + v_edition / e_cited_in (okf_activation P)
+_SCHEMA_VERSION = "11"  # 11: + e_all_und/e_dir walk substrates + v_note_embeddings (sql_capability_unlocks)
 
 # Metadata table inside the .duckdb file tracking what was built + when.
 # Used to detect "is this file warm or cold" and to record provenance.
@@ -458,20 +458,30 @@ def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901
             sqlite_gen = None
             try:
                 from helpers.core.db import EXPECTED_SCHEMA_VERSION as _exp_sv, connect as _db_connect  # noqa: F401  (keep import local to avoid cycle)
-                # Try default DB_PATH first
-                for cand in (DB_PATH, duckdb_path.with_suffix(".db")):
-                    if cand.exists():
+                # Candidate order: the .db COLOCATED with this .duckdb first
+                # (test/custom DBs — connect() resolves the sibling
+                # <db_path>.duckdb), then the production DB_PATH. Production
+                # is unaffected (memory/graph.db doesn't exist); colocated-
+                # first keeps tmp-fixture probes off the live research.db.
+                # The loop STOPS at the first candidate that EXISTS — a
+                # colocated db_meta without a generation row means "no
+                # generation", not "keep looking" (falling through to the
+                # live DB compares a fixture build against production's
+                # counter and always reads cold).
+                for cand in (duckdb_path.with_suffix(".db"), DB_PATH):
+                    if not cand.exists():
+                        continue
+                    try:
+                        _scon = _db_connect(str(cand))
                         try:
-                            _scon = _db_connect(str(cand))
-                            try:
-                                _row = _scon.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
-                                if _row is not None:
-                                    sqlite_gen = int(_row[0])
-                                    break
-                            finally:
-                                _scon.close()
-                        except Exception:  # noqa: S112  # best-effort; skip item on failure
-                            continue
+                            _row = _scon.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
+                            if _row is not None:
+                                sqlite_gen = int(_row[0])
+                        finally:
+                            _scon.close()
+                    except Exception:  # noqa: S110  # best-effort; unreadable/no db_meta → no generation
+                        pass
+                    break
             except Exception:
                 sqlite_gen = None
             # If either side has no generation yet, treat as cold so we rebuild and stamp it
@@ -498,6 +508,31 @@ def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901
                     return False
             except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
                 pass
+            # sql_capability_unlocks A1: note-embedding drift — a dims change
+            # (model swap to a different vector size) or a model-label change
+            # (same-dims swap, e.g. MiniLM-384 -> bge-384, which dims alone
+            # cannot see) must force cold: a warm v_note_embeddings would
+            # keep serving zip-truncated or cross-model cosines. Stamps are
+            # written by _mark_warm; the live side is probed SQLite-side
+            # (dims from the first non-empty note_search embedding JSON,
+            # model from db_meta.note_embed_model — stamped by
+            # rebuild_note_search's apply path). Skipped entirely when no
+            # stamp exists AND the live side has no embeddings either.
+            try:
+                r_dims = con.execute(
+                    "SELECT value FROM _build_meta WHERE key='note_embed_dims'"
+                ).fetchone()
+                r_model = con.execute(
+                    "SELECT value FROM _build_meta WHERE key='note_embed_model'"
+                ).fetchone()
+            except Exception:
+                r_dims = r_model = None
+            stored_nd = r_dims[0] if r_dims else None
+            stored_nm = r_model[0] if r_model else None
+            if stored_nd is not None or stored_nm is not None:
+                live_dims, live_model = _probe_note_embed_state(duckdb_path)
+                if str(stored_nd) != str(live_dims) or str(stored_nm) != str(live_model):
+                    return False
             return True
         finally:
             con.close()
@@ -507,21 +542,88 @@ def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901
         return False
 
 
+def _probe_note_embed_state(duckdb_path: Path) -> tuple[str | None, str | None]:
+    """Live SQLite-side (note_embed_dims, note_embed_model) probe for _is_warm.
+
+    Dims come from json-parsing the first non-empty note_search embedding
+    (stored_embed_dims discipline: unparsable JSON counts as absent).
+    Model comes from db_meta.note_embed_model. Both None when the DB has
+    no embeddings/no stamp. Tries the .db COLOCATED with the .duckdb
+    first, then DB_PATH — same candidate order (and for the same
+    test-isolation reason) as the generation check in _is_warm.
+    """
+    import json as _json
+
+    from helpers.core.db import connect as _db_connect
+
+    for cand in (duckdb_path.with_suffix(".db"), DB_PATH):
+        if not cand.exists():
+            continue
+        try:
+            _scon = _db_connect(str(cand))
+            try:
+                dims = None
+                try:
+                    row = _scon.execute(
+                        "SELECT embedding FROM note_search "
+                        "WHERE embedding IS NOT NULL AND embedding != '' LIMIT 1"
+                    ).fetchone()
+                    if row and row[0]:
+                        vec = _json.loads(row[0])
+                        if isinstance(vec, list) and vec:
+                            dims = str(len(vec))
+                except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
+                    pass
+                model = None
+                try:
+                    row = _scon.execute(
+                        "SELECT value FROM db_meta WHERE key='note_embed_model'"
+                    ).fetchone()
+                    model = row[0] if row and row[0] else None
+                except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
+                    pass
+                return dims, model
+            finally:
+                _scon.close()
+        except Exception:  # noqa: S112  # best-effort; skip item on failure
+            continue
+    return None, None
+
+
 def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
     """Record build provenance in _build_meta after a successful build."""
     con.execute(_BUILD_META_DDL)
     # P0: stamp generation from SQLite db_meta so _is_warm can do O(1) staleness
     gen_val = None
+    note_model = None
     try:
         from helpers.core.db import connect as _db_connect
         _scon = _db_connect(str(db_path))
         try:
             _row = _scon.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
             gen_val = str(int(_row[0])) if _row and _row[0] is not None else None
+            # sql_capability_unlocks A1: the note-embedding model label lives
+            # in db_meta (note_search rows carry no model column — db_meta is
+            # the only SQL-side home; stamped by rebuild_note_search's apply
+            # path). Stamped here so _is_warm can catch same-dims swaps.
+            _row = _scon.execute(
+                "SELECT value FROM db_meta WHERE key='note_embed_model'"
+            ).fetchone()
+            note_model = _row[0] if _row and _row[0] else None
         finally:
             _scon.close()
     except Exception:
         gen_val = None
+    # sql_capability_unlocks A1: stamp the materialised note-embedding dims
+    # (len() of one stored vector; empty table -> no stamp) so _is_warm can
+    # detect a dims-changing model swap.
+    note_dims = None
+    try:
+        _row = con.execute(
+            "SELECT len(emb) FROM v_note_embeddings LIMIT 1").fetchone()
+        note_dims = str(int(_row[0])) if _row and _row[0] else None
+    except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
+        pass
     # P3.4 (Phase E): capture the DuckDB version for drift detection
     # (duckpgq_version stamping removed with the duckpgq retirement).
     duckdb_ver = None
@@ -535,6 +637,10 @@ def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
     base_vals = [("schema_version", _SCHEMA_VERSION), ("built_at", date.today().isoformat()), ("source_db", str(db_path))]
     if gen_val is not None:
         base_vals.append(("generation", gen_val))
+    if note_dims is not None:
+        base_vals.append(("note_embed_dims", note_dims))
+    if note_model:
+        base_vals.append(("note_embed_model", note_model))
     if duckdb_ver:
         base_vals.append(("duckdb_version", str(duckdb_ver)))
     for k, v in base_vals:
@@ -549,12 +655,12 @@ def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
 # every DuckDB table the materialisation owns: _build_graph's drop pass
 # reads _EXTRA_MATERIALIZED, and snapshot_db.export_parquet_duckdb
 # refuses to snapshot anything outside MATERIALISED_TABLES (stray scratch
-# tables are skipped + warned — the 2026-08-21 e_all_und benchmark
-# leftover otherwise shipped an orphan parquet into a snapshot commit).
+# tables are skipped + warned — a 2026-08-21 benchmark leftover otherwise
+# shipped an orphan parquet into a snapshot commit).
 _EXTRA_MATERIALIZED = (
     "v_node", "v_company", "v_sector", "v_super_sector", "v_sub_sector",
-    "v_theme", "v_edition", "v_embeddings", "e_belongs_to", "e_exposed_to",
-    "e_cited_in",
+    "v_theme", "v_edition", "v_embeddings", "v_note_embeddings",
+    "e_belongs_to", "e_exposed_to", "e_cited_in", "e_all_und", "e_dir",
 )
 MATERIALISED_TABLES = frozenset(
     spec["table"] for spec in EDGE_REGISTRY.values()
@@ -583,6 +689,7 @@ def _build_graph(con: duckdb.DuckDBPyConnection) -> None:
 
     _materialise_vertices(con)
     _materialise_edges(con)
+    _materialise_note_embeddings(con)
     # Phase E (duckpgq retirement): no property graph is declared any more —
     # the pattern queries are plain SQL JOINs over these materialised tables
     # and the algorithms run on onager.
@@ -816,6 +923,75 @@ def _materialise_embeddings(con: duckdb.DuckDBPyConnection) -> None:
         )
 
 
+def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
+    """Project the note_search FTS index's embedding column into DuckDB.
+
+    sql_capability_unlocks A1: ``v_note_embeddings`` is the whole-corpus
+    vector table (one row per embedded findata doc) that backs
+    similar_notes / notes_like_entity / edition_companies /
+    near_duplicate_notes. Source is ``fin.note_search`` — an FTS5 virtual
+    table, so the DuckDB scanner reads its shadow content table; the
+    bridge needs ``sqlite_all_varchar=true`` issued at THIS site (the
+    build calls this function directly — the SET inside
+    _materialise_embeddings may not have run yet; the SET itself is
+    idempotent and connection-wide).
+
+    Dims are probed on one stored row filtered the same way the CTAS
+    filters (``IS NOT NULL AND != ''`` — the stored_embed_dims()
+    discipline; unparsable JSON counts as absent, via json_array_length
+    returning NULL). Zero probeable rows (fresh DB, unembedded index)
+    falls back to an empty typed table so wrappers degrade to ``[]``
+    instead of raising (mirrors _materialise_embeddings' fallback).
+
+    Returns the resolved dims (0 = empty/unembedded) — _mark_warm stamps
+    it into _build_meta as ``note_embed_dims`` for the warm-path drift
+    check in _is_warm.
+    """
+    try:
+        r = con.execute(
+            "SELECT COUNT(*) FROM sqlite_master "
+            "WHERE type='table' AND name='note_search'"
+        ).fetchone()
+        table_exists = r is not None and r[0] > 0
+    except Exception:
+        table_exists = False
+
+    dims = 0
+    if table_exists:
+        con.execute('SET sqlite_all_varchar=true')
+        try:
+            row = con.execute(
+                "SELECT json_array_length(embedding) FROM fin.note_search "
+                "WHERE embedding IS NOT NULL AND embedding != '' LIMIT 1"
+            ).fetchone()
+            dims = int(row[0]) if row and row[0] is not None else 0
+        except Exception:
+            dims = 0
+
+    if table_exists and dims > 0:
+        con.execute(
+            f"""
+            CREATE TABLE v_note_embeddings AS
+            SELECT file_path, doc_type, title,
+                   CAST(embedding AS FLOAT[{dims}]) AS emb
+            FROM fin.note_search
+            WHERE embedding IS NOT NULL AND embedding != ''
+            """  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        )
+    else:
+        con.execute(
+            """
+            CREATE TABLE v_note_embeddings (
+                file_path VARCHAR,
+                doc_type VARCHAR,
+                title VARCHAR,
+                emb FLOAT[]
+            )
+            """
+        )
+    return dims
+
+
 def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
     """Create per-label edge tables for every registered edge type.
 
@@ -931,6 +1107,47 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
         JOIN v_node dst ON dst.name = ge.target
                       AND dst.kind = 'edition'
         WHERE ge.edge_type = 'cited_in'
+        """
+    )
+    # sql_capability_unlocks B1: whole-graph adjacency substrates for the
+    # walk queries (see _materialise_walk_substrate for the details).
+    _materialise_walk_substrate(con)
+
+
+def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection) -> None:
+    """Create the whole-graph adjacency substrates for the walk queries.
+
+    e_dir keeps each edge in its STORED direction (the directed walk
+    find_cycles needs — on a doubled table every edge would read as a
+    false 2-cycle and drown the diagnostic). e_all_und doubles every edge
+    in both directions (the undirected BFS shortest_path walks). Both
+    cover ALL edge types (registry + belongs_to/exposed_to/cited_in — the
+    relations view is unfiltered) and carry edge_type + validity so
+    per-query label/temporal filters stay WHERE clauses instead of joins
+    back to fin.graph_edges. Endpoints resolve to v_node ids like every
+    other e_* table; edges with a dangling endpoint (name not in
+    entities) drop here, which FK constraints already forbid.
+
+    Split out of _materialise_edges so tests with a hand-built minimal
+    v_node(id, name) can mount the SAME substrate the production build
+    produces — single source for the CTAS shapes.
+    """
+    con.execute(
+        """
+        CREATE TABLE e_dir AS
+        SELECT src.id AS a_id, dst.id AS b_id,
+               ge.edge_type, ge.valid_from, ge.valid_to
+        FROM fin.graph_edges ge
+        JOIN v_node src ON src.name = ge.source
+        JOIN v_node dst ON dst.name = ge.target
+        """
+    )
+    con.execute(
+        """
+        CREATE TABLE e_all_und AS
+        SELECT a_id, b_id, edge_type, valid_from, valid_to FROM e_dir
+        UNION ALL
+        SELECT b_id, a_id, edge_type, valid_from, valid_to FROM e_dir
         """
     )
 
@@ -1196,35 +1413,185 @@ def neighbors(con: duckdb.DuckDBPyConnection, entity: str,
 
 
 def shortest_path(con: duckdb.DuckDBPyConnection, src: str, dst: str,
-                  max_hops: int = 5, edge_label: str = "BelongsTo",
+                  max_hops: int = 5, edge_label: str | None = "BelongsTo",
                   as_of: str | None = None) -> list[tuple[str, int]] | None:
-    """Shortest path src → dst via the given edge label (recursive CTE).
+    """Shortest path src → dst via the given edge label (level-by-level BFS).
 
-    Phase C of the duckpgq-retirement proposal
-    (doc/improvements/archive/graph/duckpgq_retirement.txt): the recursive-CTE
-    walk over ``fin.graph_edges`` is now the primary (and only)
-    implementation. The former duckpgq ANY SHORTEST branch returned only the
-    two endpoints + hop count (duckpgq v1.5 could not expose the intermediate
-    vertex sequence); the CTE returns the full vertex sequence — a strictly
-    richer result from the same contract ``list[tuple[str, int]] | None``.
+    sql_capability_unlocks B2: the recursive-CTE walk over the attached
+    ``fin.graph_edges`` table is replaced by a BFS over the materialised
+    undirected adjacency ``e_all_und``. The old CTE materialised every
+    simple path ≤ max_hops before ``ORDER BY depth LIMIT 1`` picked one —
+    multi-second at hops=5, unbounded at hops=10. BFS touches each edge
+    once per level: O(max_hops · (V + E)), with true hop-shortest
+    semantics guaranteed by construction (layer order) rather than
+    approximated after full enumeration. ``_shortest_path_cte`` survives
+    below as the small-fixture oracle the equivalence tests compare
+    against.
 
     Returns a list of (vertex_name, hop_index) tuples from src to dst
     (inclusive), or None if no path within max_hops.
 
     ``edge_label`` restricts traversal to that edge type (resolved via
-    EDGE_REGISTRY); an unrecognized label means no filter — traverses all
-    edge types. ``as_of`` filters each hop temporally (valid_from/valid_to
+    EDGE_REGISTRY); ``None`` or an unrecognized label means no filter —
+    traverses all edge types. ``as_of`` filters each hop temporally (valid_from/valid_to
     window must contain the date; NULL valid_from is always-valid).
     """
-    return _shortest_path_cte(con, src, dst, max_hops,
+    return _shortest_path_bfs(con, src, dst, max_hops,
                               edge_label=edge_label, as_of=as_of)
+
+
+def _bfs_step_where(edge_label: str | None,
+                    as_of: str | None) -> tuple[str, list]:
+    """Per-query WHERE fragments + binds for one BFS step.
+
+    edge_label resolves via EDGE_REGISTRY; None or an unrecognized label =
+    no filter (the historical behaviour). The temporal window reads
+    e_all_und's carried validity columns.
+    """
+    params: list = []
+    clauses = ""
+    if edge_label is not None:
+        reg = EDGE_REGISTRY_BY_LABEL.get(edge_label)
+        if reg is not None:
+            clauses += " AND e.edge_type = ?"
+            params.append(reg["edge_type"])
+    iso = _normalise_as_of(as_of)
+    if iso is not None:
+        clauses += (
+            " AND (e.valid_from IS NULL OR e.valid_from <= ?)"
+            " AND (e.valid_to IS NULL OR e.valid_to >= ?)"
+        )
+        params.extend([iso, iso])
+    return clauses, params
+
+
+def _shortest_path_bfs(con: duckdb.DuckDBPyConnection, src: str, dst: str,
+                       max_hops: int,
+                       edge_label: str | None = None,
+                       as_of: str | None = None) -> list[tuple[str, int]] | None:
+    """BFS over ``e_all_und`` — the primary shortest-path implementation.
+
+    Mechanics (pinned by the sql_capability_unlocks review): temp tables
+    for frontier/visited/parents (visited reaches ~1.2k nodes, so an
+    ``?``-list bind is the wrong shape — ``NOT EXISTS`` against a temp
+    table scales and stays in SQL); each discovered node's parent is
+    picked deterministically (``MIN(a_id)``) so path reconstruction is
+    stable across runs; the frontier seeds from ``v_node`` by name.
+
+    Contract pins mirroring the old CTE: ``src == dst`` → ``[(src, 0)]``
+    when src is known; unknown src/dst → None; unreachable dst → None (a
+    full-graph traversal — bounded by construction, which the enumeration
+    CTE was not).
+
+    All value interpolations are bind parameters (Part C): endpoint
+    names, edge_type, and the validated as_of date never touch the SQL
+    text, so the ``_CONTROL_RE`` NUL-crack class cannot reach this path.
+    """
+    hops = int(max_hops)
+    if hops < 0:
+        raise ValueError("max_hops must be >= 0")
+
+    row = con.execute("SELECT id, name FROM v_node WHERE name = ?", [src]).fetchone()
+    if row is None:
+        return None
+    src_id, src_name = row
+    row = con.execute("SELECT id, name FROM v_node WHERE name = ?", [dst]).fetchone()
+    if row is None:
+        return None
+    dst_id, dst_name = row
+
+    if src_id == dst_id:
+        return [(src_name, 0)]
+    if hops == 0:
+        return None
+
+    step_where, params = _bfs_step_where(edge_label, as_of)
+
+    try:
+        con.execute(
+            "CREATE OR REPLACE TEMP TABLE _bfs_frontier AS "
+            "SELECT ?::BIGINT AS id", [src_id])
+        con.execute(
+            "CREATE OR REPLACE TEMP TABLE _bfs_visited AS "
+            "SELECT ?::BIGINT AS id", [src_id])
+        con.execute(
+            "CREATE OR REPLACE TEMP TABLE _bfs_parents ("
+            "id BIGINT PRIMARY KEY, parent BIGINT)")
+        for _level in range(hops):
+            con.execute(
+                f"""
+                CREATE OR REPLACE TEMP TABLE _bfs_next AS
+                SELECT e.b_id AS id, MIN(e.a_id) AS parent
+                FROM e_all_und e
+                WHERE e.a_id IN (SELECT id FROM _bfs_frontier)
+                  AND NOT EXISTS (SELECT 1 FROM _bfs_visited v
+                                  WHERE v.id = e.b_id){step_where}
+                GROUP BY e.b_id
+                """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                params,
+            )
+            found = con.execute(
+                "SELECT 1 FROM _bfs_next WHERE id = ? LIMIT 1", [dst_id]
+            ).fetchone() is not None
+            con.execute(
+                "INSERT INTO _bfs_parents SELECT id, parent FROM _bfs_next")
+            con.execute("INSERT INTO _bfs_visited SELECT id FROM _bfs_next")
+            con.execute(
+                "CREATE OR REPLACE TEMP TABLE _bfs_frontier AS "
+                "SELECT id FROM _bfs_next")
+            if found:
+                return _bfs_reconstruct(con, src_name, dst_id, dst_name)
+            if con.execute(
+                    "SELECT 1 FROM _bfs_frontier LIMIT 1").fetchone() is None:
+                return None  # walk exhausted — no path exists
+    finally:
+        for t in ("_bfs_frontier", "_bfs_visited", "_bfs_parents", "_bfs_next"):
+            con.execute(f"DROP TABLE IF EXISTS temp.{t}")
+    return None
+
+
+def _bfs_reconstruct(con: duckdb.DuckDBPyConnection, src_name: str,
+                     dst_id: int, dst_name: str) -> list[tuple[str, int]]:
+    """Walk ``_bfs_parents`` from dst back to src; emit (name, hop) pairs.
+
+    src has no parent row (it was seeded, never discovered), so the chain
+    terminates exactly at src. Parents form a BFS tree rooted at src —
+    strictly decreasing level — so the walk cannot loop.
+    """
+    seq: list[str] = []
+    node = dst_id
+    while True:
+        row = con.execute(
+            """
+            SELECT p.parent, v.name
+            FROM _bfs_parents p
+            JOIN v_node v ON v.id = p.parent
+            WHERE p.id = ?
+            """,
+            [node],
+        ).fetchone()
+        if row is None:
+            break
+        node, name = row
+        seq.append(name)
+    seq.reverse()          # [src, ..., parent(dst)]
+    seq.append(dst_name)   # [src, ..., dst]
+    return [(name, hop) for hop, name in enumerate(seq)]
 
 
 def _shortest_path_cte(con: duckdb.DuckDBPyConnection, src: str, dst: str,
                        max_hops: int = 5,
                        edge_label: str | None = None,
                        as_of: str | None = None) -> list[tuple[str, int]] | None:
-    """Recursive-CTE shortest-path walk (the primary implementation).
+    """Recursive-CTE shortest-path walk (TEST ORACLE — not production).
+
+    sql_capability_unlocks B2 retired this from the production path: it
+    enumerates every simple path ≤ max_hops over the attached SQLite
+    ``fin.graph_edges`` before picking one, which is the multi-second
+    latency bomb ``_shortest_path_bfs`` replaces. Kept because the
+    equivalence tests (tests/test_graph.py) use it as the oracle on small
+    fixtures, where its cost is irrelevant and its independence from the
+    BFS implementation is the point.
 
     Walks graph_edges directly as an undirected adjacency matrix and
     returns the full vertex sequence.
@@ -1337,40 +1704,50 @@ def find_cycles(con: duckdb.DuckDBPyConnection, *,
     if max_hops > 6:
         raise ValueError("max_hops > 6 is combinatorially explosive; lower the cap")
 
-    edge_type_clause = ""
+    # Bind-parameter filter (Part C). An unrecognized label deliberately
+    # yields no cycles (no edges match).
+    params: list = []
+    type_clause = ""
     if edge_label is not None:
         reg = EDGE_REGISTRY_BY_LABEL.get(edge_label)
         if reg is not None:
-            edge_type_clause = f" AND ge.edge_type = {_lit(reg['edge_type'])}"
-        # An unrecognized label deliberately yields no cycles (no edges match).
+            type_clause = " AND e.edge_type = ?"
+            params.append(reg["edge_type"])
 
-    # Seed every node, then walk directed edges (ge.source -> ge.target).
-    # A cycle closes when an edge leads back to the START node at depth >= 1.
+    # Seed every node from v_node, then walk e_dir (stored direction) by
+    # vertex id, carrying the name alongside for the path string — the
+    # materialised directed substrate gives the ~2.9x constant factor over
+    # the attached fin.graph_edges scan this walk used to pay per step
+    # (sql_capability_unlocks B1). A cycle closes when an edge leads back
+    # to the START node at depth >= 1.
     #
-    # The cycle guard is subtler than _shortest_path_cte's: we MUST allow the
+    # The cycle guard is subtler than the undirected walk's: we MUST allow the
     # closing edge (target == start) so the cycle can complete, but still
     # prevent the walk from revisiting any INTERMEDIATE vertex (which would
     # make the cycle non-simple). So the guard excludes start from the
     # visited-set: "target is not in path, UNLESS target is the start node
     # (the closing hop) AND depth >= 1 (can't close at depth 0)".
     query = f"""
-    WITH RECURSIVE walk(start, node, depth, path) AS (
-        SELECT name, name, 0, name AS path FROM fin.entities
+    WITH RECURSIVE walk(start, start_id, node, node_id, depth, path) AS (
+        SELECT v.name, v.id, v.name, v.id, 0, v.name FROM v_node v
       UNION ALL
         SELECT
             w.start,
-            ge.target,
+            w.start_id,
+            vb.name,
+            e.b_id,
             w.depth + 1,
-            w.path || '||' || ge.target
+            w.path || '||' || vb.name
         FROM walk w
-        JOIN fin.graph_edges ge ON ge.source = w.node{edge_type_clause}
-        WHERE w.depth < {int(max_hops)}
-          -- Token-exact guard (same primitive as _shortest_path_cte / F1).
+        JOIN e_dir e ON e.a_id = w.node_id{type_clause}
+        JOIN v_node vb ON vb.id = e.b_id
+        WHERE w.depth < ?
+          -- Token-exact guard (same primitive as the undirected walks / F1).
           -- Allow the closing hop back to `start`; forbid revisiting any
           -- other vertex already on the path (keeps cycles simple).
           AND (
-              ge.target = w.start
-              OR NOT array_contains(string_to_array(w.path, '||'), ge.target)
+              e.b_id = w.start_id
+              OR NOT array_contains(string_to_array(w.path, '||'), vb.name)
           )
           -- Once a cycle has closed (we are back at `start` at depth >= 1)
           -- stop extending: re-entering `start` and walking further would
@@ -1383,9 +1760,9 @@ def find_cycles(con: duckdb.DuckDBPyConnection, *,
     -- (depth 1 would be a self-loop, which CHECK (source != target) forbids).
     SELECT path FROM walk
     WHERE depth >= 2 AND node = start
-    LIMIT {int(limit)}
+    LIMIT ?
     """  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-    rows = con.execute(query).fetchall()
+    rows = con.execute(query, params + [int(max_hops), int(limit)]).fetchall()
     return [r[0].split("||") for r in rows]
 
 
@@ -1919,8 +2296,6 @@ def semantic_neighbors(
     if n == 0:
         return []
 
-    lit_co = _lit(company)
-
     if metric == "cosine":
         sim_expr = "array_cosine_similarity"
         direction = "DESC"
@@ -1941,23 +2316,34 @@ def semantic_neighbors(
     if dim == 0:
         return []
 
-    ref_vec = "(SELECT embedding FROM v_embeddings WHERE company_name = " + lit_co + ")"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+    # Part C (sql_capability_unlocks): the company name travels as a bind
+    # parameter everywhere it appears (reference vector, self-exclusion,
+    # cross-sector subquery) — _lit() interpolation is gone from this path,
+    # so the _CONTROL_RE NUL-crack class can't reach it. dim/k/metric are
+    # internal ints and schema-constant identifiers, safe by construction.
+    ref_vec = (
+        "(SELECT embedding FROM v_embeddings WHERE company_name = ?)"
+    )
 
     sector_filter = ""
     if cross_sector:
         sector_filter = (
-            " AND v.sector_classification != "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            " AND v.sector_classification != "
             "(SELECT sector_classification FROM v_node "
-            "WHERE name = " + lit_co + " AND kind = 'company')"
+            "WHERE name = ? AND kind = 'company')"
         )
 
+    # Interpolated parts are metric-whitelist identifiers (sim_expr /
+    # filter_cond / direction), int casts (dim, k), or fixed subqueries
+    # with ? binds (ref_vec, sector_filter); the company name never
+    # touches the SQL text.
     query = (
-        "SELECT v.name, v.sector_classification, ce.sim "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        "SELECT v.name, v.sector_classification, ce.sim "  # noqa: S608
         "FROM ( "
         "  SELECT id, "
         "         " + sim_expr + "(CAST(embedding AS FLOAT[" + str(dim) + "]), CAST(" + ref_vec + " AS FLOAT[" + str(dim) + "])) AS sim "
         "  FROM v_embeddings "
-        "  WHERE company_name != " + lit_co + " "
+        "  WHERE company_name != ? "
         ") ce "
         "JOIN v_node v ON v.id = ce.id AND v.kind = 'company' "
         "WHERE ce.sim IS NOT NULL "
@@ -1967,8 +2353,224 @@ def semantic_neighbors(
         "LIMIT " + str(int(k))
     )
 
-    r = con.execute(query).fetchall()
+    # Bind order = ?-appearance order: ref_vec (inner CAST subquery),
+    # self-exclusion, then the cross-sector subquery when enabled.
+    params: list[str] = [company, company]
+    if cross_sector:
+        params.append(company)
+    r = con.execute(query, params).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
+
+
+# --------------------------------------------------------------------------- #
+# Note-embedding wrappers (sql_capability_unlocks A2 — v_note_embeddings)
+#
+# Whole-corpus KNN/join queries over the note_search embedding projection.
+# All bind-parameterised; all degrade to None/[] when the table is empty
+# (the _materialise_note_embeddings fallback) so unwired databases just
+# return empty results. Query-prefix asymmetry note (proposal §3.2): these
+# are doc-doc joins — prefix-free on both sides, correct by construction.
+# Any FUTURE text-query wrapper over v_note_embeddings MUST go through
+# rebuild_note_search.query_embedder() (BGE instruction prefix), never
+# embed_document.
+# --------------------------------------------------------------------------- #
+_EDITION_DOC_TYPES = ("chatter", "points_and_figures", "plotlines")
+
+
+def _note_emb_dims(con: duckdb.DuckDBPyConnection) -> int:
+    """Dims of the stored note vectors; 0 when the table is empty."""
+    try:
+        row = con.execute("SELECT len(emb) FROM v_note_embeddings LIMIT 1").fetchone()
+        return int(row[0]) if row and row[0] else 0
+    except Exception:
+        return 0
+
+
+@_with_generation_cache
+def similar_notes(con: duckdb.DuckDBPyConnection, file_path: str, k: int = 10,
+                  doc_type: str | None = None) -> list[tuple[str, str, float]] | None:
+    """K nearest notes to a note, by cosine over ``v_note_embeddings``.
+
+    Returns ``list[(file_path, title, sim)]`` sorted by descending
+    similarity, EXCLUDING the query note itself (self-cosine is 1.0 by
+    construction). ``None`` when the reference file_path has no embedded
+    row (unknown note or unembedded doc); ``[]`` when it is the only note.
+    ``doc_type`` optionally restricts candidates ('company', 'sector',
+    'chatter', ...).
+    """
+    k = max(0, int(k))
+    dim = _note_emb_dims(con)
+    if dim == 0:
+        return None
+    ref = con.execute(
+        "SELECT 1 FROM v_note_embeddings WHERE file_path = ? LIMIT 1",
+        [file_path],
+    ).fetchone()
+    if ref is None:
+        return None
+    type_clause = ""
+    params: list = [file_path, file_path]
+    if doc_type is not None:
+        type_clause = " AND doc_type = ?"
+        params.append(doc_type)
+    r = con.execute(
+        f"""
+        SELECT file_path, title, sim FROM (
+          SELECT file_path, title,
+                 array_cosine_similarity(
+                     CAST(emb AS FLOAT[{dim}]),
+                     CAST((SELECT emb FROM v_note_embeddings WHERE file_path = ?)
+                          AS FLOAT[{dim}])) AS sim
+          FROM v_note_embeddings
+          WHERE file_path != ?{type_clause}
+        )
+        WHERE sim IS NOT NULL AND sim > 0
+        ORDER BY sim DESC
+        LIMIT {int(k)}
+        """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        params,
+    ).fetchall()
+    return [(row[0], row[1], row[2]) for row in r]
+
+
+@_with_generation_cache
+def notes_like_entity(
+    con: duckdb.DuckDBPyConnection, entity: str, k: int = 10,
+    doc_types: tuple[str, ...] = _EDITION_DOC_TYPES,
+) -> list[tuple[str, str, float]] | None:
+    """Newsletter notes semantically closest to an entity's note.
+
+    The reverse of the ``cited_in`` edge, but needs no edge: KNN from the
+    entity's embedded note over the newsletter doc types. ``entity`` is a
+    company/sector normalized_name; its note row is resolved through
+    ``fin.entities.file_path``. Returns ``list[(file_path, title, sim)]``
+    or ``None`` when the entity is unknown / has no embedded note.
+    """
+    k = max(0, int(k))
+    dim = _note_emb_dims(con)
+    if dim == 0:
+        return None
+    ref = con.execute(
+        "SELECT file_path FROM fin.entities WHERE name = ? "
+        "AND file_path IS NOT NULL",
+        [entity],
+    ).fetchone()
+    if ref is None:
+        return None
+    ref_path = ref[0]
+    in_ph = ", ".join("?" for _ in doc_types)
+    r = con.execute(
+        f"""
+        SELECT file_path, title, sim FROM (
+          SELECT file_path, title,
+                 array_cosine_similarity(
+                     CAST(emb AS FLOAT[{dim}]),
+                     CAST((SELECT emb FROM v_note_embeddings WHERE file_path = ?)
+                          AS FLOAT[{dim}])) AS sim
+          FROM v_note_embeddings
+          WHERE file_path != ?
+            AND doc_type IN ({in_ph})
+        )
+        WHERE sim IS NOT NULL AND sim > 0
+        ORDER BY sim DESC
+        LIMIT {int(k)}
+        """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        [ref_path, ref_path, *doc_types],
+    ).fetchall()
+    return [(row[0], row[1], row[2]) for row in r]
+
+
+@_with_generation_cache
+def edition_companies(con: duckdb.DuckDBPyConnection, edition: str,
+                      k: int = 10) -> list[tuple[str, str, float]] | None:
+    """Companies most similar to an edition (newsletter) note.
+
+    ``edition`` is resolved against the newsletter doc types by exact
+    title, full file_path, or filename stem (with or without .md) —
+    deterministic first match by file_path order. Returns
+    ``list[(file_path, title, sim)]`` over ``doc_type='company'``
+    candidates, or ``None`` when the edition can't be resolved.
+    """
+    k = max(0, int(k))
+    dim = _note_emb_dims(con)
+    if dim == 0:
+        return None
+    stem = edition[:-3] if edition.endswith(".md") else edition
+    in_ph = ", ".join("?" for _ in _EDITION_DOC_TYPES)
+    ref = con.execute(
+        f"""
+        SELECT file_path FROM v_note_embeddings
+        WHERE doc_type IN ({in_ph})
+          AND (title IN (?, ?)
+               OR file_path IN (?, ?, ?)
+               OR split_part(file_path, '/', -1) IN (?, ?))
+        ORDER BY file_path
+        LIMIT 1
+        """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        [*_EDITION_DOC_TYPES, edition, stem, edition, stem,
+         f"findata/{edition}", stem, f"{stem}.md"],
+    ).fetchone()
+    if ref is None:
+        return None
+    ref_path = ref[0]
+    r = con.execute(
+        f"""
+        SELECT file_path, title, sim FROM (
+          SELECT file_path, title,
+                 array_cosine_similarity(
+                     CAST(emb AS FLOAT[{dim}]),
+                     CAST((SELECT emb FROM v_note_embeddings WHERE file_path = ?)
+                          AS FLOAT[{dim}])) AS sim
+          FROM v_note_embeddings
+          WHERE file_path != ? AND doc_type = 'company'
+        )
+        WHERE sim IS NOT NULL AND sim > 0
+        ORDER BY sim DESC
+        LIMIT {int(k)}
+        """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        [ref_path, ref_path],
+    ).fetchall()
+    return [(row[0], row[1], row[2]) for row in r]
+
+
+def near_duplicate_notes(con: duckdb.DuckDBPyConnection, min_sim: float = 0.9,
+                         doc_type: str = "company",
+                         limit: int = 100) -> list[tuple[str, str, str, str, float]]:
+    """Near-duplicate note pairs above a cosine threshold (QA tripwire).
+
+    Pairwise self-join over ``v_note_embeddings`` restricted to one
+    doc_type; ``a.file_path < b.file_path`` emits each unordered pair
+    once. Top cosine pairs are exactly the rename-candidates / duplicate
+    clusters the rename machinery cares about (measured 2026-08-21:
+    Patanjali-Ruchi Soya rename, Ujjivan/Piramal/Muthoot pairs). ~1s at
+    ~1k company docs — a maintenance command, deliberately NOT an API
+    hot path and NOT generation-cached. Returns
+    ``list[(path_a, path_b, title_a, title_b, sim)]`` sorted by
+    descending similarity.
+    """
+    limit = max(0, int(limit))
+    dim = _note_emb_dims(con)
+    if dim == 0:
+        return []
+    r = con.execute(
+        f"""
+        SELECT file_path_a, file_path_b, title_a, title_b, sim FROM (
+          SELECT a.file_path AS file_path_a, a.title AS title_a,
+                 b.file_path AS file_path_b, b.title AS title_b,
+                 array_cosine_similarity(
+                     CAST(a.emb AS FLOAT[{dim}]),
+                     CAST(b.emb AS FLOAT[{dim}])) AS sim
+          FROM v_note_embeddings a
+          JOIN v_note_embeddings b ON a.file_path < b.file_path
+          WHERE a.doc_type = ? AND b.doc_type = ?
+        )
+        WHERE sim >= ?
+        ORDER BY sim DESC
+        LIMIT {limit}
+        """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        [doc_type, doc_type, float(min_sim)],
+    ).fetchall()
+    return [(row[0], row[1], row[2], row[3], row[4]) for row in r]
 
 
 # --------------------------------------------------------------------------- #
@@ -2117,6 +2719,24 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     sp.add_argument("--metric", choices=["cosine", "ip"], default="cosine")
     sp.add_argument("--cross-sector", action="store_true", help="Exclude same-sector companies")
 
+    sp = sub.add_parser("similar-notes", help="K nearest notes by embedding cosine (v_note_embeddings)")
+    sp.add_argument("file_path", help="Reference note path (e.g. findata/Companies/Agriculture/Avanti_Feeds.md)")
+    sp.add_argument("-k", "--k", type=int, default=10)
+    sp.add_argument("--doc-type", default=None, help="Restrict candidates to one doc_type")
+
+    sp = sub.add_parser("notes-like", help="Newsletters semantically closest to an entity's note")
+    sp.add_argument("entity")
+    sp.add_argument("-k", "--k", type=int, default=10)
+
+    sp = sub.add_parser("edition-companies", help="Companies most similar to an edition note")
+    sp.add_argument("edition", help="Edition title or file stem")
+    sp.add_argument("-k", "--k", type=int, default=10)
+
+    sp = sub.add_parser("near-duplicates", help="Near-duplicate note pairs above a cosine threshold (QA tripwire)")
+    sp.add_argument("--min-sim", type=float, default=0.9)
+    sp.add_argument("--doc-type", default="company")
+    sp.add_argument("--limit", type=int, default=100)
+
     sub.add_parser("rebuild", help="Rebuild materialised tables in-place (run after parse_newsletter --apply / derive-relations)")
     sub.add_parser("fresh", help="Drop the .duckdb file and rebuild from scratch (use after version bumps or corruption)")
     sub.add_parser("update-extensions", help="Check installed DuckDB extensions for updates and install them")
@@ -2211,6 +2831,38 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         for name, sector, sim in results:
             print("{:.4f}  {}  [{}]".format(sim, name, sector or "unknown"))
         print(f"({len(results)} results)", file=sys.stderr)
+    elif args.cmd == "similar-notes":
+        results = similar_notes(con, args.file_path, k=args.k, doc_type=args.doc_type)
+        if results is None:
+            print(f"no embedded note for {args.file_path!r}")
+            return 1
+        for path, title, sim in results:
+            print(f"{sim:.4f}  {title}  ({path})")
+        print(f"({len(results)} results)", file=sys.stderr)
+    elif args.cmd == "notes-like":
+        results = notes_like_entity(con, args.entity, k=args.k)
+        if results is None:
+            print(f"no embedded note for entity {args.entity!r}")
+            return 1
+        for path, title, sim in results:
+            print(f"{sim:.4f}  {title}  ({path})")
+        print(f"({len(results)} results)", file=sys.stderr)
+    elif args.cmd == "edition-companies":
+        results = edition_companies(con, args.edition, k=args.k)
+        if results is None:
+            print(f"no edition note matches {args.edition!r}")
+            return 1
+        for path, title, sim in results:
+            print(f"{sim:.4f}  {title}  ({path})")
+        print(f"({len(results)} results)", file=sys.stderr)
+    elif args.cmd == "near-duplicates":
+        pairs = near_duplicate_notes(con, min_sim=args.min_sim,
+                                     doc_type=args.doc_type, limit=args.limit)
+        if not pairs:
+            print(f"no note pairs above {args.min_sim} (doc_type={args.doc_type!r})")
+        for pa, pb, ta, tb, sim in pairs:
+            print(f"{sim:.4f}  {ta or pa}  <->  {tb or pb}")
+        print(f"({len(pairs)} pair(s))", file=sys.stderr)
     return 0
 
 
