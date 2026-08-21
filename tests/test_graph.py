@@ -59,6 +59,30 @@ def con():
     c.close()
 
 
+def _minimal_db(tmp_path, name):
+    """Schema-only copy of the production DB for scenario tests.
+
+    Backs up ``memory/research.db`` (WAL-flushed via the backup API, real
+    schema + db_meta), then wipes every populated table. Callers seed only
+    the rows their scenario needs, so connect()/rebuild pay just the
+    per-connect floor instead of a full live-corpus materialisation
+    (~1.2s per build).
+    """
+    tmp_db = tmp_path / name
+    src = sqlite3.connect(str(DB_PATH))
+    dst = sqlite3.connect(str(tmp_db))
+    src.backup(dst)
+    src.close()
+    for t in ("graph_edges", "entity_tags", "graph_analytics", "events",
+              "quotes", "company_metrics", "company_embeddings",
+              "note_search"):
+            dst.execute(f"DELETE FROM {t}")  # noqa: S608  # parameterized; interpolated parts are schema-constant identifiers
+    dst.execute("DELETE FROM entities")
+    dst.commit()
+    dst.close()
+    return tmp_db
+
+
 # --------------------------------------------------------------------------- #
 # Connect / property-graph setup
 # --------------------------------------------------------------------------- #
@@ -700,16 +724,10 @@ class TestCascadePropagation:
         rename. The fix is to pass ``rebuild=True`` so the materialised
         tables are dropped + repopulated from the current SQLite state.
         """
-        # Copy via the SQLite backup API so WAL state is flushed (a plain
-        # shutil.copy can produce a DB missing graph_edges if taken mid-WAL).
-        import sqlite3
-
-        tmp_db = tmp_path / "test_cascade.db"
-        src = sqlite3.connect(str(DB_PATH))
-        dst = sqlite3.connect(str(tmp_db))
-        src.backup(dst)
-        dst.close()
-        src.close()
+        # Schema-only copy: the scenario needs just its two synthetic
+        # entities — a full-corpus copy would make each of the two builds
+        # below pay live-scale materialisation.
+        tmp_db = _minimal_db(tmp_path, "test_cascade.db")
 
         # Insert a synthetic entity + edge we can rename safely.
         from helpers.core.db import connect as sqlite_connect
@@ -778,21 +796,14 @@ class TestBundleFShortestPathCycleGuard:
         """
         import sqlite3
 
-        tmp_db = tmp_path / "f1_cycle.db"
-        # Copy live schema by backing up, then wipe & reseed minimal data.
-        src = sqlite3.connect(str(DB_PATH))
-        dst = sqlite3.connect(str(tmp_db))
-        src.backup(dst)
-        dst.close()
-        src.close()
-
+        tmp_db = _minimal_db(tmp_path, "f1_cycle.db")
         conn = sqlite3.connect(str(tmp_db))
         try:
-            # Isolate: wipe edges, keep entities table for FK satisfaction.
-            conn.execute("DELETE FROM graph_edges")
+            # Seed the prefix-collision chain (tables are empty — the
+            # schema-only copy wiped them).
             for n in ("__ITC", "__ITC Extended", "__Mid"):
                 conn.execute(
-                    "INSERT OR IGNORE INTO entities(name, entity_type) "
+                    "INSERT INTO entities(name, entity_type) "
                     "VALUES (?, 'company')",
                     (n,),
                 )
@@ -1089,11 +1100,12 @@ class TestFindCycles:
         dcon = _ddb.connect()
         dcon.execute("INSTALL sqlite; LOAD sqlite;")
         dcon.execute(f"ATTACH '{sqlite_path}' AS fin (TYPE sqlite, READ_ONLY);")
-        from helpers.graph.query import _materialise_walk_substrate
+        from helpers.graph.query import _materialise_walk_substrate, _stage_edges
         dcon.execute(
             "CREATE TABLE v_node AS "
             "SELECT row_number() OVER () AS id, name, entity_type AS kind "
             "FROM fin.entities")
+        _stage_edges(dcon)
         _materialise_walk_substrate(dcon)
         try:
             cycles = find_cycles(dcon, edge_label="AcquiredBy", max_hops=4)
@@ -1131,11 +1143,12 @@ class TestFindCycles:
         dcon = _ddb.connect()
         dcon.execute("INSTALL sqlite; LOAD sqlite;")
         dcon.execute(f"ATTACH '{sqlite_path}' AS fin (TYPE sqlite, READ_ONLY);")
-        from helpers.graph.query import _materialise_walk_substrate
+        from helpers.graph.query import _materialise_walk_substrate, _stage_edges
         dcon.execute(
             "CREATE TABLE v_node AS "
             "SELECT row_number() OVER () AS id, name, entity_type AS kind "
             "FROM fin.entities")
+        _stage_edges(dcon)
         _materialise_walk_substrate(dcon)
         try:
             assert find_cycles(dcon, max_hops=4) == []

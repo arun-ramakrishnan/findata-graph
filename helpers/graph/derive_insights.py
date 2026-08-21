@@ -128,8 +128,9 @@ PROJECT_ROOT = _REPO_ROOT
 COMPANIES_DIR = PROJECT_ROOT / "findata" / "Companies"
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 
-# source_ref prefixes — the LIKE 'derive:quotes:%' / 'derive:metrics:%' sweeps
-# in apply_quotes()/apply_metrics() clear derived rows on re-run (idempotency
+# source_ref prefixes — the LIKE 'derive:quotes:%' / 'derive:metrics:%' scope
+# in apply_quotes()/apply_metrics()'s stable replace clears derived rows on
+# re-run while keeping id/created_at of content-identical rows (idempotency
 # contract; manual:/migration: rows preserved). Mirror of derive_events.py:73.
 QUOTES_PREFIX = "derive:quotes:"
 METRICS_PREFIX = "derive:metrics:"
@@ -902,81 +903,118 @@ INSERT INTO company_metrics
      as_of_edition, source_quote, source_ref, properties)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
+_QUOTE_CONTENT_COLS = ("entity", "quote_text", "paraphrase", "speaker_name",
+                       "speaker_title", "as_of_edition", "source_ref",
+                       "properties")
+_METRIC_CONTENT_COLS = ("entity", "metric_label", "value_raw", "value_num",
+                        "unit", "period", "as_of_edition", "source_quote",
+                        "source_ref", "properties")
+
+
+def _stable_prefix_replace(conn, table: str, prefix: str, cols: tuple[str, ...],
+                           insert_sql: str, new_rows: list[tuple]) -> int:
+    """Prefix-scoped replace preserving id/created_at of unchanged rows.
+
+    Semantically equivalent to the previous DELETE-prefix-then-INSERT-all
+    (hand-seeded rows outside the prefix are untouched; stale derived rows
+    are removed; the final derived row set is exactly ``new_rows``), but
+    rows are multiset-matched on content first: unchanged rows keep their
+    id AND created_at, stale rows are deleted by id, and only genuinely
+    new rows are inserted. A no-op derive cycle therefore stops restamping
+    every row and reshuffling ids — the snapshot blobs change only when
+    content actually changes (the embed_cache stable-write pattern).
+
+    Returns the number of derived rows in the table after the call.
+    """
+    collist = ", ".join(cols)
+    rows = conn.execute(
+        f"SELECT id, {collist} FROM {table} WHERE source_ref LIKE ?",  # noqa: S608  # schema-constant identifiers; prefix is a ? bind
+        (prefix + "%",),
+    ).fetchall()
+    pool: dict[tuple, list[int]] = {}
+    for r in rows:
+        pool.setdefault(tuple(r[1:]), []).append(r[0])
+    to_insert: list[tuple] = []
+    kept = 0
+    for content in new_rows:
+        ids = pool.get(content)
+        if ids:
+            ids.pop()
+            kept += 1
+        else:
+            to_insert.append(content)
+    stale_ids = [i for ids in pool.values() for i in ids]
+    if stale_ids:
+        conn.executemany(f"DELETE FROM {table} WHERE id = ?",  # noqa: S608  # schema-constant table name
+                         [(i,) for i in stale_ids])
+    if to_insert:
+        conn.executemany(insert_sql, to_insert)
+    return kept + len(to_insert)
 
 
 def apply_quotes(quotes: list[Quote], *, conn=None, dry_run: bool = True,
                 index: dict | None = None) -> int:
-    """Persist quotes. DELETE-then-INSERT on ``source_ref LIKE 'derive:quotes:%'``.
+    """Persist quotes — prefix-scoped stable replace of derived rows.
 
-    Hand-seeded rows (``manual:`` / other prefixes) are preserved. With
-    ``index`` (edition_index norm-key map), the stored ``as_of_edition`` is
-    the canonical edition STEM (okf_activation F0 — joinable to
-    ``entities.name`` / ``sources[].id``); unresolvable titles are stored
-    verbatim (honest miss). The in-memory field keeps the display title —
-    render headings key on it.
+    Hand-seeded rows (``manual:`` / other prefixes) are preserved, and a
+    re-apply with unchanged content keeps every row's id and created_at
+    (see ``_stable_prefix_replace``). With ``index`` (edition_index
+    norm-key map), the stored ``as_of_edition`` is the canonical edition
+    STEM (okf_activation F0 — joinable to ``entities.name`` /
+    ``sources[].id``); unresolvable titles are stored verbatim (honest
+    miss). The in-memory field keeps the display title — render headings
+    key on it.
     """
     own_conn = conn is None
     if own_conn:
         conn = connect()
-    inserted = 0
     stem_memo: dict[str, str] = {}
     try:
         if dry_run:
             return len(quotes)
+        new_rows = [
+            (q.entity, q.quote_text, q.paraphrase, q.speaker_name,
+             q.speaker_title,
+             _edition_stem(q.as_of_edition, index, stem_memo),
+             q.source_ref,
+             json.dumps(q.properties, ensure_ascii=False, sort_keys=True))
+            for q in quotes
+        ]
         with conn:
-            conn.execute(
-                "DELETE FROM quotes WHERE source_ref LIKE ?", (QUOTES_PREFIX + "%",)
-            )
-            for q in quotes:
-                props_json = json.dumps(q.properties, ensure_ascii=False,
-                                        sort_keys=True)
-                cur = conn.execute(
-                    _INSERT_QUOTE_SQL,
-                    (q.entity, q.quote_text, q.paraphrase, q.speaker_name,
-                     q.speaker_title,
-                     _edition_stem(q.as_of_edition, index, stem_memo),
-                     q.source_ref, props_json),
-                )
-                inserted += cur.rowcount
+            return _stable_prefix_replace(
+                conn, "quotes", QUOTES_PREFIX, _QUOTE_CONTENT_COLS,
+                _INSERT_QUOTE_SQL, new_rows)
     finally:
         if own_conn:
             conn.close()
-    return inserted
 
 
 def apply_metrics(metrics: list[Metric], *, conn=None, dry_run: bool = True,
                   index: dict | None = None) -> int:
-    """Persist company_metrics. DELETE-then-INSERT on ``source_ref LIKE
-    'derive:metrics:%'``."""
+    """Persist company_metrics — prefix-scoped stable replace of derived
+    rows (same contract as ``apply_quotes``)."""
     own_conn = conn is None
     if own_conn:
         conn = connect()
-    inserted = 0
     stem_memo: dict[str, str] = {}
     try:
         if dry_run:
             return len(metrics)
+        new_rows = [
+            (m.entity, m.metric_label, m.value_raw, m.value_num, m.unit,
+             m.period,
+             _edition_stem(m.as_of_edition, index, stem_memo),
+             m.source_quote, m.source_ref,
+             json.dumps(m.properties, ensure_ascii=False, sort_keys=True))
+            for m in metrics
+        ]
         with conn:
-            conn.execute(
-                "DELETE FROM company_metrics WHERE source_ref LIKE ?",
-                (METRICS_PREFIX + "%",),
-            )
-            for m in metrics:
-                props_json = json.dumps(m.properties, ensure_ascii=False,
-                                        sort_keys=True)
-                cur = conn.execute(
-                    _INSERT_METRIC_SQL,
-                    (m.entity, m.metric_label, m.value_raw, m.value_num, m.unit,
-                     m.period,
-                     _edition_stem(m.as_of_edition, index, stem_memo),
-                     m.source_quote, m.source_ref,
-                     props_json),
-                )
-                inserted += cur.rowcount
+            return _stable_prefix_replace(
+                conn, "company_metrics", METRICS_PREFIX, _METRIC_CONTENT_COLS,
+                _INSERT_METRIC_SQL, new_rows)
     finally:
         if own_conn:
             conn.close()
-    return inserted
 
 
 # =========================================================================== #
@@ -1640,7 +1678,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                                  index=index)
         m_written = apply_metrics(metrics, conn=conn, dry_run=not args.apply,
                                   index=index)
-        action = "inserted" if args.apply else "would insert"
+        action = "written" if args.apply else "would write"
         print(f"{q_written} quotes {action}.", file=sys.stderr)
         print(f"{m_written} metrics {action}.", file=sys.stderr)
 

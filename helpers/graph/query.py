@@ -993,8 +993,38 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
     return dims
 
 
+def _stage_edges(con: duckdb.DuckDBPyConnection) -> None:
+    """Copy ``fin.graph_edges`` into a session-local TEMP table once per build.
+
+    The ~16 edge CTAS in this module each re-scan the attached SQLite
+    table, and the sqlite-scanner's fixed per-scan overhead dominates on
+    small corpora (measured on a 370-entity fixture: 0.84s of execute
+    time in a 1.2s cold build, roughly flat in row count). Staging once
+    and pointing every CTAS at the local copy collapses that to a single
+    scanner pass.
+
+    TEMP tables are session-scoped and never reach the ``.duckdb`` file,
+    so warm connects, snapshots, and the post-close catalog are
+    unaffected. ``CREATE OR REPLACE`` makes a same-session second build
+    (e.g. a future in-place refresh path) safe.
+
+    Type parity note: when ``_materialise_embeddings`` has already run
+    (company_embeddings exists), ``sqlite_all_varchar=true`` is set
+    connection-wide, and the stage copies columns as VARCHAR — exactly
+    what the CTAS previously read from the attached table under the same
+    setting, so the e_* schemas are unchanged either way.
+    """
+    con.execute(
+        "CREATE OR REPLACE TEMP TABLE _stg_edges AS "
+        "SELECT * FROM fin.graph_edges"
+    )
+
+
 def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
     """Create per-label edge tables for every registered edge type.
+
+    All CTAS here read the staged ``_stg_edges`` copy (see
+    ``_stage_edges``), not the attached SQLite table directly.
 
     Source/target columns are resolved to integer vertex IDs at
     materialisation time via JOIN on `name`. Integer keys are what the
@@ -1013,6 +1043,7 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
     company or sector. This is what makes the single-vertex-table property
     graph declaration work correctly.
     """
+    _stage_edges(con)
     for etype, spec in EDGE_REGISTRY.items():
         src_table = "v_company" if spec["src_kind"] == "company" else "v_sector"
         dst_table = "v_company" if spec["dst_kind"] == "company" else "v_sector"
@@ -1039,7 +1070,7 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
                    dst.id   AS {dst_id_col},
                    ge.weight, ge.properties, ge.source_ref,
                    ge.valid_from, ge.valid_to{year_col}
-            FROM fin.graph_edges ge
+            FROM _stg_edges ge
             JOIN {src_table} src ON src.name = ge.source
             JOIN {dst_table} dst ON dst.name = ge.target
             WHERE ge.edge_type = '{etype}'
@@ -1063,7 +1094,7 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
                dst.id AS parent_id,
                ge.weight, ge.properties, ge.source_ref,
                ge.valid_from, ge.valid_to
-        FROM fin.graph_edges ge
+        FROM _stg_edges ge
         JOIN v_node src ON src.name = ge.source
                       AND src.kind IN ('sector', 'sub_sector')
         JOIN v_node dst ON dst.name = ge.target
@@ -1083,7 +1114,7 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
                dst.id AS theme_id,
                ge.weight, ge.properties, ge.source_ref,
                ge.valid_from, ge.valid_to
-        FROM fin.graph_edges ge
+        FROM _stg_edges ge
         JOIN v_node src ON src.name = ge.source
                       AND src.kind = 'company'
         JOIN v_node dst ON dst.name = ge.target
@@ -1102,7 +1133,7 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
                dst.id AS edition_id,
                ge.weight, ge.properties, ge.source_ref,
                ge.valid_from, ge.valid_to
-        FROM fin.graph_edges ge
+        FROM _stg_edges ge
         JOIN v_node src ON src.name = ge.source
                       AND src.kind IN ('company', 'sector', 'super_sector')
         JOIN v_node dst ON dst.name = ge.target
@@ -1129,6 +1160,10 @@ def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection) -> None:
     other e_* table; edges with a dangling endpoint (name not in
     entities) drop here, which FK constraints already forbid.
 
+    Reads ``_stg_edges`` (the staged local copy of fin.graph_edges), so
+    a direct caller must run ``_stage_edges(con)`` first — the
+    production path gets that via ``_materialise_edges``.
+
     Split out of _materialise_edges so tests with a hand-built minimal
     v_node(id, name) can mount the SAME substrate the production build
     produces — single source for the CTAS shapes.
@@ -1138,7 +1173,7 @@ def _materialise_walk_substrate(con: duckdb.DuckDBPyConnection) -> None:
         CREATE TABLE e_dir AS
         SELECT src.id AS a_id, dst.id AS b_id,
                ge.edge_type, ge.valid_from, ge.valid_to
-        FROM fin.graph_edges ge
+        FROM _stg_edges ge
         JOIN v_node src ON src.name = ge.source
         JOIN v_node dst ON dst.name = ge.target
         """

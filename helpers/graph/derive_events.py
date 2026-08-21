@@ -296,7 +296,8 @@ def _iter_bullets(body: str):
     spans both phases so nothing is yielded twice.
     """
     seen: set[str] = set()
-    for line in body.splitlines():
+    lines = body.splitlines()
+    for line in lines:
         stripped = line.strip()
         if not stripped:
             continue
@@ -304,7 +305,7 @@ def _iter_bullets(body: str):
         seen.add(stripped)
     # Also yield sentence-split prose (management changes often run in
     # multi-clause sentences inside ## The Chatter that aren't bullets).
-    for line in body.splitlines():
+    for line in lines:
         for sentence in _SENTENCE_SPLIT_RE.split(line.strip()):
             sentence = sentence.strip()
             if len(sentence) < 25 or sentence in seen:

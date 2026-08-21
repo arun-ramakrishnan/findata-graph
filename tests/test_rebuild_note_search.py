@@ -466,7 +466,10 @@ class TestLocalEmbedderWiring:
                       encoding="utf-8")
         s3 = rns.rebuild(seeded_tree, write=True, incremental=True)
         assert s3["embed_cache_misses"] == 1  # only the edited doc
-        assert s3["embed_cache_hits"] == 2
+        # P2.2: unchanged docs are CARRIED from note_search on the
+        # incremental path (mtime match) — cheaper than even a cache hit;
+        # the cache is only consulted for docs that actually changed.
+        assert s3["embed_cache_hits"] == 0
 
     def test_check_mode_prewarms_cache(self, seeded_tree, fake_local):
         """--check (write=False) must PERSIST cache rows: the documented
@@ -593,6 +596,48 @@ class TestVecMirror:
         assert stats["mode"] == "incremental"
         assert stats["upserts"] == 1
         assert stats["vec_rows"] == 1  # only the changed doc re-mirrored
+
+    def test_incremental_noop_carries_rows(self, seeded_tree):
+        """P2.2: a no-change incremental run upserts/deletes NOTHING (rows
+        are carried from note_search on mtime match, cache untouched)."""
+        import helpers.maintenance.rebuild_note_search as R
+
+        R.rebuild(R.DEFAULT_DB)
+        stats = R.rebuild(R.DEFAULT_DB, incremental=True)
+        assert stats["mode"] == "incremental"
+        assert stats["upserts"] == 0
+        assert stats["deletes"] == 0
+        # No cache traffic at all (pseudo embedder -> no cache; real model
+        # -> carried rows never consult it).
+        assert stats.get("embed_cache_hits", 0) == 0
+        assert stats.get("embed_cache_misses", 0) == 0
+
+    def test_incremental_entity_side_sector_change_re_upserts(self, seeded_tree):
+        """P2.2 guard: a DB-side sector reclassification (file untouched,
+        mtime unchanged) must NOT be carried stale — the entities-table
+        title/sector check forces a reprocess and the hash diff upserts."""
+        import helpers.maintenance.rebuild_note_search as R
+        import sqlite3
+
+        R.rebuild(R.DEFAULT_DB)
+        con = sqlite3.connect(str(R.DEFAULT_DB))
+        try:
+            con.execute(
+                "UPDATE entities SET sector_classification = 'Chemicals' "
+                "WHERE file_path IS NOT NULL AND entity_type = 'company'")
+            con.commit()
+        finally:
+            con.close()
+        stats = R.rebuild(R.DEFAULT_DB, incremental=True)
+        assert stats["upserts"] >= 1
+        con = sqlite3.connect(str(R.DEFAULT_DB))
+        try:
+            sec = con.execute(
+                "SELECT sector FROM note_search WHERE doc_type = 'company' "
+                "LIMIT 1").fetchone()[0]
+        finally:
+            con.close()
+        assert sec == "Chemicals"
 
     def test_incremental_delete_removes_vec_row(self, seeded_tree):
         import helpers.maintenance.rebuild_note_search as R
