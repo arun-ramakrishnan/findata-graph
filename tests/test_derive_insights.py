@@ -411,6 +411,24 @@ class TestCurationSafety:
         # Only one auto block (no stacking).
         assert new_text.count(di._BEGIN) == 1
 
+    def test_all_whitespace_edition_converges(self):
+        """Regression (fuzz-found 2026-08-22): an edition string that is
+        entirely Unicode whitespace (\\x85 NEL matches \\s) made the
+        heading regex capture the EMPTY edition, so the block never
+        matched its own render and every --apply inserted a fresh copy —
+        unbounded duplication, the non-convergence class of the 2026-08-19
+        incident. The edition compare is now strip-normalised like the
+        hand-block gate."""
+        ed = "\x85"
+        block = di.render_chatter_block(
+            ed, [di.Quote(entity="Marico", quote_text="q.", as_of_edition=ed)])
+        out1, ch1 = di._replace_or_insert_block("# Marico\n", ed, block)
+        assert ch1 is True
+        out2, ch2 = di._replace_or_insert_block(out1, ed, block)
+        assert ch2 is False                     # recognised its own block
+        assert out2 == out1
+        assert out1.count(di._BEGIN) == 1       # no stacking
+
     def test_different_edition_hand_block_does_not_block_new_auto(self):
         """A hand-written block for edition Y does NOT block an auto block for
         edition X (different editions coexist)."""

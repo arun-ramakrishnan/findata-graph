@@ -12,7 +12,7 @@ export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
-> @echo "  advisory                 Run advisory (non-gating) checks: ty on tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit"
+> @echo "  advisory                 Run advisory (non-gating) checks: ty on tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit (appends advisory_report.txt)"
 > @echo "  analytics                Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)"
 > @echo "  cover                    Run all tests with coverage over helpers/ (branch + missing-line report)"
 > @echo "  deptry                   Run deptry dependency-health scan (unused/undeclared/transitive deps)"
@@ -33,7 +33,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  graph-smoke              Quick smoke test of the graph query layer (sector-of + neighbors)"
 > @echo "  graph-stats              Print a one-shot summary of the graph state (entities, edges, sectors, hygiene)"
 > @echo "  install-dev              Install dev dependencies (uv sync; prunes undeclared packages)"
-> @echo "  integration              Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.)"
+> @echo "  integration              Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends integration_report.txt)"
 > @echo "  lint                     Run ruff linter (replaces flake8)"
 > @echo "  lint-audit               Run ruff S/UP/C901 audits (security + modernization + complexity) — Bandit/Refurb/Radon equivs"
 > @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live; skip-safe on pristine clone)"
@@ -42,7 +42,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  metrics-rebuild          Refresh company financials + industry edges from yfinance (~1 min, 931 tickers)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt"
-> @echo "  qa                       Run lint + types + deptry + static checks + pytest + notes + integrity + snapshot checks"
+> @echo "  qa                       Run lint + types + deptry + static checks + pytest + notes + integrity + snapshot checks (appends qa_report.txt)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
 > @echo "  secret-scan              Incremental git-history secret scan (state under .git/secret-scan/)"
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
@@ -59,16 +59,9 @@ help:           ## Show available targets (alphabetical; entries generated from 
 static-checks:  ## Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)
 > python3 helpers/validators/static_checks.py
 
-qa:             ## Run lint + types + deptry + static checks + pytest + notes + integrity + snapshot checks
-> ruff check .
-> ty check helpers app.py
-> deptry .
-> python3 helpers/validators/static_checks.py
-> pytest -m "not live"
-> python3 helpers/validators/verify_notes.py
-> python3 helpers/misc/database_integrity_check.py
-> python3 helpers/maintenance/snapshot_db.py --check
-> @echo "✓ QA passed (lint + types + deptry + static + pytest + notes + integrity + snapshot)"
+qa:             ## Run lint + types + deptry + static checks + pytest + notes + integrity + snapshot checks (appends qa_report.txt)
+> python3 tests/run_gate_report.py qa
+> @echo "✓ QA passed (lint + types + deptry + static + pytest + notes + integrity + snapshot; appended to qa_report.txt)"
 
 test:           ## pytest unit tests only (no live DB, no slow benchmarks)
 > pytest -m "not live"
@@ -88,9 +81,9 @@ cover:          ## Run all tests with coverage over helpers/ (branch + missing-l
 fuzz:           ## Run Hypothesis property-based tests (deterministic seed for reproducibility)
 > pytest tests/test_fuzz_*.py -v
 
-integration:    ## Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.)
-> pytest -m integration -v
-> @echo "✓ Integration tests passed"
+integration:    ## Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends integration_report.txt)
+> python3 tests/run_gate_report.py integration
+> @echo "✓ Integration tests passed (appended to integration_report.txt)"
 
 snapshot:       ## Refresh the versioned DB snapshot
 > python3 helpers/maintenance/snapshot_db.py
@@ -255,7 +248,6 @@ lint-audit:     ## Run ruff S/UP/C901 audits (security + modernization + complex
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks: ty on tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit
-> ty check tests --extra-search-path helpers --extra-search-path helpers/core --extra-search-path helpers/maintenance --extra-search-path helpers/misc --config-file ty.tests.toml --exit-zero-on-warning || true
-> $(MAKE) -k live-invariants frontend-check graph-algos analytics suggest-relations integration lint-audit
-> @echo "✓ Advisory checks complete (these do NOT block \`make qa\`)"
+advisory:       ## Run advisory (non-gating) checks: ty on tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit (appends advisory_report.txt)
+> python3 tests/run_gate_report.py advisory
+> @echo "✓ Advisory checks complete (appended to advisory_report.txt; these do NOT block \`make qa\`)"
