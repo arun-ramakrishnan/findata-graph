@@ -432,16 +432,16 @@ def verify_duckdb_snapshot(  # noqa: C901
 # Parquet snapshot (Bundle L1)
 # ---------------------------------------------------------------------------
 
-# DuckDB materialised tables to export (vertex + edge + metadata).
-# Discovered dynamically from the live DuckDB file; this is the fallback list.
-_DUCKDB_PARQUET_TABLES = [
-    "v_node", "v_company", "v_sector", "v_sub_sector", "v_super_sector",
-    "v_theme", "v_embeddings",
-    "e_belongs", "e_has", "e_competes", "e_jv", "e_group",
-    "e_supplier", "e_customer", "e_acquired", "e_subsidiary",
-    "e_comention", "e_exposed_to", "e_belongs_to",
-    "_build_meta",
-]
+# DuckDB tables eligible for Parquet export: the canonical manifest lives
+# in helpers/graph/query.py::MATERIALISED_TABLES (single source of truth
+# with _build_graph's drop pass — a table created by the materialisation
+# is added there, in the same change). Tables found in the live file
+# OUTSIDE the manifest are stray scratch state (e.g. a benchmark table
+# left behind by a measurement session): NOT exported, NOT written to the
+# schema DDL, and warned about loudly. Hardening added 2026-08-21 after
+# the e_all_und leftover leaked an orphan parquet into a snapshot commit
+# (snapshot-check passed — it compares live vs checked-in, so a stray on
+# both sides is "consistent").
 
 # SQLite data tables to export. FTS5 derived shadows (note_search_data/
 # _idx/_docsize/_config, entities_fuzzy*) are skipped; note_search_content
@@ -542,14 +542,22 @@ def _export_sqlite_schema(con: sqlite3.Connection) -> str:
     return "\n\n".join(parts) + "\n"
 
 
-def _export_duckdb_schema(con: duckdb.DuckDBPyConnection) -> str:
+def _export_duckdb_schema(con: duckdb.DuckDBPyConnection,
+                          only_tables: frozenset[str] | None = None) -> str:
     """Replayable DuckDB DDL: base tables then views, in creation order
-    (oid order) so FK/view dependencies are satisfied on replay."""
+    (oid order) so FK/view dependencies are satisfied on replay.
+
+    ``only_tables`` (the materialisation manifest) filters the base-table
+    pass: stray scratch tables stay out of the schema listing exactly as
+    they stay out of the Parquet export."""
     parts: list[str] = []
-    for (sql,) in con.execute(
-        "SELECT sql FROM duckdb_tables() WHERE NOT internal ORDER BY table_oid"
+    for (tname, ddl) in con.execute(
+        "SELECT table_name, sql FROM duckdb_tables() "
+        "WHERE NOT internal ORDER BY table_oid"
     ).fetchall():
-        parts.append(sql.rstrip().rstrip(";") + ";")
+        if only_tables is not None and tname not in only_tables:
+            continue
+        parts.append(ddl.rstrip().rstrip(";") + ";")
     for (sql,) in con.execute(
         "SELECT sql FROM duckdb_views() WHERE NOT internal AND sql IS NOT NULL "
         "ORDER BY view_oid"
@@ -575,19 +583,41 @@ def export_parquet_duckdb(
     import duckdb
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    # Lazy import: keeps the module import light and avoids any import
+    # cycle during test collection.
+    from helpers.graph.query import MATERIALISED_TABLES
+
     # Single read-only connection; COPY on base tables needs no extensions.
     con = duckdb.connect(str(duckdb_path), read_only=True)
     try:
-        # Replayable DDL (tables + views, in dependency-safe order).
-        schema_path = out_dir.parent / "_schema.duckdb.sql"
-        schema_path.write_text(_export_duckdb_schema(con))
-        logger.info(f"  Parquet DuckDB: schema DDL → {schema_path}")
-
         tables = _list_duckdb_tables(con)
         # Filter to only data tables (skip internal/system tables; the
         # __duckpgq_internal tables no longer exist post-retirement, but the
         # guard also covers any future internal prefixes).
         tables = [t for t in tables if not t.startswith("__")]
+        # Manifest guard (2026-08-21): stray scratch tables are NEVER
+        # snapshotted — skipping them keeps the git-tracked artifacts
+        # canonical, and the WARNING is the signal to drop the table (or
+        # extend the manifest when a new materialised table legitimately
+        # lands).
+        stray = [t for t in tables if t not in MATERIALISED_TABLES]
+        if stray:
+            logger.warning(
+                "DuckDB table(s) outside the materialisation manifest are "
+                "NOT snapshotted — drop them, or extend "
+                "MATERIALISED_TABLES in helpers/graph/query.py if they are "
+                "real: %s", ", ".join(sorted(stray))
+            )
+        tables = [t for t in tables if t in MATERIALISED_TABLES]
+
+        # Replayable DDL (tables + views, in dependency-safe order), with
+        # the same manifest filter so a stray table's CREATE statement
+        # can't leak into _schema.duckdb.sql either.
+        schema_path = out_dir.parent / "_schema.duckdb.sql"
+        schema_path.write_text(
+            _export_duckdb_schema(con, only_tables=MATERIALISED_TABLES)
+        )
+        logger.info(f"  Parquet DuckDB: schema DDL → {schema_path}")
 
         results: dict[str, dict] = {}
         total_bytes = 0
