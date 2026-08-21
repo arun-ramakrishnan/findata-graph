@@ -26,6 +26,9 @@ from helpers.maintenance import rebuild_note_search as rns  # noqa: E402
 from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402
 
 
+pytestmark = [pytest.mark.integration]
+
+
 # --- fixtures ---------------------------------------------------------------
 
 _COMPANY = """\

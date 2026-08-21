@@ -1185,7 +1185,15 @@ def _replace_or_insert_block(text: str, edition: str,
 
     matches = list(pattern.finditer(text))
     for m in matches:
-        if _edition_of_block(m.group(0)) == edition:
+        # Edition compare is strip/case-normalised like the hand-block gate
+        # above: the heading regex's ``(.+?)\s*$`` captures the EMPTY string
+        # for an all-whitespace edition char (\x85 NEL is Unicode \s), so a
+        # raw == here made the renderer re-insert a fresh block on EVERY run
+        # (unbounded duplication; found by test_fuzz_derive_insights_regions
+        # 2026-08-22).
+        ed_of_blk = _edition_of_block(m.group(0))
+        if (ed_of_blk is not None
+                and ed_of_blk.strip().lower() == edition.strip().lower()):
             return _swap(m)
     # No auto block for THIS edition: insert a new one. Other editions'
     # auto blocks are NEVER evicted (a note accumulates one block per

@@ -22,6 +22,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.maintenance import build_sector_hierarchy as bsh  # noqa: E402
 
+import pytest  # noqa: E402
+
+pytestmark = [pytest.mark.integration]
+
 
 # Minimal schema mirroring the production entities + graph_edges tables
 # (only the columns the taxonomy script touches).

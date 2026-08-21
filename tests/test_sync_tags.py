@@ -24,6 +24,9 @@ from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402
 import helpers.core.sync_tags as sync_tags  # noqa: E402
 
 
+pytestmark = [pytest.mark.integration]
+
+
 def _note_with_sector(sector_tag: str, title: str = "Test Co") -> str:
     """A minimal note whose YAML front matter carries one sector/* tag."""
     return (

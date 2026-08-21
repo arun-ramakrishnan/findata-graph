@@ -20,6 +20,9 @@ from helpers.validators.frontmatter_schema import (  # noqa: E402
     validate_frontmatter,
 )
 
+
+pytestmark = [pytest.mark.integration]
+
 _NOTE = """---
 title: Marico
 type: company

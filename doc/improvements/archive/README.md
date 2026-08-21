@@ -34,6 +34,7 @@ commit, referenced by nothing). Entry numbers point at
 ## testing/ — Testing & QA — integration, stateful/relational, lint, coverage
 
 - [`integration_plan.txt`](testing/integration_plan.txt) — INTEGRATION TEST PLAN — FinData Knowledge Graph
+- [`integration_fuzz_enhancement.md`](testing/integration_fuzz_enhancement.md) — Proposal: Integration & Fuzz Test Suite Enhancement — write-side flows, sentinel machinery, query predicates — completed.md #144
 - [`stateful_relational_test_plan.txt`](testing/stateful_relational_test_plan.txt) — STATEFUL / RELATIONAL TEST PLAN — FinData Knowledge Graph — completed.md #73
 - [`lint_analysis.txt`](testing/lint_analysis.txt) — LINT ANALYSIS — ruff replaces flake8 (FinData knowledge graph) — completed.md #73
 - [`coverage_extension_plan.md`](testing/coverage_extension_plan.md) — Coverage Analysis & Extension Plan (Updated)

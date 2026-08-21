@@ -2742,3 +2742,56 @@ changes).
 - Gates: `make qa` fully green; `make perf` 20/20 with the new
   `shortest_path_bfs` gate (tests/bench_shortest_path.py, <100ms
   steady-state on the default and the unreachable worst case).
+
+## 144. Integration & fuzz suite enhancement — write-side flows, sentinel machinery, query predicates
+
+- `integration_fuzz_enhancement.md` (archived under `archive/testing/`):
+  7 new integration modules (42 tests) + 7 new fuzz modules (49
+  properties) + 7 marker promotions + 2 fuzz-suite repairs. Every
+  write-side derive CLI, the maint/maint-full chain, and the snapshot
+  create→verify→restore cycle now have end-to-end coverage on tmp data;
+  the sentinel machinery, query predicates, shortest_path, derive_events
+  extractors, note_search clean/carry, and the _ALIASES table each have
+  Hypothesis properties.
+- Integration: `test_integration_derive_insights_apply` (the flagship —
+  `--apply`/`--no-notes`/`--stale-only` through the real `_cli`,
+  byte-stable second applies, OKF sources splice, the maint-full
+  step-8→9 chain contract), `test_integration_maint_chain` (in-process
+  dispatcher over `subprocess.run`: every step executes against tmp
+  roots, an unshimmed step fails loudly, a failing step aborts, full
+  chain idempotent), `test_integration_snapshot_cycle` (tamper/generation-drift/
+  restore-parity + the `make snapshot`/`--check` CLI cycle),
+  near-duplicates CLI (exact cosine vectors, SQLite read-only
+  guarantee), note-writers convergence (rosters, gates, byte-stable
+  re-runs, cited_in == sources[]), extract_relations CLI (aliases E2E,
+  sidecar, canonical symmetric order), derive_events CLI (both arms,
+  dry-run/apply parity, FK safety). 7 near-integration modules promoted
+  into the `integration` marker set (150 tests, no behavior change).
+- Fuzz: sentinel-region properties over every auto-marker flavor
+  (spans disjoint/sorted/balanced, fixed-point-by-run-3 refresh, KF-
+  nested-in-chatter rescue, splice idempotence); `_normalise_as_of`/
+  `_lit` total + round-trip properties; shortest_path vs a Python BFS
+  oracle over a seeded Erdős–Rényi graph (label/as_of filters, symmetry,
+  determinism, CTE equivalence); derive_events extractors;
+  rebuild_note_search clean/carry; _ALIASES invariants + first-token
+  fallback. Repairs: the 0-byte `test_fuzz_edge_writer.py` filled
+  (idempotence, CHECK guard, no-swap-dedup characterisation) and the
+  assert-nothing try/except wrappers in test_fuzz_{events,insights,
+  images} replaced with real invariants.
+- **Fuzz-found production fix:** an all-whitespace edition (`\x85` NEL)
+  made the chatter heading regex capture the empty edition, so
+  `_replace_or_insert_block` re-inserted a fresh block on every apply
+  (unbounded duplication — the 2026-08-19 non-convergence class). The
+  edition compare is now strip/case-normalised; regression
+  `test_all_whitespace_edition_converges` in test_derive_insights.py.
+- **Escalated finding (strict xfail):** `build_sector_hierarchy
+  --apply` re-renders super-sector note frontmatter from scratch,
+  stripping OKF `generated:`/`stale_after` keys (caught when it hit the
+  live vault from a fixture that patched `VAULT_ROOT` without
+  `SUPER_SECTORS_DIR` — the 9 notes were restored; the import-time
+  binding is documented in the proposal log). Fix decision held for the
+  user in test_integration_note_writers.
+- Default-gate growth ≈ 36s (ceiling was ~30s; the overshoot is three
+  inherent-cost modules — cold DuckDB builds, gzip/parquet verify
+  passes, CTE-oracle enumeration). Gates: `make qa` + `make integration`
+  (431 passed, 1 xfailed) + `make fuzz` (148 passed) all green.

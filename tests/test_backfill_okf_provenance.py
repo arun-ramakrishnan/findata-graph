@@ -18,6 +18,10 @@ from helpers.misc.backfill_okf_provenance import (  # noqa: E402
     backfill_sources,
 )
 
+import pytest  # noqa: E402
+
+pytestmark = [pytest.mark.integration]
+
 
 def _fm_of(p: Path) -> dict:
     return yaml.safe_load(p.read_text().split("---")[1])

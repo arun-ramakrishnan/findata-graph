@@ -28,6 +28,9 @@ from maintenance.sync_sector_wikilinks import (  # noqa: E402
 )
 
 
+pytestmark = [pytest.mark.integration]
+
+
 # --------------------------------------------------------------------------- #
 # _render_section + _replace_or_insert (pure-function unit tests)             #
 # --------------------------------------------------------------------------- #

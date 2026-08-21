@@ -90,6 +90,9 @@ make snapshot-restore          # rebuilds memory/*.db from snapshots/parquet/
 
 make graph-rebuild            # (re)build the DuckDB cache from SQLite
 make qa                       # full gate: lint + types + deptry + static + tests + validators
+                               # (qa/integration/advisory append timestamped run tables to
+                               #  qa_report.txt / integration_report.txt / advisory_report.txt,
+                               #  perf-style — see perf_report.txt)
 uv run python3 app.py         # http://localhost:5200   (FLASK_PORT to override)
 ```
 

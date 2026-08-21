@@ -24,6 +24,9 @@ import pytest  # noqa: E402
 from helpers.graph import derive_cited_in as dc  # noqa: E402
 
 
+pytestmark = [pytest.mark.integration]
+
+
 def _schema_sql():
     return """
     CREATE TABLE entities(
