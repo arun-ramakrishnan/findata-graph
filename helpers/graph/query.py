@@ -50,7 +50,7 @@ import sys
 import threading
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import duckdb
 
@@ -2482,7 +2482,6 @@ def notes_like_entity(
 
 @_with_generation_cache
 def edition_companies(con: duckdb.DuckDBPyConnection, edition: str,
-                      k: int = 10) -> list[tuple[str, str, float]] | None:
     """Companies most similar to an edition (newsletter) note.
 
     ``edition`` is resolved against the newsletter doc types by exact
