@@ -26,7 +26,7 @@ import app as A
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = PROJECT_ROOT / "templates"
 BUNDLE = PROJECT_ROOT / "static" / "findata.bundle.js"
-ENTITY_JS = PROJECT_ROOT / "static" / "entity_detail.js"
+ENTITY_JS = PROJECT_ROOT / "static" / "entity.bundle.js"
 
 
 @pytest.fixture
@@ -125,5 +125,7 @@ class TestSec4FrontendEscapes:
         assert '${entity.sector_classification || "Unknown"}' not in bundle
 
     def test_entity_detail_js_escapes_type_badge(self):
-        js = ENTITY_JS.read_text(encoding="utf-8")
-        assert "escapeHtml(this.entity.entity_type || 'Entity')" in js
+        """Since S6 the entity pages run from entity.bundle.js (entity.ts);
+        the type chip there must escape entity_type the same way."""
+        bundle = ENTITY_JS.read_text(encoding="utf-8")
+        assert "escapeHtml(entity.entity_type" in bundle

@@ -2795,3 +2795,100 @@ changes).
   inherent-cost modules — cold DuckDB builds, gzip/parquet verify
   passes, CTE-oracle enumeration). Gates: `make qa` + `make integration`
   (431 passed, 1 xfailed) + `make fuzz` (148 passed) all green.
+
+
+## 145. UI redesign S1+S2 — new graph endpoints + frontend foundation slice
+
+**Date**: 2026-08-22
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/ui/graph_docs_ui_redesign.md` ("The
+Research Desk", log entries R1/R2)
+
+### S1 — 4 read-only endpoint groups (100 tests)
+
+- `GET /api/graph/near-duplicates` (app.py:1709) — wraps
+  `near_duplicate_notes` (query.py); min_sim=0.9 / doc_type / limit clamps;
+  ~1s, on-demand only.
+- `GET /api/graph/suggestions` (:1759) — read-only wrap of
+  `suggest_relations()`; never touches `findata/_pending_relations.txt`
+  (asserted by test).
+- `/api/graph/metrics` allowlist extension (:2174/:2182) — harmonic/katz/
+  laplacian/local_reaching centrality + link_prediction/voterank payload
+  metrics.
+- `GET /api/analytics/<name>` (:1819) — five parquet-backed reports.
+
+Tests: `tests/test_api_graph_unit.py` (84) + `tests/test_api_graph_metrics.py`
+(16). Gates: targeted pytest + `ty check app.py`.
+
+### S2 — behavior-preserving frontend foundation
+
+- **Split** findata.ts (2,309 lines) → `src/core/{api,dom,toast,markdown,
+  router}.ts` + `src/views/{companies,sectors,stats,docs,graph}.ts` +
+  ~120-line shell. Views own state; shell keeps the exact three inline-
+  onclick methods (`viewer.goToPage/openLightbox/copyCode`).
+- **Typed API client** with `ApiError(status, message)`; one deliberate
+  exception (`performContentSearch` keeps raw fetch for its 503 copy).
+- **Latent bug fixed**: graph-detail "Centre on search" inline onclick
+  referenced a non-global helper — dead since bundling; now a real listener.
+- **XSS gap closed**: DOMPurify loaded in findata.html and wired into
+  `processRichContent`.
+- **cytoscape@3.28.1 + cytoscape-fcose@2.2.0 via npm** (bundled IIFE,
+  committed-bundle doctrine intact; bundle 76KB → 1.4MB).
+- **Design tokens + fonts**: `static/tokens.css` — Desk/Paper registers,
+  edge-type accents, self-hosted IBM Plex (6 woff2, 373KB, OFL license in
+  `static/vendor/fonts/`). Shell/nav chrome retargeted onto Desk tokens;
+  interior surfaces deliberately unchanged until S3/S5.
+
+**Verification**: live smoke on :5201 — all five views switch and render
+(1314 entities, 42 sector tags, docs pipeline through DOMPurify with TOC
+anchors, bundled-cytoscape ego search + correct 404 path), fonts served,
+`window.viewer` contract intact. `make frontend-check` (tsc strict) +
+`make frontend` green. Committed as fb92960.
+
+## 146. UI redesign S3–S7 — the Lens, Reading Room, entity pages + gates
+
+**Date**: 2026-08-22
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/ui/graph_docs_ui_redesign.md` ("The
+Research Desk", log entries R3–R7 + addenda)
+
+### Delivered
+
+- **S3 — The Lens** (R3): modes rail (Ego/All/Path), As-Of Chronoscope,
+  semantic edge palette + interactive legend chips, hover tooltips,
+  zoom-fade labels, louvain shading, progressive expansion.
+- **S4 — Rank + Time + Inspector** (R4): 12-metric league tables with
+  score bars, louvain groups, read-only link-prediction suggestions
+  (sidecar untouched), edges-by-year stacks, cross-sector bridges,
+  co-mentions leaderboard, on-demand near-duplicates; inspector rail
+  with the events timeline (detailSeq race guard).
+- **S5 — The Reading Room** (R5): unified doc/ + vault sidebar (1,224
+  notes grouped by type/series/sector), FTS + hybrid rerank toggle with
+  cosine badges, paper-register reader with frontmatter chips, edition
+  mastheads (publication/issue/provenance between double rules),
+  [[wikilink]] in-place navigation on a client-side stem→file_path
+  index, related rail (similar notes + edition companies).
+- **S6 — Entity pages** (R6): entity_detail.js retired into the TS build
+  (second esbuild entry, 24KB entity.bundle.js); inline viewer.* onclicks
+  replaced by data-attr wiring; paper register + facts/events/peers/
+  similar rail; live wikilinks navigating /entity/<path>.
+- **S7 — Visual pass + a11y floor** (R7): full screenshot sweep (t01–t12),
+  :focus-visible rings (brass/rust), sticky-rail overflow fix, path
+  wrapping, reduced-motion-aware scrolling, DOMPurify injected-payload
+  proof via a gitignored doc/local self-test note (deleted after).
+- **Addenda**: the edge-chip filter now rebuilds the induced subgraph
+  (user-reported supplier_to bug; was hide-edges-on-a-stale-node-set);
+  cloud node `component` roots re-armed via union-find (tap-highlight +
+  components layout). Separately: build_sector_hierarchy --apply made
+  region-scoped (OKF frontmatter survives; the strict xfail in
+  test_integration_note_writers.py flipped to a passing assertion).
+
+### Gates (explicit user permission 2026-08-22)
+
+make qa 8/8 (2,056 tests + snapshot-check) · make integration (432) ·
+make fuzz (148) · make advisory 8/8 (incl. frontend-check) · make perf
+20/20 — all green. Two stale tests fixed en route (SEC-4 entity test now
+targets entity.bundle.js; NoteFrontmatter became a type alias so the
+TS-contract parser stops treating it as an endpoint shape); four ruff
+audit findings from #144 cleared (f-string, usedforsecurity=False ×2,
+parameterized test SQL).

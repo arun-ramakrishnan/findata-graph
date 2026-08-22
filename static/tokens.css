@@ -1,0 +1,138 @@
+/* ==========================================================================
+   tokens.css — design-token foundation for "The Research Desk" redesign.
+   Loaded BEFORE findata.css. Two layers:
+     1. @font-face for the self-hosted IBM Plex family (OFL, vendored under
+        static/vendor/fonts/ — same-origin, CSP-safe).
+     2. CSS custom properties: one semantic palette, two intentional
+        registers (Desk = shell/Graph/stats chrome; Paper = Docs reader +
+        entity-page prose), plus the stable edge-type accents that mirror
+        the graph's relationship palette.
+   Structure per proposal §3; exact hexes finalize in S3/S5 visual iteration.
+   ========================================================================== */
+
+/* --- 1. IBM Plex (self-hosted, OFL — see fonts/OFL-IBMPLEX.txt) --------- */
+
+@font-face {
+    font-family: "IBM Plex Sans";
+    src: url("vendor/fonts/IBMPlexSans-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "IBM Plex Sans";
+    src: url("vendor/fonts/IBMPlexSans-SemiBold.woff2") format("woff2");
+    font-weight: 600;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("vendor/fonts/IBMPlexMono-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "IBM Plex Mono";
+    src: url("vendor/fonts/IBMPlexMono-Medium.woff2") format("woff2");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "IBM Plex Serif";
+    src: url("vendor/fonts/IBMPlexSerif-Regular.woff2") format("woff2");
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: "IBM Plex Serif";
+    src: url("vendor/fonts/IBMPlexSerif-Italic.woff2") format("woff2");
+    font-weight: 400;
+    font-style: italic;
+    font-display: swap;
+}
+
+/* --- 2a. Desk register (shell + Graph + stats chrome) -------------------- */
+/* Deep blue-black canvas, raised panels, brass interaction accent.         */
+
+:root,
+[data-register="desk"] {
+    /* Surfaces */
+    --ink-0: #0B0F14;            /* canvas base                            */
+    --ink-1: #11161D;            /* panels                                 */
+    --ink-2: #1A222C;            /* raised / hover                         */
+    --rule: #263241;             /* hairlines                              */
+
+    /* Text tiers */
+    --text-hi: #E8EDF2;
+    --text-mid: #9FB0BF;
+    --text-low: #5C6E7E;
+
+    /* Interaction */
+    --accent: #E0A93E;           /* brass — selection, focus, active ONLY  */
+    --accent-dim: rgba(224, 169, 62, 0.16);
+    --danger: #F28B82;
+    --ok: #2DD4BF;
+
+    /* Type voices */
+    --font-ui: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+/* --- 2b. Paper register (Docs reader + entity prose) --------------------- */
+/* Warm newsprint parchment, umber text, rust links.                        */
+
+[data-register="paper"] {
+    --paper-bg: #F5F1E8;
+    --paper-panel: #FBF8F1;
+    --paper-rule: #D8CFBC;
+    --paper-text: #3A342B;       /* umber                                   */
+    --paper-text-mid: #6E6353;
+    --paper-link: #9C4A21;       /* rust                                    */
+    --paper-accent: #8C3B1E;
+
+    --font-reader: "IBM Plex Serif", Georgia, serif;
+}
+
+/* --- 2c. Edge-type accents ------------------------------------------------ */
+/* The edge semantics ARE the palette (§3.1): legend swatches, filter chips
+   and future canvas styles all read these so they can never drift apart.
+   Keys match the `relationship_types` edge_type values /api/graph/cloud
+   already returns.                                                          */
+
+:root {
+    --edge-co-mention: #6B7F94;      /* co_mentioned_in  — slate            */
+    --edge-part-of: #2DD4BF;         /* part_of          — belongs teal     */
+    --edge-has-company: #7CA8C9;     /* has_company      — steel            */
+    --edge-exposed-to: #C39BFF;      /* exposed_to       — theme orchid     */
+    --edge-belongs-to: #5FA8A0;      /* belongs_to       — teals            */
+    --edge-subsidiary: #43AA8B;      /* subsidiary_of                       */
+    --edge-jv: #C39BFF;              /* jv_with          — violet           */
+    --edge-acquired: #F28B82;        /* acquired         — rose             */
+    --edge-competes: #F5B14C;        /* competes_with    — amber            */
+    --edge-supply: #7CA8C9;          /* supplier_to / customer_of — steel   */
+    --edge-same-group: #B5838D;      /* same_group                          */
+}
+
+/* --- 2d. Shared metrics --------------------------------------------------- */
+
+:root {
+    --radius-panel: 10px;
+    --radius-chip: 999px;
+    --shadow-panel: 0 1px 3px rgba(0, 0, 0, 0.45);
+    --track-wide: 0.08em;        /* mono data-voice letter-spacing          */
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :root {
+        --motion-fast: 0ms;
+        --motion-med: 0ms;
+    }
+}
+:root {
+    --motion-fast: 120ms;
+    --motion-med: 300ms;
+}

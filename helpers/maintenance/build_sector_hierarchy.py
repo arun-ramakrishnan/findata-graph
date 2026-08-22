@@ -215,6 +215,51 @@ A GICS-style super-sector grouping the following sectors.
 """
 
 
+def _write_super_note(ss: str, members: list[str]) -> bool:
+    """Write or refresh one super-sector note, region-scoped.
+
+    A missing note gets the full template. An existing note has ONLY its
+    Child Sectors sentinel region swapped for the fresh render — the same
+    scope ``_check_super_notes`` measures — so frontmatter and body this
+    writer doesn't own (the OKF backfill's generated/sources/stale_after,
+    curated sections) survive, and created/last_modified are never
+    re-stamped. A note lacking the sentinels (pre-marker legacy) gets the
+    region inserted after its H1, mirroring ``_inject_uplink``.
+
+    Returns True when bytes changed (idempotent re-runs write nothing).
+    """
+    note_path = SUPER_SECTORS_DIR / f"{_normalize(ss)}.md"
+    rendered = _super_sector_note(ss, members)
+    region_re = re.compile(
+        re.escape(_CHILD_BEGIN) + r".*?" + re.escape(_CHILD_END), re.DOTALL
+    )
+    fresh_match = region_re.search(rendered)
+    if fresh_match is None:  # template invariant broken — fall back to full write
+        note_path.write_text(rendered, encoding="utf-8")
+        return True
+    fresh_region = fresh_match.group(0)
+
+    if not note_path.exists():
+        note_path.parent.mkdir(parents=True, exist_ok=True)
+        note_path.write_text(rendered, encoding="utf-8")
+        return True
+
+    text = note_path.read_text(encoding="utf-8")
+    if region_re.search(text):
+        new_text = region_re.sub(fresh_region, text, count=1)
+    else:
+        m = re.search(r"^# .+$", text, re.MULTILINE)
+        block = f"\n\n{fresh_region}"
+        if m:
+            new_text = text[: m.end()] + block + text[m.end():]
+        else:
+            new_text = text.rstrip() + "\n" + block
+    if new_text == text:
+        return False
+    note_path.write_text(new_text, encoding="utf-8")
+    return True
+
+
 def _validate_coverage(live_sectors: set[str]) -> list[str]:  # noqa: C901
     """Return a list of coverage errors (empty == valid).
 
@@ -389,17 +434,15 @@ def build(*, write: bool) -> int:  # noqa: C901
                 (src, tgt, etype, props, source_ref),
             )
 
-    # Super-sector notes (idempotent: overwrite — they're auto-generated).
+    # Super-sector notes: region-scoped refresh (only the Child Sectors
+    # sentinel block is rewritten on existing notes — OKF/curated
+    # frontmatter and body survive; fresh notes get the full template).
     # Uses SUPER_SECTORS_DIR (which derives from VAULT_ROOT, monkeypatchable
     # in tests) so build(write=True) never touches the real findata/ vault.
     SUPER_SECTORS_DIR.mkdir(parents=True, exist_ok=True)
-    for ss, members in SUPER_SECTORS.items():
-        stem = _normalize(ss)
-        note_path = SUPER_SECTORS_DIR / f"{stem}.md"
-        note_path.parent.mkdir(parents=True, exist_ok=True)
-        note_path.write_text(
-            _super_sector_note(ss, members), encoding="utf-8"
-        )
+    refreshed = sum(
+        _write_super_note(ss, members) for ss, members in SUPER_SECTORS.items()
+    )
 
     # Bidirectional mapping: write the upward `super_sector:` frontmatter
     # field + an auto up-link section into each sector note so the hierarchy
@@ -408,7 +451,7 @@ def build(*, write: bool) -> int:  # noqa: C901
     _sync_sector_uplinks(conn)
 
     print(f"Applied: {n_entities} entities + {n_edges} edges + "
-          f"{len(SUPER_SECTORS)} super-sector notes + sector up-links.",
+          f"{refreshed} super-sector note region(s) + sector up-links.",
           file=sys.stderr)
     conn.close()
     return 0

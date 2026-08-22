@@ -356,3 +356,211 @@ export interface GraphStatsResponse {
         most_recent_analytics_compute: string | null;
     };
 }
+
+/** GET /api/graph/metrics/<label-metric> — louvain / wcc groups (S3 shading). */
+export interface MetricGroup {
+    label: number;
+    size: number;
+    members: string[];
+}
+
+export interface MetricGroupsResponse {
+    metric: string;
+    total: number;
+    groups: MetricGroup[];
+    modularity?: number;
+}
+
+// --------------------------------------------------------------------------- //
+// GET /api/graph/metrics/<metric> — S4 Rank mode (scalar + payload shapes).   //
+// --------------------------------------------------------------------------- //
+/**
+ * Scalar-metric ranking (pagerank, degree/betweenness/closeness/eigenvector/
+ * harmonic/katz/laplacian/local_reaching centrality, local clustering
+ * coefficient). `top=` limits the rows server-side.
+ */
+export interface MetricRankedRow {
+    entity: string;
+    value: number;
+}
+
+export interface MetricRankedResponse {
+    metric: string;
+    total: number;
+    ranked: MetricRankedRow[];
+}
+
+/** voterank — one shared ordered seed list (every row carries the same list). */
+export interface MetricSeedsResponse {
+    metric: string;
+    total: number;
+    seeds: string[];
+}
+
+/** link_prediction — per-entity candidate lists, best score first. */
+export interface LinkPredictionCandidate {
+    name: string;
+    score: number;
+}
+
+export interface LinkPredictionEntity {
+    entity: string;
+    method: string;
+    edge_types: string[];
+    best_score: number;
+    candidates: LinkPredictionCandidate[];
+}
+
+export interface LinkPredictionResponse {
+    metric: string;
+    total: number;
+    entities: LinkPredictionEntity[];
+}
+
+// --------------------------------------------------------------------------- //
+// GET /api/graph/suggestions (S4 Rank mode; read-only, sidecar untouched).    //
+// --------------------------------------------------------------------------- //
+export interface SuggestionRow {
+    source: string;
+    target: string;
+    score: number;
+    /** Edition the prediction is scoped to, when the method reports one. */
+    edition: string | null;
+}
+
+export interface SuggestionsResponse {
+    method: string;
+    top: number;
+    suggestions: SuggestionRow[];
+}
+
+// --------------------------------------------------------------------------- //
+// GET /api/graph/near-duplicates (S4 Time mode; on-demand only, ~1s).        //
+// --------------------------------------------------------------------------- //
+export interface NearDuplicatePair {
+    path_a: string;
+    path_b: string;
+    title_a: string;
+    title_b: string;
+    similarity: number;
+}
+
+export interface NearDuplicatesResponse {
+    doc_type: string;
+    min_sim: number;
+    pairs: NearDuplicatePair[];
+}
+
+// --------------------------------------------------------------------------- //
+// GET /api/graph/co-mentions · /bridges · /edges-by-year (S4 Time mode).     //
+// --------------------------------------------------------------------------- //
+export interface CoMentionRow {
+    entity: string;
+    co_mentions: number;
+}
+
+export interface CoMentionsResponse {
+    ranked: CoMentionRow[];
+}
+
+export interface SectorBridge {
+    edge_type: string;
+    sector_a: string;
+    sector_b: string;
+    count: number;
+}
+
+export interface BridgesResponse {
+    bridges: SectorBridge[];
+}
+
+export interface YearEdgeCount {
+    year: string;
+    edge_type: string;
+    count: number;
+}
+
+export interface EdgesByYearResponse {
+    timeline: YearEdgeCount[];
+}
+
+// --------------------------------------------------------------------------- //
+// S5 — Reading Room: /api/entities, /api/search, /api/entity, similar rails   //
+// --------------------------------------------------------------------------- //
+
+/** One vault entity row (GET /api/entities). `file_path` is repo-relative
+ * (`findata/...`) and null for note-less entities (sub_sectors, themes). */
+export interface VaultEntity {
+    name: string;
+    entity_type: string;
+    sector_classification: string | null;
+    market_cap: string | null;
+    enhanced_tags: string[];
+    file_path: string | null;
+}
+
+export interface EntitiesResponse {
+    entities: VaultEntity[];
+    total_count: number;
+    limit: number;
+    offset: number;
+}
+
+/** Parsed YAML frontmatter (GET /api/entity/<path>). Values are scalars,
+ * string lists (tags) or one nested block (generated: {by, at}) — a loose
+ * record by design (a type alias, not an interface, so the TS-contract
+ * parser doesn't treat it as an endpoint shape). */
+export type NoteFrontmatter = Record<string, unknown>;
+
+/** Full vault-note payload (GET /api/entity/<path>): `content` has the
+ * frontmatter block stripped; `raw_content` is the untouched file. */
+export interface EntityDetailResponse {
+    name: string;
+    entity_type: string;
+    sector_classification: string | null;
+    market_cap: string | null;
+    enhanced_tags: string[];
+    file_path: string | null;
+    frontmatter: NoteFrontmatter;
+    content: string;
+    raw_content: string;
+}
+
+/** Shared shape of /api/graph/similar neighbors and edition companies. */
+export interface SimilarNeighbor {
+    file_path: string;
+    title: string;
+    similarity: number;
+}
+
+export interface SimilarNotesResponse {
+    note: string;
+    k: number;
+    doc_type: string | null;
+    neighbors: SimilarNeighbor[];
+}
+
+export interface EditionCompaniesResponse {
+    edition: string;
+    k: number;
+    companies: SimilarNeighbor[];
+}
+
+// --------------------------------------------------------------------------- //
+// S6 — entity pages: /api/graph/semantic (VSS peers)                          //
+// --------------------------------------------------------------------------- //
+
+/** One embedding-space neighbour (GET /api/graph/semantic/<name>). */
+export interface SemanticNeighbor {
+    name: string;
+    sector: string | null;
+    similarity: number;
+}
+
+export interface SemanticResponse {
+    company: string;
+    k: number;
+    metric: string;
+    cross_sector: boolean;
+    neighbors: SemanticNeighbor[];
+}

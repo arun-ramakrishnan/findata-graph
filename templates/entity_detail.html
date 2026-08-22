@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title id="page-title">Loading...</title>
+    <!-- Design tokens + self-hosted IBM Plex fonts (S2); findata.css supplies
+         the shared paper-register reader classes (masthead, chips, TOC,
+         wikilinks, related rows) reused by the entity page. -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='findata.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='entity_detail.css') }}">
     <!-- SEC-3: all third-party assets vendored under static/vendor/ (pinned
@@ -11,7 +15,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/prism/prism-tomorrow.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/github-dark.min.css') }}">
-    
+
     <script src="{{ url_for('static', filename='vendor/marked.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/purify.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/prism/prism-core.min.js') }}"></script>
@@ -20,7 +24,9 @@
     <script src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
 </head>
 <body>
-    <div class="entity-page">
+    <!-- Entity page (S6) — paper register + mono facts rail, events timeline,
+         semantic peers, similar notes, live wikilinks. -->
+    <div class="entity-page" data-register="paper">
         <!-- Header -->
         <header class="entity-header">
             <div class="entity-nav">
@@ -35,9 +41,9 @@
                 </div>
             </div>
             <div class="entity-actions">
-                <button class="btn-secondary" id="toggle-toc" title="Toggle Table of Contents">
+                <button class="btn-secondary" id="toggle-rail" title="Toggle the side rail (facts, contents, events, peers, similar)">
                     <i class="fas fa-list"></i>
-                    <span>TOC</span>
+                    <span>Rail</span>
                 </button>
                 <button class="btn-secondary" id="export-content" title="Export Content">
                     <i class="fas fa-download"></i>
@@ -75,33 +81,42 @@
             </div>
         </div>
 
-        <!-- Main Content -->
+        <!-- Main Content: article + intel rail -->
         <main id="main-content" class="entity-main" style="display: none;">
-            <!-- Table of Contents Sidebar -->
-            <aside id="toc-sidebar" class="toc-sidebar">
-                <div class="toc-header">
-                    <h3><i class="fas fa-list"></i> Table of Contents</h3>
-                    <button class="toc-close" id="toc-close">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div id="toc-content" class="toc-content">
-                    <!-- TOC will be generated here -->
-                </div>
-            </aside>
-
-            <!-- Entity Content -->
             <article class="entity-article">
-                <!-- Entity Metadata -->
+                <!-- Title block: chips or edition masthead -->
                 <header id="entity-metadata" class="entity-metadata">
-                    <!-- Metadata will be loaded here -->
+                    <!-- Loaded here -->
                 </header>
 
-                <!-- Entity Content -->
+                <!-- Note body with [[wikilinks]] -->
                 <div id="entity-content" class="entity-content rich-content">
-                    <!-- Content will be loaded here -->
+                    <!-- Loaded here -->
                 </div>
             </article>
+
+            <aside id="entity-rail" class="entity-rail" aria-label="Entity intelligence">
+                <section class="rail-section" id="rail-facts">
+                    <h4><i class="fas fa-table-columns"></i> Facts</h4>
+                    <dl id="facts-grid" class="facts-grid"></dl>
+                </section>
+                <nav class="rail-section docs-toc entity-toc" id="toc-block" style="display: none;">
+                    <h4><i class="fas fa-list"></i> On this page</h4>
+                    <ul id="toc-content"></ul>
+                </nav>
+                <section class="rail-section" id="rail-events" style="display: none;">
+                    <h4><i class="fas fa-timeline"></i> Events</h4>
+                    <ul id="events-tl" class="ev-tl"></ul>
+                </section>
+                <section class="rail-section" id="rail-peers" style="display: none;">
+                    <h4><i class="fas fa-people-arrows"></i> Semantic peers</h4>
+                    <div id="peers-chips" class="peers-chips"></div>
+                </section>
+                <section class="rail-section" id="rail-similar" style="display: none;">
+                    <h4><i class="fas fa-clone"></i> Similar notes</h4>
+                    <div id="similar-list" class="similar-list"></div>
+                </section>
+            </aside>
         </main>
 
         <!-- Image Lightbox -->
@@ -139,6 +154,6 @@
         </footer>
     </div>
 
-    <script src="{{ url_for('static', filename='entity_detail.js') }}"></script>
+    <script src="{{ url_for('static', filename='entity.bundle.js') }}"></script>
 </body>
 </html>
