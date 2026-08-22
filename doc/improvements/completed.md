@@ -2892,3 +2892,63 @@ targets entity.bundle.js; NoteFrontmatter became a type alias so the
 TS-contract parser stops treating it as an endpoint shape); four ruff
 audit findings from #144 cleared (f-string, usedforsecurity=False ×2,
 parameterized test SQL).
+
+## 147. Zero-churn maint-full — stable writes, seeded louvain, deterministic exports
+
+**Date**: 2026-08-22
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/database/maint_full_zero_churn.md`
+(log R1–R6 + deviations)
+
+### Problem
+
+A no-op `make maint-full` cycle changed 7 of the 36+ parquet snapshot
+blobs with zero semantic change (audited in the db_sync commit `76ab554`):
+all 349 `events.created_at` restamped (derive_events DELETE-then-INSERT),
+all 1,065 `company_embeddings.created_at` restamped (INSERT OR REPLACE),
+a B4 generation bump on a cache miss whose re-embed was byte-identical,
+all 1,293 `louvain_community` labels permuted under bit-identical
+modularity, and content-identical `e_belongs`/`e_has` blobs churned by
+physical row order. A snapshot diff that shows change should mean content
+change.
+
+### Delivered (five fixes)
+
+- **Events stable writes** — `_stable_prefix_replace` extracted from
+  derive_insights to `helpers/core/stable_write.py`; derive_events.apply()
+  now multiset-matches and preserves id/created_at (derive_insights keeps
+  a thin alias).
+- **Embeddings guarded upsert** — INSERT OR REPLACE replaced with an
+  `ON CONFLICT … WHERE embedding IS NOT excluded.embedding` upsert; the
+  B4 bump fires on actually-written rows, not cache misses.
+- **Louvain determinism** (scope grew): onager's louvain is
+  non-deterministic unseeded (modularity 0.3286–0.3322 run-to-run, 21–24
+  communities on the same graph); the calls now pass `seed => 42`
+  (the extension's hidden second arg), plus canonical community
+  relabeling (by size, then smallest member) and `ORDER BY src, dst` on
+  the edge materialisation. Trade-off: seeded modularity ~0.4% below the
+  luckiest unseeded run — determinism chosen.
+- **Deterministic exports** — duckdb parquet exports use
+  `ORDER BY ALL` (covers e_* and v_*; the e_* tables have no id column).
+- **rebuild_note_search full-branch B4 bump change-guarded** (found by
+  the cycle-2 verification): the maint-full default path bumped
+  unconditionally; now a pre/post multiset compare gates it. Two traps:
+  `sqlite3.Row` never equals a plain tuple (rows are tuple()-normalized),
+  and reusing the incremental path's `existing` name tripped ty.
+
+### Verification
+
+Four live maint-full cycles: cycle 1 absorbed one-time canonicalisations
+(19 blobs: all e_*/v_* reordered, louvain relabelled); cycle 2 exposed
+the rebuild_note_search bumper; cycle 3 absorbed the seeded partition +
+diagnostic generation drift; **cycle 4: ZERO churn — all 38 blobs
+byte-identical**. events and company_embeddings blobs were byte-stable
+from cycle 1. 350 targeted tests across 19 suites; qa 8/8 with 2,061
+tests + snapshot-check (integration/fuzz included in qa's sweep);
+user-run advisory/perf; two lint-audit findings in the new tests cleared
+(S311 deterministic-RNG noqa, S608 tmp-path noqa).
+
+### Not in this patch
+
+The 19 refreshed snapshot blobs (skip-worktree flagged; invisible to
+`git status` until explicitly added) — user stages them separately.

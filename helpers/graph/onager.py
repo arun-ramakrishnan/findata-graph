@@ -107,6 +107,10 @@ def _materialize_from_db(con: duckdb.DuckDBPyConnection, edge_types: list[str] |
         """,  # noqa: S608
         params,
     )
+    # ORDER BY src, dst (maint_full_zero_churn F3): without it the parallel
+    # scan hands louvain a different edge order every run, and onager's
+    # community detection is order-sensitive — pinning the input order is
+    # one half of the determinism fix (the other half is the fixed seed).
     con.execute(
         f"""
         CREATE OR REPLACE TEMP TABLE _onager_e AS
@@ -114,7 +118,8 @@ def _materialize_from_db(con: duckdb.DuckDBPyConnection, edge_types: list[str] |
                COALESCE(TRY_CAST(e.weight AS DOUBLE), 1.0) AS weight
         FROM {_EDGE_TABLE} e
         JOIN _onager_int s ON s.name = e.source
-        JOIN _onager_int t ON t.name = e.target{where};
+        JOIN _onager_int t ON t.name = e.target{where}
+        ORDER BY src, dst;
         """,  # noqa: S608
         params,
     )
@@ -347,15 +352,38 @@ def onager_clustering(
     return {k: float(v) for k, v in res.items()}
 
 
+def _canonical_relabel(labels: dict[Any, int]) -> dict[Any, int]:
+    """Renumber communities canonically: descending member count, ties
+    broken by the smallest member. Onager's raw community ids follow node
+    iteration order, so a rebuild of the same graph permutes them — the
+    maint_full_zero_churn F3 audit saw all 1,293 labels change under a
+    bit-identical modularity. Canonical numbering makes the labels a pure
+    function of the partition (members may be names or int node ids; a
+    graph never mixes them)."""
+    groups: dict[int, list[Any]] = {}
+    for member, cid in labels.items():
+        groups.setdefault(cid, []).append(member)
+    ordered = sorted(groups.items(), key=lambda kv: (-len(kv[1]), min(kv[1])))
+    remap = {old: new for new, (old, _) in enumerate(ordered)}
+    return {member: remap[cid] for member, cid in labels.items()}
+
+
 def onager_louvain(
     con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> tuple[dict[Any, int], float]:
     """Louvain community detection -> (labels, modularity).
 
-    ``labels`` is name->community (or int->community when ``edges`` is given).
-    Modularity is computed in Python from the edge set (Onager does not
-    return a modularity scalar from ``onager_cmm_louvain``).
+    ``labels`` is name->community (or int->community when ``edges`` is
+    given), canonically renumbered (see ``_canonical_relabel``) so the
+    same partition always yields the same labels regardless of node
+    iteration order. The detection itself is seeded (``seed => 42``) —
+    without a seed onager's louvain is non-deterministic run-to-run
+    (observed modularity 0.3286–0.3322 and community counts 21–24 on the
+    same graph), which churned all louvain_community rows on every
+    recompute. Modularity is computed in Python from the edge set
+    (Onager does not return a modularity scalar from
+    ``onager_cmm_louvain``).
     """
     con, owns = _prepare(con)
     try:
@@ -365,7 +393,8 @@ def onager_louvain(
             rows = con.execute(
                 """
                 SELECT out.node_id, i.name, out.community
-                FROM onager_cmm_louvain((SELECT src, dst, weight FROM _onager_e)) out
+                FROM onager_cmm_louvain(
+                    (SELECT src, dst, weight FROM _onager_e), seed => 42) out
                 JOIN _onager_int i ON i.nid = out.node_id
                 """
             ).fetchall()
@@ -379,7 +408,7 @@ def onager_louvain(
             _materialize_edges(con, edges)
             rows = con.execute(
                 "SELECT node_id, community FROM onager_cmm_louvain("
-                "(SELECT src, dst, weight FROM _onager_e))"
+                "(SELECT src, dst, weight FROM _onager_e), seed => 42)"
             ).fetchall()
             labels_name = {int(r[0]): int(r[1]) for r in rows}
             labels_int = labels_name
@@ -387,7 +416,7 @@ def onager_louvain(
     finally:
         if owns:
             con.close()
-    return labels_name, _modularity(edges_int, labels_int, None)
+    return _canonical_relabel(labels_name), _modularity(edges_int, labels_int, None)
 
 
 # --------------------------------------------------------------------------- #

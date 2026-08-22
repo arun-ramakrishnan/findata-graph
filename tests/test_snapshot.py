@@ -239,3 +239,52 @@ def test_parquet_missing_db_returns_skipped(tmp_path):
         tmp_path / "nonexistent.db", tmp_path / "out", _logger()
     )
     assert result.get("skipped") is True
+
+
+def test_parquet_duckdb_export_order_deterministic(tmp_path):
+    """maint_full_zero_churn F4: export bytes must be a pure function of
+    content. A physical row reorder (what a graph rebuild does) must not
+    churn the blob — previously COPY (SELECT * FROM t) leaked physical
+    order into the parquet bytes (e_belongs/e_has, 2026-08-22 audit)."""
+    import duckdb
+
+    from maintenance.snapshot_db import export_parquet_duckdb
+
+    db = tmp_path / "graph.duckdb"
+    con = duckdb.connect(str(db))
+    con.execute(
+        "CREATE TABLE e_belongs (company_name INT, sector_name INT, "
+        "weight VARCHAR, properties VARCHAR, source_ref VARCHAR, "
+        "valid_from VARCHAR, valid_to VARCHAR)"
+    )
+    # Insert deliberately out of key order.
+    con.executemany(
+        "INSERT INTO e_belongs VALUES (?, ?, '1.0', '{}', 'seed', NULL, NULL)",
+        [(5, 100), (1, 100), (3, 100)],
+    )
+    con.commit()
+    con.close()
+
+    out1 = tmp_path / "snap1" / "duckdb"
+    out2 = tmp_path / "snap2" / "duckdb"
+    export_parquet_duckdb(db, out1, _logger())
+
+    # Simulate a rebuild: same content, different physical order.
+    con = duckdb.connect(str(db))
+    con.execute(
+        "CREATE TABLE t AS SELECT * FROM e_belongs ORDER BY company_name DESC"
+    )
+    con.execute("DROP TABLE e_belongs")
+    con.execute("ALTER TABLE t RENAME TO e_belongs")
+    con.close()
+
+    export_parquet_duckdb(db, out2, _logger())
+
+    a = (out1 / "e_belongs.parquet").read_bytes()
+    b = (out2 / "e_belongs.parquet").read_bytes()
+    assert a == b
+    # And the export is in canonical (column) order, not insertion order.
+    rel = duckdb.connect().execute(
+        f"SELECT company_name FROM read_parquet('{out1 / 'e_belongs.parquet'}')"  # noqa: S608  # tmp_path-constant identifier
+    ).fetchall()
+    assert [r[0] for r in rel] == [1, 3, 5]

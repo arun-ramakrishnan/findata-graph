@@ -520,6 +520,18 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
             return stats
 
         if not incremental:
+            # maint_full_zero_churn (F2 sibling): capture the pre-rebuild
+            # content so the B4 bump below fires only when it actually
+            # changed — the full branch bumped unconditionally, flipping
+            # _is_warm and churning db_meta on every no-op maint-full cycle.
+            from collections import Counter as _Counter
+            # tuple() each row: sqlite3.Row never == a plain tuple, so the
+            # multiset compare would report a phantom change every cycle.
+            existing_rows = [tuple(r) for r in conn.execute(
+                "SELECT doc_type, file_path, title, sector, content, embedding "
+                "FROM note_search"
+            )]
+            content_changed = _Counter(existing_rows) != _Counter(rows)
             # Full rebuild inside one transaction: DELETE + executemany insert.
             with conn:
                 conn.execute("DELETE FROM note_search")
@@ -563,11 +575,14 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
             # entities/graph_edges generation triggers (FTS5 can't carry
             # them), so the apply path bumps manually — a warm DuckDB whose
             # v_note_embeddings projection reads this table goes cold on the
-            # next connect. --check/sidecar-only paths never reach here.
+            # next connect. ONLY when the rebuild actually changed content
+            # (mirrors the incremental branch's to_upsert/to_delete guard).
+            # --check/sidecar-only paths never reach here.
             # A1: the model stamp rides along (same-only-SQL-side-home rule).
             if model_label is not None:
                 _stamp_note_model(conn, model_label)
-            stats["generation_bumped"] = bump_generation(conn)
+            if content_changed:
+                stats["generation_bumped"] = bump_generation(conn)
             return stats
         else:
             # P2.1 incremental: diff against meta, only touch changed/deleted files
