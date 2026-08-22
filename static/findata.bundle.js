@@ -35616,14 +35616,18 @@
           rows: data.results.map((r) => ({
             path: r.path,
             title: r.title,
-            sub: r.section || null,
-            chip: null,
+            // Prefer the matched section's own title (deep-link
+            // context) over the bare directory; anchor rides the chip.
+            sub: r.section_title || r.section || null,
+            chip: r.anchor !== null && r.anchor !== void 0 ? `L${r.anchor}` : null,
             snippet: r.snippet,
-            sim: null
+            sim: r.similarity ?? null
           }))
         }]);
         const total = data.results.length;
-        getEl("docs-count").textContent = total === 0 ? "No matches" : `${total} match${total === 1 ? "" : "es"}`;
+        const mode = data.mode ? ` \xB7 ${data.mode}` : "";
+        const stale = data.stale ? " \xB7 stale (scan)" : "";
+        getEl("docs-count").textContent = total === 0 ? `No matches${stale}` : `${total} match${total === 1 ? "" : "es"}${mode}${stale}`;
       } catch (error) {
         console.error("Error searching docs:", error);
         getEl("docs-list").innerHTML = '<div class="no-results">Search failed. Try again.</div>';

@@ -121,6 +121,18 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     # flow (step 10 re-snapshots; DuckDB materialises on connect()).
     ("company-embeddings --maint (cached refresh of company_embeddings)",
      ["python3", "helpers/graph/embeddings.py", "--maint"]),
+    # rebuild-doc-search (2026-08-23, doc_search_embeddings proposal):
+    # refresh the FTS5 + embeddings index over the repo's own doc/ corpus
+    # (section-level chunks; the agent-queryable knowledge index). Sidecar-
+    # only (memory/doc_search.db — gitignored, never snapshotted, and
+    # deliberately NOT in research.db so doc/local/ privacy is structural,
+    # never manifest-dependent). Writes no research.db tables, no
+    # entities/graph_edges, no notes — maint-full-eligible per the placement
+    # invariant. Pseudo-embedding fallback keeps this green on machines
+    # without the model; warm cycles are reads + hashes (the shared
+    # embed-cache discipline).
+    ("rebuild-doc-search (refresh doc/ FTS+embeddings sidecar index)",
+     ["python3", "helpers/maintenance/rebuild_doc_search.py"]),
     ("recompute-graph (refresh analytics in graph_analytics)",
      ["python3", "helpers/graph/algorithms.py", "--all", "--apply"]),
     # D7 — refresh the events timeline (acquisition/jv/guidance/management_

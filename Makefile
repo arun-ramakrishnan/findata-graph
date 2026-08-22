@@ -38,7 +38,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  lint-audit               Run ruff S/UP/C901 audits (security + modernization + complexity) — Bandit/Refurb/Radon equivs"
 > @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live; skip-safe on pristine clone)"
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
-> @echo "  maint-full               Post-ingest cleanup: maint + sync-tags + recompute-graph + re-snapshot"
+> @echo "  maint-full               Post-ingest re-derivation: maint + TIER2_STEPS (sync-tags, sector gates, note-search, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
 > @echo "  metrics-rebuild          Refresh company financials + industry edges from yfinance (~1 min, 931 tickers)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt"
@@ -100,7 +100,7 @@ maint:          ## Routine maintenance: db_maint + snapshot + graph-rebuild (alw
 > python3 helpers/maintenance/maint.py
 > @echo "✓ Routine maintenance complete"
 
-maint-full:     ## Post-ingest cleanup: maint + sync-tags + recompute-graph + re-snapshot
+maint-full:     ## Post-ingest re-derivation: maint + TIER2_STEPS (authoritative list: helpers/maintenance/maint.py)
 > python3 helpers/maintenance/maint.py --full
 > @echo "✓ Full maintenance complete"
 

@@ -746,10 +746,13 @@ def api_search():
 # --------------------------------------------------------------------------- #
 # /api/docs — browse + search the design/improvement docs under doc/           #
 # --------------------------------------------------------------------------- #
-# The docs corpus lives on disk (markdown + plain-text), NOT in the DB, so
-# these routes read the filesystem directly. The corpus is small (~27 files,
-# ~180KB), so search is a linear scan with naive word scoring — no FTS5 table
-# to build or maintain.
+# The docs corpus lives on disk (markdown + plain-text), NOT in the research
+# DB, so the catalog/content routes read the filesystem directly. Search is
+# served from the doc_search sidecar index (memory/doc_search.db — FTS5 +
+# per-section embeddings, helpers/maintenance/rebuild_doc_search.py) when it
+# is present and fresh, degrading to the #107 linear scan otherwise; the
+# sidecar is gitignored and structurally never touches research.db or the
+# published snapshots (doc/local/ privacy).
 
 _DOC_ROOT = Path(__file__).resolve().parent / "doc"
 _DOC_EXTS = {".md", ".txt"}
@@ -799,13 +802,21 @@ def _doc_title(rel_path: str, full_path: Path) -> str:
 
 
 def _resolve_doc_path(rel_path: str) -> Path | None:
-    """Resolve a doc rel-path to a safe absolute path inside doc/.
+    """Resolve a doc path to a safe absolute path inside doc/.
+
+    Accepts BOTH forms: doc/-relative ("procedures/embeddings.md", the
+    #107 catalog convention) and repo-rooted ("doc/procedures/
+    embeddings.md", the doc_search index/CLI convention) — a leading
+    `<doc-root-name>/` segment is stripped before resolution.
 
     Guards against path traversal (`../`, absolute paths, symlink escapes):
     the resolved path must stay within _DOC_ROOT and be a real file.
     """
     if not rel_path or "\x00" in rel_path:
         return None
+    strip = _DOC_ROOT.name + "/"
+    if rel_path.startswith(strip):
+        rel_path = rel_path[len(strip):]
     candidate = (_DOC_ROOT / rel_path).resolve()
     try:
         candidate.relative_to(_DOC_ROOT.resolve())
@@ -821,23 +832,26 @@ def api_docs():
     """Catalog of the design/improvement docs under doc/.
 
     Query params:
-        q (optional) — substring filter on the relative path; case-insensitive.
+        q (optional) — substring filter on the path; case-insensitive.
 
     Returns: {"docs": [{"path", "name", "section", "title", "size_bytes",
-    "mtime"}]} sorted by path. `section` is the subdirectory ("" for the
-    top-level files, e.g. "improvements" or "improvements/archive").
+    "mtime"}]} sorted by path. `path` is REPO-ROOTED (e.g.
+    "doc/improvements/completed.md") so it resolves from the repo root —
+    same convention as the doc_search index and CLI. `section` stays
+    subdir-relative-to-doc/ ("" for top-level files).
     """
     q = request.args.get("q", "").strip().lower()
     docs = []
     for rel_path, full in _iter_doc_files():
-        if q and q not in rel_path.lower():
+        rooted = f"{_DOC_ROOT.name}/{rel_path}"
+        if q and q not in rooted.lower():
             continue
         try:
             st = full.stat()
         except OSError:
             continue
         docs.append({
-            "path": rel_path,
+            "path": rooted,
             "name": full.name,
             "section": str(Path(rel_path).parent) if Path(rel_path).parent != Path(".") else "",
             "title": _doc_title(rel_path, full),
@@ -852,10 +866,12 @@ def api_docs_content():
     """Raw content of one doc (markdown or plain text).
 
     Query params:
-        path (required) — the doc's relative path under doc/.
+        path (required) — doc/-relative ("procedures/embeddings.md") or
+        repo-rooted ("doc/procedures/embeddings.md"); both resolve.
 
     Returns: {"path", "name", "section", "title", "content", "size_bytes",
-    "mtime"}. 404 on unknown or out-of-tree paths.
+    "mtime"} — `path` echoed in the canonical repo-rooted form. 404 on
+    unknown or out-of-tree paths.
 
     The body is served raw and rendered client-side with marked.js (the
     frontend already loads it) so the browse view shows faithful formatting.
@@ -869,11 +885,12 @@ def api_docs_content():
         st = full.stat()
     except OSError:
         return jsonify({"error": "unable to read doc"}), 500
+    doc_rel = full.relative_to(_DOC_ROOT.resolve())
     return jsonify({
-        "path": rel_path,
+        "path": f"{_DOC_ROOT.name}/{doc_rel.as_posix()}",
         "name": full.name,
-        "section": str(full.relative_to(_DOC_ROOT).parent) if full.relative_to(_DOC_ROOT).parent != _DOC_ROOT else "",
-        "title": _doc_title(rel_path, full),
+        "section": str(doc_rel.parent) if str(doc_rel.parent) != "." else "",
+        "title": _doc_title(doc_rel.as_posix(), full),
         "content": content,
         "size_bytes": st.st_size,
         "mtime": int(st.st_mtime),
@@ -914,19 +931,56 @@ def _snippet(text: str, q: str, radius: int = 140) -> str:
     return snippet
 
 
+def _docs_index_search(query: str, limit: int, offset: int, hybrid_on: bool):
+    """Serve /api/docs/search from the doc_search sidecar; None -> scan.
+
+    Read-only: opens its own short-lived connection to memory/doc_search.db
+    (module attrs are read at call time so tests can retarget them). Request
+    handlers never write — a missing, stale, or corrupt index degrades to
+    the #107 filesystem scan instead of failing.
+    """
+    try:
+        from helpers.maintenance import rebuild_doc_search as rds
+
+        if not Path(rds.DOC_DB).exists():
+            return None
+        conn = rds.connect_doc_db()
+    except Exception:  # noqa: S110  # no sidecar -> scan fallback
+        return None
+    try:
+        if not rds.doc_index_ready(conn) or rds.doc_index_stale(conn):
+            return None
+        return rds.search_docs(conn, query, limit=limit, offset=offset,
+                               hybrid=hybrid_on)
+    except Exception:  # noqa: S110  # corrupt index must never 500 the search
+        return None
+    finally:
+        conn.close()
+
+
 @app.route("/api/docs/search")
-def api_docs_search():
-    """Search the doc/ corpus.
+def api_docs_search():  # noqa: C901
+    """Search the doc/ corpus — hybrid BM25 + cosine over the doc_search
+    sidecar index (proposal: doc/improvements/proposals/
+    doc_search_embeddings.md) when present and fresh, degrading to the #107
+    filesystem scan otherwise.
 
     Query params:
-        q (required) — free-text query. The corpus is tiny, so this is a
-          case-insensitive substring scan over each doc's content with naive
-          word scoring (exact-word matches rank above substring matches, and
-          filename/title hits get a bonus). No index to build or maintain.
-        limit (default 25) — max results.
+        q (required) — free-text query. Tokens are FTS-quoted on the index
+          path, so punctuation can never produce a syntax error; the scan
+          path is a case-insensitive substring walk with naive word scoring.
+        limit (default 25) — max results (clamped 1..100).
+        hybrid (default on; hybrid=0 forces the lexical leg only — the
+          eval BM25 baseline).
 
-    Returns: {"query", "results": [{"path", "name", "section", "title",
-    "snippet"}]} sorted by descending score.
+    Returns: {"query", "mode", "stale", "results": [{"path", "name",
+    "section", "title", "section_title", "anchor", "snippet", "score"}]}
+    sorted by descending score. mode is "hybrid" | "bm25" | "scan"; stale=
+    true marks an index that exists but no longer matches doc/ (served by
+    the scan). Index-path results are section-level with at most 2 chunks
+    per file per page (diversification): each row deep-links by its anchor
+    line. Tokens are OR-joined — question-shaped queries must not require
+    every token to co-occur in one chunk.
     """
     q = request.args.get("q", "").strip()
     if not q:
@@ -936,9 +990,34 @@ def api_docs_search():
     except ValueError:
         return jsonify({"error": "limit must be an integer"}), 400
     limit = max(1, min(limit, 100))
+    hybrid_on = request.args.get("hybrid", "1") not in ("0", "false")
+
+    indexed = _docs_index_search(q, limit, 0, hybrid_on)
+    if indexed is not None:
+        return jsonify({
+            "query": q,
+            "mode": indexed["mode"],
+            "stale": False,
+            "results": indexed["results"][:limit],
+        })
+
+    # Fallback: the #107 filesystem scan. stale=true when an index exists
+    # but no longer matches doc/ (probe best-effort — this path must not 500).
+    stale = False
+    try:
+        from helpers.maintenance import rebuild_doc_search as rds
+
+        if Path(rds.DOC_DB).exists():
+            probe = rds.connect_doc_db()
+            try:
+                stale = rds.doc_index_ready(probe) and rds.doc_index_stale(probe)
+            finally:
+                probe.close()
+    except Exception:  # noqa: S110  # probe failure must not 500 the search
+        stale = False
 
     words = [w.lower() for w in q.split() if w]
-    ranked: list[tuple[int, str, dict[str, str | int]]] = []
+    ranked: list[tuple[int, str, dict[str, str | int | None]]] = []
     for rel_path, full in _iter_doc_files():
         try:
             content = full.read_text(encoding="utf-8")
@@ -958,11 +1037,15 @@ def api_docs_search():
             continue
         section = str(Path(rel_path).parent) if Path(rel_path).parent != Path(".") else ""
         doc_item = {
-            "path": rel_path,
+            "path": f"{_DOC_ROOT.name}/{rel_path}",
             "name": full.name,
             "section": section,
             "title": title,
+            "section_title": "",
+            "anchor": None,
             "snippet": _snippet(content, q),
+            "score": score,
+            "similarity": None,
         }
         # Carry the rank key (score, title_lower) as typed locals in the tuple
         # — dict-indexing (d["score"]) widens to `int | str` unions under ty.
@@ -970,7 +1053,7 @@ def api_docs_search():
     # Sort by (desc score, asc title).
     ranked.sort(key=lambda t: (-t[0], t[1]))
     docs_out = [d for _score, _title, d in ranked[:limit]]
-    return jsonify({"query": q, "results": docs_out})
+    return jsonify({"query": q, "mode": "scan", "stale": stale, "results": docs_out})
 
 
 @app.route("/api/entity/<path:entity_path>")

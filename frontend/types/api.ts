@@ -263,17 +263,26 @@ export interface DocContentResponse {
 }
 
 /** A search hit. `snippet` carries literal `<mark>...</mark>` around matches
- * (mirrors the FTS5 /api/search convention — reuse highlightSnippet()). */
+ * (mirrors the FTS5 /api/search convention — reuse highlightSnippet()).
+ * `section_title`/`anchor` are set on the index path (one row per `##`
+ * section, anchor = 1-based header line); the scan fallback carries
+ * `section_title: ""` and `anchor: null`. */
 export interface DocSearchHit {
     path: string;
     name: string;
     section: string;
     title: string;
+    section_title: string;
+    anchor: number | null;
     snippet: string;
+    score: number;
+    similarity?: number | null;
 }
 
 export interface DocSearchResponse {
     query: string;
+    mode: "hybrid" | "bm25" | "scan";
+    stale: boolean;
     results: DocSearchHit[];
 }
 

@@ -44,6 +44,7 @@ from helpers.graph.query import DB_PATH  # noqa: E402
 from helpers.maintenance import build_sector_hierarchy as bsh  # noqa: E402
 from helpers.maintenance import db_maint  # noqa: E402
 from helpers.maintenance import maint  # noqa: E402
+from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 from helpers.maintenance import rebuild_note_search as rns  # noqa: E402
 from helpers.maintenance import snapshot_db  # noqa: E402
 from helpers.maintenance import sync_sector_wikilinks as ssw  # noqa: E402
@@ -275,6 +276,16 @@ def _shim_note_search(p, mp, args):
     return _rc(rns.main(["--db", str(p.db)]))
 
 
+def _shim_doc_search(p, mp, args):
+    # Redirect ONLY the sidecar DB + its recovery backup to the tmp project
+    # root — DOC_ROOT stays the repo doc/ (read-only index source). The step
+    # is otherwise hermetic; the local embedder is pinned off by conftest
+    # (pseudo path), so this stays green on machines without the model.
+    mp.setattr(rds, "DOC_DB", p.root / "doc_search.db")
+    mp.setattr(rds, "BACKUP_DIR", p.root / "db-backup")
+    return _rc(rds.main(["--db", str(p.root / "doc_search.db")]))
+
+
 def _shim_embeddings(p, mp, args):
     mp.setattr(emb, "DEFAULT_DB_PATH", p.db)
     return _rc(emb.main(list(args)))
@@ -310,6 +321,7 @@ _SHIMS = {
     "helpers/maintenance/sync_sector_wikilinks.py": _shim_sector_links,
     "helpers/maintenance/build_sector_hierarchy.py": _shim_hierarchy,
     "helpers/maintenance/rebuild_note_search.py": _shim_note_search,
+    "helpers/maintenance/rebuild_doc_search.py": _shim_doc_search,
     "helpers/graph/embeddings.py": _shim_embeddings,
     "helpers/graph/algorithms.py": _shim_algorithms,
     "helpers/graph/derive_insights.py": _shim_derive_insights,

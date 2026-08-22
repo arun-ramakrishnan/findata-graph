@@ -54,5 +54,25 @@
     {"company": "NVIDIA Corporation", "sector": "Semiconductors"},
     {"company": "Pine Labs", "sector": "Fintech_Payments"},
     {"company": "Cochin Shipyard", "sector": "Defense"}
+  ],
+  "docs": [
+    {"id": "dex-01", "category": "exact", "query": "duckpgq retirement", "expect": ["doc/improvements/archive/graph/duckpgq_retirement.txt"]},
+    {"id": "dex-02", "category": "exact", "query": "embedding cache sidecar sha256", "expect": ["doc/procedures/embeddings.md", "doc/improvements/archive/database/local_embeddings.md", "doc/improvements/archive/database/company_embeddings_maint.md"]},
+    {"id": "dex-03", "category": "exact", "query": "OKF adoption activation", "expect": ["doc/improvements/archive/okf/okf_activation.md", "doc/improvements/archive/okf/okf_adoption.md"]},
+    {"id": "dex-04", "category": "exact", "query": "zero churn maint full stable writes", "expect": ["doc/improvements/archive/database/maint_full_zero_churn.md"]},
+    {"id": "dex-05", "category": "exact", "query": "BFS shortest path undirected edges", "expect": ["doc/improvements/archive/database/sql_capability_unlocks.md"]},
+    {"id": "dex-06", "category": "exact", "query": "company embeddings maint step 6b", "expect": ["doc/improvements/archive/database/company_embeddings_maint.md"]},
+    {"id": "dex-07", "category": "exact", "query": "doc browser naive scan", "expect": ["doc/improvements/archive/tooling/doc_browser.txt"]},
+    {"id": "dvar-01", "category": "variant", "query": "how to parse markdown newsletters into notes", "expect": ["doc/procedures/markdown_parse.md"]},
+    {"id": "dvar-02", "category": "variant", "query": "graph database schema entities edges relations", "expect": ["doc/graph_design.txt", "doc/architecture.md"]},
+    {"id": "dvar-03", "category": "variant", "query": "frontmatter fields for company notes", "expect": ["doc/schema/frontmatter_keys.md", "doc/schema.md"]},
+    {"id": "dvar-04", "category": "variant", "query": "deferred improvements backlog", "expect": ["doc/improvements/pending.md"]},
+    {"id": "dvar-05", "category": "variant", "query": "numbered run log of completed work", "expect": ["doc/improvements/completed.md", "doc/improvements/archive/README.md"]},
+    {"id": "dvar-06", "category": "variant", "query": "pdf to markdown conversion fuzz hardening", "expect": ["doc/improvements/archive/pipeline/pdf_conv_md_hardening_fuzz.md"]},
+    {"id": "dsem-01", "category": "semantic", "query": "why we decided against adopting LangGraph", "expect": ["doc/local/langgraph_assessment.md"]},
+    {"id": "dsem-02", "category": "semantic", "query": "Three.js shader catalog design inspiration", "expect": ["doc/local/threeui_notes.md"]},
+    {"id": "dsem-03", "category": "semantic", "query": "reading room entity pages accessibility redesign", "expect": ["doc/improvements/archive/ui/graph_docs_ui_redesign.md"]},
+    {"id": "dsem-04", "category": "semantic", "query": "making the repo's own documents searchable by meaning", "expect": ["doc/improvements/proposals/doc_search_embeddings.md", "doc/improvements/archive/tooling/doc_browser.txt"]},
+    {"id": "dsem-05", "category": "semantic", "query": "chose bge-small over the base model", "expect": ["doc/improvements/archive/database/local_embeddings.md"]}
   ]
 }

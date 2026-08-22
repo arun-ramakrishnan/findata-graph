@@ -42,8 +42,8 @@ class TestPlan:
             "graph-rebuild (refresh DuckDB cache)",
         ]
 
-    def test_tier2_has_nine_steps(self):
-        assert len(maint.TIER2_STEPS) == 9
+    def test_tier2_has_ten_steps(self):
+        assert len(maint.TIER2_STEPS) == 10
 
     def test_tier2_steps_order(self):
         # Post-ingest cleanup: structural work first (sync-tags settles
@@ -52,8 +52,10 @@ class TestPlan:
         # mutates notes — rebuild-note-search reads notes into the FTS
         # index and company-embeddings --maint refreshes the derived
         # company_embeddings table over the same note text (cached,
-        # best-effort, never auto-upgrading); recompute-graph mutates
-        # SQLite), then derive-insights scans newsletter concall bodies
+        # best-effort, never auto-upgrading); rebuild-doc-search refreshes
+        # the doc/ corpus sidecar index (research.db untouched);
+        # recompute-graph refreshes graph analytics, then derive-insights
+        # scans newsletter concall bodies
         # into the quotes/company_metrics tables ONLY (--no-notes), then
         # derive-events refreshes the events timeline (D7) from note prose
         # rendered by the last standalone derive_insights --apply, then
@@ -65,6 +67,7 @@ class TestPlan:
             "sector-hierarchy --check (gate: taxonomy + super-sector notes fresh)",
             "rebuild-note-search (rebuild FTS over findata markdowns)",
             "company-embeddings --maint (cached refresh of company_embeddings)",
+            "rebuild-doc-search (refresh doc/ FTS+embeddings sidecar index)",
             "recompute-graph (refresh analytics in graph_analytics)",
             "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
             "derive-events (refresh events timeline from note prose + edges)",
@@ -195,8 +198,8 @@ class TestDryRun:
             maint.main(["--full", "--dry-run"])
         output = caplog.text
         all_steps = maint.TIER1_STEPS + maint.TIER2_STEPS
-        # 3 tier1 (db_maint, snapshot, graph-rebuild) + 9 tier2.
-        assert len(all_steps) == 12
+        # 3 tier1 (db_maint, snapshot, graph-rebuild) + 10 tier2.
+        assert len(all_steps) == 13
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
 
