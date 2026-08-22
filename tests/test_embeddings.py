@@ -517,9 +517,28 @@ class TestPopulateLocalCached:
         assert seeded == 2
 
         n2 = populate_local(conn)
-        assert n2 == 2
+        assert n2 == 0  # stable write: identical vectors wrote nothing
         assert len(calls) == 1  # warm: NO new embed call at all
         assert "2 hits, 0 misses" in capsys.readouterr().err
+
+    def test_warm_rerun_preserves_created_at(self, tmp_path, monkeypatch):
+        """maint_full_zero_churn F2: a no-op cycle must not restamp
+        created_at (previously INSERT OR REPLACE re-defaulted every row)."""
+        conn, _ = _make_embed_db(tmp_path)
+        _add_two_companies(conn)
+        _fake_local(monkeypatch)
+
+        populate_local(conn)
+        before = conn.execute(
+            "SELECT company_name, created_at FROM company_embeddings ORDER BY company_name"
+        ).fetchall()
+
+        populate_local(conn)
+
+        after = conn.execute(
+            "SELECT company_name, created_at FROM company_embeddings ORDER BY company_name"
+        ).fetchall()
+        assert after == before
 
     def test_changed_text_reembeds_exactly_that_company(self, tmp_path, monkeypatch):
         conn, _ = _make_embed_db(tmp_path)
@@ -553,7 +572,7 @@ class TestPopulateLocalCached:
         capsys.readouterr()  # clear
 
         n = populate_local(conn)
-        assert n == 1  # only CoA inserted/updated
+        assert n == 0  # stable write: CoA's identical vector wrote nothing; only the GC removed CoB
         remaining = [r[0] for r in conn.execute(
             "SELECT company_name FROM company_embeddings"
         ).fetchall()]
@@ -624,7 +643,7 @@ class TestMaintRefresh:
         rc = maint_refresh(conn)
         assert rc == 0
         err = capsys.readouterr().err
-        assert "refreshed 2 row(s)" in err
+        assert "refreshed 0 row(s)" in err  # stable write: no-op cycle reports zero work
         assert "2 hits, 0 misses" in err  # warm: served by the seeded cache
         assert len(calls) == 1  # no new embedding happened
 
@@ -639,12 +658,12 @@ class TestMaintRefresh:
         assert emb.main(["--maint"]) == 0  # unavailable gate -> WARNING + 0
 
     def test_populate_bumps_generation_only_on_change(self, tmp_path, monkeypatch):
-        """B4 (sql_capability_unlocks): company_embeddings writes bump
-        db_meta.generation (the table is invisible to the entities/
-        graph_edges triggers), but ONLY when content actually changed —
-        an all-hits no-GC refresh rewrote identical bytes and must not
-        force a DuckDB rebuild. Tolerates bare fixtures without db_meta
+        """B4 (sql_capability_unlocks) + maint_full_zero_churn F2: the bump
+        fires only when a row ACTUALLY changed (the upsert filters identical
+        vectors) or GC removed rows — not on cache misses whose re-embed
+        reproduces the stored bytes. Tolerates bare fixtures without db_meta
         (no consumer to invalidate there)."""
+        from helpers.core import local_embedder as LE
         from helpers.core.db import get_generation
 
         conn, _ = _make_embed_db(tmp_path)
@@ -654,19 +673,21 @@ class TestMaintRefresh:
         populate_local(conn)
         assert get_generation(conn) is None
 
-        # With db_meta present: first populate (misses > 0) bumps.
+        # With db_meta present: a genuinely changed row (stored vector
+        # corrupted; the re-embed reproduces different bytes) bumps.
         conn.execute(
             "CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
         )
         conn.execute("INSERT INTO db_meta VALUES ('generation', '100')")
-        conn.commit()
         conn.execute(
-            "UPDATE entities SET sector_classification = 'Changed' WHERE name = 'CoA'"
+            "UPDATE company_embeddings SET embedding = ? WHERE company_name = 'CoA'",
+            ("[" + ", ".join("0.0" for _ in range(LE.DIM)) + "]",),
         )
         conn.commit()
         populate_local(conn)
         assert get_generation(conn) == 101
 
-        # Warm re-populate (all hits, no GC) leaves the generation alone.
+        # Warm re-populate (all hits, identical vectors, no GC) leaves the
+        # generation alone.
         populate_local(conn)
         assert get_generation(conn) == 101

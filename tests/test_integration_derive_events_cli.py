@@ -143,6 +143,52 @@ class TestDeriveEventsCli:
         assert events_project.run(monkeypatch, "--apply")[0] == 0
         assert events_project.events() == first
 
+    def test_stable_apply_preserves_id_and_created_at(self, events_project, monkeypatch):
+        """maint_full_zero_churn F1: a no-op re-apply keeps every row's id
+        and created_at (the old DELETE-then-INSERT restamped all of them,
+        churning events.parquet on every maint-full)."""
+        assert events_project.run(monkeypatch, "--apply")[0] == 0
+        con = sqlite3.connect(str(events_project.db))
+        before = con.execute(
+            "SELECT id, created_at FROM events ORDER BY id"
+        ).fetchall()
+        con.close()
+
+        assert events_project.run(monkeypatch, "--apply")[0] == 0
+
+        con = sqlite3.connect(str(events_project.db))
+        after = con.execute(
+            "SELECT id, created_at FROM events ORDER BY id"
+        ).fetchall()
+        con.close()
+        assert after == before
+
+    def test_stable_apply_removes_stale_derived_rows(self, events_project, monkeypatch):
+        """Rows under the derive:events: prefix that the current scan no
+        longer produces are deleted by id; hand-seeded rows survive."""
+        assert events_project.run(monkeypatch, "--apply")[0] == 0
+        con = sqlite3.connect(str(events_project.db))
+        con.execute(
+            "INSERT INTO events (entity, event_type, source_ref) "
+            "VALUES (?, 'guidance', 'derive:events:stale-arm')", (_HDFC,)
+        )
+        con.execute(
+            "INSERT INTO events (entity, event_type, source_ref) "
+            "VALUES (?, 'guidance', 'manual:hand-seeded')", (_HDFC,)
+        )
+        con.commit()
+        con.close()
+
+        assert events_project.run(monkeypatch, "--apply")[0] == 0
+
+        con = sqlite3.connect(str(events_project.db))
+        refs = [r[0] for r in con.execute(
+            "SELECT source_ref FROM events"
+        ).fetchall()]
+        con.close()
+        assert "derive:events:stale-arm" not in refs
+        assert "manual:hand-seeded" in refs
+
     def test_fk_safety_every_entity_exists(self, events_project, monkeypatch):
         assert events_project.run(monkeypatch, "--apply")[0] == 0
         conn = sqlite3.connect(str(events_project.db))

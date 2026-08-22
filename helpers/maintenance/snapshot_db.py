@@ -623,8 +623,15 @@ def export_parquet_duckdb(
         total_bytes = 0
         for t in tables:
             out_path = out_dir / f"{t}.parquet"
+            # ORDER BY ALL (maint_full_zero_churn F4): without it the COPY
+            # leaks the table's physical row order into the blob bytes, so a
+            # rebuild that left content set-identical still churned every
+            # e_* parquet (2026-08-22 audit: e_belongs/e_has reordered).
+            # Canonical column order makes the export a pure function of
+            # content; the verify path is row-count based, so this is
+            # round-trip neutral.
             con.execute(
-                f"COPY (SELECT * FROM {t}) TO '{out_path}' (FORMAT PARQUET)"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                f"COPY (SELECT * FROM {t} ORDER BY ALL) TO '{out_path}' (FORMAT PARQUET)"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
             )
             sz = out_path.stat().st_size
             total_bytes += sz

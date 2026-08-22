@@ -238,15 +238,25 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     vecs, cache_stats = cached_embed_batch(
         conn, texts, local_embedder.MODEL_ID, local_embedder.embed_documents
     )
+    # Stable-write upsert (maint_full_zero_churn F2): an unchanged vector
+    # writes NOTHING — INSERT OR REPLACE here used to delete+reinsert every
+    # row each cycle, restamping created_at on all of them and forcing a
+    # pointless snapshot churn. changed counts rows actually written.
     count = 0
     for name, vec in zip(names, vecs):
         vec_str = "[" + ", ".join(repr(v) for v in vec) + "]"
-        conn.execute(
-            "INSERT OR REPLACE INTO company_embeddings (company_name, embedding, model) "
-            "VALUES (?, ?, ?)",
+        cur = conn.execute(
+            "INSERT INTO company_embeddings (company_name, embedding, model, created_at) "
+            "VALUES (?, ?, ?, datetime('now')) "
+            "ON CONFLICT(company_name) DO UPDATE SET "
+            "    embedding  = excluded.embedding, "
+            "    model      = excluded.model, "
+            "    created_at = excluded.created_at "
+            "WHERE company_embeddings.embedding IS NOT excluded.embedding "
+            "   OR company_embeddings.model     IS NOT excluded.model",
             (name, vec_str, local_embedder.MODEL_ID)
         )
-        count += 1
+        count += cur.rowcount
 
     # Stale-vector hygiene: INSERT OR REPLACE never removes, so deleted
     # companies would keep ghost rows (mirrors the rebuild's deleted-file
@@ -261,10 +271,11 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     # entities/graph_edges generation triggers, so this writer bumps the
     # generation manually — flipping _is_warm so a DuckDB whose v_embeddings
     # projection reads this table rebuilds on the next connect. ONLY when
-    # content actually changed (cache misses re-embedded or GC removed
-    # rows): an all-hits no-GC cycle rewrote byte-identical vectors and
-    # must not cost the ~2s rebuild.
-    if cache_stats["misses"] or gc:
+    # a row actually changed or GC removed rows: the upsert above filters
+    # byte-identical vectors, so an all-hits no-GC cycle writes nothing and
+    # must not cost the ~2s rebuild (previously a cache MISS alone bumped,
+    # even when the re-embed reproduced the identical vector).
+    if count or gc:
         bump_generation(conn)
     if cache_stats["hits"] or cache_stats["misses"]:
         print(

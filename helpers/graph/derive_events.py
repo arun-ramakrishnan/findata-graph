@@ -26,10 +26,11 @@ Date parsing reuses ``_extract_year_from_context`` from ``extract_relations.py``
 no reliable date source in the corpus; deferred to D8 transcripts.
 
 Idempotency: events have no natural UNIQUE key (a company can have the same
-guidance reiterated across editions), so we DELETE derived rows
-(``source_ref LIKE 'derive:events:%'``) at the start of ``apply`` then
-re-insert from the current scan. Hand-seeded rows (``manual:`` / ``migration:``
-source_ref) are preserved.
+guidance reiterated across editions), so ``apply`` replaces all derived rows
+(``source_ref LIKE 'derive:events:%'``) with the current scan via the shared
+stable prefix-replace — unchanged rows keep their id and created_at, so a
+no-op cycle leaves the table byte-identical. Hand-seeded rows (``manual:`` /
+``migration:`` source_ref) are preserved.
 
 Three-stage shape mirrors derive_themes.py / derive_co_mentions.py:
 scan/derive -> apply.
@@ -56,6 +57,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.stable_write import stable_prefix_replace  # noqa: E402
 # Reuse the proven date parser + regexes from extract_relations rather than
 # duplicating FY/month/year handling. Imported for internal use (not re-exported).
 from helpers.graph.extract_relations import _extract_year_from_context  # noqa: E402
@@ -474,48 +476,47 @@ INSERT INTO events
      counterparty, source_quote, as_of_edition, source_ref, properties)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
+_EVENT_CONTENT_COLS = ("entity", "event_type", "event_date", "period",
+                       "date_precision", "magnitude", "counterparty",
+                       "source_quote", "as_of_edition", "source_ref",
+                       "properties")
 
 
 def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> int:
     """Persist derived events into the ``events`` table.
 
-    Idempotency uses DELETE-then-INSERT: all rows with ``source_ref LIKE
-    'derive:events:%'`` are cleared first (the three derive arms), then the
-    current scan is re-inserted. Hand-seeded rows (``manual:`` /
-    ``migration:`` source_ref) are preserved. ``dry_run=True`` (default) counts
-    what would be inserted without writing — the derive-* convention.
+    Idempotency uses the prefix-scoped stable replace (shared with
+    derive_insights): all rows under ``source_ref LIKE 'derive:events:%'``
+    (the three derive arms) are multiset-matched against the current scan —
+    unchanged rows keep their id AND created_at, stale rows are deleted by
+    id, only genuinely new rows are inserted. Hand-seeded rows (``manual:``
+    / ``migration:`` source_ref) are preserved. ``dry_run=True`` (default)
+    counts what would land without writing — the derive-* convention.
     """
     own_conn = conn is None
     if own_conn:
         conn = connect()
 
-    inserted = 0
     try:
         if dry_run:
             # Count what would land; no writes. Existing derived rows would be
             # replaced, so the net delta isn't simply len(events); report the
             # raw derived count (consistent with the dry-run summary).
             return len(events)
+        new_rows = [
+            (ev.entity, ev.event_type, ev.event_date, ev.period,
+             ev.date_precision, ev.magnitude, ev.counterparty,
+             ev.source_quote, ev.as_of_edition, ev.source_ref,
+             json.dumps(ev.properties, ensure_ascii=False, sort_keys=True))
+            for ev in events
+        ]
         with conn:
-            conn.execute(
-                "DELETE FROM events WHERE source_ref LIKE ?",
-                (_DERIVED_PREFIX + "%",),
-            )
-            for ev in events:
-                props_json = json.dumps(ev.properties, ensure_ascii=False,
-                                        sort_keys=True)
-                cur = conn.execute(
-                    _INSERT_SQL,
-                    (ev.entity, ev.event_type, ev.event_date, ev.period,
-                     ev.date_precision, ev.magnitude, ev.counterparty,
-                     ev.source_quote, ev.as_of_edition, ev.source_ref,
-                     props_json),
-                )
-                inserted += cur.rowcount
+            return stable_prefix_replace(
+                conn, "events", _DERIVED_PREFIX, _EVENT_CONTENT_COLS,
+                _INSERT_SQL, new_rows)
     finally:
         if own_conn:
             conn.close()
-    return inserted
 
 
 # --------------------------------------------------------------------------- #

@@ -626,3 +626,26 @@ def test_phase3_centralities_name_keyed_star(synth_db):
     assert katz["SectorA"] == pytest.approx(1.0 + 0.3 * (1.1 / 0.97))
     assert katz["CompanyA"] == pytest.approx(1.1 / 0.97)
     assert seeds == ["SectorA"]
+
+
+def test_onager_louvain_labels_canonical_across_edge_order():
+    """maint_full_zero_churn F3: community numbering must be a pure
+    function of the partition. Shuffling the edge input — what a DuckDB
+    rebuild effectively does to node iteration order — must not permute
+    labels (the 2026-08-22 audit saw all 1,293 live labels change under a
+    bit-identical modularity)."""
+    import random
+
+    # 4-clique (community of 4) + a disconnected pair (community of 2).
+    edges = _clique(4) + [(10, 20, 1.0), (20, 10, 1.0)]
+
+    labels_a, mod_a = onager_mod.onager_louvain(edges=edges)
+    shuffled = edges[:]
+    random.Random(42).shuffle(shuffled)  # noqa: S311  # deterministic non-crypto RNG (tests)
+    labels_b, mod_b = onager_mod.onager_louvain(edges=shuffled)
+
+    assert labels_a == labels_b
+    assert mod_a == pytest.approx(mod_b)
+    # Canonical numbering: larger community first -> clique is 0, pair is 1.
+    assert {n for n, c in labels_a.items() if c == 0} == {0, 1, 2, 3}
+    assert {n for n, c in labels_a.items() if c == 1} == {10, 20}

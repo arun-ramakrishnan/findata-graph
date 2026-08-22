@@ -107,6 +107,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.stable_write import stable_prefix_replace  # noqa: E402
 from helpers.core.edition_index import (  # noqa: E402
     _body,
     edition_source_entry,
@@ -915,41 +916,13 @@ def _stable_prefix_replace(conn, table: str, prefix: str, cols: tuple[str, ...],
                            insert_sql: str, new_rows: list[tuple]) -> int:
     """Prefix-scoped replace preserving id/created_at of unchanged rows.
 
-    Semantically equivalent to the previous DELETE-prefix-then-INSERT-all
-    (hand-seeded rows outside the prefix are untouched; stale derived rows
-    are removed; the final derived row set is exactly ``new_rows``), but
-    rows are multiset-matched on content first: unchanged rows keep their
-    id AND created_at, stale rows are deleted by id, and only genuinely
-    new rows are inserted. A no-op derive cycle therefore stops restamping
-    every row and reshuffling ids — the snapshot blobs change only when
-    content actually changes (the embed_cache stable-write pattern).
-
-    Returns the number of derived rows in the table after the call.
+    Thin alias of ``helpers.core.stable_write.stable_prefix_replace``
+    (extracted 2026-08-22 when derive_events adopted the same contract);
+    kept as a private name so the apply_quotes/apply_metrics call sites
+    and their tests are untouched.
     """
-    collist = ", ".join(cols)
-    rows = conn.execute(
-        f"SELECT id, {collist} FROM {table} WHERE source_ref LIKE ?",  # noqa: S608  # schema-constant identifiers; prefix is a ? bind
-        (prefix + "%",),
-    ).fetchall()
-    pool: dict[tuple, list[int]] = {}
-    for r in rows:
-        pool.setdefault(tuple(r[1:]), []).append(r[0])
-    to_insert: list[tuple] = []
-    kept = 0
-    for content in new_rows:
-        ids = pool.get(content)
-        if ids:
-            ids.pop()
-            kept += 1
-        else:
-            to_insert.append(content)
-    stale_ids = [i for ids in pool.values() for i in ids]
-    if stale_ids:
-        conn.executemany(f"DELETE FROM {table} WHERE id = ?",  # noqa: S608  # schema-constant table name
-                         [(i,) for i in stale_ids])
-    if to_insert:
-        conn.executemany(insert_sql, to_insert)
-    return kept + len(to_insert)
+    return stable_prefix_replace(conn, table, prefix, cols, insert_sql,
+                                 new_rows)
 
 
 def apply_quotes(quotes: list[Quote], *, conn=None, dry_run: bool = True,
