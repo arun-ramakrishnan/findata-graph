@@ -1,39 +1,48 @@
 /**
- * Ambient declarations for the third-party libraries loaded via CDN
- * `<script>` tags in `templates/findata.html` (marked, Prism, highlight.js,
- * cytoscape). These run as browser globals; this file teaches `tsc` about the
- * shapes the frontend actually calls, so call sites are navigable and
- * typo-checked without pulling the full (and heavy) type packages into the
- * build.
+ * Ambient declarations for the third-party libraries the frontend uses.
  *
- * This is an AMBIENT file (no top-level import/export) so every declaration
- * here is global and merges with the `declare global` block in findata.ts.
+ * Two loading strategies coexist:
  *
- * These are intentionally MINIMAL: only the methods the frontend invokes are
- * declared. If the frontend starts using more of a library, expand the
- * relevant declaration here rather than `any`-casting at the call site.
+ * 1. Browser-global `<script>` tags in `templates/findata.html` (marked,
+ *    Prism, highlight.js, DOMPurify) — declared with `declare const` /
+ *    `interface Window` merges below.
+ * 2. npm packages bundled by esbuild since S2 (cytoscape, cytoscape-fcose)
+ *    — declared with `declare module` so the imports type-check against our
+ *    intentionally MINIMAL shapes instead of pulling heavy type packages
+ *    into the build (neither package ships its own .d.ts).
+ *
+ * Only the methods the frontend invokes are declared. If the frontend starts
+ * using more of a library, expand the relevant declaration here rather than
+ * `any`-casting at the call site.
  */
 
 // --------------------------------------------------------------------------- //
-// marked — markdown → HTML (CDN: marked@12)                                   //
+// marked — markdown → HTML (vendored global: marked@12)                       //
 // --------------------------------------------------------------------------- //
 declare const marked: {
     parse(markdown: string): string;
 };
 
 // --------------------------------------------------------------------------- //
-// highlight.js (CDN: highlight.js@11)                                         //
+// highlight.js (vendored global: highlight.js@11)                             //
 // --------------------------------------------------------------------------- //
 interface HljsResult {
     value: string;
 }
 
 // --------------------------------------------------------------------------- //
-// Prism (CDN: prism@1.29) — declared on Window in findata.ts's `declare global`
+// Prism (vendored global: prism@1.29) — declared on Window in findata.ts      //
 // --------------------------------------------------------------------------- //
 
 // --------------------------------------------------------------------------- //
-// cytoscape (CDN: cytoscape@3.28)                                             //
+// DOMPurify (vendored global: dompurify@3)                                    //
+// --------------------------------------------------------------------------- //
+declare const DOMPurify: {
+    sanitize(dirty: string, config?: Record<string, unknown>): string;
+};
+
+// --------------------------------------------------------------------------- //
+// cytoscape (npm: cytoscape@3.28.1, bundled by esbuild)                       //
 // --------------------------------------------------------------------------- //
 // The frontend uses cytoscape fairly heavily (instance + stylesheet builder +
 // layout/run/collection APIs). Declaring the full surface is out of scope for
@@ -65,6 +74,14 @@ interface CyNodeData {
     [k: string]: unknown;
 }
 
+/** Event object cytoscape passes to handlers (S3: tooltips need the pointer). */
+interface CyEvent {
+    target: CySingular;
+    /** Viewport-space pointer position (node/edge mouse events). */
+    renderedPosition?: { x: number; y: number };
+    originalEvent?: { clientX: number; clientY: number };
+}
+
 /** A cytoscape collection (subset of elements) returned by `.collection()`. */
 interface CyCollection {
     merge(other: CyCollection | CyElementInput | unknown): CyCollection;
@@ -75,9 +92,14 @@ interface CyCollection {
 /** A single node/edge the event handlers receive. */
 interface CySingular {
     data(): CyNodeData;
+    data(key: string, value: unknown): this;
+    removeData(key: string): this;
     edgesWith(other: CySingular): CyCollection;
     addClass(cls: string): this;
     removeClass(cls: string): this;
+    toggleClass(cls: string, add?: boolean): this;
+    hide(): this;
+    show(): this;
 }
 
 interface CyElements {
@@ -87,6 +109,11 @@ interface CyElements {
     not(other: CyCollection): CyElements;
     removeClass(cls: string): void;
     addClass(cls: string): void;
+    hide(): CyElements;
+    show(): CyElements;
+    /** Sub-collections by kind (cloud legend filters, zoom-fade labels). */
+    nodes(selector?: string): CyElements;
+    edges(selector?: string): CyElements;
     /** Iterate the collection (cloud set-highlight needs per-element comp). */
     forEach(cb: (el: CySingular) => void): void;
 }
@@ -97,15 +124,24 @@ interface CyStylesheet {
     style(s: Record<string, unknown>): CyStylesheet;
 }
 
+/** Live style object returned by `cy.style()` — patch then `.update()`. */
+interface CyStyleUpdater extends CyStylesheet {
+    update(): void;
+}
+
 /** A live cytoscape graph instance. */
 interface CyInstance {
-    on(evt: string, sel: string, cb: (e: { target: CySingular }) => void): void;
-    on(evt: string, cb: () => void): void;
-    on(evt: string, cb: (e: { target: CySingular }) => void): void;
+    on(evt: string, sel: string, cb: (e: CyEvent) => void): void;
+    on(evt: string, cb: (e: CyEvent) => void): void;
     elements(): CyElements;
+    nodes(selector?: string): CyElements;
+    edges(selector?: string): CyElements;
     add(els: CyElementInput[] | CyElementInput): CyElements;
     layout(opts: Record<string, unknown>): { run(): void };
     resize(): void;
+    batch(cb: () => void): void;
+    /** Live stylesheet accessor (zoom-fade patches: selector().style().update()). */
+    style(): CyStyleUpdater;
     // Zoom / panning (used by the graph zoom slider + fit button).
     zoom(level?: number): number;
     minZoom(): number;
@@ -122,10 +158,26 @@ interface CyInstance {
     collection(): CyCollection;
 }
 
-/** The global constructor + its `stylesheet()` static helper. */
+/** The constructor function + its statics (`stylesheet`, extension `use`). */
 interface CyCore {
     (opts: Record<string, unknown>): CyInstance;
     stylesheet(): CyStylesheet;
+    /** Register a layout/extension plugin (fcose). */
+    use(ext: unknown): void;
 }
 
-declare const cytoscape: CyCore;
+declare module "cytoscape" {
+    const cytoscape: CyCore;
+    export default cytoscape;
+}
+
+// --------------------------------------------------------------------------- //
+// cytoscape-fcose (npm: cytoscape-fcose@2.2.0, bundled by esbuild)            //
+// --------------------------------------------------------------------------- //
+// Registered via cytoscape.use() at graph-module load; the "fcose" layout
+// name becomes available to cy.layout(). Consumed by S3+ slices.
+
+declare module "cytoscape-fcose" {
+    const fcose: unknown;
+    export default fcose;
+}

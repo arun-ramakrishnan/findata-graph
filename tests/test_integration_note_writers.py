@@ -74,10 +74,13 @@ class _WritersProject:
         dst = sqlite3.connect(str(self.db))
         src.backup(dst)
         src.close()
-        dst.execute("CREATE TEMP TABLE keep AS SELECT name FROM ("
-                    "SELECT name, 0 o FROM entities WHERE entity_type != 'company' "
-                    f"UNION ALL SELECT name, 1 o FROM entities WHERE name = '{_COMPANY}' "
-                    "GROUP BY name HAVING MIN(o))")
+        dst.execute(
+            "CREATE TEMP TABLE keep AS SELECT name FROM ("
+            "SELECT name, 0 o FROM entities WHERE entity_type != 'company' "
+            "UNION ALL SELECT name, 1 o FROM entities WHERE name = ? "
+            "GROUP BY name HAVING MIN(o))",
+            (_COMPANY,),
+        )
         dst.execute("DELETE FROM graph_edges WHERE source NOT IN "
                     "(SELECT name FROM keep) OR target NOT IN (SELECT name FROM keep)")
         # cited_in edges are RE-DERIVED from sources[] by derive_cited_in;
@@ -202,15 +205,6 @@ class TestConvergence:
         assert writers._run_ssw(apply=True) == 0
         assert writers.note_bytes() == before
 
-    @pytest.mark.xfail(
-        reason="FOUND 2026-08-22: build_sector_hierarchy --apply re-renders "
-               "super-sector note frontmatter from scratch, stripping the "
-               "OKF generated/stale_after keys and re-stamping "
-               "created/last_modified (observed on the live vault; the 9 "
-               "notes were restored). Fix decision escalated to the user "
-               "per the proposal's findings policy — flip to a real "
-               "assertion when fixed.",
-        strict=True)
     def test_hierarchy_write_is_region_scoped(self, writers):
         """OKF frontmatter on a super-sector note (generated/sources keys
         the hierarchy writer doesn't own) survives a re-apply; only the
@@ -232,6 +226,9 @@ class TestConvergence:
         assert fm2["generated"]["by"] == "process:okf_backfill"
         assert fm2["sources"][0]["id"] == "TC_Alpha"
         assert bsh._CHILD_BEGIN in note.read_text(encoding="utf-8")
+        # Restore the pre-test bytes: the injected sources[] would otherwise
+        # leak into TestCitedIn's derive_cited_in run below.
+        note.write_text(text, encoding="utf-8")
 
 
 class TestCitedIn:

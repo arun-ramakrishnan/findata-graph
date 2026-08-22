@@ -129,7 +129,7 @@ class TestNearDuplicatesCli:
     def test_sqlite_side_is_read_only(self, dup_db, monkeypatch):
         """The tripwire must never write the SQLite DB (read-derived cache
         only): file bytes + row contents identical before/after."""
-        before = hashlib.md5(dup_db.read_bytes()).hexdigest()
+        before = hashlib.md5(dup_db.read_bytes(), usedforsecurity=False).hexdigest()
         conn = sqlite3.connect(str(dup_db))
         rows_before = conn.execute(
             "SELECT file_path, title, embedding FROM note_search "
@@ -137,7 +137,7 @@ class TestNearDuplicatesCli:
         conn.close()
         rc, _, _ = _run(monkeypatch, dup_db, "--min-sim", "0.9")
         assert rc == 0
-        assert hashlib.md5(dup_db.read_bytes()).hexdigest() == before
+        assert hashlib.md5(dup_db.read_bytes(), usedforsecurity=False).hexdigest() == before
         conn = sqlite3.connect(str(dup_db))
         rows_after = conn.execute(
             "SELECT file_path, title, embedding FROM note_search "

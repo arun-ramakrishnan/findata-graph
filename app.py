@@ -1706,6 +1706,148 @@ def api_graph_edition_companies():
     })
 
 
+@app.route("/api/graph/near-duplicates")
+def api_graph_near_duplicates():
+    """Near-duplicate note pairs above a cosine threshold (QA tripwire).
+
+    graph_docs_ui_redesign S1: read-only GET over
+    helpers.graph.query.near_duplicate_notes — the pairwise self-join over
+    v_note_embeddings (~1s at ~1k docs). On-demand only: the UI must not
+    prefetch this; it renders behind a loading state.
+
+    Query params:
+      - min_sim (default 0.9): cosine threshold, 0 < v <= 1.
+      - doc_type (default 'company'): restricts BOTH sides of each pair.
+      - limit (default 100, clamped 1-500): max pairs returned.
+
+    200 with an empty `pairs` list when nothing clears the threshold or the
+    embeddings table is absent/empty (wrapper degrades to []).
+    """
+    try:
+        min_sim = float(request.args.get("min_sim", "0.9"))
+    except ValueError:
+        return jsonify({"error": "min_sim must be a number"}), 400
+    if not 0.0 < min_sim <= 1.0:
+        return jsonify({"error": "min_sim must be in (0, 1]"}), 400
+    doc_type = request.args.get("doc_type", "").strip() or "company"
+    try:
+        limit = int(request.args.get("limit", "100"))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
+    if limit < 1 or limit > 500:
+        return jsonify({"error": "limit must be between 1 and 500"}), 400
+    try:
+        from helpers.graph.query import near_duplicate_notes
+        results = near_duplicate_notes(
+            get_graph_connection(), min_sim=min_sim, doc_type=doc_type,
+            limit=limit,
+        )
+    except Exception as e:
+        app.logger.exception("graph near-duplicates failed")
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+    return jsonify({
+        "doc_type": doc_type,
+        "min_sim": min_sim,
+        "pairs": [
+            {"path_a": pa, "path_b": pb, "title_a": ta, "title_b": tb,
+             "similarity": sim}
+            for pa, pb, ta, tb, sim in results
+        ],
+    })
+
+
+@app.route("/api/graph/suggestions")
+def api_graph_suggestions():
+    """Link-prediction suggestions — read-only projection.
+
+    graph_docs_ui_redesign S1: wraps helpers.graph.suggest_relations.
+    suggest_relations() NEVER touches findata/_pending_relations.txt; the
+    sidecar append stays CLI-only (all-writes-explicit doctrine).
+
+    Query params:
+      - method (default 'jaccard'): one of jaccard / adamic-adar /
+        common-neighbors / pref-attach / resource-alloc.
+      - top (default 25, clamped 1-100): max suggestions returned.
+      - min_score (default 0.3): filter threshold, 0 <= v <= 1.
+      - companies_only (default on): restrict both endpoints to companies.
+
+    Returns 503 when the graph cache is cold/unavailable (the wrapper needs
+    the materialised e_* tables).
+    """
+    method = request.args.get("method", "jaccard").strip().lower()
+    if method not in ("jaccard", "adamic-adar", "common-neighbors",
+                      "pref-attach", "resource-alloc"):
+        return jsonify({
+            "error": f"unknown method {method!r}",
+            "valid_methods": ["jaccard", "adamic-adar", "common-neighbors",
+                              "pref-attach", "resource-alloc"],
+        }), 400
+    try:
+        top = int(request.args.get("top", "25"))
+    except ValueError:
+        return jsonify({"error": "top must be an integer"}), 400
+    if top < 1 or top > 100:
+        return jsonify({"error": "top must be between 1 and 100"}), 400
+    try:
+        min_score = float(request.args.get("min_score", "0.3"))
+    except ValueError:
+        return jsonify({"error": "min_score must be a number"}), 400
+    if not 0.0 <= min_score <= 1.0:
+        return jsonify({"error": "min_score must be in [0, 1]"}), 400
+    companies_only = request.args.get("companies_only", "1").strip().lower() in (
+        "1", "true", "yes", "on")
+    try:
+        from helpers.graph.suggest_relations import suggest_relations
+        results = suggest_relations(
+            get_graph_connection(), method=method, top=top,
+            min_score=min_score, companies_only=companies_only,
+        )
+    except Exception as e:
+        app.logger.exception("graph suggestions failed")
+        return jsonify({"error": f"graph query failed: {e}"}), 500
+    return jsonify({
+        "method": method,
+        "top": top,
+        "suggestions": [
+            {"source": s.source, "target": s.target, "score": s.score,
+             "edition": s.edition}
+            for s in results
+        ],
+    })
+
+
+@app.route("/api/analytics/<name>")
+def api_analytics(name: str):
+    """One named analytics report over the git-tracked Parquet snapshot.
+
+    graph_docs_ui_redesign S1: wraps helpers.graph.analytics.fetch.
+    name is one of summary / edge-growth / sector-growth / top-entities /
+    coverage; anything else → 404 (JSON parity with the /api/* handlers).
+
+    Reads snapshots/parquet/ only (read-only); no ETag hook (outside
+    /api/graph/*) — reports are cold-opened rarely.
+    """
+    from helpers.graph.analytics import REPORTS, fetch
+    if name not in REPORTS:
+        return jsonify({
+            "error": f"unknown report {name!r}",
+            "valid_reports": sorted(REPORTS),
+        }), 404
+    try:
+        report = fetch(name)
+    except FileNotFoundError as e:
+        return jsonify({"error": str(e)}), 503
+    except Exception as e:
+        app.logger.exception("analytics report %r failed", name)
+        return jsonify({"error": f"analytics query failed: {e}"}), 500
+    return jsonify({
+        "title": report.title,
+        "headers": report.headers,
+        "rows": report.rows,
+        "note": report.note,
+    })
+
+
 @app.route("/api/graph/sector/<path:name>")
 def api_graph_sector(name: str):
     """If `name` is a sector: return its member companies.
@@ -2026,12 +2168,22 @@ _SCALAR_GRAPH_METRICS = {
     "pagerank", "degree_centrality", "betweenness_centrality",
     "local_clustering_coefficient", "closeness_centrality",
     "eigenvector_centrality",  # last two added in Bundle G1
+    # graph_docs_ui_redesign S1: the four unserved centralities computed &
+    # persisted by `make recompute-graph`; all store {"value": float}, so the
+    # scalar branch below serves them unchanged.
+    "harmonic_centrality", "katz_centrality", "laplacian_centrality",
+    "local_reaching_centrality",
 }
 # Label metrics: value is an int community/component id. Ranked/grouped, not
 # sorted by value.
 _LABEL_GRAPH_METRICS = {"louvain_community", "weakly_connected_component"}
+# Structured-payload metrics: value JSON is not {"value": float}; each gets
+# its own response shape in the handler below (graph_docs_ui_redesign §4.3).
+_PAYLOAD_GRAPH_METRICS = {"link_prediction", "voterank"}
 # Union — the full allowlist served by /api/graph/metrics/<metric>.
-_GRAPH_METRIC_ALLOWLIST = _SCALAR_GRAPH_METRICS | _LABEL_GRAPH_METRICS
+_GRAPH_METRIC_ALLOWLIST = (
+    _SCALAR_GRAPH_METRICS | _LABEL_GRAPH_METRICS | _PAYLOAD_GRAPH_METRICS
+)
 
 
 @app.route("/api/graph/metrics/<metric>")
@@ -2059,6 +2211,12 @@ def api_graph_metrics(metric: str):  # noqa: C901
     Response shape (label metrics):
       {"metric": ..., "total": N, "groups": [
          {"label": int, "size": int, "members": [name, ...]}, ...]}
+    Response shape (voterank, graph_docs_ui_redesign S1):
+      {"metric": ..., "total": N, "seeds": [name, ...]}
+    Response shape (link_prediction, graph_docs_ui_redesign S1):
+      {"metric": ..., "total": N, "entities": [
+         {"entity": ..., "method": ..., "edge_types": [...], "best_score": float,
+          "candidates": [{"name": ..., "score": ...}, ...]}, ...]}
     """
     # Normalise + validate the metric name. graph_analytics stores metric
     # names in lowercase; accept case-insensitively for URL friendliness.
@@ -2084,6 +2242,63 @@ def api_graph_metrics(metric: str):  # noqa: C901
 
     conn = get_db_connection()
     try:
+        import json as _json
+        if metric_lc in _PAYLOAD_GRAPH_METRICS:
+            # graph_docs_ui_redesign S1: structured payloads persisted by
+            # algorithms._persist_link_prediction / _persist_voterank.
+            rows = conn.execute(
+                "SELECT entity_name, value FROM graph_analytics WHERE metric = ?",
+                (metric_lc,),
+            ).fetchall()
+            if metric_lc == "voterank":
+                # Graph-valued: every seed row carries the same ordered
+                # {"seeds": [...]} list — serve it once.
+                seeds: list[str] = []
+                for r in rows:
+                    try:
+                        parsed = _json.loads(r["value"])
+                    except (ValueError, TypeError):
+                        continue
+                    cand = parsed.get("seeds")
+                    if isinstance(cand, list) and len(cand) > len(seeds):
+                        seeds = [s for s in cand if isinstance(s, str)]
+                return jsonify({
+                    "metric": metric_lc,
+                    "total": len(seeds),
+                    "seeds": seeds,
+                })
+            # link_prediction: node-keyed rows, each carrying that node's
+            # candidate list. Ranked by best candidate score desc.
+            entities: list[dict] = []
+            for r in rows:
+                try:
+                    parsed = _json.loads(r["value"])
+                except (ValueError, TypeError):
+                    continue
+                cands = [
+                    {"name": c.get("name"), "score": c.get("score")}
+                    for c in parsed.get("candidates", [])
+                    if isinstance(c, dict)
+                ]
+                if entity_filter and r["entity_name"].lower() != entity_filter.lower():
+                    continue
+                entities.append({
+                    "entity": r["entity_name"],
+                    "method": parsed.get("method"),
+                    "edge_types": parsed.get("edge_types", []),
+                    "best_score": max(
+                        (c["score"] for c in cands
+                         if isinstance(c.get("score"), (int, float))),
+                        default=0.0,
+                    ),
+                    "candidates": cands,
+                })
+            entities.sort(key=lambda e: e["best_score"], reverse=True)
+            return jsonify({
+                "metric": metric_lc,
+                "total": len(entities),
+                "entities": entities,
+            })
         if metric_lc in _SCALAR_GRAPH_METRICS:
             # value JSON is {"value": float}. Bundle V2: push the json_extract
             # + CAST + ORDER BY into SQL (was: per-row json.loads in Python +
@@ -2142,7 +2357,6 @@ def api_graph_metrics(metric: str):  # noqa: C901
                 "WHERE metric = ? ORDER BY entity_name",
                 (metric_lc,),
             ).fetchall()
-            import json as _json
             groups: dict[int, list[str]] = {}
             modularity = None
             for r in rows:

@@ -1034,3 +1034,186 @@ class TestGraphCloudEdgeSemantics:
             types = {t["edge_type"]: t for t in data["relationship_types"]}
             assert types["custom_link"]["symmetric"] is False
             assert "custom" in types["custom_link"]["semantics"]
+
+
+# ----- /api/graph/near-duplicates (graph_docs_ui_redesign S1) -------------- #
+
+class TestGraphNearDuplicates:
+    """GET /api/graph/near-duplicates — read-only GET over
+    helpers.graph.query.near_duplicate_notes (pairwise cosine self-join over
+    v_note_embeddings). Validation mirrors the sibling clamp conventions."""
+
+    def test_near_duplicates_response_shape(self, unit_client, monkeypatch):
+        import helpers.graph.query as q
+
+        seen = {}
+
+        def fake_pairs(con, min_sim=0.9, doc_type="company", limit=100):
+            seen.update(min_sim=min_sim, doc_type=doc_type, limit=limit)
+            return [("findata/Companies/A.md", "findata/Companies/B.md",
+                     "A", "B", 0.942)]
+
+        monkeypatch.setattr(q, "near_duplicate_notes", fake_pairs)
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get(
+            "/api/graph/near-duplicates?min_sim=0.92&limit=50")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["min_sim"] == 0.92
+        assert data["doc_type"] == "company"  # default applied
+        assert data["pairs"] == [
+            {"path_a": "findata/Companies/A.md",
+             "path_b": "findata/Companies/B.md",
+             "title_a": "A", "title_b": "B", "similarity": 0.942}]
+        assert seen["limit"] == 50
+
+    def test_near_duplicates_doc_type_passthrough(self, unit_client, monkeypatch):
+        import helpers.graph.query as q
+
+        seen = {}
+        monkeypatch.setattr(
+            q, "near_duplicate_notes",
+            lambda con, min_sim=0.9, doc_type="company", limit=100:
+                seen.update(doc_type=doc_type) or [])
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get("/api/graph/near-duplicates?doc_type=chatter")
+        assert r.status_code == 200
+        assert seen["doc_type"] == "chatter"
+
+    def test_near_duplicates_empty_result_is_200(self, unit_client, monkeypatch):
+        import helpers.graph.query as q
+
+        monkeypatch.setattr(q, "near_duplicate_notes", lambda *a, **k: [])
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get("/api/graph/near-duplicates")
+        assert r.status_code == 200
+        assert r.get_json()["pairs"] == []
+
+    def test_near_duplicates_bad_min_sim_returns_400(self, unit_client):
+        r = unit_client.get("/api/graph/near-duplicates?min_sim=abc")
+        assert r.status_code == 400
+        r = unit_client.get("/api/graph/near-duplicates?min_sim=1.5")
+        assert r.status_code == 400
+        r = unit_client.get("/api/graph/near-duplicates?min_sim=0")
+        assert r.status_code == 400
+
+    def test_near_duplicates_bad_limit_returns_400(self, unit_client):
+        r = unit_client.get("/api/graph/near-duplicates?limit=abc")
+        assert r.status_code == 400
+        r = unit_client.get("/api/graph/near-duplicates?limit=0")
+        assert r.status_code == 400
+        r = unit_client.get("/api/graph/near-duplicates?limit=501")
+        assert r.status_code == 400
+
+
+# ----- /api/graph/suggestions (graph_docs_ui_redesign S1) ------------------ #
+
+class TestGraphSuggestions:
+    """GET /api/graph/suggestions — read-only projection over
+    helpers.graph.suggest_relations. The sidecar append
+    (append_suggestions -> findata/_pending_relations.txt) is NEVER reachable
+    from this endpoint (all-writes-explicit doctrine); the stub asserts the
+    wrapper is called with the connection only."""
+
+    def test_suggestions_response_shape(self, unit_client, monkeypatch):
+        import helpers.graph.suggest_relations as sr
+
+        seen = {}
+
+        class FakeSuggestion:
+            source, target = "CEAT", "Apollo Tyres"
+            score, method, edition = 0.61, "jaccard", "link-prediction/jaccard/x"
+
+        def fake_suggest(con, *, method="jaccard", top=25,
+                         min_score=0.3, companies_only=True,
+                         existing_pairs=None):
+            seen.update(method=method, top=top, min_score=min_score,
+                        companies_only=companies_only)
+            return [FakeSuggestion()]
+
+        monkeypatch.setattr(sr, "suggest_relations", fake_suggest)
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get(
+            "/api/graph/suggestions?top=5&min_score=0.4&method=adamic-adar")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["method"] == "adamic-adar"
+        assert data["top"] == 5
+        assert data["suggestions"] == [{
+            "source": "CEAT", "target": "Apollo Tyres",
+            "score": 0.61, "edition": "link-prediction/jaccard/x"}]
+        assert seen == {"method": "adamic-adar", "top": 5,
+                        "min_score": 0.4, "companies_only": True}
+
+    def test_suggestions_companies_only_off(self, unit_client, monkeypatch):
+        import helpers.graph.suggest_relations as sr
+
+        seen = {}
+        monkeypatch.setattr(
+            sr, "suggest_relations",
+            lambda con, **kw: seen.update(kw) or [])
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+
+        r = unit_client.get("/api/graph/suggestions?companies_only=0")
+        assert r.status_code == 200
+        assert seen["companies_only"] is False
+
+    def test_suggestions_bad_method_returns_400(self, unit_client):
+        r = unit_client.get("/api/graph/suggestions?method=bogus")
+        assert r.status_code == 400
+        assert "valid_methods" in r.get_json()
+
+    def test_suggestions_bad_top_or_score_returns_400(self, unit_client):
+        assert unit_client.get("/api/graph/suggestions?top=0").status_code == 400
+        assert unit_client.get("/api/graph/suggestions?top=101").status_code == 400
+        assert unit_client.get(
+            "/api/graph/suggestions?min_score=2").status_code == 400
+
+
+# ----- /api/analytics/<name> (graph_docs_ui_redesign S1) ------------------- #
+
+class TestAnalyticsReportEndpoint:
+    """GET /api/analytics/<name> — read-only wrap of analytics.fetch over
+    the git-tracked Parquet snapshot."""
+
+    def test_analytics_response_shape(self, unit_client, monkeypatch):
+        import helpers.graph.analytics as an
+
+        from helpers.graph.analytics import Report
+        captured = {}
+
+        def fake_fetch(name, root=None):
+            captured["name"] = name
+            return Report(title="T", headers=["a", "b"],
+                          rows=[["1", "2"]], note="n")
+
+        monkeypatch.setattr(an, "fetch", fake_fetch)
+
+        r = unit_client.get("/api/analytics/top-entities")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert captured["name"] == "top-entities"
+        assert data == {"title": "T", "headers": ["a", "b"],
+                        "rows": [["1", "2"]], "note": "n"}
+
+    def test_analytics_unknown_report_404(self, unit_client):
+        r = unit_client.get("/api/analytics/bogus")
+        assert r.status_code == 404
+        body = r.get_json()
+        assert "bogus" in body["error"]
+        assert "top-entities" in body["valid_reports"]
+
+    def test_analytics_missing_snapshots_503(self, unit_client, monkeypatch):
+        import helpers.graph.analytics as an
+
+        def fake_fetch(name, root=None):
+            raise FileNotFoundError("snapshot tree not found")
+
+        monkeypatch.setattr(an, "fetch", fake_fetch)
+
+        r = unit_client.get("/api/analytics/summary")
+        assert r.status_code == 503

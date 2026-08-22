@@ -40,6 +40,7 @@ findata/_pending_relations.txt
 .codemachine/
 .agents/
 .claude/
+.playwright-cli/
 skills-lock.json
 
 
@@ -85,3 +86,5 @@ metrics_report.txt
 qa_report.txt
 integration_report.txt
 advisory_report.txt
+# Visual QA screenshots (web-gui-tester evidence)
+gui-test-screenshots/

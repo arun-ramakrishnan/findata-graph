@@ -40,6 +40,21 @@ _J3_ANALYTICS = [
     ("Infosys",    "weakly_connected_component", '{"componentId": 20}'),
     # malformed value JSON — must be skipped, not crash
     ("HDFC Bank",  "degree_centrality", '{"not_value": true}'),
+    # graph_docs_ui_redesign S1: newly-served scalar centrality…
+    ("HDFC Bank",  "harmonic_centrality", '{"value": 0.7}'),
+    ("ICICI Bank", "harmonic_centrality", '{"value": 0.5}'),
+    # …and payload metrics. link_prediction is node-keyed; each row carries
+    # that node's candidate list exactly as _persist_link_prediction wrote it.
+    ("HDFC Bank",  "link_prediction",
+     '{"method": "jaccard", "edge_types": ["co_mentioned_in"], '
+     '"candidates": [{"name": "ICICI Bank", "score": 0.8}]}'),
+    ("ICICI Bank", "link_prediction",
+     '{"method": "jaccard", "edge_types": ["co_mentioned_in"], '
+     '"candidates": [{"name": "HDFC Bank", "score": 0.8}, '
+     '{"name": "Infosys", "score": 0.9}]}'),
+    # voterank is graph-valued: every seed row repeats the same ordered list
+    ("HDFC Bank",  "voterank", '{"seeds": ["HDFC Bank", "Infosys"]}'),
+    ("Infosys",    "voterank", '{"seeds": ["HDFC Bank", "Infosys"]}'),
 ]
 
 
@@ -185,3 +200,71 @@ class TestGraphMetricsEndpoint:
             assert client.get("/api/graph/metrics/pagerank?top=0").status_code == 400
             assert client.get("/api/graph/metrics/pagerank?top=501").status_code == 400
 
+
+
+class TestGraphMetricsPayloadMetrics:
+    """graph_docs_ui_redesign S1: link_prediction + voterank payload shapes
+    (and the four newly-served scalar centralities)."""
+
+    def test_new_scalar_centrality_served_by_existing_branch(self, tmp_path):
+        # harmonic_centrality stores {"value": float} like every other scalar
+        # metric — no special-casing needed, just allowlist membership.
+        with _seeded_sqlite_db_with_analytics(tmp_path) as client:
+            r = client.get("/api/graph/metrics/harmonic_centrality")
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body["total"] == 2
+        assert body["ranked"][0] == {"entity": "HDFC Bank", "value": 0.7}
+
+    def test_allowlist_error_lists_new_metrics(self, tmp_path):
+        with _seeded_sqlite_db_with_analytics(tmp_path) as client:
+            r = client.get("/api/graph/metrics/bogus")
+        valid = r.get_json()["valid_metrics"]
+        for m in ("harmonic_centrality", "katz_centrality",
+                  "laplacian_centrality", "local_reaching_centrality",
+                  "link_prediction", "voterank"):
+            assert m in valid
+
+    def test_link_prediction_ranked_by_best_candidate(self, tmp_path):
+        with _seeded_sqlite_db_with_analytics(tmp_path) as client:
+            r = client.get("/api/graph/metrics/link_prediction")
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body["metric"] == "link_prediction"
+        assert body["total"] == 2
+        # ICICI Bank's best candidate (0.9) beats HDFC Bank's (0.8).
+        top, second = body["entities"]
+        assert top["entity"] == "ICICI Bank"
+        assert top["best_score"] == 0.9
+        assert top["method"] == "jaccard"
+        assert top["edge_types"] == ["co_mentioned_in"]
+        assert top["candidates"][0] == {"name": "HDFC Bank", "score": 0.8}
+        assert second["entity"] == "HDFC Bank"
+
+    def test_link_prediction_entity_filter(self, tmp_path):
+        with _seeded_sqlite_db_with_analytics(tmp_path) as client:
+            r = client.get("/api/graph/metrics/link_prediction?entity=hdfc bank")
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body["total"] == 1
+        assert body["entities"][0]["entity"] == "HDFC Bank"
+        assert body["entities"][0]["candidates"] == [
+            {"name": "ICICI Bank", "score": 0.8}]
+
+    def test_voterank_seeds_served_once_in_order(self, tmp_path):
+        with _seeded_sqlite_db_with_analytics(tmp_path) as client:
+            r = client.get("/api/graph/metrics/voterank")
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body["metric"] == "voterank"
+        # Two rows carry the same list; served once, order preserved.
+        assert body["seeds"] == ["HDFC Bank", "Infosys"]
+        assert body["total"] == 2
+
+    def test_voterank_ignores_entity_filter_graph_valued(self, tmp_path):
+        # voterank is graph-valued: an entity= filter doesn't apply (the
+        # ordered seed list is one graph-level result), so it is ignored.
+        with _seeded_sqlite_db_with_analytics(tmp_path) as client:
+            r = client.get("/api/graph/metrics/voterank?entity=Nobody")
+        assert r.status_code == 200
+        assert r.get_json()["seeds"] == ["HDFC Bank", "Infosys"]

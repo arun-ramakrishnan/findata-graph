@@ -4,21 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FinData Knowledge Graph - Financial Data Analysis Platform</title>
+    <!-- Design tokens + self-hosted IBM Plex fonts (S2); findata.css consumes them. -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='tokens.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='findata.css') }}">
-    <!-- SEC-3: all third-party assets vendored under static/vendor/ (pinned
-         versions, same-origin) — CSP is closed to 'self'; no CDN runtime deps. -->
+    <!-- SEC-3: third-party assets are same-origin only — either vendored
+         under static/vendor/ (pinned versions) or bundled from pinned npm
+         deps into findata.bundle.js; CSP is closed to 'self', no CDN
+         runtime deps. -->
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/prism/prism-tomorrow.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/github-dark.min.css') }}">
     
     <script src="{{ url_for('static', filename='vendor/marked.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='vendor/purify.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/prism/prism-core.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/prism/prism-autoloader.min.js') }}"
             data-autoloader-path="/static/vendor/prism/components"></script>
     <script src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
-    <!-- Cytoscape.js for the Graph tab (instantiated lazily by findata.bundle.js
-         on first visit, so this <script> tag parses but doesn't run until needed). -->
-    <script src="{{ url_for('static', filename='vendor/cytoscape.min.js') }}"></script>
+    <!-- Cytoscape.js is no longer a script-tag global: since S2 it is bundled
+         from npm into findata.bundle.js together with cytoscape-fcose. -->
 </head>
 <body>
     <div class="container">
@@ -139,157 +143,311 @@
                 </div>
             </section>
 
-            <!-- Graph View -->
+            <!-- Graph View — "The Lens" (S3): modes rail + chronoscope + canvas -->
             <section id="graph-view" class="view-section" style="display: none;">
                 <div class="view-header">
-                    <h2><i class="fas fa-project-diagram"></i> Relationship Graph</h2>
+                    <h2><i class="fas fa-project-diagram"></i> The Lens</h2>
                     <div class="view-controls">
                         <span id="graph-status" class="count-label"></span>
                     </div>
                 </div>
-                <div class="graph-toolbar">
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="graph-search"
-                               placeholder="Search a company to centre on..."
-                               list="graph-entities-list" autocomplete="off">
-                        <datalist id="graph-entities-list"></datalist>
-                        <button id="graph-search-btn" class="btn-primary">
-                            <i class="fas fa-arrow-right"></i>
-                        </button>
-                    </div>
-                    <div class="filters">
-                        <select id="graph-layout" title="Layout">
-                            <option value="components">Connected sets (separated)</option>
-                            <option value="cose">Force-directed (cose)</option>
-                            <option value="circle">Circle</option>
-                            <option value="concentric">Concentric</option>
-                            <option value="grid">Grid</option>
-                            <option value="breadthfirst">Breadth-first</option>
-                        </select>
-                        <select id="graph-filter" title="Edge filter">
-                            <option value="all">All relationships</option>
-                            <option value="peers">Peers only</option>
-                            <option value="jv">JV only</option>
-                            <option value="acquired">Acquisitions only</option>
-                            <option value="subsidiary">Parent/subsidiary only</option>
-                            <option value="supply">Supply chain only</option>
-                        </select>
-                        <select id="graph-as-of" title="Show graph as of year (filters out edges not yet valid)">
-                            <option value="">As of: current</option>
-                            <option value="2026">As of: 2026</option>
-                            <option value="2025">As of: 2025</option>
-                            <option value="2024">As of: 2024</option>
-                            <option value="2023">As of: 2023</option>
-                            <option value="2022">As of: 2022</option>
-                            <option value="2021">As of: 2021</option>
-                        </select>
-                        <button id="graph-cloud-toggle" class="btn-secondary"
-                                title="Toggle the whole-graph force cloud (every entity + every relationship type)">
-                            <i class="fas fa-cloud"></i> Graph Cloud
-                        </button>
-                        <button id="graph-refresh-db" class="btn-secondary"
-                                title="Re-open the graph connection (use after new data is parsed)">
-                            <i class="fas fa-sync"></i> Refresh DB
-                        </button>
-                    </div>
-                </div>
-                <div class="graph-cloud-panel" id="graph-cloud-panel" style="display: none;">
-                    <div class="graph-cloud-controls">
-                        <label for="graph-cloud-type" class="cloud-label">Isolate relationship:</label>
-                        <select id="graph-cloud-type" title="Restrict the cloud to one relationship type">
-                            <option value="">All relationships</option>
-                        </select>
-                    </div>
-                    <div class="graph-cloud-cols">
-                        <div class="graph-cloud-legend" id="graph-cloud-legend">
-                            <!-- Legend rendered from the cloud response -->
+                <div class="lens-body">
+                    <aside class="lens-rail" aria-label="Lens modes and temporal controls">
+                        <div class="lens-modes" role="group" aria-label="Lens mode">
+                            <button type="button" class="lens-mode active" data-lens-mode="ego"
+                                    title="Centre on one entity; tap nodes to walk the graph">
+                                <i class="fas fa-bullseye"></i> Ego
+                            </button>
+                            <button type="button" class="lens-mode" data-lens-mode="all"
+                                    title="The whole graph — filtered by degree and relationship type">
+                                <i class="fas fa-globe"></i> All
+                            </button>
+                            <button type="button" class="lens-mode" data-lens-mode="path"
+                                    title="Shortest path between two entities, as of a year">
+                                <i class="fas fa-route"></i> Path
+                            </button>
+                            <button type="button" class="lens-mode" data-lens-mode="rank"
+                                    title="League tables — every centrality, louvain groups, link-prediction suggestions, voterank seeds">
+                                <i class="fas fa-ranking-star"></i> Rank
+                            </button>
+                            <button type="button" class="lens-mode" data-lens-mode="time"
+                                    title="How the graph formed — deals by year, cross-sector bridges, co-mentions, near-duplicate triage">
+                                <i class="fas fa-clock-rotate-left"></i> Time
+                            </button>
                         </div>
-                        <div class="graph-relationship-cloud" id="graph-relationship-cloud">
-                            <!-- Relationship cloud card rendered here -->
+                        <div class="lens-block" id="lens-asof-block">
+                            <h4>As of</h4>
+                            <input type="range" id="chronoscope" min="2019" max="2026" step="1"
+                                   value="2026" aria-label="As-of year (temporal filter)">
+                            <div class="chronoscope-readout">
+                                <span id="chronoscope-year">now</span>
+                                <button type="button" id="chronoscope-reset" class="lens-mini-btn"
+                                        title="Back to the present">now</button>
+                            </div>
+                            <p class="lens-hint">Edges not yet valid at the chosen date drop
+                               out of ego + path queries.</p>
                         </div>
-                    </div>
-                </div>
-                <div class="graph-layout-row">
-                    <div id="graph-canvas" class="graph-canvas">
-                        <!-- Cytoscape mounts here -->
-                        <div class="graph-empty" id="graph-empty">
-                            <i class="fas fa-project-diagram"></i>
-                            <p>Search for a company above to explore its relationship graph.</p>
-                            <p class="hint">Try: <em>CEAT</em>, <em>Tata Motors</em>, <em>HDFC Bank</em></p>
+                        <div class="lens-block" id="lens-cloud-controls" style="display: none;">
+                            <h4>Filter</h4>
+                            <label class="lens-toggle" title="Hide one-edge entities on first paint">
+                                <input type="checkbox" id="cloud-min-degree" checked>
+                                min degree ≥ 2
+                            </label>
+                            <label class="lens-toggle" title="Render every entity, degree 1 included">
+                                <input type="checkbox" id="cloud-everything">
+                                everything
+                            </label>
+                            <label class="lens-toggle" title="Colour nodes by louvain community instead of entity type">
+                                <input type="checkbox" id="cloud-community">
+                                louvain shading
+                            </label>
                         </div>
-                        <div class="graph-zoom-control" id="graph-zoom-control">
-                            <button id="graph-zoom-out" class="graph-zoom-btn" title="Zoom out"
-                                    aria-label="Zoom out"><i class="fas fa-minus"></i></button>
-                            <input type="range" id="graph-zoom" class="graph-zoom-slider"
-                                   min="0.2" max="3" step="0.05" value="1"
-                                   title="Zoom level" aria-label="Zoom level">
-                            <button id="graph-zoom-in" class="graph-zoom-btn" title="Zoom in"
-                                    aria-label="Zoom in"><i class="fas fa-plus"></i></button>
-                            <span id="graph-zoom-label" class="graph-zoom-label">100%</span>
-                            <button id="graph-zoom-fit" class="graph-zoom-fit" title="Fit graph to view"
-                                    aria-label="Fit graph to view"><i class="fas fa-expand"></i></button>
-                        </div>
-                    </div>
-                    <aside id="graph-detail" class="graph-detail">
-                        <div class="graph-detail-empty">
-                            <i class="fas fa-hand-pointer"></i>
-                            <p>Click a node to centre the graph on it.</p>
+                        <div class="lens-block">
+                            <button type="button" id="graph-refresh-db" class="btn-secondary"
+                                    title="Re-open the graph connection (use after new data is parsed)">
+                                <i class="fas fa-sync"></i> Refresh DB
+                            </button>
                         </div>
                     </aside>
-                </div>
-                <div class="graph-shortest">
-                    <h3><i class="fas fa-route"></i> Shortest Path</h3>
-                    <div class="shortest-controls">
-                        <input type="text" id="shortest-a" placeholder="Entity A"
-                               list="graph-entities-list" autocomplete="off">
-                        <i class="fas fa-arrow-right"></i>
-                        <input type="text" id="shortest-b" placeholder="Entity B"
-                               list="graph-entities-list" autocomplete="off">
-                        <button id="shortest-btn" class="btn-primary">
-                            <i class="fas fa-route"></i> Find Path
-                        </button>
-                        <button id="shortest-clear" class="btn-secondary">
-                            <i class="fas fa-times"></i> Clear
-                        </button>
+                    <div class="lens-main">
+                        <div class="graph-toolbar">
+                            <div class="search-box">
+                                <i class="fas fa-search"></i>
+                                <input type="text" id="graph-search"
+                                       placeholder="Search a company to centre on..."
+                                       list="graph-entities-list" autocomplete="off">
+                                <datalist id="graph-entities-list"></datalist>
+                                <button id="graph-search-btn" class="btn-primary">
+                                    <i class="fas fa-arrow-right"></i>
+                                </button>
+                            </div>
+                            <div class="filters">
+                                <select id="graph-layout" title="Layout">
+                                    <option value="fcose">Force-directed (fcose)</option>
+                                    <option value="components">Connected sets (separated)</option>
+                                    <option value="cose">Force-directed (cose)</option>
+                                    <option value="circle">Circle</option>
+                                    <option value="concentric">Concentric</option>
+                                    <option value="grid">Grid</option>
+                                    <option value="breadthfirst">Breadth-first</option>
+                                </select>
+                                <select id="graph-filter" title="Edge filter">
+                                    <option value="all">All relationships</option>
+                                    <option value="peers">Peers only</option>
+                                    <option value="jv">JV only</option>
+                                    <option value="acquired">Acquisitions only</option>
+                                    <option value="subsidiary">Parent/subsidiary only</option>
+                                    <option value="supply">Supply chain only</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="graph-cloud-panel" id="graph-cloud-panel" style="display: none;">
+                            <div class="graph-cloud-cols">
+                                <div class="graph-cloud-legend" id="graph-cloud-legend">
+                                    <!-- Legend + interactive edge chips (S3) -->
+                                </div>
+                                <div class="graph-relationship-cloud" id="graph-relationship-cloud">
+                                    <!-- Relationship cloud card rendered here -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="graph-layout-row">
+                            <div id="graph-canvas" class="graph-canvas">
+                                <!-- Cytoscape mounts here -->
+                                <div class="graph-empty" id="graph-empty">
+                                    <i class="fas fa-project-diagram"></i>
+                                    <p>Search for a company above to explore its relationship graph.</p>
+                                    <p class="hint">Try: <em>CEAT</em>, <em>Reliance Industries</em>, <em>Infosys</em></p>
+                                </div>
+                                <div id="graph-tip" class="graph-tip" role="tooltip"></div>
+                                <div class="graph-zoom-control" id="graph-zoom-control">
+                                    <button id="graph-zoom-out" class="graph-zoom-btn" title="Zoom out"
+                                            aria-label="Zoom out"><i class="fas fa-minus"></i></button>
+                                    <input type="range" id="graph-zoom" class="graph-zoom-slider"
+                                           min="0.2" max="3" step="0.05" value="1"
+                                           title="Zoom level" aria-label="Zoom level">
+                                    <button id="graph-zoom-in" class="graph-zoom-btn" title="Zoom in"
+                                            aria-label="Zoom in"><i class="fas fa-plus"></i></button>
+                                    <span id="graph-zoom-label" class="graph-zoom-label">100%</span>
+                                    <button id="graph-zoom-fit" class="graph-zoom-fit" title="Fit graph to view"
+                                            aria-label="Fit graph to view"><i class="fas fa-expand"></i></button>
+                                </div>
+                            </div>
+                            <aside id="graph-detail" class="graph-detail">
+                                <div class="graph-detail-empty">
+                                    <i class="fas fa-hand-pointer"></i>
+                                    <p>Click a node to centre the graph on it.</p>
+                                </div>
+                            </aside>
+                        </div>
+                        <div class="graph-shortest" id="graph-shortest" style="display: none;">
+                            <h3><i class="fas fa-route"></i> Shortest Path</h3>
+                            <div class="shortest-controls">
+                                <input type="text" id="shortest-a" placeholder="Entity A"
+                                       list="graph-entities-list" autocomplete="off">
+                                <i class="fas fa-arrow-right"></i>
+                                <input type="text" id="shortest-b" placeholder="Entity B"
+                                       list="graph-entities-list" autocomplete="off">
+                                <button id="shortest-btn" class="btn-primary">
+                                    <i class="fas fa-route"></i> Find Path
+                                </button>
+                                <button id="shortest-clear" class="btn-secondary">
+                                    <i class="fas fa-times"></i> Clear
+                                </button>
+                            </div>
+                            <div id="shortest-result" class="shortest-result"></div>
+                        </div>
+                        <!-- Rank mode (S4): metric league tables + side intelligence -->
+                        <section class="lens-rank" id="lens-rank" style="display: none;"
+                                 aria-label="Rank mode — metric league tables">
+                            <div class="rank-grid">
+                                <div class="lens-panel rank-main">
+                                    <div class="panel-head">
+                                        <h3><i class="fas fa-ranking-star"></i> League table</h3>
+                                        <div class="panel-controls">
+                                            <select id="rank-metric" title="Metric to rank by">
+                                                <option value="degree_centrality">degree</option>
+                                                <option value="pagerank" selected>pagerank</option>
+                                                <option value="betweenness_centrality">betweenness</option>
+                                                <option value="closeness_centrality">closeness</option>
+                                                <option value="eigenvector_centrality">eigenvector</option>
+                                                <option value="harmonic_centrality">harmonic</option>
+                                                <option value="katz_centrality">katz</option>
+                                                <option value="laplacian_centrality">laplacian</option>
+                                                <option value="local_reaching_centrality">local reaching</option>
+                                                <option value="local_clustering_coefficient">clustering coeff.</option>
+                                                <option value="link_prediction">link prediction</option>
+                                                <option value="voterank">voterank seeds</option>
+                                            </select>
+                                            <select id="rank-top" title="Rows to show">
+                                                <option value="10">top 10</option>
+                                                <option value="25" selected>top 25</option>
+                                                <option value="50">top 50</option>
+                                                <option value="100">top 100</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div id="rank-table" class="rank-table-wrap"></div>
+                                </div>
+                                <div class="rank-side">
+                                    <div class="lens-panel">
+                                        <div class="panel-head">
+                                            <h3><i class="fas fa-people-group"></i> Louvain groups</h3>
+                                        </div>
+                                        <div id="rank-groups" class="rank-groups"></div>
+                                    </div>
+                                    <div class="lens-panel">
+                                        <div class="panel-head">
+                                            <h3><i class="fas fa-link"></i> Suggested links</h3>
+                                            <select id="suggest-method" title="Link-prediction method">
+                                                <option value="jaccard" selected>jaccard</option>
+                                                <option value="adamic-adar">adamic-adar</option>
+                                                <option value="common-neighbors">common-neighbors</option>
+                                                <option value="resource-alloc">resource-alloc</option>
+                                                <option value="pref-attach">pref-attach</option>
+                                            </select>
+                                        </div>
+                                        <p class="panel-note">Read-only predictions — nothing is
+                                           written to the pending-relations sidecar.</p>
+                                        <div id="rank-suggestions" class="rank-suggestions"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+                        <!-- Time mode (S4): temporal formation of the graph -->
+                        <section class="lens-time" id="lens-time" style="display: none;"
+                                 aria-label="Time mode — how the graph formed">
+                            <div class="time-grid">
+                                <div class="lens-panel time-main">
+                                    <div class="panel-head">
+                                        <h3><i class="fas fa-chart-simple"></i> Deal activity by year</h3>
+                                        <span id="time-legend" class="time-legend"></span>
+                                    </div>
+                                    <div id="time-byyear" class="time-byyear"></div>
+                                </div>
+                                <div class="time-side">
+                                    <div class="lens-panel">
+                                        <div class="panel-head">
+                                            <h3><i class="fas fa-timeline"></i> Cross-sector bridges</h3>
+                                        </div>
+                                        <div id="time-bridges" class="time-bridges"></div>
+                                    </div>
+                                    <div class="lens-panel">
+                                        <div class="panel-head">
+                                            <h3><i class="fas fa-comments"></i> Co-mention leaderboard</h3>
+                                        </div>
+                                        <div id="time-comentions" class="time-comentions"></div>
+                                    </div>
+                                    <div class="lens-panel">
+                                        <div class="panel-head">
+                                            <h3><i class="fas fa-clone"></i> Near-duplicate notes</h3>
+                                            <button type="button" id="neardup-run" class="lens-mini-btn">
+                                                run check
+                                            </button>
+                                        </div>
+                                        <p class="panel-note">Pairwise embedding cosine ≥ 0.90 —
+                                           the QA tripwire. On demand (~1s); never prefetched.</p>
+                                        <div id="time-neardup" class="time-neardup">
+                                            <p class="hint">Not run yet.</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
                     </div>
-                    <div id="shortest-result" class="shortest-result"></div>
                 </div>
             </section>
 
-            <!-- Docs View (doc/ corpus browser) -->
+            <!-- Docs View — "The Reading Room" (S5): unified doc/ + vault browser -->
             <section id="docs-view" class="view-section" style="display: none;">
                 <div class="view-header">
-                    <h2><i class="fas fa-book-open"></i> Design Docs</h2>
+                    <h2><i class="fas fa-book-open"></i> The Reading Room</h2>
                     <div class="view-controls">
                         <span id="docs-count" class="count-label"></span>
                     </div>
                 </div>
-                <div class="docs-toolbar">
-                    <div class="search-box">
-                        <i class="fas fa-search"></i>
-                        <input type="text" id="docs-search"
-                               placeholder="Search design docs, proposals, archives..."
-                               autocomplete="off">
-                        <button id="docs-search-clear" class="btn-clear" style="display: none;">
-                            <i class="fas fa-times"></i>
-                        </button>
-                    </div>
-                    <button id="docs-reset" class="btn-secondary" title="Show full catalog">
-                        <i class="fas fa-list"></i> Catalog
-                    </button>
-                </div>
                 <div class="docs-layout-row">
-                    <div class="docs-sidebar">
-                        <div id="docs-list" class="docs-list">
-                            <!-- Doc catalog / search results load here -->
+                    <aside class="docs-sidebar" aria-label="Collection browser">
+                        <div class="collection-tabs" role="tablist" aria-label="Collection">
+                            <button type="button" class="collection-tab active" data-collection="docs"
+                                    role="tab" aria-selected="true"
+                                    title="Design docs, proposals and archives under doc/">
+                                <i class="fas fa-folder-tree"></i> doc/
+                            </button>
+                            <button type="button" class="collection-tab" data-collection="vault"
+                                    role="tab" aria-selected="false"
+                                    title="Every note in the findata/ vault — companies, sectors, editions">
+                                <i class="fas fa-layer-group"></i> vault
+                            </button>
                         </div>
-                    </div>
-                    <div class="docs-content">
+                        <div class="search-box collection-search">
+                            <i class="fas fa-search"></i>
+                            <input type="text" id="docs-search"
+                                   placeholder="Search the collection..."
+                                   autocomplete="off">
+                            <button id="docs-search-clear" class="btn-clear" style="display: none;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <label class="hybrid-toggle" id="hybrid-toggle" title="Fuse BM25 with embedding cosine (RRF) — semantic rerank of the full-text hits"
+                               style="display: none;">
+                            <input type="checkbox" id="hybrid-search">
+                            <span class="hybrid-dot" aria-hidden="true"></span> hybrid
+                        </label>
+                        <div id="docs-list" class="docs-list">
+                            <!-- Catalog / search results render here -->
+                        </div>
+                        <button id="docs-reset" class="btn-secondary collection-reset"
+                                title="Show the full catalog">
+                            <i class="fas fa-list"></i> Catalog
+                        </button>
+                    </aside>
+                    <div class="docs-content" data-register="paper">
                         <div class="docs-content-empty" id="docs-content-empty">
                             <i class="fas fa-book-open"></i>
                             <p>Select a document to read it here.</p>
-                            <p class="hint">Browse the catalog or search the corpus.</p>
+                            <p class="hint">Browse the doc/ and vault collections, or search —
+                               flip on hybrid for semantic rerank.</p>
                         </div>
                         <article id="docs-content-pane" class="docs-content-pane" style="display: none;"></article>
                     </div>

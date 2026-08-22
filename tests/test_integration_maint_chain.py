@@ -74,21 +74,21 @@ Management reiterated FY27 loan growth guidance at 12-14% for the full year.
 def _company_note(title: str, sector: str) -> str:
     return (
         "---\n"
-        "title: {t}\n"
+        f"title: {title}\n"
         "type: company\n"
         "tags:\n"
         "- entity_type/company\n"
-        "- sector/{s}\n"
+        f"- sector/{sector}\n"
         "created: '2026-01-01'\n"
         "last_modified: '2026-01-02'\n"
         "---\n"
-        "# {t}\n"
+        f"# {title}\n"
         "\n"
         "A company overview line.\n"
         "\n"
         "- **FY27 guidance reiterated (10-12%):** management expects\n"
         "  revenue growth at the lower end of the range.\n"
-    ).format(t=title, s=sector)
+    )
 
 
 class _MaintProject:
