@@ -41,6 +41,9 @@ sources:
   resource: /findata/The_Chatter/Contours_of_Change.md
   title: '''The Chatter: Contours of Change'''
   last_modified: '2026-08-15'
+verified:
+- by: human:Arun Ramakrishnan
+  at: '2026-08-23T19:12:31Z'
 ---
 
 # Grasim Industries

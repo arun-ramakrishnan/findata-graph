@@ -26,7 +26,7 @@ def test_run_step_streams_and_captures(capsys):
 
 
 def test_fail_fast_skips_remaining(monkeypatch):
-    failing = rgr.Step("first", ("true",), tail_on_success=True)
+    failing = rgr.Step("first", ("true",))
     never = rgr.Step("second", ("true",))
     calls: list[str] = []
 
@@ -62,7 +62,9 @@ def test_keep_going_and_nonblocking(monkeypatch):
 
 
 def test_report_contents(tmp_path):
-    ok_pytest = rgr.Step("pytest", ("pytest",), tail_on_success=True)
+    # 2026-08-25: EVERY step's tail is logged (user directive — a passing
+    # live-invariants run's warnings must reach advisory_report.txt).
+    ok_pytest = rgr.Step("pytest", ("pytest",))
     ok_plain = rgr.Step("lint", ("ruff",))
     failed = rgr.Step("deptry", ("deptry",))
     results = [
@@ -78,11 +80,10 @@ def test_report_contents(tmp_path):
     assert "=== make qa " in text                   # perf_report-style header
     assert "✓ OK" in text and "✗ FAIL" in text and "− SKIP" in text
     assert "2/4 passed  ·  gate FAIL" in text
-    assert "ra-summary-line" in text                # tail_on_success kept on success
+    assert "ra-summary-line" in text                # passing pytest tail kept
+    assert "plain-ok-tail" in text                  # passing plain step tail kept too
     assert "boom-line" in text                      # failing step tail kept
-    assert "FAILED" in text
-    assert "plain-ok-tail" not in text              # plain steps tail only on failure
-    assert "success tail (-ra summary)" in text
+    assert "FAILED" in text and "(OK)" in text      # per-step status markers
 
 
 def test_main_rejects_unknown_gate(capsys):

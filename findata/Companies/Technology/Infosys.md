@@ -58,6 +58,9 @@ sources:
   resource: /findata/The_Chatter/Threads_and_Tensions.md
   title: '''The Chatter: Threads and Tensions'''
   last_modified: '2026-08-15'
+verified:
+- by: human:Arun Ramakrishnan
+  at: '2026-08-23T19:12:31Z'
 ---
 
 # Infosys

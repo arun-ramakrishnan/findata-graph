@@ -3055,3 +3055,64 @@ was unpinned, and the chunker/MATCH generator had no properties.
 106 targeted tests across the six touched suites; both new perf entries
 pass through the real harness (0.51 s / 0.62 s vs budgets 2.0/3.0);
 ruff + ty clean.
+
+## 150. C3 temporal analytics — `make analytics REPORT=temporal`
+
+**Date**: 2026-08-25 · **Status**: COMPLETE · **Proposal**:
+`doc/improvements/archive/tooling/temporal_analytics.md`
+
+Sixth report in `helpers/graph/analytics.py` (A3 framework): four
+time-keyed tables over the parquet snapshot —
+
+- **Chatter volume by quarter**: quotes joined `as_of_edition` →
+  edition-entity `created_at` (the #136 stem unlock), binned
+  `year() || '-Q' || quarter()`. Live: 2,548 quotes / 67 editions, all
+  2026-Q3 (single-batch ingest reality).
+- **Coverage trend per edition**: per-edition quotes/events in ingest
+  order with a `thin` flag (<10). Live: 108 editions; ~45 thin.
+- **Staleness curve by sector**: p50/p90/max days since
+  `entities.last_updated` + `stale>30d` bucket per sector. Live:
+  Automotive worst (83/87 companies stale), 42 sectors.
+- **Events timeline (D7 spine)**: `event_type` × year incl. future
+  guidance dates (2027) and a `?` bucket for 292 undated events —
+  surfaced, not hidden.
+
+Findings en route: the 4 unmatched quote editions are concalls
+(`as_of_edition` holds the concall H1 — honest-miss by #136 design, not
+drift); `strftime('%Q')` doesn't exist in DuckDB 1.5.5.
+
+Framework widened: `fetch()` returns `Report | list[Report]` (temporal is
+the first composite); CLI renders blocks sequentially, JSON is a list for
+composites and unchanged (dict) for single reports;
+`/api/analytics/temporal` returns `{titles, reports}` with the flat
+shape preserved for singles. Tests: 7 new (fixture: dated editions,
+unmatched concall stem, future + NULL event dates, 30-day staleness
+straddle). Gates: ruff/types/static_checks clean; 109 tests green;
+live render 0.77s.
+
+## 151. Gate-report logging fix — every step logs its output tail
+
+**Date**: 2026-08-25 · **Status**: COMPLETE
+
+**Bug**: `make advisory` showed live-invariant WARNINGS on console, but
+advisory_report.txt never carried them — `write_report()` only appended
+tails for FAILED steps or pytest steps (`tail_on_success=True`);
+`live-invariants` is a passing `make` step, so its output (including
+pytest's warnings summary) streamed and vanished. Confirmed against the
+2026-08-24 08:58 run: table shows `live-invariants ... ✓ OK`, no tail
+block follows it; only `integration` logged.
+
+**Fix (user directive: "all make steps log to output file")**:
+`tests/run_gate_report.py` now appends every non-skipped step's tail —
+`--- <step> · last N lines (OK|FAILED) ---`. `Step.tail_on_success`
+removed (redundant); GATES constructors cleaned; docstring records the
+directive. Applies to all three gates (qa / integration / advisory)
+since they share `write_report`. pytest's `-ra` short summary and
+warnings-summary section sit at the end of pytest output, inside the
+60-line tail.
+
+Tests: test_report_contents now asserts passing plain steps DO log;
+5/5 green. Proven end-to-end with a probe run of the real
+`make live-invariants` through `run_step` + `write_report` (216 live
+tests, 50.6s, tail captured). ruff + `make types` clean.
+

@@ -1200,6 +1200,23 @@ class TestAnalyticsReportEndpoint:
         assert data == {"title": "T", "headers": ["a", "b"],
                         "rows": [["1", "2"]], "note": "n"}
 
+    def test_analytics_composite_temporal_shape(self, unit_client, monkeypatch):
+        import helpers.graph.analytics as an
+
+        from helpers.graph.analytics import Report
+        two = [Report(title="T1", headers=["a"], rows=[["1"]], note="n1"),
+               Report(title="T2", headers=["b"], rows=[["2"]], note="n2")]
+        monkeypatch.setattr(an, "fetch", lambda name, root=None: two)
+
+        r = unit_client.get("/api/analytics/temporal")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["titles"] == ["T1", "T2"]
+        assert data["reports"][1] == {"title": "T2", "headers": ["b"],
+                                      "rows": [["2"]], "note": "n2"}
+        # composite response carries ONLY the composite shape (no flat keys)
+        assert set(data) == {"titles", "reports"}
+
     def test_analytics_unknown_report_404(self, unit_client):
         r = unit_client.get("/api/analytics/bogus")
         assert r.status_code == 404

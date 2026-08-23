@@ -35,6 +35,9 @@ sources:
   resource: /findata/The_Chatter/Playing_the_Long_Game.md
   title: '''The Chatter: Playing the Long Game'''
   last_modified: '2026-08-15'
+verified:
+- by: human:Arun Ramakrishnan
+  at: '2026-08-23T19:12:31Z'
 ---
 
 # Tenneco Clean Air India

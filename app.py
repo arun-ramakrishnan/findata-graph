@@ -1905,7 +1905,10 @@ def api_analytics(name: str):
 
     graph_docs_ui_redesign S1: wraps helpers.graph.analytics.fetch.
     name is one of summary / edge-growth / sector-growth / top-entities /
-    coverage; anything else → 404 (JSON parity with the /api/* handlers).
+    coverage / temporal; anything else → 404 (JSON parity with the
+    /api/* handlers). temporal (C3) is composite: fetch returns
+    list[Report] — serialized as {"reports": [...]} with a top-level
+    "titles" convenience list; single reports keep the flat shape.
 
     Reads snapshots/parquet/ only (read-only); no ETag hook (outside
     /api/graph/*) — reports are cold-opened rarely.
@@ -1923,6 +1926,12 @@ def api_analytics(name: str):
     except Exception as e:
         app.logger.exception("analytics report %r failed", name)
         return jsonify({"error": f"analytics query failed: {e}"}), 500
+    if isinstance(report, list):
+        return jsonify({
+            "titles": [r.title for r in report],
+            "reports": [{"title": r.title, "headers": r.headers,
+                         "rows": r.rows, "note": r.note} for r in report],
+        })
     return jsonify({
         "title": report.title,
         "headers": report.headers,

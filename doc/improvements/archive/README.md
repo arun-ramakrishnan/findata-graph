@@ -53,5 +53,6 @@ commit, referenced by nothing). Entry numbers point at
 - [`doc_search_embeddings.md`](tooling/doc_search_embeddings.md) — Content-Addressable Doc Search — FTS5 + hybrid embeddings over doc/ — completed.md #148
 - [`doc_browser.txt`](tooling/doc_browser.txt) — Doc Browser & Search — web UI for the doc/ corpus
 - [`perf_improvs.txt`](tooling/perf_improvs.txt) — Performance review — project-wide hotspots
+- [`temporal_analytics.md`](tooling/temporal_analytics.md) — Proposal: Temporal Analytics — REPORT=temporal — completed.md #150
 - [`tech_avenues.txt`](tooling/tech_avenues.txt) — PROPOSAL: Technology avenues — databases, YAML richness, graph, MCP exposure
 - [`pending_improvs.txt`](tooling/pending_improvs.txt) — Pending Improvements — HISTORICAL (Bundles A–F closed)

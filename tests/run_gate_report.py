@@ -12,10 +12,11 @@ Makefile recipes exactly:
 - ``advisory``   — runs every step regardless of failures (make -k) and the
                    leading ``ty check tests`` line is non-gating (was ``|| true``).
 
-pytest's ``-ra`` (pytest.ini addopts) puts the short test summary — fails,
-xfails with reasons, skips — at the end of the pytest output, so a modest
-tail is kept for the pytest steps even on success; every other step appends
-a tail only when it fails.
+EVERY step appends its output tail to the report — passing steps included
+(user directive 2026-08-25: "all make steps log to output file"; a passing
+live-invariants run's warnings used to stream to console and never reach
+advisory_report.txt). pytest's ``-ra`` (pytest.ini addopts) additionally
+puts the short test summary at the end of its output, inside the tail.
 
 Invoked by ``make qa`` / ``make integration`` / ``make advisory``.  Like
 tests/run_perf_benchmarks.py, run it through make (or the venv python
@@ -56,7 +57,6 @@ class Step:
     label: str
     args: tuple[str, ...]
     nonblocking: bool = False       # recorded, never fails the gate (advisory's ty-tests)
-    tail_on_success: bool = False   # pytest steps: keep the -ra short summary
 
 
 @dataclass(frozen=True)
@@ -91,7 +91,7 @@ GATES: dict[str, Gate] = {
             Step("types", (_TY, "check", "helpers", "app.py")),
             Step("deptry", (_DEPTRY, ".")),
             Step("static_checks", (_PY, "helpers/validators/static_checks.py")),
-            Step("pytest", (_PY, "-m", "pytest", "-m", "not live"), tail_on_success=True),
+            Step("pytest", (_PY, "-m", "pytest", "-m", "not live")),
             Step("verify_notes", (_PY, "helpers/validators/verify_notes.py")),
             Step("integrity_check", (_PY, "helpers/misc/database_integrity_check.py")),
             Step("snapshot_check", (_PY, "helpers/maintenance/snapshot_db.py", "--check")),
@@ -100,8 +100,7 @@ GATES: dict[str, Gate] = {
     ),
     "integration": Gate(
         steps=(
-            Step("pytest-integration", (_PY, "-m", "pytest", "-m", "integration", "-v"),
-                 tail_on_success=True),
+            Step("pytest-integration", (_PY, "-m", "pytest", "-m", "integration", "-v")),
         ),
         fail_fast=False,
     ),
@@ -126,8 +125,7 @@ GATES: dict[str, Gate] = {
             Step("analytics", (_MAKE, "analytics")),
             Step("suggest-relations", (_MAKE, "suggest-relations")),
             Step("integration",
-                 (_PY, str(Path(__file__).resolve()), "integration"),
-                 tail_on_success=True),
+                 (_PY, str(Path(__file__).resolve()), "integration"),),
             Step("lint-audit", (_RUFF, "check", "--select", "S,UP,C901", ".")),
         ),
         fail_fast=False,
@@ -192,9 +190,7 @@ def write_report(report_path: Path, gate_name: str, results: list[Result]) -> No
         for r in results:
             if r.skipped:
                 continue
-            if r.rc == 0 and not r.step.tail_on_success:
-                continue
-            why = "FAILED" if r.rc != 0 else "success tail (-ra summary)"
+            why = "FAILED" if r.rc != 0 else "OK"
             f.write(f"--- {r.step.label} · last {min(_TAIL_LINES, len(r.tail))} lines ({why}) ---\n")
             f.write("\n".join(r.tail[-_TAIL_LINES:]) + "\n")
         f.write("\n")

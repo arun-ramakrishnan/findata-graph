@@ -12,6 +12,10 @@ Reports:
     edge-growth    edges per ingest-year x edge_type (graph_edges.created_at)
     sector-growth  companies per sector + new companies per year (entities)
     top-entities   highest-degree entities over non-membership edges
+    coverage       series x sector coverage matrix from cited_in edges (C2)
+    temporal       chatter volume by quarter, series coverage timeline,
+                   staleness curve by sector, events timeline (C3; the
+                   only composite report — fetch returns list[Report])
 
 Usage:
     python3 helpers/graph/analytics.py                     # summary
@@ -41,7 +45,7 @@ import duckdb  # noqa: E402  # after sys.path bootstrap
 
 DEFAULT_SNAPSHOTS = _REPO_ROOT / "snapshots" / "parquet"
 REPORTS = ("summary", "edge-growth", "sector-growth", "top-entities",
-           "coverage")
+           "coverage", "temporal")
 
 # Membership edges are structural (company -> sector/dir) and would drown
 # every activity signal; analytics exclude them unless noted. cited_in is
@@ -249,17 +253,163 @@ def _coverage(root: Path, con: duckdb.DuckDBPyConnection) -> Report:
     )
 
 
+def _temporal(root: Path, con: duckdb.DuckDBPyConnection) -> list[Report]:
+    """C3 temporal analytics: four time-keyed tables over the snapshot.
+
+    Time axes (verified against the live snapshot, proposal §3):
+
+    - ``quotes.as_of_edition`` -> edition entity ``created_at`` (first
+      ingest). The edition stem join is the piece #136 unlocked; quote
+      ``created_at`` is a single-batch re-derivation stamp, not a time
+      axis, and is deliberately unused.
+    - ``entities.last_updated`` -> staleness (company freshness vs now).
+    - ``events.event_date`` -> true calendar time (2020..2027; future
+      years are guidance forward-dates by D7 design — reported, not
+      filtered).
+
+    Composite report: returns four ``Report`` objects; ``fetch`` handles
+    ``Report | list[Report]`` and ``main`` renders them sequentially.
+    """
+    entities = _p(root, "sqlite", "entities.parquet")
+    quotes = _p(root, "sqlite", "quotes.parquet")
+    events = _p(root, "sqlite", "events.parquet")
+
+    def _editions() -> str:
+        return """
+            SELECT normalized_name AS stem, created_at
+            FROM read_parquet($entities)
+            WHERE entity_type = 'edition'
+        """
+
+    # --- T1: chatter volume by quarter ------------------------------------
+    by_quarter = con.execute(
+        f"""
+        WITH ed AS ({_editions()})
+        SELECT year(TRY_CAST(e.created_at AS TIMESTAMP)) || '-Q'
+               || quarter(TRY_CAST(e.created_at AS TIMESTAMP)) AS quarter,
+               COUNT(DISTINCT q.as_of_edition) AS editions,
+               COUNT(*) AS quotes
+        FROM read_parquet($quotes) q
+        JOIN ed e ON q.as_of_edition = e.stem
+        GROUP BY 1 ORDER BY 1
+        """,  # noqa: S608  # parameterized; interpolated CTE is a schema-constant literal
+        {"entities": entities, "quotes": quotes},
+    ).fetchall()
+    unmatched = con.execute(
+        """
+        SELECT COUNT(DISTINCT q.as_of_edition)
+        FROM read_parquet($quotes) q
+        WHERE NOT EXISTS (
+            SELECT 1 FROM read_parquet($entities) e
+            WHERE e.entity_type = 'edition'
+              AND e.normalized_name = q.as_of_edition)
+        """,
+        {"entities": entities, "quotes": quotes},
+    ).fetchone()
+    unmatched_n = unmatched[0] if unmatched else 0
+    t1 = Report(
+        "Chatter volume by quarter",
+        ["quarter", "editions", "quotes"],
+        [[r[0], str(r[1]), str(r[2])] for r in by_quarter],
+        note=(f"edition stem join: {unmatched_n} unmatched quote editions"
+              + (" — concall/company-source chatter whose as_of_edition is a"
+                 " concall title (honest-miss by design, #136)" if unmatched_n else "")
+              + "; quarter = edition first-ingest date (entities.created_at)"),
+    )
+
+    # --- T2: coverage trend per edition -----------------------------------
+    per_edition = con.execute(
+        f"""
+        WITH ed AS ({_editions()}),
+        agg AS (
+            SELECT as_of_edition AS stem, 'q' AS kind, COUNT(*) AS n
+            FROM read_parquet($quotes) GROUP BY 1
+            UNION ALL
+            SELECT as_of_edition, 'e', COUNT(*)
+            FROM read_parquet($events) GROUP BY 1
+        )
+        SELECT CAST(e.created_at AS DATE) AS ingested, e.stem,
+               COALESCE(SUM(n) FILTER (WHERE kind = 'q'), 0) AS quotes,
+               COALESCE(SUM(n) FILTER (WHERE kind = 'e'), 0) AS events
+        FROM ed e
+        LEFT JOIN agg ON agg.stem = e.stem
+        GROUP BY 1, 2
+        ORDER BY 1, 2
+        """,  # noqa: S608  # parameterized; interpolated CTE is a schema-constant literal
+        {"entities": entities, "quotes": quotes, "events": events},
+    ).fetchall()
+    t2 = Report(
+        "Coverage trend per edition (ingest order)",
+        ["ingested", "edition", "quotes", "events", "thin"],
+        [[str(r[0]), r[1], str(r[2]), str(r[3]),
+          "*" if r[2] + r[3] < 10 else ""] for r in per_edition],
+        note="thin* = quotes+events < 10; ingested = edition first-ingest date",
+    )
+
+    # --- T3: staleness curve by sector ------------------------------------
+    stale = con.execute(
+        """
+        SELECT COALESCE(NULLIF(sector_classification, ''), '?') AS sector,
+               COUNT(*) AS companies,
+               percentile_cont(0.5) WITHIN GROUP (
+                   ORDER BY days) AS p50,
+               percentile_cont(0.9) WITHIN GROUP (
+                   ORDER BY days) AS p90,
+               MAX(days) AS max_days,
+               COUNT(*) FILTER (WHERE days > 30) AS stale_gt_30d
+        FROM (
+            SELECT sector_classification,
+                   date_diff('day',
+                             TRY_CAST(last_updated AS TIMESTAMP), now()) AS days
+            FROM read_parquet($entities)
+            WHERE entity_type = 'company'
+        ) GROUP BY 1
+        ORDER BY stale_gt_30d DESC, p90 DESC, sector
+        """,
+        {"entities": entities},
+    ).fetchall()
+    t3 = Report(
+        "Staleness curve by sector (days since last_updated)",
+        ["sector", "companies", "p50_days", "p90_days", "max_days", "stale>30d"],
+        [[r[0], str(r[1]),
+          f"{r[2]:.0f}", f"{r[3]:.0f}", str(r[4]), str(r[5])] for r in stale],
+        note="staleness relative to report-run time (now()); company entities only",
+    )
+
+    # --- T4: events timeline ----------------------------------------------
+    ev_tl = con.execute(
+        """
+        SELECT COALESCE(CAST(year(TRY_CAST(event_date AS DATE)) AS VARCHAR),
+                        '?') AS yr,
+               event_type, COUNT(*) AS n
+        FROM read_parquet($events)
+        GROUP BY 1, 2 ORDER BY yr, event_type
+        """,
+        {"events": events},
+    ).fetchall()
+    t4 = Report(
+        "Events timeline (D7 spine)",
+        ["year", "event_type", "events"],
+        [[r[0], r[1], str(r[2])] for r in ev_tl],
+        note=("'?' = undated events (NULL event_date, date_precision "
+              "none/absent); future years are guidance forward-dates by "
+              "D7 design, not data errors"),
+    )
+    return [t1, t2, t3, t4]
+
+
 _FETCHERS = {
     "summary": _summary,
     "edge-growth": _edge_growth,
     "sector-growth": _sector_growth,
     "top-entities": _top_entities,
     "coverage": _coverage,
+    "temporal": _temporal,
 }
 
 
-def fetch(name: str, root: Path = DEFAULT_SNAPSHOTS) -> Report:
-    """Materialize one report against the given snapshot tree."""
+def fetch(name: str, root: Path = DEFAULT_SNAPSHOTS) -> Report | list[Report]:
+    """Materialize one report (or a composite list) against the snapshot tree."""
     if name not in _FETCHERS:
         raise ValueError(f"unknown report {name!r} (choose from {list(REPORTS)})")
     if not root.exists():
@@ -315,7 +465,15 @@ def main(argv: list[str] | None = None) -> int:
     except (ValueError, FileNotFoundError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
-    print(render_json(r) if args.json else render_markdown(r))
+    if isinstance(r, list):  # composite report (temporal)
+        if args.json:
+            print(json.dumps(
+                [json.loads(render_json(x)) for x in r], indent=2,
+                ensure_ascii=False))
+        else:
+            print("\n\n".join(render_markdown(x) for x in r))
+    else:
+        print(render_json(r) if args.json else render_markdown(r))
     return 0
 
 

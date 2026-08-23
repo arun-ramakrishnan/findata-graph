@@ -39,14 +39,12 @@
   archived 2025-10-10). Anti-recs on record: LanceDB/third vector store,
   Turso, pgvector, YAML anchors.
 
-- **C3 temporal analytics** (tech-avenues leftover, re-ranked 2026-08-19 as
-  "whenever wanted"). Unlocked by #134/#136: edition entities carry git
-  add-dates, `cited_in` edges + `sources[]` form a clean time axis, and
-  `quotes.as_of_edition` is now joinable stems. Candidate report:
-  `make analytics REPORT=temporal` — chatter volume by quarter, coverage
-  trend per series, staleness curve by sector. Read-only parquet reads,
-  ~2 h. Not in the okf_readside bundle (archive/; no note-writing, no shared test
-  path).
+- **C3 temporal analytics — DONE 2026-08-25** (completed.md #150; proposal
+  archived at `archive/tooling/temporal_analytics.md`): `make analytics
+  REPORT=temporal` now exists — four tables (chatter/quarter, per-edition
+  coverage with thin flags, sector staleness p50/p90, D7 events timeline).
+  Known-shape notes: concall-sourced `as_of_edition` values never join
+  editions (by design, #136); 292/349 events undated → `?` bucket.
 
 - **OpenViking context-server pilot DEFERRED** (2026-08-20; proposal with
   full fact-check at `doc/local/openviking_pilot_proposal.md`). The gap
@@ -61,12 +59,9 @@
   claim unverified; ZCode already has cross-session memory (agent
   premise corrected from `opencode-go`).
 
-- **OKF read-side live propagation (operator-held, 2026-08-19)**: the N1
-  footnote churn and the first N3 `verified[]` stamps are confirmed working
-  and deliberately left for manual runs. N1 (#139 update): the ordinary
-  `--stale-only --apply` now propagates renderer drift itself (dry-run:
-  314 chatter notes would write, 14 gated) — no special full apply needed.
-  N3:
-  `python3 helpers/misc/okf_verify.py <note>... --apply` per note as
-  reviewed. No code pending — these are footprint decisions, not work
-  items.
+- **OKF read-side live propagation — DONE 2026-08-25** (operator-held
+  since 2026-08-19; user confirms both applies run). N1 footnote
+  propagation is verifiable in-tree: 318 notes carry `[^chatter-*]`
+  footnotes (commit 4da573b, 2026-08-20; 314 written + existing hand
+  blocks). N3: first `okf_verify.py` `verified[]` stamps recorded as
+  done by the operator. No further work; entry kept as the record.
