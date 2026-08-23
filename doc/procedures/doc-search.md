@@ -1,7 +1,7 @@
 # Procedure: The doc/ Knowledge Index (doc_search)
 
 **Date:** 2026-08-23
-**Proposal:** `doc/improvements/proposals/doc_search_embeddings.md`
+**Proposal:** `doc/improvements/archive/tooling/doc_search_embeddings.md`
 **Scope:** build/refresh/query of the FTS5 + embeddings index over the
 repo's own `doc/` corpus (including gitignored `doc/local/`). Companion
 to `procedures/embeddings.md`, which covers the findata notes index.
@@ -112,10 +112,28 @@ happens at each transition:
 
 **Eval-label caveat:** `helpers/misc/embed_eval_questions.json` (`docs`
 section) references docs by path. When a referenced doc is archived
-(e.g. this arc's own proposal at `improvements/proposals/
-doc_search_embeddings.md`), update its `expect` list to the archive path
-in the same change — otherwise that question starts missing by label,
-not by ranking.
+(this arc's own proposal was the first case: `improvements/proposals/
+doc_search_embeddings.md` → `improvements/archive/tooling/`, dsem-04's
+`expect` moved in the same change), update its `expect` list to the
+archive path in the same change — otherwise that question starts missing
+by label, not by ranking.
+
+## Gates & perf coverage
+
+`make perf` (tests/run_perf_benchmarks.py) carries two doc-search
+entries: `rebuild_doc_search --check` (budget 2.0 s; warm ≈0.5 s) and a
+`doc_query` hybrid query (budget 3.0 s; warm ≈0.6 s incl. model load).
+Both run as real subprocesses against the live tree — the only automated
+exercise of the scripts' bootstraps — and the `--check` entry is the
+only automated consumer of its exit-code contract: **a stale or missing
+sidecar fails `make perf`** (rc 1 with the drift breakdown naming the
+refresh command), by the same live-state doctrine as
+`rebuild_note_search --check`. It is deliberately NOT in `make qa`:
+doc/ edits (proposals!) land between maint cycles and would redden qa
+constantly; perf is the single home for rc + wall-clock budgets. The
+chunker (`_split_sections`) and MATCH generator (`fts_match_expr`) have
+Hypothesis property tests in `tests/test_fuzz_rebuild_doc_search.py`
+(`make fuzz`).
 
 ## Agent sessions
 

@@ -4,20 +4,39 @@
 These are pure unit tests against the orchestrator's plan/structure. No
 subprocess spawning, no live DB. The actual maintenance steps (db_maint,
 snapshot_db, query rebuild) have their own test coverage; here we only
-pin the orchestrator's wiring.
-
-Runs in QA (not live-marked) since it doesn't touch real DBs.
+pin the orchestrator's wiring — including the qa-style run report
+(``maint_report.txt``: summary table always, failed-step tails on abort).
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
+import pytest
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.maintenance import maint  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _tmp_report(tmp_path, monkeypatch):
+    """Every main() call in this module appends to a REPORT under tmp_path —
+    never the repo-root maint_report.txt."""
+    monkeypatch.setattr(maint, "REPORT_PATH", tmp_path / "maint_report.txt")
+
+
+class _FakeProc:
+    """Minimal Popen stand-in for maint._run_step: stdout iterator + wait."""
+
+    def __init__(self, rc: int, lines: list[str] | None = None):
+        self._rc = rc
+        self.stdout = iter(lines or [f"(fake step rc={rc})\n"])
+
+    def wait(self) -> int:
+        return self._rc
 
 
 # --------------------------------------------------------------------------- #
@@ -170,17 +189,14 @@ class TestDryRun:
         assert rc == 0
 
     def test_dry_run_does_not_invoke_subprocess(self, monkeypatch):
-        # Spy on subprocess.run — it should never be called in dry-run.
+        # Spy on subprocess.Popen — it should never be called in dry-run.
         called = {"count": 0}
 
-        def spy_run(*a, **kw):
+        def spy_popen(*a, **kw):
             called["count"] += 1
-            # Return a fake CompletedProcess-like object in case it's read.
-            class _R:
-                returncode = 0
-            return _R()
+            return _FakeProc(0)
 
-        monkeypatch.setattr(maint.subprocess, "run", spy_run)
+        monkeypatch.setattr(maint.subprocess, "Popen", spy_popen)
         maint.main(["--dry-run"])
         assert called["count"] == 0, "dry-run must not invoke subprocess"
 
@@ -212,28 +228,22 @@ class TestSubprocessFailure:
     depend on earlier ones (e.g. snapshot must reflect a vacuumed DB)."""
 
     def test_first_failure_aborts(self, monkeypatch):
-        # Stub subprocess.run to fail on the first call and succeed after.
+        # Stub Popen to fail on the first call and succeed after.
         call_count = {"n": 0}
 
-        def fake_run(cmd, *a, **kw):
+        def fake_popen(cmd, *a, **kw):
             call_count["n"] += 1
-            class _R:
-                returncode = 1 if call_count["n"] == 1 else 0
-            return _R()
+            return _FakeProc(1 if call_count["n"] == 1 else 0)
 
-        monkeypatch.setattr(maint.subprocess, "run", fake_run)
+        monkeypatch.setattr(maint.subprocess, "Popen", fake_popen)
         rc = maint.main([])
         assert rc == 1
         # Should have stopped after the first failure, not continued.
         assert call_count["n"] == 1, "must abort on first failure, not continue"
 
     def test_all_succeed_returns_zero(self, monkeypatch):
-        def fake_run(cmd, *a, **kw):
-            class _R:
-                returncode = 0
-            return _R()
-
-        monkeypatch.setattr(maint.subprocess, "run", fake_run)
+        monkeypatch.setattr(
+            maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
         rc = maint.main([])
         assert rc == 0
 
@@ -242,17 +252,75 @@ class TestSubprocessFailure:
         call_count = {"n": 0}
         invoked_cmds: list[str] = []
 
-        def fake_run(cmd, *a, **kw):
+        def fake_popen(cmd, *a, **kw):
             call_count["n"] += 1
             invoked_cmds.append(cmd[1])  # script path
             # Fail on the 3rd call (graph-rebuild).
-            class _R:
-                returncode = 1 if call_count["n"] == 3 else 0
-            return _R()
+            return _FakeProc(1 if call_count["n"] == 3 else 0)
 
-        monkeypatch.setattr(maint.subprocess, "run", fake_run)
+        monkeypatch.setattr(maint.subprocess, "Popen", fake_popen)
         rc = maint.main(["--full"])
         assert rc == 1
         # Tier1 steps ran; tier2 must NOT have.
         assert "helpers/core/sync_tags.py" not in invoked_cmds
         assert "helpers/graph/algorithms.py" not in invoked_cmds
+
+
+# --------------------------------------------------------------------------- #
+# TestReport — the qa-style run log (maint_report.txt)                        #
+# --------------------------------------------------------------------------- #
+class TestReport:
+    """Every real run appends a timestamped table to maint_report.txt;
+    failed steps additionally leave their captured output tail behind
+    (the debugging evidence a bare 'exit 1' never shows). The autouse
+    _tmp_report fixture repoints REPORT_PATH at tmp_path."""
+
+    def _read(self) -> str:
+        return maint.REPORT_PATH.read_text()
+
+    def test_success_run_appends_table_no_tails(self, monkeypatch):
+        monkeypatch.setattr(
+            maint.subprocess, "Popen",
+            lambda cmd, *a, **kw: _FakeProc(0, ["all good\n"]))
+        assert maint.main([]) == 0
+        text = self._read()
+        assert "=== make maint  " in text
+        assert "db_maint (VACUUM/ANALYZE/REINDEX/integrity)" in text
+        assert "✓ OK" in text
+        assert "3/3 steps ok" in text
+        assert "PASS" in text
+        assert "FAILED" not in text  # successes stay lean: no output tails
+
+    def test_failed_step_gets_tail_and_fail_row(self, monkeypatch):
+        monkeypatch.setattr(
+            maint.subprocess, "Popen",
+            lambda cmd, *a, **kw: _FakeProc(2, ["step stderr line 1\n",
+                                               "ERROR: the actual cause\n"]))
+        assert maint.main([]) == 1
+        text = self._read()
+        assert "=== make maint  " in text
+        assert "✗ FAIL" in text
+        assert "0/1 steps ok" in text  # table lists executed steps only
+        assert "FAIL (aborted)" in text
+        assert "lines (FAILED) ---" in text
+        assert "ERROR: the actual cause" in text  # the tail is the evidence
+
+    def test_full_mode_header_says_maint_full(self, monkeypatch):
+        monkeypatch.setattr(
+            maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
+        assert maint.main(["--full"]) == 0
+        assert "=== make maint-full  " in self._read()
+
+    def test_report_appends_across_runs(self, monkeypatch):
+        monkeypatch.setattr(
+            maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
+        maint.main([])
+        maint.main([])
+        text = self._read()
+        assert text.count("=== make maint  ") == 2  # append-only history
+
+    def test_dry_run_writes_no_report(self, monkeypatch):
+        monkeypatch.setattr(
+            maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
+        assert maint.main(["--dry-run"]) == 0
+        assert not maint.REPORT_PATH.exists()

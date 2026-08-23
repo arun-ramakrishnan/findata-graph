@@ -9,7 +9,7 @@ browser (app.py /api/docs*) reads it from the filesystem with a naive
 substring scan: no stemming, no ranking model, no semantics, and no way
 for an agent session to query it without the Flask app running. This
 script gives the corpus the same content-addressable treatment the notes
-vault has (proposal: doc/improvements/proposals/doc_search_embeddings.md):
+vault has (proposal: doc/improvements/archive/tooling/doc_search_embeddings.md):
 
 - FTS5 BM25 over section-level chunks (one row per `##` section, plus the
   preamble as its own row) — whole-doc embeddings would truncate at the
@@ -39,10 +39,11 @@ Usage:
 cache — the documented pre-pay behaviour of rebuild_note_search applies
 verbatim. It also reports an exact (hash-level) freshness verdict:
 FRESH, or the changed/new/deleted breakdown plus the refresh command,
-exiting 1 on drift (the house --check gate doctrine — nothing depends on
-it today, but it is CI-able as-is). Unlike rebuild_note_search there is
-no "DB not found" error: the sidecar is created on first run (that is
-its job).
+exiting 1 on drift (the house --check gate doctrine — enforced by the
+rebuild_doc_search entry in make perf / tests/run_perf_benchmarks.py,
+which fails on drift or missing sidecar). Unlike rebuild_note_search
+there is no "DB not found" error: the sidecar is created on first run
+(that is its job).
 
 Exit codes: 0 success/fresh, 1 fatal error OR --check detected drift.
 """
@@ -651,7 +652,12 @@ _RRF_K = 60
 # Diversification cap: max section-chunks per file in a result page.
 _MAX_PER_FILE = 2
 
-_FT_TOKEN = re.compile(r'"')
+# Stripped from every token before quoting: '"' would close the phrase
+# early; '\x00' terminates it from FTS5's C-string side ("unterminated
+# string" — fuzz-found). search_docs' except-sqlite3.Error guard already
+# degrades gracefully, but the generator's contract is stronger: its
+# output is ALWAYS a valid MATCH expression.
+_FT_TOKEN = re.compile(r'["\x00]')
 
 
 def fts_match_expr(q: str) -> str:

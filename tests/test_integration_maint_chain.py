@@ -6,9 +6,10 @@ maint.py runs each step as a subprocess with cwd=PROJECT_ROOT, and every
 helper anchors on its own module-level PROJECT_ROOT/DB_PATH — a true
 subprocess E2E would need env-var overrides in production scripts (rejected:
 it widens the live-path surface for testability only). Instead these tests
-monkeypatch ``subprocess.run`` with an in-process DISPATCHER that maps each
-registered step command to the same library entrypoint the subprocess would
-run, over tmp roots. Consequences pinned here:
+monkeypatch ``subprocess.Popen`` (maint streams each step's output through
+a Popen pipe) with an in-process DISPATCHER that maps each registered step
+command to the same library entrypoint the subprocess would run, over tmp
+roots. Consequences pinned here:
 
   * the chain actually EXECUTES (test_maint.py pins only the step lists);
   * a maint step added without a dispatcher shim FAILS the chain loudly —
@@ -19,7 +20,7 @@ run, over tmp roots. Consequences pinned here:
     byte-identical, and derived tables don't churn.
 
 Non-helper subprocesses (e.g. the edition index's ``git`` date lookups)
-pass through to the real subprocess.run — the dispatcher never recurses.
+pass through to the real subprocess.Popen — the dispatcher never recurses.
 """
 from __future__ import annotations
 
@@ -329,11 +330,25 @@ _SHIMS = {
 }
 
 
+class _ShimProc:
+    """Popen stand-in for a shimmed step: stdout line iterator + wait()."""
+
+    def __init__(self, rc: int):
+        self._rc = rc
+        self.stdout = iter([f"(dispatched to in-process shim: rc={rc})\n"])
+
+    def wait(self) -> int:
+        return self._rc
+
+
 def _make_dispatcher(p, mp, record: list, overrides: dict | None = None):
-    """Patch subprocess.run for the maint.main() call. Every python3
-    helpers/... command MUST have a shim (an unmapped one fails loudly);
-    anything else (git, ...) passes through to the real subprocess.run."""
-    real_run = subprocess.run
+    """Patch subprocess.Popen for the maint.main() call (maint streams
+    step output through Popen). Every python3 helpers/... command MUST
+    have a shim (an unmapped one fails loudly); anything else (git, ...)
+    passes through to the real subprocess.Popen. The maint run report is
+    repointed into the tmp project root — never the repo-root file."""
+    real_popen = subprocess.Popen
+    mp.setattr(maint, "REPORT_PATH", p.root / "maint_report.txt")
     shims = dict(_SHIMS)
     if overrides:
         shims.update(overrides)
@@ -344,13 +359,13 @@ def _make_dispatcher(p, mp, record: list, overrides: dict | None = None):
             shim = shims.get(cmd[1])
             if shim is None:
                 record.append((cmd[1], "UNSHIMMED", 1))
-                return subprocess.CompletedProcess(cmd, 1)
+                return _ShimProc(1)
             rc = shim(p, mp, cmd[2:])
             record.append((cmd[1], tuple(cmd[2:]), rc))
-            return subprocess.CompletedProcess(cmd, rc)
-        return real_run(cmd, **kwargs)
+            return _ShimProc(rc)
+        return real_popen(cmd, **kwargs)
 
-    mp.setattr(subprocess, "run", dispatch)
+    mp.setattr(subprocess, "Popen", dispatch)
     return record
 
 
@@ -392,6 +407,14 @@ class TestMaintChain:
                                   "FROM events ORDER BY 1, 2, 3")
         quotes1 = _table(project, "SELECT entity, quote_text, as_of_edition "
                                   "FROM quotes ORDER BY 1, 2, 3")
+        # doc_search sidecar (step 6c, shimmed to p.root/doc_search.db over
+        # the real repo doc/): full rebuilds rewrite in canonical row order,
+        # so a no-op cycle must be row-stable INCLUDING order (the zero-churn
+        # doctrine; embeddings are deterministic pseudo under conftest pin).
+        docsearch1 = _sidecar_table(
+            project, "SELECT file_path, anchor, section_title, "
+                     "title, content, embedding FROM doc_search "
+                     "ORDER BY rowid")
 
         record2 = _make_dispatcher(project, monkeypatch, [])
         assert maint.main(["--full"]) == 0
@@ -401,6 +424,10 @@ class TestMaintChain:
                                "FROM events ORDER BY 1, 2, 3") == events1
         assert _table(project, "SELECT entity, quote_text, as_of_edition "
                                "FROM quotes ORDER BY 1, 2, 3") == quotes1
+        assert _sidecar_table(
+            project, "SELECT file_path, anchor, section_title, "
+                     "title, content, embedding FROM doc_search "
+                     "ORDER BY rowid") == docsearch1
 
     def test_unshimmed_step_fails_loudly(self, project, monkeypatch):
         """A maint step whose script has no dispatcher shim aborts the
@@ -434,6 +461,15 @@ class TestMaintChain:
 
 def _table(p, sql: str) -> list[tuple]:
     conn = sqlite3.connect(str(p.db))
+    rows = conn.execute(sql).fetchall()
+    conn.close()
+    return rows
+
+
+def _sidecar_table(p, sql: str) -> list[tuple]:
+    """_table against the doc_search sidecar (p.root/doc_search.db — where
+    _shim_doc_search redirects step 6c), never the project's main DB."""
+    conn = sqlite3.connect(str(p.root / "doc_search.db"))
     rows = conn.execute(sql).fetchall()
     conn.close()
     return rows

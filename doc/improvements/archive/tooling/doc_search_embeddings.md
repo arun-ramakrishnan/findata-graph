@@ -1,7 +1,7 @@
 # Proposal: Content-Addressable Doc Search — FTS5 + Hybrid Embeddings over doc/
 
-**Status:** IMPLEMENTED (2026-08-23 — slices 0–5 landed, targeted tests
-green, live index built + evaled; end gates + archive move awaiting user)
+**Status:** EXECUTED (2026-08-23 — slices 0–5 landed, targeted tests
+green, live index built + evaled; archived same day; completed.md #148)
 **Date:** 2026-08-23
 **Author:** Agent analysis (user-directed)
 **Builds on:** doc_browser.txt (completed.md #107 — the filesystem doc

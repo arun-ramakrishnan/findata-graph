@@ -3,7 +3,7 @@
 Query the doc_search sidecar index from the command line.
 
 The agent-facing surface of the doc-search proposal
-(doc/improvements/proposals/doc_search_embeddings.md): a future session
+(doc/improvements/archive/tooling/doc_search_embeddings.md): a future session
 can ask "where did we write down X" and get ranked, deep-linkable hits
 (path:line) without the Flask app running. Wraps the same query core as
 GET /api/docs/search (helpers/maintenance/rebuild_doc_search.search_docs).

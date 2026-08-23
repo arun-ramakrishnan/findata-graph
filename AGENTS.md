@@ -33,4 +33,4 @@ Rules of the road:
   machine-local (sidecar DB under gitignored `memory/`), so local-only
   knowledge is queryable but never published.
 - Full operator doc: `doc/procedures/doc-search.md`; design + eval:
-  `doc/improvements/proposals/doc_search_embeddings.md`.
+  `doc/improvements/archive/tooling/doc_search_embeddings.md`.

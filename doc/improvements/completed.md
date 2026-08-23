@@ -2952,3 +2952,106 @@ user-run advisory/perf; two lint-audit findings in the new tests cleared
 
 The 19 refreshed snapshot blobs (skip-worktree flagged; invisible to
 `git status` until explicitly added) — user stages them separately.
+
+## 148. Content-addressable doc search — FTS5 + hybrid embeddings over doc/
+
+**Date**: 2026-08-23
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/doc_search_embeddings.md`
+(§11 slice log, §12 eval)
+
+### Problem
+
+The `doc/` corpus (~50 files: architecture, archived proposals, the
+completed.md run log, procedures, gitignored doc/local/ assessments) was
+queryable only through the #107 doc browser's naive filesystem substring
+scan inside the Flask app — no stemming, no ranking, no semantics, and no
+way for an agent session to query it without the server. Proposals and
+completed.md are 30–166 KB — reading them wholesale to find one decision
+burned context on every fresh session.
+
+### Delivered
+
+- **Indexer** `helpers/maintenance/rebuild_doc_search.py` — FTS5 BM25
+  (porter unicode61) over section-level chunks (one row per `##` section
+  + preamble row, 1-based anchor lines for deep links) with per-row
+  bge-small embeddings (deterministic pseudo fallback) and RRF hybrid
+  ranking (k=60; OR-joined MATCH tokens so full-sentence queries
+  recall; column-weighted BM25 ∪ top-cosine candidate union; per-file
+  cap 2). Three modes: full convergence pass (canonical row order),
+  `--incremental` mtime carry (~28x faster warm), `--check` hash-exact
+  freshness gate (exit 1 on drift with the changed/new/deleted
+  breakdown).
+- **Sidecar residence** `memory/doc_search.db` (+ `_vec.db` embed cache):
+  never research.db — doc/local/ stores plaintext in the FTS content
+  column and the published DB form is the git-tracked
+  `snapshots/parquet/` export, so privacy is structural, never
+  manifest-dependent. Never snapshotted; a last-good backup lands in
+  `db-backup/` after each successful full rebuild.
+- **Surfaces** — `/api/docs/search` upgraded (hybrid → bm25 → scan
+  degradation chain, `anchor`/`section_title`/`score`/`mode`/`stale`,
+  `similarity` always present per the TS contract), agent CLI
+  `helpers/misc/doc_query.py` (`path:line [section]` output, `--json`,
+  `--bm25`, exit 1 when unbuilt), maint-full step 6c, frontend docs.ts
+  (mode badge, anchor chips). `AGENTS.md` routes fresh LLM sessions
+  query-first; operator doc `doc/procedures/doc-search.md` (modes,
+  budgets, lifecycle, recovery).
+
+### Verification
+
+72 targeted tests (39 rebuild + 27 API + 6 CLI); eval over 18 labeled
+questions: hybrid recall@5 0.94 vs bm25 0.78 vs scan 0.72 (one accepted
+miss dvar-05, §12); live index 51 files / 383 section rows, warm full
+≈0.7 s; ruff/ty/static-checks clean. Post-archive: dsem-04 label moved
+to the archive path in the same change and the eval leg re-verified.
+
+## 149. maint run reports + doc-search framework wiring
+
+**Date**: 2026-08-23
+**Status**: COMPLETE
+**Proposal**: none — closure + wiring follow-ups on #148 (user-directed)
+
+### Problem
+
+(1) `make maint`/`maint-full` streamed step output to the console only —
+after an abort (the 2026-08-23 rebuild-doc-search exit-1), the step's own
+stderr was gone, leaving only the orchestrator's ERROR lines.
+(2) The doc-search feature (#148) had no presence in the test frameworks:
+`--check` had no automated consumer, neither script's subprocess
+bootstrap was ever exercised, maint-full step 6c's zero-churn contract
+was unpinned, and the chunker/MATCH generator had no properties.
+
+### Delivered
+
+- **maint_report.txt** — maint.py steps run through streaming Popen
+  (live console + rolling 400-line tail); every real run appends a
+  qa-style record to gitignored `maint_report.txt`: timestamped header,
+  per-step summary table, and the tail of every FAILED step
+  (tests/run_gate_report.py philosophy). `--dry-run` writes nothing.
+  test_maint stubs moved from subprocess.run to a FakePopen; the
+  maint-chain dispatcher intercepts Popen likewise.
+- **Perf** — `rebuild_doc_search --check` (budget 2.0 s) + a `doc_query`
+  hybrid query (3.0 s) in `make perf`: real-subprocess coverage of both
+  bootstraps and the first automated `--check` consumer (stale/missing
+  sidecar fails by design; refresh per `procedures/doc-search.md`).
+- **Integration** — maint-chain idempotence also asserts the doc_search
+  sidecar is row-stable including canonical order across no-op full
+  runs; `test_api_docs.py` marked integration (`make integration`
+  visibility parity with its sibling doc-search suites).
+- **Fuzz** — `tests/test_fuzz_rebuild_doc_search.py`: `_split_sections`
+  (monotone header-pointing anchors, no-content-loss partition,
+  body re-split stability) + `fts_match_expr` (any query → valid
+  MATCH). Its first run found a real bug: a NUL byte in a query built an
+  "unterminated string" MATCH (gracefully degraded by search_docs'
+  guard, but the generator's contract is stronger) — `_FT_TOKEN` now
+  strips `\x00` alongside quotes.
+- **#148 archival completed** — proposal moved to
+  `archive/tooling/`, all six path references fixed (incl. dsem-04's
+  eval label; docs eval re-verified: hybrid 0.94 unchanged),
+  `proposals/README.md` keeps the convention dir alive.
+
+### Verification
+
+106 targeted tests across the six touched suites; both new perf entries
+pass through the real harness (0.51 s / 0.62 s vs budgets 2.0/3.0);
+ruff + ty clean.

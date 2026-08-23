@@ -51,7 +51,13 @@ With ``--full``, additionally runs after step 3:
                            the recomputed analytics + refreshed events.
 
 Each step is a separate subprocess so its CLI logging is preserved and
-a failure in one step doesn't corrupt another's state.
+a failure in one step doesn't corrupt another's state. Step output
+streams live to the console AND is captured: every real run appends a
+timestamped summary table — plus the tail of any failed step's output —
+to ``maint_report.txt`` at the repo root (same append-only philosophy
+as the gate reports in tests/run_gate_report.py → qa_report.txt), so a
+bare "step failed with exit 1" always leaves the step's own stderr
+behind for post-mortem. ``--dry-run`` writes no report.
 
 Order rationale: db_maint compacts SQLite first → snapshot reflects the
 compacted state → graph-rebuild produces a DuckDB cache matching the
@@ -72,11 +78,21 @@ import argparse
 import logging
 import subprocess
 import sys
+import time
+from collections import deque
+from dataclasses import dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+# Append-only run log (gitignored, like the gate reports). Module-level
+# and monkeypatchable so tests never touch the real file.
+REPORT_PATH = PROJECT_ROOT / "maint_report.txt"
+_TAIL_LINES = 60      # lines appended to the report per failed step
+_CAPTURE_LINES = 400  # rolling in-memory cap while streaming
 
 
 # (label, command). Each step is a list suitable for subprocess.run.
@@ -167,20 +183,73 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
 # derive-insights note-rendering out of TIER2).
 
 
+@dataclass
+class _StepResult:
+    label: str
+    rc: int
+    seconds: float
+    tail: list[str] = field(default_factory=list)
+
+
 def _run_step(
     label: str, cmd: list[str], dry_run: bool, logger: logging.Logger
-) -> int:
-    """Run one maintenance step. Returns the subprocess exit code."""
+) -> _StepResult:
+    """Run one maintenance step: stream its output live to the console
+    while keeping a rolling tail for the run report. Returns the result
+    (rc 0, no output for a skipped dry-run step)."""
     logger.info("=" * 60)
     logger.info(label)
     logger.info("$ %s", " ".join(cmd))
     if dry_run:
         logger.info("(dry-run; skipping)")
-        return 0
-    proc = subprocess.run(cmd, cwd=str(PROJECT_ROOT))  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
-    if proc.returncode != 0:
-        logger.error("step failed with exit %d: %s", proc.returncode, label)
-    return proc.returncode
+        return _StepResult(label, 0, 0.0)
+    capture: deque[str] = deque(maxlen=_CAPTURE_LINES)
+    t0 = time.perf_counter()
+    proc = subprocess.Popen(  # noqa: S603  # list-form call; shell=False (default); args are TIER*_STEPS constants
+        cmd, cwd=str(PROJECT_ROOT),
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+    )
+    assert proc.stdout is not None  # noqa: S101  # type narrowing only — stdout=PIPE guarantees a stream
+    for raw in proc.stdout:
+        sys.stdout.write(raw)
+        sys.stdout.flush()
+        capture.append(raw.rstrip("\n"))
+    rc = proc.wait()
+    if rc != 0:
+        logger.error("step failed with exit %d: %s", rc, label)
+    return _StepResult(label, rc, time.perf_counter() - t0, list(capture))
+
+
+def _table_lines(results: list[_StepResult]) -> list[str]:
+    """Perf-style summary table (console + report)."""
+    lines = ["", "Step" + " " * 54 + "Time (s)   Status", "-" * 88]
+    for r in results:
+        flag = "✓" if r.rc == 0 else "✗"
+        status = "OK" if r.rc == 0 else "FAIL"
+        lines.append(f"  {r.label:.<56s} {r.seconds:8.2f}   {flag} {status}")
+    lines.append("-" * 88)
+    ok = sum(1 for r in results if r.rc == 0)
+    verdict = "PASS" if all(r.rc == 0 for r in results) else "FAIL (aborted)"
+    lines.append(f"  {ok}/{len(results)} steps ok  ·  maint {verdict}")
+    return lines
+
+
+def _write_report(results: list[_StepResult], full: bool) -> None:
+    """Append the run record: header + summary table, then the captured
+    tail of every FAILED step (qa_report.txt philosophy — successes stay
+    lean, failures keep their evidence)."""
+    ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    mode = "maint-full" if full else "maint"
+    with open(REPORT_PATH, "a") as f:
+        f.write(f"=== make {mode}  {ts}  (Python {sys.version.split()[0]}) ===\n")
+        f.write("\n".join(_table_lines(results)) + "\n")
+        for r in results:
+            if r.rc == 0:
+                continue
+            n = min(_TAIL_LINES, len(r.tail))
+            f.write(f"--- {r.label} · last {n} lines (FAILED) ---\n")
+            f.write("\n".join(r.tail[-_TAIL_LINES:]) + "\n")
+        f.write("\n")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -214,15 +283,22 @@ def main(argv: list[str] | None = None) -> int:
         logger.info("  %d. %s", i, label)
 
     failures = 0
+    results: list[_StepResult] = []
     for label, cmd in steps:
-        rc = _run_step(label, cmd, args.dry_run, logger)
-        if rc != 0:
+        result = _run_step(label, cmd, args.dry_run, logger)
+        results.append(result)
+        if result.rc != 0:
             failures += 1
             # Stop on first failure — later steps may depend on earlier
             # ones (e.g. snapshot must reflect a vacuumed DB; graph-rebuild
             # must match the snapshot).
             logger.error("aborting — step failed: %s", label)
             break
+
+    if not args.dry_run:
+        print("\n".join(_table_lines(results)))
+        _write_report(results, args.full)
+        print(f"appended to {REPORT_PATH.name}")
 
     if failures:
         logger.error("✗ maintenance failed (%d step(s) failed)", failures)

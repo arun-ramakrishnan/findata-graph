@@ -25,6 +25,11 @@ import pytest
 
 import app as A
 
+# Cross-component endpoint suite (same tier as test_rebuild_doc_search /
+# test_doc_query / test_integration_ts_contract): runs in the default gate
+# AND the dedicated `make integration` sweep.
+pytestmark = [pytest.mark.integration]
+
 
 @pytest.fixture
 def client():

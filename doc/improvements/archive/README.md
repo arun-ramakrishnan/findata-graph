@@ -47,9 +47,10 @@ commit, referenced by nothing). Entry numbers point at
 - [`metric_improvs.txt`](pipeline/metric_improvs.txt) — yfinance Enrichment Proposal — metric_improvs.txt
 - [`findata_corpus_audit.txt`](pipeline/findata_corpus_audit.txt) — Findata Corpus Audit — markdown ↔ SQLite ↔ DuckDB ↔ graph coverage — completed.md #73
 
-## tooling/ — Tooling & performance — MCP eval, doc browser, perf review, tech survey
+## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 
 - [`mcp_tool_eval.txt`](tooling/mcp_tool_eval.txt) — mcp_tool_eval.txt — codebase-memory-mcp hygiene audit (Aug 2026)
+- [`doc_search_embeddings.md`](tooling/doc_search_embeddings.md) — Content-Addressable Doc Search — FTS5 + hybrid embeddings over doc/ — completed.md #148
 - [`doc_browser.txt`](tooling/doc_browser.txt) — Doc Browser & Search — web UI for the doc/ corpus
 - [`perf_improvs.txt`](tooling/perf_improvs.txt) — Performance review — project-wide hotspots
 - [`tech_avenues.txt`](tooling/tech_avenues.txt) — PROPOSAL: Technology avenues — databases, YAML richness, graph, MCP exposure

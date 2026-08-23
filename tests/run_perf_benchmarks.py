@@ -49,6 +49,14 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
                               "--newsletter", "The_Chatter"], 2.0),
     ("derive_events",        ["helpers/graph/derive_events.py"], 3.0),
     ("rebuild_note_search",  ["helpers/maintenance/rebuild_note_search.py", "--check"], 2.0),
+    # doc-search pair (2026-08-23, doc_search_embeddings #148): both run
+    # against the machine-local sidecar memory/doc_search.db (gitignored,
+    # maint-full step 6c keeps it fresh) — an rc=1 with the drift/missing
+    # message is the --check gate doing its job, refresh per
+    # doc/procedures/doc-search.md. Warm: --check ≈0.5s, query ≈0.5s.
+    ("rebuild_doc_search",   ["helpers/maintenance/rebuild_doc_search.py", "--check"], 2.0),
+    ("doc_query",            ["helpers/misc/doc_query.py", "embed cache sidecar",
+                              "--limit", "5"], 3.0),
     ("derive_insights",      ["helpers/graph/derive_insights.py"], 4.0),
     ("parse_newsletter",     ["helpers/core/parse_newsletter.py",
                               "findata/The_Chatter/Embracing_the_Unknown.md"], 3.0),

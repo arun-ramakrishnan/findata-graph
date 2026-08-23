@@ -1,7 +1,7 @@
 """
 Tests for helpers/maintenance/rebuild_doc_search.py — the sidecar FTS5+embed
 index over the repo's own doc/ corpus (proposal:
-doc/improvements/proposals/doc_search_embeddings.md).
+doc/improvements/archive/tooling/doc_search_embeddings.md).
 
 These tests build a tiny synthetic doc/ tree under tmp_path, repoint the
 module's DOC_ROOT + DOC_DB at it (the VAULT_ROOT lesson: never index the

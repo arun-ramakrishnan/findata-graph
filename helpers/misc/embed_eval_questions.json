@@ -72,7 +72,7 @@
     {"id": "dsem-01", "category": "semantic", "query": "why we decided against adopting LangGraph", "expect": ["doc/local/langgraph_assessment.md"]},
     {"id": "dsem-02", "category": "semantic", "query": "Three.js shader catalog design inspiration", "expect": ["doc/local/threeui_notes.md"]},
     {"id": "dsem-03", "category": "semantic", "query": "reading room entity pages accessibility redesign", "expect": ["doc/improvements/archive/ui/graph_docs_ui_redesign.md"]},
-    {"id": "dsem-04", "category": "semantic", "query": "making the repo's own documents searchable by meaning", "expect": ["doc/improvements/proposals/doc_search_embeddings.md", "doc/improvements/archive/tooling/doc_browser.txt"]},
+    {"id": "dsem-04", "category": "semantic", "query": "making the repo's own documents searchable by meaning", "expect": ["doc/improvements/archive/tooling/doc_search_embeddings.md", "doc/improvements/archive/tooling/doc_browser.txt"]},
     {"id": "dsem-05", "category": "semantic", "query": "chose bge-small over the base model", "expect": ["doc/improvements/archive/database/local_embeddings.md"]}
   ]
 }
