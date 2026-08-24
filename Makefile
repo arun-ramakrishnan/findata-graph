@@ -1,6 +1,14 @@
 # Tab-free Makefile: use '>' as the recipe prefix (GNU Make).
 .RECIPEPREFIX := >
 
+# Gate parallelism (2026-08-25): advisory runs its steps concurrently
+# (DuckDB cache is warm/read-only across processes — verified; concurrent
+# pytest steps get per-step .pytest_cache/<label> dirs). qa stays
+# sequential by default to keep make's abort-at-first-failure semantics;
+# override with `make qa QA_JOBS=4`.
+GATE_JOBS ?= 4
+QA_JOBS ?= 1
+
 # Prefer the project venv if present (so `python3` / `pytest` resolve to
 # .venv/bin without needing `source .venv/bin/activate` in the parent shell).
 # PREPEND .venv/bin so it takes precedence over the system python3 (which
@@ -12,7 +20,7 @@ export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
-> @echo "  advisory                 Run advisory (non-gating) checks: ty on tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit (appends advisory_report.txt)"
+> @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit (appends advisory_report.txt)"
 > @echo "  analytics                Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)"
 > @echo "  cover                    Run all tests with coverage over helpers/ (branch + missing-line report)"
 > @echo "  deptry                   Run deptry dependency-health scan (unused/undeclared/transitive deps)"
@@ -42,7 +50,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  metrics-rebuild          Refresh company financials + industry edges from yfinance (~1 min, 931 tickers)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt"
-> @echo "  qa                       Run lint + types + deptry + static checks + pytest + notes + integrity + snapshot checks (appends qa_report.txt)"
+> @echo "  qa                       Run lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
 > @echo "  secret-scan              Incremental git-history secret scan (state under .git/secret-scan/)"
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
@@ -59,7 +67,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 static-checks:  ## Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)
 > python3 helpers/validators/static_checks.py
 
-qa:             ## Run lint + types + deptry + static checks + pytest + notes + integrity + snapshot checks (appends qa_report.txt)
+qa:             ## Run lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)
 > python3 tests/run_gate_report.py qa
 > @echo "✓ QA passed (lint + types + deptry + static + pytest + notes + integrity + snapshot; appended to qa_report.txt)"
 
@@ -248,6 +256,6 @@ lint-audit:     ## Run ruff S/UP/C901 audits (security + modernization + complex
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks: ty on tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit (appends advisory_report.txt)
+advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit (appends advisory_report.txt)
 > python3 tests/run_gate_report.py advisory
 > @echo "✓ Advisory checks complete (appended to advisory_report.txt; these do NOT block \`make qa\`)"

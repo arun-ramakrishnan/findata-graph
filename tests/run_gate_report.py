@@ -7,10 +7,11 @@ history, one timestamped table per run, plus output tails for analysis).
 The step lists and exit-code semantics below mirror the previous inline
 Makefile recipes exactly:
 
-- ``qa``         — aborts at the first failing step (make's default).
-- ``integration``— single pytest step.
-- ``advisory``   — runs every step regardless of failures (make -k) and the
-                   leading ``ty check tests`` line is non-gating (was ``|| true``).
+- ``qa`` / ``advisory`` / ``integration`` — every step runs regardless of
+  failures; the summary table + report tails show ALL failures at the end
+  (user directive 2026-08-25: "even for qa, find the failure in the end and
+  look at the logs" — replaced make's abort-at-first-failure semantics).
+  The advisory ``ty check tests`` line stays non-gating (was ``|| true``).
 
 EVERY step appends its output tail to the report — passing steps included
 (user directive 2026-08-25: "all make steps log to output file"; a passing
@@ -22,17 +23,37 @@ Invoked by ``make qa`` / ``make integration`` / ``make advisory``.  Like
 tests/run_perf_benchmarks.py, run it through make (or the venv python
 directly) so children resolve to the project venv.
 
+Parallel mode (2026-08-25; user directive — 4 cores): steps run
+concurrently in a thread pool, default ``_DEFAULT_JOBS`` (4). Resolution
+order: explicit ``--jobs N`` > the user's ``make -j N`` (parsed from
+MAKEFLAGS) > default 4. Verified safe for these gates: the DuckDB cache is
+WARM during gate runs (no cross-process writes; two concurrent
+``query.connect()`` opens on the warm file were tested OK) and SQLite is
+ATTACHed READ_ONLY everywhere. Concurrent pytest steps get per-step
+``cache_dir`` overrides (``.pytest_cache/<label>``) so they never race on
+the shared ``.pytest_cache``. ALL steps always run (no cancellation);
+console lines get ``[label]`` prefixes in parallel mode; the report keeps
+clean per-step tails, and ``write_report`` appends each whole block under
+an exclusive flock — concurrent gate runners on the same report file
+(e.g. advisory's nested integration step vs a parallel ``make
+integration``) serialize instead of interleaving.
+
 Usage::
 
     python3 tests/run_gate_report.py qa|integration|advisory
 """
 from __future__ import annotations
 
+import fcntl
+import os
+import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from collections import deque
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -50,6 +71,7 @@ _MAKE = shutil.which("make") or "make"
 
 _TAIL_LINES = 60      # lines appended to the report per step
 _CAPTURE_LINES = 400  # rolling in-memory cap while streaming
+_DEFAULT_JOBS = 4     # 4 cores (user directive 2026-08-25); override: --jobs N / make -j N
 
 
 @dataclass(frozen=True)
@@ -62,7 +84,6 @@ class Step:
 @dataclass(frozen=True)
 class Gate:
     steps: tuple[Step, ...]
-    fail_fast: bool
 
 
 @dataclass
@@ -83,8 +104,9 @@ class Result:
 
 
 GATES: dict[str, Gate] = {
-    # Mirrors the old `qa:` recipe: lint + types + deptry + static +
-    # pytest + notes + integrity + snapshot, stopping at the first failure.
+    # Was the `qa:` recipe (abort-at-first-failure) — now run-all
+    # (2026-08-25): every step executes; failures surface together in the
+    # summary table + report tails.
     "qa": Gate(
         steps=(
             Step("lint", (_RUFF, "check", ".")),
@@ -96,18 +118,16 @@ GATES: dict[str, Gate] = {
             Step("integrity_check", (_PY, "helpers/misc/database_integrity_check.py")),
             Step("snapshot_check", (_PY, "helpers/maintenance/snapshot_db.py", "--check")),
         ),
-        fail_fast=True,
     ),
     "integration": Gate(
         steps=(
             Step("pytest-integration", (_PY, "-m", "pytest", "-m", "integration", "-v")),
         ),
-        fail_fast=False,
     ),
-    # Mirrors the old `advisory:` recipe: the ty-tests line never blocks
-    # (was `|| true`); every other step runs even after a failure (was
-    # `make -k`); integration re-enters this runner so advisory runs also
-    # append to integration_report.txt.
+    # The advisory recipe: the ty-tests line never blocks (was `|| true`);
+    # every step runs even after a failure (all gates are run-all now);
+    # integration re-enters this runner so advisory runs also append to
+    # integration_report.txt.
     "advisory": Gate(
         steps=(
             Step("ty-tests",
@@ -125,44 +145,89 @@ GATES: dict[str, Gate] = {
             Step("analytics", (_MAKE, "analytics")),
             Step("suggest-relations", (_MAKE, "suggest-relations")),
             Step("integration",
-                 (_PY, str(Path(__file__).resolve()), "integration"),),
+                 (_PY, str(Path(__file__).resolve()), "integration")),
             Step("lint-audit", (_RUFF, "check", "--select", "S,UP,C901", ".")),
         ),
-        fail_fast=False,
     ),
 }
 
 
-def run_step(step: Step) -> Result:
-    """Run one gate step: stream its output live, capture a rolling tail."""
-    print(f"\n--- {step.label}: {' '.join(step.args)}")
+def run_step(step: Step, *, jobs: int = 1,
+             out_lock: threading.Lock | None = None) -> Result:
+    """Run one gate step: stream its output live, capture a rolling tail.
+
+    jobs > 1: every streamed line is prefixed ``[label]`` under a shared
+    writer lock (readable interleaving), and pytest steps get a per-step
+    ``cache_dir`` so concurrent pytest processes never race on the shared
+    ``.pytest_cache`` (report tails stay unprefixed).
+    """
+    args = list(step.args)
+    if jobs > 1 and "pytest" in args:
+        args += ["-o", f"cache_dir=.pytest_cache/{step.label}"]
+    lock = out_lock if out_lock is not None else threading.Lock()
+
+    def _emit(line: str) -> None:
+        with lock:
+            sys.stdout.write(line + "\n")
+            sys.stdout.flush()
+
+    _emit(f"--- {step.label}: {' '.join(args)}")
     capture: deque[str] = deque(maxlen=_CAPTURE_LINES)
     t0 = time.perf_counter()
-    proc = subprocess.Popen(  # noqa: S603  # list-form call; shell=False (default); args are GATES constants
-        list(step.args), cwd=REPO_ROOT,
+    proc = subprocess.Popen(  # noqa: S603  # list-form call; shell=False (default); args are GATES constants or runner-derived cache_dir flags
+        args, cwd=REPO_ROOT,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
     )
     assert proc.stdout is not None
     for raw in proc.stdout:
-        sys.stdout.write(raw)
-        sys.stdout.flush()
-        capture.append(raw.rstrip("\n"))
+        line = raw.rstrip("\n")
+        if jobs == 1:
+            _emit(line)
+        else:
+            _emit(f"[{step.label}] {line}")
+        capture.append(line)
     rc = proc.wait()
     return Result(step, time.perf_counter() - t0, rc, list(capture))
 
 
-def run_gate(gate: Gate) -> list[Result]:
-    results: list[Result] = []
-    abort = False
-    for step in gate.steps:
-        if abort:
-            results.append(Result(step, skipped=True))
-            continue
-        result = run_step(step)
-        results.append(result)
-        if gate.fail_fast and result.rc != 0 and not step.nonblocking:
-            abort = True
-    return results
+def run_gate(gate: Gate, jobs: int = 1) -> list[Result]:
+    """Run the gate's steps sequentially (jobs=1) or concurrently (jobs>1).
+
+    ALL steps always run — no abort-at-first-failure, sequential or
+    parallel (user directive 2026-08-25: run everything, find the failures
+    at the end in the summary table + report tails). Results are returned
+    in gate step order regardless of completion order.
+    """
+    if jobs <= 1:
+        return [run_step(s) for s in gate.steps]
+
+    lock = threading.Lock()
+    by_step: dict[str, Result] = {}
+    with ThreadPoolExecutor(max_workers=min(jobs, len(gate.steps))) as pool:
+        futures: dict[Future, Step] = {
+            pool.submit(run_step, s, jobs=jobs, out_lock=lock): s
+            for s in gate.steps
+        }
+        for fut in as_completed(futures):
+            by_step[futures[fut].label] = fut.result()
+    return [by_step[s.label] for s in gate.steps]
+
+
+def _jobs_from_makeflags() -> int | None:
+    """User's ``make -j N`` override, parsed from MAKEFLAGS (else None).
+
+    ``make advisory -j 8`` puts ``-j8`` in MAKEFLAGS; bare ``make -j``
+    (unlimited) appears as ``-j`` with no count and ``--jobserver-auth``
+    present — treat that as "use every core". Never called directly by
+    tests outside a make context (MAKEFLAGS unset → None).
+    """
+    mf = os.environ.get("MAKEFLAGS", "")
+    m = re.search(r"(?:^|\s)-j(\d+)", mf)
+    if m and int(m.group(1)) > 0:
+        return int(m.group(1))
+    if re.search(r"(?:^|\s)-j(?=\s|$)", mf) or "--jobserver-auth" in mf:
+        return os.cpu_count() or _DEFAULT_JOBS
+    return None
 
 
 def overall_ok(results: list[Result]) -> bool:
@@ -182,31 +247,70 @@ def table_lines(results: list[Result]) -> list[str]:
     return lines
 
 
-def write_report(report_path: Path, gate_name: str, results: list[Result]) -> None:
+def write_report(report_path: Path, gate_name: str, results: list[Result],
+                 jobs: int = 1) -> None:
+    """Append one report block; whole-block under an exclusive flock.
+
+    Parallel-safety (2026-08-25): the in-process report is written once at
+    the end from per-step captures, so a single runner can never interleave
+    its own block. The flock covers the CROSS-process case — two gate
+    runners appending to the same file (e.g. `make advisory`'s nested
+    integration sub-runner racing a concurrently-invoked
+    `make integration`; both write integration_report.txt). Locking the fd
+    serializes whole blocks: a waiter's block starts only after the holder
+    closes the file (POSIX flock releases on close).
+    """
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     with open(report_path, "a") as f:
-        f.write(f"=== make {gate_name}  {ts}  (Python {sys.version.split()[0]}) ===\n")
-        f.write("\n".join(table_lines(results)) + "\n")
-        for r in results:
-            if r.skipped:
-                continue
-            why = "FAILED" if r.rc != 0 else "OK"
-            f.write(f"--- {r.step.label} · last {min(_TAIL_LINES, len(r.tail))} lines ({why}) ---\n")
-            f.write("\n".join(r.tail[-_TAIL_LINES:]) + "\n")
-        f.write("\n")
+        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+        try:
+            f.write(f"=== make {gate_name}  {ts}  (Python {sys.version.split()[0]})"
+                    + (f"  jobs={jobs}" if jobs > 1 else "") + " ===\n")
+            f.write("\n".join(table_lines(results)) + "\n")
+            for r in results:
+                if r.skipped:
+                    continue
+                why = "FAILED" if r.rc != 0 else "OK"
+                f.write(f"--- {r.step.label} · last {min(_TAIL_LINES, len(r.tail))} lines ({why}) ---\n")
+                f.write("\n".join(r.tail[-_TAIL_LINES:]) + "\n")
+            f.write("\n")
+            f.flush()
+        finally:
+            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+
+def resolve_jobs(cli_jobs: int | None) -> int:
+    """--jobs N > the user's make -j N (MAKEFLAGS) > _DEFAULT_JOBS (4)."""
+    if cli_jobs is not None:
+        return max(1, cli_jobs)
+    return _jobs_from_makeflags() or _DEFAULT_JOBS
 
 
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
-    if len(argv) != 1 or argv[0] not in GATES:
-        print(f"usage: python3 tests/run_gate_report.py {{{'|'.join(GATES)}}}",
-              file=sys.stderr)
+    cli_jobs: int | None = None
+    rest: list[str] = []
+    it = iter(argv)
+    for a in it:
+        if a == "--jobs":
+            try:
+                cli_jobs = int(next(it))
+            except (StopIteration, ValueError):
+                print("usage: --jobs N", file=sys.stderr)
+                return 2
+        else:
+            rest.append(a)
+    if len(rest) != 1 or rest[0] not in GATES:
+        print(f"usage: python3 tests/run_gate_report.py {{{'|'.join(GATES)}}}"
+              " [--jobs N]", file=sys.stderr)
         return 2
-    name = argv[0]
-    results = run_gate(GATES[name])
+    name = rest[0]
+    jobs = resolve_jobs(cli_jobs)
+    print(f"(gate {name}: jobs={jobs})")
+    results = run_gate(GATES[name], jobs)
     print("\n".join(table_lines(results)))
     report = REPO_ROOT / f"{name}_report.txt"
-    write_report(report, name, results)
+    write_report(report, name, results, jobs)
     print(f"appended to {report.relative_to(REPO_ROOT)}")
     return 0 if overall_ok(results) else 1
 
