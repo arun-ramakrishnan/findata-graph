@@ -1,7 +1,7 @@
 ---
 title: Knowledge Marine and Engineering Works
 type: company
-ticker: KNOWLEDGE.NS
+ticker: KMEW.NS
 sector: Travel
 industry: null
 market_cap: small_cap

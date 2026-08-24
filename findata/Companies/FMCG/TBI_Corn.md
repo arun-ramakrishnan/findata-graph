@@ -1,7 +1,7 @@
 ---
 title: TBI Corn
 type: company
-ticker: TBICORN.NS
+ticker: TBI.NS
 sector: FMCG
 industry: null
 market_cap: micro_cap

@@ -1,7 +1,7 @@
 ---
 title: Marvel Decor
 type: company
-ticker: MARVELDEC.NS
+ticker: MDL.NS
 sector: FMCG
 industry: null
 market_cap: small_cap

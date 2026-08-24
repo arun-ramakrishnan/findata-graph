@@ -1,7 +1,7 @@
 ---
 title: Kinetic Engg
 type: company
-ticker: KINETIC.NS
+ticker: 500240.BO
 sector: Automotive
 industry: null
 market_cap: micro_cap

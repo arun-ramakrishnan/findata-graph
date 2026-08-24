@@ -1,8 +1,8 @@
 ---
 title: Gulf Oil International
 type: company
-ticker: GULFOILLUB.NS
-listed: true
+ticker: null
+listed: false
 sector: Energy
 market_cap: mid_cap
 geography: global
@@ -19,7 +19,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-07-20'
-last_modified: '2026-07-20'
+last_modified: '2026-08-25'
 generated:
   by: process:okf_backfill
   at: '2026-07-20T00:00:00Z'

@@ -690,12 +690,24 @@ class TestPhase3NativeAlgorithms:
 
     def test_clustering_coefficient_returns_floats(self, con):
         cc = clustering_coefficient(con, edge_label="CompetesWith")
-        # The seeded tyre trio (CEAT, MRF, Apollo Tyres) forms a complete
-        # triangle → clustering coefficient 1.0 for each.
+        # The seeded tyre trio (CEAT, MRF, Apollo Tyres) is a triangle;
+        # after yfinance industry enrichment each has ~10 competes_with
+        # neighbours, so the local clustering coefficient is <1.0 but
+        # still >0 (previously the test asserted ==1.0 when the graph
+        # was smaller — 3425 edges now vs a tiny seed).
         as_dict = dict(cc)
-        assert as_dict.get("CEAT") == 1.0
-        assert as_dict.get("MRF") == 1.0
-        assert as_dict.get("Apollo Tyres") == 1.0
+        for name in ("CEAT", "MRF", "Apollo Tyres"):
+            val = as_dict.get(name)
+            assert val is not None, f"{name} missing from clustering output"
+            assert isinstance(val, float)
+            assert 0.0 < val <= 1.0
+        # Triangle edges themselves must still exist.
+        from helpers.graph.query import shortest_path
+
+        for a, b in (("CEAT", "MRF"), ("CEAT", "Apollo Tyres"), ("MRF", "Apollo Tyres")):
+            path = shortest_path(con, a, b, max_hops=1, edge_label="CompetesWith")
+            assert path is not None, f"expected competes_with edge {a} <-> {b}"
+            assert path[0][0] == a and path[-1][0] == b
 
     def test_shortest_path_via_competes_with(self, con):
         # CEAT and MRF are direct competitors → 1 hop.

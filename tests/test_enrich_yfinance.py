@@ -23,7 +23,6 @@ from helpers.maintenance.enrich_from_yfinance import (
     render_profile_block,
     write_metrics,
     get_enriched_companies,
-    write_competitor_edges,
     SOURCE_REF,
 )
 
@@ -319,52 +318,14 @@ class TestWriteMetrics:
 
 
 class TestWriteCompetitorEdges:
-    def test_creates_edges_for_same_industry(self, mem_db):
-        mapping = {"Co A": "IT", "Co B": "IT", "Co C": "Pharma"}
-        count = write_competitor_edges(mem_db, mapping)
-        assert count == 1  # only A↔B share an industry
+    """E2 (2026-08-24) retired the v1 industry-clique path from this
+    module; competes_with is now written by the KNN pass in
+    enrich_relations.py (covered by its own topology tests). Pinned so
+    the import-level contract stays honest."""
 
-    def test_idempotent(self, mem_db):
-        mapping = {"Co A": "IT", "Co B": "IT"}
-        write_competitor_edges(mem_db, mapping)
-        write_competitor_edges(mem_db, mapping)
-        rows = mem_db.execute(
-            "SELECT * FROM graph_edges WHERE edge_type='competes_with'"
-        ).fetchall()
-        assert len(rows) == 1
-
-    def test_preserves_non_yfinance_edges(self, mem_db):
-        mem_db.execute(
-            "INSERT INTO graph_edges (source, target, edge_type, weight, properties, source_ref, symmetric) "
-            "VALUES ('Co A', 'Co C', 'competes_with', 1.0, '{}', 'manual', 1)"
-        )
-        mapping = {"Co A": "IT", "Co B": "IT"}
-        write_competitor_edges(mem_db, mapping)
-        rows = mem_db.execute(
-            "SELECT source, target FROM graph_edges WHERE edge_type='competes_with'"
-        ).fetchall()
-        assert len(rows) == 2  # manual edge + new yfinance edge
-
-
-    def test_skips_colliding_non_yfinance_edge(self, mem_db):
-        """If a competes_with edge already exists from another source, skip it."""
-        mem_db.execute(
-            "INSERT INTO graph_edges (source, target, edge_type, weight, properties, source_ref, symmetric) "
-            "VALUES ('Co A', 'Co B', 'competes_with', 1.0, '{}', 'manual', 1)"
-        )
-        mapping = {"Co A": "IT", "Co B": "IT"}
-        count = write_competitor_edges(mem_db, mapping)
-        assert count == 0  # INSERT OR IGNORE skipped the collision
-        rows = mem_db.execute(
-            "SELECT source_ref FROM graph_edges WHERE edge_type='competes_with'"
-        ).fetchall()
-        assert len(rows) == 1  # original manual edge preserved
-        assert rows[0][0] == 'manual'
-
-    def test_skips_single_company_industry(self, mem_db):
-        mapping = {"Co A": "IT", "Co B": "Pharma"}
-        count = write_competitor_edges(mem_db, mapping)
-        assert count == 0
+    def test_clique_path_retired(self):
+        from helpers.maintenance import enrich_from_yfinance as ef
+        assert not hasattr(ef, "write_competitor_edges")
 
 
 class TestGetEnrichedCompanies:

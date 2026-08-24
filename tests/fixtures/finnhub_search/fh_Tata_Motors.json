@@ -1,0 +1,17 @@
+{
+ "count": 2,
+ "result": [
+  {
+   "description": "Tata Motors Ltd",
+   "displaySymbol": "TMCV.NS",
+   "symbol": "TMCV.NS",
+   "type": "Common Stock"
+  },
+  {
+   "description": "Tata Motors Passenger Vehicles Ltd",
+   "displaySymbol": "TMPV.NS",
+   "symbol": "TMPV.NS",
+   "type": "Common Stock"
+  }
+ ]
+}

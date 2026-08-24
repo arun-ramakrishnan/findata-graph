@@ -624,7 +624,7 @@ def _semantic_pair_for_company(
 ) -> list[tuple[tuple[str, str], dict]]:
     """Fetch top-k neighbours for one company and return canonical pairs."""
     try:
-        neigh = gq.semantic_neighbors(dcon, company, k=k)  # type: ignore[attr-defined]
+        neigh = gq.semantic_neighbors(dcon, company, k=k)  # ty: ignore[unresolved-attribute]
     except Exception as e:
         log.warning("semantic_neighbors failed for %s: %s", company, e)
         return []
@@ -2112,7 +2112,7 @@ def _apply_finnhub_writebacks(
     conn: sqlite3.Connection,
     writebacks: list[FhOutcome],
     *,
-    file_path_of: dict[str, str | None],
+    file_path_of: dict[str, str] | dict[str, str | None],
     fetch_cache: Path | None,
 ) -> int:
     """Write entities.ticker + note frontmatter; extend the fetch cache
@@ -2241,7 +2241,7 @@ def run_finnhub_pass(
     conn.execute(ENTITY_TICKER_STATUS_DDL)
     terminal = load_terminal_statuses(conn)
     file_path_of, targets, taken, stale = _collect_finnhub_targets(
-        conn, report_path, include_unlisted, terminal)
+        conn, report_path, include_unlisted, set(terminal))
     if stale:
         log.info("skipping %d already-resolved targets (report predates "
                  "writebacks): %s", len(stale), ", ".join(sorted(stale)))

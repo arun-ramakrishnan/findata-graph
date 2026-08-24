@@ -133,3 +133,27 @@ Piramal Finance Limited is a diversified non-banking financial company (NBFC) an
 > — Jairam Sridharan, Managing Director
 
 *Source: The Chatter — Jio Financial, Wipro, Polycab, Piramal & More (Edition #69, Q1FY27)*
+
+## Historical Note (formerly Piramal Enterprises)
+
+This note absorbs **Piramal Enterprises Ltd** (merged 2026-08-25): the same
+franchise tracked across its rebranding. Ticker lineage:
+`PPLPHARMA.NS` (mis-mapped → that is *Piramal Pharma*, the separately
+listed healthcare entity post-demerger) → `PIEIL.NS` (Piramal Enterprises,
+NBFC) → `PEL.NS` (Google-Finance symbol) → **`PIRAMALFIN.NS`** (current).
+The pre-2025 "wholly-owned subsidiary of Piramal Enterprises" framing is
+obsolete — the parent took the Piramal Finance name.
+
+## Key Insights (from Edition #23, Mar 2026)
+
+- Piramal is integrating AI across underwriting, collections, customer experience, and productivity under its "Piramal.ai" strategy; tools include Collections.ai (reinforcement-learning models optimising allocation channels for resolution), speech-to-text models making collection disposition richer and real-time, and AI collection bots now matching human performance — the company is moving to an AI + Human call-centre model in tandem to maximise resolution. AI now generates ~54% of internal code.
+- **Underwriting**: A "Self Cure" model has been implemented across both secured and unsecured businesses; Piramal's credit scorecards appear effective — only 16% of rejected applicants secure loans elsewhere, and those Off-Us borrowers show 2.8x higher risk (ever 30+ in 6 months on book) than approved customers, confirming the filters successfully identify and avoid higher-risk borrowers.
+- **Growth & AUM**: Total AUM has risen to ₹97K crore (+23% YoY) with legacy AUM sharply reduced; retail lending now accounts for 82% of total AUM, supported by rapid branch expansion. The company targets ₹1.5 lakh crore AUM by FY28 (~24-26% CAGR from FY25), and recent +23% YoY momentum indicates it is broadly on track.
+- **Customer profile (branch-based acquisition)**: Typical customer is ~38 years old earning ~₹49K monthly, 55% self-employed; ~82% of customers come from non-tier-1 markets, highlighting a strong semi-urban/rural focus through a 518-branch network across 26 states. Branch-acquired customers represent 91% of total retail AUM.
+- **Productivity gains**: Disbursement-per-branch and disbursement-per-employee (trailing 12 months, ₹ cr) are being tracked as key productivity metrics under the AI programme; customer complaints in retail have declined.
+- **Strategic pivot reinforced**: This AI-led, branch-based, retail-centric (especially small-ticket housing finance) transformation is consistent with the broader pivot from wholesale/construction lending toward a granular, retail-focused franchise.
+- **Rating upgrade (AA → AA+):** Expected to lower cost of borrowing by 50-80 bps as the borrowings churn, and opens access to previously inaccessible lending markets — supporting industry-leading AUM growth.
+
+> Edition #23 of Zerodha's *Points & Figures* covered this franchise when
+> it still traded as Piramal Enterprises; insights were originally
+> attributed to the then-parent name.

@@ -1613,12 +1613,38 @@ class DatabaseIntegrityChecker:
         )
         lines.append("")
 
+        nt = results.get("note_tags", {})
+        lines.append("## NOTE TAGS (ERROR-level; gate-failing)")
+        lines.append(
+            f"total={nt.get('total', 0)} stale={nt.get('stale', 0)} "
+            f"-> errors={nt.get('errors', 0)}"
+        )
+        lines.append("")
+
         ev = results.get("events", {})
         lines.append("## EVENTS (ERROR-level; gate-failing)")
         lines.append(
             f"total={ev.get('total', 0)} unknown_type={ev.get('unknown_type', 0)} "
             f"orphaned={ev.get('orphaned', 0)} bad_properties={ev.get('bad_properties', 0)} "
             f"-> errors={ev.get('errors', 0)}"
+        )
+        lines.append("")
+
+        qu = results.get("quotes", {})
+        lines.append("## QUOTES (ERROR-level; gate-failing)")
+        lines.append(
+            f"total={qu.get('total', 0)} orphaned={qu.get('orphaned', 0)} "
+            f"bad_properties={qu.get('bad_properties', 0)} "
+            f"-> errors={qu.get('errors', 0)}"
+        )
+        lines.append("")
+
+        cm = results.get("company_metrics", {})
+        lines.append("## COMPANY METRICS (ERROR-level; gate-failing)")
+        lines.append(
+            f"total={cm.get('total', 0)} orphaned={cm.get('orphaned', 0)} "
+            f"bad_properties={cm.get('bad_properties', 0)} "
+            f"-> errors={cm.get('errors', 0)}"
         )
         lines.append("")
 
@@ -1700,6 +1726,22 @@ class DatabaseIntegrityChecker:
             lines.append("  bad format (PascalCase/__/trailing):")
             for b in norm["bad_format"]:
                 lines.append(f"    - {b['name']}: {b['normalized_name']!r}")
+        lines.append("")
+
+        dup = results.get("duplicate_tickers", {})
+        lines.append("## SEMANTIC UNIQUENESS (duplicate tickers) (ERROR-level; gate-failing)")
+        dup_groups = dup.get("duplicate_ticker_groups", {})
+        lines.append(f"duplicate_ticker_groups={len(dup_groups)} -> errors={dup.get('errors', 0)}")
+        for ticker, names in dup_groups.items():
+            lines.append(f"  - {ticker}: {', '.join(names)}")
+        lines.append("")
+
+        fuzzy = results.get("fuzzy_duplicates", {})
+        lines.append("## FUZZY NAME SIMILARITY (advisory — likely-same-company pairs)")
+        fuzzy_pairs = fuzzy.get("fuzzy_duplicate_pairs", [])
+        lines.append(f"similar_pairs={len(fuzzy_pairs)} -> warnings={fuzzy.get('warnings', 0)}")
+        for pair in fuzzy_pairs:
+            lines.append(f"  - {pair['name_a']}  ~=  {pair['name_b']}")
         lines.append("")
 
         lines.append("## WARNINGS (advisory; do NOT fail the gate)")
@@ -1837,6 +1879,13 @@ class DatabaseIntegrityChecker:
         print(f"   Tag errors: {et.get('errors', 0)}")
         print()
 
+        print("🏷️  NOTE TAGS INTEGRITY:")
+        nt = results.get("note_tags", {})
+        print(f"   Total tags: {nt.get('total', 0)}")
+        print(f"   Stale (note missing or tag dropped): {nt.get('stale', 0)}")
+        print(f"   Tag errors: {nt.get('errors', 0)}")
+        print()
+
         print("📅 EVENTS (D7 — temporal spine):")
         ev = results.get("events", {})
         print(f"   Total events: {ev.get('total', 0)}")
@@ -1844,6 +1893,22 @@ class DatabaseIntegrityChecker:
         print(f"   Orphaned (entity not in entities): {ev.get('orphaned', 0)}")
         print(f"   Bad properties JSON: {ev.get('bad_properties', 0)}")
         print(f"   Event errors: {ev.get('errors', 0)}")
+        print()
+
+        print("💬 QUOTES INTEGRITY:")
+        qu = results.get("quotes", {})
+        print(f"   Total quotes: {qu.get('total', 0)}")
+        print(f"   Orphaned (entity not in entities): {qu.get('orphaned', 0)}")
+        print(f"   Bad properties JSON: {qu.get('bad_properties', 0)}")
+        print(f"   Quote errors: {qu.get('errors', 0)}")
+        print()
+
+        print("📊 COMPANY METRICS INTEGRITY:")
+        cm = results.get("company_metrics", {})
+        print(f"   Total metrics: {cm.get('total', 0)}")
+        print(f"   Orphaned (entity not in entities): {cm.get('orphaned', 0)}")
+        print(f"   Bad properties JSON: {cm.get('bad_properties', 0)}")
+        print(f"   Metric errors: {cm.get('errors', 0)}")
         print()
 
         print("🏢 ORPHAN COMPANIES:")

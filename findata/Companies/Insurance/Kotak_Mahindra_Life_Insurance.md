@@ -1,7 +1,8 @@
 ---
 title: Kotak Mahindra Life Insurance
 type: company
-ticker: KOTAKLIFE.NS
+ticker: null
+listed: false
 sector: Insurance
 industry: null
 market_cap: mid_cap

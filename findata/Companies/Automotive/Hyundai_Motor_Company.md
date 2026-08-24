@@ -1,7 +1,8 @@
 ---
 title: Hyundai Motor Company
 type: company
-ticker: HYUNDAI.NS
+ticker: 005380.KS
+listed: true
 sector: Automotive
 industry: null
 market_cap: large_cap
@@ -19,7 +20,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-07-20'
-last_modified: '2026-07-20'
+last_modified: '2026-08-25'
 generated:
   by: process:okf_backfill
   at: '2026-07-20T00:00:00Z'

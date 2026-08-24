@@ -1,7 +1,7 @@
 ---
 title: Lead Reclaim and Rubber Products
 type: company
-ticker: LEADRUBR.NS
+ticker: LRRPL.NS
 sector: Chemicals
 industry: null
 market_cap: micro_cap

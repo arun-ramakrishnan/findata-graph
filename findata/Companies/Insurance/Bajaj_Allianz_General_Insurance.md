@@ -1,7 +1,7 @@
 ---
 title: Bajaj Allianz General Insurance
 type: company
-ticker: BAJAJFINSV.NS
+ticker: null
 sector: Insurance
 industry: null
 market_cap: mid_cap
@@ -17,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/defensive
 created: '2026-01-17'
-last_modified: '2026-01-17'
+last_modified: '2026-08-25'
 generated:
   by: process:okf_backfill
   at: '2026-01-17T00:00:00Z'

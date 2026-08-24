@@ -1,0 +1,71 @@
+{
+ "count": 11,
+ "result": [
+  {
+   "description": "Shanghai Huace Navigation Technology Ltd",
+   "displaySymbol": "300627.SZ",
+   "symbol": "300627.SZ",
+   "type": "Common Stock"
+  },
+  {
+   "description": "Qatar Navigation QPSC",
+   "displaySymbol": "QNNS.QA",
+   "symbol": "QNNS.QA",
+   "type": "Common Stock"
+  },
+  {
+   "description": "North Navigation Control Technology Co Ltd",
+   "displaySymbol": "600435.SS",
+   "symbol": "600435.SS",
+   "type": "Common Stock"
+  },
+  {
+   "description": "Beijing BDStar Navigation Co Ltd",
+   "displaySymbol": "002151.SZ",
+   "symbol": "002151.SZ",
+   "type": "Common Stock"
+  },
+  {
+   "description": "Tsakos Energy Navigation Ltd",
+   "displaySymbol": "TEN",
+   "symbol": "TEN",
+   "type": "Common Stock"
+  },
+  {
+   "description": "Sincere Navigation Corp",
+   "displaySymbol": "2605.TW",
+   "symbol": "2605.TW",
+   "type": "Common Stock"
+  },
+  {
+   "description": "Beijing Navigation Control Technology Co Ltd",
+   "displaySymbol": "688282.SS",
+   "symbol": "688282.SS",
+   "type": "Common Stock"
+  },
+  {
+   "description": "Guangzhou Hi Target Navigation Tech Co Ltd",
+   "displaySymbol": "300177.SZ",
+   "symbol": "300177.SZ",
+   "type": "Common Stock"
+  },
+  {
+   "description": "J.S. Corrugating Machinery Co Ltd",
+   "displaySymbol": "000821.SZ",
+   "symbol": "000821.SZ",
+   "type": "Common Stock"
+  },
+  {
+   "description": "Dayu Irrigation Group Co Ltd",
+   "displaySymbol": "300021.SZ",
+   "symbol": "300021.SZ",
+   "type": "Common Stock"
+  },
+  {
+   "description": "NanJing Research Institute of Surveying Mapping & Geotechnical Investigation Co Ltd",
+   "displaySymbol": "300826.SZ",
+   "symbol": "300826.SZ",
+   "type": "Common Stock"
+  }
+ ]
+}

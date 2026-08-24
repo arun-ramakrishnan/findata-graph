@@ -85,7 +85,7 @@ The Chemicals sector in India encompasses specialty chemicals, agrochemicals, pe
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 65 company note(s) in Chemicals. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 63 company note(s) in Chemicals. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Company20_Microns|20 Microns Limited]]
 - [[Acutaas_Chemicals|Acutaas Chemicals]]

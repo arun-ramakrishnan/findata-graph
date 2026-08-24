@@ -116,6 +116,12 @@ metrics-rebuild: ## Refresh company financials + notes from yfinance (~1 min, 93
 > python3 helpers/maintenance/enrich_from_yfinance.py
 > @echo "✓ yfinance enrichment complete (competes_with moved to relations-enrich; run 'make graph-rebuild' to refresh DuckDB edges)"
 
+# GF fallback pass runs AFTER the yfinance pass (it consumes that report's
+# [ticker_issues]); curated + tier 1 by default, --tier2 adds BSE
+# name-search discovery; dry-run until F4:
+#   make relations-enrich ARGS="--source googlefinance --dry-run --tier2"
+# Terminal classifications (stop re-probing dead tickers):
+#   make relations-enrich ARGS='--classify "Akzo Nobel India" amalgamated "JSW Paints"'
 relations-enrich ARGS="--source yfinance --dry-run":
 > python3 helpers/maintenance/enrich_relations.py $(ARGS)
 > @echo "✓ relations enrichment done (run 'make graph-rebuild' to refresh DuckDB edges)"

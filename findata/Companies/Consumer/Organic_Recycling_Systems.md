@@ -1,7 +1,7 @@
 ---
 title: Organic Recycling Systems
 type: company
-ticker: ORGANICREC.NS
+ticker: 543997.BO
 sector: Consumer
 industry: null
 market_cap: micro_cap

@@ -49,6 +49,9 @@ dependencies = [
     # GGUF via llama.cpp, CPU-only, no torch. Built from sdist on first install
     # (gcc/cmake needed); the model file itself is gitignored under models/.
     "llama-cpp-python",
+    # Google Finance and Sheets API
+    "gspread",
+    "finnhub-python",
 ]
 
 [project.optional-dependencies]
@@ -112,4 +115,4 @@ optional_dependencies_dev_groups = ["dev"]
 # and werkzeug (WSGI/serving, pulled in transitively by Flask) are runtime deps that
 # are not imported in the codebase. They are genuinely used, so silence DEP002 for
 # them specifically (package-scoped, so a newly-unused dep would still be caught).
-per_rule_ignores = "DEP002=gunicorn|Werkzeug"
+per_rule_ignores = "DEP002=gunicorn|Werkzeug|finnhub-python"

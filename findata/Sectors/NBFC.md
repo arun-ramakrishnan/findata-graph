@@ -60,7 +60,7 @@ Non-Banking Financial Companies — diversified consumer, SME, gold-loan, microf
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 25 company note(s) in NBFC. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 24 company note(s) in NBFC. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Arman_Financial_Services|Arman Financial Services]]
 - [[Bajaj_Finance|Bajaj Finance]]
@@ -78,7 +78,6 @@ Non-Banking Financial Companies — diversified consumer, SME, gold-loan, microf
 - [[Muthoot_Capital_Services|Muthoot Capital Services]]
 - [[Muthoot_Finance]]
 - [[Muthoot_Microfin|Muthoot Microfin]]
-- [[Piramal_Enterprises|Piramal Enterprises]]
 - [[Piramal_Finance|Piramal Finance]]
 - [[SBI_Cards_and_Payment_Services|SBI Cards and Payment Services]]
 - [[Sammaan_Capital|Sammaan Capital]]
