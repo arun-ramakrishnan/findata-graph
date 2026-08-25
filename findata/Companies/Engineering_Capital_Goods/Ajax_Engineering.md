@@ -1,7 +1,7 @@
 ---
 title: Ajax Engineering
 type: company
-ticker: null
+ticker: AJAXENGG.NS
 sector: Engineering_Capital_Goods
 industry: Entertainment
 market_cap: mid_cap

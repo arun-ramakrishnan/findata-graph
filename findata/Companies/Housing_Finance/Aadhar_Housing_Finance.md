@@ -1,7 +1,7 @@
 ---
 title: Aadhar Housing Finance
 type: company
-ticker: AADHAR.NS
+ticker: AADHARHFC.NS
 sector: Housing_Finance
 industry: null
 market_cap: small_cap

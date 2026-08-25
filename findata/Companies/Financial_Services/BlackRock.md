@@ -1,8 +1,8 @@
 ---
 title: BlackRock, Inc.
 type: company
-ticker: null
-listed: false
+ticker: BLK
+listed: true
 sector: Financial_Services
 market_cap: large_cap
 normalized_name: BlackRock

@@ -41,6 +41,8 @@ _KNOWN_EDGE_TYPES: tuple[str, ...] = (
     "belongs_to",  # Bundle M4: sector hierarchy (sector->super_sector, sub_sector->sector)
     "exposed_to",  # D4: cross-sector theme membership (company -> theme)
     "cited_in",    # okf_activation P: OKF provenance (company/sector -> edition)
+    "semantic_peer",  # E3: embedding cosine neighbours (Relations 2.0)
+    "invested_in",  # E5: institution -> company holders (Relations 2.0)
 )
 
 
@@ -201,7 +203,8 @@ class DatabaseIntegrityChecker:
         # Airlines, ...) with no dedicated note — file_path is legitimately
         # NULL. They are validated as path-exempt in check_entities(), so
         # reaching here with one is unexpected, but accept any path.
-        if entity_type == "sub_sector":
+        # E5: institutions (institution -> company holders) are likewise noteless.
+        if entity_type in ("sub_sector", "institution"):
             return True
         if file_path.startswith("findata/Companies/"):
             parts = file_path.split("/")
@@ -1357,7 +1360,8 @@ class DatabaseIntegrityChecker:
             duck_n = None
         sqlite_n = self.get_connection().execute(
             "SELECT COUNT(*) FROM entities WHERE entity_type IN "
-            "('company','sector','super_sector','sub_sector','theme','edition')"
+            "('company','sector','super_sector','sub_sector','theme','edition',"
+            "'institution')"
         ).fetchone()[0]
         if duck_n is None or duck_n != sqlite_n:
             mismatches.append(
@@ -1472,7 +1476,7 @@ class DatabaseIntegrityChecker:
             # are likewise legitimately fileless — they have no backing note
             # (membership is via the exposed_to edge, not a markdown file). So
             # they share the sub_sector exemption.
-            if not file_path and entity_type in ("sub_sector", "theme"):
+            if not file_path and entity_type in ("sub_sector", "theme", "institution"):
                 results["valid_entities"] += 1
                 results["by_entity_type"][entity_type]["valid"] += 1
                 continue

@@ -1,8 +1,8 @@
 ---
 title: Huhtamaki Oyj
 type: company
-ticker: null
-listed: false
+ticker: HUHTAMAKI.NS
+listed: true
 sector: Packaging
 market_cap: large_cap
 geography: global

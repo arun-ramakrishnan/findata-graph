@@ -1,7 +1,7 @@
 ---
 title: Piccadilly Agro Industries Limited
 type: company
-ticker: PICADILLYAG.NS
+ticker: PICCADIL.NS
 sector: Agriculture
 industry: null
 market_cap: small_cap

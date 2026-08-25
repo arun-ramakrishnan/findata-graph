@@ -115,6 +115,9 @@
     --edge-competes: #F5B14C;        /* competes_with    — amber            */
     --edge-supply: #7CA8C9;          /* supplier_to / customer_of — steel   */
     --edge-same-group: #B5838D;      /* same_group                          */
+    --edge-cited-in: #F5F1E8;        /* cited_in         — cream            */
+    --edge-semantic-peer: #8AD7C6;   /* semantic_peer    — teal-mint        */
+    --edge-invested-in: #E0A93E;     /* invested_in      — brass (ownership)*/
 }
 
 /* --- 2d. Shared metrics --------------------------------------------------- */

@@ -16,7 +16,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild lint types lint-audit deptry advisory secret-scan analytics suggest-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild relations-enrich lint types lint-audit deptry advisory secret-scan analytics suggest-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -112,9 +112,13 @@ maint-full:     ## Post-ingest re-derivation: maint + TIER2_STEPS (authoritative
 > python3 helpers/maintenance/maint.py --full
 > @echo "✓ Full maintenance complete"
 
-metrics-rebuild: ## Refresh company financials + industry edges from yfinance (~1 min, 931 tickers)
+metrics-rebuild: ## Refresh company financials + notes from yfinance (~1 min, 931 tickers)
 > python3 helpers/maintenance/enrich_from_yfinance.py
-> @echo "✓ yfinance enrichment complete (run 'make graph-rebuild' to refresh DuckDB edges)"
+> @echo "✓ yfinance enrichment complete (competes_with moved to relations-enrich; run 'make graph-rebuild' to refresh DuckDB edges)"
+
+relations-enrich ARGS="--source yfinance --dry-run":
+> python3 helpers/maintenance/enrich_relations.py $(ARGS)
+> @echo "✓ relations enrichment done (run 'make graph-rebuild' to refresh DuckDB edges)"
 
 sync-tags:      ## Rebuild entity_tags from note YAML (mirrors entity_type/sector/market_cap/subsector)
 > python3 helpers/core/sync_tags.py

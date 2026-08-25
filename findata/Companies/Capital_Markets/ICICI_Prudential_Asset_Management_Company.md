@@ -1,7 +1,7 @@
 ---
 title: ICICI Prudential Asset Management Company
 type: company
-ticker: 0P0001BAAU.BO
+ticker: ICICIAMC.NS
 sector: Capital_Markets
 market_cap: large_cap
 normalized_name: ICICI_Prudential_Asset_Management_Company

@@ -29,7 +29,6 @@ import re
 import sqlite3
 import sys
 import time
-from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
@@ -142,12 +141,6 @@ INSERT INTO company_metrics
     (entity, metric_label, value_raw, value_num, unit, period,
      as_of_edition, source_quote, source_ref, properties)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-"""
-
-_INSERT_EDGE_SQL = """
-INSERT OR IGNORE INTO graph_edges
-    (source, target, edge_type, weight, properties, source_ref, symmetric)
-VALUES (?, ?, 'competes_with', 1.0, '{}', ?, 1)
 """
 
 # --- fetching ----------------------------------------------------------------
@@ -392,39 +385,11 @@ def write_metrics(conn: sqlite3.Connection, metrics: list[dict]) -> int:
     return inserted
 
 
-def write_competitor_edges(conn: sqlite3.Connection,
-                           name_to_industry: dict[str, str]) -> int:
-    """Create competes_with edges between companies sharing the same yfinance industry.
-
-    Deletes existing yfinance-sourced competes_with edges first (idempotent).
-    """
-    # Clear old yfinance competitor edges
-    conn.execute(
-        "DELETE FROM graph_edges WHERE edge_type = 'competes_with' "
-        "AND source_ref LIKE ?",
-        (SOURCE_REF_PREFIX + ":%",),
-    )
-
-    # Group companies by industry
-    industry_groups: dict[str, list[str]] = defaultdict(list)
-    for name, industry in name_to_industry.items():
-        if industry:
-            industry_groups[industry].append(name)
-
-    inserted = 0
-    for industry, companies in industry_groups.items():
-        if len(companies) < 2:
-            continue
-        companies.sort()
-        # Create edges between all pairs in the same industry
-        for i, a in enumerate(companies):
-            for b in companies[i + 1:]:
-                cur = conn.execute(
-                    _INSERT_EDGE_SQL,
-                    (a, b, f"{SOURCE_REF_PREFIX}:industry:{industry}"),
-                )
-                inserted += cur.rowcount
-    return inserted
+# NOTE (E2, 2026-08-24): the v1 write_competitor_edges() clique path was
+# RETIRED — it never effectively applied (zero 'yfinance:*' rows in the DB;
+# see proposal relation_enrichment_sources.md §1) and is superseded by the
+# bounded-KNN topology in helpers/maintenance/enrich_relations.py. This
+# script is now metrics/notes-only.
 
 
 # --- skip logic --------------------------------------------------------------
@@ -659,20 +624,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         if len(results) > 5:
             print(f"\n  ... and {len(results) - 5} more (use --company NAME for details)")
 
-        # Show projected competitor edges
-        industries = {}
-        for name, _, _, info in results:
-            ind = info.get("industry")
-            if ind:
-                industries[name] = ind
-        industry_groups = defaultdict(list)
-        for name, ind in industries.items():
-            industry_groups[ind].append(name)
-        edge_count = sum(len(c) * (len(c) - 1) // 2 for c in industry_groups.values() if len(c) >= 2)
-        multi = {k: v for k, v in industry_groups.items() if len(v) >= 2}
-        print(f"\n  Projected competes_with edges: {edge_count} across {len(multi)} industries")
-        for ind, cos in sorted(multi.items(), key=lambda x: -len(x[1]))[:5]:
-            print(f"    {ind}: {', '.join(cos[:5])}{'...' if len(cos) > 5 else ''}")
+        # E2 (2026-08-24): the dry-run "Projected competes_with edges" clique
+        # projection was RETIRED — its n*(n-1)/2 number (~5900) never matched
+        # what any apply path could write (proposal §1 confusion). Edge
+        # projections now live ONLY in `enrich_relations.py --dry-run`.
 
         conn.close()
         total_time = time.perf_counter() - t0
@@ -707,19 +662,16 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         log.info("wrote %d metric rows for %d companies",
                  metrics_written, len({m["entity"] for m in all_metrics}))
 
-        # Write competitor edges
-        edges_written = write_competitor_edges(conn, name_to_industry)
-        log.info("wrote %d competes_with edges from %d industries",
-                 edges_written, len({v for v in name_to_industry.values()}))
 
     log.info("updated %d company notes", notes_updated)
 
     conn.close()
 
     total_time = time.perf_counter() - t0
-    log.info("✓ enrichment complete in %.1fs (%d fetched, %d metrics, %d edges, %d notes, %d skipped)",
-             total_time, len(results), metrics_written, edges_written, notes_updated, notes_skipped)
-    write_report(results, failures, metrics_written, edges_written, notes_updated,
+    # E2: edges_written is gone — competes_with moved to enrich_relations.py.
+    log.info("✓ enrichment complete in %.1fs (%d fetched, %d metrics, %d notes, %d skipped)",
+             total_time, len(results), metrics_written, notes_updated, notes_skipped)
+    write_report(results, failures, metrics_written, 0, notes_updated,
                  notes_skipped, total_time, dry_run=False)
     return 0
 

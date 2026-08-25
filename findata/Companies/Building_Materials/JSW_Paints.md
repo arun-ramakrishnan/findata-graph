@@ -1,8 +1,8 @@
 ---
 title: JSW Paints
 type: company
-ticker: null
-listed: false
+ticker: JSWDULUX.NS
+listed: true
 sector: Building_Materials
 market_cap: null
 geography: india

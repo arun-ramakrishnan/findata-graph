@@ -1,7 +1,7 @@
 ---
 title: Srigee DLM
 type: company
-ticker: SRIGEE.NS
+ticker: 544399.BO
 sector: Consumer
 industry: null
 market_cap: micro_cap

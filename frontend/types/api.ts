@@ -144,6 +144,13 @@ export interface CompanyNeighbors {
     subsidiary_of: string | null;
     suppliers: string[];
     customers: string[];
+    /** E3: embedding cosine neighbours (weight 0.5, symmetric). Present when
+     *  the neighbors bundle includes semantic_peer edges; absent on older
+     *  endpoints. */
+    semantic_peers?: string[];
+    /** E5: institution → company holder edges (directed). Map institution →
+     *  properties {pctHeld, shares, reported}. */
+    invested_by?: { institution: string; pctHeld?: number; shares?: number }[];
 }
 
 export interface SectorNeighbors {

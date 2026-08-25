@@ -144,6 +144,9 @@ const _EDGE_TOKENS: Record<string, string> = {
     supplies_to: "--edge-supply",
     customer_of: "--edge-supply",
     same_group: "--edge-same-group",
+    cited_in: "--edge-cited-in",
+    semantic_peer: "--edge-semantic-peer",
+    invested_in: "--edge-invested-in",
 };
 
 const EDGE_COLORS: Record<string, string> = {};

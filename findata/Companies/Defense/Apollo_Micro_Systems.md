@@ -13,7 +13,7 @@ sector: Defense
 industry: null
 market_cap: small_cap
 geography: india
-ticker: APOLLOMICRO.NS
+ticker: APOLLO.NS
 created: '2026-08-10'
 last_modified: '2026-08-10'
 permalink: /companies/defense/apollo_micro_systems

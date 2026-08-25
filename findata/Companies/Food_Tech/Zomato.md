@@ -1,8 +1,8 @@
 ---
 title: Zomato
 type: company
-ticker: null
-listed: false
+ticker: ETERNAL.NS
+listed: true
 sector: Retail
 market_cap: mid_cap
 normalized_name: Zomato

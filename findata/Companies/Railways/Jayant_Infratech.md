@@ -1,7 +1,7 @@
 ---
 title: Jayant Infratech
 type: company
-ticker: JAYANTINFRA.NS
+ticker: 543544.BO
 sector: Railways
 industry: null
 market_cap: micro_cap

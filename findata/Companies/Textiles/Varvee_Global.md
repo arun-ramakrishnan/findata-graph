@@ -1,7 +1,7 @@
 ---
 title: Varvee Global
 type: company
-ticker: VARVEE.NS
+ticker: VGL.NS
 sector: Textiles
 industry: null
 market_cap: micro_cap

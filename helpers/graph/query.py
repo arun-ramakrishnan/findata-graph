@@ -181,7 +181,7 @@ def _with_generation_cache(fn):
 # longer declared — pattern queries are plain SQL JOINs over the e_* tables.
 # The bump forces every existing .duckdb cache cold so no stale fin_graph /
 # __duckpgq_internal catalog entries survive.
-_SCHEMA_VERSION = "11"  # 11: + e_all_und/e_dir walk substrates + v_note_embeddings (sql_capability_unlocks)
+_SCHEMA_VERSION = "13"  # 13: + e_invested (Relations 2.0 E5) + semantic_peer already in 12
 
 # Metadata table inside the .duckdb file tracking what was built + when.
 # Used to detect "is this file warm or cold" and to record provenance.
@@ -276,6 +276,18 @@ EDGE_REGISTRY: dict[str, dict[str, str]] = {
         "src": "a_name", "dst": "b_name",
         "src_kind": "company", "dst_kind": "company",
         "label": "CoMentionedIn",
+    },
+    "semantic_peer": {
+        "table": "e_semantic_peer",
+        "src": "a_name", "dst": "b_name",
+        "src_kind": "company", "dst_kind": "company",
+        "label": "SemanticPeer",
+    },
+    "invested_in": {
+        "table": "e_invested",
+        "src": "institution_name", "dst": "company_name",
+        "src_kind": "institution", "dst_kind": "company",
+        "label": "InvestedIn",
     },
 }
 
@@ -660,7 +672,7 @@ def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
 # shipped an orphan parquet into a snapshot commit).
 _EXTRA_MATERIALIZED = (
     "v_node", "v_company", "v_sector", "v_super_sector", "v_sub_sector",
-    "v_theme", "v_edition", "v_embeddings", "v_note_embeddings",
+    "v_theme", "v_edition", "v_institution", "v_embeddings", "v_note_embeddings",
     "e_belongs_to", "e_exposed_to", "e_cited_in", "e_all_und", "e_dir",
 )
 MATERIALISED_TABLES = frozenset(
@@ -810,7 +822,8 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
                e.ticker
         FROM fin.entities e
         WHERE e.entity_type IN ('company', 'sector', 'super_sector',
-                                'sub_sector', 'theme', 'edition')
+                                'sub_sector', 'theme', 'edition',
+                                'institution')
         """
     )
     # Filtered projections used by edge-table JOINs (resolve by name → id).
@@ -847,6 +860,13 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
     # Out-of-registry like v_theme for the same mixed-endpoint reason.
     con.execute(
         "CREATE TABLE v_edition AS SELECT id, name FROM v_node WHERE kind='edition'"
+    )
+    # Relations 2.0 E5: institution projection — endpoint of invested_in
+    # (institution → company). Out-of-registry size is trivial (dozens of US
+    # holders), but keeping a dedicated projection mirrors the v_theme/v_edition
+    # pattern and lets the generic EDGE_REGISTRY loop JOIN on v_institution.
+    con.execute(
+        "CREATE TABLE v_institution AS SELECT id, name FROM v_node WHERE kind='institution'"
     )
     # P2.5: v_embeddings — vector embeddings for semantic similarity search.
     # Sourced from fin.company_embeddings (FLOAT[emb_dim]) if it exists in the
@@ -1044,9 +1064,44 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
     graph declaration work correctly.
     """
     _stage_edges(con)
+    # Generic kind → projection table mapping (supports the institution kind
+    # introduced for invested_in without special-casing each branch).
+    _KIND_TO_TABLE: dict[str, str] = {
+        "company": "v_company",
+        "sector": "v_sector",
+        "super_sector": "v_super_sector",
+        "sub_sector": "v_sub_sector",
+        "theme": "v_theme",
+        "edition": "v_edition",
+        "institution": "v_institution",
+    }
     for etype, spec in EDGE_REGISTRY.items():
-        src_table = "v_company" if spec["src_kind"] == "company" else "v_sector"
-        dst_table = "v_company" if spec["dst_kind"] == "company" else "v_sector"
+        # E5: invested_in has a mixed source — institution holders plus a
+        # handful of company holders (e.g. Sanofi as holder) that already
+        # exist as company entities. The generic v_institution JOIN would
+        # drop the company-holder edge (714 vs 715). Handle via v_node
+        # with kind IN so both institutions and companies are resolved.
+        if etype == "invested_in":
+            src_id_col = spec["src"]
+            dst_id_col = spec["dst"]
+            con.execute(
+                f"""
+                CREATE TABLE {spec["table"]} AS
+                SELECT src.id   AS {src_id_col},
+                       dst.id   AS {dst_id_col},
+                       ge.weight, ge.properties, ge.source_ref,
+                       ge.valid_from, ge.valid_to
+                FROM _stg_edges ge
+                JOIN v_node src ON src.name = ge.source
+                              AND src.kind IN ('institution', 'company')
+                JOIN v_node dst ON dst.name = ge.target
+                              AND dst.kind = 'company'
+                WHERE ge.edge_type = '{etype}'
+                """  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            )
+            continue
+        src_table = _KIND_TO_TABLE.get(spec["src_kind"], "v_company")
+        dst_table = _KIND_TO_TABLE.get(spec["dst_kind"], "v_company")
         src_id_col = spec["src"]
         dst_id_col = spec["dst"]
         # Bundle L2: e_acquired carries a typed `year` column projected from

@@ -1,7 +1,7 @@
 ---
 title: Tata Motors Passenger Vehicles Limited
 type: company
-ticker: TATAMOTORS.NS
+ticker: TMPV.NS
 sector: Automotive
 industry: null
 market_cap: large_cap

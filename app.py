@@ -2167,6 +2167,18 @@ _EDGE_SEMANTICS: dict[str, dict[str, object]] = {
         "symmetric": True,
         "semantics": "Company ↔ company (promoter group)",
     },
+    "cited_in": {
+        "symmetric": False,
+        "semantics": "Company/sector → edition (OKF provenance)",
+    },
+    "semantic_peer": {
+        "symmetric": True,
+        "semantics": "Company ↔ company (embedding neighbours, cosine)",
+    },
+    "invested_in": {
+        "symmetric": False,
+        "semantics": "Institution → company (reported holder stake)",
+    },
 }
 
 

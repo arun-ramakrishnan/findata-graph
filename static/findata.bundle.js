@@ -36018,7 +36018,10 @@
     supplier_to: "--edge-supply",
     supplies_to: "--edge-supply",
     customer_of: "--edge-supply",
-    same_group: "--edge-same-group"
+    same_group: "--edge-same-group",
+    cited_in: "--edge-cited-in",
+    semantic_peer: "--edge-semantic-peer",
+    invested_in: "--edge-invested-in"
   };
   var EDGE_COLORS = {};
   (() => {

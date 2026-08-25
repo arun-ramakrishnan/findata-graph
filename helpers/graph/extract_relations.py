@@ -256,6 +256,12 @@ class EntityResolver:
         for n, toks in self._name_tokens:
             for t in toks:
                 self._by_token.setdefault(t, []).append(n)
+        # E1 (2026-08-23): ambiguity audit log. When the fuzzy matcher finds
+        # MULTIPLE candidates tied at the top score, the first wins silently
+        # today; we record those ties here so runs can surface them as Tier-C
+        # report lines ("mention X matched N candidates equally well"). Never
+        # consulted for resolution — logging only.
+        self.ambiguous_log: list[tuple[str, list[str]]] = []
 
     def resolve(self, mention: str) -> str | None:
         if not mention:
@@ -322,6 +328,7 @@ class EntityResolver:
             candidates.update(self._by_token.get(t, ()))
         best = None
         best_score = 0
+        tied: list[str] = []
         for n in candidates:
             et = _tokens(n)
             if not et:
@@ -333,6 +340,11 @@ class EntityResolver:
                     if score > best_score:
                         best_score = score
                         best = n
+                        tied = [n]
+                    elif score == best_score and n != best:
+                        tied.append(n)
+        if best is not None and len(tied) > 1:
+            self.ambiguous_log.append((mention, sorted(tied)))
         return best
 
 
@@ -499,7 +511,8 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
     # --- subsidiary_of (asymmetric, source subsidiary, target parent) ---
     (
         re.compile(
-            r"\b(?:a\s+)?(?:wholly[\-\s]owned\s+|majority[\-\s]owned\s+|100%\s+)?"
+            r"\b(?:a\s+)?(?:wholly[\-\s]owned\s+(?:step[\-\s]down\s+)?"
+            r"|majority[\-\s]owned\s+|step[\-\s]down\s+|100%\s+)?"
             r"subsidiary\s+of\s+"
             r"((?-i:[A-Z])[A-Za-z0-9&.\-\s]{1,60}?)"
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:is|which|that|operates|it|has|with)\s|$))",
@@ -672,21 +685,117 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
         "competes_with", True, "forward",
     ),
 
-    # --- same_group via "part of the X Group" / "of the X group" ---
-    # Group names are NOT companies — they're conglomerates. We extract the
-    # group name into `properties.group` and rely on the caller to cluster
-    # companies that share the same group. The match itself produces a
-    # `same_group` candidate only after the caller joins across companies.
-    # The pattern captures the group name; resolution happens at the batch
-    # level (not via EntityResolver).
+    # G2 (2026-08-23): stake-percentage family — Indian-market ownership
+    # phrasing. These patterns capture TWO groups: group(1) = percentage,
+    # group(2) = target mention. extract_relations() detects them by checking
+    # whether group(1) is numeric and records properties.stake_pct.
+    #
+    # "acquisition of 26% stake in X" / "picked up a 51% equity stake in X"
+    # → `acquired` (the graph conflates M&A under this type). The bare
+    # "acquisition of X" pattern above cannot fire on these because its
+    # capture demands an uppercase first char immediately after "of".
+    (
+        re.compile(
+            r"\bacquisition\s+of\s+(?:a\s+)?"
+            r"(?:about\s+|around\s+|nearly\s+|over\s+)?"
+            r"(\d{1,3}(?:\.\d+)?)\s*%\s+"
+            r"(?:stake|equity(?:\s+stake)?|shareholding|holding|shares?|interest)"
+            r"\s+(?:in|of)\s+"
+            r"((?-i:[A-Z])[A-Za-z0-9&.\-\s]{1,60}?)"
+            r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:from|for|last|this|which|that|is|has|will|and\s)\s|$))",
+            re.IGNORECASE,
+        ),
+        "acquired", False, "forward",
+    ),
+    (
+        re.compile(
+            r"\b(?:acquired|purchased|bought|picked\s+up)\s+(?:a\s+)?"
+            r"(?:about\s+|around\s+|nearly\s+|over\s+)?"
+            r"(\d{1,3}(?:\.\d+)?)\s*%\s+"
+            r"(?:stake|equity(?:\s+stake)?|shareholding|holding|shares?|interest)"
+            r"\s+(?:in|of)\s+"
+            r"((?-i:[A-Z])[A-Za-z0-9&.\-\s]{1,60}?)"
+            r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:from|for|last|this|which|that|is|has|will|and\s)\s|$))",
+            re.IGNORECASE,
+        ),
+        "acquired", False, "forward",
+    ),
+    # "holds/owns N% stake in X" is ongoing OWNERSHIP, not an acquisition
+    # event. At >=50% it implies control, so we emit subsidiary_of with
+    # direction='reverse' (captured X becomes the subsidiary source, the
+    # section's company the parent). Below 50% the relation is a passive
+    # holding — dropped silently rather than mislabeled (Tier C: precision-
+    # first; the drop is documented here, not sidecarred).
+    (
+        re.compile(
+            r"\b(?:holds?|held|owns?|owned)\s+(?:a\s+)?"
+            r"(?:about\s+|around\s+|nearly\s+|over\s+)?"
+            r"(\d{1,3}(?:\.\d+)?)\s*%\s+"
+            r"(?:stake|equity(?:\s+stake)?|shareholding|holding|interest)"
+            r"\s+(?:in|of)\s+"
+            r"((?-i:[A-Z])[A-Za-z0-9&.\-\s]{1,60}?)"
+            r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:via|through|which|that|is|has|will|and\s)\s|$))",
+            re.IGNORECASE,
+        ),
+        "subsidiary_of", False, "reverse",
+    ),
 ]
 
-
-# Group pattern — used to derive same_group edges across multiple companies
-# in the same newsletter / vault that share a group.
+# Group-name patterns — used to derive same_group edges across multiple
+# companies in the same newsletter / vault that share a group. Each captures
+# the GROUP NAME; resolution happens at the batch level (not via
+# EntityResolver). Group names are conglomerates, not companies.
+#
+# GROUP_RE is the original v1 form. The G2 additions (2026-08-23) cover the
+# common Indian-market phrasings that v1 missed:
+#   - "<X> promoter group"          (promoter-group membership)
+#   - "flagship [company] of the <X> Group" / "<X> Group flagship"
+#   - "<X> Group company/firm/entity"
 GROUP_RE = re.compile(
     r"\bpart\s+of\s+(?:the\s+)?([A-Z][A-Za-z0-9&.\-\s]{2,50}?)\s+Group\b",
 )
+_PROMOTER_GROUP_RE = re.compile(
+    r"\bpart\s+of\s+(?:the\s+)?([A-Z][A-Za-z0-9&.\-\s]{2,50}?)"
+    r"\s+promoter\s+group\b",
+)
+_FLAGSHIP_OF_GROUP_RE = re.compile(
+    r"\bflagship(?:\s+(?:company|entity))?\s+of\s+(?:the\s+)?"
+    r"([A-Z][A-Za-z0-9&.\-\s]{2,50}?)\s+Group\b",
+)
+_GROUP_FLAGSHIP_RE = re.compile(
+    r"\b([A-Z][A-Za-z0-9&.\-\s]{2,40}?)\s+Group\s+flagship\b",
+)
+_GROUP_COMPANY_RE = re.compile(
+    r"\b([A-Z][A-Za-z0-9&.\-]*(?:\s+[A-Z][A-Za-z0-9&.\-]+){0,4}?)"
+    r"\s+Group\s+(?:compan(?:y|ies)|firm|entities?)\b",
+)
+
+GROUP_RES: list[re.Pattern] = [
+    GROUP_RE,
+    _PROMOTER_GROUP_RE,
+    _FLAGSHIP_OF_GROUP_RE,
+    _GROUP_FLAGSHIP_RE,
+    _GROUP_COMPANY_RE,
+]
+
+
+def _normalize_group_name(raw: str) -> str:
+    """Normalize a captured group name.
+
+    Strips (a) trailing corporate suffixes swept into the capture
+    ("Tata Group Corp" -> "Tata") and (b) leading articles picked up when
+    the phrase sits at sentence start ("A Mahindra Group company" must key
+    as "Mahindra", matching the "flagship of the Mahindra Group" form).
+    """
+    name = re.sub(
+        r"\s+(?:Corp(?:oration)?|Group|Holdings|Industries)$",
+        "", raw.strip(), flags=re.IGNORECASE,
+    ).strip()
+    name = re.sub(
+        r"^(?:a|an|the)\s+", "", name, flags=re.IGNORECASE,
+    ).strip()
+    return name
+
 
 
 # --------------------------------------------------------------------------- #
@@ -1273,12 +1382,29 @@ def extract_relations(  # noqa: C901
         # Per-pattern scan.
         for pat, edge_type, symmetric, direction in PATTERNS:
             for m in pat.finditer(body):
-                # customer_of has two capture groups (parens form vs is/are form);
-                # pick whichever matched.
+                # Two-group patterns: (a) customer_of (parens form vs is/are
+                # form — pick whichever matched); (b) G2 stake patterns
+                # (group 1 = percentage, group 2 = the mention; detected by
+                # group 1 being fully numeric).
+                stake_pct: float | None = None
                 if edge_type == "customer_of" and m.group(2):
+                    target_mention = m.group(2).strip()
+                elif (
+                    m.lastindex is not None and m.lastindex >= 2
+                    and m.group(1) is not None and m.group(2) is not None
+                    and re.fullmatch(r"\d{1,3}(?:\.\d+)?", m.group(1))
+                ):
+                    stake_pct = float(m.group(1))
                     target_mention = m.group(2).strip()
                 else:
                     target_mention = m.group(1).strip()
+                if (
+                    edge_type == "subsidiary_of"
+                    and stake_pct is not None and stake_pct < 50
+                ):
+                    # G2 holds-below-50%: passive holding, not a subsidiary.
+                    # Tier C drop (see PATTERNS comment).
+                    continue
                 # Strip trailing articles / whitespace junk.
                 target_mention = re.sub(
                     r"\s+(?:the|a|an|its|their|our|in|on|at|to|for|and|or)$",
@@ -1445,6 +1571,8 @@ def extract_relations(  # noqa: C901
                     symmetric=symmetric,
                     valid_from=iso_date,
                 )
+                if stake_pct is not None:
+                    edge.properties["stake_pct"] = stake_pct
                 edges_by_type.setdefault(edge_type, []).append(edge)
 
     # Derive same_group edges from companies that share a group. Only
@@ -1479,25 +1607,24 @@ def _capture_groups(
     body: str, _heading: str, source_entity: str | None,
     group_to_companies: dict[str, set[str]],
 ) -> None:
-    """Record any "part of the X Group" matches against the section's company.
+    """Record group-membership matches against the section's company.
 
-    We key on the GROUP NAME (e.g. "Aditya Birla"), not on the entity, so that
-    multiple companies in the same group cluster together even when one of
-    them isn't a known entity yet.
+    Scans every pattern in ``GROUP_RES`` ("part of the X Group", "<X>
+    promoter group", "flagship of the <X> Group", "<X> Group company",
+    "<X> Group flagship"). We key on the GROUP NAME (e.g. "Aditya Birla"),
+    not on the entity, so that multiple companies in the same group cluster
+    together even when one of them isn't a known entity yet.
     """
-    for m in GROUP_RE.finditer(body):
-        group_name = m.group(1).strip()
-        if not group_name or len(group_name) < 3:
-            continue
-        # Normalise: strip trailing "Corp"/"Group" suffixes that got captured.
-        group_name = re.sub(
-            r"\s+(?:Corp(?:oration)?|Group|Holdings|Industries)$",
-            "", group_name, flags=re.IGNORECASE,
-        ).strip()
-        if not group_name:
-            continue
-        if source_entity:
-            group_to_companies.setdefault(group_name, set()).add(source_entity)
+    for group_re in GROUP_RES:
+        for m in group_re.finditer(body):
+            raw = m.group(1).strip()
+            if not raw or len(raw) < 3:
+                continue
+            group_name = _normalize_group_name(raw)
+            if not group_name:
+                continue
+            if source_entity:
+                group_to_companies.setdefault(group_name, set()).add(source_entity)
 
 
 def _derive_same_group(
@@ -1718,12 +1845,16 @@ _PARALLEL_THRESHOLD = 20
 def _extract_batch(
     file_paths: list[str],
     entity_names: list[str],
-) -> list[tuple[str, str, list[Edge], list[Unresolved], dict[str, int]]]:
+) -> list[tuple[str, str, list[Edge], list[Unresolved], dict[str, int],
+               list[tuple[str, list[str]]]]]:
     """Process a batch of newsletter files in a worker process.
 
     Builds its own EntityResolver from entity_names (cheap; avoids serializing
     the resolver's indexes across the process boundary). Returns per-file
-    results: (display_path, doc_type, edges, unresolved, type_counts).
+    results: (display_path, doc_type, edges, unresolved, type_counts,
+    ambiguities) where ``ambiguities`` lists (mention, tied_candidates)
+    pairs whose fuzzy resolution had equally-scored candidates (Tier-C
+    audit lines — resolution itself is unaffected).
 
     Must be module-level so ProcessPoolExecutor can pickle it.
     """
@@ -1731,12 +1862,13 @@ def _extract_batch(
     results = []
     for fp in file_paths:
         nl_path = Path(fp)
+        ambig_before = len(resolver.ambiguous_log)
         content = nl_path.read_text(encoding="utf-8")
         edition_title = nl_path.stem.replace("_", " ")
         newsletter_type = _newsletter_type_for(nl_path)
         doc_type = _detect_doc_type(content)
         if doc_type == "sector":
-            results.append((str(nl_path), "sector", [], [], {}))
+            results.append((str(nl_path), "sector", [], [], {}, []))
             continue
         source_entity_override = None
         if doc_type == "company":
@@ -1758,7 +1890,9 @@ def _extract_batch(
         )
         type_counts = {et: len(es) for et, es in edges_by_type.items()}
         all_edges = [e for es in edges_by_type.values() for e in es]
-        results.append((str(nl_path), doc_type, all_edges, unresolved, type_counts))
+        ambiguities = resolver.ambiguous_log[ambig_before:]
+        results.append((str(nl_path), doc_type, all_edges, unresolved,
+                        type_counts, ambiguities))
     return results
 
 
@@ -1876,6 +2010,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "--verbose", "-v", action="store_true",
         help="Print every extracted edge in addition to the summary.",
     )
+    p.add_argument(
+        "--counts-json", metavar="PATH", default=None,
+        help=(
+            "Write per-edge-type totals as JSON to PATH (E1 diff-audit "
+            "harness: run once before and once after a pattern change, "
+            "then diff with helpers/misc/relation_diff_audit.py)."
+        ),
+    )
     args = p.parse_args(argv)
 
     # Expand the mix of files / dirs / globs into a flat sorted list of .md
@@ -1902,6 +2044,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     total_unresolved = 0
     total_skipped_fk = 0
     total_skipped_suppressed = 0
+    total_ambiguous = 0
     per_type_totals: dict[str, int] = {}
 
     use_parallel = len(nl_paths) >= _PARALLEL_THRESHOLD
@@ -1937,7 +2080,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         file_results = _extract_batch([str(p) for p in nl_paths], names)
 
     # Reduce phase: apply edges + report (serial, in the parent).
-    for nl_path_str, doc_type, all_edges, unresolved, type_counts in file_results:
+    for (nl_path_str, doc_type, all_edges, unresolved, type_counts,
+         ambiguities) in file_results:
         nl_path = Path(nl_path_str)
         if doc_type == "sector":
             continue
@@ -1945,6 +2089,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         n_extracted = len(all_edges)
         total_extracted += n_extracted
         total_unresolved += len(unresolved)
+        total_ambiguous += len(ambiguities)
         for et, cnt in type_counts.items():
             per_type_totals[et] = per_type_totals.get(et, 0) + cnt
 
@@ -1975,6 +2120,13 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                     f"  ? {u.edge_type:14s}  {u.source}  →  '{u.target_mention}'",
                     file=sys.stderr,
                 )
+            for mention, tied in ambiguities:
+                # Tier-C audit line: fuzzy resolution hit an N-way tie.
+                print(
+                    f"  ~ ambiguous resolve: '{mention}' "
+                    f"(equally scored: {', '.join(tied)})",
+                    file=sys.stderr,
+                )
 
         # Apply (or dry-run count).
         result = apply_edges(all_edges, conn=conn, dry_run=not args.apply)
@@ -2003,8 +2155,26 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             f"skipped_suppressed={total_skipped_suppressed}",
             file=sys.stderr,
         )
+    if total_ambiguous:
+        print(f"      ambiguous_resolves={total_ambiguous}", file=sys.stderr)
     for et in sorted(per_type_totals):
         print(f"  {per_type_totals[et]:4d}  {et}", file=sys.stderr)
+
+    if args.counts_json:
+        import json
+
+        payload = {
+            "files": len(nl_paths),
+            "per_type": dict(sorted(per_type_totals.items())),
+            "total_edges": total_extracted,
+            "total_unresolved": total_unresolved,
+            "total_ambiguous": total_ambiguous,
+        }
+        Path(args.counts_json).write_text(
+            json.dumps(payload, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        print(f"counts written to {args.counts_json}", file=sys.stderr)
     return 0
 
 

@@ -1,7 +1,7 @@
 ---
 title: Hyundai Motor Company
 type: company
-ticker: HYMTF
+ticker: HYUNDAI.NS
 sector: Automotive
 industry: null
 market_cap: large_cap

@@ -1,7 +1,7 @@
 ---
 title: Bajaj Allianz General Insurance
 type: company
-ticker: BAJAJGIC.NS
+ticker: BAJAJFINSV.NS
 sector: Insurance
 industry: null
 market_cap: mid_cap

@@ -1,7 +1,7 @@
 ---
 title: Atlanta Electricals
 type: company
-ticker: BATRK.BO
+ticker: ATLANTAELE.NS
 sector: EMS_Manufacturing
 industry: null
 market_cap: small_cap

@@ -3116,3 +3116,75 @@ Tests: test_report_contents now asserts passing plain steps DO log;
 `make live-invariants` through `run_step` + `write_report` (216 live
 tests, 50.6s, tail captured). ruff + `make types` clean.
 
+
+
+## 152. Market-data resolution pipeline — ticker fallback, terminal classes, resolution-pass hardening
+
+**Date**: 2026-08-25
+**Status**: COMPLETE
+**Proposals**: `doc/improvements/archive/pipeline/market_data_resolution.md`
+(+ absorbed `google_finance_ticker_fallback.md` — both archived)
+
+### What landed
+
+- **Combined resolution pipeline** with a binding doctrine: yfinance is
+  the ONLY bulk source; every other source is failure-path-only,
+  per-target, permanently cached (yfinance fetch cache, GF page cache,
+  BSE search texts, FinnHub query cache, success-only verify cache,
+  entity_gf_map rows).
+- **FinnHub discovery stage** (`finnhub_search.py`): name → Yahoo-format
+  candidates → single-ticker yfinance verify + fuzzy name check +
+  exchange-class guard → writeback (entities.ticker + frontmatter +
+  fetch-cache extension). 11 live writebacks incl. TMPV.NS.
+- **GF fallback tiers** (`googlefinance.py`, `googlesheets_metrics.py`):
+  curated overrides → tier-1 slug swaps → tier-2 BSE PeerSmartSearch;
+  gf_only companies get company_metrics via one Sheets GOOGLEFINANCE
+  batch (2 API calls/sweep), `source_ref='googlefinance:<slug>:<metric>'`.
+- **Terminal classifications**: `entity_ticker_status` table +
+  `--classify`/`--unclassify`; sweeps skip classified dead ends and
+  report them under `[terminal]`.
+- **Hardening (R1)**: FinnHub multi-probe queries (full → first-two →
+  first-word); ticker-ownership guard (blocks the measured Kotak
+  Life→KOTAKBANK.NS sibling collision); stale-target filter
+  ("resolution happens ONCE"; targets 33 → 17 on first re-run).
+
+### Applied outcomes
+
+- Ticker issues: 33 → residue of classified/unresolvable only; 12+
+  permanent writebacks (TMPV.NS, PIRAMALFIN-class fixes, Kinetic
+  500240.BO via multi-probe); Chemcart gf_only metrics via Sheets;
+  Swastika Castal mapped back to Yahoo.
+- Piramal Enterprises ↔ Piramal Finance duplicate resolved by full
+  entity merge into `Piramal Finance` (PIRAMALFIN.NS): edges/events/
+  citations re-pointed, rename-artifact self-loops dropped, Edition #23
+  intelligence preserved in the survivor note; ticker lineage documented
+  in-note. Kotak Mahindra Life Insurance correctly unlisted
+  (`ticker: null` + `listed: false`) + manual subsidiary_of edge to the
+  bank (user-stated). Bonus D4 cleanup: 7 double-direction jv_with pairs
+  collapsed.
+
+**Gates**: 152 targeted tests (12 new) + ruff + ty clean; user ran the
+full manual sequence incl. qa green; database_integrity_check errors=0
+across all sections after merge cleanup.
+
+## 153. Relations 2.0 — E3 semantic_peer, E4 coinfer, E5 holders/institution, E6 API/UI
+
+**Date**: 2026-08-25
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/pipeline/relation_enrichment_sources.md` (E1 prose v2 DONE 2026-08-23, E2 yfinance KNN 3425 DONE 2026-08-24, E3-E6 landed 2026-08-25)
+
+### What landed
+
+- **E3 `semantic_peer` (7776 edges, `k=10`)** — `helpers/graph/query.py: EDGE_REGISTRY semantic_peer → e_semantic_peer (SemanticPeer), _SCHEMA_VERSION 11→12→13`, `v_embeddings` (bge-small-en-v1.5 384d, 1061 rows) via `semantic_neighbors()` per-company top-10 cosine, canonical `_pair` + sym-dedup keep max cosine, `weight 0.5`, `source_ref embeddings:bge-small:v1:<date>` + `properties {cosine,rank,fetched_at}`. `build_semantic_peer_edges() + apply_semantic_peer_edges()` delete-by-prefix `embeddings:%` idempotent, `make graph-rebuild e_semantic_peer=7776`, `integrity 0`.
+- **E4 `coinfer` (478 pending)** — `helpers/maintenance/enrich_relations.py --source coinfer --per-company 3 --threshold` : co_mention weight × `1.5×` same-sector else `1.0` × `(1-existing_edge_penalty)`, top-N per company deterministic, `append_coinfer_suggestions()` → `findata/_pending_relations.txt` Unresolved JSONL `{"edge_type":"suggested","origin":"coinfer","method":"co_mention","edition":"coinfer/<date>","score"}` , dedup vs `graph_edges` (any type) + prior `origin=coinfer` rows, **no graph writes** (verified `graph_edges 16302` unchanged, `82→560` then `0` on second apply, `per_company 1→169, 2→329`).
+- **E5 `invested_in` (715 edges, 205 institutions)** — `yfinance Ticker.institutional_holders` DataFrame (US-only, §4.1; `78` companies with holders, `206` holder names) → `institution` entities `entity_type=institution file_path NULL` dedup `normalized_name` (`INSERT OR IGNORE`, Sanofi company-holder handled via `v_node`/`v_institution` + `_KIND_TO_TABLE` mixed-source fix), `invested_in` directed `institution→company` `weight 3.0 if pct≥5% else 1.0`, `source_ref yfinance:holders:<date>`, `properties {pctHeld,shares,value,fetched_at}`, `valid_from=dateReported`, `DELETE ... LIKE 'yfinance:holders:%'` idempotent. `helpers/graph/query.py: EDGE_REGISTRY invested_in (e_invested, institution_name→company_name, InvestedIn)`, `v_institution` + `v_node IN (institution)` + `_SCHEMA_VERSION 12→13`, `database_integrity_check` allowlist + noteless exemption.
+- **E6 API/UI** — `helpers/misc/database_integrity_check.py` allowlist `semantic_peer, invested_in`, `app.py _EDGE_SEMANTICS cited_in/semantic_peer/invested_in`, `static/tokens.css --edge-cited-in/--edge-semantic-peer #8AD7C6/--edge-invested-in #E0A93E`, `frontend/src/views/graph.ts _EDGE_TOKENS` + `frontend/types/api.ts CompanyNeighbors.semantic_peers?/invested_by?`, `e_all_und/e_dir` substrates auto-include via `EDGE_REGISTRY`.
+
+### Applied outcomes
+
+- `E3 --apply` 7776 inserted (threshold 0.0, `≤13k` band), `dry-run warm 0 fresh`, deterministic re-run `7776`.
+- `E4 --apply --per-company 3` 478 appended (42 same-sector only at `threshold 1.4`), `no graph writes`, idempotent.
+- `E5 --apply` 715 `invested_in` + 205 `institution` (`1 normalized collision, 1 Sanofi already company`), `78` companies, `valid_from 715`, second apply `0 fresh`.
+- `make graph-rebuild` → `16 e_*` + `v_institution`, `integrity 0` (`semantic_peer 7776, invested_in 715`), `233` targeted tests (`65 enrich + 12 suggest + 85 api + …`), `tsc/build` pass.
+
+**Gates**: `database_integrity_check` 0, `graph rebuild` clean, `pytest -q 233` + `frontend-check` + `ruff` clean.

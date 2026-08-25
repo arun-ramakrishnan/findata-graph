@@ -1,7 +1,7 @@
 ---
 title: Linc Pen & Plastics
 type: company
-ticker: LINCPEN.BO
+ticker: LINC.NS
 sector: Consumer
 industry: null
 market_cap: small_cap

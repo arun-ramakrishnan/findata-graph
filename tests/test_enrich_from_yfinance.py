@@ -20,7 +20,6 @@ from helpers.maintenance.enrich_from_yfinance import (  # noqa: E402
     _update_frontmatter,
     _insert_profile_section,
     write_metrics,
-    write_competitor_edges,
     get_stale_companies,
     get_enriched_companies,
     SOURCE_REF,
@@ -305,37 +304,10 @@ def test_write_metrics_replaces_old():
 
 
 # ---------------------------------------------------------------------------
-# write_competitor_edges — in-memory DB
-# ---------------------------------------------------------------------------
-def _make_edges_db():
-    conn = sqlite3.connect(":memory:")
-    conn.execute("""
-        CREATE TABLE graph_edges (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source TEXT, target TEXT, edge_type TEXT,
-            weight REAL, properties TEXT, source_ref TEXT,
-            symmetric INTEGER DEFAULT 0,
-            UNIQUE(source, target, edge_type)
-        )
-    """)
-    return conn
-
-
-def test_write_competitor_edges_creates_pairs():
-    conn = _make_edges_db()
-    name_to_industry = {"Co A": "Banking", "Co B": "Banking", "Co C": "Tech"}
-    inserted = write_competitor_edges(conn, name_to_industry)
-    # Only Co A and Co B share "Banking" → 1 edge
-    assert inserted >= 1
-    edges = conn.execute("SELECT * FROM graph_edges WHERE edge_type='competes_with'").fetchall()
-    assert len(edges) == 1
-
-
-def test_write_competitor_edges_no_pairs():
-    conn = _make_edges_db()
-    name_to_industry = {"Co A": "Banking", "Co B": "Tech"}
-    inserted = write_competitor_edges(conn, name_to_industry)
-    assert inserted == 0
+# write_competitor_edges was RETIRED in E2 (2026-08-24) — the dead clique
+# path never effectively applied and is superseded by the bounded-KNN
+# topology in helpers/maintenance/enrich_relations.py (see
+# tests/test_enrich_relations.py for its coverage).
 
 
 # ---------------------------------------------------------------------------

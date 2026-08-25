@@ -1,8 +1,8 @@
 ---
 title: Gulf Oil International
 type: company
-ticker: null
-listed: false
+ticker: GULFOILLUB.NS
+listed: true
 sector: Energy
 market_cap: mid_cap
 geography: global
