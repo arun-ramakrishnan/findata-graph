@@ -5,7 +5,8 @@
 # These patterns are downgraded to warnings (advisory) so real type bugs in
 # test code still surface as errors while known test idioms don't.
 #
-# Usage:  ty check tests --extra-search-path helpers ... --config-file ty.tests.toml
+# Usage:  make types-tests   (or the make advisory ty-tests step, which calls
+#         the same target; it owns the --extra-search-path flag list)
 
 [environment]
 python-version = "3.14"

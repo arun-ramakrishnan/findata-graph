@@ -5,7 +5,10 @@
 #
 # File selection:
 #   make qa / make types  →  `ty check helpers app.py`  (gate-failing, production only)
-#   make advisory          →  `ty check tests --extra-search-path helpers`  (non-gating)
+#   make types-tests      →  `ty check tests --extra-search-path helpers …
+#                             --config-file ty.tests.toml`  (non-gating; the
+#                             make advisory ty-tests step calls this target —
+#                             it is the single source of truth for the flags)
 #
 # Tests are excluded from the qa gate because they use sys.path.insert,
 # monkeypatching, and mock proxies that ty cannot reason about statically.

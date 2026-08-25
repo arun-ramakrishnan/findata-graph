@@ -83,6 +83,7 @@ checked before parent catch-alls during classification
 |---|---|
 | `doc/procedures/markdown_parse.md` | the ingestion procedure the agent follows |
 | `doc/procedures/embeddings.md` | local-embeddings apply/pre-warm procedure + new-letter refresh model |
+| `doc/procedures/script-search.md` | script metadata index (what each helper/test/make target is FOR; `script_query.py`) |
 | `helpers/core/local_embedder.py` | the one embedder module (bge-small-en-v1.5; owns the BGE query/document prefix rule) |
 | `helpers/core/parse_newsletter.py` | orchestrates ingestion Stages 0–3 + 5–6 (images, entities, tickers, DB writes, validation); Stage 4 (commentary lift) stays manual via `<slug>_enhancement_worklist.json` |
 | `helpers/core/get_tickers.py` | name → NSE/BSE ticker via Yahoo (prefer `.NS` over `.BO`) |

@@ -57,6 +57,14 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     ("rebuild_doc_search",   ["helpers/maintenance/rebuild_doc_search.py", "--check"], 2.0),
     ("doc_query",            ["helpers/misc/doc_query.py", "embed cache sidecar",
                               "--limit", "5"], 3.0),
+    # script-search pair (2026-08-25, script_metadata_search): same doctrine
+    # as the doc-search pair — machine-local sidecar memory/script_search.db;
+    # perf is the single home for the rc gate (code edits land between maint
+    # cycles and would redden qa constantly). Warm: --check ≈0.5s, query
+    # ≈0.6s incl. model load; refresh per doc/procedures/script-search.md.
+    ("rebuild_script_search", ["helpers/maintenance/rebuild_script_search.py", "--check"], 2.0),
+    ("script_query",          ["helpers/misc/script_query.py", "database integrity",
+                               "--limit", "5"], 3.0),
     ("derive_insights",      ["helpers/graph/derive_insights.py"], 4.0),
     ("parse_newsletter",     ["helpers/core/parse_newsletter.py",
                               "findata/The_Chatter/Embracing_the_Unknown.md"], 3.0),

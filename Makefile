@@ -16,7 +16,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild relations-enrich lint types lint-audit deptry advisory secret-scan analytics suggest-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -52,6 +52,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt"
 > @echo "  qa                       Run lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
+> @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
 > @echo "  secret-scan              Incremental git-history secret scan (state under .git/secret-scan/)"
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
 > @echo "  snapshot-check           Verify the snapshot round-trips against the live DB"
@@ -62,6 +63,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  sync-tags                Rebuild entity_tags from note YAML (mirrors entity_type/sector/market_cap/subsector)"
 > @echo "  test                     pytest unit tests only (no live DB, no slow benchmarks)"
 > @echo "  types                    Run ty type checker on helpers + app.py (Astral uv+ruff stack)"
+> @echo "  types-tests              Run EXPANDED ty checks over tests/ (advisory-grade, warnings non-blocking; the make advisory ty-tests step calls THIS target)"
 > @echo "  update-extensions        Update all installed DuckDB extensions to latest (weekly cadence)"
 
 static-checks:  ## Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)
@@ -172,6 +174,10 @@ secret-scan: ## Incremental git-history secret scan (state under .git/secret-sca
 > python3 helpers/misc/git_secret_scan.py
 > @echo "✓ Secret scan complete (incremental; state: .git/secret-scan/state.json)"
 
+script-search-rebuild: ## Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)
+> python3 helpers/maintenance/rebuild_script_search.py
+> @echo "✓ script_search index rebuilt (memory/script_search.db; gate: make perf)"
+
 recompute-graph: ## Recompute all graph analytics and persist to graph_analytics
 > python3 helpers/graph/algorithms.py --all --apply
 > @echo "✓ graph_analytics refreshed (degree, pagerank, betweenness, louvain, ..., link_prediction)"
@@ -259,6 +265,18 @@ lint:           ## Run ruff linter (replaces flake8)
 
 types:          ## Run ty type checker on helpers + app.py (Astral uv+ruff stack)
 > ty check helpers app.py
+
+# The EXPANDED ty surface (tests/): single source of truth for the exact
+# extra-search-path flag soup + ty.tests.toml config — run it standalone
+# after a major feature instead of reconstructing the command
+# (tests/run_gate_report.py's advisory ty-tests step calls THIS target).
+# Distinct from `make types` (qa-gated, production code only): tests use
+# sys.path bootstraps + mock proxies ty can't reason about statically, so
+# known test idioms are downgraded to warnings (non-blocking, --exit-zero-
+# on-warning); real type errors in test code still exit non-zero here.
+types-tests:    ## Run EXPANDED ty checks over tests/ (advisory-grade, warnings non-blocking; the make advisory ty-tests step calls THIS target)
+> ty check tests --extra-search-path helpers --extra-search-path helpers/core --extra-search-path helpers/maintenance --extra-search-path helpers/misc --config-file ty.tests.toml --exit-zero-on-warning
+> @echo "✓ ty expanded test checks passed (warnings non-blocking; config: ty.tests.toml)"
 
 lint-audit:     ## Run ruff S/UP/C901 audits (security + modernization + complexity) — Bandit/Refurb/Radon equivs
 > ruff check --select S,UP,C901 .

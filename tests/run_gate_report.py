@@ -127,18 +127,12 @@ GATES: dict[str, Gate] = {
     # The advisory recipe: the ty-tests line never blocks (was `|| true`);
     # every step runs even after a failure (all gates are run-all now);
     # integration re-enters this runner so advisory runs also append to
-    # integration_report.txt.
+    # integration_report.txt. ty-tests delegates to the `types-tests` make
+    # target — the single source of truth for the extra-search-path flag
+    # list + ty.tests.toml config (standalone-invocable after a feature).
     "advisory": Gate(
         steps=(
-            Step("ty-tests",
-                 (_TY, "check", "tests",
-                  "--extra-search-path", "helpers",
-                  "--extra-search-path", "helpers/core",
-                  "--extra-search-path", "helpers/maintenance",
-                  "--extra-search-path", "helpers/misc",
-                  "--config-file", "ty.tests.toml",
-                  "--exit-zero-on-warning"),
-                 nonblocking=True),
+            Step("ty-tests", (_MAKE, "types-tests"), nonblocking=True),
             Step("live-invariants", (_MAKE, "live-invariants")),
             Step("frontend-check", (_MAKE, "frontend-check")),
             Step("graph-algos", (_MAKE, "graph-algos")),
