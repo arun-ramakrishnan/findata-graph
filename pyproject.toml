@@ -35,8 +35,12 @@ dependencies = [
     "pyarrow",
     # DataFrame exports (helpers/maintenance/snapshot_db.py).
     "pandas",
-    # OCR Pipeline (helpers/pdf/pdf_conv_md.py).
+    # PDF pipeline (helpers/pdf/pdf_conv_md.py + helpers/pdf/pdf_local.py):
+    # requests for the Paddle API engine; pymupdf4llm for the local no-OCR
+    # engine (default, local-first per operator decision 2026-08-26).
     "requests",
+    "pymupdf4llm",
+    "pymupdf",  # imported directly (Pixmap/text-layer guard), not just transitively
     # sqlite-vec vector index for note_search hybrid ranking (A1,
     # helpers/core/vec_search.py). Loaded per-connection exactly like
     # sqlite-spellfix above; KNN degrades to a Python cosine fallback when

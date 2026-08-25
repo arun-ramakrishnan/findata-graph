@@ -977,16 +977,21 @@ def _cmd_check(
 def _cmd_create(
     db_path: Path,
     out_path: Path,
-    duckdb_path: Path,
-    duckdb_out: Path,
-    parquet_base: Path,
-    parquet_sqlite_dir: Path,
-    parquet_duckdb_dir: Path,
+    duckdb_path: Path | None,
+    duckdb_out: Path | None,
+    parquet_base: Path | None,
+    parquet_sqlite_dir: Path | None,
+    parquet_duckdb_dir: Path | None,
     fmt: str,
     with_duckdb: bool,
     logger: logging.Logger,
 ) -> int:
-    """Default: create the snapshot (binary / parquet / both) and verify."""
+    """Default: create the snapshot (binary / parquet / both) and verify.
+
+    The duckdb/parquet paths are format-optional: they are only touched
+    inside the ``with_duckdb`` / ``fmt in ("parquet", "both")`` branches,
+    so binary-only callers (and tests) legitimately pass ``None``.
+    """
     ok = True
 
     # --- Binary (gzip) snapshot ---
@@ -1010,14 +1015,17 @@ def _cmd_create(
         else:
             logger.info("Vec sidecar absent — gzip backup skipped (%s)", vec_path)
         if with_duckdb:
+            assert duckdb_path is not None and duckdb_out is not None
             create_duckdb_snapshot(duckdb_path, duckdb_out, logger)
             rd = verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)
             ok = ok and rd["match"]
 
     # --- Parquet snapshot ---
     if fmt in ("parquet", "both"):
+        assert parquet_base is not None and parquet_sqlite_dir is not None
         export_parquet_sqlite(db_path, parquet_sqlite_dir, logger)
         if with_duckdb:
+            assert duckdb_path is not None and parquet_duckdb_dir is not None
             export_parquet_duckdb(duckdb_path, parquet_duckdb_dir, logger)
         rp = verify_parquet_snapshot(
             parquet_base,

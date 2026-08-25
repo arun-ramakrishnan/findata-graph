@@ -102,16 +102,24 @@ sectors   = re.findall(r'#(?:Banking|Healthcare|Technology)', content)
 
 ## PDF → Markdown
 
-When the input is a source PDF (rather than an existing newsletter markdown), convert it first. `helpers/pdf/pdf_conv_md.py` submits the PDF to the Paddle AI Studio PP-StructureV3 job API, polls for completion, and writes a The_Chatter-style `.md` **plus** the figures already downloaded and embedded — so a PDF input skips the [Image Capture](#image-capture) step entirely.
+When the input is a source PDF (rather than an existing newsletter markdown), convert it first. `helpers/pdf/pdf_conv_md.py` is **local-first** (2026-08-26): by default (`--engine auto`) it parses the PDF locally with pymupdf4llm — no OCR, no API key, ~3s per PDF — and falls back to the Paddle AI Studio PP-StructureV3 job API only when the local engine refuses the PDF (no usable text layer, i.e. a true scan). Either engine writes a The_Chatter-style `.md` **plus** the figures already downloaded/copied and embedded — so a PDF input skips the [Image Capture](#image-capture) step entirely. The note frontmatter records which engine ran (`generated.by: pdf_conv_md.py/pymupdf4llm-X.Y.Z` vs `.../PP-StructureV3`).
 
 **Destination directory — always ask the user.** The `<output_dir>` argument is explicit and required; there is no safe way to infer it. Ask the user which directory to write into (a newsletter dir like `findata/The_Chatter/`, or any other path they choose) before running the converter, and use exactly that.
 
 ```bash
-# Convert a PDF into <output_dir>; requires PADDLE_API_KEY in the environment.
+# Convert a PDF into <output_dir> (local engine by default; no API key needed).
 python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir>
 
-# Optional flags: --model <name> --token <key> --timeout <sec> --no-images
+# Force an engine: local (error out on scanned PDFs) or paddle (OCR; needs PADDLE_API_KEY).
+python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine local
+python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine paddle
+
+# Paddle-only flags: --model <name> --token <key> --timeout <sec>; --no-images works for both.
 ```
+
+After every conversion the script **self-verifies** (skip with `--no-verify`): per-page coverage of the `.json` vs the PDF text layer, document coverage of the `.md`, md↔json page consistency, a ≥3-digit number audit, and wikilink integrity. The verdict prints with the summary (WARN passes — it flags e.g. a lost number-range dash; FAIL exits 1) and the full manifest lands beside the note as `<stem>.verify.json` (sha256 of source + md, engine, per-page metrics).
+
+Local-engine fidelity (7-PDF trial, `doc/local/local_pdf_engine_trial.md`): word recall 96–98.6% vs the reference notes; residual diffs are dropped footer ads, reference OCR artifacts, and two minor glyph quirks (`seri`, `Ufex`). Known-good heading contract: company sections come out as `## Name | Cap | Sector` (wrapper-stripped, sector-glue split, bold-body headings rescued) — `parse_newsletter.py` sees the same sections as for Paddle-derived notes.
 
 Outputs (written under the user-chosen `<output_dir>`, e.g. `findata/The_Chatter/` for a Chatter edition):
 
@@ -121,7 +129,7 @@ Outputs (written under the user-chosen `<output_dir>`, e.g. `findata/The_Chatter
 
 The script names images exactly like [Image Capture](#convention) does (`.jpeg`, `<slug>_p{page}_img{N}`), so downstream stages (embedding figures into company notes in Stage 4) work identically whether the newsletter came from a PDF or was captured later. `--no-images` skips the download and leaves absolute `<img src=...>` URLs in the markdown.
 
-> **The Chatter / Points & Figures / Plotlines editions are OCR'd PDFs.** If you have the PDF, use this converter and skip image capture. Only fall back to [Image Capture](#image-capture) for an existing markdown whose figures are still remote URLs.
+> **The Chatter / Points & Figures / Plotlines PDFs are born-digital** (real text layers — verified on all in-tree `Reports/*.pdf`, 2026-08-25), so the local engine handles them; the Paddle OCR path exists for true scans. If you have the PDF, use this converter and skip image capture. Only fall back to [Image Capture](#image-capture) for an existing markdown whose figures are still remote URLs.
 
 ## Image Capture
 

@@ -19,13 +19,24 @@ Usage
 
 Options
 -------
-    --model PP-StructureV3   model name (default: PP-StructureV3)
-    --token TOKEN            API token (required unless PADDLE_API_KEY is set
-                             in memory/.env or the environment)
-    --timeout SECONDS        max wall-clock time to wait for the job
+    --engine ENGINE          auto (default) | local | paddle. auto runs the
+                             LOCAL no-OCR engine first (no API key needed;
+                             born-digital PDFs only) and falls back to the
+                             Paddle API when the local engine refuses a PDF
+                             (no usable text layer). local/paddle force one
+                             engine. Trial: doc/local/local_pdf_engine_trial.md
+    --model PP-StructureV3   Paddle model name (default: PP-StructureV3)
+    --token TOKEN            Paddle API token (required for the Paddle engine
+                             unless PADDLE_API_KEY is set in memory/.env or
+                             the environment)
+    --timeout SECONDS        max wall-clock time to wait for a Paddle job
                              (default: 600)
     --no-images              skip downloading embedded images (leaves the
                              absolute <img src=...> URLs in the markdown)
+    --no-verify              skip the post-conversion self-check (coverage
+                             vs the PDF text layer, number audit, wikilink
+                             integrity; writes <stem>.verify.json and prints
+                             a verdict — WARN passes, FAIL exits 1)
 """
 
 from __future__ import annotations
@@ -34,7 +45,9 @@ import argparse
 import json
 import os
 import re
+import shutil
 import sys
+import tempfile
 import time
 from pathlib import Path
 from urllib.parse import urlparse
@@ -42,6 +55,14 @@ from urllib.parse import urlparse
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from helpers.pdf.common import slugify  # noqa: E402
+from helpers.pdf.pdf_local import (  # noqa: E402
+    ENGINE_LABEL as LOCAL_ENGINE_LABEL,
+    LocalRefusalError,
+    convert as convert_local,
+)
+from helpers.pdf.verify_extraction import (  # noqa: E402
+    verify as verify_extraction,
+)
 from helpers.core.env import load_memory_env
 from helpers.core.frontmatter import (  # noqa: E402
     iso_now_utc,
@@ -348,6 +369,10 @@ def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: boo
             img_dir.mkdir(parents=True, exist_ok=True)
             for rel, item in plan.items():
                 dest = img_dir / item["filename"]
+                local_src = Path(item["url"])
+                if local_src.is_file():  # local engine: copy, no network
+                    shutil.copy2(local_src, dest)
+                    continue
                 try:
                     r = requests.get(item["url"], timeout=60)
                     r.raise_for_status()
@@ -376,47 +401,88 @@ def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: boo
         print(f"images downloaded: {n} -> {img_dir}")
 
 
-def main() -> int:
+def _convert_paddle(pdf_path: Path, args: argparse.Namespace) -> list[dict]:
+    """The Paddle API path (submit, poll, download, parse)."""
     load_memory_env()  # memory/.env may supply PADDLE_API_KEY
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
-    ap.add_argument("source_pdf", help="path to the source PDF file")
-    ap.add_argument("output_dir", help="directory to store the results in")
-    ap.add_argument("--model", default=DEFAULT_MODEL)
-    ap.add_argument("--token", default=os.environ.get("PADDLE_API_KEY"))
-    ap.add_argument("--timeout", type=int, default=600)
-    ap.add_argument("--no-images", action="store_true")
-    args = ap.parse_args()
-
+    args.token = args.token or os.environ.get("PADDLE_API_KEY")
     if not args.token:
-        print(
-            "error: no API token: set PADDLE_API_KEY or pass --token",
-            file=sys.stderr,
+        raise SystemExit(
+            "error: no API token: set PADDLE_API_KEY or pass --token"
         )
-        return 1
-
-    pdf_path = Path(args.source_pdf)
-    if not pdf_path.is_file():
-        print(f"error: not found: {pdf_path}", file=sys.stderr)
-        return 1
-
     optional_payload = {
         "useDocOrientationClassify": False,
         "useDocUnwarping": False,
         "useChartRecognition": False,
     }
-
     print(f"submitting {pdf_path.name} to model {args.model} ...")
     job_id = submit_job(pdf_path, args.token, args.model, optional_payload)
     print(f"job id: {job_id}")
     jsonl_url = poll_job(job_id, args.token, args.timeout)
     lines = download_jsonl(jsonl_url)
     print(f"result lines: {len(lines)}")
+    return parse_pages(lines)
 
-    pages = parse_pages(lines)
-    stem = slugify(pdf_path.stem)
-    fm = build_okf_frontmatter(pages, pdf_path, args.model, stem,
-                               out_dir=Path(args.output_dir))
-    write_outputs(pages, Path(args.output_dir), stem, not args.no_images, fm)
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
+    ap.add_argument("source_pdf", help="path to the source PDF file")
+    ap.add_argument("output_dir", help="directory to store the results in")
+    ap.add_argument(
+        "--engine", choices=("auto", "local", "paddle"), default="auto",
+        help="auto (default): local no-OCR engine first, Paddle API fallback "
+             "when it refuses (scanned/no-text PDF); local/paddle force one",
+    )
+    ap.add_argument("--model", default=DEFAULT_MODEL)
+    ap.add_argument("--token", default=os.environ.get("PADDLE_API_KEY"))
+    ap.add_argument("--timeout", type=int, default=600)
+    ap.add_argument("--no-images", action="store_true")
+    ap.add_argument("--no-verify", action="store_true",
+                    help="skip the post-conversion self-check")
+    args = ap.parse_args()
+
+    pdf_path = Path(args.source_pdf)
+    if not pdf_path.is_file():
+        print(f"error: not found: {pdf_path}", file=sys.stderr)
+        return 1
+
+    # Local-first (2026-08-26, operator decision Q1): try the no-OCR local
+    # engine before the Paddle API. The images map points into tmpdir, so
+    # write_outputs must run inside its lifetime.
+    pages: list[dict] | None = None
+    engine_label = ""
+    tmpdir: tempfile.TemporaryDirectory[str] | None = None
+    try:
+        if args.engine in ("auto", "local"):
+            tmpdir = tempfile.TemporaryDirectory(prefix="pdf_local_")
+            try:
+                pages = convert_local(pdf_path, Path(tmpdir.name) / "imgs")
+                engine_label = LOCAL_ENGINE_LABEL
+                print(f"parsed locally with {engine_label}")
+            except LocalRefusalError as e:
+                if args.engine == "local":
+                    print(f"error: local engine refused: {e}", file=sys.stderr)
+                    return 1
+                print(f"  local engine refused ({e}) — falling back to Paddle")
+        if pages is None:
+            engine_label = args.model
+            pages = _convert_paddle(pdf_path, args)
+
+        stem = slugify(pdf_path.stem)
+        fm = build_okf_frontmatter(pages, pdf_path, engine_label, stem,
+                                   out_dir=Path(args.output_dir))
+        write_outputs(pages, Path(args.output_dir), stem, not args.no_images, fm)
+    finally:
+        if tmpdir is not None:
+            tmpdir.cleanup()
+
+    if not args.no_verify:
+        from helpers.pdf.verify_extraction import summarize
+        manifest = verify_extraction(pdf_path, Path(args.output_dir), stem)
+        print(summarize(manifest))
+        if manifest["verdict"] == "FAIL":
+            print(f"error: verification FAILED — see {stem}.verify.json",
+                  file=sys.stderr)
+            return 1
     return 0
 
 

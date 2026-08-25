@@ -3218,3 +3218,45 @@ across all sections after merge cleanup.
 - **Wiring**: markdown_parse.md Stage 9 triage loop documented; 3 scratch files gitignored; 12 tests.
 
 **Applied outcomes**: live 689-line backlog → report: 478 suggested | 69 prose | 142 dupes absorbed; buckets 29 discard / 23 alias / 7 stub / 10 manual; decisions annotated (39 rows: 29 discard, 8 skip, 2 stub), apply pending user.
+
+## 156. Local PDF conversion engine (local-first, pymupdf4llm)
+
+**Date**: 2026-08-26
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/pipeline/local_pdf_conversion_fallback.md`
+
+### What landed
+
+- **Local engine** `helpers/pdf/pdf_local.py`: `convert(pdf, img_dir)` produces the SAME `pages` shape as `parse_pages()` (markdown text + images map), so `write_outputs`/`plan_images`/`to_wikilinks`/OKF frontmatter are engine-agnostic. Normalizations (tuned on the 7-PDF trial): heading wrapper strip + sector-glue split + bold-body heading rescue (Delhivery-class); picture-text blocks dropped (Q2 — trial: only ad/footer/badge text); running headers/footers, page numbers, date lines, title repeats, duplicate URLs dropped; decoration filter ≥150px AND ≥8KB (Q3); scanned-PDF guard (`LocalRefusalError` at <100 chars/page — never OCRs).
+- **Wiring** `pdf_conv_md.py --engine auto|local|paddle`, default **auto = local-first** (operator decision Q1, 2026-08-26), Paddle fallback on refusal; `write_outputs` copies local image files instead of `requests.get` when the images-map value is an existing path; frontmatter `generated.by: pdf_conv_md.py/pymupdf4llm-1.28.2` records the real engine; Paddle token check moved into the Paddle branch (local needs no key).
+- **Deps**: `pymupdf4llm` + `pymupdf` (direct Pixmap import) declared in pyproject. pdfmux evaluated and rejected (no image extraction; pins pymupdf4llm<1.0; loose PASS verification — coverage number noted, gate not trusted).
+- **Tests**: 15 (test_pdf_local.py: transforms, image filter, refusal guard, pages shape) + 1 write_outputs local-copy; 56 total across the three pdf test modules.
+
+**Applied outcomes**: all 7 Reports PDFs convert locally in ~3–8s each (no API, no key); word recall vs reference notes 96.05–98.60% (same as trial); company headings 7/7 complete, 4/7 exact match with refs (diffs = fuller legal names, guest-essay heading, one pymupdf glyph `Ufex`→`Uflex`); images keep the `<slug>_p{page}_img{N}.jpeg` convention so Stage-4 figure embedding is unchanged.
+
+## 157. Post-conversion verification (verify_extraction)
+
+**Date**: 2026-08-26
+**Status**: COMPLETE
+**Follows**: #156 (local-first engine); pdfmux-inspired, stronger where pdfmux admitted a gap (its "unsegmented extraction" could not do per-page silent-drop detection; our json output IS page-segmented).
+
+### What landed
+
+- **Script** `helpers/pdf/verify_extraction.py` + CLI (`<source.pdf> <output_dir> [--stem --warn-below --fail-below --quiet]`): verifies BOTH artifacts against the PDF text layer — per-page word-multiset coverage source→json; doc coverage source→md (md body after frontmatter strip — downstream pipelines consume the md); **md↔json per-page consistency** (rendering-stage drops: json healthy, md missing a page → FAIL naming the pages); number audit (≥3-digit numbers source→md; ≤2-digit = pagination/ad noise, counted separately); wikilink integrity; sha256 manifest of source+md+engine → `<stem>.verify.json`. Exit 0 PASS/WARN, 1 FAIL.
+- **Thresholds** (tuned on the 7-PDF corpus): WARN page <0.85 / FAIL <0.50 for pages ≥150 src words (ad pages 41–138 words skip page thresholds; numbers audit still covers them); doc WARN <0.95 / FAIL <0.90 (healthy 96.7–97.3%; gutted-company test lands 84.2%); md↔json <0.98 = FAIL after image-markup stripping (json `<img>` divs vs md wikilinks compare as equal).
+- **Wiring**: `pdf_conv_md.py` runs the verification after write_outputs (default on; `--no-verify` skips); FAIL exits 1. Converter output gains `<stem>.verify.json` beside the existing `<stem>.json` debug artifact.
+- **Tests**: 12 (canon helpers, PASS round-trip, gutted-md FAIL via doc+md/json signals, broken wikilink, significant-number WARN, small-number noise, ad-page skip, dropped-page FAIL, image-markup-insensitive md/json consistency).
+
+**Applied outcomes**: 7/7 corpus PASS (1 WARN: Dixon's real `25,000-27,000` dash-loss — correct signal); md-only gutting of RBI_3M's 3M section → `FAIL: doc coverage 84.2%, md/json mismatch on page(s) [8, 9, 10, 11]` — page-precise, the thing pdfmux could not do.
+
+## 160. types-tests zero-warning (snapshot_db signature truth)
+
+**Date**: 2026-08-26
+**Status**: COMPLETE
+**Motivation**: `make types-tests` warnings were advisory; the last 10 all came from one untruthful signature.
+
+### What landed
+
+- All 10 remaining diagnostics were `invalid-argument-type` at tests/test_snapshot_db.py:324,337 — `None` passed into five `_cmd_create` params declared plain `Path`. Root fix: those params (duckdb_path, duckdb_out, parquet_base, parquet_sqlite_dir, parquet_duckdb_dir) are format-optional — only touched inside the `with_duckdb` / `fmt in ("parquet","both")` branches — and are now typed `Path | None` with the contract documented in the docstring; narrowing asserts inside the two branches satisfy ty's checker (guard variable ≠ value variable).
+
+**Applied outcomes**: `make types-tests` — zero diagnostics (was 10; 14 at the #152-era cleanup). `make types`, snapshot tests (17), ruff, `snapshot_db --check` all green. Memory updated with the reusable pattern: fix the production signature to the real contract + branch asserts — never dummy paths or per-line ignores.

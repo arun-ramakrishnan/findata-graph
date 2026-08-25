@@ -272,3 +272,27 @@ def test_resolve_markdown_leaves_unknown_imgs():
 def test_resolve_markdown_no_imgs():
     md = "# hello"
     assert resolve_markdown(md, {}) == md
+
+
+# ---------------------------------------------------------------------------
+# write_outputs: local-engine image copy branch (no network)
+# ---------------------------------------------------------------------------
+def test_write_outputs_copies_local_engine_images(tmp_path):
+    src = tmp_path / "raw_img.jpeg"
+    src.write_bytes(b"\xff\xd8fake-jpeg-bytes")
+    pages = [
+        {
+            "prunedResult": None,
+            "markdown": {
+                "text": '<div style="text-align: center;"><img src="imgs/img1"/></div>',
+                "images": {"imgs/img1": str(src)},
+            },
+            "outputImages": [],
+            "inputImage": None,
+        }
+    ]
+    write_outputs(pages, tmp_path / "out", "note", fetch_images=True)
+    copied = tmp_path / "out" / "images" / "note_p1_img1.jpeg"
+    assert copied.read_bytes() == b"\xff\xd8fake-jpeg-bytes"
+    md = (tmp_path / "out" / "note.md").read_text(encoding="utf-8")
+    assert "![[images/note_p1_img1.jpeg]]" in md
