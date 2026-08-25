@@ -139,6 +139,21 @@ CREATE TABLE company_embeddings (
             CHECK (json_array_length(embedding) = 384)
         );
 
+CREATE TABLE entity_gf_map (
+    entity_name TEXT PRIMARY KEY,
+    gf_slug TEXT NOT NULL,
+    kind TEXT NOT NULL CHECK (kind IN ('yahoo_mapped_back', 'gf_only')),
+    resolved_at TEXT NOT NULL,
+    verified_name TEXT NOT NULL
+);
+
+CREATE TABLE entity_ticker_status (
+    entity_name TEXT PRIMARY KEY,
+    status TEXT NOT NULL CHECK (status IN ('delisted', 'amalgamated')),
+    successor TEXT,
+    decided_at TEXT NOT NULL
+);
+
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 
 CREATE INDEX idx_entities_sector_classification ON entities(sector_classification);

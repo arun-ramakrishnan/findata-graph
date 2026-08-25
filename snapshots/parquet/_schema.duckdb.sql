@@ -22,7 +22,11 @@ CREATE TABLE e_group(a_name BIGINT, b_name BIGINT, weight VARCHAR, properties VA
 
 CREATE TABLE e_has(sector_name BIGINT, company_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
+CREATE TABLE e_invested(institution_name BIGINT, company_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
+
 CREATE TABLE e_jv(a_name BIGINT, b_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
+
+CREATE TABLE e_semantic_peer(a_name BIGINT, b_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
 CREATE TABLE e_subsidiary(subsidiary_name BIGINT, parent_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
@@ -33,6 +37,8 @@ CREATE TABLE v_company(id BIGINT, "name" VARCHAR, sector_classification VARCHAR,
 CREATE TABLE v_edition(id BIGINT, "name" VARCHAR);
 
 CREATE TABLE v_embeddings(company_name VARCHAR, id BIGINT, embedding FLOAT[]);
+
+CREATE TABLE v_institution(id BIGINT, "name" VARCHAR);
 
 CREATE TABLE v_node(id BIGINT, "name" VARCHAR, kind VARCHAR, sector_classification VARCHAR, market_cap VARCHAR, ticker VARCHAR);
 
