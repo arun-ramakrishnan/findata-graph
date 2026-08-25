@@ -18,7 +18,7 @@ tags:
 - risk_investment/cyclical
 - investment_theme/financial_inclusion
 created: '2025-11-16'
-last_modified: '2026-08-16'
+last_modified: '2026-08-25'
 generated:
   by: process:okf_backfill
   at: '2026-08-16T00:00:00Z'
@@ -255,3 +255,20 @@ A bank-only cross-edition synthesis (distinct from the broader Financial_Service
 ---
 
 *Last updated: November 2025; synthesis appended Jul 2026*
+
+## The Chatter — RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More
+
+**System strength reframed:** Indian banking is well capitalised (CRAR 17.7%), profitable (PAT > ₹4 lakh crore) and clean (GNPA 1.8%) — but the Deputy Governor argues contribution must be judged by whom finance reaches, not balance-sheet size.
+
+**The inclusion gap:** Fresh businesses entering the formal credit system fell from 52% (2022-23) to 42% (2025-26) even as commercial credit grew ~14% — data and analytics are getting better at serving those the system already knows faster than at understanding the never-served.
+
+**Credit invisibles:** 'We don't know' must not be treated as 'we know it's bad' — GST filings, utility payments, e-commerce records and geospatial data plus AI are the route to bring credit-invisible borrowers in.
+
+**Productivity redefined:** Not cost-to-income ratios — reaching borrowers previously unreachable, resolving grievances, pricing risk better; AI that only compresses cost 'automates the existing system rather than improves it'.
+
+**AI governance stack:** Human accountability for every material automated decision, disclosure when customers face machines, pooled oversight of third-party concentration risk, and resilience designed into growth rather than bolted on.
+
+> "A machine may reach the decision; a person must own it. If a bank cannot show who that person is, it has not deployed a model — it has delegated its accountability."
+> — Shri Shirish Chandra Murmu, Deputy Governor, Reserve Bank of India
+
+*Source: The Chatter — RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More*

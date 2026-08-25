@@ -75,7 +75,7 @@ data doctrine.
 
 Credentials (all gitignored `memory/`): `goog_svc_account.json`
 (service account, 'Search Test' sheet shared with it),
-`finnhub_api.key`. Libraries venv-only until their slice lands:
+`FINNHUB_API_KEY` in `memory/.env`. Libraries venv-only until their slice lands:
 gspread 6.2.1, finnhub-python 2.4.29.
 
 ## 3. The combined pipeline
@@ -126,7 +126,7 @@ Per sweep, in order — each stage only sees the previous stage's residue:
 
 | Slice | Content | Gate |
 |---|---|---|
-| S1 ✅ | `helpers/maintenance/finnhub_search.py`: raw-urllib `/search` client (q-length guard, per-query cache, token from `memory/finnhub_api.key`, loud-but-non-fatal 403/422) + 4 live fixtures | pytest + live probe ✓ |
+| S1 ✅ | `helpers/maintenance/finnhub_search.py`: raw-urllib `/search` client (q-length guard, per-query cache, token from `FINNHUB_API_KEY` in `memory/.env`, loud-but-non-fatal 403/422) + 4 live fixtures | pytest + live probe ✓ |
 | S2 ✅ | Stage-1 wiring in `enrich_relations.py`: FinnHub candidates → single-ticker yfinance verify (longName fuzzy check) → dry-run writeback table → `--apply` writes entities.ticker + frontmatter + fetch-cache extension. **Live 2026-08-25: 11 writebacks applied** (TMPV.NS, AADHARHFC.NS, 543544.BO, 543997.BO, KMEW.NS, LRRPL.NS, MDL.NS, TBI.NS, VGL.NS, APOLLO.NS, ATLANTAELE.NS); Akzo guard held (AKZA.AS never reached verify); ABS/Trident degenerate yfinance payloads rejected by the name check | pytest + live dry-run + apply ✓ |
 | S3 ✅ | GF `--apply`: `googlesheets_metrics.py` batch (lazy gspread, raw=False, 2 calls/sweep) + `entity_gf_map` persistence + company_metrics rows (marketcap converted INR→crore, delete-by-prefix idempotent) + GF-page header-price extraction (`parse_price`) | pytest + parity ✓ |
 | S4 ✅ | Success-only verify cache (`memory/fh_verify_cache.json`, failures retry) + budgets documented in the driver docstring. Warm re-sweep measured: GF+tier2 2.1s, finnhub 4.4s, zero non-yfinance network | timing run ✓ |

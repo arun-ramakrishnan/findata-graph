@@ -1,7 +1,7 @@
 # Procedure: The script metadata index (script_search)
 
 **Date:** 2026-08-25
-**Proposal:** `doc/improvements/proposals/script_metadata_search.md`
+**Proposal:** `doc/improvements/archive/tooling/script_metadata_search.md`
 **Scope:** build/refresh/query of the FTS5 + embeddings index over the
 repo's own code surface — every `helpers/**` script, `tests/**` module,
 root `app.py`, and Makefile target. Companion to `procedures/doc-search.md`

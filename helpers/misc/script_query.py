@@ -3,7 +3,7 @@
 Query the script_search sidecar index from the command line.
 
 The agent-facing surface of the script-metadata-search proposal
-(doc/improvements/proposals/script_metadata_search.md): a future session
+(doc/improvements/archive/tooling/script_metadata_search.md): a future session
 asks "which script audits relation diffs" / "which test file covers the
 yfinance driver" / "what does make qa run" and gets ranked hits with the
 purpose line, instead of guessing filenames or grepping. Wraps the same

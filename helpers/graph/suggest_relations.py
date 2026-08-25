@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Link-prediction suggestions -> _pending_relations.txt (C2, 2026-08-18).
+"""Link-prediction suggestions -> _pending_suggestions.txt (C2, 2026-08-18).
 
 Closed-loop "suggested relations" with zero new UI:
 
@@ -7,14 +7,14 @@ Closed-loop "suggested relations" with zero new UI:
     (shared co-mention / JV / competes / same-group neighbours)  ->
     this module filters (score floor, company-only endpoints, no existing
     typed edge of ANY kind, no prior identical suggestion)  ->
-    JSONL entries appended to findata/_pending_relations.txt  ->
-    a human accepts them through the exact H4 review workflow already
-    used for extraction misses (no ingest changes downstream).
+    JSONL entries appended to findata/_pending_suggestions.txt  ->
+    a human accepts them through the H4 review workflow.
 
-The entry format is the established Unresolved JSONL contract (edge_type,
+Population split (pending_relations_triage, 2026-08-25): suggestions live
+in their OWN file, NOT the extraction-miss sidecar — mixing the two made
+the triage queue look 3x its true size. Same JSONL contract (edge_type,
 source, target_mention, quote, edition) plus C2 extras (origin, score,
-method) so suggestion rows are visibly distinguishable from extraction
-misses:
+method) so rows stay machine-distinguishable:
 
     {"edge_type": "suggested", "source": "Acme", "target_mention": "Beta",
      "quote": "", "edition": "link-prediction/jaccard/2026-08-18",
@@ -23,15 +23,15 @@ misses:
 ``edge_type: "suggested"`` is deliberate: the projection cannot know WHICH
 typed edge is missing — the human assigns one during triage.
 
-Read-only by default (prints a table); ``--append`` writes the sidecar.
+Read-only by default (prints a table); ``--append`` writes the file.
 Idempotency: re-running never duplicates — suggestions are deduped against
 (a) every pair already present in ``graph_edges`` (any type, either
-direction) and (b) suggestions already in the sidecar.
+direction) and (b) suggestions already in the file.
 
 Usage:
     python3 helpers/graph/suggest_relations.py                # dry-run, top 25
     python3 helpers/graph/suggest_relations.py --top 50 --min-score 0.4
-    python3 helpers/graph/suggest_relations.py --append       # write sidecar
+    python3 helpers/graph/suggest_relations.py --append       # write file
 """
 
 from __future__ import annotations
@@ -52,12 +52,16 @@ if str(_REPO_ROOT) not in sys.path:
 import duckdb  # noqa: E402  # after sys.path bootstrap
 
 from helpers.graph.algorithms import link_prediction  # noqa: E402
-from helpers.graph.extract_relations import SIDECAR_PATH  # noqa: E402
 from helpers.graph.query import connect as duckdb_connect  # noqa: E402
 
 DEFAULT_DUCKDB = _REPO_ROOT / "memory" / "graph.duckdb"
 ORIGIN = "link_prediction"
 SUGGESTED_EDGE_TYPE = "suggested"
+# Own file since pending_relations_triage (2026-08-25): review candidates
+# must not share the extraction-miss queue. Was extract_relations.
+# SIDECAR_PATH (findata/_pending_relations.txt).
+SUGGESTIONS_PATH = _REPO_ROOT / "findata" / "_pending_suggestions.txt"
+SIDECAR_PATH = SUGGESTIONS_PATH  # back-compat name for callers/tests
 
 
 @dataclass(frozen=True)
@@ -173,7 +177,7 @@ def suggest_relations(
         # House connection (query.connect): attaches research.db as `fin`
         # and materialises the e_* cache — exactly what onager_link_prediction's
         # DB path expects (same pattern as algorithms.link_prediction).
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         companies = _company_names(con)

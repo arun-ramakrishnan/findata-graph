@@ -3188,3 +3188,33 @@ across all sections after merge cleanup.
 - `make graph-rebuild` → `16 e_*` + `v_institution`, `integrity 0` (`semantic_peer 7776, invested_in 715`), `233` targeted tests (`65 enrich + 12 suggest + 85 api + …`), `tsc/build` pass.
 
 **Gates**: `database_integrity_check` 0, `graph rebuild` clean, `pytest -q 233` + `frontend-check` + `ruff` clean.
+
+## 154. Script metadata search (script_search) — S1–S3
+
+**Date**: 2026-08-25
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/script_metadata_search.md`
+
+### What landed
+
+- **Builder** `helpers/maintenance/rebuild_script_search.py`: one FTS5 row per helpers/** script, tests/** module, root app.py, and Makefile target in own gitignored sidecar `memory/script_search.db` (never research.db; doc_search locality doctrine). Row composition: purpose (docstring first para) + capped details, regex add_argument/add_parser CLI surface, top-level defs, Makefile wiring (bidirectional recipe substring map), tested_by via AST IMPORTS ONLY (no grep-mention). Modes: full (convergence + zero-churn stat + db-backup recovery), --incremental (always re-extracts — cross-file inputs — writes row-keyed diffs only), --check (unit-level hash-exact drift, exit 1, pre-warms embed cache). Machinery imported from rebuild_doc_search; stored_embed_dims duplicated (~15 lines, rds hardcodes doc_search table).
+- **Query CLI** `helpers/misc/script_query.py`: hybrid BM25+cosine, --kind script|test|make + --area filters, --json/--bm25; doc_query contract (stale warns + answers, missing exit 1).
+- **Wiring**: perf pair `rebuild_script_search --check` + `script_query` (perf-only, NOT qa — code edits redden qa); `make script-search-rebuild`; AGENTS.md query-before-guessing-filenames rule; `doc/procedures/script-search.md` + architecture.md §6 row.
+- **Rode along**: `make types-tests` (expanded ty-over-tests argv moved from run_gate_report advisory step into the target; single source of truth); lint-audit clean via C901 extraction (rebuild/script_index_stale/search_scripts split — the split caught a real fresh<->stale polarity bug); pdf_conv_md submit timeout 60s→300s (cold-upload stalls).
+
+**Applied outcomes**: live 187→189 units / 234→237 rows, bge-small; all six golden queries top-3 ("database integrity"→database_integrity_check.py #1, "relation diff audit"→relation_diff_audit.py #1, "what does the quality gate run"→make qa, …); warm rebuild/--check ≈1.1s, query ≈0.7s; 26 tests; make help alphabetical gate incident (script- sorts before secret-) fixed same day.
+
+## 155. Pending-relations triage (triage_pending_relations) — S1–S3
+
+**Date**: 2026-08-25
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/pending_relations_triage.md`
+
+### What landed
+
+- **Script** `helpers/graph/triage_pending_relations.py` + `make triage-relations`: --report (dedupe → split `suggested` vs prose → bucket discard/alias_candidate/stub_candidate/manual/bad_source → eyeball report + decisions jsonl with stable ids; non-destructive), --apply-decisions [--write] (validates discard|alias:<Existing>|stub|skip; persists aliases to git-tracked `findata/relation_aliases.json`; rewrites sidecar keeping unresolved rows deduped; prints follow-up chain), --clear. Decisions-file parse errors name the offending line (the editor hard-wrap incident).
+- **Extractor inflow** (`extract_relations.py`): write-time noise gate via shared `noise_target` (countries/generic prefixes+suffixes/mangled fragments — rstrip("'s")-eats-trailing-s trap fixed with literal suffix strip); runtime alias file loaded over `_ALIASES` (case-canonicalized returns; absent file degrades to {}).
+- **Suggestor split** (`suggest_relations.py`): --append writes `findata/_pending_suggestions.txt` (own file; SIDECAR_PATH back-compat alias) — review candidates no longer drown the extraction queue.
+- **Wiring**: markdown_parse.md Stage 9 triage loop documented; 3 scratch files gitignored; 12 tests.
+
+**Applied outcomes**: live 689-line backlog → report: 478 suggested | 69 prose | 142 dupes absorbed; buckets 29 discard / 23 alias / 7 stub / 10 manual; decisions annotated (39 rows: 29 discard, 8 skip, 2 stub), apply pending user.

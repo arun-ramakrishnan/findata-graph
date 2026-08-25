@@ -316,11 +316,51 @@ def clear_graph_cache() -> None:
         pass
 
 
+def _prep_graph_connection(con: duckdb.DuckDBPyConnection) -> None:
+    """Load the sqlite + vss extensions (INSTALL once per process)."""
+    # P1.2: only INSTALL once per process (machine-local cache hit after first)
+    global _DUCKDB_EXT_INSTALLED
+    with _DUCKDB_EXT_LOCK:
+        if not _DUCKDB_EXT_INSTALLED:
+            for ext in ("sqlite", "vss"):
+                try:
+                    con.execute(f"INSTALL {ext};")
+                except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
+                    pass
+            _DUCKDB_EXT_INSTALLED = True
+    # Phase E (duckpgq retirement): duckpgq is no longer loaded — the graph
+    # algorithms run on onager and the pattern queries are plain SQL over
+    # the materialised e_* tables. See
+    # doc/improvements/archive/graph/duckpgq_retirement.txt.
+    # P2.5: vss provides the array_cosine_* scalars used by
+    # semantic_neighbors(). The HNSW index-accelerated scan macros
+    # (hnsw_index_scan, vss_match) are broken on vss b833341; brute-force
+    # scalar functions work fine at 1k scale (~3ms).
+    con.execute("LOAD sqlite;")
+    con.execute("LOAD vss;")
+    # Onager (graph algorithms) loads lazily per call in helpers/graph/onager.py
+    # (_prepare) — idempotent, so no INSTALL here.
+
+
+def _attach_sqlite(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
+    """Re-attach SQLite every connect — DuckDB refuses to persist cross-
+    engine ATTACHes in the catalog for safety (§17.10)."""
+    try:
+        con.execute(f"ATTACH '{db_path}' AS fin (TYPE sqlite, READ_ONLY);")
+    except Exception:
+        try:
+            con.execute("DETACH fin;")
+            con.execute(f"ATTACH '{db_path}' AS fin (TYPE sqlite, READ_ONLY);")
+        except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
+            pass
+
+
 def connect(  # noqa: C901
     db_path: Path | str = DB_PATH,
     duckdb_path: Path | str | None = None,
     rebuild: bool = False,
     fresh: bool = False,
+    read_only: bool = False,
 ) -> duckdb.DuckDBPyConnection:
     """Open a DuckDB connection with the property graph ready to query.
 
@@ -340,10 +380,18 @@ def connect(  # noqa: C901
         fresh: Drop the entire ``.duckdb`` file (and WAL sidecar) and
             rebuild from scratch. Use after DuckDB version bumps or
             materialisation-schema changes.
+        read_only: Open the cache file cross-process-safe read-only.
+            DuckDB allows any NUMBER of read-only openers across
+            processes but a single read-write one — so pure readers
+            (algorithms --compute, suggest_relations) pass True and never
+            contend with (or against) a writer under `make advisory`'s
+            parallel steps. Requires a warm cache; cold/stale falls back
+            to the normal read-write path, since a read-only opener
+            cannot materialise.
 
-    Returns a read-write DuckDB connection. The first caller to a cold
-    file pays the ~150ms materialisation cost; subsequent callers on a
-    warm file pay ~5ms (extensions + ATTACH only).
+    Returns a read-write DuckDB connection (unless ``read_only``). The
+    first caller to a cold file pays the ~150ms materialisation cost;
+    subsequent callers on a warm file pay ~5ms (extensions + ATTACH only).
 
     SQLite stays the sole writer (§3.1). The ``.duckdb`` file is a
     read-derived cache with explicit invalidation — see §18.
@@ -398,45 +446,18 @@ def connect(  # noqa: C901
         except OSError:
             pass
 
-    con = duckdb.connect(str(duckdb_path))
-    # P1.2: only INSTALL once per process (machine-local cache hit after first)
-    global _DUCKDB_EXT_INSTALLED
-    with _DUCKDB_EXT_LOCK:
-        if not _DUCKDB_EXT_INSTALLED:
-            try:
-                con.execute("INSTALL sqlite;")
-            except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
-                pass
-            # Phase E (duckpgq retirement): duckpgq is no longer loaded —
-            # the graph algorithms run on onager and the pattern queries are
-            # plain SQL over the materialised e_* tables. See
-            # doc/improvements/archive/graph/duckpgq_retirement.txt.
-            # P2.5: Load VSS (vector similarity search) for array_cosine_*
-            # scalar functions used by semantic_neighbors(). The HNSW index
-            # accelerated scan macros (hnsw_index_scan, vss_match) are broken
-            # on vss b833341; brute-force scalar functions work fine at 1k scale
-            # (~3ms). If the macros are fixed in a future extension version,
-            # CREATE INDEX ... USING HNSW will accelerate automatically.
-            try:
-                con.execute("INSTALL vss;")
-            except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
-                pass
-            _DUCKDB_EXT_INSTALLED = True
-    con.execute("LOAD sqlite;")
-    con.execute("LOAD vss;")
-    # Onager (graph algorithms) loads lazily per call in helpers/graph/onager.py
-    # (_prepare) — idempotent, so no INSTALL here.
+    # Cross-process readers (the make advisory parallelism): N read-only
+    # openers coexist with each other; only a read-write opener excludes
+    # everyone. Cold/stale cache falls through to the RW path below.
+    if read_only and not needs_build:
+        con = duckdb.connect(str(duckdb_path), read_only=True)
+        _prep_graph_connection(con)
+        _attach_sqlite(con, db_path)
+        return con
 
-    # Re-attach SQLite every connect — DuckDB refuses to persist cross-
-    # engine ATTACHes in the catalog for safety (§17.10).
-    try:
-        con.execute(f"ATTACH '{db_path}' AS fin (TYPE sqlite, READ_ONLY);")
-    except Exception:
-        try:
-            con.execute("DETACH fin;")
-            con.execute(f"ATTACH '{db_path}' AS fin (TYPE sqlite, READ_ONLY);")
-        except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
-            pass
+    con = duckdb.connect(str(duckdb_path))
+    _prep_graph_connection(con)
+    _attach_sqlite(con, db_path)
 
     if needs_build:
         _build_graph(con)

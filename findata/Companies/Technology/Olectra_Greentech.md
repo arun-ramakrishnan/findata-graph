@@ -15,7 +15,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2025-11-16'
-last_modified: '2026-06-24'
+last_modified: '2026-08-25'
 generated:
   by: process:okf_backfill
   at: '2026-06-24T00:00:00Z'
@@ -49,3 +49,16 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - Targeting 2,000 EV deliveries in FY26; depot infrastructure readiness is the key bottleneck (payments start only when buses run), not manufacturing capacity
 - Insulator division growing strongly: H1 revenue ~₹130 crore vs ₹180 crore full-year prior; good order book
 - Battery cells, packs, BMS, and motor components continue to be imported from BYD until a domestic ecosystem develops; no geopolitical sourcing concerns expected
+
+## The Chatter — YES Bank, Colgate, Allcargo, & More
+
+**Production ramp:** ~350 buses/quarter for four straight quarters stepping to ~500 now and 600-700 by Q4; FY27 deliveries guided at 2,000-2,500 of an ~8,000-bus TIV.
+**Order book:** ~8,000 buses on the existing platform plus 1,085 won in Telangana (CESL) and L1 for 155 in Rajasthan on the new 9m platform ready by Q4.
+**Working-capital discipline:** Buses deployed within 30-60 days vs competitors holding stock ~3 months for flag-offs/depot readiness; deliveries deliberately matched to market absorption.
+**EV adoption depth:** STU EV adoption ~70% and 9-12m segment ~20% — headline ~7% understates the addressable segments.
+**Second engine:** Insulator division targeting 5x revenue in 3 years with ~₹300cr orders and 30%+ share; war-spiked raw materials (+40-70%) have retraced ~40%; margins seen at 12-15%, better on the localized new generation; EV trucks (1,500-2,000 units next FY, 20-25% share target) and exports from FY28.
+
+> "If the market is 5,400 vehicles, delivering 8,000 vehicles ourselves would not be prudent or appropriate… We will have to time production and the supply chain in such a way that the market is able to absorb what we produce."
+> — Mahesh Babu, Managing Director
+
+*Source: The Chatter — YES Bank, Colgate, Allcargo, & More*

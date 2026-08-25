@@ -122,7 +122,7 @@ def louvain_communities(
     """
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         labels, modularity = onager_louvain(con, edges=edges)
@@ -136,7 +136,7 @@ def compute_louvain_modularity(con: Any | None = None) -> float:
     """Return just the Louvain modularity score for the whole graph."""
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         return onager_louvain(con)[1]
@@ -151,7 +151,7 @@ def eigenvector_centrality(
     """Eigenvector centrality (unweighted) -> {entity_name: score}."""
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         return onager_eigenvector(con, edges=edges)
@@ -172,7 +172,7 @@ def closeness_centrality(
     """
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         return onager_closeness(con, edges=edges)
@@ -195,7 +195,7 @@ def betweenness_centrality(
     """
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         bc = onager_betweenness(con, edges=edges)
@@ -213,7 +213,7 @@ def degree_centrality(
     """Degree centrality -> {entity_name: score}, normalised by (n-1)."""
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         return onager_degree(con, edges=edges)
@@ -231,7 +231,7 @@ def harmonic_centrality(
     """Harmonic centrality (unweighted) -> {entity_name: score}."""
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         return onager_harmonic(con, edges=edges)
@@ -254,7 +254,7 @@ def katz_centrality(
     """
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         return onager_katz(con, edges=edges, alpha=alpha, beta=beta)
@@ -269,7 +269,7 @@ def laplacian_centrality(
     """Laplacian centrality (Qi et al., unweighted) -> {entity_name: score}."""
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         return onager_laplacian(con, edges=edges)
@@ -288,7 +288,7 @@ def local_reaching_centrality(
     """
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         return onager_local_reaching(con, edges=edges)
@@ -307,7 +307,7 @@ def voterank_seeds(
     """
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         return list(onager_voterank(con, edges=edges))
@@ -351,7 +351,7 @@ def graph_metrics(
         return cached
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         result = onager_graph_metrics(con, edge_types=edge_types)
@@ -395,7 +395,7 @@ def link_prediction(
     """
     own = False
     if con is None:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
         own = True
     try:
         return onager_link_prediction(
@@ -580,7 +580,7 @@ def compute(
     """
     own = con is None
     if own:
-        con = duckdb_connect()
+        con = duckdb_connect(read_only=True)
     try:
         handler = _METRIC_DISPATCH.get(metric)
         if handler is None:
@@ -792,7 +792,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     # Open one DuckDB connection for all metrics in this run. Every metric
     # is Onager-backed (post-duckpgq-retirement); connect() loads sqlite/vss
     # and onager.py loads onager per call.
-    duck_con = duckdb_connect()
+    duck_con = duckdb_connect(read_only=True)
     try:
         pending_writes: list[tuple[str, dict[str, Any]]] = []
         for cmd in commands:

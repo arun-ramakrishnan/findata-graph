@@ -99,7 +99,7 @@ polite rate limiting, distinct provenance everywhere.
    ~20 chars, and name noise exists too ('Gati' -> navigation
    companies). Role: an additional tier-2 DISCOVERY source feeding the
    same verification+writeback machinery; NOT a metrics source.
-   Token at gitignored `memory/finnhub_api.key`; `finnhub-python`
+   Token at `FINNHUB_API_KEY` in gitignored `memory/.env`; `finnhub-python`
    installed venv-only.
 3. **Curated overrides**: a small DB table (not a hand-edited workflow
    file) seeded from one-time human mappings; consulted first, extended

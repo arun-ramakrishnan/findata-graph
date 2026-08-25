@@ -15,7 +15,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-11-16'
-last_modified: '2026-06-24'
+last_modified: '2026-08-25'
 generated:
   by: process:okf_backfill
   at: '2026-06-24T00:00:00Z'
@@ -55,3 +55,16 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **Earthmoving & Mining**: Bucket, backhoe bucket, track line/roller, pivot pin, prop shaft
 - **Tractor-Trailer**: Trailer axle, air/mechanical suspension, landing leg, king pin
 - **Sectors**: Automotive, railways, earthmoving, farm equipment, power, construction, oil & gas
+
+## The Chatter — RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More
+
+**Class-8 boom:** North American Class-8 order bookings hit 223,000 trucks in 7 months vs 218,000 for all of last year; Europe and domestic demand also healthy.
+**Target deferred, quality kept:** The ₹8,000cr revenue milestone pushed out one year after the tariff-hit North American year — a cautious re-baselining, not a demand signal.
+**Operating leverage:** Utilization at ~68% with heavy capex complete — margins rise as volumes sweat the new capacity.
+**Mix diversification:** Passenger-vehicle orders won from big North American OEMs (high-single-digit revenue share coming); railways at 4-5% growing; long-run mix ~70% automotive / 30% non-auto; aerospace revenue 2-3 years out.
+**Deleveraging:** ₹100cr debt repaid in Q1 with ~₹500cr targeted for the fiscal year as capex needs fade to maintenance levels.
+
+> "Order bookings in the first 7 months alone reached 223,000 trucks, compared to 218,000 trucks for the entire 12 months of last year."
+> — Milesh Gandhi, Whole Time Director
+
+*Source: The Chatter — RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More*

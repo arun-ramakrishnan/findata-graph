@@ -75,6 +75,7 @@ FINDATA = PROJECT_ROOT / "findata"
 COMPANIES = FINDATA / "Companies"
 CAPTURE_SCRIPT = PROJECT_ROOT / "helpers" / "pdf" / "capture_newsletter_images.py"
 SYNC_TAGS = PROJECT_ROOT / "helpers" / "core" / "sync_tags.py"
+SYNC_SECTOR_WIKILINKS = PROJECT_ROOT / "helpers" / "maintenance" / "sync_sector_wikilinks.py"
 VERIFY_NOTES = PROJECT_ROOT / "helpers" / "validators" / "verify_notes.py"
 INTEGRITY = PROJECT_ROOT / "helpers" / "misc" / "database_integrity_check.py"
 ALGORITHMS = PROJECT_ROOT / "helpers" / "graph" / "algorithms.py"
@@ -625,7 +626,14 @@ def emit_worklist(
 # Stage 5: validate
 # ===========================================================================
 def run_validation(apply):
+    # SYNC_SECTOR_WIKILINKS runs FIRST: an apply that created entities must
+    # refresh the 42 sector-note rosters in the same run, or every roster
+    # goes stale with all downstream validators still green (the user catch
+    # of 2026-08-25 — Logistics/Metals needed a manual re-run after the
+    # Allcargo Global/HEG creations). Region-scoped write: only the
+    # sentinel-wrapped "All Companies (auto)" block changes.
     for label, script in (
+        ("sync_sector_wikilinks", SYNC_SECTOR_WIKILINKS),
         ("sync_tags", SYNC_TAGS),
         ("verify_notes", VERIFY_NOTES),
         ("database_integrity_check", INTEGRITY),

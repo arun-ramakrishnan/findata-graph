@@ -110,10 +110,11 @@ Logistics sector covering transportation, warehousing, and supply chain solution
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 21 company note(s) in Logistics. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 22 company note(s) in Logistics. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[ABS_Marine_Services|ABS Marine Services]]
 - [[Afcom_Holdings|Afcom Holdings]]
+- [[Allcargo_Global|Allcargo Global]]
 - [[Allcargo_Logistics|Allcargo Logistics]]
 - [[Blue_Dart_Express|Blue Dart Express]]
 - [[Brace_Port_Logistics|Brace Port Logistics]]

@@ -15,7 +15,7 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2025-12-03'
-last_modified: '2026-06-28'
+last_modified: '2026-08-25'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-20T05:41:43Z'
@@ -166,3 +166,16 @@ Car Loans, as these product sub-segments currently do not generate attractive ri
 > — Vinay M. Tonse, Managing Director and Chief Executive Officer
 
 *Source: The Chatter — HDFC, Groww, Yes Bank, Havells & More*
+
+## The Chatter — YES Bank, Colgate, Allcargo, & More
+
+**SMBC alliance:** Sumitomo Mitsui is now the largest shareholder, bringing deep corporate-banking, risk-management and cross-border capabilities; management frames FY26 as the alliance year.
+**FCNR raise:** Over $1bn raised in foreign-currency deposits — well above market share — plus a $0.5bn+ pipeline, adding long-term liquidity and PSL benefits.
+**Branch build-out:** 82 branches added in FY26 (1,334 total), targeted at high-potential clusters as multi-product hubs for low-cost deposits.
+**Yield mix shift:** Growth tilted to high-yielding retail/MSME — personal loans, used vehicles, affordable home loans, micro loans, education — via co-lending and ecosystem origination.
+**Digital scale:** Processes ~1 in 3 of India's digital transactions with 1,500+ APIs; AI-driven credit decisions and hyper-personalization lower costs while responsible-AI governance holds.
+
+> "FY26 was also the year of our alliance with one of the world's leading financial institutions, SMBC… As the largest shareholder in the bank, SMBC opens new doors for growth."
+> — Vinay M. Tonse, Managing Director & CEO
+
+*Source: The Chatter — YES Bank, Colgate, Allcargo, & More*

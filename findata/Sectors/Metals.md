@@ -194,7 +194,7 @@ Source: multi-edition newsletter synthesis (2025-26)
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 42 company note(s) in Metals. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 43 company note(s) in Metals. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[APL_Apollo_Tubes|APL Apollo Tubes]]
 - [[Aelea_Commodities|Aelea Commodities]]
@@ -207,6 +207,7 @@ Source: multi-edition newsletter synthesis (2025-26)
 - [[Godawari_Power_Ispat|Godawari Power & Ispat]]
 - [[Graphite_India|Graphite India]]
 - [[Gravita_India|Gravita India]]
+- [[HEG]]
 - [[Hindalco]]
 - [[Hindustan_Zinc|Hindustan Zinc]]
 - [[JSW_Steel|JSW Steel]]

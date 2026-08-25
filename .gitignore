@@ -91,3 +91,6 @@ advisory_report.txt
 maint_report.txt
 # Visual QA screenshots (web-gui-tester evidence)
 gui-test-screenshots/
+findata/_pending_suggestions.txt
+findata/_pending_triage_report.md
+findata/_pending_triage_decisions.jsonl

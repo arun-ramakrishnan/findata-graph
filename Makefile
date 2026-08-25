@@ -2,8 +2,10 @@
 .RECIPEPREFIX := >
 
 # Gate parallelism (2026-08-25): advisory runs its steps concurrently
-# (DuckDB cache is warm/read-only across processes — verified; concurrent
-# pytest steps get per-step .pytest_cache/<label> dirs). qa stays
+# (DuckDB-reading steps — graph-algos, suggest-relations — connect
+# read_only=True so N cross-process readers coexist with any writer;
+# verified against a live RW lock holder 2026-08-25. Concurrent pytest
+# steps get per-step .pytest_cache/<label> dirs). qa stays
 # sequential by default to keep make's abort-at-first-failure semantics;
 # override with `make qa QA_JOBS=4`.
 GATE_JOBS ?= 4
@@ -16,7 +18,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -62,6 +64,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
 > @echo "  sync-tags                Rebuild entity_tags from note YAML (mirrors entity_type/sector/market_cap/subsector)"
 > @echo "  test                     pytest unit tests only (no live DB, no slow benchmarks)"
+> @echo "  triage-relations         Triage the _pending_relations queue: report + bucketed decisions file (pending_relations_triage)"
 > @echo "  types                    Run ty type checker on helpers + app.py (Astral uv+ruff stack)"
 > @echo "  types-tests              Run EXPANDED ty checks over tests/ (advisory-grade, warnings non-blocking; the make advisory ty-tests step calls THIS target)"
 > @echo "  update-extensions        Update all installed DuckDB extensions to latest (weekly cadence)"
@@ -153,6 +156,10 @@ analytics:       ## Read-only analytics over the git-tracked Parquet snapshot (A
 
 suggest-relations: ## Print link-prediction relation suggestions (C2; append with --append)
 > python3 helpers/graph/suggest_relations.py
+
+triage-relations: ## Triage the _pending_relations queue: report + bucketed decisions file (pending_relations_triage)
+> python3 helpers/graph/triage_pending_relations.py
+> @echo "✓ triage report + decisions file written (annotate decisions, then --apply-decisions --write)"
 
 graph-algos:    ## Smoke test the Onager algorithm layer (all 14 metrics, no writes)
 > python3 helpers/graph/algorithms.py --all --no-apply

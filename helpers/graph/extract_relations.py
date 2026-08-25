@@ -85,6 +85,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.frontmatter import strip_frontmatter as _strip_yaml_front_matter, _FM_RE as _YAML_FRONT_MATTER_RE  # noqa: E402
+from helpers.graph.triage_pending_relations import noise_target  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Paths                                                                       #
@@ -95,6 +96,26 @@ NEWSLETTER_DIRS = {
     "The_PlotLines": _REPO_ROOT / "findata" / "The_PlotLines",
 }
 SIDECAR_PATH = _REPO_ROOT / "findata" / "_pending_relations.txt"
+# Runtime-loaded curated aliases (written by triage_pending_relations
+# --apply-decisions): {"<lowercased mention>": "<existing entity name>"}.
+# Git-tracked data, NOT code — triage cycles must not require code edits.
+ALIAS_OVERRIDES_PATH = _REPO_ROOT / "findata" / "relation_aliases.json"
+
+
+@cache
+def _alias_overrides() -> dict[str, str]:
+    """Loaded once per process; absent/unreadable file degrades to {}."""
+    try:
+        raw = json.loads(ALIAS_OVERRIDES_PATH.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {str(k).lower(): str(v) for k, v in raw.items()
+            if isinstance(k, str) and isinstance(v, str) and k and v}
+
+
+def _lookup_alias(lower_key: str) -> str | None:
+    """_ALIASES first, then the runtime alias file (file wins on overlap)."""
+    return _ALIASES.get(lower_key) or _alias_overrides().get(lower_key)
 
 # --------------------------------------------------------------------------- #
 # Entity resolver                                                             #
@@ -270,9 +291,12 @@ class EntityResolver:
         if not m:
             return None
         # 0a. Alias lookup on the whole mention (IOCL → Indian Oil Corp).
-        aliased = _ALIASES.get(m.lower())
-        if aliased and aliased in self._by_lower.values():
-            return aliased
+        # Aliased names return in DB-canonical casing (check + return both
+        # go through _by_lower), so alias-file entries with drifted casing
+        # still resolve instead of silently no-oping.
+        aliased = _lookup_alias(m.lower())
+        if aliased and aliased.lower() in self._by_lower:
+            return self._by_lower[aliased.lower()]
         # 0b. Alias lookup on the first token. MNC parent mentions in prose
         # often read "<brand> Laboratories" / "<brand> Inc" / "<brand> AG",
         # and the brand token alone maps to the Indian-listed subsidiary.
@@ -287,9 +311,9 @@ class EntityResolver:
         )
         first = re.split(r"[\s,/]+", stripped_m, maxsplit=1)[0].lower()
         if first and first != m.lower():
-            aliased_first = _ALIASES.get(first)
-            if aliased_first and aliased_first in self._by_lower.values():
-                return aliased_first
+            aliased_first = _lookup_alias(first)
+            if aliased_first and aliased_first.lower() in self._by_lower:
+                return self._by_lower[aliased_first.lower()]
         # 1. Exact case-insensitive.
         if m.lower() in self._by_lower:
             return self._by_lower[m.lower()]
@@ -1527,6 +1551,11 @@ def extract_relations(  # noqa: C901
                 else:
                     target_entity = resolver.resolve(target_mention)
                 if target_entity is None:
+                    # Write-time noise gate: countries / generic phrases /
+                    # mangled fragments never reach the triage queue (the
+                    # measured ~35-row class of the 2026-08-25 backlog).
+                    if noise_target(target_mention):
+                        continue
                     # Sidecar for human review.
                     unresolved.append(Unresolved(
                         edge_type=edge_type,

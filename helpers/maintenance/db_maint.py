@@ -15,7 +15,8 @@ Performs, in this order:
 Note: index *usage* cannot be detected (SQLite keeps no per-index read counters),
 so only structural *redundancy* is reported, never "unused".
 
-Produces ``db-backup/research_backup.db`` (SQLite) and
+Produces ``db-backup/research_backup.db`` (+ its ``research_backup_vec.db``
+sidecar twin when ``<db>_vec.db`` exists) and
 ``db-backup/graph_backup.duckdb`` (DuckDB cache) — PRE-MUTATION recovery
 points taken before any VACUUM/ANALYZE/REINDEX runs. These are
 deliberately kept distinct from ``snapshot_db.py``'s
@@ -284,6 +285,34 @@ class DBMaintainer:
             bconn.close()
         return self.backup_path.stat().st_size
 
+    def _backup_vec(self) -> int:
+        """Paired recovery copy of the vec sidecar (<db>_vec.db).
+
+        The A1 move put the vec0 mirror + the shared content-addressed
+        embed cache OUTSIDE research.db; a research_backup.db without its
+        vec sibling restores to a cold re-embed (~minutes of CPU — the
+        same reason rebuild_doc_search backs up its own _vec). Same
+        WAL-consistent sqlite online-backup as _backup; guarded so older
+        clones without the sidecar just skip."""
+        vec_src = self.db_path.with_name(self.db_path.name + "_vec.db")
+        if not vec_src.exists():
+            self._log(logging.INFO, "Vec sidecar absent — backup skipped")
+            return 0
+        vec_dst = self.backup_path.with_name(
+            self.backup_path.name.replace(".db", "_vec.db"))
+        if vec_dst.exists():
+            vec_dst.unlink()
+        sconn = sqlite3.connect(str(vec_src))
+        bconn = sqlite3.connect(str(vec_dst))
+        try:
+            with bconn:
+                sconn.backup(bconn)
+        finally:
+            bconn.close()
+            sconn.close()
+        self._log(logging.INFO, f"Vec sidecar backed up to {vec_dst}")
+        return vec_dst.stat().st_size
+
     def _backup_duckdb(self) -> int:
         """Pre-mutation recovery copy of the DuckDB cache file.
 
@@ -363,6 +392,7 @@ class DBMaintainer:
 
             self._log(logging.INFO, f"Backing up to {self.backup_path}")
             backup_size = self._backup(conn)
+            self._backup_vec()
 
             # P2.5: incremental vacuum when auto_vacuum==INCREMENTAL and freelist exists.
             # Full VACUUM rewrites 31 MB file (~0.6s); incremental_vacuum reclaims only freelist pages (~0.1s).

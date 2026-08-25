@@ -258,3 +258,42 @@ class TestPrintReport:
         _print_report(report)
         captured = capsys.readouterr()
         assert "EMPTY" in captured.out
+
+
+# ---------------------------------------------------------------------------
+# DBMaintainer._backup_vec — vec sidecar twin of research_backup.db
+# ---------------------------------------------------------------------------
+class TestBackupVec:
+    def _mkdb(self, path):
+        conn = sqlite3.connect(str(path))
+        conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY)")
+        conn.execute("INSERT INTO entities VALUES ('X')")
+        conn.commit()
+        conn.close()
+
+    def test_sidecar_backed_up_when_present(self, tmp_path):
+        db_path = tmp_path / "test.db"
+        self._mkdb(db_path)
+        vec = tmp_path / "test.db_vec.db"
+        conn = sqlite3.connect(str(vec))
+        conn.execute("CREATE TABLE cache (k TEXT PRIMARY KEY)")
+        conn.execute("INSERT INTO cache VALUES ('a')")
+        conn.commit()
+        conn.close()
+
+        backup = tmp_path / "backup.db"
+        maint = DBMaintainer(db_path, backup_path=backup)
+        size = maint._backup_vec()
+        assert size > 0
+        twin = tmp_path / "backup_vec.db"
+        assert twin.exists()
+        got = sqlite3.connect(str(twin))
+        assert got.execute("SELECT COUNT(*) FROM cache").fetchone()[0] == 1
+        got.close()
+
+    def test_absent_sidecar_skips_cleanly(self, tmp_path, capsys):
+        db_path = tmp_path / "test.db"
+        self._mkdb(db_path)
+        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
+        assert maint._backup_vec() == 0
+        assert not (tmp_path / "backup_vec.db").exists()

@@ -306,3 +306,37 @@ def test_export_skips_and_warns_on_stray_tables(tmp_path, caplog):
     # sql_capability_unlocks B1/A1.
     assert {"v_node", "v_embeddings", "v_note_embeddings", "e_all_und",
             "e_dir", "_build_meta"} <= MATERIALISED_TABLES
+
+
+# ---------------------------------------------------------------------------
+# Vec-sidecar gzip backup (run_snapshot binary path)
+# ---------------------------------------------------------------------------
+def test_run_snapshot_backs_up_vec_sidecar(tmp_path):
+    """<db>_vec.db rides along as <out>.db_vec.db.gz; absent sidecar skips."""
+    from helpers.maintenance.snapshot_db import _cmd_create
+
+    src_db = tmp_path / "src.db"
+    _make_test_db(src_db)
+    out = tmp_path / "snap" / "snapshot.db.gz"
+
+    # No sidecar yet: run must succeed and log the skip.
+    rc = _cmd_create(
+        src_db, out, None, None, None, None, None, fmt="binary",
+        with_duckdb=False, logger=_log,
+    )
+    assert rc == 0
+    assert not (tmp_path / "snap" / "snapshot.db_vec.db.gz").exists()
+
+    # Sidecar present: it rides along, WAL-merged by the online backup.
+    vec = sqlite3.connect(str(tmp_path / "src.db_vec.db"))
+    vec.execute("CREATE TABLE cache (k TEXT PRIMARY KEY, v TEXT)")
+    vec.execute("INSERT INTO cache VALUES ('x', 'y')")
+    vec.commit()
+    vec.close()
+    rc = _cmd_create(
+        src_db, out, None, None, None, None, None, fmt="binary",
+        with_duckdb=False, logger=_log,
+    )
+    assert rc == 0
+    vec_gz = tmp_path / "snap" / "snapshot.db_vec.db.gz"
+    assert vec_gz.exists() and vec_gz.stat().st_size > 0

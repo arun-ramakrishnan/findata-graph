@@ -20,7 +20,8 @@ Usage
 Options
 -------
     --model PP-StructureV3   model name (default: PP-StructureV3)
-    --token TOKEN            API token (required unless env PADDLE_API_KEY set)
+    --token TOKEN            API token (required unless PADDLE_API_KEY is set
+                             in memory/.env or the environment)
     --timeout SECONDS        max wall-clock time to wait for the job
                              (default: 600)
     --no-images              skip downloading embedded images (leaves the
@@ -41,6 +42,7 @@ from urllib.parse import urlparse
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from helpers.pdf.common import slugify  # noqa: E402
+from helpers.core.env import load_memory_env
 from helpers.core.frontmatter import (  # noqa: E402
     iso_now_utc,
     moddate_to_iso_date,
@@ -92,8 +94,14 @@ def submit_job(
     headers = {"Authorization": f"bearer {token}"}
     data = {"model": model, "optionalPayload": json.dumps(optional_payload)}
     with pdf_path.open("rb") as f:
+        # 300s, not the AI-Studio sample's unbounded POST and not the old
+        # 60s cap: the multipart upload to the CN-hosted job API can stall
+        # past 60s on a cold/slow route (observed repeatedly 2026-08-25) —
+        # the failure was always a client-side write timeout, never a
+        # server rejection. requests' timeout applies per-socket-op, so a
+        # healthy transfer resets it chunk-by-chunk.
         resp = requests.post(
-            JOB_URL, headers=headers, data=data, files={"file": f}, timeout=60
+            JOB_URL, headers=headers, data=data, files={"file": f}, timeout=300
         )
     if resp.status_code != 200:
         raise RuntimeError(f"submit failed {resp.status_code}: {resp.text}")
@@ -369,6 +377,7 @@ def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: boo
 
 
 def main() -> int:
+    load_memory_env()  # memory/.env may supply PADDLE_API_KEY
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("source_pdf", help="path to the source PDF file")
     ap.add_argument("output_dir", help="directory to store the results in")

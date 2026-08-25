@@ -17,7 +17,7 @@ tags:
 - risk_investment/growth
 - financial_tags/profitable
 created: '2026-06-17'
-last_modified: '2026-06-17'
+last_modified: '2026-08-25'
 generated:
   by: process:okf_backfill
   at: '2026-06-17T00:00:00Z'
@@ -58,3 +58,15 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **Business Model**: B2B (asset managers / issuers)
 
 *This entity was processed from Points & Figures (Edition #19) following the markdown_parse procedure.*
+
+## The Chatter — RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More
+
+**Promoter overhang managed:** General Atlantic down to ~14% but remains promoter (evergreen funds; exit on LP/GP cycles); board independent, no operational dependence.
+**Guidance held:** 18-20% revenue CAGR maintained with international growing 25-30% (Ascent +30%); domestic MF +11-12% and Issuer Solutions +12-15% guided.
+**Mix shift to value:** Value-added services to go from 5.5-6% to 10-12% of revenue; international from ~20% to ~30% over 3-5 years — global fund administration yields 6-7bps on AUM vs ~3bps in India.
+**IPO franchise:** ~two-thirds share of mainboard IPOs and 80% of mainboard issue value; SIP inflows >₹31,000cr/month underpin the platform.
+
+> "This international expansion is margin-accretive because global fund administration yields 6 to 7 bps on AUM compared to ~3 bps in India."
+> — Vivek Mathur, CFO
+
+*Source: The Chatter — RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More*

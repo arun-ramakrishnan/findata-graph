@@ -9,7 +9,7 @@ questions: which script audits relation diffs, which test file covers the
 yfinance driver, what `make qa` actually runs. That knowledge lives in
 module docstrings, argparse declarations, and the Makefile — unindexed.
 This script gives it the content-addressable treatment doc/ already has
-(proposal: doc/improvements/proposals/script_metadata_search.md):
+(proposal: doc/improvements/archive/tooling/script_metadata_search.md):
 
 - one FTS5 row per script / test module / make target, composed from the
   module docstring (purpose = first paragraph), regex-extracted argparse

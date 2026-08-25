@@ -14,12 +14,13 @@ tests/fixtures/finnhub_search/):
   - Indian QUOTES/profiles are premium-403 — this module only SEARCHES
   - name noise exists ('Gati' -> navigation companies); callers must
     verify candidates against the entity name (Tier-C discipline)
-  - token lives in gitignored memory/finnhub_api.key (bare value or
-    FINNHUB_API_KEY=... form); never printed or committed
+  - token comes from FINNHUB_API_KEY in gitignored memory/.env (see
+    helpers/core/env.py); never printed or committed
 """
 from __future__ import annotations
 
 import json
+import os
 import re
 import time
 import urllib.parse
@@ -28,9 +29,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from helpers.core.env import load_memory_env
+
 FINNHUB_SEARCH_URL = "https://finnhub.io/api/v1/search"
-DEFAULT_TOKEN_PATH = (Path(__file__).resolve().parents[2] / "memory"
-                      / "finnhub_api.key")
 _QUERY_LIMIT = 20  # FinnHub 422s above ~20 chars (measured)
 
 
@@ -58,27 +59,29 @@ def parse_search_response(text: str) -> list[FhMatch]:
     ]
 
 
-def _load_token(token_path: Path) -> str:
-    """Token from memory/finnhub_api.key (bare value or NAME=value)."""
-    text = token_path.read_text(encoding="utf-8")
-    m = re.search(
-        r'^\s*(?:FINNHUB_API_KEY\s*=\s*)?["\']?([A-Za-z0-9_-]{20,})',
-        text, re.MULTILINE)
-    if not m:
-        raise RuntimeError(f"no finnhub token found in {token_path}")
-    return m.group(1)
+def _resolve_token(env_file: Path | None = None) -> str:
+    """FINNHUB_API_KEY from the environment (loaded from memory/.env).
+
+    ``env_file`` is a test seam: an explicit .env path instead of the
+    repo's memory/.env.
+    """
+    load_memory_env(env_file)
+    token = os.environ.get("FINNHUB_API_KEY")
+    if not token:
+        raise RuntimeError(
+            "no finnhub token: set FINNHUB_API_KEY in memory/.env "
+            "(gitignored) or export it")
+    return token
 
 
-def fh_search(
-    query: str, *, token_path: Path = DEFAULT_TOKEN_PATH, timeout: int = 20,
-) -> str:
+def fh_search(query: str, *, timeout: int = 20) -> str:
     """Query the /search endpoint; returns the raw JSON text.
 
     Raises on network / auth (401 bad token, 403 premium, 429 rate
     limit) — callers decide (the resolution driver treats a raise as
     'source unavailable' for that target, non-fatal).
     """
-    token = _load_token(token_path)
+    token = _resolve_token()
     url = (f"{FINNHUB_SEARCH_URL}?q={urllib.parse.quote(trim_query(query))}"
            f"&token={token}")
     req = urllib.request.Request(url, headers={  # noqa: S310  # https-only constant + quoted param
@@ -88,8 +91,7 @@ def fh_search(
 
 
 def fh_search_cached(
-    query: str, cache_dir: Path, *, token_path: Path = DEFAULT_TOKEN_PATH,
-    timeout: int = 20,
+    query: str, cache_dir: Path, *, timeout: int = 20,
 ) -> tuple[list[FhMatch], bool]:
     """fh_search with a per-query text cache (same contract as
     exchange_search.bse_search_cached / googlefinance.load_or_fetch)."""
@@ -98,7 +100,7 @@ def fh_search_cached(
     if cache_file.exists():
         return parse_search_response(
             cache_file.read_text(encoding="utf-8")), True
-    text = fh_search(query, token_path=token_path, timeout=timeout)
+    text = fh_search(query, timeout=timeout)
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(text, encoding="utf-8")
     return parse_search_response(text), False
@@ -126,8 +128,7 @@ def probe_queries(name: str) -> list[str]:
 
 
 def fh_search_multi(
-    name: str, cache_dir: Path, *, token_path: Path = DEFAULT_TOKEN_PATH,
-    timeout: int = 20, delay: float = 1.0,
+    name: str, cache_dir: Path, *, timeout: int = 20, delay: float = 1.0,
     sleeper: Callable[[float], None] = time.sleep,
     search_fn: Callable[..., tuple[list[FhMatch], bool]] =
     fh_search_cached,
@@ -145,8 +146,7 @@ def fh_search_multi(
     """
     any_real = False
     for q in probe_queries(name):
-        matches, from_cache = search_fn(
-            q, cache_dir, token_path=token_path, timeout=timeout)
+        matches, from_cache = search_fn(q, cache_dir, timeout=timeout)
         if matches:
             return matches, from_cache
         if not from_cache:

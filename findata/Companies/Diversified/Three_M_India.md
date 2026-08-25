@@ -19,7 +19,7 @@ tags:
 - risk_investment/dividend
 - financial_tags/dividend_paying
 created: '2026-06-28'
-last_modified: '2026-06-28'
+last_modified: '2026-08-25'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-19T13:15:20Z'
@@ -100,3 +100,15 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 ---
 *Data Source: Zerodha "Points & Figures — No shortcuts here" + Yahoo Finance | Last Updated: 2026-06-28*
+
+## The Chatter — RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More
+
+**Growth streak:** ~19% revenue growth — five consecutive growth quarters across all business groups.
+**Margin squeeze + pricing:** Raw-material inflation and FX (heavy import reliance) compressed margins; pricing actions taken with the full flush-through expected over the next quarters.
+**Localization over hedging:** No derivatives hedging — instead localizing across the Pune, Bengaluru and Ahmedabad plants to bring the ~60% import cost share down substantially within a couple of years.
+**New vectors:** Electronics (new Bengaluru lab + fast sampling centre), data centres and, down the road, semiconductors as the India growth drivers.
+
+> "About 60% of our costs are imports… In each of these, we have identified products where we can increase the level of localised content. That will take time, but we do expect that 60-odd per cent to start coming down substantially in a couple of years."
+> — Aseem Joshi, Managing Director
+
+*Source: The Chatter — RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More*

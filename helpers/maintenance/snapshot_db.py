@@ -994,6 +994,21 @@ def _cmd_create(
         create_snapshot(db_path, out_path, logger)
         r = verify_snapshot(out_path, db_path, logger)
         ok = ok and r["match"]
+        # Vec sidecar (<db>_vec.db): the A1 move put the vec0 mirror AND the
+        # shared (sha256, model) embed cache OUTSIDE research.db. All
+        # derived state — but the cache is content-addressed and expensive
+        # to re-fill cold (~minutes of re-embedding), which is exactly why
+        # rebuild_doc_search backs up its own _vec sibling. Copy-only (no
+        # verify_snapshot: that helper is hardcoded to entities/relations);
+        # the sqlite online-backup API already gives WAL consistency.
+        # Guarded: older clones without the sidecar just skip.
+        vec_path = db_path.with_name(db_path.name + "_vec.db")
+        if vec_path.exists():
+            vec_out = out_path.parent / out_path.name.replace(
+                ".db.gz", ".db_vec.db.gz")
+            create_snapshot(vec_path, vec_out, logger)
+        else:
+            logger.info("Vec sidecar absent — gzip backup skipped (%s)", vec_path)
         if with_duckdb:
             create_duckdb_snapshot(duckdb_path, duckdb_out, logger)
             rd = verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)

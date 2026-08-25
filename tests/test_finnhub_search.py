@@ -99,23 +99,29 @@ class TestCacheAndToken:
         assert {m.symbol for m in matches} == {"TMPV.NS", "TMCV.NS"}
         assert (tmp_path / "fh_search_Tata_Motors.txt").exists()
 
-    def test_token_file_forms(self, tmp_path):
-        # memory/finnhub_api.key may be bare or NAME=value; both load.
-        # Pure parser test: an obviously-fake token (never a real key —
-        # _load_token only reads the file, it never dials out).
+    def test_token_from_env_file(self, tmp_path, monkeypatch):
+        # Token resolves from a .env file (memory/.env form). Fake token —
+        # _resolve_token only reads env/files, it never dials out.
         fake = "fake0token" + "a1b2c3d4" * 3
-        p1 = tmp_path / "bare.key"
-        p1.write_text(fake + "\n")
-        assert fh._load_token(p1) == fake
-        p2 = tmp_path / "assigned.key"
-        p2.write_text(f'FINNHUB_API_KEY="{fake}"\n')
-        assert fh._load_token(p2) == fake
+        env = tmp_path / ".env"
+        env.write_text(f'FINNHUB_API_KEY="{fake}"\n')
+        monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
+        assert fh._resolve_token(env) == fake
 
-    def test_missing_token_raises(self, tmp_path):
-        p = tmp_path / "absent.key"
-        p.write_text("nothing useful here\n")
+    def test_token_missing_raises(self, tmp_path, monkeypatch):
+        env = tmp_path / ".env"
+        env.write_text("UNRELATED=yes\n")
+        monkeypatch.delenv("FINNHUB_API_KEY", raising=False)
         with pytest.raises(RuntimeError, match="no finnhub token"):
-            fh._load_token(p)
+            fh._resolve_token(env)
+
+    def test_exported_env_wins_over_file(self, tmp_path, monkeypatch):
+        file_fake = "file0token" + "a1b2c3d4" * 3
+        env_fake = "envir0token" + "a1b2c3d4" * 3
+        env = tmp_path / ".env"
+        env.write_text(f'FINNHUB_API_KEY="{file_fake}"\n')
+        monkeypatch.setenv("FINNHUB_API_KEY", env_fake)
+        assert fh._resolve_token(env) == env_fake
 
 
 class TestProbeQueries:
