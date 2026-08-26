@@ -47,13 +47,18 @@ snapshots (SQLite online backup handles virtual tables + shadow tables).
 Usage:
     python3 helpers/maintenance/rebuild_note_search.py            # rebuild, exit 0
     python3 helpers/maintenance/rebuild_note_search.py --db PATH  # alternate DB
-    python3 helpers/maintenance/rebuild_note_search.py --check    # count only, no writes
+    python3 helpers/maintenance/rebuild_note_search.py --check    # staleness verdict, no writes
 
 --check writes no research.db rows, but DOES warm the sidecar embedding
 cache (derived state, Q3) — running --check first is a legitimate way to
 pre-pay the one-off cold embed cost before the applying rebuild.
 
-Exit codes: 0 success, 1 DB not found / fatal error.
+--check reports the drift breakdown (changed/new/deleted file paths, same
+shape as rebuild_doc_search / rebuild_script_search) so gate output is
+actionable on its own.
+
+Exit codes: 0 success/fresh, 1 DB not found / fatal error OR --check
+detected drift (the house --check gate doctrine).
 """
 
 import argparse
@@ -515,8 +520,45 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
         stats["embedded"] = sum(1 for r in rows if r[5])
         stats["migrated"] = migrated
 
+        # Freshness verdict (2026-08-26): exact diff of the on-disk corpus
+        # vs the stored meta — same fingerprint semantics as the
+        # incremental diff loop below (mtime + content hash over
+        # title|sector|content), so --check reports exactly the drift an
+        # incremental run would apply. Always computed (cheap: one stat +
+        # one blake2b per doc); --check prints it and main() turns drift
+        # into exit 1 (house --check gate doctrine, as rebuild_doc_search
+        # / rebuild_script_search already do — note-search-check in the
+        # advisory gate previously passed silently even when stale).
+        stored_meta = existing or {
+            r[0]: (r[1], r[2]) for r in conn.execute(
+                "SELECT file_path, mtime, content_hash FROM note_search_meta"
+            )
+        }
+        row_by_path = {r[1]: r for r in rows}
+        current_meta: dict[str, tuple[float, str]] = {}
+        for _dtype, abs_path, rel in _iter_findata_docs():
+            rel_posix = f"findata/{rel.as_posix()}"
+            row = row_by_path.get(rel_posix)
+            if row is None:
+                continue
+            _, _, title, sector, content, _emb = row
+            current_meta[rel_posix] = _file_fingerprint(
+                abs_path, title, sector, content)
+        on_disk = set(current_meta)
+        stale_new = sorted(fp for fp in on_disk if fp not in stored_meta)
+        stale_deleted = sorted(fp for fp in stored_meta if fp not in on_disk)
+        stale_changed = sorted(
+            fp for fp in on_disk
+            if fp in stored_meta and stored_meta[fp] != current_meta[fp]
+        )
+        stats["stale_new"] = stale_new
+        stats["stale_changed"] = stale_changed
+        stats["stale_deleted"] = stale_deleted
+        stats["index_stale"] = bool(stale_new or stale_changed or stale_deleted)
+
         if not write:
             print(f"(--check mode: would index {len(rows)} docs)", file=sys.stderr)
+            _print_staleness(stats)
             return stats
 
         if not incremental:
@@ -660,6 +702,31 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
         conn.close()
 
 
+def _print_staleness(stats: dict) -> None:
+    """--check verdict: FRESH, or the drift breakdown + remediation
+    (mirrors rebuild_doc_search / rebuild_script_search --check shape)."""
+    new = stats.get("stale_new", [])
+    changed = stats.get("stale_changed", [])
+    deleted = stats.get("stale_deleted", [])
+    if not (new or changed or deleted):
+        print(f"index state: FRESH ({stats.get('total_docs', 0)} docs unchanged)",
+              file=sys.stderr)
+        return
+    print(
+        f"index state: STALE — {len(changed)} changed, {len(new)} new, "
+        f"{len(deleted)} deleted",
+        file=sys.stderr,
+    )
+    drift = ([(fp, "changed") for fp in changed]
+             + [(fp, "new") for fp in new]
+             + [(fp, "deleted") for fp in deleted])
+    for fp, kind in drift[:10]:
+        print(f"  {kind:8s} {fp}", file=sys.stderr)
+    if len(drift) > 10:
+        print(f"  … and {len(drift) - 10} more", file=sys.stderr)
+    print("refresh: python3 helpers/maintenance/rebuild_note_search.py", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument(
@@ -704,7 +771,16 @@ def main(argv: list[str] | None = None) -> int:
                     f"{stats['embed_cache_misses']} misses",
                     file=sys.stderr,
                 )
-    return 0
+        if stats.get("index_stale"):
+            print(
+                f"index was STALE before this rebuild: "
+                f"{len(stats.get('stale_changed', []))} changed, "
+                f"{len(stats.get('stale_new', []))} new, "
+                f"{len(stats.get('stale_deleted', []))} deleted — now fresh",
+                file=sys.stderr,
+            )
+        return 0
+    return 1 if stats.get("index_stale") else 0
 
 
 if __name__ == "__main__":

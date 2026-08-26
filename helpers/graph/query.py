@@ -43,6 +43,7 @@ Usage (CLI):
 from __future__ import annotations
 
 import argparse
+import fcntl
 import logging
 import functools
 import re
@@ -386,8 +387,12 @@ def connect(  # noqa: C901
             (algorithms --compute, suggest_relations) pass True and never
             contend with (or against) a writer under `make advisory`'s
             parallel steps. Requires a warm cache; cold/stale falls back
-            to the normal read-write path, since a read-only opener
-            cannot materialise.
+            to the read-write BUILD path (a read-only opener cannot
+            materialise), serialized by an flock on ``<cache>.build.lock``
+            and re-checked under the lock — parallel advisory steps
+            hitting a stale cache queue behind one builder instead of
+            racing on the .wal lock; waiters that find the cache warmed
+            open read-only after all.
 
     Returns a read-write DuckDB connection (unless ``read_only``). The
     first caller to a cold file pays the ~150ms materialisation cost;
@@ -429,23 +434,6 @@ def connect(  # noqa: C901
         or not (duckdb_path.exists() and _is_warm(duckdb_path))
     )
 
-    # If the file exists but is corrupted/warm-check failed, treat it as
-    # cold: delete it so duckdb.connect() doesn't raise IOException. The
-    # `fresh` path already handled this; this catches the mid-corruption
-    # case where _is_warm returned False because the read-only open failed.
-    if (
-        not fresh
-        and not rebuild
-        and duckdb_path.exists()
-        and needs_build
-        and not _is_warm(duckdb_path)
-    ):
-        try:
-            duckdb_path.unlink()
-            duckdb_path.with_suffix(".duckdb.wal").unlink(missing_ok=True)
-        except OSError:
-            pass
-
     # Cross-process readers (the make advisory parallelism): N read-only
     # openers coexist with each other; only a read-write opener excludes
     # everyone. Cold/stale cache falls through to the RW path below.
@@ -455,14 +443,59 @@ def connect(  # noqa: C901
         _attach_sqlite(con, db_path)
         return con
 
-    con = duckdb.connect(str(duckdb_path))
-    _prep_graph_connection(con)
-    _attach_sqlite(con, db_path)
+    # Build path, serialized cross-process (2026-08-26): the cold/stale
+    # fallback predates gate parallelism — under `make advisory` (jobs=4)
+    # suggest-relations / graph-algos / analytics can ALL see needs_build
+    # simultaneously, and N read-write builders race on the .wal lock
+    # ("Could not set lock on file ...wal: Conflicting lock"). An flock on
+    # a sidecar lockfile admits ONE builder; everyone else waits, then
+    # re-checks under the lock — a warmed cache downgrades read_only
+    # callers straight back to the read-only open, so the steady state
+    # (N readers, zero writers) is unchanged.
+    lock_path = Path(str(duckdb_path) + ".build.lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(lock_path, "w") as lf:
+        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+        try:
+            # If the file exists but is corrupted/warm-check failed, treat
+            # it as cold: delete it so duckdb.connect() doesn't raise
+            # IOException. Runs UNDER the flock deliberately — a parallel
+            # builder holding the .duckdb makes _is_warm's read-only probe
+            # fail, which must not be misread as corruption and unlinked
+            # mid-build (that deletion raced live builders before the
+            # serialization existed).
+            if (
+                not fresh
+                and not rebuild
+                and duckdb_path.exists()
+                and not _is_warm(duckdb_path)
+            ):
+                try:
+                    duckdb_path.unlink()
+                    duckdb_path.with_suffix(".duckdb.wal").unlink(missing_ok=True)
+                except OSError:
+                    pass
+            needs_build = (
+                fresh
+                or rebuild
+                or not (duckdb_path.exists() and _is_warm(duckdb_path))
+            )
+            if read_only and not needs_build:
+                con = duckdb.connect(str(duckdb_path), read_only=True)
+                _prep_graph_connection(con)
+                _attach_sqlite(con, db_path)
+                return con
 
-    if needs_build:
-        _build_graph(con)
-        _mark_warm(con, db_path)
-    return con
+            con = duckdb.connect(str(duckdb_path))
+            _prep_graph_connection(con)
+            _attach_sqlite(con, db_path)
+
+            if needs_build:
+                _build_graph(con)
+                _mark_warm(con, db_path)
+            return con
+        finally:
+            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
 
 
 def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901

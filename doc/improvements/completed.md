@@ -3354,3 +3354,35 @@ bench docstring corrected.
 extract 1.93-2.13s, pdf 3.33s); targeted suites green (61 pdf tests + 83
 relation-driver tests); ruff C901/S/UP + types clean. O4 (budget hygiene)
 noted: derive_insights 3.51s/4.0s is next-in-line watch-only.
+
+## 164. note_search --check drift reporting (parity with doc/script rebuilders)
+
+**Date**: 2026-08-26. (Renumbered from a minted-duplicate 163 on 2026-08-26:
+this entry was written while the perf-optimization entry — plain #163 below
+in history, all external `#163` refs point at it — was hidden under an
+unpushed patch. Next free number taken; content unchanged.)
+**Status**: COMPLETE
+**Motivation**: user report — `rebuild_doc_search.py --check` shows a detailed staleness summary (changed/new/deleted paths + refresh command), but `rebuild_note_search.py --check` printed only `(--check mode: would index N docs)` with no drift verdict at all, and its `main()` always returned 0 — so the advisory `note-search-check` step passed silently even when the index was stale. Investigation showed `rebuild_script_search.py` already reports all drift kinds correctly (file/Makefile/test units, changed/new/deleted, rc=1, plus the write-path "index was STALE before this rebuild … now fresh" line); it needed nothing.
+
+### What landed (`helpers/maintenance/rebuild_note_search.py`)
+
+- **Freshness verdict in `rebuild()`**: exact diff of the on-disk corpus vs the stored `note_search_meta` fingerprints — same semantics as the incremental diff loop (mtime + blake2b over title|sector|content), so `--check` reports exactly the drift an incremental run would apply. Stats gain `stale_new`/`stale_changed`/`stale_deleted`/`index_stale`, mirroring the doc/script stats keys.
+- **`_print_staleness()`**: FRESH/STALE verdict, per-path drift list (first 10 + overflow count), and the refresh command — identical shape to the doc/script printers.
+- **`main()` gate doctrine**: `--check` returns 1 on drift, 0 when fresh (was: always 0). The applying rebuild now prints `index was STALE before this rebuild: N changed, N new, N deleted — now fresh`.
+- **Module docstring** updated for the new `--check` semantics and exit codes.
+
+**Verified live**: FRESH → `index state: FRESH (1224 docs unchanged)` rc=0; changed/new/deleted probes each named the exact file and rc=1; a `git checkout` restore (rewritten mtime) flags changed until rebuild — same honest semantics as doc_search; DB-side sector reclassify flags the note changed with an untouched file (fingerprint covers title+sector). `make search-fresh` run-all + APPLY converge. Tests: 6 new `TestStalenessCheck` cases (fresh/changed/new/deleted/DB-side-reclass/write-path report), 31 total in the module; ruff + `make types` + `make types-tests` clean.
+
+## 165. Cross-process graph-build serialization (flock) — parallel-advisory WAL race
+
+**Date**: 2026-08-26
+**Status**: COMPLETE
+**Motivation**: `make suggest-relations` (an advisory step) died with `TransactionException: Failed to commit: Could not set lock on file memory/graph.duckdb.wal: Conflicting lock is held in PID ...`. Root cause: a generation bump made the disk cache stale; `make advisory` (jobs=4) ran suggest-relations / graph-algos / analytics in parallel, and `connect(read_only=True)`'s cold/stale fallback — designed for sequential callers — sent ALL of them down the read-write BUILD path simultaneously; two DuckDB writers raced on the .wal lock (loser crashed, winner rebuilt — the cache was warm again by inspection).
+
+### What landed (`helpers/graph/query.py`)
+
+- **Build path serialized cross-process**: an `flock(LOCK_EX)` on a sidecar `<cache>.build.lock` admits ONE builder; waiters re-check `needs_build` UNDER the lock — a warmed cache downgrades read_only callers straight back to the read-only open. Steady state (N readers, zero writers) is unchanged: warm RO connects never touch the lockfile.
+- **Corruption-recovery unlink moved under the lock**: the old pre-lock `unlink` of a not-warm file misread "another process is building" (its RW lock makes `_is_warm`'s RO probe fail) as corruption and could delete a live mid-build file.
+- `connect()` docstring updated for the serialized fallback.
+
+**Verification**: true cross-process regression test (`test_parallel_ro_connects_serialize_the_build`, tests/test_graph_disk.py): 6 subprocesses against one cold cache. With the flock: 6/6 pass. Control with the flock stripped: 5/6 fail, reproducing the production traceback byte-for-byte (same `TransactionException ... wal` at `_materialise_vertices`). Suites: graph_disk 24, suggest-relations + onager 64; ruff + `make types` + `make types-tests` clean; `make suggest-relations` green end-to-end.

@@ -18,11 +18,16 @@ Marked ``live`` (requires the production SQLite file to exist).
 """
 from __future__ import annotations
 
+import os
 import shutil
 import sqlite3
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 pytestmark = pytest.mark.live
 
@@ -187,6 +192,45 @@ class TestDiskBasics:
         c = connect(tmp_db)
         c.close()
         assert _is_warm(_duckdb_for(tmp_db))
+
+    def test_parallel_ro_connects_serialize_the_build(self, tmp_db, tmp_path):
+        """N read_only connects hitting a cold cache must all succeed.
+
+        Regression (2026-08-26): under `make advisory` (jobs=4), a
+        generation-stale cache made suggest-relations / graph-algos /
+        analytics ALL take the read-write build fallback simultaneously —
+        two DuckDB writers raced on the .wal lock ("Could not set lock on
+        file ...wal: Conflicting lock is held in ..."). connect() now
+        serializes the build path behind an flock on <cache>.build.lock
+        and re-checks under the lock; waiters find the cache warm and
+        open read-only. True cross-process test: 6 subprocesses started
+        together against one cold cache.
+        """
+        duckdb_path = _duckdb_for(tmp_db)
+        assert not duckdb_path.exists()
+        child = (
+            "import sys\n"
+            "from helpers.graph.query import connect\n"
+            "con = connect(sys.argv[1], read_only=True)\n"
+            "n = con.execute('SELECT COUNT(*) FROM v_node').fetchone()[0]\n"
+            "con.close()\n"
+            "assert n > 0, 'empty v_node'\n"
+            "print('OK')\n"
+        )
+        env = {**os.environ,
+               "PYTHONPATH": f"{REPO_ROOT}{os.pathsep}{REPO_ROOT / 'helpers'}"}
+        procs = [
+            subprocess.Popen(
+                [sys.executable, "-c", child, str(tmp_db)],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                text=True, env=env, cwd=str(REPO_ROOT),
+            )
+            for _ in range(6)
+        ]
+        results = [p.communicate() for p in procs]
+        rcs = [p.returncode for p in procs]
+        assert rcs == [0] * 6, f"child failures: {list(zip(rcs, results))}"
+        assert duckdb_path.exists()
 
     def test_corrupted_file_treated_as_cold(self, tmp_db):
         # Write garbage to the .duckdb path; _is_warm should return False,

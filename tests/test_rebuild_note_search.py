@@ -691,3 +691,89 @@ class TestVecMirror:
                 assert got[fp] == pytest.approx(expect, abs=1e-6)
         finally:
             conn.close()
+
+class TestStalenessCheck:
+    """--check drift reporting (2026-08-26): note_search must report the
+    same changed/new/deleted breakdown + refresh command as rebuild_doc_search
+    / rebuild_script_search, and --check must exit 1 on drift (house gate
+    doctrine — the advisory note-search-check step previously passed
+    silently even when the index was stale)."""
+
+    CO = "findata/Companies/Agriculture/Acme_Feeds.md"
+
+    def _rebuild(self, db_path):
+        rns.rebuild(db_path)
+
+    def test_check_fresh_reports_fresh_exit0(self, seeded_tree, fake_local, capsys):
+        db_path = seeded_tree
+        self._rebuild(db_path)
+        stats = rns.rebuild(db_path, write=False)
+        assert stats["index_stale"] is False
+        assert stats["stale_new"] == [] and stats["stale_changed"] == []
+        assert stats["stale_deleted"] == []
+        rc = rns.main(["--check"])
+        assert rc == 0
+        err = capsys.readouterr().err
+        assert "index state: FRESH" in err
+
+    def test_check_detects_changed_note(self, seeded_tree, fake_local, capsys):
+        db_path = seeded_tree
+        self._rebuild(db_path)
+        p = rns.FINDATA / "Companies" / "Agriculture" / "Acme_Feeds.md"
+        p.write_text(p.read_text(encoding="utf-8") + "\nprobe edit\n",
+                     encoding="utf-8")
+        stats = rns.rebuild(db_path, write=False)
+        assert stats["index_stale"] is True
+        assert stats["stale_changed"] == [self.CO]
+        assert stats["stale_new"] == [] and stats["stale_deleted"] == []
+        rc = rns.main(["--check"])
+        assert rc == 1
+        err = capsys.readouterr().err
+        assert "index state: STALE" in err
+        assert f"changed  {self.CO}" in err
+        assert "refresh: python3 helpers/maintenance/rebuild_note_search.py" in err
+
+    def test_check_detects_new_note(self, seeded_tree, fake_local, capsys):
+        db_path = seeded_tree
+        self._rebuild(db_path)
+        (rns.FINDATA / "Companies" / "Agriculture" / "Probe_Co.md").write_text(
+            "# Probe Co\n\nbody\n", encoding="utf-8")
+        stats = rns.rebuild(db_path, write=False)
+        assert stats["stale_new"] == ["findata/Companies/Agriculture/Probe_Co.md"]
+        rc = rns.main(["--check"])
+        assert rc == 1
+
+    def test_check_detects_deleted_note(self, seeded_tree, fake_local):
+        db_path = seeded_tree
+        self._rebuild(db_path)
+        (rns.FINDATA / "Sectors" / "Agriculture.md").unlink()
+        stats = rns.rebuild(db_path, write=False)
+        assert stats["stale_deleted"] == ["findata/Sectors/Agriculture.md"]
+        assert rns.main(["--check"]) == 1
+
+    def test_check_detects_db_side_sector_change(self, seeded_tree, fake_local):
+        """Fingerprint hashes title+sector from the entities table, so a
+        DB-side reclassify flags the note changed even with an untouched
+        file (the documented P2.1 property, now visible in --check)."""
+        db_path = seeded_tree
+        self._rebuild(db_path)
+        conn = sqlite3.connect(str(db_path))
+        conn.execute(
+            "UPDATE entities SET sector_classification='Aquaculture' "
+            "WHERE file_path=?", (self.CO,))
+        conn.commit()
+        conn.close()
+        stats = rns.rebuild(db_path, write=False)
+        assert stats["stale_changed"] == [self.CO]
+
+    def test_write_path_reports_was_stale(self, seeded_tree, fake_local, capsys):
+        db_path = seeded_tree
+        self._rebuild(db_path)
+        p = rns.FINDATA / "Companies" / "Agriculture" / "Acme_Feeds.md"
+        p.write_text(p.read_text(encoding="utf-8") + "\nprobe edit\n",
+                     encoding="utf-8")
+        assert rns.main([]) == 0  # applying rebuild
+        err = capsys.readouterr().err
+        assert "index was STALE before this rebuild: 1 changed" in err
+        assert rns.main(["--check"]) == 0  # converged
+
