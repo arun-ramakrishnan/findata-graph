@@ -209,3 +209,70 @@ class TestStoredDimsAndRecreate:
         assert VS.stored_dims(fts_conn) == 2
         got = VS.knn_similarities(fts_conn, [1.0, 0.0], k=3, dims=2)
         assert got is not None and len(got) == 3
+
+
+class TestEmbedStoreConsolidation:
+    """Pins for the consolidated embed store (embed_store_consolidation,
+    2026-08): one shared file for cache + mirror, with the :memory:-main
+    hermeticity branch preserved."""
+
+    def test_file_backed_mains_share_one_store(self, tmp_path):
+        """Two connections opening DIFFERENT index dbs land their vec/cache
+        state in the SAME store file (per-test EMBED_DB_PATH via conftest)."""
+        from helpers.core.embed_cache import CachedEmbed
+
+        a = sqlite3.connect(str(tmp_path / "index_a.db"))
+        b = sqlite3.connect(str(tmp_path / "index_b.db"))
+        ce_a = CachedEmbed(lambda t: [0.1] * 4, "m", a, source="doc")
+        assert ce_a._ok
+        vec = ce_a("shared text")  # cohort doc seeds the pooled key
+        a.commit()
+        ce_b = CachedEmbed(lambda t: [0.2] * 4, "m", b, source="script")
+        b.commit()
+        assert ce_b._ok
+        # Same hash, written by cohort A -> served to connection B.
+        assert ce_b("shared text") == vec and ce_b.hits == 1
+        con = sqlite3.connect(str(VS.EMBED_DB_PATH))
+        try:
+            # Direct connection: the pooled table is unqualified main here
+            # ('vecdb' exists only as an ATTACH alias at runtime).
+            rows = dict(con.execute(
+                "SELECT source, COUNT(*) FROM embed_cache GROUP BY source"
+            ).fetchall())
+        finally:
+            con.close()
+        assert rows == {"doc": 1}
+
+    def test_in_memory_main_gets_anonymous_store_not_live(self, tmp_path):
+        """The :memory:-main hermeticity branch: even with a POPULATED real
+        store on disk at EMBED_DB_PATH, an in-memory main attaches an
+        anonymous sidecar and never touches the file (the consolidation
+        trap this pins)."""
+        VS.EMBED_DB_PATH = tmp_path / "live" / "embed_store.db"
+        (tmp_path / "live").mkdir()
+        seeded = sqlite3.connect(str(VS.EMBED_DB_PATH))
+        seeded.execute(
+            "CREATE TABLE embed_cache (text_hash TEXT, model TEXT, "
+            "embedding TEXT, source TEXT DEFAULT '', PRIMARY KEY(text_hash, model))"
+        )
+        seeded.execute("INSERT INTO embed_cache VALUES ('h', 'm', '[]', 'x')")
+        seeded.commit()
+        seeded.close()
+
+        mem = sqlite3.connect(":memory:")
+        VS._attach_vec_db(mem)
+        attached_files = [r[2] for r in mem.execute("PRAGMA database_list").fetchall() if r[1] == "vecdb"]
+        assert attached_files == [""]  # anonymous :memory:, not the live path
+        mem.execute(
+            "CREATE TABLE vecdb.embed_cache (text_hash TEXT, model TEXT, "
+            "embedding TEXT, source TEXT DEFAULT '')"
+        )
+        mem.execute("INSERT INTO vecdb.embed_cache VALUES ('junk', '', '', '')")
+        mem.commit()
+
+        after = sqlite3.connect(str(VS.EMBED_DB_PATH))
+        try:
+            n = after.execute("SELECT COUNT(*) FROM embed_cache").fetchone()[0]
+        finally:
+            after.close()
+        assert n == 1  # the live store was not mutated by the memory conn

@@ -23,6 +23,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`company_embeddings_maint.md`](database/company_embeddings_maint.md) — Proposal: Cached Company-Embeddings Refresh in maint-full — completed.md #142
 - [`sql_capability_unlocks.md`](database/sql_capability_unlocks.md) — Proposal: SQL Capability Unlocks — note vectors in DuckDB (`v_note_embeddings` + 4 wrappers + 2 endpoints), BFS shortest-path fix, bind-param hardening — completed.md #143
 - [`maint_full_zero_churn.md`](database/maint_full_zero_churn.md) — Proposal: Zero-Churn maint-full — stable event/embedding writes, seeded+canonical louvain, `ORDER BY ALL` parquet exports, guarded B4 bumps — completed.md #147
+- [`embed_store_consolidation.md`](database/embed_store_consolidation.md) — Proposal: Single embed store — consolidate the vector sidecars (pooled content-hash cache + note_search vec0 mirror in one SQLite file; backup streams collapse to two artifacts) — completed.md #166
 
 ## okf/ — OKF v0.2 — provenance vocabulary, activation, sources maintenance, read-side
 

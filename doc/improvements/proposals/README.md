@@ -24,5 +24,5 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- _(none)_ — `perf_optimization.md` executed 2026-08-26, archived to `../archive/tooling/` (#163)
+- _(none)_ — `embed_store_consolidation.md` executed 2026-08-27, archived to `../archive/database/` (#166)
 

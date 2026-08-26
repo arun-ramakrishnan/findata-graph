@@ -446,6 +446,29 @@ def _no_local_embedder():
 
 
 @pytest.fixture(autouse=True)
+def _embed_store_to_tmp(tmp_path):
+    """Redirect the consolidated embed store (vec_search.EMBED_DB_PATH) into
+    the per-test tmp dir (embed_store_consolidation, 2026-08). Without this,
+    ANY file-backed connection reaching vec_search._attach_vec_db —
+    rebuilders' tmp index DBs included — would attach and CREATE the live
+    memory/embed_store.db during pytest. Same plain save/restore style as
+    _no_local_embedder: an autouse monkeypatch would instantiate before
+    unit_client and re-apply after its restore (the leak ordering documented
+    there). The :memory:-main branch in _attach_vec_db bypasses this path
+    entirely; a dedicated test pins that."""
+    from helpers.core import vec_search
+
+    orig = vec_search.EMBED_DB_PATH
+    # Deliberately NO mkdir here: _attach_vec_db self-creates parents on
+    # first real use, and tests that assert EXACT tmp_path contents
+    # (e.g. test_exchange_search filename sanitisation) would see the stray
+    # memory/ dir as pollution.
+    vec_search.EMBED_DB_PATH = tmp_path / "memory" / "embed_store.db"
+    yield
+    vec_search.EMBED_DB_PATH = orig
+
+
+@pytest.fixture(autouse=True)
 def _clear_graph_query_cache():
     """Isolation: the process-global query result cache must not leak
     between tests.

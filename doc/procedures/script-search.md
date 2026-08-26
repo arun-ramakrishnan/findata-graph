@@ -23,7 +23,7 @@ zero new authoring burden; metadata comes from what the code already says.
 |---|---|---|
 | `script_search` FTS5 (BM25 + JSON embeddings, hybrid RRF) | `memory/script_search.db` (gitignored sidecar) | this procedure |
 | Row composition (docstrings, CLI tokens, imports, Makefile parse) | recomputed every rebuild (~185 files, sub-second) | automatic |
-| Embed cache (`(sha256(text), model) -> vector`) | `memory/script_search.db_vec.db` (shared with the other indexers) | automatic |
+| Embed cache (`(sha256(text), model) -> vector`) | pooled `memory/embed_store.db` (schema `vecdb`; shared with every indexer) | automatic |
 | Model stamp (`embed_model` / `embed_dims`) | `script_search_info` in the sidecar | same run |
 
 The sidecar is deliberately NOT in `memory/research.db` (same locality rule

@@ -19,11 +19,14 @@ direct shell runs use `.venv/bin/python3`).
 Both sides embed through **one module** — `helpers/core/local_embedder.py`
 (bge-small-en-v1.5, 384-dim, offline). The BGE rule that queries carry a
 retrieval prefix and documents do not lives only there; never embed at a
-call site. The vec0 mirror and the shared **embed cache**
-(`helpers/core/embed_cache.py`, one `(sha256(text), model)` table serving
-both indexers) live in the **sidecar** `memory/research.db_vec.db` (never
-research.db itself: DuckDB's SQLite scanner cannot catalog-scan vec0
-virtual tables).
+call site. The vec0 mirror and the pooled **embed cache**
+(`helpers/core/embed_cache.py`, one `(sha256(text), model, source)` table
+serving every indexer — note/company/doc/script cohorts) live in the
+**consolidated embed store** `memory/embed_store.db` (attached as schema
+`vecdb`; never research.db itself: DuckDB's SQLite scanner cannot
+catalog-scan vec0 virtual tables). The store replaced the per-index
+`<db>_vec.db` sidecars in 2026-08 (embed_store_consolidation); the legacy
+files survive renamed as `*.migrated.bak` until hand-cleanup.
 
 ## One-time setup (per machine)
 
@@ -115,8 +118,9 @@ Notes:
 | Company populate / `--maint`, warm cache | seconds (reads + hashes; ≈0 embeds on a no-change cycle) |
 
 Cold-cache situations: first apply, a model swap, and the first rebuild
-after `make snapshot-restore` (the sidecar is excluded from snapshots by
-design). A q4_k_m quant halves per-doc cost at a small quality cost if the
+after `make snapshot-restore` (the embed store is excluded from snapshots by
+design — the gzip/raw backup twins in `db-backup/` are the recovery
+points). A q4_k_m quant halves per-doc cost at a small quality cost if the
 cold path ever matters (constants + sha re-pin in `local_embedder.py`).
 
 ## What happens when a new letter is processed
@@ -127,7 +131,7 @@ chatter/metric blocks, sector rosters. Afterwards:
 
 - **note_search: mechanically full, economically incremental.** Maint's
   step 6 re-reads and reinserts all ~1,227 docs every run (self-correcting
-  by design), but each doc's text is hashed against the sidecar cache —
+  by design), but each doc's text is hashed against the pooled store cache —
   unchanged text is a cache hit and never re-embeds. Only the new letter
   and the handful of edited notes re-embed (~0.8 s each) and get cached. A
   typical letter cycle costs seconds-to-a-minute. The vec0 mirror follows
@@ -142,7 +146,10 @@ chatter/metric blocks, sector rosters. Afterwards:
   maint never auto-upgrades company embeddings; a model upgrade is this
   procedure's apply, run by hand.
 - **One-time seeding (2026-08-21).** The original apply predated the
-  company-side cache, so the live sidecar holds note_search texts only. Run
+  company-side cache; those texts now live in the pooled store stamped
+  `legacy-research` (both populations, indistinguishable post-hoc — the
+  migration could not split them). New/changed companies written by future
+  `--maint` runs get stamped `company`. Run
   the populate in step 3 once more (same ~15–20 min, writes identical
   vectors — embeddings are deterministic — and seeds the cache), or accept
   ONE cold first maint-full; every run after that is warm.

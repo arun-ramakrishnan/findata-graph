@@ -39,7 +39,7 @@ verify_notes ✓  database_integrity_check ✓  db_maint ✓  snapshot ✓
 ```
 app.py                Flask: findata viewer + graph API (lazy-imports helpers.core.db,
                       helpers.graph.query, helpers.graph.algorithms)
-memory/               research.db (SQLite, WAL) + graph.duckdb (cache) — gitignored
+memory/               research.db (SQLite, WAL) + graph.duckdb (cache) + embed_store.db (pooled vec/cache store) — gitignored
 snapshots/            git-tracked Parquet snapshot (per-table + schema DDL) — restores memory/
 db-backup/            local scratch: gzip snapshots + raw *_backup.* copies (gitignored)
 findata/              the vault (see findata.md for layout & note format)

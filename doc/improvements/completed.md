@@ -3386,3 +3386,60 @@ unpushed patch. Next free number taken; content unchanged.)
 - `connect()` docstring updated for the serialized fallback.
 
 **Verification**: true cross-process regression test (`test_parallel_ro_connects_serialize_the_build`, tests/test_graph_disk.py): 6 subprocesses against one cold cache. With the flock: 6/6 pass. Control with the flock stripped: 5/6 fail, reproducing the production traceback byte-for-byte (same `TransactionException ... wal` at `_materialise_vertices`). Suites: graph_disk 24, suggest-relations + onager 64; ruff + `make types` + `make types-tests` clean; `make suggest-relations` green end-to-end.
+
+## 166. Embed-store consolidation — one SQLite store for cache + vec mirror
+
+**Date**: 2026-08-27
+**Status**: COMPLETE (proposal `archive/database/embed_store_consolidation.md`,
+filed 2026-08-26, review round same day folded 4 findings, executed 2026-08-27)
+**Motivation**: three per-index `_vec.db` sidecars each carried a private copy
+of the content-hash embed cache, with `<main>_vec.db` naming re-derived in
+four backup sites — two consecutive backup-stream catches in one week were
+structural fallout. Consolidation target confirmed necessary by a fresh
+DuckDB 1.5.5 probe (`no such module: vec0` persists on ATTACH catalog scans),
+and by the MotherDuck-series / Quack assessments
+(`doc/local/duckdb_vector_search_assessment.md`: external vector DBs,
+engine swap, and Quack-beta all rejected with evidence; revisit triggers
+recorded).
+
+### What landed
+
+- **`helpers/core/vec_search.py`**: `EMBED_DB_PATH` module constant
+  (`memory/embed_store.db`, monkeypatchable); `_attach_vec_db` resolves the
+  shared store for every file-backed main (retires `<main>_vec.db`
+  derivation), sets WAL + busy_timeout=5000, keeps the anonymous
+  `:memory:` branch verbatim as the hermeticity boundary.
+- **`helpers/core/embed_cache.py`**: pooled table renamed to `embed_cache`
+  (+ bare DDL constant for direct-file tooling) and gains a `source` cohort
+  column ('note'/'doc'/'script'/'company' at runtime; analytics only,
+  never a lookup key); both wrapper APIs thread it through.
+- **`helpers/maintenance/migrate_embed_store.py`** (new): one-shot pooling —
+  INSERT OR IGNORE per legacy file with per-source commit, cohort labels
+  ('legacy-research' for the mixed research sidecar), `.migrated.bak`
+  renames (+wal/shm siblings), idempotent re-runs report absence;
+  `--sync-mirror` rebuilds the vec0 table from live research.db via the
+  production write path.
+- **Backup streams collapsed**: `db_maint._backup_vec` →
+  `_backup_embed_store` (legacy sibling wins if present, else shared store →
+  `embed_store_backup.db`); snapshot gzip stream mirrors the rule →
+  `embed_store.snapshot.db.gz`; rds/rss last-good backups narrowed to the
+  INDEX only (`_backup_last_good_index`) — bad-full-rewrite protection kept,
+  per-index cache twins retired.
+- **conftest autouse `_embed_store_to_tmp`**: redirects EMBED_DB_PATH per
+  test — tests may never create the live store.
+- Docs: embeddings.md (store layout, recovery), doc-search/script-search
+  procedures (pooled-cache rows, central recovery), architecture.md tree.
+
+### Live migration results (2026-08-27)
+
+3,211 cache rows pooled (legacy-research 2,327 / doc 600 / script 284;
+integrity ok, journal_mode wal); `note_search_vec` rebuilt at 1,224 rows.
+
+### Verification
+
+Suites green: test_vec_search (+ consolidation pins incl. the
+in-memory-anonymity trap and cross-connection pooling), test_embed_cache,
+test_migrate_embed_store (round-trip: overlap dedupe, cohorts, rename
+semantics, mirror rebuild), all three rebuilder suites, db_maint +
+snapshot (+ new store-branch artifacts), api-search; full-tree ruff clean.
+Commit message lives on the user's patch.

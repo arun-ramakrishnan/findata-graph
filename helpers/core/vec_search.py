@@ -14,12 +14,14 @@ path all keep working untouched); the vec table is a derived index, exactly
 like the FTS5 shadow tables. It is excluded from Parquet snapshots for the
 same reason — it is rebuilt, not shipped.
 
-The mirror lives in a SIDECAR SQLite database (``<main>_vec.db``, ATTACHed
-as ``vecdb``), never in research.db itself: DuckDB's SQLite scanner cannot
-catalog-scan a database containing vec0 virtual tables ("no such module:
-vec0" on ATTACH — the same regression class as spellfix1 tables). The
-sidecar is derived state: safe to delete, rebuilt by rebuild_note_search
-or lazily backfilled on the first hybrid search.
+The mirror lives in the CONSOLIDATED EMBED STORE — one SQLite database
+(``memory/embed_store.db``, ATTACHed as schema ``vecdb``) that also hosts the
+pooled content-hash embed cache (``helpers/core/embed_cache.py``), never in
+research.db itself: DuckDB's SQLite scanner cannot catalog-scan a database
+containing vec0 virtual tables ("no such module: vec0" on ATTACH — the same
+regression class as spellfix1 tables). The store is derived state: safe to
+delete, rebuilt by rebuild_note_search or lazily backfilled on the first
+hybrid search; cache rows recompute from their sources on demand.
 
 Three entry points:
 
@@ -57,9 +59,19 @@ VEC_TABLE = "note_search_vec"
 # The vec0 virtual table must NOT live in research.db itself: DuckDB's
 # SQLite scanner chokes on extension virtual tables during ATTACH catalog
 # scans ("no such module: vec0" — same failure class as spellfix1, see
-# memory: spellfix1_tables_must_not_live_in_research_db). It lives in a
-# sidecar database attached to the same connection as schema ``vecdb``.
+# memory: spellfix1_tables_must_not_live_in_research_db). It lives in the
+# consolidated embed store attached to the same connection as schema
+# ``vecdb``.
 VEC_SCHEMA = "vecdb"
+
+# Consolidated embed store (embed_store_consolidation proposal, 2026-08):
+# ONE SQLite database holds every sqlite-vec artefact that used to live in
+# per-index ``<main>_vec.db`` sidecars — the note_search vec0 mirror here and
+# the pooled content-hash cache (embed_cache.py). Re-targetable module
+# attribute: tests MUST redirect it (conftest autouse does globally) the way
+# they retarget DOC_DB/BACKUP_DIR; production defaults to the repo store.
+# In-memory mains bypass it entirely (anonymous in-memory attach).
+EMBED_DB_PATH = _REPO_ROOT / "memory" / "embed_store.db"
 
 # Dims of an existing vec0 table, parsed from its DDL ("... FLOAT[384] ...").
 _DIM_RE = re.compile(r"FLOAT\[(\d+)\]")
@@ -70,31 +82,48 @@ def qualified() -> str:
     return f"{VEC_SCHEMA}.{VEC_TABLE}"
 
 
-def _sidecar_path(conn: sqlite3.Connection) -> str:
-    """Sidecar DB path derived from the connection's main file.
+def _store_path(conn: sqlite3.Connection) -> str:
+    """Resolve the consolidated embed store for this connection.
 
-    ``memory/research.db`` -> ``memory/research.db_vec.db``. In-memory or
-    temporary connections get an anonymous in-memory sidecar so tests and
-    throwaway conns stay isolated.
+    File-backed mains share ``EMBED_DB_PATH`` regardless of which index DB
+    they opened (research/doc/script caches pool into one store). In-memory
+    or temporary mains get an anonymous in-memory store so tests and
+    throwaway conns stay isolated — hermeticity never depends on where the
+    main file lives.
     """
     for _seq, name, file in conn.execute("PRAGMA database_list").fetchall():
         if name == "main" and file:
-            return str(Path(file).with_name(Path(file).name + "_vec.db"))
+            return str(Path(EMBED_DB_PATH))
     return ":memory:"
 
 
 def _attach_vec_db(conn: sqlite3.Connection) -> None:
-    """Idempotently ATTACH the sidecar DB as ``vecdb`` on this connection."""
+    """Idempotently ATTACH the consolidated embed store as ``vecdb``."""
+    # Connection-wide lock-wait BEFORE attaching so a concurrent first
+    # attach/create against a busy store queues instead of erroring.
+    try:
+        conn.execute("PRAGMA busy_timeout = 5000")
+    except sqlite3.Error:
+        pass  # exotic conn; attach below still best-effort
     have = conn.execute(
         "SELECT 1 FROM pragma_database_list WHERE name = ?", (VEC_SCHEMA,)
     ).fetchone()
     if have:
         return
-    path = _sidecar_path(conn)
+    path = _store_path(conn)
     if path == ":memory:":
         conn.execute(f"ATTACH DATABASE ':memory:' AS {VEC_SCHEMA}")
     else:
+        Path(path).parent.mkdir(parents=True, exist_ok=True)
         conn.execute(f"ATTACH DATABASE ? AS {VEC_SCHEMA}", (path,))
+        # WAL lets app.py's lazy backfill coexist with rebuilder writers on
+        # one shared file; short early-commit transactions keep writer
+        # windows tiny. Best-effort: read-only or transiently locked stores
+        # keep working in their current journal mode.
+        try:
+            conn.execute(f"PRAGMA {VEC_SCHEMA}.journal_mode = WAL").fetchone()
+        except sqlite3.Error:
+            pass
 
 # Keep module importable (and unit-testable) without the package installed.
 try:  # pragma: no cover - exercised implicitly via vec_available()

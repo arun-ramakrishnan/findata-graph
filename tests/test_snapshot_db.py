@@ -309,7 +309,8 @@ def test_export_skips_and_warns_on_stray_tables(tmp_path, caplog):
 
 
 # ---------------------------------------------------------------------------
-# Vec-sidecar gzip backup (run_snapshot binary path)
+# Embed-store gzip backup (run_snapshot binary path): per-db legacy sibling
+# keeps its paired artifact name; otherwise the shared store rides along.
 # ---------------------------------------------------------------------------
 def test_run_snapshot_backs_up_vec_sidecar(tmp_path):
     """<db>_vec.db rides along as <out>.db_vec.db.gz; absent sidecar skips."""
@@ -340,3 +341,36 @@ def test_run_snapshot_backs_up_vec_sidecar(tmp_path):
     assert rc == 0
     vec_gz = tmp_path / "snap" / "snapshot.db_vec.db.gz"
     assert vec_gz.exists() and vec_gz.stat().st_size > 0
+
+
+def test_run_snapshot_backs_up_shared_embed_store(tmp_path):
+    """Without a legacy sibling the consolidated EMBED_DB_PATH store is
+    gzipped as <stem>.snapshot.db.gz."""
+    from helpers.core import vec_search as VS
+    from helpers.maintenance.snapshot_db import _cmd_create
+
+    src_db = tmp_path / "src.db"
+    _make_test_db(src_db)
+    out = tmp_path / "snap" / "snapshot.db.gz"
+
+    store_dir = tmp_path / "memory"
+    store_dir.mkdir(exist_ok=True)  # conftest autouse created it
+    store = store_dir / "embed_store.db"
+    sconn = sqlite3.connect(str(store))
+    sconn.execute("CREATE TABLE embed_cache (k TEXT PRIMARY KEY)")
+    sconn.execute("INSERT INTO embed_cache VALUES ('x')")
+    sconn.commit()
+    sconn.close()
+
+    saved = VS.EMBED_DB_PATH
+    VS.EMBED_DB_PATH = store
+    try:
+        rc = _cmd_create(
+            src_db, out, None, None, None, None, None, fmt="binary",
+            with_duckdb=False, logger=_log,
+        )
+    finally:
+        VS.EMBED_DB_PATH = saved
+    assert rc == 0
+    store_gz = tmp_path / "snap" / "embed_store.snapshot.db.gz"
+    assert store_gz.exists() and store_gz.stat().st_size > 0

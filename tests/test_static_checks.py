@@ -270,6 +270,11 @@ _SQLITE3_CONNECT_ALLOWLIST = {
     "helpers/misc/database_integrity_check.py",
     # Read-only SELECT in a validator. FK enforcement irrelevant for SELECT.
     "helpers/validators/static_checks.py",
+    # One-shot sidecar migration: opens LEGACY files read-only by URI and the
+    # store file DIRECTLY (unqualified bare tables — a house connect() would
+    # bootstrap production schema into the new file). Never runs on
+    # research.db; completed.md #166.
+    "helpers/maintenance/migrate_embed_store.py",
 }
 
 

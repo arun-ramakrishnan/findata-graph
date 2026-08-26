@@ -306,7 +306,7 @@ class TestRebuild:
 # --- db-backup recovery point -------------------------------------------------
 
 
-class TestSidecarBackup:
+class TestLastGoodIndexBackup:
     def _backup(self):
         return Path(rds.BACKUP_DIR) / "doc_search_backup.db"
 
@@ -329,16 +329,10 @@ class TestSidecarBackup:
         rds.rebuild(write=True, incremental=True)
         assert backup.stat().st_mtime == stamp  # untouched by both
 
-    def test_vec_cache_backed_up_alongside(self, seeded_docs, fake_local):
-        rds.rebuild(write=True)  # CachedEmbed created <db>_vec.db
-        vec_src = seeded_docs.with_name(seeded_docs.name + "_vec.db")
-        assert vec_src.exists()
-        assert (Path(rds.BACKUP_DIR) / "doc_search_backup_vec.db").exists()
-
     def test_backup_restorable(self, seeded_docs, fake_local):
         rds.rebuild(write=True)
         backup = self._backup()
-        seeded_docs.unlink()  # catastrophe: sidecar lost
+        seeded_docs.unlink()  # catastrophe: the index db is lost
         shutil.copyfile(backup, seeded_docs)
         con = rds.connect_doc_db(seeded_docs)
         try:

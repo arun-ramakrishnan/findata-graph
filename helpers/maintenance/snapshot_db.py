@@ -999,21 +999,29 @@ def _cmd_create(
         create_snapshot(db_path, out_path, logger)
         r = verify_snapshot(out_path, db_path, logger)
         ok = ok and r["match"]
-        # Vec sidecar (<db>_vec.db): the A1 move put the vec0 mirror AND the
-        # shared (sha256, model) embed cache OUTSIDE research.db. All
-        # derived state — but the cache is content-addressed and expensive
-        # to re-fill cold (~minutes of re-embedding), which is exactly why
-        # rebuild_doc_search backs up its own _vec sibling. Copy-only (no
+        # Embed store: the vec0 mirror + pooled content-hash cache live in ONE
+        # consolidated SQLite database (helpers/core/vec_search.EMBED_DB_PATH)
+        # since the embed_store consolidation; pre-consolidation clones (and
+        # tests seeding tmp dbs) may still carry a per-db <db>_vec.db sibling.
+        # All derived state — but the cache is content-addressed and expensive
+        # to re-fill cold (~minutes of re-embedding). Copy-only (no
         # verify_snapshot: that helper is hardcoded to entities/relations);
         # the sqlite online-backup API already gives WAL consistency.
-        # Guarded: older clones without the sidecar just skip.
-        vec_path = db_path.with_name(db_path.name + "_vec.db")
-        if vec_path.exists():
+        vec_src = db_path.with_name(db_path.name + "_vec.db")
+        if vec_src.exists():
             vec_out = out_path.parent / out_path.name.replace(
                 ".db.gz", ".db_vec.db.gz")
-            create_snapshot(vec_path, vec_out, logger)
+            create_snapshot(vec_src, vec_out, logger)
         else:
-            logger.info("Vec sidecar absent — gzip backup skipped (%s)", vec_path)
+            from helpers.core.vec_search import EMBED_DB_PATH
+
+            store = Path(EMBED_DB_PATH)
+            if store.exists():
+                store_out = out_path.parent / f"{store.stem}.snapshot.db.gz"
+                create_snapshot(store, store_out, logger)
+            else:
+                logger.info(
+                    "Embed store absent — gzip backup skipped (%s)", store)
         if with_duckdb:
             # Narrow the format-optional paths (S101-clean explicit raise;
             # a None here is a caller contract violation, not a state to

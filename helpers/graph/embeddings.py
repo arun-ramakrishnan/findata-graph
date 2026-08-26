@@ -236,7 +236,8 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     # local_embedder).
     texts = [_get_company_text(conn, n) for n in names]
     vecs, cache_stats = cached_embed_batch(
-        conn, texts, local_embedder.MODEL_ID, local_embedder.embed_documents
+        conn, texts, local_embedder.MODEL_ID, local_embedder.embed_documents,
+        source="company",
     )
     # Stable-write upsert (maint_full_zero_churn F2): an unchanged vector
     # writes NOTHING — INSERT OR REPLACE here used to delete+reinsert every

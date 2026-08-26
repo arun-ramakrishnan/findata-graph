@@ -360,23 +360,25 @@ def _backup_file(src: Path, dest: Path) -> bool:
         return False
 
 
-def _backup_sidecars(db_path: Path) -> None:
-    """Recovery-point copy of the sidecar + its embed cache into db-backup/.
+def _backup_last_good_index(db_path: Path) -> None:
+    """Last-good recovery copy of the INDEX into db-backup/.
 
     Runs AFTER a successful FULL rewrite (last-good-state semantics: a
     failed rebuild rolls back and the previous run's backup survives; the
     first rebuild's backup is the first good index, not the empty
     pre-state). Not run for --check / --incremental. Best-effort with a
-    WARNING — a failed backup must not fail the rebuild (the sidecar is
-    derived state; the worst case is a cold re-embed). db-backup/ is
+    WARNING — a failed backup must not fail the rebuild. db-backup/ is
     gitignored local scratch, matching the research_backup.db pattern of
     db_maint — the git-tracked parquet snapshot deliberately does NOT
     cover this DB (doc/local/ plaintext locality).
+
+    The embed cache used to ride along as a paired ``<index>_vec.db`` twin;
+    since the embed_store consolidation it lives in the shared store and is
+    covered centrally instead (db_maint._backup_embed_store + the snapshot
+    gzip stream) — never here.
     """
     backups: list[tuple[Path, Path]] = [
         (db_path, Path(BACKUP_DIR) / "doc_search_backup.db"),
-        (db_path.with_name(db_path.name + "_vec.db"),
-         Path(BACKUP_DIR) / "doc_search_backup_vec.db"),
     ]
     try:
         Path(BACKUP_DIR).mkdir(parents=True, exist_ok=True)
@@ -431,7 +433,7 @@ def rebuild(  # noqa: C901
             embed_fn, embed_dims, model_label = resolve_embedder()
             stats["embed_model"] = model_label
             if model_label != f"dry-run-v{_PSEUDO_DIMS}":
-                embed_fn = CachedEmbed(embed_fn, model_label, conn)
+                embed_fn = CachedEmbed(embed_fn, model_label, conn, source="doc")
 
         # Incremental preload: meta fingerprints + stored rows (file-granular —
         # a file owns N section rows, carried verbatim on an mtime match).
@@ -552,7 +554,7 @@ def rebuild(  # noqa: C901
             stats["mode"] = "full"
             stats["content_changed"] = content_changed
             # Last-good-state recovery point (local db-backup/ only).
-            _backup_sidecars(db_path)
+            _backup_last_good_index(db_path)
             return stats
 
         # Incremental: diff against meta at file granularity. A file is

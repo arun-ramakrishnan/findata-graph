@@ -102,6 +102,7 @@ def connect(
     row_factory=sqlite3.Row,
     enable_fk: bool = True,
     wal: bool = True,
+    read_only: bool = False,
 ) -> sqlite3.Connection:
     """Open a SQLite connection with project-standard pragmas applied.
 
@@ -115,20 +116,31 @@ def connect(
             rules in the schema actually fire. Keep this ON unless you are
             intentionally constructing inconsistent state (e.g. test fixtures).
         wal: Ensure `journal_mode = WAL` for concurrent-reader semantics.
+        read_only: Open via SQLite URI ``mode=ro`` — the file is neither
+            created nor mutated and writes raise. For reading sidecars/
+            snapshots that must stay byte-frozen (e.g. legacy cache files
+            about to be renamed away by a migration). ``wal`` is ignored
+            (an RO connection cannot switch journal modes); the other
+            pragmas still apply.
 
     Returns:
         A `sqlite3.Connection` with the requested settings. Caller is
         responsible for closing (use as a context manager for auto-commit).
     """
     path = Path(db_path) if db_path else DEFAULT_DB_PATH
-    conn = sqlite3.connect(str(path))
+    if read_only:
+        # as_uri() percent-encodes ?/# so unusual filenames stay one arg;
+        # resolve() because the URI form demands an absolute path.
+        conn = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    else:
+        conn = sqlite3.connect(str(path))
     if row_factory is not None:
         conn.row_factory = row_factory
     if enable_fk:
         # Must be set outside a transaction. sqlite3.connect() opens in
         # autocommit-off mode but the pragma still takes effect.
         conn.execute("PRAGMA foreign_keys = ON")
-    if wal:
+    if wal and not read_only:
         # WAL is persistent on the DB file once set, but re-setting is cheap
         # and guards against a snapshot/restore losing the mode.
         conn.execute("PRAGMA journal_mode = WAL")

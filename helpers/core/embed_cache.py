@@ -1,39 +1,50 @@
 #!/usr/bin/env python3
-"""Shared content-hash embedding cache for both embed indexers.
+"""Shared content-hash embedding cache for ALL embed indexers.
 
 Q3 of the local_embeddings proposal (2026-08-20): with a real embedding
 model, a FULL refresh costs minutes of CPU, busting the maint budget. Remedy:
 a ``(sha256(text), model)`` -> vector cache so unchanged text never re-embeds.
-It lives in the vec SIDECAR (``<db>_vec.db``, schema ``vecdb``) — derived,
-snapshot-excluded, lazily rebuilt state, exactly like the vec0 mirror; a new
-table in research.db would collide with the schema-drift guards and DuckDB
-scanner expectations.
+Since the embed_store consolidation it lives in ONE pooled SQLite database
+(the vec store, ``memory/embed_store.db``, attached as schema ``vecdb``)
+shared by every consumer; the old per-index ``<db>_vec.db`` copies were
+migrated once (``helpers/maintenance/migrate_embed_store.py``). Derived,
+snapshot-excluded state exactly like the vec0 mirror beside it; a new table
+in research.db would collide with the schema-drift guards and DuckDB scanner
+expectations.
 
-One cache serves BOTH text populations — the note_search FTS rebuild
-(``helpers/maintenance/rebuild_note_search.py``, per-doc wrapper) and the
-company-embeddings populate (``helpers/graph/embeddings.py``, batch wrapper).
-Company texts are just another text population; the key is content + model
-label, never the population. A model swap re-embeds everything (label is
-part of the key), which is exactly the required semantics: vectors from
-different models must never be served for each other's spaces.
+One cache serves EVERY text population — note_search rebuild
+(per-doc wrapper), doc/script indexers, company-embeddings populate (batch
+wrapper). The key is content + model label, never the population; the
+optional ``source`` column only stamps which indexer wrote a row (cohort
+analytics) and never participates in lookups. A model swap re-embeds
+everything (label is part of the key), which is exactly the required
+semantics: vectors from different models must never be served for each
+other's spaces.
 
-Everything here is best-effort: when the sidecar can't be attached the
-callers degrade to uncached embedding (correct, just slower).
+Everything here is best-effort: when the store can't be attached the callers
+degrade to uncached embedding (correct, just slower).
 """
 
 import hashlib
 import json
 from collections.abc import Callable
 
-EMBED_CACHE_TABLE = "vecdb.note_search_emb_cache"
-EMBED_CACHE_DDL = (
-    "CREATE TABLE IF NOT EXISTS vecdb.note_search_emb_cache ("
+# Qualified name inside the attached ``vecdb`` schema used at runtime.
+EMBED_CACHE_TABLE = "vecdb.embed_cache"
+# Bare (unqualified) names for tooling that opens the store file directly
+# (the migration script) instead of going through vec_search._attach_vec_db.
+CACHE_TABLE_BARE = "embed_cache"
+LEGACY_CACHE_TABLE = "note_search_emb_cache"
+CACHE_DDL_BARE = (
+    f"CREATE TABLE IF NOT EXISTS {CACHE_TABLE_BARE} ("
     " text_hash TEXT NOT NULL,"
     " model     TEXT NOT NULL,"
     " embedding TEXT NOT NULL,"
+    " source    TEXT NOT NULL DEFAULT '',"
     " PRIMARY KEY (text_hash, model)"
     ")"
 )
+EMBED_CACHE_DDL = CACHE_DDL_BARE.replace(CACHE_TABLE_BARE, EMBED_CACHE_TABLE)
 
 
 def _hash(text: str) -> str:
@@ -43,14 +54,23 @@ def _hash(text: str) -> str:
 class CachedEmbed:
     """Per-text wrapper around a resolved embedder (note_search rebuild).
 
-    Counts hits/misses/dirty for the stats report. Best-effort: if the
-    sidecar can't be attached the wrapper degrades to the raw embed_fn.
+    Counts hits/misses/dirty for the stats report. ``source`` stamps the
+    pooled-cache cohort ('note'/'doc'/'script'/'company') — analytics only,
+    never a lookup key. Best-effort: if the store can't be attached the
+    wrapper degrades to the raw embed_fn.
     """
 
-    def __init__(self, embed_fn: Callable[[str], list[float]], model_label: str, conn):
+    def __init__(
+        self,
+        embed_fn: Callable[[str], list[float]],
+        model_label: str,
+        conn,
+        source: str = "",
+    ):
         self._fn = embed_fn
         self._model = model_label
         self._conn = conn
+        self._source = source
         self.hits = 0
         self.misses = 0
         self.dirty = 0
@@ -87,8 +107,8 @@ class CachedEmbed:
             try:
                 self._conn.execute(
                     f"INSERT OR REPLACE INTO {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
-                    "(text_hash, model, embedding) VALUES (?, ?, ?)",
-                    (h, self._model, json.dumps(vec)),
+                    "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
+                    (h, self._model, json.dumps(vec), self._source),
                 )
                 self.dirty += 1
             except Exception:  # noqa: S110  # cache write fails -> fine
@@ -101,10 +121,11 @@ def cached_embed_batch(
     texts: list[str],
     model_label: str,
     embed_missing: Callable[[list[str]], list[list[float]]],
+    source: str = "",
 ) -> tuple[list[list[float]], dict]:
     """Cache-aware BATCH embed (company-embeddings populate).
 
-    Hits are served from the sidecar cache; only the misses go through ONE
+    Hits are served from the pooled store cache; only the misses go through ONE
     ``embed_missing`` call (the batch embedder — a single llama.cpp call for
     the whole corpus), and those vectors are stored back into the cache.
     Returns ``(vectors_in_input_order, {"hits", "misses", "dirty"})``.
@@ -162,8 +183,11 @@ def cached_embed_batch(
         try:
             conn.executemany(
                 f"INSERT OR REPLACE INTO {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
-                "(text_hash, model, embedding) VALUES (?, ?, ?)",
-                [(hashes[i], model_label, json.dumps(v)) for i, v in zip(miss_idx, new_vecs)],
+                "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
+                [
+                    (hashes[i], model_label, json.dumps(v), source)
+                    for i, v in zip(miss_idx, new_vecs)
+                ],
             )
             conn.commit()  # persist NOW (pre-warm lesson; see docstring)
             stats["dirty"] = len(miss_idx)

@@ -437,14 +437,14 @@ def _stamp_model(conn: sqlite3.Connection, model_label: str, dims: int) -> None:
     )
 
 
-def _backup_sidecar(db_path: Path) -> None:
+def _backup_last_good_index(db_path: Path) -> None:
     """Last-good-state recovery copy into gitignored db-backup/ after a
     successful FULL rewrite (same semantics as rebuild_doc_search; the
-    single-file copier is imported, not forked). Best-effort."""
+    single-file copier is imported, not forked). Best-effort. Index only:
+    the embed cache rides in the shared embed store, backed up centrally
+    (see rebuild_doc_search._backup_last_good_index)."""
     dests = [
         (db_path, Path(BACKUP_DIR) / "script_search_backup.db"),
-        (db_path.with_name(db_path.name + "_vec.db"),
-         Path(BACKUP_DIR) / "script_search_backup_vec.db"),
     ]
     try:
         Path(BACKUP_DIR).mkdir(parents=True, exist_ok=True)
@@ -603,7 +603,7 @@ def rebuild(db_path: Path | None = None, write: bool = True, incremental: bool =
             embed_fn, embed_dims, model_label = rds.resolve_embedder()
             stats["embed_model"] = model_label
             if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
-                embed_fn = CachedEmbed(embed_fn, model_label, conn)
+                embed_fn = CachedEmbed(embed_fn, model_label, conn, source="script")
 
         py_units, make_unit, units_meta = _collect_units(
             helpers_root, tests_root, app_py, makefile
@@ -653,7 +653,7 @@ def rebuild(db_path: Path | None = None, write: bool = True, incremental: bool =
             )
             stats["indexed"] = conn.execute(
                 "SELECT COUNT(*) FROM script_search").fetchone()[0]
-            _backup_sidecar(db_path)
+            _backup_last_good_index(db_path)
             return stats
 
         # Incremental: rows were recomposed for everyone (cross-file

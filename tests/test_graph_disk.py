@@ -220,7 +220,7 @@ class TestDiskBasics:
         env = {**os.environ,
                "PYTHONPATH": f"{REPO_ROOT}{os.pathsep}{REPO_ROOT / 'helpers'}"}
         procs = [
-            subprocess.Popen(
+            subprocess.Popen(  # noqa: S603  # list-form, shell=False, controlled argv (sys.executable + fixed child code)
                 [sys.executable, "-c", child, str(tmp_db)],
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                 text=True, env=env, cwd=str(REPO_ROOT),

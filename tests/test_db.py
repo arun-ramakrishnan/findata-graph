@@ -4,6 +4,8 @@ import sqlite3
 import sys
 from pathlib import Path
 
+import pytest  # noqa: E402
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -178,3 +180,59 @@ def test_ensure_db_meta_corrupt_generation_fixed():
     gen = ensure_db_meta(conn)
     assert gen == 1
     conn.close()
+class TestConnectReadOnly:
+    """read_only=True opens via URI mode=ro — no create, no mutate."""
+
+    def test_reads_existing_file(self, tmp_path):
+        db = tmp_path / "ro.db"
+        from helpers.core.db import connect as _c
+        con = _c(db)
+        with con:
+            con.execute("CREATE TABLE t (v TEXT)")
+            con.execute("INSERT INTO t VALUES ('hello')")
+        con.close()
+
+        ro = _c(db, read_only=True)
+        try:
+            assert ro.execute("SELECT v FROM t").fetchone()[0] == "hello"
+        finally:
+            ro.close()
+
+    def test_write_raises(self, tmp_path):
+        from helpers.core.db import connect as _c
+        db = tmp_path / "ro.db"
+        con = _c(db)
+        with con:
+            con.execute("CREATE TABLE t (v TEXT)")
+        con.close()
+        # busy_timeout pragma makes the writer queue 5s before failing on a
+        # mode=ro file where no writer can ever appear; bypass the wait.
+        ro = _c(db, read_only=True)
+        try:
+            ro.execute("PRAGMA busy_timeout = 0")
+            with pytest.raises(sqlite3.OperationalError):
+                with ro:
+                    ro.execute("INSERT INTO t VALUES ('nope')")
+        finally:
+            ro.close()
+
+    def test_missing_file_is_not_created(self, tmp_path):
+        from helpers.core.db import connect as _c
+        missing = tmp_path / "never.db"
+        with pytest.raises(sqlite3.OperationalError):
+            _c(missing, read_only=True)
+        assert not missing.exists()  # plain connect() would have created it
+
+    def test_does_not_flip_journal_mode(self, tmp_path):
+        from helpers.core.db import connect as _c
+        db = tmp_path / "delete_mode.db"  # non-WAL file
+        con = _c(db)
+        with con:
+            con.execute("CREATE TABLE t (v TEXT)")
+        mode_before = con.execute("PRAGMA journal_mode").fetchone()[0]
+        con.close()
+        ro = _c(db, read_only=True)
+        try:
+            assert ro.execute("PRAGMA journal_mode").fetchone()[0] == mode_before
+        finally:
+            ro.close()

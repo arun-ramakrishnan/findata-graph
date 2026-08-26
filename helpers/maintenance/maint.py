@@ -5,7 +5,7 @@ Chains the always-safe maintenance steps in the right order:
 
   1. ``db_maint.py``     — VACUUM/ANALYZE/REINDEX/integrity on SQLite +
                            CHECKPOINT/VACUUM on the DuckDB cache.
-                           Produces ``db-backup/research_backup.db`` (+ ``research_backup_vec.db``
+                           Produces ``db-backup/research_backup.db`` (+ the embed-store twin,
 sidecar twin) (a
                            pre-mutation recovery point, kept distinct from
                            the versioned snapshot below).

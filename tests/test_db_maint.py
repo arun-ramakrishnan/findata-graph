@@ -261,7 +261,9 @@ class TestPrintReport:
 
 
 # ---------------------------------------------------------------------------
-# DBMaintainer._backup_vec — vec sidecar twin of research_backup.db
+# DBMaintainer._backup_embed_store — embed-store twin of research_backup.db
+# (legacy <db>_vec.db siblings keep their paired names; post-consolidation
+# clones resolve to the shared EMBED_DB_PATH store instead)
 # ---------------------------------------------------------------------------
 class TestBackupVec:
     def _mkdb(self, path):
@@ -283,7 +285,7 @@ class TestBackupVec:
 
         backup = tmp_path / "backup.db"
         maint = DBMaintainer(db_path, backup_path=backup)
-        size = maint._backup_vec()
+        size = maint._backup_embed_store()
         assert size > 0
         twin = tmp_path / "backup_vec.db"
         assert twin.exists()
@@ -295,5 +297,39 @@ class TestBackupVec:
         db_path = tmp_path / "test.db"
         self._mkdb(db_path)
         maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
-        assert maint._backup_vec() == 0
+        assert maint._backup_embed_store() == 0
         assert not (tmp_path / "backup_vec.db").exists()
+
+    def test_store_branch_when_no_legacy_sibling(self, tmp_path):
+        """Post-migration (no <db>_vec.db anywhere) the shared
+        EMBED_DB_PATH store is backed up as embed_store_backup.db."""
+        from helpers.core import vec_search as VS
+
+        db_path = tmp_path / "test.db"
+        self._mkdb(db_path)
+        store_dir = tmp_path / "memory"
+        store_dir.mkdir(exist_ok=True)  # conftest autouse created it
+        store = store_dir / "embed_store.db"
+        sconn = sqlite3.connect(str(store))
+        sconn.execute(
+            "CREATE TABLE embed_cache (text_hash TEXT, model TEXT, "
+            "embedding TEXT, source TEXT DEFAULT '', PRIMARY KEY(text_hash, model))"
+        )
+        sconn.execute("INSERT INTO embed_cache VALUES ('h', 'm', '[1]', 'doc')")
+        sconn.commit()
+        sconn.close()
+
+        saved = VS.EMBED_DB_PATH
+        VS.EMBED_DB_PATH = store
+        try:
+            maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
+            assert maint._backup_embed_store() > 0
+        finally:
+            VS.EMBED_DB_PATH = saved
+
+        dst = tmp_path / "embed_store_backup.db"
+        assert dst.exists()
+        got = sqlite3.connect(str(dst))
+        n = got.execute("SELECT COUNT(*) FROM embed_cache").fetchone()[0]
+        got.close()
+        assert n == 1

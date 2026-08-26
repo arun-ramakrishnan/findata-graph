@@ -12,7 +12,7 @@ to `procedures/embeddings.md`, which covers the findata notes index.
 |---|---|---|
 | `doc_search` FTS5 (BM25, section-level chunks) | `memory/doc_search.db` (gitignored sidecar) | this procedure |
 | Per-chunk embeddings (JSON column, bge-small) | same sidecar | same run |
-| Embed cache (`(sha256(text), model) -> vector`) | `memory/doc_search.db_vec.db` | automatic |
+| Embed cache (`(sha256(text), model) -> vector`) | pooled `memory/embed_store.db` (schema `vecdb`) | automatic |
 | Model stamp (`embed_model` / `embed_dims`) | `doc_search_info` in the sidecar | same run |
 
 The sidecar is deliberately NOT in `memory/research.db`: `doc/local/` is
@@ -83,17 +83,22 @@ endpoint degrades to the pre-#107 filesystem scan and reports
 ## Recovery / backup
 
 - Every successful FULL rebuild writes a last-good-state recovery point
-  into gitignored `db-backup/`: `doc_search_backup.db` +
-  `doc_search_backup_vec.db` (SQLite backup API — WAL-safe, FTS-shadow
-  aware). `--check`/`--incremental` don't touch it. A failed rebuild
-  rolls back and the previous backup survives.
-- Restore: copy both files back into `memory/` (`doc_search.db`,
-  `doc_search.db_vec.db`). Or simply rebuild — doc/ is the source of
-  truth; the only expensive loss is the embed cache (cold re-embed
-  ≈ minutes; the backup makes that instant).
+  into gitignored `db-backup/`: `doc_search_backup.db` (SQLite backup API —
+  WAL-safe, FTS-shadow aware). `--check`/`--incremental` don't touch it. A
+  failed rebuild rolls back and the previous backup survives.
+- Embed-cache recovery is CENTRAL since the 2026-08 embed-store
+  consolidation: the cache lives in the shared `memory/embed_store.db`
+  (not a per-index sidecar), covered by the maint step-1 twin
+  (`db-backup/embed_store_backup.db`) and the snapshot gzip stream
+  (`db-backup/embed_store.snapshot.db.gz`). Restoring `doc_search.db`
+  alone loses nothing expensive — its rows re-warm from the pooled cache.
+- Restore: copy `doc_search_backup.db` back into `memory/` as
+  `doc_search.db`. Or simply rebuild — doc/ is the source of truth; the
+  only expensive loss anywhere is a cold pool (≈ minutes of re-embedding),
+  which the central twins make instant.
 - The git-tracked `snapshots/parquet/` export deliberately does NOT
-  cover this sidecar (doc/local/ plaintext must stay structurally
-  un-publishable — proposal §2.1). Row order inside the sidecar is
+  cover this index (doc/local/ plaintext must stay structurally
+  un-publishable — proposal §2.1). Row order inside the index is
   irrelevant to results (full rebuilds restore canonical order;
   incremental runs append edited files' rows — zero functional impact).
 

@@ -15,7 +15,7 @@ Performs, in this order:
 Note: index *usage* cannot be detected (SQLite keeps no per-index read counters),
 so only structural *redundancy* is reported, never "unused".
 
-Produces ``db-backup/research_backup.db`` (+ its ``research_backup_vec.db``
+Produces ``db-backup/research_backup.db`` (+ the embed-store twin
 sidecar twin when ``<db>_vec.db`` exists) and
 ``db-backup/graph_backup.duckdb`` (DuckDB cache) — PRE-MUTATION recovery
 points taken before any VACUUM/ANALYZE/REINDEX runs. These are
@@ -74,6 +74,15 @@ def _pragma_ident(name: str) -> str:
         raise ValueError(f"Invalid identifier for PRAGMA: {name!r}")
     return name
 
+
+
+# Repo root: helpers/maintenance/db_maint.py -> parents[2]. Required for the
+# lazy `from helpers.core.vec_search import EMBED_DB_PATH` in
+# _backup_embed_store — without it the script crashes with ModuleNotFoundError
+# when run as a subprocess (make maint step 1).
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
 class DBMaintainer:
     """Encapsulates maintenance steps for a SQLite database (+ optional DuckDB cache)."""
@@ -285,33 +294,43 @@ class DBMaintainer:
             bconn.close()
         return self.backup_path.stat().st_size
 
-    def _backup_vec(self) -> int:
-        """Paired recovery copy of the vec sidecar (<db>_vec.db).
+    def _backup_embed_store(self) -> int:
+        """Paired recovery copy of the consolidated embed store.
 
-        The A1 move put the vec0 mirror + the shared content-addressed
-        embed cache OUTSIDE research.db; a research_backup.db without its
-        vec sibling restores to a cold re-embed (~minutes of CPU — the
-        same reason rebuild_doc_search backs up its own _vec). Same
-        WAL-consistent sqlite online-backup as _backup; guarded so older
-        clones without the sidecar just skip."""
+        Since the embed_store consolidation the vec0 mirror + pooled
+        content-hash cache live in ONE SQLite database
+        (``memory/embed_store.db``, see helpers/core/vec_search.py); a
+        research_backup.db without it restores to a cold re-embed (~minutes
+        of CPU). Resolution order: a per-db ``<db>_vec.db`` sibling wins
+        (pre-migration clones and tests that seed one); otherwise the
+        shared EMBED_DB_PATH store is backed up as ``embed_store_backup.db``
+        beside this run's backup. Same WAL-consistent sqlite online-backup
+        as _backup; absent state just skips."""
         vec_src = self.db_path.with_name(self.db_path.name + "_vec.db")
-        if not vec_src.exists():
-            self._log(logging.INFO, "Vec sidecar absent — backup skipped")
-            return 0
-        vec_dst = self.backup_path.with_name(
-            self.backup_path.name.replace(".db", "_vec.db"))
-        if vec_dst.exists():
-            vec_dst.unlink()
-        sconn = sqlite3.connect(str(vec_src))
-        bconn = sqlite3.connect(str(vec_dst))
+        if vec_src.exists():
+            src, dst = vec_src, self.backup_path.with_name(
+                self.backup_path.name.replace(".db", "_vec.db"))
+        else:
+            from helpers.core.vec_search import EMBED_DB_PATH
+
+            src = Path(EMBED_DB_PATH)
+            if not src.exists():
+                self._log(
+                    logging.INFO, f"Embed store absent — backup skipped ({src})")
+                return 0
+            dst = self.backup_path.parent / "embed_store_backup.db"
+        if dst.exists():
+            dst.unlink()
+        sconn = sqlite3.connect(str(src))
+        bconn = sqlite3.connect(str(dst))
         try:
             with bconn:
                 sconn.backup(bconn)
         finally:
             bconn.close()
             sconn.close()
-        self._log(logging.INFO, f"Vec sidecar backed up to {vec_dst}")
-        return vec_dst.stat().st_size
+        self._log(logging.INFO, f"Embed store backed up to {dst}")
+        return dst.stat().st_size
 
     def _backup_duckdb(self) -> int:
         """Pre-mutation recovery copy of the DuckDB cache file.
@@ -392,7 +411,7 @@ class DBMaintainer:
 
             self._log(logging.INFO, f"Backing up to {self.backup_path}")
             backup_size = self._backup(conn)
-            self._backup_vec()
+            self._backup_embed_store()
 
             # P2.5: incremental vacuum when auto_vacuum==INCREMENTAL and freelist exists.
             # Full VACUUM rewrites 31 MB file (~0.6s); incremental_vacuum reclaims only freelist pages (~0.1s).

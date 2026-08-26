@@ -485,7 +485,7 @@ class TestLocalEmbedderWiring:
         try:
             VS._attach_vec_db(con)
             n = con.execute(
-                "SELECT COUNT(*) FROM vecdb.note_search_emb_cache"
+                "SELECT COUNT(*) FROM vecdb.embed_cache"
             ).fetchone()[0]
         finally:
             con.close()
@@ -511,7 +511,7 @@ class TestLocalEmbedderWiring:
         try:
             VS._attach_vec_db(con)
             groups = dict(con.execute(
-                "SELECT model, COUNT(*) FROM vecdb.note_search_emb_cache "
+                "SELECT model, COUNT(*) FROM vecdb.embed_cache "
                 "GROUP BY model"
             ).fetchall())
         finally:

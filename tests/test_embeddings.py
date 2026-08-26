@@ -511,7 +511,7 @@ class TestPopulateLocalCached:
 
         _attach_vec_db(conn)  # idempotent: populate already attached it
         seeded = conn.execute(
-            "SELECT COUNT(*) FROM vecdb.note_search_emb_cache WHERE model = ?",
+            "SELECT COUNT(*) FROM vecdb.embed_cache WHERE model = ?",
             (LE.MODEL_ID,),
         ).fetchone()[0]
         assert seeded == 2

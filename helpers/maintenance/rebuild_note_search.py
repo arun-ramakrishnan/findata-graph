@@ -473,7 +473,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
         if embed_fn is None:
             embed_fn, embed_dims, model_label = resolve_embedder()
             stats["embed_model"] = model_label
-            cache = CachedEmbed(embed_fn, model_label, conn) if (
+            cache = CachedEmbed(embed_fn, model_label, conn, source="note") if (
                 # Pseudo embedding is a hash — caching it would only bloat
                 # the sidecar; only the real model costs CPU per doc.
                 model_label != f"dry-run-v{_PSEUDO_DIMS}"
