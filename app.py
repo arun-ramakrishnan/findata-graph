@@ -165,7 +165,14 @@ def get_graph_connection():
         # Either no cached error, or it's stale — attempt (re)connect.
         try:
             from helpers.graph.query import connect as duckdb_connect
-            _graph_con = duckdb_connect()
+            # read_only=True: every /api/graph/* handler only QUERIES the
+            # cache, and a read-write DuckDB open demands exclusivity against
+            # ALL other connections (even read-only ones — that single detail
+            # raced live-invariants against the RO-holding parallel advisory
+            # steps on 2026-08-26). connect() falls back to its RW build path
+            # automatically when the cache is cold/stale, so read-only is
+            # safe for readers and eliminates the cross-process contention.
+            _graph_con = duckdb_connect(read_only=True)
             _graph_con_error = None
             _graph_error_at = None
             return _graph_con
@@ -196,11 +203,11 @@ def _graph_build_etag() -> str | None:
     byte-different JSON (key ordering) for semantically-identical content.
 
     Reads built_at from the live ``_graph_con`` when it's already open (the
-    common case in production). Opening a SEPARATE read-only connection while
-    the app holds the read-write singleton fails — DuckDB forbids two
-    connections to the same file with different configs. The read-only
-    fallback only fires on cold start (before any graph request opened the
-    singleton).
+    common case in production). Since 2026-08-26 the singleton itself opens
+    read-only (deadlock fix vs parallel make runs), so even the cold-start
+    fallback's separate read-only open coexists safely with it — DuckDB
+    allows any number of concurrent read-only openers; it only forbids
+    mixing configs.
     """
     global _graph_etag
     if _graph_etag is not None:

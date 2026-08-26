@@ -1,6 +1,12 @@
 # Tab-free Makefile: use '>' as the recipe prefix (GNU Make).
 .RECIPEPREFIX := >
 
+# types-tests diagnostic format: full (pretty, ~10-14 lines/diagnostic —
+# truncates the 60-line gate-report tail past ~5 diagnostics) for direct
+# runs; the advisory gate overrides to concise (1 line/diagnostic) so EVERY
+# warning lands in the report log (2026-08-26 logging fix).
+TYPES_TESTS_FMT ?= full
+
 # Gate parallelism (2026-08-25): advisory runs its steps concurrently
 # (DuckDB-reading steps — graph-algos, suggest-relations — connect
 # read_only=True so N cross-process readers coexist with any writer;
@@ -18,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -55,6 +61,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  qa                       Run lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
+> @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
 > @echo "  secret-scan              Incremental git-history secret scan (state under .git/secret-scan/)"
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
 > @echo "  snapshot-check           Verify the snapshot round-trips against the live DB"
@@ -66,7 +73,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  test                     pytest unit tests only (no live DB, no slow benchmarks)"
 > @echo "  triage-relations         Triage the _pending_relations queue: report + bucketed decisions file (pending_relations_triage)"
 > @echo "  types                    Run ty type checker on helpers + app.py (Astral uv+ruff stack)"
-> @echo "  types-tests              Run EXPANDED ty checks over tests/ (advisory-grade, warnings non-blocking; the make advisory ty-tests step calls THIS target)"
+> @echo "  types-tests              Run EXPANDED ty checks over tests/ (advisory-grade, warnings non-blocking; TYPES_TESTS_FMT=concise for one-line-per-diagnostic logs — the make advisory ty-tests step uses that)"
 > @echo "  update-extensions        Update all installed DuckDB extensions to latest (weekly cadence)"
 
 static-checks:  ## Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)
@@ -183,7 +190,18 @@ secret-scan: ## Incremental git-history secret scan (state under .git/secret-sca
 
 script-search-rebuild: ## Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)
 > python3 helpers/maintenance/rebuild_script_search.py
-> @echo "✓ script_search index rebuilt (memory/script_search.db; gate: make perf)"
+> @echo "✓ script_search index rebuilt (memory/script_search.db; gate: make search-fresh / advisory)"
+
+search-fresh:    ## Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)
+> @rc=0; \
+>   extra="$(if $(APPLY),,--check)"; \
+>   echo "search-fresh: $(if $(APPLY),APPLY — refreshing,check) mode"; \
+>   for s in rebuild_doc_search rebuild_script_search rebuild_note_search; do \
+>     echo "--- $$s $$extra"; \
+>     python3 helpers/maintenance/$$s.py $$extra || rc=1; \
+>   done; \
+>   if [ $$rc -eq 0 ]; then echo "✓ all search indexes fresh (doc_search, script_search, note_search)"; fi; \
+>   exit $$rc
 
 recompute-graph: ## Recompute all graph analytics and persist to graph_analytics
 > python3 helpers/graph/algorithms.py --all --apply
@@ -281,8 +299,8 @@ types:          ## Run ty type checker on helpers + app.py (Astral uv+ruff stack
 # sys.path bootstraps + mock proxies ty can't reason about statically, so
 # known test idioms are downgraded to warnings (non-blocking, --exit-zero-
 # on-warning); real type errors in test code still exit non-zero here.
-types-tests:    ## Run EXPANDED ty checks over tests/ (advisory-grade, warnings non-blocking; the make advisory ty-tests step calls THIS target)
-> ty check tests --extra-search-path helpers --extra-search-path helpers/core --extra-search-path helpers/maintenance --extra-search-path helpers/misc --config-file ty.tests.toml --exit-zero-on-warning
+types-tests:    ## Run EXPANDED ty checks over tests/ (advisory-grade, warnings non-blocking; TYPES_TESTS_FMT=concise for one-line-per-diagnostic logs — the make advisory ty-tests step uses that)
+> ty check tests --extra-search-path helpers --extra-search-path helpers/core --extra-search-path helpers/maintenance --extra-search-path helpers/misc --config-file ty.tests.toml --output-format $(TYPES_TESTS_FMT) --exit-zero-on-warning
 > @echo "✓ ty expanded test checks passed (warnings non-blocking; config: ty.tests.toml)"
 
 lint-audit:     ## Run ruff S/UP/C901 audits (security + modernization + complexity) — Bandit/Refurb/Radon equivs

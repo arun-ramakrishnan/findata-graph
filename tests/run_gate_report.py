@@ -70,6 +70,9 @@ _DEPTRY = shutil.which("deptry") or "deptry"
 _MAKE = shutil.which("make") or "make"
 
 _TAIL_LINES = 60      # lines appended to the report per step
+# ty-tests digest budget: concise diagnostics are 1 line each; 120 covers
+# the worst historical burst (91 diagnostics, 2026-08-25) with margin.
+_TY_TESTS_TAIL_LINES = 120
 _CAPTURE_LINES = 400  # rolling in-memory cap while streaming
 _DEFAULT_JOBS = 4     # 4 cores (user directive 2026-08-25); override: --jobs N / make -j N
 
@@ -79,6 +82,12 @@ class Step:
     label: str
     args: tuple[str, ...]
     nonblocking: bool = False       # recorded, never fails the gate (advisory's ty-tests)
+    # Per-step report-tail override (None -> _TAIL_LINES). Steps whose
+    # output is a diagnostic DIGEST (ty-tests concise: 1 line/diagnostic)
+    # raise it so every diagnostic lands in the report, not just the last
+    # few (2026-08-26 logging fix; full-format ty diagnostics are ~10-14
+    # lines each and drowned the 60-line default tail).
+    tail_lines: int | None = None
 
 
 @dataclass(frozen=True)
@@ -132,12 +141,19 @@ GATES: dict[str, Gate] = {
     # list + ty.tests.toml config (standalone-invocable after a feature).
     "advisory": Gate(
         steps=(
-            Step("ty-tests", (_MAKE, "types-tests"), nonblocking=True),
+            Step("ty-tests", (_MAKE, "types-tests", "TYPES_TESTS_FMT=concise"),
+                 nonblocking=True, tail_lines=_TY_TESTS_TAIL_LINES),
             Step("live-invariants", (_MAKE, "live-invariants")),
             Step("frontend-check", (_MAKE, "frontend-check")),
             Step("graph-algos", (_MAKE, "graph-algos")),
             Step("analytics", (_MAKE, "analytics")),
             Step("suggest-relations", (_MAKE, "suggest-relations")),
+            Step("doc-search-check",
+                 (_PY, "helpers/maintenance/rebuild_doc_search.py", "--check")),
+            Step("script-search-check",
+                 (_PY, "helpers/maintenance/rebuild_script_search.py", "--check")),
+            Step("note-search-check",
+                 (_PY, "helpers/maintenance/rebuild_note_search.py", "--check")),
             Step("integration",
                  (_PY, str(Path(__file__).resolve()), "integration")),
             Step("lint-audit", (_RUFF, "check", "--select", "S,UP,C901", ".")),
@@ -265,8 +281,9 @@ def write_report(report_path: Path, gate_name: str, results: list[Result],
                 if r.skipped:
                     continue
                 why = "FAILED" if r.rc != 0 else "OK"
-                f.write(f"--- {r.step.label} · last {min(_TAIL_LINES, len(r.tail))} lines ({why}) ---\n")
-                f.write("\n".join(r.tail[-_TAIL_LINES:]) + "\n")
+                keep = r.step.tail_lines or _TAIL_LINES
+                f.write(f"--- {r.step.label} · last {min(keep, len(r.tail))} lines ({why}) ---\n")
+                f.write("\n".join(r.tail[-keep:]) + "\n")
             f.write("\n")
             f.flush()
         finally:

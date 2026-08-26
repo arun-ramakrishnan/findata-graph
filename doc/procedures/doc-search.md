@@ -120,15 +120,14 @@ by label, not by ranking.
 
 ## Gates & perf coverage
 
-`make perf` (tests/run_perf_benchmarks.py) carries two doc-search
-entries: `rebuild_doc_search --check` (budget 2.0 s; warm ≈0.5 s) and a
-`doc_query` hybrid query (budget 3.0 s; warm ≈0.6 s incl. model load).
-Both run as real subprocesses against the live tree — the only automated
-exercise of the scripts' bootstraps — and the `--check` entry is the
-only automated consumer of its exit-code contract: **a stale or missing
-sidecar fails `make perf`** (rc 1 with the drift breakdown naming the
-refresh command), by the same live-state doctrine as
-`rebuild_note_search --check`. It is deliberately NOT in `make qa`:
+The freshness gate moved out of `make perf` (2026-08-26, #159) — it now
+lives in `make search-fresh` (all three `--check`s, sequential) and in
+the advisory gate as three parallel report rows (`doc-search-check`,
+`script-search-check`, `note-search-check`; STALE = FAILED row with the
+refresh command in the tail; `--check` writes no research.db rows).
+`make perf` keeps the query-latency benchmark only: `doc_query` hybrid
+query (budget 3.0 s; warm ≈0.6 s incl. model load), a real subprocess
+against the live tree. Deliberately NOT in `make qa`: It is deliberately NOT in `make qa`:
 doc/ edits (proposals!) land between maint cycles and would redden qa
 constantly; perf is the single home for rc + wall-clock budgets. The
 chunker (`_split_sections`) and MATCH generator (`fts_match_expr`) have

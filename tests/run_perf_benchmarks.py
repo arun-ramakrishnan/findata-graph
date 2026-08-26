@@ -48,23 +48,18 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     ("derive_co_mentions",   ["helpers/graph/derive_co_mentions.py",
                               "--newsletter", "The_Chatter"], 2.0),
     ("derive_events",        ["helpers/graph/derive_events.py"], 3.0),
-    ("rebuild_note_search",  ["helpers/maintenance/rebuild_note_search.py", "--check"], 2.0),
-    # doc-search pair (2026-08-23, doc_search_embeddings #148): both run
-    # against the machine-local sidecar memory/doc_search.db (gitignored,
-    # maint-full step 6c keeps it fresh) — an rc=1 with the drift/missing
-    # message is the --check gate doing its job, refresh per
-    # doc/procedures/doc-search.md. Warm: --check ≈0.5s, query ≈0.5s.
-    ("rebuild_doc_search",   ["helpers/maintenance/rebuild_doc_search.py", "--check"], 2.0),
+    # Search-index freshness --checks LEFT perf 2026-08-26 (#159): the
+    # STALE gate is owned by `make search-fresh` + the advisory gate's
+    # doc/script/note-search-check rows (exit 1 on drift, per-index report
+    # tails). Perf keeps only the QUERY-latency pair below.
     ("doc_query",            ["helpers/misc/doc_query.py", "embed cache sidecar",
                               "--limit", "5"], 3.0),
-    # script-search pair (2026-08-25, script_metadata_search): same doctrine
-    # as the doc-search pair — machine-local sidecar memory/script_search.db;
-    # perf is the single home for the rc gate (code edits land between maint
-    # cycles and would redden qa constantly). Warm: --check ≈0.5s, query
-    # ≈0.6s incl. model load; refresh per doc/procedures/script-search.md.
-    ("rebuild_script_search", ["helpers/maintenance/rebuild_script_search.py", "--check"], 2.0),
     ("script_query",          ["helpers/misc/script_query.py", "database integrity",
                                "--limit", "5"], 3.0),
+    # Local PDF pipeline (#156/#157) on the largest Reports PDF (30 pp):
+    # convert + render + verify. Warm ≈7.5s (Tesseract on embedded rasters
+    # dominates); internal sub-budgets asserted by the script itself.
+    ("pdf_pipeline_local",   ["tests/bench_pdf_pipeline.py"], 20.0),
     ("derive_insights",      ["helpers/graph/derive_insights.py"], 4.0),
     ("parse_newsletter",     ["helpers/core/parse_newsletter.py",
                               "findata/The_Chatter/Embracing_the_Unknown.md"], 3.0),

@@ -3249,6 +3249,32 @@ across all sections after merge cleanup.
 
 **Applied outcomes**: 7/7 corpus PASS (1 WARN: Dixon's real `25,000-27,000` dash-loss — correct signal); md-only gutting of RBI_3M's 3M section → `FAIL: doc coverage 84.2%, md/json mismatch on page(s) [8, 9, 10, 11]` — page-precise, the thing pdfmux could not do.
 
+## 158. Search-index freshness in the advisory gate (search-fresh)
+
+**Date**: 2026-08-26
+**Status**: COMPLETE
+**Motivation**: every proposal lands new docs/scripts/notes, and the three search indexes (doc_search, script_search, note_search) went stale silently — the operator ran the three `--check` commands manually after each batch.
+
+### What landed
+
+- **Advisory steps** (tests/run_gate_report.py): `doc-search-check`, `script-search-check`, `note-search-check` — direct `--check` invocations, parallel like every other step, so each index gets its own report row + tail (the make target is sequential and stops at the first failure; the gate rows don't). STALE → FAILED row with the refresh command in the tail; `--check` writes no research.db rows (sidecar cache warm only — safe).
+- **`make search-fresh`**: the three `--check`s in one target (replaces the manual triple-run); help + .PHONY wired, drift-guard tests pass.
+- **AGENTS.md**: freshness pointer updated (advisory rows + search-fresh; still never qa — #154's "edits redden qa" reasoning stands).
+- **Guard test**: advisory gate must contain the three steps.
+
+**Applied outcomes**: live demo — script_search flagged STALE with exactly this session's 7 changed + 4 new files (pdf_local.py, verify_extraction.py, their tests, Makefile, run_gate_report.py, pdf_conv_md.py, test_pdf_conv_md.py); after `script-search-rebuild`: all three FRESH, `make search-fresh` exit 0. 100 tests green (run_gate_report + static_checks incl. makefile drift guard).
+
+## 159. Perf dedupe (search --checks → advisory) + pdf pipeline benchmark
+
+**Date**: 2026-08-26
+**Status**: COMPLETE
+**Follows**: #158 (search-fresh + advisory rows)
+
+### What landed
+
+- **Dedupe**: the three search-index `--check` entries (`rebuild_note/doc/script_search`) left `run_perf_benchmarks.py` — the STALE gate is now solely `make search-fresh` + the advisory gate's three parallel rows (#158). Perf keeps the query-latency pair (`doc_query`, `script_query`) — those are timing benchmarks, not freshness. Comments in the BENCHMARKS list, the Makefile `script-search-rebuild` echo, and §Gates of `doc/procedures/doc-search.md` + `script-search.md` updated to the new home.
+- **New benchmark** `tests/bench_pdf_pipeline.py` (`pdf_pipeline_local`, budget 20s): the #156/#157 path end-to-end on the largest in-tree PDF (Yes_Bank, 30 pp) — `pdf_local.convert` (incl. Tesseract on embedded rasters) + `write_outputs` + `verify_extraction.verify` into a tempdir. Internal sub-budgets asserted (convert+write <15s, verify <2s) and a FAIL verification verdict fails the bench — perf regression AND correctness backslide both redden `make perf`. Warm: 8.76s total (convert 7.4s dominates), verify 0.11s.
+
 ## 160. types-tests zero-warning (snapshot_db signature truth)
 
 **Date**: 2026-08-26
@@ -3259,4 +3285,30 @@ across all sections after merge cleanup.
 
 - All 10 remaining diagnostics were `invalid-argument-type` at tests/test_snapshot_db.py:324,337 — `None` passed into five `_cmd_create` params declared plain `Path`. Root fix: those params (duckdb_path, duckdb_out, parquet_base, parquet_sqlite_dir, parquet_duckdb_dir) are format-optional — only touched inside the `with_duckdb` / `fmt in ("parquet","both")` branches — and are now typed `Path | None` with the contract documented in the docstring; narrowing asserts inside the two branches satisfy ty's checker (guard variable ≠ value variable).
 
-**Applied outcomes**: `make types-tests` — zero diagnostics (was 10; 14 at the #152-era cleanup). `make types`, snapshot tests (17), ruff, `snapshot_db --check` all green. Memory updated with the reusable pattern: fix the production signature to the real contract + branch asserts — never dummy paths or per-line ignores.
+## 161. search-fresh run-all + APPLY switch
+
+**Date**: 2026-08-26
+**Status**: COMPLETE
+**Follows**: #158/#159
+
+### What landed
+
+- `make search-fresh` now runs **all three** index checks even when one fails (shell loop aggregating rc; make's stop-at-first-failure semantics were hiding the note-index result whenever an earlier check drifted) and gains **`APPLY=1`**: drops the `--check` args and refreshes doc/script/note indexes in one command. Help + annotation updated in lockstep (drift guard green); AGENTS.md pointer extended.
+- Demonstrated live: probe-stale script_search → doc FAIL + script FAIL + note still ran, exit 1; `APPLY=1` rebuilt all three; revert + re-apply converged back to FRESH.
+
+**Applied outcomes**: static_checks 86 green (incl. makefile drift guard); final state exit 0 on plain `make search-fresh`.
+
+## 162. Advisory ty-tests logging fix (concise digest + per-step tail budget)
+
+**Date**: 2026-08-26
+**Status**: COMPLETE
+**Motivation**: advisory is run-all (never stops on failures), so its report is the debugging surface — but ty full-format diagnostics are ~10–14 lines each and the 60-line step tail only ever showed the last ~5 of a burst (historical "Found 91 diagnostics": ~85 invisible). And ✓ OK gave no hint a warning existed at all.
+
+### What landed
+
+- **`TYPES_TESTS_FMT ?= full`** (Makefile): the types-tests target's ty invocation takes `--output-format $(TYPES_TESTS_FMT)`. Direct runs keep the pretty verbose format; the flag soup stays single-source.
+- **Gate step runs concise**: `Step("ty-tests", (_MAKE, "types-tests", "TYPES_TESTS_FMT=concise"), ...)` — one line per diagnostic (`file:line:col: warning[rule] message`), so EVERY warning lands in the report tail; `Found N diagnostics` states the total.
+- **`Step.tail_lines`** (generic runner feature): per-step report-tail override of `_TAIL_LINES`; ty-tests gets `_TY_TESTS_TAIL_LINES = 120` (covers the worst historical burst of 91 + header/summary). `write_report` honors it.
+- **Tests**: gate-step wiring (concise arg + raised budget) and write_report keeping exactly the last N lines.
+
+**Applied outcomes**: probe warning verified end-to-end — report block shows the complete diagnostic in 1 line, rc still 0 (advisory doctrine intact); direct `make types-tests` unchanged (full format); 102 tests green (incl. makefile drift guard); ruff/types clean.

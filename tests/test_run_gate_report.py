@@ -236,3 +236,34 @@ def test_concurrent_report_blocks_never_interleave(tmp_path):
             assert f"{m}{i:04d}" in lines
     # and no line mixes the two blocks' content
     assert not [ln for ln in lines if "A" in ln and "B" in ln]
+
+def test_ty_tests_step_logs_every_diagnostic():
+    # 2026-08-26 logging fix: full-format ty diagnostics are ~10-14 lines
+    # each, so the 60-line report tail only showed the last ~5 of a burst
+    # ("Found 91 diagnostics" era). The gate step must run the target in
+    # CONCISE format (1 line/diagnostic) with a raised tail budget.
+    step = [s for s in rgr.GATES["advisory"].steps if s.label == "ty-tests"][0]
+    assert "TYPES_TESTS_FMT=concise" in step.args
+    assert step.tail_lines == rgr._TY_TESTS_TAIL_LINES
+    assert rgr._TY_TESTS_TAIL_LINES > rgr._TAIL_LINES
+
+
+def test_write_report_honors_step_tail_lines(tmp_path):
+    step = rgr.Step("digest-step", ("x",), tail_lines=3)
+    res = rgr.Result(step, seconds=0.1, rc=0,
+                     tail=[f"line{i}" for i in range(10)])
+    rgr.write_report(tmp_path / "r.txt", "probe", [res])
+    out = (tmp_path / "r.txt").read_text()
+    assert "last 3 lines" in out
+    assert "line9" in out and "line6" not in out  # keeps the LAST 3 only
+
+
+def test_advisory_gate_includes_search_freshness_checks():
+    # 2026-08-26: the three search indexes (doc/, script metadata, note
+    # embeddings) flag STALE as advisory steps — granular parallel rows,
+    # one per index (user ran these manually before). Removing them from
+    # the gate silently resurrects the manual ritual — this guards that.
+    labels = [s.label for s in rgr.GATES["advisory"].steps]
+    assert "doc-search-check" in labels
+    assert "script-search-check" in labels
+    assert "note-search-check" in labels

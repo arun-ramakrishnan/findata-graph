@@ -58,6 +58,11 @@ may already exist) — query it:
 - **Index stale or missing?** Same contract as doc_query (warn + answer /
   exit 1 with the build command). Refresh:
   `.venv/bin/python3 helpers/maintenance/rebuild_script_search.py`
-  (warm ≈ instant — shared content-hash embed cache). The freshness gate
-  lives in `make perf` (`rebuild_script_search --check`), not qa.
+  (warm ≈ instant — shared content-hash embed cache). Freshness flags:
+  `make search-fresh` checks all three indexes (doc/script/note) — every
+  check runs even when one fails, exit 1 on any drift, and
+  `make search-fresh APPLY=1` refreshes them. `make advisory` runs the
+  same three `--check`s as report rows — STALE shows as FAILED with the
+  refresh command in the tail. Never qa-gated
+  (edits legitimately redden these between rebuilds).
 - Operator doc: `doc/procedures/script-search.md`.

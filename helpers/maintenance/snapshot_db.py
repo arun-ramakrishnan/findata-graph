@@ -1015,17 +1015,23 @@ def _cmd_create(
         else:
             logger.info("Vec sidecar absent — gzip backup skipped (%s)", vec_path)
         if with_duckdb:
-            assert duckdb_path is not None and duckdb_out is not None
+            # Narrow the format-optional paths (S101-clean explicit raise;
+            # a None here is a caller contract violation, not a state to
+            # assert away).
+            if duckdb_path is None or duckdb_out is None:
+                raise ValueError("with_duckdb=True requires duckdb paths")
             create_duckdb_snapshot(duckdb_path, duckdb_out, logger)
             rd = verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)
             ok = ok and rd["match"]
 
     # --- Parquet snapshot ---
     if fmt in ("parquet", "both"):
-        assert parquet_base is not None and parquet_sqlite_dir is not None
+        if parquet_base is None or parquet_sqlite_dir is None:
+            raise ValueError("parquet format requires parquet paths")
         export_parquet_sqlite(db_path, parquet_sqlite_dir, logger)
         if with_duckdb:
-            assert duckdb_path is not None and parquet_duckdb_dir is not None
+            if duckdb_path is None or parquet_duckdb_dir is None:
+                raise ValueError("with_duckdb=True requires duckdb paths")
             export_parquet_duckdb(duckdb_path, parquet_duckdb_dir, logger)
         rp = verify_parquet_snapshot(
             parquet_base,

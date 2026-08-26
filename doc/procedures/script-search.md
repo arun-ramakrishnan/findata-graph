@@ -88,10 +88,11 @@ deferred — the query core is endpoint-ready).
 
 ## Gates & perf coverage
 
-`make perf` (tests/run_perf_benchmarks.py) carries the pair
-`rebuild_script_search --check` (budget 2.0 s; the rc=1 drift/missing gate)
-and a `script_query` hybrid query (budget 3.0 s) — the same home-and-doctrine
-as the doc-search pair. Deliberately NOT in `make qa`: code edits land
+The freshness gate moved out of `make perf` (2026-08-26, #159) into
+`make search-fresh` + the advisory gate's `script-search-check` row
+(same doctrine as doc-search). `make perf` keeps the `script_query`
+hybrid query latency benchmark (budget 3.0 s) as a real subprocess
+against the live tree. Deliberately NOT in `make qa`: code edits land
 between maint cycles and would redden qa constantly. Builder + CLI behavior
 tests: `tests/test_rebuild_script_search.py`, `tests/test_script_query.py`
 (hermetic tmp mini-trees, marked `integration`).
