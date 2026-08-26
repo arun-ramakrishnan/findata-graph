@@ -7,7 +7,22 @@ here BEFORE implementing multi-slice work. On Status EXECUTED, move it to
 change — and update any `embed_eval_questions.json` labels referencing
 the old path (see `doc/procedures/doc-search.md` §Corpus lifecycle).
 
+Full archival checklist (extended 2026-08-26 after finding a duplicate
+entry number and stale DONE pointers):
+
+1. `git mv` to `../archive/<topic>/`; repoint any `**Follows**:` /
+   cross-references at the old `proposals/` path.
+2. `../completed.md`: entry exists and number is UNIQUE (audit
+   `rg '^## \d+\.'` for duplicates — parallel sessions can mint the same
+   number; suffix the un-referenced one, e.g. `105b`, never renumber).
+3. `../pending.md`: grep the topic; close/annotate deferred items the
+   work completes.
+4. `../archive/README.md`: add the topic-index line with the completed.md
+   number; reset the live-proposal pointer below to `_(none)_`.
+5. `make search-fresh APPLY=1`, then plain `make search-fresh` (rc=0)
+   to converge the doc index.
+
 ## Current live proposals
 
-- _(none)_ — `local_pdf_conversion_fallback.md` executed 2026-08-26, archived to `../archive/pipeline/` (#156)
+- _(none)_ — `perf_optimization.md` executed 2026-08-26, archived to `../archive/tooling/` (#163)
 

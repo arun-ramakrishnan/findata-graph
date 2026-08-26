@@ -729,17 +729,64 @@ def _build_graph(con: duckdb.DuckDBPyConnection) -> None:
     # and the algorithms run on onager.
 
 
+def _resolve_duckdb_path(db_path: Path) -> Path:
+    """Same resolution rule as connect(): production pair or sibling."""
+    if db_path == DB_PATH:
+        return DUCKDB_PATH
+    return db_path.with_suffix(".duckdb")
+
+
+def _rebuild_via_swap(db_path: Path | str = DB_PATH, *, fresh: bool) -> None:
+    """Build the cache into a temp sibling, then atomically swap it in.
+
+    Deadlock fix (2026-08-26, second instance): rebuilding IN PLACE needs
+    an exclusive read-write open of the live file, which conflicts with
+    every concurrent reader — observed live as POST /api/graph/refresh
+    failing 500 against the RO-holding parallel advisory-gate steps (and
+    vice versa). Building into ``<path>.rebuild-<pid>.tmp`` never touches
+    the live file; ``os.replace`` swaps it in atomically. In-flight
+    readers keep serving the old inode until they close (stale-by-one-
+    rebuild is the documented refresh contract anyway).
+
+    Two concurrent rebuilds each get their own pid-tagged temp and race
+    only on the final rename — last writer wins, both files valid.
+    """
+    import os
+
+    duckdb_path = _resolve_duckdb_path(Path(db_path))
+    tmp = duckdb_path.with_name(f"{duckdb_path.name}.rebuild-{os.getpid()}.tmp")
+    tmp_wal = tmp.with_name(tmp.name + ".wal")
+    tmp.unlink(missing_ok=True)
+    tmp_wal.unlink(missing_ok=True)
+    try:
+        c = connect(db_path=db_path, duckdb_path=tmp, rebuild=True, fresh=fresh)
+        c.close()
+        # Clean close leaves no WAL behind; refuse to swap otherwise.
+        if tmp_wal.exists():
+            raise RuntimeError(
+                f"rebuild temp not cleanly closed: {tmp_wal} still exists")
+        os.replace(tmp, duckdb_path)
+    finally:
+        tmp.unlink(missing_ok=True)
+        tmp_wal.unlink(missing_ok=True)
+
+
 def rebuild(db_path: Path | str = DB_PATH) -> None:
-    """Rebuild materialised tables in-place (drop + recreate + redeclare).
+    """Rebuild materialised tables (drop + recreate + redeclare).
 
     Use after any SQLite-side change to ``entities`` or ``graph_edges``
     (``parse_newsletter --apply``, ``derive-relations``, stub batches).
     Idempotent.
+
+    Since 2026-08-26 the build happens in a pid-tagged temp file swapped
+    in atomically (see :func:`_rebuild_via_swap`) — a rebuild no longer
+    requires an exclusive lock on the live cache, so it cannot deadlock
+    against concurrent read-only holders (app server, parallel gate
+    steps).
     """
     # Drop stale cached results so the next query re-reads post-rebuild.
     clear_graph_cache()
-    c = connect(db_path=db_path, rebuild=True)
-    c.close()
+    _rebuild_via_swap(db_path, fresh=False)
 
 
 def fresh_rebuild(db_path: Path | str = DB_PATH) -> None:
@@ -747,11 +794,10 @@ def fresh_rebuild(db_path: Path | str = DB_PATH) -> None:
 
     Use after DuckDB/Onager version bumps, materialisation-schema
     changes (bump ``_SCHEMA_VERSION``), or to recover from corruption.
-    Idempotent.
+    Idempotent. Same atomic temp-swap strategy as :func:`rebuild`.
     """
     clear_graph_cache()
-    c = connect(db_path=db_path, fresh=True)
-    c.close()
+    _rebuild_via_swap(db_path, fresh=True)
 
 
 def update_extensions() -> list[tuple[str, str]]:

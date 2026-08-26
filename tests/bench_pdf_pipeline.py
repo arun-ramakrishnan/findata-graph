@@ -2,15 +2,17 @@
 """Perf benchmark: local PDF pipeline (convert + render + verify) on the
 largest in-tree PDF.
 
-Exercises the whole #156/#157 path — pdf_local.convert (pymupdf4llm +
-Tesseract on embedded rasters), write_outputs (image copy + wikilinks),
-verify_extraction.verify (per-page coverage, md/json consistency, number
-audit) — on Yes_Bank_Colgate_Allcargo.pdf (30 pages, the largest Reports/
-PDF). Asserts internal budgets AND that verification passes, so a perf
-regression or a correctness backslide both redden `make perf`.
+Exercises the whole #156/#157 path — pdf_local.convert (pymupdf4llm,
+layout model OFF by default since perf proposal O3), write_outputs
+(image copy + wikilinks), verify_extraction.verify (per-page coverage,
+md/json consistency, number audit) — on Yes_Bank_Colgate_Allcargo.pdf
+(30 pages, the largest Reports/PDF). Asserts internal budgets AND that
+verification passes, so a perf regression or a correctness backslide
+both redden `make perf`.
 
-Warm reference (2026-08-26, 4-core dev box): convert ≈7.4s, write ≈0.02s,
-verify ≈0.11s; budgets hold ~2x headroom.
+Warm reference: 2026-08-26 pre-O3 ≈7.4s convert with the ONNX layout
+model; post-O3 layout-off ≈2.1s (corpus A/B: faster AND higher word
+coverage on all 7 PDFs; surviving image refs identical at zero).
 """
 from __future__ import annotations
 
@@ -31,7 +33,7 @@ from helpers.pdf.pdf_local import convert  # noqa: E402
 from helpers.pdf.verify_extraction import verify  # noqa: E402
 
 PDF = REPO_ROOT / "Reports" / "Yes_Bank_Colgate_Allcargo.pdf"
-CONVERT_BUDGET = 15.0
+CONVERT_BUDGET = 6.0
 VERIFY_BUDGET = 2.0
 
 

@@ -255,15 +255,24 @@ def _rewrite_images(text: str, counter: int) -> tuple[str, dict[str, str], int]:
     return IMG_REF_RE.sub(_sub, text), images, counter
 
 
-def convert(pdf_path: Path, img_dir: Path) -> list[dict]:
+def convert(pdf_path: Path, img_dir: Path, *, layout: bool = False) -> list[dict]:
     """Parse a born-digital PDF into the pdf_conv_md pages shape.
 
     ``img_dir`` receives the extracted raw images (pymupdf4llm writes
     them there); it must stay alive until the caller finishes copying
     (``write_outputs``), because the images map points into it.
+
+    ``layout=False`` (default since 2026-08-26, perf proposal O3) skips
+    pymupdf's ONNX layout model — measured on all 7 Reports/*.pdf it is
+    ~3x faster AND recovers more source words (0.997-0.999 vs
+    0.966-0.972 doc_coverage; the model was silently dropping ~3%).
+    Surviving image refs are identical (zero after normalisation in both
+    modes corpus-wide). ``layout=True`` opts back into the model for PDFs
+    whose structure the plain path handles worse.
     """
     _assert_text_layer(pdf_path)
     img_dir.mkdir(parents=True, exist_ok=True)
+    pymupdf4llm.use_layout(layout)
     chunks = pymupdf4llm.to_markdown(
         str(pdf_path),
         page_chunks=True,

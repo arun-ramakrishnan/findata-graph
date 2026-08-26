@@ -370,10 +370,23 @@ def seeded_graph_sqlite_db(tmp_path):
     # a sibling of a non-production db_path.
     import helpers.graph.query as _q
     _real_q_connect = _q.connect
+    _real_q_rebuild = _q.rebuild
+    _real_q_fresh_rebuild = _q.fresh_rebuild
 
     def _mock_q_connect(*args, **kwargs):
         kwargs.pop("db_path", None)
         return _real_q_connect(db_path, *args, **kwargs)
+
+    def _mock_rebuild(_db_path=db_path, *, fresh=False):
+        # Hermetic rebuild: /api/graph/refresh must never touch the
+        # PRODUCTION memory/graph.duckdb under this fixture. Since
+        # rebuild() swaps a pid-tagged temp onto the resolved production
+        # path (2026-08-26 deadlock fix), routing it through the mocked
+        # connect alone is NOT enough — patch rebuild itself to rebuild
+        # the FIXTURE duckdb in place (pre-swap behaviour).
+        _q.clear_graph_cache()
+        c = _real_q_connect(db_path, rebuild=True, fresh=fresh)
+        c.close()
 
     saved = A.get_db_connection
     A.get_db_connection = _open  # ty: ignore[invalid-assignment]
@@ -384,10 +397,14 @@ def seeded_graph_sqlite_db(tmp_path):
     except Exception:  # noqa: S110  # defensive
         pass
     _q.connect = _mock_q_connect  # ty: ignore[invalid-assignment]
+    _q.rebuild = _mock_rebuild  # ty: ignore[invalid-assignment]
+    _q.fresh_rebuild = _mock_rebuild  # ty: ignore[invalid-assignment]
     try:
         yield A.app.test_client()
     finally:
         _q.connect = _real_q_connect
+        _q.rebuild = _real_q_rebuild
+        _q.fresh_rebuild = _real_q_fresh_rebuild
         A.get_db_connection = saved
         try:
             A._reset_graph_connection()

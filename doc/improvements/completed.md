@@ -300,9 +300,9 @@ similarity search over company embeddings, integrated into the FinData knowledge
 **Verification**: 1,050 companies x 384-dim pseudo-embeddings; CEAT (auto/tires) returns semantically similar companies across sectors (Pharma, Consumer, Retail, FMCG, NBFC); `cross_sector` filter excludes same-sector neighbors; CLI subcommand exit code 0; performance ~0.7-3.5ms after warm-up
 
 **Next steps** (deferred):
-- ~~Replace Python-side `is_name_match()` in `get_tickers.py` with vector similarity~~ — **DONE 2026-08-15** (see #103): `resolve_entity` now has a `vss_match()` fallback stage over `company_embeddings` (pure-Python cosine, no DuckDB dep). Effective with real embeddings; inert on dry-run pseudo-embeddings (hash-based).
-- ~~Add embedding column to `note_search` FTS5 table in `rebuild_note_search.py` for hybrid ranking~~ — **DONE 2026-08-15** (see #105)
-- ~~Add `/api/graph/semantic/<name>` endpoint in `app.py`~~ — **DONE 2026-08-15** (see #104)
+- ~~Replace Python-side `is_name_match()` in `get_tickers.py` with vector similarity~~ — **DONE 2026-08-15** (see #104): `resolve_entity` now has a `vss_match()` fallback stage over `company_embeddings` (pure-Python cosine, no DuckDB dep). Effective with real embeddings; inert on dry-run pseudo-embeddings (hash-based).
+- ~~Add embedding column to `note_search` FTS5 table in `rebuild_note_search.py` for hybrid ranking~~ — **DONE 2026-08-15** (see #105b)
+- ~~Add `/api/graph/semantic/<name>` endpoint in `app.py`~~ — **DONE 2026-08-15** (see #105)
 - Re-evaluate HNSW index macros via quarterly `make update-extensions` (section 18.5)
 
 
@@ -1421,9 +1421,14 @@ endpoint is fully wired and tested, and becomes genuinely useful once real
 (OpenAI/`--api`) embeddings are populated.
 
 
-## 106. `note_search` embedding column + hybrid ranking (closes deferred N5 item)
+## 105b. `note_search` embedding column + hybrid ranking (closes deferred N5 item)
 
-**Date:** 2026-08-15
+**Date:** 2026-08-15. (Numbered 105b post-hoc, 2026-08-26: two same-day
+parallel sessions both minted a #106 — every pre-existing plain-`#106`
+reference in the corpus points at the hot-path caching entry below, so THIS
+one takes the suffix and that one keeps the plain number.)
+
+**Date (original):** 2026-08-15
 
 Closed the third deferred N5 "Next steps" item: "Add embedding column to
 `note_search` FTS5 table in `rebuild_note_search.py` for hybrid ranking".
@@ -3312,3 +3317,40 @@ across all sections after merge cleanup.
 - **Tests**: gate-step wiring (concise arg + raised budget) and write_report keeping exactly the last N lines.
 
 **Applied outcomes**: probe warning verified end-to-end — report block shows the complete diagnostic in 1 line, rc still 0 (advisory doctrine intact); direct `make types-tests` unchanged (full format); 102 tests green (incl. makefile drift guard); ruff/types clean.
+
+## 163. Perf optimization O1-O3: link-prediction, extract_relations, pdf layout-off
+
+**Follows**: doc/improvements/archive/tooling/perf_optimization.md (measured
+plan, 2026-08-26). `make perf` was 20/22: graph_link_prediction 2.03s/2.0s and
+extract_relations 5.33s/5.0s over budget; pdf_pipeline_local slowest at
+10.79s.
+
+**O1 — graph_link_prediction (2.03s -> ~1.3s)**: root cause found by import-
+spy — duckdb's Python client imports pandas (~0.5s) on the FIRST parameterized
+execute of the process, which fired inside `_materialize_from_db`. Fix:
+`_where_inline()` in onager.py renders the edge-type filter as SQL literals
+(strict snake_case-identifier check, ValueError otherwise; falls back to
+bound params for anything unusual). Golden compare: top-10 jaccard pairs
+byte-identical.
+
+**O2 — extract_relations (5.33s -> ~2.0s)**: the CLI reduce loop called
+`apply_edges` once per note and each call re-fetched the FULL existing-triple
+set from graph_edges (~15ms x ~110 notes of identical work). Fix:
+`_load_existing_edges()` hoisted above the reduce loop, new `existing=` param
+on apply_edges (None keeps per-call self-load for external callers/tests).
+Dry-run totals byte-identical (files=110 extracted=86 skipped_suppressed=7).
+
+**O3 — pdf_pipeline_local (10.79s -> 3.33s)**: 85% of convert was pymupdf's
+ONNX layout model (BoxRFDGNN per page; bench docstring's "Tesseract
+dominates" claim was stale — no Tesseract in that path). Corpus A/B over all
+7 Reports/*.pdf: layout OFF is ~3x faster AND recovers more source words
+(doc_coverage 0.997-0.999 vs 0.966-0.972 — the model silently dropped ~3%);
+surviving image refs identical at zero corpus-wide after normalisation.
+Default flipped to layout-off (`pymupdf4llm.use_layout(False)` inside
+convert), opt-in `--layout` flag on pdf_conv_md.py; CONVERT_BUDGET 15->6;
+bench docstring corrected.
+
+**Applied outcomes**: make perf 22/22 with headroom everywhere (link 1.34s,
+extract 1.93-2.13s, pdf 3.33s); targeted suites green (61 pdf tests + 83
+relation-driver tests); ruff C901/S/UP + types clean. O4 (budget hygiene)
+noted: derive_insights 3.51s/4.0s is next-in-line watch-only.

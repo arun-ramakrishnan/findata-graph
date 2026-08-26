@@ -438,6 +438,10 @@ def main() -> int:
     ap.add_argument("--no-images", action="store_true")
     ap.add_argument("--no-verify", action="store_true",
                     help="skip the post-conversion self-check")
+    ap.add_argument("--layout", action="store_true",
+                    help="local engine: use pymupdf's ONNX layout model "
+                         "(default off since 2026-08-26: ~3x faster without "
+                         "it and better word coverage on the Reports corpus)")
     args = ap.parse_args()
 
     pdf_path = Path(args.source_pdf)
@@ -455,7 +459,8 @@ def main() -> int:
         if args.engine in ("auto", "local"):
             tmpdir = tempfile.TemporaryDirectory(prefix="pdf_local_")
             try:
-                pages = convert_local(pdf_path, Path(tmpdir.name) / "imgs")
+                pages = convert_local(
+                    pdf_path, Path(tmpdir.name) / "imgs", layout=args.layout)
                 engine_label = LOCAL_ENGINE_LABEL
                 print(f"parsed locally with {engine_label}")
             except LocalRefusalError as e:

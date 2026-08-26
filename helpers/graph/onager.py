@@ -37,6 +37,7 @@ Storage summary
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import duckdb
@@ -87,6 +88,35 @@ def _where(edge_types: list[str] | None) -> tuple[str, list[str]]:
     return f" WHERE edge_type IN ({ph})", list(edge_types)
 
 
+# Perf (2026-08-26): duckdb's Python client imports pandas (~0.5s) on the
+# FIRST parameterized execute of the process — measured via import-spy, it
+# fires inside _materialize_from_db's first con.execute(sql, params). The
+# link-predict CLI budget is 2.0s, so that fixed tax matters. Edge-type
+# names are simple identifiers; when they pass the strict pattern below we
+# inline them as SQL literals instead of binding parameters, which skips
+# the pandas-importing binding path entirely. Non-matching names fall back
+# to parameter binding (correctness over speed).
+_IDENT_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
+
+
+def _where_inline(edge_types: list[str] | None) -> str:
+    """Literal-inlined variant of :func:`_where` (no param binding).
+
+    Returns "" for no filter. Raises ValueError on anything that does not
+    look like a bare snake_case identifier — callers never pass arbitrary
+    user text here (CLI --edge-type values are validated upstream), but the
+    check makes inlining unconditionally safe.
+    """
+    if not edge_types:
+        return ""
+    for t in edge_types:
+        if not _IDENT_RE.match(t):
+            raise ValueError(
+                f"edge type not a bare identifier: {t!r} — refusing to inline")
+    lst = ", ".join(f"'{t}'" for t in edge_types)
+    return f" WHERE edge_type IN ({lst})"
+
+
 def _materialize_from_db(con: duckdb.DuckDBPyConnection, edge_types: list[str] | None) -> bool:
     """Build ``_onager_int`` (name -> int id) and ``_onager_e`` (remapped
     edges) directly from ``fin.graph_edges`` using SQL.
@@ -94,7 +124,10 @@ def _materialize_from_db(con: duckdb.DuckDBPyConnection, edge_types: list[str] |
     Returns ``True`` if any edges were materialised, ``False`` if the edge
     table is empty.
     """
-    where, params = _where(edge_types)
+    # Inlined literals, not bound params: duckdb's python client imports
+    # pandas (~0.5s fixed cost) on the first parameterized execute. See
+    # _where_inline above.
+    where = _where_inline(edge_types)
     con.execute(
         f"""
         CREATE OR REPLACE TEMP TABLE _onager_int AS
@@ -105,7 +138,6 @@ def _materialize_from_db(con: duckdb.DuckDBPyConnection, edge_types: list[str] |
             SELECT target AS name FROM {_EDGE_TABLE}{where}
         );
         """,  # noqa: S608
-        params,
     )
     # ORDER BY src, dst (maint_full_zero_churn F3): without it the parallel
     # scan hands louvain a different edge order every run, and onager's
@@ -121,7 +153,6 @@ def _materialize_from_db(con: duckdb.DuckDBPyConnection, edge_types: list[str] |
         JOIN _onager_int t ON t.name = e.target{where}
         ORDER BY src, dst;
         """,  # noqa: S608
-        params,
     )
     row = con.execute("SELECT count(*) FROM _onager_e").fetchone()
     return row is not None and row[0] > 0

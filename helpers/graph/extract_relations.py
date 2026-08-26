@@ -1723,11 +1723,26 @@ class ApplyEdgesResult(NamedTuple):
         return self.inserted + self.skipped_fk + self.skipped_suppressed
 
 
+def _load_existing_edges(conn) -> set[tuple[str, str, str]]:
+    """Full (source, target, edge_type) triple set from graph_edges.
+
+    The per-call cost of this scan is ~15ms at the current edge volume —
+    fine once, pure waste ×110 in the CLI reduce loop. See apply_edges.
+    """
+    return {
+        (r[0], r[1], r[2])
+        for r in conn.execute(
+            "SELECT source, target, edge_type FROM graph_edges"
+        ).fetchall()
+    }
+
+
 def apply_edges(  # noqa: C901
     edges: Iterable[Edge],
     *,
     conn=None,
     dry_run: bool = True,
+    existing: set[tuple[str, str, str]] | None = None,
 ) -> ApplyEdgesResult:
     """INSERT OR IGNORE each edge. Returns an :class:`ApplyEdgesResult` with
     ``inserted``, ``skipped_fk`` and ``skipped_suppressed`` counts (Bundle F5).
@@ -1736,6 +1751,13 @@ def apply_edges(  # noqa: C901
     be inserted (dry_run=True). The two skip counters were previously dropped
     — callers can now distinguish "0 inserted, 0 skipped" (nothing to do)
     from "0 inserted, N skipped" (integrity errors ate the whole batch).
+
+    ``existing`` lets a caller that applies many batches against the same
+    DB pass the dry-run triple set ONCE (loaded via `_load_existing_edges`)
+    instead of paying a full graph_edges scan per call — the CLI reduce
+    loop over ~110 notes was re-scanning 17k edges per file (~15ms each,
+    ~1.5s of pure repetition). None → self-load (per-call behaviour kept
+    for external callers/tests). Only meaningful with dry_run=True.
 
     Suppressed edges (see `_SUPPRESSED_EDGES`) are skipped silently — these
     are typically hand-corrected attributions where the prose was in one
@@ -1757,14 +1779,8 @@ def apply_edges(  # noqa: C901
         # (source, target, edge_type) triples ONCE instead of firing a
         # per-edge SELECT (was N round-trips for N edges; now 1). The set
         # is checked in-memory during the loop.
-        existing: set[tuple[str, str, str]] | None = None
-        if dry_run:
-            existing = {
-                (r[0], r[1], r[2])
-                for r in conn.execute(
-                    "SELECT source, target, edge_type FROM graph_edges"
-                ).fetchall()
-            }
+        if dry_run and existing is None:
+            existing = _load_existing_edges(conn)
 
         # Bundle U2: wrap the loop in `with conn:` for atomic commit/rollback.
         # An FK error mid-batch no longer leaves prior INSERTs committed.
@@ -2109,6 +2125,13 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         file_results = _extract_batch([str(p) for p in nl_paths], names)
 
     # Reduce phase: apply edges + report (serial, in the parent).
+    # Perf (2026-08-26): load the dry-run existing-edge set ONCE here and
+    # hand it to every apply_edges call below — was one full graph_edges
+    # scan per note (~15ms × ~110 notes of identical work).
+    existing_edges = (
+        _load_existing_edges(conn)
+        if conn is not None and not args.apply else None
+    )
     for (nl_path_str, doc_type, all_edges, unresolved, type_counts,
          ambiguities) in file_results:
         nl_path = Path(nl_path_str)
@@ -2158,7 +2181,9 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 )
 
         # Apply (or dry-run count).
-        result = apply_edges(all_edges, conn=conn, dry_run=not args.apply)
+        result = apply_edges(
+            all_edges, conn=conn, dry_run=not args.apply,
+            existing=existing_edges)
         total_applied += result.inserted
         total_skipped_fk += result.skipped_fk
         total_skipped_suppressed += result.skipped_suppressed
