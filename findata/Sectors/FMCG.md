@@ -124,7 +124,7 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 68 company note(s) in FMCG. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 69 company note(s) in FMCG. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Acrysil]]
 - [[Allied_Blenders_and_Distillers|Allied Blenders and Distillers]]
@@ -163,6 +163,7 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 - [[Marico]]
 - [[Marvel_Decor|Marvel Decor]]
 - [[Mattel]]
+- [[McDonalds|McDonald's]]
 - [[Monika_Alcobev|Monika Alcobev]]
 - [[Nestle_India|Nestlé_India]]
 - [[Orkla_India|Orkla India]]

@@ -51,16 +51,16 @@ def _fm(p: Path) -> dict:
 
 class TestVerifyNote:
     def test_dry_run_default_writes_nothing(self, note):
-        assert verify_note(note, "human:arun").startswith("would stamp")
+        assert verify_note(note, "human:user").startswith("would stamp")
         assert "verified" not in _fm(note)
 
     def test_apply_stamps_and_preserves_everything(self, note):
         before_body = split_frontmatter(note.read_text())[2]
-        status = verify_note(note, "human:arun", apply=True)
+        status = verify_note(note, "human:user", apply=True)
         assert status == f"stamped: {note}"
         fm = _fm(note)
         v = fm["verified"]
-        assert len(v) == 1 and v[0]["by"] == "human:arun"
+        assert len(v) == 1 and v[0]["by"] == "human:user"
         assert v[0]["at"].endswith("Z")  # ISO 8601 UTC
         # generated untouched; all other keys intact.
         assert fm["generated"] == {"by": "derive_insights.py/v1",
@@ -69,24 +69,24 @@ class TestVerifyNote:
         assert split_frontmatter(note.read_text())[2] == before_body
 
     def test_idempotent_per_actor(self, note):
-        verify_note(note, "human:arun", apply=True)
+        verify_note(note, "human:user", apply=True)
         first = note.read_text()
-        status = verify_note(note, "human:arun", apply=True)
+        status = verify_note(note, "human:user", apply=True)
         assert status.startswith("already verified")
         assert note.read_text() == first  # zero-byte second write
 
     def test_second_actor_appends(self, note):
-        verify_note(note, "human:arun", apply=True)
+        verify_note(note, "human:user", apply=True)
         verify_note(note, "human:reviewer2", apply=True)
         assert len(_fm(note)["verified"]) == 2
 
     def test_no_frontmatter_note(self, tmp_path):
         p = tmp_path / "bare.md"
         p.write_text("# No YAML\n")
-        assert verify_note(p, "human:arun").startswith("no frontmatter")
+        assert verify_note(p, "human:user").startswith("no frontmatter")
 
     def test_result_validates_against_schema(self, note):
-        verify_note(note, "human:arun", apply=True)
+        verify_note(note, "human:user", apply=True)
         errs = validate_frontmatter(dict(_fm(note), sector="FMCG",
                                          normalized_name="Marico",
                                          permalink="/companies/fmcg/marico",
@@ -104,9 +104,9 @@ class TestCli:
         assert "human:" in capsys.readouterr().err
 
     def test_apply_flag_and_summary(self, note, capsys):
-        rc = main([str(note), "--by", "human:arun"])
+        rc = main([str(note), "--by", "human:user"])
         assert rc == 0
         out = capsys.readouterr().out
         assert "would stamp" in out and "verified" not in _fm(note)
-        rc = main([str(note), "--by", "human:arun", "--apply"])
+        rc = main([str(note), "--by", "human:user", "--apply"])
         assert rc == 0 and "stamped" in capsys.readouterr().out

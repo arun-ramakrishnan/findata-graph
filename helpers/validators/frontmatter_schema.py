@@ -273,10 +273,12 @@ def _constraint_str(prop: dict) -> str:
 # OKF reserved filenames (§4): listing/change-log files with their own formats.
 _OKF_RESERVED = {"index.md", "log.md"}
 
-# Newsletter-tree chrome (not prose, not part of the vocabulary surface) —
-# same skip set the pipeline uses (derive_insights._NEWSLETTER_CHROME_NAMES,
-# extract_relations._NEWSLETTER_SKIP_FILES).
-_OKF_SKIP_FILES = {"image_map.md"}
+# Generated chrome (not prose, not part of the vocabulary surface) —
+# image_map.md is newsletter-tree chrome in the same skip set the pipeline
+# uses (derive_insights._NEWSLETTER_CHROME_NAMES,
+# extract_relations._NEWSLETTER_SKIP_FILES); _pending_triage_report.md is
+# the triage sidecar's report artifact at the findata/ root.
+_OKF_SKIP_FILES = {"image_map.md", "_pending_triage_report.md"}
 
 
 def _okf_newsletter_shape(fm: dict, rel: str, root: Path) -> list[str]:

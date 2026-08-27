@@ -5,6 +5,7 @@ Hermetic: tmp sidecar/decisions files, monkeypatched entity names.
 """
 
 import json
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -214,3 +215,154 @@ class TestExtractorIntegration:
         assert sr.SIDECAR_PATH == sr.SUGGESTIONS_PATH
         # No longer coupled to the extraction sidecar.
         assert sr.SUGGESTIONS_PATH != xr.SIDECAR_PATH
+
+
+class TestAcceptDecisions:
+    """`accept:<edge_type>[:<Target>]` — the suggested_relations_accept (S4)
+    exit from the suggestions file / mangled-mention prose rows."""
+
+    @pytest.fixture
+    def edge_db(self, tmp_path, monkeypatch):
+        from tests.conftest import _UNIT_SCHEMA
+
+        db = tmp_path / "research.db"
+        conn = sqlite3.connect(db)
+        conn.executescript(_UNIT_SCHEMA)
+        conn.commit()
+        conn.close()
+        monkeypatch.setattr(tpr, "EDGE_DB_PATH", db)
+        return db
+
+    @staticmethod
+    def _rows(db):
+        conn = sqlite3.connect(db)
+        try:
+            return conn.execute(
+                "SELECT source, target, edge_type, properties, source_ref, "
+                "symmetric FROM graph_edges").fetchall()
+        finally:
+            conn.close()
+
+    def test_accept_suggestion_writes_symmetric_edge(self, paths, edge_db):
+        tpr.SUGGESTIONS.write_text(json.dumps({
+            "edge_type": "suggested", "source": "Acme Corp",
+            "target_mention": "Dixon Technologies", "quote": "",
+            "edition": "link-prediction/jaccard/2026-08-27",
+            "origin": "link_prediction", "score": 1.0, "method": "jaccard",
+        }) + "\n", encoding="utf-8")
+        decisions = [{
+            "id": "x1", "edge_type": "suggested", "source": "Acme Corp",
+            "target_mention": "Dixon Technologies",
+            "edition": "link-prediction/jaccard/2026-08-27",
+            "origin": "link_prediction", "score": 1.0, "method": "jaccard",
+            "decision": "accept:competes_with",
+        }]
+        tpr.DECISIONS.write_text(
+            "\n".join(json.dumps(d) for d in decisions) + "\n",
+            encoding="utf-8")
+
+        assert tpr.main(["--apply-decisions", "--write"]) == 0
+        rows = self._rows(edge_db)
+        assert len(rows) == 1
+        src, tgt, etype, props, sref, sym = rows[0]
+        assert (src, tgt, etype, sref, sym) == (
+            "Acme Corp", "Dixon Technologies", "competes_with",
+            "triage:accept", 1)
+        assert json.loads(props)["score"] == 1.0
+        # The decided row left the suggestions file.
+        assert not tpr.SUGGESTIONS.read_text().strip()
+
+    def test_accept_rerun_is_idempotent(self, paths, edge_db):
+        tpr.SUGGESTIONS.write_text(json.dumps({
+            "edge_type": "suggested", "source": "Acme Corp",
+            "target_mention": "Dixon Technologies", "quote": "",
+            "edition": "ed", "origin": "link_prediction",
+            "score": 0.9, "method": "jaccard",
+        }) + "\n", encoding="utf-8")
+        decisions = [{
+            "id": "x1", "edge_type": "suggested", "source": "Acme Corp",
+            "target_mention": "Dixon Technologies", "edition": "ed",
+            "origin": "link_prediction", "score": 0.9, "method": "jaccard",
+            "decision": "accept:competes_with",
+        }]
+        tpr.DECISIONS.write_text(
+            "\n".join(json.dumps(d) for d in decisions) + "\n",
+            encoding="utf-8")
+        assert tpr.main(["--apply-decisions", "--write"]) == 0
+        assert tpr.main(["--apply-decisions", "--write"]) == 0
+        assert len(self._rows(edge_db)) == 1
+
+    def test_accept_explicit_target_for_mangled_mention(self, paths, edge_db):
+        paths.write_text(
+            _row("acquired", "Acme Corp",
+                 "Colgate acquisition of the toothpaste rival")
+            + "\n", encoding="utf-8")
+        assert tpr.main([]) == 0  # regenerate decisions skeleton
+        decisions = [json.loads(line)
+                     for line in tpr.DECISIONS.read_text().splitlines()]
+        decisions[0]["decision"] = "accept:acquired:Colgate Palmolive India"
+        tpr.DECISIONS.write_text(
+            "\n".join(json.dumps(d) for d in decisions) + "\n",
+            encoding="utf-8")
+        assert tpr.main(["--apply-decisions", "--write"]) == 0
+        rows = self._rows(edge_db)
+        assert [(r[0], r[1], r[2], r[5]) for r in rows] == [
+            ("Acme Corp", "Colgate Palmolive India", "acquired", 0)]
+        assert json.loads(rows[0][3])["origin"] == "manual_triage"
+        # The applied prose row left the sidecar too.
+        assert not paths.read_text().strip()
+
+    def test_accept_rejects_bad_edge_type(self, paths, edge_db):
+        tpr.SUGGESTIONS.write_text(json.dumps({
+            "edge_type": "suggested", "source": "Acme Corp",
+            "target_mention": "Dixon Technologies", "quote": "",
+            "edition": "ed",
+        }) + "\n", encoding="utf-8")
+        decisions = [{
+            "id": "x1", "edge_type": "suggested", "source": "Acme Corp",
+            "target_mention": "Dixon Technologies",
+            "decision": "accept:capitalism",
+        }]
+        tpr.DECISIONS.write_text(
+            "\n".join(json.dumps(d) for d in decisions) + "\n",
+            encoding="utf-8")
+        assert tpr.main(["--apply-decisions", "--write"]) == 1
+        assert not self._rows(edge_db)
+        # Nothing consumed from the suggestions file either.
+        assert tpr.SUGGESTIONS.read_text().strip()
+
+    def test_accept_rejects_unknown_target(self, paths, edge_db):
+        tpr.SUGGESTIONS.write_text(json.dumps({
+            "edge_type": "suggested", "source": "Acme Corp",
+            "target_mention": "Nonexistent Corp", "quote": "",
+            "edition": "ed",
+        }) + "\n", encoding="utf-8")
+        decisions = [{
+            "id": "x1", "edge_type": "suggested", "source": "Acme Corp",
+            "target_mention": "Nonexistent Corp",
+            "decision": "accept:competes_with",
+        }]
+        tpr.DECISIONS.write_text(
+            "\n".join(json.dumps(d) for d in decisions) + "\n",
+            encoding="utf-8")
+        assert tpr.main(["--apply-decisions", "--write"]) == 1
+        assert not self._rows(edge_db)
+
+    def test_discard_drops_suggestion_without_writing_edge(
+            self, paths, edge_db):
+        tpr.SUGGESTIONS.write_text(json.dumps({
+            "edge_type": "suggested", "source": "Acme Corp",
+            "target_mention": "Dixon Technologies", "quote": "",
+            "edition": "ed",
+        }) + "\n", encoding="utf-8")
+        decisions = [{
+            "id": "x1", "edge_type": "suggested", "source": "Acme Corp",
+            "target_mention": "Dixon Technologies",
+            "decision": "discard",
+        }]
+        tpr.DECISIONS.write_text(
+            "\n".join(json.dumps(d) for d in decisions) + "\n",
+            encoding="utf-8")
+        assert tpr.main(["--apply-decisions", "--write"]) == 0
+        assert not self._rows(edge_db)
+        assert not tpr.SUGGESTIONS.read_text().strip()

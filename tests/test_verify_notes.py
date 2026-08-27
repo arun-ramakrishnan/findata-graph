@@ -259,7 +259,7 @@ class TestSectorYamlConsistency:
                 "last_modified": "2025-01-02",
                 "generated": {"by": "process:okf_backfill",
                               "at": "2026-08-19T03:03:17Z"},
-                "verified": [{"by": "human:arun",
+                "verified": [{"by": "human:user",
                               "at": "2026-06-01T10:00:00Z"}],
                 "sources": [{"id": "x", "resource": "/Reports/x.pdf"}],
                 "status": "stable",

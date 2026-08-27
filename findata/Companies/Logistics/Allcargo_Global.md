@@ -1,7 +1,7 @@
 ---
 title: Allcargo Global
 type: company
-ticker: 'AGL.BO'
+ticker: AGL.BO
 tags:
 - entity_type/company
 - sector/logistics
@@ -13,6 +13,18 @@ market_cap: small_cap
 permalink: /companies/logistics/allcargo_global
 created: '2026-08-25'
 last_modified: '2026-08-25'
+sources:
+- id: Yes_Bank_Colgate_Allcargo
+  resource: /findata/The_Chatter/Yes_Bank_Colgate_Allcargo.md
+  title: 'The Chatter: YES Bank, Colgate, Allcargo, & More'
+  last_modified: '2026-08-25'
+generated:
+  by: parse_newsletter.py/v1
+  at: '2026-08-25T00:00:00Z'
+stale_after: '2027-02-21'
+verified:
+- by: human:user
+  at: '2026-08-27T14:23:35Z'
 ---
 
 # Allcargo Global

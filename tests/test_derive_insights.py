@@ -1579,7 +1579,7 @@ type: company
 sector: FMCG
 created: 2025-11-16
 verified:
-- by: human:arun
+- by: human:user
   at: 2026-08-18T12:00:00Z
 tags: [entity_type/company, sector/fmcg]
 ---
@@ -1604,7 +1604,7 @@ class TestOkfBumpGenerated:
         out = bump_generated(_OKF_NOTE, "derive_insights.py/v1",
                              now="2026-08-18T09:00:00Z")
         fm = yaml.safe_load(out.split("\n---\n")[0][4:])
-        assert fm["verified"] == [{"by": "human:arun",
+        assert fm["verified"] == [{"by": "human:user",
                                    "at": "2026-08-18T12:00:00Z"}]
 
     def test_stale_after_uses_max_source_last_modified(self):
@@ -1682,7 +1682,7 @@ class TestRenderNotesBumpsFrontmatter:
             assert written == 1
             fm = yaml.safe_load(note.read_text().split("\n---\n")[0][4:])
             assert fm["generated"]["by"] == di._OKF_ACTOR
-            assert fm["verified"] == [{"by": "human:arun",
+            assert fm["verified"] == [{"by": "human:user",
                                        "at": "2026-08-18T12:00:00Z"}]
             assert "BEGIN auto chatter block" in note.read_text()
         finally:

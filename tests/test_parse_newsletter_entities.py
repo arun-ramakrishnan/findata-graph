@@ -8,6 +8,7 @@ contract without running the full parse_newsletter pipeline.
 """
 from __future__ import annotations
 
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -125,8 +126,27 @@ class TestRenderStubShape:
         implicit; the field exists only to mark the unlisted category)."""
         s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", "ACME",
                            "companies/tech/acme_corp")
-        assert "ticker: 'ACME'\n" in s
+        assert "ticker: ACME\n" in s
         assert "\nlisted:" not in s, "listed field must not appear for a listed company"
+
+    def test_market_cap_key_always_present(self):
+        """The company JSON schema REQUIRES market_cap — a stub without it
+        fatals static-checks until hand-fixed. null is the schema-legal
+        'unknown'; the enrichment flow upgrades it once a cap is known."""
+        for ticker in ("ACME", None):
+            s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", ticker,
+                               "companies/tech/acme_corp")
+            assert "market_cap: null\n" in s
+
+    def test_stub_is_born_okf_machine_confirmed(self):
+        """OKF §5.2: provenance is written where it is generated — render_stub
+        stamps `generated` (actor parse_newsletter.py/v1) + `stale_after`, so
+        fresh stubs enter the census as machine-confirmed, not unverified."""
+        s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", None,
+                           "companies/tech/acme_corp")
+        assert "by: parse_newsletter.py/v1" in s
+        assert re.search(r"^  at: '\d{4}-\d{2}-\d{2}T", s, re.M)
+        assert re.search(r"^stale_after: '\d{4}-\d{2}-\d{2}'$", s, re.M)
 
 
 
@@ -182,7 +202,10 @@ def test_render_stub_structure():
     )
     assert "title: Test Co" in note
     assert "type: company" in note
-    assert "ticker: 'TEST.NS'" in note
+    # bump_generated round-trips the stub through YAML, so quoting survives
+    # only where the plain form would be ambiguous (Ather-style unquoted is
+    # the canonical emission for ordinary tickers)
+    assert "ticker: TEST.NS\n" in note
     assert "sector/technology" in note
     assert "geography/india" in note
     assert "normalized_name: Test_Co" in note

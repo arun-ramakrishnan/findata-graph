@@ -1,7 +1,7 @@
 ---
 title: HEG
 type: company
-ticker: 'HEG.BO'
+ticker: HEG.BO
 tags:
 - entity_type/company
 - sector/metals
@@ -13,6 +13,18 @@ market_cap: small_cap
 permalink: /companies/metals/heg
 created: '2026-08-25'
 last_modified: '2026-08-25'
+sources:
+- id: RBI_3M_Blue_Star_KFin
+  resource: /findata/The_Chatter/RBI_3M_Blue_Star_KFin.md
+  title: 'The Chatter: RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More'
+  last_modified: '2026-08-25'
+generated:
+  by: parse_newsletter.py/v1
+  at: '2026-08-25T00:00:00Z'
+stale_after: '2027-02-21'
+verified:
+- by: human:user
+  at: '2026-08-27T14:23:35Z'
 ---
 
 # HEG

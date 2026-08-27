@@ -77,7 +77,7 @@ OKF_SOURCE: dict = {
 }
 OKF_KEYS = {
     "generated": OKF_GENERATED,
-    "verified": [{"by": "human:arun", "at": "2026-08-18T12:00:00Z"}],
+    "verified": [{"by": "human:user", "at": "2026-08-18T12:00:00Z"}],
     "sources": [OKF_SOURCE],
     "status": "stable",
     "stale_after": "2027-02-14",
@@ -114,7 +114,7 @@ class TestOkfKeys:
         assert FMS.validate_frontmatter(fm, "company") != []
 
     def test_non_iso_verified_at_rejected(self):
-        fm = dict(GOOD_COMPANY, verified=[{"by": "human:arun",
+        fm = dict(GOOD_COMPANY, verified=[{"by": "human:user",
                                            "at": "16/11/2025"}])
         assert FMS.validate_frontmatter(fm, "company") != []
 
@@ -124,7 +124,7 @@ class TestOkfKeys:
 
     def test_bare_map_verified_rejected(self):
         # deliberate stricter-than-spec deviation: array at write time only
-        fm = dict(GOOD_COMPANY, verified={"by": "human:arun",
+        fm = dict(GOOD_COMPANY, verified={"by": "human:user",
                                           "at": "2026-08-18T12:00:00Z"})
         assert FMS.validate_frontmatter(fm, "company") != []
 
@@ -162,7 +162,7 @@ class TestOkfKeys:
         # Hand-written `at: 2026-08-18T12:00:00` (no Z) parses as a datetime
         # object; _normalize_nested must stringify it before the pattern check.
         import yaml as _yaml
-        block = "---\ntitle: T\nverified:\n- by: human:arun\n  at: 2026-08-18T12:00:00\n---\n"
+        block = "---\ntitle: T\nverified:\n- by: human:user\n  at: 2026-08-18T12:00:00\n---\n"
         raw = _yaml.safe_load(block.split("\n---\n")[0][4:])
         assert isinstance(raw["verified"][0]["at"], _dt.datetime)
         fm = dict(GOOD_COMPANY, verified=raw["verified"])
@@ -501,15 +501,19 @@ class TestOkfConformanceSweep:
         (fd / "image_map.md").write_text("# chrome\n")
         (fd / "index.md").write_text("# listing\n")
         (fd / "log.md").write_text("# log\n")
+        # triage report artifact: generated chrome, NOT a pre-rollout
+        # OCR source note (it must not feed the pre_rollout advisory)
+        (fd / "_pending_triage_report.md").write_text("# triage report\n")
         fatal, advisory = FMS.check_okf_conformance(tmp_path)
         assert not any("image_map" in x or "index.md" in x or "log.md" in x
                        for x in fatal + advisory)
+        assert not any("OCR source notes" in a for a in advisory)
 
     def test_trust_tiers_and_census(self, tmp_path):
         fd = self._vault(tmp_path)
         (fd / "H.md").write_text(  # human-reviewed
             "---\ntype: newsletter\ngenerated:\n  by: process:x\n"
-            "  at: 2026-08-18T09:00:00Z\nverified:\n- by: human:arun\n"
+            "  at: 2026-08-18T09:00:00Z\nverified:\n- by: human:user\n"
             "  at: 2026-08-18T12:00:00Z\n---\n")
         (fd / "M.md").write_text(  # machine-confirmed (generated, no verified)
             "---\ntype: newsletter\ngenerated:\n  by: process:x\n"

@@ -14,6 +14,8 @@ commit, referenced by nothing). Entry numbers point at
 - [`duckpgq_retirement.txt`](graph/duckpgq_retirement.txt) — Proposal: Retire duckpgq — consolidate on Onager + plain SQL — completed.md #73, #92
 - [`networkx_duckpgq_gap_plan.txt`](graph/networkx_duckpgq_gap_plan.txt) — NETWORKX -> DUCKPGQ GAP ANALYSIS & DEPENDENCY PLAN
 - [`hierarchy_design_roadmap.txt`](graph/hierarchy_design_roadmap.txt) — Hierarchy Design Roadmap — enriching the notes ↔ DB ↔ graph knowledge model
+- [`pending_relations_triage.md`](graph/pending_relations_triage.md) — Proposal: Pending-relations triage (`triage_pending_relations`) — enclose the recurring queue workflow — completed.md #155
+- [`suggested_relations_accept.md`](graph/suggested_relations_accept.md) — Proposal: Accept path for pending relations — `accept:<edge_type>[:<target>]` writes suggested + known-target rows to graph_edges — completed.md #169
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 

@@ -130,8 +130,8 @@ closed proposals — was `proposals/`).
 
 ## 9. Code & markdown search — codebase-memory-mcp
 
-This repo is indexed by **codebase-memory-mcp** (project
-`home-arun-Research-MCP-pdf-ocr-obsidian`, auto-index on). Prefer it over
+This repo is indexed by **codebase-memory-mcp** (project id is derived
+from the checkout path — check your local index, auto-index on). Prefer it over
 `grep`/`find` for code/markdown/relationship search: it understands
 structure (functions, classes, routes, callers/callees, Section nodes from
 the vault — ~16.5k nodes / ~24k edges) and returns the containing

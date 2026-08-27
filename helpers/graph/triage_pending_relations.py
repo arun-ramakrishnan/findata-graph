@@ -14,10 +14,19 @@ triage in a month motivated encapsulating the whole workflow here:
                       decisions file. NON-destructive.
   --apply-decisions   validate + act on annotated decisions; with --write:
                       alias rows persist to findata/relation_aliases.json
-                      (runtime-loaded by extract_relations), discard/skip
-                      rows drop out, `suggested` rows move to their own
-                      file, unresolved prose rows stay (deduped).
+                      (runtime-loaded by extract_relations), accept rows
+                      write their edge straight into graph_edges
+                      (suggested_relations_accept, S4), discard/skip rows
+                      drop out, `suggested` rows move to their own file,
+                      unresolved prose rows stay (deduped).
   --clear             truncate the sidecar to 0 (the post-triage endgame).
+
+Decision actions: discard | skip | stub | alias:<Entity> |
+accept:<edge_type>[:<Target Entity>] — the accept writes
+(source, target[, override], edge_type) into graph_edges with
+source_ref='triage:accept' and the row's provenance in properties; used for
+link-prediction suggestions (assign the missing typed edge) and for
+mangled-mention prose rows whose true target already exists.
 
 Usage:
     python3 helpers/graph/triage_pending_relations.py                 # report
@@ -50,6 +59,24 @@ SUGGESTIONS = _REPO_ROOT / "findata" / "_pending_suggestions.txt"
 ALIAS_FILE = _REPO_ROOT / "findata" / "relation_aliases.json"
 REPORT = _REPO_ROOT / "findata" / "_pending_triage_report.md"
 DECISIONS = _REPO_ROOT / "findata" / "_pending_triage_decisions.jsonl"
+# graph_edges write target for `accept:` decisions. None = connect()'s
+# default (memory/research.db); tests point it at a tmp schema file.
+EDGE_DB_PATH: Path | None = None
+
+# Vocabulary an accept: decision may assign (the graph's relation edge
+# types — roster bookkeeping types part_of/has_company are excluded: a
+# suggested company↔company pair is never a roster edge).
+_ACCEPT_EDGE_TYPES = frozenset({
+    "competes_with", "jv_with", "supplier_to", "customer_of", "acquired",
+    "subsidiary_of", "same_group", "co_mentioned_in", "semantic_peer",
+    "invested_in", "exposed_to", "cited_in",
+})
+# Stored canonicalised as ONE row with symmetric=1 (graph_design §4 — the
+# same set extract_relations writes with the flag).
+_SYMMETRIC_ACCEPT_TYPES = frozenset({
+    "jv_with", "same_group", "competes_with", "co_mentioned_in",
+})
+_ACCEPT_SOURCE_REF = "triage:accept"
 
 # Deterministic noise classifiers (must stay in sync with the extractor's
 # write-time gate — the goal is that post-S2 these rows never reach the
@@ -203,7 +230,10 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
 
 
 def write_report(triage: dict, names_count: int) -> None:
-    """Emit the eyeball report + the decisions file (non-destructive)."""
+    """Emit the eyeball report + the decisions file (non-destructive).
+
+    NOTE: the decisions file is REGENERATED here — annotate only after the
+    last --report run, or annotations are lost."""
     lines = [
         "# Pending-relations triage report",
         "",
@@ -215,6 +245,16 @@ def write_report(triage: dict, names_count: int) -> None:
         f"{len(triage['unparseable'])}",
         "",
     ]
+    sug_rows = _read_suggestions_rows()
+    if sug_rows:
+        top = sorted(
+            sug_rows, key=lambda r: float(r.get("score") or 0), reverse=True)
+        lines.append(f"- suggestions file (`{Path(SUGGESTIONS).name}`): "
+                     f"{len(sug_rows)} rows — top by score:")
+        for r in top[:10]:
+            lines.append(f"  - {r.get('source')} <-> {r.get('target_mention')} "
+                         f"({r.get('score')}, {r.get('method')})")
+        lines.append("")
     from collections import Counter
 
     counts = Counter(r["bucket"] for r in triage["prose"])
@@ -239,7 +279,8 @@ def write_report(triage: dict, names_count: int) -> None:
             )
             lines.append(f"  > {r['quote']}")
         lines.append("")
-    lines.append("## suggested (moved out on --write; not triaged here)")
+    lines.append("## suggested rows on the sidecar (moved out on --write; "
+                 "triage the suggestions file itself via accept:/discard)")
     lines.append("")
     for r in triage["suggested"][:50]:
         lines.append(f"- {r['source']} <-> {r['target_mention']}")
@@ -282,7 +323,7 @@ def _validate_decisions(rows: list[dict], entity_names: set[str]) -> dict | None
     """Parse + validate annotated decisions into an action plan, or None
     (with the error already printed) on any invalid decision."""
     plan: dict = {"aliases": {}, "applied_keys": set(), "stubs": [],
-                  "discard": 0, "skip": 0}
+                  "accepts": [], "discard": 0, "skip": 0}
     for d in rows:
         key = (d["edge_type"], d["source"], d["target_mention"])
         decision = str(d["decision"]).strip()
@@ -299,6 +340,11 @@ def _validate_decisions(rows: list[dict], entity_names: set[str]) -> dict | None
                       f"entity (row {d['id']})", file=sys.stderr)
                 return None
             plan["aliases"][_norm_target(d["target_mention"]).lower()] = target
+        elif decision.startswith("accept:"):
+            parsed = _parse_accept(d, decision, entity_names)
+            if parsed is None:
+                return None
+            plan["accepts"].append(parsed)
         else:
             print(f"ERROR: unknown decision {decision!r} (row {d['id']})",
                   file=sys.stderr)
@@ -307,8 +353,46 @@ def _validate_decisions(rows: list[dict], entity_names: set[str]) -> dict | None
     return plan
 
 
+def _parse_accept(d: dict, decision: str,
+                  entity_names: set[str]) -> dict | None:
+    """Validate one `accept:<edge_type>[:<Target Entity>]` decision into a
+    writable edge spec (source/target/edge_type/properties/symmetric)."""
+    parts = decision[len("accept:"):].split(":", 1)
+    edge_type = parts[0].strip()
+    if edge_type not in _ACCEPT_EDGE_TYPES:
+        print(f"ERROR: accept edge_type {edge_type!r} is not in the relation "
+              f"vocabulary {sorted(_ACCEPT_EDGE_TYPES)} (row {d['id']})",
+              file=sys.stderr)
+        return None
+    # Explicit target override for mangled mentions; otherwise the row's own
+    # target_mention must BE the entity (link-prediction rows always are).
+    target = parts[1].strip() if len(parts) > 1 else _norm_target(
+        d["target_mention"])
+    if target not in entity_names:
+        print(f"ERROR: accept target {target!r} is not an existing entity "
+              f"(row {d['id']}) — stub it first, or name an existing one",
+              file=sys.stderr)
+        return None
+    if d["source"] not in entity_names:
+        print(f"ERROR: accept source {d['source']!r} is not an existing "
+              f"entity (row {d['id']})", file=sys.stderr)
+        return None
+    properties: dict = {"edition": d.get("edition", ""),
+                        "origin": d.get("origin", "manual_triage")}
+    if d.get("score") is not None:
+        properties["score"] = d["score"]
+    if d.get("method"):
+        properties["method"] = d["method"]
+    return {
+        "source": d["source"], "target": target, "edge_type": edge_type,
+        "symmetric": edge_type in _SYMMETRIC_ACCEPT_TYPES,
+        "properties": properties,
+    }
+
+
 def _apply_write(plan: dict) -> None:
-    """Persist the plan: alias file merge, sidecar rewrite, suggestions move."""
+    """Persist the plan: alias file merge, accepted edges, sidecar rewrite,
+    suggestions move + decided-row drops."""
     aliases = plan["aliases"]
     # 1. Alias additions (merged, sorted; file wins at load time).
     existing = {}
@@ -326,7 +410,13 @@ def _apply_write(plan: dict) -> None:
         print(f"relation_aliases.json: +{len(aliases)} entries "
               f"(now {len(existing)})")
 
-    # 2. Rewrite the sidecar: applied prose rows drop, suggested rows move
+    # 2. Accepted edges -> graph_edges (same INSERT discipline as
+    # extract_relations: INSERT OR IGNORE + per-row integrity skips;
+    # idempotent via the UNIQUE constraint).
+    if plan["accepts"]:
+        _write_accepted_edges(plan["accepts"])
+
+    # 3. Rewrite the sidecar: applied prose rows drop, suggested rows move
     # to their own file, unresolved prose rows stay (deduped), unparseable
     # lines preserved verbatim.
     triage = build_triage(
@@ -345,6 +435,11 @@ def _apply_write(plan: dict) -> None:
         + ("\n" if triage["unparseable"] else ""),
         encoding="utf-8")
     _move_suggestions(triage["suggested"])
+
+    # 4. Drop decided rows (accept + discard) from the suggestions file —
+    # both populations exit through the same decisions workflow.
+    _drop_decided_suggestions(plan["applied_keys"])
+
     print(f"sidecar rewritten: {len(kept)} prose rows remain")
     if plan["stubs"]:
         print("\nSTUB PLAN (create explicitly — the collision-check "
@@ -353,6 +448,74 @@ def _apply_write(plan: dict) -> None:
             print(f"  - {d['source']} {d['edge_type']} -> "
                   f"{d['target_mention']}"
                   + (f"  [{d.get('note')}]" if d.get("note") else ""))
+
+
+def _read_suggestions_rows() -> list[dict]:
+    """Parsed rows of the suggestions file (missing file = [])."""
+    path = Path(SUGGESTIONS)
+    if not path.exists():
+        return []
+    rows = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rows.append(json.loads(line))
+        except ValueError:
+            pass
+    return rows
+
+
+def _drop_decided_suggestions(applied_keys: set) -> None:
+    """Rewrite the suggestions file without rows whose
+    (edge_type, source, target_mention) key was decided."""
+    rows = _read_suggestions_rows()
+    kept = [r for r in rows
+            if (r.get("edge_type", ""), r.get("source", ""),
+                r.get("target_mention", "")) not in applied_keys]
+    if len(kept) != len(rows):
+        Path(SUGGESTIONS).write_text(
+            "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in kept),
+            encoding="utf-8")
+        print(f"suggestions file: {len(rows) - len(kept)} decided rows "
+              f"dropped ({len(kept)} remain)")
+
+
+def _write_accepted_edges(accepts: list[dict]) -> None:
+    """INSERT OR IGNORE the accepted edge specs into graph_edges."""
+    from helpers.core.db import connect
+
+    conn = connect(EDGE_DB_PATH)
+    inserted = skipped = 0
+    try:
+        # Same atomicity discipline as extract_relations' U2 bundle: one
+        # transaction, so a mid-batch failure leaves nothing committed.
+        with conn:
+            for a in accepts:
+                props = json.dumps(a["properties"], ensure_ascii=False,
+                                   sort_keys=True)
+                try:
+                    cur = conn.execute(
+                        """
+                        INSERT OR IGNORE INTO graph_edges
+                            (source, target, edge_type, properties, source_ref,
+                             symmetric, valid_from)
+                        VALUES (?, ?, ?, ?, ?, ?, NULL)
+                        """,
+                        (a["source"], a["target"], a["edge_type"], props,
+                         _ACCEPT_SOURCE_REF, 1 if a["symmetric"] else 0),
+                    )
+                    inserted += cur.rowcount
+                except Exception as exc:
+                    print(f"warning: skipped accept {a['source']} → "
+                          f"{a['target']} ({a['edge_type']}): "
+                          f"{type(exc).__name__}: {exc}", file=sys.stderr)
+                    skipped += 1
+    finally:
+        conn.close()
+    print(f"graph_edges: {inserted} accepted edge(s) written "
+          f"({skipped} skipped)")
 
 
 def _move_suggestions(suggested: list[dict]) -> None:
@@ -389,7 +552,8 @@ def apply_decisions(decisions_path: Path, write: bool,
 
     print(f"decisions: {len(rows)} rows "
           f"(discard={plan['discard']} skip={plan['skip']} "
-          f"alias={len(plan['aliases'])} stub={len(plan['stubs'])})")
+          f"alias={len(plan['aliases'])} stub={len(plan['stubs'])} "
+          f"accept={len(plan['accepts'])})")
 
     if not write:
         print("(dry-run: no files written)")

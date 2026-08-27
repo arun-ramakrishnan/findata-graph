@@ -64,7 +64,7 @@ blocks; needs round-trip tests asserting hand-written blocks untouched.
 Tiny CLI (`helpers/misc/okf_verify.py`):
 
 ```
-python3 -m helpers.misc.okf_verify <note>... [--by human:arun]
+python3 -m helpers.misc.okf_verify <note>... [--by human:user]
 ```
 
 Appends `verified: [{by, at: <now UTC>}]` via the safe YAML round-trip

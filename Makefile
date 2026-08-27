@@ -22,7 +22,7 @@ QA_JOBS ?= 1
 # PREPEND .venv/bin so it takes precedence over the system python3 (which
 # lacks duckdb/pytest/etc.). Harmless if .venv doesn't exist — the entry
 # is just a no-op directory on PATH and lookup falls through to the system.
-export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
+export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
 .PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 

@@ -177,7 +177,7 @@ generated:                 # who wrote this content, and when (§5.2)
   by: derive_insights.py/v1  # actor convention: <producer>/<version> | human:<id> | process:<id> (§7)
   at: 2026-08-18T09:00:00Z  # ISO 8601; last meaningful content change
 verified:                  # independent confirmations (§5.2); bare {by,at} == 1-element list
-  - by: human:arun          # human: prefix => "human-reviewed" tier (§5.3)
+  - by: human:user          # human: prefix => "human-reviewed" tier (§5.3)
     at: 2026-08-18T12:00:00Z
 sources:                   # materials this concept derives from (§5.1)
   - id: bosch-amara-zydus   # stable key; joins body footnotes [^bosch-amara-zydus]

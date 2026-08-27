@@ -7,7 +7,7 @@ re-render, the schemas validate it — but nothing writes it except hand-YAML
 surgery. This is that zero-friction writer:
 
     python3 helpers/misc/okf_verify.py findata/Companies/FMCG/Marico.md
-    python3 -m helpers.misc.okf_verify <note>... --by human:arun
+    python3 -m helpers.misc.okf_verify <note>... --by human:user
 
 Semantics (okf_readside N3):
 
@@ -77,8 +77,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     p.add_argument("notes", nargs="+", type=Path,
                    help="Note path(s) to verify.")
-    p.add_argument("--by", default="human:arun",
-                   help="Human actor (must be human:<id>; default: human:arun).")
+    p.add_argument("--by", default="human:user",
+                   help="Human actor (must be human:<id>; default: human:user).")
     p.add_argument("--apply", action="store_true",
                    help="Write (default: dry-run report).")
     args = p.parse_args(argv)

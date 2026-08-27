@@ -3519,3 +3519,43 @@ width/focus/Esc/S-M-L. `test_integration_ts_contract` 33 passed. Refresh-DB
 POST verified server-side (curl 200, cache rebuild); the in-app browser
 harness converts the POST to GET (405) — environment quirk, not observed in
 normal browsers. No full gates run (etiquette).
+
+## 169. Pending-relations accept path — suggested + known-target rows reach graph_edges
+
+**Date**: 2026-08-27
+**Status**: EXECUTED
+**Proposal**: `doc/improvements/archive/graph/suggested_relations_accept.md`
+(S4 of the pending-relations arc). User archived the S1–S3 task and reported
+"it has not resolved things at all" — root causes: the link-prediction
+suggestions file had NO consumer (write-only cul-de-sac), discards return
+because the sidecar is append-only between triages and every full-corpus
+extract re-appends unresolved mentions unless they resolve, and
+`_pending_suggestions.txt` had been cleared by mistake (recovered via
+idempotent `--append`, 100 rows).
+
+**Slice**: new `accept:<edge_type>[:<Target Entity>]` decision action in
+`triage_pending_relations.py` — writes `(source, target[, override],
+edge_type)` to `graph_edges` with `source_ref='triage:accept'` +
+origin/score/method provenance in properties, symmetric flag for
+jv/same-group/competes/co-mention types, INSERT OR IGNORE inside one
+transaction (extractor discipline); decisions may reference suggestions-file
+rows; decided rows drop from both files; report gains a suggestions summary.
+Monkeypatchable `EDGE_DB_PATH` keeps tests hermetic (`_UNIT_SCHEMA`).
+
+**Applied outcomes**: 51 drafted decisions (user-reviewed) → 24 accepted
+edges written (2 planned accepts were pre-existing rows, no-op'd correctly);
+3 stubs via `parse_newsletter.create_entity` after collision checks (Sumitomo
+Mitsui Banking Corporation/Banking, Piramal Enterprises/Diversified,
+McDonald's/FMCG); TACO stub HELD until its legal name is confirmed (self-heals
+back into the queue); re-extract resolved Yes Bank↔SMBC, Piramal Finance→PEL,
+Dixon→Q Tech India with derive-provenance; durable aliases `sail`/`micron`/
+`mcdonald` added so recurring mentions resolve instead of refilling the
+queue. Roster sync + `make graph-rebuild` done. 77 suggestions remain
+undecided below the confidence band for a future pass.
+
+### Verification
+
+`tests/test_triage_pending_relations.py` 18 passed (6 new accept-action
+tests); ruff clean on touched files; dry-run validated all 51 decisions
+against live entities before write; resolver unit-checked post-alias
+(SAIL/McDonald/Micron/Piramal "…Limited" all resolve).

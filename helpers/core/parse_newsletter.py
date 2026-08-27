@@ -66,6 +66,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../pdf-ocr-obsidian
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 from helpers.core.db import utc_now  # noqa: E402  (Bundle T1: UTC last_updated)
+from helpers.core.frontmatter import bump_generated  # noqa: E402  (OKF §5.2 stamp)
 
 # Shared ticker resolution and entity matching (unified with get_tickers.py)
 from helpers.core.get_tickers import search_ticker
@@ -511,10 +512,12 @@ def render_stub(name, normalized_name, sector, ticker, permalink):
     # Title is UNQUOTED (canonical style; verify_notes warns on quotes for both
     # sectors and companies). ticker:null marks an unlisted company, which is a
     # meaningful category, so it is made explicit with `listed: false` (mirrors
-    # the 106 existing unlisted notes).
+    # the 106 existing unlisted notes). market_cap:null is the schema-legal
+    # "unknown" — the enrichment flow upgrades it once a cap is known (the
+    # frontmatter schema REQUIRES the key, so omitting it fatals static-checks).
     ticker_line = "null" if not ticker else repr(ticker)
     listed_line = "\nlisted: false" if not ticker else ""
-    return f"""---
+    note = f"""---
 title: {name}
 type: company
 ticker: {ticker_line}{listed_line}
@@ -522,6 +525,7 @@ tags:
 {tag_block}
 normalized_name: {normalized_name}
 sector: {sector}
+market_cap: null
 permalink: {permalink}
 created: '{today}'
 last_modified: '{today}'
@@ -536,6 +540,9 @@ last_modified: '{today}'
 
 *Source: The Chatter — <edition title>*
 """
+    # OKF §5.2: stamp provenance where it is generated — a fresh stub is
+    # machine content, so it is born machine-confirmed, not census-unverified.
+    return bump_generated(note, "parse_newsletter.py/v1")
 
 
 def create_entity(conn, name, sector, ticker, apply, sector_entities=None):

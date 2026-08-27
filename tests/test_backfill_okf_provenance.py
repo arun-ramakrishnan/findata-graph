@@ -46,7 +46,7 @@ def _make_vault(root: Path) -> Path:
         "ticker: null\n"
         "created: 2026-01-01\n"
         "verified:\n"
-        "- by: human:arun\n"
+        "- by: human:user\n"
         "  at: 2026-06-01T10:00:00Z\n"
         "---\n"
         "\n"
@@ -99,7 +99,7 @@ def test_apply_preserves_verified_and_keys(tmp_path):
     v = _make_vault(tmp_path)
     backfill(v, apply=True)
     fm = _fm_of(v / "Companies" / "Tech" / "Acme.md")
-    assert fm["verified"] == [{"by": "human:arun", "at": "2026-06-01T10:00:00Z"}]
+    assert fm["verified"] == [{"by": "human:user", "at": "2026-06-01T10:00:00Z"}]
     assert fm["title"] == "Acme Ltd"
     assert fm["tags"] == ["entity_type/company"]
     assert (v / "Companies" / "Tech" / "NoFrontmatter.md"
@@ -166,7 +166,7 @@ def test_real_writer_stamp_preserved_but_augmented(tmp_path, monkeypatch):
     assert fm["stale_after"] == (
         dt.date(2026, 8, 15) + dt.timedelta(days=180)
     ).isoformat()
-    assert fm["verified"] == [{"by": "human:arun", "at": "2026-06-01T10:00:00Z"}]
+    assert fm["verified"] == [{"by": "human:user", "at": "2026-06-01T10:00:00Z"}]
 
 
 def test_real_writer_without_sources_skipped(tmp_path):
