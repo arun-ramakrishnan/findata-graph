@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild mojo-bench mojo-build mojo-test relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -56,6 +56,9 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
 > @echo "  maint-full               Post-ingest re-derivation: maint + TIER2_STEPS (sync-tags, sector gates, note-search, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
 > @echo "  metrics-rebuild          Refresh company financials + note industry sections from yfinance (~1 min, 931 tickers)"
+> @echo "  mojo-bench               Run mojo benchmarks: cosine-KNN comparison table + analyzer tiers (MOJO_BENCH_SCALE/REPS)"
+> @echo "  mojo-build               Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)"
+> @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt"
 > @echo "  qa                       Run lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)"
@@ -127,6 +130,18 @@ maint-full:     ## Post-ingest re-derivation: maint + TIER2_STEPS (authoritative
 metrics-rebuild: ## Refresh company financials + notes from yfinance (~1 min, 931 tickers)
 > python3 helpers/maintenance/enrich_from_yfinance.py
 > @echo "✓ yfinance enrichment complete (competes_with moved to relations-enrich; run 'make graph-rebuild' to refresh DuckDB edges)"
+
+# Mojo machinery (rule definitions, wildcard discovery, test runner) lives
+# in Makefile.mojo — it grows with the Mojo source/test tree. This target
+# stays thin so the main Makefile keeps a single annotated entry point.
+mojo-bench:      ## Run mojo benchmarks: cosine-KNN comparison table + analyzer tiers (MOJO_BENCH_SCALE/REPS overrides)
+> $(MAKE) -f Makefile.mojo mojo-bench
+
+mojo-build:      ## Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)
+> $(MAKE) -f Makefile.mojo mojo-build
+
+mojo-test:       ## Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)
+> $(MAKE) -f Makefile.mojo mojo-test
 
 # GF fallback pass runs AFTER the yfinance pass (it consumes that report's
 # [ticker_issues]); curated + tier 1 by default, --tier2 adds BSE

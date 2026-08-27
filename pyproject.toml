@@ -1,6 +1,6 @@
 [project]
 name = "findata-knowledge-graph"
-version = "0.1.0"
+version = "0.2.0"
 description = "FinData knowledge graph: SQLite + DuckDB graph layer and Flask API over a parsed newsletter/markdown corpus."
 requires-python = ">=3.14"
 
@@ -55,6 +55,7 @@ dependencies = [
     "llama-cpp-python",
     # Google Finance and Sheets API
     "gspread",
+    # FinnHub API
     "finnhub-python",
 ]
 
@@ -68,6 +69,12 @@ dev = [
     "ruff",
     "ty",
     "deptry",
+]
+
+mojo = [
+    # Mojo Lang support.
+    "mojo",
+    "max",
 ]
 
 [tool.uv]
@@ -110,13 +117,17 @@ ignore = ["E501"]
 # Treat the local package as first-party so it isn't flagged as an undeclared dep.
 # Reads [project].dependencies + [project.optional-dependencies] directly.
 known_first_party = ["helpers", "app", "core"]
-# The `dev` optional-dependencies group holds CLI/test tooling (pytest, hypothesis,
-# ruff, ty, deptry, ...) invoked from the command line or imported only from tests/,
-# so deptry cannot observe it as "used". Marking the group as dev suppresses the
-# spurious DEP002 (declared-but-unused) for those packages.
-optional_dependencies_dev_groups = ["dev"]
+# The `dev` and `mojo` optional-dependencies groups hold command-line tooling
+# (pytest, hypothesis, ruff, ty, deptry; the mojo + max compiler toolchain)
+# that is never imported from the codebase, so deptry cannot observe it as
+# "used". Marking the groups as dev suppresses the spurious DEP002
+# (declared-but-unused) for their packages.
+optional_dependencies_dev_groups = ["dev", "mojo"]
 # gunicorn (prod WSGI server, invoked by nixpacks.toml `cmd = "gunicorn app:app"`)
 # and werkzeug (WSGI/serving, pulled in transitively by Flask) are runtime deps that
 # are not imported in the codebase. They are genuinely used, so silence DEP002 for
 # them specifically (package-scoped, so a newly-unused dep would still be caught).
+# findata-knowledge-graph is the `all` meta-extra's self-reference to the project
+# itself; with [tool.uv] package = false it is never installed, so it can never be
+# imported either.
 per_rule_ignores = "DEP002=gunicorn|Werkzeug|finnhub-python"

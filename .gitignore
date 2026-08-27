@@ -16,6 +16,8 @@ models/
 # Local scratch: gzip snapshots + raw *_backup.* copies (NOT for git; the
 # tracked, restore-able snapshot lives in snapshots/parquet/)
 db-backup/
+# Mojo compiled binaries (machine-local build artifacts; `make mojo-build`)
+Mojo/bin/
 backup/
 output/
 venv/
@@ -58,9 +60,11 @@ htmlcov/
 # Environment variables
 .env
 .venv
+.envrc
 
 # Tool settings
 coc-settings.json
+.vim/
 opencode.json
 
 # Frontend: the built bundle (static/findata.bundle.js*) is committed so the
