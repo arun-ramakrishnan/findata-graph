@@ -24,5 +24,5 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- _(none)_ — `embed_store_consolidation.md` executed 2026-08-27, archived to `../archive/database/` (#166)
+- _(none)_ — `embed_store_consolidation.md` executed 2026-08-27, archived to `../archive/database/` (#166); `graph_docs_ui_polish.md` executed 2026-08-27, archived to `../archive/tooling/` (#168)
 

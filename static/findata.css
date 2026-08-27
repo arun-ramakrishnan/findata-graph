@@ -456,24 +456,32 @@ main {
 }
 
 .btn-primary {
-    background: linear-gradient(135deg, #3498db, #2980b9);
-    color: white;
-    border: none;
+    /* Desk-register action button (2026-08-27): the legacy blue gradient
+       clashed with the brass interaction token everywhere it leaked through
+       (graph search, path controls, note links). Brass = interaction-only,
+       per tokens.css. */
+    background: var(--ink-2);
+    color: var(--accent);
+    border: 1px solid rgba(224, 169, 62, 0.45);
     padding: 0.5rem 1rem;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
+    font: 600 0.85rem var(--font-ui);
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
 .btn-primary:hover {
-    background: linear-gradient(135deg, #2980b9, #21618c);
-    transform: translateY(-1px);
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    background: var(--accent-dim);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: default;
 }
 
 /* Sectors Grid */
@@ -715,26 +723,28 @@ main {
 }
 
 .btn-secondary {
-    background: #6c757d;
-    color: white;
-    border: none;
+    background: var(--ink-2);
+    color: var(--text-mid);
+    border: 1px solid var(--rule);
     padding: 0.5rem 0.75rem;
     border-radius: 6px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    font-size: 0.9rem;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    font: 500 0.85rem var(--font-ui);
     display: flex;
     align-items: center;
     gap: 0.5rem;
 }
 
 .btn-secondary:hover {
-    background: #5a6268;
-    transform: translateY(-1px);
+    color: var(--text-hi);
+    border-color: var(--text-low);
 }
 
 .btn-secondary.active {
-    background: #3498db;
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-dim);
 }
 
 .modal-close {
@@ -1716,8 +1726,8 @@ footer {
     border: none;
     color: #d6dee6;
     cursor: pointer;
-    font-size: 0.8rem;
-    padding: 0.2rem 0.35rem;
+    font-size: 0.9rem;
+    padding: 0.3rem 0.5rem;
     border-radius: 4px;
     line-height: 1;
 }
@@ -1969,7 +1979,7 @@ footer {
 
 .docs-layout-row {
     display: grid;
-    grid-template-columns: 330px minmax(0, 1fr);
+    grid-template-columns: 300px minmax(0, 1fr);
     gap: 1rem;
     align-items: start;
     margin-bottom: 1rem;
@@ -2206,19 +2216,78 @@ footer {
     overflow-y: auto;
     color: var(--paper-text);
     font-family: var(--font-reader);
-    line-height: 1.65;
+    line-height: 1.7;
 }
 
 .reader-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 235px;
+    grid-template-columns: minmax(0, 1fr) 215px;
     gap: 2.25rem;
     align-items: start;
 }
 
 .reader-main {
-    max-width: 72ch;
+    max-width: 80ch;
 }
+
+/* TOC rail follows the article scroll (the pane is the scroll container). */
+.reader-rail {
+    position: sticky;
+    top: 0;
+}
+
+/* --- Reading Room comfort (2026-08-27) ------------------------------------ */
+/* The reader is the widest surface in the app: break #docs-view out of the
+   1400px shell (the section is display:none when inactive, so the breakout
+   only applies while reading), and add focus mode + persisted text size. */
+
+#docs-view {
+    width: min(96vw, 1800px);
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.reader-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.readsize-group {
+    display: flex;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.readsize-btn {
+    background: var(--ink-1);
+    border: none;
+    border-right: 1px solid var(--rule);
+    color: var(--text-low);
+    font: 600 10px var(--font-data);
+    letter-spacing: var(--track-wide);
+    padding: 5px 9px;
+    cursor: pointer;
+}
+
+.readsize-btn:last-child { border-right: none; }
+.readsize-btn:hover { color: var(--text-mid); }
+.readsize-btn.active { color: var(--accent); background: var(--accent-dim); }
+
+/* Focus mode: sidebar + TOC rail step aside; one centred column remains. */
+#docs-view.focus-mode .docs-sidebar { display: none; }
+#docs-view.focus-mode .docs-layout-row { grid-template-columns: 1fr; }
+#docs-view.focus-mode .reader-rail { display: none; }
+#docs-view.focus-mode .reader-grid { grid-template-columns: minmax(0, 1fr); }
+#docs-view.focus-mode .reader-main { margin: 0 auto; max-width: 76ch; }
+#docs-view.focus-mode .docs-content-pane { padding: 2.5rem 3rem; }
+
+/* Reader text sizes (persisted via #docs-view[data-readsize]). */
+#docs-view[data-readsize="s"] .docs-content-pane { font-size: 0.95rem; }
+#docs-view[data-readsize="m"] .docs-content-pane { font-size: 1.05rem; }
+#docs-view[data-readsize="l"] .docs-content-pane { font-size: 1.15rem; }
 
 /* Edition masthead — publication / issue between double hairline rules. */
 .edition-masthead {
@@ -2622,17 +2691,20 @@ footer {
 
 .cloud-swatch {
     display: inline-block;
-    width: 12px;
-    height: 12px;
+    flex: none;
+    width: 11px;
+    height: 11px;
     border-radius: 3px;
     border: 1px solid rgba(0, 0, 0, 0.15);
 }
 
-.cloud-swatch.cloud-node-company { background: #5a6577; }
-.cloud-swatch.cloud-node-sector { background: #4a6fa5; }
-.cloud-swatch.cloud-node-sub_sector { background: #7d8597; }
-.cloud-swatch.cloud-node-super_sector { background: #8d99ae; }
-.cloud-swatch.cloud-node-theme { background: #e9c46a; }
+.cloud-swatch.cloud-node-company { background: #C7D3E0; }
+.cloud-swatch.cloud-node-sector { background: #2DD4BF; }
+.cloud-swatch.cloud-node-sub_sector { background: #3E8F86; }
+.cloud-swatch.cloud-node-super_sector { background: #17766C; }
+.cloud-swatch.cloud-node-theme { background: #C39BFF; }
+.cloud-swatch.cloud-node-edition { background: #D8C9A3; }
+.cloud-swatch.cloud-node-institution { background: #7E8FA3; }
 
 .rel-cloud-title {
     font-size: 0.9rem;
@@ -2902,7 +2974,11 @@ footer {
 }
 
 #graph-canvas {
-    background: linear-gradient(160deg, #0C1117 0%, var(--ink-0) 55%, #0D141C 100%);
+    /* Drafting-dot grid over the deep gradient — the canvas reads as an
+       instrument surface instead of a void (2026-08-27 widget overhaul). */
+    background:
+        radial-gradient(rgba(159, 176, 191, 0.05) 1px, transparent 1.4px) 0 0 / 24px 24px,
+        linear-gradient(160deg, #0C1117 0%, var(--ink-0) 55%, #0D141C 100%);
     border: 1px solid var(--rule);
     border-radius: var(--radius-panel);
 }
@@ -3027,7 +3103,17 @@ footer {
     text-transform: uppercase;
 }
 
-#graph-view .graph-cloud-panel { padding: 12px; margin-bottom: 12px; }
+/* Slim strip: tighter groups + chips so the legend row stops eating the
+   canvas column's height; swatch + label sit side by side. */
+#graph-view .cloud-legend-group { margin-bottom: 0.25rem; }
+#graph-view .cloud-legend-chips { gap: 0.25rem 0.8rem; }
+#graph-view .cloud-legend-chip {
+    font-size: 0.72rem;
+    gap: 5px;
+    color: var(--text-mid);
+}
+
+#graph-view .graph-cloud-panel { padding: 9px 12px; margin-bottom: 10px; }
 
 #graph-view .graph-cloud-cols { grid-template-columns: 2fr 1fr; }
 

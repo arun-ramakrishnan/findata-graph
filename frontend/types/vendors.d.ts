@@ -85,8 +85,8 @@ interface CyEvent {
 /** A cytoscape collection (subset of elements) returned by `.collection()`. */
 interface CyCollection {
     merge(other: CyCollection | CyElementInput | unknown): CyCollection;
-    addClass(cls: string): void;
-    removeClass(cls: string): void;
+    addClass(cls: string): CyCollection;
+    removeClass(cls: string): CyCollection;
 }
 
 /** A single node/edge the event handlers receive. */
@@ -100,6 +100,10 @@ interface CySingular {
     toggleClass(cls: string, add?: boolean): this;
     hide(): this;
     show(): this;
+    /** Hover neighbourhood highlight (closedNeighborhood + spotlight). */
+    isNode(): boolean;
+    closedNeighborhood(): CyElements;
+    nodes(selector?: string): CyElements;
 }
 
 interface CyElements {
@@ -107,8 +111,8 @@ interface CyElements {
     add(els: CyElementInput[] | CyElementInput): CyElements;
     length: number;
     not(other: CyCollection): CyElements;
-    removeClass(cls: string): void;
-    addClass(cls: string): void;
+    removeClass(cls: string): CyElements;
+    addClass(cls: string): CyElements;
     hide(): CyElements;
     show(): CyElements;
     /** Sub-collections by kind (cloud legend filters, zoom-fade labels). */
@@ -147,6 +151,10 @@ interface CyInstance {
     minZoom(): number;
     maxZoom(): number;
     fit(elements?: CyElements, padding?: number): CyInstance;
+    /** Capped-fit spotlight: smooth camera move to a subgraph (All mode). */
+    stop(): CyInstance;
+    animate(options: Record<string, unknown>, params?: Record<string, unknown>): CyInstance;
+    center(eles: CySingular | CyElements | CyCollection): CyInstance;
     // getElementById returns a chainable accessor whose own methods return
     // `this` so `.addClass(...).select()` type-checks; `length` lets callers
     // test existence (0 when absent).

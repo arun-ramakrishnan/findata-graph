@@ -3483,3 +3483,39 @@ docstring header (code-adjacent).
 
 Makefile help-sort guard green (`tests/test_static_checks.py::TestMakefileHelp*`);
 search trio FRESH after incremental rebuilds. No full gates run (etiquette).
+
+## 168. Lens + Reading Room UI polish — graph widget overhaul & reader comfort
+
+**Date**: 2026-08-27 · **Doc**: `archive/tooling/graph_docs_ui_polish.md`
+Triggered by user screenshots of both tabs. Root causes fixed at file:level:
+ego widget (46px focal blob, sector-rectangle label clipping, 4-node graphs
+stretched to 200%+ by uncapped `cy.fit()`) → 32px focal + inside-shape labels
++ `_fitCapped` zoom ceilings (ego 1.3×, cloud 1.1×); cloud/filtered widget
+(full-graph-degree sizing, zoom-gated labels hiding EVERY label at fit zoom,
+fixed 90px packing pad, suppressed edge labels) → visible-degree sqrt sizing
+(`data(size)`), adaptive label policy (≤400 nodes = labels always on),
+size-scaled packing pad with vertical 2-node stacks, type-labelled edges in
+small mixed views, animated subgraph transitions; legend swatch labels moved
+out of the 12px swatch boxes + missing edition/institution swatch colors +
+slim strip styling. Hover = neighbourhood dim highlight. Buttons: legacy blue
+`btn-primary/secondary` re-skinned to the Desk register (brass), search
+button labelled "Centre" with All-mode spotlight-in-filter (Ego fallback),
+Refresh DB auto re-runs the active view (mode+central captured pre-clear).
+Docs: `#docs-view` breaks out of the 1400px shell (96vw/1800), sidebar 300px,
+TOC rail 215px sticky, reader 80ch @ ~1.05rem/1.7, persisted Focus mode
+(sidebar+rail hidden, centred 76ch, Esc exits) + S/M/L text sizes
+(localStorage). New interaction: double-click an edge chip = ISOLATE that
+relationship type (one-click answer to "see only acquired"; restore with
+"all"). Deviations: edge labels carry the TYPE only (cloud payload has no
+per-edge properties; API frozen); full-cloud single-ring components layout
+left as-is (pre-existing data-density effect of relation enrichment).
+
+### Verification
+
+tsc green + bundle rebuilt each pass; live battery on :5200 (screenshots):
+ego sizing/labels/zoom cap, acquired isolate (chips, counts, arrows),
+double-click isolate, spotlight (in-filter stay / Ego fallback), Docs
+width/focus/Esc/S-M-L. `test_integration_ts_contract` 33 passed. Refresh-DB
+POST verified server-side (curl 200, cache rebuild); the in-app browser
+harness converts the POST to GET (405) — environment quirk, not observed in
+normal browsers. No full gates run (etiquette).

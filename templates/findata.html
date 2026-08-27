@@ -217,8 +217,9 @@
                                        placeholder="Search a company to centre on..."
                                        list="graph-entities-list" autocomplete="off">
                                 <datalist id="graph-entities-list"></datalist>
-                                <button id="graph-search-btn" class="btn-primary">
-                                    <i class="fas fa-arrow-right"></i>
+                                <button id="graph-search-btn" class="btn-primary"
+                                        title="Centre on the typed entity — in All mode: spotlight it inside the current filter">
+                                    <i class="fas fa-bullseye"></i> Centre
                                 </button>
                             </div>
                             <div class="filters">
@@ -404,6 +405,20 @@
                     <h2><i class="fas fa-book-open"></i> The Reading Room</h2>
                     <div class="view-controls">
                         <span id="docs-count" class="count-label"></span>
+                        <div class="reader-controls">
+                            <button type="button" id="docs-focus-toggle" class="lens-mini-btn"
+                                    title="Focus mode — hide the sidebar and read centred (Esc exits)">
+                                <i class="fas fa-expand"></i> Focus
+                            </button>
+                            <div class="readsize-group" role="group" aria-label="Reader text size">
+                                <button type="button" class="readsize-btn" data-readsize="s"
+                                        title="Small reader text">S</button>
+                                <button type="button" class="readsize-btn" data-readsize="m"
+                                        title="Medium reader text">M</button>
+                                <button type="button" class="readsize-btn" data-readsize="l"
+                                        title="Large reader text">L</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="docs-layout-row">

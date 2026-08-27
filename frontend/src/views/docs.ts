@@ -67,6 +67,10 @@ const WIKILINK_RE = /\[\[([^\[\]|]+?)(?:#[^\[\]|]*)?(?:\|([^\[\]]+?))?\]\]/g;
 /** Frontmatter scalar keys surfaced as chips on non-edition notes. */
 const CHIP_KEYS = ["ticker", "sector", "industry", "market_cap", "created", "last_modified"];
 
+/** localStorage keys for the persisted reader preferences. */
+const READSIZE_KEY = "findata.docs.readsize";
+const FOCUS_KEY = "findata.docs.focus";
+
 export class DocsView {
     // --- docs-tab state --------------------------------------------------- //
     activePath: string | null = null;
@@ -145,6 +149,43 @@ export class DocsView {
             const href = anchor.dataset.href;
             if (href) void this.openNote(href);
         });
+
+        // Reader comfort: text size + focus mode, both persisted. The view
+        // section carries the state (data-readsize / .focus-mode) so the CSS
+        // stays descendant-scoped to #docs-view.
+        const view = getEl("docs-view");
+        const applyReadSize = (size: string): void => {
+            view.dataset.readsize = size;
+            document.querySelectorAll<HTMLButtonElement>(".readsize-btn").forEach((b) => {
+                b.classList.toggle("active", b.dataset.readsize === size);
+            });
+            try { localStorage.setItem(READSIZE_KEY, size); } catch { /* private mode */ }
+        };
+        document.querySelectorAll<HTMLButtonElement>(".readsize-btn").forEach((btn) => {
+            btn.addEventListener("click", () => applyReadSize(btn.dataset.readsize || "m"));
+        });
+        const focusToggle = getEl("docs-focus-toggle");
+        const applyFocus = (on: boolean): void => {
+            view.classList.toggle("focus-mode", on);
+            focusToggle.classList.toggle("active", on);
+            try { localStorage.setItem(FOCUS_KEY, on ? "1" : "0"); } catch { /* private mode */ }
+        };
+        focusToggle.addEventListener("click", () =>
+            applyFocus(!view.classList.contains("focus-mode")));
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && view.classList.contains("focus-mode")
+                    && this.isActive()) {
+                applyFocus(false);
+            }
+        });
+        try {
+            const savedSize = localStorage.getItem(READSIZE_KEY);
+            applyReadSize(savedSize === "s" || savedSize === "m" || savedSize === "l"
+                ? savedSize : "m");
+            if (localStorage.getItem(FOCUS_KEY) === "1") applyFocus(true);
+        } catch {
+            applyReadSize("m");
+        }
     }
 
     // --- collection switching ---------------------------------------------- //

@@ -61,4 +61,5 @@ commit, referenced by nothing). Entry numbers point at
 - [`temporal_analytics.md`](tooling/temporal_analytics.md) — Proposal: Temporal Analytics — REPORT=temporal — completed.md #150
 - [`tech_avenues.txt`](tooling/tech_avenues.txt) — PROPOSAL: Technology avenues — databases, YAML richness, graph, MCP exposure
 - [`docs_consistency_audit.md`](tooling/docs_consistency_audit.md) — Documentation consistency pass — README/procedures/schema/Makefile-guidance repairs vs code+DB ground truth (R/M/S/F/D/E/P/U findings) — completed.md #167
+- [`graph_docs_ui_polish.md`](tooling/graph_docs_ui_polish.md) — Proposal: Lens + Reading Room UI polish — graph widget overhaul, edge-filter rendering policy, Desk-register buttons, reader width/focus — completed.md #168
 - [`pending_improvs.txt`](tooling/pending_improvs.txt) — Pending Improvements — HISTORICAL (Bundles A–F closed)
