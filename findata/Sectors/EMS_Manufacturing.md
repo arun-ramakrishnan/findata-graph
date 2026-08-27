@@ -35,7 +35,7 @@ Electronic Manufacturing Services — contract manufacturers, EMS, optoelectroni
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 22 company note(s) in EMS_Manufacturing. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 23 company note(s) in EMS_Manufacturing. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Amber_Enterprises_India|Amber Enterprises India]]
 - [[Astra_Microwave_Products|Astra Microwave Products]]
@@ -50,6 +50,7 @@ Electronic Manufacturing Services — contract manufacturers, EMS, optoelectroni
 - [[Kelvin]]
 - [[PG_Electroplast|PG Electroplast]]
 - [[Prostarm_Info_Systems|Prostarm Info Systems]]
+- [[Q_Tech_India|Q Tech India]]
 - [[Quadrant_Future_Tek|Quadrant Future Tek]]
 - [[Quality_Power_Electrical_Equipments|Quality Power Electrical Equipments]]
 - [[Rulka_Electricals|Rulka Electricals]]
