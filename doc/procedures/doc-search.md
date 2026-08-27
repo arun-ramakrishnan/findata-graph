@@ -132,9 +132,11 @@ the advisory gate as three parallel report rows (`doc-search-check`,
 refresh command in the tail; `--check` writes no research.db rows).
 `make perf` keeps the query-latency benchmark only: `doc_query` hybrid
 query (budget 3.0 s; warm ≈0.6 s incl. model load), a real subprocess
-against the live tree. Deliberately NOT in `make qa`: It is deliberately NOT in `make qa`:
-doc/ edits (proposals!) land between maint cycles and would redden qa
-constantly; perf is the single home for rc + wall-clock budgets. The
+against the live tree. Deliberately NOT in `make qa`: doc/ edits
+(proposals!) land between maint cycles and would redden qa constantly —
+staleness there degrades to the filesystem scan instead of failing the
+gate; freshness gates live in `make search-fresh` and the advisory rows
+above. The
 chunker (`_split_sections`) and MATCH generator (`fts_match_expr`) have
 Hypothesis property tests in `tests/test_fuzz_rebuild_doc_search.py`
 (`make fuzz`).

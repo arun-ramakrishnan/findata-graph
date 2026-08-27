@@ -73,8 +73,9 @@ Apply relevant ones; abbreviate to save tokens.
 
 Tags are **not** stored on the `entities` row: note YAML `tags:` are mirrored
 into `entity_tags(entity_name, tag)` by `helpers/core/sync_tags.py`
-(`make sync-tags` after edits). Only `entity_type/`, `sector/`,
-`market_cap/`, `subsector/` are mirrored; the rest stay note-only.
+(`make sync-tags` after edits). Nine namespaces are mirrored — `entity_type/`, `sector/`, `market_cap/`,
+`subsector/`, `holding_company/`, `geography/`, `business_model/`,
+`risk_investment/`, `investment_theme/` — everything else stays note-only.
 
 ### Canonical sectors (42)
 Carve-outs are checked before their parent catch-all during classification;

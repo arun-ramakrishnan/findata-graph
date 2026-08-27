@@ -45,8 +45,10 @@ at index or query time — the download above is the only fetch.
 
 `rebuild_note_search.py --check` is a dry run: it walks every doc, embeds
 it, prints "would index N docs", and writes **nothing to research.db**.
-The embed results ARE stored in the sidecar cache (derived state — that is
-its job). Because embeddings are cached by content hash, "pre-warming"
+It also prints a FRESH/STALE drift verdict (changed/new/deleted docs) and
+**exits 1 when stale**, matching the doc/script rebuilders since #164 —
+chain it into apply steps with that exit code in mind. The embed results
+ARE stored in the pooled store cache (derived state — that is its job). Because embeddings are cached by content hash, "pre-warming"
 lets you pay the cold cost in a zero-risk dry run first:
 
 ```bash

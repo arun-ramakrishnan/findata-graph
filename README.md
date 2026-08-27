@@ -12,7 +12,7 @@ JSON API / explorer UI on top.
 | **Edges** | 17,022 across 15 semantic types (`part_of`, `supplies`, `jv`, `competes`, `co_mentioned_in`, `acquired`, `semantic_peer`, `invested_in`, …) |
 | **Derived data** | 357 events · 2,607 executive quotes · 1,794 financial metrics · 14 persisted graph-metric kinds |
 | **Notes** | 1,226 tracked markdown notes, full-text + vector searchable |
-| **Tests** | 2,574 across 126 modules — unit / integration / fuzz / perf / live gates |
+| **Tests** | 2,590 across 127 modules — unit / integration / fuzz / perf / live gates |
 
 Source material is a family of market newsletters (Points & Figures, The
 Chatter, The PlotLines), converted to markdown **inside this repo**
@@ -79,7 +79,7 @@ Three invariants hold the design together:
 | `helpers/maintenance/` | `db_maint`, `snapshot_db` (gzip + Parquet), `rebuild_schema`, `rename_entity`, `move_sector`, `rebuild_{doc,note,script}_search` |
 | `helpers/misc/` | `database_integrity_check`, `doc_query` (doc/ knowledge index), `script_query` (code-surface index) |
 | `doc/` | architecture, schema, vault spec, graph design, procedures, improvement log |
-| `tests/` | 126 pytest modules (2,574 tests) + conftest, fixtures, perf-benchmark + gate runners |
+| `tests/` | 127 pytest modules (2,590 tests) + conftest, fixtures, perf-benchmark + gate runners |
 | `frontend/` | TypeScript sources; built bundle is committed to `static/` so serving stays Node-free |
 | `memory/`, `db-backup/` | runtime DB + local gzip scratch — **gitignored**, see Quickstart |
 | `snapshots/` | **git-tracked** Parquet snapshot of both DBs + schema DDL (`make snapshot-restore` rebuilds `memory/` from it) |
@@ -133,9 +133,9 @@ Three content-addressable indexes, each SQLite FTS5 (BM25) + local
 
 | Index | Corpus | Query |
 |---|---|---|
-| `doc_search` | all of `doc/` (~63 files, ~490 sections) — design/decision/history knowledge | `helpers/misc/doc_query.py "…"`, `GET /api/docs/search` |
+| `doc_search` | all of `doc/` (66 files, 519 sections) — design/decision/history knowledge | `helpers/misc/doc_query.py "…"`, `GET /api/docs/search` |
 | `note_search` | every `findata/` note (1,224 docs) | `GET /api/search?hybrid=true`, `GET /api/graph/similar/<note>` |
-| `script_search` | every `helpers/**` script + test module + make target (196 units) | `helpers/misc/script_query.py "…"` |
+| `script_search` | every `helpers/**` script + test module + make target (198 units) | `helpers/misc/script_query.py "…"` |
 
 Freshness is gated: `make search-fresh` (exit 1 on drift, `APPLY=1` to
 refresh) and three advisory-gate rows. Operators:
@@ -180,8 +180,9 @@ Company notes carry YAML front matter (`title`, `type`, `ticker`, `sector`,
 `market_cap`, `normalized_name`, `permalink`, `tags`, dates) with fixed body
 sections (Overview → Financial Profile → Segments → Management → Key
 Insights). Note `tags:` are mirrored into `entity_tags` by
-`make sync-tags`; only `entity_type/`, `sector/`, `market_cap/`,
-`subsector/` namespaces are mirrored. Canonical sectors are defined by
+`make sync-tags`; nine namespaces are mirrored (`entity_type/`,
+`sector/`, `market_cap/`, `subsector/`, `holding_company/`, `geography/`,
+`business_model/`, `risk_investment/`, `investment_theme/`). Canonical sectors are defined by
 `findata/Sectors/` (42). Full spec: [`doc/findata.md`](doc/findata.md).
 
 ## Documentation

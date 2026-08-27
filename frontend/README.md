@@ -7,7 +7,10 @@ bundle is served by the Flask app at `/findata`.
 
 ```
 frontend/
-├── src/findata.ts      # the viewer — ported from static/findata.js (now deleted)
+├── src/findata.ts      # viewer entry — bundles to static/findata.bundle.js
+├── src/entity.ts       # entity-page entry — bundles to static/entity.bundle.js (ui_redesign S6)
+├── src/core/           # dom.ts / router.ts / markdown.ts / api.ts / toast.ts
+├── src/views/          # graph.ts / stats.ts / companies.ts / sectors.ts / docs.ts
 ├── types/api.ts        # response shapes for the /api/* endpoints (the type contract)
 ├── types/vendors.d.ts  # ambient declarations for CDN libs (cytoscape, marked, Prism, hljs)
 ├── package.json        # devDeps + build/typecheck scripts
@@ -19,14 +22,14 @@ frontend/
 
 ```bash
 make frontend         # cd frontend && npm ci && npm run build
-                      # → emits ../static/findata.bundle.js (+ .map)
+                      # → emits ../static/{findata,entity}.bundle.js (+ .map)
 make frontend-check   # cd frontend && npx tsc --noEmit   (strict, fast)
 ```
 
 Both targets need Node installed. **`make qa` does NOT need Node** — the QA
-gate stays Python-only. The built `static/findata.bundle.js` is committed to
-git, so the deploy (Dockerfile / nixpacks) stays 100% Python and a contributor
-without Node can still run the app and pass `make qa`.
+gate stays Python-only. Both built bundles are committed to git, so the deploy (`nixpacks.toml` —
+no Dockerfile) stays 100% Python and a contributor without Node can still
+run the app and pass `make qa`.
 
 ## Workflow when changing the frontend
 
@@ -57,5 +60,7 @@ contract, so keep the IIFE format + the `window.viewer` line.
 
 ## What this does NOT cover
 
-`static/entity_detail.js` and `static/script.js` remain hand-written vanilla
-JS — this is a localized pilot, not a repo-wide conversion.
+Both UI surfaces ship as committed esbuild IIFE bundles built from the TS
+sources above — the viewer since the TS port, the entity page since the
+ui_redesign arc. There is no hand-written static JS under `static/`; this
+README's earlier "localized pilot" framing predates that consolidation.

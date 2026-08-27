@@ -28,7 +28,7 @@ export PATH := /home/arun/Research/MCP/pdf-ocr-obsidian/.venv/bin:$(PATH)
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
-> @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit (appends advisory_report.txt)"
+> @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, integration, lint-audit (appends advisory_report.txt)"
 > @echo "  analytics                Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)"
 > @echo "  cover                    Run all tests with coverage over helpers/ (branch + missing-line report)"
 > @echo "  deptry                   Run deptry dependency-health scan (unused/undeclared/transitive deps)"
@@ -55,7 +55,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live; skip-safe on pristine clone)"
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
 > @echo "  maint-full               Post-ingest re-derivation: maint + TIER2_STEPS (sync-tags, sector gates, note-search, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
-> @echo "  metrics-rebuild          Refresh company financials + industry edges from yfinance (~1 min, 931 tickers)"
+> @echo "  metrics-rebuild          Refresh company financials + note industry sections from yfinance (~1 min, 931 tickers)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt"
 > @echo "  qa                       Run lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)"
@@ -309,6 +309,6 @@ lint-audit:     ## Run ruff S/UP/C901 audits (security + modernization + complex
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit (appends advisory_report.txt)
+advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, integration, lint-audit (appends advisory_report.txt)
 > python3 tests/run_gate_report.py advisory
 > @echo "✓ Advisory checks complete (appended to advisory_report.txt; these do NOT block \`make qa\`)"

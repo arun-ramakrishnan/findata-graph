@@ -3443,3 +3443,43 @@ test_migrate_embed_store (round-trip: overlap dedupe, cohorts, rename
 semantics, mirror rebuild), all three rebuilder suites, db_maint +
 snapshot (+ new store-branch artifacts), api-search; full-tree ruff clean.
 Commit message lives on the user's patch.
+
+## 167. Documentation consistency pass — README, procedures, schema & Makefile guidance
+
+**Date**: 2026-08-27
+**Status**: COMPLETE (proposal `archive/tooling/docs_consistency_audit.md`,
+self-audit + review + execution same day)
+**Motivation**: post-`ef980d14` doc drift (note-search `--check` verdict +
+flock serialization) plus older rot never reconciled (tag whitelist,
+schema v13, frontend TS conversion). Every checkable claim in README files,
+operator docs, Makefile guidance cross-checked against implementation and
+live DBs; repair-only ground rules.
+
+### Fixes landed (9 files)
+
+README test counts → **2,590 / 127 modules** (fresh collect; audit's ≈2,590
+prediction exact), nine tag namespaces, corpus 66/519 re-measured at write
+time, script_search units 198 · Makefile advisory enumeration +3
+search-freshness rows (echo+annotation synced); metrics-rebuild help fixed
+via runtime arbiter (`enrich_from_yfinance.py:671` — competes_with moved to
+enrich_relations.py; annotation's "+notes" was already correct) · schema.md
+v13 + 28-object inventory with live counts + `v_embeddings` provenance fix +
+`v_note_embeddings` row + `note_tags` registry row · findata.md namespaces ·
+doc-search.md garbled clause repaired · embeddings.md `--check` exit-code
+sentence (#164 parity) + pooled-store wording · markdown_parse.md dead
+`backfill_valid_from.py` pointer dropped, ~1,500-entity figure,
+orchestrator-numbering disambiguation x2, legacy entity-insert caveat
+(market_cap column gone / graph_edges not relations view / MCP removed) ·
+frontend/README real tree (src/core|views, two esbuild entries), nixpacks-
+only deploy, no hand-written static JS.
+
+### Deferred
+
+architecture.md tooling-map row for procedures/doc-search.md;
+graph_design.txt build-lock decision log; enrich_from_yfinance.py stale
+docstring header (code-adjacent).
+
+### Verification
+
+Makefile help-sort guard green (`tests/test_static_checks.py::TestMakefileHelp*`);
+search trio FRESH after incremental rebuilds. No full gates run (etiquette).

@@ -26,7 +26,7 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
 5. **Enhance existing entities** — for every company already in the DB that has a concall/management section in this newsletter, append a per-edition newsletter block to its note (see [Enhancing Existing Entities](#enhancing-existing-entities)). This is the default action when the entity already exists — do not skip it. *Not automated — the orchestrator emits the worklist; an agent lifts the insights.*
 6. **Create relationships** — bidirectional `part_of` / `has_company` between company and sector.
 7. **Validate** — run the two post-processing scripts (see [Validation](#validation)).
-8. **Refresh graph analytics** *(opt-in, `--with-analytics`)* — recompute PageRank / clustering / community detection across the updated graph and persist to `graph_analytics`. Use when you intend to consume graph metrics next; adds ~2–5s on the current 950-entity graph.
+8. **Refresh graph analytics** *(opt-in, `--with-analytics`)* — recompute PageRank / clustering / community detection across the updated graph and persist to `graph_analytics`. Use when you intend to consume graph metrics next; adds ~2–5s on the current ~1,500-entity graph.
 9. **Re-derive structured relations** *(opt-in, separate command)* — re-scan newsletter prose AND synced company notes for `jv_with` / `acquired` / `subsidiary_of` / `same_group` / `supplier_to` / `customer_of` edges and write verified matches to `graph_edges`. Anything that names an unknown entity goes to `findata/_pending_relations.txt` for human triage.
 
    ```bash
@@ -62,8 +62,7 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
    attribution lines are stripped as noise; future years filtered
    (acquisitions are past-tense). When only the year is known,
    `valid_from = YYYY-01-01` (sortable but loses month precision);
-   `properties.year` preserves the actual integer. To backfill existing
-   rows: `python3 helpers/maintenance/backfill_valid_from.py --apply`.
+   `properties.year` preserves the actual integer.
 
    Idempotent via the `UNIQUE(source, target, edge_type)` constraint; safe to re-run after every newsletter batch. Re-run **after** the human reviewer has triaged `_pending_relations.txt` and added any new stub entities.
 
@@ -356,6 +355,8 @@ permalink: {permalink}
 
 For each entity: extract tags → compute `normalized_name` → resolve `file_path` → insert SQLite row → write markdown file. `normalized_name` must match the filename and `file_path` must resolve.
 
+> **Legacy snippet (predates 2026-07-28).** `entities.market_cap` no longer exists as a column — it is tag-derived (Bundle C2); membership edges are written to **`graph_edges`**, not a `relations` table (that name is now a backward-compat VIEW over graph_edges); and the dual-MCP tool subsystem shown below was removed. Follow the flow shape; use the house insert paths (`create_entity`, `helpers.core.db.connect`) today.
+
 ```python
 def add_entity_with_tags(name, content, entity_type='company', sector=None, market_cap=None, ticker=None):
     tags = extract_enhanced_tags(content, name, entity_type)
@@ -532,7 +533,7 @@ python3 helpers/graph/derive_insights.py findata --verbose
 After **all** companies are processed, run from the project root. Both exit `0` on success; `database_integrity_check.py` exits `1` below 95% validation rate:
 
 ```bash
-python3 helpers/maintenance/sync_sector_wikilinks.py  # refresh the 42 sector-note auto rosters (run after creating entities; the orchestrator's --apply runs it as the first Stage-5 step)
+python3 helpers/maintenance/sync_sector_wikilinks.py  # refresh the 42 sector-note auto rosters (run after creating entities; the orchestrator's --apply runs it as the first step of its stage 5 — orchestrator numbering: stage 5 = validate, distinct from this doc's manual-enhancement "Stage 5")
 python3 helpers/validators/verify_notes.py          # YAML validity, required fields, content completeness, duplicates
 python3 helpers/misc/database_integrity_check.py    # every file_path resolves, normalized_name sync, orphans
 python3 helpers/core/sync_tags.py                   # rebuild entity_tags from note YAML (run after creating/editing entities)
@@ -582,7 +583,7 @@ def validate_bidirectional_sync():
 - [ ] Bidirectional `part_of`/`has_company` relations created
 - [ ] Enhanced tags populated
 - [ ] **Existing entities enhanced** — every existing company with a concall/management section in the newsletter has a `## The Chatter — <edition>` block appended (see [Enhancing Existing Entities](#enhancing-existing-entities))
-- [ ] **Sector-note auto rosters refreshed** (`sync_sector_wikilinks`) — mandatory after any entity creation; stale rosters pass every other validator (user catch 2026-08-25; now the first Stage-5 step of `--apply`)
+- [ ] **Sector-note auto rosters refreshed** (`sync_sector_wikilinks`) — mandatory after any entity creation; stale rosters pass every other validator (user catch 2026-08-25; now the first step of the orchestrator's stage 5)
 - [ ] Short, token-efficient names (no `Ltd`/`Company` suffixes)
 - [ ] **(Newsletter inputs)** Relevant figures embedded in company notes via `![[images/<slug>_p{p}_img{N}.jpeg]]`
 - [ ] `verify_notes.py` exits 0

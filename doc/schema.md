@@ -38,8 +38,10 @@ Normalized mirror of note YAML `tags:` (the source of truth), rebuilt by
 | `entity_name` | TEXT | PK part; FK → `entities(name)` cascade |
 | `tag` | TEXT | PK part, e.g. `sector/healthcare`, `market_cap/large_cap` |
 
-Mirrors only `entity_type/`, `sector/`, `market_cap/`, `subsector/`; the
-full tag set stays in the notes. Index: `idx_entity_tags_tag`. Typical
+Mirrors nine namespaces — `entity_type/`, `sector/`, `market_cap/`,
+`subsector/`, `holding_company/`, `geography/`, `business_model/`,
+`risk_investment/`, `investment_theme/`; the rest of the tag vocabulary
+stays note-only. Index: `idx_entity_tags_tag`. Typical
 query: JOIN two tag aliases for tag intersection.
 
 ## `graph_edges` — canonical edge store
@@ -175,15 +177,19 @@ Rebuilt by `helpers/maintenance/rebuild_note_search.py`; shadow tables
 ## `memory/graph.duckdb` — DuckDB cache schema (derived)
 
 Read-side cache rebuilt from SQLite (never hand-edited; lifecycle/staleness:
-`graph_design.txt` §8). 20 objects; `_build_meta.schema_version` = "9".
+`graph_design.txt` §8). 28 objects (`v_node` + 7 filtered projections + 2
+embedding tables + 17 `e_*` + `_build_meta`); `_build_meta.schema_version`
+= "13" — a cache stamped otherwise fails `_is_warm()` and triggers a rebuild.
 
 | Object | Shape | Notes |
 |---|---|---|
-| `v_node` | `id BIGINT, name, kind, sector_classification, market_cap, ticker` | 1209 rows, all 5 entity kinds; `id` = `row_number()` at build; `market_cap` tag-derived (MIN over `entity_tags`, one row guaranteed) |
-| `v_company` `v_sector` `v_sub_sector` `v_super_sector` `v_theme` | filtered copies of `v_node` | TABLES (not views), same `id` space — company-only wrappers filter on them |
-| `e_*` × 12 | two semantic int-id endpoint cols + `weight, properties, source_ref, valid_from, valid_to` | one per edge_type, mapped by `EDGE_REGISTRY` in `query.py` (e.g. `e_belongs`(company_name→sector_name), `e_has`(sector_name→company_name), `e_jv`/`e_competes`/`e_group`/`e_comention`(a_name,b_name), `e_supplier`(supplier_name,customer_name), `e_customer`(customer_name,supplier_name), `e_acquired`(acquirer_name,target_name,+`year`), `e_subsidiary`(subsidiary_name,parent_name), `e_belongs_to`(child_id,parent_id), `e_exposed_to`(company_id,theme_id)) — endpoint ids reference `v_node.id` |
+| `v_node` | `id BIGINT, name, kind, sector_classification, market_cap, ticker` | 1,517 rows, all kinds; `id` = `row_number()` at build; `market_cap` tag-derived (MIN over `entity_tags`, one row guaranteed) |
+| `v_company`(1,063) `v_sector`(42) `v_sub_sector`(78) `v_super_sector`(9)
+`v_theme`(12) `v_edition`(108) `v_institution`(205) | filtered copies of `v_node` | TABLES (not views), same `id` space — company-only wrappers filter on them |
+| `e_*` × 17 | two semantic int-id endpoint cols + `weight, properties, source_ref, valid_from, valid_to` | one per edge_type, mapped by `EDGE_REGISTRY` in `query.py` (e.g. `e_belongs`(company_name→sector_name), `e_has`(sector_name→company_name), `e_jv`/`e_competes`/`e_group`/`e_comention`(a_name,b_name), `e_supplier`(supplier_name,customer_name), `e_customer`(customer_name,supplier_name), `e_acquired`(acquirer_name,target_name,+`year`), `e_subsidiary`(subsidiary_name,parent_name), `e_belongs_to`(child_id,parent_id), `e_exposed_to`(company_id,theme_id)); the later types (`e_semantic_peer`, `e_invested`, `e_cited_in`, `e_dir`, `e_all_und`) share those shapes — full mapping is `EDGE_REGISTRY` in `query.py` — endpoint ids reference `v_node.id` |
 | `_build_meta` | `key, value` | schema_version, built_at, source_db, generation, duckdb_version; drives `_is_warm()` |
-| `v_embeddings` | `company_name, id BIGINT, embedding FLOAT[]` | 1046 rows; populated by `helpers/graph/embeddings.py`; powers `semantic_neighbors` |
+| `v_embeddings` | `company_name, id BIGINT, embedding FLOAT[]` | 1,063 rows; materialised by `helpers/graph/query.py` (`_materialise_embeddings`, CTAS from SQLite `company_embeddings` — embeddings.py writes the SQLite side); powers `semantic_neighbors` |
+| `v_note_embeddings` | `file_path, doc_type, title, emb FLOAT[384]` | 1,224 rows; CTAS from the `note_search` JSON column (`_materialise_note_embeddings`); powers similar-notes / notes-like wrappers |
 
 ## Constraints & integrity summary
 

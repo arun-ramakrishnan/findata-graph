@@ -60,4 +60,5 @@ commit, referenced by nothing). Entry numbers point at
 - [`perf_optimization.md`](tooling/perf_optimization.md) — Perf optimization plan — `make perf` hotspots: link-prediction, extract_relations, pdf layout-off — completed.md #163
 - [`temporal_analytics.md`](tooling/temporal_analytics.md) — Proposal: Temporal Analytics — REPORT=temporal — completed.md #150
 - [`tech_avenues.txt`](tooling/tech_avenues.txt) — PROPOSAL: Technology avenues — databases, YAML richness, graph, MCP exposure
+- [`docs_consistency_audit.md`](tooling/docs_consistency_audit.md) — Documentation consistency pass — README/procedures/schema/Makefile-guidance repairs vs code+DB ground truth (R/M/S/F/D/E/P/U findings) — completed.md #167
 - [`pending_improvs.txt`](tooling/pending_improvs.txt) — Pending Improvements — HISTORICAL (Bundles A–F closed)
