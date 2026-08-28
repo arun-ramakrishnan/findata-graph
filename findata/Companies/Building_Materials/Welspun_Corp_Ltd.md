@@ -15,11 +15,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-20'
-last_modified: '2025-12-20'
-generated:
-  by: derive_insights.py/v1
-  at: '2026-08-19T13:00:23Z'
-stale_after: '2027-02-11'
+last_modified: '2026-08-28'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -29,6 +25,14 @@ sources:
   resource: /findata/The_Chatter/The_Pivot_Quarter_output.md
   title: 'The Chatter: The Pivot Quarter'
   last_modified: '2026-08-15'
+- id: Borosil_Orchid_Welspun
+  resource: /findata/The_Chatter/Borosil_Orchid_Welspun.md
+  title: 'The Chatter: Borosil, Orchid, Welspun, KRN , & More'
+  last_modified: '2026-08-26'
+generated:
+  by: derive_insights.py/v1
+  at: '2026-08-28T13:27:35Z'
+stale_after: '2027-02-22'
 ---
 
 # Welspun Corp Ltd
@@ -188,3 +192,16 @@ This comprehensive analysis reveals Welspun Corp's strong strategic positioning 
 The combination of these factors positions Welspun Corp for sustained growth across both domestic and international markets, with particular strength in the energy transition and infrastructure development sectors.
 
 Source: The Chatter Newsletter - Edition #39 "The Pivot Quarter"
+
+## The Chatter — Borosil, Orchid, Welspun, KRN & More
+
+**$1.8bn US order → ~2x volumes:** With new capacity coming online, ~0.5 Mt from next calendar year, ramping to 600–700k tons at peak (late-FY28 execution) vs ~350k tons today — volume visibility through FY29.
+**Permian-driven demand:** The order moves ~3 Bcf/d of Permian gas to the Gulf Coast; pipeline demand is buoyed by drilling and data-center buildout, with 1–2 more similar projects in play though not yet finalized.
+**Capacity headroom:** Debottlenecking, augmentation and the new greenfield facility leave spare capacity after accommodating the mega order — capacity will not constrain future wins.
+**Contract protection:** Fixed-price, dollar-to-dollar indexed orders with back-to-back raw material; US demand must be served from local US plants since tariffs make exports from India infeasible.
+**Selective, not sudden:** The win reflects a long bidding process with established partners; management continues prioritizing project quality over chasing volume.
+
+> "From current volumes of 350,000 tons, we are looking at close to 700,000 tons, which is almost 2 times the current volume over the next 2 years."
+> — Vipul Mathur, MD & CEO
+
+*Source: The Chatter — Borosil, Orchid, Welspun, KRN & More*

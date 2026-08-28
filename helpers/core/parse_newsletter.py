@@ -278,6 +278,22 @@ def guess_sector_for(name: str, content_window: str, sector_dirs: set) -> str | 
     # Semiconductors, NBFC, Housing_Finance, Capital_Markets, Fintech_Payments,
     # Railways, EMS_Manufacturing, Education_Training.
     rules = [
+        # ---- Engineering carve-outs ----
+        # Before Financial_Services: its "capital" token would otherwise shadow
+        # "capital goods" here (first-match-wins ordering) and misfile every
+        # "Engineering & Capital Goods" heading as a financial.
+        ("Railways", ("railway", "rail", "wagon", "locomotive", "rvnl", "irfc")),
+        (
+            "Engineering_Capital_Goods",
+            (
+                "engineering",
+                "capital goods",
+                "electrical",
+                "transformer",
+                "switchgear",
+                "pump",
+            ),
+        ),
         # ---- Financial services carve-outs (before Financial_Services) ----
         ("Banking", ("bank", "banking")),
         ("NBFC", ("nbfc",)),
@@ -400,19 +416,6 @@ def guess_sector_for(name: str, content_window: str, sector_dirs: set) -> str | 
         (
             "Technology",
             ("software", "it services", "technology", "saas", "erp", "cloud"),
-        ),
-        # ---- Engineering carve-outs ----
-        ("Railways", ("railway", "rail", "wagon", "locomotive", "rvnl", "irfc")),
-        (
-            "Engineering_Capital_Goods",
-            (
-                "engineering",
-                "capital goods",
-                "electrical",
-                "transformer",
-                "switchgear",
-                "pump",
-            ),
         ),
         # ---- Other verticals ----
         ("Metals", ("steel", "iron", "metal", "aluminium", "zinc", "ferro")),

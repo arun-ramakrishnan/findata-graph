@@ -96,7 +96,7 @@ The Consumer sector is a broad category encompassing companies that produce good
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 38 company note(s) in Consumer. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 40 company note(s) in Consumer. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Bajaj_Electricals|Bajaj Electricals]]
 - [[Bata_BN_BV|Bata (BN) BV]]
@@ -104,6 +104,7 @@ The Consumer sector is a broad category encompassing companies that produce good
 - [[Bevco]]
 - [[Birkenstock]]
 - [[Blue_Star|Blue Star]]
+- [[Borosil]]
 - [[Cello_World|Cello World]]
 - [[Comfort_Click|Comfort Click]]
 - [[Damas]]
@@ -115,6 +116,7 @@ The Consumer sector is a broad category encompassing companies that produce good
 - [[Jain_Resource_Recycling|Jain Resource Recycling]]
 - [[Jos_Alukkas|Jos Alukkas]]
 - [[Kalyan_Jewellers|Kalyan Jewellers]]
+- [[Khazanchi_Jewellers|Khazanchi Jewellers]]
 - [[LG_Electronics_India|LG Electronics India]]
 - [[Linc_Pen_and_Plastics|Linc Pen & Plastics]]
 - [[Lunolux]]

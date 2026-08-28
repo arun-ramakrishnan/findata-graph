@@ -171,7 +171,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 74 company note(s) in Engineering_Capital_Goods. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 75 company note(s) in Engineering_Capital_Goods. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[AB_Volvo|AB Volvo]]
 - [[ABB_India|ABB India]]
@@ -210,6 +210,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 - [[Jyoti_CNC_Automation|Jyoti CNC Automation]]
 - [[KEC_International|KEC International]]
 - [[KEI_Industries|KEI Industries]]
+- [[KRN_Heat_Exchanger|KRN Heat Exchanger]]
 - [[KSB]]
 - [[Ksh_International|KSH International]]
 - [[KVS_Castings|KVS Castings]]

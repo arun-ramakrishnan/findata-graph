@@ -16,16 +16,20 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-16'
-last_modified: '2026-07-29'
-generated:
-  by: derive_insights.py/v1
-  at: '2026-08-20T05:41:44Z'
-stale_after: '2027-02-11'
+last_modified: '2026-08-28'
 sources:
 - id: Threads_in_the_data
   resource: /findata/The_Chatter/Threads_in_the_data.md
   title: 'The Chatter: Threads in the data'
   last_modified: '2026-08-15'
+- id: Borosil_Orchid_Welspun
+  resource: /findata/The_Chatter/Borosil_Orchid_Welspun.md
+  title: 'The Chatter: Borosil, Orchid, Welspun, KRN , & More'
+  last_modified: '2026-08-26'
+generated:
+  by: derive_insights.py/v1
+  at: '2026-08-28T13:27:35Z'
+stale_after: '2027-02-22'
 ---
 
 # RACL Geartech
@@ -378,3 +382,16 @@ systems, but that was still recirculating ball technology and that was for pass 
 - 70% of sales are export-driven; diversified into electric power steering gearboxes for trucks (ZF partnership, American OEM) — a segment first
 - New electric heat treatment plant cuts reliance on volatile LPG, stabilizes costs, and will be among India's most advanced facilities
 - Government export benefits cut by 50% — will negatively impact profitability starting next fiscal year
+
+## The Chatter — Borosil, Orchid, Welspun, KRN & More
+
+**Growth target:** Sustained 15–20% annual growth off the larger revenue base, with management targeting another doubling over the next 3–4 years.
+**KTM recovery + Bajaj stability:** KTM has bounced back to pre-COVID levels with strong MY2027 plans; Bajaj's ownership hasn't disrupted RACL's 15-year Austria export relationship — new-model opportunities are already flowing from KTM Austria.
+**Royal Enfield ramp:** Commercial supplies began in January; nominated ~10,000 motorcycle sets/month, currently sustaining 7,500–8,000.
+**Premiumization niche:** Single source for TVS's entire gear train including the Norton and new Apache platforms; other premium-segment OEMs are approaching RACL.
+**Outsourcing tailwind + ZF optionality:** OEMs are focusing capital on assembly (Royal Enfield's ₹6,000–7,000 cr Andhra Pradesh plant) and outsourcing components; ZF is discussing a similar product with another OEM for China — early-stage but potentially significant.
+
+> "Consider that 15% of 100 crores is 15 crores, while 15% of 500 crores is 75 crores... over the next 3-4 years, we will again be targeting a doubling of what we are doing today."
+> — Gursharan Singh, Chairman & Managing Director
+
+*Source: The Chatter — Borosil, Orchid, Welspun, KRN & More*
