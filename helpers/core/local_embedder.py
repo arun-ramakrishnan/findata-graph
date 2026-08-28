@@ -37,6 +37,7 @@ from __future__ import annotations
 import atexit
 import hashlib
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -68,6 +69,15 @@ QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
 # this are truncated by llama.cpp (by design — the embedding of a truncated
 # long document still ranks fine against short queries).
 _N_CTX = 512
+
+# Parallel cold-embed pool (parallel_cold_embed proposal, 2026-08-29).
+# Measured on this 4C/4T box: llama.cpp per-doc forwards gain nothing from
+# in-process threads (1T == 4T) or sequence packing, but N spawn workers
+# each pinned to a distinct core scale ~3.7x (unpinned pools COLLAPSE
+# ~24x — ggml-internal; pinning sidesteps it). Pool is spawned only for
+# miss-heavy batches; warm cycles (0 misses) never reach it.
+_DEFAULT_POOL_WORKERS = 4
+_POOL_MIN_TEXTS = 8  # below this the spawn overhead beats the speedup
 
 # Load-once cache. _verified guards the (one-off, ~0.1s) sha256 check so
 # repeated available() calls don't re-hash the 35MB file per process.
@@ -120,7 +130,11 @@ def available() -> bool:
         return False
 
 
-def _get_model():
+def _get_model(n_threads: int | None = None):
+    """Lazy model singleton. ``n_threads=1`` is the pool-worker shape:
+    per-doc forwards are sync-bound past 1 thread (bench 2026-08-29);
+    the default (None) keeps llama.cpp's own thread choice for
+    single-text/query callers."""
     global _MODEL
     if _MODEL is None:
         if not available():
@@ -130,26 +144,36 @@ def _get_model():
             )
         from llama_cpp import Llama
 
+        kwargs: dict = {}
+        if n_threads is not None:
+            kwargs["n_threads"] = n_threads
         _MODEL = Llama(
             model_path=str(MODEL_PATH),
             embedding=True,
             n_ctx=_N_CTX,
             verbose=False,
+            **kwargs,
         )
     return _MODEL
 
 
-def _embed(text: str) -> list[float]:
-    """Raw embed + L2 normalise (both vectors unit-length so cosine == dot
-    in every consumer). Empty input raises — callers decide fallback."""
-    if not text or not text.strip():
-        raise ValueError("cannot embed empty text")
-    model = _get_model()
-    vec = model.create_embedding(input=[text])["data"][0]["embedding"]
+def _normalize(vec: list[float]) -> list[float]:
+    """L2 normalise (unit vectors so cosine == dot in every consumer).
+    Shared by every embed path so batch/parallel/serial vectors are
+    byte-identical. Zero vector raises — same contract as _embed."""
     norm = math.sqrt(sum(x * x for x in vec))
     if norm == 0.0:
         raise RuntimeError("embedder returned a zero vector")
     return [x / norm for x in vec]
+
+
+def _embed(text: str) -> list[float]:
+    """Raw embed + L2 normalise. Empty input raises — callers decide fallback."""
+    if not text or not text.strip():
+        raise ValueError("cannot embed empty text")
+    model = _get_model()
+    vec = model.create_embedding(input=[text])["data"][0]["embedding"]
+    return _normalize(vec)
 
 
 def embed_document(text: str) -> list[float]:
@@ -173,9 +197,91 @@ def embed_documents(texts: list[str]) -> list[list[float]]:
     out = []
     for d in data:
         vec = d["embedding"]
-        norm = math.sqrt(sum(x * x for x in vec))
-        out.append([x / norm for x in vec] if norm else vec)
+        out.append(_normalize(vec) if any(vec) else vec)
     return out
+
+
+def _pool_workers(n_texts: int, workers: int | None) -> int:
+    """Resolve worker count: 0 = in-process (no pool spawn).
+
+    EMBED_POOL_WORKERS env is the operator knob (0/1 disables); the count
+    is clamped to the text count and gated on _POOL_MIN_TEXTS — spawning
+    4 workers for 3 docs pays spawn+model-load for nothing.
+    """
+    if workers is None:
+        try:
+            workers = int(os.environ.get("EMBED_POOL_WORKERS", _DEFAULT_POOL_WORKERS))
+        except ValueError:
+            workers = _DEFAULT_POOL_WORKERS
+    if workers <= 1 or n_texts < _POOL_MIN_TEXTS:
+        return 0
+    return max(2, min(workers, n_texts))
+
+
+def _pool_init(core_queue) -> None:
+    """Spawn-worker initializer: claim a distinct core, pin, load model.
+
+    Pin BEFORE the Llama() load — affinity applies to threads created
+    after the call, so pinning post-init leaves the compute thread
+    floating (bench 2026-08-29: pinned pool 3.7x; unpinned collapses).
+    n_threads=1: per-doc forwards are sync-bound past one thread.
+    """
+    core = core_queue.get()
+    try:
+        os.sched_setaffinity(0, {core % (os.cpu_count() or 1)})
+    except OSError:
+        pass  # restricted env: float (still correct, just slower)
+    _get_model(n_threads=1)
+
+
+def _pool_embed_chunk(arg: tuple[int, list[str]]) -> tuple[int, list[list[float]]]:
+    """Embed one contiguous chunk; returns (start_index, vectors)."""
+    start, texts = arg
+    model = _get_model(n_threads=1)
+    out = []
+    for text in texts:
+        vec = model.create_embedding(input=[text])["data"][0]["embedding"]
+        out.append(_normalize(vec))
+    return start, out
+
+
+def embed_documents_parallel(texts: list[str], workers: int | None = None) -> list[list[float]]:
+    """Batch embed_document via a pinned spawn pool (cold-path only).
+
+    Same contract and output as embed_documents (index side, no BGE
+    prefix, L2-normalised, input order preserved, byte-identical
+    vectors). Falls back to in-process embed_documents when the pool is
+    disabled (EMBED_POOL_WORKERS=0/1) or the batch is tiny. Fail-loud:
+    a worker crash surfaces as an exception here — callers decide their
+    own degrade policy.
+    """
+    if not texts:
+        return []
+    n = _pool_workers(len(texts), workers)
+    if n == 0:
+        return embed_documents(texts)
+
+    import multiprocessing as mp
+
+    ncpu = os.cpu_count() or 1
+    bounds = [(i * len(texts) // n, (i + 1) * len(texts) // n) for i in range(n)]
+    chunks = [(start, texts[start:end]) for start, end in bounds if end > start]
+    ctx = mp.get_context("spawn")
+    core_queue = ctx.Queue()
+    for core in sorted({i % ncpu for i in range(n)}):
+        core_queue.put(core)
+    out: list[list[float] | None] = [None] * len(texts)
+    try:
+        with ctx.Pool(n, initializer=_pool_init, initargs=(core_queue,)) as pool:
+            for start, vecs in pool.map(_pool_embed_chunk, chunks):
+                for j, vec in enumerate(vecs):
+                    out[start + j] = vec
+    finally:
+        core_queue.close()
+        core_queue.join_thread()
+    if any(v is None for v in out):
+        raise RuntimeError("parallel embed left unfilled slots — chunk bug")
+    return [v for v in out if v is not None]
 
 
 if __name__ == "__main__":

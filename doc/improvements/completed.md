@@ -3559,3 +3559,54 @@ undecided below the confidence band for a future pass.
 tests); ruff clean on touched files; dry-run validated all 51 decisions
 against live entities before write; resolver unit-checked post-alias
 (SAIL/McDonald/Micron/Piramal "…Limited" all resolve).
+
+## 173. Parallel cold embed — pinned spawn pool for the bge-small path
+
+**Proposal**: `doc/improvements/proposals/parallel_cold_embed.md` (executed
+same day; archived to `archive/tooling/`).
+
+**Problem**: both cold-ingest walls were batch-1 llama.cpp forwards —
+note_search full refresh 16m13s / 1,227 docs, company_embeddings cold
+populate ~11-15 min / 1,068 — while warm cycles were already seconds
+(content-hash cache ~100% hits). Dead ends measured FIRST (recorded in the
+proposal's do-not-re-audit section): in-process threads flat (1T == 4T
+per-doc), llama-cpp sequence packing 0.83-1.06x, EPP/governor no effect;
+the working shape is N spawn workers x n_threads=1 each pinned to a
+distinct core. Unpinned pools collapse ~24x per worker (ggml-internal;
+cause deliberately left open — pinning sidesteps it).
+
+**Landed**:
+- `local_embedder.embed_documents_parallel(texts, workers=None)`: spawn
+  Pool; initializer pins via sched_setaffinity BEFORE the Llama load
+  (affinity binds threads created after the call) and builds
+  n_threads=1; contiguous chunks, ordered reassembly; EMBED_POOL_WORKERS
+  env (default 4; 0/1 disables); <8 texts falls back in-process. Shared
+  `_normalize` keeps every path byte-identical (parity is test-pinned).
+- `embeddings.py` populate/--maint: cached_embed_batch miss engine swapped
+  to the pool (warm ~0 misses -> pool never spawns; stats unchanged).
+- `rebuild_note_search.py`: two-phase batch mode — `_collect_rows` defers
+  embeddings via a `deferred` out-param (text basis unified in
+  `_embedding_text`, so cache keys match across per-doc/batch paths),
+  misses batch-embed through the pool, rows patched in place; batch
+  failure degrades to lexical-only rows with a WARNING (same best-effort
+  contract as the per-doc path); injected-fn tests and the pseudo
+  fallback keep the per-doc loop untouched.
+- Tests: `_pool_workers` decision matrix + env knob (hermetic); batch
+  attach/seed/warm-idempotence + failure-degrade (hermetic fake pool);
+  live pool parity byte-identical + disable-fallback (real backend,
+  needs_model-gated). En passant: #172's ty-tests error narrowed
+  (`assert q.paraphrase is not None`).
+
+**Measured (2026-08-29, this box, background load ~1-16 during runs)**:
+- cold note_search: **16m13s -> 6m01s (2.70x)**, 1,237 misses, rc=0,
+  292 ms/doc effective — inside the bench's predicted 267-292 ms window.
+- cold company `--maint`: **~11-15 min -> 4m46s (2.3-3.1x)**, 1,075
+  misses, 266 ms/doc effective.
+- warm cycles byte-identical behaviour (1,237 hits / 0 misses; report
+  shape unchanged); store re-seeded exactly (150+1,087+912 deletions
+  restored + 163 never-cached company texts added).
+
+**Verification**: ruff, `make types`, `make types-tests` clean; embed-path
+suites green (test_local_embedder, test_embed_cache,
+test_rebuild_note_search, test_embeddings, test_derive_insights,
+test_vec_search); live warm rebuild smoke before and after.

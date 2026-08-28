@@ -65,3 +65,18 @@
   footnotes (commit 4da573b, 2026-08-20; 314 written + existing hand
   blocks). N3: first `okf_verify.py` `verified[]` stamps recorded as
   done by the operator. No further work; entry kept as the record.
+
+- **Parallel cold embed — DONE 2026-08-29 (#173; proposal archived to
+  `archive/tooling/parallel_cold_embed.md`)** — measured: cold note_search
+  16m13s → 6m01s (2.70×); cold company ~11–15 min → 4m46s; warm unchanged.
+  Originally filed as `proposals/parallel_cold_embed.md`:
+  The two cold-ingest walls (note_search 16m13s / 1,227 docs; company
+  populate ~11–15 min / 1,068) are batch-1 llama.cpp forwards; measured:
+  threads flat, sequence-packing dead, **4 spawned workers pinned to
+  distinct cores = 3.7×** (unpinned pools collapse 24× — cause recorded,
+  pinning mandatory). Design: `embed_documents_parallel` +
+  `cached_embed_batch` miss path + three caller switches; vectors
+  byte-identical, warm paths untouched. The proposal also carries the
+  deferred-scale record (Mojo escape hatch / GPU / derive-sweep kernel /
+  incremental snapshot / metric fan-out / yfinance pool / q4_k_m — each
+  with its revisit trigger) so those don't get re-litigated.

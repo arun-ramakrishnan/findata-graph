@@ -349,6 +349,11 @@ def fake_local(monkeypatch):
                         lambda t: _fake_384("Q:" + t))
     monkeypatch.setattr(LE, "embed_documents",
                         lambda texts: [_fake_384(t) for t in texts])
+    # Batch path (parallel_cold_embed): same fake so the pool seam is
+    # hermetic — the REAL function would spawn subprocesses that re-import
+    # the unpatched module (monkeypatch never crosses spawn boundaries).
+    monkeypatch.setattr(LE, "embed_documents_parallel",
+                        lambda texts, workers=None: [_fake_384(t) for t in texts])
     monkeypatch.setattr(LE, "_seen", seen, raising=False)
     return LE
 
@@ -776,4 +781,67 @@ class TestStalenessCheck:
         err = capsys.readouterr().err
         assert "index was STALE before this rebuild: 1 changed" in err
         assert rns.main(["--check"]) == 0  # converged
+class TestBatchEmbedPath:
+    """Two-phase batch mode (parallel_cold_embed proposal): rows collected
+    without embeddings, misses batch-embedded via cached_embed_batch ->
+    embed_documents_parallel, warm cycles all-hits."""
 
+    def test_batch_attaches_vectors_and_seeds_cache(self, seeded_tree, fake_local):
+        stats = rns.rebuild(seeded_tree, write=True)
+        # Cold: every doc a miss, every row embedded.
+        assert stats["total_docs"] == 3
+        assert stats["embedded"] == 3
+        assert stats["embed_cache_misses"] == 3
+        assert stats["embed_cache_hits"] == 0
+
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            rows = con.execute(
+                "SELECT file_path, embedding FROM note_search"
+            ).fetchall()
+            assert len(rows) == 3
+            first = {fp: emb for fp, emb in rows}
+        finally:
+            con.close()
+
+        # Second run: warm — all cache hits, identical vectors (fakes are
+        # deterministic; the parallel seam must not disturb either).
+        stats2 = rns.rebuild(seeded_tree, write=True)
+        assert stats2["embed_cache_hits"] == 3
+        assert stats2["embed_cache_misses"] == 0
+        assert stats2["embedded"] == 3
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            second = dict(
+                con.execute("SELECT file_path, embedding FROM note_search").fetchall()
+            )
+        finally:
+            con.close()
+        assert first == second
+
+    def test_batch_failure_degrades_to_lexical(self, seeded_tree, fake_local,
+                                               monkeypatch, capsys):
+        from helpers.core import local_embedder as LE
+
+        def boom(texts, workers=None):
+            raise RuntimeError("pool exploded")
+
+        monkeypatch.setattr(LE, "embed_documents_parallel", boom)
+        stats = rns.rebuild(seeded_tree, write=True)  # must not raise
+        assert stats["total_docs"] == 3
+        assert stats["embedded"] == 0
+        assert stats["embed_cache_misses"] == 3
+        assert "batch embed failed" in capsys.readouterr().err
+        con = sqlite3.connect(str(seeded_tree))
+        try:
+            # Rows stay searchable (lexically) with NULL vectors.
+            n = con.execute(
+                "SELECT COUNT(*) FROM note_search WHERE note_search MATCH 'shrimp'"
+            ).fetchone()[0]
+            assert n >= 1
+            nulls = con.execute(
+                "SELECT COUNT(*) FROM note_search WHERE embedding IS NULL"
+            ).fetchone()[0]
+            assert nulls == 3
+        finally:
+            con.close()

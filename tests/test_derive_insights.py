@@ -278,6 +278,7 @@ class TestExtractQuotes:
         assert not q.quote_text.endswith(('"', "_", "\u201d"))
         assert q.speaker_name == "Anand Sultania"
         assert q.speaker_title == "Chief Financial Officer"
+        assert q.paraphrase is not None  # narrow for ty
         assert "margin recovery" in q.paraphrase
 
     def test_source_ref_carries_stem_and_line(self):

@@ -64,4 +64,5 @@ commit, referenced by nothing). Entry numbers point at
 - [`tech_avenues.txt`](tooling/tech_avenues.txt) — PROPOSAL: Technology avenues — databases, YAML richness, graph, MCP exposure
 - [`docs_consistency_audit.md`](tooling/docs_consistency_audit.md) — Documentation consistency pass — README/procedures/schema/Makefile-guidance repairs vs code+DB ground truth (R/M/S/F/D/E/P/U findings) — completed.md #167
 - [`graph_docs_ui_polish.md`](tooling/graph_docs_ui_polish.md) — Proposal: Lens + Reading Room UI polish — graph widget overhaul, edge-filter rendering policy, Desk-register buttons, reader width/focus — completed.md #168
+- [`parallel_cold_embed.md`](tooling/parallel_cold_embed.md) — Proposal: parallel cold embed — pinned spawn pool (4×1T) for the bge-small llama.cpp path; cold note_search 16m13s → 6m01s, cold company → 4m46s; measured-not-adopted record (packing/threads/EPP/unpinned-collapse) + deferred-scale triggers — completed.md #173
 - [`pending_improvs.txt`](tooling/pending_improvs.txt) — Pending Improvements — HISTORICAL (Bundles A–F closed)

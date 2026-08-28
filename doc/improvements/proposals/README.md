@@ -24,5 +24,5 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- _(none)_ — `embed_store_consolidation.md` executed 2026-08-27, archived to `../archive/database/` (#166); `graph_docs_ui_polish.md` executed 2026-08-27, archived to `../archive/tooling/` (#168); `suggested_relations_accept.md` executed 2026-08-27, archived to `../archive/graph/` (#169)
+- _(none)_ — `parallel_cold_embed.md` executed 2026-08-29 (same day as filing), archived to `../archive/tooling/` (#173): cold note_search 16m13s → 6m01s, cold company → 4m46s; carries the deferred-scale record (Mojo/snapshot/fan-out/yfinance items with revisit triggers). Prior executions: `embed_store_consolidation.md` → #166, `graph_docs_ui_polish.md` → #168, `suggested_relations_accept.md` → #169.
 

@@ -159,3 +159,42 @@ class TestRealModel:
 
     def test_embed_documents_empty_list(self, real_backend):
         assert LE.embed_documents([]) == []
+# --------------------------------------------------------------------------- #
+# Parallel pool (parallel_cold_embed proposal, 2026-08-29)                    #
+# --------------------------------------------------------------------------- #
+
+@needs_model
+class TestParallelPool:
+    """Pinned spawn pool: parity + fallback behaviour (real backend)."""
+
+    def test_pool_matches_sequential(self, real_backend):
+        texts = [
+            "Avanti Feeds quarterly results show strong export demand.",
+            "Infosys management commentary on margin expansion.",
+            "Sector note: Indian packaging industry competitive dynamics.",
+            "The Chatter edition recap and company mentions overview.",
+        ]
+        seq = LE.embed_documents(texts)
+        par = LE.embed_documents_parallel(texts, workers=2)
+        assert len(par) == len(seq)
+        worst = max(
+            abs(a - b) for vs, vp in zip(seq, par) for a, b in zip(vs, vp)
+        )
+        # Byte-identical: same model, same per-text forward, same
+        # normalizer — worker count must not move a single bit.
+        assert worst == 0.0
+
+    def test_pool_disabled_falls_back_in_process(self, real_backend, monkeypatch):
+        called = []
+        monkeypatch.setattr(
+            LE, "embed_documents",
+            lambda texts: called.append(list(texts)) or [_fake_vec(t) for t in texts],
+        )
+        monkeypatch.setenv("EMBED_POOL_WORKERS", "0")
+        out = LE.embed_documents_parallel(["a b", "c d"], workers=None)
+        assert called == [["a b", "c d"]]  # in-process path, no spawn
+        assert len(out) == 2
+
+
+def _fake_vec(text: str) -> list[float]:
+    return [float(len(text)), 1.0]

@@ -113,11 +113,17 @@ Notes:
 | Path | Cost |
 |---|---|
 | Model load | ~0.1 s |
-| Embed one full doc (512-token truncation) | ~0.8 s |
-| note_search full refresh, cold (no cache) | 16m13s / 1,227 docs |
+| Embed one full doc (512-token truncation) | ~0.8 s serial (~0.29 s/doc effective via the cold pool) |
+| note_search full refresh, cold (no cache) | 6m01s / 1,237 docs (pinned 4-worker spawn pool, #173; was 16m13s serial) |
 | note_search full refresh, warm cache | 0.8 s |
-| Company populate, cold (all 1,050) | ~15–20 min |
+| Company populate, cold (all 1,075) | 4m46s (same pool, #173; was ~11–15 min serial) |
 | Company populate / `--maint`, warm cache | seconds (reads + hashes; ≈0 embeds on a no-change cycle) |
+
+Cold runs go through `local_embedder.embed_documents_parallel` — a spawn
+pool of 4 single-thread workers, each pinned to a distinct core
+(`EMBED_POOL_WORKERS` env; 0/1 forces the serial path). Do NOT remove the
+pinning: unpinned llama.cpp pools collapse ~24x per worker (measured;
+see the archived proposal's do-not-re-audit section).
 
 Cold-cache situations: first apply, a model swap, and the first rebuild
 after `make snapshot-restore` (the embed store is excluded from snapshots by

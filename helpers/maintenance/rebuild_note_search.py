@@ -266,6 +266,13 @@ def _default_embed(text: str) -> list[float]:
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
 
 
+def _embedding_text(title: str, sector: str, content: str) -> str:
+    """Embedding text basis — MUST stay identical across the per-doc and
+    batch paths or the pooled cache keys diverge. Mirrors
+    _get_company_text in embeddings.py: title + sector + body (capped)."""
+    return f"{title}\n{sector}\n{content[:8000]}"
+
+
 def _embedding_json(embed_fn, title: str, sector: str, content: str) -> str | None:
     """Embed one doc and serialize to a JSON string, or None on failure.
 
@@ -274,7 +281,7 @@ def _embedding_json(embed_fn, title: str, sector: str, content: str) -> str | No
     by the title/sector for name-typed queries while still capturing the body.
     """
     try:
-        vec = embed_fn(f"{title}\n{sector}\n{content[:8000]}")
+        vec = embed_fn(_embedding_text(title, sector, content))
     except Exception:  # noqa: S110  # best-effort; missing/empty rows stay searchable
         return None
     if not vec:
@@ -311,8 +318,36 @@ def _carry_row(row: tuple, dtype: str, rel_posix: str,
     return True
 
 
+def _emit_row(rows: list[tuple], deferred: list[tuple[int, str]] | None,
+              dtype: str, rel_posix: str, title: str, sector: str,
+              body: str, embed_fn) -> None:
+    """Append one FTS row — single emission point for both modes.
+
+    Two-phase mode (``deferred`` is a list): row gets a None embedding and
+    (row_index, text) lands in the caller's deferred list for the batch
+    embed pass. Per-doc mode: embedding computed inline via embed_fn."""
+    if deferred is not None:
+        rows.append((dtype, rel_posix, title, sector, body, None))
+        deferred.append((len(rows) - 1, _embedding_text(title, sector, body)))
+    else:
+        rows.append(
+            (dtype, rel_posix, title, sector, body,
+             _embedding_json(embed_fn, title, sector, body))
+        )
+
+
 def _collect_rows(conn, embed_fn=None, reuse: dict[str, tuple[float, tuple]] | None = None,
-                  carried: set[str] | None = None) -> list[tuple]:
+                  carried: set[str] | None = None,
+                  deferred: list[tuple[int, str]] | None = None) -> list[tuple]:
+    """Collect one 6-tuple row per doc: (dtype, rel_path, title, sector,
+    body, embedding_json).
+
+    ``deferred`` switches embedding to two-phase batch mode: rows are
+    collected with a None embedding and (row_index, text) pairs appended
+    to the caller's list — the caller then batch-embeds via
+    cached_embed_batch (pinned pool; parallel_cold_embed proposal) and
+    patches the rows. embed_fn is unused in that mode. Reuse-carried rows
+    are untouched by deferral (they bring their old embedding)."""
     """Build the full FTS row set by reading files + one bulk entity lookup.
 
     Returns a list of (doc_type, file_path, title, sector, content, embedding)
@@ -371,18 +406,14 @@ def _collect_rows(conn, embed_fn=None, reuse: dict[str, tuple[float, tuple]] | N
             # the YAML title if the entity isn't in the DB (shouldn't happen
             # for entity docs, but be defensive).
             title = norm_name or fm_title or ""
-            rows.append(
-                (dtype, rel_posix, title, sector or "", body.strip(),
-                 _embedding_json(embed_fn, title, sector or "", body.strip()))
-            )
+            _emit_row(rows, deferred, dtype, rel_posix, title, sector or "",
+                      body.strip(), embed_fn)
         else:
             # Newsletter: no frontmatter, no entity row. Title = H1.
             title = _newsletter_title(text) or abs_path.stem
             body = _clean_body(text)
-            rows.append(
-                (dtype, rel_posix, title, "", body,
-                 _embedding_json(embed_fn, title, "", body))
-            )
+            _emit_row(rows, deferred, dtype, rel_posix, title, "", body,
+                      embed_fn)
     return rows
 
 
@@ -498,19 +529,62 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
                 if prev is not None:
                     reuse[r[1]] = (prev[0], tuple(r))
             carried = set()
+        # Two-phase batch mode (parallel_cold_embed proposal, 2026-08-29):
+        # with the real model + cache, rows are collected WITHOUT
+        # embeddings; the texts then go through cached_embed_batch ->
+        # local_embedder.embed_documents_parallel (pinned spawn pool;
+        # cold 16m13s -> ~4-5 min, warm cycles unchanged: ~0 misses means
+        # the pool never spawns). Injected embed_fn (tests) and the pseudo
+        # fallback keep the per-doc path.
+        deferred: list[tuple[int, str]] | None = [] if cache is not None else None
         rows = _collect_rows(conn, embed_fn=embed_fn, reuse=reuse,
-                             carried=carried)
-        if cache is not None:
-            stats["embed_cache_hits"] = cache.hits
-            stats["embed_cache_misses"] = cache.misses
-            if cache.dirty:
-                # Commit cache rows NOW, not with the later note_search
-                # transaction: --check returns before that transaction, and
-                # uncommitted inserts would roll back on close (observed in
-                # the warm measurement: hits=0 after a --check pre-warm).
-                # The cache is content-addressed, so committing early is
-                # safe even if the FTS write later fails.
-                conn.commit()
+                             carried=carried, deferred=deferred)
+        if deferred is None:
+            if cache is not None:
+                stats["embed_cache_hits"] = cache.hits
+                stats["embed_cache_misses"] = cache.misses
+                if cache.dirty:
+                    # Commit cache rows NOW, not with the later note_search
+                    # transaction: --check returns before that transaction,
+                    # and uncommitted inserts would roll back on close
+                    # (observed in the warm measurement: hits=0 after a
+                    # --check pre-warm). The cache is content-addressed, so
+                    # committing early is safe even if the FTS write later
+                    # fails.
+                    conn.commit()
+        else:
+            from helpers.core.embed_cache import cached_embed_batch
+            from helpers.core import local_embedder
+
+            # Empty/whitespace texts stay un-embedded (same degrade as the
+            # per-doc path's except-None) instead of poisoning the batch.
+            idxs = [i for i, text in deferred if text.strip()]
+            texts = [text for _i, text in deferred if text.strip()]
+            if model_label is None:  # unreachable: batch mode implies resolve
+                raise RuntimeError("batch embed without a model label")
+            try:
+                vec_list, cstats = cached_embed_batch(
+                    conn, texts, model_label,
+                    local_embedder.embed_documents_parallel,
+                    source="note",
+                )
+                by_idx = dict(zip(idxs, vec_list))
+                rows = [
+                    r if i not in by_idx else r[:5] + (json.dumps(by_idx[i]),)
+                    for i, r in enumerate(rows)
+                ]
+                stats["embed_cache_hits"] = cstats["hits"]
+                stats["embed_cache_misses"] = cstats["misses"]
+            except Exception as e:  # best-effort: a broken pool must never
+                # break the rebuild — docs stay lexical-searchable (mirrors
+                # _embedding_json's per-doc degrade, just coarser).
+                print(
+                    f"WARNING: batch embed failed ({e}); docs remain "
+                    "searchable without vectors",
+                    file=sys.stderr,
+                )
+                stats["embed_cache_hits"] = 0
+                stats["embed_cache_misses"] = len(deferred)
 
         # Per-doc_type counts for the report.
         from collections import Counter

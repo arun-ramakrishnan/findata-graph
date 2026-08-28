@@ -231,12 +231,15 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
             "SELECT name FROM entities WHERE entity_type = 'company' ORDER BY name"
         ).fetchall()]
 
-    # Batch embed through the cache: one llama.cpp call for the MISSES only
-    # (index side is embed_document — never the BGE query prefix; see
-    # local_embedder).
+    # Batch embed through the cache: misses go through the pinned spawn
+    # pool (parallel_cold_embed proposal, 2026-08-29 — cold populate
+    # ~15 min -> ~4 min; warm cycles have ~0 misses and never spawn it).
+    # Index side is embed_document — never the BGE query prefix; see
+    # local_embedder.
     texts = [_get_company_text(conn, n) for n in names]
     vecs, cache_stats = cached_embed_batch(
-        conn, texts, local_embedder.MODEL_ID, local_embedder.embed_documents,
+        conn, texts, local_embedder.MODEL_ID,
+        local_embedder.embed_documents_parallel,
         source="company",
     )
     # Stable-write upsert (maint_full_zero_churn F2): an unchanged vector
