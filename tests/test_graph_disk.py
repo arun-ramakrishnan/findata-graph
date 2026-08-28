@@ -43,8 +43,10 @@ if not DB_PATH.exists():
 
 from helpers.graph.query import (  # noqa: E402
     DUCKDB_PATH,
+    PROJECT_ROOT,
     _SCHEMA_VERSION,
     _is_warm,
+    _mark_warm,
     connect,
     fresh_rebuild,
     rebuild,
@@ -382,6 +384,25 @@ class TestBuildMeta:
             assert str(tmp_db) in keys["source_db"]
         finally:
             c.close()
+
+    def test_source_db_stored_repo_relative(self, tmp_path):
+        # _build_meta ships inside the git-tracked snapshot, so source_db
+        # must stay repo-relative — an absolute path leaks the build
+        # machine's user dir into the published repo, and binary parquet
+        # is invisible to text-based identity sweeps.
+        con = duckdb.connect(str(tmp_path / "meta.duckdb"))
+        try:
+            con.execute(
+                "CREATE TABLE _build_meta(key VARCHAR PRIMARY KEY, value VARCHAR)"
+            )
+            _mark_warm(con, PROJECT_ROOT / "memory" / "research.db")
+            val = con.execute(
+                "SELECT value FROM _build_meta WHERE key='source_db'"
+            ).fetchone()[0]
+            assert val == "memory/research.db"
+            assert not val.startswith("/")
+        finally:
+            con.close()
 
     def test_build_meta_updated_on_rebuild(self, tmp_db):
         import time

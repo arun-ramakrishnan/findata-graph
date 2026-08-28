@@ -701,7 +701,13 @@ def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
         pass
     # Build _build_meta insert with generation + versions
     # Use upsert for each key separately to handle optional gen
-    base_vals = [("schema_version", _SCHEMA_VERSION), ("built_at", date.today().isoformat()), ("source_db", str(db_path))]
+    # source_db ships inside the git-tracked snapshot, so it must stay
+    # repo-relative — an absolute path leaks the build machine's user dir
+    try:
+        source_db_val = str(Path(db_path).relative_to(PROJECT_ROOT))
+    except ValueError:
+        source_db_val = str(db_path)  # temp DBs outside the repo (tests)
+    base_vals = [("schema_version", _SCHEMA_VERSION), ("built_at", date.today().isoformat()), ("source_db", source_db_val)]
     if gen_val is not None:
         base_vals.append(("generation", gen_val))
     if note_dims is not None:
