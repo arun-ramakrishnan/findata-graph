@@ -254,6 +254,32 @@ class TestExtractQuotes:
             assert not q.quote_text.startswith('"')
             assert not q.quote_text.endswith('"')
 
+    def test_local_engine_italic_wrapped_quotes_extracted(self):
+        # pdf_conv_md.py/pymupdf4llm italicizes every physical line and uses
+        # typographic quotes, so a quote arrives as `_\u201cfirst line_` ...
+        # `_closing line.\u201d_` with a `_— Name, Title_` attribution. The walker
+        # must unwrap the emphasis and normalize the quotes before its
+        # `"`-anchored matching (Chatter #83 yielded 0 quotes before the fix).
+        body = (
+            "## [Concall]\n"
+            "Price hikes hadn't flowed through in Q1, creating scope for margin recovery.\n"
+            "_\u201cIf we compare this with respect to the West Asia conflict impact, the price"
+            " action compensated in the first quarter is very less._\n"
+            "_In the coming quarters, I think you will see the impact.\u201d_\n"
+            "_\u2014 Anand Sultania, Chief Financial Officer_\n"
+        )
+        section = di.CompanySection("Borosil", 1, body)
+        quotes = di.extract_quotes(
+            section, "Borosil Orchid Welspun", "Borosil_Orchid_Welspun"
+        )
+        assert len(quotes) == 1
+        q = quotes[0]
+        assert not q.quote_text.startswith(('"', "_", "\u201c"))
+        assert not q.quote_text.endswith(('"', "_", "\u201d"))
+        assert q.speaker_name == "Anand Sultania"
+        assert q.speaker_title == "Chief Financial Officer"
+        assert "margin recovery" in q.paraphrase
+
     def test_source_ref_carries_stem_and_line(self):
         sections = list(di.iter_company_sections(_SAMPLE_NEWSLETTER))
         marico = next(s for s in sections if s.canonical_name == "Marico")

@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-07-29'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:42Z'
+  at: '2026-08-28T15:04:16Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -164,6 +164,11 @@ today we are no…"
 - **BEL plans to significantly increase its R&D investment by over 20% year-on-year, targeting over INR 1,700 crores this year and INR 2,000 cro**…
 
 > "Yes. This R&D CAPEX means R&D expenditure total, R&D expenditure has 2 components, one is revenue and one is CAPEX, CAPEX requirement of the R&D community means the test instrument and other infrastructure. So put together itself we call it as a total R&D expenditure for us. T…"
+> — Manoj Jain, Chairman & Managing Director [^chatter-Reading_the_terrain]
+
+- **BEL is actively pursuing export opportunities across its operations, aiming to incre export turnover from the current 3-4% to 5% in the near**…
+
+> "Definitely, export opportunities are there in all the areas of BEL's operation and we are doing a focused attempt to increase our export turnover from presently 3% to 4% to 5% in near future and overall 10% in a long-term."
 > — Manoj Jain, Chairman & Managing Director [^chatter-Reading_the_terrain]
 
 [^chatter-Reading_the_terrain]: Reading the terrain — [[Reading_the_terrain]]

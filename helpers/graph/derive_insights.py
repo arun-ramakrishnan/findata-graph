@@ -522,6 +522,17 @@ def _find_attribution(lines: list[str], start: int) -> tuple[int, tuple | None]:
     return (-1, None)
 
 
+# Local-engine (pdf_conv_md.py/pymupdf4llm) editions italicize every
+# physical line, so a quote arrives as `_"first line_` … `_closing line."_`
+# with the attribution as `_— Speaker, Title_`, and they use typographic
+# quotes (`“…”`) where Paddle-era notes use ASCII `"`. One outer emphasis
+# pair is unwrapped and curly quotes normalized to ASCII per line before
+# the quote walker, so both engines feed it the same shapes. `___`
+# horizontal rules are excluded (skip-listed below, not emphasis).
+_LINE_EMPH_RE = re.compile(r"^\s*_(.+)_\s*$")
+_CURLY_QUOTES = {"“": '"', "”": '"', "„": '"', "‟": '"'}
+
+
 def extract_quotes(section: CompanySection, edition_title: str,  # noqa: C901
                    source_stem: str) -> list[Quote]:
     """Extract every (paraphrase → quote → attribution) unit from a section.
@@ -539,6 +550,17 @@ def extract_quotes(section: CompanySection, edition_title: str,  # noqa: C901
         body = body[concall_m.end():]
 
     lines = body.splitlines()
+    # Unwrap per-line emphasis and normalize typographic quotes (see
+    # _LINE_EMPH_RE) so local-engine quotes anchor on ASCII `"`.
+    for idx, ln in enumerate(lines):
+        if ln.strip() != "___":
+            m = _LINE_EMPH_RE.match(ln)
+            if m:
+                ln = m.group(1)
+        if "“" in ln or "”" in ln:
+            for curly, ascii_q in _CURLY_QUOTES.items():
+                ln = ln.replace(curly, ascii_q)
+        lines[idx] = ln
     paraphrase_lines: list[str] = []
     i = 0
     while i < len(lines):

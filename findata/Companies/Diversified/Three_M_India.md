@@ -22,13 +22,17 @@ created: '2026-06-28'
 last_modified: '2026-08-25'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-19T13:15:20Z'
-stale_after: '2027-02-11'
+  at: '2026-08-28T15:01:26Z'
+stale_after: '2027-02-21'
 sources:
 - id: No_shortcuts_here
   resource: /findata/Points_And_Figures/No_shortcuts_here.md
   title: 'Points & Figures: No shortcuts here'
   last_modified: '2026-08-15'
+- id: RBI_3M_Blue_Star_KFin
+  resource: /findata/The_Chatter/RBI_3M_Blue_Star_KFin.md
+  title: '''The Chatter: RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More'''
+  last_modified: '2026-08-25'
 ---
 
 # 3M India
