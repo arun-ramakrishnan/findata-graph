@@ -157,7 +157,7 @@ From the 2026-08-29 repo-wide "where does the time go" review
 |---|---|---|
 | Mojo KNN escape-hatch shared lib | sqlite-vec 11.8 ms @ 1.2k docs | sqlite-vec ABI/packaging pain, or corpus ~100× |
 | Mojo GPU KNN kernels | crossover 17–67 MB resident | ≥50 MB resident vectors (~34k docs) |
-| Mojo fused derive-sweep kernel | derive_* ≈ 5–6 s per maint-full | derive_* at minutes scale; needs community regex port |
+| Mojo fused derive-sweep kernel | derive_* ≈ 5–6 s per maint-full (~17% of post-#174 32.3 s maint-full) | regex precondition RESOLVED 2026-08-29 via the Python `regex` bridge (`tooling/mojo_regex_via_python_interop.md` in this archive, EXECUTED as #180 — moots the community port); scale trigger still unmet (derive_* at minutes scale) |
 | ~~Incremental 2nd snapshot in maint-full~~ | CLOSED 2026-08-29 by #174 — maint-full takes ONE tail snapshot (66 s → 32.3 s); see `doc/improvements/archive/database/maint_full_single_snapshot.md` | — |
 | recompute-graph metric fan-out | saves ~4–5 s | maint-full budget pressure |
 | ~~Parallel per-table Parquet export~~ | CLOSED 2026-08-29 at per-DB granularity by #175 (one thread per DB, binary + parquet branches); per-table parallelism still deferred | same trigger — per-table only if profiled worth it |

@@ -57,6 +57,9 @@ dependencies = [
     "gspread",
     # FinnHub API
     "finnhub-python",
+    # Mojo regex bridge (Mojo/bench/mojo_regex_*.py + Mojo/src via Python
+    # `regex` interop) — active Mojo code uses `import regex`, so runtime.
+    "regex",
 ]
 
 [project.optional-dependencies]
@@ -72,7 +75,7 @@ dev = [
 ]
 
 mojo = [
-    # Mojo Lang support.
+    # Mojo Lang support — compiler toolchain only.
     "mojo",
     "max",
 ]
@@ -116,12 +119,14 @@ ignore = ["E501"]
 [tool.deptry]
 # Treat the local package as first-party so it isn't flagged as an undeclared dep.
 # Reads [project].dependencies + [project.optional-dependencies] directly.
-known_first_party = ["helpers", "app", "core"]
+known_first_party = ["helpers", "app", "core", "mojo_regex_battery"]
 # The `dev` and `mojo` optional-dependencies groups hold command-line tooling
 # (pytest, hypothesis, ruff, ty, deptry; the mojo + max compiler toolchain)
 # that is never imported from the codebase, so deptry cannot observe it as
 # "used". Marking the groups as dev suppresses the spurious DEP002
-# (declared-but-unused) for their packages.
+# (declared-but-unused) for their packages. `regex` was moved to
+# [project].dependencies (2026-08-30) because active Mojo bench code
+# (Mojo/bench/mojo_regex_*.py) imports it — it is not dev-only.
 optional_dependencies_dev_groups = ["dev", "mojo"]
 # gunicorn (prod WSGI server, invoked by nixpacks.toml `cmd = "gunicorn app:app"`)
 # and werkzeug (WSGI/serving, pulled in transitively by Flask) are runtime deps that

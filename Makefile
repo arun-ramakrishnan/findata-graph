@@ -56,7 +56,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
 > @echo "  maint-full               Post-ingest re-derivation: PRE_FULL index refresh (sync-tags, note-search) + maint + TIER2_STEPS (sector gates, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
 > @echo "  metrics-rebuild          Refresh company financials + note industry sections from yfinance (~1 min, 931 tickers)"
-> @echo "  mojo-bench               Run mojo benchmarks: cosine-KNN comparison table + analyzer tiers (MOJO_BENCH_SCALE/REPS)"
+> @echo "  mojo-bench               Run Mojo/bench/run_bench.py legs: cosine-knn, analyzer, pool-4x, regex-bridge, yaml-corpus (report: Mojo/bench/bench_report.txt)"
 > @echo "  mojo-build               Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)"
 > @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
@@ -134,7 +134,7 @@ metrics-rebuild: ## Refresh company financials + notes from yfinance (~1 min, 93
 # Mojo machinery (rule definitions, wildcard discovery, test runner) lives
 # in Makefile.mojo — it grows with the Mojo source/test tree. This target
 # stays thin so the main Makefile keeps a single annotated entry point.
-mojo-bench:      ## Run mojo benchmarks: cosine-KNN comparison table + analyzer tiers (MOJO_BENCH_SCALE/REPS overrides)
+mojo-bench:      ## Run all Mojo bench legs via Mojo/bench/run_bench.py (MOJO_BENCH_SCALE/REPS, MOJO_BENCH_ARGS='--leg NAME')
 > $(MAKE) -f Makefile.mojo mojo-bench
 
 mojo-build:      ## Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)
@@ -303,8 +303,8 @@ frontend-check: ## Type-check the TypeScript frontend without emitting (fast, ne
 lint:           ## Run ruff linter (replaces flake8)
 > ruff check .
 
-types:          ## Run ty type checker on helpers + app.py (Astral uv+ruff stack)
-> ty check helpers app.py
+types:          ## Run ty type checker on helpers + app.py + Mojo Python (Astral uv+ruff stack)
+> ty check helpers app.py Mojo/
 
 # The EXPANDED ty surface (tests/): single source of truth for the exact
 # extra-search-path flag soup + ty.tests.toml config — run it standalone

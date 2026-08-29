@@ -61,6 +61,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`doc_browser.txt`](tooling/doc_browser.txt) — Doc Browser & Search — web UI for the doc/ corpus
 - [`perf_improvs.txt`](tooling/perf_improvs.txt) — Performance review — project-wide hotspots
 - [`perf_optimization.md`](tooling/perf_optimization.md) — Perf optimization plan — `make perf` hotspots: link-prediction, extract_relations, pdf layout-off — completed.md #163
+- [`mojo_regex_via_python_interop.md`](tooling/mojo_regex_via_python_interop.md) — Mojo regex via the Python `regex` bridge — 51-case file-driven battery, ~2.5% overhead on real work — completed.md #180
 - [`temporal_analytics.md`](tooling/temporal_analytics.md) — Proposal: Temporal Analytics — REPORT=temporal — completed.md #150
 - [`tech_avenues.txt`](tooling/tech_avenues.txt) — PROPOSAL: Technology avenues — databases, YAML richness, graph, MCP exposure
 - [`docs_consistency_audit.md`](tooling/docs_consistency_audit.md) — Documentation consistency pass — README/procedures/schema/Makefile-guidance repairs vs code+DB ground truth (R/M/S/F/D/E/P/U findings) — completed.md #167

@@ -25,4 +25,4 @@ entry number and stale DONE pointers):
 ## Current live proposals
 
 - `doc_drift_audit_2026_08.md` EXECUTED 2026-08-29 (same day), archived to `../archive/tooling/` (#178): F1–F10 — README Mojo row, _build_meta key lists, run-log backfills #170/#171/#172, gzip→zstd doc sweep (12 rows incl. 2 broken restore lines), note-search --check contract doc, procedures index, identity-scrub forward-leak closure. Prior executions: `zstd_binary_backups.md` → #176, `snapshot_parallel_and_compressed_backups.md` → #175, `maint_full_single_snapshot.md` → #174, `parallel_cold_embed.md` → #173. 2026-08-29 (same day as filing), archived to `../archive/database/` (#176): snapshot binary branch .gz → .zst (library-default zstd), `make snapshot` 8.0 s → 2.35 s, old .gz trio deleted. Prior executions: `snapshot_parallel_and_compressed_backups.md` → #175, `maint_full_single_snapshot.md` → #174, `parallel_cold_embed.md` → #173.
-- `mojo_regex_via_python_interop.md` — RESOLVED 2026-08-29: regex in Mojo via the Python `regex` bridge (closes the deferred `mojo-regex` conda task). Verification + perf in the proposal.
+- _(none)_

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Standing harness: Python vs Mojo for the note-embedding cosine-KNN
-workload (lives in Mojo/tests/, driven by `make mojo-bench`).
+workload (lives in Mojo/bench/, driven by `make mojo-bench`).
 
 Context (doc/local/mojo_pilot.md): every production numeric path in this
 repo is already native (sqlite-vec KNN, DuckDB VSS, onager, llama.cpp,
@@ -23,7 +23,7 @@ growth; the sqlite-vec leg runs at x1 only (it queries the live table).
 NOT wired into `make perf` — a Mojo toolchain dependency does not
 belong in a regression gate.
 
-Usage: python3 Mojo/tests/bench_cosine_knn.py [--scales 1,4,16] [--reps 5]
+Usage: python3 Mojo/bench/bench_cosine_knn.py [--scales 1,4,16] [--reps 5]
        (or just: make mojo-bench [MOJO_BENCH_SCALE=1,4,16] [MOJO_BENCH_REPS=5])
 Exit 0 when all cross-validations pass, 1 otherwise.
 """

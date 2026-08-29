@@ -4038,3 +4038,147 @@ pushed `_cmd_create` to complexity 16 (>10). Split into a small
 dispatcher + `_create_binary_snapshot` / `_create_parquet_snapshot`
 (zstd-corrected branch comments along the way) — same C901-extraction
 pattern as #143/#154. lint-audit green; 40 snapshot-suite tests pass.
+
+## 179. mojo-yaml vendored (full-corpus proof) + Mojo bench harness (2026-08-29)
+
+**Vendoring**: DataBooth/mojo-yaml @ 636058a (Apache-2.0) → `Mojo/vendor/
+mojo-yaml/` with 6 lexer patches documented in its PROVENANCE.md (value-
+position tracking, plain-scalar-to-EOL, ": " break, date scalars,
+whole-scalar number resolver — `8080`→INTEGER but `360 ONE WAM`/
+`005380.KS` stay strings — `''` escapes). Proof: 1,237/1,237 findata
+frontmatters parse (`Mojo/bin/yaml_corpus_check`, FAIL: 0); 13.6 µs/parse
+vs PyYAML 326 µs (24×) — routing rule: venv-internal tooling stays
+bridge+PyYAML, standalone Mojo binaries use the vendored parser.
+Regression pins: `Mojo/tests/test_yaml_frontmatter.mojo` (8 tests, one
+per patch). Wiring: vendor joins `MOJO_IMPORT_FLAGS`; build rule now
+carries them (first cross-package-importing binary: yaml_corpus_check).
+
+**Bench harness**: `Mojo/bench/run_bench.py` — one command runs every
+Mojo bench leg and appends the table to `Mojo/bench/bench_report.txt`
+(same convention as perf_report.txt): cosine-knn (4-way comparison,
+18.9s), analyzer (SIMD 3.86×, numpy delta 1.7e-12), pool-4x (4 parallel
+bench_pool workers over a deterministic synthetic matrix), regex-bridge
+(21/21 interop checks), yaml-corpus. `make mojo-bench` now builds all
+binaries then invokes it; single leg via `MOJO_BENCH_ARGS='--leg NAME'`.
+En passant: bench_cosine_knn.py self-referenced its pre-move Mojo/tests/
+home (docstring + usage), and mojo_regex_battery.py (the probe's pure-
+Python fixture, never pytest-collected) moved Mojo/tests/ → Mojo/bench/
+(git mv) with the probe's cwd-relative exec path and the proposal's
+reproduce paths updated. Regex-probe methodology rework (user review):
+the battery now exposes its 21 cases as data (`cases()`), the probe runs
+every case BOTH natively in CPython and from Mojo through the bridge,
+comparing direct == python == expected (repr basis) — was 3 direct
+patterns + a python-internal battery that never exercised the bridge.
+Bench reworked too: both sides time the REAL workload (200 reps × all 21
+case calls ≈ 4,200 compile+match+result calls) — 126k native vs 124k
+bridged calls/s ≈ 1.6% bridge overhead (the old toy-findall loop showed
+~27% only because per-call work was too small to hide marshaling).
+Verified: 5/5 legs ✓ in ~20s; ruff clean.
+
+## 180. Mojo regex via Python `regex` interop — EXECUTED (2026-08-29)
+
+Closes the deferred `mojo-regex` task: no community/native port needed —
+Mojo calls the third-party `regex` module through the Python bridge
+(`Python.import_module("regex")`, same .venv). Proposal archived same
+change: `archive/tooling/mojo_regex_via_python_interop.md`.
+
+**Test apparatus (reworked 3× this session per user review):** the 51
+cases live as DATA in `Mojo/bench/mojo_regex_cases.json` — single source
+both sides execute (regenerate goldens with
+`build_mojo_regex_cases.py`; `--check` detects drift after a `regex`
+upgrade). `mojo_regex_battery.py` is a file-driven dispatcher (9 modes);
+`mojo_regex_probe.mojo` runs every case BOTH natively in CPython and
+from Mojo through the bridge, requiring direct == python == expected
+(repr basis), then times the REAL workload — 100k case calls cycling
+the 51 cases — identically on both sides. Evolution: 3 direct patterns
++ python-internal battery (never exercised the bridge) → three-way
+21-case battery → 51-case file-driven battery with big patterns
+(RFC-5322 mailbox, 7-group URI, 12-group Apache log, 26-word
+alternation) and advanced constructs (recursion `(?&rec)`, `\K`,
+conditionals, branch reset, possessive/atomic, variable-width
+lookbehind).
+
+**Result:** 51/51 direct-vs-python PASS; pure-python ~99k calls/s vs
+mojo-bridge ~97k calls/s (100k calls each side) — ~2.5% bridge overhead
+on real work (~0.4 µs marshaling vs ~10 µs regex work per call). The
+old ~27% figure was a toy-loop artifact. Standing run:
+`make mojo-bench MOJO_BENCH_ARGS='--leg regex-bridge'`.
+
+## 181. mojo-regex vendored, measured, removed — native engine not ready (2026-08-29)
+
+Vendored `msaelices/mojo-regex` @ c4352cb (MIT; repo HEAD already on the
+Mojo 1.0 std layout, zero patches — the conda `.mojopkg` route is
+binary-incompatible, built by mojo-compiler 0.26.2) to give corpus_sweep
+a no-bridge `native` phase: the battery's findall patterns (via a
+mojo-yaml-parsed YAML mirror, dogfooding both vendored libs) over every
+note body, per-pattern parity + time vs the Python scan of the same
+subset.
+
+**Measured on the full corpus (1,237 docs / 9 MB):** 24/33 patterns
+compile; native **51.8 s vs Python 6.2 s (8.5× slower)**; **18 of 24
+compilable patterns silently mismatch** — `\bcat\b`, `\Bcat`, all
+lookarounds return 0 matches, `\S+` finds 34k vs 1.2M, `\W+` 9k vs
+1.3M. The upstream "beats Python `re` on 100% of benchmarks" claim does
+not survive battery-class patterns on real text.
+
+**Outcome:** the `native-corpus` bench leg (~58 s) and the vendored copy
+were REMOVED the same day (too slow + not trustworthy). The engine-side
+routing rule stands with hard numbers on all three routes: Python
+`regex` via the bridge ~1.07× wall on the same corpus scan with exact
+parity (#180); pure Python baseline; native engine unfit. corpus_sweep
+keeps yaml + regex phases; battery/cases files unchanged.
+
+## 182
+
+**Date:** 2026-08-30 · **Type:** tooling (Mojo) ·
+**Files:** `Mojo/src/common/integrity_check.mojo` (moved from
+`Mojo/src/bench/`, 2108-line original fully ported),
+`Mojo/bench/mojo_db_integrity.py` (+`python_all_checks()` parity oracle),
+`Mojo/bench/run_bench.py` (leg env merge fix) ·
+**Proposal:** `archive/tooling/mojo_db_integrity_port.md`
+
+Full Mojo port of `helpers/misc/database_integrity_check.py` — all **17
+registered checks** + the inline entity/file-path validation + a
+sectioned `database_integrity_report.txt` writer + the original's exit
+semantics (validation_rate < 95 or any error-severity check nonzero →
+exit 1). Source lives in `Mojo/src/common/` (operator decision: it's a
+TOOL, not a bench probe); `Mojo/bin/integrity_check` is on PATH.
+
+- **Parity**: `MOJO_INTEGRITY_PARITY=1` runs the ORIGINAL checker live
+  (in-process, via the fixture) and diffs all **89 canonical keys** —
+  numbers, sorted string lists, reasons, fuzzy pairs, drift counts.
+  **89/89 exact**, including the live fuzzy pair (Tata AutoComp) and
+  89 validity-window warnings. The bench leg `db-integrity` requires
+  this green.
+- **Interop surface exercised** (the port's stated purpose):
+  first-party module imports through the bridge
+  (`helpers.core.db.connect`, `CANONICAL_EVENT_TYPES`,
+  `EXPECTED_USER_VERSION`/`SCHEMA_VERSION`, `SUPER_SECTORS`/
+  `SUB_CATEGORIES`, `helpers.graph.query.EDGE_REGISTRY` — nothing
+  copied, single source of truth); sqlite `json_valid`/`PRAGMA`/
+  recursive-CTE/`GROUP_CONCAT` passthrough; `pathlib.rglob` via bridge;
+  `builtins` lambdas for what Mojo lacks (`str.lower`, `repr`,
+  `round`); vendored mojo-yaml for note tags; the full fuzzy-name
+  matcher (tokenize → inverted index → pair rules → suppression list)
+  as pure-Mojo compute.
+- **Perf** (warm, same machine): total wall 251–274 ms vs python
+  original 246–258 ms in-process — **overall ~parity**, with the wins
+  where logic is native (entities+paths 11–13 ms, note_tags 17–19 ms,
+  names 12 ms, hierarchy 5–6 ms) and the costs where the bridge
+  marshals per-query SQL (count-checks 48–57 ms, DuckDB reconcile
+  80–95 ms). Cold: mojo binary 1.8 s incl. the python parity oracle vs
+  python CLI 0.42 s.
+- **Mojo 1.0 gotchas hit** (beyond the pilot list): no global `var`s
+  (alias/comptime only); `List`/`Dict` values are not ImplicitlyCopyable
+  (transfer with `^`, or store `Dict[String, String]` with joined
+  values); `String.split` returns `List[StringSpan]` (rebuild
+  `List[String]`); `len(String)` is ambiguous — iterate
+  `s.codepoints()` and index `[codepoint=i]` (byte indexing asserts on
+  non-ASCII names); `sys.argv` does not reach the bridge (parity switch
+  is an env var); `sys.exit` through the bridge surfaces as an unhandled
+  error (`os._exit` for nonzero); `__import__` of dotted names returns
+  the root package (use `importlib.import_module`); python `dict.keys()`
+  and frozensets are not subscriptable (`builtins.list(...)` /
+  `.items()`).
+- **Gate unchanged**: `make qa` still runs the python checker; the port
+  is bench-side + a standalone tool. Promotion is a separate decision.

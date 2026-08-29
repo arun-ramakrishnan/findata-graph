@@ -242,8 +242,9 @@ execution) in `../archive/tooling/`.
 The 08-22→08-29 work is parked in stgit patches, two of which have empty
 subjects: `maint_optimizations` (59959452) and `backup_enhancements`
 (9a119d0b — renamed from zstd_fixes during the stack reorg). A third
-patch `mojo_regex_interop` is parked with its proposal doc
-(`doc/improvements/proposals/mojo_regex_via_python_interop.md`) untracked.
+patch `mojo_regex_interop` was parked with its proposal doc untracked;
+RESOLVED 2026-08-29 — committed as `7d7ae154` (proposal + repro scripts;
+proposal status VERIFIED/RESOLVED).
 Name the subjects before push (`stg edit <patch> -f <msgfile>`); the F6
 snapshot-provenance item above is unaffected.
 
