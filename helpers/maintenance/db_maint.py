@@ -15,18 +15,20 @@ Performs, in this order:
 Note: index *usage* cannot be detected (SQLite keeps no per-index read counters),
 so only structural *redundancy* is reported, never "unused".
 
-Produces ``db-backup/research_backup.db`` (+ the embed-store twin
-sidecar twin when ``<db>_vec.db`` exists) and
-``db-backup/graph_backup.duckdb`` (DuckDB cache) — PRE-MUTATION recovery
-points taken before any VACUUM/ANALYZE/REINDEX runs. These are
-deliberately kept distinct from ``snapshot_db.py``'s
-``db-backup/research.snapshot.db.gz`` and ``db-backup/graph.snapshot.duckdb.gz``
+Produces zstd-compressed PRE-MUTATION recovery points (snapshot_parallel_and_compressed_backups.md
+D2; stdlib compression.zstd, library-default level):
+``db-backup/research_backup.db.zst`` (+ the embed-store twin
+``embed_store_backup.db.zst``, or the legacy ``<db>_vec.db.zst`` when it
+exists) and ``db-backup/graph_backup.duckdb.zst`` (DuckDB cache). These
+are deliberately kept distinct from ``snapshot_db.py``'s
+``db-backup/research.snapshot.db.zst`` and ``db-backup/graph.snapshot.duckdb.zst``
 (which are POST-mutation, gzipped, and git-tracked). Distinct purposes:
-  - ``research_backup.db`` / ``graph_backup.duckdb``
+  - ``research_backup.db.zst`` / ``graph_backup.duckdb.zst``
                                  : recovery if VACUUM corrupts (rare but
                                    possible; overwritten each run, not
-                                   versioned).
-  - ``research.snapshot.db.gz`` / ``graph.snapshot.duckdb.gz``
+                                   versioned). Manual restore:
+                                   ``zstd -dc db-backup/research_backup.db.zst > memory/research.db``
+  - ``research.snapshot.db.zst`` / ``graph.snapshot.duckdb.zst``
                                  : reconstructable state for git history
                                    (taken after maintenance completes).
 
@@ -44,6 +46,7 @@ import logging
 import sqlite3
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -284,15 +287,28 @@ class DBMaintainer:
     # ----- maintenance -----------------------------------------------------
 
     def _backup(self, conn) -> int:
-        if self.backup_path.exists():
-            self.backup_path.unlink()
-        bconn = sqlite3.connect(str(self.backup_path))
+        """WAL-consistent online backup, stored zstd-compressed
+        (``<backup_path>.zst``; the plain copy exists only as a temp
+        staging file)."""
+        from helpers.core.zstd_io import compress_file, zst_path
+
+        dst = zst_path(self.backup_path)
+        with tempfile.NamedTemporaryFile(
+                suffix=".db", dir=self.backup_path.parent,
+                delete=False) as tf:
+            tmp_path = Path(tf.name)
         try:
-            with bconn:
-                conn.backup(bconn)
+            bconn = sqlite3.connect(str(tmp_path))
+            try:
+                with bconn:
+                    conn.backup(bconn)
+            finally:
+                bconn.close()
+            if dst.exists():
+                dst.unlink()
+            return compress_file(tmp_path, dst)
         finally:
-            bconn.close()
-        return self.backup_path.stat().st_size
+            tmp_path.unlink(missing_ok=True)
 
     def _backup_embed_store(self) -> int:
         """Paired recovery copy of the consolidated embed store.
@@ -319,21 +335,33 @@ class DBMaintainer:
                     logging.INFO, f"Embed store absent — backup skipped ({src})")
                 return 0
             dst = self.backup_path.parent / "embed_store_backup.db"
-        if dst.exists():
-            dst.unlink()
-        sconn = sqlite3.connect(str(src))
-        bconn = sqlite3.connect(str(dst))
+        from helpers.core.zstd_io import compress_file, zst_path
+
+        zst_dst = zst_path(dst)
+        with tempfile.NamedTemporaryFile(
+                suffix=".db", dir=self.backup_path.parent,
+                delete=False) as tf:
+            tmp_path = Path(tf.name)
         try:
-            with bconn:
-                sconn.backup(bconn)
+            sconn = sqlite3.connect(str(src))
+            bconn = sqlite3.connect(str(tmp_path))
+            try:
+                with bconn:
+                    sconn.backup(bconn)
+            finally:
+                bconn.close()
+                sconn.close()
+            if zst_dst.exists():
+                zst_dst.unlink()
+            size = compress_file(tmp_path, zst_dst)
+            self._log(logging.INFO, f"Embed store backed up to {zst_dst}")
+            return size
         finally:
-            bconn.close()
-            sconn.close()
-        self._log(logging.INFO, f"Embed store backed up to {dst}")
-        return dst.stat().st_size
+            tmp_path.unlink(missing_ok=True)
 
     def _backup_duckdb(self) -> int:
-        """Pre-mutation recovery copy of the DuckDB cache file.
+        """Pre-mutation recovery copy of the DuckDB cache file,
+        stored zstd-compressed (``<duckdb_backup_path>.zst``).
 
         DuckDB doesn't expose an online-backup API like SQLite's
         ``conn.backup()``, but the canonical safe pattern is:
@@ -373,10 +401,19 @@ class DBMaintainer:
         bp = self.duckdb_backup_path
         if src is None or bp is None:
             return 0
-        if bp.exists():
-            bp.unlink()
-        shutil.copy2(src, bp)
-        return bp.stat().st_size
+        from helpers.core.zstd_io import compress_file, zst_path
+
+        zst_bp = zst_path(bp)
+        with tempfile.NamedTemporaryFile(
+                suffix=".duckdb", dir=bp.parent, delete=False) as tf:
+            tmp_path = Path(tf.name)
+        try:
+            shutil.copy2(src, tmp_path)
+            if zst_bp.exists():
+                zst_bp.unlink()
+            return compress_file(tmp_path, zst_bp)
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
     def run(self) -> dict:  # noqa: C901
         steps = [

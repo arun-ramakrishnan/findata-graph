@@ -243,6 +243,9 @@ def tmp_doc_env(tmp_path, monkeypatch):
     monkeypatch.setattr(A, "_DOC_ROOT", doc_root)
     monkeypatch.setattr(rds, "DOC_ROOT", doc_root)
     monkeypatch.setattr(rds, "DOC_DB", db)
+    # Full rebuilds write _backup_last_good_index — keep fixture builds out
+    # of the REAL db-backup/ (same leak class as test_rebuild_script_search).
+    monkeypatch.setattr(rds, "BACKUP_DIR", tmp_path / "db-backup")
     return SimpleNamespace(root=doc_root, db=db, rds=rds)
 
 

@@ -57,7 +57,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from helpers.core.db import connect  # noqa: E402
+from helpers.core.db import connect, ensure_db_meta  # noqa: E402
 from helpers.maintenance.migrate_to_graph_edges import (  # noqa: E402
     DB_PATH,
     ENTITIES_DDL,
@@ -232,6 +232,20 @@ def rebuild(db_path: Path | str = DB_PATH, *, dry_run: bool = False) -> dict:
         # sets it ON regardless; this just restores this connection's state.
         conn.execute("PRAGMA foreign_keys = ON")
 
+        # The DROP TABLE inside _rebuild_table destroyed the per-row
+        # generation triggers on entities/graph_edges (SQLite drops a
+        # table's triggers with it). Without them, every later write stops
+        # bumping db_meta.generation and _is_warm goes blind — the DuckDB
+        # cache would serve stale graph data with the snapshot gen check
+        # none the wiser. ensure_db_meta is idempotent: re-creates the six
+        # trg_*_gen triggers, preserves the generation value, re-stamps
+        # schema_version (graph_analytics carries no triggers).
+        ensure_db_meta(conn)
+        stats["generation_triggers"] = conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' "
+            "AND name LIKE 'trg_%_gen'"
+        ).fetchone()[0]
+
         stats.update(
             post_entities=n_ent, post_edges=n_edge, post_analytics=n_an,
             relations_view_rows=conn.execute(
@@ -309,7 +323,7 @@ def main() -> int:
         _refresh_duckdb_cache()
 
     print("\nNext steps:")
-    print("  make snapshot   # refresh db-backup/*.gz artifacts")
+    print("  make snapshot   # refresh db-backup/*.zst artifacts")
     print("  make qa         # verify the full gate passes")
     return 0
 

@@ -17,23 +17,24 @@ Two artifact families, two roles:
    it carries the indexed text, and ``--restore`` regenerates the index
    from it via the FTS5 ``('rebuild')`` command.
 
-2. gzip binary — LOCAL-ONLY byte-exact copies under ``db-backup/`` (gitignored).
+2. zstd binary — LOCAL-ONLY byte-exact copies under ``db-backup/`` (gitignored).
    The SQLite DB runs in WAL mode, so a naive ``cp research.db`` would miss
    the ``-wal`` file and yield a stale/corrupt copy. This uses SQLite's
    online backup API, which produces a transactionally consistent,
    self-contained file with all committed WAL data merged in, then
-   gzip-compresses it. The DuckDB file is checkpointed before copying.
+   zstd-compresses it (stdlib compression.zstd, library-default level;
+   zstd_binary_backups.md). The DuckDB file is checkpointed before copying.
    Fastest disaster recovery (``gunzip -c ... > memory/research.db``), but
    binary DBs churn badly in git — hence parquet-for-checkins.
 
-Both ``memory/`` (live DBs) and ``db-backup/`` (gzip scratch) are
+Both ``memory/`` (live DBs) and ``db-backup/`` (compression scratch) are
 gitignored; ``snapshots/parquet/`` is the committed, restorable state.
 
 Usage:
-  python3 helpers/maintenance/snapshot_db.py            # snapshot gzip + Parquet (both formats) + verify
+  python3 helpers/maintenance/snapshot_db.py            # snapshot zstd + Parquet (both formats) + verify
   python3 helpers/maintenance/snapshot_db.py --check     # verify existing snapshots (BOTH formats)
   python3 helpers/maintenance/snapshot_db.py --no-duckdb # SQLite only
-  python3 helpers/maintenance/snapshot_db.py --format binary   # gzip .db.gz only
+  python3 helpers/maintenance/snapshot_db.py --format binary   # zstd .db.zst only
   python3 helpers/maintenance/snapshot_db.py --format parquet  # Parquet only (git checkin path)
 
 Restore (from the git-tracked Parquet snapshot):
@@ -43,7 +44,7 @@ Restore (from the git-tracked Parquet snapshot):
   checks → atomic replace of the live files. Refuses to overwrite an
   existing live DB unless --force.
 
-  (Local gzip alternative: gunzip -c db-backup/research.snapshot.db.gz
+  (Local alternative: zstd -dc db-backup/research.snapshot.db.zst
   > memory/research.db)
 
 See also: ``helpers/maintenance/maint.py`` — the orchestrator that runs
@@ -53,9 +54,7 @@ the SQLite VACUUM and the snapshot refreshed together.
 """
 
 import argparse
-import gzip
 import logging
-import shutil
 import sqlite3
 import sys
 import tempfile
@@ -80,9 +79,9 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 DEFAULT_DB = "memory/research.db"
-DEFAULT_OUT = "db-backup/research.snapshot.db.gz"
+DEFAULT_OUT = "db-backup/research.snapshot.db.zst"
 DEFAULT_DUCKDB = "memory/graph.duckdb"
-DEFAULT_DUCKDB_OUT = "db-backup/graph.snapshot.duckdb.gz"
+DEFAULT_DUCKDB_OUT = "db-backup/graph.snapshot.duckdb.zst"
 # Git-tracked, restoreable Parquet snapshot (see module docstring).
 DEFAULT_PARQUET = "snapshots/parquet"
 
@@ -90,6 +89,21 @@ DEFAULT_PARQUET = "snapshots/parquet"
 def _compute_root() -> Path:
     # helpers/maintenance/snapshot_db.py -> repo root is two parents up
     return Path(__file__).resolve().parents[2]
+
+
+def _connect_ro(db_path: Path) -> sqlite3.Connection:
+    """Read-only connection for live-source reads.
+
+    The backup source, the snapshot verifier's source counts, and the
+    parquet exporter/verifier only ever SELECT from the live DBs — but a
+    plain ``sqlite3.connect`` opens read-write, which dirties the file
+    mtime via WAL bookkeeping (and would silently CREATE the file on a
+    bad path). mode=ro keeps every snapshot step byte-inert on its
+    sources. Callers must not issue writes on the returned connection
+    (they raise ``sqlite3.OperationalError: attempt to write a readonly
+    database``).
+    """
+    return sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
 
 
 def create_snapshot(db_path: Path, out_path: Path, logger: logging.Logger) -> dict:
@@ -101,7 +115,7 @@ def create_snapshot(db_path: Path, out_path: Path, logger: logging.Logger) -> di
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tf:
         tmp_path = Path(tf.name)
     try:
-        src = sqlite3.connect(str(db_path))
+        src = _connect_ro(db_path)
         dest = sqlite3.connect(str(tmp_path))
         try:
             with dest:
@@ -111,8 +125,12 @@ def create_snapshot(db_path: Path, out_path: Path, logger: logging.Logger) -> di
             src.close()
 
         raw = tmp_path.stat().st_size
-        with open(tmp_path, "rb") as fin, gzip.open(out_path, "wb") as fout:
-            shutil.copyfileobj(fin, fout)
+        # Codec: zstd (stdlib, library-default level; zstd_binary_backups.md)
+        # — LOCAL-ONLY recovery copies (gitignored); zstd beats gzip -9 ~3x
+        # on speed AND ~10% on size at this file size.
+        from helpers.core.zstd_io import compress_file
+
+        compress_file(tmp_path, out_path)
     finally:
         tmp_path.unlink(missing_ok=True)
 
@@ -131,8 +149,9 @@ def verify_snapshot(
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tf:
         tmp_path = Path(tf.name)
     try:
-        with gzip.open(snapshot_path, "rb") as fin, open(tmp_path, "wb") as fout:
-            shutil.copyfileobj(fin, fout)
+        from helpers.core.zstd_io import decompress_file
+
+        decompress_file(snapshot_path, tmp_path)
 
         conn = sqlite3.connect(str(tmp_path))
         try:
@@ -155,7 +174,7 @@ def verify_snapshot(
     }
 
     if source_db and source_db.exists():
-        sconn = sqlite3.connect(str(source_db))
+        sconn = _connect_ro(source_db)
         try:
             scur = sconn.cursor()
             scur.execute("SELECT COUNT(*) FROM entities")
@@ -186,7 +205,7 @@ def verify_snapshot(
 def create_duckdb_snapshot(
     duckdb_path: Path, out_path: Path, logger: logging.Logger
 ) -> dict:
-    """CHECKPOINT the DuckDB file (flush WAL), then gzip-copy to ``out_path``.
+    """CHECKPOINT the DuckDB file (flush WAL), then zstd-copy to ``out_path``.
 
     DuckDB allows either one read-write OR many read-only connections to a
     file. We open read-only for the CHECKPOINT (which forces WAL merge
@@ -221,10 +240,12 @@ def create_duckdb_snapshot(
         # pending changes if any).
         logger.warning(f"read-only CHECKPOINT failed ({e}); copying file as-is")
 
-    # gzip the main .duckdb file.
+    # zstd the main .duckdb file (library-default level; tiny file at
+    # ~11 MB / 0.25 s even under gzip).
+    from helpers.core.zstd_io import compress_file
+
     raw = duckdb_path.stat().st_size
-    with open(duckdb_path, "rb") as fin, gzip.open(out_path, "wb") as fout:
-        shutil.copyfileobj(fin, fout)
+    compress_file(duckdb_path, out_path)
 
     gz = out_path.stat().st_size
     logger.info(
@@ -232,14 +253,13 @@ def create_duckdb_snapshot(
     )
     # P2.4: also snapshot WAL sidecar if it exists (un-CHECKPOINTed tail).
     wal_path = duckdb_path.with_suffix(".duckdb.wal")
-    if out_path.name.endswith(".duckdb.gz"):
-        wal_out = out_path.parent / out_path.name.replace(".duckdb.gz", ".duckdb.wal.gz")
+    if out_path.name.endswith(".duckdb.zst"):
+        wal_out = out_path.parent / out_path.name.replace(".duckdb.zst", ".duckdb.wal.zst")
     else:
-        wal_out = out_path.parent / (out_path.name + ".wal.gz")
+        wal_out = out_path.parent / (out_path.name + ".wal.zst")
     if wal_path.exists() and wal_path.stat().st_size > 0:
         try:
-            with open(wal_path, "rb") as fin, gzip.open(wal_out, "wb") as fout:
-                shutil.copyfileobj(fin, fout)
+            compress_file(wal_path, wal_out)
             logger.info(f"DuckDB WAL snapshot: {wal_out} ({wal_out.stat().st_size:,} bytes)")
         except Exception as e:
             logger.warning(f"DuckDB WAL snapshot failed for {wal_path}: {e}")
@@ -346,8 +366,9 @@ def verify_duckdb_snapshot(  # noqa: C901
     with tempfile.NamedTemporaryFile(suffix=".duckdb", delete=False) as tf:
         tmp_path = Path(tf.name)
     try:
-        with gzip.open(snapshot_path, "rb") as fin, open(tmp_path, "wb") as fout:
-            shutil.copyfileobj(fin, fout)
+        from helpers.core.zstd_io import decompress_file
+
+        decompress_file(snapshot_path, tmp_path)
 
         # Read-only is sufficient post-duckpgq-retirement: the structural
         # check is pure SELECTs (no DDL, no extension needed).
@@ -630,8 +651,15 @@ def export_parquet_duckdb(
             # Canonical column order makes the export a pure function of
             # content; the verify path is row-count based, so this is
             # round-trip neutral.
+            # Codec: ZSTD (default level 3, 2026-08-29) — standardized with
+            # the SQLite parquet side (#174 D2) so both parquet trees ship
+            # one codec. The earlier snappy default was speed-safe but left
+            # these git-tracked blobs larger for no real export-cost
+            # reason: zstd -3 sits in the same speed class while compressing
+            # better. Readers (DuckDB scanner, pyarrow, --restore) are
+            # codec-transparent.
             con.execute(
-                f"COPY (SELECT * FROM {t} ORDER BY ALL) TO '{out_path}' (FORMAT PARQUET)"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                f"COPY (SELECT * FROM {t} ORDER BY ALL) TO '{out_path}' (FORMAT PARQUET, COMPRESSION ZSTD)"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
             )
             sz = out_path.stat().st_size
             total_bytes += sz
@@ -665,7 +693,7 @@ def export_parquet_sqlite(
     import pyarrow.parquet as pq
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(str(sqlite_path))
+    con = _connect_ro(sqlite_path)
     try:
         tables = _list_sqlite_tables(con)
     except Exception:
@@ -687,10 +715,18 @@ def export_parquet_sqlite(
             continue
         out_path = out_dir / f"{t}.parquet"
         table = pa.Table.from_pandas(df, preserve_index=False)
-        # gzip codec: the SQLite tables are TEXT/BLOB-heavy (note text,
-        # embeddings) and snappy leaves them ~3x larger than needed for a
-        # git-tracked artifact.
-        pq.write_table(table, out_path, compression="gzip")
+        # zstd codec (maint_full_single_snapshot.md D2): the SQLite tables
+        # are TEXT/BLOB-heavy (note text, embeddings) and snappy leaves them
+        # ~3x larger than needed for a git-tracked artifact; zstd matches
+        # gzip's ratio at ~30x the write speed (3.2s → 0.11s on
+        # note_search_content) with faster read-back. Codec lives inside
+        # the parquet container, so restore/verify are transparent.
+        # LEVEL POLICY: no explicit level — pyarrow's zstd default is 1
+        # (the one stack whose default is NOT 3), and that's the right
+        # call here: measured on this corpus, forcing level 3 gains
+        # 0.06 MB on note text (0.11→0.21 s) but makes the float32 BLOB
+        # table 14% BIGGER (3.54→4.03 MB). Library defaults win.
+        pq.write_table(table, out_path, compression="zstd")
         sz = out_path.stat().st_size
         total_bytes += sz
         results[t] = {"bytes": sz, "rows": len(df)}
@@ -704,23 +740,13 @@ def export_parquet_sqlite(
     return {"tables": results, "total_bytes": total_bytes, "dir": str(out_dir)}
 
 
-def verify_parquet_snapshot(  # noqa: C901
-    parquet_dir: Path,
-    duckdb_path: Path | None,
-    sqlite_path: Path | None,
-    logger: logging.Logger,
+def _verify_parquet_duckdb_side(
+    parquet_dir: Path, duckdb_path: Path | None, logger: logging.Logger
 ) -> dict:
-    """Verify Parquet files round-trip: read each back and compare row counts
-    against the source databases.
-
-    DuckDB Parquet files are read back via DuckDB's native Parquet scanner.
-    SQLite Parquet files are read back via pyarrow.
-    """
-    import pyarrow.parquet as pq
-
-    result: dict = {"tables_checked": 0, "mismatches": [], "match": True}
-
-    # --- DuckDB Parquet verify ---
+    """DuckDB half of the parquet verify — its own function so the
+    per-DB snapshot workers can run export+verify for each database in
+    parallel (snapshot_parallel_and_compressed_backups.md D3)."""
+    result: dict = {"tables_checked": 0, "mismatches": []}
     if duckdb_path and duckdb_path.exists():
         duckdb_pq_dir = parquet_dir / "duckdb"
         if duckdb_pq_dir.exists():
@@ -748,12 +774,20 @@ def verify_parquet_snapshot(  # noqa: C901
                         )
             finally:
                 con.close()
+    return result
 
-    # --- SQLite Parquet verify ---
+
+def _verify_parquet_sqlite_side(
+    parquet_dir: Path, sqlite_path: Path | None, logger: logging.Logger
+) -> dict:
+    """SQLite half of the parquet verify (per-DB parallel workers)."""
+    import pyarrow.parquet as pq
+
+    result: dict = {"tables_checked": 0, "mismatches": []}
     if sqlite_path and sqlite_path.exists():
         sqlite_pq_dir = parquet_dir / "sqlite"
         if sqlite_pq_dir.exists():
-            scon = sqlite3.connect(str(sqlite_path))
+            scon = _connect_ro(sqlite_path)
             try:
                 pq_files = sorted(sqlite_pq_dir.glob("*.parquet"))
                 for pf in pq_files:
@@ -772,6 +806,30 @@ def verify_parquet_snapshot(  # noqa: C901
                         )
             finally:
                 scon.close()
+    return result
+
+
+def verify_parquet_snapshot(
+    parquet_dir: Path,
+    duckdb_path: Path | None,
+    sqlite_path: Path | None,
+    logger: logging.Logger,
+) -> dict:
+    """Verify Parquet files round-trip: read each back and compare row counts
+    against the source databases.
+
+    DuckDB Parquet files are read back via DuckDB's native Parquet scanner.
+    SQLite Parquet files are read back via pyarrow. Thin merge over the two
+    per-DB side verifiers (which the parallel snapshot workers call
+    directly); sequential callers keep the old one-call surface.
+    """
+    result: dict = {"tables_checked": 0, "mismatches": [], "match": True}
+    for partial in (
+        _verify_parquet_duckdb_side(parquet_dir, duckdb_path, logger),
+        _verify_parquet_sqlite_side(parquet_dir, sqlite_path, logger),
+    ):
+        result["tables_checked"] += partial["tables_checked"]
+        result["mismatches"].extend(partial["mismatches"])
 
     if result["mismatches"]:
         result["match"] = False
@@ -954,8 +1012,8 @@ def _cmd_check(
     with_duckdb: bool,
     logger: logging.Logger,
 ) -> int:
-    """--check: verify gzip binary + Parquet snapshots round-trip."""
-    # --check ALWAYS verifies both formats (gzip binary + Parquet),
+    """--check: verify zstd binary + Parquet snapshots round-trip."""
+    # --check ALWAYS verifies both formats (zstd binary + Parquet),
     # regardless of --format (which only gates the create path).
     # Each verify gracefully skips whatever isn't present.
     ok = True
@@ -991,65 +1049,149 @@ def _cmd_create(
     The duckdb/parquet paths are format-optional: they are only touched
     inside the ``with_duckdb`` / ``fmt in ("parquet", "both")`` branches,
     so binary-only callers (and tests) legitimately pass ``None``.
+
+    Parallelism (snapshot_parallel_and_compressed_backups.md D3): one
+    thread per database — the three binary backups and the two parquet
+    exports touch disjoint files, and the heavy work (zstd, sqlite
+    backup API, DuckDB CHECKPOINT/COPY, pyarrow write) releases the GIL.
+    Worker exceptions propagate (fail loud, no silent partial snapshot).
     """
     ok = True
-
-    # --- Binary (gzip) snapshot ---
     if fmt in ("binary", "both"):
-        create_snapshot(db_path, out_path, logger)
-        r = verify_snapshot(out_path, db_path, logger)
-        ok = ok and r["match"]
-        # Embed store: the vec0 mirror + pooled content-hash cache live in ONE
-        # consolidated SQLite database (helpers/core/vec_search.EMBED_DB_PATH)
-        # since the embed_store consolidation; pre-consolidation clones (and
-        # tests seeding tmp dbs) may still carry a per-db <db>_vec.db sibling.
-        # All derived state — but the cache is content-addressed and expensive
-        # to re-fill cold (~minutes of re-embedding). Copy-only (no
-        # verify_snapshot: that helper is hardcoded to entities/relations);
-        # the sqlite online-backup API already gives WAL consistency.
+        ok = _create_binary_snapshot(
+            db_path, out_path, duckdb_path, duckdb_out, with_duckdb, logger,
+        ) and ok
+    if fmt in ("parquet", "both"):
+        ok = _create_parquet_snapshot(
+            db_path, parquet_base, parquet_sqlite_dir,
+            duckdb_path, parquet_duckdb_dir, with_duckdb, logger,
+        ) and ok
+    return 0 if ok else 1
+
+
+def _create_binary_snapshot(
+    db_path: Path,
+    out_path: Path,
+    duckdb_path: Path | None,
+    duckdb_out: Path | None,
+    with_duckdb: bool,
+    logger: logging.Logger,
+) -> bool:
+    """Binary-format branch of ``_cmd_create``: research + embed store +
+    (optional) DuckDB, one thread per database. Returns the verify match."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    # --- Binary (zstd) snapshot: one worker per database ---
+    ok = True
+
+    def _embed_store_worker() -> None:
+        # Embed store: the vec0 mirror + pooled content-hash cache live
+        # in ONE consolidated SQLite database
+        # (helpers/core.vec_search.EMBED_DB_PATH) since the embed_store
+        # consolidation; pre-consolidation clones (and tests seeding tmp
+        # dbs) may still carry a per-db <db>_vec.db sibling. All derived
+        # state — but the cache is content-addressed and expensive to
+        # re-fill cold (~minutes of re-embedding). Copy-only (no
+        # verify_snapshot: that helper is hardcoded to
+        # entities/relations); the sqlite online-backup API already
+        # gives WAL consistency.
         vec_src = db_path.with_name(db_path.name + "_vec.db")
         if vec_src.exists():
             vec_out = out_path.parent / out_path.name.replace(
-                ".db.gz", ".db_vec.db.gz")
+                ".db.zst", ".db_vec.db.zst")
             create_snapshot(vec_src, vec_out, logger)
-        else:
-            from helpers.core.vec_search import EMBED_DB_PATH
+            return
+        from helpers.core.vec_search import EMBED_DB_PATH
 
-            store = Path(EMBED_DB_PATH)
-            if store.exists():
-                store_out = out_path.parent / f"{store.stem}.snapshot.db.gz"
-                create_snapshot(store, store_out, logger)
-            else:
+        store = Path(EMBED_DB_PATH)
+        if store.exists():
+            store_out = out_path.parent / f"{store.stem}.snapshot.db.zst"
+            # Skip re-compress when the store is unchanged since the
+            # last backup (maint_full_single_snapshot.md D3): mtime is
+            # the fingerprint — db_maint never writes the store and
+            # steady-state embed writes are guarded upserts (no byte
+            # change ⇒ no write), so ~36 MB of compression per snapshot
+            # run is pure waste in the steady state. A missing/older
+            # archive always re-compresses. (mtime-only: the zstd
+            # stdlib does not record frame content size, so the old
+            # gzip-ISIZE size cross-check has no equivalent —
+            # zstd_binary_backups.md D2.)
+            zst = store_out
+            if (zst.exists()
+                    and store.stat().st_mtime <= zst.stat().st_mtime):
                 logger.info(
-                    "Embed store absent — gzip backup skipped (%s)", store)
-        if with_duckdb:
-            # Narrow the format-optional paths (S101-clean explicit raise;
-            # a None here is a caller contract violation, not a state to
-            # assert away).
-            if duckdb_path is None or duckdb_out is None:
-                raise ValueError("with_duckdb=True requires duckdb paths")
-            create_duckdb_snapshot(duckdb_path, duckdb_out, logger)
-            rd = verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)
-            ok = ok and rd["match"]
+                    "Embed store unchanged since last backup — "
+                    "reusing %s", zst)
+            else:
+                create_snapshot(store, store_out, logger)
+        else:
+            logger.info(
+                "Embed store absent — backup skipped (%s)", store)
 
-    # --- Parquet snapshot ---
-    if fmt in ("parquet", "both"):
-        if parquet_base is None or parquet_sqlite_dir is None:
-            raise ValueError("parquet format requires parquet paths")
+    def _duckdb_binary_worker() -> bool:
+        # Narrow the format-optional paths (S101-clean explicit raise;
+        # a None here is a caller contract violation, not a state to
+        # assert away).
+        if duckdb_path is None or duckdb_out is None:
+            raise ValueError("with_duckdb=True requires duckdb paths")
+        create_duckdb_snapshot(duckdb_path, duckdb_out, logger)
+        return verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)["match"]
+
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        research = pool.submit(
+            lambda: (
+                create_snapshot(db_path, out_path, logger),
+                verify_snapshot(out_path, db_path, logger)["match"],
+            )[1])
+        embed = pool.submit(_embed_store_worker)
+        futures = [research, embed]
+        if with_duckdb:
+            futures.append(pool.submit(_duckdb_binary_worker))
+        # .result() re-raises worker exceptions; embed is copy-only
+        # (returns None) — its failure surfaces as the exception.
+        ok = ok and bool(research.result())
+        for f in futures[1:]:
+            f.result()
+
+    return ok
+
+
+def _create_parquet_snapshot(
+    db_path: Path,
+    parquet_base: Path | None,
+    parquet_sqlite_dir: Path | None,
+    duckdb_path: Path | None,
+    parquet_duckdb_dir: Path | None,
+    with_duckdb: bool,
+    logger: logging.Logger,
+) -> bool:
+    """Parquet-format branch of ``_cmd_create``: sqlite + (optional)
+    DuckDB export, each with its own verify, one thread per database."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    if parquet_base is None or parquet_sqlite_dir is None:
+        raise ValueError("parquet format requires parquet paths")
+
+    def _sqlite_parquet_worker() -> bool:
         export_parquet_sqlite(db_path, parquet_sqlite_dir, logger)
+        return _verify_parquet_sqlite_side(
+            parquet_base, db_path, logger)["mismatches"] == []
+
+    def _duckdb_parquet_worker() -> bool:
         if with_duckdb:
             if duckdb_path is None or parquet_duckdb_dir is None:
                 raise ValueError("with_duckdb=True requires duckdb paths")
             export_parquet_duckdb(duckdb_path, parquet_duckdb_dir, logger)
-        rp = verify_parquet_snapshot(
-            parquet_base,
-            duckdb_path if with_duckdb else None,
-            db_path,
-            logger,
-        )
-        ok = ok and rp["match"]
+            return _verify_parquet_duckdb_side(
+                parquet_base, duckdb_path, logger)["mismatches"] == []
+        return True
 
-    return 0 if ok else 1
+    ok = True
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        sq = pool.submit(_sqlite_parquet_worker)
+        dq = pool.submit(_duckdb_parquet_worker)
+        ok = sq.result() and dq.result()
+    return ok
 
 
 def main() -> int:
@@ -1057,14 +1199,14 @@ def main() -> int:
         description=(
             "Versioned snapshot of the research DB + DuckDB graph cache: "
             "git-tracked Parquet under snapshots/ (restorable via --restore) "
-            "+ local gzip copies under db-backup/."
+            "+ local zstd copies under db-backup/."
         )
     )
     parser.add_argument(
         "--db", default=DEFAULT_DB, help="Source SQLite DB (relative to repo root)."
     )
     parser.add_argument(
-        "--out", default=DEFAULT_OUT, help="Output .db.gz (relative to repo root)."
+        "--out", default=DEFAULT_OUT, help="Output .db.zst (relative to repo root)."
     )
     parser.add_argument(
         "--duckdb", default=DEFAULT_DUCKDB,
@@ -1072,7 +1214,7 @@ def main() -> int:
     )
     parser.add_argument(
         "--duckdb-out", default=DEFAULT_DUCKDB_OUT,
-        help="Output DuckDB .duckdb.gz (relative to repo root).",
+        help="Output DuckDB .duckdb.zst (relative to repo root).",
     )
     parser.add_argument(
         "--no-duckdb", dest="with_duckdb", action="store_false",
@@ -1081,7 +1223,7 @@ def main() -> int:
     parser.set_defaults(with_duckdb=True)
     parser.add_argument(
         "--format", choices=["binary", "parquet", "both"], default="both",
-        help="Snapshot format for CREATE: binary (gzip .db.gz), parquet "
+        help="Snapshot format for CREATE: binary (zstd .db.zst), parquet "
              "(per-table .parquet), or both. Default: both. "
              "--check always verifies both formats regardless of this flag.",
     )
@@ -1089,7 +1231,7 @@ def main() -> int:
         "--check",
         action="store_true",
         help="Verify an existing snapshot round-trips against the source. "
-             "Always checks BOTH formats (gzip binary + Parquet when present); "
+             "Always checks BOTH formats (zstd binary + Parquet when present); "
              "--format only gates the create path.",
     )
     parser.add_argument(

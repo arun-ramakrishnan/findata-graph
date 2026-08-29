@@ -76,12 +76,13 @@ Three invariants hold the design together:
 | `helpers/core/` | `parse_newsletter`, `get_tickers` (NSE/BSE via Yahoo), `frontmatter`, `sync_tags`, `db` |
 | `helpers/graph/` | `query` (cache + pattern queries), `onager`, `algorithms`, `derive_*`, `extract_relations`, `embeddings`, `stats` |
 | `helpers/validators/` | `verify_notes` (notes ↔ DB), `static_checks` (syntax/tags/permalinks) |
-| `helpers/maintenance/` | `db_maint`, `snapshot_db` (gzip + Parquet), `rebuild_schema`, `rename_entity`, `move_sector`, `rebuild_{doc,note,script}_search` |
+| `helpers/maintenance/` | `db_maint`, `snapshot_db` (zstd Parquet + zstd snapshots), `rebuild_schema`, `rename_entity`, `move_sector`, `rebuild_{doc,note,script}_search` |
 | `helpers/misc/` | `database_integrity_check`, `doc_query` (doc/ knowledge index), `script_query` (code-surface index) |
 | `doc/` | architecture, schema, vault spec, graph design, procedures, improvement log |
 | `tests/` | 127 pytest modules (2,590 tests) + conftest, fixtures, perf-benchmark + gate runners |
 | `frontend/` | TypeScript sources; built bundle is committed to `static/` so serving stays Node-free |
-| `memory/`, `db-backup/` | runtime DB + local gzip scratch — **gitignored**, see Quickstart |
+| `Mojo/` | SIMD kernel pilot (`src/bench` kernels + TestSuite tests; `make mojo-build`/`mojo-bench`/`mojo-test` — machinery in `Makefile.mojo`, pyproject `mojo` extra). Deliberately NOT wired into `make perf` |
+| `memory/`, `db-backup/` | runtime DB + local zstd backup/snapshot scratch — **gitignored**, see Quickstart |
 | `snapshots/` | **git-tracked** Parquet snapshot of both DBs + schema DDL (`make snapshot-restore` rebuilds `memory/` from it) |
 
 ## Quickstart
@@ -95,8 +96,8 @@ uv sync --all-extras          # runtime + dev dependencies
 # The database is not in git as a live file; the git-tracked Parquet
 # snapshot under snapshots/ is the restorable state:
 make snapshot-restore          # rebuilds memory/*.db from snapshots/parquet/
-# (byte-exact local alternative, if db-backup/ has fresh gzip copies:
-#  mkdir -p memory && gzip -dc db-backup/*.gz > memory/…)
+# (byte-exact local alternative, if db-backup/ has fresh zstd copies:
+#  for f in db-backup/*_backup.*.zst; do zstd -dc "$f" > "memory/$(basename "${f%.zst}")"; done)
 # …or start from an empty canonical schema:
 # uv run python3 helpers/maintenance/rebuild_schema.py
 
@@ -172,7 +173,7 @@ refresh) and three advisory-gate rows. Operators:
 | `make derive-relations` · `derive-themes-rebuild` · `derive-events` · `derive-insights` · `metrics-rebuild` | edge/event/quote/metric producers (`metrics-rebuild` = yfinance refresh) |
 | `make graph-rebuild` · `recompute-graph` · `graph-algos` | cache rebuild · persist all metrics · dry-run smoke |
 | `make analytics` · `suggest-relations` · `near-duplicates` · `triage-relations` | read-only Parquet reports · link-prediction suggestions · rename tripwire · pending-edge triage |
-| `make snapshot` · `snapshot-check` · `maint` · `maint-full` | versioned gzip + Parquet snapshots, VACUUM/backup, post-ingest cleanup |
+| `make snapshot` · `snapshot-check` · `maint` · `maint-full` | versioned zstd snapshots + git-tracked Parquet, VACUUM/backup, post-ingest cleanup (PRE_FULL + TIER1 + TIER2 — `procedures/maintenance.md`) |
 
 ## Vault & note format
 

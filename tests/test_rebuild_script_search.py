@@ -74,6 +74,15 @@ def _fake_embed(text: str) -> list[float]:
     return [x / n for x in v]
 
 
+@pytest.fixture(autouse=True)
+def _isolated_backup(tmp_path, monkeypatch):
+    """Full-rebuild tests here used to write their 6-row fixture build into
+    the REAL db-backup/ (script_search_backup.db) — the un-redirected module
+    BACKUP_DIR leaked the fixture index over the last-good backup for the
+    module's entire history. Isolate every test in this module."""
+    monkeypatch.setattr(rss, "BACKUP_DIR", tmp_path / "db-backup")
+
+
 @pytest.fixture
 def tree(tmp_path):
     """Mini repo: two helpers + app.py + one test + Makefile, under tmp."""
@@ -198,7 +207,7 @@ class TestBuild:
         backup = tree / "db-backup"
         monkeypatch.setattr(rss, "BACKUP_DIR", backup)
         _rebuild(tree)
-        assert (backup / "script_search_backup.db").exists()
+        assert (backup / "script_search_backup.db.zst").exists()
 
 
 class TestMakefileParser:

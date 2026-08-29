@@ -9,6 +9,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from helpers.core.zstd_io import decompress_file  # noqa: E402
 from helpers.maintenance.db_maint import (  # noqa: E402
     _fmt_bytes,
     _pragma_ident,
@@ -287,9 +288,11 @@ class TestBackupVec:
         maint = DBMaintainer(db_path, backup_path=backup)
         size = maint._backup_embed_store()
         assert size > 0
-        twin = tmp_path / "backup_vec.db"
-        assert twin.exists()
-        got = sqlite3.connect(str(twin))
+        twin_zst = tmp_path / "backup_vec.db.zst"
+        assert twin_zst.exists()
+        plain = tmp_path / "backup_vec_roundtrip.db"
+        decompress_file(twin_zst, plain)
+        got = sqlite3.connect(str(plain))
         assert got.execute("SELECT COUNT(*) FROM cache").fetchone()[0] == 1
         got.close()
 
@@ -298,7 +301,7 @@ class TestBackupVec:
         self._mkdb(db_path)
         maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
         assert maint._backup_embed_store() == 0
-        assert not (tmp_path / "backup_vec.db").exists()
+        assert not (tmp_path / "backup_vec.db.zst").exists()
 
     def test_store_branch_when_no_legacy_sibling(self, tmp_path):
         """Post-migration (no <db>_vec.db anywhere) the shared
@@ -327,9 +330,11 @@ class TestBackupVec:
         finally:
             VS.EMBED_DB_PATH = saved
 
-        dst = tmp_path / "embed_store_backup.db"
-        assert dst.exists()
-        got = sqlite3.connect(str(dst))
+        dst_zst = tmp_path / "embed_store_backup.db.zst"
+        assert dst_zst.exists()
+        plain = tmp_path / "embed_store_roundtrip.db"
+        decompress_file(dst_zst, plain)
+        got = sqlite3.connect(str(plain))
         n = got.execute("SELECT COUNT(*) FROM embed_cache").fetchone()[0]
         got.close()
         assert n == 1

@@ -3,7 +3,7 @@
 (doc/improvements/archive/testing/integration_fuzz_enhancement.md §4 A3).
 
 The unit suites (test_snapshot.py / test_snapshot_db.py) pin the pieces:
-gzip round-trips, parquet restore, the stray-table manifest guard. What
+zstd round-trips, parquet restore, the stray-table manifest guard. What
 no test exercised is the CYCLE over a real graph cache: a tmp SQLite DB
 that ``helpers.graph.query.connect`` has actually materialised into a
 .duckdb file, snapshotted through the production functions, restored to
@@ -16,9 +16,9 @@ materialisation runs the real DDL against the real schema.
 """
 from __future__ import annotations
 
-import gzip
 import logging
-import shutil
+
+from helpers.core.zstd_io import compress_file, decompress_file
 import sqlite3
 import sys
 from pathlib import Path
@@ -64,7 +64,7 @@ def _seeded_db(tmp_path: Path, name: str = "src.db") -> Path:
     """Schema-only production backup, wiped + reseeded (test_graph.py's
     _minimal_db pattern: real schema + db_meta, scenario rows only).
     VACUUM compacts the freed production pages away — the file is then
-    ~100KB instead of tens of MB, which the gzip snapshot paths care
+    ~100KB instead of tens of MB, which the snapshot paths care
     about (they copy the whole file)."""
     db = tmp_path / name
     src = sqlite3.connect(str(DB_PATH))
@@ -104,7 +104,7 @@ def cycle(tmp_path_factory):
 class TestDuckdbSnapshotCycle:
     def test_create_then_verify_matches(self, cycle):
         db, ddb = cycle
-        out = db.parent / "snap.duckdb.gz"
+        out = db.parent / "snap.duckdb.zst"
         info = create_duckdb_snapshot(ddb, out, _log)
         assert info.get("skipped") is None  # actually snapshotted
         assert out.exists()
@@ -119,17 +119,15 @@ class TestDuckdbSnapshotCycle:
         mismatch, not a silent pass (row counts alone would flag it only
         as 'absent' — the set comparison is the guard)."""
         db, ddb = cycle
-        out = db.parent / "snap.duckdb.gz"
+        out = db.parent / "snap.duckdb.zst"
         create_duckdb_snapshot(ddb, out, _log)
         # Tamper: decompress, drop an edge table, recompress.
         raw = db.parent / "tampered.duckdb"
-        with gzip.open(out, "rb") as fin, open(raw, "wb") as fout:
-            shutil.copyfileobj(fin, fout)
+        decompress_file(out, raw)
         con = duckdb.connect(str(raw))
         con.execute("DROP TABLE e_competes")
         con.close()
-        with open(raw, "rb") as fin, gzip.open(out, "wb") as fout:
-            shutil.copyfileobj(fin, fout)
+        compress_file(raw, out)
         result = verify_duckdb_snapshot(out, ddb, _log)
         assert result["match"] is False
         assert "e_competes" not in result["tables"]
@@ -141,7 +139,7 @@ class TestDuckdbSnapshotCycle:
         (P2.4): a stale snapshot must fail even when the data happens to
         agree."""
         db, ddb = cycle
-        out = db.parent / "snap.duckdb.gz"
+        out = db.parent / "snap.duckdb.zst"
         create_duckdb_snapshot(ddb, out, _log)
         # The RW connection must be CLOSED before verify: an open writer
         # blocks verify's read-only source connect, whose except-fallback
@@ -170,10 +168,10 @@ class TestDuckdbSnapshotCycle:
         verify treats the missing snapshot as optional (match=True,
         skipped=True) so a SQLite-only --check stays green."""
         missing = tmp_path / "never.duckdb"
-        info = create_duckdb_snapshot(missing, tmp_path / "out.gz", _log)
+        info = create_duckdb_snapshot(missing, tmp_path / "out.zst", _log)
         assert info == {"skipped": True}
-        assert not (tmp_path / "out.gz").exists()
-        r = verify_duckdb_snapshot(tmp_path / "out.gz", missing, _log)
+        assert not (tmp_path / "out.zst").exists()
+        r = verify_duckdb_snapshot(tmp_path / "out.zst", missing, _log)
         assert r["match"] is True and r["skipped"] is True
 
 
@@ -213,8 +211,8 @@ class TestCliCycle:
         creates both formats and self-verifies; a following --check run
         over the same paths returns 0."""
         db, ddb = cycle
-        out = db.parent / "cli.db.gz"
-        dout = db.parent / "cli.duckdb.gz"
+        out = db.parent / "cli.db.zst"
+        dout = db.parent / "cli.duckdb.zst"
         pq = db.parent / "pq"
 
         def _main(*flags):

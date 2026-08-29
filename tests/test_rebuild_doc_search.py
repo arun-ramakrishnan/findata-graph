@@ -13,7 +13,6 @@ under the autouse _no_local_embedder pin the pseudo path is exercised.
 
 import json
 import os
-import shutil
 import sqlite3
 import sys
 import time
@@ -27,6 +26,7 @@ for p in (REPO_ROOT, REPO_ROOT / "helpers"):
     if str(p) not in sys.path:
         sys.path.insert(0, str(p))
 
+from helpers.core.zstd_io import decompress_file  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
@@ -308,13 +308,15 @@ class TestRebuild:
 
 class TestLastGoodIndexBackup:
     def _backup(self):
-        return Path(rds.BACKUP_DIR) / "doc_search_backup.db"
+        return Path(rds.BACKUP_DIR) / "doc_search_backup.db.zst"
 
     def test_full_rebuild_writes_backup(self, seeded_docs, fake_local):
         rds.rebuild(write=True)
         backup = self._backup()
         assert backup.exists()
-        con = _conn(backup)
+        plain = Path(rds.BACKUP_DIR) / "doc_search_backup_roundtrip.db"
+        decompress_file(backup, plain)
+        con = _conn(plain)
         try:
             assert con.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0] == 6
         finally:
@@ -333,7 +335,7 @@ class TestLastGoodIndexBackup:
         rds.rebuild(write=True)
         backup = self._backup()
         seeded_docs.unlink()  # catastrophe: the index db is lost
-        shutil.copyfile(backup, seeded_docs)
+        decompress_file(backup, seeded_docs)
         con = rds.connect_doc_db(seeded_docs)
         try:
             assert rds.doc_index_ready(con)

@@ -78,5 +78,6 @@
   `cached_embed_batch` miss path + three caller switches; vectors
   byte-identical, warm paths untouched. The proposal also carries the
   deferred-scale record (Mojo escape hatch / GPU / derive-sweep kernel /
-  incremental snapshot / metric fan-out / yfinance pool / q4_k_m — each
-  with its revisit trigger) so those don't get re-litigated.
+  metric fan-out / yfinance pool / q4_k_m — each with its revisit trigger)
+  so those don't get re-litigated. The "incremental snapshot" item is now
+  CLOSED by #174 (maint-full single snapshot + zstd parquet, 66 s → 32.3 s).

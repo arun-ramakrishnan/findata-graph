@@ -41,6 +41,9 @@ def seeded(tmp_path, monkeypatch):
     db = tmp_path / "doc_search.db"
     monkeypatch.setattr(rds, "DOC_ROOT", doc_root)
     monkeypatch.setattr(rds, "DOC_DB", db)
+    # Full rebuilds write _backup_last_good_index — keep fixture builds out
+    # of the REAL db-backup/ (same leak class as test_rebuild_script_search).
+    monkeypatch.setattr(rds, "BACKUP_DIR", tmp_path / "db-backup")
     return db
 
 

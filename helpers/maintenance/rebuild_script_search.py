@@ -61,6 +61,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core.db import connect  # noqa: E402
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
@@ -442,7 +443,27 @@ def _backup_last_good_index(db_path: Path) -> None:
     successful FULL rewrite (same semantics as rebuild_doc_search; the
     single-file copier is imported, not forked). Best-effort. Index only:
     the embed cache rides in the shared embed store, backed up centrally
-    (see rebuild_doc_search._backup_last_good_index)."""
+    (see rebuild_doc_search._backup_last_good_index).
+
+    Completeness guard: never back up an EMPTY index (a freshly-migrated
+    or truncated build must not displace the last-good archive). The real
+    historical leak was test-fixture rebuilds writing this backup via the
+    un-redirected module BACKUP_DIR — fixed at the source with an autouse
+    BACKUP_DIR isolation fixture in test_rebuild_script_search."""
+    try:
+        conn = connect(db_path, read_only=True)
+        try:
+            rows = conn.execute(
+                "SELECT COUNT(*) FROM script_search").fetchone()[0]
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        rows = 0
+    if not rows:
+        print(f"WARNING: {db_path.name} empty ({rows} rows) — last-good "
+              "backup skipped (recovery point kept; rebuild continues)",
+              file=sys.stderr)
+        return
     dests = [
         (db_path, Path(BACKUP_DIR) / "script_search_backup.db"),
     ]

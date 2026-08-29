@@ -158,9 +158,9 @@ From the 2026-08-29 repo-wide "where does the time go" review
 | Mojo KNN escape-hatch shared lib | sqlite-vec 11.8 ms @ 1.2k docs | sqlite-vec ABI/packaging pain, or corpus ~100× |
 | Mojo GPU KNN kernels | crossover 17–67 MB resident | ≥50 MB resident vectors (~34k docs) |
 | Mojo fused derive-sweep kernel | derive_* ≈ 5–6 s per maint-full | derive_* at minutes scale; needs community regex port |
-| Incremental 2nd snapshot in maint-full | saves ~19 s of 66 s | maint-full budget pressure |
-| recompute-graph metric fan-out | saves ~4–5 s | same |
-| Parallel per-table Parquet export | ~1.5–2× of snapshot leg | same |
+| ~~Incremental 2nd snapshot in maint-full~~ | CLOSED 2026-08-29 by #174 — maint-full takes ONE tail snapshot (66 s → 32.3 s); see `doc/improvements/archive/database/maint_full_single_snapshot.md` | — |
+| recompute-graph metric fan-out | saves ~4–5 s | maint-full budget pressure |
+| ~~Parallel per-table Parquet export~~ | CLOSED 2026-08-29 at per-DB granularity by #175 (one thread per DB, binary + parquet branches); per-table parallelism still deferred | same trigger — per-table only if profiled worth it |
 | yfinance worker pool (cold metrics-rebuild) | one-off 10–12 min, rate-limit risk | routine full refreshes or ticker growth |
 | q4_k_m quant swap (~2×/doc, small quality cost) | reserve lever | post-pool, if cold paths still hurt |
 | Paddle fallback engine optimization | fallback-only path | scanned-PDF volume |

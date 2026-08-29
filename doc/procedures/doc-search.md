@@ -62,6 +62,24 @@ incremental ≈ 0.02 s at 51 files / 382 sections):
   label, so the next full rebuild re-embeds everything and re-stamps
   `doc_search_info`.
 
+## The three rebuilders' `--check` contract
+
+All three search rebuilders share one drift-gate contract (the
+`search-fresh` gate runs them sequentially):
+
+| Rebuilder | Index | Corpus | `--check` exit 1 on |
+|---|---|---|---|
+| `rebuild_doc_search.py` | `doc_search` (sidecar DB) | `doc/**` | content-hash / mtime / count drift |
+| `rebuild_script_search.py` | `script_search` (sidecar DB) | `helpers/**`, `tests/**`, `app.py`, Makefile | same |
+| `rebuild_note_search.py` | `note_search` (in research.db) | `findata/**` markdowns | FRESH/STALE drift report + exit 1 (#164, 2026-08-26) |
+
+`--check` writes nothing anywhere (it only warms the embed cache) and
+exits 1 on drift with the exact refresh command in the output — the
+house gate doctrine, CI-able as-is. note_search has no sidecar: it lives
+inside research.db, is covered by the db_maint recovery backup, and its
+freshness gate is the third `search-fresh` check / advisory row
+(`note-search-check`).
+
 ## Query
 
 ```bash
@@ -89,11 +107,11 @@ endpoint degrades to the pre-#107 filesystem scan and reports
 - Embed-cache recovery is CENTRAL since the 2026-08 embed-store
   consolidation: the cache lives in the shared `memory/embed_store.db`
   (not a per-index sidecar), covered by the maint step-1 twin
-  (`db-backup/embed_store_backup.db`) and the snapshot gzip stream
-  (`db-backup/embed_store.snapshot.db.gz`). Restoring `doc_search.db`
+  (`db-backup/embed_store_backup.db.zst`) and the snapshot zstd stream
+  (`db-backup/embed_store.snapshot.db.zst`). Restoring `doc_search.db`
   alone loses nothing expensive — its rows re-warm from the pooled cache.
-- Restore: copy `doc_search_backup.db` back into `memory/` as
-  `doc_search.db`. Or simply rebuild — doc/ is the source of truth; the
+- Restore: `zstd -dc db-backup/doc_search_backup.db.zst > memory/doc_search.db`.
+  Or simply rebuild — doc/ is the source of truth; the
   only expensive loss anywhere is a cold pool (≈ minutes of re-embedding),
   which the central twins make instant.
 - The git-tracked `snapshots/parquet/` export deliberately does NOT

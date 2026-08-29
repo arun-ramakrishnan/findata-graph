@@ -127,8 +127,7 @@ see the archived proposal's do-not-re-audit section).
 
 Cold-cache situations: first apply, a model swap, and the first rebuild
 after `make snapshot-restore` (the embed store is excluded from snapshots by
-design — the gzip/raw backup twins in `db-backup/` are the recovery
-points). A q4_k_m quant halves per-doc cost at a small quality cost if the
+design — the zstd backup twins in `db-backup/` are the recovery points). A q4_k_m quant halves per-doc cost at a small quality cost if the
 cold path ever matters (constants + sha re-pin in `local_embedder.py`).
 
 ## What happens when a new letter is processed

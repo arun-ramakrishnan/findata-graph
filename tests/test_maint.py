@@ -46,6 +46,16 @@ class TestPlan:
     """Pin the step labels + commands so reordering is a deliberate
     test update, not a silent regression."""
 
+    def test_pre_full_has_two_steps(self):
+        # PRE_FULL (--full only, BEFORE db_maint's recovery backup): pure
+        # index rebuilds whose output should land INSIDE the backup.
+        assert len(maint.PRE_FULL_STEPS) == 2
+        labels = [label for label, _ in maint.PRE_FULL_STEPS]
+        assert labels == [
+            "sync-tags (rebuild entity_tags from note YAML)",
+            "rebuild-note-search (rebuild FTS over findata markdowns)",
+        ]
+
     def test_tier1_has_three_steps(self):
         assert len(maint.TIER1_STEPS) == 3
 
@@ -61,16 +71,16 @@ class TestPlan:
             "graph-rebuild (refresh DuckDB cache)",
         ]
 
-    def test_tier2_has_ten_steps(self):
-        assert len(maint.TIER2_STEPS) == 10
+    def test_tier2_has_eight_steps(self):
+        # sync-tags + rebuild-note-search moved to PRE_FULL (2026-08-29):
+        # their output must land inside the db_maint recovery backup.
+        assert len(maint.TIER2_STEPS) == 8
 
     def test_tier2_steps_order(self):
-        # Post-ingest cleanup: structural work first (sync-tags settles
-        # entity sector_classification, sync-sector-links CHECKS the
-        # company index — the write is explicit, housekeeping never
-        # mutates notes — rebuild-note-search reads notes into the FTS
-        # index and company-embeddings --maint refreshes the derived
-        # company_embeddings table over the same note text (cached,
+        # Post-ingest re-derivation: the sector --check gates first
+        # (CHECK only — the writes are explicit make targets, housekeeping
+        # never mutates notes), then company-embeddings --maint refreshes
+        # the derived company_embeddings table over the note text (cached,
         # best-effort, never auto-upgrading); rebuild-doc-search refreshes
         # the doc/ corpus sidecar index (research.db untouched);
         # recompute-graph refreshes graph analytics, then derive-insights
@@ -81,10 +91,8 @@ class TestPlan:
         # re-snapshot captures the full post-ingest state.
         labels = [label for label, _ in maint.TIER2_STEPS]
         assert labels == [
-            "sync-tags (rebuild entity_tags from note YAML)",
             "sync-sector-links --check (gate: sector-note company indexes fresh)",
             "sector-hierarchy --check (gate: taxonomy + super-sector notes fresh)",
-            "rebuild-note-search (rebuild FTS over findata markdowns)",
             "company-embeddings --maint (cached refresh of company_embeddings)",
             "rebuild-doc-search (refresh doc/ FTS+embeddings sidecar index)",
             "recompute-graph (refresh analytics in graph_analytics)",
@@ -121,6 +129,39 @@ class TestPlan:
         assert labels.index("snapshot (refresh versioned snapshots)") < \
                labels.index("graph-rebuild (refresh DuckDB cache)")
 
+    def test_full_composition_elides_tier1_snapshot(self):
+        # --full composes PRE_FULL + TIER1-minus-skip + TIER2: the mid-run
+        # snapshot's artifacts are unconditionally overwritten by the TIER2
+        # tail snapshot, so exactly ONE snapshot runs at the end
+        # (maint_full_single_snapshot.md D1). Plain maint keeps all 3 TIER1
+        # steps and never runs PRE_FULL.
+        skipped = [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
+        full = maint.PRE_FULL_STEPS + skipped + maint.TIER2_STEPS
+        assert len(maint.TIER1_FULL_SKIP) == 1
+        assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
+        assert len(full) == 12
+        snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
+        assert snapshot_labels == [
+            "snapshot (re-snapshot to include recomputed analytics + events)"
+        ]
+        # Non-skipped TIER1 order is preserved and still precedes TIER2.
+        assert [lab for lab, _ in skipped] == [
+            "db_maint (VACUUM/ANALYZE/REINDEX/integrity)",
+            "graph-rebuild (refresh DuckDB cache)",
+        ]
+        full_labels = [lab for lab, _ in full]
+        # PRE_FULL precedes db_maint: the recovery backup captures fresh
+        # entity_tags + FTS instead of a one-step-stale index state.
+        assert full_labels.index(
+            "sync-tags (rebuild entity_tags from note YAML)"
+        ) < full_labels.index("db_maint (VACUUM/ANALYZE/REINDEX/integrity)")
+        # ... and precedes graph-rebuild: sync-tags' E5a sector_
+        # classification UPDATE on entities must land before the DuckDB
+        # cache rebuild, not rely on lazy re-materialisation.
+        assert full_labels.index(
+            "rebuild-note-search (rebuild FTS over findata markdowns)"
+        ) < full_labels.index("graph-rebuild (refresh DuckDB cache)")
+
 
 # --------------------------------------------------------------------------- #
 # TestCommands — pin the command shape                                        #
@@ -131,13 +172,15 @@ class TestCommands:
     def test_all_commands_use_python3(self):
         # All commands must invoke `python3 <script>` explicitly. Using
         # bare script paths would fail on Windows and skip the venv shim.
-        for _, cmd in maint.TIER1_STEPS + maint.TIER2_STEPS:
+        for _, cmd in (maint.PRE_FULL_STEPS + maint.TIER1_STEPS
+                       + maint.TIER2_STEPS):
             assert cmd[0] == "python3", f"command doesn't start with python3: {cmd}"
 
     def test_all_scripts_exist(self):
         # Every referenced script path must exist relative to PROJECT_ROOT.
         # A typo or moved file would silently fail at runtime.
-        for label, cmd in maint.TIER1_STEPS + maint.TIER2_STEPS:
+        for label, cmd in (maint.PRE_FULL_STEPS + maint.TIER1_STEPS
+                           + maint.TIER2_STEPS):
             script = cmd[1]
             path = maint.PROJECT_ROOT / script
             assert path.exists(), f"{label}: script not found: {path}"
@@ -213,11 +256,25 @@ class TestDryRun:
         with caplog.at_level(logging.INFO, logger="maint"):
             maint.main(["--full", "--dry-run"])
         output = caplog.text
-        all_steps = maint.TIER1_STEPS + maint.TIER2_STEPS
-        # 3 tier1 (db_maint, snapshot, graph-rebuild) + 10 tier2.
-        assert len(all_steps) == 13
+        all_steps = (maint.PRE_FULL_STEPS
+                     + [s for s in maint.TIER1_STEPS
+                        if s[0] not in maint.TIER1_FULL_SKIP]
+                     + maint.TIER2_STEPS)
+        # 2 pre-full + 2 tier1 (snapshot elided in --full) + 8 tier2.
+        assert len(all_steps) == 12
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
+        assert "snapshot (refresh versioned snapshots)" not in output
+
+    def test_dry_run_plain_maint_omits_pre_full(self, caplog):
+        # Plain `make maint` runs ONLY TIER1 — the PRE_FULL re-derivations
+        # are post-ingest work and must not leak into the routine path.
+        import logging
+        with caplog.at_level(logging.INFO, logger="maint"):
+            maint.main(["--dry-run"])
+        output = caplog.text
+        assert "sync-tags (rebuild entity_tags from note YAML)" not in output
+        assert "rebuild-note-search (rebuild FTS over findata markdowns)" not in output
 
 
 # --------------------------------------------------------------------------- #
@@ -248,21 +305,24 @@ class TestSubprocessFailure:
         assert rc == 0
 
     def test_failure_in_full_mode_aborts_before_tier2(self, monkeypatch):
-        # If step 3 (graph-rebuild, last tier1 step) fails, tier2 must not run.
+        # In --full the composition is PRE_FULL + TIER1-minus-snapshot +
+        # TIER2, so call 1 = sync-tags, call 2 = rebuild-note-search. If
+        # call 2 fails, the TIER1 steps and all of TIER2 must not run.
         call_count = {"n": 0}
         invoked_cmds: list[str] = []
 
         def fake_popen(cmd, *a, **kw):
             call_count["n"] += 1
             invoked_cmds.append(cmd[1])  # script path
-            # Fail on the 3rd call (graph-rebuild).
-            return _FakeProc(1 if call_count["n"] == 3 else 0)
+            # Fail on the 2nd call (rebuild-note-search).
+            return _FakeProc(1 if call_count["n"] == 2 else 0)
 
         monkeypatch.setattr(maint.subprocess, "Popen", fake_popen)
         rc = maint.main(["--full"])
         assert rc == 1
-        # Tier1 steps ran; tier2 must NOT have.
-        assert "helpers/core/sync_tags.py" not in invoked_cmds
+        # Pre-full step 1 ran; everything after the failure must NOT have.
+        assert "helpers/core/sync_tags.py" in invoked_cmds
+        assert "helpers/maintenance/db_maint.py" not in invoked_cmds
         assert "helpers/graph/algorithms.py" not in invoked_cmds
 
 

@@ -264,8 +264,9 @@ rm note) are mechanical; see git history for worked examples.
   recreate; version bumps, corruption), `connect(db_path=...)` → colocated
   `.duckdb` (test isolation). Cold ~1.1s / warm ~0.3s.
 - **`_build_meta`:** schema_version (code constant; mismatch = rebuild),
-  built_at, source_db, generation, duckdb_version. `_is_warm()` opens
-  read-only and checks.
+  built_at, source_db, generation, duckdb_version, note_embed_dims,
+  note_embed_model. `_is_warm()` opens read-only and checks (the
+  note_embed_* pair catches same-dims model swaps).
 - **Staleness:** no auto-detection — after any SQLite-side write
   (`parse_newsletter --apply`, `derive-relations`, stubs, ...) rebuild via
   `make graph-rebuild` / `POST /api/graph/refresh` /
@@ -275,7 +276,7 @@ rm note) are mechanical; see git history for worked examples.
 - **Concurrency:** DuckDB allows one RW or many RO connections — never both.
   `/api/graph/refresh` rebuilds + resets the Flask connection in one call.
 - **Snapshots/maintenance:** `make snapshot` snapshots both SQLite and
-  DuckDB (Parquet into git-tracked `snapshots/parquet/` + gzip copies into
+  DuckDB (Parquet into git-tracked `snapshots/parquet/` + zstd copies into
   local `db-backup/`; `--no-duckdb` to skip); `make maint` adds CHECKPOINT +
   VACUUM (`--skip-duckdb` to skip); `make snapshot-restore` rebuilds
   `memory/` from the Parquet snapshot; `memory/*.duckdb*` gitignored.
@@ -342,7 +343,7 @@ tests/           test_graph.py test_graph_disk.py test_onager_capabilities.py
 doc/             graph_design.txt (this file)
 memory/          research.db(+wal)  graph.duckdb(+wal, gitignored)
 snapshots/       parquet/ (git-tracked, restorable)  _schema.*.sql
-db-backup/       *.snapshot.*.gz  (local scratch, gitignored)
+db-backup/       *.snapshot.*.zst + *_backup.*.zst  (local scratch, gitignored)
 ```
 
 Make targets: `graph-smoke` `graph-stats` `graph-algos` `graph-rebuild`

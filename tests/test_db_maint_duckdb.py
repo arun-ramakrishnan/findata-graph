@@ -33,6 +33,7 @@ if not SQLITE_DB.exists() or not DUCKDB_DB.exists():
     )
 
 sys.path.insert(0, str(PROJECT_ROOT))
+from helpers.core.zstd_io import decompress_file
 from helpers.maintenance.db_maint import DBMaintainer  # noqa: E402
 
 
@@ -69,33 +70,35 @@ class TestDuckDBBackup:
     """Verify the pre-mutation DuckDB recovery backup works correctly."""
 
     def test_backup_creates_file(self, tmp_sqlite, tmp_duckdb, tmp_path):
-        backup_path = tmp_path / "graph_backup.duckdb"
-        assert not backup_path.exists()
+        backup_zst = tmp_path / "graph_backup.duckdb.zst"
+        assert not backup_zst.exists()
 
         m = DBMaintainer(
             db_path=tmp_sqlite,
             backup_path=tmp_path / "sqlite_backup.db",
             duckdb_path=tmp_duckdb,
-            duckdb_backup_path=backup_path,
+            duckdb_backup_path=tmp_path / "graph_backup.duckdb",
         )
         r = m.run()
         assert r["status"] == "complete"
-        assert backup_path.exists()
-        assert backup_path.stat().st_size > 0
+        assert backup_zst.exists()
+        assert backup_zst.stat().st_size > 0
         assert "backup" in r["duckdb"]
         assert r["duckdb"]["backup"]["size"] > 0
 
     def test_backup_is_readable_duckdb_file(self, tmp_sqlite, tmp_duckdb, tmp_path):
         # The backup must be a valid DuckDB file with the same row counts
         # as the source (i.e. it's not truncated or corrupt).
-        backup_path = tmp_path / "graph_backup.duckdb"
+        backup_zst = tmp_path / "graph_backup.duckdb.zst"
         m = DBMaintainer(
             db_path=tmp_sqlite,
             backup_path=tmp_path / "sqlite_backup.db",
             duckdb_path=tmp_duckdb,
-            duckdb_backup_path=backup_path,
+            duckdb_backup_path=tmp_path / "graph_backup.duckdb",
         )
         m.run()
+        backup_path = tmp_path / "graph_backup_roundtrip.duckdb"
+        decompress_file(backup_zst, backup_path)
 
         # Read source row counts.
         src_con = duckdb.connect(str(tmp_duckdb), read_only=True)
@@ -118,23 +121,26 @@ class TestDuckDBBackup:
     def test_backup_overwrites_existing(self, tmp_sqlite, tmp_duckdb, tmp_path):
         # A second run must overwrite, not append or error. The backup
         # file must remain valid and readable after the overwrite.
-        backup_path = tmp_path / "graph_backup.duckdb"
+        backup_zst = tmp_path / "graph_backup.duckdb.zst"
         m = DBMaintainer(
             db_path=tmp_sqlite,
             backup_path=tmp_path / "sqlite_backup.db",
             duckdb_path=tmp_duckdb,
-            duckdb_backup_path=backup_path,
+            duckdb_backup_path=tmp_path / "graph_backup.duckdb",
         )
         m.run()
-        first_size = backup_path.stat().st_size
+        first_size = backup_zst.stat().st_size
 
         # Second run — must overwrite cleanly (no error, same size,
-        # still readable).
+        # still readable). zstd compression is deterministic here (same
+        # input bytes, same level) so the size must be identical.
         m.run()
-        second_size = backup_path.stat().st_size
+        second_size = backup_zst.stat().st_size
         assert second_size == first_size, "overwrite should not change size"
 
         # Verify the overwritten file is still a valid DuckDB file.
+        backup_path = tmp_path / "graph_backup_roundtrip.duckdb"
+        decompress_file(backup_zst, backup_path)
         bk_con = duckdb.connect(str(backup_path), read_only=True)
         try:
             v = bk_con.execute("SELECT COUNT(*) FROM v_node").fetchone()[0]

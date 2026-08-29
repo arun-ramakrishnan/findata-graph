@@ -5,7 +5,7 @@ Uses the script's own functions against a throwaway DB (not the live one) to
 prove create -> verify -> restore round-trips data faithfully.
 """
 
-import gzip
+from compression import zstd  # stdlib PEP 784
 import sqlite3
 from pathlib import Path
 
@@ -34,16 +34,16 @@ def _logger():
     return logging.getLogger("test_snapshot")
 
 
-def test_snapshot_creates_gzip_and_roundtrips(tmp_path):
+def test_snapshot_creates_zstd_and_roundtrips(tmp_path):
     db = tmp_path / "src.db"
-    snap = tmp_path / "out.db.gz"
+    snap = tmp_path / "out.db.zst"
     _make_db(db, n_entities=7)
 
     info = create_snapshot(db, snap, _logger())
     assert snap.exists()
     assert info["compressed_bytes"] < info["source_bytes"]  # actually compressed
-    # gzip magic header
-    assert snap.read_bytes()[:2] == b"\x1f\x8b"
+    # zstd magic header (0x28 B5 2F FD)
+    assert snap.read_bytes()[:4] == b"\x28\xb5\x2f\xfd"
 
     v = verify_snapshot(snap, db, _logger())
     assert v["match"] is True
@@ -55,7 +55,7 @@ def test_snapshot_creates_gzip_and_roundtrips(tmp_path):
 def test_verify_detects_staleness(tmp_path):
     """A snapshot taken before extra rows are added must no longer match."""
     db = tmp_path / "src.db"
-    snap = tmp_path / "out.db.gz"
+    snap = tmp_path / "out.db.zst"
     _make_db(db, n_entities=3)
     create_snapshot(db, snap, _logger())
 
@@ -73,15 +73,15 @@ def test_verify_detects_staleness(tmp_path):
     assert v["source_entities"] == 5  # live now has 5
 
 
-def test_restore_via_gunzip_matches_source(tmp_path):
-    """Restore path documented in the script: gunzip -> db, then compare counts."""
+def test_restore_via_zstd_matches_source(tmp_path):
+    """Restore path documented in the script: zstd -dc -> db, then compare counts."""
     db = tmp_path / "src.db"
-    snap = tmp_path / "out.db.gz"
+    snap = tmp_path / "out.db.zst"
     restored = tmp_path / "restored.db"
     _make_db(db, n_entities=4)
     create_snapshot(db, snap, _logger())
 
-    with gzip.open(snap, "rb") as fin, open(restored, "wb") as fout:
+    with zstd.open(snap, "rb") as fin, open(restored, "wb") as fout:
         fout.write(fin.read())
 
     rconn = sqlite3.connect(restored)

@@ -65,6 +65,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core.db import connect  # noqa: E402
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
 
 # Module-level and monkeypatchable (the VAULT_ROOT lesson: import-bound root
@@ -340,22 +341,39 @@ def _stamp_model(conn: sqlite3.Connection, model_label: str, dims: int) -> None:
 
 def _backup_file(src: Path, dest: Path) -> bool:
     """One-file sidecar copy via the sqlite3 backup API (WAL-safe; handles
-    FTS5 shadow tables the way snapshot_db.py does). Returns success.
+    FTS5 shadow tables the way snapshot_db.py does), stored zstd-compressed
+    as ``<dest>.zst`` (snapshot_parallel_and_compressed_backups.md D2 —
+    the plain copy exists only as a temp staging file). Returns success.
 
     Connections come from the house helper with FK/WAL off — this is a
-    byte-transfer, not a working session, and the dest artifact should
-    stay plain-journal (no -wal sidecar next to the backup)."""
-    from helpers.core.db import connect as _db_connect
+    byte-transfer, not a working session, and the staging copy stays
+    plain-journal (no -wal sidecar next to the backup). Manual restore:
+    ``zstd -dc db-backup/doc_search_backup.db.zst > doc_search.db``."""
+    import tempfile
+    from pathlib import Path as _Path
 
+    from helpers.core.db import connect as _db_connect
+    from helpers.core.zstd_io import compress_file, zst_path
+
+    zst_dest = zst_path(dest)
     try:
-        src_conn = _db_connect(src, enable_fk=False, wal=False)
-        dest_conn = _db_connect(dest, enable_fk=False, wal=False)
+        with tempfile.NamedTemporaryFile(
+                suffix=".db", dir=dest.parent, delete=False) as tf:
+            tmp = _Path(tf.name)
         try:
-            src_conn.backup(dest_conn)
+            src_conn = _db_connect(src, enable_fk=False, wal=False)
+            dest_conn = _db_connect(tmp, enable_fk=False, wal=False)
+            try:
+                src_conn.backup(dest_conn)
+            finally:
+                src_conn.close()
+                dest_conn.close()
+            if zst_dest.exists():
+                zst_dest.unlink()
+            compress_file(tmp, zst_dest)
+            return True
         finally:
-            src_conn.close()
-            dest_conn.close()
-        return True
+            tmp.unlink(missing_ok=True)
     except sqlite3.Error:
         return False
 
@@ -380,6 +398,22 @@ def _backup_last_good_index(db_path: Path) -> None:
     backups: list[tuple[Path, Path]] = [
         (db_path, Path(BACKUP_DIR) / "doc_search_backup.db"),
     ]
+    # Completeness guard (mirrors rebuild_script_search): never back up an
+    # EMPTY index.
+    try:
+        conn = connect(db_path, read_only=True)
+        try:
+            rows = conn.execute(
+                "SELECT COUNT(*) FROM doc_search").fetchone()[0]
+        finally:
+            conn.close()
+    except sqlite3.Error:
+        rows = 0
+    if not rows:
+        print(f"WARNING: {db_path.name} empty ({rows} rows) — last-good "
+              "backup skipped (recovery point kept; rebuild continues)",
+              file=sys.stderr)
+        return
     try:
         Path(BACKUP_DIR).mkdir(parents=True, exist_ok=True)
     except OSError:

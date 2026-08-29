@@ -272,6 +272,49 @@ class TestRebuildIdempotency:
         assert s1["post_analytics"] == s2["post_analytics"]
 
 
+class TestRebuildGenerationTriggers:
+    """DROP TABLE destroys a table's triggers — the rebuild must restore
+    the six trg_*_gen triggers or every later entities/graph_edges write
+    stops bumping db_meta.generation and _is_warm goes blind silently
+    (the DuckDB cache serves stale graph data; the snapshot gen check
+    always 'matches' a frozen number)."""
+
+    def test_generation_triggers_restored_post_rebuild(self, tmp_db):
+        stats = rebuild(tmp_db, dry_run=False)
+        assert stats["generation_triggers"] == 6
+        con = sqlite3.connect(str(tmp_db))
+        try:
+            names = {r[0] for r in con.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger'")}
+            for tbl in ("entities", "graph_edges"):
+                for op in ("insert", "delete", "update"):
+                    assert f"trg_{tbl}_{op}_gen" in names
+        finally:
+            con.close()
+
+    def test_post_rebuild_write_bumps_generation(self, tmp_db):
+        """The pin that matters behaviorally: after the rebuild, a row write
+        on a rebuilt table actually moves the epoch."""
+        rebuild(tmp_db, dry_run=False)
+        con = sqlite3.connect(str(tmp_db))
+        try:
+            gen_before = int(con.execute(
+                "SELECT value FROM db_meta WHERE key='generation'"
+            ).fetchone()[0])
+            name = con.execute(
+                "SELECT name FROM entities LIMIT 1").fetchone()[0]
+            con.execute(
+                "UPDATE entities SET last_updated = last_updated "
+                "WHERE name = ?", (name,))
+            con.commit()
+            gen_after = int(con.execute(
+                "SELECT value FROM db_meta WHERE key='generation'"
+            ).fetchone()[0])
+        finally:
+            con.close()
+        assert gen_after == gen_before + 1
+
+
 class TestRebuildAtomicity:
     def test_rebuild_rolls_back_on_failure(self, tmp_db, monkeypatch):
         """If the rebuild fails mid-way (e.g. a constraint violation on the

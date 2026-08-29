@@ -128,7 +128,7 @@ class _MaintProject:
         dst.execute("DELETE FROM graph_analytics")  # recomputed by the chain
         dst.execute("DELETE FROM events")           # recomputed by the chain
         # DROP the FTS index (shadows included — DELETEs leave tombstones
-        # that keep the file ~7MB, which dominates the snapshot gzip cost);
+        # that keep the file ~7MB, which dominates the snapshot compress cost);
         # the chain's rebuild-note-search step recreates it via CREATE
         # VIRTUAL TABLE IF NOT EXISTS.
         dst.execute("DROP TABLE IF EXISTS note_search")
@@ -239,9 +239,9 @@ def _shim_db_maint(p, mp, args):
 def _shim_snapshot(p, mp, args):
     mp.setattr(sys, "argv", ["snapshot_db.py",
                              "--db", str(p.db),
-                             "--out", str(p.root / "db-backup" / "s.db.gz"),
+                             "--out", str(p.root / "db-backup" / "s.db.zst"),
                              "--duckdb", str(p.duckdb),
-                             "--duckdb-out", str(p.root / "db-backup" / "s.duckdb.gz"),
+                             "--duckdb-out", str(p.root / "db-backup" / "s.duckdb.zst"),
                              "--parquet-dir", str(p.root / "snapshots" / "parquet")])
     return _rc(snapshot_db.main())
 
@@ -380,8 +380,10 @@ class TestMaintChain:
         assert _scripts(record) == [cmd[1] for _, cmd in maint.TIER1_STEPS]
 
     def test_full_chain_order_and_idempotence(self, project, monkeypatch):
-        """--full runs TIER1 then TIER2 in order (derive-insights strictly
-        before derive-events; snapshot first and last), the embeddings
+        """--full runs PRE_FULL + TIER1 then TIER2 in order (derive-insights
+        strictly before derive-events; the TIER1 snapshot is elided — one
+        snapshot
+        at the tail), the embeddings
         best-effort step stays green (local embedder pinned off by conftest
         — the maint never-blocks contract), and a SECOND full run is a
         byte-stable no-op: same steps, note bytes identical, derived
@@ -389,11 +391,17 @@ class TestMaintChain:
         record = _make_dispatcher(project, monkeypatch, [])
         assert maint.main(["--full"]) == 0
         executed = _scripts(record)
-        expected = [cmd[1] for _, cmd in maint.TIER1_STEPS + maint.TIER2_STEPS]
+        # --full elides the TIER1 snapshot (TIER1_FULL_SKIP): ONE snapshot
+        # at the tail (maint_full_single_snapshot.md D1). PRE_FULL index
+        # refreshers (sync-tags, note-search) run before the backup.
+        expected = [cmd[1] for _, cmd in maint.PRE_FULL_STEPS] + \
+                   [cmd[1] for label, cmd in maint.TIER1_STEPS
+                    if label not in maint.TIER1_FULL_SKIP] + \
+                   [cmd[1] for _, cmd in maint.TIER2_STEPS]
         assert executed == expected
         assert executed.index("helpers/graph/derive_insights.py") < \
             executed.index("helpers/graph/derive_events.py")
-        assert executed.count("helpers/maintenance/snapshot_db.py") == 2
+        assert executed.count("helpers/maintenance/snapshot_db.py") == 1
         # embeddings --maint: rc 0 despite unavailable local embedder
         emb_entry = next(e for e in record
                          if e[0] == "helpers/graph/embeddings.py")

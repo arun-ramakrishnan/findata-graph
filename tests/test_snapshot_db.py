@@ -118,7 +118,7 @@ def test_snapshot_roundtrip(tmp_path):
     src_db = tmp_path / "src.db"
     _make_test_db(src_db)
 
-    snap_path = tmp_path / "snapshot.db.gz"
+    snap_path = tmp_path / "snapshot.db.zst"
     info = create_snapshot(src_db, snap_path, _log)
     assert snap_path.exists()
     assert info["compressed_bytes"] > 0
@@ -131,7 +131,7 @@ def test_snapshot_detects_modification(tmp_path):
     src_db = tmp_path / "src.db"
     _make_test_db(src_db)
 
-    snap_path = tmp_path / "snapshot.db.gz"
+    snap_path = tmp_path / "snapshot.db.zst"
     create_snapshot(src_db, snap_path, _log)
 
     # Modify the source AFTER snapshot
@@ -148,7 +148,7 @@ def test_snapshot_no_source_db(tmp_path):
     src_db = tmp_path / "src.db"
     _make_test_db(src_db)
 
-    snap_path = tmp_path / "snapshot.db.gz"
+    snap_path = tmp_path / "snapshot.db.zst"
     create_snapshot(src_db, snap_path, _log)
 
     # Verify without source — just checks integrity
@@ -309,16 +309,16 @@ def test_export_skips_and_warns_on_stray_tables(tmp_path, caplog):
 
 
 # ---------------------------------------------------------------------------
-# Embed-store gzip backup (run_snapshot binary path): per-db legacy sibling
+# Embed-store zstd backup (run_snapshot binary path): per-db legacy sibling
 # keeps its paired artifact name; otherwise the shared store rides along.
 # ---------------------------------------------------------------------------
 def test_run_snapshot_backs_up_vec_sidecar(tmp_path):
-    """<db>_vec.db rides along as <out>.db_vec.db.gz; absent sidecar skips."""
+    """<db>_vec.db rides along as <out>.db_vec.db.zst; absent sidecar skips."""
     from helpers.maintenance.snapshot_db import _cmd_create
 
     src_db = tmp_path / "src.db"
     _make_test_db(src_db)
-    out = tmp_path / "snap" / "snapshot.db.gz"
+    out = tmp_path / "snap" / "snapshot.db.zst"
 
     # No sidecar yet: run must succeed and log the skip.
     rc = _cmd_create(
@@ -326,7 +326,7 @@ def test_run_snapshot_backs_up_vec_sidecar(tmp_path):
         with_duckdb=False, logger=_log,
     )
     assert rc == 0
-    assert not (tmp_path / "snap" / "snapshot.db_vec.db.gz").exists()
+    assert not (tmp_path / "snap" / "snapshot.db_vec.db.zst").exists()
 
     # Sidecar present: it rides along, WAL-merged by the online backup.
     vec = sqlite3.connect(str(tmp_path / "src.db_vec.db"))
@@ -339,19 +339,19 @@ def test_run_snapshot_backs_up_vec_sidecar(tmp_path):
         with_duckdb=False, logger=_log,
     )
     assert rc == 0
-    vec_gz = tmp_path / "snap" / "snapshot.db_vec.db.gz"
-    assert vec_gz.exists() and vec_gz.stat().st_size > 0
+    vec_zst = tmp_path / "snap" / "snapshot.db_vec.db.zst"
+    assert vec_zst.exists() and vec_zst.stat().st_size > 0
 
 
 def test_run_snapshot_backs_up_shared_embed_store(tmp_path):
     """Without a legacy sibling the consolidated EMBED_DB_PATH store is
-    gzipped as <stem>.snapshot.db.gz."""
+    zstd-compressed as <stem>.snapshot.db.zst."""
     from helpers.core import vec_search as VS
     from helpers.maintenance.snapshot_db import _cmd_create
 
     src_db = tmp_path / "src.db"
     _make_test_db(src_db)
-    out = tmp_path / "snap" / "snapshot.db.gz"
+    out = tmp_path / "snap" / "snapshot.db.zst"
 
     store_dir = tmp_path / "memory"
     store_dir.mkdir(exist_ok=True)  # conftest autouse created it
@@ -372,5 +372,62 @@ def test_run_snapshot_backs_up_shared_embed_store(tmp_path):
     finally:
         VS.EMBED_DB_PATH = saved
     assert rc == 0
-    store_gz = tmp_path / "snap" / "embed_store.snapshot.db.gz"
-    assert store_gz.exists() and store_gz.stat().st_size > 0
+    store_zst = tmp_path / "snap" / "embed_store.snapshot.db.zst"
+    assert store_zst.exists() and store_zst.stat().st_size > 0
+
+
+def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
+    """D3 (maint_full_single_snapshot.md): an unchanged embed store skips the
+    ~36 MB recompress — second run reuses the .zst byte-for-byte; a write
+    to the store forces a fresh compress."""
+    import os
+    from helpers.core import vec_search as VS
+    from helpers.maintenance.snapshot_db import _cmd_create
+
+    src_db = tmp_path / "src.db"
+    _make_test_db(src_db)
+    out = tmp_path / "snap" / "snapshot.db.zst"
+
+    store_dir = tmp_path / "memory"
+    store_dir.mkdir(exist_ok=True)  # conftest autouse created it
+    store = store_dir / "embed_store.db"
+    sconn = sqlite3.connect(str(store))
+    sconn.execute("CREATE TABLE embed_cache (k TEXT PRIMARY KEY)")
+    sconn.execute("INSERT INTO embed_cache VALUES ('x')")
+    sconn.commit()
+    sconn.close()
+
+    saved = VS.EMBED_DB_PATH
+    VS.EMBED_DB_PATH = store
+    try:
+        rc = _cmd_create(src_db, out, None, None, None, None, None,
+                         fmt="binary", with_duckdb=False, logger=_log)
+        assert rc == 0
+        store_zst = tmp_path / "snap" / "embed_store.snapshot.db.zst"
+        first_bytes = store_zst.read_bytes()
+        first_mtime = store_zst.stat().st_mtime_ns
+
+        # Unchanged store: backdate it below the .zst mtime (mtime comparisons
+        # within one test can collide at coarse resolutions), re-run, and the
+        # .zst must be reused untouched.
+        os.utime(store, ns=((first_mtime - 1_000_000) // 1, 0))
+        rc = _cmd_create(src_db, out, None, None, None, None, None,
+                         fmt="binary", with_duckdb=False, logger=_log)
+        assert rc == 0
+        assert store_zst.stat().st_mtime_ns == first_mtime
+        assert store_zst.read_bytes() == first_bytes
+
+        # A real write (new row ⇒ new size + fresh mtime) forces recompression.
+        sconn = sqlite3.connect(str(store))
+        sconn.execute("INSERT INTO embed_cache VALUES ('y')")
+        sconn.commit()
+        sconn.close()
+        rc = _cmd_create(src_db, out, None, None, None, None, None,
+                         fmt="binary", with_duckdb=False, logger=_log)
+        assert rc == 0
+        assert store_zst.stat().st_mtime_ns != first_mtime
+        assert store_zst.read_bytes() != first_bytes
+    finally:
+        VS.EMBED_DB_PATH = saved
+
+

@@ -3610,3 +3610,431 @@ cause deliberately left open — pinning sidesteps it).
 suites green (test_local_embedder, test_embed_cache,
 test_rebuild_note_search, test_embeddings, test_derive_insights,
 test_vec_search); live warm rebuild smoke before and after.
+
+## 174. maint-full single snapshot + zstd parquet codec
+
+**Proposal**: `doc/improvements/archive/database/maint_full_single_snapshot.md`
+(filed + executed same day). Closes the "Incremental 2nd snapshot in
+maint-full" row deferred by #173's §7.
+
+**Problem**: `maint-full` ran `snapshot_db.py` twice (TIER1 step 2 + TIER2
+step 10) at 16.6-20.3 s per leg — ~32-42 s of the 66 s budget — yet the
+first leg's artifacts are ALWAYS discarded (step 3 rebuilds the DuckDB
+file, steps 4-9 mutate SQLite, step 10 re-exports everything). Measured
+sub-stage budget showed a literal incremental 2nd snapshot would recover
+only ~5-8 s (gzip branch dominates, most of it mandatory) while a
+dirty-table registry adds a stale-parquet drift hazard on a published
+artifact.
+
+**Landed**:
+- `maint.py`: `TIER1_FULL_SKIP` elides the TIER1 snapshot from the
+  --full composition (12 steps, ONE snapshot at the tail); plain
+  `make maint` unchanged (3 steps, always-safe). Crash-safety note:
+  db_maint's pre-mutation `db-backup/` copies + the previous day's
+  git-tracked parquet remain the recovery path.
+- `snapshot_db.py` `export_parquet_sqlite`: parquet codec gzip → zstd
+  (pyarrow built-in; container-transparent to restore/verify). Measured:
+  note_search_content 3.17 s → 0.11 s, company_embeddings 1.82 s → 0.04 s,
+  same-or-smaller artifacts (13-table total 13.5 MB).
+- `snapshot_db.py` binary branch: embed-store gz reuse — skip the ~36 MB
+  re-gzip when the store's mtime+size are unchanged since
+  `embed_store.snapshot.db.gz` (ISIZE-footer size check via
+  `_gz_source_size`; missing gz always re-gzips). Safe: db_maint never
+  writes the store; steady-state embed writes are guarded upserts.
+- Tests: --full composition pin (12 steps, single tail snapshot, TIER1
+  order preserved, abort-before-TIER2 shifted to step 2 = graph-rebuild);
+  embed-gz reuse/re-gzip + `_gz_source_size` footer tests.
+
+**Measured (2026-08-29, this box)**: `make maint-full` 66 s → **32.3 s**
+(12/12 PASS; tail snapshot 13.04 s); standalone `make snapshot`
+16.6-20.3 s → **7.7 s** / 8.0 s with the embed gz reused;
+`make snapshot-check` 1.1 s green (41 parquet tables, gen parity 58158).
+One-time churn: all 13 SQLite parquet files re-encoded gzip → zstd
+(behind the snapshots/ skip-worktree flag until `git add`).
+
+**Measured not adopted**: binary backups `.gz` → `.zst` (zstd -9: 6.7 s →
+2.3 s on research.db, smaller artifact) — deferred: changes the
+restore-artifact format (extension, stdlib `compression.zstd`, the
+documented `gunzip -c` recovery command); zstd -19/pzstd slower than
+gzip -9 at this file size; DuckDB COPY already snappy-cheap (0.16 s).
+
+**Verification**: test_maint + test_snapshot_db + test_snapshot 56 passed;
+live 2× `make snapshot` + `make maint-full` + `make snapshot-check` green.
+
+**Same-day follow-ups (#174 addendum, generation-audit session)**:
+rebuild_schema's DROP+recreate of entities/graph_edges silently killed
+the six trg_*_gen generation triggers (SQLite drops triggers with the
+table) — `rebuild()` now restores them via idempotent ensure_db_meta
+post-commit (`generation_triggers=6` in stats) with two regression pins
+(trigger survival + post-rebuild write bumps). snapshot_db's live-source
+opens (backup src, snapshot verifier source counts, parquet
+exporter+verifier) switched to a `_connect_ro` URI — a full `make
+snapshot` run now leaves memory/research.db's mtime untouched (verified).
+Codec decisions documented at all four compression sites (zstd sqlite
+parquet / snappy DuckDB COPY / gzip backups + duckdb gz). The 4th
+db-backup gzip (research.snapshot.db_vec.db.gz, 10.5 MB) identified as a
+frozen pre-#166 orphan — safe to delete by hand. VACUUM/ANALYZE audited:
+must NOT bump (content-preserving; a bump would re-dirty db_meta.parquet
+every maint cycle).
+
+**#174 addendum 2 (zstd standardization)**: DuckDB parquet COPY switched
+snappy → `COMPRESSION ZSTD` (level 3) — both parquet trees now ship one
+codec; 28 blobs 4.05 → 3.65 MB, export still byte-deterministic (pin
+green), snapshot-check OK. The pending `.gz` → `.zst` binary-backup
+proposal (doc/improvements/proposals/zstd_binary_backups.md) re-baselined
+to zstd LEVEL 3 everywhere per user decision — the -9 disk win (~10%) is
+not worth 3-4× the CPU; -3 is ~10× faster than gzip -9 at ~equal size
+(would cut the gzip branch from ~13 s to ~1.2 s of the 32.3 s maint-full).
+
+## 175. Parallel per-DB snapshot + zstd-compressed recovery backups
+
+**Proposal**: `doc/improvements/archive/database/snapshot_parallel_and_compressed_backups.md`
+(filed + executed same day). Closes the "Parallel per-table Parquet
+export" deferred row (#173 §7) at per-DB granularity; per-table
+parallelism stays deferred behind the same trigger.
+
+**Problem**: after #174 the snapshot's binary branch gzipped its three
+DB backups strictly sequentially and the parquet branch exported the two
+DBs one after the other, while `db-backup/` also held ~110 MB of PLAIN
+uncompressed recovery copies beside the compressed `.gz` snapshots.
+
+**Landed**:
+- `helpers/core/zstd_io.py`: streaming `compress_file` / `decompress_file`
+  / `zst_path` — stdlib `compression.zstd` (PEP 784) at library-default
+  level (3, per the #174 level policy: no explicit level switches).
+- `db_maint.py`: `_backup` / `_backup_embed_store` (incl. legacy `_vec`
+  twin) / `_backup_duckdb` stage the WAL-consistent plain copy in a temp
+  file exactly as before, then compress to `<name>.zst` and unlink the
+  temp. Artifacts: `research_backup.db.zst`, `embed_store_backup.db.zst`,
+  `graph_backup.duckdb.zst`. Manual restore documented:
+  `zstd -dc db-backup/research_backup.db.zst > memory/research.db`.
+- Sidecar backups (`rebuild_doc_search._backup_file`, shared by
+  `rebuild_script_search`) compress the same way →
+  `doc_search_backup.db.zst` / `script_search_backup.db.zst`.
+- `snapshot_db._cmd_create`: one thread per DB — binary branch 3 workers
+  (research create+verify; embed create with the reuse rider; duckdb
+  create+verify), parquet branch 2 workers (export + per-DB verify via
+  the new `_verify_parquet_{duckdb,sqlite}_side` helpers;
+  `verify_parquet_snapshot` stays as the sequential merge wrapper).
+  Worker exceptions propagate — fail loud.
+- Housekeeping: the 8 stale plain backups + 3 legacy `_vec` orphans
+  deleted by hand after the green run (db-backup/ is now all-compressed;
+  the vec gz orphan was already gone).
+
+**Measured (2026-08-29, this box)**: `db-backup/` 233 MB → **68 MB**
+(research 59.1→22.7 MB, embed 36.4→16.3 MB, duckdb 11.0→3.4 MB,
+doc_search 11.1→4.1 MB, script_search 3.3→0.002 MB); decompressed
+research_backup passes `PRAGMA integrity_check` with live row counts
+(1,529 entities). `make snapshot` 8.2 s steady-state with the threads
+(embed-gz reuse firing inside its worker); `make maint` green.
+
+**Verification**: 178 tests across test_db_maint, test_db_maint_duckdb,
+test_snapshot, test_snapshot_db, test_maint, test_rebuild_doc_search,
+test_rebuild_script_search, test_integration_maint_chain (chain expected
+composition updated for the #174 single-snapshot --full),
+test_rebuild_note_search; ruff clean; snapshot-check green; search
+indexes fresh.
+
+## 176. Snapshot binary branch `.gz` → `.zst` (zstd everywhere, done)
+
+**Proposal**: `doc/improvements/archive/database/zstd_binary_backups.md`
+(filed + executed same day; user go with the final call "just `zstd`" —
+library-default level, no explicit level switches anywhere, per the §2
+level policy).
+
+**Problem**: after #174/#175 every compression site in the repo was zstd
+EXCEPT the versioned snapshot binary branch — the three
+`db-backup/*.snapshot.*.gz` artifacts and their gzip readers. The gzip
+branch was the largest remaining leg of the snapshot.
+
+**Landed**:
+- Writers: `create_snapshot`, `create_duckdb_snapshot` (+ `.wal` sidecar)
+  and the embed-store branch now emit `research.snapshot.db.zst` /
+  `graph.snapshot.duckdb.zst` / `embed_store.snapshot.db.zst` via
+  `helpers/core/zstd_io.py` (stdlib `compression.zstd`, library-default
+  level).
+- Readers: `verify_snapshot` / `verify_duckdb_snapshot` / `--restore`
+  decompress via `decompress_file`; CLI defaults, help text and module
+  docstring renamed (manual recovery: `zstd -dc …`).
+- Embed-store reuse rider: mtime-ONLY fingerprint now — the stdlib zstd
+  does not record frame content size, so the gzip-ISIZE size cross-check
+  (`_gz_source_size`) has no equivalent and was dropped (fail-safe
+  direction unchanged: missing/older archive always re-compresses).
+- Housekeeping: old `.gz` trio deleted after green verification.
+
+**Measured (2026-08-29, this box, one full `make snapshot`)**:
+8.0 s → **2.35 s** steady-state; `research.snapshot.db.zst` 23.14 →
+22.44 MB, `graph.snapshot.duckdb.zst` 3.415 → 3.387 MB,
+`embed_store.snapshot.db.zst` 15.94 → 16.37 MB (BLOB-heavy: ~3% size
+trade for ~3× speed — the accepted trade). `snapshot-check` green on the
+.zst artifacts (41 parquet tables, gen parity, DuckDB verify OK).
+
+**Verification**: test_snapshot + test_snapshot_db (magic-header,
+staleness, restore roundtrip, embed-reuse, vec-sidecar suites updated to
+.zst) + maint/db_maint/duckdb/integration chains — 90 passed; ruff clean;
+Makefile echo + db_maint/maint docstring pointers renamed; search indexes
+fresh.
+
+**#176 addendum (tiny-backup mystery — solved)**: the 2 KB
+`script_search_backup.db.zst` was not a compression anomaly — it held a
+6-row fixture build. Root cause: `test_rebuild_script_search`'s `tree`
+fixture never redirected the module `BACKUP_DIR`, so every full-rebuild
+test wrote its 6-row fixture index into the REAL db-backup/ (leaked for
+the module's entire history, pre-dating zstd). Fixed at the source with
+an autouse BACKUP_DIR isolation fixture; both sidecar
+`_backup_last_good_index` functions gained an empty-index guard (never
+displace the last-good archive with 0 rows; 0 info stamps is legitimate
+in no-model/pseudo environments). Real backup regenerated by full
+rebuild: 253 rows / 2 stamps, 1.23 MB .zst; test suite no longer touches
+it (mtime verified stable across a run).
+
+**#176 addendum 2 (leak sweep across the other rebuild scripts)**:
+rebuild_note_search writes NO db-backup artifact (recovery = parquet
+snapshot + FTS rebuild) — nothing to leak. Two MORE suites had the
+doc-side leak though: test_doc_query (`seeded`) and test_api_docs
+(`tmp_doc_env`) redirected DOC_ROOT/DOC_DB but not BACKUP_DIR, so their
+full rebuilds wrote fixture content into the real doc_search_backup.db.zst
+— both fixtures now redirect BACKUP_DIR. Real doc backup verified
+uncontaminated (587 rows/2 stamps = genuine 11:13 full rebuild; live
++10 rows via by-design incremental drift, closed at next maint-full).
+rebuild_schema's help line renamed *.gz → *.zst.
+
+**#176 addendum 3 (post-maint-full restore verification + report fix)**:
+after the user's maint-full, all 8 db-backup/ .zst artifacts were
+decompressed to /tmp/restore_check and verified: PRAGMA integrity_check
+ok on every SQLite copy; row counts identical to live for
+research/embed_store/doc_search/script_search backups AND both snapshots
+(graph_backup/graph_snapshot duckdb included). Only drift:
+research_backup's note_search* FTS shadow tables — rebuild-note-search
+runs after db_maint in the chain, so the recovery FTS is one step stale
+by design (the tail snapshot carries the fresh one). Separately fixed
+the garbled maint summary table: `_table_lines` had a fixed 56-char
+label column, so the long --check-gate labels overflowed it (zero dot
+fill, Time/Status columns shifted); the column now widens to the longest
+label (maint.py, untested-format — rendered + lint verified).
+
+## 177. maint-full PRE_FULL block — index refreshers land inside the recovery backup
+
+**Date**: 2026-08-29
+**Status**: COMPLETE
+**Proposal**: none — user-directed follow-up to the #176 restore-verification
+(backup FTS one-step-stale by construction) + the user's observation that
+plain `make maint` must not change.
+
+### Problem
+
+In maint-full, `db_maint` (step 1) takes the recovery backup BEFORE
+`rebuild-note-search` runs — so `research_backup.db.zst` always carried a
+one-step-stale `note_search` FTS (found during the restore verification).
+Plain `make maint` differs structurally: it runs ONLY TIER1
+(db_maint → snapshot → graph-rebuild), never the re-derivations, so any
+fix had to keep that path untouched.
+
+### Design
+
+New `PRE_FULL_STEPS` block in `maint.py`, composed only under `--full`:
+
+    steps = PRE_FULL_STEPS + [TIER1 − TIER1_FULL_SKIP] + TIER2
+
+- `sync-tags` + `rebuild-note-search` moved OUT of TIER2 into PRE_FULL.
+  Rationale: both are full rebuilds of derived indexes — a corrupt
+  rebuild is fixed by rerunning the step, so nothing is lost by keeping
+  them outside the backup's protection, while the backup now captures
+  fresh indexes. Backup semantics shift to "post-index-refresh /
+  pre-data-derivation / pre-VACUUM".
+- Deliberately NOT moved: `recompute-graph` / `derive-insights` /
+  `derive-events` (they write substantive derived data — the backup is
+  their restore point; moving them would let a corrupting derivation
+  flow into the recovery copy), `rebuild-doc-search` (sidecar-only,
+  self-backing), `company-embeddings --maint` (warm no-op between
+  ingests).
+- Bonus consistency fix: sync-tags' E5a `UPDATE entities SET sector_
+  classification` used to land AFTER graph-rebuild (DuckDB cache stale
+  until lazy re-materialisation); it now runs before it.
+- Step count unchanged (12 in --full); plain `make maint` untouched
+  (3 steps, no PRE_FULL).
+
+### Documentation
+
+`maint.py` docstring restructured into the three blocks (PRE_FULL /
+TIER1 / TIER2) with per-block rationale — it was the only place the
+TIER1/TIER2 workflow was documented (Makefile one-liners + two
+architecture.md mentions besides). NEW operator doc
+`doc/procedures/maintenance.md` (procedure-doc pattern) covering
+composition, backup-vs-snapshot semantics, the placement invariant, and
+when to run what; indexed in architecture.md.
+
+### Verification
+
+test_maint 33 green (new pins: PRE_FULL = 2 steps; TIER2 = 8; full
+composition = PRE_FULL + skipped-TIER1 + TIER2 = 12 with sync-tags
+before db_maint AND before graph-rebuild; plain-maint dry-run omits
+PRE_FULL; abort-on-2nd-call = rebuild-note-search now); chain test
+expected-composition updated, green. ruff clean.
+
+## 170. The Chatter #83 ingest — Borosil, Orchid, Welspun, KRN & More (BACKFILL 2026-08-29)
+
+**Date**: 2026-08-28 (work; entry backfilled 2026-08-29 per the doc-drift
+audit — the commit subject referenced #170 but no entry existed).
+**Proposal**: none — ingest arc.
+
+Edition #83 (Q1 FY27, Aug 26 2026; 6 companies), first end-to-end
+conversion via the LOCAL pdf engine (pymupdf4llm; self-verify PASS,
+100% doc coverage). The print-to-PDF carries only the hero figure, so
+no per-company charts embed into notes.
+
+**New entities (4)**: Borosil (BOROLTD.NS, Consumer, small_cap —
+disambiguated twice by hand: fuzzy match linked it to Borosil
+Renewables, the ticker resolver first returned Borosil Scientific
+BOROSCI.NS); Orchid Pharma (ORCHPHARM.NS, Pharma, mid_cap); KRN Heat
+Exchanger (KRN.NS, Engineering_Capital_Goods, small_cap — resolver
+missed it, stub born listed:false, hand-corrected in DB + note);
+Khazanchi Jewellers (KHAZANCHI.BO, Consumer, small_cap — BSE-only,
+SME→mainboard migration under way so the ticker may change).
+Welspun Corp and RACL Geartech already existed.
+
+**Fix riding along**: parse_newsletter `guess_sector_for` is
+first-match-wins and Financial_Services' greedy "capital" token
+shadowed "capital goods" — Engineering & Capital Goods headings were
+being classified as financials; the Railways + Engineering_Capital_
+Goods rules now sit above the Financial_Services block.
+
+**Curation**: hand-written Chatter blocks on all six company notes
+(4-5 management bullets + verbatim speaker quote each), replacing stub
+placeholders, splicing the edition into sources[], refreshing OKF
+stamps. Post-ingest maint-full: 32 company_metrics captured, edition
+node projected with cited_in edges, sector rosters refreshed.
+
+## 171. Mojo pilot — SIMD cosine-KNN bench, analyzer compute tiers, make wiring (BACKFILL 2026-08-29)
+
+**Date**: 2026-08-27 (`caad4bcd`; entry backfilled 2026-08-29 per the
+doc-drift audit — the arc had zero doc/improvements footprint).
+**Proposal**: none — pilot. Findings log: gitignored
+`doc/local/mojo_pilot.md`; deferred-scale record in the archived
+`parallel_cold_embed.md` §7.
+
+Context: every production numeric path is already native (sqlite-vec
+KNN, DuckDB VSS, onager, llama.cpp, MuPDF); the only pure-Python vector
+math left was the app.py hybrid-search cosine fallback. The pilot
+measures whether a Mojo kernel is worth adopting for that shape.
+
+**Shipped**: `Mojo/src/bench/bench_cosine.mojo` (hardware-register-
+width f32 SIMD whole-corpus cosine scan), `analyzer.mojo` (3-tier
+temperature-analyzer demo: scalar → SIMD → official MAX GPU path,
+compile-time eliminated unless has_accelerator()), `Mojo/tests/
+test_cosine.mojo` (TestSuite runner — Mojo 1.0 has no `mojo test` CLI;
+the all-ones case regression-guards the read_bytes() 8-byte clobber
+bug), `Mojo/tests/bench_cosine_knn.py` (4-leg harness: py_math /
+py_json / sqlite-vec / mojo_simd at x1/x4/x16 corpus replication,
+top-1 cross-validated).
+
+**Wiring**: Makefile `mojo-build`/`mojo-bench`/`mojo-test` targets
+(rule machinery in `Makefile.mojo`); pyproject optional `mojo` extra
+(mojo + max), project bumped 0.2.0; `Mojo/bin` artifacts gitignored.
+Deliberately NOT in `make perf` — a Mojo toolchain dependency does not
+belong in a regression gate.
+
+**Reference run** (1,237 docs × 384 dims, bge-small f32): mojo_simd
+0.17ms vs py_math 61ms and py_json 234ms (~370-1,400×), ~53× over the
+production sqlite-vec leg (8.9ms); top-1 validations OK on every leg.
+
+## 172. derive_insights — extract quotes from typographic/italicized local-engine sections (BACKFILL 2026-08-29)
+
+**Date**: 2026-08-28 (`33141b79`; entry backfilled 2026-08-29 per the
+doc-drift audit — the commit subject referenced #172 but no entry
+existed).
+**Proposal**: none — single-slice fix.
+
+**Problem**: The Chatter #83 was the first edition converted by the
+local PDF engine (pymupdf4llm), and its derive pass captured 32
+company_metrics but ZERO verbatim quotes. Cause: the quote walker
+anchors on lines starting/ending with ASCII `"`, while the local
+engine (a) italicizes every physical line — quotes arrive as
+`_"first line_` … `_closing line."_` with the attribution as
+`_— Speaker, Title_` — and (b) emits typographic (curly) quotes.
+
+**Fix**: `extract_quotes()` unwraps one outer emphasis pair per line
+and normalizes typographic quotes to ASCII before the walk (`___`
+horizontal rules excluded — skip-listed, not emphasis). The walker
+itself is untouched, so Paddle-era sections behave exactly as before.
+
+**Corpus effect of the re-run** (--apply, idempotent via the stable
+DELETE-then-INSERT): +102 quotes corpus-wide (2,607 → 2,709) — 42 in
+Chatter #83 (8 speakers) and ~60 recovered retroactively from older
+PDF-derived editions whose typographic quotes had been silently
+skipped. 40 notes had auto chatter blocks newly rendered or
+re-rendered; 153 notes picked up only the generated-stamp refresh and
+the lazy Key-Figures banner normalization; all 453 hand-written
+edition blocks left untouched (curation-safety). Quotes clipped by the
+source PDF's own right-edge print truncation are captured as-is (that
+loss is upstream of the extractor).
+
+**Tests**: `TestExtractQuotes` gains the italic-wrapped + curly-quote
+case (quotes, attribution, paraphrase).
+
+## 178. Documentation drift remediation — 7-day audit executed
+
+**Date**: 2026-08-29
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/doc_drift_audit_2026_08.md`
+(user-filed audit proposal; agent examined + extended it to cover the
+uncommitted 08-29 session (F7–F10), then executed it same day).
+
+**Landed** (plan rows 1–9, 11–13; row 10 = user patch subjects):
+- F1: `Mojo/` row added to the README layout table (targets, Makefile.mojo,
+  pyproject `mojo` extra, not-in-perf note).
+- F2: `_build_meta` key list corrected in `doc/schema.md` +
+  `doc/graph_design.txt` — added `note_embed_dims, note_embed_model`
+  (load-bearing: `_is_warm()` reads both for same-dims model swaps).
+- F3: append-only completed.md backfills `## 170` (Chatter #83 ingest),
+  `## 171` (Mojo pilot), `## 172` (typographic-quote extraction) — marked
+  BACKFILL, numbers unique, nothing renumbered.
+- F4/F7: gzip→zstd sweep across all 12 evergreen rows — README (layout,
+  scratch, quickstart restore, make table), architecture.md ×2,
+  schema.md, graph_design.txt ×2, doc-search.md ×2, embeddings.md. The
+  two broken restore instructions now read `zstd -dc …_backup.*.zst`.
+- F5: new §"The three rebuilders' --check contract" in
+  `doc/procedures/doc-search.md` (doc/script/note side by side; note
+  search's #164 exit-1-on-drift documented).
+- F6/F8: `doc/procedures/maintenance.md` indexed in README (procedures
+  list + table + maint-full make row); identity-scrub playbook
+  (doc/local) appended with the forward `source_db` leak-closure record.
+- F8: README procedures index gains maintenance.md.
+
+**Archival**: proposal moved to `archive/tooling/`, archive README
+topic line + proposals/README execution line added; pending.md has no
+drift-topic items; embed_eval_questions.json references nothing on the
+moved path.
+
+**Verification**: residual grep — `rg "gzip|\bgz\b"` over README/doc/
+evergreen surfaces must be zero outside improvement history;
+`make search-fresh APPLY=1` + plain rc=0 (doc index converges: backfills,
+sweep, proposal move).
+
+**#176 addendum 4 (static-check catch — canonical ro connects)**: the
+empty-index guards added in addendum 2 used raw
+`sqlite3.connect("file:…?mode=ro")` in rebuild_doc_search +
+rebuild_script_search — flagged by the P0 sqlite-helper-usage check.
+Fixed by routing through the canonical `connect(db_path, read_only=True)`
+(helpers.core.db), which already encapsulates the ro-URI semantics.
+snapshot_db's `_connect_ro` stays as-is (allowlisted maintenance-only
+ephemeral). Static checks, ruff, and the 4 affected suites (87 tests)
+green.
+
+**#176 addendum 5 (sweep missed two integration test modules)**: the
+.gz→.zst sweep covered unit modules but left
+test_integration_snapshot_cycle + test_graph_disk driving the snapshot
+APIs with gzip framing — both tamper-roundtrip tests failed with
+BadGzipFile on zstd files (user run). Fixed: artifact names .gz→.zst,
+gzip.open round-trips → zstd_io compress_file/decompress_file, stale
+docstrings/comment wording in test_snapshot_db + test_integration_maint_
+chain (functionally correct there — legacy-sibling logic is real).
+Lesson: a codec/rename sweep must grep tests/ too, and prefer
+tests/test_integration* — the #175/#176 test updates touched the unit
+modules only. 55 tests across the four modules green.
+
+**#176 addendum 6 (lint-audit C901 in _cmd_create)**: the #175 threading
+pushed `_cmd_create` to complexity 16 (>10). Split into a small
+dispatcher + `_create_binary_snapshot` / `_create_parquet_snapshot`
+(zstd-corrected branch comments along the way) — same C901-extraction
+pattern as #143/#154. lint-audit green; 40 snapshot-suite tests pass.

@@ -32,7 +32,7 @@ verify_notes ✓  database_integrity_check ✓  db_maint ✓  snapshot ✓
   for content.** Kept in sync by the procedure; verified by the validators.
 - **`memory/` is gitignored** — rebuilt via `make snapshot-restore` from the
   git-tracked Parquet snapshot under `snapshots/` (per-table .parquet +
-  captured schema DDL; gzip copies under `db-backup/` are local-only scratch).
+  captured schema DDL; zstd copies under `db-backup/` are local-only scratch).
 
 ## 3. Repository layout
 
@@ -41,7 +41,7 @@ app.py                Flask: findata viewer + graph API (lazy-imports helpers.co
                       helpers.graph.query, helpers.graph.algorithms)
 memory/               research.db (SQLite, WAL) + graph.duckdb (cache) + embed_store.db (pooled vec/cache store) — gitignored
 snapshots/            git-tracked Parquet snapshot (per-table + schema DDL) — restores memory/
-db-backup/            local scratch: gzip snapshots + raw *_backup.* copies (gitignored)
+db-backup/            local scratch: zstd snapshots + zstd *_backup.* recovery copies (gitignored)
 findata/              the vault (see findata.md for layout & note format)
 helpers/              core/ graph/ maintenance/ misc/ pdf/ validators/
 doc/                  this file, schema.md, findata.md, okf.md, graph_design.txt,
@@ -84,6 +84,7 @@ checked before parent catch-alls during classification
 | `doc/procedures/markdown_parse.md` | the ingestion procedure the agent follows |
 | `doc/procedures/embeddings.md` | local-embeddings apply/pre-warm procedure + new-letter refresh model |
 | `doc/procedures/script-search.md` | script metadata index (what each helper/test/make target is FOR; `script_query.py`) |
+| `doc/procedures/maintenance.md` | routine-maintenance doctrine: PRE_FULL/TIER1/TIER2 composition, recovery vs snapshot semantics |
 | `helpers/core/local_embedder.py` | the one embedder module (bge-small-en-v1.5; owns the BGE query/document prefix rule) |
 | `helpers/core/parse_newsletter.py` | orchestrates ingestion Stages 0–3 + 5–6 (images, entities, tickers, DB writes, validation); Stage 4 (commentary lift) stays manual via `<slug>_enhancement_worklist.json` |
 | `helpers/core/get_tickers.py` | name → NSE/BSE ticker via Yahoo (prefer `.NS` over `.BO`) |
@@ -96,7 +97,7 @@ checked before parent catch-alls during classification
 | `helpers/graph/stats.py` | `make graph-stats` human summary (incl. Onager structure section) |
 | `helpers/validators/verify_notes.py` `static_checks.py` | note YAML/content/duplicates · syntax/tags/permalink/pin checks (`make static-checks`) |
 | `helpers/misc/database_integrity_check.py` | registry-driven DB+cache integrity (`_CHECKS`; see schema.md for the check table) |
-| `helpers/maintenance/db_maint.py` `maint.py` `snapshot_db.py` `rebuild_schema.py` | VACUUM/ANALYZE/backup/REINDEX · `maint-full` orchestrator (maint + sync-tags + recompute-graph + re-snapshot) · WAL-safe snapshots (+parquet L1) · canonical-DDL rebuild |
+| `helpers/maintenance/db_maint.py` `maint.py` `snapshot_db.py` `rebuild_schema.py` | VACUUM/ANALYZE/backup/REINDEX · `maint-full` orchestrator (PRE_FULL index refresh + maint + TIER2 re-derivations + re-snapshot; see doc/procedures/maintenance.md) · WAL-safe snapshots (+parquet L1) · canonical-DDL rebuild |
 | `helpers/pdf/capture_newsletter_images.py` | inline images for the parse path |
 
 **History:** three cleanup passes (Jun–Aug 2026) deleted the never-wired

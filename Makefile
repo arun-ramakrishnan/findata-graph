@@ -54,7 +54,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  lint-audit               Run ruff S/UP/C901 audits (security + modernization + complexity) — Bandit/Refurb/Radon equivs"
 > @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live; skip-safe on pristine clone)"
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
-> @echo "  maint-full               Post-ingest re-derivation: maint + TIER2_STEPS (sync-tags, sector gates, note-search, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
+> @echo "  maint-full               Post-ingest re-derivation: PRE_FULL index refresh (sync-tags, note-search) + maint + TIER2_STEPS (sector gates, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
 > @echo "  metrics-rebuild          Refresh company financials + note industry sections from yfinance (~1 min, 931 tickers)"
 > @echo "  mojo-bench               Run mojo benchmarks: cosine-KNN comparison table + analyzer tiers (MOJO_BENCH_SCALE/REPS)"
 > @echo "  mojo-build               Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)"
@@ -110,7 +110,7 @@ integration:    ## Run end-to-end cross-component pipeline tests (parse_newslett
 
 snapshot:       ## Refresh the versioned DB snapshot
 > python3 helpers/maintenance/snapshot_db.py
-> @echo "✓ Snapshots refreshed (snapshots/parquet/ [git] + db-backup/*.gz [local])"
+> @echo "✓ Snapshots refreshed (snapshots/parquet/ [git] + db-backup/*.zst [local])"
 
 snapshot-check: ## Verify the snapshot round-trips against the live DB
 > python3 helpers/maintenance/snapshot_db.py --check
@@ -123,7 +123,7 @@ maint:          ## Routine maintenance: db_maint + snapshot + graph-rebuild (alw
 > python3 helpers/maintenance/maint.py
 > @echo "✓ Routine maintenance complete"
 
-maint-full:     ## Post-ingest re-derivation: maint + TIER2_STEPS (authoritative list: helpers/maintenance/maint.py)
+maint-full:     ## Post-ingest re-derivation: PRE_FULL index refresh + maint + TIER2_STEPS (authoritative list: helpers/maintenance/maint.py)
 > python3 helpers/maintenance/maint.py --full
 > @echo "✓ Full maintenance complete"
 

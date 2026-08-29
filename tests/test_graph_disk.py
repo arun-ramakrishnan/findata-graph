@@ -491,7 +491,7 @@ class TestSnapshotRoundTrip:
         import logging
         logger = logging.getLogger("test_snapshot")
 
-        out = tmp_path / "snap.duckdb.gz"
+        out = tmp_path / "snap.duckdb.zst"
         r = create_duckdb_snapshot(duckdb_path, out, logger)
         assert r.get("compressed_bytes", 0) > 0
         assert out.exists()
@@ -507,7 +507,7 @@ class TestSnapshotRoundTrip:
     def test_snapshot_skips_when_no_file(self, tmp_path):
         from helpers.maintenance.snapshot_db import create_duckdb_snapshot
         import logging
-        out = tmp_path / "out.gz"
+        out = tmp_path / "out.zst"
         r = create_duckdb_snapshot(
             tmp_path / "nonexistent.duckdb", out, logging.getLogger("t")
         )
@@ -532,7 +532,7 @@ class TestSnapshotVerifyCoverage:
         duckdb_path = _duckdb_for(tmp_db)
         from helpers.maintenance.snapshot_db import create_duckdb_snapshot
         import logging
-        out = tmp_path / "snap.duckdb.gz"
+        out = tmp_path / "snap.duckdb.zst"
         create_duckdb_snapshot(duckdb_path, out, logging.getLogger("t"))
         return out, duckdb_path
 
@@ -585,11 +585,10 @@ class TestSnapshotVerifyCoverage:
         flip `match` to False. Simulates a restore that dropped a table."""
         out, src = self._build_and_snapshot(tmp_db, tmp_path)
         # Corrupt the snapshot: decompress, drop a non-empty edge table,
-        # re-checkpoint, re-gzip. We pick e_comention (typically non-empty
+        # re-checkpoint, re-compress. We pick e_comention (typically non-empty
         # on the production-derived fixture) to ensure a real diff.
-        import gzip
-        import shutil
         import tempfile
+        from helpers.core.zstd_io import compress_file, decompress_file
         import duckdb
         from pathlib import Path
         from helpers.maintenance.snapshot_db import verify_duckdb_snapshot
@@ -598,8 +597,7 @@ class TestSnapshotVerifyCoverage:
         with tempfile.NamedTemporaryFile(suffix=".duckdb", delete=False) as tf:
             tmp = Path(tf.name)
         try:
-            with gzip.open(out, "rb") as fin, open(tmp, "wb") as fout:
-                shutil.copyfileobj(fin, fout)
+            decompress_file(out, tmp)
             con = duckdb.connect(str(tmp))  # read-write to mutate
             try:
                 # Find a non-empty table to drop so the diff is real.
@@ -618,8 +616,7 @@ class TestSnapshotVerifyCoverage:
                 con.execute("CHECKPOINT;")
             finally:
                 con.close()
-            with open(tmp, "rb") as fin, gzip.open(out, "wb") as fout:
-                shutil.copyfileobj(fin, fout)
+            compress_file(tmp, out)
         finally:
             tmp.unlink(missing_ok=True)
 
@@ -642,9 +639,8 @@ class TestSnapshotVerifyCoverage:
         ``SOURCE KEY (col) REFERENCES v_node (id)`` clause then fails,
         which a row-count check alone would miss."""
         out, src = self._build_and_snapshot(tmp_db, tmp_path)
-        import gzip
-        import shutil
         import tempfile
+        from helpers.core.zstd_io import compress_file, decompress_file
         import duckdb
         from pathlib import Path
         from helpers.maintenance.snapshot_db import verify_duckdb_snapshot
@@ -672,8 +668,7 @@ class TestSnapshotVerifyCoverage:
         with tempfile.NamedTemporaryFile(suffix=".duckdb", delete=False) as tf:
             tmp = Path(tf.name)
         try:
-            with gzip.open(out, "rb") as fin, open(tmp, "wb") as fout:
-                shutil.copyfileobj(fin, fout)
+            decompress_file(out, tmp)
             con = duckdb.connect(str(tmp))
             try:
                 # Recreate the table WITHOUT its source KEY column. Row
@@ -700,8 +695,7 @@ class TestSnapshotVerifyCoverage:
                 con.execute("CHECKPOINT;")
             finally:
                 con.close()
-            with open(tmp, "rb") as fin, gzip.open(out, "wb") as fout:
-                shutil.copyfileobj(fin, fout)
+            compress_file(tmp, out)
         finally:
             tmp.unlink(missing_ok=True)
 

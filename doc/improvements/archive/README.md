@@ -26,6 +26,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`sql_capability_unlocks.md`](database/sql_capability_unlocks.md) — Proposal: SQL Capability Unlocks — note vectors in DuckDB (`v_note_embeddings` + 4 wrappers + 2 endpoints), BFS shortest-path fix, bind-param hardening — completed.md #143
 - [`maint_full_zero_churn.md`](database/maint_full_zero_churn.md) — Proposal: Zero-Churn maint-full — stable event/embedding writes, seeded+canonical louvain, `ORDER BY ALL` parquet exports, guarded B4 bumps — completed.md #147
 - [`embed_store_consolidation.md`](database/embed_store_consolidation.md) — Proposal: Single embed store — consolidate the vector sidecars (pooled content-hash cache + note_search vec0 mirror in one SQLite file; backup streams collapse to two artifacts) — completed.md #166
+- [`maint_full_single_snapshot.md`](database/maint_full_single_snapshot.md) — Proposal: maint-full single snapshot + zstd parquet codec — elide the TIER1 snapshot in --full (artifacts always overwritten by the TIER2 tail), gzip→zstd SQLite parquet export, embed-store gz reuse — completed.md #174
 
 ## okf/ — OKF v0.2 — provenance vocabulary, activation, sources maintenance, read-side
 
@@ -65,4 +66,5 @@ commit, referenced by nothing). Entry numbers point at
 - [`docs_consistency_audit.md`](tooling/docs_consistency_audit.md) — Documentation consistency pass — README/procedures/schema/Makefile-guidance repairs vs code+DB ground truth (R/M/S/F/D/E/P/U findings) — completed.md #167
 - [`graph_docs_ui_polish.md`](tooling/graph_docs_ui_polish.md) — Proposal: Lens + Reading Room UI polish — graph widget overhaul, edge-filter rendering policy, Desk-register buttons, reader width/focus — completed.md #168
 - [`parallel_cold_embed.md`](tooling/parallel_cold_embed.md) — Proposal: parallel cold embed — pinned spawn pool (4×1T) for the bge-small llama.cpp path; cold note_search 16m13s → 6m01s, cold company → 4m46s; measured-not-adopted record (packing/threads/EPP/unpinned-collapse) + deferred-scale triggers — completed.md #173
+- [`doc_drift_audit_2026_08.md`](tooling/doc_drift_audit_2026_08.md) — Proposal: Documentation drift remediation — 7-day audit (2026-08-22 → 08-28 window + 08-29 session): F1–F10 incl. Mojo backfill, _build_meta keys, #170/#172 run-log backfills, gzip→zstd sweep, note-search --check doc — completed.md #178
 - [`pending_improvs.txt`](tooling/pending_improvs.txt) — Pending Improvements — HISTORICAL (Bundles A–F closed)
