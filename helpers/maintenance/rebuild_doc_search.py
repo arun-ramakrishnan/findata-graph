@@ -67,6 +67,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
+from helpers.core.fs_walk import iter_tree_files  # noqa: E402
 
 # Module-level and monkeypatchable (the VAULT_ROOT lesson: import-bound root
 # constants silently point tests at the live vault — tests MUST retarget both).
@@ -147,6 +148,12 @@ def _iter_doc_files(root: Path | None = None):
     results, eval labels — can resolve it directly from the repo root
     without knowing the corpus root convention. The root's own name is
     used so monkeypatched tmp roots in tests behave identically.
+
+    Both #107 walkers share helpers.core.fs_walk.iter_tree_files —
+    directory symlinks are followed (cycle-safe), so a worktree's
+    gitignored doc/local symlink indexes identically to main's real
+    directory (2026-08-30; rglob does not descend symlinked dirs, which
+    made the shared index see those rows as deleted from the worktree).
     """
     root = Path(root) if root is not None else DOC_ROOT
     if not root.is_dir():
@@ -154,8 +161,8 @@ def _iter_doc_files(root: Path | None = None):
     prefix = root.name
     for rel in sorted(
         p.relative_to(root).as_posix()
-        for p in root.rglob("*")
-        if p.is_file() and p.suffix.lower() in DOC_EXTS
+        for p in iter_tree_files(root)
+        if p.suffix.lower() in DOC_EXTS
     ):
         yield f"{prefix}/{rel}", root / rel
 

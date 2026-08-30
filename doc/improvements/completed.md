@@ -4268,3 +4268,33 @@ the doc-search corpus per design) existed only in main — replaced the
 worktree's symlink (rglob does not descend symlinked dirs, so the corpus
 was blind to it) with a `cp -rl` hardlink copy; future doc/local
 additions in main need a re-sync.
+
+## 185
+
+**Date:** 2026-08-30 · **Type:** tooling (search freshness) ·
+**Files:** `helpers/core/fs_walk.py` (new), `app.py` +
+`helpers/maintenance/rebuild_doc_search.py` (both `_iter_doc_files`
+walkers), `tests/test_fs_walk.py` (new, 8 tests) ·
+
+**Follow-up to #184's worktree-env note**: the `doc/local` hardlink copy
+is REPLACED by the clean fix — the worktree now symlinks
+`doc/local -> <main>/doc/local` again and both #107-contract walkers
+follow directory symlinks. `Path.rglob` does not descend symlinked dirs
+(which is why the symlink era read as 13 deleted rows); the obvious
+stdlib spelling, `rglob("*", recurse_symlinks=True)` (3.13+), follows
+them but has **NO cycle protection — a symlink loop hangs the walk
+outright** (verified on 3.14.4). So both walkers now share
+`helpers.core.fs_walk.iter_tree_files`: scandir stack +
+`(st_dev, st_ino)` dedupe — directory symlinks followed, cycles
+terminate, a dir reachable by two paths is walked once (deterministic),
+file symlinks resolve, broken ones skip (the old rglob + is_file
+contract). The API walker keeps its lazy-import style and the
+sort-by-POSIX-string rule; a contract test pins app-listing ==
+index-corpus enumeration (doc-rel vs repo-rooted keys).
+
+Verified: 153 tests across the affected suites (rebuild ×3, fuzz ×2,
+api search/docs, fs_walk) + ruff clean; worktree `make search-fresh`
+green through the symlink (81 doc files / 201 script units / 1237
+notes). Known unrelated: `test_graph_stats` interference when run after
+`test_api_graph_unit` — reproduces on pre-change code (stash-verified),
+pre-existing, not touched here.
