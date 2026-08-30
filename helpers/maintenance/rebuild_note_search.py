@@ -621,9 +621,14 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
         on_disk = set(current_meta)
         stale_new = sorted(fp for fp in on_disk if fp not in stored_meta)
         stale_deleted = sorted(fp for fp in stored_meta if fp not in on_disk)
+        # Content-hash level: mtime is deliberately excluded from the
+        # verdict (it is only the carry fast path) — shared index DBs
+        # across git worktrees/checkouts see mtime skew on identical
+        # content (2026-08-30). The hash covers title+sector+content, so
+        # entity DB changes (sector reclass) still invalidate.
         stale_changed = sorted(
             fp for fp in on_disk
-            if fp in stored_meta and stored_meta[fp] != current_meta[fp]
+            if fp in stored_meta and stored_meta[fp][1] != current_meta[fp][1]
         )
         stats["stale_new"] = stale_new
         stats["stale_changed"] = stale_changed
@@ -731,9 +736,11 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
                         pass
                 _, _, title, sector, content, _emb = row
                 mtime, chash = _file_fingerprint(abs_path, title, sector, content)
-                if prev is None or prev[0] != mtime or prev[1] != chash:
-                    # P2 perf: stash (row, mtime, chash) so the apply loop
-                    # below doesn't recompute the fingerprint a second time.
+                if prev is None or prev[1] != chash:
+                    # Hash-only guard: an mtime drift with identical content
+                    # (worktree/checkout skew) must NOT re-upsert — it would
+                    # bump the DB generation and cool the warm DuckDB cache
+                    # for no content change.
                     to_upsert.append((row, mtime, chash))
             # Apply delta in one transaction
             with conn:

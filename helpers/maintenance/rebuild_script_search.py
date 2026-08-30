@@ -37,7 +37,9 @@ re-extracts every unit (cheap: ~185 small files, well under a second) and
 re-composes all rows, but only re-EMBEDS through the shared cache (free for
 unchanged text) and only WRITES rows whose tuple actually changed
 (row-keyed diff on `title`). `--check` reports the unit-level
-(file set + mtime + blake2b) drift and exits 1 on it — the house gate
+(file set + content-hash) drift — mtime is only a carry hint, never part
+of the verdict: git worktrees skew mtimes on identical content while
+the index DBs are shared (2026-08-30) — and exits 1 on drift; the house gate
 doctrine, enforced by the rebuild_script_search entry in make perf
 (tests/run_perf_benchmarks.py). Deliberately NOT in make qa: code edits
 land between maint cycles and would redden qa constantly.
@@ -95,7 +97,9 @@ _SCRIPT_SEARCH_COLUMNS = {
 }
 
 # Per-unit fingerprint (py file or Makefile). The raw file text IS the change
-# key — mtime first, blake2b(text) as the same-mtime-edit gate.
+# key — blake2b(text) is the identity of record; mtime is only a carry hint
+# (ignored by the freshness verdict: worktree/checkout mtime skew on
+# identical content must not flag drift while the index DBs are shared).
 SCRIPT_SEARCH_META_DDL = (
     "CREATE TABLE IF NOT EXISTS script_search_meta ("
     " unit_path TEXT PRIMARY KEY,"
@@ -577,7 +581,7 @@ def _write_incremental(conn: sqlite3.Connection, all_rows: list[tuple],
     ]
     changed_units = [
         u for u in units_meta
-        if u not in stored_meta or stored_meta[u] != units_meta[u]
+        if u not in stored_meta or stored_meta[u][1] != units_meta[u][1]
     ]
     with conn:
         for t in to_delete:
@@ -645,13 +649,15 @@ def rebuild(db_path: Path | None = None, write: bool = True, incremental: bool =
 
         # Freshness verdict: unit-level diff of corpus vs stored meta
         # (hash-exact; every content change flows through some unit's text,
-        # including the cross-file inputs of script rows).
+        # including the cross-file inputs of script rows). mtime is only
+        # the carry hint, never verdict input — worktree/checkout mtime
+        # skew on identical content must not flag drift (2026-08-30).
         stored_meta = _stored_meta(conn)
         stale_new = sorted(u for u in units_meta if u not in stored_meta)
         stale_deleted = sorted(u for u in stored_meta if u not in units_meta)
         stale_changed = sorted(
             u for u in units_meta
-            if u in stored_meta and stored_meta[u] != units_meta[u]
+            if u in stored_meta and stored_meta[u][1] != units_meta[u][1]
         )
         stats["stale_new"] = stale_new
         stats["stale_changed"] = stale_changed

@@ -98,7 +98,9 @@ _DOC_SEARCH_COLUMNS = {"title", "section_title", "file_path", "anchor", "content
 
 # Per-file fingerprint for the incremental mode (P2.1 analogue). Docs have no
 # DB-side inputs (unlike note entity docs), so the raw file text IS the change
-# key — mtime first, blake2b(text) as the same-mtime-edit gate.
+# key — blake2b(text) is the identity of record; mtime is only the carry
+# fast-path hint (ignored by the freshness verdict: git worktrees/checkouts
+# skew mtimes on identical content while the index DBs are shared).
 DOC_SEARCH_META_DDL = (
     "CREATE TABLE IF NOT EXISTS doc_search_meta ("
     " file_path TEXT PRIMARY KEY,"
@@ -304,6 +306,16 @@ def _embedding_json(embed_fn, title: str, section_title: str, content: str) -> s
     return json.dumps(vec)
 
 
+def _text_hash(abs_path: Path) -> str | None:
+    """blake2b of the file text — the same digest _file_rows keys (None on
+    read error, mirroring _file_rows' absent-file contract)."""
+    try:
+        text = abs_path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return None
+    return hashlib.blake2b(text.encode("utf-8", errors="replace"), digest_size=8).hexdigest()
+
+
 def _file_rows(abs_path: Path, rel: str, embed_fn) -> tuple[list[tuple], str | None]:
     """Read one doc file into its FTS row tuples + its raw-text fingerprint.
 
@@ -503,6 +515,15 @@ def rebuild(  # noqa: C901
                     rows_by_file[rel] = reuse[rel]
                     carried.add(rel)
                     continue
+                if mtime is not None and existing[rel][1] and (
+                        _text_hash(abs_path) == existing[rel][1]):
+                    # mtime drifted but the content hash matches (git
+                    # worktree/checkout, touch, shared index DBs): the hash
+                    # is the identity of record — carry the stored rows,
+                    # skip chunk+embed.
+                    rows_by_file[rel] = reuse[rel]
+                    carried.add(rel)
+                    continue
             rows, chash = _file_rows(abs_path, rel, embed_fn)
             if chash is None:
                 continue
@@ -524,10 +545,14 @@ def rebuild(  # noqa: C901
         stats["embedded"] = sum(1 for r in all_rows if r[5])
         stats["migrated"] = migrated
 
-        # Freshness verdict: exact diff of the corpus vs the STORED index
-        # (hash-level, not just the mtime probe the read path uses). Always
-        # computed — cheap — so stats carry it; --check prints it and main()
-        # turns drift into exit 1 (the house --check gate doctrine).
+        # Freshness verdict: exact diff of the corpus vs the STORED index.
+        # Content-hash level — mtime is deliberately NOT part of the
+        # comparison (it is only the carry fast path above): shared index
+        # DBs across git worktrees/checkouts see mtime skew on identical
+        # content, and mtime-first verdicts flagged whole corpora STALE
+        # (2026-08-30). Always computed — cheap — so stats carry it;
+        # --check prints it and main() turns drift into exit 1 (the house
+        # --check gate doctrine).
         stored_meta = existing or {r[0]: (r[1], r[2]) for r in conn.execute(
             "SELECT file_path, mtime, content_hash FROM doc_search_meta")}
         on_disk = set(rows_by_file)
@@ -536,9 +561,8 @@ def rebuild(  # noqa: C901
         stale_changed = sorted(
             fp for fp in on_disk
             if fp in stored_meta
-            and fp not in carried  # carried = mtime match = unchanged by construction
-            and (stored_meta[fp][0] != _mtime_of(root, fp)
-                 or stored_meta[fp][1] != hash_by_file[fp])
+            and fp not in carried  # carried = mtime/hash match = unchanged
+            and stored_meta[fp][1] != hash_by_file[fp]
         )
         stats["stale_new"] = stale_new
         stats["stale_changed"] = stale_changed
@@ -592,11 +616,11 @@ def rebuild(  # noqa: C901
             return stats
 
         # Incremental: diff against meta at file granularity. A file is
-        # reprocessed when its mtime moved (the carry fast path already
-        # absorbed the mtime-unchanged ones) OR its content hash differs
-        # (same-mtime edit) OR it has no meta yet. The hash comparison also
-        # covers zero-row files (e.g. empty placeholders), which have no
-        # stored rows to carry and would otherwise re-upsert every cycle.
+        # reprocessed when its content hash differs (mtime drift alone is
+        # the worktree/checkout case and carries above) or it has no meta
+        # yet. The hash comparison also covers zero-row files (e.g. empty
+        # placeholders), which have no stored rows to carry and would
+        # otherwise re-upsert every cycle.
         seen = set(rows_by_file)
         to_delete = [fp for fp in existing if fp not in seen]
         to_upsert = []
@@ -604,8 +628,7 @@ def rebuild(  # noqa: C901
             if rel in carried:
                 continue
             prev = existing.get(rel)
-            mtime = _mtime_of(root, rel)
-            if prev is not None and prev[0] == mtime and prev[1] == hash_by_file[rel]:
+            if prev is not None and prev[1] == hash_by_file[rel]:
                 continue
             to_upsert.append(rel)
         with conn:

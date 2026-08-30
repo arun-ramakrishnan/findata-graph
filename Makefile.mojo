@@ -45,8 +45,12 @@ mojo-test:
 # py_math/py_json/sqlite-vec/mojo_simd comparison via bench_cosine_knn.py),
 # analyzer (multi-tier compute table), pool-4x (bench_pool x4 workers,
 # synthetic matrix), regex-bridge (mojo_regex_probe), yaml-corpus
-# (vendored mojo-yaml frontmatter sweep). This target builds ALL binaries
-# first (every one is a leg input). Single leg:
+# (vendored mojo-yaml frontmatter sweep), regex-corpus (whole-corpus
+# findall battery), db-access (sqlite+duckdb drivers through the
+# bridge), db-integrity (the integrity_check port, golden parity),
+# graph-algos (make graph-algos surface via the original modules —
+# Onager + the full FTS5 surface, parity-gated). This target builds ALL
+# binaries first (every one is a leg input). Single leg:
 #   make mojo-bench MOJO_BENCH_ARGS='--leg pool-4x'
 # Knobs: MOJO_BENCH_SCALE=1,4 MOJO_BENCH_REPS=5 (cosine-knn leg only).
 MOJO_BENCH_SCALE ?= 1,4

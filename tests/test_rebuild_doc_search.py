@@ -250,6 +250,32 @@ class TestRebuild:
         assert rc == 0
         assert "index state: FRESH" in capsys.readouterr().err
 
+    def test_check_fresh_after_mtime_drift(self, seeded_docs, fake_local, capsys):
+        """Worktree/checkout regression (2026-08-30): mtime skew on
+        identical content must stay FRESH — the content hash is the
+        identity of record, mtime only the carry fast path (shared index
+        DBs see per-checkout mtimes)."""
+        rds.rebuild(write=True)
+        future = time.time() + 1000
+        for p in Path(rds.DOC_ROOT).rglob("*"):
+            if p.is_file():
+                os.utime(p, (future, future))
+        rc = rds.main(["--check"])
+        assert rc == 0
+        assert "index state: FRESH" in capsys.readouterr().err
+
+    def test_incremental_noop_after_mtime_drift(self, seeded_docs, fake_local):
+        """Same skew through the APPLY path: nothing re-upserts, so the
+        other checkout's stored meta is never churned."""
+        rds.rebuild(write=True)
+        future = time.time() + 1000
+        for p in Path(rds.DOC_ROOT).rglob("*"):
+            if p.is_file():
+                os.utime(p, (future, future))
+        stats = rds.rebuild(write=True, incremental=True)
+        assert stats["upserts"] == 0
+        assert stats["deletes"] == 0
+
     def test_check_reports_changed_and_exits_1(self, seeded_docs, fake_local, capsys):
         rds.rebuild(write=True)
         secret = Path(rds.DOC_ROOT) / "local" / "secret.md"

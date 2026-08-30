@@ -260,6 +260,30 @@ class TestFreshnessAndIncremental:
         assert "helpers/misc/widget_audit.py" in err
         assert "rebuild_script_search.py" in err
 
+    def test_check_fresh_after_mtime_drift(self, tree, monkeypatch, capsys):
+        """Worktree/checkout regression (2026-08-30): mtime skew on
+        identical content must stay FRESH — the content hash is the
+        identity of record; mtime is only a carry hint."""
+        import os
+        import time as _time
+
+        monkeypatch.setattr(rss, "SCRIPT_DB", tree / "script_search.db")
+        monkeypatch.setattr(rss, "HELPERS_ROOT", tree / "helpers")
+        monkeypatch.setattr(rss, "TESTS_ROOT", tree / "tests")
+        monkeypatch.setattr(rss, "APP_PY", tree / "app.py")
+        monkeypatch.setattr(rss, "MAKEFILE", tree / "Makefile")
+        monkeypatch.setattr(rss, "BACKUP_DIR", tree / "db-backup")
+        _rebuild(tree)
+        capsys.readouterr()
+        future = _time.time() + 1000
+        for sub in ("helpers", "tests"):
+            for p in (tree / sub).rglob("*.py"):
+                os.utime(p, (future, future))
+        os.utime(tree / "app.py", (future, future))
+        os.utime(tree / "Makefile", (future, future))
+        assert rss.main(["--check"]) == 0
+        assert "index state: FRESH" in capsys.readouterr().err
+
     def test_check_flags_makefile_and_new_units(self, tree, monkeypatch):
         monkeypatch.setattr(rss, "SCRIPT_DB", tree / "script_search.db")
         _rebuild(tree)
