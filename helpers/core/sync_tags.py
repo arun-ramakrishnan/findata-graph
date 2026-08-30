@@ -14,7 +14,9 @@ Design:
   no stale rows from deleted entities.
 - Entity -> note joined via entities.file_path (the sync contract, see
   doc/architecture.md §5). Notes whose entity has no resolvable file_path are
-  skipped and reported.
+  skipped and reported — except the legitimately fileless types
+  (sub_sector/theme/institution, see FILELESS_ENTITY_TYPES), which are
+  silently skipped like database_integrity_check.py does.
 - The `enhanced_tags` TEXT column on entities has been retired in favour of
   this normalized table.
 - E5a: sector_classification is also derived from the note's sector/* tag,
@@ -71,6 +73,14 @@ ALLOWED_CATEGORIES = (
     "investment_theme",
 )
 
+# Entity types that are legitimately fileless — the same exemption as
+# database_integrity_check.py: sub_sectors are intra-sector facets with no
+# dedicated note (M4), themes are cross-sector nodes whose membership lives
+# in exposed_to edges, not markdown (D4), and institutions come from the
+# yfinance holders pass (E5). An empty file_path on these types is by
+# design, so they are skipped without a warning.
+FILELESS_ENTITY_TYPES = ("sub_sector", "theme", "institution")
+
 # Reverse map: lowercase sector slug (as it appears in `sector/*` tags) -> the
 # canonical PascalCase form stored in entities.sector_classification. Tags are
 # guaranteed lowercase + canonical by check_tag_canonicalization(), so this is
@@ -92,8 +102,10 @@ def allowed_tags(tags):
 
 # Source-note tag namespaces mirrored into note_tags (newsletter_notes_
 # adoption.md S4). Separate whitelist from ALLOWED_CATEGORIES: these describe
-# newsletter EDITION notes (series/publisher, company/ coverage later), not
-# entities — the notes have no entity rows by design.
+# newsletter EDITION notes (series/publisher, company/ coverage later). Since
+# the OKF edition backfill (2026-08-19) editions DO have entity rows
+# (entity_type='edition'), but their tags stay in note_tags — an edition with
+# zero entity_tags rows is expected, not drift.
 NOTE_TAG_CATEGORIES = ("series", "publisher", "company")
 
 
@@ -190,7 +202,8 @@ def main():  # noqa: C901
         seen_entities = 0
         for name, file_path, entity_type in rows:
             if not file_path:
-                missing_files.append((name, "(empty path)"))
+                if entity_type not in FILELESS_ENTITY_TYPES:
+                    missing_files.append((name, "(empty path)"))
                 continue
             fp = _REPO_ROOT / file_path
             if not fp.exists():
@@ -210,7 +223,11 @@ def main():  # noqa: C901
                     seen.add(t)
                     uniq.append(t)
             if not uniq:
-                no_tags.append(name)
+                # Edition notes carry only series/publisher/company tags,
+                # which rebuild_note_tags mirrors into note_tags — zero
+                # entity_tags rows is expected for them.
+                if entity_type != "edition":
+                    no_tags.append(name)
                 continue
             seen_entities += 1
             for t in uniq:
