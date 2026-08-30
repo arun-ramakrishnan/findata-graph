@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """Symlink-safe recursive file enumeration.
 
 ``Path.rglob("*", recurse_symlinks=True)`` (Python 3.13+) follows

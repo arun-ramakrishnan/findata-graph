@@ -15,7 +15,7 @@ native run below) and drives the original metric functions end-to-end
     doc_search + script_search (bm25-weighted, OR-quoted MATCH),
     plus the sqlite-vec vec0 KNN mirror
 
-EVERY connection is read-only (ro URIs / read_only=True); the vec case
+EVERY connection is read-only (connect(..., read_only=True)); the vec case
 is pre-gated with lazy_backfill=False so it can never write. Onager temp
 tables are CREATE OR REPLACE TEMP — session-local, idempotent.
 """
@@ -30,9 +30,9 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
-SQLITE_RO = f"file:{REPO / 'memory' / 'research.db'}?mode=ro"
-DOC_RO = f"file:{REPO / 'memory' / 'doc_search.db'}?mode=ro"
-SCRIPT_RO = f"file:{REPO / 'memory' / 'script_search.db'}?mode=ro"
+RESEARCH_DB = REPO / "memory" / "research.db"
+DOC_DB = REPO / "memory" / "doc_search.db"
+SCRIPT_DB = REPO / "memory" / "script_search.db"
 
 VEC_DIMS = 384  # bge-small-en-v1.5, same as the hybrid-search read path
 
@@ -54,28 +54,37 @@ def graph_con():
     return _gcon
 
 
+def _connect_ro(db: pathlib.Path) -> sqlite3.Connection:
+    """Read-only connection via the shared helper (P0 static check).
+    row_factory=None keeps raw tuples: sum_rows hashes repr(row) and the
+    Mojo side mirrors Python's tuple repr byte-for-byte — the sqlite3.Row
+    default would change every checksum and break parity."""
+    from helpers.core.db import connect
+    return connect(db, read_only=True, row_factory=None)
+
+
 def research_con() -> sqlite3.Connection:
     global _sq
     if _sq is None:
-        _sq = sqlite3.connect(SQLITE_RO, uri=True)
+        _sq = _connect_ro(RESEARCH_DB)
     return _sq
 
 
 def doc_con() -> sqlite3.Connection:
     global _doc
     if _doc is None:
-        if not (REPO / "memory" / "doc_search.db").exists():
+        if not DOC_DB.exists():
             raise FileNotFoundError("memory/doc_search.db missing — run rebuild_doc_search")
-        _doc = sqlite3.connect(DOC_RO, uri=True)
+        _doc = _connect_ro(DOC_DB)
     return _doc
 
 
 def script_con() -> sqlite3.Connection:
     global _scr
     if _scr is None:
-        if not (REPO / "memory" / "script_search.db").exists():
+        if not SCRIPT_DB.exists():
             raise FileNotFoundError("memory/script_search.db missing — run rebuild_script_search")
-        _scr = sqlite3.connect(SCRIPT_RO, uri=True)
+        _scr = _connect_ro(SCRIPT_DB)
     return _scr
 
 
@@ -107,7 +116,7 @@ def _mat_pair(edge_types):
             UNION
             SELECT target AS name FROM {t}{where}
         );
-        """
+        """  # noqa: S608  # interpolates the _EDGE_TABLE schema constant + _where_inline output (?-clauses only)
     e_sql = f"""
         CREATE OR REPLACE TEMP TABLE _onager_e AS
         SELECT s.nid AS src, t.nid AS dst,
@@ -116,14 +125,14 @@ def _mat_pair(edge_types):
         JOIN _onager_int s ON s.name = e.source
         JOIN _onager_int t ON t.name = e.target{where}
         ORDER BY src, dst;
-        """
+        """  # noqa: S608  # interpolates the _EDGE_TABLE schema constant + _where_inline output (?-clauses only)
     return int_sql, e_sql
 
 
 def _tf_named_sql(fn: str, col: str) -> str:
     """_onager_named's template (+ ORDER BY name for a stable checksum;
     the un-ordered original shape is covered by the function cases)."""
-    return (f"SELECT i.name, out.{col} "
+    return (f"SELECT i.name, out.{col} "  # noqa: S608  # fn/col are caller-passed literals from the closed onager table-function set
             f"FROM {fn}((SELECT src, dst, weight FROM _onager_e)) out "
             f"JOIN _onager_int i ON i.nid = out.node_id "
             f"ORDER BY i.name")
@@ -222,19 +231,19 @@ SQL_CASES: list[dict] = [
 
     dict(name="fts_note_rank_snippet", group="fts", conn="research", reps=20,
          fetch=True,
-         sql=(f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "
+         sql=(f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
               "FROM note_search WHERE note_search MATCH ? "
               "ORDER BY rank LIMIT ? OFFSET ?"),
          params=["shrimp feed", 20, 0]),
     dict(name="fts_note_typed", group="fts", conn="research", reps=20,
          fetch=True,
-         sql=(f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "
+         sql=(f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
               "FROM note_search WHERE note_search MATCH ? AND doc_type = ? "
               "ORDER BY rank LIMIT ? OFFSET ?"),
          params=["shrimp feed", "company", 20, 0]),
     dict(name="fts_note_hybrid", group="fts", conn="research", reps=20,
          fetch=True,
-         sql=(f"SELECT doc_type, file_path, title, sector, embedding, rank, "
+         sql=(f"SELECT doc_type, file_path, title, sector, embedding, rank, "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
               f"{_SNIP_NOTE} "
               "FROM note_search WHERE note_search MATCH ? "
               "ORDER BY rank LIMIT ? OFFSET ?"),
@@ -245,7 +254,7 @@ SQL_CASES: list[dict] = [
          params=["shrimp feed"]),
     dict(name="fts_note_boolean_prefix", group="fts", conn="research", reps=20,
          fetch=True,
-         sql=(f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "
+         sql=(f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
               "FROM note_search WHERE note_search MATCH ? "
               "ORDER BY rank LIMIT ? OFFSET ?"),
          params=["shrimp* OR feed*", 20, 0]),
