@@ -4182,3 +4182,119 @@ TOOL, not a bench probe); `Mojo/bin/integrity_check` is on PATH.
   `.items()`).
 - **Gate unchanged**: `make qa` still runs the python checker; the port
   is bench-side + a standalone tool. Promotion is a separate decision.
+
+## 183
+
+**Date:** 2026-08-30 · **Type:** tooling (Mojo) ·
+**Files:** `Mojo/src/bench/graph_algos_probe.mojo` (new probe),
+`Mojo/bench/mojo_graph_algos.py` (fixture/parity oracle),
+`Mojo/bench/run_bench.py` (leg `graph-algos`), `Makefile` +
+`Makefile.mojo` (stale mojo-bench leg lists refreshed) ·
+**Proposal:** `archive/tooling/mojo_graph_algos_port.md`
+
+Phase 1 of the graph-algos port: the `make graph-algos` surface
+(`helpers/graph/algorithms.py --all --no-apply`) driven from Mojo with
+the ORIGINAL python modules as the engine — the next interop rung after
+the integrity port. New seams checked out: the **Onager DuckDB community
+extension** from Mojo-driven code (temp-table materialisation, table
+functions with named parameters incl. `seed => 42` louvain), the sqlite
+ATTACH + vss extensions, and the repo's **full FTS5 surface** (operator
+decision: comprehensive, although the graph-algos path itself has zero
+FTS queries) — note_search (/api/search shapes incl. hybrid select +
+boolean-prefix), doc_search + script_search (column-weighted bm25,
+OR-quoted sanitised MATCH via the original `fts_match_expr`), the
+sqlite-vec vec0 KNN mirror, and a doc_search embedding scan.
+
+- **Two granularities** (operator decision): §2 SQL cases the Mojo side
+  EXECUTES itself on the fixture's read-only connections — 23 cases,
+  Onager-path SQL composed via `onager.py`'s own `_where_inline` (no
+  re-typed WHERE fragments) — and §3 metric cases where the original
+  functions run end-to-end with the canonical string REBUILT Mojo-side
+  (merge sort, key-sort + lookup, partition grouping, pair joins; only
+  `%.6f` float formatting goes through bridge lambdas).
+- **Parity: 23/23 SQL checksum + 16/16 metric canonical, exact** (the 14
+  make-graph-algos metrics + whole-graph metrics + vec0 KNN, 0 skips),
+  plus §4 end-to-end: the CLI `--all --no-apply` driven from Mojo —
+  rc 0, 12 `(metric=` headers + link-predict + voterank, zero FAIL
+  lines. Wall ~24–30 s; mojo-vs-native per-case timings within noise.
+- **Gated** (operator decision, deviating from the db-access /
+  db-integrity siblings): any mismatch exits 1 and fails the bench leg.
+  The negative test (perturbed canonical) surfaced a latent failure-path
+  bug — byte-slicing traps past end-of-string — fixed with a clamped
+  `head_bytes` diagnostic helper; verified clean exit 1.
+- **wcc canonicalisation**: component ids are arbitrary labels, so parity
+  uses the partition signature (count + member sizes desc); louvain ids
+  are canonically renumbered upstream and parity-check exactly.
+- **Read-only discipline** (worktree memory/ is hardlinked to the main
+  checkout): every connection ro-URI/`read_only=True`; vec case
+  pre-gated `lazy_backfill=False` (skip, never write); leg docstring
+  names `make graph-rebuild` as the warm-cache precondition.
+- **Non-goals**: no gate change, no algorithm reimplementation (Onager
+  keeps the math). Phase 2 — a full port in the integrity_check shape
+  (`Mojo/src/common/graph_algos.mojo`, `python_all_metrics()` goldens) —
+  is a separate future proposal.
+
+## 184
+
+**Date:** 2026-08-30 · **Type:** tooling (search freshness) ·
+**Files:** `helpers/maintenance/rebuild_doc_search.py`,
+`rebuild_note_search.py`, `rebuild_script_search.py` (+2 regression tests
+each in tests/test_rebuild_*.py) ·
+
+**Bug**: `make search-fresh` flagged WHOLE corpora STALE from a git
+worktree with zero content diff. Root cause: all three index rebuilders
+treated **mtime as content identity** — the freshness verdict compared
+`(mtime, hash)` tuples (doc: `mtime OR hash`), but the index sidecar DBs
+(doc_search.db / script_search.db / research.db) are **hardlinked across
+checkouts** while every checkout's files carry their own mtimes
+(worktree checkout time vs main's edit times). One stored mtime set, N
+checkouts → permanent STALE from every other checkout; worse, the note
+incremental APPLY re-upserted on mtime-only drift, **bumping the DB
+generation and cooling main's warm DuckDB cache for no content change**.
+
+**Fix**: content hash is the identity of record; mtime is only the carry
+fast-path hint. Verdicts and incremental upsert guards compare
+`content_hash` alone (doc keeps its mtime fast path and GAINS a
+hash-carry: mtime-drifted files hash-check and carry stored rows without
+chunk/embed). Regression tests per module: mtime skew + identical
+content → FRESH, exit 0, incremental no-op, no generation bump. 92
+rebuild tests + 10 fuzz tests pass; worktree `make search-fresh` green
+after APPLY (1237 embed-cache hits, 0 misses — content-identical re-embed
+free). Note: main's check stays red on genuinely-changed files until it
+pulls the fix + APPLYs — normal post-edit behavior.
+
+**Worktree env note**: `doc/local` (gitignored machine-local docs, in
+the doc-search corpus per design) existed only in main — replaced the
+worktree's symlink (rglob does not descend symlinked dirs, so the corpus
+was blind to it) with a `cp -rl` hardlink copy; future doc/local
+additions in main need a re-sync.
+
+## 185
+
+**Date:** 2026-08-30 · **Type:** tooling (search freshness) ·
+**Files:** `helpers/core/fs_walk.py` (new), `app.py` +
+`helpers/maintenance/rebuild_doc_search.py` (both `_iter_doc_files`
+walkers), `tests/test_fs_walk.py` (new, 8 tests) ·
+
+**Follow-up to #184's worktree-env note**: the `doc/local` hardlink copy
+is REPLACED by the clean fix — the worktree now symlinks
+`doc/local -> <main>/doc/local` again and both #107-contract walkers
+follow directory symlinks. `Path.rglob` does not descend symlinked dirs
+(which is why the symlink era read as 13 deleted rows); the obvious
+stdlib spelling, `rglob("*", recurse_symlinks=True)` (3.13+), follows
+them but has **NO cycle protection — a symlink loop hangs the walk
+outright** (verified on 3.14.4). So both walkers now share
+`helpers.core.fs_walk.iter_tree_files`: scandir stack +
+`(st_dev, st_ino)` dedupe — directory symlinks followed, cycles
+terminate, a dir reachable by two paths is walked once (deterministic),
+file symlinks resolve, broken ones skip (the old rglob + is_file
+contract). The API walker keeps its lazy-import style and the
+sort-by-POSIX-string rule; a contract test pins app-listing ==
+index-corpus enumeration (doc-rel vs repo-rooted keys).
+
+Verified: 153 tests across the affected suites (rebuild ×3, fuzz ×2,
+api search/docs, fs_walk) + ruff clean; worktree `make search-fresh`
+green through the symlink (81 doc files / 201 script units / 1237
+notes). Known unrelated: `test_graph_stats` interference when run after
+`test_api_graph_unit` — reproduces on pre-change code (stash-verified),
+pre-existing, not touched here.

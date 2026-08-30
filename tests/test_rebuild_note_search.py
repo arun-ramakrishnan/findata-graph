@@ -721,6 +721,45 @@ class TestStalenessCheck:
         err = capsys.readouterr().err
         assert "index state: FRESH" in err
 
+    def test_check_fresh_after_mtime_drift(self, seeded_tree, fake_local, capsys):
+        """Worktree/checkout regression (2026-08-30): mtime skew on
+        identical content must stay FRESH — the content hash (title+
+        sector+content) is the identity of record; mtime is only the
+        carry fast path."""
+        import os
+        import time as _time
+
+        db_path = seeded_tree
+        self._rebuild(db_path)
+        future = _time.time() + 1000
+        for p in rns.FINDATA.rglob("*"):
+            if p.is_file():
+                os.utime(p, (future, future))
+        stats = rns.rebuild(db_path, write=False)
+        assert stats["index_stale"] is False
+        assert stats["stale_changed"] == []
+        rc = rns.main(["--check"])
+        assert rc == 0
+        assert "index state: FRESH" in capsys.readouterr().err
+
+    def test_incremental_noop_after_mtime_drift(self, seeded_tree, fake_local):
+        """Same skew through the APPLY path: no re-upserts and NO
+        generation bump (an mtime-only drift must not cool the warm
+        DuckDB cache)."""
+        import os
+        import time as _time
+
+        db_path = seeded_tree
+        self._rebuild(db_path)
+        future = _time.time() + 1000
+        for p in rns.FINDATA.rglob("*"):
+            if p.is_file():
+                os.utime(p, (future, future))
+        stats = rns.rebuild(db_path, write=True, incremental=True)
+        assert stats["upserts"] == 0
+        assert stats["deletes"] == 0
+        assert not stats.get("generation_bumped")
+
     def test_check_detects_changed_note(self, seeded_tree, fake_local, capsys):
         db_path = seeded_tree
         self._rebuild(db_path)

@@ -27,6 +27,12 @@ Legs (each a subprocess with its own time budget; ``--leg`` to filter):
   db-integrity   Mojo/bin/integrity_check — the Mojo PORT of
                  database_integrity_check.py (golden parity + section
                  timings vs the python original, ~5 s)
+  graph-algos    Mojo/bin/graph_algos_probe — the make graph-algos
+                 surface via the ORIGINAL python modules (Onager DuckDB
+                 extension table functions + the repo's full FTS5
+                 surface: note_search/doc_search/script_search + vec0
+                 KNN). SQL executed Mojo-side, checksum + canonical
+                 parity GATED (any mismatch fails the leg; ~30 s)
   regex-corpus   Mojo/bin/corpus_sweep regex — every findall battery
                  pattern over every note BODY, Mojo-bridge-driven vs
                  native Python (PARITY on match count; ~15 s both sides)
@@ -172,6 +178,27 @@ def _leg_db_integrity() -> tuple[float, bool, str]:
         env={"MOJO_INTEGRITY_PARITY": "1"})
 
 
+def _leg_graph_algos() -> tuple[float, bool, str]:
+    """The make graph-algos surface from Mojo via the ORIGINAL python
+    modules (phase 1 of the graph-algos port — proposal
+    doc/improvements/proposals/mojo_graph_algos_port.md): the Onager
+    DuckDB community extension (temp-table materialisation + table
+    functions incl. seed => 42 louvain), the sqlite ATTACH + vss
+    extensions, the repo's full FTS5 surface (note_search / doc_search /
+    script_search shapes + the sqlite-vec vec0 KNN mirror), all 14
+    metrics driven end-to-end, and the CLI --all --no-apply run.
+    Mojo-side SQL execute + checksum/canonical parity is GATED (operator
+    decision 2026-08-30): any mismatch exits 1 and fails this leg.
+    ~30 s. Needs .venv/bin on PATH (bridge libpython discovery).
+    Precondition: warm graph cache (make graph-rebuild if
+    memory/graph.duckdb is stale — connect() would otherwise rebuild
+    the shared cache file)."""
+    env = dict(os.environ,
+               PATH=f"{REPO_ROOT / '.venv' / 'bin'}:{os.environ.get('PATH', '')}")
+    return _run("graph-algos", [str(BIN / "graph_algos_probe")], 120.0,
+                env=env)
+
+
 def _leg_regex_corpus() -> tuple[float, bool, str]:
     """Whole-corpus regex scan: Mojo-bridge-driven vs native Python.
 
@@ -201,6 +228,7 @@ def _build_legs(scales: str, reps: int) -> dict[str, dict]:
         "regex-corpus": dict(budget=150.0, fn=_leg_regex_corpus),
         "db-access": dict(budget=120.0, fn=_leg_db_access),
         "db-integrity": dict(budget=120.0, fn=_leg_db_integrity),
+        "graph-algos": dict(budget=120.0, fn=_leg_graph_algos),
     }
 
 

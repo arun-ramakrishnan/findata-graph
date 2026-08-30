@@ -768,9 +768,15 @@ _DOC_EXTS = {".md", ".txt"}
 def _iter_doc_files():
     """Yield (rel_path, full_path) for every browseable doc under doc/.
 
-    Uses the project-root doc/ directory. Symlinks / non-doc extensions are
+    Uses the project-root doc/ directory. Directory symlinks are followed
+    (helpers.core.fs_walk — cycle-safe), so a git worktree's gitignored
+    doc/local symlink lists identically to main's real directory, keeping
+    the #107 walk+sort contract with rebuild_doc_search._iter_doc_files
+    (both share that walker). Non-doc extensions and broken symlinks are
     skipped. Returns a stable (sorted) listing.
     """
+    from helpers.core.fs_walk import iter_tree_files
+
     if not _DOC_ROOT.is_dir():
         return
     # Sort by POSIX string, NOT by Path: Path comparison is tuple-of-parts,
@@ -779,8 +785,8 @@ def _iter_doc_files():
     # clients (and the API's own "sorted by path" contract) expect.
     for rel in sorted(
         p.relative_to(_DOC_ROOT).as_posix()
-        for p in _DOC_ROOT.rglob("*")
-        if p.is_file() and p.suffix.lower() in _DOC_EXTS
+        for p in iter_tree_files(_DOC_ROOT)
+        if p.suffix.lower() in _DOC_EXTS
     ):
         full = _DOC_ROOT / rel
         yield rel, full

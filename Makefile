@@ -56,7 +56,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
 > @echo "  maint-full               Post-ingest re-derivation: PRE_FULL index refresh (sync-tags, note-search) + maint + TIER2_STEPS (sector gates, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
 > @echo "  metrics-rebuild          Refresh company financials + note industry sections from yfinance (~1 min, 931 tickers)"
-> @echo "  mojo-bench               Run Mojo/bench/run_bench.py legs: cosine-knn, analyzer, pool-4x, regex-bridge, yaml-corpus (report: Mojo/bench/bench_report.txt)"
+> @echo "  mojo-bench               Run Mojo/bench/run_bench.py legs: cosine-knn, analyzer, pool-4x, regex-bridge, yaml-corpus, regex-corpus, db-access, db-integrity, graph-algos (report: Mojo/bench/bench_report.txt)"
 > @echo "  mojo-build               Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)"
 > @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
