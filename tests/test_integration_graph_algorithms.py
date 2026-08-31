@@ -14,6 +14,7 @@ All Onager-backed metrics are tested: degree, betweenness, closeness,
 eigenvector, louvain (plus pagerank / wcc / clustering via the same
 compute() path).
 """
+
 from __future__ import annotations
 
 import json
@@ -97,6 +98,7 @@ CREATE TABLE graph_analytics (
 # Fixtures
 # --------------------------------------------------------------------------- #
 
+
 @pytest.fixture
 def synth_db(tmp_path, monkeypatch):
     """Create a synthetic SQLite DB with a known graph topology.
@@ -118,9 +120,12 @@ def synth_db(tmp_path, monkeypatch):
 
     # Seed entities
     for name, etype in [
-        ("SectorA", "sector"), ("SectorB", "sector"),
-        ("CompanyA", "company"), ("CompanyB", "company"),
-        ("CompanyC", "company"), ("CompanyD", "company"),
+        ("SectorA", "sector"),
+        ("SectorB", "sector"),
+        ("CompanyA", "company"),
+        ("CompanyB", "company"),
+        ("CompanyC", "company"),
+        ("CompanyD", "company"),
     ]:
         conn.execute(
             "INSERT INTO entities(name, entity_type) VALUES (?, ?)",
@@ -142,8 +147,7 @@ def synth_db(tmp_path, monkeypatch):
     ]
     for src, tgt, etype in edges:
         conn.execute(
-            "INSERT INTO graph_edges(source, target, edge_type, source_ref) "
-            "VALUES (?,?,?,?)",
+            "INSERT INTO graph_edges(source, target, edge_type, source_ref) VALUES (?,?,?,?)",
             (src, tgt, etype, "test"),
         )
     conn.commit()
@@ -208,17 +212,21 @@ def _read_analytics(db_path, metric, entity=None):
 # Test: compute → write_analytics → read round-trip (Onager metrics)
 # --------------------------------------------------------------------------- #
 
+
 class TestComputeWriteReadRoundTrip:
     """For each Onager metric: compute → write → read back from
     graph_analytics and verify the value survives JSON round-trip."""
 
-    @pytest.mark.parametrize("metric,analytics_name", [
-        ("degree_centrality", "degree_centrality"),
-        ("betweenness_centrality", "betweenness_centrality"),
-        ("closeness_centrality", "closeness_centrality"),
-        ("eigenvector_centrality", "eigenvector_centrality"),
-        ("louvain_community", "louvain_community"),
-    ])
+    @pytest.mark.parametrize(
+        "metric,analytics_name",
+        [
+            ("degree_centrality", "degree_centrality"),
+            ("betweenness_centrality", "betweenness_centrality"),
+            ("closeness_centrality", "closeness_centrality"),
+            ("eigenvector_centrality", "eigenvector_centrality"),
+            ("louvain_community", "louvain_community"),
+        ],
+    )
     def test_scalar_metric_round_trip(self, synth_db, metric, analytics_name):
         result = compute(metric)
         assert len(result) > 0, f"compute({metric}) returned empty dict"
@@ -288,6 +296,7 @@ class TestComputeWriteReadRoundTrip:
 # Test: write_analytics UPSERT idempotency
 # --------------------------------------------------------------------------- #
 
+
 class TestWriteAnalyticsUpsert:
     """write_analytics uses INSERT ... ON CONFLICT DO UPDATE — re-writing the
     same metric should update, not duplicate."""
@@ -340,6 +349,7 @@ class TestWriteAnalyticsUpsert:
 # Test: _wrap_for_analytics shape correctness
 # --------------------------------------------------------------------------- #
 
+
 class TestWrapForAnalytics:
     """_wrap_for_analytics transforms raw compute() output into the JSON shape
     expected by graph_analytics + the API."""
@@ -377,6 +387,7 @@ class TestWrapForAnalytics:
 # --------------------------------------------------------------------------- #
 # Test: graph mutation → recompute → values change
 # --------------------------------------------------------------------------- #
+
 
 class TestMutationRecompute:
     """Add an edge to the graph → recompute → values should change."""
@@ -451,6 +462,7 @@ class TestMutationRecompute:
 # Test: API endpoint reads graph_analytics
 # --------------------------------------------------------------------------- #
 
+
 class TestAPIGraphMetrics:
     """Seed graph_analytics directly → verify /api/graph/metrics/<metric>
     serves the correct response."""
@@ -459,6 +471,7 @@ class TestAPIGraphMetrics:
     def seeded_client(self, tmp_path):
         """Build a Flask test_client with graph_analytics pre-seeded."""
         import app as A
+
         db_path = tmp_path / "api_test.db"
         conn = sqlite3.connect(str(db_path))
         conn.executescript(_SCHEMA)
@@ -466,8 +479,7 @@ class TestAPIGraphMetrics:
         # Seed a few analytics rows
         for entity, val in [("Alpha", 0.9), ("Beta", 0.5), ("Gamma", 0.1)]:
             conn.execute(
-                "INSERT INTO graph_analytics(entity_name, metric, value) "
-                "VALUES (?, 'pagerank', ?)",
+                "INSERT INTO graph_analytics(entity_name, metric, value) VALUES (?, 'pagerank', ?)",
                 (entity, json.dumps({"value": val})),
             )
         # Label metric: louvain
@@ -576,6 +588,7 @@ class TestAPIGraphMetrics:
 # Test: _format_value utility
 # --------------------------------------------------------------------------- #
 
+
 class TestGraphMetrics:
     """Phase 2 of doc/improvements/archive/graph/graph_algos.txt: whole-graph
     structural metrics via the algorithms dispatcher seam."""
@@ -637,7 +650,11 @@ class TestGraphMetrics:
         m_comp = algos.graph_metrics(edge_types=["competes_with"])
         # Different projections -> different cached entries.
         assert ("graph_metrics", (), _q._current_generation_for_cache()) in _q._QUERY_CACHE
-        assert ("graph_metrics", ("competes_with",), _q._current_generation_for_cache()) in _q._QUERY_CACHE
+        assert (
+            "graph_metrics",
+            ("competes_with",),
+            _q._current_generation_for_cache(),
+        ) in _q._QUERY_CACHE
         assert m_all != m_comp
 
 
@@ -710,9 +727,11 @@ class TestPhase3Centralities:
         assert rc == 0
         assert "FAIL" not in err
         assert "[dry-run: nothing written to graph_analytics" in err
-        rows = sqlite3.connect(str(synth_db)).execute(
-            "SELECT count(*) FROM graph_analytics WHERE metric LIKE '%katz%'"
-        ).fetchone()[0]
+        rows = (
+            sqlite3.connect(str(synth_db))
+            .execute("SELECT count(*) FROM graph_analytics WHERE metric LIKE '%katz%'")
+            .fetchone()[0]
+        )
         assert rows == 0
 
     def test_cli_voterank_is_dry_run_by_default(self, synth_db, capsys):
@@ -722,9 +741,11 @@ class TestPhase3Centralities:
         assert rc == 0
         assert "nothing written" in err
         assert "applied voterank" not in err
-        rows = sqlite3.connect(str(synth_db)).execute(
-            "SELECT count(*) FROM graph_analytics WHERE metric = 'voterank'"
-        ).fetchone()[0]
+        rows = (
+            sqlite3.connect(str(synth_db))
+            .execute("SELECT count(*) FROM graph_analytics WHERE metric = 'voterank'")
+            .fetchone()[0]
+        )
         assert rows == 0
 
     def test_cli_voterank_applies_with_flag(self, synth_db, capsys):
@@ -747,9 +768,11 @@ class TestPhase3Centralities:
         err = capsys.readouterr().err
         assert rc == 0
         assert "nothing written" in err
-        rows = sqlite3.connect(str(synth_db)).execute(
-            "SELECT count(*) FROM graph_analytics WHERE metric = 'voterank'"
-        ).fetchone()[0]
+        rows = (
+            sqlite3.connect(str(synth_db))
+            .execute("SELECT count(*) FROM graph_analytics WHERE metric = 'voterank'")
+            .fetchone()[0]
+        )
         assert rows == 0
 
     def test_cli_all_applies_phase3_metrics(self, synth_db, capsys):
@@ -758,12 +781,17 @@ class TestPhase3Centralities:
         rc = algos._cli(["--all", "--apply"])
         assert rc == 0
         conn = sqlite3.connect(str(synth_db))
-        metrics = {r[0] for r in conn.execute(
-            "SELECT DISTINCT metric FROM graph_analytics").fetchall()}
+        metrics = {
+            r[0] for r in conn.execute("SELECT DISTINCT metric FROM graph_analytics").fetchall()
+        }
         conn.close()
-        for expected in ("harmonic_centrality", "katz_centrality",
-                         "laplacian_centrality", "local_reaching_centrality",
-                         "voterank"):
+        for expected in (
+            "harmonic_centrality",
+            "katz_centrality",
+            "laplacian_centrality",
+            "local_reaching_centrality",
+            "voterank",
+        ):
             assert expected in metrics
 
 
@@ -779,24 +807,22 @@ class TestLinkPrediction:
         pairs = algos.link_prediction(method="jaccard")
         # A and C share neighbour B (J = 1/1); the A-B / B-C edges
         # themselves are excluded as existing links.
-        assert {(a, b): s for a, b, s in pairs} == pytest.approx(
-            {("CompanyA", "CompanyC"): 1.0}
-        )
+        assert {(a, b): s for a, b, s in pairs} == pytest.approx({("CompanyA", "CompanyC"): 1.0})
 
     def test_explicit_projection_part_of(self, synth_db):
         pairs = algos.link_prediction(edge_types=["part_of"], method="common-neighbors")
         # A, B, C all share SectorA (one common neighbour); CompanyD sits in
         # SectorB and has no candidate pair.
-        assert {(a, b): s for a, b, s in pairs} == pytest.approx({
-            ("CompanyA", "CompanyB"): 1.0,
-            ("CompanyA", "CompanyC"): 1.0,
-            ("CompanyB", "CompanyC"): 1.0,
-        })
+        assert {(a, b): s for a, b, s in pairs} == pytest.approx(
+            {
+                ("CompanyA", "CompanyB"): 1.0,
+                ("CompanyA", "CompanyC"): 1.0,
+                ("CompanyB", "CompanyC"): 1.0,
+            }
+        )
 
     def test_top_and_method_variants(self, synth_db):
-        top1 = algos.link_prediction(
-            edge_types=["part_of"], method="resource-alloc", top=1
-        )
+        top1 = algos.link_prediction(edge_types=["part_of"], method="resource-alloc", top=1)
         assert len(top1) == 1
         a, b, score = top1[0]
         assert a < b
@@ -822,9 +848,11 @@ class TestLinkPrediction:
         assert rc == 0
         assert "nothing written" in err
         assert "applied link_prediction" not in err
-        rows = sqlite3.connect(str(synth_db)).execute(
-            "SELECT count(*) FROM graph_analytics WHERE metric LIKE '%link%'"
-        ).fetchone()[0]
+        rows = (
+            sqlite3.connect(str(synth_db))
+            .execute("SELECT count(*) FROM graph_analytics WHERE metric LIKE '%link%'")
+            .fetchone()[0]
+        )
         assert rows == 0
 
     def test_cli_link_predict_applies_with_flag(self, synth_db, capsys):
@@ -841,11 +869,15 @@ class TestLinkPrediction:
         # Default projection on this fixture -> the single A-C candidate.
         assert [r[0] for r in rows] == ["CompanyA", "CompanyC"]
         import json as _json
+
         for name, value in rows:
             parsed = _json.loads(value)
             assert parsed["method"] == "jaccard"
             assert parsed["edge_types"] == [
-                "co_mentioned_in", "jv_with", "competes_with", "same_group"
+                "co_mentioned_in",
+                "jv_with",
+                "competes_with",
+                "same_group",
             ]
             other = "CompanyC" if name == "CompanyA" else "CompanyA"
             assert parsed["candidates"] == [{"name": other, "score": 1.0}]
@@ -855,9 +887,11 @@ class TestLinkPrediction:
         err = capsys.readouterr().err
         assert rc == 0
         assert "nothing written" in err
-        rows = sqlite3.connect(str(synth_db)).execute(
-            "SELECT count(*) FROM graph_analytics WHERE metric LIKE '%link%'"
-        ).fetchone()[0]
+        rows = (
+            sqlite3.connect(str(synth_db))
+            .execute("SELECT count(*) FROM graph_analytics WHERE metric LIKE '%link%'")
+            .fetchone()[0]
+        )
         assert rows == 0
 
     def test_persist_link_prediction_fans_out_both_endpoints(self, synth_db):
@@ -868,30 +902,38 @@ class TestLinkPrediction:
         )
         assert n == 3  # A, B, C
         conn = sqlite3.connect(str(synth_db))
-        rows = dict(conn.execute(
-            "SELECT entity_name, value FROM graph_analytics "
-            "WHERE metric = 'link_prediction'"
-        ).fetchall())
+        rows = dict(
+            conn.execute(
+                "SELECT entity_name, value FROM graph_analytics WHERE metric = 'link_prediction'"
+            ).fetchall()
+        )
         conn.close()
         import json as _json
+
         a = _json.loads(rows["CompanyA"])
         assert a["method"] == "jaccard"
         assert a["edge_types"] == ["competes_with"]
         assert a["candidates"] == [
-            {"name": "CompanyB", "score": 0.9}, {"name": "CompanyC", "score": 0.5}
+            {"name": "CompanyB", "score": 0.9},
+            {"name": "CompanyC", "score": 0.5},
         ]
         # The other endpoints see CompanyA back.
-        assert _json.loads(rows["CompanyB"])["candidates"] == [
-            {"name": "CompanyA", "score": 0.9}
-        ]
+        assert _json.loads(rows["CompanyB"])["candidates"] == [{"name": "CompanyA", "score": 0.9}]
 
     def test_persist_link_prediction_empty_is_noop(self, synth_db):
         assert algos._persist_link_prediction([], method="jaccard", edge_types=None) == 0
 
     def test_cli_link_predict_edge_types_override(self, synth_db, capsys):
         rc = algos._cli(
-            ["link-predict", "--method", "common-neighbors", "--edge-types",
-             "part_of,has_company", "--top", "5"]
+            [
+                "link-predict",
+                "--method",
+                "common-neighbors",
+                "--edge-types",
+                "part_of,has_company",
+                "--top",
+                "5",
+            ]
         )
         out = capsys.readouterr()
         assert rc == 0

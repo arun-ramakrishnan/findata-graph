@@ -6,6 +6,7 @@ BODY (not just frontmatter). The Mojo probe (mojo_regex_corpus_scan.mojo)
 mirrors scan_python() through the bridge and both sides must report the
 same total match count (parity = the correctness check).
 """
+
 from __future__ import annotations
 
 import json
@@ -63,12 +64,19 @@ def scan_python_stats(paths_file="/tmp/note_paths.txt", limit=0):  # noqa: S108
         for pat in pats:
             matches += len(pat.findall(text))
     dt = time.perf_counter() - t0
-    return {"docs": len(paths), "bytes": nbytes, "patterns": len(pats),
-            "matches": matches, "elapsed": dt}
+    return {
+        "docs": len(paths),
+        "bytes": nbytes,
+        "patterns": len(pats),
+        "matches": matches,
+        "elapsed": dt,
+    }
 
 
 def scan_python(paths_file="/tmp/note_paths.txt", limit=0):  # noqa: S108
     s = scan_python_stats(paths_file, limit)
-    return (f"python : docs={s['docs']} bytes={s['bytes']} "
-            f"patterns={s['patterns']} matches={s['matches']} "
-            f"elapsed={s['elapsed']:.3f}s")
+    return (
+        f"python : docs={s['docs']} bytes={s['bytes']} "
+        f"patterns={s['patterns']} matches={s['matches']} "
+        f"elapsed={s['elapsed']:.3f}s"
+    )

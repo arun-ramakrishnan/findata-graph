@@ -236,9 +236,9 @@ class TestEmbedStoreConsolidation:
         try:
             # Direct connection: the pooled table is unqualified main here
             # ('vecdb' exists only as an ATTACH alias at runtime).
-            rows = dict(con.execute(
-                "SELECT source, COUNT(*) FROM embed_cache GROUP BY source"
-            ).fetchall())
+            rows = dict(
+                con.execute("SELECT source, COUNT(*) FROM embed_cache GROUP BY source").fetchall()
+            )
         finally:
             con.close()
         assert rows == {"doc": 1}
@@ -261,7 +261,9 @@ class TestEmbedStoreConsolidation:
 
         mem = sqlite3.connect(":memory:")
         VS._attach_vec_db(mem)
-        attached_files = [r[2] for r in mem.execute("PRAGMA database_list").fetchall() if r[1] == "vecdb"]
+        attached_files = [
+            r[2] for r in mem.execute("PRAGMA database_list").fetchall() if r[1] == "vecdb"
+        ]
         assert attached_files == [""]  # anonymous :memory:, not the live path
         mem.execute(
             "CREATE TABLE vecdb.embed_cache (text_hash TEXT, model TEXT, "

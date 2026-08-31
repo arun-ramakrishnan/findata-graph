@@ -34,13 +34,19 @@ from helpers.core.frontmatter import extract_tags as _note_yaml_tags  # noqa: E4
 # so check_relations() validates graph_edges.edge_type against this set.
 # Keep in sync if a new edge type is registered.
 _KNOWN_EDGE_TYPES: tuple[str, ...] = (
-    "part_of", "has_company",
-    "competes_with", "jv_with", "same_group",
-    "supplier_to", "customer_of",
-    "acquired", "subsidiary_of", "co_mentioned_in",
+    "part_of",
+    "has_company",
+    "competes_with",
+    "jv_with",
+    "same_group",
+    "supplier_to",
+    "customer_of",
+    "acquired",
+    "subsidiary_of",
+    "co_mentioned_in",
     "belongs_to",  # Bundle M4: sector hierarchy (sector->super_sector, sub_sector->sector)
     "exposed_to",  # D4: cross-sector theme membership (company -> theme)
-    "cited_in",    # okf_activation P: OKF provenance (company/sector -> edition)
+    "cited_in",  # okf_activation P: OKF provenance (company/sector -> edition)
     "semantic_peer",  # E3: embedding cosine neighbours (Relations 2.0)
     "invested_in",  # E5: institution -> company holders (Relations 2.0)
 )
@@ -80,21 +86,21 @@ _CHECKS: tuple[Check, ...] = (
     Check("company_metrics", "check_company_metrics", "error", "Company Metrics"),
     Check("orphan_companies", "check_orphan_companies", "error", "Orphan Companies"),
     Check("hierarchy", "check_hierarchy", "error", "Sector Hierarchy"),
-    Check("market_cap_conflicts", "check_market_cap_conflicts", "error",
-          "Market Cap Tag Conflicts"),
-    Check("cache_consistency", "check_cache_consistency", "error",
-          "DuckDB Cache Consistency"),
+    Check(
+        "market_cap_conflicts", "check_market_cap_conflicts", "error", "Market Cap Tag Conflicts"
+    ),
+    Check("cache_consistency", "check_cache_consistency", "error", "DuckDB Cache Consistency"),
     Check("normalization", "check_normalization", "error", "Normalization"),
-    Check("duplicate_tickers", "check_duplicate_tickers", "error",
-          "Semantic Uniqueness (duplicate tickers)"),
-    Check("fuzzy_duplicates", "check_fuzzy_duplicate_names", "warning",
-          "Fuzzy Name Similarity"),
-    Check("validity_window", "check_validity_window", "warning",
-          "Edge Validity Window Coverage"),
-    Check("graph_summary", "check_graph_summary", "warning",
-          "Graph Summary"),
-    Check("db_meta", "check_db_meta", "error",
-          "DB Meta (generation + user_version)"),
+    Check(
+        "duplicate_tickers",
+        "check_duplicate_tickers",
+        "error",
+        "Semantic Uniqueness (duplicate tickers)",
+    ),
+    Check("fuzzy_duplicates", "check_fuzzy_duplicate_names", "warning", "Fuzzy Name Similarity"),
+    Check("validity_window", "check_validity_window", "warning", "Edge Validity Window Coverage"),
+    Check("graph_summary", "check_graph_summary", "warning", "Graph Summary"),
+    Check("db_meta", "check_db_meta", "error", "DB Meta (generation + user_version)"),
 )
 
 
@@ -124,6 +130,7 @@ class DatabaseIntegrityChecker:
             raise FileNotFoundError(f"Database not found: {self.db_path}")
         # P0: route through central helper so FK/WAL/busy_timeout are canonical
         from helpers.core.db import connect as _db_connect
+
         self._conn = _db_connect(self.db_path)
         return self._conn
 
@@ -154,8 +161,7 @@ class DatabaseIntegrityChecker:
 
         return entities
 
-    def validate_file_path(self, file_path: str,
-                           entity_type: str = "") -> tuple[bool, str]:
+    def validate_file_path(self, file_path: str, entity_type: str = "") -> tuple[bool, str]:
         """
         Validate if file path exists and follows correct format
         Returns: (is_valid, validation_message)
@@ -187,8 +193,7 @@ class DatabaseIntegrityChecker:
 
         return True, "Valid"
 
-    def _check_directory_structure(self, file_path: str,
-                                   entity_type: str = "") -> bool:
+    def _check_directory_structure(self, file_path: str, entity_type: str = "") -> bool:
         """Check if file path follows correct directory structure.
 
         Per entity_type:
@@ -215,10 +220,9 @@ class DatabaseIntegrityChecker:
         elif file_path.startswith("findata/Super_Sectors/"):
             parts = file_path.split("/")
             return len(parts) == 3  # findata, Super_Sectors, {Entity}.md
-        elif (entity_type == "edition"
-              and file_path.startswith(
-                  ("findata/The_Chatter/", "findata/The_PlotLines/",
-                   "findata/Points_And_Figures/"))):
+        elif entity_type == "edition" and file_path.startswith(
+            ("findata/The_Chatter/", "findata/The_PlotLines/", "findata/Points_And_Figures/")
+        ):
             parts = file_path.split("/")
             return len(parts) == 3  # findata, {tree}, {Edition}.md
         return False
@@ -252,8 +256,7 @@ class DatabaseIntegrityChecker:
         # graph_edges, so we accept either kind.
         if (
             cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='relations' "
-                "AND type IN ('table','view')"
+                "SELECT 1 FROM sqlite_master WHERE name='relations' AND type IN ('table','view')"
             ).fetchone()
             is None
         ):
@@ -371,9 +374,16 @@ class DatabaseIntegrityChecker:
             "unknown_type": unknown_type,
             "self_loops": self_loops,
             "orphaned": orphaned,
-            "type_mismatch": (po_src_bad + po_tgt_bad + hc_src_bad + hc_tgt_bad
-                              + bt_src_bad + bt_tgt_bad
-                              + et_src_bad + et_tgt_bad),
+            "type_mismatch": (
+                po_src_bad
+                + po_tgt_bad
+                + hc_src_bad
+                + hc_tgt_bad
+                + bt_src_bad
+                + bt_tgt_bad
+                + et_src_bad
+                + et_tgt_bad
+            ),
             "part_of_without_has_company": po_no_hc,
             "has_company_without_part_of": hc_no_po,
             "belongs_to_endpoint_bad": bt_src_bad + bt_tgt_bad,
@@ -407,8 +417,7 @@ class DatabaseIntegrityChecker:
 
         total = cur.execute("SELECT COUNT(*) FROM entity_tags").fetchone()[0]
         orphaned = cur.execute(
-            "SELECT COUNT(*) FROM entity_tags "
-            "WHERE entity_name NOT IN (SELECT name FROM entities)"
+            "SELECT COUNT(*) FROM entity_tags WHERE entity_name NOT IN (SELECT name FROM entities)"
         ).fetchone()[0]
         return {
             "total": total,
@@ -477,8 +486,7 @@ class DatabaseIntegrityChecker:
             ).fetchone()
             is None
         ):
-            return {"total": 0, "unknown_type": 0, "orphaned": 0,
-                    "bad_properties": 0, "errors": 0}
+            return {"total": 0, "unknown_type": 0, "orphaned": 0, "bad_properties": 0, "errors": 0}
 
         total = cur.execute("SELECT COUNT(*) FROM events").fetchone()[0]
         # Build the type allowlist inline (CANONICAL_EVENT_TYPES is a frozenset
@@ -488,8 +496,7 @@ class DatabaseIntegrityChecker:
             f"SELECT COUNT(*) FROM events WHERE event_type NOT IN ({type_list})"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
         ).fetchone()[0]
         orphaned = cur.execute(
-            "SELECT COUNT(*) FROM events "
-            "WHERE entity NOT IN (SELECT name FROM entities)"
+            "SELECT COUNT(*) FROM events WHERE entity NOT IN (SELECT name FROM entities)"
         ).fetchone()[0]
         bad_properties = cur.execute(
             "SELECT COUNT(*) FROM events WHERE json_valid(properties) = 0"
@@ -526,15 +533,17 @@ class DatabaseIntegrityChecker:
             return {"total": 0, "orphaned": 0, "bad_properties": 0, "errors": 0}
         total = cur.execute("SELECT COUNT(*) FROM quotes").fetchone()[0]
         orphaned = cur.execute(
-            "SELECT COUNT(*) FROM quotes "
-            "WHERE entity NOT IN (SELECT name FROM entities)"
+            "SELECT COUNT(*) FROM quotes WHERE entity NOT IN (SELECT name FROM entities)"
         ).fetchone()[0]
         bad_properties = cur.execute(
             "SELECT COUNT(*) FROM quotes WHERE json_valid(properties) = 0"
         ).fetchone()[0]
-        return {"total": total, "orphaned": orphaned,
-                "bad_properties": bad_properties,
-                "errors": orphaned + bad_properties}
+        return {
+            "total": total,
+            "orphaned": orphaned,
+            "bad_properties": bad_properties,
+            "errors": orphaned + bad_properties,
+        }
 
     def check_company_metrics(self) -> dict:
         """Integrity of the ``company_metrics`` table (derive_insights arm 2).
@@ -546,23 +555,24 @@ class DatabaseIntegrityChecker:
         cur = conn.cursor()
         if (
             cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='company_metrics' "
-                "AND type='table'"
+                "SELECT 1 FROM sqlite_master WHERE name='company_metrics' AND type='table'"
             ).fetchone()
             is None
         ):
             return {"total": 0, "orphaned": 0, "bad_properties": 0, "errors": 0}
         total = cur.execute("SELECT COUNT(*) FROM company_metrics").fetchone()[0]
         orphaned = cur.execute(
-            "SELECT COUNT(*) FROM company_metrics "
-            "WHERE entity NOT IN (SELECT name FROM entities)"
+            "SELECT COUNT(*) FROM company_metrics WHERE entity NOT IN (SELECT name FROM entities)"
         ).fetchone()[0]
         bad_properties = cur.execute(
             "SELECT COUNT(*) FROM company_metrics WHERE json_valid(properties) = 0"
         ).fetchone()[0]
-        return {"total": total, "orphaned": orphaned,
-                "bad_properties": bad_properties,
-                "errors": orphaned + bad_properties}
+        return {
+            "total": total,
+            "orphaned": orphaned,
+            "bad_properties": bad_properties,
+            "errors": orphaned + bad_properties,
+        }
 
     def check_orphan_companies(self) -> dict:
         """Companies with no ``part_of`` edge — not attached to any sector
@@ -587,8 +597,7 @@ class DatabaseIntegrityChecker:
         # Tolerate a DB that has no relations table/view yet (fresh / partial).
         if (
             cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='relations' "
-                "AND type IN ('table','view')"
+                "SELECT 1 FROM sqlite_master WHERE name='relations' AND type IN ('table','view')"
             ).fetchone()
             is None
         ):
@@ -638,16 +647,19 @@ class DatabaseIntegrityChecker:
         # Tolerate a DB that has no relations table/view yet (fresh / partial).
         if (
             cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='relations' "
-                "AND type IN ('table','view')"
+                "SELECT 1 FROM sqlite_master WHERE name='relations' AND type IN ('table','view')"
             ).fetchone()
             is None
         ):
             return {
-                "total_belongs_to": 0, "sub_sector_orphans": 0,
-                "sector_orphans": 0, "super_sector_orphans": 0,
-                "multi_parent": 0, "cycles": 0,
-                "taxonomy_drift": 0, "errors": 0,
+                "total_belongs_to": 0,
+                "sub_sector_orphans": 0,
+                "sector_orphans": 0,
+                "super_sector_orphans": 0,
+                "multi_parent": 0,
+                "cycles": 0,
+                "taxonomy_drift": 0,
+                "errors": 0,
             }
 
         def one(sql: str) -> int:
@@ -708,10 +720,7 @@ class DatabaseIntegrityChecker:
         # taxonomy doesn't list, or a taxonomy mapping absent from the DB.
         taxonomy_drift = self._check_taxonomy_drift(cur)
 
-        errors = (
-            sub_orphans + sec_orphans + ss_orphans
-            + multi_parent + cycles + taxonomy_drift
-        )
+        errors = sub_orphans + sec_orphans + ss_orphans + multi_parent + cycles + taxonomy_drift
         return {
             "total_belongs_to": total,
             "sub_sector_orphans": sub_orphans,
@@ -743,7 +752,8 @@ class DatabaseIntegrityChecker:
             # Lazy import: avoids a hard dep on the maintenance module at
             # checker-import time (and its transitive helpers.core.db).
             from helpers.maintenance.build_sector_hierarchy import (
-                SUPER_SECTORS, SUB_CATEGORIES,
+                SUPER_SECTORS,
+                SUB_CATEGORIES,
             )
         except Exception:
             return 0
@@ -762,9 +772,9 @@ class DatabaseIntegrityChecker:
 
         # Build the live set from the DB (belongs_to edges only).
         live: set[tuple[str, str]] = {
-            (r[0], r[1]) for r in cur.execute(
-                "SELECT source, target FROM relations "
-                "WHERE relation_type='belongs_to'"
+            (r[0], r[1])
+            for r in cur.execute(
+                "SELECT source, target FROM relations WHERE relation_type='belongs_to'"
             ).fetchall()
         }
 
@@ -809,14 +819,15 @@ class DatabaseIntegrityChecker:
             # Editions follow the OCR filename convention, not the entity-
             # naming one (5 live stems legitimately break PascalCase — same
             # rationale as the filename exemption in validate_file_path).
-            if (nn and etype != "edition"
-                    and (not name_ok.match(nn) or "__" in nn or nn.endswith("_"))):
+            if (
+                nn
+                and etype != "edition"
+                and (not name_ok.match(nn) or "__" in nn or nn.endswith("_"))
+            ):
                 bad_format.append({"name": name, "normalized_name": nn})
             stem = Path(fp).stem if fp else ""
             if nn and stem and nn != stem:
-                file_mismatches.append(
-                    {"name": name, "normalized_name": nn, "file_stem": stem}
-                )
+                file_mismatches.append({"name": name, "normalized_name": nn, "file_stem": stem})
 
         # Orphaned files: on disk but no entity by normalized_name (WARNING)
         nn_set = {
@@ -950,9 +961,7 @@ class DatabaseIntegrityChecker:
             if t and t not in DatabaseIntegrityChecker._STOPWORDS
         }
 
-    def _fuzzy_names_match(
-        self, tokens_i: set[str], tokens_j: set[str]
-    ) -> bool:
+    def _fuzzy_names_match(self, tokens_i: set[str], tokens_j: set[str]) -> bool:
         """Return True if two token sets represent a fuzzy-name match."""
         shared = tokens_i & tokens_j
         # Single-token exact match (e.g. 'Hindalco' == 'Hindalco').
@@ -996,12 +1005,10 @@ class DatabaseIntegrityChecker:
         ).fetchall()
 
         pairs = []
-        token_cache = [
-            (ni, ti, self._meaningful_tokens(ni))
-            for (ni, ti) in rows
-        ]
+        token_cache = [(ni, ti, self._meaningful_tokens(ni)) for (ni, ti) in rows]
 
         from collections import defaultdict
+
         token_to_indices: dict[str, set[int]] = defaultdict(set)
         for idx, (_, _, tokens) in enumerate(token_cache):
             for t in tokens:
@@ -1020,9 +1027,7 @@ class DatabaseIntegrityChecker:
                     continue
                 nj, tj, cj = token_cache[j]
                 dominated = (
-                    self._share_ticker(ti, tj)
-                    or not cj
-                    or not self._fuzzy_names_match(ci, cj)
+                    self._share_ticker(ti, tj) or not cj or not self._fuzzy_names_match(ci, cj)
                 )
                 if dominated:
                     continue
@@ -1053,20 +1058,25 @@ class DatabaseIntegrityChecker:
         cur = conn.cursor()
 
         entity_counts = {
-            r[0]: r[1] for r in cur.execute(
-                "SELECT entity_type, COUNT(*) FROM entities "
-                "GROUP BY entity_type ORDER BY 2 DESC"
+            r[0]: r[1]
+            for r in cur.execute(
+                "SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type ORDER BY 2 DESC"
             ).fetchall()
         }
 
-        edge_counts = {
-            r[0]: r[1] for r in cur.execute(
-                "SELECT edge_type, COUNT(*) AS n FROM graph_edges "
-                "GROUP BY edge_type ORDER BY n DESC"
-            ).fetchall()
-        } if cur.execute(
-            "SELECT 1 FROM sqlite_master WHERE name='graph_edges' AND type='table'"
-        ).fetchone() else {}
+        edge_counts = (
+            {
+                r[0]: r[1]
+                for r in cur.execute(
+                    "SELECT edge_type, COUNT(*) AS n FROM graph_edges "
+                    "GROUP BY edge_type ORDER BY n DESC"
+                ).fetchall()
+            }
+            if cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='graph_edges' AND type='table'"
+            ).fetchone()
+            else {}
+        )
 
         # Sector-size distribution (companies per sector_classification).
         sector_sizes = cur.execute(
@@ -1084,23 +1094,26 @@ class DatabaseIntegrityChecker:
                 "mean": round(sum(sizes) / len(sizes), 1),
             }
         else:
-            size_summary = {"sector_count": 0, "min": 0, "median": 0,
-                            "max": 0, "mean": 0}
+            size_summary = {"sector_count": 0, "min": 0, "median": 0, "max": 0, "mean": 0}
         largest = [{"sector": s, "n": n} for s, n in sector_sizes[:10]]
         smallest = [{"sector": s, "n": n} for s, n in sector_sizes[-5:]]
 
         # Market-cap distribution (from entity_tags — the source of truth
         # since the entities.market_cap column was dropped, Bundle C2).
-        cap_counts = cur.execute(
-            "SELECT substr(t.tag, length('market_cap/')+1) AS cap, COUNT(*) AS n "
-            "FROM entities e "
-            "LEFT JOIN entity_tags t ON t.entity_name = e.name "
-            "AND t.tag LIKE 'market_cap/%' "
-            "WHERE e.entity_type='company' "
-            "GROUP BY cap ORDER BY n DESC"
-        ).fetchall() if cur.execute(
-            "SELECT 1 FROM sqlite_master WHERE name='entity_tags' AND type='table'"
-        ).fetchone() else []
+        cap_counts = (
+            cur.execute(
+                "SELECT substr(t.tag, length('market_cap/')+1) AS cap, COUNT(*) AS n "
+                "FROM entities e "
+                "LEFT JOIN entity_tags t ON t.entity_name = e.name "
+                "AND t.tag LIKE 'market_cap/%' "
+                "WHERE e.entity_type='company' "
+                "GROUP BY cap ORDER BY n DESC"
+            ).fetchall()
+            if cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='entity_tags' AND type='table'"
+            ).fetchone()
+            else []
+        )
         market_cap = [{"tier": (c or "(unset)"), "n": n} for c, n in cap_counts]
 
         return {
@@ -1137,8 +1150,7 @@ class DatabaseIntegrityChecker:
         cur = conn.cursor()
         if (
             cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='entity_tags' "
-                "AND type='table'"
+                "SELECT 1 FROM sqlite_master WHERE name='entity_tags' AND type='table'"
             ).fetchone()
             is None
         ):
@@ -1180,8 +1192,7 @@ class DatabaseIntegrityChecker:
         cur = conn.cursor()
         if (
             cur.execute(
-                "SELECT 1 FROM sqlite_master WHERE name='graph_edges' "
-                "AND type='table'"
+                "SELECT 1 FROM sqlite_master WHERE name='graph_edges' AND type='table'"
             ).fetchone()
             is None
         ):
@@ -1233,7 +1244,11 @@ class DatabaseIntegrityChecker:
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='db_meta'"
         ).fetchone()
         if not has_meta:
-            return {"errors": 1, "warnings": 0, "reasons": ["db_meta table missing (run ensure_db_meta migration)"]}
+            return {
+                "errors": 1,
+                "warnings": 0,
+                "reasons": ["db_meta table missing (run ensure_db_meta migration)"],
+            }
         row = conn.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
         if row is None or row[0] is None:
             errors += 1
@@ -1241,12 +1256,13 @@ class DatabaseIntegrityChecker:
         else:
             try:
                 int(row[0])
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 errors += 1
                 reasons.append(f"generation not an int: {row[0]!r}")
         # user_version
         try:
             from helpers.core.db import EXPECTED_USER_VERSION
+
             uv = conn.execute("PRAGMA user_version").fetchone()[0]
             if int(uv) != EXPECTED_USER_VERSION:
                 errors += 1
@@ -1257,13 +1273,21 @@ class DatabaseIntegrityChecker:
         # schema_version mirror (advisory but treated as error if drift)
         try:
             from helpers.core.db import EXPECTED_SCHEMA_VERSION
+
             r2 = conn.execute("SELECT value FROM db_meta WHERE key='schema_version'").fetchone()
             if r2 is None or r2[0] != EXPECTED_SCHEMA_VERSION:
                 errors += 1
-                reasons.append(f"db_meta.schema_version {r2[0] if r2 else None!r} != {EXPECTED_SCHEMA_VERSION!r}")
+                reasons.append(
+                    f"db_meta.schema_version {r2[0] if r2 else None!r} != {EXPECTED_SCHEMA_VERSION!r}"
+                )
         except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
             pass
-        return {"errors": errors, "warnings": 0, "reasons": reasons, "generation": row[0] if row else None}
+        return {
+            "errors": errors,
+            "warnings": 0,
+            "reasons": reasons,
+            "generation": row[0] if row else None,
+        }
 
     def check_cache_consistency(self) -> dict:
         """Reconcile the DuckDB materialized graph cache
@@ -1296,23 +1320,25 @@ class DatabaseIntegrityChecker:
         """
         duckdb_path = self.base_path / "memory" / "graph.duckdb"
         if not duckdb_path.exists():
-            return {"skipped": True, "reason": "cache file absent",
-                    "errors": 0, "warnings": 1}
+            return {"skipped": True, "reason": "cache file absent", "errors": 0, "warnings": 1}
 
         try:
             import duckdb  # lazy — not a hard dep of the checker
         except ImportError:
-            return {"skipped": True, "reason": "duckdb not installed",
-                    "errors": 0, "warnings": 1}
+            return {"skipped": True, "reason": "duckdb not installed", "errors": 0, "warnings": 1}
 
         try:
             con = duckdb.connect(str(duckdb_path), read_only=True)
         except Exception as e:
             # Corrupted / unreadable cache — treat as a drift ERROR (the
             # app would also fail to read it). Fresh-rebuild fixes it.
-            return {"skipped": False, "errors": 1, "warnings": 0,
-                    "row_mismatches": [],
-                    "reason": f"cache unreadable: {e}"}
+            return {
+                "skipped": False,
+                "errors": 1,
+                "warnings": 0,
+                "row_mismatches": [],
+                "reason": f"cache unreadable: {e}",
+            }
 
         try:
             return self._reconcile_cache(con)
@@ -1342,9 +1368,7 @@ class DatabaseIntegrityChecker:
         # the 5 entity kinds. We attach SQLite read-only to the SAME DuckDB
         # connection so both stores are queryable in one SQL statement.
         try:
-            duck_con.execute(
-                f"ATTACH '{self.db_path}' AS fin (TYPE sqlite, READ_ONLY);"
-            )
+            duck_con.execute(f"ATTACH '{self.db_path}' AS fin (TYPE sqlite, READ_ONLY);")
         except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
             # Already attached (e.g. warm cache opened by connect()) — fine.
             pass
@@ -1358,21 +1382,25 @@ class DatabaseIntegrityChecker:
             duck_n = duck_con.execute("SELECT COUNT(*) FROM v_node").fetchone()[0]
         except Exception:
             duck_n = None
-        sqlite_n = self.get_connection().execute(
-            "SELECT COUNT(*) FROM entities WHERE entity_type IN "
-            "('company','sector','super_sector','sub_sector','theme','edition',"
-            "'institution')"
-        ).fetchone()[0]
+        sqlite_n = (
+            self.get_connection()
+            .execute(
+                "SELECT COUNT(*) FROM entities WHERE entity_type IN "
+                "('company','sector','super_sector','sub_sector','theme','edition',"
+                "'institution')"
+            )
+            .fetchone()[0]
+        )
         if duck_n is None or duck_n != sqlite_n:
-            mismatches.append(
-                {"table": "v_node", "duckdb": duck_n, "sqlite": sqlite_n})
+            mismatches.append({"table": "v_node", "duckdb": duck_n, "sqlite": sqlite_n})
 
         # Each EDGE_REGISTRY edge table: DuckDB e_<x> count vs SQLite
         # graph_edges WHERE edge_type='<key>'.
-        ge_present = self.get_connection().execute(
-            "SELECT 1 FROM sqlite_master WHERE name='graph_edges' "
-            "AND type='table'"
-        ).fetchone()
+        ge_present = (
+            self.get_connection()
+            .execute("SELECT 1 FROM sqlite_master WHERE name='graph_edges' AND type='table'")
+            .fetchone()
+        )
         for etype, spec in EDGE_REGISTRY.items():
             try:
                 dn = duck_con.execute(
@@ -1380,29 +1408,33 @@ class DatabaseIntegrityChecker:
                 ).fetchone()[0]
             except Exception:
                 dn = None
-            sn = (self.get_connection().execute(
-                "SELECT COUNT(*) FROM graph_edges WHERE edge_type=?",
-                (etype,)).fetchone()[0] if ge_present else 0)
+            sn = (
+                self.get_connection()
+                .execute("SELECT COUNT(*) FROM graph_edges WHERE edge_type=?", (etype,))
+                .fetchone()[0]
+                if ge_present
+                else 0
+            )
             if dn is None or dn != sn:
                 mismatches.append(
-                    {"table": spec["table"], "edge_type": etype,
-                     "duckdb": dn, "sqlite": sn})
+                    {"table": spec["table"], "edge_type": etype, "duckdb": dn, "sqlite": sn}
+                )
 
         # e_belongs_to + e_exposed_to (declared outside EDGE_REGISTRY).
-        for tbl, etype in (("e_belongs_to", "belongs_to"),
-                           ("e_exposed_to", "exposed_to")):
+        for tbl, etype in (("e_belongs_to", "belongs_to"), ("e_exposed_to", "exposed_to")):
             try:
-                dn = duck_con.execute(
-                    f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                dn = duck_con.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()[0]  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
             except Exception:
                 dn = None
-            sn = (self.get_connection().execute(
-                "SELECT COUNT(*) FROM graph_edges WHERE edge_type=?",
-                (etype,)).fetchone()[0] if ge_present else 0)
+            sn = (
+                self.get_connection()
+                .execute("SELECT COUNT(*) FROM graph_edges WHERE edge_type=?", (etype,))
+                .fetchone()[0]
+                if ge_present
+                else 0
+            )
             if dn is None or dn != sn:
-                mismatches.append(
-                    {"table": tbl, "edge_type": etype,
-                     "duckdb": dn, "sqlite": sn})
+                mismatches.append({"table": tbl, "edge_type": etype, "duckdb": dn, "sqlite": sn})
 
         errors = sv_drift + len(mismatches)
         return {
@@ -1539,9 +1571,7 @@ class DatabaseIntegrityChecker:
             "validation_rate": round((results["valid_entities"] / total) * 100, 2)
             if total > 0
             else 0,
-            "coverage_rate": round(
-                ((total - results["missing_file_paths"]) / total) * 100, 2
-            )
+            "coverage_rate": round(((total - results["missing_file_paths"]) / total) * 100, 2)
             if total > 0
             else 0,
             "missing_path_rate": round((results["missing_file_paths"] / total) * 100, 2)
@@ -1550,14 +1580,10 @@ class DatabaseIntegrityChecker:
             "file_not_found_rate": round((results["file_not_found"] / total) * 100, 2)
             if total > 0
             else 0,
-            "structure_issues_rate": round(
-                (results["invalid_structure"] / total) * 100, 2
-            )
+            "structure_issues_rate": round((results["invalid_structure"] / total) * 100, 2)
             if total > 0
             else 0,
-            "filename_issues_rate": round(
-                (results["invalid_filename"] / total) * 100, 2
-            )
+            "filename_issues_rate": round((results["invalid_filename"] / total) * 100, 2)
             if total > 0
             else 0,
         }
@@ -1616,8 +1642,7 @@ class DatabaseIntegrityChecker:
         nt = results.get("note_tags", {})
         lines.append("## NOTE TAGS (ERROR-level; gate-failing)")
         lines.append(
-            f"total={nt.get('total', 0)} stale={nt.get('stale', 0)} "
-            f"-> errors={nt.get('errors', 0)}"
+            f"total={nt.get('total', 0)} stale={nt.get('stale', 0)} -> errors={nt.get('errors', 0)}"
         )
         lines.append("")
 
@@ -1686,9 +1711,7 @@ class DatabaseIntegrityChecker:
         cc = results.get("cache_consistency", {})
         lines.append("## DUCKDB CACHE CONSISTENCY (ERROR-level; gate-failing)")
         if cc.get("skipped"):
-            lines.append(
-                f"  SKIPPED ({cc.get('reason', '?')}) — warnings={cc.get('warnings', 0)}"
-            )
+            lines.append(f"  SKIPPED ({cc.get('reason', '?')}) — warnings={cc.get('warnings', 0)}")
         else:
             lines.append(
                 f"schema_version={cc.get('schema_version', '?')} "
@@ -1698,9 +1721,7 @@ class DatabaseIntegrityChecker:
                 f"-> errors={cc.get('errors', 0)}"
             )
             for m in cc.get("row_mismatches", []):
-                lines.append(
-                    f"  - {m['table']}: duckdb={m['duckdb']} sqlite={m['sqlite']}"
-                )
+                lines.append(f"  - {m['table']}: duckdb={m['duckdb']} sqlite={m['sqlite']}")
         lines.append("")
 
         dm = results.get("db_meta", {})
@@ -1771,11 +1792,9 @@ class DatabaseIntegrityChecker:
         gs = results.get("graph_summary", {})
         lines.append("## GRAPH SUMMARY (advisory; shape snapshot)")
         ec = gs.get("entity_counts", {})
-        lines.append("  entity counts: " + ", ".join(
-            f"{k}={v}" for k, v in ec.items()))
+        lines.append("  entity counts: " + ", ".join(f"{k}={v}" for k, v in ec.items()))
         xec = gs.get("edge_counts", {})
-        lines.append("  edge counts: " + ", ".join(
-            f"{k}={v}" for k, v in xec.items()))
+        lines.append("  edge counts: " + ", ".join(f"{k}={v}" for k, v in xec.items()))
         ss = gs.get("sector_size_summary", {})
         if ss.get("sector_count", 0):
             lines.append(
@@ -1785,15 +1804,12 @@ class DatabaseIntegrityChecker:
             )
         mc = gs.get("market_cap_distribution", [])
         if mc:
-            lines.append("  market cap: " + ", ".join(
-                f"{m['tier']}={m['n']}" for m in mc))
+            lines.append("  market cap: " + ", ".join(f"{m['tier']}={m['n']}" for m in mc))
         lines.append("")
 
         lines.append("## INVALID ENTITIES (file_path issues)")
         for issue in results.get("invalid_entities_list", []):
-            lines.append(
-                f"  - {issue['name']} ({issue['entity_type']}): {issue['issue']}"
-            )
+            lines.append(f"  - {issue['name']} ({issue['entity_type']}): {issue['issue']}")
 
         out.write_text("\n".join(lines) + "\n", encoding="utf-8")
         return out
@@ -1849,9 +1865,7 @@ class DatabaseIntegrityChecker:
                 print()
 
             if len(results["invalid_entities_list"]) > 20:
-                print(
-                    f"   ... and {len(results['invalid_entities_list']) - 20} more issues"
-                )
+                print(f"   ... and {len(results['invalid_entities_list']) - 20} more issues")
                 print()
 
         print("=" * 80)
@@ -1949,8 +1963,10 @@ class DatabaseIntegrityChecker:
         if cc.get("skipped"):
             print(f"   SKIPPED — {cc.get('reason', '?')} (advisory)")
         else:
-            print(f"   schema_version: {cc.get('schema_version', '?')} "
-                  f"(expected {cc.get('expected_schema_version', '?')})")
+            print(
+                f"   schema_version: {cc.get('schema_version', '?')} "
+                f"(expected {cc.get('expected_schema_version', '?')})"
+            )
             print(f"   schema_version drift: {cc.get('schema_version_drift', 0)}")
             rm = cc.get("row_mismatches", [])
             print(f"   row-count mismatches: {len(rm)}")
@@ -1975,9 +1991,7 @@ class DatabaseIntegrityChecker:
         norm = results.get("normalization", {})
         print(f"   Missing normalized_name: {norm.get('missing', 0)}")
         print(f"   Duplicate normalized_name groups: {len(norm.get('duplicates', {}))}")
-        print(
-            f"   Bad format (PascalCase/__/trailing): {len(norm.get('bad_format', []))}"
-        )
+        print(f"   Bad format (PascalCase/__/trailing): {len(norm.get('bad_format', []))}")
         print(f"   Normalization errors: {norm.get('errors', 0)}")
         print(
             f"   ⚠ normalized_name != filename: {len(norm.get('file_mismatches', []))} (advisory)"
@@ -2009,9 +2023,11 @@ class DatabaseIntegrityChecker:
         print("📅 EDGE VALIDITY WINDOW COVERAGE (advisory):")
         vw = results.get("validity_window", {})
         for etype, stats in vw.get("by_type", {}).items():
-            print(f"   {etype:20} total={stats['total']:4} "
-                  f"valid_from={stats['with_valid_from']:4} "
-                  f"(missing {stats['missing_valid_from']})")
+            print(
+                f"   {etype:20} total={stats['total']:4} "
+                f"valid_from={stats['with_valid_from']:4} "
+                f"(missing {stats['missing_valid_from']})"
+            )
         print()
 
         print("📊 GRAPH SUMMARY (advisory; shape snapshot):")
@@ -2022,43 +2038,36 @@ class DatabaseIntegrityChecker:
         print("   edges: " + ", ".join(f"{k}={v}" for k, v in xec.items()))
         ss = gs.get("sector_size_summary", {})
         if ss.get("sector_count", 0):
-            print(f"   sectors: {ss['sector_count']} "
-                  f"(min={ss['min']} median={ss['median']} "
-                  f"max={ss['max']} mean={ss['mean']})")
+            print(
+                f"   sectors: {ss['sector_count']} "
+                f"(min={ss['min']} median={ss['median']} "
+                f"max={ss['max']} mean={ss['mean']})"
+            )
         mc = gs.get("market_cap_distribution", [])
         if mc:
-            print("   market cap: " + ", ".join(
-                f"{m['tier']}={m['n']}" for m in mc))
+            print("   market cap: " + ", ".join(f"{m['tier']}={m['n']}" for m in mc))
         print()
 
         print("=" * 80)
         print("🎯 RECOMMENDATIONS:")
         if results["missing_file_paths"] > 0:
-            print(
-                f"   • Add missing file paths for {results['missing_file_paths']} entities"
-            )
+            print(f"   • Add missing file paths for {results['missing_file_paths']} entities")
         if results["file_not_found"] > 0:
             print(
                 f"   • Create missing files or correct paths for {results['file_not_found']} entities"
             )
         if results["invalid_structure"] > 0:
-            print(
-                f"   • Fix directory structure for {results['invalid_structure']} entities"
-            )
+            print(f"   • Fix directory structure for {results['invalid_structure']} entities")
         if results["invalid_filename"] > 0:
             print(
                 f"   • Rename files with invalid format for {results['invalid_filename']} entities"
             )
-        dup_groups = results.get("duplicate_tickers", {}).get(
-            "duplicate_ticker_groups", {}
-        )
+        dup_groups = results.get("duplicate_tickers", {}).get("duplicate_ticker_groups", {})
         if dup_groups:
             print(
                 f"   • Resolve {len(dup_groups)} duplicate-ticker group(s) — same listed entity recorded under multiple names"
             )
-        fuzzy_pairs = results.get("fuzzy_duplicates", {}).get(
-            "fuzzy_duplicate_pairs", []
-        )
+        fuzzy_pairs = results.get("fuzzy_duplicates", {}).get("fuzzy_duplicate_pairs", [])
         if fuzzy_pairs:
             print(
                 f"   • Review {len(fuzzy_pairs)} fuzzy name-similarity pair(s) above — confirm whether they are the same company (advisory)"
@@ -2069,9 +2078,7 @@ class DatabaseIntegrityChecker:
                 f"   ⚠️  Current validation rate ({results['summary']['validation_rate']}%) is below target (95%)"
             )
         else:
-            print(
-                f"   ✅ Validation rate ({results['summary']['validation_rate']}%) meets target!"
-            )
+            print(f"   ✅ Validation rate ({results['summary']['validation_rate']}%) meets target!")
 
         print("=" * 80)
 

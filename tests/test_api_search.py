@@ -64,32 +64,42 @@ CREATE VIRTUAL TABLE note_search USING fts5(
 # vectors so cosine similarity meaningfully boosts them over the newsletters.
 _SEED = [
     (
-        "company", "findata/Companies/Agriculture/Avanti_Feeds.md",
-        "Avanti_Feeds", "Agriculture",
+        "company",
+        "findata/Companies/Agriculture/Avanti_Feeds.md",
+        "Avanti_Feeds",
+        "Agriculture",
         "Leading shrimp feed and fish feed manufacturer. Aquaculture focus.",
         "[1.0, 0.0, 0.0]",
     ),
     (
-        "company", "findata/Companies/Agriculture/Sharat_Industries.md",
-        "Sharat_Industries", "Agriculture",
+        "company",
+        "findata/Companies/Agriculture/Sharat_Industries.md",
+        "Sharat_Industries",
+        "Agriculture",
         "Shrimp hatchery operations and cattle feed production.",
         "[0.99, 0.1, 0.0]",
     ),
     (
-        "sector", "findata/Sectors/Agriculture.md",
-        "Agriculture", "",
+        "sector",
+        "findata/Sectors/Agriculture.md",
+        "Agriculture",
+        "",
         "Covers crops, livestock, and aquaculture including shrimp farming.",
         "[0.5, 0.5, 0.5]",
     ),
     (
-        "chatter", "findata/The_Chatter/Aquaculture_Edition.md",
-        "The Chatter: Aquaculture Edition", "",
+        "chatter",
+        "findata/The_Chatter/Aquaculture_Edition.md",
+        "The Chatter: Aquaculture Edition",
+        "",
         "Shrimp feed revenues grew 20 percent in Q3. Strong demand for fish feed.",
         "[0.0, 1.0, 0.0]",
     ),
     (
-        "points_and_figures", "findata/Points_And_Figures/Roots.md",
-        "Points & Figures: Roots", "",
+        "points_and_figures",
+        "findata/Points_And_Figures/Roots.md",
+        "Points & Figures: Roots",
+        "",
         "Agri-input companies benefit from shrimp-feed export growth.",
         "[0.0, 0.5, 0.9]",
     ),
@@ -151,9 +161,7 @@ def _three_dim_query_space(monkeypatch):
     query_embedder to a mismatching width."""
     from helpers.maintenance import rebuild_note_search as RNS
 
-    monkeypatch.setattr(
-        RNS, "query_embedder", lambda: ((lambda text: [0.0, 1.0, 0.0]), 3)
-    )
+    monkeypatch.setattr(RNS, "query_embedder", lambda: ((lambda text: [0.0, 1.0, 0.0]), 3))
 
 
 def _results(resp):
@@ -267,7 +275,11 @@ class TestHybridSearch:
         assert body["limit"] == 20
         for hit in body["results"]:
             assert set(hit) == {
-                "doc_type", "file_path", "title", "sector", "snippet",
+                "doc_type",
+                "file_path",
+                "title",
+                "sector",
+                "snippet",
                 "similarity",
             }
             assert hit["similarity"] is not None
@@ -413,12 +425,14 @@ class TestHybridKnnPath:
 
         calls = []
         monkeypatch.setattr(
-            VS, "knn_similarities",
+            VS,
+            "knn_similarities",
             lambda conn, q_vec, k, dims: calls.append((k, dims)) or {},
         )
         # Seeds are 3-dim; resolve the query side to 64-dim pseudo.
         monkeypatch.setattr(
-            RNS, "query_embedder",
+            RNS,
+            "query_embedder",
             lambda: ((lambda text: [0.1] * 64), 64),
         )
         r = client.get("/api/search?q=feed&hybrid=true&limit=20")

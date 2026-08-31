@@ -66,30 +66,90 @@ EDGE_DB_PATH: Path | None = None
 # Vocabulary an accept: decision may assign (the graph's relation edge
 # types — roster bookkeeping types part_of/has_company are excluded: a
 # suggested company↔company pair is never a roster edge).
-_ACCEPT_EDGE_TYPES = frozenset({
-    "competes_with", "jv_with", "supplier_to", "customer_of", "acquired",
-    "subsidiary_of", "same_group", "co_mentioned_in", "semantic_peer",
-    "invested_in", "exposed_to", "cited_in",
-})
+_ACCEPT_EDGE_TYPES = frozenset(
+    {
+        "competes_with",
+        "jv_with",
+        "supplier_to",
+        "customer_of",
+        "acquired",
+        "subsidiary_of",
+        "same_group",
+        "co_mentioned_in",
+        "semantic_peer",
+        "invested_in",
+        "exposed_to",
+        "cited_in",
+    }
+)
 # Stored canonicalised as ONE row with symmetric=1 (graph_design §4 — the
 # same set extract_relations writes with the flag).
-_SYMMETRIC_ACCEPT_TYPES = frozenset({
-    "jv_with", "same_group", "competes_with", "co_mentioned_in",
-})
+_SYMMETRIC_ACCEPT_TYPES = frozenset(
+    {
+        "jv_with",
+        "same_group",
+        "competes_with",
+        "co_mentioned_in",
+    }
+)
 _ACCEPT_SOURCE_REF = "triage:accept"
 
 # Deterministic noise classifiers (must stay in sync with the extractor's
 # write-time gate — the goal is that post-S2 these rows never reach the
 # sidecar; the classifiers here still clean whatever slipped in before).
 COUNTRIES = {
-    "india", "japan", "germany", "china", "usa", "us", "u.s.", "uk", "u.k.",
-    "france", "switzerland", "netherlands", "singapore", "uae", "dubai",
-    "italy", "sweden", "korea", "south korea", "europe", "america",
-    "australia", "russia", "brazil", "thailand", "malaysia", "indonesia",
-    "vietnam", "ukraine", "israel", "taiwan", "hong kong", "canada",
-    "mexico", "spain", "denmark", "finland", "belgium", "austria", "norway",
-    "poland", "turkey", "egypt", "south africa", "nigeria", "kenya",
-    "bangladesh", "pakistan", "nepal", "sri lanka", "ecuador", "oman",
+    "india",
+    "japan",
+    "germany",
+    "china",
+    "usa",
+    "us",
+    "u.s.",
+    "uk",
+    "u.k.",
+    "france",
+    "switzerland",
+    "netherlands",
+    "singapore",
+    "uae",
+    "dubai",
+    "italy",
+    "sweden",
+    "korea",
+    "south korea",
+    "europe",
+    "america",
+    "australia",
+    "russia",
+    "brazil",
+    "thailand",
+    "malaysia",
+    "indonesia",
+    "vietnam",
+    "ukraine",
+    "israel",
+    "taiwan",
+    "hong kong",
+    "canada",
+    "mexico",
+    "spain",
+    "denmark",
+    "finland",
+    "belgium",
+    "austria",
+    "norway",
+    "poland",
+    "turkey",
+    "egypt",
+    "south africa",
+    "nigeria",
+    "kenya",
+    "bangladesh",
+    "pakistan",
+    "nepal",
+    "sri lanka",
+    "ecuador",
+    "oman",
 }
 _GENERIC_PREFIX = re.compile(
     r"^(?:vendor|suppliers?|customers?|clients?|partners?|contractors?|"
@@ -102,9 +162,7 @@ _GENERIC_PREFIX = re.compile(
     re.IGNORECASE,
 )
 # Lowercase junk fragments that mark a mangled capture window, not a name.
-_FRAGMENT_JUNK = re.compile(
-    r"\s(?:but|we|earlier|effectively|now|since|by|and now|operational)\b"
-)
+_FRAGMENT_JUNK = re.compile(r"\s(?:but|we|earlier|effectively|now|since|by|and now|operational)\b")
 # Generic descriptor ENDINGS ("Electric Arc Furnace operators") — the
 # capture named a category, not a company.
 _GENERIC_SUFFIX = re.compile(
@@ -122,7 +180,8 @@ def noise_target(target: str) -> bool:
     t = _norm_target(target)
     tl = t.lower()
     return (
-        not t or len(tl) < 4
+        not t
+        or len(tl) < 4
         or tl in COUNTRIES
         or bool(_GENERIC_PREFIX.match(tl))
         or bool(_GENERIC_SUFFIX.search(tl))
@@ -132,9 +191,7 @@ def noise_target(target: str) -> bool:
 
 def _row_id(edge_type: str, source: str, target: str) -> str:
     """Stable short id for a (edge, source, target) — the decisions key."""
-    h = hashlib.sha256(
-        f"{edge_type}\x1f{source}\x1f{target}".encode()
-    ).hexdigest()
+    h = hashlib.sha256(f"{edge_type}\x1f{source}\x1f{target}".encode()).hexdigest()
     return h[:10]
 
 
@@ -175,9 +232,7 @@ def _bucket(edge_type: str, target: str, names: set[str]) -> tuple[str, str]:
     # Stub candidate: >=2 tokens, all name-shaped (capitalized or joiners).
     words = t.split()
     joiners = {"of", "the", "and", "de", "der", "van"}
-    if len(words) >= 2 and all(
-        w[0].isupper() or w.lower() in joiners for w in words if w
-    ):
+    if len(words) >= 2 and all(w[0].isupper() or w.lower() in joiners for w in words if w):
         return "stub_candidate", "name-shaped"
     return "manual", ""
 
@@ -206,8 +261,7 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
             continue
         seen.add(key)
         row = {
-            "id": _row_id(d.get("edge_type", ""), d.get("source", ""),
-                          d.get("target_mention", "")),
+            "id": _row_id(d.get("edge_type", ""), d.get("source", ""), d.get("target_mention", "")),
             "edge_type": d.get("edge_type", ""),
             "source": d.get("source", ""),
             "target_mention": d.get("target_mention", ""),
@@ -217,16 +271,13 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
         if row["edge_type"] == "suggested":
             suggested.append(row)
         else:
-            bucket, detail = _bucket(
-                row["edge_type"], row["target_mention"], names
-            )
+            bucket, detail = _bucket(row["edge_type"], row["target_mention"], names)
             if row["source"] and row["source"] not in names:
                 bucket, detail = "bad_source", "source not an entity"
             row["bucket"] = bucket
             row["detail"] = detail
             prose.append(row)
-    return {"suggested": suggested, "prose": prose,
-            "unparseable": unparseable, "dupes": dupes}
+    return {"suggested": suggested, "prose": prose, "unparseable": unparseable, "dupes": dupes}
 
 
 def write_report(triage: dict, names_count: int) -> None:
@@ -241,19 +292,20 @@ def write_report(triage: dict, names_count: int) -> None:
         f"- suggested rows (link-prediction dump): {len(triage['suggested'])}",
         f"- prose rows (true queue): {len(triage['prose'])}",
         f"- duplicate lines absorbed: {triage['dupes']}",
-        f"- unparseable lines (kept verbatim on rewrite): "
-        f"{len(triage['unparseable'])}",
+        f"- unparseable lines (kept verbatim on rewrite): {len(triage['unparseable'])}",
         "",
     ]
     sug_rows = _read_suggestions_rows()
     if sug_rows:
-        top = sorted(
-            sug_rows, key=lambda r: float(r.get("score") or 0), reverse=True)
-        lines.append(f"- suggestions file (`{Path(SUGGESTIONS).name}`): "
-                     f"{len(sug_rows)} rows — top by score:")
+        top = sorted(sug_rows, key=lambda r: float(r.get("score") or 0), reverse=True)
+        lines.append(
+            f"- suggestions file (`{Path(SUGGESTIONS).name}`): {len(sug_rows)} rows — top by score:"
+        )
         for r in top[:10]:
-            lines.append(f"  - {r.get('source')} <-> {r.get('target_mention')} "
-                         f"({r.get('score')}, {r.get('method')})")
+            lines.append(
+                f"  - {r.get('source')} <-> {r.get('target_mention')} "
+                f"({r.get('score')}, {r.get('method')})"
+            )
         lines.append("")
     from collections import Counter
 
@@ -263,8 +315,7 @@ def write_report(triage: dict, names_count: int) -> None:
     for b, n in counts.most_common():
         lines.append(f"| {b} | {n} |")
     lines.append("")
-    order = ["discard", "alias_candidate", "stub_candidate", "manual",
-             "bad_source"]
+    order = ["discard", "alias_candidate", "stub_candidate", "manual", "bad_source"]
     for b in order:
         rows = [r for r in triage["prose"] if r["bucket"] == b]
         if not rows:
@@ -274,13 +325,14 @@ def write_report(triage: dict, names_count: int) -> None:
         for r in rows:
             lines.append(
                 f"- `{r['id']}` **{r['edge_type']}** {r['source']} -> "
-                f"**{r['target_mention']}**"
-                + (f" _({r['detail']})_" if r["detail"] else "")
+                f"**{r['target_mention']}**" + (f" _({r['detail']})_" if r["detail"] else "")
             )
             lines.append(f"  > {r['quote']}")
         lines.append("")
-    lines.append("## suggested rows on the sidecar (moved out on --write; "
-                 "triage the suggestions file itself via accept:/discard)")
+    lines.append(
+        "## suggested rows on the sidecar (moved out on --write; "
+        "triage the suggestions file itself via accept:/discard)"
+    )
     lines.append("")
     for r in triage["suggested"][:50]:
         lines.append(f"- {r['source']} <-> {r['target_mention']}")
@@ -290,18 +342,26 @@ def write_report(triage: dict, names_count: int) -> None:
 
     with Path(DECISIONS).open("w", encoding="utf-8") as f:
         for r in triage["prose"]:
-            f.write(json.dumps({
-                "id": r["id"], "edge_type": r["edge_type"],
-                "source": r["source"],
-                "target_mention": r["target_mention"],
-                "bucket": r["bucket"], "decision": None, "note": None,
-            }, ensure_ascii=False) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "id": r["id"],
+                        "edge_type": r["edge_type"],
+                        "source": r["source"],
+                        "target_mention": r["target_mention"],
+                        "bucket": r["bucket"],
+                        "decision": None,
+                        "note": None,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
 
 
 def _read_decisions(path: Path) -> list[dict]:
     rows = []
-    for lineno, line in enumerate(
-            path.read_text(encoding="utf-8").splitlines(), start=1):
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         line = line.strip()
         if not line:
             continue
@@ -322,8 +382,14 @@ def _read_decisions(path: Path) -> list[dict]:
 def _validate_decisions(rows: list[dict], entity_names: set[str]) -> dict | None:
     """Parse + validate annotated decisions into an action plan, or None
     (with the error already printed) on any invalid decision."""
-    plan: dict = {"aliases": {}, "applied_keys": set(), "stubs": [],
-                  "accepts": [], "discard": 0, "skip": 0}
+    plan: dict = {
+        "aliases": {},
+        "applied_keys": set(),
+        "stubs": [],
+        "accepts": [],
+        "discard": 0,
+        "skip": 0,
+    }
     for d in rows:
         key = (d["edge_type"], d["source"], d["target_mention"])
         decision = str(d["decision"]).strip()
@@ -334,10 +400,12 @@ def _validate_decisions(rows: list[dict], entity_names: set[str]) -> dict | None
         elif decision == "stub":
             plan["stubs"].append(d)
         elif decision.startswith("alias:"):
-            target = decision[len("alias:"):].strip()
+            target = decision[len("alias:") :].strip()
             if target not in entity_names:
-                print(f"ERROR: alias target {target!r} is not an existing "
-                      f"entity (row {d['id']})", file=sys.stderr)
+                print(
+                    f"ERROR: alias target {target!r} is not an existing entity (row {d['id']})",
+                    file=sys.stderr,
+                )
                 return None
             plan["aliases"][_norm_target(d["target_mention"]).lower()] = target
         elif decision.startswith("accept:"):
@@ -346,45 +414,49 @@ def _validate_decisions(rows: list[dict], entity_names: set[str]) -> dict | None
                 return None
             plan["accepts"].append(parsed)
         else:
-            print(f"ERROR: unknown decision {decision!r} (row {d['id']})",
-                  file=sys.stderr)
+            print(f"ERROR: unknown decision {decision!r} (row {d['id']})", file=sys.stderr)
             return None
         plan["applied_keys"].add(key)
     return plan
 
 
-def _parse_accept(d: dict, decision: str,
-                  entity_names: set[str]) -> dict | None:
+def _parse_accept(d: dict, decision: str, entity_names: set[str]) -> dict | None:
     """Validate one `accept:<edge_type>[:<Target Entity>]` decision into a
     writable edge spec (source/target/edge_type/properties/symmetric)."""
-    parts = decision[len("accept:"):].split(":", 1)
+    parts = decision[len("accept:") :].split(":", 1)
     edge_type = parts[0].strip()
     if edge_type not in _ACCEPT_EDGE_TYPES:
-        print(f"ERROR: accept edge_type {edge_type!r} is not in the relation "
-              f"vocabulary {sorted(_ACCEPT_EDGE_TYPES)} (row {d['id']})",
-              file=sys.stderr)
+        print(
+            f"ERROR: accept edge_type {edge_type!r} is not in the relation "
+            f"vocabulary {sorted(_ACCEPT_EDGE_TYPES)} (row {d['id']})",
+            file=sys.stderr,
+        )
         return None
     # Explicit target override for mangled mentions; otherwise the row's own
     # target_mention must BE the entity (link-prediction rows always are).
-    target = parts[1].strip() if len(parts) > 1 else _norm_target(
-        d["target_mention"])
+    target = parts[1].strip() if len(parts) > 1 else _norm_target(d["target_mention"])
     if target not in entity_names:
-        print(f"ERROR: accept target {target!r} is not an existing entity "
-              f"(row {d['id']}) — stub it first, or name an existing one",
-              file=sys.stderr)
+        print(
+            f"ERROR: accept target {target!r} is not an existing entity "
+            f"(row {d['id']}) — stub it first, or name an existing one",
+            file=sys.stderr,
+        )
         return None
     if d["source"] not in entity_names:
-        print(f"ERROR: accept source {d['source']!r} is not an existing "
-              f"entity (row {d['id']})", file=sys.stderr)
+        print(
+            f"ERROR: accept source {d['source']!r} is not an existing entity (row {d['id']})",
+            file=sys.stderr,
+        )
         return None
-    properties: dict = {"edition": d.get("edition", ""),
-                        "origin": d.get("origin", "manual_triage")}
+    properties: dict = {"edition": d.get("edition", ""), "origin": d.get("origin", "manual_triage")}
     if d.get("score") is not None:
         properties["score"] = d["score"]
     if d.get("method"):
         properties["method"] = d["method"]
     return {
-        "source": d["source"], "target": target, "edge_type": edge_type,
+        "source": d["source"],
+        "target": target,
+        "edge_type": edge_type,
         "symmetric": edge_type in _SYMMETRIC_ACCEPT_TYPES,
         "properties": properties,
     }
@@ -400,15 +472,14 @@ def _apply_write(plan: dict) -> None:
         try:
             existing = json.loads(Path(ALIAS_FILE).read_text(encoding="utf-8"))
         except ValueError:
-            print("WARNING: relation_aliases.json unreadable — replacing",
-                  file=sys.stderr)
+            print("WARNING: relation_aliases.json unreadable — replacing", file=sys.stderr)
     existing.update(aliases)
     Path(ALIAS_FILE).write_text(
-        json.dumps(dict(sorted(existing.items())), indent=2,
-                   ensure_ascii=False) + "\n", encoding="utf-8")
+        json.dumps(dict(sorted(existing.items())), indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
     if aliases:
-        print(f"relation_aliases.json: +{len(aliases)} entries "
-              f"(now {len(existing)})")
+        print(f"relation_aliases.json: +{len(aliases)} entries (now {len(existing)})")
 
     # 2. Accepted edges -> graph_edges (same INSERT discipline as
     # extract_relations: INSERT OR IGNORE + per-row integrity skips;
@@ -420,20 +491,33 @@ def _apply_write(plan: dict) -> None:
     # to their own file, unresolved prose rows stay (deduped), unparseable
     # lines preserved verbatim.
     triage = build_triage(
-        Path(SIDECAR).read_text(encoding="utf-8").splitlines()
-        if Path(SIDECAR).exists() else [], set())
-    kept = [r for r in triage["prose"]
-            if (r["edge_type"], r["source"], r["target_mention"])
-            not in plan["applied_keys"]]
+        Path(SIDECAR).read_text(encoding="utf-8").splitlines() if Path(SIDECAR).exists() else [],
+        set(),
+    )
+    kept = [
+        r
+        for r in triage["prose"]
+        if (r["edge_type"], r["source"], r["target_mention"]) not in plan["applied_keys"]
+    ]
     Path(SIDECAR).write_text(
-        "".join(json.dumps({
-            "edge_type": r["edge_type"], "source": r["source"],
-            "target_mention": r["target_mention"], "quote": r["quote"],
-            "edition": r["edition"],
-        }, ensure_ascii=False) + "\n" for r in kept)
+        "".join(
+            json.dumps(
+                {
+                    "edge_type": r["edge_type"],
+                    "source": r["source"],
+                    "target_mention": r["target_mention"],
+                    "quote": r["quote"],
+                    "edition": r["edition"],
+                },
+                ensure_ascii=False,
+            )
+            + "\n"
+            for r in kept
+        )
         + "\n".join(triage["unparseable"])
         + ("\n" if triage["unparseable"] else ""),
-        encoding="utf-8")
+        encoding="utf-8",
+    )
     _move_suggestions(triage["suggested"])
 
     # 4. Drop decided rows (accept + discard) from the suggestions file —
@@ -442,12 +526,14 @@ def _apply_write(plan: dict) -> None:
 
     print(f"sidecar rewritten: {len(kept)} prose rows remain")
     if plan["stubs"]:
-        print("\nSTUB PLAN (create explicitly — the collision-check "
-              "discipline; then re-run extract):")
+        print(
+            "\nSTUB PLAN (create explicitly — the collision-check discipline; then re-run extract):"
+        )
         for d in plan["stubs"]:
-            print(f"  - {d['source']} {d['edge_type']} -> "
-                  f"{d['target_mention']}"
-                  + (f"  [{d.get('note')}]" if d.get("note") else ""))
+            print(
+                f"  - {d['source']} {d['edge_type']} -> "
+                f"{d['target_mention']}" + (f"  [{d.get('note')}]" if d.get("note") else "")
+            )
 
 
 def _read_suggestions_rows() -> list[dict]:
@@ -471,15 +557,19 @@ def _drop_decided_suggestions(applied_keys: set) -> None:
     """Rewrite the suggestions file without rows whose
     (edge_type, source, target_mention) key was decided."""
     rows = _read_suggestions_rows()
-    kept = [r for r in rows
-            if (r.get("edge_type", ""), r.get("source", ""),
-                r.get("target_mention", "")) not in applied_keys]
+    kept = [
+        r
+        for r in rows
+        if (r.get("edge_type", ""), r.get("source", ""), r.get("target_mention", ""))
+        not in applied_keys
+    ]
     if len(kept) != len(rows):
         Path(SUGGESTIONS).write_text(
-            "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in kept),
-            encoding="utf-8")
-        print(f"suggestions file: {len(rows) - len(kept)} decided rows "
-              f"dropped ({len(kept)} remain)")
+            "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in kept), encoding="utf-8"
+        )
+        print(
+            f"suggestions file: {len(rows) - len(kept)} decided rows dropped ({len(kept)} remain)"
+        )
 
 
 def _write_accepted_edges(accepts: list[dict]) -> None:
@@ -493,8 +583,7 @@ def _write_accepted_edges(accepts: list[dict]) -> None:
         # transaction, so a mid-batch failure leaves nothing committed.
         with conn:
             for a in accepts:
-                props = json.dumps(a["properties"], ensure_ascii=False,
-                                   sort_keys=True)
+                props = json.dumps(a["properties"], ensure_ascii=False, sort_keys=True)
                 try:
                     cur = conn.execute(
                         """
@@ -503,19 +592,27 @@ def _write_accepted_edges(accepts: list[dict]) -> None:
                              symmetric, valid_from)
                         VALUES (?, ?, ?, ?, ?, ?, NULL)
                         """,
-                        (a["source"], a["target"], a["edge_type"], props,
-                         _ACCEPT_SOURCE_REF, 1 if a["symmetric"] else 0),
+                        (
+                            a["source"],
+                            a["target"],
+                            a["edge_type"],
+                            props,
+                            _ACCEPT_SOURCE_REF,
+                            1 if a["symmetric"] else 0,
+                        ),
                     )
                     inserted += cur.rowcount
                 except Exception as exc:
-                    print(f"warning: skipped accept {a['source']} → "
-                          f"{a['target']} ({a['edge_type']}): "
-                          f"{type(exc).__name__}: {exc}", file=sys.stderr)
+                    print(
+                        f"warning: skipped accept {a['source']} → "
+                        f"{a['target']} ({a['edge_type']}): "
+                        f"{type(exc).__name__}: {exc}",
+                        file=sys.stderr,
+                    )
                     skipped += 1
     finally:
         conn.close()
-    print(f"graph_edges: {inserted} accepted edge(s) written "
-          f"({skipped} skipped)")
+    print(f"graph_edges: {inserted} accepted edge(s) written ({skipped} skipped)")
 
 
 def _move_suggestions(suggested: list[dict]) -> None:
@@ -529,31 +626,39 @@ def _move_suggestions(suggested: list[dict]) -> None:
                 sug_keys.add(f"{d.get('source')}\x1f{d.get('target_mention')}")
             except ValueError:
                 pass
-    fresh = [r for r in suggested
-             if f"{r['source']}\x1f{r['target_mention']}" not in sug_keys]
+    fresh = [r for r in suggested if f"{r['source']}\x1f{r['target_mention']}" not in sug_keys]
     if fresh:
         with Path(SUGGESTIONS).open("a", encoding="utf-8") as f:
             for r in fresh:
-                f.write(json.dumps({
-                    "edge_type": "suggested", "source": r["source"],
-                    "target_mention": r["target_mention"],
-                    "quote": r["quote"], "edition": r["edition"],
-                }, ensure_ascii=False) + "\n")
+                f.write(
+                    json.dumps(
+                        {
+                            "edge_type": "suggested",
+                            "source": r["source"],
+                            "target_mention": r["target_mention"],
+                            "quote": r["quote"],
+                            "edition": r["edition"],
+                        },
+                        ensure_ascii=False,
+                    )
+                    + "\n"
+                )
     print(f"{len(fresh)} suggested rows -> {Path(SUGGESTIONS).name}")
 
 
-def apply_decisions(decisions_path: Path, write: bool,
-                    entity_names: set[str]) -> int:
+def apply_decisions(decisions_path: Path, write: bool, entity_names: set[str]) -> int:
     """Validate + act on annotated decisions. Returns 0 ok, 1 failure."""
     rows = _read_decisions(decisions_path)
     plan = _validate_decisions(rows, entity_names)
     if plan is None:
         return 1
 
-    print(f"decisions: {len(rows)} rows "
-          f"(discard={plan['discard']} skip={plan['skip']} "
-          f"alias={len(plan['aliases'])} stub={len(plan['stubs'])} "
-          f"accept={len(plan['accepts'])})")
+    print(
+        f"decisions: {len(rows)} rows "
+        f"(discard={plan['discard']} skip={plan['skip']} "
+        f"alias={len(plan['aliases'])} stub={len(plan['stubs'])} "
+        f"accept={len(plan['accepts'])})"
+    )
 
     if not write:
         print("(dry-run: no files written)")
@@ -567,25 +672,33 @@ def _print_followups(has_stubs: bool) -> None:
     print("\nfollow-up chain:")
     print("  python3 helpers/graph/extract_relations.py findata --apply")
     if has_stubs:
-        print("  (after stub creation) python3 "
-              "helpers/maintenance/sync_sector_wikilinks.py")
+        print("  (after stub creation) python3 helpers/maintenance/sync_sector_wikilinks.py")
     print("  make graph-rebuild")
     print("  make snapshot   # or the maint-full wrap-up")
 
 
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument("--report", action="store_true",
-                   help="build the triage report + decisions file (default)")
-    p.add_argument("--apply-decisions", action="store_true",
-                   help="act on annotated decisions in the decisions file")
-    p.add_argument("--decisions", default=str(DECISIONS),
-                   help=f"decisions jsonl path (default: {DECISIONS})")
-    p.add_argument("--write", action="store_true",
-                   help="with --apply-decisions: actually write files "
-                        "(sidecar rewrite, alias file, suggestions file)")
-    p.add_argument("--clear", action="store_true",
-                   help="truncate the sidecar to 0 (post-triage endgame)")
+    p.add_argument(
+        "--report", action="store_true", help="build the triage report + decisions file (default)"
+    )
+    p.add_argument(
+        "--apply-decisions",
+        action="store_true",
+        help="act on annotated decisions in the decisions file",
+    )
+    p.add_argument(
+        "--decisions", default=str(DECISIONS), help=f"decisions jsonl path (default: {DECISIONS})"
+    )
+    p.add_argument(
+        "--write",
+        action="store_true",
+        help="with --apply-decisions: actually write files "
+        "(sidecar rewrite, alias file, suggestions file)",
+    )
+    p.add_argument(
+        "--clear", action="store_true", help="truncate the sidecar to 0 (post-triage endgame)"
+    )
     args = p.parse_args(argv)
 
     if args.clear:
@@ -593,18 +706,20 @@ def main(argv: list[str] | None = None) -> int:
         print(f"cleared {SIDECAR}")
         return 0
     if args.apply_decisions:
-        return apply_decisions(Path(args.decisions), args.write,
-                               load_entity_names())
+        return apply_decisions(Path(args.decisions), args.write, load_entity_names())
 
     names = load_entity_names()
     triage = build_triage(
-        Path(SIDECAR).read_text(encoding="utf-8").splitlines()
-        if Path(SIDECAR).exists() else [], names)
+        Path(SIDECAR).read_text(encoding="utf-8").splitlines() if Path(SIDECAR).exists() else [],
+        names,
+    )
     write_report(triage, len(names))
     print(f"report -> {REPORT}")
     print(f"decisions -> {DECISIONS}")
-    print(f"{len(triage['suggested'])} suggested | {len(triage['prose'])} "
-          f"prose | {triage['dupes']} dupes absorbed")
+    print(
+        f"{len(triage['suggested'])} suggested | {len(triage['prose'])} "
+        f"prose | {triage['dupes']} dupes absorbed"
+    )
     return 0
 
 

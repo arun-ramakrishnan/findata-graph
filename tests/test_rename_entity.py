@@ -1,4 +1,5 @@
 """Unit tests for helpers/maintenance/rename_entity.py."""
+
 from __future__ import annotations
 import sys
 from pathlib import Path
@@ -116,9 +117,7 @@ def _make_rename_test_db(tmp_path):
         "'findata/Sectors/Healthcare.md', '2025-01-01', 'Healthcare', NULL, NULL)"
     )
     # Add an edge referencing the old name (cascade should update it)
-    conn.execute(
-        "INSERT INTO graph_edges VALUES ('Old Name', 'Healthcare', 'part_of', 'test')"
-    )
+    conn.execute("INSERT INTO graph_edges VALUES ('Old Name', 'Healthcare', 'part_of', 'test')")
     conn.execute("PRAGMA foreign_keys = ON")
     conn.commit()
     conn.close()
@@ -128,6 +127,7 @@ def _make_rename_test_db(tmp_path):
 class TestRenameEntityMain:
     def test_rename_succeeds(self, tmp_path, monkeypatch):
         import helpers.maintenance.rename_entity as re_mod
+
         monkeypatch.setattr(re_mod, "PROJECT_ROOT", tmp_path)
         monkeypatch.setattr(re_mod, "DB_PATH", tmp_path / "test.db")
         monkeypatch.setattr("sys.argv", ["rename_entity.py", "Old Name", "New Name"])
@@ -152,9 +152,12 @@ class TestRenameEntityMain:
 
     def test_rename_with_ticker_override(self, tmp_path, monkeypatch):
         import helpers.maintenance.rename_entity as re_mod
+
         monkeypatch.setattr(re_mod, "PROJECT_ROOT", tmp_path)
         monkeypatch.setattr(re_mod, "DB_PATH", tmp_path / "test.db")
-        monkeypatch.setattr("sys.argv", ["rename_entity.py", "Old Name", "New Name", "--ticker", "NEW.NS"])
+        monkeypatch.setattr(
+            "sys.argv", ["rename_entity.py", "Old Name", "New Name", "--ticker", "NEW.NS"]
+        )
 
         db_path = _make_rename_test_db(tmp_path)
 
@@ -168,6 +171,7 @@ class TestRenameEntityMain:
 
     def test_rename_entity_not_found(self, tmp_path, monkeypatch):
         import helpers.maintenance.rename_entity as re_mod
+
         monkeypatch.setattr(re_mod, "PROJECT_ROOT", tmp_path)
         monkeypatch.setattr(re_mod, "DB_PATH", tmp_path / "test.db")
         monkeypatch.setattr("sys.argv", ["rename_entity.py", "Ghost", "New Name"])
@@ -179,12 +183,14 @@ class TestRenameEntityMain:
 
     def test_rename_no_args(self, monkeypatch):
         import helpers.maintenance.rename_entity as re_mod
+
         monkeypatch.setattr("sys.argv", ["rename_entity.py"])
         rc = re_mod.main()
         assert rc == 2
 
     def test_rename_cascades_edges(self, tmp_path, monkeypatch):
         import helpers.maintenance.rename_entity as re_mod
+
         monkeypatch.setattr(re_mod, "PROJECT_ROOT", tmp_path)
         monkeypatch.setattr(re_mod, "DB_PATH", tmp_path / "test.db")
         monkeypatch.setattr("sys.argv", ["rename_entity.py", "Old Name", "New Name"])
@@ -197,9 +203,7 @@ class TestRenameEntityMain:
         # Verify edge cascaded
         conn = _re_sqlite3.connect(str(db_path))
         conn.execute("PRAGMA foreign_keys = ON")
-        edges = conn.execute(
-            "SELECT source FROM graph_edges WHERE edge_type='part_of'"
-        ).fetchall()
+        edges = conn.execute("SELECT source FROM graph_edges WHERE edge_type='part_of'").fetchall()
         assert all(e[0] == "New Name" for e in edges)
         assert len(edges) == 1
         conn.close()

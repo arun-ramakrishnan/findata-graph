@@ -38,11 +38,14 @@ def client():
 class TestSec1DebugEntityRemoved:
     """SEC-1: the /debug/entity echo route is gone; anything there 404s."""
 
-    @pytest.mark.parametrize("path", [
-        "/debug/entity/HDFC%20Bank",
-        "/debug/entity/%3Cscript%3Ealert(1)%3C/script%3E",
-        "/debug/entity/anything/else",
-    ])
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/debug/entity/HDFC%20Bank",
+            "/debug/entity/%3Cscript%3Ealert(1)%3C/script%3E",
+            "/debug/entity/anything/else",
+        ],
+    )
     def test_debug_entity_404s(self, client, path):
         r = client.get(path)
         assert r.status_code == 404, "debug route must not exist"

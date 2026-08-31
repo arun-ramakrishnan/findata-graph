@@ -5,6 +5,7 @@ Strengthened 2026-08-22 (integration_fuzz_enhancement B7): the original
 try/except-raise wrappers asserted nothing — these now pin real
 invariants (typed, deterministic, shape-constrained outputs).
 """
+
 from __future__ import annotations
 
 import re

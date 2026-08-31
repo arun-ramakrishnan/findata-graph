@@ -40,6 +40,7 @@ Usage:
     python3 helpers/graph/derive_events.py --apply    # write event rows
     python3 helpers/graph/derive_events.py --verbose  # list every event
 """
+
 from __future__ import annotations
 
 import argparse
@@ -58,6 +59,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.stable_write import stable_prefix_replace  # noqa: E402
+
 # Reuse the proven date parser + regexes from extract_relations rather than
 # duplicating FY/month/year handling. Imported for internal use (not re-exported).
 from helpers.graph.extract_relations import _extract_year_from_context  # noqa: E402
@@ -150,9 +152,7 @@ _TITLE_RE = re.compile(
 # Person name: 2-3 capitalised words immediately preceding a change verb or
 # following "appointed". Used for the properties.person audit trail. Tolerant
 # of initials and the Indian "X. Y. Surname" shape; bounded so it doesn't run.
-_PERSON_RE = re.compile(
-    r"([A-Z][a-zA-Z.]+(?:\s+[A-Z][a-zA-Z.]+){1,3})"
-)
+_PERSON_RE = re.compile(r"([A-Z][a-zA-Z.]+(?:\s+[A-Z][a-zA-Z.]+){1,3})")
 
 # P1 perf: compiled patterns for _iter_bullets + _capture_period_token (were
 # inline re.split / re.search per call — 169K + several K calls respectively).
@@ -168,6 +168,7 @@ _MONTH_YEAR_RE = re.compile(
 @dataclass
 class Event:
     """A derived event row (mirrors the events table columns)."""
+
     entity: str
     event_type: str
     event_date: str | None = None
@@ -245,7 +246,7 @@ def promote_from_edges(conn) -> list[Event]:
     for source, target, edge_type, valid_from, props_json in rows:
         try:
             props = json.loads(props_json) if props_json else {}
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             props = {}
         event_type = _EDGE_TO_EVENT_TYPE.get(edge_type)
         if event_type is None:
@@ -264,19 +265,21 @@ def promote_from_edges(conn) -> list[Event]:
             if props.get(key):
                 magnitude = str(props[key])
                 break
-        events.append(Event(
-            entity=source,
-            event_type=event_type,
-            event_date=valid_from,
-            period=(str(props["year"]) if props.get("year") else None),
-            date_precision=precision,
-            magnitude=magnitude,
-            counterparty=target,
-            source_quote=props.get("quote"),
-            as_of_edition=props.get("edition") or props.get("ref"),
-            source_ref=PROMOTE_SOURCE_REF,
-            properties=props,
-        ))
+        events.append(
+            Event(
+                entity=source,
+                event_type=event_type,
+                event_date=valid_from,
+                period=(str(props["year"]) if props.get("year") else None),
+                date_precision=precision,
+                magnitude=magnitude,
+                counterparty=target,
+                source_quote=props.get("quote"),
+                as_of_edition=props.get("edition") or props.get("ref"),
+                source_ref=PROMOTE_SOURCE_REF,
+                properties=props,
+            )
+        )
     return events
 
 
@@ -316,8 +319,9 @@ def _iter_bullets(body: str):
             yield sentence
 
 
-def _extract_guidance(company: str, body: str, path: str | None,
-                     windows: list[str] | None = None) -> list[Event]:
+def _extract_guidance(
+    company: str, body: str, path: str | None, windows: list[str] | None = None
+) -> list[Event]:
     """Guidance events: fiscal token AND a metric AND a forward-looking signal.
 
     The three-leg precision guard (fiscal + metric + forward) is what keeps
@@ -331,7 +335,7 @@ def _extract_guidance(company: str, body: str, path: str | None,
     iteration of 1051 files).
     """
     events: list[Event] = []
-    for window in (windows if windows is not None else _iter_bullets(body)):
+    for window in windows if windows is not None else _iter_bullets(body):
         has_fiscal = bool(_FY_TOKEN_RE.search(window) or _CY_QUARTER_RE.search(window))
         if not has_fiscal:
             continue
@@ -344,27 +348,30 @@ def _extract_guidance(company: str, body: str, path: str | None,
         event_date, period, precision = _parse_event_date(window)
         # magnitude: the percent range/figure (pct already found above).
         magnitude = pct.group(0).strip() if pct else None
-        events.append(Event(
-            entity=company,
-            event_type="guidance",
-            event_date=event_date,
-            period=period,
-            date_precision=precision,
-            magnitude=magnitude,
-            counterparty=None,
-            source_quote=window,
-            as_of_edition=path,
-            source_ref=GUIDANCE_SOURCE_REF,
-        ))
+        events.append(
+            Event(
+                entity=company,
+                event_type="guidance",
+                event_date=event_date,
+                period=period,
+                date_precision=precision,
+                magnitude=magnitude,
+                counterparty=None,
+                source_quote=window,
+                as_of_edition=path,
+                source_ref=GUIDANCE_SOURCE_REF,
+            )
+        )
     # De-dup identical guidance (same period + magnitude + quote) per company.
     return _dedup(events)
 
 
-def _extract_management(company: str, body: str, path: str | None,
-                        windows: list[str] | None = None) -> list[Event]:
+def _extract_management(
+    company: str, body: str, path: str | None, windows: list[str] | None = None
+) -> list[Event]:
     """Management-change events: role-change verb AND an executive title."""
     events: list[Event] = []
-    for window in (windows if windows is not None else _iter_bullets(body)):
+    for window in windows if windows is not None else _iter_bullets(body):
         if not _CHANGE_VERB_RE.search(window):
             continue
         # Reject "Appointed Actuary / Auditor / ..." — a role-title adjective,
@@ -382,19 +389,21 @@ def _extract_management(company: str, body: str, path: str | None,
         props: dict = {"role": title_m.group(0)}
         if person:
             props["person"] = person
-        events.append(Event(
-            entity=company,
-            event_type="management_change",
-            event_date=event_date,
-            period=period,
-            date_precision=precision,
-            magnitude=title_m.group(0),
-            counterparty=None,
-            source_quote=window,
-            as_of_edition=path,
-            source_ref=MGMT_SOURCE_REF,
-            properties=props,
-        ))
+        events.append(
+            Event(
+                entity=company,
+                event_type="management_change",
+                event_date=event_date,
+                period=period,
+                date_precision=precision,
+                magnitude=title_m.group(0),
+                counterparty=None,
+                source_quote=window,
+                as_of_edition=path,
+                source_ref=MGMT_SOURCE_REF,
+                properties=props,
+            )
+        )
     return _dedup(events)
 
 
@@ -421,8 +430,9 @@ def _dedup(events: list[Event]) -> list[Event]:
     return out
 
 
-def extract_from_prose(root: Path = COMPANIES_DIR,
-                       path_to_name: dict[str, str] | None = None) -> list[Event]:
+def extract_from_prose(
+    root: Path = COMPANIES_DIR, path_to_name: dict[str, str] | None = None
+) -> list[Event]:
     """Scan company notes and derive guidance + management_change events.
 
     Args:
@@ -476,10 +486,19 @@ INSERT INTO events
      counterparty, source_quote, as_of_edition, source_ref, properties)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
-_EVENT_CONTENT_COLS = ("entity", "event_type", "event_date", "period",
-                       "date_precision", "magnitude", "counterparty",
-                       "source_quote", "as_of_edition", "source_ref",
-                       "properties")
+_EVENT_CONTENT_COLS = (
+    "entity",
+    "event_type",
+    "event_date",
+    "period",
+    "date_precision",
+    "magnitude",
+    "counterparty",
+    "source_quote",
+    "as_of_edition",
+    "source_ref",
+    "properties",
+)
 
 
 def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> int:
@@ -504,16 +523,25 @@ def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> int:
             # raw derived count (consistent with the dry-run summary).
             return len(events)
         new_rows = [
-            (ev.entity, ev.event_type, ev.event_date, ev.period,
-             ev.date_precision, ev.magnitude, ev.counterparty,
-             ev.source_quote, ev.as_of_edition, ev.source_ref,
-             json.dumps(ev.properties, ensure_ascii=False, sort_keys=True))
+            (
+                ev.entity,
+                ev.event_type,
+                ev.event_date,
+                ev.period,
+                ev.date_precision,
+                ev.magnitude,
+                ev.counterparty,
+                ev.source_quote,
+                ev.as_of_edition,
+                ev.source_ref,
+                json.dumps(ev.properties, ensure_ascii=False, sort_keys=True),
+            )
             for ev in events
         ]
         with conn:
             return stable_prefix_replace(
-                conn, "events", _DERIVED_PREFIX, _EVENT_CONTENT_COLS,
-                _INSERT_SQL, new_rows)
+                conn, "events", _DERIVED_PREFIX, _EVENT_CONTENT_COLS, _INSERT_SQL, new_rows
+            )
     finally:
         if own_conn:
             conn.close()
@@ -525,7 +553,7 @@ def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> int:
 def _cli(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Derive the events timeline table (acquisition/jv/guidance/"
-                    "management_change) from graph_edges + company-note prose.",
+        "management_change) from graph_edges + company-note prose.",
     )
     p.add_argument(
         "--apply",
@@ -533,7 +561,8 @@ def _cli(argv: list[str] | None = None) -> int:
         help="Write event rows (default: dry-run summary only).",
     )
     p.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Print every event in addition to the summary.",
     )
@@ -548,7 +577,8 @@ def _cli(argv: list[str] | None = None) -> int:
         # Arm 2: build file_path -> display-name map (the sync_tags join
         # contract) so notes resolve to the entity display name.
         path_to_name = {
-            r[1]: r[0] for r in conn.execute(
+            r[1]: r[0]
+            for r in conn.execute(
                 "SELECT name, file_path FROM entities "
                 "WHERE entity_type = 'company' AND file_path IS NOT NULL"
             ).fetchall()
@@ -583,8 +613,7 @@ def _cli(argv: list[str] | None = None) -> int:
         written = apply(all_events, conn=conn, dry_run=not args.apply)
         action = "inserted" if args.apply else "would insert"
         print(
-            f"{written} events {action} "
-            f"(promoted={len(promoted)}, extracted={len(extracted)}).",
+            f"{written} events {action} (promoted={len(promoted)}, extracted={len(extracted)}).",
             file=sys.stderr,
         )
 

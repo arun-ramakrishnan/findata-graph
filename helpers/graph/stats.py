@@ -17,6 +17,7 @@ Usage:
     python3 helpers/graph/stats.py
     make graph-stats
 """
+
 from __future__ import annotations
 
 import sys
@@ -74,6 +75,7 @@ def print_stats() -> int:  # noqa: C901
     print(_hr("Structure (Onager, full edge set)", "-"))
     try:
         from helpers.graph.algorithms import graph_metrics
+
         metrics = graph_metrics()
     except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
         print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
@@ -81,6 +83,7 @@ def print_stats() -> int:  # noqa: C901
         if not metrics:
             print("  (no edges)")
         else:
+
             def _fmt(v: float | int | None) -> str:
                 if v is None:
                     return "—"
@@ -88,18 +91,26 @@ def print_stats() -> int:  # noqa: C901
                     return f"{v:.4f}"
                 return str(v)
 
-            print(f"  density {_fmt(metrics['density'])}"
-                  f"   triangles {_fmt(metrics['triangles'])}"
-                  f"   transitivity {_fmt(metrics['transitivity'])}")
-            print(f"  avg clustering {_fmt(metrics['avg_clustering'])}"
-                  f"   assortativity {_fmt(metrics['assortativity'])}")
+            print(
+                f"  density {_fmt(metrics['density'])}"
+                f"   triangles {_fmt(metrics['triangles'])}"
+                f"   transitivity {_fmt(metrics['transitivity'])}"
+            )
+            print(
+                f"  avg clustering {_fmt(metrics['avg_clustering'])}"
+                f"   assortativity {_fmt(metrics['assortativity'])}"
+            )
             if metrics["diameter"] is None:
-                print("  diameter/radius/avg path length: — (graph is "
-                      "disconnected under this projection)")
+                print(
+                    "  diameter/radius/avg path length: — (graph is "
+                    "disconnected under this projection)"
+                )
             else:
-                print(f"  diameter {metrics['diameter']}"
-                      f"   radius {metrics['radius']}"
-                      f"   avg path length {_fmt(metrics['avg_path_length'])}")
+                print(
+                    f"  diameter {metrics['diameter']}"
+                    f"   radius {metrics['radius']}"
+                    f"   avg path length {_fmt(metrics['avg_path_length'])}"
+                )
 
     # --- Sector size distribution ---
     print(_hr("Sectors by member count", "-"))
@@ -107,9 +118,11 @@ def print_stats() -> int:  # noqa: C901
     largest = gs["largest_sectors"]
     smallest = gs["smallest_sectors"]
     if ss["sector_count"]:
-        print(f"  {ss['sector_count']} sectors  "
-              f"(min={ss['min']}, median={ss['median']}, "
-              f"max={ss['max']}, mean={ss['mean']})")
+        print(
+            f"  {ss['sector_count']} sectors  "
+            f"(min={ss['min']}, median={ss['median']}, "
+            f"max={ss['max']}, mean={ss['mean']})"
+        )
         print("\n  Top 10 largest:")
         for s in largest:
             print(f"    {s['n']:4}  {s['sector']}")
@@ -172,16 +185,21 @@ def print_stats() -> int:  # noqa: C901
         else:
             for metric, n, last_at in ga_metrics:
                 print(f"  {metric:25} {n:5} rows  last: {last_at}")
-            most_recent_entity = conn.execute(
-                "SELECT MAX(last_updated) FROM entities"
-            ).fetchone()[0]
+            most_recent_entity = conn.execute("SELECT MAX(last_updated) FROM entities").fetchone()[
+                0
+            ]
             most_recent_analytics = conn.execute(
                 "SELECT MAX(computed_at) FROM graph_analytics"
             ).fetchone()[0]
-            if most_recent_entity and most_recent_analytics \
-               and most_recent_entity > most_recent_analytics:
-                print(f"\n  ⚠ STALE: entities.last_updated={most_recent_entity} "
-                      f"> analytics.computed_at={most_recent_analytics}")
+            if (
+                most_recent_entity
+                and most_recent_analytics
+                and most_recent_entity > most_recent_analytics
+            ):
+                print(
+                    f"\n  ⚠ STALE: entities.last_updated={most_recent_entity} "
+                    f"> analytics.computed_at={most_recent_analytics}"
+                )
                 print("    Run `make recompute-graph` to refresh.")
             else:
                 print("\n  ✓ fresh (analytics computed at/after most recent entity update)")

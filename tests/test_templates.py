@@ -32,6 +32,7 @@ they rot exactly like code does when tooling or conventions move.
 9. ``test_readme_index_lists_every_seed`` — the README Index table
    matches the directory listing; a seed can never exist unlisted.
 """
+
 from __future__ import annotations
 
 import json
@@ -51,16 +52,14 @@ SCHEMA_DIR = REPO_ROOT / "doc" / "okf"
 # UNPAIRED IS A FAILURE: a schema without its seed (or vice versa) reddens
 # the guard — adding a pairing is a conscious, reviewable edit.
 PAIRINGS = {
-    "company": ("doc/okf/frontmatter.company.v1.json",
-                "doc/templates/company_note.yaml"),
-    "sector": ("doc/okf/frontmatter.sector.v1.json",
-               "doc/templates/sector_note.yaml"),
-    "super_sector": ("doc/okf/frontmatter.super_sector.v1.json",
-                     "doc/templates/super_sector_note.yaml"),
-    "newsletter": ("doc/okf/frontmatter.newsletter.v1.json",
-                   "doc/templates/newsletter_note.yaml"),
-    "proposal": ("doc/okf/frontmatter.proposal.v1.json",
-                 "doc/templates/proposal.md"),
+    "company": ("doc/okf/frontmatter.company.v1.json", "doc/templates/company_note.yaml"),
+    "sector": ("doc/okf/frontmatter.sector.v1.json", "doc/templates/sector_note.yaml"),
+    "super_sector": (
+        "doc/okf/frontmatter.super_sector.v1.json",
+        "doc/templates/super_sector_note.yaml",
+    ),
+    "newsletter": ("doc/okf/frontmatter.newsletter.v1.json", "doc/templates/newsletter_note.yaml"),
+    "proposal": ("doc/okf/frontmatter.proposal.v1.json", "doc/templates/proposal.md"),
 }
 
 # A seed declares its pairing in its first comment block: `# schema: <path>`
@@ -76,11 +75,13 @@ def test_python_template_ruff_clean():
     for extra in ([], ["--select", "S,UP,C901"]):
         r = subprocess.run(  # noqa: S603  # repo-local venv binary, no shell
             [str(RUFF), "check", "--no-cache", *extra, str(template)],
-            capture_output=True, text=True, cwd=REPO_ROOT, check=False,
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            check=False,
         )
         assert r.returncode == 0, (
-            f"template violates ruff {extra or '(defaults)'}:\n"
-            f"{r.stdout}\n{r.stderr}"
+            f"template violates ruff {extra or '(defaults)'}:\n{r.stdout}\n{r.stderr}"
         )
 
 
@@ -93,7 +94,10 @@ def test_mojo_template_format_clean(tmp_path):
     shutil.copy2(template, copy)
     r = subprocess.run(  # noqa: S603  # repo-local venv binary, no shell
         [str(MOJO), "format", str(copy)],
-        capture_output=True, text=True, cwd=REPO_ROOT, check=False,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=False,
     )
     assert r.returncode == 0, f"mojo format failed:\n{r.stdout}\n{r.stderr}"
     assert copy.read_bytes() == template.read_bytes(), (
@@ -128,11 +132,13 @@ def test_test_module_template_contracts():
     for extra in ([], ["--select", "S,UP,C901"]):
         r = subprocess.run(  # noqa: S603  # repo-local venv binary, no shell
             [str(RUFF), "check", "--no-cache", *extra, str(template)],
-            capture_output=True, text=True, cwd=REPO_ROOT, check=False,
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            check=False,
         )
         assert r.returncode == 0, (
-            f"template violates ruff {extra or '(defaults)'}:\n"
-            f"{r.stdout}\n{r.stderr}"
+            f"template violates ruff {extra or '(defaults)'}:\n{r.stdout}\n{r.stderr}"
         )
     text = template.read_text(encoding="utf-8")
     for required in (
@@ -197,7 +203,7 @@ def test_yaml_template_keys_subset_of_schema():
         text = (REPO_ROOT / template_rel).read_text(encoding="utf-8")
         if template_rel.endswith(".md"):
             assert text.startswith("---"), f"{template_rel} lost its FM block"
-            data = yaml.safe_load(text[4:text.find("\n---", 3)])
+            data = yaml.safe_load(text[4 : text.find("\n---", 3)])
         else:
             docs = [d for d in yaml.safe_load_all(text) if d is not None]
             assert len(docs) == 1, f"{template_rel} is not a single frontmatter block"
@@ -214,15 +220,12 @@ def test_every_template_declares_a_contract():
     """Every seed in doc/templates/ (README excluded — it is the index)
     declares `# schema: <resolvable, paired path>` or `# contract: <text>`.
     A seed without a declaration is an unpaired template."""
-    seeds = sorted(p for p in TEMPLATES.iterdir()
-                   if p.is_file() and p.name != "README.md")
+    seeds = sorted(p for p in TEMPLATES.iterdir() if p.is_file() and p.name != "README.md")
     assert seeds, "doc/templates emptied?"
     declared_pairs = {tuple(v) for v in PAIRINGS.values()}
     for seed in seeds:
         decls = _DECL_RE.findall(seed.read_text(encoding="utf-8"))
-        assert decls, (
-            f"{seed.name} declares no schema/contract — unpaired template"
-        )
+        assert decls, f"{seed.name} declares no schema/contract — unpaired template"
         for kind, target in decls:
             if kind != "schema":
                 continue

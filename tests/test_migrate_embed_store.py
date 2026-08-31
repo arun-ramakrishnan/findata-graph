@@ -35,7 +35,17 @@ class TestCachePool:
         legacy_a = tmp_path / "doc_search.db_vec.db"
         legacy_b = tmp_path / "script_search.db_vec.db"
         # 'shared' exists in BOTH files: pooled once, first writer wins.
-        _legacy(legacy_a, [("shared", "m", "[1]", ), ("a-only", "m", "[2]")])
+        _legacy(
+            legacy_a,
+            [
+                (
+                    "shared",
+                    "m",
+                    "[1]",
+                ),
+                ("a-only", "m", "[2]"),
+            ],
+        )
         _legacy(legacy_b, [("shared", "m", "[9]"), ("b-only", "m", "[3]")])
         store = tmp_path / "memory" / "embed_store.db"
 
@@ -44,9 +54,9 @@ class TestCachePool:
 
         con = sqlite3.connect(str(store))
         try:
-            cohorts = dict(con.execute(
-                "SELECT source, COUNT(*) FROM embed_cache GROUP BY source"
-            ).fetchall())
+            cohorts = dict(
+                con.execute("SELECT source, COUNT(*) FROM embed_cache GROUP BY source").fetchall()
+            )
             shared = con.execute(
                 "SELECT embedding FROM embed_cache WHERE text_hash='shared'"
             ).fetchone()[0]
@@ -102,8 +112,7 @@ class TestSyncMirror:
     def test_rebuilds_mirror_from_bare_note_search(self, tmp_path, monkeypatch):
         # Bypass the house connect() schema bootstrap: the fixture seeds ONLY
         # the bare FTS5 shape sync_vec_table reads.
-        monkeypatch.setattr(
-            "helpers.core.db.connect", lambda path: sqlite3.connect(str(path)))
+        monkeypatch.setattr("helpers.core.db.connect", lambda path: sqlite3.connect(str(path)))
         research = tmp_path / "research.db"
         con = sqlite3.connect(str(research))
         con.execute(
@@ -129,8 +138,7 @@ class TestSyncMirror:
         con = sqlite3.connect(str(VS.EMBED_DB_PATH))
         VS._load_vec_extension(con)
         try:
-            keys = sorted(r[0] for r in
-                          con.execute("SELECT file_path FROM note_search_vec"))
+            keys = sorted(r[0] for r in con.execute("SELECT file_path FROM note_search_vec"))
         finally:
             con.close()
         assert keys == ["a.md", "b.md"]

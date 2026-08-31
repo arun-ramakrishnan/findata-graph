@@ -13,6 +13,7 @@ Also moves the markdown file if `--move` is passed, and updates YAML fields
 Usage:
     python3 helpers/maintenance/rename_entity.py <old_name> <new_name> [--sector <Sector>] [--ticker <T>]
 """
+
 from __future__ import annotations
 
 import re
@@ -111,7 +112,15 @@ def main() -> int:  # noqa: C901
         if ticker_override:
             conn.execute(
                 "UPDATE entities SET name = ?, normalized_name = ?, file_path = ?, sector_classification = ?, ticker = ?, last_updated = ? WHERE name = ?",
-                (new_name, new_normalized, new_file_path, sector, ticker_override, utc_now(), old_name),
+                (
+                    new_name,
+                    new_normalized,
+                    new_file_path,
+                    sector,
+                    ticker_override,
+                    utc_now(),
+                    old_name,
+                ),
             )
         else:
             conn.execute(
@@ -129,7 +138,9 @@ def main() -> int:  # noqa: C901
             if opener:
                 yaml = replace_field(yaml, "normalized_name", new_normalized)
                 yaml = replace_field(yaml, "file_path", new_file_path)
-                yaml = replace_field(yaml, "permalink", f"companies/{sector.lower()}/{new_normalized.lower()}")
+                yaml = replace_field(
+                    yaml, "permalink", f"companies/{sector.lower()}/{new_normalized.lower()}"
+                )
                 yaml = replace_field(yaml, "title", new_name)
                 yaml = replace_field(yaml, "sector", sector)
                 if ticker_override:

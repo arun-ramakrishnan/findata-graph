@@ -139,9 +139,7 @@ def create_snapshot(db_path: Path, out_path: Path, logger: logging.Logger) -> di
     return {"snapshot": str(out_path), "compressed_bytes": gz, "source_bytes": raw}
 
 
-def verify_snapshot(
-    snapshot_path: Path, source_db: Path | None, logger: logging.Logger
-) -> dict:
+def verify_snapshot(snapshot_path: Path, source_db: Path | None, logger: logging.Logger) -> dict:
     """Round-trip check: decompress the snapshot, open it, compare row counts to the source."""
     if not snapshot_path.exists():
         raise FileNotFoundError(f"Snapshot not found: {snapshot_path}")
@@ -184,11 +182,7 @@ def verify_snapshot(
         finally:
             sconn.close()
         result.update(source_entities=src_entities, source_relations=src_relations)
-        ok = (
-            integrity == "ok"
-            and snap_entities == src_entities
-            and snap_relations == src_relations
-        )
+        ok = integrity == "ok" and snap_entities == src_entities and snap_relations == src_relations
         result["match"] = ok
         logger.info(
             f"Verify: integrity={integrity} | entities {snap_entities}/{src_entities} "
@@ -202,9 +196,7 @@ def verify_snapshot(
     return result
 
 
-def create_duckdb_snapshot(
-    duckdb_path: Path, out_path: Path, logger: logging.Logger
-) -> dict:
+def create_duckdb_snapshot(duckdb_path: Path, out_path: Path, logger: logging.Logger) -> dict:
     """CHECKPOINT the DuckDB file (flush WAL), then zstd-copy to ``out_path``.
 
     DuckDB allows either one read-write OR many read-only connections to a
@@ -248,9 +240,7 @@ def create_duckdb_snapshot(
     compress_file(duckdb_path, out_path)
 
     gz = out_path.stat().st_size
-    logger.info(
-        f"DuckDB snapshot: {out_path} ({gz:,} bytes compressed, {raw:,} bytes source)"
-    )
+    logger.info(f"DuckDB snapshot: {out_path} ({gz:,} bytes compressed, {raw:,} bytes source)")
     # P2.4: also snapshot WAL sidecar if it exists (un-CHECKPOINTed tail).
     wal_path = duckdb_path.with_suffix(".duckdb.wal")
     if out_path.name.endswith(".duckdb.zst"):
@@ -402,7 +392,9 @@ def verify_duckdb_snapshot(  # noqa: C901
             try:
                 src_counts = _count_tables(sconn)
                 try:
-                    _r2 = sconn.execute("SELECT value FROM _build_meta WHERE key='generation'").fetchone()
+                    _r2 = sconn.execute(
+                        "SELECT value FROM _build_meta WHERE key='generation'"
+                    ).fetchone()
                     src_gen = _r2[0] if _r2 else None
                 except Exception:
                     src_gen = None
@@ -413,9 +405,11 @@ def verify_duckdb_snapshot(  # noqa: C901
             src_gen = snap_gen
 
         # P2.4: generation must also match (O(1) staleness)
-        gen_match = (snap_gen == src_gen)
+        gen_match = snap_gen == src_gen
         if snap_gen is not None or src_gen is not None:
-            logger.info(f"DuckDB generation: snapshot={snap_gen} source={src_gen} -> {'OK' if gen_match else 'MISMATCH'}")
+            logger.info(
+                f"DuckDB generation: snapshot={snap_gen} source={src_gen} -> {'OK' if gen_match else 'MISMATCH'}"
+            )
         # Match requires: identical table set, identical row counts on every
         # table, AND the snapshot's tables support pg construction, AND generation match.
         same_tables = set(snap_counts) == set(src_counts)
@@ -443,8 +437,7 @@ def verify_duckdb_snapshot(  # noqa: C901
         # No source to compare against — match tracks just the pg check.
         result["match"] = snap_pg_ok
         logger.info(
-            f"Verify DuckDB: tables={snap_counts} "
-            f"pg={'ok' if snap_pg_ok else 'BAD'} (no source)"
+            f"Verify DuckDB: tables={snap_counts} pg={'ok' if snap_pg_ok else 'BAD'} (no source)"
         )
     return result
 
@@ -522,6 +515,7 @@ def _export_sqlite_schema(con: sqlite3.Connection) -> str:
     (``sqlite_master`` rowid ≈ creation order), excluding derived FTS5
     shadows and spellfix leftovers (regenerated / not wanted).
     """
+
     def stmts(kind: str, where: str = "") -> list[str]:
         rows = con.execute(
             "SELECT sql FROM sqlite_master WHERE type=? AND sql IS NOT NULL "  # noqa: S608  # `where` is a hardcoded constant from callers below
@@ -563,8 +557,9 @@ def _export_sqlite_schema(con: sqlite3.Connection) -> str:
     return "\n\n".join(parts) + "\n"
 
 
-def _export_duckdb_schema(con: duckdb.DuckDBPyConnection,
-                          only_tables: frozenset[str] | None = None) -> str:
+def _export_duckdb_schema(
+    con: duckdb.DuckDBPyConnection, only_tables: frozenset[str] | None = None
+) -> str:
     """Replayable DuckDB DDL: base tables then views, in creation order
     (oid order) so FK/view dependencies are satisfied on replay.
 
@@ -572,24 +567,20 @@ def _export_duckdb_schema(con: duckdb.DuckDBPyConnection,
     pass: stray scratch tables stay out of the schema listing exactly as
     they stay out of the Parquet export."""
     parts: list[str] = []
-    for (tname, ddl) in con.execute(
-        "SELECT table_name, sql FROM duckdb_tables() "
-        "WHERE NOT internal ORDER BY table_oid"
+    for tname, ddl in con.execute(
+        "SELECT table_name, sql FROM duckdb_tables() WHERE NOT internal ORDER BY table_oid"
     ).fetchall():
         if only_tables is not None and tname not in only_tables:
             continue
         parts.append(ddl.rstrip().rstrip(";") + ";")
     for (sql,) in con.execute(
-        "SELECT sql FROM duckdb_views() WHERE NOT internal AND sql IS NOT NULL "
-        "ORDER BY view_oid"
+        "SELECT sql FROM duckdb_views() WHERE NOT internal AND sql IS NOT NULL ORDER BY view_oid"
     ).fetchall():
         parts.append(sql.rstrip().rstrip(";") + ";")
     return "\n\n".join(parts) + "\n"
 
 
-def export_parquet_duckdb(
-    duckdb_path: Path, out_dir: Path, logger: logging.Logger
-) -> dict:
+def export_parquet_duckdb(duckdb_path: Path, out_dir: Path, logger: logging.Logger) -> dict:
     """Export every materialised DuckDB table to an individual Parquet file.
 
     Uses DuckDB's native ``COPY ... TO ... (FORMAT PARQUET)`` which writes
@@ -627,7 +618,8 @@ def export_parquet_duckdb(
                 "DuckDB table(s) outside the materialisation manifest are "
                 "NOT snapshotted — drop them, or extend "
                 "MATERIALISED_TABLES in helpers/graph/query.py if they are "
-                "real: %s", ", ".join(sorted(stray))
+                "real: %s",
+                ", ".join(sorted(stray)),
             )
         tables = [t for t in tables if t in MATERIALISED_TABLES]
 
@@ -635,9 +627,7 @@ def export_parquet_duckdb(
         # the same manifest filter so a stray table's CREATE statement
         # can't leak into _schema.duckdb.sql either.
         schema_path = out_dir.parent / "_schema.duckdb.sql"
-        schema_path.write_text(
-            _export_duckdb_schema(con, only_tables=MATERIALISED_TABLES)
-        )
+        schema_path.write_text(_export_duckdb_schema(con, only_tables=MATERIALISED_TABLES))
         logger.info(f"  Parquet DuckDB: schema DDL → {schema_path}")
 
         results: dict[str, dict] = {}
@@ -669,15 +659,12 @@ def export_parquet_duckdb(
         con.close()
 
     logger.info(
-        f"Parquet DuckDB export: {len(results)} tables, "
-        f"{total_bytes:,} bytes total → {out_dir}"
+        f"Parquet DuckDB export: {len(results)} tables, {total_bytes:,} bytes total → {out_dir}"
     )
     return {"tables": results, "total_bytes": total_bytes, "dir": str(out_dir)}
 
 
-def export_parquet_sqlite(
-    sqlite_path: Path, out_dir: Path, logger: logging.Logger
-) -> dict:
+def export_parquet_sqlite(sqlite_path: Path, out_dir: Path, logger: logging.Logger) -> dict:
     """Export SQLite data tables to individual Parquet files.
 
     Uses ``sqlite3`` + ``pyarrow`` (via pandas) to avoid DuckDB's strict
@@ -734,8 +721,7 @@ def export_parquet_sqlite(
 
     con.close()
     logger.info(
-        f"Parquet SQLite export: {len(results)} tables, "
-        f"{total_bytes:,} bytes total → {out_dir}"
+        f"Parquet SQLite export: {len(results)} tables, {total_bytes:,} bytes total → {out_dir}"
     )
     return {"tables": results, "total_bytes": total_bytes, "dir": str(out_dir)}
 
@@ -751,6 +737,7 @@ def _verify_parquet_duckdb_side(
         duckdb_pq_dir = parquet_dir / "duckdb"
         if duckdb_pq_dir.exists():
             import duckdb
+
             con = duckdb.connect(str(duckdb_path), read_only=True)
             try:
                 pq_files = sorted(duckdb_pq_dir.glob("*.parquet"))
@@ -769,9 +756,7 @@ def _verify_parquet_duckdb_side(
                     snap_cnt = _row[0] if _row is not None else 0
                     result["tables_checked"] += 1
                     if src_cnt != snap_cnt:
-                        result["mismatches"].append(
-                            f"duckdb/{tname}: {snap_cnt}/{src_cnt}"
-                        )
+                        result["mismatches"].append(f"duckdb/{tname}: {snap_cnt}/{src_cnt}")
             finally:
                 con.close()
     return result
@@ -801,9 +786,7 @@ def _verify_parquet_sqlite_side(
                     snap_cnt = pq.read_metadata(pf).num_rows
                     result["tables_checked"] += 1
                     if src_cnt != snap_cnt:
-                        result["mismatches"].append(
-                            f"sqlite/{tname}: {snap_cnt}/{src_cnt}"
-                        )
+                        result["mismatches"].append(f"sqlite/{tname}: {snap_cnt}/{src_cnt}")
             finally:
                 scon.close()
     return result
@@ -836,9 +819,7 @@ def verify_parquet_snapshot(
         for m in result["mismatches"]:
             logger.warning(f"  Parquet MISMATCH: {m}")
     else:
-        logger.info(
-            f"Parquet verify: {result['tables_checked']} tables checked, all OK"
-        )
+        logger.info(f"Parquet verify: {result['tables_checked']} tables checked, all OK")
     return result
 
 
@@ -857,9 +838,7 @@ def _parquet_rows(path: Path) -> tuple[list[str], list[tuple]]:
     return cols, list(df.itertuples(index=False, name=None))
 
 
-def restore_sqlite_from_parquet(
-    parquet_dir: Path, target: Path, logger: logging.Logger
-) -> dict:
+def restore_sqlite_from_parquet(parquet_dir: Path, target: Path, logger: logging.Logger) -> dict:
     """Rebuild a SQLite DB at ``target`` from ``parquet_dir``/*.parquet.
 
     Applies ``_schema.sqlite.sql`` (from the snapshot dir's parent), loads
@@ -869,9 +848,7 @@ def restore_sqlite_from_parquet(
     """
     schema_path = parquet_dir.parent / "_schema.sqlite.sql"
     if not schema_path.exists():
-        raise FileNotFoundError(
-            f"Schema DDL not found next to the Parquet dir: {schema_path}"
-        )
+        raise FileNotFoundError(f"Schema DDL not found next to the Parquet dir: {schema_path}")
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_name(target.name + ".restore-tmp")
     tmp.unlink(missing_ok=True)
@@ -898,31 +875,24 @@ def restore_sqlite_from_parquet(
             restored[tname] = len(rows)
             logger.info(f"  Restore SQLite: {tname} ← {len(rows):,} rows")
         # Regenerate the FTS5 index from its exported content shadow.
-        if con.execute(
-            "SELECT 1 FROM sqlite_master WHERE name='note_search'"
-        ).fetchone():
+        if con.execute("SELECT 1 FROM sqlite_master WHERE name='note_search'").fetchone():
             con.execute("INSERT INTO note_search(note_search) VALUES('rebuild')")
             logger.info("  Restore SQLite: FTS5 note_search index rebuilt")
         con.commit()
         fk_issues = con.execute("PRAGMA foreign_key_check").fetchall()
         if fk_issues:
-            raise sqlite3.IntegrityError(
-                f"foreign_key_check failed after restore: {fk_issues[:5]}"
-            )
+            raise sqlite3.IntegrityError(f"foreign_key_check failed after restore: {fk_issues[:5]}")
     finally:
         con.close()
 
     tmp.replace(target)
     logger.info(
-        f"Restore SQLite: {target} ({len(restored)} tables, "
-        f"{sum(restored.values()):,} rows)"
+        f"Restore SQLite: {target} ({len(restored)} tables, {sum(restored.values()):,} rows)"
     )
     return {"target": str(target), "tables": restored}
 
 
-def restore_duckdb_from_parquet(
-    parquet_dir: Path, target: Path, logger: logging.Logger
-) -> dict:
+def restore_duckdb_from_parquet(parquet_dir: Path, target: Path, logger: logging.Logger) -> dict:
     """Rebuild a DuckDB file at ``target`` from ``parquet_dir``/*.parquet.
 
     Applies ``_schema.duckdb.sql`` (creation-ordered tables then views),
@@ -933,9 +903,7 @@ def restore_duckdb_from_parquet(
 
     schema_path = parquet_dir.parent / "_schema.duckdb.sql"
     if not schema_path.exists():
-        raise FileNotFoundError(
-            f"Schema DDL not found next to the Parquet dir: {schema_path}"
-        )
+        raise FileNotFoundError(f"Schema DDL not found next to the Parquet dir: {schema_path}")
     target.parent.mkdir(parents=True, exist_ok=True)
     tmp = target.with_name(target.name + ".restore-tmp")
     for stale in (tmp, Path(str(tmp) + ".wal")):
@@ -964,8 +932,7 @@ def restore_duckdb_from_parquet(
 
     tmp.replace(target)
     logger.info(
-        f"Restore DuckDB: {target} ({len(restored)} tables, "
-        f"{sum(restored.values()):,} rows)"
+        f"Restore DuckDB: {target} ({len(restored)} tables, {sum(restored.values()):,} rows)"
     )
     return {"target": str(target), "tables": restored}
 
@@ -984,9 +951,7 @@ def _cmd_restore(
         logger.error(f"Refusing to overwrite existing {db_path} — pass --force")
         return 1
     if with_duckdb and duckdb_path.exists() and not force:
-        logger.error(
-            f"Refusing to overwrite existing {duckdb_path} — pass --force"
-        )
+        logger.error(f"Refusing to overwrite existing {duckdb_path} — pass --force")
         return 1
     if parquet_sqlite_dir.exists():
         restore_sqlite_from_parquet(parquet_sqlite_dir, db_path, logger)
@@ -997,9 +962,7 @@ def _cmd_restore(
         if parquet_duckdb_dir.exists():
             restore_duckdb_from_parquet(parquet_duckdb_dir, duckdb_path, logger)
         else:
-            logger.warning(
-                f"DuckDB Parquet snapshot not found: {parquet_duckdb_dir}"
-            )
+            logger.warning(f"DuckDB Parquet snapshot not found: {parquet_duckdb_dir}")
     return 0
 
 
@@ -1058,14 +1021,30 @@ def _cmd_create(
     """
     ok = True
     if fmt in ("binary", "both"):
-        ok = _create_binary_snapshot(
-            db_path, out_path, duckdb_path, duckdb_out, with_duckdb, logger,
-        ) and ok
+        ok = (
+            _create_binary_snapshot(
+                db_path,
+                out_path,
+                duckdb_path,
+                duckdb_out,
+                with_duckdb,
+                logger,
+            )
+            and ok
+        )
     if fmt in ("parquet", "both"):
-        ok = _create_parquet_snapshot(
-            db_path, parquet_base, parquet_sqlite_dir,
-            duckdb_path, parquet_duckdb_dir, with_duckdb, logger,
-        ) and ok
+        ok = (
+            _create_parquet_snapshot(
+                db_path,
+                parquet_base,
+                parquet_sqlite_dir,
+                duckdb_path,
+                parquet_duckdb_dir,
+                with_duckdb,
+                logger,
+            )
+            and ok
+        )
     return 0 if ok else 1
 
 
@@ -1097,8 +1076,7 @@ def _create_binary_snapshot(
         # gives WAL consistency.
         vec_src = db_path.with_name(db_path.name + "_vec.db")
         if vec_src.exists():
-            vec_out = out_path.parent / out_path.name.replace(
-                ".db.zst", ".db_vec.db.zst")
+            vec_out = out_path.parent / out_path.name.replace(".db.zst", ".db_vec.db.zst")
             create_snapshot(vec_src, vec_out, logger)
             return
         from helpers.core.vec_search import EMBED_DB_PATH
@@ -1117,16 +1095,12 @@ def _create_binary_snapshot(
             # gzip-ISIZE size cross-check has no equivalent —
             # zstd_binary_backups.md D2.)
             zst = store_out
-            if (zst.exists()
-                    and store.stat().st_mtime <= zst.stat().st_mtime):
-                logger.info(
-                    "Embed store unchanged since last backup — "
-                    "reusing %s", zst)
+            if zst.exists() and store.stat().st_mtime <= zst.stat().st_mtime:
+                logger.info("Embed store unchanged since last backup — reusing %s", zst)
             else:
                 create_snapshot(store, store_out, logger)
         else:
-            logger.info(
-                "Embed store absent — backup skipped (%s)", store)
+            logger.info("Embed store absent — backup skipped (%s)", store)
 
     def _duckdb_binary_worker() -> bool:
         # Narrow the format-optional paths (S101-clean explicit raise;
@@ -1142,7 +1116,8 @@ def _create_binary_snapshot(
             lambda: (
                 create_snapshot(db_path, out_path, logger),
                 verify_snapshot(out_path, db_path, logger)["match"],
-            )[1])
+            )[1]
+        )
         embed = pool.submit(_embed_store_worker)
         futures = [research, embed]
         if with_duckdb:
@@ -1174,16 +1149,16 @@ def _create_parquet_snapshot(
 
     def _sqlite_parquet_worker() -> bool:
         export_parquet_sqlite(db_path, parquet_sqlite_dir, logger)
-        return _verify_parquet_sqlite_side(
-            parquet_base, db_path, logger)["mismatches"] == []
+        return _verify_parquet_sqlite_side(parquet_base, db_path, logger)["mismatches"] == []
 
     def _duckdb_parquet_worker() -> bool:
         if with_duckdb:
             if duckdb_path is None or parquet_duckdb_dir is None:
                 raise ValueError("with_duckdb=True requires duckdb paths")
             export_parquet_duckdb(duckdb_path, parquet_duckdb_dir, logger)
-            return _verify_parquet_duckdb_side(
-                parquet_base, duckdb_path, logger)["mismatches"] == []
+            return (
+                _verify_parquet_duckdb_side(parquet_base, duckdb_path, logger)["mismatches"] == []
+            )
         return True
 
     ok = True
@@ -1209,44 +1184,52 @@ def main() -> int:
         "--out", default=DEFAULT_OUT, help="Output .db.zst (relative to repo root)."
     )
     parser.add_argument(
-        "--duckdb", default=DEFAULT_DUCKDB,
+        "--duckdb",
+        default=DEFAULT_DUCKDB,
         help="Source DuckDB file (relative to repo root).",
     )
     parser.add_argument(
-        "--duckdb-out", default=DEFAULT_DUCKDB_OUT,
+        "--duckdb-out",
+        default=DEFAULT_DUCKDB_OUT,
         help="Output DuckDB .duckdb.zst (relative to repo root).",
     )
     parser.add_argument(
-        "--no-duckdb", dest="with_duckdb", action="store_false",
+        "--no-duckdb",
+        dest="with_duckdb",
+        action="store_false",
         help="Skip the DuckDB snapshot (SQLite only).",
     )
     parser.set_defaults(with_duckdb=True)
     parser.add_argument(
-        "--format", choices=["binary", "parquet", "both"], default="both",
+        "--format",
+        choices=["binary", "parquet", "both"],
+        default="both",
         help="Snapshot format for CREATE: binary (zstd .db.zst), parquet "
-             "(per-table .parquet), or both. Default: both. "
-             "--check always verifies both formats regardless of this flag.",
+        "(per-table .parquet), or both. Default: both. "
+        "--check always verifies both formats regardless of this flag.",
     )
     parser.add_argument(
         "--check",
         action="store_true",
         help="Verify an existing snapshot round-trips against the source. "
-             "Always checks BOTH formats (zstd binary + Parquet when present); "
-             "--format only gates the create path.",
+        "Always checks BOTH formats (zstd binary + Parquet when present); "
+        "--format only gates the create path.",
     )
     parser.add_argument(
-        "--parquet-dir", default=DEFAULT_PARQUET,
-        help="Root dir for the Parquet snapshot (git-tracked default: "
-             "snapshots/parquet).",
+        "--parquet-dir",
+        default=DEFAULT_PARQUET,
+        help="Root dir for the Parquet snapshot (git-tracked default: snapshots/parquet).",
     )
     parser.add_argument(
-        "--restore", action="store_true",
+        "--restore",
+        action="store_true",
         help="Rebuild the LIVE databases from the Parquet snapshot "
-             "(schema DDL + data + FTS5 rebuild). Refuses to overwrite "
-             "existing live files unless --force.",
+        "(schema DDL + data + FTS5 rebuild). Refuses to overwrite "
+        "existing live files unless --force.",
     )
     parser.add_argument(
-        "--force", action="store_true",
+        "--force",
+        action="store_true",
         help="With --restore: overwrite existing live DB files.",
     )
     parser.add_argument("--log", default="INFO", help="Logging level.")
@@ -1273,18 +1256,35 @@ def main() -> int:
     try:
         if args.restore:
             return _cmd_restore(
-                db_path, duckdb_path, parquet_sqlite_dir, parquet_duckdb_dir,
-                args.with_duckdb, args.force, logger,
+                db_path,
+                duckdb_path,
+                parquet_sqlite_dir,
+                parquet_duckdb_dir,
+                args.with_duckdb,
+                args.force,
+                logger,
             )
         if args.check:
             return _cmd_check(
-                out_path, db_path, duckdb_out, duckdb_path, parquet_base,
-                args.with_duckdb, logger,
+                out_path,
+                db_path,
+                duckdb_out,
+                duckdb_path,
+                parquet_base,
+                args.with_duckdb,
+                logger,
             )
         return _cmd_create(
-            db_path, out_path, duckdb_path, duckdb_out, parquet_base,
-            parquet_sqlite_dir, parquet_duckdb_dir, args.format,
-            args.with_duckdb, logger,
+            db_path,
+            out_path,
+            duckdb_path,
+            duckdb_out,
+            parquet_base,
+            parquet_sqlite_dir,
+            parquet_duckdb_dir,
+            args.format,
+            args.with_duckdb,
+            logger,
         )
     except Exception as e:  # pragma: no cover
         print(f"ERROR: {e}", file=sys.stderr)

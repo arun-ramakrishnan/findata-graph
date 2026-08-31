@@ -24,6 +24,7 @@ was multi-second — orders of magnitude away).
 
 Exit 1 on violation. Invoked by `make perf`.
 """
+
 from __future__ import annotations
 
 import sys
@@ -81,8 +82,7 @@ def main() -> int:
 
         # Warm-up (unmeasured): absorbs one-time plan/page-cache costs.
         shortest_path(con, "CEAT", "Automotive", max_hops=5)
-        shortest_path(con, "CEAT", dst_unreachable, max_hops=8,
-                      edge_label="NoSuchLabel")
+        shortest_path(con, "CEAT", dst_unreachable, max_hops=8, edge_label="NoSuchLabel")
 
         dt1, r1 = _best_of(con, "CEAT", "Automotive", 5, None)
         dt2, r2 = _best_of(con, "CEAT", dst_unreachable, 8, "NoSuchLabel")
@@ -91,14 +91,21 @@ def main() -> int:
 
     ok1 = r1 is not None and dt1 < BUDGET_DEFAULT_S
     ok2 = r2 is None and dt2 < BUDGET_UNREACHABLE_S
-    print(f"  shortest_path default   (CEAT->Automotive, hops=5): "
-          f"{dt1*1000:7.1f}ms  [{'OK' if ok1 else 'FAIL'}]")
-    print(f"  shortest_path unreachable(CEAT->{dst_unreachable}, hops=8): "
-          f"{dt2*1000:7.1f}ms  [{'OK' if ok2 else 'FAIL'}]")
+    print(
+        f"  shortest_path default   (CEAT->Automotive, hops=5): "
+        f"{dt1 * 1000:7.1f}ms  [{'OK' if ok1 else 'FAIL'}]"
+    )
+    print(
+        f"  shortest_path unreachable(CEAT->{dst_unreachable}, hops=8): "
+        f"{dt2 * 1000:7.1f}ms  [{'OK' if ok2 else 'FAIL'}]"
+    )
     if not (ok1 and ok2):
-        print(f"  budget: {BUDGET_DEFAULT_S*1000:.0f}ms default / "
-              f"{BUDGET_UNREACHABLE_S*1000:.0f}ms unreachable, "
-              f"best of {_REPS}", file=sys.stderr)
+        print(
+            f"  budget: {BUDGET_DEFAULT_S * 1000:.0f}ms default / "
+            f"{BUDGET_UNREACHABLE_S * 1000:.0f}ms unreachable, "
+            f"best of {_REPS}",
+            file=sys.stderr,
+        )
         return 1
     return 0
 

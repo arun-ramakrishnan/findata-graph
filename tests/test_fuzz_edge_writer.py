@@ -8,6 +8,7 @@ upsert idempotence, dry-run/apply parity, the CHECK guard, and the
 documented NO-swap-dedup semantics (pair canonicalisation is the
 CALLER's job — derive_co_mentions.derive_edges sorts each pair).
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -26,11 +27,13 @@ from helpers.graph._edge_writer import apply_typed_edges  # noqa: E402
 
 _NAME = st.text(
     st.characters(blacklist_categories=("Cs",), blacklist_characters="\r"),
-    min_size=1, max_size=20,
+    min_size=1,
+    max_size=20,
 ).filter(lambda s: s.strip())
 
 _SETTINGS = settings(
-    max_examples=30, deadline=None,
+    max_examples=30,
+    deadline=None,
     suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 
@@ -57,6 +60,7 @@ CREATE TABLE graph_edges (
 def db_path():
     fd, name = tempfile.mkstemp(suffix=".db")
     import os
+
     os.close(fd)
     Path(name).unlink()
     conn = sqlite3.connect(name)
@@ -73,9 +77,10 @@ def _conn(db):
 
 
 @_SETTINGS
-@given(st.lists(st.tuples(_NAME, _NAME), min_size=0, max_size=8,
-                unique=True),
-       st.sampled_from([("theme_of", 0), ("co_mentioned_in", 1)]))
+@given(
+    st.lists(st.tuples(_NAME, _NAME), min_size=0, max_size=8, unique=True),
+    st.sampled_from([("theme_of", 0), ("co_mentioned_in", 1)]),
+)
 def test_apply_idempotent_and_dry_run_parity(db_path, pairs, type_sym):
     edge_type, symmetric = type_sym
     pairs = [(a, b) for a, b in pairs if a != b]
@@ -84,20 +89,24 @@ def test_apply_idempotent_and_dry_run_parity(db_path, pairs, type_sym):
     try:
         c.execute("DELETE FROM graph_edges")
         c.commit()
-        would = apply_typed_edges(edges, edge_type=edge_type,
-                                  symmetric=symmetric, conn=c, dry_run=True)
+        would = apply_typed_edges(
+            edges, edge_type=edge_type, symmetric=symmetric, conn=c, dry_run=True
+        )
         assert would == len(pairs)
         assert c.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0] == 0
-        first = apply_typed_edges(edges, edge_type=edge_type,
-                                  symmetric=symmetric, conn=c, dry_run=False)
+        first = apply_typed_edges(
+            edges, edge_type=edge_type, symmetric=symmetric, conn=c, dry_run=False
+        )
         assert first == len(pairs)
         # Re-apply: UNIQUE(source, target, edge_type) swallows everything.
-        second = apply_typed_edges(edges, edge_type=edge_type,
-                                   symmetric=symmetric, conn=c, dry_run=False)
+        second = apply_typed_edges(
+            edges, edge_type=edge_type, symmetric=symmetric, conn=c, dry_run=False
+        )
         assert second == 0
         # Dry-run after apply also reports zero.
-        again = apply_typed_edges(edges, edge_type=edge_type,
-                                  symmetric=symmetric, conn=c, dry_run=True)
+        again = apply_typed_edges(
+            edges, edge_type=edge_type, symmetric=symmetric, conn=c, dry_run=True
+        )
         assert again == 0
     finally:
         c.close()
@@ -114,12 +123,11 @@ def test_self_edges_never_written(db_path, pairs):
     try:
         c.execute("DELETE FROM graph_edges")
         c.commit()
-        n = apply_typed_edges(edges, edge_type=edge_type, symmetric=0,
-                              conn=c, dry_run=False)
+        n = apply_typed_edges(edges, edge_type=edge_type, symmetric=0, conn=c, dry_run=False)
         assert n == 0
-        assert c.execute(
-            "SELECT COUNT(*) FROM graph_edges WHERE source = target"
-        ).fetchone()[0] == 0
+        assert (
+            c.execute("SELECT COUNT(*) FROM graph_edges WHERE source = target").fetchone()[0] == 0
+        )
     finally:
         c.close()
 
@@ -134,13 +142,13 @@ def test_no_swap_dedup_by_the_writer_itself(db_path):
     try:
         c.execute("DELETE FROM graph_edges")
         c.commit()
-        n1 = apply_typed_edges([("A", "B", {}, "fuzz")], edge_type="t",
-                               symmetric=1, conn=c, dry_run=False)
-        n2 = apply_typed_edges([("B", "A", {}, "fuzz")], edge_type="t",
-                               symmetric=1, conn=c, dry_run=False)
+        n1 = apply_typed_edges(
+            [("A", "B", {}, "fuzz")], edge_type="t", symmetric=1, conn=c, dry_run=False
+        )
+        n2 = apply_typed_edges(
+            [("B", "A", {}, "fuzz")], edge_type="t", symmetric=1, conn=c, dry_run=False
+        )
         assert (n1, n2) == (1, 1)
-        assert c.execute(
-            "SELECT COUNT(*) FROM graph_edges WHERE edge_type='t'"
-        ).fetchone()[0] == 2
+        assert c.execute("SELECT COUNT(*) FROM graph_edges WHERE edge_type='t'").fetchone()[0] == 2
     finally:
         c.close()

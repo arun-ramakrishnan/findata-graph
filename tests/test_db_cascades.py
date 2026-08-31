@@ -9,6 +9,7 @@ silently leave orphaned rows (the bug that prompted this test file).
 These tests construct a minimal DB matching the production schema, then
 exercise delete and rename flows to prove the cascades fire.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -170,6 +171,7 @@ def test_utc_now_sorts_consistently_with_current_timestamp():
         assert len(ct) == len(un) == 19
         # They should be within 2 seconds of each other (temporal proximity).
         from datetime import datetime
+
         ct_parsed = datetime.strptime(ct, "%Y-%m-%d %H:%M:%S")
         un_parsed = datetime.strptime(un, "%Y-%m-%d %H:%M:%S")
         assert abs((ct_parsed - un_parsed).total_seconds()) < 5
@@ -185,24 +187,36 @@ def test_delete_entity_cascades_to_relations_and_tags(cascade_db):
     conn = connect(cascade_db, row_factory=None)
     try:
         # Sanity: pre-conditions
-        assert conn.execute(
-            "SELECT COUNT(*) FROM relations WHERE source='Acme Co' OR target='Acme Co'"
-        ).fetchone()[0] == 2
-        assert conn.execute(
-            "SELECT COUNT(*) FROM entity_tags WHERE entity_name='Acme Co'"
-        ).fetchone()[0] == 2
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM relations WHERE source='Acme Co' OR target='Acme Co'"
+            ).fetchone()[0]
+            == 2
+        )
+        assert (
+            conn.execute("SELECT COUNT(*) FROM entity_tags WHERE entity_name='Acme Co'").fetchone()[
+                0
+            ]
+            == 2
+        )
 
         conn.execute("DELETE FROM entities WHERE name='Acme Co'")
         conn.commit()
 
         # Both relations rows (one source, one target) should be gone.
-        assert conn.execute(
-            "SELECT COUNT(*) FROM relations WHERE source='Acme Co' OR target='Acme Co'"
-        ).fetchone()[0] == 0
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM relations WHERE source='Acme Co' OR target='Acme Co'"
+            ).fetchone()[0]
+            == 0
+        )
         # Both tag rows should be gone.
-        assert conn.execute(
-            "SELECT COUNT(*) FROM entity_tags WHERE entity_name='Acme Co'"
-        ).fetchone()[0] == 0
+        assert (
+            conn.execute("SELECT COUNT(*) FROM entity_tags WHERE entity_name='Acme Co'").fetchone()[
+                0
+            ]
+            == 0
+        )
     finally:
         conn.close()
 
@@ -218,23 +232,34 @@ def test_rename_entity_cascades_to_relations_and_tags(cascade_db):
         conn.commit()
 
         # relations should now reference the new name in both directions.
-        assert conn.execute(
-            "SELECT COUNT(*) FROM relations WHERE source='Acme Co Ltd'"
-        ).fetchone()[0] == 1
-        assert conn.execute(
-            "SELECT COUNT(*) FROM relations WHERE target='Acme Co Ltd'"
-        ).fetchone()[0] == 1
+        assert (
+            conn.execute("SELECT COUNT(*) FROM relations WHERE source='Acme Co Ltd'").fetchone()[0]
+            == 1
+        )
+        assert (
+            conn.execute("SELECT COUNT(*) FROM relations WHERE target='Acme Co Ltd'").fetchone()[0]
+            == 1
+        )
         # Old name must be entirely gone from relations.
-        assert conn.execute(
-            "SELECT COUNT(*) FROM relations WHERE source='Acme Co' OR target='Acme Co'"
-        ).fetchone()[0] == 0
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM relations WHERE source='Acme Co' OR target='Acme Co'"
+            ).fetchone()[0]
+            == 0
+        )
         # entity_tags must follow too.
-        assert conn.execute(
-            "SELECT COUNT(*) FROM entity_tags WHERE entity_name='Acme Co Ltd'"
-        ).fetchone()[0] == 2
-        assert conn.execute(
-            "SELECT COUNT(*) FROM entity_tags WHERE entity_name='Acme Co'"
-        ).fetchone()[0] == 0
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM entity_tags WHERE entity_name='Acme Co Ltd'"
+            ).fetchone()[0]
+            == 2
+        )
+        assert (
+            conn.execute("SELECT COUNT(*) FROM entity_tags WHERE entity_name='Acme Co'").fetchone()[
+                0
+            ]
+            == 0
+        )
     finally:
         conn.close()
 
@@ -246,16 +271,18 @@ def test_rename_sector_cascades_to_relations(cascade_db):
         conn.execute("UPDATE entities SET name='Indy' WHERE name='Industrials'")
         conn.commit()
 
-        assert conn.execute(
-            "SELECT COUNT(*) FROM relations WHERE target='Indy'"
-        ).fetchone()[0] == 1   # part_of row
-        assert conn.execute(
-            "SELECT COUNT(*) FROM relations WHERE source='Indy'"
-        ).fetchone()[0] == 1   # has_company row
-        assert conn.execute(
-            "SELECT COUNT(*) FROM relations WHERE "
-            "source='Industrials' OR target='Industrials'"
-        ).fetchone()[0] == 0
+        assert (
+            conn.execute("SELECT COUNT(*) FROM relations WHERE target='Indy'").fetchone()[0] == 1
+        )  # part_of row
+        assert (
+            conn.execute("SELECT COUNT(*) FROM relations WHERE source='Indy'").fetchone()[0] == 1
+        )  # has_company row
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM relations WHERE source='Industrials' OR target='Industrials'"
+            ).fetchone()[0]
+            == 0
+        )
     finally:
         conn.close()
 
@@ -282,8 +309,7 @@ def test_raw_connect_silently_disables_cascades(cascade_db):
             "SELECT COUNT(*) FROM relations WHERE source='Acme Co' OR target='Acme Co'"
         ).fetchone()[0]
         assert orphaned == 2, (
-            "expected 2 orphaned relation rows when FKs are off; "
-            "did SQLite change its default?"
+            "expected 2 orphaned relation rows when FKs are off; did SQLite change its default?"
         )
     finally:
         conn.close()

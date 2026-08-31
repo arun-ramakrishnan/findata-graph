@@ -15,6 +15,7 @@ pushed. A fresh clone simply runs full mode.
 GOOGLE_API_KEY (see the private security review under doc/local (untracked)
 SEC-9). Run via `make secret-scan`.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -45,8 +46,16 @@ PATTERNS: list[tuple[str, re.Pattern[bytes]]] = [
     ("pem-private", re.compile(rb"-----BEGIN [A-Z ]*PRIVATE KEY")),
     ("telegram", re.compile(rb"\b\d{8,10}:AA[A-Za-z0-9_\-]{30,}\b")),
     ("stripe", re.compile(rb"\b(sk|pk|rk)_(live|test)_[A-Za-z0-9]{16,}\b")),
-    ("generic-assign", re.compile(rb"(?i)\b(api[_-]?key|token|passwd|password|secret)\b\s*[:=]\s*[\"'][A-Za-z0-9+/_\-]{20,}[\"']")),
-    ("env-assign", re.compile(rb"(?m)^(PADDLE_API_KEY|AZURE_OPENAI_API_KEY|OPENAI_API_KEY)\s*=\s*\S+")),
+    (
+        "generic-assign",
+        re.compile(
+            rb"(?i)\b(api[_-]?key|token|passwd|password|secret)\b\s*[:=]\s*[\"'][A-Za-z0-9+/_\-]{20,}[\"']"
+        ),
+    ),
+    (
+        "env-assign",
+        re.compile(rb"(?m)^(PADDLE_API_KEY|AZURE_OPENAI_API_KEY|OPENAI_API_KEY)\s*=\s*\S+"),
+    ),
 ]
 
 
@@ -87,7 +96,8 @@ def _collect_reachable() -> tuple[dict[str, str], set[str]]:
     hints: dict[str, str] = {}
     p = subprocess.Popen(  # noqa: S603  # list-form git call, constant args, shell=False
         ["git", "-C", str(PROJECT_ROOT), "rev-list", "--all", "--objects"],  # noqa: S607  # PATH-resolved git by design
-        stdout=subprocess.PIPE, bufsize=1 << 20,
+        stdout=subprocess.PIPE,
+        bufsize=1 << 20,
     )
     assert p.stdout is not None  # noqa: S101  # ty narrowing; stdout=PIPE always yields a stream
     for raw in p.stdout:
@@ -101,9 +111,16 @@ def _collect_reachable() -> tuple[dict[str, str], set[str]]:
 def _select_blobs(hints: dict[str, str]) -> list[str]:
     """Pass 2: blob SHAs <= MAX_SIZE. Feeder thread avoids pipe deadlock."""
     bc = subprocess.Popen(  # noqa: S603  # list-form git call, constant args, shell=False
-        ["git", "-C", str(PROJECT_ROOT), "cat-file",  # noqa: S607  # PATH-resolved git by design
-         "--batch-check=%(objectname) %(objecttype) %(objectsize)"],
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=1 << 20,
+        [  # noqa: S607  # PATH-resolved git by design
+            "git",
+            "-C",
+            str(PROJECT_ROOT),
+            "cat-file",
+            "--batch-check=%(objectname) %(objecttype) %(objectsize)",
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        bufsize=1 << 20,
     )
 
     def _feed(proc: subprocess.Popen[bytes], shas: list[str]) -> None:
@@ -127,14 +144,18 @@ def _redact(fragment: bytes) -> str:
     return re.sub(rb"[A-Za-z0-9+/_\-]{16,}", b"<redacted>", fragment).decode("utf-8", "replace")
 
 
-def scan_blobs(to_scan: list[str], hints: dict[str, str]) -> tuple[list[tuple[str, str, str, str]], int]:
+def scan_blobs(
+    to_scan: list[str], hints: dict[str, str]
+) -> tuple[list[tuple[str, str, str, str]], int]:
     """Pass 3: stream contents, skip binary, run patterns.
 
     Returns (hits, binary_skipped). Each hit: (pattern_id, sha12, path, ctx).
     """
     cf = subprocess.Popen(  # noqa: S603  # list-form git call, constant args, shell=False
         ["git", "-C", str(PROJECT_ROOT), "cat-file", "--batch"],  # noqa: S607  # PATH-resolved git by design
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, bufsize=1 << 22,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        bufsize=1 << 22,
     )
     hits: list[tuple[str, str, str, str]] = []
     binary = 0
@@ -162,19 +183,25 @@ def scan_blobs(to_scan: list[str], hints: dict[str, str]) -> tuple[list[tuple[st
             for m in pat.finditer(content):
                 ls = content.rfind(b"\n", 0, m.start()) + 1
                 le = content.find(b"\n", m.end())
-                ctx = content[ls:le if le != -1 else len(content)][:120]
+                ctx = content[ls : le if le != -1 else len(content)][:120]
                 hits.append((pid, sha[:12], hints.get(sha, "?"), _redact(ctx)))
         if scanned % 1000 == 0 or scanned == total:
-            print(f"  progress {scanned}/{total} ({100 * scanned / total:.0f}%) hits={len(hits)}",
-                  file=sys.stderr, flush=True)
+            print(
+                f"  progress {scanned}/{total} ({100 * scanned / total:.0f}%) hits={len(hits)}",
+                file=sys.stderr,
+                flush=True,
+            )
     cf.wait()
     return hits, binary
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--full", action="store_true",
-                    help="rescan every reachable blob (default: incremental from state)")
+    ap.add_argument(
+        "--full",
+        action="store_true",
+        help="rescan every reachable blob (default: incremental from state)",
+    )
     ap.add_argument("--out", default=None, help="also write hits to this file")
     args = ap.parse_args()
 
@@ -185,14 +212,24 @@ def main() -> int:
     print("[1/3] enumerating reachable objects...", file=sys.stderr, flush=True)
     hints, _reach = _collect_reachable()
 
-    print(f"[2/3] selecting blobs <=1MB from {len(hints)} unique objects...", file=sys.stderr, flush=True)
+    print(
+        f"[2/3] selecting blobs <=1MB from {len(hints)} unique objects...",
+        file=sys.stderr,
+        flush=True,
+    )
     reachable = set(_select_blobs(hints))
     delta = compute_delta(reachable, prev)
-    print(f"      reachable={len(reachable)} previously_scanned={len(prev)} new={len(delta)}",
-          file=sys.stderr, flush=True)
+    print(
+        f"      reachable={len(reachable)} previously_scanned={len(prev)} new={len(delta)}",
+        file=sys.stderr,
+        flush=True,
+    )
     if not delta:
-        print(f"DONE cur_process_cnt/total_cnt = 0/0 (nothing new; last scan "
-              f"{state.get('last_scan_utc', '?')})", file=sys.stderr)
+        print(
+            f"DONE cur_process_cnt/total_cnt = 0/0 (nothing new; last scan "
+            f"{state.get('last_scan_utc', '?')})",
+            file=sys.stderr,
+        )
         return 0
 
     print(f"[3/3] scanning {len(delta)} blobs...", file=sys.stderr, flush=True)
@@ -218,9 +255,12 @@ def main() -> int:
     print(report)
     if args.out:
         Path(args.out).write_text(report)
-    print(f"DONE cur_process_cnt/total_cnt = {len(delta)}/{len(delta)} "
-          f"hits={len(hits)} elapsed={time.time() - t0:.0f}s "
-          f"(total scanned to date: {len(scanned_all)})", file=sys.stderr)
+    print(
+        f"DONE cur_process_cnt/total_cnt = {len(delta)}/{len(delta)} "
+        f"hits={len(hits)} elapsed={time.time() - t0:.0f}s "
+        f"(total scanned to date: {len(scanned_all)})",
+        file=sys.stderr,
+    )
     return 0
 
 

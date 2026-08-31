@@ -87,6 +87,7 @@ USAGE
         # sources[].last_modified newer than generated.at, or no sources
         # yet); the rest are skipped without reads/rewrites.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -157,8 +158,7 @@ def _iso_date(value) -> _dt.date | None:
         return None
 
 
-def _stale_only_skip(text: str,
-                     scanned_stems: frozenset[str] = frozenset()) -> bool | None:
+def _stale_only_skip(text: str, scanned_stems: frozenset[str] = frozenset()) -> bool | None:
     """``--stale-only`` gate (okf_activation I). True=skip, False=render,
     None=no evidence (render anyway — safe default, accepted Q3).
 
@@ -198,17 +198,17 @@ def _stale_only_skip(text: str,
     ids = {s.get("id") for s in srcs if isinstance(s, dict)}
     if any(stem not in ids for stem in scanned_stems):
         return False
-    dates = [d for d in (
-        _iso_date(s.get("last_modified"))
-        for s in srcs if isinstance(s, dict)
-    ) if d is not None]
+    dates = [
+        d
+        for d in (_iso_date(s.get("last_modified")) for s in srcs if isinstance(s, dict))
+        if d is not None
+    ]
     if not dates:
         return None
     return max(dates) <= at
 
 
-def _scanned_stems(editions, index: dict,
-                   memo: dict[str, str | None]) -> frozenset[str]:
+def _scanned_stems(editions, index: dict, memo: dict[str, str | None]) -> frozenset[str]:
     """Scanned edition free-text keys -> source-note stems (§3.2b input).
 
     Unmatchable editions (legacy free-text, "Yahoo Finance", ...) resolve
@@ -229,9 +229,13 @@ def _scanned_stems(editions, index: dict,
     return frozenset(stems)
 
 
-def _splice_sources(text: str, index: dict, vault: Path,
-                    extra_stems: frozenset[str] = frozenset(),
-                    memo: dict | None = None) -> tuple[str, bool]:
+def _splice_sources(
+    text: str,
+    index: dict,
+    vault: Path,
+    extra_stems: frozenset[str] = frozenset(),
+    memo: dict | None = None,
+) -> tuple[str, bool]:
     """Merge edition entries into frontmatter ``sources[]`` (§3.2a).
 
     Body-driven via :func:`merged_sources` — auto-block ``## <series> —
@@ -263,6 +267,7 @@ def _splice_sources(text: str, index: dict, vault: Path,
     fm["sources"] = merged
     return (render_frontmatter(stringify_dates(fm)) + _body(text), True)
 
+
 # The H1 of an edition's `## The Chatter — <edition>` block. The capture group
 # is the edition title (used by the curation-safety check to detect an existing
 # hand-written block for the same edition).
@@ -282,7 +287,12 @@ _FM_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 # (Ltd stripped) and we need both the raw heading text AND the line range; the
 # canonicalization is applied once at emit time via the same SUFFIX_RE.
 _CAP_TOKENS = (
-    "large cap", "mid cap", "small cap", "micro cap", "nano cap", "mega cap",
+    "large cap",
+    "mid cap",
+    "small cap",
+    "micro cap",
+    "nano cap",
+    "mega cap",
     "unlisted",
 )
 # P3 perf: compiled hot-path regexes (were inline re.search/re.match per call).
@@ -312,6 +322,7 @@ _H1_TITLE_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
 @dataclass
 class Quote:
     """A derived quote row (mirrors the quotes table columns)."""
+
     entity: str
     quote_text: str
     paraphrase: str | None = None
@@ -325,6 +336,7 @@ class Quote:
 @dataclass
 class Metric:
     """A derived company_metrics row."""
+
     entity: str
     value_raw: str
     metric_label: str | None = None
@@ -340,9 +352,10 @@ class Metric:
 @dataclass
 class CompanySection:
     """A company's concall body slice + its canonical name."""
+
     canonical_name: str
-    heading_line: int       # 1-based line of the heading in the source file
-    body: str               # the section's text (heading through next heading)
+    heading_line: int  # 1-based line of the heading in the source file
+    body: str  # the section's text (heading through next heading)
 
 
 def _canonicalize(raw: str) -> str:
@@ -400,8 +413,9 @@ def iter_company_sections(content: str):  # noqa: C901
         if _ROLE_HEADING_RE.match(lower):
             continue
         # Newsletter chrome (## Comments, ## Discussion, ## Don't have a...).
-        if lower.startswith(("comment", "discussion", "don't", "share this",
-                             "subscribe", "about ", "welcome")):
+        if lower.startswith(
+            ("comment", "discussion", "don't", "share this", "subscribe", "about ", "welcome")
+        ):
             continue
         if not (has_cap or has_pipe):
             # Sector heading (FMCG) — structural boundary.
@@ -418,8 +432,7 @@ def iter_company_sections(content: str):  # noqa: C901
         if canonical is None:
             continue  # this structural heading is a sector, not a company
         # Body runs to the next structural heading, or EOF.
-        end = (structural[si + 1][0]
-               if si + 1 < len(structural) else len(content))
+        end = structural[si + 1][0] if si + 1 < len(structural) else len(content)
         yield CompanySection(
             canonical_name=canonical,
             heading_line=line_of(start),
@@ -443,9 +456,7 @@ def iter_company_sections(content: str):  # noqa: C901
 _NAME = r"[A-Z][\w.\-]*(?:\s+[A-Z][\w.\-]*){0,4}"
 # Match the attribution line; capture group 1 = name, 2 = title-after-comma,
 # 3 = title-in-parens. Anchored to line start; tolerates leading dash/heading.
-_ATTR_RE = re.compile(
-    r"^(?:##\s+)?[-–—]?\s*(" + _NAME + r")\s*(?:,\s*(.+?)|\s*\((.+?)\))?\s*$"
-)
+_ATTR_RE = re.compile(r"^(?:##\s+)?[-–—]?\s*(" + _NAME + r")\s*(?:,\s*(.+?)|\s*\((.+?)\))?\s*$")
 # Generic role headings that look like attributions but carry no person —
 # these mark the quote as anonymous (speaker stays NULL). Checked BEFORE the
 # non-attribution filter so `## Management, Executive` is recognized as an
@@ -496,8 +507,20 @@ def _parse_attribution(line: str) -> tuple[str | None, str | None] | None:
         return None
     # Reject obvious prose that slipped through ("The company said...").
     first = parts[0].lower()
-    if first in {"the", "this", "these", "those", "we", "our", "while", "after",
-                 "before", "following", "despite", "according"}:
+    if first in {
+        "the",
+        "this",
+        "these",
+        "those",
+        "we",
+        "our",
+        "while",
+        "after",
+        "before",
+        "following",
+        "despite",
+        "according",
+    }:
         return None
     return (name, title)
 
@@ -533,8 +556,11 @@ _LINE_EMPH_RE = re.compile(r"^\s*_(.+)_\s*$")
 _CURLY_QUOTES = {"“": '"', "”": '"', "„": '"', "‟": '"'}
 
 
-def extract_quotes(section: CompanySection, edition_title: str,  # noqa: C901
-                   source_stem: str) -> list[Quote]:
+def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagnostic line (ruff-format split)
+    section: CompanySection,
+    edition_title: str,
+    source_stem: str,
+) -> list[Quote]:
     """Extract every (paraphrase → quote → attribution) unit from a section.
 
     Algorithm: walk lines; when a verbatim quote opens (line starts with ``"``),
@@ -547,7 +573,7 @@ def extract_quotes(section: CompanySection, edition_title: str,  # noqa: C901
     body = section.body
     concall_m = _CONCALL_HEADING_RE.search(body)
     if concall_m:
-        body = body[concall_m.end():]
+        body = body[concall_m.end() :]
 
     lines = body.splitlines()
     # Unwrap per-line emphasis and normalize typographic quotes (see
@@ -600,15 +626,17 @@ def extract_quotes(section: CompanySection, edition_title: str,  # noqa: C901
                 paraphrase_lines = []
                 i = j + 1
                 continue
-            quotes.append(Quote(
-                entity=section.canonical_name,
-                quote_text=quote_text,
-                paraphrase=paraphrase,
-                speaker_name=speaker_name,
-                speaker_title=speaker_title,
-                as_of_edition=edition_title,
-                source_ref=f"{QUOTES_PREFIX}{source_stem}:{section.heading_line}",
-            ))
+            quotes.append(
+                Quote(
+                    entity=section.canonical_name,
+                    quote_text=quote_text,
+                    paraphrase=paraphrase,
+                    speaker_name=speaker_name,
+                    speaker_title=speaker_title,
+                    as_of_edition=edition_title,
+                    source_ref=f"{QUOTES_PREFIX}{source_stem}:{section.heading_line}",
+                )
+            )
             # Reset paraphrase accumulator; resume after the attribution (if any)
             # or after the closing quote.
             i = (attr_idx + 1) if attr_idx >= 0 else (j + 1)
@@ -645,7 +673,10 @@ _USD_RE = re.compile(
     re.I,
 )
 _PCT_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*[-–to ]+\s*\d+(?:\.\d+)?\s*%|\b\d+(?:\.\d+)?\s*%")
-_BPS_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*[-–to ]+\s*\d+\s*(?:bps|basis points)|\b\d+(?:\.\d+)?\s*(?:bps|basis points)", re.I)
+_BPS_RE = re.compile(
+    r"\b\d[\d,]*(?:\.\d+)?\s*[-–to ]+\s*\d+\s*(?:bps|basis points)|\b\d+(?:\.\d+)?\s*(?:bps|basis points)",
+    re.I,
+)
 _GW_MW_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*(?:gw|mw)\b", re.I)
 # Multiples (5.3x debt-to-equity, 2.0x net debt/EBITDA). Only captured when a
 # ratio context word is within ~25 chars — the bare "Nx" in prose is too often
@@ -773,8 +804,11 @@ def _unit_of(value_raw: str) -> str | None:
     return None
 
 
-def extract_metrics(section: CompanySection, edition_title: str,  # noqa: C901
-                    source_stem: str) -> list[Metric]:
+def extract_metrics(  # noqa: C901  # noqa anchor moved to the statement's diagnostic line (ruff-format split)
+    section: CompanySection,
+    edition_title: str,
+    source_stem: str,
+) -> list[Metric]:
     """Extract financial magnitudes from a section's concall prose.
 
     Scans each quote + paraphrase for ₹/$/INR/USD + unit, %, bps, GW/MW, and
@@ -785,7 +819,7 @@ def extract_metrics(section: CompanySection, edition_title: str,  # noqa: C901
     body = section.body
     concall_m = _CONCALL_HEADING_RE.search(body)
     if concall_m:
-        body = body[concall_m.end():]
+        body = body[concall_m.end() :]
     # Split into sentence-ish windows (newlines first, then sentence boundaries).
     seen_spans: set[tuple[str, str]] = set()
     for line in body.splitlines():
@@ -807,9 +841,7 @@ def extract_metrics(section: CompanySection, edition_title: str,  # noqa: C901
                     if pat is _MULTIPLE_RE:
                         ctx_start = max(0, m.start() - 25)
                         ctx_end = min(len(sentence), m.end() + 25)
-                        if not _MULTIPLE_CONTEXT_RE.search(
-                            sentence[ctx_start:ctx_end]
-                        ):
+                        if not _MULTIPLE_CONTEXT_RE.search(sentence[ctx_start:ctx_end]):
                             continue
                     # De-dup identical (value, sentence) within one section.
                     key = (value_raw, sentence[:60])
@@ -819,17 +851,19 @@ def extract_metrics(section: CompanySection, edition_title: str,  # noqa: C901
                     unit = _unit_of(value_raw)
                     period_m = _FY_RE.search(sentence) or _MONTH_YEAR_RE.search(sentence)
                     period = period_m.group(0).strip() if period_m else None
-                    metrics.append(Metric(
-                        entity=section.canonical_name,
-                        value_raw=value_raw,
-                        metric_label=_classify_metric(sentence, value_raw, m.start()),
-                        value_num=_parse_value_num(value_raw, unit),
-                        unit=unit,
-                        period=period,
-                        as_of_edition=edition_title,
-                        source_quote=sentence,
-                        source_ref=f"{METRICS_PREFIX}{source_stem}:{section.heading_line}",
-                    ))
+                    metrics.append(
+                        Metric(
+                            entity=section.canonical_name,
+                            value_raw=value_raw,
+                            metric_label=_classify_metric(sentence, value_raw, m.start()),
+                            value_num=_parse_value_num(value_raw, unit),
+                            unit=unit,
+                            period=period,
+                            as_of_edition=edition_title,
+                            source_quote=sentence,
+                            source_ref=f"{METRICS_PREFIX}{source_stem}:{section.heading_line}",
+                        )
+                    )
     return metrics
 
 
@@ -896,8 +930,7 @@ def _resolve_entities(conn, sections: list[CompanySection]) -> dict[str, str]:
 # =========================================================================== #
 # STAGE 3 — persist                                                            #
 # =========================================================================== #
-def _edition_stem(edition: str | None, index: dict | None,
-                  memo: dict[str, str]) -> str | None:
+def _edition_stem(edition: str | None, index: dict | None, memo: dict[str, str]) -> str | None:
     """Canonical edition STEM for a display-title ``as_of_edition`` value.
 
     No index (tests / direct callers) or unresolvable title -> the value is
@@ -926,16 +959,33 @@ INSERT INTO company_metrics
      as_of_edition, source_quote, source_ref, properties)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
-_QUOTE_CONTENT_COLS = ("entity", "quote_text", "paraphrase", "speaker_name",
-                       "speaker_title", "as_of_edition", "source_ref",
-                       "properties")
-_METRIC_CONTENT_COLS = ("entity", "metric_label", "value_raw", "value_num",
-                        "unit", "period", "as_of_edition", "source_quote",
-                        "source_ref", "properties")
+_QUOTE_CONTENT_COLS = (
+    "entity",
+    "quote_text",
+    "paraphrase",
+    "speaker_name",
+    "speaker_title",
+    "as_of_edition",
+    "source_ref",
+    "properties",
+)
+_METRIC_CONTENT_COLS = (
+    "entity",
+    "metric_label",
+    "value_raw",
+    "value_num",
+    "unit",
+    "period",
+    "as_of_edition",
+    "source_quote",
+    "source_ref",
+    "properties",
+)
 
 
-def _stable_prefix_replace(conn, table: str, prefix: str, cols: tuple[str, ...],
-                           insert_sql: str, new_rows: list[tuple]) -> int:
+def _stable_prefix_replace(
+    conn, table: str, prefix: str, cols: tuple[str, ...], insert_sql: str, new_rows: list[tuple]
+) -> int:
     """Prefix-scoped replace preserving id/created_at of unchanged rows.
 
     Thin alias of ``helpers.core.stable_write.stable_prefix_replace``
@@ -943,12 +993,12 @@ def _stable_prefix_replace(conn, table: str, prefix: str, cols: tuple[str, ...],
     kept as a private name so the apply_quotes/apply_metrics call sites
     and their tests are untouched.
     """
-    return stable_prefix_replace(conn, table, prefix, cols, insert_sql,
-                                 new_rows)
+    return stable_prefix_replace(conn, table, prefix, cols, insert_sql, new_rows)
 
 
-def apply_quotes(quotes: list[Quote], *, conn=None, dry_run: bool = True,
-                index: dict | None = None) -> int:
+def apply_quotes(
+    quotes: list[Quote], *, conn=None, dry_run: bool = True, index: dict | None = None
+) -> int:
     """Persist quotes — prefix-scoped stable replace of derived rows.
 
     Hand-seeded rows (``manual:`` / other prefixes) are preserved, and a
@@ -968,24 +1018,30 @@ def apply_quotes(quotes: list[Quote], *, conn=None, dry_run: bool = True,
         if dry_run:
             return len(quotes)
         new_rows = [
-            (q.entity, q.quote_text, q.paraphrase, q.speaker_name,
-             q.speaker_title,
-             _edition_stem(q.as_of_edition, index, stem_memo),
-             q.source_ref,
-             json.dumps(q.properties, ensure_ascii=False, sort_keys=True))
+            (
+                q.entity,
+                q.quote_text,
+                q.paraphrase,
+                q.speaker_name,
+                q.speaker_title,
+                _edition_stem(q.as_of_edition, index, stem_memo),
+                q.source_ref,
+                json.dumps(q.properties, ensure_ascii=False, sort_keys=True),
+            )
             for q in quotes
         ]
         with conn:
             return _stable_prefix_replace(
-                conn, "quotes", QUOTES_PREFIX, _QUOTE_CONTENT_COLS,
-                _INSERT_QUOTE_SQL, new_rows)
+                conn, "quotes", QUOTES_PREFIX, _QUOTE_CONTENT_COLS, _INSERT_QUOTE_SQL, new_rows
+            )
     finally:
         if own_conn:
             conn.close()
 
 
-def apply_metrics(metrics: list[Metric], *, conn=None, dry_run: bool = True,
-                  index: dict | None = None) -> int:
+def apply_metrics(
+    metrics: list[Metric], *, conn=None, dry_run: bool = True, index: dict | None = None
+) -> int:
     """Persist company_metrics — prefix-scoped stable replace of derived
     rows (same contract as ``apply_quotes``)."""
     own_conn = conn is None
@@ -996,17 +1052,29 @@ def apply_metrics(metrics: list[Metric], *, conn=None, dry_run: bool = True,
         if dry_run:
             return len(metrics)
         new_rows = [
-            (m.entity, m.metric_label, m.value_raw, m.value_num, m.unit,
-             m.period,
-             _edition_stem(m.as_of_edition, index, stem_memo),
-             m.source_quote, m.source_ref,
-             json.dumps(m.properties, ensure_ascii=False, sort_keys=True))
+            (
+                m.entity,
+                m.metric_label,
+                m.value_raw,
+                m.value_num,
+                m.unit,
+                m.period,
+                _edition_stem(m.as_of_edition, index, stem_memo),
+                m.source_quote,
+                m.source_ref,
+                json.dumps(m.properties, ensure_ascii=False, sort_keys=True),
+            )
             for m in metrics
         ]
         with conn:
             return _stable_prefix_replace(
-                conn, "company_metrics", METRICS_PREFIX, _METRIC_CONTENT_COLS,
-                _INSERT_METRIC_SQL, new_rows)
+                conn,
+                "company_metrics",
+                METRICS_PREFIX,
+                _METRIC_CONTENT_COLS,
+                _INSERT_METRIC_SQL,
+                new_rows,
+            )
     finally:
         if own_conn:
             conn.close()
@@ -1015,9 +1083,9 @@ def apply_metrics(metrics: list[Metric], *, conn=None, dry_run: bool = True,
 # =========================================================================== #
 # STAGE 4 — render auto blocks into company notes                             #
 # =========================================================================== #
-def render_chatter_block(edition: str, quotes: list[Quote],
-                         index: dict | None = None,
-                         memo: dict | None = None) -> str:
+def render_chatter_block(
+    edition: str, quotes: list[Quote], index: dict | None = None, memo: dict | None = None
+) -> str:
     """Render the auto ``## The Chatter — <edition>`` markdown block.
 
     Shape mirrors the documented edition block (markdown_parse.md:310) so it
@@ -1048,12 +1116,10 @@ def render_chatter_block(edition: str, quotes: list[Quote],
     lines.append("")
     for q in quotes:
         if q.paraphrase:
-            lines.append(f"- **{q.paraphrase[:140]}**" +
-                         ("…" if len(q.paraphrase) > 140 else ""))
+            lines.append(f"- **{q.paraphrase[:140]}**" + ("…" if len(q.paraphrase) > 140 else ""))
             lines.append("")
         # Quote block (Obsidian blockquote).
-        quote_display = q.quote_text if len(q.quote_text) <= 280 else (
-            q.quote_text[:277] + "…")
+        quote_display = q.quote_text if len(q.quote_text) <= 280 else (q.quote_text[:277] + "…")
         lines.append(f'> "{quote_display}"')
         if q.speaker_name or q.speaker_title:
             parts = [p for p in (q.speaker_name, q.speaker_title) if p]
@@ -1114,7 +1180,8 @@ def _find_insertion_point(text: str) -> int:
     """
     m = re.search(
         r"^## (The Chatter|Key Insights|Management Insights|Newsletter synthesis)",
-        text, re.MULTILINE,
+        text,
+        re.MULTILINE,
     )
     if m:
         return _outside_auto_regions(text, m.start())
@@ -1128,9 +1195,7 @@ def _existing_hand_block_for_edition(text: str, edition: str) -> bool:
     we skip the auto block entirely (never clobber human work).
     """
     # Strip sentinel-wrapped auto blocks first, then look for the heading.
-    auto_pattern = re.compile(
-        re.escape(_BEGIN) + r".*?" + re.escape(_END) + r"\n?", re.DOTALL
-    )
+    auto_pattern = re.compile(re.escape(_BEGIN) + r".*?" + re.escape(_END) + r"\n?", re.DOTALL)
     stripped = auto_pattern.sub("", text)
     m = _CHATTER_HEADING_RE.search(stripped)
     if not m:
@@ -1138,8 +1203,7 @@ def _existing_hand_block_for_edition(text: str, edition: str) -> bool:
     return m.group(1).strip().lower() == edition.strip().lower()
 
 
-def _replace_or_insert_block(text: str, edition: str,
-                             new_block: str) -> tuple[str, bool]:
+def _replace_or_insert_block(text: str, edition: str, new_block: str) -> tuple[str, bool]:
     """Refresh the sentinel-wrapped block for ``edition`` or insert a new one.
 
     Returns ``(new_text, changed)``. If a hand-written block for this edition
@@ -1154,9 +1218,8 @@ def _replace_or_insert_block(text: str, edition: str,
         return (text, False)
     # Replace any existing sentinel-wrapped block whose heading matches this
     # edition (refresh on re-run). The DOTALL match spans the whole block.
-    pattern = re.compile(
-        re.escape(_BEGIN) + r".*?" + re.escape(_END) + r"\n?", re.DOTALL
-    )
+    pattern = re.compile(re.escape(_BEGIN) + r".*?" + re.escape(_END) + r"\n?", re.DOTALL)
+
     # If there's exactly one auto block, replace it only if it's for a
     # DIFFERENT edition (we'd otherwise stack duplicates). Simplest correct
     # behavior: replace the existing auto block iff its edition == this one;
@@ -1169,9 +1232,12 @@ def _replace_or_insert_block(text: str, edition: str,
         rescued = _extract_nested_blocks(m.group(0))
         if rescued is None:
             return (text, False)  # unbalanced sentinels — never risk content
-        replacement = (("\n\n".join(b.rstrip() for b in rescued) + "\n\n"
-                        + new_block) if rescued else new_block)
-        new_text = text[:m.start()] + replacement + text[m.end():]
+        replacement = (
+            ("\n\n".join(b.rstrip() for b in rescued) + "\n\n" + new_block)
+            if rescued
+            else new_block
+        )
+        new_text = text[: m.start()] + replacement + text[m.end() :]
         if new_text == text:
             # Byte-identical re-render (idempotency guard #139): the note's
             # block already matches what the current renderer produces.
@@ -1187,8 +1253,7 @@ def _replace_or_insert_block(text: str, edition: str,
         # (unbounded duplication; found by test_fuzz_derive_insights_regions
         # 2026-08-22).
         ed_of_blk = _edition_of_block(m.group(0))
-        if (ed_of_blk is not None
-                and ed_of_blk.strip().lower() == edition.strip().lower()):
+        if ed_of_blk is not None and ed_of_blk.strip().lower() == edition.strip().lower():
             return _swap(m)
     # No auto block for THIS edition: insert a new one. Other editions'
     # auto blocks are NEVER evicted (a note accumulates one block per
@@ -1218,9 +1283,11 @@ def _balanced_or_skipped(original: str, new: str, name: str) -> bool:
     """Belt-and-suspenders write gate (2026-08-19): refuse a render that
     would break the auto-marker balance of a previously-balanced note."""
     if _markers_balanced(original) and not _markers_balanced(new):
-        print(f"WARNING: {name}: render would leave unbalanced auto "
-              f"markers — write skipped, note left unchanged.",
-              file=sys.stderr)
+        print(
+            f"WARNING: {name}: render would leave unbalanced auto "
+            f"markers — write skipped, note left unchanged.",
+            file=sys.stderr,
+        )
         return False
     return True
 
@@ -1238,9 +1305,14 @@ def _paths_by_entity(conn, entities: list[str]) -> dict[str, str]:
     return {r["name"]: r["file_path"] for r in rows}
 
 
-def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noqa: C901
-                 conn=None, stale_only: bool = False,
-                 index: dict | None = None) -> tuple[int, int, int]:
+def render_notes(  # noqa: C901  # noqa anchor moved to the statement's diagnostic line (ruff-format split)
+    quotes_by_entity_edition: dict,
+    *,
+    dry_run: bool = True,
+    conn=None,
+    stale_only: bool = False,
+    index: dict | None = None,
+) -> tuple[int, int, int]:
     """Render auto chatter blocks into company notes.
 
     ``quotes_by_entity_edition`` maps ``(entity_name, edition)`` -> list[Quote].
@@ -1265,8 +1337,7 @@ def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noq
     gated = 0
     try:
         # Resolve entity -> file_path once.
-        path_by_entity = _paths_by_entity(
-            conn, list({e for e, _ in quotes_by_entity_edition}))
+        path_by_entity = _paths_by_entity(conn, list({e for e, _ in quotes_by_entity_edition}))
         if not path_by_entity:
             return (0, 0, 0)
         vault = PROJECT_ROOT / "findata"
@@ -1298,8 +1369,9 @@ def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noq
             # — the byte-identical guard makes this a zero-write no-op when
             # the note is current, so the gate's "no churn" property holds.
             gated_candidate = (
-                stale_only and _stale_only_skip(
-                    text, _scanned_stems(edict, index, stem_memo)) is True)
+                stale_only
+                and _stale_only_skip(text, _scanned_stems(edict, index, stem_memo)) is True
+            )
             # Render ALL editions that have quotes (one auto block per
             # edition scanned, so a note accumulates its edition history).
             text_changed = False
@@ -1314,8 +1386,7 @@ def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noq
                         continue
                     seen.add(q.quote_text)
                     unique.append(q)
-                new_block = render_chatter_block(edition, unique, index,
-                                                 res_memo)
+                new_block = render_chatter_block(edition, unique, index, res_memo)
                 text, changed = _replace_or_insert_block(text, edition, new_block)
                 if changed:
                     text_changed = True
@@ -1323,8 +1394,7 @@ def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noq
                     skipped += 1
             # Splice sources[] even when no block changed (convergence: a
             # gated-clean note with new evidence absorbs it here, once).
-            text, sources_changed = _splice_sources(text, index, vault,
-                                                    memo=res_memo)
+            text, sources_changed = _splice_sources(text, index, vault, memo=res_memo)
             if not (text_changed or sources_changed):
                 if gated_candidate:
                     gated += 1
@@ -1356,9 +1426,7 @@ def render_notes(quotes_by_entity_edition: dict, *, dry_run: bool = True,  # noq
 _KF_BEGIN = "<!-- BEGIN auto key figures (derive_insights.py) -->"
 _KF_END = "<!-- END auto key figures -->"
 _KF_HEADING = "## Key Figures (auto)"
-_KF_PATTERN = re.compile(
-    re.escape(_KF_BEGIN) + r".*?" + re.escape(_KF_END) + r"\n?", re.DOTALL
-)
+_KF_PATTERN = re.compile(re.escape(_KF_BEGIN) + r".*?" + re.escape(_KF_END) + r"\n?", re.DOTALL)
 
 # Foreign auto-blocks can collide into a sibling renderer's sentinel region:
 # enrich_from_yfinance shares the "after ## Company Overview" insertion anchor
@@ -1392,18 +1460,28 @@ def _extract_nested_blocks(region: str) -> list[str] | None:
         elif stack:
             start = stack.pop()
             if len(stack) == 1:  # direct child of the outermost region
-                blocks.append(region[start:m.end()])
+                blocks.append(region[start : m.end()])
         else:
             return None  # END without BEGIN — unbalanced
     if stack:
         return None  # unclosed BEGIN
     return blocks
 
+
 # Display order for metric labels (most-informative first); unmapped labels
 # append alphabetically. value_raw is the display string.
 _LABEL_ORDER = [
-    "revenue", "profit", "ebitda_margin", "margin", "growth",
-    "capex", "order_book", "aum", "debt", "market_share", "stake",
+    "revenue",
+    "profit",
+    "ebitda_margin",
+    "margin",
+    "growth",
+    "capex",
+    "order_book",
+    "aum",
+    "debt",
+    "market_share",
+    "stake",
 ]
 
 
@@ -1463,7 +1541,7 @@ def _kf_insertion_point(text: str) -> int:
         m = re.search(heading, text, re.MULTILINE)
         if m:
             # Insert right AFTER this heading's section — find the next heading.
-            nxt = re.search(r"^## ", text[m.end():], re.MULTILINE)
+            nxt = re.search(r"^## ", text[m.end() :], re.MULTILINE)
             return _outside_auto_regions(text, m.end() + (nxt.start() if nxt else 0))
     m = re.search(r"^## The Chatter", text, re.MULTILINE)
     if m:
@@ -1491,7 +1569,7 @@ def _replace_or_insert_kf(text: str, new_block: str) -> tuple[str, bool]:
             replacement = "\n\n".join(b.rstrip() for b in rescued) + "\n\n" + new_block
         else:
             replacement = new_block
-        replaced = text[:m.start()] + replacement + text[m.end():]
+        replaced = text[: m.start()] + replacement + text[m.end() :]
         return (replaced, replaced != text)
     idx = _kf_insertion_point(text)
     prefix = text[:idx]
@@ -1501,9 +1579,14 @@ def _replace_or_insert_kf(text: str, new_block: str) -> tuple[str, bool]:
     return (new_text, True)
 
 
-def render_metrics_notes(metrics_by_entity: dict, *, dry_run: bool = True,
-                         conn=None, stale_only: bool = False,
-                         index: dict | None = None) -> tuple[int, int]:
+def render_metrics_notes(
+    metrics_by_entity: dict,
+    *,
+    dry_run: bool = True,
+    conn=None,
+    stale_only: bool = False,
+    index: dict | None = None,
+) -> tuple[int, int]:
     """Render the auto ``## Key Figures (auto)`` block into each company note.
 
     ``metrics_by_entity`` maps ``entity_name`` -> list[Metric]. Returns
@@ -1534,19 +1617,19 @@ def render_metrics_notes(metrics_by_entity: dict, *, dry_run: bool = True,
             if not ms or p is None or not p.exists():
                 continue
             text = p.read_text(encoding="utf-8", errors="replace")
-            stems = _scanned_stems(
-                {m.as_of_edition for m in ms}, index, stem_memo)
+            stems = _scanned_stems({m.as_of_edition for m in ms}, index, stem_memo)
             if stale_only and _stale_only_skip(text, stems) is True:
                 gated += 1
                 continue
             original_text = text
             new_block = render_key_figures_block(ms)
             text, changed = _replace_or_insert_kf(text, new_block)
-            text, sources_changed = _splice_sources(text, index, vault,
-                                                    extra_stems=stems,
-                                                    memo=res_memo)
-            if (not (changed or sources_changed)
-                    or not _balanced_or_skipped(original_text, text, p.name)):
+            text, sources_changed = _splice_sources(
+                text, index, vault, extra_stems=stems, memo=res_memo
+            )
+            if not (changed or sources_changed) or not _balanced_or_skipped(
+                original_text, text, p.name
+            ):
                 continue
             if dry_run:
                 written += 1
@@ -1609,35 +1692,42 @@ def scan(target: str, conn) -> tuple[list[Quote], list[Metric]]:
 def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(
         description="Derive the quotes + company_metrics tables (the concall-body "
-                    "capture layer) from newsletter prose, and render auto "
-                    "`## The Chatter — <edition>` blocks into company notes.",
+        "capture layer) from newsletter prose, and render auto "
+        "`## The Chatter — <edition>` blocks into company notes.",
     )
     p.add_argument(
-        "target", nargs="?", default="findata",
+        "target",
+        nargs="?",
+        default="findata",
         help="Newsletter .md file, directory, or glob (default: findata). "
-             "Sectors/Companies subfolders are skipped (no concall sections).",
+        "Sectors/Companies subfolders are skipped (no concall sections).",
     )
     p.add_argument(
-        "--apply", action="store_true",
+        "--apply",
+        action="store_true",
         help="Write quote/metric rows + render note blocks (default: dry-run).",
     )
     p.add_argument(
-        "--verbose", "-v", action="store_true",
+        "--verbose",
+        "-v",
+        action="store_true",
         help="Print every quote + metric in addition to the summary.",
     )
     p.add_argument(
-        "--no-notes", action="store_true",
+        "--no-notes",
+        action="store_true",
         help="Skip the note-rendering pass (DB write only).",
     )
     p.add_argument(
-        "--stale-only", action="store_true",
+        "--stale-only",
+        action="store_true",
         help="Render only notes whose evidence moved: skip notes whose "
-             "generated.by is this tool AND max(sources[].last_modified) "
-             "<= generated.at AND every scanned edition is already in "
-             "sources[]. Notes without sources always render; rendered "
-             "notes also get newly referenced editions spliced into "
-             "sources[]. The first run after an OKF backfill re-renders "
-             "all sourced notes (backfill stamps are not render stamps).",
+        "generated.by is this tool AND max(sources[].last_modified) "
+        "<= generated.at AND every scanned edition is already in "
+        "sources[]. Notes without sources always render; rendered "
+        "notes also get newly referenced editions spliced into "
+        "sources[]. The first run after an OKF backfill re-renders "
+        "all sourced notes (backfill stamps are not render stamps).",
     )
     args = p.parse_args(argv)
 
@@ -1664,7 +1754,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             attributed = sum(1 for q in quotes if q.speaker_name)
             print(
                 f"  quotes_attributed={attributed} "
-                f"({100*attributed/len(quotes):.0f}%) "
+                f"({100 * attributed / len(quotes):.0f}%) "
                 f"distinct_speakers={len(by_speaker)}",
                 file=sys.stderr,
             )
@@ -1677,10 +1767,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         # One edition index for the whole run: normalizes as_of_edition to
         # stems at the write boundary + the render-side splice machinery.
         index = source_note_index(PROJECT_ROOT / "findata")
-        q_written = apply_quotes(quotes, conn=conn, dry_run=not args.apply,
-                                 index=index)
-        m_written = apply_metrics(metrics, conn=conn, dry_run=not args.apply,
-                                  index=index)
+        q_written = apply_quotes(quotes, conn=conn, dry_run=not args.apply, index=index)
+        m_written = apply_metrics(metrics, conn=conn, dry_run=not args.apply, index=index)
         action = "written" if args.apply else "would write"
         print(f"{q_written} quotes {action}.", file=sys.stderr)
         print(f"{m_written} metrics {action}.", file=sys.stderr)
@@ -1699,16 +1787,19 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             # splice + gate-amendment machinery resolves edition strings
             # through it).
             written, skipped, gated = render_notes(
-                by_entity_edition, dry_run=not args.apply, conn=conn,
-                stale_only=args.stale_only, index=index,
+                by_entity_edition,
+                dry_run=not args.apply,
+                conn=conn,
+                stale_only=args.stale_only,
+                index=index,
             )
             n_action = "wrote" if args.apply else "would write"
             print(
                 f"{written} notes {n_action} (chatter block and/or sources "
                 f"splice; {skipped} edition blocks skipped — hand-written "
                 f"block preserved"
-                + (f"; {gated} notes gated by --stale-only"
-                   if args.stale_only else "") + ").",
+                + (f"; {gated} notes gated by --stale-only" if args.stale_only else "")
+                + ").",
                 file=sys.stderr,
             )
             # Key Figures (auto) blocks from metrics.
@@ -1716,24 +1807,28 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             for m in metrics:
                 metrics_by_entity.setdefault(m.entity, []).append(m)
             kf_written, kf_gated = render_metrics_notes(
-                metrics_by_entity, dry_run=not args.apply, conn=conn,
-                stale_only=args.stale_only, index=index,
+                metrics_by_entity,
+                dry_run=not args.apply,
+                conn=conn,
+                stale_only=args.stale_only,
+                index=index,
             )
             print(
                 f"{kf_written} key-figures notes {n_action}"
-                + (f" ({kf_gated} notes gated by --stale-only)"
-                   if args.stale_only else "") + ".",
+                + (f" ({kf_gated} notes gated by --stale-only)" if args.stale_only else "")
+                + ".",
                 file=sys.stderr,
             )
 
         if args.verbose:
             for q in sorted(quotes, key=lambda x: (x.entity, x.as_of_edition or "")):
                 spk = f"{q.speaker_name} ({q.speaker_title})" if q.speaker_name else "(anon)"
-                print(f"[Q] {q.entity} | {q.as_of_edition} | {spk} | "
-                      f"{q.quote_text[:90]}…")
+                print(f"[Q] {q.entity} | {q.as_of_edition} | {spk} | {q.quote_text[:90]}…")
             for m in sorted(metrics, key=lambda x: (x.entity, x.as_of_edition or "")):
-                print(f"[M] {m.entity} | {m.as_of_edition} | {m.metric_label} | "
-                      f"{m.value_raw} | {m.unit} | {(m.source_quote or '')[:70]}")
+                print(
+                    f"[M] {m.entity} | {m.as_of_edition} | {m.metric_label} | "
+                    f"{m.value_raw} | {m.unit} | {(m.source_quote or '')[:70]}"
+                )
     finally:
         conn.close()
     return 0

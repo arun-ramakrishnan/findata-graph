@@ -27,6 +27,7 @@ deterministic, synthetic):
 2. **Connection-reuse units** — ``DatabaseIntegrityChecker.get_connection``
    memoization (the P2 fix) and idempotent ``close()``.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -72,12 +73,14 @@ def synthetic_db(tmp_path):
             ticker TEXT
         )
     """)
-    conn.execute("CREATE TABLE relations ("
-                 "id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                 "source TEXT, target TEXT, relation_type TEXT)")
-    conn.execute("CREATE TABLE entity_tags ("
-                 "entity_name TEXT, tag TEXT, "
-                 "PRIMARY KEY (entity_name, tag))")
+    conn.execute(
+        "CREATE TABLE relations ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "source TEXT, target TEXT, relation_type TEXT)"
+    )
+    conn.execute(
+        "CREATE TABLE entity_tags (entity_name TEXT, tag TEXT, PRIMARY KEY (entity_name, tag))"
+    )
     conn.commit()
     yield conn, db_path
     conn.close()
@@ -92,6 +95,7 @@ def synthetic_db(tmp_path):
 # constant per-pair cost, the ratio would be ~4x ((400 choose 2)/(200 choose 2)).
 # A regression to O(n^3) (e.g. recomputing tokens in the inner loop) would
 # show ~8x.
+
 
 def _run_fuzzy_check(checker):
     """Best-of-3 elapsed seconds for a BURST of 10 consecutive
@@ -170,8 +174,16 @@ def test_fuzzy_match_scales_linearly_with_entities():
     from core.fuzzy_match import fuzzy_match  # helpers/ is on sys.path (see imports)
 
     queries = [
-        "Tata Consultancy Services", "HDFC Bank", "Mahindra", "Infosys Ltd",
-        "Sun Pharma", "L&T", "TCS", "PayTM", "ICICI", "Reliance Industries",
+        "Tata Consultancy Services",
+        "HDFC Bank",
+        "Mahindra",
+        "Infosys Ltd",
+        "Sun Pharma",
+        "L&T",
+        "TCS",
+        "PayTM",
+        "ICICI",
+        "Reliance Industries",
     ]
 
     def batch(n):

@@ -22,6 +22,7 @@ roots. Consequences pinned here:
 Non-helper subprocesses (e.g. the edition index's ``git`` date lookups)
 pass through to the real subprocess.Popen — the dispatcher never recurses.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -114,19 +115,25 @@ class _MaintProject:
         dst = sqlite3.connect(str(self.db))
         src.backup(dst)
         src.close()
-        dst.execute("CREATE TEMP TABLE keep AS SELECT name FROM ("
-                    "SELECT name, 0 o FROM entities WHERE entity_type != 'company' "
-                    "UNION ALL SELECT name, 1 o FROM entities WHERE name IN (?, ?) "
-                    "GROUP BY name HAVING MIN(o))",
-                    _KEEP_COMPANIES)
-        dst.execute("DELETE FROM graph_edges WHERE source NOT IN "
-                    "(SELECT name FROM keep) OR target NOT IN (SELECT name FROM keep)")
+        dst.execute(
+            "CREATE TEMP TABLE keep AS SELECT name FROM ("
+            "SELECT name, 0 o FROM entities WHERE entity_type != 'company' "
+            "UNION ALL SELECT name, 1 o FROM entities WHERE name IN (?, ?) "
+            "GROUP BY name HAVING MIN(o))",
+            _KEEP_COMPANIES,
+        )
+        dst.execute(
+            "DELETE FROM graph_edges WHERE source NOT IN "
+            "(SELECT name FROM keep) OR target NOT IN (SELECT name FROM keep)"
+        )
         dst.execute("DELETE FROM entity_tags WHERE entity_name NOT IN (SELECT name FROM keep)")
         dst.execute("DELETE FROM quotes WHERE entity NOT IN (SELECT name FROM keep)")
         dst.execute("DELETE FROM company_metrics WHERE entity NOT IN (SELECT name FROM keep)")
-        dst.execute("DELETE FROM company_embeddings WHERE company_name NOT IN (SELECT name FROM keep)")
+        dst.execute(
+            "DELETE FROM company_embeddings WHERE company_name NOT IN (SELECT name FROM keep)"
+        )
         dst.execute("DELETE FROM graph_analytics")  # recomputed by the chain
-        dst.execute("DELETE FROM events")           # recomputed by the chain
+        dst.execute("DELETE FROM events")  # recomputed by the chain
         # DROP the FTS index (shadows included — DELETEs leave tombstones
         # that keep the file ~7MB, which dominates the snapshot compress cost);
         # the chain's rebuild-note-search step recreates it via CREATE
@@ -140,18 +147,19 @@ class _MaintProject:
 
     def _build_vault(self) -> None:
         (self.vault / "The_Chatter").mkdir(parents=True)
-        (self.vault / "The_Chatter" / "TC_Alpha.md").write_text(
-            _NEWSLETTER, encoding="utf-8")
+        (self.vault / "The_Chatter" / "TC_Alpha.md").write_text(_NEWSLETTER, encoding="utf-8")
         (self.vault / "Sectors").mkdir(parents=True)
         (self.vault / "Sectors" / "Banking.md").write_text(
             "---\ntitle: Banking\ntype: sector\ntags:\n- entity_type/sector\n"
             "created: '2026-01-01'\nlast_modified: '2026-01-02'\n---\n"
-            "# Banking\n\nBanking sector overview.\n", encoding="utf-8")
+            "# Banking\n\nBanking sector overview.\n",
+            encoding="utf-8",
+        )
         conn = sqlite3.connect(str(self.db))
         for name in _KEEP_COMPANIES:
-            fp = conn.execute(
-                "SELECT file_path FROM entities WHERE name = ?", (name,)
-            ).fetchone()[0]
+            fp = conn.execute("SELECT file_path FROM entities WHERE name = ?", (name,)).fetchone()[
+                0
+            ]
             if not fp:
                 raise AssertionError(f"fixture company {name!r} has no file_path")
             p = self.root / fp
@@ -167,9 +175,11 @@ class _MaintProject:
         leaves the writer pointing at the live vault."""
         saved = {
             "argv": list(sys.argv),
-            "bsh.DB_PATH": bsh.DB_PATH, "bsh.VAULT_ROOT": bsh.VAULT_ROOT,
+            "bsh.DB_PATH": bsh.DB_PATH,
+            "bsh.VAULT_ROOT": bsh.VAULT_ROOT,
             "bsh.SUPER_SECTORS_DIR": bsh.SUPER_SECTORS_DIR,
-            "ssw.DB_PATH": ssw.DB_PATH, "ssw.SECTORS_DIR": ssw.SECTORS_DIR,
+            "ssw.DB_PATH": ssw.DB_PATH,
+            "ssw.SECTORS_DIR": ssw.SECTORS_DIR,
         }
         bsh.DB_PATH = self.db
         bsh.VAULT_ROOT = self.vault
@@ -209,8 +219,7 @@ class _MaintProject:
 
     def table_dump(self, table: str) -> list[tuple]:
         conn = sqlite3.connect(str(self.db))
-        rows = conn.execute(
-            f"SELECT * FROM {table} ORDER BY 1, 2").fetchall()  # noqa: S608  # schema-constant identifier from the caller allowlist
+        rows = conn.execute(f"SELECT * FROM {table} ORDER BY 1, 2").fetchall()  # noqa: S608  # schema-constant identifier from the caller allowlist
         conn.close()
         return rows
 
@@ -228,21 +237,42 @@ def _rc(v) -> int:
 
 
 def _shim_db_maint(p, mp, args):
-    mp.setattr(sys, "argv", ["db_maint.py",
-                             "--db", str(p.db),
-                             "--backup", str(p.root / "db-backup" / "b.db"),
-                             "--duckdb", str(p.duckdb),
-                             "--duckdb-backup", str(p.root / "db-backup" / "b.duckdb")])
+    mp.setattr(
+        sys,
+        "argv",
+        [
+            "db_maint.py",
+            "--db",
+            str(p.db),
+            "--backup",
+            str(p.root / "db-backup" / "b.db"),
+            "--duckdb",
+            str(p.duckdb),
+            "--duckdb-backup",
+            str(p.root / "db-backup" / "b.duckdb"),
+        ],
+    )
     return _rc(db_maint.main())
 
 
 def _shim_snapshot(p, mp, args):
-    mp.setattr(sys, "argv", ["snapshot_db.py",
-                             "--db", str(p.db),
-                             "--out", str(p.root / "db-backup" / "s.db.zst"),
-                             "--duckdb", str(p.duckdb),
-                             "--duckdb-out", str(p.root / "db-backup" / "s.duckdb.zst"),
-                             "--parquet-dir", str(p.root / "snapshots" / "parquet")])
+    mp.setattr(
+        sys,
+        "argv",
+        [
+            "snapshot_db.py",
+            "--db",
+            str(p.db),
+            "--out",
+            str(p.root / "db-backup" / "s.db.zst"),
+            "--duckdb",
+            str(p.duckdb),
+            "--duckdb-out",
+            str(p.root / "db-backup" / "s.duckdb.zst"),
+            "--parquet-dir",
+            str(p.root / "snapshots" / "parquet"),
+        ],
+    )
     return _rc(snapshot_db.main())
 
 
@@ -354,8 +384,12 @@ def _make_dispatcher(p, mp, record: list, overrides: dict | None = None):
         shims.update(overrides)
 
     def dispatch(cmd, **kwargs):
-        if (isinstance(cmd, list) and len(cmd) >= 2
-                and cmd[0] == "python3" and cmd[1].startswith("helpers/")):
+        if (
+            isinstance(cmd, list)
+            and len(cmd) >= 2
+            and cmd[0] == "python3"
+            and cmd[1].startswith("helpers/")
+        ):
             shim = shims.get(cmd[1])
             if shim is None:
                 record.append((cmd[1], "UNSHIMMED", 1))
@@ -394,55 +428,67 @@ class TestMaintChain:
         # --full elides the TIER1 snapshot (TIER1_FULL_SKIP): ONE snapshot
         # at the tail (maint_full_single_snapshot.md D1). PRE_FULL index
         # refreshers (sync-tags, note-search) run before the backup.
-        expected = [cmd[1] for _, cmd in maint.PRE_FULL_STEPS] + \
-                   [cmd[1] for label, cmd in maint.TIER1_STEPS
-                    if label not in maint.TIER1_FULL_SKIP] + \
-                   [cmd[1] for _, cmd in maint.TIER2_STEPS]
+        expected = (
+            [cmd[1] for _, cmd in maint.PRE_FULL_STEPS]
+            + [cmd[1] for label, cmd in maint.TIER1_STEPS if label not in maint.TIER1_FULL_SKIP]
+            + [cmd[1] for _, cmd in maint.TIER2_STEPS]
+        )
         assert executed == expected
-        assert executed.index("helpers/graph/derive_insights.py") < \
-            executed.index("helpers/graph/derive_events.py")
+        assert executed.index("helpers/graph/derive_insights.py") < executed.index(
+            "helpers/graph/derive_events.py"
+        )
         assert executed.count("helpers/maintenance/snapshot_db.py") == 1
         # embeddings --maint: rc 0 despite unavailable local embedder
-        emb_entry = next(e for e in record
-                         if e[0] == "helpers/graph/embeddings.py")
+        emb_entry = next(e for e in record if e[0] == "helpers/graph/embeddings.py")
         assert emb_entry[2] == 0
         # derive-events really worked (the seeded guidance bullet)
-        assert any(r[0] == "guidance"
-                   for r in _table(project, "SELECT event_type FROM events"))
+        assert any(r[0] == "guidance" for r in _table(project, "SELECT event_type FROM events"))
 
         notes1 = project.notes_snapshot()
-        events1 = _table(project, "SELECT entity, event_type, source_quote "
-                                  "FROM events ORDER BY 1, 2, 3")
-        quotes1 = _table(project, "SELECT entity, quote_text, as_of_edition "
-                                  "FROM quotes ORDER BY 1, 2, 3")
+        events1 = _table(
+            project, "SELECT entity, event_type, source_quote FROM events ORDER BY 1, 2, 3"
+        )
+        quotes1 = _table(
+            project, "SELECT entity, quote_text, as_of_edition FROM quotes ORDER BY 1, 2, 3"
+        )
         # doc_search sidecar (step 6c, shimmed to p.root/doc_search.db over
         # the real repo doc/): full rebuilds rewrite in canonical row order,
         # so a no-op cycle must be row-stable INCLUDING order (the zero-churn
         # doctrine; embeddings are deterministic pseudo under conftest pin).
         docsearch1 = _sidecar_table(
-            project, "SELECT file_path, anchor, section_title, "
-                     "title, content, embedding FROM doc_search "
-                     "ORDER BY rowid")
+            project,
+            "SELECT file_path, anchor, section_title, "
+            "title, content, embedding FROM doc_search "
+            "ORDER BY rowid",
+        )
 
         record2 = _make_dispatcher(project, monkeypatch, [])
         assert maint.main(["--full"]) == 0
         assert _scripts(record2) == expected
         assert project.notes_snapshot() == notes1
-        assert _table(project, "SELECT entity, event_type, source_quote "
-                               "FROM events ORDER BY 1, 2, 3") == events1
-        assert _table(project, "SELECT entity, quote_text, as_of_edition "
-                               "FROM quotes ORDER BY 1, 2, 3") == quotes1
-        assert _sidecar_table(
-            project, "SELECT file_path, anchor, section_title, "
-                     "title, content, embedding FROM doc_search "
-                     "ORDER BY rowid") == docsearch1
+        assert (
+            _table(project, "SELECT entity, event_type, source_quote FROM events ORDER BY 1, 2, 3")
+            == events1
+        )
+        assert (
+            _table(project, "SELECT entity, quote_text, as_of_edition FROM quotes ORDER BY 1, 2, 3")
+            == quotes1
+        )
+        assert (
+            _sidecar_table(
+                project,
+                "SELECT file_path, anchor, section_title, "
+                "title, content, embedding FROM doc_search "
+                "ORDER BY rowid",
+            )
+            == docsearch1
+        )
 
     def test_unshimmed_step_fails_loudly(self, project, monkeypatch):
         """A maint step whose script has no dispatcher shim aborts the
         chain — new steps cannot run half-executed or silently skipped."""
         fake = ("future step", ["python3", "helpers/maintenance/future.py"])
-        monkeypatch.setattr(maint, "TIER1_STEPS",
-                            [*maint.TIER1_STEPS, fake])
+        monkeypatch.setattr(maint, "TIER1_STEPS", [*maint.TIER1_STEPS, fake])
         record = _make_dispatcher(project, monkeypatch, [])
         assert maint.main([]) == 1
         assert record[-1][1] == "UNSHIMMED"
@@ -451,11 +497,13 @@ class TestMaintChain:
     def test_step_failure_aborts_chain(self, project, monkeypatch):
         """A failing step stops the run: later steps never execute (the
         first-failure-aborts contract in main())."""
+
         def _boom(p, mp, args):
             return 1
+
         record = _make_dispatcher(
-            project, monkeypatch, [],
-            overrides={"helpers/core/sync_tags.py": _boom})
+            project, monkeypatch, [], overrides={"helpers/core/sync_tags.py": _boom}
+        )
         assert maint.main(["--full"]) == 1
         executed = _scripts(record)
         assert executed[-1] == "helpers/core/sync_tags.py"

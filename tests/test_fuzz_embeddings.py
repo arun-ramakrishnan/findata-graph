@@ -13,6 +13,7 @@ Invariants pinned:
      CHECK constraint matches the requested dims (round-trips via
      sqlite_master SQL text).
 """
+
 from __future__ import annotations
 
 import math
@@ -79,8 +80,7 @@ def test_fuzz_ensure_schema_check_matches_dims(dims: int):
     try:
         _ensure_schema(conn, dims)
         r = conn.execute(
-            "SELECT sql FROM sqlite_master "
-            "WHERE type='table' AND name='company_embeddings'"
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='company_embeddings'"
         ).fetchone()
         assert r is not None
         assert f"= {dims}" in r[0] or f"={dims}" in r[0].replace(" ", "")

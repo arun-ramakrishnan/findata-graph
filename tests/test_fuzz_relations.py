@@ -28,6 +28,7 @@ cannot enumerate:
 Runs via `make fuzz` (matches `tests/test_fuzz_*.py`). Hypothesis defaults to
 100 random examples per @given test; each completes in <1s.
 """
+
 from __future__ import annotations
 
 import sys
@@ -66,9 +67,9 @@ RELATIONS_ALPHABET = st.characters(
 # company mentions without depending on the resolver. Bounded length keeps
 # the regex capture within its `{1,60}` ceiling.
 _NAME_STRATEGY = st.text(
-    alphabet=st.characters(whitelist_categories=("Lu", "Ll"),
-                           whitelist_characters=" &.-"),
-    min_size=2, max_size=40,
+    alphabet=st.characters(whitelist_categories=("Lu", "Ll"), whitelist_characters=" &.-"),
+    min_size=2,
+    max_size=40,
 ).filter(lambda s: len(s.strip()) >= 2 and s[0].isalpha())
 
 
@@ -109,23 +110,27 @@ def test_patterns_no_catastrophic_backtracking(pattern_index, prose):
 # The company name is fixed as the section entity; the resolver contains that
 # same name plus a couple of distractors so the fuzzy matcher has something
 # to (wrongly) collapse to.
-@settings(deadline=2000, max_examples=40,
-          suppress_health_check=[HealthCheck.too_slow])
+@settings(deadline=2000, max_examples=40, suppress_health_check=[HealthCheck.too_slow])
 @given(
     body=st.text(alphabet=RELATIONS_ALPHABET, min_size=0, max_size=600),
 )
 def test_no_self_edge_emitted(body):
     company = "Acme Industries"
-    resolver = EntityResolver([
-        company, "BlackRock", "Tata Motors", "HDFC Bank", "Jio Financial",
-    ])
-    content = (
-        f"## {company} Limited | Mid Cap | Diversified\n\n"
-        f"{body}\n"
+    resolver = EntityResolver(
+        [
+            company,
+            "BlackRock",
+            "Tata Motors",
+            "HDFC Bank",
+            "Jio Financial",
+        ]
     )
+    content = f"## {company} Limited | Mid Cap | Diversified\n\n{body}\n"
     by_type, _unresolved = extract_relations(
-        content, edition_title="Fuzz Edition",
-        newsletter_type="The_Chatter", resolver=resolver,
+        content,
+        edition_title="Fuzz Edition",
+        newsletter_type="The_Chatter",
+        resolver=resolver,
     )
     for edge_type, edges in by_type.items():
         for edge in edges:
@@ -146,8 +151,7 @@ def test_no_self_edge_emitted(body):
 # with X") that takes a single named target, so the property is unambiguous.
 # competes_with named-list semantics (source ↔ each) are covered by unit
 # tests; the canonicalisation is the same code path.
-@settings(deadline=2000, max_examples=40,
-          suppress_health_check=[HealthCheck.too_slow])
+@settings(deadline=2000, max_examples=40, suppress_health_check=[HealthCheck.too_slow])
 @given(
     name=_NAME_STRATEGY.filter(lambda n: n not in {"BlackRock", "Acme"}),
 )
@@ -165,7 +169,9 @@ def test_symmetric_edge_canonical_ordering(name):
         f"The joint venture with BlackRock was announced today.\n"
     )
     by_type, _ = extract_relations(
-        content_a, edition_title="T", newsletter_type="The_Chatter",
+        content_a,
+        edition_title="T",
+        newsletter_type="The_Chatter",
         resolver=resolver,
     )
     if "jv_with" not in by_type:
@@ -193,17 +199,18 @@ def test_symmetric_edge_canonical_ordering(name):
 _GENERIC_TOKENS = sorted(t for t in _GENERIC_COMPETITOR_TARGETS if " " not in t)
 
 
-@settings(deadline=2000, max_examples=40,
-          suppress_health_check=[HealthCheck.too_slow])
+@settings(deadline=2000, max_examples=40, suppress_health_check=[HealthCheck.too_slow])
 @given(
     generic=st.sampled_from(_GENERIC_TOKENS),
-    trigger=st.sampled_from([
-        "competes with {g}",
-        "competition from {g}",
-        "rivals {g}",
-        "peers like {g}",
-        "competitors such as {g}",
-    ]),
+    trigger=st.sampled_from(
+        [
+            "competes with {g}",
+            "competition from {g}",
+            "rivals {g}",
+            "peers like {g}",
+            "competitors such as {g}",
+        ]
+    ),
 )
 def test_competes_with_generic_target_always_filtered(generic, trigger):
     # Capitalise the generic to survive the `[A-Z]` anchor — this is exactly
@@ -213,12 +220,11 @@ def test_competes_with_generic_target_always_filtered(generic, trigger):
     company = "Acme Industries"
     resolver = EntityResolver([company, target])
     prose = trigger.format(g=target)
-    content = (
-        f"## {company} Limited | Mid Cap | Diversified\n\n"
-        f"{prose} in the quarter.\n"
-    )
+    content = f"## {company} Limited | Mid Cap | Diversified\n\n{prose} in the quarter.\n"
     by_type, unresolved = extract_relations(
-        content, edition_title="T", newsletter_type="The_Chatter",
+        content,
+        edition_title="T",
+        newsletter_type="The_Chatter",
         resolver=resolver,
     )
     assert "competes_with" not in by_type, (

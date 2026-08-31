@@ -33,7 +33,8 @@
   (#125), C1 context packs (#127), C2 link-prediction suggestions +
   A3 parquet analytics (#129; advisory/live-invariants Makefile overhaul
   same entry), A4 PRAGMA optimize micro-win (#128). Optional leftovers
-  if ever wanted: B2 relation sidecars, C3 temporal analytics. Dropped:
+  if ever wanted: B2 relation sidecars (C3 temporal analytics since
+  executed standalone — completed.md #150). Dropped:
   Obsidian-UI (not an active use case). Parked: D MCP server (seam
   sketch preserved in the archived proposal). Blocked: C4 Kùzu (upstream
   archived 2025-10-10). Anti-recs on record: LanceDB/third vector store,

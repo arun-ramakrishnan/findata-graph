@@ -52,6 +52,7 @@ dev host with ~2x headroom; budget remains the generous safety net
 (parities/parity-gates may be slower on a loaded box without tripping
 rc, but the OVER_BUDGET row will say so).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -78,8 +79,9 @@ def _loadavg() -> str:
         return "?"
 
 
-def _run(label: str, cmd: list[str], budget: float,
-         env: dict | None = None) -> tuple[float, bool, str]:
+def _run(
+    label: str, cmd: list[str], budget: float, env: dict | None = None
+) -> tuple[float, bool, str]:
     """Run one subprocess leg; return (seconds, ok, full output).
 
     ENTIRE stdout+stderr, no truncation: leg tables live at the TOP of
@@ -93,8 +95,14 @@ def _run(label: str, cmd: list[str], budget: float,
         run_env = {**os.environ, **env}
     try:
         proc = subprocess.run(  # noqa: S603  # list-form, repo-local constants only
-            cmd, capture_output=True, text=True, timeout=budget,
-            cwd=REPO_ROOT, env=run_env, check=False)
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=budget,
+            cwd=REPO_ROOT,
+            env=run_env,
+            check=False,
+        )
         dt = time.perf_counter() - t0
         out = (proc.stdout + "\n" + proc.stderr).strip()
         return dt, proc.returncode == 0, (out or "(no output)")
@@ -122,12 +130,28 @@ def _leg_pool() -> tuple[float, bool, str]:
         mat = Path(fh.name)
     try:
         _dump_matrix(mat, rows, dims)
-        cmds = [[str(BIN / "bench_pool"), str(mat), str(rows), str(dims),
-                 str(nqueries), str(w), str(nworkers), str(reps)]
-                for w in range(nworkers)]
+        cmds = [
+            [
+                str(BIN / "bench_pool"),
+                str(mat),
+                str(rows),
+                str(dims),
+                str(nqueries),
+                str(w),
+                str(nworkers),
+                str(reps),
+            ]
+            for w in range(nworkers)
+        ]
         with ThreadPoolExecutor(max_workers=nworkers) as ex:
-            outs = list(ex.map(lambda c: subprocess.run(  # noqa: S603
-                c, capture_output=True, text=True, timeout=budget, check=False), cmds))
+            outs = list(
+                ex.map(
+                    lambda c: subprocess.run(  # noqa: S603
+                        c, capture_output=True, text=True, timeout=budget, check=False
+                    ),
+                    cmds,
+                )
+            )
         dt = time.perf_counter() - t0
         ok = all(p.returncode == 0 for p in outs)
         lines = []
@@ -144,11 +168,19 @@ def _leg_pool() -> tuple[float, bool, str]:
 def _regen_paths() -> str | None:
     """Refresh /tmp/note_paths.txt (all findata docs); error text or None."""
     regen = subprocess.run(  # noqa: S603  # sys.executable + repo-local import
-        [sys.executable, "-c",
-         "import sys; sys.path.insert(0, '.'); "
-         "from helpers.maintenance.rebuild_note_search import _iter_findata_docs; "
-         "print('\\n'.join(str(p) for _t, p, _r in _iter_findata_docs()))"],
-        capture_output=True, text=True, timeout=60, cwd=REPO_ROOT, check=False)
+        [
+            sys.executable,
+            "-c",
+            "import sys; sys.path.insert(0, '.'); "
+            "from helpers.maintenance.rebuild_note_search import _iter_findata_docs; "
+            "print('\\n'.join(str(p) for _t, p, _r in _iter_findata_docs()))",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        cwd=REPO_ROOT,
+        check=False,
+    )
     if regen.returncode != 0:
         return (regen.stdout + "\n" + regen.stderr).strip() or "(regen produced no output)"
     PATHS_FILE.write_text(regen.stdout)
@@ -184,8 +216,8 @@ def _leg_db_integrity() -> tuple[float, bool, str]:
     makes the tool run the ORIGINAL checker live (fixture) and diff all 89
     canonical keys — GOLDEN PARITY required. ~3 s."""
     return _run(
-        "db-integrity", [str(BIN / "integrity_check")], 120.0,
-        env={"MOJO_INTEGRITY_PARITY": "1"})
+        "db-integrity", [str(BIN / "integrity_check")], 120.0, env={"MOJO_INTEGRITY_PARITY": "1"}
+    )
 
 
 def _leg_graph_algos() -> tuple[float, bool, str]:
@@ -203,10 +235,8 @@ def _leg_graph_algos() -> tuple[float, bool, str]:
     Precondition: warm graph cache (make graph-rebuild if
     memory/graph.duckdb is stale — connect() would otherwise rebuild
     the shared cache file)."""
-    env = dict(os.environ,
-               PATH=f"{REPO_ROOT / '.venv' / 'bin'}:{os.environ.get('PATH', '')}")
-    return _run("graph-algos", [str(BIN / "graph_algos_probe")], 120.0,
-                env=env)
+    env = dict(os.environ, PATH=f"{REPO_ROOT / '.venv' / 'bin'}:{os.environ.get('PATH', '')}")
+    return _run("graph-algos", [str(BIN / "graph_algos_probe")], 120.0, env=env)
 
 
 def _leg_regex_corpus() -> tuple[float, bool, str]:
@@ -233,15 +263,30 @@ def _build_legs(scales: str, reps: int) -> dict[str, dict]:
     # kernel under test).
     return {
         "cosine-knn": dict(
-            budget=150.0, gate=20.0,
-            fn=lambda: _run("cosine", [sys.executable, str(
-                REPO_ROOT / "Mojo" / "bench" / "bench_cosine_knn.py"),
-                "--scales", scales, "--reps", str(reps)], 150.0)),
-        "analyzer": dict(budget=60.0, gate=3.0, fn=lambda: _run(
-            "analyzer", [str(BIN / "analyzer")], 60.0)),
+            budget=150.0,
+            gate=20.0,
+            fn=lambda: _run(
+                "cosine",
+                [
+                    sys.executable,
+                    str(REPO_ROOT / "Mojo" / "bench" / "bench_cosine_knn.py"),
+                    "--scales",
+                    scales,
+                    "--reps",
+                    str(reps),
+                ],
+                150.0,
+            ),
+        ),
+        "analyzer": dict(
+            budget=60.0, gate=3.0, fn=lambda: _run("analyzer", [str(BIN / "analyzer")], 60.0)
+        ),
         "pool-4x": dict(budget=90.0, gate=5.0, fn=_leg_pool),
-        "regex-bridge": dict(budget=60.0, gate=8.0, fn=lambda: _run(
-            "regex", [str(BIN / "mojo_regex_probe")], 60.0, env=env)),
+        "regex-bridge": dict(
+            budget=60.0,
+            gate=8.0,
+            fn=lambda: _run("regex", [str(BIN / "mojo_regex_probe")], 60.0, env=env),
+        ),
         "yaml-corpus": dict(budget=120.0, gate=5.0, fn=_leg_yaml),
         "regex-corpus": dict(budget=150.0, gate=60.0, fn=_leg_regex_corpus),
         "db-access": dict(budget=120.0, gate=40.0, fn=_leg_db_access),
@@ -254,8 +299,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--scales", default="1,4,16")
     ap.add_argument("--reps", type=int, default=3)
-    ap.add_argument("--leg", action="append", choices=None,
-                    help="run only this leg (repeatable)")
+    ap.add_argument("--leg", action="append", choices=None, help="run only this leg (repeatable)")
     ap.add_argument("--list", action="store_true")
     ap.add_argument("--keep-going", action="store_true")
     args = ap.parse_args()
@@ -263,13 +307,14 @@ def main() -> int:
     legs = _build_legs(args.scales, args.reps)
     if args.list:
         for name, spec in legs.items():
-            print(f"{name:14s} gate {spec['gate']:.0f}s  "
-                  f"(timeout {spec['budget']:.0f}s)")
+            print(f"{name:14s} gate {spec['gate']:.0f}s  (timeout {spec['budget']:.0f}s)")
         return 0
     todo = [n for n in legs if not args.leg or n in args.leg]
 
-    print(f"Mojo bench harness — legs: {', '.join(todo)}  "
-          f"(loadavg {_loadavg()}, scales {args.scales}, reps {args.reps})")
+    print(
+        f"Mojo bench harness — legs: {', '.join(todo)}  "
+        f"(loadavg {_loadavg()}, scales {args.scales}, reps {args.reps})"
+    )
     results: list[tuple[str, float, float, bool, str]] = []
     for name in todo:
         spec = legs[name]
@@ -280,13 +325,16 @@ def main() -> int:
         over = rc_ok and dt > spec["gate"]
         results.append((name, dt, spec["gate"], rc_ok and not over, tail))
 
-    lines = ["", f"Mojo bench {time.strftime('%Y-%m-%d %H:%M')}  "
-             f"loadavg={_loadavg()}  scales={args.scales} reps={args.reps}", ""]
+    lines = [
+        "",
+        f"Mojo bench {time.strftime('%Y-%m-%d %H:%M')}  "
+        f"loadavg={_loadavg()}  scales={args.scales} reps={args.reps}",
+        "",
+    ]
     lines.append("Leg               Time (s)    Gate   Status")
     lines.append("-" * 52)
     for name, dt, gate, ok, tail in results:
-        lines.append(f"  {name:.<15s} {dt:7.2f}  {gate:7.1f}s   "
-                     f"{'✓' if ok else '✗ FAIL'}")
+        lines.append(f"  {name:.<15s} {dt:7.2f}  {gate:7.1f}s   {'✓' if ok else '✗ FAIL'}")
     for name, dt, budget, ok, tail in results:
         lines.append(f"--- {name} ({dt:.2f}s) ---")
         lines.append(tail)
@@ -295,8 +343,10 @@ def main() -> int:
     with REPORT.open("a") as fh:
         fh.write(text)
     n_fail = sum(1 for r in results if not r[3])
-    print(f"{'✗' if n_fail else '✓'} {len(results) - n_fail}/{len(results)} legs passed "
-          f"(appended to {REPORT.relative_to(REPO_ROOT)})")
+    print(
+        f"{'✗' if n_fail else '✓'} {len(results) - n_fail}/{len(results)} legs passed "
+        f"(appended to {REPORT.relative_to(REPO_ROOT)})"
+    )
     return 1 if n_fail else 0
 
 

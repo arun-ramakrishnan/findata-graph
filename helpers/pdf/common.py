@@ -4,6 +4,7 @@
 `slugify` was duplicated (byte-identical) in `pdf_conv_md.py` and
 `capture_newsletter_images.py`; it now lives here and is imported by both.
 """
+
 from __future__ import annotations
 
 import re

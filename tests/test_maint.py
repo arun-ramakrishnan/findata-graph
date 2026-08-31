@@ -7,6 +7,7 @@ snapshot_db, query rebuild) have their own test coverage; here we only
 pin the orchestrator's wiring — including the qa-style run report
 (``maint_report.txt``: summary table always, failed-step tails on abort).
 """
+
 from __future__ import annotations
 
 import sys
@@ -111,23 +112,23 @@ class TestPlan:
         labels = [label for label, _ in maint.TIER2_STEPS]
         assert labels.index(
             "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)"
-        ) < labels.index(
-            "derive-events (refresh events timeline from note prose + edges)"
-        )
+        ) < labels.index("derive-events (refresh events timeline from note prose + edges)")
 
     def test_tier1_db_maint_runs_before_snapshot(self):
         # The key ordering invariant: db_maint must precede snapshot
         # so the snapshot reflects a vacuumed state.
         labels = [label for label, _ in maint.TIER1_STEPS]
-        assert labels.index("db_maint (VACUUM/ANALYZE/REINDEX/integrity)") < \
-               labels.index("snapshot (refresh versioned snapshots)")
+        assert labels.index("db_maint (VACUUM/ANALYZE/REINDEX/integrity)") < labels.index(
+            "snapshot (refresh versioned snapshots)"
+        )
 
     def test_tier1_snapshot_runs_before_graph_rebuild(self):
         # snapshot must precede graph-rebuild so the cache matches the
         # committed snapshot, not a pre-snapshot SQLite state.
         labels = [label for label, _ in maint.TIER1_STEPS]
-        assert labels.index("snapshot (refresh versioned snapshots)") < \
-               labels.index("graph-rebuild (refresh DuckDB cache)")
+        assert labels.index("snapshot (refresh versioned snapshots)") < labels.index(
+            "graph-rebuild (refresh DuckDB cache)"
+        )
 
     def test_full_composition_elides_tier1_snapshot(self):
         # --full composes PRE_FULL + TIER1-minus-skip + TIER2: the mid-run
@@ -172,15 +173,13 @@ class TestCommands:
     def test_all_commands_use_python3(self):
         # All commands must invoke `python3 <script>` explicitly. Using
         # bare script paths would fail on Windows and skip the venv shim.
-        for _, cmd in (maint.PRE_FULL_STEPS + maint.TIER1_STEPS
-                       + maint.TIER2_STEPS):
+        for _, cmd in maint.PRE_FULL_STEPS + maint.TIER1_STEPS + maint.TIER2_STEPS:
             assert cmd[0] == "python3", f"command doesn't start with python3: {cmd}"
 
     def test_all_scripts_exist(self):
         # Every referenced script path must exist relative to PROJECT_ROOT.
         # A typo or moved file would silently fail at runtime.
-        for label, cmd in (maint.PRE_FULL_STEPS + maint.TIER1_STEPS
-                           + maint.TIER2_STEPS):
+        for label, cmd in maint.PRE_FULL_STEPS + maint.TIER1_STEPS + maint.TIER2_STEPS:
             script = cmd[1]
             path = maint.PROJECT_ROOT / script
             assert path.exists(), f"{label}: script not found: {path}"
@@ -202,9 +201,7 @@ class TestCommands:
 
     def test_recompute_graph_command_uses_apply(self):
         # The whole point of maint-full is to persist analytics.
-        cmd = dict(maint.TIER2_STEPS)[
-            "recompute-graph (refresh analytics in graph_analytics)"
-        ]
+        cmd = dict(maint.TIER2_STEPS)["recompute-graph (refresh analytics in graph_analytics)"]
         assert "--all" in cmd
         assert "--apply" in cmd
 
@@ -245,6 +242,7 @@ class TestDryRun:
 
     def test_dry_run_lists_all_tier1_steps(self, caplog):
         import logging
+
         with caplog.at_level(logging.INFO, logger="maint"):
             maint.main(["--dry-run"])
         output = caplog.text
@@ -253,13 +251,15 @@ class TestDryRun:
 
     def test_dry_run_full_lists_all_steps(self, caplog):
         import logging
+
         with caplog.at_level(logging.INFO, logger="maint"):
             maint.main(["--full", "--dry-run"])
         output = caplog.text
-        all_steps = (maint.PRE_FULL_STEPS
-                     + [s for s in maint.TIER1_STEPS
-                        if s[0] not in maint.TIER1_FULL_SKIP]
-                     + maint.TIER2_STEPS)
+        all_steps = (
+            maint.PRE_FULL_STEPS
+            + [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
+            + maint.TIER2_STEPS
+        )
         # 2 pre-full + 2 tier1 (snapshot elided in --full) + 8 tier2.
         assert len(all_steps) == 12
         for label, _ in all_steps:
@@ -270,6 +270,7 @@ class TestDryRun:
         # Plain `make maint` runs ONLY TIER1 — the PRE_FULL re-derivations
         # are post-ingest work and must not leak into the routine path.
         import logging
+
         with caplog.at_level(logging.INFO, logger="maint"):
             maint.main(["--dry-run"])
         output = caplog.text
@@ -299,8 +300,7 @@ class TestSubprocessFailure:
         assert call_count["n"] == 1, "must abort on first failure, not continue"
 
     def test_all_succeed_returns_zero(self, monkeypatch):
-        monkeypatch.setattr(
-            maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
+        monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
         rc = maint.main([])
         assert rc == 0
 
@@ -340,8 +340,8 @@ class TestReport:
 
     def test_success_run_appends_table_no_tails(self, monkeypatch):
         monkeypatch.setattr(
-            maint.subprocess, "Popen",
-            lambda cmd, *a, **kw: _FakeProc(0, ["all good\n"]))
+            maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0, ["all good\n"])
+        )
         assert maint.main([]) == 0
         text = self._read()
         assert "=== make maint  " in text
@@ -353,9 +353,12 @@ class TestReport:
 
     def test_failed_step_gets_tail_and_fail_row(self, monkeypatch):
         monkeypatch.setattr(
-            maint.subprocess, "Popen",
-            lambda cmd, *a, **kw: _FakeProc(2, ["step stderr line 1\n",
-                                               "ERROR: the actual cause\n"]))
+            maint.subprocess,
+            "Popen",
+            lambda cmd, *a, **kw: _FakeProc(
+                2, ["step stderr line 1\n", "ERROR: the actual cause\n"]
+            ),
+        )
         assert maint.main([]) == 1
         text = self._read()
         assert "=== make maint  " in text
@@ -366,21 +369,18 @@ class TestReport:
         assert "ERROR: the actual cause" in text  # the tail is the evidence
 
     def test_full_mode_header_says_maint_full(self, monkeypatch):
-        monkeypatch.setattr(
-            maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
+        monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
         assert maint.main(["--full"]) == 0
         assert "=== make maint-full  " in self._read()
 
     def test_report_appends_across_runs(self, monkeypatch):
-        monkeypatch.setattr(
-            maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
+        monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
         maint.main([])
         maint.main([])
         text = self._read()
         assert text.count("=== make maint  ") == 2  # append-only history
 
     def test_dry_run_writes_no_report(self, monkeypatch):
-        monkeypatch.setattr(
-            maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
+        monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
         assert maint.main(["--dry-run"]) == 0
         assert not maint.REPORT_PATH.exists()

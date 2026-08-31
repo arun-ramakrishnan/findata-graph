@@ -20,6 +20,7 @@ Checks (in order, cheapest first):
 Usage:
     python3 helpers/validators/static_checks.py
 """
+
 from __future__ import annotations
 
 import os
@@ -58,13 +59,9 @@ SKIP_DIRS = {".git", ".venv", "venv", "__pycache__", "node_modules", ".pytest_ca
 SKIP_SUFFIXES = {".pyc", ".pyo"}
 
 # Files committed but should never be.
-ARTIFACT_PATTERNS = re.compile(
-    r"(__pycache__|\.pyc$|\.pyo$|\.DS_Store$|.*\.swp$|\.bak$)"
-)
+ARTIFACT_PATTERNS = re.compile(r"(__pycache__|\.pyc$|\.pyo$|\.DS_Store$|.*\.swp$|\.bak$)")
 
-MERGE_MARKER_RE = re.compile(
-    r"^(<{7}|={7}|>{7})( |$)", re.MULTILINE
-)
+MERGE_MARKER_RE = re.compile(r"^(<{7}|={7}|>{7})( |$)", re.MULTILINE)
 
 # Cache/dependency dirs that must never be committed. Encountered ones are
 # FLAGGED (advisory) and pruned from any walk — never recursed into.
@@ -75,9 +72,25 @@ STRAY_DIR_NAMES = {"__pycache__", "venv", ".venv", "node_modules", ".pytest_cach
 # without it the walk reads+decodes ~83MB of gguf/duckdb/parquet per run
 # (found 2026-08-21; the .gguf arrived with the local embedder).
 _BINARY_SUFFIXES = {
-    ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".gz", ".db",
-    ".pkl", ".gguf", ".duckdb", ".parquet", ".wal", ".so", ".node",
-    ".ttf", ".woff", ".woff2", ".map",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".pdf",
+    ".zip",
+    ".gz",
+    ".db",
+    ".pkl",
+    ".gguf",
+    ".duckdb",
+    ".parquet",
+    ".wal",
+    ".so",
+    ".node",
+    ".ttf",
+    ".woff",
+    ".woff2",
+    ".map",
 }
 # Dotfiles with no suffix — Path(".coverage").suffix is "", so these need a
 # name check.
@@ -102,9 +115,12 @@ def _stack_files() -> set[Path] | None:
     try:
         series = subprocess.run(  # noqa: S603  # list-form call; controlled stgit CLI
             ["stg", "series", "--applied"],  # noqa: S607  # PATH-resolved stgit by design
-            capture_output=True, text=True, check=True, cwd=str(REPO_ROOT),
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=str(REPO_ROOT),
         ).stdout
-    except (OSError, subprocess.CalledProcessError):
+    except OSError, subprocess.CalledProcessError:
         return None
     names: list[str] = []
     for line in series.splitlines():
@@ -118,9 +134,12 @@ def _stack_files() -> set[Path] | None:
         try:
             out = subprocess.run(  # noqa: S603  # list-form call; controlled stgit CLI
                 ["stg", "files", name],  # noqa: S607  # PATH-resolved stgit by design
-                capture_output=True, text=True, check=True, cwd=str(REPO_ROOT),
+                capture_output=True,
+                text=True,
+                check=True,
+                cwd=str(REPO_ROOT),
             ).stdout
-        except (OSError, subprocess.CalledProcessError):
+        except OSError, subprocess.CalledProcessError:
             continue
         for line in out.splitlines():
             # 'XY <path>' (single-letter status is common: 'M file').
@@ -174,10 +193,7 @@ def check_js_syntax() -> list[str]:
     static = REPO_ROOT / "static"
     if not static.is_dir():
         return []
-    js_files = [
-        p for p in static.rglob("*.js")
-        if not any(part in SKIP_DIRS for part in p.parts)
-    ]
+    js_files = [p for p in static.rglob("*.js") if not any(part in SKIP_DIRS for part in p.parts)]
     if not js_files:
         return []
 
@@ -317,6 +333,7 @@ def check_merge_markers_and_artifacts() -> tuple[list[str], list[str]]:
     advisory = artifact_failures + sorted(stray_dirs)
     return merge_failures, advisory
 
+
 def check_yaml_frontmatter() -> list[str]:
     """Every .md under findata/ must start with valid YAML frontmatter."""
     if yaml is None:
@@ -350,10 +367,7 @@ def check_yaml_frontmatter() -> list[str]:
 def check_required_files() -> list[str]:
     """Repo must contain pytest.ini, pyproject.toml, Makefile."""
     required = ["pytest.ini", "pyproject.toml", "Makefile"]
-    return [
-        f for f in required
-        if not (REPO_ROOT / f).exists()
-    ]
+    return [f for f in required if not (REPO_ROOT / f).exists()]
 
 
 # --------------------------------------------------------------------------- #
@@ -362,15 +376,48 @@ def check_required_files() -> list[str]:
 # Canonical 42-sector set. Generated from entities.sector_classification;
 # the canonical tag form is sector/<lowercase_of_this_value>.
 CANONICAL_SECTORS = {
-    "Agriculture", "Automotive", "Aviation", "Banking", "Building_Materials",
-    "Capital_Markets", "Chemicals", "Consumer", "Defense", "Diagnostics",
-    "Diversified", "Education_Training", "Electronics", "EMS_Manufacturing",
-    "Energy", "Engineering_Capital_Goods", "Fertilizer", "Financial_Services",
-    "Fintech_Payments", "FMCG", "Healthcare", "Hospitals", "Housing_Finance",
-    "Infrastructure", "Insurance", "International", "Logistics", "Media_Entertainment",
-    "Metals", "Mining", "NBFC", "Packaging", "Pharma", "Railways", "Real_Estate",
-    "Renewables", "Retail", "Semiconductors", "Technology", "Telecommunications",
-    "Textiles", "Travel",
+    "Agriculture",
+    "Automotive",
+    "Aviation",
+    "Banking",
+    "Building_Materials",
+    "Capital_Markets",
+    "Chemicals",
+    "Consumer",
+    "Defense",
+    "Diagnostics",
+    "Diversified",
+    "Education_Training",
+    "Electronics",
+    "EMS_Manufacturing",
+    "Energy",
+    "Engineering_Capital_Goods",
+    "Fertilizer",
+    "Financial_Services",
+    "Fintech_Payments",
+    "FMCG",
+    "Healthcare",
+    "Hospitals",
+    "Housing_Finance",
+    "Infrastructure",
+    "Insurance",
+    "International",
+    "Logistics",
+    "Media_Entertainment",
+    "Metals",
+    "Mining",
+    "NBFC",
+    "Packaging",
+    "Pharma",
+    "Railways",
+    "Real_Estate",
+    "Renewables",
+    "Retail",
+    "Semiconductors",
+    "Technology",
+    "Telecommunications",
+    "Textiles",
+    "Travel",
 }
 CANONICAL_SECTOR_TAGS = {f"sector/{s.lower()}" for s in CANONICAL_SECTORS}
 
@@ -383,11 +430,18 @@ CANONICAL_SECTOR_TAGS = {f"sector/{s.lower()}" for s in CANONICAL_SECTORS}
 # via sync_tags). Curated, not extracted — mirrors the CANONICAL_SECTORS
 # discipline so theme membership is high-precision, not free-text sprawl.
 CANONICAL_THEMES = {
-    "China_Plus_One", "PLI_Scheme", "Premiumization", "EV_Transition",
-    "Data_Center_Infrastructure", "Renewable_Energy", "Make_In_India",
+    "China_Plus_One",
+    "PLI_Scheme",
+    "Premiumization",
+    "EV_Transition",
+    "Data_Center_Infrastructure",
+    "Renewable_Energy",
+    "Make_In_India",
     "Defense_Indigenization",
-    "Battery_Energy_Storage", "Electronic_Manufacturing_Services",
-    "API_Manufacturing", "Beverage_Portfolio",
+    "Battery_Energy_Storage",
+    "Electronic_Manufacturing_Services",
+    "API_Manufacturing",
+    "Beverage_Portfolio",
 }
 CANONICAL_THEME_TAGS = {f"investment_theme/{t.lower()}" for t in CANONICAL_THEMES}
 
@@ -397,9 +451,7 @@ CANONICAL_THEME_TAGS = {f"investment_theme/{t.lower()}" for t in CANONICAL_THEME
 # discipline so the events table stays a controlled vocabulary. The integrity
 # check rejects any event_type outside this set. `earnings` is deliberately
 # absent: no reliable date source in the corpus (deferred to D8 transcripts).
-CANONICAL_EVENT_TYPES = frozenset(
-    {"acquisition", "jv", "guidance", "management_change"}
-)
+CANONICAL_EVENT_TYPES = frozenset({"acquisition", "jv", "guidance", "management_change"})
 
 
 def _db_path() -> Path:
@@ -429,6 +481,7 @@ def check_orphan_markdown_files() -> list[str]:
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
     from helpers.core.db import connect as _db_connect
+
     conn = _db_connect(str(db))
     try:
         rows = conn.execute(
@@ -526,10 +579,7 @@ def _check_permalink_one(p: Path, fm: dict) -> list[str]:
     if permalink_clean.startswith("companies/"):
         parts = permalink_clean.split("/", 2)
         if len(parts) >= 2 and parts[1] != expected_slug:
-            return [
-                f"{rel}: permalink '{permalink}' sector='{parts[1]}' "
-                f"!= dir '{expected_slug}'"
-            ]
+            return [f"{rel}: permalink '{permalink}' sector='{parts[1]}' != dir '{expected_slug}'"]
     return []
 
 
@@ -555,9 +605,7 @@ def _check_date_one(p: Path, fm: dict) -> list[str]:
     c = str(created).strip("'\"")
     m = str(modified).strip("'\"")
     if m < c:
-        return [
-            f"{p.relative_to(REPO_ROOT)}: last_modified ({m}) < created ({c})"
-        ]
+        return [f"{p.relative_to(REPO_ROOT)}: last_modified ({m}) < created ({c})"]
     return []
 
 
@@ -622,6 +670,59 @@ def check_frontmatter_schema_contract() -> tuple[list[str], list[str]]:
     return check_frontmatter_schema()
 
 
+def _check_archived_proposals(archive_dir: Path, fatal: list[str]) -> None:
+    """Archived proposals must be status: executed with dates + number;
+    a header without frontmatter means an un-backfilled proposal."""
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from helpers.validators.frontmatter_schema import (
+        _has_proposal_header,
+        parse_frontmatter,
+    )
+
+    if not archive_dir.is_dir():
+        return
+    for p in sorted(archive_dir.rglob("*.md")):
+        if p.name == "README.md":
+            continue
+        fm = parse_frontmatter(p)
+        if fm is None:
+            if _has_proposal_header(p):
+                fatal.append(
+                    f"archive/{p.relative_to(archive_dir)}: proposal header "
+                    f"present but no frontmatter block (backfill it)"
+                )
+            continue
+        if fm.get("status") != "executed":
+            fatal.append(
+                f"archive/{p.relative_to(archive_dir)}: archived proposal must be status: executed"
+            )
+        if fm.get("executed") is None or fm.get("completed_md") is None:
+            fatal.append(
+                f"archive/{p.relative_to(archive_dir)}: executed proposal "
+                f"needs an executed date and completed_md number"
+            )
+
+
+def _check_live_list_refs(proposals_dir: Path, live: set[str], fatal: list[str]) -> None:
+    """The proposals README live list may only reference files that
+    exist in proposals/ (archived entries belong in archive/README.md)."""
+    readme = proposals_dir / "README.md"
+    if not readme.is_file():
+        return
+    text = readme.read_text(encoding="utf-8", errors="replace")
+    section = text.split("## Current live proposals", 1)[-1]
+    for name in re.findall(r"`([\w./-]+\.md)`", section):
+        if "/" in name:
+            continue  # cross-references to archive paths, not live entries
+        if name not in live:
+            fatal.append(
+                f"proposals/README live list references {name}, which is "
+                f"not in proposals/ (archived entries belong in "
+                f"archive/README.md)"
+            )
+
+
 def check_proposal_lifecycle() -> tuple[list[str], list[str]]:
     """P0 (corpus_uniformity S3): proposal frontmatter agrees with its
     directory and itself — every live proposals/*.md (README excluded)
@@ -631,9 +732,7 @@ def check_proposal_lifecycle() -> tuple[list[str], list[str]]:
     proposals README live list references only files that exist there."""
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
-    from helpers.validators.frontmatter_schema import (
-        _has_proposal_header, parse_frontmatter,
-    )
+    from helpers.validators.frontmatter_schema import parse_frontmatter
 
     fatal: list[str] = []
     proposals_dir = REPO_ROOT / "doc" / "improvements" / "proposals"
@@ -653,46 +752,12 @@ def check_proposal_lifecycle() -> tuple[list[str], list[str]]:
         if fm.get("status") != "proposed":
             fatal.append(f"{p.name}: live proposal must be status: proposed")
         if fm.get("executed") is not None or fm.get("completed_md") is not None:
-            fatal.append(
-                f"{p.name}: proposed proposal must keep executed/completed_md null"
-            )
+            fatal.append(f"{p.name}: proposed proposal must keep executed/completed_md null")
 
-    if archive_dir.is_dir():
-        for p in sorted(archive_dir.rglob("*.md")):
-            if p.name == "README.md":
-                continue
-            fm = parse_frontmatter(p)
-            if fm is None:
-                if _has_proposal_header(p):
-                    fatal.append(
-                        f"archive/{p.relative_to(archive_dir)}: proposal header "
-                        f"present but no frontmatter block (backfill it)"
-                    )
-                continue
-            if fm.get("status") != "executed":
-                fatal.append(
-                    f"archive/{p.relative_to(archive_dir)}: archived proposal "
-                    f"must be status: executed"
-                )
-            if fm.get("executed") is None or fm.get("completed_md") is None:
-                fatal.append(
-                    f"archive/{p.relative_to(archive_dir)}: executed proposal "
-                    f"needs an executed date and completed_md number"
-                )
+    _check_archived_proposals(archive_dir, fatal)
 
-    readme = proposals_dir / "README.md"
-    if readme.is_file():
-        text = readme.read_text(encoding="utf-8", errors="replace")
-        section = text.split("## Current live proposals", 1)[-1]
-        for name in re.findall(r"`([\w./-]+\.md)`", section):
-            if "/" in name:
-                continue  # cross-references to archive paths, not live entries
-            if name not in live:
-                fatal.append(
-                    f"proposals/README live list references {name}, which is "
-                    f"not in proposals/ (archived entries belong in "
-                    f"archive/README.md)"
-                )
+    _check_live_list_refs(proposals_dir, live, fatal)
+
     return fatal, []
 
 
@@ -736,6 +801,7 @@ def check_dependency_pinning() -> tuple[list[str], list[str]]:
     # requires-python >= 3.14 guarantees tomllib is always available.
     try:
         import tomllib as toml
+
         data = toml.loads(pp.read_text(encoding="utf-8"))
         deps = (data.get("project", {}) or {}).get("dependencies", []) or []
     except Exception:
@@ -753,7 +819,7 @@ def _has_node() -> bool:
     try:
         subprocess.run(["node", "--version"], capture_output=True, check=True)  # noqa: S607  # PATH-resolved interpreter/binary (python3/node/grep) by design
         return True
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    except subprocess.CalledProcessError, FileNotFoundError:
         return False
 
 
@@ -796,7 +862,9 @@ def check_sqlite_helper_usage() -> list[str]:  # noqa: C901
             # Find line numbers for the message
             for i, line in enumerate(text.splitlines(), start=1):
                 if "sqlite3.connect" in line and "helpers/core/db" not in line:
-                    failures.append(f"{rel}:{i}: use helpers.core.db.connect instead of sqlite3.connect")
+                    failures.append(
+                        f"{rel}:{i}: use helpers.core.db.connect instead of sqlite3.connect"
+                    )
     return failures
 
 
@@ -808,10 +876,13 @@ def check_db_meta_generation() -> list[str]:
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
     from helpers.core.db import EXPECTED_USER_VERSION
+
     try:
         conn = sqlite3.connect(str(db))
         try:
-            has = conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='db_meta'").fetchone()
+            has = conn.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='db_meta'"
+            ).fetchone()
             if not has:
                 return [f"{db}: db_meta table missing (run helpers.core.db.ensure_db_meta)"]
             row = conn.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
@@ -835,20 +906,20 @@ def check_db_meta_generation() -> list[str]:
 #   list[str]             -> fatal failures only
 #   (list[str], list[str]) -> (fatal, advisory). Advisory never affects exit code.
 CHECKS = [
-    ("Python syntax",      check_python_syntax),
-    ("JS syntax",          check_js_syntax),
+    ("Python syntax", check_python_syntax),
+    ("JS syntax", check_js_syntax),
     ("Merge markers + artifacts", check_merge_markers_and_artifacts),
-    ("Helper shebangs",    check_helper_shebangs),
-    ("Required files",     check_required_files),
-    ("Orphan markdown",    check_orphan_markdown_files),
+    ("Helper shebangs", check_helper_shebangs),
+    ("Required files", check_required_files),
+    ("Orphan markdown", check_orphan_markdown_files),
     # Combined single-walk: tags + permalink/sector + date sanity in one pass
     # over the 1102-file corpus (was 3 separate walks + 3× YAML parse).
-    ("Findata YAML",       check_findata_yaml),
+    ("Findata YAML", check_findata_yaml),
     # B1: structural frontmatter contract (doc/okf/*.json)
     ("Frontmatter schema", check_frontmatter_schema_contract),
     # corpus_uniformity S3: proposals/ = proposed, archive/ = executed
     ("Proposal lifecycle", check_proposal_lifecycle),
-    ("OKF conformance",    check_okf_conformance_contract),
+    ("OKF conformance", check_okf_conformance_contract),
     ("Dependency pinning", check_dependency_pinning),
     ("SQLite helper usage", check_sqlite_helper_usage),
     ("DB meta generation", check_db_meta_generation),

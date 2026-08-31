@@ -25,6 +25,7 @@ minimal reproducible case.
 Runs alongside regular pytest in `make qa`. Hypothesis defaults to
 100 random examples per @given test; each completes in <1s.
 """
+
 from __future__ import annotations
 
 import sys
@@ -52,14 +53,16 @@ from pdf.capture_newsletter_images import IMG_BLOCK_RE  # noqa: E402
 # whitespace, and end-of-line (`$` with MULTILINE). Any alphanumerics fill
 # out the captured group. Keep max_size modest so a genuine ReDoS surfaces
 # within Hypothesis's default deadline (200ms) rather than just running long.
-SECTION_ALPHABET = st.characters(whitelist_categories=("Ll", "Lu", "Nd"),
-                                 whitelist_characters="#|·\n \t")
+SECTION_ALPHABET = st.characters(
+    whitelist_categories=("Ll", "Lu", "Nd"), whitelist_characters="#|·\n \t"
+)
 
 # IMG_BLOCK_RE branches on: `<`, `>`, `/`, quotes (`'` and `"`), the literal
 # `div`/`img`/`src`, and whitespace. Add a few punctuation chars to stress
 # the `[^>]*` and `[^'\"]+` character classes.
-IMG_ALPHABET = st.characters(whitelist_categories=("Ll", "Lu", "Nd"),
-                             whitelist_characters="<>/\"' \n\tdivsrc=!@")
+IMG_ALPHABET = st.characters(
+    whitelist_categories=("Ll", "Lu", "Nd"), whitelist_characters="<>/\"' \n\tdivsrc=!@"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -77,9 +80,7 @@ def test_section_regex_no_catastrophic_backtracking(markdown):
     matches = SECTION_RE.findall(markdown)
     # Contract: every captured group is a string (the regex has one group).
     for m in matches:
-        assert isinstance(m, str), (
-            f"SECTION_RE returned non-str match {m!r} for input {markdown!r}"
-        )
+        assert isinstance(m, str), f"SECTION_RE returned non-str match {m!r} for input {markdown!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -97,9 +98,7 @@ def test_section_regex_no_catastrophic_backtracking(markdown):
 def test_img_block_regex_malformed_html(html):
     matches = IMG_BLOCK_RE.findall(html)
     for url in matches:
-        assert isinstance(url, str), (
-            f"IMG_BLOCK_RE returned non-str url {url!r} for input {html!r}"
-        )
+        assert isinstance(url, str), f"IMG_BLOCK_RE returned non-str url {url!r} for input {html!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -112,9 +111,11 @@ def test_img_block_regex_malformed_html(html):
 # The regex should capture the company name portion.
 @settings(deadline=500)
 @given(
-    name=st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll"),
-                                       whitelist_characters=" &.-"),
-                 min_size=1, max_size=40),
+    name=st.text(
+        alphabet=st.characters(whitelist_categories=("Lu", "Ll"), whitelist_characters=" &.-"),
+        min_size=1,
+        max_size=40,
+    ),
     n_seps=st.integers(min_value=0, max_value=3),
 )
 def test_section_regex_matches_well_formed_heading(name, n_seps):
@@ -136,21 +137,19 @@ def test_section_regex_matches_well_formed_heading(name, n_seps):
 @settings(deadline=500)
 @given(
     url=st.text(
-        alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"),
-                               whitelist_characters=":/._-?=&%"),
-        min_size=1, max_size=80,
+        alphabet=st.characters(
+            whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters=":/._-?=&%"
+        ),
+        min_size=1,
+        max_size=80,
     ),
     quote=st.sampled_from(["'", '"']),
 )
 def test_img_block_regex_matches_well_formed_block(url, quote):
     block = f"<div class='wrap'><img src={quote}{url}{quote} alt='fig'></div>"
     matches = IMG_BLOCK_RE.findall(block)
-    assert len(matches) == 1, (
-        f"IMG_BLOCK_RE expected 1 match, got {len(matches)} for {block!r}"
-    )
-    assert matches[0] == url, (
-        f"IMG_BLOCK_RE captured {matches[0]!r}, expected {url!r}"
-    )
+    assert len(matches) == 1, f"IMG_BLOCK_RE expected 1 match, got {len(matches)} for {block!r}"
+    assert matches[0] == url, f"IMG_BLOCK_RE captured {matches[0]!r}, expected {url!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -161,9 +160,13 @@ def test_img_block_regex_matches_well_formed_block(url, quote):
 # input; returns int | None; and when it returns an int it is non-negative and
 # round-trips through str().
 @settings(deadline=500)
-@given(st.text(alphabet=st.characters(blacklist_categories=("Cs",),
-                                     blacklist_characters="\r"),
-               min_size=0, max_size=200))
+@given(
+    st.text(
+        alphabet=st.characters(blacklist_categories=("Cs",), blacklist_characters="\r"),
+        min_size=0,
+        max_size=200,
+    )
+)
 def test_parse_edition_number_never_raises(title):
     result = _parse_edition_number(title)
     assert result is None or isinstance(result, int), (

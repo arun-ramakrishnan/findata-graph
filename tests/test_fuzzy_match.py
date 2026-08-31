@@ -1,4 +1,5 @@
 """Tests for helpers/core/fuzzy_match.py."""
+
 import sys
 from pathlib import Path
 
@@ -243,9 +244,7 @@ class TestFuzzyMatchWithSpellfix:
 def test_word_overlap_match_success():
     """Word overlap succeeds when a distinctive word is shared but no substring."""
     # "airtel" is not generic, not a substring relationship
-    match, score = fm.word_overlap_match(
-        "Airtel Broadband", ["Bharti Airtel"], threshold=0.3
-    )
+    match, score = fm.word_overlap_match("Airtel Broadband", ["Bharti Airtel"], threshold=0.3)
     assert match == "Bharti Airtel"
     assert 0 < score <= 1.0
 
@@ -261,18 +260,14 @@ def test_word_overlap_match_picks_best():
 
 def test_word_overlap_match_below_threshold():
     """Overlap below threshold returns None."""
-    match, score = fm.word_overlap_match(
-        "Airtel Broadband", ["Bharti Airtel"], threshold=0.9
-    )
+    match, score = fm.word_overlap_match("Airtel Broadband", ["Bharti Airtel"], threshold=0.9)
     assert match is None
     assert score == 0.0
 
 
 def test_word_overlap_match_only_generic_words():
     """Overlap consisting only of generic words returns None."""
-    match, score = fm.word_overlap_match(
-        "Power Energy", ["Tata Power"], threshold=0.1
-    )
+    match, score = fm.word_overlap_match("Power Energy", ["Tata Power"], threshold=0.1)
     assert match is None
     assert score == 0.0
 
@@ -283,11 +278,10 @@ def test_word_overlap_match_only_generic_words():
 def test_fuzzy_match_spellfix_exception_is_swallowed(tmp_path):
     """If spellfix table is missing, the exception is swallowed gracefully."""
     import sqlite3
+
     conn = sqlite3.connect(str(tmp_path / "test.db"))
     # No entities_fuzzy table → query raises OperationalError → swallowed
-    match, method, score = fm.fuzzy_match(
-        "nonexistent", ["Some Entity"], spellfix_conn=conn
-    )
+    match, method, score = fm.fuzzy_match("nonexistent", ["Some Entity"], spellfix_conn=conn)
     assert match is None
     assert score == 0.0
     conn.close()
@@ -302,9 +296,7 @@ def test_fuzzy_match_spellfix_no_results(tmp_path):
     conn.enable_load_extension(True)
     conn.load_extension(sqlite_spellfix.extension_path())
     fm.build_spellfix_table(conn, ["Tata"])
-    match, method, score = fm.fuzzy_match(
-        "zzzzz", ["Some Entity"], spellfix_conn=conn
-    )
+    match, method, score = fm.fuzzy_match("zzzzz", ["Some Entity"], spellfix_conn=conn)
     # Falls through spellfix to None
     assert match is None
     assert score == 0.0

@@ -25,13 +25,15 @@ def snap(tmp_path: Path) -> Path:
         (tmp_path / "duckdb").mkdir()
         (tmp_path / "sqlite").mkdir()
         con.execute("CREATE TABLE meta(key VARCHAR, value VARCHAR)")
-        con.executemany("INSERT INTO meta VALUES (?, ?)",
-                        [("schema_version", "9"), ("generation", "42")])
+        con.executemany(
+            "INSERT INTO meta VALUES (?, ?)", [("schema_version", "9"), ("generation", "42")]
+        )
         con.execute("COPY meta TO '" + str(tmp_path / "duckdb" / "_build_meta.parquet") + "'")
         con.execute(
             "CREATE TABLE graph_edges(id BIGINT, source VARCHAR, target VARCHAR,"
             " edge_type VARCHAR, weight DOUBLE, properties VARCHAR, valid_from VARCHAR,"
-            " valid_to INTEGER, source_ref VARCHAR, is_symmetric BIGINT, created_at VARCHAR)")
+            " valid_to INTEGER, source_ref VARCHAR, is_symmetric BIGINT, created_at VARCHAR)"
+        )
         con.executemany(
             "INSERT INTO graph_edges VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, ?)",
             [
@@ -41,17 +43,22 @@ def snap(tmp_path: Path) -> Path:
                 (4, "B", "C", "subsidiary_of", "2026-02-06 10:00:00"),
             ],
         )
-        con.execute("COPY graph_edges TO '" + str(tmp_path / "sqlite" / "graph_edges.parquet") + "'")
+        con.execute(
+            "COPY graph_edges TO '" + str(tmp_path / "sqlite" / "graph_edges.parquet") + "'"
+        )
         con.execute(
             "CREATE TABLE entities(name VARCHAR, entity_type VARCHAR, created_at VARCHAR,"
             " file_path VARCHAR, last_updated VARCHAR, normalized_name VARCHAR,"
-            " sector_classification VARCHAR, ticker VARCHAR)")
+            " sector_classification VARCHAR, ticker VARCHAR)"
+        )
         con.executemany(
             "INSERT INTO entities VALUES (?, 'company', ?, NULL, NULL, NULL, ?, NULL)",
-            [("A", "2025-01-01 09:00:00", "S1"),
-             ("B", "2025-02-01 09:00:00", "S1"),
-             ("C", "2026-01-01 09:00:00", "S2"),
-             ("T1", "2025-01-01 09:00:00", None)],
+            [
+                ("A", "2025-01-01 09:00:00", "S1"),
+                ("B", "2025-02-01 09:00:00", "S1"),
+                ("C", "2026-01-01 09:00:00", "S2"),
+                ("T1", "2025-01-01 09:00:00", None),
+            ],
         )
         con.execute("COPY entities TO '" + str(tmp_path / "sqlite" / "entities.parquet") + "'")
     finally:
@@ -91,9 +98,9 @@ class TestFetch:
         # A: (A,B)+(A,C) = 2; B: (A,B)+(B,C) = 2; C: 2; Sec1 part_of excluded.
         # Tie on deg=2 -> name order A, B, C.
         assert [row[0] for row in r.rows] == ["A", "B", "C"]
-        assert r.rows[0][2] == "2"          # A co-mentions
-        assert r.rows[1][1] == "2"          # B total non-membership degree
-        assert r.rows[0][3] == "2025"       # A first ingest year
+        assert r.rows[0][2] == "2"  # A co-mentions
+        assert r.rows[1][1] == "2"  # B total non-membership degree
+        assert r.rows[0][3] == "2025"  # A first ingest year
 
     def test_unknown_report_raises(self, snap):
         with pytest.raises(ValueError, match="unknown report"):
@@ -152,44 +159,56 @@ def cov_snap(tmp_path: Path) -> Path:
         (tmp_path / "duckdb").mkdir()
         (tmp_path / "sqlite").mkdir()
         con.execute("CREATE TABLE meta(key VARCHAR, value VARCHAR)")
-        con.executemany("INSERT INTO meta VALUES (?, ?)",
-                        [("schema_version", "10"), ("generation", "43")])
+        con.executemany(
+            "INSERT INTO meta VALUES (?, ?)", [("schema_version", "10"), ("generation", "43")]
+        )
         con.execute("COPY meta TO '" + str(tmp_path / "duckdb" / "_build_meta.parquet") + "'")
         con.execute(
             "CREATE TABLE entities(name VARCHAR, entity_type VARCHAR, created_at VARCHAR,"
             " file_path VARCHAR, last_updated VARCHAR, normalized_name VARCHAR,"
-            " sector_classification VARCHAR, ticker VARCHAR)")
+            " sector_classification VARCHAR, ticker VARCHAR)"
+        )
         con.executemany(
             "INSERT INTO entities VALUES (?, ?, NULL, ?, NULL, NULL, ?, NULL)",
-            [("A", "company", None, "S1"),
-             ("B", "company", None, "S1"),
-             ("C", "company", None, "S2"),
-             ("Agri", "sector", None, None),
-             ("Ed1", "edition", "findata/The_Chatter/Ed1.md", None),
-             ("Ed2", "edition", "findata/Points_And_Figures/Ed2.md", None)],
+            [
+                ("A", "company", None, "S1"),
+                ("B", "company", None, "S1"),
+                ("C", "company", None, "S2"),
+                ("Agri", "sector", None, None),
+                ("Ed1", "edition", "findata/The_Chatter/Ed1.md", None),
+                ("Ed2", "edition", "findata/Points_And_Figures/Ed2.md", None),
+            ],
         )
         con.execute("COPY entities TO '" + str(tmp_path / "sqlite" / "entities.parquet") + "'")
         con.execute("CREATE TABLE note_tags(note_path VARCHAR, tag VARCHAR)")
-        con.executemany("INSERT INTO note_tags VALUES (?, ?)", [
-            ("findata/The_Chatter/Ed1.md", "series/the_chatter"),
-            ("findata/The_Chatter/Ed1.md", "publisher/zerodha"),
-            ("findata/Points_And_Figures/Ed2.md", "series/points_and_figures"),
-        ])
+        con.executemany(
+            "INSERT INTO note_tags VALUES (?, ?)",
+            [
+                ("findata/The_Chatter/Ed1.md", "series/the_chatter"),
+                ("findata/The_Chatter/Ed1.md", "publisher/zerodha"),
+                ("findata/Points_And_Figures/Ed2.md", "series/points_and_figures"),
+            ],
+        )
         con.execute("COPY note_tags TO '" + str(tmp_path / "sqlite" / "note_tags.parquet") + "'")
         con.execute(
             "CREATE TABLE graph_edges(id BIGINT, source VARCHAR, target VARCHAR,"
             " edge_type VARCHAR, weight DOUBLE, properties VARCHAR, valid_from VARCHAR,"
-            " valid_to INTEGER, source_ref VARCHAR, is_symmetric BIGINT, created_at VARCHAR)")
+            " valid_to INTEGER, source_ref VARCHAR, is_symmetric BIGINT, created_at VARCHAR)"
+        )
         con.executemany(
             "INSERT INTO graph_edges VALUES (?, ?, ?, 'cited_in', 1.0, ?, NULL, NULL,"
             " 'derive:cited_in', 0, '2026-08-19 12:00:00')",
-            [(1, "A", "Ed1", '{"n_quotes": 2, "resource": "/findata/The_Chatter/Ed1.md"}'),
-             (2, "B", "Ed1", '{"n_quotes": 0, "resource": "/findata/The_Chatter/Ed1.md"}'),
-             (3, "C", "Ed2", '{"n_quotes": 1}'),
-             # sector note citing an edition: matrix-excluded, rollup-counted
-             (4, "Agri", "Ed1", "{}")],
+            [
+                (1, "A", "Ed1", '{"n_quotes": 2, "resource": "/findata/The_Chatter/Ed1.md"}'),
+                (2, "B", "Ed1", '{"n_quotes": 0, "resource": "/findata/The_Chatter/Ed1.md"}'),
+                (3, "C", "Ed2", '{"n_quotes": 1}'),
+                # sector note citing an edition: matrix-excluded, rollup-counted
+                (4, "Agri", "Ed1", "{}"),
+            ],
         )
-        con.execute("COPY graph_edges TO '" + str(tmp_path / "sqlite" / "graph_edges.parquet") + "'")
+        con.execute(
+            "COPY graph_edges TO '" + str(tmp_path / "sqlite" / "graph_edges.parquet") + "'"
+        )
     finally:
         con.close()
     return tmp_path
@@ -207,8 +226,7 @@ class TestCoverage:
     def test_rollup_and_hygiene_in_note(self, cov_snap):
         r = cast(AN.Report, AN.fetch("coverage", cov_snap))
         assert "the_chatter 1 editions / 2 companies / 1 sector-notes / 2 quotes" in r.note
-        assert ("points_and_figures 1 editions / 1 companies"
-                " / 0 sector-notes / 1 quotes") in r.note
+        assert ("points_and_figures 1 editions / 1 companies / 0 sector-notes / 1 quotes") in r.note
         assert "4/4 cited_in edges joined" in r.note
         assert "drift" not in r.note
 
@@ -217,10 +235,13 @@ class TestCoverage:
         con = duckdb.connect()
         try:
             con.execute(
-                "COPY (SELECT * FROM read_parquet('" + str(cov_snap / "sqlite" / "graph_edges.parquet") + "')"  # noqa: S608  # fixture-local tmp path
+                "COPY (SELECT * FROM read_parquet('"  # noqa: S608  # fixture-local tmp path
+                + str(cov_snap / "sqlite" / "graph_edges.parquet")
+                + "')"
                 " UNION ALL SELECT 5, 'A', 'Ed3', 'cited_in', 1.0, '{}', NULL, NULL,"
                 " 'derive:cited_in', 0, '2026-08-19 12:00:00')"
-                " TO '" + str(cov_snap / "sqlite" / "graph_edges.parquet") + "'")
+                " TO '" + str(cov_snap / "sqlite" / "graph_edges.parquet") + "'"
+            )
         finally:
             con.close()
         r = cast(AN.Report, AN.fetch("coverage", cov_snap))
@@ -248,6 +269,7 @@ class TestLiveSnapshot:
         assert "sqlite" in {row[0] for row in r.rows}
         assert r.meta.get("schema_version")
 
+
 @pytest.fixture()
 def t_snap(tmp_path: Path) -> Path:
     """Temporal-shaped snapshot: dated editions, quotes, events, staleness.
@@ -262,49 +284,61 @@ def t_snap(tmp_path: Path) -> Path:
         (tmp_path / "duckdb").mkdir()
         (tmp_path / "sqlite").mkdir()
         con.execute("CREATE TABLE meta(key VARCHAR, value VARCHAR)")
-        con.executemany("INSERT INTO meta VALUES (?, ?)",
-                        [("schema_version", "11"), ("generation", "44")])
+        con.executemany(
+            "INSERT INTO meta VALUES (?, ?)", [("schema_version", "11"), ("generation", "44")]
+        )
         con.execute("COPY meta TO '" + str(tmp_path / "duckdb" / "_build_meta.parquet") + "'")
         con.execute(
             "CREATE TABLE entities(name VARCHAR, entity_type VARCHAR, created_at VARCHAR,"
             " file_path VARCHAR, last_updated VARCHAR, normalized_name VARCHAR,"
-            " sector_classification VARCHAR, ticker VARCHAR)")
+            " sector_classification VARCHAR, ticker VARCHAR)"
+        )
         con.executemany(
             "INSERT INTO entities VALUES (?, ?, ?, NULL, ?, ?, ?, NULL)",
-            [("Ed_A", "edition", "2026-06-15 09:00:00", None, "Ed_A", None),
-             ("Ed_B", "edition", "2026-08-02 09:00:00", None, "Ed_B", None),
-             ("Co1", "company", "2026-01-01 09:00:00",
-              "2026-08-20 09:00:00", "Co1", "S1"),
-             ("Co2", "company", "2026-01-01 09:00:00",
-              "2026-08-20 09:00:00", "Co2", "S1"),
-             ("Co3", "company", "2026-01-01 09:00:00",
-              "2026-01-05 09:00:00", "Co3", "S2")])
+            [
+                ("Ed_A", "edition", "2026-06-15 09:00:00", None, "Ed_A", None),
+                ("Ed_B", "edition", "2026-08-02 09:00:00", None, "Ed_B", None),
+                ("Co1", "company", "2026-01-01 09:00:00", "2026-08-20 09:00:00", "Co1", "S1"),
+                ("Co2", "company", "2026-01-01 09:00:00", "2026-08-20 09:00:00", "Co2", "S1"),
+                ("Co3", "company", "2026-01-01 09:00:00", "2026-01-05 09:00:00", "Co3", "S2"),
+            ],
+        )
         con.execute("COPY entities TO '" + str(tmp_path / "sqlite" / "entities.parquet") + "'")
         con.execute(
             "CREATE TABLE quotes(id BIGINT, entity VARCHAR, quote_text VARCHAR,"
             " paraphrase VARCHAR, speaker_name VARCHAR, speaker_title VARCHAR,"
             " as_of_edition VARCHAR, source_ref VARCHAR, properties VARCHAR,"
-            " created_at VARCHAR)")
+            " created_at VARCHAR)"
+        )
         con.executemany(
             "INSERT INTO quotes VALUES (?, 'Co1', 'q', 'p', 's', 't', ?, 'r', NULL,"
             " '2026-08-21 10:00:00')",
-            [(1, "Ed_A"), (2, "Ed_A"), (3, "Ed_B"),
-             (4, "Concall Title X"),  # unmatched stem by design
-             (5, "Concall Title X")])
+            [
+                (1, "Ed_A"),
+                (2, "Ed_A"),
+                (3, "Ed_B"),
+                (4, "Concall Title X"),  # unmatched stem by design
+                (5, "Concall Title X"),
+            ],
+        )
         con.execute("COPY quotes TO '" + str(tmp_path / "sqlite" / "quotes.parquet") + "'")
         con.execute(
             "CREATE TABLE events(id BIGINT, entity VARCHAR, event_type VARCHAR,"
             " event_date VARCHAR, period VARCHAR, date_precision VARCHAR,"
             " magnitude DOUBLE, counterparty VARCHAR, source_quote VARCHAR,"
             " as_of_edition VARCHAR, source_ref VARCHAR, properties VARCHAR,"
-            " created_at VARCHAR)")
+            " created_at VARCHAR)"
+        )
         con.executemany(
             "INSERT INTO events VALUES (?, 'Co1', ?, ?, NULL, ?, NULL, NULL, NULL,"
             " NULL, 'r', NULL, '2026-08-21 10:00:00')",
-            [(1, "acquisition", "2025-03-10", "day"),
-             (2, "guidance", "2027-06-30", "day"),  # future by design
-             (3, "guidance", None, "none"),         # undated
-             (4, "guidance", None, None)])
+            [
+                (1, "acquisition", "2025-03-10", "day"),
+                (2, "guidance", "2027-06-30", "day"),  # future by design
+                (3, "guidance", None, "none"),  # undated
+                (4, "guidance", None, None),
+            ],
+        )
         con.execute("COPY events TO '" + str(tmp_path / "sqlite" / "events.parquet") + "'")
     finally:
         con.close()
@@ -325,8 +359,8 @@ class TestTemporal:
     def test_quarter_bins_join_edition_ingest_dates(self, t_snap):
         t1 = cast(list[AN.Report], AN.fetch("temporal", t_snap))[0]
         got = {row[0]: row for row in t1.rows}
-        assert got["2026-Q2"][1:3] == ["1", "2"]   # Ed_A: 2 quotes
-        assert got["2026-Q3"][1:3] == ["1", "1"]   # Ed_B: 1 quote
+        assert got["2026-Q2"][1:3] == ["1", "2"]  # Ed_A: 2 quotes
+        assert got["2026-Q3"][1:3] == ["1", "1"]  # Ed_B: 1 quote
         assert "1 unmatched" in t1.note  # DISTINCT stems: one concall stem
         assert "concall/company-source" in t1.note
 
@@ -359,10 +393,12 @@ class TestTemporal:
         rc = AN.main(["temporal", "--snapshots", str(t_snap)])
         out = capsys.readouterr().out
         assert rc == 0
-        for title in ("Chatter volume by quarter",
-                      "Coverage trend per edition",
-                      "Staleness curve by sector",
-                      "Events timeline"):
+        for title in (
+            "Chatter volume by quarter",
+            "Coverage trend per edition",
+            "Staleness curve by sector",
+            "Events timeline",
+        ):
             assert f"# {title}" in out
 
     def test_main_json_is_a_list_of_four(self, t_snap, capsys):

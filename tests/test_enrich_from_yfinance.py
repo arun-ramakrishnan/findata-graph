@@ -1,4 +1,5 @@
 """Unit tests for helpers/maintenance/enrich_from_yfinance.py."""
+
 from __future__ import annotations
 import sys
 import sqlite3
@@ -80,7 +81,7 @@ def test_outside_auto_region_outside():
 
 
 def test_outside_auto_region_inside():
-    text = ("<!-- BEGIN auto foo -->\ncontent\n<!-- END auto foo -->\nrest")
+    text = "<!-- BEGIN auto foo -->\ncontent\n<!-- END auto foo -->\nrest"
     # pos points inside the auto region — should return the region start
     start = text.find("<!-- BEGIN auto foo -->")
     result = _outside_auto_region(text, start + 10)
@@ -101,8 +102,9 @@ def test_outside_auto_region_nested_regions():
     )
     outer_start = text.find("<!-- BEGIN auto chatter block")
     # pos sits AFTER the inner KF END but INSIDE the true chatter region.
-    inner_end = text.find("<!-- END auto key figures -->") + len(
-        "<!-- END auto key figures -->") + 2
+    inner_end = (
+        text.find("<!-- END auto key figures -->") + len("<!-- END auto key figures -->") + 2
+    )
     assert _outside_auto_region(text, inner_end) == outer_start
 
 
@@ -269,12 +271,20 @@ def _make_metrics_db():
 
 def test_write_metrics_inserts():
     conn = _make_metrics_db()
-    metrics = [{
-        "entity": "Co A", "metric_label": "pe_ratio", "value_raw": "25.0",
-        "value_num": 25.0, "unit": "ratio", "period": "latest",
-        "as_of_edition": None, "source_quote": None, "source_ref": SOURCE_REF,
-        "properties": "{}",
-    }]
+    metrics = [
+        {
+            "entity": "Co A",
+            "metric_label": "pe_ratio",
+            "value_raw": "25.0",
+            "value_num": 25.0,
+            "unit": "ratio",
+            "period": "latest",
+            "as_of_edition": None,
+            "source_quote": None,
+            "source_ref": SOURCE_REF,
+            "properties": "{}",
+        }
+    ]
     inserted = write_metrics(conn, metrics)
     assert inserted == 1
     rows = conn.execute("SELECT * FROM company_metrics").fetchall()
@@ -288,12 +298,20 @@ def test_write_metrics_empty_returns_zero():
 
 def test_write_metrics_replaces_old():
     conn = _make_metrics_db()
-    metrics = [{
-        "entity": "Co A", "metric_label": "pe_ratio", "value_raw": "25.0",
-        "value_num": 25.0, "unit": "ratio", "period": "latest",
-        "as_of_edition": None, "source_quote": None, "source_ref": SOURCE_REF,
-        "properties": "{}",
-    }]
+    metrics = [
+        {
+            "entity": "Co A",
+            "metric_label": "pe_ratio",
+            "value_raw": "25.0",
+            "value_num": 25.0,
+            "unit": "ratio",
+            "period": "latest",
+            "as_of_edition": None,
+            "source_quote": None,
+            "source_ref": SOURCE_REF,
+            "properties": "{}",
+        }
+    ]
     write_metrics(conn, metrics)
     # Second write should replace
     metrics[0]["value_num"] = 30.0
@@ -323,6 +341,7 @@ def test_get_stale_companies_zero_returns_empty():
 # ---------------------------------------------------------------------------
 def test_get_enriched_companies(tmp_path, monkeypatch):
     import helpers.maintenance.enrich_from_yfinance as mod
+
     monkeypatch.setattr(mod, "PROJECT_ROOT", tmp_path)
     # Create a note with industry
     note = tmp_path / "Co_A.md"
@@ -333,6 +352,7 @@ def test_get_enriched_companies(tmp_path, monkeypatch):
 
 def test_get_enriched_companies_none(tmp_path, monkeypatch):
     import helpers.maintenance.enrich_from_yfinance as mod
+
     monkeypatch.setattr(mod, "PROJECT_ROOT", tmp_path)
     note = tmp_path / "Co_B.md"
     note.write_text("---\ntitle: Co B\n---\n\n# Co B")

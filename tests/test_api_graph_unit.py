@@ -5,6 +5,7 @@ Unit tests (SQLite-only, run in `make qa`) for the /api/graph/* Flask endpoints:
 
 Shared schema + seed + unit_client fixture live in tests/conftest.py.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -22,14 +23,14 @@ from tests.conftest import seeded_graph_sqlite_db as _seeded_sqlite_db
 
 # ----- /api/graph/stats (SQLite-only, runs in QA) ------------------------- #
 
+
 class TestGraphStats:
     def test_stats_response_shape(self, unit_client):
         r = unit_client.get("/api/graph/stats")
         assert r.status_code == 200
         data = r.get_json()
         # Top-level keys present.
-        assert set(data) == {"entities", "edges", "hygiene", "sectors",
-                             "staleness", "structure"}
+        assert set(data) == {"entities", "edges", "hygiene", "sectors", "staleness", "structure"}
         # entities sub-shape: 4 companies + 2 sectors (Banking, Technology).
         assert data["entities"]["total"] == 6
         assert data["entities"]["by_type"]["company"] == 4
@@ -63,9 +64,7 @@ class TestGraphStats:
             # Stamp one entity's last_updated to yesterday and analytics to now.
             db_path = tmp_path / "unit_graph.db"
             conn = sqlite3.connect(str(db_path))
-            conn.execute(
-                "UPDATE entities SET last_updated = '2026-01-01' WHERE name = 'HDFC Bank'"
-            )
+            conn.execute("UPDATE entities SET last_updated = '2026-01-01' WHERE name = 'HDFC Bank'")
             conn.execute(
                 "INSERT INTO graph_analytics(entity_name, metric, value, computed_at) "
                 "VALUES ('HDFC Bank', 'pagerank', '0.5', '2026-06-01 12:00:00')"
@@ -85,9 +84,7 @@ class TestGraphStats:
             db_path = tmp_path / "unit_graph.db"
             conn = sqlite3.connect(str(db_path))
             # Analytics computed June 1; entity updated June 2 (later day).
-            conn.execute(
-                "UPDATE entities SET last_updated = '2026-06-02' WHERE name = 'HDFC Bank'"
-            )
+            conn.execute("UPDATE entities SET last_updated = '2026-06-02' WHERE name = 'HDFC Bank'")
             conn.execute(
                 "INSERT INTO graph_analytics(entity_name, metric, value, computed_at) "
                 "VALUES ('HDFC Bank', 'pagerank', '0.5', '2026-06-01 12:00:00')"
@@ -124,6 +121,7 @@ class TestGraphStats:
     def test_stats_structure_none_when_graph_layer_fails(self, unit_client, monkeypatch):
         """Degrade gracefully: a broken graph layer yields structure=null
         while the SQLite-side payload stays intact (200 + full shape)."""
+
         def _boom():
             raise RuntimeError("graph layer down")
 
@@ -196,6 +194,7 @@ class TestGraphStatsConflictingMarketCap:
 
 # ----- C-series analytical endpoints (SQLite-only) ------------------------- #
 
+
 class TestCoMentions:
     """C1: /api/graph/co-mentions"""
 
@@ -213,8 +212,7 @@ class TestCoMentions:
             db_path = tmp_path / "unit_graph.db"
             conn = sqlite3.connect(str(db_path))
             conn.executemany(
-                "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
-                "VALUES (?,?,?,?)",
+                "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
                 [
                     ("HDFC Bank", "Edition1", "co_mentioned_in", "seed"),
                     ("HDFC Bank", "Edition2", "co_mentioned_in", "seed"),
@@ -266,8 +264,7 @@ class TestCrossSectorBridges:
             db_path = tmp_path / "unit_graph.db"
             conn = sqlite3.connect(str(db_path))
             conn.execute(
-                "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
-                "VALUES (?,?,?,?)",
+                "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
                 ("HDFC Bank", "Infosys", "acquired", "seed"),
             )
             conn.commit()
@@ -286,8 +283,7 @@ class TestCrossSectorBridges:
             db_path = tmp_path / "unit_graph.db"
             conn = sqlite3.connect(str(db_path))
             conn.execute(
-                "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
-                "VALUES (?,?,?,?)",
+                "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
                 ("HDFC Bank", "ICICI Bank", "acquired", "seed"),
             )
             conn.commit()
@@ -348,6 +344,7 @@ class TestEdgesByYear:
 
 # ----- _resolve_entity_or_404 + JSON 404 split (runs in QA) --------------- #
 
+
 class TestResolveAnd404:
     def test_peers_unknown_company_returns_json_404(self, unit_client):
         # The resolver 404s before any DuckDB call — exercises both the
@@ -401,6 +398,7 @@ class TestResolveAnd404:
 
 # ----- /api/graph/semantic/<name> (VSS, deferred N5 item) ------------------ #
 
+
 class TestGraphSemantic:
     """GET /api/graph/semantic/<name> — vector-similarity neighbours.
 
@@ -413,12 +411,9 @@ class TestGraphSemantic:
 
         seen = {}
 
-        def fake_semantic(con, company, k=10, metric="cosine",
-                          cross_sector=False):
-            seen.update(company=company, k=k, metric=metric,
-                        cross_sector=cross_sector)
-            return [("Infosys", "Technology", 0.9),
-                    ("TCS", "Technology", 0.85)]
+        def fake_semantic(con, company, k=10, metric="cosine", cross_sector=False):
+            seen.update(company=company, k=k, metric=metric, cross_sector=cross_sector)
+            return [("Infosys", "Technology", 0.9), ("TCS", "Technology", 0.85)]
 
         monkeypatch.setattr(q, "semantic_neighbors", fake_semantic)
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
@@ -441,10 +436,14 @@ class TestGraphSemantic:
         import helpers.graph.query as q
 
         seen = {}
-        monkeypatch.setattr(q, "semantic_neighbors",
-                            lambda con, company, k=10, metric="cosine",
-                            cross_sector=False: (seen.update(
-                                cross_sector=cross_sector), [])[1])
+        monkeypatch.setattr(
+            q,
+            "semantic_neighbors",
+            lambda con, company, k=10, metric="cosine", cross_sector=False: (
+                seen.update(cross_sector=cross_sector),
+                [],
+            )[1],
+        )
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
 
         unit_client.get("/api/graph/semantic/HDFC%20Bank?cross_sector=true")
@@ -510,8 +509,11 @@ class TestGraphSimilarNotes:
         assert data["k"] == 1
         assert data["doc_type"] == "company"
         assert data["neighbors"] == [
-            {"file_path": "findata/Companies/Banking/ICICI_Bank.md",
-             "title": "ICICI Bank", "similarity": 0.93}
+            {
+                "file_path": "findata/Companies/Banking/ICICI_Bank.md",
+                "title": "ICICI Bank",
+                "similarity": 0.93,
+            }
         ]
         assert seen["file_path"] == "findata/Companies/Banking/Hdfc_Bank.md"
         assert seen["k"] == 1
@@ -521,8 +523,10 @@ class TestGraphSimilarNotes:
 
         seen = {}
         monkeypatch.setattr(
-            q, "similar_notes",
-            lambda con, fp, k=10, doc_type=None: (seen.update(file_path=fp), [])[1])
+            q,
+            "similar_notes",
+            lambda con, fp, k=10, doc_type=None: (seen.update(file_path=fp), [])[1],
+        )
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
 
         r = unit_client.get("/api/graph/similar/findata/Sectors/Banking.md")
@@ -561,8 +565,7 @@ class TestGraphEditionCompanies:
 
         def fake_edition(con, edition, k=10):
             seen.update(edition=edition, k=k)
-            return [("findata/Companies/Defense/Bharat_Electronics.md",
-                     "Bharat_Electronics", 0.84)]
+            return [("findata/Companies/Defense/Bharat_Electronics.md", "Bharat_Electronics", 0.84)]
 
         monkeypatch.setattr(q, "edition_companies", fake_edition)
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
@@ -573,8 +576,11 @@ class TestGraphEditionCompanies:
         assert data["edition"] == "BEL_HUL_Tata_Capital"
         assert data["k"] == 5
         assert data["companies"] == [
-            {"file_path": "findata/Companies/Defense/Bharat_Electronics.md",
-             "title": "Bharat_Electronics", "similarity": 0.84}
+            {
+                "file_path": "findata/Companies/Defense/Bharat_Electronics.md",
+                "title": "Bharat_Electronics",
+                "similarity": 0.84,
+            }
         ]
         assert seen["k"] == 5
 
@@ -598,6 +604,7 @@ class TestGraphEditionCompanies:
 
 
 # ----- /api/graph/* cache headers (C4, SQLite-only) ----------------------- #
+
 
 class TestGraphCacheHeaders:
     """C4: GET /api/graph/* responses carry an ETag (from _build_meta.built_at)
@@ -689,6 +696,7 @@ class TestGraphCacheHeaders:
 
 # ----- /api/graph/shortest param validation (SQLite-only) ----------------- #
 
+
 class TestShortestParamValidation:
     def test_missing_a_returns_400(self, unit_client):
         r = unit_client.get("/api/graph/shortest?b=HDFC%20Bank")
@@ -707,17 +715,13 @@ class TestShortestParamValidation:
 
     def test_bad_max_hops_returns_400(self, unit_client, monkeypatch):
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
-        r = unit_client.get(
-            "/api/graph/shortest?a=HDFC%20Bank&b=ICICI%20Bank&max_hops=banana"
-        )
+        r = unit_client.get("/api/graph/shortest?a=HDFC%20Bank&b=ICICI%20Bank&max_hops=banana")
         assert r.status_code == 400
         assert "max_hops" in r.get_json()["error"]
 
     def test_out_of_range_max_hops_returns_400(self, unit_client, monkeypatch):
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
-        r = unit_client.get(
-            "/api/graph/shortest?a=HDFC%20Bank&b=ICICI%20Bank&max_hops=99"
-        )
+        r = unit_client.get("/api/graph/shortest?a=HDFC%20Bank&b=ICICI%20Bank&max_hops=99")
         assert r.status_code == 400
 
     def test_max_hops_boundary_eight_ok_nine_400(self, unit_client, monkeypatch):
@@ -726,51 +730,55 @@ class TestShortestParamValidation:
         validation (any later failure is a connection concern, not the
         max_hops 400 — the monkeypatched connection makes it 500)."""
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
-        r = unit_client.get(
-            "/api/graph/shortest?a=HDFC%20Bank&b=ICICI%20Bank&max_hops=9"
-        )
+        r = unit_client.get("/api/graph/shortest?a=HDFC%20Bank&b=ICICI%20Bank&max_hops=9")
         assert r.status_code == 400
         assert "between 1 and 8" in r.get_json()["error"]
-        r8 = unit_client.get(
-            "/api/graph/shortest?a=HDFC%20Bank&b=ICICI%20Bank&max_hops=8"
-        )
+        r8 = unit_client.get("/api/graph/shortest?a=HDFC%20Bank&b=ICICI%20Bank&max_hops=8")
         assert r8.status_code != 400
 
 
 # ----- _normalise_as_of + as_of validation (pure unit, runs in QA) -------- #
 
+
 class TestAsOfNormaliser:
     def test_year_only(self):
         from helpers.graph.query import _normalise_as_of
+
         assert _normalise_as_of("2023") == "2023-01-01"
 
     def test_year_month(self):
         from helpers.graph.query import _normalise_as_of
+
         assert _normalise_as_of("2023-06") == "2023-06-01"
 
     def test_full_date(self):
         from helpers.graph.query import _normalise_as_of
+
         assert _normalise_as_of("2023-06-15") == "2023-06-15"
 
     def test_none_and_empty(self):
         from helpers.graph.query import _normalise_as_of
+
         assert _normalise_as_of(None) is None
         assert _normalise_as_of("") is None
         assert _normalise_as_of("   ") is None
 
     def test_bad_shape_raises(self):
         from helpers.graph.query import _normalise_as_of
+
         for bad in ["banana", "202", "20230", "2023-6", "2023-06-1", "abcd-06-15"]:
             with pytest.raises(ValueError):
                 _normalise_as_of(bad)
 
     def test_predicate_empty_when_no_as_of(self):
         from helpers.graph.query import _as_of_predicate
+
         assert _as_of_predicate(None) == ""
         assert _as_of_predicate("") == ""
 
     def test_predicate_contains_iso(self):
         from helpers.graph.query import _as_of_predicate
+
         pred = _as_of_predicate("2023")
         assert "2023-01-01" in pred
         assert "valid_from IS NULL" in pred
@@ -785,6 +793,7 @@ class TestAsOfNormaliser:
 
 
 # ----- /api/graph/refresh ------------------------------------------------- #
+
 
 class TestGraphRefresh:
     def test_refresh_resets_cached_connection(self, unit_client, monkeypatch):
@@ -842,6 +851,7 @@ class TestGraphRefresh:
 
 
 # ----- lazy-init guard ---------------------------------------------------- #
+
 
 class TestGraphConnectionGuard:
     def test_failure_cached_within_ttl(self, unit_client, monkeypatch):
@@ -906,6 +916,7 @@ class TestGraphConnectionGuard:
 
 # ----- thread-safety (A4) ------------------------------------------------- #
 
+
 class TestGraphConnectionThreadSafety:
     """A4: _graph_lock serializes init/reset of _graph_con so two Flask worker
     threads can't both call connect() or race a refresh's null against a
@@ -945,28 +956,31 @@ class TestGraphConnectionThreadSafety:
 
         assert not errors, f"workers raised: {errors}"
         assert calls["n"] == 1, "connect() must be called exactly once under contention"
-        assert all(r is results[0] for r in results), \
-            "all threads must share the single connection"
-
-
+        assert all(r is results[0] for r in results), "all threads must share the single connection"
 
 
 # ----- /api/graph/cloud (whole-graph force cloud) --------------------------- #
+
 
 class TestGraphCloud:
     def test_cloud_response_shape(self, unit_client):
         r = unit_client.get("/api/graph/cloud")
         assert r.status_code == 200
         data = r.get_json()
-        assert set(data) == {"nodes", "edges", "relationship_types",
-                             "total_nodes", "total_edges"}
+        assert set(data) == {"nodes", "edges", "relationship_types", "total_nodes", "total_edges"}
         # Seed: 6 entities, 7 edges (all entity pairs covered).
         assert data["total_edges"] == len(_UNIT_EDGES)
         # Every edge endpoint is present as a node; no duplicates.
         node_ids = [n["id"] for n in data["nodes"]]
         assert len(node_ids) == len(set(node_ids))
-        assert set(node_ids) == {"HDFC Bank", "ICICI Bank", "Infosys",
-                                 "No Ticker Co", "Banking", "Technology"}
+        assert set(node_ids) == {
+            "HDFC Bank",
+            "ICICI Bank",
+            "Infosys",
+            "No Ticker Co",
+            "Banking",
+            "Technology",
+        }
         # Nodes carry entity_type for colouring.
         by_id = {n["id"]: n for n in data["nodes"]}
         assert by_id["HDFC Bank"]["entity_type"] == "company"
@@ -974,8 +988,7 @@ class TestGraphCloud:
 
     def test_cloud_edges_match_seed(self, unit_client):
         data = unit_client.get("/api/graph/cloud").get_json()
-        edge_tuples = {(e["source"], e["target"], e["edge_type"])
-                       for e in data["edges"]}
+        edge_tuples = {(e["source"], e["target"], e["edge_type"]) for e in data["edges"]}
         assert edge_tuples == {(s, t, et) for s, t, et, _ in _UNIT_EDGES}
 
     def test_cloud_relationship_types_summary(self, unit_client):
@@ -1004,8 +1017,8 @@ class TestGraphCloud:
         assert data["nodes"] == []
         assert data["edges"] == []
         # Summary card still reflects the whole corpus.
-        assert {t["edge_type"] for t in data["relationship_types"]} == \
-            {e[2] for e in _UNIT_EDGES}
+        assert {t["edge_type"] for t in data["relationship_types"]} == {e[2] for e in _UNIT_EDGES}
+
     def test_cloud_unknown_entity_type_defaults_to_unknown(self, unit_client):
         """Nodes with no entities row still render (colour = 'unknown')."""
         data = unit_client.get("/api/graph/cloud").get_json()
@@ -1013,6 +1026,7 @@ class TestGraphCloud:
 
 
 # ----- /api/graph/cloud: unknown semantics fallback ------------------------ #
+
 
 class TestGraphCloudEdgeSemantics:
     def test_custom_edge_type_gets_default_semantics(self, tmp_path):
@@ -1024,8 +1038,7 @@ class TestGraphCloudEdgeSemantics:
         with seeded_graph_sqlite_db(tmp_path) as c:
             conn = sqlite3.connect(str(tmp_path / "unit_graph.db"))
             conn.execute(
-                "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
-                "VALUES (?,?,?,?)",
+                "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
                 ("HDFC Bank", "Infosys", "custom_link", "test"),
             )
             conn.commit()
@@ -1037,6 +1050,7 @@ class TestGraphCloudEdgeSemantics:
 
 
 # ----- /api/graph/near-duplicates (graph_docs_ui_redesign S1) -------------- #
+
 
 class TestGraphNearDuplicates:
     """GET /api/graph/near-duplicates — read-only GET over
@@ -1050,22 +1064,25 @@ class TestGraphNearDuplicates:
 
         def fake_pairs(con, min_sim=0.9, doc_type="company", limit=100):
             seen.update(min_sim=min_sim, doc_type=doc_type, limit=limit)
-            return [("findata/Companies/A.md", "findata/Companies/B.md",
-                     "A", "B", 0.942)]
+            return [("findata/Companies/A.md", "findata/Companies/B.md", "A", "B", 0.942)]
 
         monkeypatch.setattr(q, "near_duplicate_notes", fake_pairs)
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
 
-        r = unit_client.get(
-            "/api/graph/near-duplicates?min_sim=0.92&limit=50")
+        r = unit_client.get("/api/graph/near-duplicates?min_sim=0.92&limit=50")
         assert r.status_code == 200
         data = r.get_json()
         assert data["min_sim"] == 0.92
         assert data["doc_type"] == "company"  # default applied
         assert data["pairs"] == [
-            {"path_a": "findata/Companies/A.md",
-             "path_b": "findata/Companies/B.md",
-             "title_a": "A", "title_b": "B", "similarity": 0.942}]
+            {
+                "path_a": "findata/Companies/A.md",
+                "path_b": "findata/Companies/B.md",
+                "title_a": "A",
+                "title_b": "B",
+                "similarity": 0.942,
+            }
+        ]
         assert seen["limit"] == 50
 
     def test_near_duplicates_doc_type_passthrough(self, unit_client, monkeypatch):
@@ -1073,9 +1090,12 @@ class TestGraphNearDuplicates:
 
         seen = {}
         monkeypatch.setattr(
-            q, "near_duplicate_notes",
-            lambda con, min_sim=0.9, doc_type="company", limit=100:
-                seen.update(doc_type=doc_type) or [])
+            q,
+            "near_duplicate_notes",
+            lambda con, min_sim=0.9, doc_type="company", limit=100: (
+                seen.update(doc_type=doc_type) or []
+            ),
+        )
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
 
         r = unit_client.get("/api/graph/near-duplicates?doc_type=chatter")
@@ -1111,6 +1131,7 @@ class TestGraphNearDuplicates:
 
 # ----- /api/graph/suggestions (graph_docs_ui_redesign S1) ------------------ #
 
+
 class TestGraphSuggestions:
     """GET /api/graph/suggestions — read-only projection over
     helpers.graph.suggest_relations. The sidecar append
@@ -1127,35 +1148,41 @@ class TestGraphSuggestions:
             source, target = "CEAT", "Apollo Tyres"
             score, method, edition = 0.61, "jaccard", "link-prediction/jaccard/x"
 
-        def fake_suggest(con, *, method="jaccard", top=25,
-                         min_score=0.3, companies_only=True,
-                         existing_pairs=None):
-            seen.update(method=method, top=top, min_score=min_score,
-                        companies_only=companies_only)
+        def fake_suggest(
+            con,
+            *,
+            method="jaccard",
+            top=25,
+            min_score=0.3,
+            companies_only=True,
+            existing_pairs=None,
+        ):
+            seen.update(method=method, top=top, min_score=min_score, companies_only=companies_only)
             return [FakeSuggestion()]
 
         monkeypatch.setattr(sr, "suggest_relations", fake_suggest)
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
 
-        r = unit_client.get(
-            "/api/graph/suggestions?top=5&min_score=0.4&method=adamic-adar")
+        r = unit_client.get("/api/graph/suggestions?top=5&min_score=0.4&method=adamic-adar")
         assert r.status_code == 200
         data = r.get_json()
         assert data["method"] == "adamic-adar"
         assert data["top"] == 5
-        assert data["suggestions"] == [{
-            "source": "CEAT", "target": "Apollo Tyres",
-            "score": 0.61, "edition": "link-prediction/jaccard/x"}]
-        assert seen == {"method": "adamic-adar", "top": 5,
-                        "min_score": 0.4, "companies_only": True}
+        assert data["suggestions"] == [
+            {
+                "source": "CEAT",
+                "target": "Apollo Tyres",
+                "score": 0.61,
+                "edition": "link-prediction/jaccard/x",
+            }
+        ]
+        assert seen == {"method": "adamic-adar", "top": 5, "min_score": 0.4, "companies_only": True}
 
     def test_suggestions_companies_only_off(self, unit_client, monkeypatch):
         import helpers.graph.suggest_relations as sr
 
         seen = {}
-        monkeypatch.setattr(
-            sr, "suggest_relations",
-            lambda con, **kw: seen.update(kw) or [])
+        monkeypatch.setattr(sr, "suggest_relations", lambda con, **kw: seen.update(kw) or [])
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
 
         r = unit_client.get("/api/graph/suggestions?companies_only=0")
@@ -1170,11 +1197,11 @@ class TestGraphSuggestions:
     def test_suggestions_bad_top_or_score_returns_400(self, unit_client):
         assert unit_client.get("/api/graph/suggestions?top=0").status_code == 400
         assert unit_client.get("/api/graph/suggestions?top=101").status_code == 400
-        assert unit_client.get(
-            "/api/graph/suggestions?min_score=2").status_code == 400
+        assert unit_client.get("/api/graph/suggestions?min_score=2").status_code == 400
 
 
 # ----- /api/analytics/<name> (graph_docs_ui_redesign S1) ------------------- #
+
 
 class TestAnalyticsReportEndpoint:
     """GET /api/analytics/<name> — read-only wrap of analytics.fetch over
@@ -1184,12 +1211,12 @@ class TestAnalyticsReportEndpoint:
         import helpers.graph.analytics as an
 
         from helpers.graph.analytics import Report
+
         captured = {}
 
         def fake_fetch(name, root=None):
             captured["name"] = name
-            return Report(title="T", headers=["a", "b"],
-                          rows=[["1", "2"]], note="n")
+            return Report(title="T", headers=["a", "b"], rows=[["1", "2"]], note="n")
 
         monkeypatch.setattr(an, "fetch", fake_fetch)
 
@@ -1197,23 +1224,29 @@ class TestAnalyticsReportEndpoint:
         assert r.status_code == 200
         data = r.get_json()
         assert captured["name"] == "top-entities"
-        assert data == {"title": "T", "headers": ["a", "b"],
-                        "rows": [["1", "2"]], "note": "n"}
+        assert data == {"title": "T", "headers": ["a", "b"], "rows": [["1", "2"]], "note": "n"}
 
     def test_analytics_composite_temporal_shape(self, unit_client, monkeypatch):
         import helpers.graph.analytics as an
 
         from helpers.graph.analytics import Report
-        two = [Report(title="T1", headers=["a"], rows=[["1"]], note="n1"),
-               Report(title="T2", headers=["b"], rows=[["2"]], note="n2")]
+
+        two = [
+            Report(title="T1", headers=["a"], rows=[["1"]], note="n1"),
+            Report(title="T2", headers=["b"], rows=[["2"]], note="n2"),
+        ]
         monkeypatch.setattr(an, "fetch", lambda name, root=None: two)
 
         r = unit_client.get("/api/analytics/temporal")
         assert r.status_code == 200
         data = r.get_json()
         assert data["titles"] == ["T1", "T2"]
-        assert data["reports"][1] == {"title": "T2", "headers": ["b"],
-                                      "rows": [["2"]], "note": "n2"}
+        assert data["reports"][1] == {
+            "title": "T2",
+            "headers": ["b"],
+            "rows": [["2"]],
+            "note": "n2",
+        }
         # composite response carries ONLY the composite shape (no flat keys)
         assert set(data) == {"titles", "reports"}
 

@@ -8,6 +8,7 @@ real `_cli` over a tmp vault+DB — both arms in one run (edge promotion +
 prose guidance), dry-run/apply parity, DELETE-then-INSERT idempotence,
 and the FK-safety contract (every event's entity must exist).
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -30,8 +31,10 @@ pytestmark = [pytest.mark.integration]
 _HDFC = "HDFC Bank"
 _ICICI = "ICICI Bank"
 
-_GUIDANCE = ("- **FY27 guidance reiterated (10-12%):** management expects "
-             "revenue growth at the lower end of the range.")
+_GUIDANCE = (
+    "- **FY27 guidance reiterated (10-12%):** management expects "
+    "revenue growth at the lower end of the range."
+)
 
 
 def _note(title: str) -> str:
@@ -63,34 +66,42 @@ class _EventsProject:
         dst = sqlite3.connect(str(self.db))
         src.backup(dst)
         src.close()
-        for t in ("graph_edges", "entity_tags", "graph_analytics", "events",
-                  "quotes", "company_metrics", "company_embeddings",
-                  "note_search", "note_search_meta"):
+        for t in (
+            "graph_edges",
+            "entity_tags",
+            "graph_analytics",
+            "events",
+            "quotes",
+            "company_metrics",
+            "company_embeddings",
+            "note_search",
+            "note_search_meta",
+        ):
             dst.execute(f"DELETE FROM {t}")  # noqa: S608  # schema-constant identifiers
         dst.execute("DELETE FROM entities")
         dst.executemany(
-            "INSERT INTO entities (name, entity_type, file_path) "
-            "VALUES (?, 'company', ?)",
-            [(_HDFC, "findata/Companies/Banking/Hdfc_Bank.md"),
-             (_ICICI, "findata/Companies/Banking/ICICI_Bank.md")])
+            "INSERT INTO entities (name, entity_type, file_path) VALUES (?, 'company', ?)",
+            [
+                (_HDFC, "findata/Companies/Banking/Hdfc_Bank.md"),
+                (_ICICI, "findata/Companies/Banking/ICICI_Bank.md"),
+            ],
+        )
         # Promotion arm: one dated acquired edge with a stake property.
         dst.execute(
             "INSERT INTO graph_edges (source, target, edge_type, valid_from, "
             "source_ref, properties) VALUES (?, ?, 'acquired', "
             "'2026-03-15', 'extract_relations', ?)",
-            (_HDFC, _ICICI, '{"stake": "51%"}'))
+            (_HDFC, _ICICI, '{"stake": "51%"}'),
+        )
         dst.commit()
         dst.close()
-        (self.companies / "Hdfc_Bank.md").write_text(
-            _note(_HDFC), encoding="utf-8")
-        (self.companies / "ICICI_Bank.md").write_text(
-            _note(_ICICI), encoding="utf-8")
+        (self.companies / "Hdfc_Bank.md").write_text(_note(_HDFC), encoding="utf-8")
+        (self.companies / "ICICI_Bank.md").write_text(_note(_ICICI), encoding="utf-8")
 
     def run(self, monkeypatch, *args: str) -> tuple[int, str]:
         monkeypatch.setattr(de, "COMPANIES_DIR", self.companies)
         monkeypatch.setattr(de, "_REPO_ROOT", self.root)
-        monkeypatch.setattr(de, "connect",
-                            lambda *a, **k: db_connect(str(self.db)))
+        monkeypatch.setattr(de, "connect", lambda *a, **k: db_connect(str(self.db)))
         err = StringIO()
         with redirect_stderr(err):
             rc = de._cli(list(args))
@@ -149,17 +160,13 @@ class TestDeriveEventsCli:
         churning events.parquet on every maint-full)."""
         assert events_project.run(monkeypatch, "--apply")[0] == 0
         con = sqlite3.connect(str(events_project.db))
-        before = con.execute(
-            "SELECT id, created_at FROM events ORDER BY id"
-        ).fetchall()
+        before = con.execute("SELECT id, created_at FROM events ORDER BY id").fetchall()
         con.close()
 
         assert events_project.run(monkeypatch, "--apply")[0] == 0
 
         con = sqlite3.connect(str(events_project.db))
-        after = con.execute(
-            "SELECT id, created_at FROM events ORDER BY id"
-        ).fetchall()
+        after = con.execute("SELECT id, created_at FROM events ORDER BY id").fetchall()
         con.close()
         assert after == before
 
@@ -170,11 +177,13 @@ class TestDeriveEventsCli:
         con = sqlite3.connect(str(events_project.db))
         con.execute(
             "INSERT INTO events (entity, event_type, source_ref) "
-            "VALUES (?, 'guidance', 'derive:events:stale-arm')", (_HDFC,)
+            "VALUES (?, 'guidance', 'derive:events:stale-arm')",
+            (_HDFC,),
         )
         con.execute(
             "INSERT INTO events (entity, event_type, source_ref) "
-            "VALUES (?, 'guidance', 'manual:hand-seeded')", (_HDFC,)
+            "VALUES (?, 'guidance', 'manual:hand-seeded')",
+            (_HDFC,),
         )
         con.commit()
         con.close()
@@ -182,9 +191,7 @@ class TestDeriveEventsCli:
         assert events_project.run(monkeypatch, "--apply")[0] == 0
 
         con = sqlite3.connect(str(events_project.db))
-        refs = [r[0] for r in con.execute(
-            "SELECT source_ref FROM events"
-        ).fetchall()]
+        refs = [r[0] for r in con.execute("SELECT source_ref FROM events").fetchall()]
         con.close()
         assert "derive:events:stale-arm" not in refs
         assert "manual:hand-seeded" in refs

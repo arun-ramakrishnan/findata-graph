@@ -19,6 +19,7 @@ EVERY connection is read-only (connect(..., read_only=True)); the vec case
 is pre-gated with lazy_backfill=False so it can never write. Onager temp
 tables are CREATE OR REPLACE TEMP — session-local, idempotent.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -49,6 +50,7 @@ def graph_con():
     global _gcon
     if _gcon is None:
         from helpers.graph import query as gq
+
         _gcon = gq.connect(read_only=True)
         _gcon.execute("LOAD onager;")
     return _gcon
@@ -60,6 +62,7 @@ def _connect_ro(db: pathlib.Path) -> sqlite3.Connection:
     Mojo side mirrors Python's tuple repr byte-for-byte — the sqlite3.Row
     default would change every checksum and break parity."""
     from helpers.core.db import connect
+
     return connect(db, read_only=True, row_factory=None)
 
 
@@ -89,8 +92,9 @@ def script_con() -> sqlite3.Connection:
 
 
 def conn_for(kind: str):
-    return {"graph": graph_con, "research": research_con,
-            "doc": doc_con, "script": script_con}[kind]()
+    return {"graph": graph_con, "research": research_con, "doc": doc_con, "script": script_con}[
+        kind
+    ]()
 
 
 # --------------------------------------------------------------------------- #
@@ -106,6 +110,7 @@ def conn_for(kind: str):
 def _mat_pair(edge_types):
     """(int_sql, e_sql) composed exactly like onager._materialize_from_db."""
     from helpers.graph import onager as _on
+
     where = _on._where_inline(edge_types)
     t = _on._EDGE_TABLE
     int_sql = f"""
@@ -132,10 +137,12 @@ def _mat_pair(edge_types):
 def _tf_named_sql(fn: str, col: str) -> str:
     """_onager_named's template (+ ORDER BY name for a stable checksum;
     the un-ordered original shape is covered by the function cases)."""
-    return (f"SELECT i.name, out.{col} "  # noqa: S608  # fn/col are caller-passed literals from the closed onager table-function set
-            f"FROM {fn}((SELECT src, dst, weight FROM _onager_e)) out "
-            f"JOIN _onager_int i ON i.nid = out.node_id "
-            f"ORDER BY i.name")
+    return (
+        f"SELECT i.name, out.{col} "  # noqa: S608  # fn/col are caller-passed literals from the closed onager table-function set
+        f"FROM {fn}((SELECT src, dst, weight FROM _onager_e)) out "
+        f"JOIN _onager_int i ON i.nid = out.node_id "
+        f"ORDER BY i.name"
+    )
 
 
 _BT = ["belongs_to"]  # the CLI's default BelongsTo edge label
@@ -183,104 +190,266 @@ _SNIP_NOTE = "snippet(note_search, 4, '<mark>', '</mark>', '…', 12)"
 
 def _doc_expr() -> str:
     from helpers.maintenance.rebuild_doc_search import fts_match_expr
+
     return fts_match_expr("why did we not adopt langgraph")
 
 
 def _script_expr() -> str:
     from helpers.maintenance.rebuild_doc_search import fts_match_expr
+
     return fts_match_expr("integrity")
 
 
 SQL_CASES: list[dict] = [
-    dict(name="ext_inventory", group="graph", conn="graph", reps=5, fetch=True,
-         sql=("SELECT extension_name, loaded, installed FROM duckdb_extensions() "
-              "WHERE extension_name IN ('onager','sqlite_scanner','vss') "
-              "ORDER BY extension_name"), params=[]),
-    dict(name="edge_counts", group="graph", conn="graph", reps=20, fetch=True,
-         sql=("SELECT edge_type, COUNT(*) FROM fin.graph_edges "
-              "GROUP BY edge_type ORDER BY edge_type"), params=[]),
-    dict(name="node_counts", group="graph", conn="graph", reps=20, fetch=True,
-         sql=("SELECT kind, COUNT(*) FROM v_node "
-              "GROUP BY kind ORDER BY kind"), params=[]),
-    dict(name="build_meta", group="graph", conn="graph", reps=5, fetch=True,
-         sql="SELECT key, value FROM _build_meta ORDER BY key", params=[]),
-
-    dict(name="mat_bt_int", group="onager", conn="graph", reps=1, fetch=False,
-         sql=_MAT_BT[0], params=[]),
-    dict(name="mat_bt_e", group="onager", conn="graph", reps=1, fetch=False,
-         sql=_MAT_BT[1], params=[]),
-    dict(name="tf_pagerank", group="onager", conn="graph", reps=3, fetch=True,
-         sql=_tf_named_sql("onager_ctr_pagerank", "rank"), params=[]),
-    dict(name="tf_components", group="onager", conn="graph", reps=3, fetch=True,
-         sql=_tf_named_sql("onager_par_components", "component"), params=[]),
-    dict(name="tf_louvain", group="onager", conn="graph", reps=3, fetch=True,
-         sql=_LOUVAIN_SQL, params=[]),
-    dict(name="mat_all_int", group="onager", conn="graph", reps=1, fetch=False,
-         sql=_MAT_ALL[0], params=[]),
-    dict(name="mat_all_e", group="onager", conn="graph", reps=1, fetch=False,
-         sql=_MAT_ALL[1], params=[]),
-    dict(name="tf_voterank", group="onager", conn="graph", reps=3, fetch=True,
-         # NO ORDER BY: VoteRank's row order IS the ranking (do NOT re-sort)
-         sql=_VOTERANK_SQL, params=[]),
-    dict(name="mat_pred_int", group="onager", conn="graph", reps=1, fetch=False,
-         sql=_MAT_PRED[0], params=[]),
-    dict(name="mat_pred_e", group="onager", conn="graph", reps=1, fetch=False,
-         sql=_MAT_PRED[1], params=[]),
-    dict(name="tf_jaccard", group="onager", conn="graph", reps=3, fetch=True,
-         sql=_JACCARD_SQL, params=[]),
-
-    dict(name="fts_note_rank_snippet", group="fts", conn="research", reps=20,
-         fetch=True,
-         sql=(f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
-              "FROM note_search WHERE note_search MATCH ? "
-              "ORDER BY rank LIMIT ? OFFSET ?"),
-         params=["shrimp feed", 20, 0]),
-    dict(name="fts_note_typed", group="fts", conn="research", reps=20,
-         fetch=True,
-         sql=(f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
-              "FROM note_search WHERE note_search MATCH ? AND doc_type = ? "
-              "ORDER BY rank LIMIT ? OFFSET ?"),
-         params=["shrimp feed", "company", 20, 0]),
-    dict(name="fts_note_hybrid", group="fts", conn="research", reps=20,
-         fetch=True,
-         sql=(f"SELECT doc_type, file_path, title, sector, embedding, rank, "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
-              f"{_SNIP_NOTE} "
-              "FROM note_search WHERE note_search MATCH ? "
-              "ORDER BY rank LIMIT ? OFFSET ?"),
-         params=["shrimp feed", 20, 0]),
-    dict(name="fts_note_count", group="fts", conn="research", reps=20,
-         fetch=True,
-         sql="SELECT COUNT(*) FROM note_search WHERE note_search MATCH ?",
-         params=["shrimp feed"]),
-    dict(name="fts_note_boolean_prefix", group="fts", conn="research", reps=20,
-         fetch=True,
-         sql=(f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
-              "FROM note_search WHERE note_search MATCH ? "
-              "ORDER BY rank LIMIT ? OFFSET ?"),
-         params=["shrimp* OR feed*", 20, 0]),
-    dict(name="fts_doc_bm25", group="fts", conn="doc", reps=20, fetch=True,
-         sql=("SELECT rowid, title, section_title, file_path, anchor, "
-              "embedding, rank, "
-              "snippet(doc_search, 4, '<mark>', '</mark>', ' … ', 16) AS snip "
-              "FROM doc_search WHERE doc_search MATCH ? "
-              "ORDER BY bm25(doc_search, 2.0, 2.0, 0.0, 0.0, 1.0, 0.0) "
-              "LIMIT ?"),
-         params=[_doc_expr(), 25]),
-    dict(name="fts_script_bm25", group="fts", conn="script", reps=20,
-         fetch=True,
-         sql=("SELECT rowid, title, kind, rel_path, area, purpose, "
-              "embedding, rank, "
-              "snippet(script_search, 5, '<mark>', '</mark>', ' … ', 16) "
-              "AS snip FROM script_search WHERE script_search MATCH ? "
-              "AND kind = ? "
-              "ORDER BY bm25(script_search, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0) "
-              "LIMIT ?"),
-         params=[_script_expr(), "test", 25]),
-    dict(name="fts_doc_embed_scan", group="fts", conn="doc", reps=3,
-         fetch=True,
-         sql=("SELECT rowid, embedding FROM doc_search "
-              "WHERE embedding IS NOT NULL AND embedding != ''"),
-         params=[]),
+    dict(
+        name="ext_inventory",
+        group="graph",
+        conn="graph",
+        reps=5,
+        fetch=True,
+        sql=(
+            "SELECT extension_name, loaded, installed FROM duckdb_extensions() "
+            "WHERE extension_name IN ('onager','sqlite_scanner','vss') "
+            "ORDER BY extension_name"
+        ),
+        params=[],
+    ),
+    dict(
+        name="edge_counts",
+        group="graph",
+        conn="graph",
+        reps=20,
+        fetch=True,
+        sql=(
+            "SELECT edge_type, COUNT(*) FROM fin.graph_edges GROUP BY edge_type ORDER BY edge_type"
+        ),
+        params=[],
+    ),
+    dict(
+        name="node_counts",
+        group="graph",
+        conn="graph",
+        reps=20,
+        fetch=True,
+        sql=("SELECT kind, COUNT(*) FROM v_node GROUP BY kind ORDER BY kind"),
+        params=[],
+    ),
+    dict(
+        name="build_meta",
+        group="graph",
+        conn="graph",
+        reps=5,
+        fetch=True,
+        sql="SELECT key, value FROM _build_meta ORDER BY key",
+        params=[],
+    ),
+    dict(
+        name="mat_bt_int",
+        group="onager",
+        conn="graph",
+        reps=1,
+        fetch=False,
+        sql=_MAT_BT[0],
+        params=[],
+    ),
+    dict(
+        name="mat_bt_e",
+        group="onager",
+        conn="graph",
+        reps=1,
+        fetch=False,
+        sql=_MAT_BT[1],
+        params=[],
+    ),
+    dict(
+        name="tf_pagerank",
+        group="onager",
+        conn="graph",
+        reps=3,
+        fetch=True,
+        sql=_tf_named_sql("onager_ctr_pagerank", "rank"),
+        params=[],
+    ),
+    dict(
+        name="tf_components",
+        group="onager",
+        conn="graph",
+        reps=3,
+        fetch=True,
+        sql=_tf_named_sql("onager_par_components", "component"),
+        params=[],
+    ),
+    dict(
+        name="tf_louvain",
+        group="onager",
+        conn="graph",
+        reps=3,
+        fetch=True,
+        sql=_LOUVAIN_SQL,
+        params=[],
+    ),
+    dict(
+        name="mat_all_int",
+        group="onager",
+        conn="graph",
+        reps=1,
+        fetch=False,
+        sql=_MAT_ALL[0],
+        params=[],
+    ),
+    dict(
+        name="mat_all_e",
+        group="onager",
+        conn="graph",
+        reps=1,
+        fetch=False,
+        sql=_MAT_ALL[1],
+        params=[],
+    ),
+    dict(
+        name="tf_voterank",
+        group="onager",
+        conn="graph",
+        reps=3,
+        fetch=True,
+        # NO ORDER BY: VoteRank's row order IS the ranking (do NOT re-sort)
+        sql=_VOTERANK_SQL,
+        params=[],
+    ),
+    dict(
+        name="mat_pred_int",
+        group="onager",
+        conn="graph",
+        reps=1,
+        fetch=False,
+        sql=_MAT_PRED[0],
+        params=[],
+    ),
+    dict(
+        name="mat_pred_e",
+        group="onager",
+        conn="graph",
+        reps=1,
+        fetch=False,
+        sql=_MAT_PRED[1],
+        params=[],
+    ),
+    dict(
+        name="tf_jaccard",
+        group="onager",
+        conn="graph",
+        reps=3,
+        fetch=True,
+        sql=_JACCARD_SQL,
+        params=[],
+    ),
+    dict(
+        name="fts_note_rank_snippet",
+        group="fts",
+        conn="research",
+        reps=20,
+        fetch=True,
+        sql=(
+            f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
+            "FROM note_search WHERE note_search MATCH ? "
+            "ORDER BY rank LIMIT ? OFFSET ?"
+        ),
+        params=["shrimp feed", 20, 0],
+    ),
+    dict(
+        name="fts_note_typed",
+        group="fts",
+        conn="research",
+        reps=20,
+        fetch=True,
+        sql=(
+            f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
+            "FROM note_search WHERE note_search MATCH ? AND doc_type = ? "
+            "ORDER BY rank LIMIT ? OFFSET ?"
+        ),
+        params=["shrimp feed", "company", 20, 0],
+    ),
+    dict(
+        name="fts_note_hybrid",
+        group="fts",
+        conn="research",
+        reps=20,
+        fetch=True,
+        sql=(
+            f"SELECT doc_type, file_path, title, sector, embedding, rank, "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
+            f"{_SNIP_NOTE} "
+            "FROM note_search WHERE note_search MATCH ? "
+            "ORDER BY rank LIMIT ? OFFSET ?"
+        ),
+        params=["shrimp feed", 20, 0],
+    ),
+    dict(
+        name="fts_note_count",
+        group="fts",
+        conn="research",
+        reps=20,
+        fetch=True,
+        sql="SELECT COUNT(*) FROM note_search WHERE note_search MATCH ?",
+        params=["shrimp feed"],
+    ),
+    dict(
+        name="fts_note_boolean_prefix",
+        group="fts",
+        conn="research",
+        reps=20,
+        fetch=True,
+        sql=(
+            f"SELECT doc_type, file_path, title, sector, {_SNIP_NOTE} "  # noqa: S608  # _SNIP_NOTE is a module constant; values ride ?-params
+            "FROM note_search WHERE note_search MATCH ? "
+            "ORDER BY rank LIMIT ? OFFSET ?"
+        ),
+        params=["shrimp* OR feed*", 20, 0],
+    ),
+    dict(
+        name="fts_doc_bm25",
+        group="fts",
+        conn="doc",
+        reps=20,
+        fetch=True,
+        sql=(
+            "SELECT rowid, title, section_title, file_path, anchor, "
+            "embedding, rank, "
+            "snippet(doc_search, 4, '<mark>', '</mark>', ' … ', 16) AS snip "
+            "FROM doc_search WHERE doc_search MATCH ? "
+            "ORDER BY bm25(doc_search, 2.0, 2.0, 0.0, 0.0, 1.0, 0.0) "
+            "LIMIT ?"
+        ),
+        params=[_doc_expr(), 25],
+    ),
+    dict(
+        name="fts_script_bm25",
+        group="fts",
+        conn="script",
+        reps=20,
+        fetch=True,
+        sql=(
+            "SELECT rowid, title, kind, rel_path, area, purpose, "
+            "embedding, rank, "
+            "snippet(script_search, 5, '<mark>', '</mark>', ' … ', 16) "
+            "AS snip FROM script_search WHERE script_search MATCH ? "
+            "AND kind = ? "
+            "ORDER BY bm25(script_search, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0) "
+            "LIMIT ?"
+        ),
+        params=[_script_expr(), "test", 25],
+    ),
+    dict(
+        name="fts_doc_embed_scan",
+        group="fts",
+        conn="doc",
+        reps=3,
+        fetch=True,
+        sql=(
+            "SELECT rowid, embedding FROM doc_search "
+            "WHERE embedding IS NOT NULL AND embedding != ''"
+        ),
+        params=[],
+    ),
 ]
 
 
@@ -350,18 +519,14 @@ def _metric_fns():
         "katz_centrality": ("float_dict", _c("katz_centrality")),
         "laplacian_centrality": ("float_dict", _c("laplacian_centrality")),
         "local_reaching_centrality": ("float_dict", _c("local_reaching_centrality")),
-        "local_clustering_coefficient": (
-            "float_dict", _c("local_clustering_coefficient")),
-        "weakly_connected_component": (
-            "partition", _c("weakly_connected_component")),
+        "local_clustering_coefficient": ("float_dict", _c("local_clustering_coefficient")),
+        "weakly_connected_component": ("partition", _c("weakly_connected_component")),
         "louvain_community": ("int_dict", _c("louvain_community")),
-        "link_prediction": (
-            "pair_list", lambda: alg.link_prediction(graph_con())),
+        "link_prediction": ("pair_list", lambda: alg.link_prediction(graph_con())),
         "voterank": ("name_list", lambda: alg.voterank_seeds(graph_con())),
         # direct onager call (not the cached query.py wrapper) so the
         # Mojo-side timing is not flattered by the result cache
-        "graph_metrics": (
-            "scalars", lambda: _on.onager_graph_metrics(graph_con())),
+        "graph_metrics": ("scalars", lambda: _on.onager_graph_metrics(graph_con())),
         "vec0_knn": ("float_dict", vec_knn),
     }
 
@@ -401,7 +566,8 @@ def vec_knn():
     row = conn.execute(
         "SELECT embedding FROM note_search "
         "WHERE embedding IS NOT NULL AND embedding != '' "
-        "ORDER BY file_path LIMIT 1").fetchone()
+        "ORDER BY file_path LIMIT 1"
+    ).fetchone()
     if row is None:
         return None
     return vs.knn_similarities(conn, _json.loads(row[0]), None, VEC_DIMS)
@@ -437,20 +603,17 @@ def canonical(kind: str, result) -> str:
     if result is None:
         return "__SKIP__"
     if kind == "float_dict":
-        return ",".join(f"{k}:{fmt_float(v)}"
-                        for k, v in sorted(result.items()))
+        return ",".join(f"{k}:{fmt_float(v)}" for k, v in sorted(result.items()))
     if kind == "int_dict":
         return ",".join(f"{k}:{int(v)}" for k, v in sorted(result.items()))
     if kind == "partition":
         return _canon_partition(result)
     if kind == "pair_list":
-        return ",".join(sorted(f"{a}|{b}|{fmt_float(s)}"
-                               for a, b, s in result))
+        return ",".join(sorted(f"{a}|{b}|{fmt_float(s)}" for a, b, s in result))
     if kind == "name_list":
         return ">".join(str(n) for n in result)
     if kind == "scalars":
-        return ",".join(f"{k}:{canon_scalar(v)}"
-                        for k, v in sorted(result.items()))
+        return ",".join(f"{k}:{canon_scalar(v)}" for k, v in sorted(result.items()))
     raise ValueError(f"unknown canonical kind {kind!r}")
 
 
@@ -475,12 +638,9 @@ def native_metric(name: str):
 # --------------------------------------------------------------------------- #
 def table_counts() -> dict[str, int]:
     return {
-        "note_search": research_con().execute(
-            "SELECT COUNT(*) FROM note_search").fetchone()[0],
-        "doc_search": doc_con().execute(
-            "SELECT COUNT(*) FROM doc_search").fetchone()[0],
-        "script_search": script_con().execute(
-            "SELECT COUNT(*) FROM script_search").fetchone()[0],
+        "note_search": research_con().execute("SELECT COUNT(*) FROM note_search").fetchone()[0],
+        "doc_search": doc_con().execute("SELECT COUNT(*) FROM doc_search").fetchone()[0],
+        "script_search": script_con().execute("SELECT COUNT(*) FROM script_search").fetchone()[0],
     }
 
 

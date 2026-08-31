@@ -17,6 +17,7 @@ on arbitrary input and maintain their core invariants:
 Runs alongside regular pytest in `make qa`. Hypothesis defaults to 100
 random examples per @given test; each completes in <1s.
 """
+
 from __future__ import annotations
 
 import sys
@@ -62,8 +63,16 @@ _valid_type_st = st.sampled_from(["company", "sector", "super_sector", "sub_sect
 # Valid tag format: namespace/value with lowercase alnum + underscore
 _tag_st = st.builds(
     lambda ns, val: f"{ns}/{val}",
-    st.text(alphabet=st.characters(whitelist_categories=("Ll", "Nd"), whitelist_characters="_"), min_size=1, max_size=20),
-    st.text(alphabet=st.characters(whitelist_categories=("Ll", "Nd"), whitelist_characters="_"), min_size=1, max_size=30),
+    st.text(
+        alphabet=st.characters(whitelist_categories=("Ll", "Nd"), whitelist_characters="_"),
+        min_size=1,
+        max_size=20,
+    ),
+    st.text(
+        alphabet=st.characters(whitelist_categories=("Ll", "Nd"), whitelist_characters="_"),
+        min_size=1,
+        max_size=30,
+    ),
 )
 
 # Lists of tags
@@ -73,6 +82,7 @@ _tags_list_st = st.lists(_tag_st, min_size=0, max_size=10, unique=True)
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def verifier(tmp_path):
@@ -84,7 +94,10 @@ def verifier(tmp_path):
 # Invariant 1: check_yaml_structure never raises on arbitrary input
 # ---------------------------------------------------------------------------
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None)
+
+@settings(
+    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None
+)
 @given(_content_st)
 def test_fuzz_check_yaml_structure_never_raises(verifier, content: str):
     """check_yaml_structure handles arbitrary markdown/YAML content without crashing."""
@@ -95,24 +108,37 @@ def test_fuzz_check_yaml_structure_never_raises(verifier, content: str):
     try:
         verifier.check_yaml_structure(str(test_file), content)
     except Exception as e:
-        pytest.fail(f"check_yaml_structure raised {type(e).__name__}: {e} on input: {content[:200]!r}")
+        pytest.fail(
+            f"check_yaml_structure raised {type(e).__name__}: {e} on input: {content[:200]!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Invariant 2: check_yaml_structure with synthetic valid YAML structure
 # ---------------------------------------------------------------------------
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None)
+
+@settings(
+    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None
+)
 @given(
     title=st.text(min_size=0, max_size=100),
     type_val=_valid_type_st,
     tags=_tags_list_st,
-    normalized_name=st.text(min_size=0, max_size=100).filter(lambda s: s == "" or (s[0].isalnum() and "__" not in s)),
+    normalized_name=st.text(min_size=0, max_size=100).filter(
+        lambda s: s == "" or (s[0].isalnum() and "__" not in s)
+    ),
     permalink=st.text(min_size=0, max_size=200),
     extra_content=_content_st,
 )
 def test_fuzz_check_yaml_structure_with_valid_frontmatter(
-    verifier, title: str, type_val: str, tags: list, normalized_name: str, permalink: str, extra_content: str
+    verifier,
+    title: str,
+    type_val: str,
+    tags: list,
+    normalized_name: str,
+    permalink: str,
+    extra_content: str,
 ):
     """check_yaml_structure handles valid YAML frontmatter structures correctly."""
     # Build YAML frontmatter
@@ -138,14 +164,19 @@ def test_fuzz_check_yaml_structure_with_valid_frontmatter(
     try:
         verifier.check_yaml_structure(str(test_file), content)
     except Exception as e:
-        pytest.fail(f"check_yaml_structure raised {type(e).__name__}: {e} on input: {content[:200]!r}")
+        pytest.fail(
+            f"check_yaml_structure raised {type(e).__name__}: {e} on input: {content[:200]!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Invariant 3: check_content_quality never raises on arbitrary input
 # ---------------------------------------------------------------------------
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None)
+
+@settings(
+    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None
+)
 @given(_content_st)
 def test_fuzz_check_content_quality_never_raises(verifier, content: str):
     """check_content_quality handles arbitrary markdown content without crashing."""
@@ -155,14 +186,19 @@ def test_fuzz_check_content_quality_never_raises(verifier, content: str):
     try:
         verifier.check_content_quality(str(test_file), content)
     except Exception as e:
-        pytest.fail(f"check_content_quality raised {type(e).__name__}: {e} on input: {content[:200]!r}")
+        pytest.fail(
+            f"check_content_quality raised {type(e).__name__}: {e} on input: {content[:200]!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Invariant 4: check_filename_format never raises
 # ---------------------------------------------------------------------------
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None)
+
+@settings(
+    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None
+)
 @given(st.text(min_size=0, max_size=200))
 def test_fuzz_check_filename_format_never_raises(verifier, filename: str):
     """check_filename_format handles arbitrary filename strings without crashing."""
@@ -179,7 +215,10 @@ def test_fuzz_check_filename_format_never_raises(verifier, filename: str):
 # Invariant 5: check_name_sync never raises
 # ---------------------------------------------------------------------------
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None)
+
+@settings(
+    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=200, deadline=None
+)
 @given(
     filename_st=_filename_st,
     normalized_name=st.text(min_size=0, max_size=100),
@@ -192,14 +231,19 @@ def test_fuzz_check_name_sync_never_raises(verifier, filename_st: str, normalize
     try:
         verifier.check_name_sync(str(test_file), data)
     except Exception as e:
-        pytest.fail(f"check_name_sync raised {type(e).__name__}: {e} on input: filename={filename_st!r}, normalized_name={normalized_name!r}")
+        pytest.fail(
+            f"check_name_sync raised {type(e).__name__}: {e} on input: filename={filename_st!r}, normalized_name={normalized_name!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Invariant 6: _norm_heading never raises and returns normalized string
 # ---------------------------------------------------------------------------
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=500, deadline=None)
+
+@settings(
+    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=500, deadline=None
+)
 @given(st.text(min_size=0, max_size=200))
 def test_fuzz_norm_heading_never_raises(verifier, heading: str):
     """_norm_heading normalizes arbitrary strings without crashing."""
@@ -216,7 +260,10 @@ def test_fuzz_norm_heading_never_raises(verifier, heading: str):
 # Invariant 7: _heading_false_positive never raises and returns bool
 # ---------------------------------------------------------------------------
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=500, deadline=None)
+
+@settings(
+    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=500, deadline=None
+)
 @given(
     st.text(min_size=0, max_size=100),
     st.text(min_size=0, max_size=100),
@@ -227,14 +274,19 @@ def test_fuzz_heading_false_positive_never_raises(verifier, h1: str, h2: str):
         result = verifier._heading_false_positive(h1, h2)
         assert isinstance(result, bool)
     except Exception as e:
-        pytest.fail(f"_heading_false_positive raised {type(e).__name__}: {e} on input: {h1!r}, {h2!r}")
+        pytest.fail(
+            f"_heading_false_positive raised {type(e).__name__}: {e} on input: {h1!r}, {h2!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Invariant 8: check_yaml_structure idempotency-ish (parsing same YAML twice)
 # ---------------------------------------------------------------------------
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100, deadline=None)
+
+@settings(
+    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100, deadline=None
+)
 @given(_yaml_st)
 def test_fuzz_check_yaml_structure_consistent(verifier, yaml_content: str):
     """Repeated parsing of same YAML yields consistent issue detection."""
@@ -269,7 +321,10 @@ def test_fuzz_check_yaml_structure_consistent(verifier, yaml_content: str):
 # Invariant 9: check_content_quality handles edge cases
 # ---------------------------------------------------------------------------
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100, deadline=None)
+
+@settings(
+    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=100, deadline=None
+)
 @given(
     content_after_yaml=_content_st,
 )
@@ -282,14 +337,19 @@ def test_fuzz_check_content_quality_various_bodies(verifier, content_after_yaml:
     try:
         verifier.check_content_quality(str(test_file), content)
     except Exception as e:
-        pytest.fail(f"check_content_quality raised {type(e).__name__}: {e} on input: {content[:200]!r}")
+        pytest.fail(
+            f"check_content_quality raised {type(e).__name__}: {e} on input: {content[:200]!r}"
+        )
 
 
 # ---------------------------------------------------------------------------
 # Invariant 10: Full verify_all on synthetic vault (smoke test)
 # ---------------------------------------------------------------------------
 
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=20, deadline=None)
+
+@settings(
+    suppress_health_check=[HealthCheck.function_scoped_fixture], max_examples=20, deadline=None
+)
 @given(st.integers(min_value=0, max_value=10))
 def test_fuzz_verify_all_synthetic_vault(verifier, num_files: int):
     """verify_all processes a synthetic vault without crashing."""
@@ -320,4 +380,3 @@ This is a test entity.
         assert isinstance(result, int)  # Returns issue count
     except Exception as e:
         pytest.fail(f"verify_all raised {type(e).__name__}: {e}")
-

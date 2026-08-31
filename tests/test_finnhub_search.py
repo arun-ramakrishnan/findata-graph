@@ -5,6 +5,7 @@ Fixtures: real /search responses saved 2026-08-25 under
 tests/fixtures/finnhub_search/. No network: fh_search is monkeypatched
 or the cache is pre-seeded; the token file is never read by these tests.
 """
+
 from __future__ import annotations
 
 import json
@@ -20,8 +21,7 @@ from helpers.maintenance.finnhub_search import (  # noqa: E402
     trim_query,
 )
 
-FIXTURES = (Path(__file__).resolve().parents[1] / "tests"
-            / "fixtures" / "finnhub_search")
+FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "finnhub_search"
 
 
 def _load(fname: str) -> str:
@@ -32,8 +32,7 @@ class TestParseSearchResponse:
     def test_srigee_exact_hit(self):
         # The motivating case: name -> Yahoo-format scrip ticker.
         matches = parse_search_response(_load("fh_Srigee.json"))
-        assert matches == [FhMatch(symbol="544399.BO",
-                                   description="Srigee DLM Ltd")]
+        assert matches == [FhMatch(symbol="544399.BO", description="Srigee DLM Ltd")]
 
     def test_demerger_twins_both_found(self):
         matches = parse_search_response(_load("fh_Tata_Motors.json"))
@@ -42,8 +41,7 @@ class TestParseSearchResponse:
         assert "Passenger" in symbols["TMPV.NS"]
 
     def test_pel_fixes_stale_ticker(self):
-        matches = parse_search_response(
-            _load("fh_Piramal_Enterprises.json"))
+        matches = parse_search_response(_load("fh_Piramal_Enterprises.json"))
         assert matches[0].symbol == "PEL.NS"
 
     def test_gati_substring_noise(self):
@@ -51,16 +49,14 @@ class TestParseSearchResponse:
         # every candidate must pass name verification downstream.
         matches = parse_search_response(_load("fh_Gati.json"))
         assert len(matches) >= 5
-        assert all(".NS" not in m.symbol and ".BO" not in m.symbol
-                   for m in matches)
+        assert all(".NS" not in m.symbol and ".BO" not in m.symbol for m in matches)
 
     def test_no_results_is_empty(self):
         assert parse_search_response(_load("fh_zzznosuchco.json")) == []
         assert parse_search_response(json.dumps({"result": []})) == []
 
     def test_rows_without_symbol_skipped(self):
-        text = json.dumps({"result": [
-            {"description": "no symbol"}, {"symbol": "X.NS"}]})
+        text = json.dumps({"result": [{"description": "no symbol"}, {"symbol": "X.NS"}]})
         assert parse_search_response(text) == [FhMatch("X.NS", "")]
 
 
@@ -79,8 +75,7 @@ class TestTrimQuery:
 
 class TestCacheAndToken:
     def test_cache_hit_avoids_network(self, tmp_path, monkeypatch):
-        (tmp_path / "fh_search_Srigee.txt").write_text(
-            _load("fh_Srigee.json"), encoding="utf-8")
+        (tmp_path / "fh_search_Srigee.txt").write_text(_load("fh_Srigee.json"), encoding="utf-8")
 
         def exploding(query, **_kw):
             raise AssertionError("network hit despite warm cache")
@@ -91,9 +86,7 @@ class TestCacheAndToken:
         assert matches[0].symbol == "544399.BO"
 
     def test_cache_miss_fetches_and_writes(self, tmp_path, monkeypatch):
-        monkeypatch.setattr(fh, "fh_search",
-                            lambda query, **_kw:
-                            _load("fh_Tata_Motors.json"))
+        monkeypatch.setattr(fh, "fh_search", lambda query, **_kw: _load("fh_Tata_Motors.json"))
         matches, from_cache = fh_search_cached("Tata Motors", tmp_path)
         assert from_cache is False
         assert {m.symbol for m in matches} == {"TMPV.NS", "TMCV.NS"}
@@ -132,19 +125,16 @@ class TestProbeQueries:
         # The Piramal shape: full name fits under the q limit; the
         # shorter stem is the fallback when the full form comes back
         # empty.
-        assert fh.probe_queries("Piramal Enterprises") == [
-            "Piramal Enterprises", "Piramal"]
+        assert fh.probe_queries("Piramal Enterprises") == ["Piramal Enterprises", "Piramal"]
 
     def test_long_name_trims_then_adds_stems(self):
         # 'Bajaj Allianz General Insurance' trims to 'Bajaj Allianz'
         # (word-boundary cut at 20 chars); probes are the trimmed form
         # then its first word.
-        assert fh.probe_queries("Bajaj Allianz General Insurance") == [
-            "Bajaj Allianz", "Bajaj"]
+        assert fh.probe_queries("Bajaj Allianz General Insurance") == ["Bajaj Allianz", "Bajaj"]
 
     def test_three_word_name_gets_intermediate_probe(self):
-        assert fh.probe_queries("Ab Cd Ef Gh") == [
-            "Ab Cd Ef Gh", "Ab Cd", "Ab"]
+        assert fh.probe_queries("Ab Cd Ef Gh") == ["Ab Cd Ef Gh", "Ab Cd", "Ab"]
 
 
 class TestFhSearchMulti:
@@ -157,16 +147,15 @@ class TestFhSearchMulti:
         def fn(query, _cache_dir, **_kw):
             calls.append(query)
             hit = query in results_by_query
-            return (results_by_query.get(query, []),
-                    True if hit else cached_misses)
+            return (results_by_query.get(query, []), True if hit else cached_misses)
 
         return fn, calls
 
     def test_stops_at_first_nonempty_probe(self, tmp_path):
         fn, calls = self._fake({"Ab Cd": [FhMatch("X.NS", "Ab Cd Ltd")]})
         matches, from_cache = fh.fh_search_multi(
-            "Ab Cd Ef Gh", tmp_path, search_fn=fn,
-            sleeper=lambda _s: None)
+            "Ab Cd Ef Gh", tmp_path, search_fn=fn, sleeper=lambda _s: None
+        )
         assert [m.symbol for m in matches] == ["X.NS"]
         assert from_cache is True
         assert calls == ["Ab Cd Ef Gh", "Ab Cd"]  # third probe never runs
@@ -175,18 +164,18 @@ class TestFhSearchMulti:
         fn, _calls = self._fake({}, cached_misses=True)
         slept: list[float] = []
         matches, from_cache = fh.fh_search_multi(
-            "Ab Cd Ef Gh", tmp_path, search_fn=fn,
-            sleeper=slept.append)
+            "Ab Cd Ef Gh", tmp_path, search_fn=fn, sleeper=slept.append
+        )
         assert matches == []
-        assert from_cache is True   # caller skips its own politeness sleep
+        assert from_cache is True  # caller skips its own politeness sleep
         assert slept == []
 
     def test_real_misses_sleep_and_report_uncached(self, tmp_path):
         fn, _calls = self._fake({})  # every probe reports a real fetch
         slept: list[float] = []
         matches, from_cache = fh.fh_search_multi(
-            "Ab Cd Ef Gh", tmp_path, search_fn=fn,
-            sleeper=slept.append, delay=2.0)
+            "Ab Cd Ef Gh", tmp_path, search_fn=fn, sleeper=slept.append, delay=2.0
+        )
         assert matches == []
         assert from_cache is False
         assert slept == [2.0] * 3  # paced after each real empty probe

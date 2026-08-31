@@ -35,6 +35,7 @@ Usage:
 create tables or run migrations. For schema bootstrap see
 `helpers/maintenance/db_maint.py` or `snapshot_db.py`.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -192,7 +193,6 @@ def close_connection(conn: sqlite3.Connection) -> None:
     conn.close()
 
 
-
 # --------------------------------------------------------------------------- #
 # P0: generation counter + user_version helpers                               #
 # --------------------------------------------------------------------------- #
@@ -238,8 +238,7 @@ def bump_generation(conn: sqlite3.Connection, by: int = 1) -> int | None:
     if not has_meta:
         return None
     conn.execute(
-        "UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+? AS TEXT) "
-        "WHERE key='generation'",
+        "UPDATE db_meta SET value = CAST(CAST(value AS INTEGER)+? AS TEXT) WHERE key='generation'",
         (int(by),),
     )
     conn.commit()
@@ -261,12 +260,7 @@ def ensure_db_meta(conn: sqlite3.Connection) -> int:
     connect() path or as a one-shot migration.
     """
     # table
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS db_meta ("
-        " key TEXT PRIMARY KEY,"
-        " value TEXT NOT NULL"
-        ")"
-    )
+    conn.execute("CREATE TABLE IF NOT EXISTS db_meta ( key TEXT PRIMARY KEY, value TEXT NOT NULL)")
     # seed generation if missing
     row = conn.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
     if row is None:
@@ -275,14 +269,19 @@ def ensure_db_meta(conn: sqlite3.Connection) -> int:
     else:
         try:
             cur_gen = int(row[0])
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             conn.execute("UPDATE db_meta SET value='1' WHERE key='generation'")
             cur_gen = 1
     # seed schema_version mirror (advisory, not used for logic)
     if conn.execute("SELECT 1 FROM db_meta WHERE key='schema_version'").fetchone() is None:
-        conn.execute("INSERT INTO db_meta(key, value) VALUES ('schema_version', ?)", (EXPECTED_SCHEMA_VERSION,))
+        conn.execute(
+            "INSERT INTO db_meta(key, value) VALUES ('schema_version', ?)",
+            (EXPECTED_SCHEMA_VERSION,),
+        )
     else:
-        conn.execute("UPDATE db_meta SET value=? WHERE key='schema_version'", (EXPECTED_SCHEMA_VERSION,))
+        conn.execute(
+            "UPDATE db_meta SET value=? WHERE key='schema_version'", (EXPECTED_SCHEMA_VERSION,)
+        )
 
     # triggers — idempotent: drop then create
     # Bump generation by 1 per row-change (INSERT/DELETE/UPDATE on the two
@@ -309,5 +308,5 @@ def ensure_db_meta(conn: sqlite3.Connection) -> int:
     row2 = conn.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
     try:
         return int(row2[0]) if row2 else cur_gen
-    except (ValueError, TypeError):
+    except ValueError, TypeError:
         return cur_gen

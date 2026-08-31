@@ -8,6 +8,7 @@ carry hand-set embedding vectors, so the cosine threshold semantics are
 exact rather than hash-dependent. The CLI must also be read-only on the
 SQLite side (it is a QA tripwire, not a writer).
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -53,15 +54,22 @@ def _make_db(db_path: Path) -> None:
     dst = sqlite3.connect(str(db_path))
     src.backup(dst)
     src.close()
-    for t in ("graph_edges", "entity_tags", "graph_analytics", "events",
-              "quotes", "company_metrics", "company_embeddings",
-              "note_search", "note_search_meta"):
+    for t in (
+        "graph_edges",
+        "entity_tags",
+        "graph_analytics",
+        "events",
+        "quotes",
+        "company_metrics",
+        "company_embeddings",
+        "note_search",
+        "note_search_meta",
+    ):
         dst.execute(f"DELETE FROM {t}")  # noqa: S608  # schema-constant identifiers
     dst.execute("DELETE FROM entities")
     for stem in "ABCDE":
         dst.execute(
-            "INSERT INTO entities (name, entity_type, file_path) "
-            "VALUES (?, 'company', ?)",
+            "INSERT INTO entities (name, entity_type, file_path) VALUES (?, 'company', ?)",
             (f"Co {stem}", f"findata/Companies/{stem}.md"),
         )
     for path, vec in _VECS.items():
@@ -132,16 +140,16 @@ class TestNearDuplicatesCli:
         before = hashlib.md5(dup_db.read_bytes(), usedforsecurity=False).hexdigest()
         conn = sqlite3.connect(str(dup_db))
         rows_before = conn.execute(
-            "SELECT file_path, title, embedding FROM note_search "
-            "ORDER BY file_path").fetchall()
+            "SELECT file_path, title, embedding FROM note_search ORDER BY file_path"
+        ).fetchall()
         conn.close()
         rc, _, _ = _run(monkeypatch, dup_db, "--min-sim", "0.9")
         assert rc == 0
         assert hashlib.md5(dup_db.read_bytes(), usedforsecurity=False).hexdigest() == before
         conn = sqlite3.connect(str(dup_db))
         rows_after = conn.execute(
-            "SELECT file_path, title, embedding FROM note_search "
-            "ORDER BY file_path").fetchall()
+            "SELECT file_path, title, embedding FROM note_search ORDER BY file_path"
+        ).fetchall()
         conn.close()
         assert rows_after == rows_before
 

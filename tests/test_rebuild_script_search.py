@@ -53,7 +53,7 @@ _WIDGET_AUDIT = (
 # AST-imports-only tightened contract (grep-mention would over-match).
 _TEST_WIDGET = (
     '"""Tests for the widget audit CLI.\n'
-    'Related: helpers/graph/build_tree.py (comment mention, not an import).\n'
+    "Related: helpers/graph/build_tree.py (comment mention, not an import).\n"
     '"""\n'
     "from helpers.misc import widget_audit  # noqa: F401\n"
 )
@@ -117,8 +117,7 @@ def _rebuild(tree, db=None, **kw):
 
 def _row(conn, title):
     return conn.execute(
-        "SELECT title, kind, area, purpose, content FROM script_search "
-        "WHERE title = ?",
+        "SELECT title, kind, area, purpose, content FROM script_search WHERE title = ?",
         (title,),
     ).fetchone()
 
@@ -130,11 +129,9 @@ class TestBuild:
         assert stats["total_rows"] == 6  # 2 helpers + app.py + 1 test + 2 make
         conn = rss.connect_script_db(tree / "script_search.db")
         try:
-            kinds = dict(conn.execute(
-                "SELECT kind, COUNT(*) FROM script_search GROUP BY kind"))
+            kinds = dict(conn.execute("SELECT kind, COUNT(*) FROM script_search GROUP BY kind"))
             assert kinds == {"script": 3, "test": 1, "make": 2}
-            areas = dict(conn.execute(
-                "SELECT area, COUNT(*) FROM script_search GROUP BY area"))
+            areas = dict(conn.execute("SELECT area, COUNT(*) FROM script_search GROUP BY area"))
             assert areas == {"misc": 1, "graph": 1, "app": 1, "test": 1, "make": 2}
         finally:
             conn.close()
@@ -252,9 +249,7 @@ class TestFreshnessAndIncremental:
         _rebuild(tree)
         assert rss.main(["--check"]) == 0
         capsys.readouterr()
-        (tree / "helpers" / "misc" / "widget_audit.py").write_text(
-            _WIDGET_AUDIT + "# touched\n"
-        )
+        (tree / "helpers" / "misc" / "widget_audit.py").write_text(_WIDGET_AUDIT + "# touched\n")
         assert rss.main(["--check"]) == 1
         err = capsys.readouterr().err
         assert "helpers/misc/widget_audit.py" in err
@@ -290,9 +285,13 @@ class TestFreshnessAndIncremental:
         (tree / "Makefile").write_text(_MAKEFILE + "extra: ## extra\n> true\n")
         (tree / "helpers" / "misc" / "new_tool.py").write_text('"""Fresh."""\n')
         stats = rss.rebuild(
-            tree / "script_search.db", write=False, embed_fn=_fake_embed,
-            helpers_root=tree / "helpers", tests_root=tree / "tests",
-            app_py=tree / "app.py", makefile=tree / "Makefile",
+            tree / "script_search.db",
+            write=False,
+            embed_fn=_fake_embed,
+            helpers_root=tree / "helpers",
+            tests_root=tree / "tests",
+            app_py=tree / "app.py",
+            makefile=tree / "Makefile",
         )
         assert stats["index_stale"]
         assert stats["stale_changed"] == ["Makefile"]
@@ -348,13 +347,19 @@ class TestFreshnessAndIncremental:
         conn = rss.connect_script_db(tree / "script_search.db")
         try:
             assert not rss.script_index_stale(
-                conn, helpers_root=tree / "helpers", tests_root=tree / "tests",
-                app_py=tree / "app.py", makefile=tree / "Makefile",
+                conn,
+                helpers_root=tree / "helpers",
+                tests_root=tree / "tests",
+                app_py=tree / "app.py",
+                makefile=tree / "Makefile",
             )
             (tree / "app.py").write_text(_APP + "# bump\n")
             assert rss.script_index_stale(
-                conn, helpers_root=tree / "helpers", tests_root=tree / "tests",
-                app_py=tree / "app.py", makefile=tree / "Makefile",
+                conn,
+                helpers_root=tree / "helpers",
+                tests_root=tree / "tests",
+                app_py=tree / "app.py",
+                makefile=tree / "Makefile",
             )
         finally:
             conn.close()

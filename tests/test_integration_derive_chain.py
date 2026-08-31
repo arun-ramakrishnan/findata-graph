@@ -10,6 +10,7 @@ test verifies the full chain end-to-end.  This suite closes that gap.
 
 See doc/improvements/archive/testing/integration_plan.txt § Priority 3.
 """
+
 from __future__ import annotations
 
 import json
@@ -117,7 +118,13 @@ def p3_db(tmp_path):
 
     # Seed entities
     companies = [
-        ("Tata Motors", "company", "Automobiles", "findata/Companies/Automobiles/Tata_Motors.md", "TATAMOTORS"),
+        (
+            "Tata Motors",
+            "company",
+            "Automobiles",
+            "findata/Companies/Automobiles/Tata_Motors.md",
+            "TATAMOTORS",
+        ),
         ("JLR", "company", "Automobiles", "findata/Companies/Automobiles/JLR.md", None),
         ("HDFC Bank", "company", "Banking", "findata/Companies/Banking/Hdfc_Bank.md", "HDFCBANK"),
         ("Infosys", "company", "Technology", "findata/Companies/Technology/Infosys.md", "INFY"),
@@ -221,9 +228,14 @@ class TestDeriveEventsFromEdges:
         conn.execute(
             "INSERT INTO graph_edges(source, target, edge_type, valid_from, "
             "properties, source_ref) VALUES (?,?,?,?,?,?)",
-            ("Tata Motors", "JLR", "acquired", "2008-01-01",
-             json.dumps({"year": 2008, "stake": "100%", "quote": "acquired JLR"}),
-             "derive:relations:test"),
+            (
+                "Tata Motors",
+                "JLR",
+                "acquired",
+                "2008-01-01",
+                json.dumps({"year": 2008, "stake": "100%", "quote": "acquired JLR"}),
+                "derive:relations:test",
+            ),
         )
         conn.commit()
 
@@ -242,9 +254,14 @@ class TestDeriveEventsFromEdges:
         conn.execute(
             "INSERT INTO graph_edges(source, target, edge_type, valid_from, "
             "properties, source_ref) VALUES (?,?,?,?,?,?)",
-            ("HDFC Bank", "Infosys", "jv_with", "2023-06-15",
-             json.dumps({"stake": "50%"}),
-             "derive:relations:test"),
+            (
+                "HDFC Bank",
+                "Infosys",
+                "jv_with",
+                "2023-06-15",
+                json.dumps({"stake": "50%"}),
+                "derive:relations:test",
+            ),
         )
         conn.commit()
 
@@ -261,9 +278,14 @@ class TestDeriveEventsFromEdges:
         conn.execute(
             "INSERT INTO graph_edges(source, target, edge_type, valid_from, "
             "properties, source_ref) VALUES (?,?,?,?,?,?)",
-            ("Tata Motors", "JLR", "acquired", "2008-01-01",
-             json.dumps({"year": 2008}),
-             "derive:relations:test"),
+            (
+                "Tata Motors",
+                "JLR",
+                "acquired",
+                "2008-01-01",
+                json.dumps({"year": 2008}),
+                "derive:relations:test",
+            ),
         )
         conn.commit()
 
@@ -285,9 +307,14 @@ class TestDeriveEventsFromEdges:
         conn.execute(
             "INSERT INTO graph_edges(source, target, edge_type, valid_from, "
             "properties, source_ref) VALUES (?,?,?,?,?,?)",
-            ("Tata Motors", "JLR", "acquired", "2008-01-01",
-             json.dumps({"year": 2008}),
-             "derive:relations:test"),
+            (
+                "Tata Motors",
+                "JLR",
+                "acquired",
+                "2008-01-01",
+                json.dumps({"year": 2008}),
+                "derive:relations:test",
+            ),
         )
         conn.commit()
 
@@ -311,7 +338,8 @@ class TestDeriveInsightsFromProse:
         conn, db_path = p3_db
         # Write a synthetic newsletter file with a company section
         newsletter = tmp_path / "Test_Edition.md"
-        newsletter.write_text("""\
+        newsletter.write_text(
+            """\
 # Test Edition
 
 ## HDFC Bank | large cap | Banking
@@ -325,7 +353,9 @@ Revenue growth was strong this quarter.
 — Sashi Jagdishan, CEO
 
 The bank reported net interest income of ₹45,000 crore in FY26.
-""", encoding="utf-8")
+""",
+            encoding="utf-8",
+        )
 
         quotes, metrics = scan(str(newsletter), conn)
         # Should find the verbatim quote
@@ -373,7 +403,9 @@ The bank reported net interest income of ₹45,000 crore in FY26.
         )
         inserted = apply_metrics([m], conn=conn, dry_run=False)
         assert inserted == 1
-        rows = conn.execute("SELECT entity, value_raw, unit, period FROM company_metrics").fetchall()
+        rows = conn.execute(
+            "SELECT entity, value_raw, unit, period FROM company_metrics"
+        ).fetchall()
         assert len(rows) == 1
         assert rows[0]["entity"] == "HDFC Bank"
         assert rows[0]["unit"] == "crore"
@@ -429,9 +461,7 @@ Tata Motors acquired JLR in 2008.
             assert inserted >= 1
 
         # Verify final state
-        event_rows = conn.execute(
-            "SELECT entity, event_type, counterparty FROM events"
-        ).fetchall()
+        event_rows = conn.execute("SELECT entity, event_type, counterparty FROM events").fetchall()
         assert len(event_rows) >= 1
         # At least one should be an acquisition
         acq_rows = [r for r in event_rows if r["event_type"] == "acquisition"]
@@ -464,9 +494,14 @@ class TestFullChainDryRunVsApply:
         conn.execute(
             "INSERT INTO graph_edges(source, target, edge_type, valid_from, "
             "properties, source_ref) VALUES (?,?,?,?,?,?)",
-            ("Tata Motors", "JLR", "acquired", "2008-01-01",
-             json.dumps({"year": 2008}),
-             "derive:relations:test"),
+            (
+                "Tata Motors",
+                "JLR",
+                "acquired",
+                "2008-01-01",
+                json.dumps({"year": 2008}),
+                "derive:relations:test",
+            ),
         )
         conn.commit()
 

@@ -15,6 +15,7 @@ Note on newlines: the append path does `yaml + "field: value\n"`. It assumes
 newline-terminated YAML (the real domain), so the idempotency test feeds
 newline-terminated input. Runs in `make fuzz` and `make qa`.
 """
+
 from __future__ import annotations
 
 import sys
@@ -37,13 +38,33 @@ from helpers.maintenance.move_sector import (
 )
 
 
-_YAML = st.text(alphabet=st.characters(blacklist_categories=("C",), blacklist_characters=chr(92)), min_size=0, max_size=120)
-_FIELD = st.text(alphabet=st.characters(blacklist_categories=("C",), blacklist_characters=chr(92)), min_size=1, max_size=20)
-_VAL = st.text(alphabet=st.characters(blacklist_categories=("C",), blacklist_characters=chr(92)), min_size=0, max_size=40)
-_SECTOR = st.text(alphabet=st.characters(blacklist_categories=("C",), blacklist_characters=chr(92)), min_size=1, max_size=20)
+_YAML = st.text(
+    alphabet=st.characters(blacklist_categories=("C",), blacklist_characters=chr(92)),
+    min_size=0,
+    max_size=120,
+)
+_FIELD = st.text(
+    alphabet=st.characters(blacklist_categories=("C",), blacklist_characters=chr(92)),
+    min_size=1,
+    max_size=20,
+)
+_VAL = st.text(
+    alphabet=st.characters(blacklist_categories=("C",), blacklist_characters=chr(92)),
+    min_size=0,
+    max_size=40,
+)
+_SECTOR = st.text(
+    alphabet=st.characters(blacklist_categories=("C",), blacklist_characters=chr(92)),
+    min_size=1,
+    max_size=20,
+)
 
 # Non-whitespace, non-empty values: idempotency below (see doc on the test).
-_VAL_NOWS = st.text(alphabet=st.characters(blacklist_categories=("C", "Z"), blacklist_characters=chr(92)), min_size=1, max_size=40)
+_VAL_NOWS = st.text(
+    alphabet=st.characters(blacklist_categories=("C", "Z"), blacklist_characters=chr(92)),
+    min_size=1,
+    max_size=40,
+)
 
 
 @settings(max_examples=250, deadline=None)

@@ -9,6 +9,7 @@ monotonicity) had no properties at all. The DuckDB-backed properties run
 against an in-memory stand-in ``v_note_embeddings`` table with an
 injectable embedder — no production DB touch.
 """
+
 from __future__ import annotations
 
 import re
@@ -27,13 +28,15 @@ from helpers.graph import query as gq  # noqa: E402
 duckdb = pytest.importorskip("duckdb")
 
 _SETTINGS = settings(
-    max_examples=100, deadline=None,
+    max_examples=100,
+    deadline=None,
     suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 
 _TEXT = st.text(
     st.characters(blacklist_categories=("Cs",), blacklist_characters="\r"),
-    min_size=0, max_size=120,
+    min_size=0,
+    max_size=120,
 )
 _CONTROLS = re.compile(r"[\x00-\x1f\x7f]")
 _ISO_SHAPE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -72,15 +75,13 @@ def test_normalise_as_of_year_canonicalises(year):
 
 
 @_SETTINGS
-@given(st.integers(min_value=1000, max_value=9999),
-       st.integers(min_value=1, max_value=12))
+@given(st.integers(min_value=1000, max_value=9999), st.integers(min_value=1, max_value=12))
 def test_normalise_as_of_year_month_canonicalises(year, month):
     assert gq._normalise_as_of(f"{year}-{month:02d}") == f"{year}-{month:02d}-01"
 
 
 @_SETTINGS
-@given(st.integers(min_value=1, max_value=12),
-       st.integers(min_value=1, max_value=28))
+@given(st.integers(min_value=1, max_value=12), st.integers(min_value=1, max_value=28))
 def test_normalise_as_of_full_date_is_identity(month, day):
     s = f"2024-{month:02d}-{day:02d}"
     assert gq._normalise_as_of(s) == s
@@ -125,37 +126,33 @@ def emb_con():
     con = duckdb.connect()
     con.execute(
         "CREATE TABLE v_note_embeddings (file_path VARCHAR, doc_type VARCHAR, "
-        "title VARCHAR, emb FLOAT[2])")
+        "title VARCHAR, emb FLOAT[2])"
+    )
     rows = [
         ("a.md", "company", "A", [1.0, 0.0]),
         ("b.md", "company", "B", [0.9, 0.4358898943540673]),  # cos to A = 0.9
         ("c.md", "company", "C", [0.0, 1.0]),
-        ("x.md", "sector", "X", [1.0, 0.0]),                  # wrong doc_type
+        ("x.md", "sector", "X", [1.0, 0.0]),  # wrong doc_type
     ]
     for fp, dt, t, v in rows:
-        con.execute(
-            "INSERT INTO v_note_embeddings VALUES (?, ?, ?, ?)", [fp, dt, t, v])
+        con.execute("INSERT INTO v_note_embeddings VALUES (?, ?, ?, ?)", [fp, dt, t, v])
     return con
 
 
 @_SETTINGS
 @given(st.integers(min_value=-10, max_value=0))
 def test_notes_like_text_k_clamped_non_negative(emb_con, k):
-    res = gq.notes_like_text(emb_con, "text", k=k, min_sim=-1.0,
-                             embed_fn=lambda t: [1.0, 0.0])
+    res = gq.notes_like_text(emb_con, "text", k=k, min_sim=-1.0, embed_fn=lambda t: [1.0, 0.0])
     assert res == []
 
 
 @_SETTINGS
-@given(st.floats(min_value=-1.0, max_value=1.0),
-       st.floats(min_value=-1.0, max_value=1.0))
+@given(st.floats(min_value=-1.0, max_value=1.0), st.floats(min_value=-1.0, max_value=1.0))
 def test_notes_like_text_min_sim_monotone(emb_con, lo, hi):
     """Raising min_sim can only REMOVE results (same k, same embedder)."""
     a, b = min(lo, hi), max(lo, hi)
-    res_lo = gq.notes_like_text(emb_con, "text", k=10, min_sim=a,
-                                embed_fn=lambda t: [1.0, 0.0])
-    res_hi = gq.notes_like_text(emb_con, "text", k=10, min_sim=b,
-                                embed_fn=lambda t: [1.0, 0.0])
+    res_lo = gq.notes_like_text(emb_con, "text", k=10, min_sim=a, embed_fn=lambda t: [1.0, 0.0])
+    res_hi = gq.notes_like_text(emb_con, "text", k=10, min_sim=b, embed_fn=lambda t: [1.0, 0.0])
     assert res_lo is not None and res_hi is not None
     paths_lo = {r[0] for r in res_lo}
     paths_hi = {r[0] for r in res_hi}
@@ -169,6 +166,5 @@ def test_notes_like_text_min_sim_monotone(emb_con, lo, hi):
 def test_notes_like_text_dim_mismatch_returns_none(emb_con, text):
     """An embedder returning the wrong dimensionality degrades to None —
     never a SQL cast error."""
-    res = gq.notes_like_text(emb_con, text, k=5,
-                             embed_fn=lambda t: [1.0, 2.0, 3.0])
+    res = gq.notes_like_text(emb_con, text, k=5, embed_fn=lambda t: [1.0, 2.0, 3.0])
     assert res is None

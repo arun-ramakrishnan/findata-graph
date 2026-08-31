@@ -17,12 +17,12 @@ from helpers.graph import suggest_relations as SR  # noqa: E402
 PAIRS = [
     ("Acme", "Beta", 1.0),
     ("Acme", "Gamma", 0.5),
-    ("Acme", "Delta", 0.2),     # below floor
-    ("Acme", "Acme", 0.9),      # self
+    ("Acme", "Delta", 0.2),  # below floor
+    ("Acme", "Acme", 0.9),  # self
     ("Beta", "Gamma", 0.7),
-    ("Acme", "Epsilon", 0.6),   # non-company endpoint
-    ("Acme", "Beta", 0.8),      # duplicate of pair 1 (already seen)
-    ("Zeta", "Eta", 0.9),       # already has a real edge
+    ("Acme", "Epsilon", 0.6),  # non-company endpoint
+    ("Acme", "Beta", 0.8),  # duplicate of pair 1 (already seen)
+    ("Zeta", "Eta", 0.9),  # already has a real edge
     ("Theta", "Iota", 0.4),
 ]
 COMPANIES = {"Acme", "Beta", "Gamma", "Zeta", "Eta", "Theta", "Iota"}
@@ -32,37 +32,57 @@ EXISTING = {frozenset(("Zeta", "Eta"))}
 class TestFilterSuggestions:
     def test_accepts_valid_pairs_in_order(self):
         got = SR.filter_suggestions(
-            PAIRS, existing_pairs=EXISTING, companies=COMPANIES,
-            top=10, min_score=0.3,
+            PAIRS,
+            existing_pairs=EXISTING,
+            companies=COMPANIES,
+            top=10,
+            min_score=0.3,
         )
-        assert got == [("Acme", "Beta", 1.0), ("Acme", "Gamma", 0.5),
-                       ("Beta", "Gamma", 0.7), ("Theta", "Iota", 0.4)]
+        assert got == [
+            ("Acme", "Beta", 1.0),
+            ("Acme", "Gamma", 0.5),
+            ("Beta", "Gamma", 0.7),
+            ("Theta", "Iota", 0.4),
+        ]
 
     def test_min_score_floor_drops_weak_pairs(self):
         got = SR.filter_suggestions(
-            PAIRS, existing_pairs=EXISTING, companies=COMPANIES,
-            top=10, min_score=0.5,
+            PAIRS,
+            existing_pairs=EXISTING,
+            companies=COMPANIES,
+            top=10,
+            min_score=0.5,
         )
         assert ("Theta", "Iota", 0.4) not in got
 
     def test_top_caps_output(self):
         got = SR.filter_suggestions(
-            PAIRS, existing_pairs=EXISTING, companies=COMPANIES,
-            top=2, min_score=0.3,
+            PAIRS,
+            existing_pairs=EXISTING,
+            companies=COMPANIES,
+            top=2,
+            min_score=0.3,
         )
         assert len(got) == 2
 
     def test_companies_only_false_admits_non_companies(self):
         got = SR.filter_suggestions(
-            PAIRS, existing_pairs=EXISTING, companies=COMPANIES,
-            top=10, min_score=0.3, companies_only=False,
+            PAIRS,
+            existing_pairs=EXISTING,
+            companies=COMPANIES,
+            top=10,
+            min_score=0.3,
+            companies_only=False,
         )
         assert ("Acme", "Epsilon", 0.6) in got
 
     def test_existing_edges_and_self_and_dupes_excluded(self):
         got = SR.filter_suggestions(
-            PAIRS, existing_pairs=EXISTING, companies=COMPANIES,
-            top=10, min_score=0.0,
+            PAIRS,
+            existing_pairs=EXISTING,
+            companies=COMPANIES,
+            top=10,
+            min_score=0.0,
         )
         flat = {frozenset((a, b)) for a, b, _ in got}
         assert frozenset(("Zeta", "Eta")) not in flat
@@ -95,19 +115,39 @@ class TestSidecar:
         assert SR.append_suggestions(suggs, path=sidecar, existing_pairs=set()) == 0
         assert len(sidecar.read_text().splitlines()) == 2
         # an existing real edge suppresses even a new suggestion
-        assert SR.append_suggestions(
-            [SR.Suggestion("Acme", "Beta", 0.8, "jaccard", "e1")],
-            path=tmp_path / "other.txt",
-            existing_pairs={frozenset(("Acme", "Beta"))},
-        ) == 0
+        assert (
+            SR.append_suggestions(
+                [SR.Suggestion("Acme", "Beta", 0.8, "jaccard", "e1")],
+                path=tmp_path / "other.txt",
+                existing_pairs={frozenset(("Acme", "Beta"))},
+            )
+            == 0
+        )
 
     def test_prior_suggestion_pairs_reads_only_origin_rows(self, tmp_path):
         sidecar = tmp_path / "_pending.txt"
         sidecar.write_text(
-            json.dumps({"edge_type": "jv_with", "source": "Old", "target_mention": "Miss",
-                        "quote": "", "edition": "x"}) + "\n"
-            + json.dumps({"edge_type": "suggested", "source": "A", "target_mention": "B",
-                          "quote": "", "edition": "y", "origin": "link_prediction"}) + "\n"
+            json.dumps(
+                {
+                    "edge_type": "jv_with",
+                    "source": "Old",
+                    "target_mention": "Miss",
+                    "quote": "",
+                    "edition": "x",
+                }
+            )
+            + "\n"
+            + json.dumps(
+                {
+                    "edge_type": "suggested",
+                    "source": "A",
+                    "target_mention": "B",
+                    "quote": "",
+                    "edition": "y",
+                    "origin": "link_prediction",
+                }
+            )
+            + "\n"
             + "not json at all\n"
         )
         pairs = SR.prior_suggestion_pairs(sidecar)

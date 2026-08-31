@@ -16,6 +16,7 @@ don't mutate ``memory/research.db``. Each test uses its own
 
 Marked ``live`` (requires the production SQLite file to exist).
 """
+
 from __future__ import annotations
 
 import os
@@ -38,8 +39,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 
 if not DB_PATH.exists():
-    pytest.skip(f"skipping disk-graph tests — {DB_PATH} not present",
-                allow_module_level=True)
+    pytest.skip(f"skipping disk-graph tests — {DB_PATH} not present", allow_module_level=True)
 
 from helpers.graph.query import (  # noqa: E402
     DUCKDB_PATH,
@@ -95,17 +95,19 @@ def _trimmed_template(tmp_path_factory) -> Path:
         dst.execute(
             "DELETE FROM graph_edges "
             "WHERE source NOT IN (SELECT name FROM keep) "
-            "   OR target NOT IN (SELECT name FROM keep)")
+            "   OR target NOT IN (SELECT name FROM keep)"
+        )
         # FK children first (FKs are off on this raw connection, but keep
         # the copy tidy for tests that later connect with FKs on).
-        for tbl, col in (("entity_tags", "entity_name"),
-                         ("graph_analytics", "entity_name"),
-                         ("events", "entity"),
-                         ("quotes", "entity"),
-                         ("company_metrics", "entity"),
-                         ("company_embeddings", "company_name")):
-            dst.execute(
-                f"DELETE FROM {tbl} WHERE {col} NOT IN (SELECT name FROM keep)")  # noqa: S608  # parameterized; interpolated parts are schema-constant identifiers
+        for tbl, col in (
+            ("entity_tags", "entity_name"),
+            ("graph_analytics", "entity_name"),
+            ("events", "entity"),
+            ("quotes", "entity"),
+            ("company_metrics", "entity"),
+            ("company_embeddings", "company_name"),
+        ):
+            dst.execute(f"DELETE FROM {tbl} WHERE {col} NOT IN (SELECT name FROM keep)")  # noqa: S608  # parameterized; interpolated parts are schema-constant identifiers
         dst.execute("DELETE FROM entities WHERE name NOT IN (SELECT name FROM keep)")
         # note_search feeds v_note_embeddings: keep the kept entities' docs
         # plus a small newsletter slice so the doc_type mix stays realistic.
@@ -114,7 +116,8 @@ def _trimmed_template(tmp_path_factory) -> Path:
             "  (SELECT file_path FROM entities WHERE file_path IS NOT NULL) "
             "AND file_path NOT IN "
             "  (SELECT file_path FROM note_search WHERE doc_type IN "
-            "   ('chatter','points_and_figures','plotlines') LIMIT 30)")
+            "   ('chatter','points_and_figures','plotlines') LIMIT 30)"
+        )
         dst.commit()
         # DELETE doesn't shrink the file (50MB production-sized) and leaves
         # FTS tombstones in the note_search shadow — VACUUM compacts both,
@@ -164,6 +167,7 @@ class TestDiskBasics:
         # First connect builds; spy on _build_graph to confirm.
         called = {"count": 0}
         from helpers.graph import query as q
+
         orig = q._build_graph
 
         def spy(con):
@@ -219,13 +223,15 @@ class TestDiskBasics:
             "assert n > 0, 'empty v_node'\n"
             "print('OK')\n"
         )
-        env = {**os.environ,
-               "PYTHONPATH": f"{REPO_ROOT}{os.pathsep}{REPO_ROOT / 'helpers'}"}
+        env = {**os.environ, "PYTHONPATH": f"{REPO_ROOT}{os.pathsep}{REPO_ROOT / 'helpers'}"}
         procs = [
             subprocess.Popen(  # noqa: S603  # list-form, shell=False, controlled argv (sys.executable + fixed child code)
                 [sys.executable, "-c", child, str(tmp_db)],
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                text=True, env=env, cwd=str(REPO_ROOT),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                env=env,
+                cwd=str(REPO_ROOT),
             )
             for _ in range(6)
         ]
@@ -254,6 +260,7 @@ class TestRebuild:
     def test_rebuild_true_forces_materialisation(self, tmp_db, monkeypatch):
         called = {"count": 0}
         from helpers.graph import query as q
+
         orig = q._build_graph
 
         def spy(con):
@@ -302,12 +309,10 @@ class TestRebuild:
         conn = sqlite_connect(tmp_db)
         try:
             conn.execute(
-                "INSERT INTO entities(name, entity_type) "
-                "VALUES ('__TestCoX__', 'company')"
+                "INSERT INTO entities(name, entity_type) VALUES ('__TestCoX__', 'company')"
             )
             conn.execute(
-                "INSERT INTO entities(name, entity_type) "
-                "VALUES ('__TestSectorX__', 'sector')"
+                "INSERT INTO entities(name, entity_type) VALUES ('__TestSectorX__', 'sector')"
             )
             conn.execute(
                 "INSERT INTO graph_edges(source, target, edge_type, source_ref) "
@@ -343,6 +348,7 @@ class TestFreshRebuild:
 
         # Force a measurable mtime gap.
         import time
+
         time.sleep(0.05)
 
         c2 = connect(tmp_db, fresh=True)
@@ -375,9 +381,7 @@ class TestBuildMeta:
     def test_build_meta_table_exists_after_connect(self, tmp_db):
         c = connect(tmp_db)
         try:
-            rows = c.execute(
-                "SELECT key, value FROM _build_meta ORDER BY key"
-            ).fetchall()
+            rows = c.execute("SELECT key, value FROM _build_meta ORDER BY key").fetchall()
             keys = {r[0]: r[1] for r in rows}
             assert keys["schema_version"] == _SCHEMA_VERSION
             assert "built_at" in keys
@@ -392,13 +396,9 @@ class TestBuildMeta:
         # is invisible to text-based identity sweeps.
         con = duckdb.connect(str(tmp_path / "meta.duckdb"))
         try:
-            con.execute(
-                "CREATE TABLE _build_meta(key VARCHAR PRIMARY KEY, value VARCHAR)"
-            )
+            con.execute("CREATE TABLE _build_meta(key VARCHAR PRIMARY KEY, value VARCHAR)")
             _mark_warm(con, PROJECT_ROOT / "memory" / "research.db")
-            val = con.execute(
-                "SELECT value FROM _build_meta WHERE key='source_db'"
-            ).fetchone()[0]
+            val = con.execute("SELECT value FROM _build_meta WHERE key='source_db'").fetchone()[0]
             assert val == "memory/research.db"
             assert not val.startswith("/")
         finally:
@@ -406,24 +406,21 @@ class TestBuildMeta:
 
     def test_build_meta_updated_on_rebuild(self, tmp_db):
         import time
+
         c1 = connect(tmp_db)
         c1.close()
 
         duckdb_path = _duckdb_for(tmp_db)
         # Read built_at directly via a read-only connection.
         con = duckdb.connect(str(duckdb_path), read_only=True)
-        before = con.execute(
-            "SELECT value FROM _build_meta WHERE key='built_at'"
-        ).fetchone()[0]
+        before = con.execute("SELECT value FROM _build_meta WHERE key='built_at'").fetchone()[0]
         con.close()
 
         time.sleep(0.05)
         rebuild(db_path=tmp_db)
 
         con = duckdb.connect(str(duckdb_path), read_only=True)
-        after = con.execute(
-            "SELECT value FROM _build_meta WHERE key='built_at'"
-        ).fetchone()[0]
+        after = con.execute("SELECT value FROM _build_meta WHERE key='built_at'").fetchone()[0]
         con.close()
         # built_at is a date, so on the same day it won't change. But
         # schema_version should still be present and the row should exist.
@@ -437,6 +434,7 @@ class TestBuildMeta:
         c1.close()
 
         from helpers.graph import query as q
+
         monkeypatch.setattr(q, "_SCHEMA_VERSION", "999")
 
         assert q._is_warm(_duckdb_for(tmp_db)) is False
@@ -489,6 +487,7 @@ class TestSnapshotRoundTrip:
             verify_duckdb_snapshot,
         )
         import logging
+
         logger = logging.getLogger("test_snapshot")
 
         out = tmp_path / "snap.duckdb.zst"
@@ -507,10 +506,9 @@ class TestSnapshotRoundTrip:
     def test_snapshot_skips_when_no_file(self, tmp_path):
         from helpers.maintenance.snapshot_db import create_duckdb_snapshot
         import logging
+
         out = tmp_path / "out.zst"
-        r = create_duckdb_snapshot(
-            tmp_path / "nonexistent.duckdb", out, logging.getLogger("t")
-        )
+        r = create_duckdb_snapshot(tmp_path / "nonexistent.duckdb", out, logging.getLogger("t"))
         assert r == {"skipped": True}
         assert not out.exists()
 
@@ -532,6 +530,7 @@ class TestSnapshotVerifyCoverage:
         duckdb_path = _duckdb_for(tmp_db)
         from helpers.maintenance.snapshot_db import create_duckdb_snapshot
         import logging
+
         out = tmp_path / "snap.duckdb.zst"
         create_duckdb_snapshot(duckdb_path, out, logging.getLogger("t"))
         return out, duckdb_path
@@ -549,9 +548,7 @@ class TestSnapshotVerifyCoverage:
         expected = {"v_node", "v_company", "v_sector"} | {
             spec["table"] for spec in EDGE_REGISTRY.values()
         }
-        assert expected <= set(v["tables"]), (
-            f"verify missed tables: {expected - set(v['tables'])}"
-        )
+        assert expected <= set(v["tables"]), f"verify missed tables: {expected - set(v['tables'])}"
 
     def test_verify_row_counts_match_source(self, tmp_db, tmp_path):
         """Row counts on the snapshot must equal row counts on the source for
@@ -602,6 +599,7 @@ class TestSnapshotVerifyCoverage:
             try:
                 # Find a non-empty table to drop so the diff is real.
                 from helpers.graph.query import EDGE_REGISTRY
+
                 dropped = None
                 for spec in EDGE_REGISTRY.values():
                     t = spec["table"]
@@ -621,15 +619,11 @@ class TestSnapshotVerifyCoverage:
             tmp.unlink(missing_ok=True)
 
         v = verify_duckdb_snapshot(out, src, logging.getLogger("t"))
-        assert v["match"] is False, (
-            f"dropped {dropped} but verify still passed: {v}"
-        )
+        assert v["match"] is False, f"dropped {dropped} but verify still passed: {v}"
         assert dropped not in v["tables"], (
             f"dropped {dropped} should be absent from snapshot tables"
         )
-        assert dropped in v["source_tables"], (
-            f"{dropped} should still be present on the source"
-        )
+        assert dropped in v["source_tables"], f"{dropped} should still be present on the source"
 
     def test_verify_flags_broken_property_graph(self, tmp_db, tmp_path):
         """A snapshot whose tables can't support pg construction must flip
@@ -676,7 +670,8 @@ class TestSnapshotVerifyCoverage:
                 # ``_declare_property_graph`` will reject the table because
                 # the SOURCE KEY column is gone.
                 old_cols = [
-                    r[0] for r in con.execute(
+                    r[0]
+                    for r in con.execute(
                         f"SELECT column_name FROM information_schema.columns "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
                         f"WHERE table_name = '{target_table}' ORDER BY ordinal_position"
                     ).fetchall()

@@ -16,6 +16,7 @@ Conventions enforced elsewhere (don't fight them):
     read_only=True (N RO processes coexist; one RW excludes them all).
   - Wall-clock budgets live in `make perf`, never in pytest.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,7 +25,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))  # standalone-run bootstrap (E402 only if imports follow HERE — keep all imports above)
+    sys.path.insert(
+        0, str(REPO_ROOT)
+    )  # standalone-run bootstrap (E402 only if imports follow HERE — keep all imports above)
 
 from helpers.core.db import connect, utc_now  # noqa: E402  # after the sys.path bootstrap above
 

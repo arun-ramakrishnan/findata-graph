@@ -3,6 +3,7 @@ test_api_graph.py for navigability.
 
 Unit tests for the neighbor-bundle endpoints: sector market_cap invariant (K2), theme members (D4), and /api/events/<name> (D7).
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -62,9 +63,7 @@ class TestSectorBundleMarketCapInvariant:
         conn.commit()
         conn.close()
 
-    def test_market_cap_counts_match_member_count_with_null_cap(
-        self, tmp_path, monkeypatch
-    ):
+    def test_market_cap_counts_match_member_count_with_null_cap(self, tmp_path, monkeypatch):
         """sum(market_cap_counts) == member_count even when a member has NULL
         market_cap (it lands in the 'unknown' bucket)."""
         db_path = tmp_path / "invariant.db"
@@ -82,7 +81,8 @@ class TestSectorBundleMarketCapInvariant:
         import helpers.graph.query as gq
 
         monkeypatch.setattr(
-            gq, "sector_members_with_market_cap",
+            gq,
+            "sector_members_with_market_cap",
             lambda con, sector, market_cap=None: [
                 ("Alpha Co", "large_cap"),
                 ("Beta Co", "small_cap"),
@@ -117,7 +117,8 @@ class TestSectorBundleMarketCapInvariant:
 
         # Simulate a market_cap=large_cap filter: only Alpha Co returned.
         monkeypatch.setattr(
-            gq, "sector_members_with_market_cap",
+            gq,
+            "sector_members_with_market_cap",
             lambda con, sector, market_cap=None: [("Alpha Co", "large_cap")],
         )
 
@@ -157,8 +158,10 @@ class TestThemeNeighborsBundle:
         monkeypatch.setattr(A, "get_db_connection", _open)
         # theme_members hits DuckDB; monkeypatch to avoid a live graph conn.
         import helpers.graph.query as gq
+
         monkeypatch.setattr(
-            gq, "theme_members",
+            gq,
+            "theme_members",
             lambda con, theme: ["Acme Electronics", "Beta Pharma"] if theme == "PLI_Scheme" else [],
         )
 
@@ -180,7 +183,9 @@ class TestEventsEndpoint:
     management_change) and assert the response shape + ordering.
     """
 
-    _EVENTS_SCHEMA = _UNIT_SCHEMA + """
+    _EVENTS_SCHEMA = (
+        _UNIT_SCHEMA
+        + """
     CREATE TABLE events (
         id INTEGER PRIMARY KEY,
         entity TEXT NOT NULL,
@@ -197,6 +202,7 @@ class TestEventsEndpoint:
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
     """
+    )
 
     def _seed(self, db_path):
         conn = sqlite3.connect(str(db_path))
@@ -211,14 +217,35 @@ class TestEventsEndpoint:
             "magnitude, counterparty, source_ref) VALUES (?,?,?,?,?,?,?)",
             [
                 # id 1: undated management change.
-                ("Test Co", "management_change", None, None, "CEO", None,
-                 "derive:events:management-prose"),
+                (
+                    "Test Co",
+                    "management_change",
+                    None,
+                    None,
+                    "CEO",
+                    None,
+                    "derive:events:management-prose",
+                ),
                 # id 2: dated guidance (later).
-                ("Test Co", "guidance", "2026-04-01", "FY27", "10-12%", None,
-                 "derive:events:guidance-prose"),
+                (
+                    "Test Co",
+                    "guidance",
+                    "2026-04-01",
+                    "FY27",
+                    "10-12%",
+                    None,
+                    "derive:events:guidance-prose",
+                ),
                 # id 3: dated acquisition (earliest).
-                ("Test Co", "acquisition", "2025-01-15", "2025", "58% stake",
-                 "Target Inc", "derive:events:edge-promotion"),
+                (
+                    "Test Co",
+                    "acquisition",
+                    "2025-01-15",
+                    "2025",
+                    "58% stake",
+                    "Target Inc",
+                    "derive:events:edge-promotion",
+                ),
             ],
         )
         conn.commit()
@@ -298,5 +325,3 @@ class TestEventsEndpoint:
         data = r.get_json()
         assert data["entity"] == "Test Co"  # canonical case
         assert data["event_count"] == 3
-
-

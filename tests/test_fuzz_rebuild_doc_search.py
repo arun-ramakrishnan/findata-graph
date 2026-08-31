@@ -8,6 +8,7 @@ bug corrupts every search hit. fts_match_expr turns arbitrary agent/user
 queries into an FTS5 MATCH expression; a syntax error there would take down
 both /api/docs/search and doc_query. Neither had properties.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -26,7 +27,8 @@ _SETTINGS = settings(max_examples=75, deadline=None)
 
 _TEXT = st.text(
     st.characters(blacklist_categories=("Cs",), blacklist_characters="\r"),
-    min_size=0, max_size=300,
+    min_size=0,
+    max_size=300,
 )
 
 # Chunker inputs: arbitrary line soup over the header alphabet — plain
@@ -34,7 +36,8 @@ _TEXT = st.text(
 # split, they belong to the parent section).
 _LINE = st.text(
     st.characters(blacklist_categories=("Cs",), blacklist_characters="\r"),
-    min_size=0, max_size=40,
+    min_size=0,
+    max_size=40,
 )
 _MARKDOWN = st.lists(
     st.one_of(
@@ -42,7 +45,8 @@ _MARKDOWN = st.lists(
         _LINE.map(lambda s: "## " + s),
         _LINE.map(lambda s: "### " + s),
     ),
-    min_size=0, max_size=25,
+    min_size=0,
+    max_size=25,
 ).map(lambda ls: "\n".join(ls))
 
 
@@ -62,7 +66,7 @@ def test_split_sections_anchors_point_at_headers(text):
         if title == "" and anchor == 1 and not line.startswith("## "):
             continue  # the preamble chunk
         assert line.startswith("## "), (title, anchor, line)
-        assert line[len("## "):].strip() == title
+        assert line[len("## ") :].strip() == title
     n_h2 = sum(1 for ln in lines if ln.startswith("## "))
     assert len(chunks) <= n_h2 + 1
 
@@ -74,8 +78,7 @@ def test_split_sections_loses_no_content_line(text):
     (whitespace-only preamble) never carries a non-whitespace line."""
     chunks = rds._split_sections(text)
     src = [ln for ln in text.split("\n") if ln.strip()]
-    dst = [ln for _, _, body in chunks
-           for ln in body.split("\n") if ln.strip()]
+    dst = [ln for _, _, body in chunks for ln in body.split("\n") if ln.strip()]
     assert src == dst
 
 

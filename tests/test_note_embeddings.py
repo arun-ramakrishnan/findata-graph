@@ -6,6 +6,7 @@ embedding columns) → connect(fresh=True) → DuckDB materialisation → the
 four wrappers. Plus the warm-path drift checks (_is_warm model/dims
 stamps) that force cold on a model swap.
 """
+
 from __future__ import annotations
 
 import json
@@ -90,12 +91,27 @@ def _make_db(tmp_path, dims=_DIM, with_model_stamp=None):
         "INSERT INTO entities (name, entity_type, file_path, normalized_name, "
         "sector_classification) VALUES (?,?,?,?,?)",
         [
-            ("HDFC Bank", "company", "findata/Companies/Banking/Hdfc_Bank.md",
-             "HDFC Bank", "Banking"),
-            ("ICICI Bank", "company", "findata/Companies/Banking/ICICI_Bank.md",
-             "ICICI Bank", "Banking"),
-            ("Infosys", "company", "findata/Companies/Technology/Infosys.md",
-             "Infosys", "Technology"),
+            (
+                "HDFC Bank",
+                "company",
+                "findata/Companies/Banking/Hdfc_Bank.md",
+                "HDFC Bank",
+                "Banking",
+            ),
+            (
+                "ICICI Bank",
+                "company",
+                "findata/Companies/Banking/ICICI_Bank.md",
+                "ICICI Bank",
+                "Banking",
+            ),
+            (
+                "Infosys",
+                "company",
+                "findata/Companies/Technology/Infosys.md",
+                "Infosys",
+                "Technology",
+            ),
             ("Banking", "sector", "findata/Sectors/Banking.md", "Banking", None),
         ],
     )
@@ -117,8 +133,7 @@ def _make_db(tmp_path, dims=_DIM, with_model_stamp=None):
         )
     if with_model_stamp is not None:
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS db_meta "
-            "(key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+            "CREATE TABLE IF NOT EXISTS db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
         )
         conn.execute(
             "INSERT OR REPLACE INTO db_meta(key, value) VALUES ('note_embed_model', ?)",
@@ -140,17 +155,13 @@ def note_con(tmp_path):
 class TestMaterialisation:
     def test_projects_all_embedded_rows(self, note_con):
         con, _ = note_con
-        n, dim = con.execute(
-            "SELECT COUNT(*), first(len(emb)) FROM v_note_embeddings"
-        ).fetchone()
+        n, dim = con.execute("SELECT COUNT(*), first(len(emb)) FROM v_note_embeddings").fetchone()
         assert n == len(_NOTES)
         assert dim == _DIM
 
     def test_dims_stamped_in_build_meta(self, note_con):
         con, _ = note_con
-        row = con.execute(
-            "SELECT value FROM _build_meta WHERE key='note_embed_dims'"
-        ).fetchone()
+        row = con.execute("SELECT value FROM _build_meta WHERE key='note_embed_dims'").fetchone()
         assert row is not None and row[0] == str(_DIM)
 
     def test_model_stamp_round_trips(self, tmp_path):
@@ -182,8 +193,7 @@ class TestMaterialisation:
 
         sc = sqlite3.connect(str(db_path))
         sc.execute(
-            "INSERT OR REPLACE INTO db_meta(key, value) "
-            "VALUES ('note_embed_model', 'minilm-l6-v2')"
+            "INSERT OR REPLACE INTO db_meta(key, value) VALUES ('note_embed_model', 'minilm-l6-v2')"
         )
         sc.commit()
         sc.close()
@@ -224,9 +234,7 @@ class TestSimilarNotes:
 
     def test_doc_type_filter(self, note_con):
         con, _ = note_con
-        res = similar_notes(
-            con, "findata/Companies/Banking/Hdfc_Bank.md", doc_type="company"
-        )
+        res = similar_notes(con, "findata/Companies/Banking/Hdfc_Bank.md", doc_type="company")
         assert [p for p, _t, _s in res] == [
             "findata/Companies/Banking/Hdfc_Bank_Old.md",
             "findata/Companies/Banking/ICICI_Bank.md",
@@ -267,7 +275,8 @@ class TestNotesLikeText:
     def test_doc_type_filter(self, note_con):
         con, _ = note_con
         res = notes_like_text(
-            con, "bank chatter", doc_type="chatter", embed_fn=lambda _t: _VEC_CHATTER)
+            con, "bank chatter", doc_type="chatter", embed_fn=lambda _t: _VEC_CHATTER
+        )
         assert res is not None
         assert [p for p, _t, _s in res] == ["findata/The_Chatter/Bank_Chatter.md"]
 
@@ -276,8 +285,7 @@ class TestNotesLikeText:
         # Anti-parallel text vector → all cosines ≤ 0 → filtered by the
         # sim > 0 guard (an exact-duplicate fixture vector would survive
         # any min_sim < 1.0, so this is the deterministic empty case).
-        assert notes_like_text(
-            con, "x", embed_fn=lambda _t: [-1.0, 0.0, 0.0, 0.0]) == []
+        assert notes_like_text(con, "x", embed_fn=lambda _t: [-1.0, 0.0, 0.0, 0.0]) == []
         res = notes_like_text(con, "x", k=1, embed_fn=lambda _t: _VEC_HDFC)
         assert res is not None and len(res) == 1
 
@@ -344,5 +352,6 @@ class TestNearDuplicateNotes:
         # The chatter note is excluded from a company-only self-join even
         # at a loose threshold.
         loose = near_duplicate_notes(con, min_sim=0.5)
-        assert all("The_Chatter" not in pa and "The_Chatter" not in pb
-                   for pa, pb, _ta, _tb, _s in loose)
+        assert all(
+            "The_Chatter" not in pa and "The_Chatter" not in pb for pa, pb, _ta, _tb, _s in loose
+        )

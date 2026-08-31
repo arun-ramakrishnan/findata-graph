@@ -38,6 +38,7 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
+
 # slugify is shared with pdf_conv_md.py (see helpers/pdf/common.py).
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -50,8 +51,6 @@ IMG_BLOCK_RE = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 CROP_RE = re.compile(r"crop_(\d+)_(\d+)")
-
-
 
 
 def parse_images(md_path: Path):
@@ -179,10 +178,7 @@ def main():  # noqa: C901
                     failures.append(im)
 
     ok_total = sum(1 for im in images if im.get("ok"))
-    print(
-        f"[{md_path.name}] downloaded ok={ok_total}/{len(images)} "
-        f"failures={len(failures)}"
-    )
+    print(f"[{md_path.name}] downloaded ok={ok_total}/{len(images)} failures={len(failures)}")
 
     manifest = {
         "newsletter": md_path.name,

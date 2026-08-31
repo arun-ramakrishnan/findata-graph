@@ -63,9 +63,7 @@ VALID_TYPES = {"company", "sector", "super_sector", "sub_sector", "theme"}
 # note (doc/okf/frontmatter.*.v1.json). The strict sector/super_sector
 # field allowlists below must mirror the schemas or the first OKF stamp on
 # those trees fails the gate (company notes have no strict allowlist).
-OKF_OPTIONAL_FIELDS = frozenset(
-    {"generated", "verified", "sources", "status", "stale_after"}
-)
+OKF_OPTIONAL_FIELDS = frozenset({"generated", "verified", "sources", "status", "stale_after"})
 
 # Filename rules (see doc/design/findata.md §Sync Rules): PascalCase + single underscores,
 # no special chars, no consecutive/trailing underscores, <= 100 chars.
@@ -86,58 +84,140 @@ _TAG_OK = re.compile(r"^[a-z_]+/[a-z0-9_]+$")
 # financial_tags/confidence/holding_company/international_operations) are
 # intentionally NOT listed here and left open.
 _KNOWN_TAG_VALUES = {
-    "entity_type": frozenset(
-        {"company", "sector", "super_sector", "sub_sector", "theme"}
-    ),
+    "entity_type": frozenset({"company", "sector", "super_sector", "sub_sector", "theme"}),
     "sector": frozenset(s.lower() for s in CANONICAL_SECTORS),
-    "market_cap": frozenset(
-        {"large_cap", "mid_cap", "small_cap", "micro_cap", "null"}
-    ),
+    "market_cap": frozenset({"large_cap", "mid_cap", "small_cap", "micro_cap", "null"}),
     "geography": frozenset(
-        {"india", "global", "international", "domestic_focused", "usa",
-         "pan_india", "north_india", "west_india", "south_asia", "south_korea"}
+        {
+            "india",
+            "global",
+            "international",
+            "domestic_focused",
+            "usa",
+            "pan_india",
+            "north_india",
+            "west_india",
+            "south_asia",
+            "south_korea",
+        }
     ),
     "business_model": frozenset(
-        {"b2b", "b2c", "b2b2c", "platform", "b2g", "saas", "mixed",
-         "traditional_banking", "financial_services", "financial",
-         "financial_infrastructure", "digital_platform", "cold_chain",
-         "third_party_logistics", "integrated_logistics",
-         "automotive_logistics", "supply_chain", "warehousing",
-         "temperature_controlled", "pharmaceutical_logistics",
-         "freight_services", "food_logistics", "transportation",
-         "cost_optimization"}
+        {
+            "b2b",
+            "b2c",
+            "b2b2c",
+            "platform",
+            "b2g",
+            "saas",
+            "mixed",
+            "traditional_banking",
+            "financial_services",
+            "financial",
+            "financial_infrastructure",
+            "digital_platform",
+            "cold_chain",
+            "third_party_logistics",
+            "integrated_logistics",
+            "automotive_logistics",
+            "supply_chain",
+            "warehousing",
+            "temperature_controlled",
+            "pharmaceutical_logistics",
+            "freight_services",
+            "food_logistics",
+            "transportation",
+            "cost_optimization",
+        }
     ),
     "risk_investment": frozenset(
-        {"growth", "medium_risk", "high_growth", "dividend", "low_risk",
-         "cyclical", "defensive", "high_risk", "stable", "regulatory_risk",
-         "commodity", "stable_growth", "government", "consumer_cyclical",
-         "sovereign", "regulatory", "financial_stability", "defense",
-         "commodity_risk", "commodity_price_volatility", "weather_dependent",
-         "speculative", "specialized_niche", "mixed", "microfinance",
-         "infrastructure", "government_risk", "government_dependent",
-         "gold_backed", "financial_risk", "contractual", "brand_risk",
-         "automotive_cycle",
-         # values used only in SECTOR notes (richer risk vocabulary there)
-         "capex_intensive", "competition", "construction_cyclical",
-         "content_risk", "cyclical_exposure", "economic_cycle",
-         "environmental_regulatory", "interest_rate_sensitive",
-         "operational_complexity", "raw_material_cost", "regulatory_heavy",
-         "seasonal", "technology_disruption"}
+        {
+            "growth",
+            "medium_risk",
+            "high_growth",
+            "dividend",
+            "low_risk",
+            "cyclical",
+            "defensive",
+            "high_risk",
+            "stable",
+            "regulatory_risk",
+            "commodity",
+            "stable_growth",
+            "government",
+            "consumer_cyclical",
+            "sovereign",
+            "regulatory",
+            "financial_stability",
+            "defense",
+            "commodity_risk",
+            "commodity_price_volatility",
+            "weather_dependent",
+            "speculative",
+            "specialized_niche",
+            "mixed",
+            "microfinance",
+            "infrastructure",
+            "government_risk",
+            "government_dependent",
+            "gold_backed",
+            "financial_risk",
+            "contractual",
+            "brand_risk",
+            "automotive_cycle",
+            # values used only in SECTOR notes (richer risk vocabulary there)
+            "capex_intensive",
+            "competition",
+            "construction_cyclical",
+            "content_risk",
+            "cyclical_exposure",
+            "economic_cycle",
+            "environmental_regulatory",
+            "interest_rate_sensitive",
+            "operational_complexity",
+            "raw_material_cost",
+            "regulatory_heavy",
+            "seasonal",
+            "technology_disruption",
+        }
     ),
     "investment_theme": frozenset(
-        {"automation", "clean_energy", "energy_independence",
-         "energy_infrastructure", "energy_security", "energy_transition",
-         "government_owned", "government_schemes", "grid_modernization",
-         "infrastructure", "infrastructure_development", "inland_waterways",
-         "international_expansion", "make_in_india", "natural_gas",
-         "power_infrastructure", "railway_capex", "renewable_energy",
-         "resource_optimization", "sustainability", "sustainable_mining",
-         "vehicle_finance",
-         # values used only in SECTOR notes
-         "commodity", "consumer_trend", "consumption_growth", "cyclical",
-         "defensive", "digital_transformation", "dividend",
-         "ev_transition", "financial_inclusion", "growth", "risk_management",
-         "value"}
+        {
+            "automation",
+            "clean_energy",
+            "energy_independence",
+            "energy_infrastructure",
+            "energy_security",
+            "energy_transition",
+            "government_owned",
+            "government_schemes",
+            "grid_modernization",
+            "infrastructure",
+            "infrastructure_development",
+            "inland_waterways",
+            "international_expansion",
+            "make_in_india",
+            "natural_gas",
+            "power_infrastructure",
+            "railway_capex",
+            "renewable_energy",
+            "resource_optimization",
+            "sustainability",
+            "sustainable_mining",
+            "vehicle_finance",
+            # values used only in SECTOR notes
+            "commodity",
+            "consumer_trend",
+            "consumption_growth",
+            "cyclical",
+            "defensive",
+            "digital_transformation",
+            "dividend",
+            "ev_transition",
+            "financial_inclusion",
+            "growth",
+            "risk_management",
+            "value",
+        }
     ),
 }
 
@@ -177,14 +257,10 @@ class NotesVerifier:
     # logging
     # ------------------------------------------------------------------ #
     def log_issue(self, bucket, file_path, description):
-        self.issues.setdefault(bucket, []).append(
-            {"file": file_path, "description": description}
-        )
+        self.issues.setdefault(bucket, []).append({"file": file_path, "description": description})
 
     def log_warning(self, bucket, file_path, description):
-        self.warnings.setdefault(bucket, []).append(
-            {"file": file_path, "description": description}
-        )
+        self.warnings.setdefault(bucket, []).append({"file": file_path, "description": description})
 
     # ------------------------------------------------------------------ #
     # filename + name-sync checks
@@ -213,9 +289,7 @@ class NotesVerifier:
             )
             return
         if stem.endswith("_"):
-            self.log_issue(
-                "filename_format", file_path, f"Trailing underscore in filename: {stem}"
-            )
+            self.log_issue("filename_format", file_path, f"Trailing underscore in filename: {stem}")
 
     def check_name_sync(self, file_path, data):
         """normalized_name must be present and equal the filename (minus .md)."""
@@ -300,9 +374,7 @@ class NotesVerifier:
                 # tag taxonomy format (advisory)
                 for t in tags:
                     if not _TAG_OK.match(t):
-                        self.log_warning(
-                            "tag_format", file_path, f"Non-standard tag {t!r}"
-                        )
+                        self.log_warning("tag_format", file_path, f"Non-standard tag {t!r}")
                         break
                 # tag VALUE drift (advisory): for controlled namespaces, warn on
                 # any value outside the known-good set. Unlike tag_format this
@@ -345,9 +417,7 @@ class NotesVerifier:
 
         # dates should be quoted in raw YAML
         for date_field in ("created", "last_modified"):
-            if date_field in data and not re.search(
-                rf"{date_field}:\s*'[^']*'", yaml_content
-            ):
+            if date_field in data and not re.search(rf"{date_field}:\s*'[^']*'", yaml_content):
                 self.log_issue(
                     "yaml_structure",
                     file_path,
@@ -357,11 +427,7 @@ class NotesVerifier:
         # title should NOT be quoted
         if "title" in data:
             m = re.search(r"title:\s*([^'\n]+)", yaml_content)
-            if (
-                m
-                and m.group(1).strip().startswith('"')
-                and m.group(1).strip().endswith('"')
-            ):
+            if m and m.group(1).strip().startswith('"') and m.group(1).strip().endswith('"'):
                 self.log_issue(
                     "yaml_structure",
                     file_path,
@@ -423,9 +489,7 @@ class NotesVerifier:
 
         # dates should be quoted in raw YAML (shared rule)
         for date_field in ("created", "last_modified"):
-            if date_field in data and not re.search(
-                rf"{date_field}:\s*'[^']*'", yaml_content
-            ):
+            if date_field in data and not re.search(rf"{date_field}:\s*'[^']*'", yaml_content):
                 self.log_issue(
                     "yaml_structure",
                     file_path,
@@ -435,11 +499,7 @@ class NotesVerifier:
         # title should NOT be quoted (shared rule)
         if "title" in data:
             m = re.search(r"title:\s*([^'\n]+)", yaml_content)
-            if (
-                m
-                and m.group(1).strip().startswith('"')
-                and m.group(1).strip().endswith('"')
-            ):
+            if m and m.group(1).strip().startswith('"') and m.group(1).strip().endswith('"'):
                 self.log_issue(
                     "yaml_structure",
                     file_path,
@@ -519,11 +579,7 @@ class NotesVerifier:
         # to company notes after a one-time unquote of 421 quoted titles).
         if "title" in data:
             m = re.search(r"title:\s*([^'\n]+)", yaml_content)
-            if (
-                m
-                and m.group(1).strip().startswith('"')
-                and m.group(1).strip().endswith('"')
-            ):
+            if m and m.group(1).strip().startswith('"') and m.group(1).strip().endswith('"'):
                 self.log_warning(
                     "company_title_quoted",
                     file_path,
@@ -562,7 +618,6 @@ class NotesVerifier:
                         f"sector: {v!r} does not match any canonical sector",
                     )
 
-
     # ------------------------------------------------------------------ #
     # content quality
     # ------------------------------------------------------------------ #
@@ -585,20 +640,14 @@ class NotesVerifier:
 
         yaml_end = separators[1]
         if yaml_end >= len(lines) - 1:
-            self.log_issue(
-                "content_minimal", file_path, "No content after YAML frontmatter"
-            )
+            self.log_issue("content_minimal", file_path, "No content after YAML frontmatter")
             return
 
         content_after = "\n".join(lines[yaml_end + 1 :])
 
-        meaningful_content = re.sub(
-            r"^\s*$", "", content_after, flags=re.MULTILINE
-        ).strip()
+        meaningful_content = re.sub(r"^\s*$", "", content_after, flags=re.MULTILINE).strip()
         if not meaningful_content:
-            self.log_issue(
-                "content_minimal", file_path, "No meaningful content after YAML"
-            )
+            self.log_issue("content_minimal", file_path, "No meaningful content after YAML")
             return
 
         placeholder_patterns = [
@@ -632,9 +681,7 @@ class NotesVerifier:
             )
 
         if not re.search(r"^#", content_after, re.MULTILINE):
-            self.log_issue(
-                "content_missing_structure", file_path, "Missing main heading"
-            )
+            self.log_issue("content_missing_structure", file_path, "Missing main heading")
 
     # ------------------------------------------------------------------ #
     # content structure: duplicate / near-duplicate headings + redundant YAML
@@ -766,7 +813,7 @@ class NotesVerifier:
         for a, b in zip(seps, seps[1:]):
             if a <= body_start:
                 continue
-            seg = lines[a + 1:b]
+            seg = lines[a + 1 : b]
             keys = []
             for line in seg:
                 s = line.strip()
@@ -777,8 +824,16 @@ class NotesVerifier:
                     keys.append("last-updated")
             key_only = [k for k in keys if k != "last-updated"]
             if key_only and key_only[0] in (
-                "created", "last_modified", "normalized_name", "market_cap",
-                "permalink", "ticker", "title", "type", "sector", "super_sector",
+                "created",
+                "last_modified",
+                "normalized_name",
+                "market_cap",
+                "permalink",
+                "ticker",
+                "title",
+                "type",
+                "sector",
+                "super_sector",
             ):
                 self.log_warning(
                     "redundant_yaml",
@@ -811,9 +866,7 @@ class NotesVerifier:
             try:
                 content = md_file.read_text(encoding="utf-8")
             except Exception as e:
-                self.log_issue(
-                    "yaml_structure", str(md_file), f"Error reading file: {e}"
-                )
+                self.log_issue("yaml_structure", str(md_file), f"Error reading file: {e}")
                 content = None
             self.check_filename_format(str(md_file))
             self.check_yaml_structure(str(md_file), content=content)
@@ -874,15 +927,11 @@ class NotesVerifier:
 
         output_file = str(self.project_root / "verify_notes_report.txt")
 
-        dirs, labels, sectors_count, super_sectors_count = _collect_scan_dirs(
-            self.project_root
-        )
+        dirs, labels, sectors_count, super_sectors_count = _collect_scan_dirs(self.project_root)
 
         # Count total files to decide serial vs parallel. The threshold avoids
         # ProcessPool startup overhead (~0.3s) on small inputs / test fixtures.
-        total_files = sum(
-            sum(1 for _ in Path(d).rglob("*.md") if _.is_file()) for d in dirs
-        )
+        total_files = sum(sum(1 for _ in Path(d).rglob("*.md") if _.is_file()) for d in dirs)
         use_parallel = total_files >= _PARALLEL_THRESHOLD
 
         if use_parallel:
@@ -898,20 +947,22 @@ class NotesVerifier:
                     self.stats["total_files"] += count or 0
             # Sectors/Super_Sectors are already counted by _collect_scan_dirs;
             # companies = total minus those two.
-            companies_count = self.stats["total_files"] - (
-                sectors_count + super_sectors_count
-            )
+            companies_count = self.stats["total_files"] - (sectors_count + super_sectors_count)
         else:
             # Serial path (small inputs / tests).
-            sectors_count = self.process_directory(
-                self.project_root / "findata" / "Sectors", "Sectors"
-            ) or 0
-            super_sectors_count = self.process_directory(
-                self.project_root / "findata" / "Super_Sectors", "Super_Sectors"
-            ) or 0
-            companies_count = self.process_directory(
-                self.project_root / "findata" / "Companies", "Companies"
-            ) or 0
+            sectors_count = (
+                self.process_directory(self.project_root / "findata" / "Sectors", "Sectors") or 0
+            )
+            super_sectors_count = (
+                self.process_directory(
+                    self.project_root / "findata" / "Super_Sectors", "Super_Sectors"
+                )
+                or 0
+            )
+            companies_count = (
+                self.process_directory(self.project_root / "findata" / "Companies", "Companies")
+                or 0
+            )
 
         errors, warnings = self._totals()
 

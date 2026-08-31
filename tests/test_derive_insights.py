@@ -16,6 +16,7 @@ The two headline correctness properties (each has a dedicated test class):
   - ATTRIBUTION COVERAGE: every observed attribution-line form in the corpus
     parses to (name, title). The corpus survey found 7+ forms.
 """
+
 from __future__ import annotations
 
 import re
@@ -188,21 +189,24 @@ class TestAttributionForms:
     """Pin every attribution-line variant found in the corpus survey. Each
     must parse to (name, title); the role-only form returns (None, None)."""
 
-    @pytest.mark.parametrize("line,name,title", [
-        ("## — Saugata Gupta, MD & CEO", "Saugata Gupta", "MD & CEO"),
-        ("— Saugata Gupta, MD & CEO", "Saugata Gupta", "MD & CEO"),
-        ("-Saugata Gupta, MD & CEO", "Saugata Gupta", "MD & CEO"),
-        ("Badal Bagri, Group CFO", "Badal Bagri", "Group CFO"),
-        ("- Akash Ohri, MD & CBO", "Akash Ohri", "MD & CBO"),
-        # Title in parens form.
-        ("- Suvankar Sen (MD & CEO)", "Suvankar Sen", "MD & CEO"),
-        ("- George Muthoot (Managing Director)", "George Muthoot", "Managing Director"),
-        # Name-only form (title is None).
-        ("- Mohit Malhotra", "Mohit Malhotra", None),
-        # Single-letter-initial names.
-        ("- K Krithivasan, CEO", "K Krithivasan", "CEO"),
-        ("- T. V. Chowdary, Managing Director", "T. V. Chowdary", "Managing Director"),
-    ])
+    @pytest.mark.parametrize(
+        "line,name,title",
+        [
+            ("## — Saugata Gupta, MD & CEO", "Saugata Gupta", "MD & CEO"),
+            ("— Saugata Gupta, MD & CEO", "Saugata Gupta", "MD & CEO"),
+            ("-Saugata Gupta, MD & CEO", "Saugata Gupta", "MD & CEO"),
+            ("Badal Bagri, Group CFO", "Badal Bagri", "Group CFO"),
+            ("- Akash Ohri, MD & CBO", "Akash Ohri", "MD & CBO"),
+            # Title in parens form.
+            ("- Suvankar Sen (MD & CEO)", "Suvankar Sen", "MD & CEO"),
+            ("- George Muthoot (Managing Director)", "George Muthoot", "Managing Director"),
+            # Name-only form (title is None).
+            ("- Mohit Malhotra", "Mohit Malhotra", None),
+            # Single-letter-initial names.
+            ("- K Krithivasan, CEO", "K Krithivasan", "CEO"),
+            ("- T. V. Chowdary, Managing Director", "T. V. Chowdary", "Managing Director"),
+        ],
+    )
     def test_parses_named_attribution(self, line, name, title):
         result = di._parse_attribution(line)
         assert result is not None
@@ -214,16 +218,19 @@ class TestAttributionForms:
         result = di._parse_attribution("## Management, Executive")
         assert result == (None, None)
 
-    @pytest.mark.parametrize("line", [
-        "",                                   # blank
-        "The company said it expects growth.",  # prose (lowercase start)
-        '"Another verbatim quote here that is long enough to look like a quote."',  # next quote
-        "## FMCG",                            # bare sector heading (no dash)
-        "---",                                # section break
-        "*Source: The Chatter — Edition",     # source footer
-        "![[images/foo.jpeg]]",               # image embed
-        "## Real Estate",                     # sector heading
-    ])
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "",  # blank
+            "The company said it expects growth.",  # prose (lowercase start)
+            '"Another verbatim quote here that is long enough to look like a quote."',  # next quote
+            "## FMCG",  # bare sector heading (no dash)
+            "---",  # section break
+            "*Source: The Chatter — Edition",  # source footer
+            "![[images/foo.jpeg]]",  # image embed
+            "## Real Estate",  # sector heading
+        ],
+    )
     def test_rejects_non_attribution(self, line):
         assert di._parse_attribution(line) is None
 
@@ -269,9 +276,7 @@ class TestExtractQuotes:
             "_\u2014 Anand Sultania, Chief Financial Officer_\n"
         )
         section = di.CompanySection("Borosil", 1, body)
-        quotes = di.extract_quotes(
-            section, "Borosil Orchid Welspun", "Borosil_Orchid_Welspun"
-        )
+        quotes = di.extract_quotes(section, "Borosil Orchid Welspun", "Borosil_Orchid_Welspun")
         assert len(quotes) == 1
         q = quotes[0]
         assert not q.quote_text.startswith(('"', "_", "\u201c"))
@@ -302,6 +307,7 @@ class TestExtractQuotes:
         loop (the paraphrase accumulator did `continue` without advancing i).
         Guard with a timeout via a tiny body that would hang under the bug."""
         import signal
+
         body = (
             "## [Concall]\n\n"
             "A paraphrase line before the rule.\n"
@@ -314,6 +320,7 @@ class TestExtractQuotes:
 
         def handler(signum, frame):
             raise TimeoutError("extract_quotes infinite-looped")
+
         signal.signal(signal.SIGALRM, handler)
         signal.alarm(3)
         try:
@@ -363,19 +370,13 @@ class TestExtractMetrics:
             assert m.unit not in ("crore", "lakh", "bn_usd", "mn_usd")
 
     def test_extracts_usd_billion(self):
-        body = (
-            "## [Concall]\n\n"
-            "We raised USD 400 million via a senior unsecured bond offering."
-        )
+        body = "## [Concall]\n\nWe raised USD 400 million via a senior unsecured bond offering."
         section = di.CompanySection("Test Co", 1, body)
         metrics = di.extract_metrics(section, "Ed", "stem")
         assert any(m.unit == "mn_usd" for m in metrics)
 
     def test_classifies_metric_label(self):
-        body = (
-            "## [Concall]\n\n"
-            "Revenue grew 23% and EBITDA margin expanded by 140 bps."
-        )
+        body = "## [Concall]\n\nRevenue grew 23% and EBITDA margin expanded by 140 bps."
         section = di.CompanySection("Test Co", 1, body)
         metrics = di.extract_metrics(section, "Ed", "stem")
         labels = {m.metric_label for m in metrics if m.metric_label}
@@ -398,18 +399,21 @@ class TestCurationSafety:
             "# Marico\n\n## Company Overview\n...\n\n"
             "## The Chatter — Marico DLF BSE\n\n"
             "**Hand-written bullet:** This was curated by a human.\n\n"
-            "> \"A quote the agent selected.\"\n> — Saugata Gupta, MD & CEO\n\n"
+            '> "A quote the agent selected."\n> — Saugata Gupta, MD & CEO\n\n'
             "*Source: The Chatter — Marico DLF BSE*\n"
         )
-        quotes = [di.Quote(
-            entity="Marico", quote_text="Parachute Rigids delivered 10% growth.",
-            paraphrase="Volume growth highlight.", speaker_name="Saugata Gupta",
-            speaker_title="MD & CEO", as_of_edition="Marico DLF BSE",
-        )]
+        quotes = [
+            di.Quote(
+                entity="Marico",
+                quote_text="Parachute Rigids delivered 10% growth.",
+                paraphrase="Volume growth highlight.",
+                speaker_name="Saugata Gupta",
+                speaker_title="MD & CEO",
+                as_of_edition="Marico DLF BSE",
+            )
+        ]
         block = di.render_chatter_block("Marico DLF BSE", quotes)
-        new_text, changed = di._replace_or_insert_block(
-            note, "Marico DLF BSE", block
-        )
+        new_text, changed = di._replace_or_insert_block(note, "Marico DLF BSE", block)
         assert not changed
         assert "Hand-written bullet" in new_text
         assert di._BEGIN not in new_text
@@ -419,19 +423,28 @@ class TestCurationSafety:
         re-run — that's the refresh contract."""
         old_block = di.render_chatter_block(
             "Marico DLF BSE",
-            [di.Quote(entity="Marico", quote_text="OLD quote text here.",
-                      as_of_edition="Marico DLF BSE")]
+            [
+                di.Quote(
+                    entity="Marico",
+                    quote_text="OLD quote text here.",
+                    as_of_edition="Marico DLF BSE",
+                )
+            ],
         )
         note = f"# Marico\n\n## Company Overview\n...\n\n{old_block}"
         new_block = di.render_chatter_block(
             "Marico DLF BSE",
-            [di.Quote(entity="Marico", quote_text="NEW quote text here.",
-                      speaker_name="Saugata Gupta", speaker_title="MD & CEO",
-                      as_of_edition="Marico DLF BSE")]
+            [
+                di.Quote(
+                    entity="Marico",
+                    quote_text="NEW quote text here.",
+                    speaker_name="Saugata Gupta",
+                    speaker_title="MD & CEO",
+                    as_of_edition="Marico DLF BSE",
+                )
+            ],
         )
-        new_text, changed = di._replace_or_insert_block(
-            note, "Marico DLF BSE", new_block
-        )
+        new_text, changed = di._replace_or_insert_block(note, "Marico DLF BSE", new_block)
         assert changed
         assert "NEW quote text" in new_text
         assert "OLD quote text" not in new_text
@@ -448,13 +461,14 @@ class TestCurationSafety:
         hand-block gate."""
         ed = "\x85"
         block = di.render_chatter_block(
-            ed, [di.Quote(entity="Marico", quote_text="q.", as_of_edition=ed)])
+            ed, [di.Quote(entity="Marico", quote_text="q.", as_of_edition=ed)]
+        )
         out1, ch1 = di._replace_or_insert_block("# Marico\n", ed, block)
         assert ch1 is True
         out2, ch2 = di._replace_or_insert_block(out1, ed, block)
-        assert ch2 is False                     # recognised its own block
+        assert ch2 is False  # recognised its own block
         assert out2 == out1
-        assert out1.count(di._BEGIN) == 1       # no stacking
+        assert out1.count(di._BEGIN) == 1  # no stacking
 
     def test_different_edition_hand_block_does_not_block_new_auto(self):
         """A hand-written block for edition Y does NOT block an auto block for
@@ -463,25 +477,29 @@ class TestCurationSafety:
             "# Marico\n\n## Company Overview\n...\n\n"
             "## The Chatter — Older Edition\n\n**Old curated content.**\n"
         )
-        quotes = [di.Quote(entity="Marico", quote_text="New edition quote.",
-                           as_of_edition="New Edition")]
+        quotes = [
+            di.Quote(entity="Marico", quote_text="New edition quote.", as_of_edition="New Edition")
+        ]
         block = di.render_chatter_block("New Edition", quotes)
         new_text, changed = di._replace_or_insert_block(note, "New Edition", block)
         assert changed
         assert "Older Edition" in new_text  # hand block preserved
-        assert "New Edition" in new_text    # auto block added
+        assert "New Edition" in new_text  # auto block added
 
     def test_empty_note_gets_auto_block(self):
         """A stub note with no Chatter block gets the auto block appended."""
         note = "# Marico\n\n## Company Overview\nA stub.\n"
-        quotes = [di.Quote(entity="Marico", quote_text="A verbatim quote.",
-                           speaker_name="Saugata Gupta",
-                           speaker_title="MD & CEO",
-                           as_of_edition="Marico DLF BSE")]
+        quotes = [
+            di.Quote(
+                entity="Marico",
+                quote_text="A verbatim quote.",
+                speaker_name="Saugata Gupta",
+                speaker_title="MD & CEO",
+                as_of_edition="Marico DLF BSE",
+            )
+        ]
         block = di.render_chatter_block("Marico DLF BSE", quotes)
-        new_text, changed = di._replace_or_insert_block(
-            note, "Marico DLF BSE", block
-        )
+        new_text, changed = di._replace_or_insert_block(note, "Marico DLF BSE", block)
         assert changed
         assert "## The Chatter — Marico DLF BSE" in new_text
 
@@ -492,16 +510,22 @@ class TestCurationSafety:
 class TestApplyIdempotency:
     def _quotes(self):
         return [
-            di.Quote(entity="Marico",
-                     quote_text="Parachute delivered 10% volume growth.",
-                     speaker_name="Saugata Gupta", speaker_title="MD & CEO",
-                     as_of_edition="Marico DLF BSE",
-                     source_ref="derive:quotes:Marico_DLF_BSE:45"),
-            di.Quote(entity="Marico",
-                     quote_text="Copra prices corrected meaningfully this quarter.",
-                     speaker_name="Saugata Gupta", speaker_title="MD & CEO",
-                     as_of_edition="Marico DLF BSE",
-                     source_ref="derive:quotes:Marico_DLF_BSE:45"),
+            di.Quote(
+                entity="Marico",
+                quote_text="Parachute delivered 10% volume growth.",
+                speaker_name="Saugata Gupta",
+                speaker_title="MD & CEO",
+                as_of_edition="Marico DLF BSE",
+                source_ref="derive:quotes:Marico_DLF_BSE:45",
+            ),
+            di.Quote(
+                entity="Marico",
+                quote_text="Copra prices corrected meaningfully this quarter.",
+                speaker_name="Saugata Gupta",
+                speaker_title="MD & CEO",
+                as_of_edition="Marico DLF BSE",
+                source_ref="derive:quotes:Marico_DLF_BSE:45",
+            ),
         ]
 
     def test_dry_run_writes_nothing(self, tmp_path):
@@ -524,12 +548,16 @@ class TestApplyIdempotency:
         conn = _connect(tmp_path)
         di.apply_quotes(self._quotes(), conn=conn, dry_run=False)
         # Second pass with one different quote.
-        second = [di.Quote(entity="Marico",
-                           quote_text="A completely new quote this edition.",
-                           speaker_name="Saugata Gupta",
-                           speaker_title="MD & CEO",
-                           as_of_edition="Marico DLF BSE",
-                           source_ref="derive:quotes:Marico_DLF_BSE:45")]
+        second = [
+            di.Quote(
+                entity="Marico",
+                quote_text="A completely new quote this edition.",
+                speaker_name="Saugata Gupta",
+                speaker_title="MD & CEO",
+                as_of_edition="Marico DLF BSE",
+                source_ref="derive:quotes:Marico_DLF_BSE:45",
+            )
+        ]
         di.apply_quotes(second, conn=conn, dry_run=False)
         rows = conn.execute(
             "SELECT quote_text FROM quotes WHERE source_ref LIKE 'derive:quotes:%'"
@@ -550,8 +578,7 @@ class TestApplyIdempotency:
         )
         conn.commit()
         di.apply_quotes(self._quotes(), conn=conn, dry_run=False)
-        texts = {r["quote_text"] for r in conn.execute(
-            "SELECT quote_text FROM quotes").fetchall()}
+        texts = {r["quote_text"] for r in conn.execute("SELECT quote_text FROM quotes").fetchall()}
         assert "A hand-seeded quote." in texts  # preserved
         conn.close()
 
@@ -574,9 +601,7 @@ class TestCliNoNotes:
         init = sqlite3.connect(db_path)
         init.row_factory = sqlite3.Row
         init.executescript(_schema_sql())
-        init.execute(
-            "INSERT INTO entities(name, entity_type) VALUES ('Marico','company')"
-        )
+        init.execute("INSERT INTO entities(name, entity_type) VALUES ('Marico','company')")
         init.commit()
         init.close()
 
@@ -636,28 +661,23 @@ class TestStaleOnlyGate:
     """_stale_only_skip: True=skip, False=render, None=no evidence."""
 
     def test_fresh_render_and_older_sources_skips(self):
-        t = _note_with_fm("derive_insights.py/v1", "2026-08-16T00:00:00Z",
-                          [("Ed1", "2026-08-15")])
+        t = _note_with_fm("derive_insights.py/v1", "2026-08-16T00:00:00Z", [("Ed1", "2026-08-15")])
         assert di._stale_only_skip(t) is True
 
     def test_equal_dates_skip(self):
-        t = _note_with_fm("derive_insights.py/v1", "2026-08-15T00:00:00Z",
-                          [("Ed1", "2026-08-15")])
+        t = _note_with_fm("derive_insights.py/v1", "2026-08-15T00:00:00Z", [("Ed1", "2026-08-15")])
         assert di._stale_only_skip(t) is True
 
     def test_newer_source_renders(self):
-        t = _note_with_fm("derive_insights.py/v1", "2026-08-10T00:00:00Z",
-                          [("Ed1", "2026-08-15")])
+        t = _note_with_fm("derive_insights.py/v1", "2026-08-10T00:00:00Z", [("Ed1", "2026-08-15")])
         assert di._stale_only_skip(t) is False
 
     def test_backfill_stamp_is_not_a_render_stamp(self):
-        t = _note_with_fm("process:okf_backfill", "2026-08-19T00:00:00Z",
-                          [("Ed1", "2026-08-15")])
+        t = _note_with_fm("process:okf_backfill", "2026-08-19T00:00:00Z", [("Ed1", "2026-08-15")])
         assert di._stale_only_skip(t) is None
 
     def test_no_sources_is_no_evidence(self):
-        t = _note_with_fm("derive_insights.py/v1", "2026-08-16T00:00:00Z",
-                          sources=[])
+        t = _note_with_fm("derive_insights.py/v1", "2026-08-16T00:00:00Z", sources=[])
         assert di._stale_only_skip(t) is None
 
     def test_no_frontmatter_is_no_evidence(self):
@@ -674,16 +694,17 @@ class TestCliStaleOnly:
         nl.write_text(_SAMPLE_NEWSLETTER)
         gated = tmp_path / "findata" / "Companies" / "FMCG" / "Marico.md"
         gated.parent.mkdir(parents=True, exist_ok=True)
-        gated.write_text(_note_with_fm(
-            "derive_insights.py/v1", "2026-08-16T00:00:00Z",
-            [("Ed1", "2026-08-15")]))
+        gated.write_text(
+            _note_with_fm("derive_insights.py/v1", "2026-08-16T00:00:00Z", [("Ed1", "2026-08-15")])
+        )
         db_path = tmp_path / "test_insights.db"
         init = sqlite3.connect(db_path)
         init.row_factory = sqlite3.Row
         init.executescript(_schema_sql())
         init.execute(
             "INSERT INTO entities(name, entity_type, file_path) "
-            "VALUES ('Marico','company','findata/Companies/FMCG/Marico.md')")
+            "VALUES ('Marico','company','findata/Companies/FMCG/Marico.md')"
+        )
         init.commit()
         init.close()
 
@@ -696,6 +717,7 @@ class TestCliStaleOnly:
         monkeypatch.setattr(di, "PROJECT_ROOT", tmp_path)
         import io
         import contextlib
+
         err = io.StringIO()
         with contextlib.redirect_stderr(err):
             rc = di._cli([*extra_args, str(nl)])
@@ -708,9 +730,10 @@ class TestCliStaleOnly:
         rc, err, after = self._run(tmp_path, monkeypatch, ["--apply", "--stale-only"])
         assert rc == 0
         healed = after.read_text()
-        assert "BEGIN auto chatter block" in healed      # the heal wrote it
-        assert healed != _note_with_fm(                  # generated.at advanced
-            "derive_insights.py/v1", "2026-08-16T00:00:00Z", [("Ed1", "2026-08-15")])
+        assert "BEGIN auto chatter block" in healed  # the heal wrote it
+        assert healed != _note_with_fm(  # generated.at advanced
+            "derive_insights.py/v1", "2026-08-16T00:00:00Z", [("Ed1", "2026-08-15")]
+        )
         (tmp_path / "test_insights.db").unlink()  # helper recreates it
         # Phase 2 bypasses _run (it re-creates the fixture note); rebuild only
         # the DB and re-invoke so the healed note is what runs.
@@ -721,16 +744,18 @@ class TestCliStaleOnly:
         init.executescript(_schema_sql())
         init.execute(
             "INSERT INTO entities(name, entity_type, file_path) "
-            "VALUES ('Marico','company','findata/Companies/FMCG/Marico.md')")
+            "VALUES ('Marico','company','findata/Companies/FMCG/Marico.md')"
+        )
         init.commit()
         init.close()
         import contextlib
         import io as _io
+
         err2 = _io.StringIO()
         with contextlib.redirect_stderr(err2):
             rc2 = di._cli(["--apply", "--stale-only", str(tmp_path / "nl.md")])
         assert rc2 == 0
-        assert after.read_text() == healed              # byte-identical
+        assert after.read_text() == healed  # byte-identical
         assert "0 notes wrote" in err2.getvalue()
         assert "gated by --stale-only" in err2.getvalue()
 
@@ -738,9 +763,9 @@ class TestCliStaleOnly:
         note = tmp_path / "findata" / "Companies" / "FMCG" / "Marico.md"
         note.parent.mkdir(parents=True)
         # older render than the source edition -> must re-render
-        note.write_text(_note_with_fm(
-            "derive_insights.py/v1", "2026-08-10T00:00:00Z",
-            [("Ed1", "2026-08-15")]))
+        note.write_text(
+            _note_with_fm("derive_insights.py/v1", "2026-08-10T00:00:00Z", [("Ed1", "2026-08-15")])
+        )
         nl = tmp_path / "nl.md"
         nl.write_text(_SAMPLE_NEWSLETTER)
         db_path = tmp_path / "test_insights.db"
@@ -749,7 +774,8 @@ class TestCliStaleOnly:
         init.executescript(_schema_sql())
         init.execute(
             "INSERT INTO entities(name, entity_type, file_path) "
-            "VALUES ('Marico','company','findata/Companies/FMCG/Marico.md')")
+            "VALUES ('Marico','company','findata/Companies/FMCG/Marico.md')"
+        )
         init.commit()
         init.close()
 
@@ -762,23 +788,24 @@ class TestCliStaleOnly:
         monkeypatch.setattr(di, "PROJECT_ROOT", tmp_path)
         import io
         import contextlib
+
         err = io.StringIO()
         with contextlib.redirect_stderr(err):
             rc = di._cli(["--apply", "--stale-only", str(nl)])
         assert rc == 0
         text = note.read_text()
-        assert di._BEGIN in text           # block rendered
-        assert "2026-08-10" not in text    # generated.at re-stamped
+        assert di._BEGIN in text  # block rendered
+        assert "2026-08-10" not in text  # generated.at re-stamped
         gated = di._stale_only_skip(text)
-        assert gated is True               # fixed point: re-run would skip
+        assert gated is True  # fixed point: re-run would skip
 
     def test_default_run_ignores_the_gate(self, tmp_path, monkeypatch):
         """Without --stale-only a fresh note still re-renders (opt-in, Q2)."""
         note = tmp_path / "findata" / "Companies" / "FMCG" / "Marico.md"
         note.parent.mkdir(parents=True)
-        note.write_text(_note_with_fm(
-            "derive_insights.py/v1", "2026-08-16T00:00:00Z",
-            [("Ed1", "2026-08-15")]))
+        note.write_text(
+            _note_with_fm("derive_insights.py/v1", "2026-08-16T00:00:00Z", [("Ed1", "2026-08-15")])
+        )
         nl = tmp_path / "nl.md"
         nl.write_text(_SAMPLE_NEWSLETTER)
         db_path = tmp_path / "test_insights.db"
@@ -786,7 +813,8 @@ class TestCliStaleOnly:
         init.executescript(_schema_sql())
         init.execute(
             "INSERT INTO entities(name, entity_type, file_path) "
-            "VALUES ('Marico','company','findata/Companies/FMCG/Marico.md')")
+            "VALUES ('Marico','company','findata/Companies/FMCG/Marico.md')"
+        )
         init.commit()
         init.close()
 
@@ -799,6 +827,7 @@ class TestCliStaleOnly:
         monkeypatch.setattr(di, "PROJECT_ROOT", tmp_path)
         import io
         import contextlib
+
         with contextlib.redirect_stderr(io.StringIO()):
             rc = di._cli(["--apply", str(nl)])
         assert rc == 0
@@ -829,25 +858,27 @@ def _splice_vault(tmp_path, monkeypatch, *, stems=("My_Edition",)):
 
 
 def _fm_sources(text):
-    return {s["id"]: s for s in yaml.safe_load(
-        text.split("---")[1]).get("sources", [])}
+    return {s["id"]: s for s in yaml.safe_load(text.split("---")[1]).get("sources", [])}
 
 
 class TestSpliceSources:
     def test_body_edition_spliced_with_round_trip(self, tmp_path, monkeypatch):
         vault, index = _splice_vault(tmp_path, monkeypatch)
-        body = ("# Marico\n\n" + di.render_chatter_block("My Edition", [
-            di.Quote(entity="Marico", quote_text="A quote.")]))
+        body = "# Marico\n\n" + di.render_chatter_block(
+            "My Edition", [di.Quote(entity="Marico", quote_text="A quote.")]
+        )
         text = _note_with_fm(
-            "derive_insights.py/v1", "2026-08-16T00:00:00Z",
-            [("Old_Edition", "2026-08-15")], body=body)
+            "derive_insights.py/v1",
+            "2026-08-16T00:00:00Z",
+            [("Old_Edition", "2026-08-15")],
+            body=body,
+        )
         new_text, changed = di._splice_sources(text, index, vault)
         assert changed is True
         srcs = _fm_sources(new_text)
         assert set(srcs) == {"Old_Edition", "My_Edition"}
         assert srcs["My_Edition"]["last_modified"] == "2026-08-18"
-        assert srcs["My_Edition"]["resource"] == (
-            "/findata/The_Chatter/My_Edition.md")
+        assert srcs["My_Edition"]["resource"] == ("/findata/The_Chatter/My_Edition.md")
         # Frontmatter survives the YAML round-trip; body is byte-identical.
         assert new_text.endswith(body)
         fm = yaml.safe_load(new_text.split("---")[1])
@@ -857,9 +888,11 @@ class TestSpliceSources:
     def test_existing_edition_is_noop(self, tmp_path, monkeypatch):
         vault, index = _splice_vault(tmp_path, monkeypatch)
         text = _note_with_fm(
-            "derive_insights.py/v1", "2026-08-16T00:00:00Z",
+            "derive_insights.py/v1",
+            "2026-08-16T00:00:00Z",
             [("My_Edition", "2026-08-15")],
-            body="# Marico\n\n## The Chatter — My Edition\n")
+            body="# Marico\n\n## The Chatter — My Edition\n",
+        )
         new_text, changed = di._splice_sources(text, index, vault)
         assert changed is False
         assert new_text == text
@@ -875,38 +908,43 @@ class TestSpliceSources:
         could never satisfy the gate)."""
         vault, index = _splice_vault(tmp_path, monkeypatch)
         text = _note_with_fm(
-            "derive_insights.py/v1", "2026-08-16T00:00:00Z",
-            [("Old_Edition", "2026-08-15")], body="# Marico\n\n## Key Figures (auto)\n")
+            "derive_insights.py/v1",
+            "2026-08-16T00:00:00Z",
+            [("Old_Edition", "2026-08-15")],
+            body="# Marico\n\n## Key Figures (auto)\n",
+        )
         new_text, changed = di._splice_sources(
-            text, index, vault, extra_stems=frozenset({"My_Edition"}))
+            text, index, vault, extra_stems=frozenset({"My_Edition"})
+        )
         assert changed is True
         assert set(_fm_sources(new_text)) == {"Old_Edition", "My_Edition"}
 
     def test_nothing_to_add_is_noop(self, tmp_path, monkeypatch):
         vault, index = _splice_vault(tmp_path, monkeypatch)
         text = _note_with_fm(
-            "derive_insights.py/v1", "2026-08-16T00:00:00Z", sources=[],
-            body="# Marico\n")
+            "derive_insights.py/v1", "2026-08-16T00:00:00Z", sources=[], body="# Marico\n"
+        )
         new_text, changed = di._splice_sources(text, index, vault)
         assert changed is False and new_text == text
 
 
 class TestGateAmendment:
     def test_missing_scanned_stem_forces_render(self):
-        t = _note_with_fm("derive_insights.py/v1", "2026-08-16T00:00:00Z",
-                          [("Old_Edition", "2026-08-15")])
+        t = _note_with_fm(
+            "derive_insights.py/v1", "2026-08-16T00:00:00Z", [("Old_Edition", "2026-08-15")]
+        )
         assert di._stale_only_skip(t, frozenset({"My_Edition"})) is False
 
     def test_present_scanned_stem_falls_through_to_dates(self):
-        t = _note_with_fm("derive_insights.py/v1", "2026-08-16T00:00:00Z",
-                          [("My_Edition", "2026-08-15")])
+        t = _note_with_fm(
+            "derive_insights.py/v1", "2026-08-16T00:00:00Z", [("My_Edition", "2026-08-15")]
+        )
         assert di._stale_only_skip(t, frozenset({"My_Edition"})) is True
 
     def test_scanned_stems_ignores_unresolvable(self, tmp_path, monkeypatch):
         _, index = _splice_vault(tmp_path, monkeypatch)
         memo: dict = {}
-        stems = di._scanned_stems(
-            ["My Edition", "Totally Unknown Edition", None, ""], index, memo)
+        stems = di._scanned_stems(["My Edition", "Totally Unknown Edition", None, ""], index, memo)
         assert stems == frozenset({"My_Edition"})
 
     def test_scanned_stems_memoizes(self, tmp_path, monkeypatch):
@@ -915,8 +953,7 @@ class TestGateAmendment:
 
         def _spy(cand, idx):
             calls.append(cand)
-            return next(v for k, v in idx.items()
-                        if k == ei.norm_key("My Edition"))
+            return next(v for k, v in idx.items() if k == ei.norm_key("My Edition"))
 
         monkeypatch.setattr(di, "resolve_edition_string", _spy)
         memo: dict = {}
@@ -934,7 +971,8 @@ class TestSpliceConvergence:
         conn = _connect(tmp_path)
         conn.execute(
             "INSERT INTO entities(name, entity_type, file_path) "
-            "VALUES ('Marico','company','findata/Companies/Marico.md')")
+            "VALUES ('Marico','company','findata/Companies/Marico.md')"
+        )
         conn.commit()
         return conn
 
@@ -952,18 +990,19 @@ Marico is a consumer goods company.
 — Saugata Gupta, MD & CEO
 """
 
-    def test_new_edition_renders_splices_and_converges(
-            self, tmp_path, monkeypatch):
+    def test_new_edition_renders_splices_and_converges(self, tmp_path, monkeypatch):
         import contextlib
         import io
-        vault, _ = _splice_vault(
-            tmp_path, monkeypatch, stems=("Old_Edition", "My_Edition"))
+
+        vault, _ = _splice_vault(tmp_path, monkeypatch, stems=("Old_Edition", "My_Edition"))
         note = vault / "Companies" / "Marico.md"
         # Fresh by the DATE leg alone (the pre-§3.2 gate would skip this) —
         # but the scanned edition My_Edition is absent from sources[].
-        note.write_text(_note_with_fm(
-            "derive_insights.py/v1", "2026-08-16T00:00:00Z",
-            [("Old_Edition", "2026-08-15")]))
+        note.write_text(
+            _note_with_fm(
+                "derive_insights.py/v1", "2026-08-16T00:00:00Z", [("Old_Edition", "2026-08-15")]
+            )
+        )
         nl = tmp_path / "nl.md"
         nl.write_text(self._NL)
         db_path = tmp_path / "test_insights.db"
@@ -991,58 +1030,74 @@ Marico is a consumer goods company.
         assert "gated by --stale-only" in err.getvalue()
         assert note.read_text() == fixed
 
-    def test_hand_written_block_still_gets_the_sources_repair_write(
-            self, tmp_path, monkeypatch):
+    def test_hand_written_block_still_gets_the_sources_repair_write(self, tmp_path, monkeypatch):
         """Hand-written edition block preserved (skipped) + scanned edition
         missing from sources[]: the splice alone drives the write (the
         convergence requirement — without it the note would force a render
         every run while the block stays hand-curated)."""
         vault, index = _splice_vault(tmp_path, monkeypatch)
-        quotes = [di.Quote(entity="Marico", quote_text="A quote.",
-                           as_of_edition="My Edition")]
+        quotes = [di.Quote(entity="Marico", quote_text="A quote.", as_of_edition="My Edition")]
         hand = "## The Chatter — My Edition\n\nA hand-curated synthesis.\n"
         note = vault / "Companies" / "Marico.md"
-        note.write_text(_note_with_fm(
-            "derive_insights.py/v1", "2026-08-16T00:00:00Z",
-            [("Old_Edition", "2026-08-15")],
-            body="# Marico\n\n" + hand))
+        note.write_text(
+            _note_with_fm(
+                "derive_insights.py/v1",
+                "2026-08-16T00:00:00Z",
+                [("Old_Edition", "2026-08-15")],
+                body="# Marico\n\n" + hand,
+            )
+        )
         conn = self._marico_db(tmp_path)
         try:
             written, skipped, gated = di.render_notes(
-                {("Marico", "My Edition"): quotes}, dry_run=False, conn=conn,
-                stale_only=True, index=index)
+                {("Marico", "My Edition"): quotes},
+                dry_run=False,
+                conn=conn,
+                stale_only=True,
+                index=index,
+            )
         finally:
             conn.close()
         assert (written, skipped, gated) == (1, 1, 0)
         text = note.read_text()
         assert set(_fm_sources(text)) == {"Old_Edition", "My_Edition"}
-        assert hand in text            # hand-written block untouched
-        assert di._BEGIN not in text   # no auto block smuggled in
+        assert hand in text  # hand-written block untouched
+        assert di._BEGIN not in text  # no auto block smuggled in
 
     def test_metrics_only_note_converges(self, tmp_path, monkeypatch):
         vault, index = _splice_vault(tmp_path, monkeypatch)
-        ms = [di.Metric(entity="Marico", metric_label="revenue",
-                        value_raw="₹1,000 cr", as_of_edition="My Edition")]
+        ms = [
+            di.Metric(
+                entity="Marico",
+                metric_label="revenue",
+                value_raw="₹1,000 cr",
+                as_of_edition="My Edition",
+            )
+        ]
         # KF block pre-rendered byte-identical: only the sources can move.
         kf = di.render_key_figures_block(ms)
         note = vault / "Companies" / "Marico.md"
-        note.write_text(_note_with_fm(
-            "derive_insights.py/v1", "2026-08-16T00:00:00Z",
-            [("Old_Edition", "2026-08-15")],
-            body="# Marico\n\n" + kf))
+        note.write_text(
+            _note_with_fm(
+                "derive_insights.py/v1",
+                "2026-08-16T00:00:00Z",
+                [("Old_Edition", "2026-08-15")],
+                body="# Marico\n\n" + kf,
+            )
+        )
         conn = self._marico_db(tmp_path)
         try:
             w1, g1 = di.render_metrics_notes(
-                {"Marico": ms}, dry_run=False, conn=conn, stale_only=True,
-                index=index)
+                {"Marico": ms}, dry_run=False, conn=conn, stale_only=True, index=index
+            )
             fixed = note.read_text()
             w2, g2 = di.render_metrics_notes(
-                {"Marico": ms}, dry_run=False, conn=conn, stale_only=True,
-                index=index)
+                {"Marico": ms}, dry_run=False, conn=conn, stale_only=True, index=index
+            )
         finally:
             conn.close()
-        assert (w1, g1) == (1, 0)          # repair write (sources only)
-        assert (w2, g2) == (0, 1)          # fixed point: gated
+        assert (w1, g1) == (1, 0)  # repair write (sources only)
+        assert (w2, g2) == (0, 1)  # fixed point: gated
         assert set(_fm_sources(fixed)) == {"Old_Edition", "My_Edition"}
         assert note.read_text() == fixed
 
@@ -1052,17 +1107,30 @@ Marico is a consumer goods company.
 # --------------------------------------------------------------------------- #
 class TestRenderBlock:
     def test_block_has_sentinel_markers(self):
-        quotes = [di.Quote(entity="X", quote_text="A quote.", speaker_name="N",
-                           speaker_title="T", as_of_edition="Ed")]
+        quotes = [
+            di.Quote(
+                entity="X",
+                quote_text="A quote.",
+                speaker_name="N",
+                speaker_title="T",
+                as_of_edition="Ed",
+            )
+        ]
         block = di.render_chatter_block("Ed", quotes)
         assert di._BEGIN in block
         assert di._END in block
         assert "## The Chatter — Ed" in block
 
     def test_anonymous_quote_has_no_attribution_line(self):
-        quotes = [di.Quote(entity="X", quote_text="An anonymous quote here.",
-                           speaker_name=None, speaker_title=None,
-                           as_of_edition="Ed")]
+        quotes = [
+            di.Quote(
+                entity="X",
+                quote_text="An anonymous quote here.",
+                speaker_name=None,
+                speaker_title=None,
+                as_of_edition="Ed",
+            )
+        ]
         block = di.render_chatter_block("Ed", quotes)
         # The quote block must not carry a "> — Name, Title" attribution line.
         # (The heading "## The Chatter — Ed" legitimately contains an em-dash;
@@ -1077,9 +1145,15 @@ class TestRenderBlock:
 # --------------------------------------------------------------------------- #
 class TestKeyFiguresBlock:
     def test_block_has_kf_sentinels_and_heading(self):
-        metrics = [di.Metric(entity="X", value_raw="₹2,75,972 crore",
-                             metric_label="revenue", unit="crore",
-                             period="Q1 FY27")]
+        metrics = [
+            di.Metric(
+                entity="X",
+                value_raw="₹2,75,972 crore",
+                metric_label="revenue",
+                unit="crore",
+                period="Q1 FY27",
+            )
+        ]
         block = di.render_key_figures_block(metrics)
         assert di._KF_BEGIN in block
         assert di._KF_END in block
@@ -1089,12 +1163,23 @@ class TestKeyFiguresBlock:
 
     def test_groups_by_label_and_shows_period(self):
         metrics = [
-            di.Metric(entity="X", value_raw="₹2,75,972 crore",
-                      metric_label="revenue", unit="crore", period="Q1 FY27"),
-            di.Metric(entity="X", value_raw="10%", metric_label="growth",
-                      unit="percent", period="Q1 FY27"),
-            di.Metric(entity="X", value_raw="140 bps",
-                      metric_label="ebitda_margin", unit="bps", period=None),
+            di.Metric(
+                entity="X",
+                value_raw="₹2,75,972 crore",
+                metric_label="revenue",
+                unit="crore",
+                period="Q1 FY27",
+            ),
+            di.Metric(
+                entity="X", value_raw="10%", metric_label="growth", unit="percent", period="Q1 FY27"
+            ),
+            di.Metric(
+                entity="X",
+                value_raw="140 bps",
+                metric_label="ebitda_margin",
+                unit="bps",
+                period=None,
+            ),
         ]
         block = di.render_key_figures_block(metrics)
         # Period appears in parens for dated metrics.
@@ -1104,12 +1189,9 @@ class TestKeyFiguresBlock:
 
     def test_dedups_identical_values_within_label(self):
         metrics = [
-            di.Metric(entity="X", value_raw="₹2,75,972 crore",
-                      metric_label="revenue"),
-            di.Metric(entity="X", value_raw="₹2,75,972 crore",
-                      metric_label="revenue"),  # dup
-            di.Metric(entity="X", value_raw="₹2,32,855 crore",
-                      metric_label="revenue"),
+            di.Metric(entity="X", value_raw="₹2,75,972 crore", metric_label="revenue"),
+            di.Metric(entity="X", value_raw="₹2,75,972 crore", metric_label="revenue"),  # dup
+            di.Metric(entity="X", value_raw="₹2,32,855 crore", metric_label="revenue"),
         ]
         block = di.render_key_figures_block(metrics)
         # The dup appears once; the two distinct values appear.
@@ -1157,7 +1239,7 @@ class TestKeyFiguresBlock:
         assert changed
         assert "## Company Profile (yfinance)" in out  # profile preserved
         assert "Pharma" in out
-        assert "20%" in out and "10%" not in out       # figure refreshed
+        assert "20%" in out and "10%" not in out  # figure refreshed
         # Profile now sits BEFORE the KF region (rescued out); KF count stable.
         assert out.index("## Company Profile (yfinance)") < out.index(di._KF_BEGIN)
         assert out.count(di._KF_BEGIN) == 1
@@ -1181,24 +1263,25 @@ class TestNestedBlockRescue:
             "\n_Source: yfinance | Refreshed: 2026-08-10_\n"
             "<!-- END auto company profile -->"
         )
-        kf = (f"{di._KF_BEGIN}\n\n{profile}\n\n{di._KF_HEADING}\n\n"
-              f"- **growth**: 9%\n\n{di._KF_END}")
-        chatter = (f"{di._BEGIN}\n\n{kf}\n\n## The Chatter — Old Edition\n\n"
-                   f"Old auto content.\n\n"
-                   f"*Source: The Chatter — Old Edition*\n\n{di._END}")
-        return (f"# X Ltd\n\n## Company Overview\nA stub.\n\n{chatter}\n",
-                profile, kf)
+        kf = f"{di._KF_BEGIN}\n\n{profile}\n\n{di._KF_HEADING}\n\n- **growth**: 9%\n\n{di._KF_END}"
+        chatter = (
+            f"{di._BEGIN}\n\n{kf}\n\n## The Chatter — Old Edition\n\n"
+            f"Old auto content.\n\n"
+            f"*Source: The Chatter — Old Edition*\n\n{di._END}"
+        )
+        return (f"# X Ltd\n\n## Company Overview\nA stub.\n\n{chatter}\n", profile, kf)
 
     def test_chatter_refresh_rescues_nested_kf_and_profile(self):
         note, profile, _ = self._juniper_shape_note()
-        new_block = di.render_chatter_block("Old Edition", [
-            di.Quote(entity="X", quote_text="New quote.",
-                     as_of_edition="Old Edition")])
+        new_block = di.render_chatter_block(
+            "Old Edition",
+            [di.Quote(entity="X", quote_text="New quote.", as_of_edition="Old Edition")],
+        )
         out, changed = di._replace_or_insert_block(note, "Old Edition", new_block)
         assert changed
-        assert "Company Profile (yfinance)" in out   # profile preserved
-        assert "## Key Figures (auto)" in out        # KF block preserved
-        assert "New quote." in out                   # chatter refreshed
+        assert "Company Profile (yfinance)" in out  # profile preserved
+        assert "## Key Figures (auto)" in out  # KF block preserved
+        assert "New quote." in out  # chatter refreshed
         assert out.count(di._KF_BEGIN) == 1
         # Both rescued BEFORE the new chatter region, not nested in it.
         assert out.index("## Company Profile (yfinance)") < out.index(di._BEGIN)
@@ -1208,8 +1291,10 @@ class TestNestedBlockRescue:
         """The different-edition replacement path (matches[0] swap) must
         rescue too — it rewrites the same region."""
         note, _, _ = self._juniper_shape_note()
-        new_block = di.render_chatter_block("Brand New Edition", [
-            di.Quote(entity="X", quote_text="Q.", as_of_edition="Brand New Edition")])
+        new_block = di.render_chatter_block(
+            "Brand New Edition",
+            [di.Quote(entity="X", quote_text="Q.", as_of_edition="Brand New Edition")],
+        )
         out, changed = di._replace_or_insert_block(note, "Brand New Edition", new_block)
         assert changed
         assert "Company Profile (yfinance)" in out
@@ -1220,9 +1305,10 @@ class TestNestedBlockRescue:
         note, _, _ = self._juniper_shape_note()
         # Corrupt the KF region: drop its END marker inside the chatter region.
         broken = note.replace(di._KF_END + "\n\n", "", 1)
-        new_block = di.render_chatter_block("Old Edition", [
-            di.Quote(entity="X", quote_text="New quote.",
-                     as_of_edition="Old Edition")])
+        new_block = di.render_chatter_block(
+            "Old Edition",
+            [di.Quote(entity="X", quote_text="New quote.", as_of_edition="Old Edition")],
+        )
         out, changed = di._replace_or_insert_block(broken, "Old Edition", new_block)
         assert changed is False
         assert out == broken  # untouched — never risk destroying content
@@ -1231,9 +1317,7 @@ class TestNestedBlockRescue:
         """Double nesting yields ONE maximal span (KF with the profile inside),
         never the profile again as a separate block (no duplication)."""
         note, _, _ = self._juniper_shape_note()
-        m = re.search(
-            re.escape(di._BEGIN) + r".*?" + re.escape(di._END), note, re.DOTALL
-        )
+        m = re.search(re.escape(di._BEGIN) + r".*?" + re.escape(di._END), note, re.DOTALL)
         assert m is not None  # _juniper_shape_note always nests a chatter block
         region = m.group(0)
         blocks = di._extract_nested_blocks(region)
@@ -1244,10 +1328,8 @@ class TestNestedBlockRescue:
 
     def test_extract_nested_blocks_unbalanced_is_none(self):
         # END before any BEGIN, and an unclosed BEGIN, are both unbalanced.
-        assert di._extract_nested_blocks(
-            "x<!-- END auto other -->y") is None
-        assert di._extract_nested_blocks(
-            "x<!-- BEGIN auto key figures -->y") is None
+        assert di._extract_nested_blocks("x<!-- END auto other -->y") is None
+        assert di._extract_nested_blocks("x<!-- BEGIN auto key figures -->y") is None
         assert di._extract_nested_blocks("no markers") == []
 
 
@@ -1260,21 +1342,25 @@ class TestMultiEditionBlocks:
     block per scanned edition; only an edition's OWN block is replaced."""
 
     def test_sibling_edition_block_never_evicted(self):
-        a = di.render_chatter_block("Edition A", [
-            di.Quote(entity="X", quote_text="A quote.", as_of_edition="Edition A")])
+        a = di.render_chatter_block(
+            "Edition A", [di.Quote(entity="X", quote_text="A quote.", as_of_edition="Edition A")]
+        )
         note = f"# X\n\n## Company Overview\nStub.\n\n{a}"
-        b = di.render_chatter_block("Edition B", [
-            di.Quote(entity="X", quote_text="B quote.", as_of_edition="Edition B")])
+        b = di.render_chatter_block(
+            "Edition B", [di.Quote(entity="X", quote_text="B quote.", as_of_edition="Edition B")]
+        )
         out, changed = di._replace_or_insert_block(note, "Edition B", b)
         assert changed
-        assert "A quote." in out and "B quote." in out   # BOTH editions kept
+        assert "A quote." in out and "B quote." in out  # BOTH editions kept
         assert out.count(di._BEGIN) == 2
 
     def test_multi_edition_render_is_idempotent(self):
-        a = di.render_chatter_block("Edition A", [
-            di.Quote(entity="X", quote_text="A quote.", as_of_edition="Edition A")])
-        b = di.render_chatter_block("Edition B", [
-            di.Quote(entity="X", quote_text="B quote.", as_of_edition="Edition B")])
+        a = di.render_chatter_block(
+            "Edition A", [di.Quote(entity="X", quote_text="A quote.", as_of_edition="Edition A")]
+        )
+        b = di.render_chatter_block(
+            "Edition B", [di.Quote(entity="X", quote_text="B quote.", as_of_edition="Edition B")]
+        )
         note = f"# X\n\n## Company Overview\nStub.\n\n{a}"
         _, _ = di._replace_or_insert_block(note, "Edition B", b)
         first = di._replace_or_insert_block(note, "Edition B", b)[0]
@@ -1284,38 +1370,42 @@ class TestMultiEditionBlocks:
         assert again.count(di._BEGIN) == 2
         assert again == di._replace_or_insert_block(again, "Edition A", a)[0]
 
-    def test_multi_edition_note_converges_under_stale_only(
-            self, tmp_path, monkeypatch):
+    def test_multi_edition_note_converges_under_stale_only(self, tmp_path, monkeypatch):
         """End-to-end pin: two editions with quotes -> both blocks render,
         sources[] gains BOTH stems, and the second --stale-only run gates
         the note out byte-identically (the 31-note fixed point)."""
         import contextlib
         import io
-        vault, _ = _splice_vault(
-            tmp_path, monkeypatch, stems=("Edition_A", "Edition_B"))
+
+        vault, _ = _splice_vault(tmp_path, monkeypatch, stems=("Edition_A", "Edition_B"))
         nl1 = tmp_path / "nl1.md"
         nl1.write_text(
             "# Edition A\n\n## Marico Ltd. | Large Cap | FMCG\n\n"
             "Marico is a consumer goods company.\n\n## [Concall]\n\n"
-            "\"The first edition delivered strong volume growth.\"\n\n"
-            "— Saugata Gupta, MD & CEO\n")
+            '"The first edition delivered strong volume growth."\n\n'
+            "— Saugata Gupta, MD & CEO\n"
+        )
         nl2 = tmp_path / "nl2.md"
         nl2.write_text(
             "# Edition B\n\n## Marico Ltd. | Large Cap | FMCG\n\n"
             "Marico is a consumer goods company.\n\n## [Concall]\n\n"
-            "\"The second edition carried an even stronger quarter.\"\n\n"
-            "— Saugata Gupta, MD & CEO\n")
+            '"The second edition carried an even stronger quarter."\n\n'
+            "— Saugata Gupta, MD & CEO\n"
+        )
         note = vault / "Companies" / "Marico.md"
-        note.write_text(_note_with_fm(
-            "derive_insights.py/v1", "2026-08-16T00:00:00Z",
-            [("Old_Edition", "2026-08-15")]))
+        note.write_text(
+            _note_with_fm(
+                "derive_insights.py/v1", "2026-08-16T00:00:00Z", [("Old_Edition", "2026-08-15")]
+            )
+        )
         db_path = tmp_path / "test_insights.db"
         init = sqlite3.connect(db_path)
         init.row_factory = sqlite3.Row
         init.executescript(_schema_sql())
         init.execute(
             "INSERT INTO entities(name, entity_type, file_path) "
-            "VALUES ('Marico','company','findata/Companies/Marico.md')")
+            "VALUES ('Marico','company','findata/Companies/Marico.md')"
+        )
         init.commit()
         init.close()
 
@@ -1332,8 +1422,7 @@ class TestMultiEditionBlocks:
         fixed = note.read_text()
         assert "first edition delivered strong volume growth" in fixed
         assert "second edition carried an even stronger quarter" in fixed
-        assert set(_fm_sources(fixed)) == {
-            "Old_Edition", "Edition_A", "Edition_B"}
+        assert set(_fm_sources(fixed)) == {"Old_Edition", "Edition_A", "Edition_B"}
         with contextlib.redirect_stderr(io.StringIO()):
             for nl in (nl1, nl2):
                 assert di._cli(["--apply", "--stale-only", str(nl)]) == 0
@@ -1351,34 +1440,53 @@ class TestInsertionPlacement:
 
     @staticmethod
     def _note_with_auto_and_curated():
-        block = di.render_chatter_block("Existing Edition", [
-            di.Quote(entity="X", quote_text="An existing edition quote line.",
-                     as_of_edition="Existing Edition")])
-        return (f"# X\n\n## Company Overview\nStub.\n\n{block}\n\n"
-                "## The Chatter — A Curated Synthesis\n\nHand-written.\n")
+        block = di.render_chatter_block(
+            "Existing Edition",
+            [
+                di.Quote(
+                    entity="X",
+                    quote_text="An existing edition quote line.",
+                    as_of_edition="Existing Edition",
+                )
+            ],
+        )
+        return (
+            f"# X\n\n## Company Overview\nStub.\n\n{block}\n\n"
+            "## The Chatter — A Curated Synthesis\n\nHand-written.\n"
+        )
 
     def test_chatter_insert_never_splits_an_existing_region(self):
         note = self._note_with_auto_and_curated()
-        new_block = di.render_chatter_block("Different Edition", [
-            di.Quote(entity="X", quote_text="A different edition quote line.",
-                     as_of_edition="Different Edition")])
-        out, changed = di._replace_or_insert_block(note, "Different Edition",
-                                                   new_block)
+        new_block = di.render_chatter_block(
+            "Different Edition",
+            [
+                di.Quote(
+                    entity="X",
+                    quote_text="A different edition quote line.",
+                    as_of_edition="Different Edition",
+                )
+            ],
+        )
+        out, changed = di._replace_or_insert_block(note, "Different Edition", new_block)
         assert changed
-        assert not re.search(
-            r"<!-- BEGIN auto [^\n>]*-->\s*(?:\n\s*)*<!-- BEGIN auto ", out)
+        assert not re.search(r"<!-- BEGIN auto [^\n>]*-->\s*(?:\n\s*)*<!-- BEGIN auto ", out)
         assert out.count(di._BEGIN) == 2
         assert out.count(di._END) == 2
         # Both blocks intact: heading immediately after its own BEGIN.
         first_begin = out.index(di._BEGIN)
-        assert out[first_begin + len(di._BEGIN):].lstrip("\n").startswith("##")
+        assert out[first_begin + len(di._BEGIN) :].lstrip("\n").startswith("##")
 
     def test_kf_insertion_point_stays_outside_chatter_region(self):
         """The KF fallback ("before the first ## The Chatter") originally
         landed INSIDE the chatter region — the root of the nested layouts."""
-        block = di.render_chatter_block("Edition", [
-            di.Quote(entity="X", quote_text="An edition quote line here.",
-                     as_of_edition="Edition")])
+        block = di.render_chatter_block(
+            "Edition",
+            [
+                di.Quote(
+                    entity="X", quote_text="An edition quote line here.", as_of_edition="Edition"
+                )
+            ],
+        )
         note = f"# X\n\n## Company Overview\nStub.\n\n{block}"
         idx = di._kf_insertion_point(note)
         region_start = note.index(di._BEGIN)
@@ -1388,8 +1496,7 @@ class TestInsertionPlacement:
         assert not (region_start < idx < region_end)
         assert idx <= region_start
 
-    def test_render_skips_write_that_breaks_marker_balance(
-            self, tmp_path, monkeypatch, capsys):
+    def test_render_skips_write_that_breaks_marker_balance(self, tmp_path, monkeypatch, capsys):
         """Belt-and-suspenders: even if a future render bug produces a
         degenerate structure, the note is never written."""
         vault, index = _splice_vault(tmp_path, monkeypatch)
@@ -1400,21 +1507,26 @@ class TestInsertionPlacement:
         conn.executescript(_schema_sql())
         conn.execute(
             "INSERT INTO entities(name, entity_type, file_path) "
-            "VALUES ('Marico','company','findata/Companies/Marico.md')")
+            "VALUES ('Marico','company','findata/Companies/Marico.md')"
+        )
         conn.commit()
 
         _orig_render = di.render_chatter_block
 
         def _degenerate(edition, quotes, *args, **kwargs):
             return _orig_render(edition, quotes).replace(
-                di._END + "\n", "", 1)  # drop the END marker
+                di._END + "\n", "", 1
+            )  # drop the END marker
 
         monkeypatch.setattr(di, "render_chatter_block", _degenerate)
-        quotes = [di.Quote(entity="Marico", quote_text="A quote line.",
-                           as_of_edition="Edition A")]
+        quotes = [di.Quote(entity="Marico", quote_text="A quote line.", as_of_edition="Edition A")]
         written, skipped, gated = di.render_notes(
-            {("Marico", "Edition A"): quotes}, dry_run=False, conn=conn,
-            stale_only=False, index=index)
+            {("Marico", "Edition A"): quotes},
+            dry_run=False,
+            conn=conn,
+            stale_only=False,
+            index=index,
+        )
         conn.close()
         assert (written, gated) == (0, 0)
         assert "unbalanced auto markers" in capsys.readouterr().err
@@ -1619,20 +1731,16 @@ Marico body.
 
 class TestOkfBumpGenerated:
     def test_generated_and_stale_after_set(self):
-        out = bump_generated(_OKF_NOTE, "derive_insights.py/v1",
-                             now="2026-08-18T09:00:00Z")
+        out = bump_generated(_OKF_NOTE, "derive_insights.py/v1", now="2026-08-18T09:00:00Z")
         fm = yaml.safe_load(out.split("\n---\n")[0][4:])
-        assert fm["generated"] == {"by": "derive_insights.py/v1",
-                                   "at": "2026-08-18T09:00:00Z"}
+        assert fm["generated"] == {"by": "derive_insights.py/v1", "at": "2026-08-18T09:00:00Z"}
         # no sources -> base = derive date + 180d
         assert fm["stale_after"] == "2027-02-14"
 
     def test_verified_survives_bump_byte_exact(self):
-        out = bump_generated(_OKF_NOTE, "derive_insights.py/v1",
-                             now="2026-08-18T09:00:00Z")
+        out = bump_generated(_OKF_NOTE, "derive_insights.py/v1", now="2026-08-18T09:00:00Z")
         fm = yaml.safe_load(out.split("\n---\n")[0][4:])
-        assert fm["verified"] == [{"by": "human:user",
-                                   "at": "2026-08-18T12:00:00Z"}]
+        assert fm["verified"] == [{"by": "human:user", "at": "2026-08-18T12:00:00Z"}]
 
     def test_stale_after_uses_max_source_last_modified(self):
         note = _OKF_NOTE.replace(
@@ -1669,13 +1777,16 @@ class TestOkfBumpGenerated:
 
     def test_schema_clean_after_bump(self):
         from helpers.validators.frontmatter_schema import validate_frontmatter
-        out = bump_generated(_OKF_NOTE, "derive_insights.py/v1",
-                             now="2026-08-18T09:00:00Z")
+
+        out = bump_generated(_OKF_NOTE, "derive_insights.py/v1", now="2026-08-18T09:00:00Z")
         fm = yaml.safe_load(out.split("\n---\n")[0][4:])
-        fm.update(normalized_name="Marico",
-                  permalink="/companies/fmcg/marico",
-                  last_modified="2026-07-07", market_cap="large_cap",
-                  ticker=None)  # required key; null = unlisted
+        fm.update(
+            normalized_name="Marico",
+            permalink="/companies/fmcg/marico",
+            last_modified="2026-07-07",
+            market_cap="large_cap",
+            ticker=None,
+        )  # required key; null = unlisted
         assert validate_frontmatter(fm, "company") == []
 
 
@@ -1697,34 +1808,45 @@ class TestRenderNotesBumpsFrontmatter:
 
     def test_write_bumps_generated(self, tmp_path):
         conn, note = self._setup(tmp_path)
-        quotes = [di.Quote(entity="Marico", quote_text="q1",
-                           speaker_name="A", speaker_title="B",
-                           as_of_edition="Marico DLF BSE",
-                           source_ref="derive:quotes:X:1")]
+        quotes = [
+            di.Quote(
+                entity="Marico",
+                quote_text="q1",
+                speaker_name="A",
+                speaker_title="B",
+                as_of_edition="Marico DLF BSE",
+                source_ref="derive:quotes:X:1",
+            )
+        ]
         try:
             written, _, _ = di.render_notes(
                 {("Marico", "Marico DLF BSE"): quotes},
-                dry_run=False, conn=conn,
+                dry_run=False,
+                conn=conn,
             )
             assert written == 1
             fm = yaml.safe_load(note.read_text().split("\n---\n")[0][4:])
             assert fm["generated"]["by"] == di._OKF_ACTOR
-            assert fm["verified"] == [{"by": "human:user",
-                                       "at": "2026-08-18T12:00:00Z"}]
+            assert fm["verified"] == [{"by": "human:user", "at": "2026-08-18T12:00:00Z"}]
             assert "BEGIN auto chatter block" in note.read_text()
         finally:
             conn.close()
 
     def test_dry_run_leaves_note_untouched(self, tmp_path):
         conn, note = self._setup(tmp_path)
-        quotes = [di.Quote(entity="Marico", quote_text="q1",
-                           speaker_name="A", speaker_title="B",
-                           as_of_edition="Marico DLF BSE",
-                           source_ref="derive:quotes:X:1")]
+        quotes = [
+            di.Quote(
+                entity="Marico",
+                quote_text="q1",
+                speaker_name="A",
+                speaker_title="B",
+                as_of_edition="Marico DLF BSE",
+                source_ref="derive:quotes:X:1",
+            )
+        ]
         try:
             before = note.read_text()
-            di.render_notes({("Marico", "Marico DLF BSE"): quotes},
-                            dry_run=True, conn=conn)
+            di.render_notes({("Marico", "Marico DLF BSE"): quotes}, dry_run=True, conn=conn)
             assert note.read_text() == before  # no generated key yet
         finally:
             conn.close()
@@ -1739,29 +1861,31 @@ class TestAsOfEditionStems:
         # Hand-built edition index (norm_key -> Path), mirroring
         # edition_index.source_note_index's shape — no real-vault coupling.
         from helpers.core.edition_index import norm_key
-        return {norm_key("Threads in the Data"):
-                Path("findata/The_Chatter/Threads_in_the_Data.md")}
+
+        return {norm_key("Threads in the Data"): Path("findata/The_Chatter/Threads_in_the_Data.md")}
 
     def _quote(self, edition):
         return di.Quote(
             entity="Marico",
             quote_text="Parachute delivered 10% volume growth this quarter.",
-            speaker_name="Saugata Gupta", speaker_title="MD & CEO",
+            speaker_name="Saugata Gupta",
+            speaker_title="MD & CEO",
             as_of_edition=edition,
-            source_ref="derive:quotes:Threads_in_the_Data:12")
+            source_ref="derive:quotes:Threads_in_the_Data:12",
+        )
 
     def test_stem_written_when_resolvable(self, tmp_path):
         conn = _connect(tmp_path)
-        di.apply_quotes([self._quote("Threads in the Data")], conn=conn,
-                        dry_run=False, index=self._index())
+        di.apply_quotes(
+            [self._quote("Threads in the Data")], conn=conn, dry_run=False, index=self._index()
+        )
         got = conn.execute("SELECT as_of_edition FROM quotes").fetchone()[0]
         assert got == "Threads_in_the_Data"  # stem, not the title
         conn.close()
 
     def test_verbatim_when_unresolvable(self, tmp_path):
         conn = _connect(tmp_path)
-        di.apply_quotes([self._quote("Blue Star")], conn=conn, dry_run=False,
-                        index=self._index())
+        di.apply_quotes([self._quote("Blue Star")], conn=conn, dry_run=False, index=self._index())
         got = conn.execute("SELECT as_of_edition FROM quotes").fetchone()[0]
         assert got == "Blue Star"  # honest miss — never guessed
         conn.close()
@@ -1769,22 +1893,26 @@ class TestAsOfEditionStems:
     def test_verbatim_without_index(self, tmp_path):
         """Back-compat: no index (tests, direct callers) -> title verbatim."""
         conn = _connect(tmp_path)
-        di.apply_quotes([self._quote("Threads in the Data")], conn=conn,
-                        dry_run=False)
+        di.apply_quotes([self._quote("Threads in the Data")], conn=conn, dry_run=False)
         got = conn.execute("SELECT as_of_edition FROM quotes").fetchone()[0]
         assert got == "Threads in the Data"  # unchanged behavior
         conn.close()
 
     def test_metrics_stem_too(self, tmp_path):
         conn = _connect(tmp_path)
-        m = di.Metric(entity="Marico", value_raw="Rs 4,400 crore",
-                      metric_label="Revenue", value_num=4400.0, unit="crore",
-                      period="FY26", as_of_edition="Threads in the Data",
-                      source_quote="revenue grew to Rs 4,400 crore",
-                      source_ref="derive:metrics:Threads_in_the_Data:12")
+        m = di.Metric(
+            entity="Marico",
+            value_raw="Rs 4,400 crore",
+            metric_label="Revenue",
+            value_num=4400.0,
+            unit="crore",
+            period="FY26",
+            as_of_edition="Threads in the Data",
+            source_quote="revenue grew to Rs 4,400 crore",
+            source_ref="derive:metrics:Threads_in_the_Data:12",
+        )
         di.apply_metrics([m], conn=conn, dry_run=False, index=self._index())
-        got = conn.execute(
-            "SELECT as_of_edition FROM company_metrics").fetchone()[0]
+        got = conn.execute("SELECT as_of_edition FROM company_metrics").fetchone()[0]
         assert got == "Threads_in_the_Data"
         conn.close()
 
@@ -1795,27 +1923,30 @@ class TestChatterFootnotes:
 
     def _index(self):
         from helpers.core.edition_index import norm_key
-        return {norm_key("Threads in the Data"):
-                Path("findata/The_Chatter/Threads_in_the_Data.md")}
+
+        return {norm_key("Threads in the Data"): Path("findata/The_Chatter/Threads_in_the_Data.md")}
 
     def _quote(self):
-        return di.Quote(entity="Marico",
-                        quote_text="Parachute delivered 10% volume growth this quarter.",
-                        speaker_name="Saugata Gupta", speaker_title="MD & CEO",
-                        as_of_edition="Threads in the Data",
-                        source_ref="derive:quotes:T:1")
+        return di.Quote(
+            entity="Marico",
+            quote_text="Parachute delivered 10% volume growth this quarter.",
+            speaker_name="Saugata Gupta",
+            speaker_title="MD & CEO",
+            as_of_edition="Threads in the Data",
+            source_ref="derive:quotes:T:1",
+        )
 
     def test_footnote_on_attribution_plus_definition(self):
-        block = di.render_chatter_block("Threads in the Data", [self._quote()],
-                                        index=self._index())
+        block = di.render_chatter_block("Threads in the Data", [self._quote()], index=self._index())
         assert "> — Saugata Gupta, MD & CEO [^chatter-Threads_in_the_Data]" in block
-        assert "[^chatter-Threads_in_the_Data]: Threads in the Data — [[Threads_in_the_Data]]" in block
+        assert (
+            "[^chatter-Threads_in_the_Data]: Threads in the Data — [[Threads_in_the_Data]]" in block
+        )
         # definition sits inside the sentinel (before the Source footer, after END? no:)
         assert block.index("[^chatter-Threads_in_the_Data]:") < block.index("*Source:")
 
     def test_no_footnote_when_unresolvable(self):
-        block = di.render_chatter_block("Blue Star", [self._quote()],
-                                        index=self._index())
+        block = di.render_chatter_block("Blue Star", [self._quote()], index=self._index())
         assert "[^chatter-" not in block  # honest miss, zero footnotes
 
     def test_no_footnote_without_index(self):
@@ -1832,14 +1963,14 @@ class TestChatterFootnotes:
 
     def test_hand_written_footnote_namespace_safe(self):
         """chatter- namespace: a hand footnote id can never collide."""
-        block = di.render_chatter_block("Threads in the Data", [self._quote()],
-                                        index=self._index())
+        block = di.render_chatter_block("Threads in the Data", [self._quote()], index=self._index())
         assert block.count("[^chatter-Threads_in_the_Data]:") == 1
 
 
 # --------------------------------------------------------------------------- #
 # Stable writes: no-op re-apply preserves id + created_at                      #
 # --------------------------------------------------------------------------- #
+
 
 class TestStableWrites:
     """The prefix replace keeps content-identical rows byte-stable.
@@ -1857,28 +1988,33 @@ class TestStableWrites:
         conn.execute("UPDATE quotes SET created_at = '2000-01-01 00:00:00'")
         conn.commit()
         before = conn.execute(
-            "SELECT id, quote_text, created_at FROM quotes ORDER BY id").fetchall()
+            "SELECT id, quote_text, created_at FROM quotes ORDER BY id"
+        ).fetchall()
         di.apply_quotes(_APPLY_QUOTES(), conn=conn, dry_run=False)
-        after = conn.execute(
-            "SELECT id, quote_text, created_at FROM quotes ORDER BY id").fetchall()
+        after = conn.execute("SELECT id, quote_text, created_at FROM quotes ORDER BY id").fetchall()
         assert [tuple(r) for r in before] == [tuple(r) for r in after]
         conn.close()
 
     def test_reapply_identical_metrics_keeps_ids_and_created_at(self, tmp_path):
         conn = _connect(tmp_path)
-        m = [di.Metric(entity="Marico", metric_label="revenue",
-                       value_raw="₹9,000 crore", value_num=9000.0,
-                       unit="crore", period="FY26",
-                       as_of_edition="Marico DLF BSE",
-                       source_ref="derive:metrics:Marico_DLF_BSE:45")]
+        m = [
+            di.Metric(
+                entity="Marico",
+                metric_label="revenue",
+                value_raw="₹9,000 crore",
+                value_num=9000.0,
+                unit="crore",
+                period="FY26",
+                as_of_edition="Marico DLF BSE",
+                source_ref="derive:metrics:Marico_DLF_BSE:45",
+            )
+        ]
         di.apply_metrics(m, conn=conn, dry_run=False)
         conn.execute("UPDATE company_metrics SET created_at = '2000-01-01 00:00:00'")
         conn.commit()
-        before = conn.execute(
-            "SELECT id, created_at FROM company_metrics ORDER BY id").fetchall()
+        before = conn.execute("SELECT id, created_at FROM company_metrics ORDER BY id").fetchall()
         di.apply_metrics(m, conn=conn, dry_run=False)
-        after = conn.execute(
-            "SELECT id, created_at FROM company_metrics ORDER BY id").fetchall()
+        after = conn.execute("SELECT id, created_at FROM company_metrics ORDER BY id").fetchall()
         assert [tuple(r) for r in before] == [tuple(r) for r in after]
         conn.close()
 
@@ -1889,22 +2025,25 @@ class TestStableWrites:
         qs = _APPLY_QUOTES()
         di.apply_quotes(qs, conn=conn, dry_run=False)
         kept_id = conn.execute(
-            "SELECT id FROM quotes WHERE quote_text = ?",
-            (qs[0].quote_text,)).fetchone()[0]
-        changed = [qs[0],
-                   di.Quote(entity="Marico",
-                            quote_text="Rewritten quote text.",
-                            speaker_name="Saugata Gupta",
-                            speaker_title="MD & CEO",
-                            as_of_edition="Marico DLF BSE",
-                            source_ref=qs[1].source_ref)]
+            "SELECT id FROM quotes WHERE quote_text = ?", (qs[0].quote_text,)
+        ).fetchone()[0]
+        changed = [
+            qs[0],
+            di.Quote(
+                entity="Marico",
+                quote_text="Rewritten quote text.",
+                speaker_name="Saugata Gupta",
+                speaker_title="MD & CEO",
+                as_of_edition="Marico DLF BSE",
+                source_ref=qs[1].source_ref,
+            ),
+        ]
         di.apply_quotes(changed, conn=conn, dry_run=False)
         still = conn.execute(
-            "SELECT id FROM quotes WHERE quote_text = ?",
-            (qs[0].quote_text,)).fetchone()
+            "SELECT id FROM quotes WHERE quote_text = ?", (qs[0].quote_text,)
+        ).fetchone()
         assert still is not None and still[0] == kept_id
-        texts = {r["quote_text"] for r in conn.execute(
-            "SELECT quote_text FROM quotes").fetchall()}
+        texts = {r["quote_text"] for r in conn.execute("SELECT quote_text FROM quotes").fetchall()}
         assert texts == {qs[0].quote_text, "Rewritten quote text."}
         conn.close()
 
@@ -1912,14 +2051,20 @@ class TestStableWrites:
 def _APPLY_QUOTES():
     """Two-quote payload mirroring TestApplyQuotes._quotes."""
     return [
-        di.Quote(entity="Marico",
-                 quote_text="Parachute delivered 10% volume growth.",
-                 speaker_name="Saugata Gupta", speaker_title="MD & CEO",
-                 as_of_edition="Marico DLF BSE",
-                 source_ref="derive:quotes:Marico_DLF_BSE:45"),
-        di.Quote(entity="Marico",
-                 quote_text="Copra prices corrected meaningfully this quarter.",
-                 speaker_name="Saugata Gupta", speaker_title="MD & CEO",
-                 as_of_edition="Marico DLF BSE",
-                 source_ref="derive:quotes:Marico_DLF_BSE:45"),
+        di.Quote(
+            entity="Marico",
+            quote_text="Parachute delivered 10% volume growth.",
+            speaker_name="Saugata Gupta",
+            speaker_title="MD & CEO",
+            as_of_edition="Marico DLF BSE",
+            source_ref="derive:quotes:Marico_DLF_BSE:45",
+        ),
+        di.Quote(
+            entity="Marico",
+            quote_text="Copra prices corrected meaningfully this quarter.",
+            speaker_name="Saugata Gupta",
+            speaker_title="MD & CEO",
+            as_of_edition="Marico DLF BSE",
+            source_ref="derive:quotes:Marico_DLF_BSE:45",
+        ),
     ]

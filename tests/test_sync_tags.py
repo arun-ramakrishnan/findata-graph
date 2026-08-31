@@ -7,6 +7,7 @@ eliminating drift between the column and the entity_tags table.
 These tests seed a minimal DB + note files under tmp_path, run sync_tags.main()
 with --db, and assert the column is derived correctly.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -290,16 +291,13 @@ def test_sync_tags_admits_previously_dropped_namespaces(tmp_path, monkeypatch):
     conn = sqlite3.connect(db_path)
     synced = {
         row[0]
-        for row in conn.execute(
-            "SELECT tag FROM entity_tags WHERE entity_name = ?", ("Tagged Co",)
-        )
+        for row in conn.execute("SELECT tag FROM entity_tags WHERE entity_name = ?", ("Tagged Co",))
     }
     conn.close()
 
     missing = [t for t in _DROPPED_NAMESPACE_TAGS if t not in synced]
     assert not missing, (
-        f"ALLOWED_CATEGORIES dropped these tags (C1 regression): {missing}. "
-        f"Got: {sorted(synced)}"
+        f"ALLOWED_CATEGORIES dropped these tags (C1 regression): {missing}. Got: {sorted(synced)}"
     )
 
 
@@ -366,8 +364,7 @@ class TestNoteTags:
         chatter = tmp_path / "findata" / "The_Chatter"
         chatter.mkdir(parents=True)
         (chatter / "Ed_One.md").write_text(
-            _newsletter_note(["series/the_chatter", "publisher/zerodha",
-                              "company/x_co"])
+            _newsletter_note(["series/the_chatter", "publisher/zerodha", "company/x_co"])
         )
         (chatter / "image_map.md").write_text("chrome\n")  # skipped
 
@@ -375,11 +372,8 @@ class TestNoteTags:
         _seed_db(db_path, [])
         assert _run_sync(db_path) == 0
 
-        rows = sqlite3.connect(db_path).execute(
-            "SELECT tag FROM note_tags ORDER BY tag"
-        ).fetchall()
-        assert rows == [("company/x_co",), ("publisher/zerodha",),
-                        ("series/the_chatter",)]
+        rows = sqlite3.connect(db_path).execute("SELECT tag FROM note_tags ORDER BY tag").fetchall()
+        assert rows == [("company/x_co",), ("publisher/zerodha",), ("series/the_chatter",)]
 
     def test_only_whitelisted_namespaces_mirrored(self, tmp_path, monkeypatch):
         # entity_type/company is valid YAML on any note, but note_tags
@@ -388,15 +382,12 @@ class TestNoteTags:
         chatter = tmp_path / "findata" / "The_Chatter"
         chatter.mkdir(parents=True)
         (chatter / "Ed.md").write_text(
-            _newsletter_note(["series/the_chatter", "entity_type/company",
-                              "mystery/tag"])
+            _newsletter_note(["series/the_chatter", "entity_type/company", "mystery/tag"])
         )
         db_path = tmp_path / "test.db"
         _seed_db(db_path, [])
         _run_sync(db_path)
-        rows = sqlite3.connect(db_path).execute(
-            "SELECT tag FROM note_tags"
-        ).fetchall()
+        rows = sqlite3.connect(db_path).execute("SELECT tag FROM note_tags").fetchall()
         assert rows == [("series/the_chatter",)]
 
     def test_full_rebuild_drops_stale_rows(self, tmp_path, monkeypatch):
@@ -411,7 +402,5 @@ class TestNoteTags:
         # Tag removed from the note -> next sync must drop the row.
         note.write_text(_newsletter_note(["publisher/zerodha"]))
         _run_sync(db_path)
-        rows = sqlite3.connect(db_path).execute(
-            "SELECT tag FROM note_tags"
-        ).fetchall()
+        rows = sqlite3.connect(db_path).execute("SELECT tag FROM note_tags").fetchall()
         assert rows == [("publisher/zerodha",)]

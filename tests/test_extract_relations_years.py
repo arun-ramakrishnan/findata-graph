@@ -4,6 +4,7 @@ original test_extract_relations.py for navigability.
 
 Year extraction, valid_from plumbing, and extraction guards.
 """
+
 from __future__ import annotations
 
 
@@ -32,9 +33,7 @@ class TestExtractYearFromContext:
 
     def test_month_year(self):
         # "Dec 2025" → month captured; iso_date is YYYY-MM-01.
-        y, d = _extract_year_from_context(
-            "Completed 67% stake acquisition in Dec 2025."
-        )
+        y, d = _extract_year_from_context("Completed 67% stake acquisition in Dec 2025.")
         assert y == 2025
         assert d == "2025-12-01"
 
@@ -66,25 +65,19 @@ class TestExtractYearFromContext:
 
     def test_strips_yahoo_finance_attribution(self):
         # "Yahoo Finance, Jun 2026" must not be picked as the acquisition year.
-        y, d = _extract_year_from_context(
-            "Yahoo Finance, Jun 2026. acquired X in 2023"
-        )
+        y, d = _extract_year_from_context("Yahoo Finance, Jun 2026. acquired X in 2023")
         assert y == 2023
         assert d == "2023-01-01"
 
     def test_no_year_returns_none(self):
         # No temporal signal at all.
-        y, d = _extract_year_from_context(
-            "Acquired Fintellix, a Bangalore-based RegTech company"
-        )
+        y, d = _extract_year_from_context("Acquired Fintellix, a Bangalore-based RegTech company")
         assert y is None
         assert d is None
 
     def test_relative_year_unresolved_returns_none(self):
         # "last year" / "this year" need edition context — return None for now.
-        y, d = _extract_year_from_context(
-            "Acquired August Electronics in Canada last year"
-        )
+        y, d = _extract_year_from_context("Acquired August Electronics in Canada last year")
         assert y is None
         assert d is None
 
@@ -122,6 +115,7 @@ class TestExtractYearFromContext:
         # for the `< current_year` bug that silently dropped ESTEC's
         # "Acquired by Tata Technologies in 2026" (written in Jul 2026).
         from datetime import date
+
         cy = date.today().year
         y, d = _extract_year_from_context(
             f"Acquired by Tata Technologies in {cy} for market access."
@@ -133,10 +127,9 @@ class TestExtractYearFromContext:
         # When the current year is the ONLY candidate, it must be used
         # (previously returned None — the ESTEC failure mode).
         from datetime import date
+
         cy = date.today().year
-        y, d = _extract_year_from_context(
-            f"German engineering company. Acquired in {cy}."
-        )
+        y, d = _extract_year_from_context(f"German engineering company. Acquired in {cy}.")
         assert y == cy
         assert d == f"{cy:04d}-01-01"
 
@@ -147,12 +140,11 @@ class TestAcquiredEdgeValidFrom:
 
     def test_acquired_edge_with_explicit_year(self):
         resolver = EntityResolver(["Foo", "Bar"])
-        content = (
-            "## Foo Limited | Large Cap | Sector\n\n"
-            "Foo acquired Bar in 2024 for $100M.\n"
-        )
+        content = "## Foo Limited | Large Cap | Sector\n\nFoo acquired Bar in 2024 for $100M.\n"
         by_type, _ = extract_relations(
-            content, edition_title="Test", newsletter_type="The_Chatter",
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
             resolver=resolver,
         )
         edge = by_type["acquired"][0]
@@ -168,7 +160,9 @@ class TestAcquiredEdgeValidFrom:
             "Foo acquired Bar, with the deal closing in Dec 2025.\n"
         )
         by_type, _ = extract_relations(
-            content, edition_title="Test", newsletter_type="The_Chatter",
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
             resolver=resolver,
         )
         edge = by_type["acquired"][0]
@@ -182,7 +176,9 @@ class TestAcquiredEdgeValidFrom:
             "Foo acquired Bar last quarter.\n"  # no year/month/FY
         )
         by_type, _ = extract_relations(
-            content, edition_title="Test", newsletter_type="The_Chatter",
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
             resolver=resolver,
         )
         edge = by_type["acquired"][0]
@@ -192,12 +188,11 @@ class TestAcquiredEdgeValidFrom:
     def test_non_acquired_edges_have_no_valid_from(self):
         # `subsidiary_of`, `jv_with`, etc. don't get temporal extraction.
         resolver = EntityResolver(["Foo", "Bar"])
-        content = (
-            "## Foo Limited | Large Cap | Sector\n\n"
-            "Foo is a subsidiary of Bar.\n"
-        )
+        content = "## Foo Limited | Large Cap | Sector\n\nFoo is a subsidiary of Bar.\n"
         by_type, _ = extract_relations(
-            content, edition_title="Test", newsletter_type="The_Chatter",
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
             resolver=resolver,
         )
         edge = by_type["subsidiary_of"][0]
@@ -223,6 +218,7 @@ class TestProseYearExtractionGuard:
         from helpers.graph.extract_relations import (
             _EDGE_TYPES_WITH_PROSE_YEAR_EXTRACTION,
         )
+
         assert _EDGE_TYPES_WITH_PROSE_YEAR_EXTRACTION == frozenset({"acquired"})
 
     def test_jv_with_year_in_quote_not_extracted(self):
@@ -237,7 +233,9 @@ class TestProseYearExtractionGuard:
             "Foo announced a joint venture with Bar in 2023.\n"
         )
         by_type, _ = extract_relations(
-            content, edition_title="Test", newsletter_type="The_Chatter",
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
             resolver=resolver,
         )
         edge = by_type["jv_with"][0]
@@ -254,7 +252,9 @@ class TestProseYearExtractionGuard:
             "Foo, a subsidiary of Bar, has ₹100B loan book as of Mar 31, 2025.\n"
         )
         by_type, _ = extract_relations(
-            content, edition_title="Test", newsletter_type="The_Chatter",
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
             resolver=resolver,
         )
         edge = by_type["subsidiary_of"][0]
@@ -265,9 +265,13 @@ class TestProseYearExtractionGuard:
         # `apply_edges` and the backfill scripts can set valid_from on any
         # edge type via properties.since or explicit construction.
         e = Edge(
-            source="A", target="B", edge_type="jv_with",
-            properties={"since": "2023"}, source_ref="seed",
-            symmetric=True, valid_from="2023-01-01",
+            source="A",
+            target="B",
+            edge_type="jv_with",
+            properties={"since": "2023"},
+            source_ref="seed",
+            symmetric=True,
+            valid_from="2023-01-01",
         )
         assert e.valid_from == "2023-01-01"
         assert e.edge_type == "jv_with"

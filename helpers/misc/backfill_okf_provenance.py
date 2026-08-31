@@ -111,8 +111,9 @@ def _source_tags(existing, tree_name: str) -> tuple[list[str], bool, list[str]]:
     migrated = [t for t in raw if t in _FLAT_TAG_MIGRATION]
     unknown_flat = [t for t in raw if "/" not in t and t not in _FLAT_TAG_MIGRATION]
     rest = [t for t in raw if "/" in t]
-    tags = list(dict.fromkeys(wanted + [_FLAT_TAG_MIGRATION[t] for t in migrated]
-                              + rest + unknown_flat))
+    tags = list(
+        dict.fromkeys(wanted + [_FLAT_TAG_MIGRATION[t] for t in migrated] + rest + unknown_flat)
+    )
     return tags, bool(migrated), unknown_flat
 
 
@@ -150,8 +151,9 @@ def _iso_date(v) -> str | None:
 def _stale_from_sources(entries: list[dict], fallback: str) -> str:
     """max(sources[].last_modified) + 180d else fallback + 180d
     (mirrors bump_generated's accepted Q3 rule)."""
-    base = max((e["last_modified"] for e in entries
-                if isinstance(e.get("last_modified"), str)), default="")
+    base = max(
+        (e["last_modified"] for e in entries if isinstance(e.get("last_modified"), str)), default=""
+    )
     if not base:
         base = fallback
     return (_dt.date.fromisoformat(base) + _dt.timedelta(days=180)).isoformat()
@@ -169,8 +171,8 @@ def _augment_real_writer(fm: dict, text: str, all_entries: list[dict]) -> str | 
     fm2 = stringify_dates(dict(fm))
     fm2["sources"] = all_entries
     fm2["stale_after"] = _stale_from_sources(
-        all_entries, _iso_date(fm.get("last_modified")
-                               or fm.get("created")) or "")
+        all_entries, _iso_date(fm.get("last_modified") or fm.get("created")) or ""
+    )
     if not fm2["stale_after"]:
         return None
     return render_frontmatter(fm2) + _body(text)
@@ -179,8 +181,7 @@ def _augment_real_writer(fm: dict, text: str, all_entries: list[dict]) -> str | 
 def _stamp_derived(fm: dict, text: str, all_entries: list[dict]) -> str:
     """Backfill-stamp path: bump generated anchored to the note's own
     content date (last_modified/created), splicing in resolved sources."""
-    lm = (_iso_date(fm.get("last_modified"))
-          or _iso_date(fm.get("created")))
+    lm = _iso_date(fm.get("last_modified")) or _iso_date(fm.get("created"))
     at = f"{lm}T00:00:00Z" if lm else None
     base_text = text
     if all_entries and not isinstance(fm.get("sources"), list):
@@ -195,8 +196,14 @@ def backfill(vault: Path, *, apply: bool) -> dict[str, dict[str, int]]:
     index = source_note_index(vault)
     counts: dict[str, dict[str, int]] = {}
     for tree in DERIVED_TREES:
-        c = {"stamped": 0, "augmented": 0, "unchanged": 0,
-             "skipped_real_writer": 0, "no_frontmatter": 0, "sourced": 0}
+        c = {
+            "stamped": 0,
+            "augmented": 0,
+            "unchanged": 0,
+            "skipped_real_writer": 0,
+            "no_frontmatter": 0,
+            "sourced": 0,
+        }
         for p in sorted((vault / tree).rglob("*.md")):
             text = p.read_text(encoding="utf-8", errors="replace")
             fm = _parse_fm(text)
@@ -204,8 +211,7 @@ def backfill(vault: Path, *, apply: bool) -> dict[str, dict[str, int]]:
                 c["no_frontmatter"] += 1
                 continue
             gen = fm.get("generated")
-            real_writer = (isinstance(gen, dict)
-                           and gen.get("by") not in (None, _ACTOR))
+            real_writer = isinstance(gen, dict) and gen.get("by") not in (None, _ACTOR)
             all_entries = merged_sources(fm, text, index, vault)
             if real_writer:
                 if not all_entries:
@@ -260,8 +266,7 @@ def _source_at(fm: dict, p: Path, repo_root: Path) -> tuple[str | None, bool]:
     return (f"{d}T00:00:00Z" if d else None), False
 
 
-def _prep_source_fm(text: str, p: Path, tree: Path,
-                    vault: Path) -> tuple[dict, bool] | None:
+def _prep_source_fm(text: str, p: Path, tree: Path, vault: Path) -> tuple[dict, bool] | None:
     """Frontmatter for one source note, ready for the OKF stamp.
 
     Preserves every existing key; defaults type/title; runs the namespaced
@@ -275,8 +280,7 @@ def _prep_source_fm(text: str, p: Path, tree: Path,
         fm = {}
     else:
         gen = fm.get("generated")
-        if (isinstance(gen, dict)
-                and gen.get("by") not in (None, _ACTOR)):
+        if isinstance(gen, dict) and gen.get("by") not in (None, _ACTOR):
             return None
     fm = dict(fm)
     fm.setdefault("type", "newsletter")
@@ -284,20 +288,29 @@ def _prep_source_fm(text: str, p: Path, tree: Path,
         fm["title"] = note_title(_body(text), p.stem)
     tags, migrated, unknown_flat = _source_tags(fm.get("tags"), tree.name)
     for t in unknown_flat:
-        print(f"WARNING {p.relative_to(vault)}: unmigrated flat tag "
-              f"{t!r} (no mapping; left in place)", file=sys.stderr)
+        print(
+            f"WARNING {p.relative_to(vault)}: unmigrated flat tag "
+            f"{t!r} (no mapping; left in place)",
+            file=sys.stderr,
+        )
     fm["tags"] = tags
     return fm, migrated
 
 
-def backfill_sources(vault: Path, *, apply: bool,
-                     repo_root: Path | None = None) -> dict[str, dict[str, int]]:
+def backfill_sources(
+    vault: Path, *, apply: bool, repo_root: Path | None = None
+) -> dict[str, dict[str, int]]:
     """Construct/augment the producer OKF block on every source-tree note."""
     repo_root = repo_root or _REPO_ROOT
     counts: dict[str, dict[str, int]] = {}
     for tree in source_trees(vault):
-        c = {"stamped": 0, "unchanged": 0, "skipped_real_writer": 0,
-             "pdf_linked": 0, "tag_migrations": 0}
+        c = {
+            "stamped": 0,
+            "unchanged": 0,
+            "skipped_real_writer": 0,
+            "pdf_linked": 0,
+            "tag_migrations": 0,
+        }
         for p in sorted(tree.rglob("*.md")):
             if p.name in CHROME_FILES or "images" in p.parts:
                 continue
@@ -312,9 +325,7 @@ def backfill_sources(vault: Path, *, apply: bool,
             at, pdf_linked = _source_at(fm, p, repo_root)
             if pdf_linked:
                 c["pdf_linked"] += 1
-            new_text = bump_generated(
-                render_frontmatter(fm) + _body(text), _ACTOR, now=at
-            )
+            new_text = bump_generated(render_frontmatter(fm) + _body(text), _ACTOR, now=at)
             if new_text == text:
                 c["unchanged"] += 1
                 continue
@@ -332,28 +343,30 @@ def _report(counts: dict[str, dict[str, int]], apply: bool) -> int:
         total += c.get("stamped", 0) + c.get("augmented", 0)
         bits = [f"{v} {k.replace('_', ' ')}" for k, v in c.items() if v]
         print(f"{tree}: {', '.join(bits)}", file=sys.stderr)
-    print(f"total: {total} notes {verb} "
-          f"({'apply' if apply else 'dry-run'})", file=sys.stderr)
+    print(f"total: {total} notes {verb} ({'apply' if apply else 'dry-run'})", file=sys.stderr)
     return 0
 
 
 def _cli(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
-        description="Backfill OKF v0.2 provenance over the vault "
-                    "(okf_adoption Q5).",
+        description="Backfill OKF v0.2 provenance over the vault (okf_adoption Q5).",
     )
     p.add_argument(
-        "vault", nargs="?", default="findata",
+        "vault",
+        nargs="?",
+        default="findata",
         help="Vault root (repo-relative or absolute; default: findata).",
     )
     p.add_argument(
-        "--apply", action="store_true",
+        "--apply",
+        action="store_true",
         help="Write the stamps (default: dry-run counts only).",
     )
     p.add_argument(
-        "--sources", action="store_true",
+        "--sources",
+        action="store_true",
         help="Backfill the OCR source trees (The_Chatter &c.) instead of "
-             "the derived Companies/Sectors/Super_Sectors trees.",
+        "the derived Companies/Sectors/Super_Sectors trees.",
     )
     args = p.parse_args(argv)
 
@@ -364,9 +377,7 @@ def _cli(argv: list[str] | None = None) -> int:
         print(f"vault not found: {vault}", file=sys.stderr)
         return 2
 
-    counts = (backfill_sources if args.sources else backfill)(
-        vault, apply=args.apply
-    )
+    counts = (backfill_sources if args.sources else backfill)(vault, apply=args.apply)
     return _report(counts, args.apply)
 
 

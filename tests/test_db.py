@@ -1,4 +1,5 @@
 """Unit tests for helpers/core/db.py."""
+
 from __future__ import annotations
 import sqlite3
 import sys
@@ -180,12 +181,15 @@ def test_ensure_db_meta_corrupt_generation_fixed():
     gen = ensure_db_meta(conn)
     assert gen == 1
     conn.close()
+
+
 class TestConnectReadOnly:
     """read_only=True opens via URI mode=ro — no create, no mutate."""
 
     def test_reads_existing_file(self, tmp_path):
         db = tmp_path / "ro.db"
         from helpers.core.db import connect as _c
+
         con = _c(db)
         with con:
             con.execute("CREATE TABLE t (v TEXT)")
@@ -200,6 +204,7 @@ class TestConnectReadOnly:
 
     def test_write_raises(self, tmp_path):
         from helpers.core.db import connect as _c
+
         db = tmp_path / "ro.db"
         con = _c(db)
         with con:
@@ -218,6 +223,7 @@ class TestConnectReadOnly:
 
     def test_missing_file_is_not_created(self, tmp_path):
         from helpers.core.db import connect as _c
+
         missing = tmp_path / "never.db"
         with pytest.raises(sqlite3.OperationalError):
             _c(missing, read_only=True)
@@ -225,6 +231,7 @@ class TestConnectReadOnly:
 
     def test_does_not_flip_journal_mode(self, tmp_path):
         from helpers.core.db import connect as _c
+
         db = tmp_path / "delete_mode.db"  # non-WAL file
         con = _c(db)
         with con:

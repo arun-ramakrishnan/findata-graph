@@ -40,6 +40,7 @@ Usage:
     python3 helpers/graph/derive_cited_in.py --apply     # write entities+edges
     python3 helpers/graph/derive_cited_in.py --verbose   # list every edge
 """
+
 from __future__ import annotations
 
 import argparse
@@ -91,13 +92,13 @@ def edition_notes(vault: Path) -> list[dict]:
                     "the stem is the canonical edition key; resolve manually"
                 )
             seen[p.stem] = p
-            out.append({
-                "stem": p.stem,
-                "file_path": f"{vault.name}/{p.relative_to(vault).as_posix()}",
-                "title": note_title(
-                    p.read_text(encoding="utf-8", errors="replace"), p.stem
-                ),
-            })
+            out.append(
+                {
+                    "stem": p.stem,
+                    "file_path": f"{vault.name}/{p.relative_to(vault).as_posix()}",
+                    "title": note_title(p.read_text(encoding="utf-8", errors="replace"), p.stem),
+                }
+            )
     return out
 
 
@@ -122,10 +123,13 @@ def create_edition_entities(conn, editions: list[dict], *, apply: bool = True) -
             + ", ".join(f"{n} ({t})" for n, t in clashes)
         )
     if not apply:
-        have = {n for (n,) in conn.execute(
-            f"SELECT name FROM entities WHERE name IN ({placeholders})",  # noqa: S608
-            names,
-        ).fetchall()}
+        have = {
+            n
+            for (n,) in conn.execute(
+                f"SELECT name FROM entities WHERE name IN ({placeholders})",  # noqa: S608
+                names,
+            ).fetchall()
+        }
         return len(set(names) - have)
     now = utc_now()
     inserted = 0
@@ -156,8 +160,9 @@ def _note_frontmatter(p: Path) -> dict:
     return fm if isinstance(fm, dict) else {}
 
 
-def extract_citations(vault: Path, path_to_name: dict[str, str],
-                      edition_stems: set[str]) -> tuple[list[tuple[str, str, str]], dict]:
+def extract_citations(
+    vault: Path, path_to_name: dict[str, str], edition_stems: set[str]
+) -> tuple[list[tuple[str, str, str]], dict]:
     """Collect ``(note_entity, edition_stem, resource)`` from derived notes.
 
     ``path_to_name`` is the entities file_path -> display-name join (the
@@ -174,8 +179,7 @@ def extract_citations(vault: Path, path_to_name: dict[str, str],
             sources = fm.get("sources")
             if not isinstance(sources, list):
                 continue
-            entity = path_to_name.get(
-                f"{vault.name}/{p.relative_to(vault).as_posix()}")
+            entity = path_to_name.get(f"{vault.name}/{p.relative_to(vault).as_posix()}")
             if entity is None:
                 continue
             for s in sources:
@@ -201,8 +205,7 @@ def quote_counts(conn, index: dict[str, Path]) -> dict[tuple[str, str], int]:
     """
     counts: dict[tuple[str, str], int] = collections.Counter()
     for edition, entity, n in conn.execute(
-        "SELECT as_of_edition, entity, COUNT(*) FROM quotes "
-        "GROUP BY as_of_edition, entity"
+        "SELECT as_of_edition, entity, COUNT(*) FROM quotes GROUP BY as_of_edition, entity"
     ).fetchall():
         p = resolve_edition_string(edition or "", index)
         if p is not None:
@@ -224,7 +227,11 @@ def derive_edges(citations, n_quotes: dict[tuple[str, str], int]):
 def apply_edges(edges, *, conn=None, dry_run: bool = True) -> int:
     """Insert ``cited_in`` edges (INSERT OR IGNORE; idempotent)."""
     return apply_typed_edges(
-        edges, edge_type=EDGE_TYPE, symmetric=0, conn=conn, dry_run=dry_run,
+        edges,
+        edge_type=EDGE_TYPE,
+        symmetric=0,
+        conn=conn,
+        dry_run=dry_run,
     )
 
 
@@ -232,12 +239,17 @@ def _cli(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Derive cited_in (note -> edition) edges from OKF sources[].",
     )
-    p.add_argument("--apply", action="store_true",
-                   help="Write edition entities + edges (default: dry-run).")
-    p.add_argument("--verbose", "-v", action="store_true",
-                   help="Print every edge in addition to the summary.")
-    p.add_argument("--vault", default=str(_REPO_ROOT / "findata"),
-                   help="Vault root (default: <repo>/findata; tests override).")
+    p.add_argument(
+        "--apply", action="store_true", help="Write edition entities + edges (default: dry-run)."
+    )
+    p.add_argument(
+        "--verbose", "-v", action="store_true", help="Print every edge in addition to the summary."
+    )
+    p.add_argument(
+        "--vault",
+        default=str(_REPO_ROOT / "findata"),
+        help="Vault root (default: <repo>/findata; tests override).",
+    )
     args = p.parse_args(argv)
 
     vault = Path(args.vault).resolve()
@@ -246,7 +258,8 @@ def _cli(argv: list[str] | None = None) -> int:
         editions = edition_notes(vault)
         stems = {e["stem"] for e in editions}
         path_to_name = {
-            r[1]: r[0] for r in conn.execute(
+            r[1]: r[0]
+            for r in conn.execute(
                 "SELECT name, file_path FROM entities "
                 "WHERE entity_type IN ('company','sector','super_sector') "
                 "AND file_path IS NOT NULL"
@@ -257,9 +270,7 @@ def _cli(argv: list[str] | None = None) -> int:
         edges = derive_edges(citations, nq)
 
         tree_of = {e["stem"]: e["file_path"].split("/")[1] for e in editions}
-        per_tree = collections.Counter(
-            tree_of[stem] for _, stem, _ in citations if stem in tree_of
-        )
+        per_tree = collections.Counter(tree_of[stem] for _, stem, _ in citations if stem in tree_of)
         cited = {stem for _, stem, _ in citations}
         mode = "apply" if args.apply else "dry-run"
         print(
@@ -270,14 +281,12 @@ def _cli(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         for tree in SOURCE_TREES:
-            print(f"  {per_tree.get(tree, 0):4d}  cited_in edges -> {tree}",
-                  file=sys.stderr)
+            print(f"  {per_tree.get(tree, 0):4d}  cited_in edges -> {tree}", file=sys.stderr)
 
         ent = create_edition_entities(conn, editions, apply=args.apply)
         ins = apply_edges(edges, conn=conn, dry_run=not args.apply)
         verb = "inserted" if args.apply else "would insert"
-        print(f"{ent} edition entities {verb}; {ins} cited_in edges {verb}.",
-              file=sys.stderr)
+        print(f"{ent} edition entities {verb}; {ins} cited_in edges {verb}.", file=sys.stderr)
 
         if args.verbose:
             for source, target, props, _ref in edges:

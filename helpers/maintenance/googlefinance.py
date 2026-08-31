@@ -15,6 +15,7 @@ Design constraints (proposal sections 2 and 6):
     positional indexes into Google's internal payloads.
   - The parser never writes anything; callers own persistence.
 """
+
 from __future__ import annotations
 
 import re
@@ -92,9 +93,7 @@ def parse_stats(lines: list[str]) -> dict[str, float]:
 def parse_profile(lines: list[str]) -> dict[str, str]:
     """About-region fields: CEO / Employees / Sector / Website ..."""
     profile: dict[str, str] = {}
-    about_idx = next(
-        (i for i, line in enumerate(lines)
-             if line.startswith("About ")), None)
+    about_idx = next((i for i, line in enumerate(lines) if line.startswith("About ")), None)
     if about_idx is None:
         return profile
     for i in range(about_idx, min(len(lines), about_idx + 30)):
@@ -125,14 +124,12 @@ def parse_quote(html: str) -> dict | None:
     recognised stat row must be present (bogus slugs serve 200-shell pages).
     """
     lines = _visible_lines(html)
-    about_idx = next(
-        (i for i, line in enumerate(lines)
-             if line.startswith("About ")), None)
+    about_idx = next((i for i, line in enumerate(lines) if line.startswith("About ")), None)
     stats = parse_stats(lines)
     if about_idx is None or not stats:
         return None
     profile = parse_profile(lines)
-    company_name = lines[about_idx][len("About "):].strip()
+    company_name = lines[about_idx][len("About ") :].strip()
     return {
         "company_name": company_name,
         "stats": stats,
@@ -147,12 +144,10 @@ def name_match_score(parsed_name: str, expected_name: str) -> float:
     Case-folded SequenceMatcher on token-sorted names so 'Srigee DLM Ltd'
     matches 'Srigee DLM Limited' strongly while unrelated companies fail.
     """
+
     def norm(name: str) -> str:
         tokens = re.findall(r"[a-z0-9]+", name.lower())
-        tokens = [
-            t for t in tokens
-            if t not in {"ltd", "limited", "inc", "corp", "co", "company"}
-        ]
+        tokens = [t for t in tokens if t not in {"ltd", "limited", "inc", "corp", "co", "company"}]
         return " ".join(sorted(tokens))
 
     a, b = norm(parsed_name), norm(expected_name)

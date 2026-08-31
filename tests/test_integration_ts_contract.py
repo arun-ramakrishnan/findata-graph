@@ -16,6 +16,7 @@ This is deliberately Python-only (no Node / no tsc) to keep the QA gate
 Python-only per frontend/README.md. The tsc direction (findata.ts vs api.ts)
 remains a Makefile gate (make frontend-check).
 """
+
 from __future__ import annotations
 
 import re
@@ -37,6 +38,7 @@ API_TYPES = PROJECT_ROOT / "frontend" / "types" / "api.ts"
 # --------------------------------------------------------------------------- #
 # Parse api.ts interfaces
 # --------------------------------------------------------------------------- #
+
 
 def _parse_interfaces() -> tuple[dict[str, dict], list[str]]:
     """Parse api.ts into {InterfaceName: {field: optional_bool}}.
@@ -61,7 +63,7 @@ def _parse_interfaces() -> tuple[dict[str, dict], list[str]]:
             elif text[i] == "}":
                 depth -= 1
             i += 1
-        body = text[start:i - 1]
+        body = text[start : i - 1]
         fields = {}
         for fm in re.finditer(r"^(\s*)([\w]+)(\??)\s*:\s*([^\n]+)$", body, re.MULTILINE):
             fname = fm.group(2)
@@ -95,6 +97,7 @@ def _all_keys(iface: str) -> list[str]:
 # Test: api.ts itself parses into interfaces
 # --------------------------------------------------------------------------- #
 
+
 class TestApiTsParses:
     def test_file_exists(self):
         assert API_TYPES.exists()
@@ -104,14 +107,27 @@ class TestApiTsParses:
         """Sanity: our parser must find the known interfaces, else the
         contract tests silently test nothing."""
         expected = {
-            "ErrorResponse", "SectorsResponse", "StatsResponse",
-            "EntitiesResponse", "EntityDetail", "SearchResponse",
-            "GraphRefreshResponse", "CompanyNeighbors", "SectorNeighbors",
-            "ShortestPathResponse", "EventsResponse",
-            "DocsResponse", "DocItem", "DocContentResponse",
-            "DocSearchResponse", "DocSearchHit",
-            "GraphCloudResponse", "GraphCloudNode", "GraphCloudEdge",
-            "RelationshipTypeSummary", "GraphStatsResponse",
+            "ErrorResponse",
+            "SectorsResponse",
+            "StatsResponse",
+            "EntitiesResponse",
+            "EntityDetail",
+            "SearchResponse",
+            "GraphRefreshResponse",
+            "CompanyNeighbors",
+            "SectorNeighbors",
+            "ShortestPathResponse",
+            "EventsResponse",
+            "DocsResponse",
+            "DocItem",
+            "DocContentResponse",
+            "DocSearchResponse",
+            "DocSearchHit",
+            "GraphCloudResponse",
+            "GraphCloudNode",
+            "GraphCloudEdge",
+            "RelationshipTypeSummary",
+            "GraphStatsResponse",
         }
         found = set(_interfaces.keys())
         assert expected.issubset(found), f"missing: {expected - found}"
@@ -203,6 +219,7 @@ A large private-sector bank.
 def contract_client(tmp_path):
     """Flask test_client backed by a fully-seeded synthetic DB."""
     import app as A
+
     db_path = tmp_path / "contract.db"
     conn = sqlite3.connect(str(db_path))
     conn.executescript(_SCHEMA)
@@ -212,12 +229,21 @@ def contract_client(tmp_path):
         "INSERT INTO entities(name, entity_type, sector_classification, "
         "file_path, ticker) VALUES (?,?,?,?,?)",
         [
-            ("HDFC Bank", "company", "Banking",
-             "findata/Companies/Banking/Hdfc_Bank.md", "HDFCBANK"),
-            ("ICICI Bank", "company", "Banking",
-             "findata/Companies/Banking/ICICI_Bank.md", "ICICIBANK"),
-            ("Infosys", "company", "Technology",
-             "findata/Companies/Technology/Infosys.md", "INFY"),
+            (
+                "HDFC Bank",
+                "company",
+                "Banking",
+                "findata/Companies/Banking/Hdfc_Bank.md",
+                "HDFCBANK",
+            ),
+            (
+                "ICICI Bank",
+                "company",
+                "Banking",
+                "findata/Companies/Banking/ICICI_Bank.md",
+                "ICICIBANK",
+            ),
+            ("Infosys", "company", "Technology", "findata/Companies/Technology/Infosys.md", "INFY"),
             ("Banking", "sector", None, "findata/Sectors/Banking.md", None),
             ("Technology", "sector", None, "findata/Sectors/Technology.md", None),
         ],
@@ -236,8 +262,7 @@ def contract_client(tmp_path):
 
     # Edges
     conn.executemany(
-        "INSERT INTO graph_edges(source, target, edge_type, source_ref) "
-        "VALUES (?,?,?,?)",
+        "INSERT INTO graph_edges(source, target, edge_type, source_ref) VALUES (?,?,?,?)",
         [
             ("HDFC Bank", "Banking", "part_of", "seed"),
             ("Banking", "HDFC Bank", "has_company", "seed"),
@@ -291,7 +316,8 @@ def contract_client(tmp_path):
     # Monkeypatch get_graph_connection to raise so DuckDB endpoints aren't hit
     saved_ggc = A.get_graph_connection
     A.get_graph_connection = lambda: (_ for _ in ()).throw(  # ty: ignore[invalid-assignment]
-        RuntimeError("no DuckDB in contract test"))
+        RuntimeError("no DuckDB in contract test")
+    )
 
     try:
         yield A.app.test_client()
@@ -309,6 +335,7 @@ def contract_client(tmp_path):
 # Helper to assert response keys cover an api.ts interface
 # --------------------------------------------------------------------------- #
 
+
 def _assert_keys(data: dict, iface: str, required_only: bool = False):
     """Assert every field in the api.ts interface appears in the response."""
     keys = _required_keys(iface) if required_only else _all_keys(iface)
@@ -322,6 +349,7 @@ def _assert_keys(data: dict, iface: str, required_only: bool = False):
 # --------------------------------------------------------------------------- #
 # SQLite-only endpoints (full contract verification)
 # --------------------------------------------------------------------------- #
+
 
 class TestSectorsContract:
     def test_response_keys_match_sectorsresponse(self, contract_client):
@@ -437,6 +465,7 @@ class TestEventsContract:
 # Docs endpoints — filesystem-backed, no DB needed
 # --------------------------------------------------------------------------- //
 
+
 class TestDocsContract:
     """GET /api/docs, /api/docs/content, /api/docs/search are filesystem-
     backed (doc/ corpus) — the DB-less contract_client is sufficient."""
@@ -452,7 +481,7 @@ class TestDocsContract:
 
     def test_content_keys_match_doccontentresponse(self, contract_client):
         # A real doc that always exists in the repo.
-        r = contract_client.get("/api/docs/content?path=architecture.md")
+        r = contract_client.get("/api/docs/content?path=design/architecture.md")
         assert r.status_code == 200
         _assert_keys(r.get_json(), "DocContentResponse")
 
@@ -478,6 +507,7 @@ class TestDocsContract:
 # --------------------------------------------------------------------------- #
 # Graph cloud + graph stats — SQLite-backed, full contract verification
 # --------------------------------------------------------------------------- #
+
 
 class TestGraphCloudContract:
     def test_cloud_response_keys_match_graphcloudresponse(self, contract_client):
@@ -520,16 +550,22 @@ class TestGraphStatsContract:
         # GraphStatsResponse has inline object types ({...}) whose fields the
         # flattened key-parser also picks up, so assert the top level + each
         # declared nested block explicitly.
-        assert set(data) == {"structure", "entities", "edges", "sectors",
-                             "hygiene", "staleness"}
+        assert set(data) == {"structure", "entities", "edges", "sectors", "hygiene", "staleness"}
         assert set(data["entities"]) == {"total", "by_type"}
         assert set(data["edges"]) == {"total", "by_type"}
         assert set(data["sectors"]) == {"count", "top", "size_distribution"}
-        assert set(data["hygiene"]) == {"orphan_companies", "no_ticker",
-                                        "self_loops", "orphan_edges",
-                                        "conflicting_market_cap"}
-        assert set(data["staleness"]) == {"stale", "most_recent_entity_update",
-                                          "most_recent_analytics_compute"}
+        assert set(data["hygiene"]) == {
+            "orphan_companies",
+            "no_ticker",
+            "self_loops",
+            "orphan_edges",
+            "conflicting_market_cap",
+        }
+        assert set(data["staleness"]) == {
+            "stale",
+            "most_recent_entity_update",
+            "most_recent_analytics_compute",
+        }
         # structure is None without the DuckDB graph layer (contract client).
         assert data["structure"] is None
 
@@ -537,6 +573,7 @@ class TestGraphStatsContract:
 # --------------------------------------------------------------------------- #
 # DuckDB endpoints — verify error shape + structure WITHOUT DuckDB
 # --------------------------------------------------------------------------- #
+
 
 class TestGraphNeighborsContract:
     def test_error_shape_on_duckdb_missing(self, contract_client):
@@ -559,12 +596,14 @@ class TestGraphNeighborsContract:
 # Scan ALL /api/* response shapes against api.ts (loose extra-keys check)
 # --------------------------------------------------------------------------- #
 
+
 class TestApiTsSelfConsistent:
     """api.ts itself must not declare an interface that app.py never returns.
 
     We can't enumerate app.py's jsonify keys statically here, but we CAN
     enforce that every interface we parse is sane (has at least one field)
     and that optional/required flags are parsed correctly."""
+
     def test_every_interface_has_fields(self):
         empty = [n for n, f in _interfaces.items() if not f]
         assert not empty, f"interfaces with no parsed fields: {empty}"

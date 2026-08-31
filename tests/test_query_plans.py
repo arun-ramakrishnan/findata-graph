@@ -15,6 +15,7 @@ tmp_path), not the live DB itself. They're marked ``live`` because they
 need the real schema + indexes (a synthetic fixture might not reproduce
 the planner's index choices).
 """
+
 import sqlite3
 from pathlib import Path
 
@@ -52,8 +53,7 @@ class TestEntityQueryPlans:
         """Direct lookup by name (the PK) must SEARCH, not SCAN."""
         con = sqlite3.connect(str(tmp_db))
         try:
-            detail = _plan_detail(con, "SELECT name FROM entities WHERE name = ?",
-                                  ("CEAT",))
+            detail = _plan_detail(con, "SELECT name FROM entities WHERE name = ?", ("CEAT",))
             assert "SEARCH" in detail, f"name lookup scanning: {detail}"
         finally:
             con.close()
@@ -65,7 +65,8 @@ class TestEntityQueryPlans:
         con = sqlite3.connect(str(tmp_db))
         try:
             detail = _plan_detail(
-                con, "SELECT name FROM entities WHERE name = ? COLLATE NOCASE",
+                con,
+                "SELECT name FROM entities WHERE name = ? COLLATE NOCASE",
                 ("ceat",),
             )
             assert "SEARCH" in detail and "idx_entities_name_nocase" in detail, (
@@ -80,7 +81,8 @@ class TestEntityQueryPlans:
         con = sqlite3.connect(str(tmp_db))
         try:
             detail = _plan_detail(
-                con, "SELECT name FROM entities WHERE file_path = ?",
+                con,
+                "SELECT name FROM entities WHERE file_path = ?",
                 ("findata/Companies/CEAT.md",),
             )
             assert "SEARCH" in detail and "idx_entities_file_path" in detail, (
@@ -202,9 +204,7 @@ class TestGraphEdgesQueryPlans:
                 "SELECT 1 FROM graph_edges WHERE source = ? AND target = ? AND edge_type = ?",
                 ("CEAT", "Automotive", "part_of"),
             )
-            assert "SEARCH" in detail, (
-                f"triple lookup scanning: {detail}"
-            )
+            assert "SEARCH" in detail, f"triple lookup scanning: {detail}"
         finally:
             con.close()
 
@@ -235,9 +235,7 @@ class TestGraphEdgesQueryPlans:
             """
             detail = _plan_detail(con, sql)
             assert "SEARCH" in detail, f"cross_sector_bridges scanning: {detail}"
-            assert "ge_type_idx" in detail, (
-                f"edge_type filter not using ge_type_idx: {detail}"
-            )
+            assert "ge_type_idx" in detail, f"edge_type filter not using ge_type_idx: {detail}"
             assert "SCAN" not in detail, f"cross_sector_bridges full scan: {detail}"
         finally:
             con.close()

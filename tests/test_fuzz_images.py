@@ -7,6 +7,7 @@ try/except-raise wrappers asserted nothing — these now pin real
 invariants: bounded runtime (deadline, the ReDoS guard), match group
 shape, and slugify's no-whitespace/idempotence contract.
 """
+
 from __future__ import annotations
 
 from hypothesis import given, strategies as st, settings

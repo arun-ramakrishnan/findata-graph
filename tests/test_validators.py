@@ -65,9 +65,9 @@ def test_good_notes_pass_clean(notes_verifier, fake_vault):
         notes_verifier.check_yaml_structure(str(f))
         notes_verifier.check_content_quality(str(f))
     all_flagged = set().union(*notes_verifier.issues.values())
-    assert all(
-        Path(i["file"]).name not in {"Good_Bank.md", "Banking.md"} for i in all_flagged
-    ), "Good notes were incorrectly flagged"
+    assert all(Path(i["file"]).name not in {"Good_Bank.md", "Banking.md"} for i in all_flagged), (
+        "Good notes were incorrectly flagged"
+    )
 
 
 def test_verify_all_returns_nonzero_on_defects(notes_verifier):
@@ -172,8 +172,7 @@ def test_name_sync_mismatch_is_error(notes_verifier, tmp_path):
     )
     notes_verifier.check_yaml_structure(str(f))
     assert any(
-        "does not match filename" in i["description"]
-        for i in notes_verifier.issues["name_sync"]
+        "does not match filename" in i["description"] for i in notes_verifier.issues["name_sync"]
     )
 
 
@@ -185,8 +184,7 @@ def test_missing_normalized_name_is_error(notes_verifier, tmp_path):
     )
     notes_verifier.check_yaml_structure(str(f))
     assert any(
-        "Missing 'normalized_name'" in i["description"]
-        for i in notes_verifier.issues["name_sync"]
+        "Missing 'normalized_name'" in i["description"] for i in notes_verifier.issues["name_sync"]
     )
 
 
@@ -207,10 +205,7 @@ def test_bad_type_value_is_error(notes_verifier, tmp_path):
         "title: Acme\ntype: compny\nnormalized_name: Acme_Corp\npermalink: /companies/x/acme\n",
     )
     notes_verifier.check_yaml_structure(str(f))
-    assert any(
-        "Invalid type" in i["description"]
-        for i in notes_verifier.issues["yaml_structure"]
-    )
+    assert any("Invalid type" in i["description"] for i in notes_verifier.issues["yaml_structure"])
 
 
 def test_bad_filename_format_is_error(notes_verifier, tmp_path):
@@ -221,9 +216,7 @@ def test_bad_filename_format_is_error(notes_verifier, tmp_path):
         "title: Bad\ntype: company\nnormalized_name: Bad-Name\npermalink: /companies/x/bad\n",
     )
     notes_verifier.check_filename_format(str(f))
-    assert any(
-        "Bad-Name" in i["description"] for i in notes_verifier.issues["filename_format"]
-    )
+    assert any("Bad-Name" in i["description"] for i in notes_verifier.issues["filename_format"])
 
 
 def test_good_filename_passes(notes_verifier, tmp_path):
@@ -249,8 +242,7 @@ def test_company_bad_permalink_is_error(notes_verifier, tmp_path):
     )
     notes_verifier.check_yaml_structure(str(f))
     assert any(
-        "permalink" in i["description"].lower()
-        for i in notes_verifier.issues["yaml_structure"]
+        "permalink" in i["description"].lower() for i in notes_verifier.issues["yaml_structure"]
     )
 
 
@@ -263,8 +255,7 @@ def test_company_good_permalink_passes(notes_verifier, tmp_path):
     )
     notes_verifier.check_yaml_structure(str(f))
     assert not any(
-        "permalink" in i["description"].lower()
-        for i in notes_verifier.issues["yaml_structure"]
+        "permalink" in i["description"].lower() for i in notes_verifier.issues["yaml_structure"]
     )
 
 
@@ -276,9 +267,7 @@ def test_bad_tag_format_is_warning(notes_verifier, tmp_path):
         "tags:\n- Retail\n",
     )
     notes_verifier.check_yaml_structure(str(f))
-    assert any(
-        "Retail" in w["description"] for w in notes_verifier.warnings["tag_format"]
-    )
+    assert any("Retail" in w["description"] for w in notes_verifier.warnings["tag_format"])
 
 
 def test_unknown_tag_value_is_warning(notes_verifier, tmp_path):
@@ -292,8 +281,7 @@ def test_unknown_tag_value_is_warning(notes_verifier, tmp_path):
     )
     notes_verifier.check_yaml_structure(str(f))
     assert any(
-        "nonsense_value" in w["description"]
-        for w in notes_verifier.warnings["tag_value"]
+        "nonsense_value" in w["description"] for w in notes_verifier.warnings["tag_value"]
     ), "unknown controlled-namespace value should warn"
 
 
@@ -332,6 +320,7 @@ def test_free_vocabulary_namespace_is_not_checked(notes_verifier, tmp_path):
 # D3-remainder: company title-quote + listed-missing checks                   #
 # --------------------------------------------------------------------------- #
 
+
 def test_company_quoted_title_is_warning(notes_verifier, tmp_path):
     """D3: a company title wrapped in double quotes must produce a
     company_title_quoted warning (mirrors the long-standing sector check). The
@@ -343,9 +332,7 @@ def test_company_quoted_title_is_warning(notes_verifier, tmp_path):
         "permalink: /companies/x/acme\n",
     )
     notes_verifier.check_yaml_structure(str(f))
-    assert notes_verifier.warnings["company_title_quoted"], (
-        "quoted company title should warn"
-    )
+    assert notes_verifier.warnings["company_title_quoted"], "quoted company title should warn"
 
 
 def test_company_unquoted_title_does_not_warn(notes_verifier, tmp_path):
@@ -373,9 +360,7 @@ def test_ticker_null_without_listed_is_warning(notes_verifier, tmp_path):
         "permalink: /companies/x/acme\n",
     )
     notes_verifier.check_yaml_structure(str(f))
-    assert notes_verifier.warnings["listed_missing"], (
-        "ticker:null without listed:false should warn"
-    )
+    assert notes_verifier.warnings["listed_missing"], "ticker:null without listed:false should warn"
 
 
 def test_ticker_null_with_listed_false_does_not_warn(notes_verifier, tmp_path):
@@ -733,8 +718,9 @@ def test_super_sector_good_note_passes(notes_verifier, tmp_path):
     f.write_text(_SUPER_SECTOR_GOOD, encoding="utf-8")
     notes_verifier.check_yaml_structure(str(f))
     all_flagged = set().union(*notes_verifier.issues.values())
-    assert all(Path(i["file"]).name != "Financials.md" for i in all_flagged), \
+    assert all(Path(i["file"]).name != "Financials.md" for i in all_flagged), (
         "Good super_sector note was incorrectly flagged as an ERROR"
+    )
 
 
 def test_super_sector_bad_permalink_flagged(notes_verifier, tmp_path):
@@ -750,8 +736,7 @@ def test_super_sector_missing_leading_slash_is_error(notes_verifier, tmp_path):
     now a gate-failing ERROR. The generator was normalized to emit the
     canonical /super_sectors/ form, so the bare form is a regression to flag."""
     f = tmp_path / "Financials.md"
-    f.write_text(_SUPER_SECTOR_GOOD.replace("/super_sectors/", "super_sectors/"),
-                 encoding="utf-8")
+    f.write_text(_SUPER_SECTOR_GOOD.replace("/super_sectors/", "super_sectors/"), encoding="utf-8")
     notes_verifier.check_yaml_structure(str(f))
     assert "Financials.md" in _issue_files(notes_verifier, "yaml_structure")
 
@@ -773,8 +758,7 @@ def test_super_sector_type_is_valid(notes_verifier, tmp_path):
     notes_verifier.check_yaml_structure(str(f))
     # No yaml_structure error about the type value should fire.
     type_errors = [
-        i for i in notes_verifier.issues["yaml_structure"]
-        if "Invalid type" in i["description"]
+        i for i in notes_verifier.issues["yaml_structure"] if "Invalid type" in i["description"]
     ]
     assert type_errors == []
 
@@ -794,8 +778,7 @@ def _seed_hierarchy(conn):
         "INSERT OR IGNORE INTO entities (name, entity_type, file_path, normalized_name) "
         "VALUES (?, ?, ?, ?)",
         [
-            ("Financials", "super_sector",
-             "findata/Super_Sectors/Financials.md", "Financials"),
+            ("Financials", "super_sector", "findata/Super_Sectors/Financials.md", "Financials"),
             ("Banking", "sector", "findata/Sectors/Banking.md", "Banking"),
             ("Private_Sector", "sub_sector", None, "Private_Sector"),
         ],
@@ -820,6 +803,7 @@ def test_hierarchy_clean(integrity_db):
     legitimately large. The structural correctness is what this test pins;
     taxonomy-drift-to-zero requires the full production graph."""
     import sqlite3
+
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
     _seed_hierarchy(conn)
@@ -833,8 +817,11 @@ def test_hierarchy_clean(integrity_db):
     assert hie["cycles"] == 0
     # Structural errors (everything except taxonomy_drift) must be 0.
     structural_errors = (
-        hie["sub_sector_orphans"] + hie["sector_orphans"]
-        + hie["super_sector_orphans"] + hie["multi_parent"] + hie["cycles"]
+        hie["sub_sector_orphans"]
+        + hie["sector_orphans"]
+        + hie["super_sector_orphans"]
+        + hie["multi_parent"]
+        + hie["cycles"]
     )
     assert structural_errors == 0
 
@@ -842,6 +829,7 @@ def test_hierarchy_clean(integrity_db):
 def test_hierarchy_sub_sector_orphan_flagged(integrity_db):
     """A sub_sector with no belongs_to parent is flagged as an orphan."""
     import sqlite3
+
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
     _seed_hierarchy(conn)
@@ -860,6 +848,7 @@ def test_hierarchy_sub_sector_orphan_flagged(integrity_db):
 def test_hierarchy_sector_orphan_flagged(integrity_db):
     """A sector with no belongs_to edge to a super_sector is flagged."""
     import sqlite3
+
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
     _seed_hierarchy(conn)
@@ -878,6 +867,7 @@ def test_hierarchy_sector_orphan_flagged(integrity_db):
 def test_hierarchy_super_sector_orphan_flagged(integrity_db):
     """A super_sector with no incoming belongs_to edge is flagged."""
     import sqlite3
+
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
     _seed_hierarchy(conn)
@@ -897,6 +887,7 @@ def test_hierarchy_multi_parent_flagged(integrity_db):
     """A sector linked to two different super_sectors violates the strict
     forest invariant (each child has exactly one parent)."""
     import sqlite3
+
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
     _seed_hierarchy(conn)
@@ -921,6 +912,7 @@ def test_hierarchy_cycle_flagged(integrity_db):
     """A belongs_to cycle (A->B->A) is structural corruption — the hierarchy
     is a strict 3-level forest, so any cycle must be caught."""
     import sqlite3
+
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
     _seed_hierarchy(conn)
@@ -941,6 +933,7 @@ def test_hierarchy_in_check_integrity(integrity_db):
     """check_integrity() must include the hierarchy result so it shows up
     in the report + gate."""
     import sqlite3
+
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
     _seed_hierarchy(conn)
@@ -975,9 +968,15 @@ def test_cache_consistency_schema_version_drift(integrity_db, monkeypatch):  # n
     class _FakeDuckCon:
         def execute(self, sql, *a, **kw):
             class _R:
-                def __init__(self, row): self._row = row
-                def fetchone(self): return self._row
-                def fetchall(self): return [self._row] if self._row else []
+                def __init__(self, row):
+                    self._row = row
+
+                def fetchone(self):
+                    return self._row
+
+                def fetchall(self):
+                    return [self._row] if self._row else []
+
             # _build_meta schema_version lookup -> drifted value.
             if "FROM _build_meta" in sql and "schema_version" in sql:
                 return _R(("999",))  # drift vs code constant (7)
@@ -988,17 +987,24 @@ def test_cache_consistency_schema_version_drift(integrity_db, monkeypatch):  # n
             if "COUNT(*)" in sql:
                 return _R((0,))
             return _R(None)
-        def close(self): pass
+
+        def close(self):
+            pass
 
     _, checker = integrity_db
 
     class _FakeSqliteCon:
         """Stubbed SQLite connection — returns 0 for every COUNT query and
         reports graph_edges as present (so the e_* reconciliation runs)."""
+
         def execute(self, sql, *a, **kw):
             class _R:
-                def __init__(self, row): self._row = row
-                def fetchone(self): return self._row
+                def __init__(self, row):
+                    self._row = row
+
+                def fetchone(self):
+                    return self._row
+
             if "FROM sqlite_master" in sql:
                 return _R((1,))  # table exists (graph_edges / entities)
             return _R((0,))  # every COUNT(*) -> 0
@@ -1021,27 +1027,28 @@ def test_cache_consistency_schema_version_drift(integrity_db, monkeypatch):  # n
 def test_registry_every_check_has_valid_severity():
     """Every Check in _CHECKS declares a severity of 'error' or 'warning'."""
     from helpers.misc.database_integrity_check import _CHECKS
+
     for chk in _CHECKS:
-        assert chk.severity in ("error", "warning"), \
-            f"{chk.name}: bad severity {chk.severity!r}"
+        assert chk.severity in ("error", "warning"), f"{chk.name}: bad severity {chk.severity!r}"
 
 
 def test_registry_every_method_resolves():
     """Every Check.method resolves to a callable on the checker instance."""
     from helpers.misc.database_integrity_check import (
-        DatabaseIntegrityChecker, _CHECKS,
+        DatabaseIntegrityChecker,
+        _CHECKS,
     )
+
     checker = DatabaseIntegrityChecker.__new__(DatabaseIntegrityChecker)
     for chk in _CHECKS:
-        assert hasattr(checker, chk.method), \
-            f"{chk.name}: method {chk.method!r} missing on checker"
-        assert callable(getattr(checker, chk.method)), \
-            f"{chk.name}: {chk.method!r} is not callable"
+        assert hasattr(checker, chk.method), f"{chk.name}: method {chk.method!r} missing on checker"
+        assert callable(getattr(checker, chk.method)), f"{chk.name}: {chk.method!r} is not callable"
 
 
 def test_registry_names_unique():
     """Check names are unique (they key the results dict)."""
     from helpers.misc.database_integrity_check import _CHECKS
+
     names = [c.name for c in _CHECKS]
     assert len(names) == len(set(names)), f"duplicate names: {names}"
 
@@ -1050,6 +1057,7 @@ def test_registry_check_integrity_includes_all_checks(integrity_db):
     """check_integrity() populates a result key for EVERY registered check."""
     _, checker = integrity_db
     from helpers.misc.database_integrity_check import _CHECKS
+
     r = checker.check_integrity()
     for chk in _CHECKS:
         assert chk.name in r, f"{chk.name}: missing from check_integrity results"
@@ -1073,6 +1081,7 @@ def test_graph_summary_present_and_advisory(integrity_db):
 def test_market_cap_conflicts_clean(integrity_db):
     """An entity with a single market_cap tag -> 0 conflicts."""
     import sqlite3
+
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
     conn.execute(
@@ -1090,6 +1099,7 @@ def test_market_cap_conflicts_flagged(integrity_db):
     """An entity with two market_cap/* tags is flagged — the DuckDB MIN()
     tiebreak would silently pick the wrong tier."""
     import sqlite3
+
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
     conn.executemany(
@@ -1105,8 +1115,7 @@ def test_market_cap_conflicts_flagged(integrity_db):
     assert mc["errors"] == 1
     assert len(mc["conflicts"]) == 1
     assert mc["conflicts"][0]["entity"] == "Good Bank"
-    assert set(mc["conflicts"][0]["tags"]) == {
-        "market_cap/large_cap", "market_cap/mid_cap"}
+    assert set(mc["conflicts"][0]["tags"]) == {"market_cap/large_cap", "market_cap/mid_cap"}
 
 
 def test_market_cap_conflicts_in_check_integrity(integrity_db):
@@ -1125,6 +1134,7 @@ def test_validity_window_reports_coverage(integrity_db):
     edge type. The fixture's part_of edge has no valid_from; a seeded
     acquired edge with one should be counted separately."""
     import sqlite3
+
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
     # graph_edges isn't in the default fixture schema; add a row directly
@@ -1136,8 +1146,7 @@ def test_validity_window_reports_coverage(integrity_db):
         "  valid_from TEXT, valid_to TEXT)"
     )
     conn.executemany(
-        "INSERT INTO graph_edges (source, target, edge_type, valid_from) "
-        "VALUES (?, ?, ?, ?)",
+        "INSERT INTO graph_edges (source, target, edge_type, valid_from) VALUES (?, ?, ?, ?)",
         [
             ("Good Bank", "Rival Co", "acquired", "2024-01-15"),
             ("Good Bank", "Banking", "part_of", None),
@@ -1162,6 +1171,7 @@ def test_validity_window_warnings_count_should_be_dated(integrity_db):
     """A missing valid_from on 'acquired' (a should-be-dated type) counts
     toward warnings; missing on 'part_of' (never dated) does not."""
     import sqlite3
+
     db_path, checker = integrity_db
     conn = sqlite3.connect(db_path)
     conn.execute(
@@ -1172,8 +1182,8 @@ def test_validity_window_warnings_count_should_be_dated(integrity_db):
     conn.executemany(
         "INSERT INTO graph_edges (source, target, edge_type) VALUES (?, ?, ?)",
         [
-            ("Good Bank", "Rival Co", "acquired"),       # missing date -> warns
-            ("Good Bank", "Banking", "part_of"),         # missing date -> no warn
+            ("Good Bank", "Rival Co", "acquired"),  # missing date -> warns
+            ("Good Bank", "Banking", "part_of"),  # missing date -> no warn
         ],
     )
     conn.commit()

@@ -10,6 +10,7 @@ Two layers:
 Run:
     pytest tests/test_derive_co_mentions.py -v
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -202,9 +203,7 @@ class TestExtractLive:
         # Every MULTI-entity edition should have at least 2 entities (single-
         # entity editions are returned but produce no edges downstream).
         multi = {t: ns for t, ns in editions.items() if len(ns) >= 2}
-        assert len(multi) >= 3, (
-            f"expected >=3 multi-entity editions, got {len(multi)}"
-        )
+        assert len(multi) >= 3, f"expected >=3 multi-entity editions, got {len(multi)}"
 
         # Edition #69 enhanced 11 companies; we should see >=10 of them
         # (allowing for any entity that may not yet be registered). The
@@ -212,8 +211,7 @@ class TestExtractLive:
         # lacks an inline edition number — see _canonicalise_title.
         key = "Jio Financial, Wipro, Polycab, Piramal & More (Edition #69, Q1FY27)"
         assert key in editions, (
-            f"expected Edition #69 key in editions; got keys like "
-            f"{sorted(editions)[:3]}..."
+            f"expected Edition #69 key in editions; got keys like {sorted(editions)[:3]}..."
         )
         assert len(editions[key]) >= 10, (
             f"expected >=10 co-mentions for Edition #69, got {len(editions[key])}"
@@ -276,6 +274,7 @@ class TestExtractLive:
 def test_newsletter_title_raises_for_unknown():
     """_newsletter_title raises ValueError for unknown newsletter type."""
     import pytest
+
     with pytest.raises(ValueError, match="Unknown newsletter_type"):
         dcm._newsletter_title("nonexistent")
 
@@ -298,6 +297,7 @@ def test_footer_regex_matches_all_types():
 def test_resolve_entity_name_found():
     """_resolve_entity_name returns entity name when file_path matches."""
     import sqlite3
+
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, file_path TEXT)")
@@ -310,6 +310,7 @@ def test_resolve_entity_name_found():
 def test_resolve_entity_name_not_found():
     """_resolve_entity_name returns None when no match."""
     import sqlite3
+
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, file_path TEXT)")

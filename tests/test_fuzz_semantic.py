@@ -17,6 +17,7 @@ Invariants pinned:
 Marked ``live``: building the graph materialisation needs duckdb + vss
 extensions. No production data is used.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -60,16 +61,23 @@ def _build_db(path: Path) -> None:
         """
     )
     rows = [
-        ("CEAT", "company", "Automotive", "CEAT.NS",
-         "findata/Companies/Automotive/CEAT.md"),
-        ("Apollo Tyres", "company", "Automotive", "APOLLOTYRE.NS",
-         "findata/Companies/Automotive/Apollo_Tyres.md"),
-        ("MRF", "company", "Automotive", "MRF.NS",
-         "findata/Companies/Automotive/MRF.md"),
-        ("Infosys", "company", "Technology", "INFY.NS",
-         "findata/Companies/Technology/Infosys.md"),
-        ("TCS", "company", "Technology", "TCS.NS",
-         "findata/Companies/Technology/Tata_Consultancy_Services.md"),
+        ("CEAT", "company", "Automotive", "CEAT.NS", "findata/Companies/Automotive/CEAT.md"),
+        (
+            "Apollo Tyres",
+            "company",
+            "Automotive",
+            "APOLLOTYRE.NS",
+            "findata/Companies/Automotive/Apollo_Tyres.md",
+        ),
+        ("MRF", "company", "Automotive", "MRF.NS", "findata/Companies/Automotive/MRF.md"),
+        ("Infosys", "company", "Technology", "INFY.NS", "findata/Companies/Technology/Infosys.md"),
+        (
+            "TCS",
+            "company",
+            "Technology",
+            "TCS.NS",
+            "findata/Companies/Technology/Tata_Consultancy_Services.md",
+        ),
         ("Automotive", "sector", None, None, "findata/Sectors/Automotive.md"),
         ("Technology", "sector", None, None, "findata/Sectors/Technology.md"),
     ]
@@ -147,8 +155,11 @@ def test_fuzz_semantic_neighbors_cross_sector_flag(fcon, company: str, k: int, c
     assert isinstance(results, list)
     if cross_sector and company in COMPANIES:
         own_sector = {
-            "CEAT": "Automotive", "Apollo Tyres": "Automotive", "MRF": "Automotive",
-            "Infosys": "Technology", "TCS": "Technology",
+            "CEAT": "Automotive",
+            "Apollo Tyres": "Automotive",
+            "MRF": "Automotive",
+            "Infosys": "Technology",
+            "TCS": "Technology",
         }[company]
         assert all(r[1] != own_sector for r in results)
 

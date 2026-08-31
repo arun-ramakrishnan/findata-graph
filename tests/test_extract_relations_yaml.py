@@ -4,6 +4,7 @@ original test_extract_relations.py for navigability.
 
 YAML parsing, doc-type detection, company-note properties.
 """
+
 from __future__ import annotations
 
 
@@ -42,32 +43,15 @@ class TestDocTypeDetection:
         assert _detect_doc_type(content) == "company"
 
     def test_sector_yaml_detected(self):
-        content = (
-            "---\n"
-            "title: Automotive\n"
-            "type: sector\n"
-            "---\n\n"
-            "# Automotive\n\nOverview."
-        )
+        content = "---\ntitle: Automotive\ntype: sector\n---\n\n# Automotive\n\nOverview."
         assert _detect_doc_type(content) == "sector"
 
     def test_other_type_falls_back_to_newsletter(self):
-        content = (
-            "---\n"
-            "type: research\n"
-            "---\n\n"
-            "# Some Doc\n"
-        )
+        content = "---\ntype: research\n---\n\n# Some Doc\n"
         assert _detect_doc_type(content) == "newsletter"
 
     def test_strip_yaml_front_matter(self):
-        content = (
-            "---\n"
-            "title: Foo\n"
-            "type: company\n"
-            "---\n\n"
-            "# Foo\n\nBody text."
-        )
+        content = "---\ntitle: Foo\ntype: company\n---\n\n# Foo\n\nBody text."
         stripped = _strip_yaml_front_matter(content)
         assert stripped.startswith("# Foo")
         assert "title:" not in stripped
@@ -77,25 +61,13 @@ class TestDocTypeDetection:
         assert _strip_yaml_front_matter(content) == content
 
     def test_parse_yaml_field_simple(self):
-        content = (
-            "---\n"
-            "title: Foo\n"
-            "type: company\n"
-            "normalized_name: Foo_Limited\n"
-            "---\n\n"
-            "# Foo"
-        )
+        content = "---\ntitle: Foo\ntype: company\nnormalized_name: Foo_Limited\n---\n\n# Foo"
         assert _parse_yaml_field(content, "type") == "company"
         assert _parse_yaml_field(content, "title") == "Foo"
         assert _parse_yaml_field(content, "normalized_name") == "Foo_Limited"
 
     def test_parse_yaml_field_quoted(self):
-        content = (
-            "---\n"
-            'title: "Foo Limited"\n'
-            "---\n\n"
-            "# Foo"
-        )
+        content = '---\ntitle: "Foo Limited"\n---\n\n# Foo'
         assert _parse_yaml_field(content, "title") == "Foo Limited"
 
     def test_parse_yaml_field_absent(self):
@@ -134,8 +106,10 @@ class TestCompanyNoteExtraction:
             "7th largest retail-focused NBFC.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="HDB_Financial_Services",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="HDB_Financial_Services",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
             doc_type="company",
             source_entity_override="HDB Financial Services",
         )
@@ -144,9 +118,7 @@ class TestCompanyNoteExtraction:
         assert edge.source == "HDB Financial Services"
         assert edge.target == "HDFC Bank"
         # source_ref should reflect the company-note provenance.
-        assert edge.source_ref == (
-            "derive:relations:company_note:HDB Financial Services"
-        )
+        assert edge.source_ref == ("derive:relations:company_note:HDB Financial Services")
         # properties.doc_type must be 'company' and quote carried.
         assert edge.properties["doc_type"] == "company"
         assert edge.properties["note"] == "HDB_Financial_Services"
@@ -155,12 +127,14 @@ class TestCompanyNoteExtraction:
     def test_company_note_properties_omit_newsletter_key(self):
         resolver = EntityResolver(["Foo", "Bar"])
         content = (
-            "---\ntype: company\nnormalized_name: Foo\n---\n\n"
-            "# Foo\n\nFoo, a subsidiary of Bar."
+            "---\ntype: company\nnormalized_name: Foo\n---\n\n# Foo\n\nFoo, a subsidiary of Bar."
         )
         by_type, _ = extract_relations(
-            content, edition_title="Foo", newsletter_type="The_Chatter",
-            resolver=resolver, doc_type="company",
+            content,
+            edition_title="Foo",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+            doc_type="company",
             source_entity_override="Foo",
         )
         edge = by_type["subsidiary_of"][0]
@@ -173,12 +147,14 @@ class TestCompanyNoteExtraction:
         # If source_entity_override is None, fall back to resolving the H1.
         resolver = EntityResolver(["Foo", "Bar"])
         content = (
-            "---\ntype: company\nnormalized_name: Foo\n---\n\n"
-            "# Foo\n\nFoo is a subsidiary of Bar."
+            "---\ntype: company\nnormalized_name: Foo\n---\n\n# Foo\n\nFoo is a subsidiary of Bar."
         )
         by_type, _ = extract_relations(
-            content, edition_title="Foo", newsletter_type="The_Chatter",
-            resolver=resolver, doc_type="company",
+            content,
+            edition_title="Foo",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+            doc_type="company",
             source_entity_override=None,
         )
         assert by_type["subsidiary_of"][0].source == "Foo"
@@ -190,9 +166,12 @@ class TestCompanyNoteExtraction:
             "# Some Unknown\n\nFoo, a subsidiary of Bar."
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Some_Unknown",
-            newsletter_type="The_Chatter", resolver=resolver,
-            doc_type="company", source_entity_override=None,
+            content,
+            edition_title="Some_Unknown",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+            doc_type="company",
+            source_entity_override=None,
         )
         assert by_type == {}
         assert unresolved == []
@@ -206,8 +185,10 @@ class TestCompanyNoteExtraction:
             "UltraTech, part of the Aditya Birla Group, is a leading cement maker."
         )
         by_type, _ = extract_relations(
-            content, edition_title="UltraTech_Cement",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="UltraTech_Cement",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
             doc_type="company",
             source_entity_override="UltraTech Cement",
         )
@@ -226,8 +207,10 @@ class TestNewsletterVsCompanyAuditTrail:
             "The asset management joint venture with BlackRock is growing.\n"
         )
         by_type, _ = extract_relations(
-            content, edition_title="Test Edition",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test Edition",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
             doc_type="newsletter",
         )
         edge = by_type["jv_with"][0]
@@ -239,12 +222,14 @@ class TestNewsletterVsCompanyAuditTrail:
     def test_company_edge_uses_distinct_source_ref(self):
         resolver = EntityResolver(["Foo", "Bar"])
         content = (
-            "---\ntype: company\nnormalized_name: Foo\n---\n\n"
-            "# Foo\n\nFoo, a subsidiary of Bar."
+            "---\ntype: company\nnormalized_name: Foo\n---\n\n# Foo\n\nFoo, a subsidiary of Bar."
         )
         by_type, _ = extract_relations(
-            content, edition_title="Foo", newsletter_type="The_Chatter",
-            resolver=resolver, doc_type="company",
+            content,
+            edition_title="Foo",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+            doc_type="company",
             source_entity_override="Foo",
         )
         edge = by_type["subsidiary_of"][0]
@@ -255,8 +240,10 @@ class TestNewsletterVsCompanyAuditTrail:
         p_news = _make_properties("Edition", "The_Chatter", "newsletter", "q")
         assert p_company == {"note": "Note", "doc_type": "company", "quote": "q"}
         assert p_news == {
-            "edition": "Edition", "newsletter": "The_Chatter",
-            "doc_type": "newsletter", "quote": "q",
+            "edition": "Edition",
+            "newsletter": "The_Chatter",
+            "doc_type": "newsletter",
+            "quote": "q",
         }
 
     def test_make_properties_with_year(self):
@@ -266,8 +253,6 @@ class TestNewsletterVsCompanyAuditTrail:
         # Without year, the key is absent.
         p_no = _make_properties("Ed", "The_Chatter", "newsletter", "q")
         assert "year" not in p_no
-
-
 
 
 # ===========================================================================
@@ -431,10 +416,7 @@ def test_split_sections_strips_suffix():
 
 def test_split_sections_filters_speakers():
     content = (
-        "## Reliance | Large Cap | Energy\n\n"
-        "Some text.\n\n"
-        "## John Smith, CEO\n\n"
-        "Speaker section.\n"
+        "## Reliance | Large Cap | Energy\n\nSome text.\n\n## John Smith, CEO\n\nSpeaker section.\n"
     )
     sections = _split_sections(content)
     names = [s[0] for s in sections]

@@ -61,6 +61,7 @@ replacement ticker.
 See `make relations-enrich` (not wired into maint/maint-full: network-bound).
 Run BEFORE `make graph-rebuild` so DuckDB picks the edges up.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -111,8 +112,16 @@ REPORT_PATH = PROJECT_ROOT / "relations_report.txt"
 FETCH_CACHE_PATH = PROJECT_ROOT / "memory" / "yf_relations_fetch_cache.json"
 
 SOURCE_REF_PREFIX = "yfinance"
-SOURCES = ("prose", "yfinance", "googlefinance", "finnhub", "embeddings",
-           "coinfer", "holders", "wikidata")
+SOURCES = (
+    "prose",
+    "yfinance",
+    "googlefinance",
+    "finnhub",
+    "embeddings",
+    "coinfer",
+    "holders",
+    "wikidata",
+)
 # Sources owned by other slices (E1 done in extract_relations.py; rest TBD;
 # googlefinance handled by the F2+ fallback pass in this driver).
 _NOT_IMPLEMENTED = {
@@ -165,8 +174,7 @@ CREATE TABLE IF NOT EXISTS entity_ticker_status (
 _Conv = Callable[[float], float]
 GF_METRIC_SPEC: dict[str, tuple[str, str, _Conv | None]] = {
     "price": ("price", "inr", None),
-    "marketcap": ("market_capitalization", "crore",
-                  lambda v: v / 1e7),
+    "marketcap": ("market_capitalization", "crore", lambda v: v / 1e7),
     "pe": ("pe_ratio", "ratio", None),
     "eps": ("eps", "inr", None),
     "high52": ("wk52_high", "inr", None),
@@ -178,11 +186,16 @@ def _convert_metric(value: float, conv: _Conv | None) -> float:
     """Apply a GF_METRIC_SPEC converter (None = identity)."""
     return conv(value) if conv is not None else value
 
+
 # Coarse frontmatter market_cap bucket -> representative size in ₹ crore.
 # Only used when company_metrics.market_capitalization is absent (§6.0).
 _BUCKET_CRORE = {
-    "mega": 300_000.0, "large": 75_000.0, "mid": 25_000.0,
-    "small": 5_000.0, "micro": 1_000.0, "nano": 200.0,
+    "mega": 300_000.0,
+    "large": 75_000.0,
+    "mid": 25_000.0,
+    "small": 5_000.0,
+    "micro": 1_000.0,
+    "nano": 200.0,
 }
 _BUCKET_RE = re.compile(r"^market_cap:\s*(\w+)", re.MULTILINE)
 
@@ -205,7 +218,8 @@ def load_companies(
         "AND ticker != '' ORDER BY name"
     ).fetchall()
     unlisted = [
-        r[0] for r in conn.execute(
+        r[0]
+        for r in conn.execute(
             "SELECT name FROM entities WHERE entity_type = 'company' "
             "AND (ticker IS NULL OR ticker = '') ORDER BY name"
         ).fetchall()
@@ -227,10 +241,7 @@ def fetch_all(
     info_by_name: dict[str, dict] = {}
     failures: list[tuple[str, str]] = []
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        futures = {
-            pool.submit(fetch_fn, ticker): (name, ticker)
-            for name, ticker, _fp in companies
-        }
+        futures = {pool.submit(fetch_fn, ticker): (name, ticker) for name, ticker, _fp in companies}
         for fut in as_completed(futures):
             name, ticker = futures[fut]
             try:
@@ -320,8 +331,7 @@ def knn_industry_pairs(
     """
     if len(names) < 2:
         return {}
-    present = sorted(
-        v for v in (log_mcaps.get(n) for n in names) if v is not None)
+    present = sorted(v for v in (log_mcaps.get(n) for n in names) if v is not None)
     # Industry median anchors companies with no mcap signal at all so they
     # stay connectable; a fully mcap-less industry collapses to distance 0
     # and falls back to alphabetical neighbour choice.
@@ -331,10 +341,7 @@ def knn_industry_pairs(
     pairs: dict[tuple[str, str], int] = {}
     picks: dict[str, set[str]] = {}
     for i, a in enumerate(ordered):
-        others = [
-            (abs(caps[a] - caps[b]), b)
-            for b in ordered if b != a
-        ]
+        others = [(abs(caps[a] - caps[b]), b) for b in ordered if b != a]
         others.sort()  # (distance, name) — alphabetical tie-break
         neighbours = [b for _dist, b in others[:k]]
         picks[a] = set(neighbours)
@@ -344,17 +351,14 @@ def knn_industry_pairs(
             if pair not in pairs or rank < pairs[pair]:
                 pairs[pair] = rank
     if mutual:
-        pairs = {
-            p: r for p, r in pairs.items()
-            if p[1] in picks[p[0]] and p[0] in picks[p[1]]
-        }
+        pairs = {p: r for p, r in pairs.items() if p[1] in picks[p[0]] and p[0] in picks[p[1]]}
     return pairs
 
 
 def clique_industry_pairs(names: list[str]) -> dict[tuple[str, str], int]:
     """Full industry clique (the retired v1 topology; behind --topology clique)."""
     ordered = sorted(names)
-    return {_pair(a, b): 1 for i, a in enumerate(ordered) for b in ordered[i + 1:]}
+    return {_pair(a, b): 1 for i, a in enumerate(ordered) for b in ordered[i + 1 :]}
 
 
 def weight_for_rank(rank: int, k: int) -> float:
@@ -395,13 +399,17 @@ def build_candidate_edges(
         if topology == "clique":
             pairs = clique_industry_pairs(members)
         else:
-            pairs = knn_industry_pairs(members, log_mcaps, k,
-                                       mutual=mutual)
+            pairs = knn_industry_pairs(members, log_mcaps, k, mutual=mutual)
         for (a, b), rank in pairs.items():
-            edges.append((
-                a, b, weight_for_rank(rank, k), source_ref,
-                {"industry": industry, "rank": rank, "fetched_at": today},
-            ))
+            edges.append(
+                (
+                    a,
+                    b,
+                    weight_for_rank(rank, k),
+                    source_ref,
+                    {"industry": industry, "rank": rank, "fetched_at": today},
+                )
+            )
     edges.sort()
     return edges
 
@@ -421,9 +429,9 @@ def apply_edges(
     existing: set[tuple[str, str]] = set()
     if dry_run:
         existing = {
-            (r[0], r[1]) for r in conn.execute(
-                "SELECT source, target FROM graph_edges "
-                "WHERE edge_type = 'competes_with'"
+            (r[0], r[1])
+            for r in conn.execute(
+                "SELECT source, target FROM graph_edges WHERE edge_type = 'competes_with'"
             ).fetchall()
         }
         fresh = [(s, t) for s, t, *_ in edges if (s, t) not in existing]
@@ -431,8 +439,7 @@ def apply_edges(
 
     with conn:
         conn.execute(
-            "DELETE FROM graph_edges WHERE edge_type = 'competes_with' "
-            "AND source_ref LIKE ?",
+            "DELETE FROM graph_edges WHERE edge_type = 'competes_with' AND source_ref LIKE ?",
             (f"{SOURCE_REF_PREFIX}:%",),
         )
         inserted = 0
@@ -441,8 +448,7 @@ def apply_edges(
                 "INSERT OR IGNORE INTO graph_edges "
                 "(source, target, edge_type, weight, properties, source_ref, "
                 " symmetric) VALUES (?, ?, 'competes_with', ?, ?, ?, 1)",
-                (source, target, weight, json.dumps(props, sort_keys=True),
-                 source_ref),
+                (source, target, weight, json.dumps(props, sort_keys=True), source_ref),
             )
             inserted += cur.rowcount
     return inserted
@@ -490,7 +496,9 @@ def write_report(
         lines.append(f"  {n:4d}  {ind}")
     lines += ["", f"[competes_with candidates] total={len(n_edges)}"]
     if applied is not None:
-        lines.append(f"[apply result] {'would-insert' if mode == 'dry-run' else 'inserted'}={applied}")
+        lines.append(
+            f"[apply result] {'would-insert' if mode == 'dry-run' else 'inserted'}={applied}"
+        )
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -540,8 +548,9 @@ def run_yfinance_pass(
 ) -> int:
     """The full yfinance pass: fetch -> hygiene -> edges -> report."""
     companies, unlisted = load_companies(conn)
-    log.info("universe: %d tickered, %d deliberately unlisted (skipped)",
-             len(companies), len(unlisted))
+    log.info(
+        "universe: %d tickered, %d deliberately unlisted (skipped)", len(companies), len(unlisted)
+    )
 
     t0 = time.perf_counter()
     cache: Path | None = fetch_cache
@@ -550,23 +559,35 @@ def run_yfinance_pass(
         info_by_name = payload["info_by_name"]
         failures = [tuple(f) for f in payload["failures"]]
         fetched_at = payload.get("fetched_at", "unknown")
-        log.info("loaded %d fetched infos (+%d failures) from cache %s "
-                 "(fetched_at: %s)", len(info_by_name), len(failures),
-                 cache, fetched_at)
+        log.info(
+            "loaded %d fetched infos (+%d failures) from cache %s (fetched_at: %s)",
+            len(info_by_name),
+            len(failures),
+            cache,
+            fetched_at,
+        )
     else:
-        info_by_name, failures = fetch_all(companies, fetch_fn=fetch_fn,
-                                           workers=workers)
+        info_by_name, failures = fetch_all(companies, fetch_fn=fetch_fn, workers=workers)
         if cache is not None:
             cache.parent.mkdir(parents=True, exist_ok=True)
-            cache.write_text(json.dumps({
-                "fetched_at": datetime.now(UTC).isoformat(timespec="seconds"),
-                "info_by_name": info_by_name,
-                "failures": failures,
-            }), encoding="utf-8")
+            cache.write_text(
+                json.dumps(
+                    {
+                        "fetched_at": datetime.now(UTC).isoformat(timespec="seconds"),
+                        "info_by_name": info_by_name,
+                        "failures": failures,
+                    }
+                ),
+                encoding="utf-8",
+            )
             log.info("fetch cache written to %s", cache)
-    log.info("fetched %d/%d in %.1fs (%d failed)",
-             len(info_by_name), len(companies), time.perf_counter() - t0,
-             len(failures))
+    log.info(
+        "fetched %d/%d in %.1fs (%d failed)",
+        len(info_by_name),
+        len(companies),
+        time.perf_counter() - t0,
+        len(failures),
+    )
     if failures:
         for name, ticker in failures[:20]:
             log.warning("ticker issue: %s (%s)", name, ticker)
@@ -577,33 +598,40 @@ def run_yfinance_pass(
     industries: dict[str, int] = {}
     if not check_only:
         caps = _resolve_log_mcaps(conn, companies, info_by_name)
-        edges = build_candidate_edges(info_by_name, caps,
-                                      topology=topology, k=k,
-                                      mutual=mutual)
+        edges = build_candidate_edges(info_by_name, caps, topology=topology, k=k, mutual=mutual)
         industries = {}
         for _s, _t, _w, _r, props in edges:
-            industries[props["industry"]] = industries.get(
-                props["industry"], 0) + 1
+            industries[props["industry"]] = industries.get(props["industry"], 0) + 1
 
     applied: int | None = None
     if not check_only:
         applied = apply_edges(conn, edges, dry_run=dry_run)
         mode = "dry-run" if dry_run else "apply"
-        log.info("%s: %d candidate edges, %d %s",
-                 mode, len(edges), applied,
-                 "would insert" if dry_run else "inserted")
+        log.info(
+            "%s: %d candidate edges, %d %s",
+            mode,
+            len(edges),
+            applied,
+            "would insert" if dry_run else "inserted",
+        )
 
     write_report(
-        REPORT_PATH, mode="check-only" if check_only else
-        ("dry-run" if dry_run else "apply"),
-        n_tickered=len(companies), unlisted_names=unlisted,
-        n_fetched=len(info_by_name), failures=failures,
-        n_edges=edges, industries=industries, applied=applied,
+        REPORT_PATH,
+        mode="check-only" if check_only else ("dry-run" if dry_run else "apply"),
+        n_tickered=len(companies),
+        unlisted_names=unlisted,
+        n_fetched=len(info_by_name),
+        failures=failures,
+        n_edges=edges,
+        industries=industries,
+        applied=applied,
     )
     log.info("report written to %s", REPORT_PATH)
     if not check_only and not dry_run:
-        print("reminder: run `make graph-rebuild` so DuckDB picks up the new "
-              "edges (qa's cache-consistency check fails otherwise)")
+        print(
+            "reminder: run `make graph-rebuild` so DuckDB picks up the new "
+            "edges (qa's cache-consistency check fails otherwise)"
+        )
     return 0
 
 
@@ -633,11 +661,16 @@ def _semantic_pair_for_company(
         if score < threshold:
             continue
         a, b = _pair(company, other)
-        out.append(((a, b), {
-            "cosine": round(float(score), 4),
-            "rank": rank,
-            "fetched_at": today,
-        }))
+        out.append(
+            (
+                (a, b),
+                {
+                    "cosine": round(float(score), 4),
+                    "rank": rank,
+                    "fetched_at": today,
+                },
+            )
+        )
     return out
 
 
@@ -662,7 +695,9 @@ def build_semantic_peer_edges(  # noqa
         log.warning("company_embeddings is empty — run helpers/graph/embeddings.py first")
         return []
     try:
-        models = [r[0] for r in conn.execute("SELECT DISTINCT model FROM company_embeddings").fetchall()]
+        models = [
+            r[0] for r in conn.execute("SELECT DISTINCT model FROM company_embeddings").fetchall()
+        ]
         log.info("company_embeddings: %d rows, models=%s", n, models)
     except Exception as e:
         log.debug("failed to fetch embedding models: %s", e)
@@ -678,9 +713,12 @@ def build_semantic_peer_edges(  # noqa
     except Exception as e:
         log.error("failed to connect DuckDB for VSS: %s", e)
         return []
-    companies = [r[0] for r in conn.execute(
-        "SELECT name FROM entities WHERE entity_type='company' ORDER BY name"
-    ).fetchall()]
+    companies = [
+        r[0]
+        for r in conn.execute(
+            "SELECT name FROM entities WHERE entity_type='company' ORDER BY name"
+        ).fetchall()
+    ]
     pair_to_props: dict[tuple[str, str], dict] = {}
     for company in companies:
         for pair, props in _semantic_pair_for_company(company, gq, dcon, k, threshold, today):
@@ -694,8 +732,13 @@ def build_semantic_peer_edges(  # noqa
         dcon.close()  # type: ignore[attr-defined]
     except Exception as e:
         log.debug("failed to close DuckDB connection: %s", e)
-    log.info("semantic_peer candidates: %d pairs (k=%d, threshold=%.3f, %d companies)",
-             len(edges), k, threshold, len(companies))
+    log.info(
+        "semantic_peer candidates: %d pairs (k=%d, threshold=%.3f, %d companies)",
+        len(edges),
+        k,
+        threshold,
+        len(companies),
+    )
     return edges
 
 
@@ -712,7 +755,8 @@ def apply_semantic_peer_edges(
     """
     if dry_run:
         existing = {
-            (r[0], r[1]) for r in conn.execute(
+            (r[0], r[1])
+            for r in conn.execute(
                 "SELECT source, target FROM graph_edges WHERE edge_type='semantic_peer'"
             ).fetchall()
         }
@@ -750,8 +794,13 @@ def run_embeddings_pass(
     edges = build_semantic_peer_edges(conn, k=k, threshold=threshold)
     applied = apply_semantic_peer_edges(conn, edges, dry_run=dry_run)
     mode = "dry-run" if dry_run else "apply"
-    log.info("%s: %d semantic_peer candidates, %d %s",
-             mode, len(edges), applied, "would insert" if dry_run else "inserted")
+    log.info(
+        "%s: %d semantic_peer candidates, %d %s",
+        mode,
+        len(edges),
+        applied,
+        "would insert" if dry_run else "inserted",
+    )
     # Append a small report section to the shared relations_report.txt
     try:
         today = datetime.now(UTC).date().isoformat()
@@ -797,6 +846,7 @@ COINFER_METHOD = "co_mention"
 # Reuse extract_relations SIDECAR_PATH for format-compat; fallback if import fails.
 try:
     from helpers.graph.extract_relations import SIDECAR_PATH as _COINFER_SIDECAR  # noqa: F401
+
     COINFER_SIDECAR_PATH = _COINFER_SIDECAR
 except Exception:  # pragma: no cover
     COINFER_SIDECAR_PATH = PROJECT_ROOT / "findata" / "_pending_relations.txt"
@@ -805,8 +855,7 @@ except Exception:  # pragma: no cover
 def coinfer_sector_map(conn: sqlite3.Connection) -> dict[str, str | None]:
     """Company name -> sector_classification (or None)."""
     rows = conn.execute(
-        "SELECT name, sector_classification FROM entities "
-        "WHERE entity_type = 'company'"
+        "SELECT name, sector_classification FROM entities WHERE entity_type = 'company'"
     ).fetchall()
     return {r[0]: r[1] for r in rows}
 
@@ -875,16 +924,14 @@ def build_coinfer_suggestions(  # noqa
         non_comention_existing = {
             frozenset((r[0], r[1]))
             for r in conn.execute(
-                "SELECT source, target FROM graph_edges "
-                "WHERE edge_type != 'co_mentioned_in'"
+                "SELECT source, target FROM graph_edges WHERE edge_type != 'co_mentioned_in'"
             ).fetchall()
         }
     except Exception:
         non_comention_existing = existing
 
     rows = conn.execute(
-        "SELECT source, target, weight FROM graph_edges "
-        "WHERE edge_type = 'co_mentioned_in'"
+        "SELECT source, target, weight FROM graph_edges WHERE edge_type = 'co_mentioned_in'"
     ).fetchall()
     # Aggregate weight per unordered pair (in case of split rows; normally 1 row)
     pair_weight: dict[tuple[str, str], float] = {}
@@ -897,10 +944,7 @@ def build_coinfer_suggestions(  # noqa
     for (a, b), w in pair_weight.items():
         # has_existing means a business edge already links them (not just co_mention)
         has_existing = frozenset((a, b)) in non_comention_existing
-        same = (
-            sector_map.get(a) is not None
-            and sector_map.get(a) == sector_map.get(b)
-        )
+        same = sector_map.get(a) is not None and sector_map.get(a) == sector_map.get(b)
         sc = score_coinfer(w, same, has_existing)
         if sc <= 0:
             continue
@@ -913,6 +957,7 @@ def build_coinfer_suggestions(  # noqa
 
     # Per-company top-N: build adjacency with scores
     from collections import defaultdict as _dd
+
     adj: dict[str, list[tuple[str, float]]] = _dd(list)
     for a, b, sc in scored:
         adj[a].append((b, sc))
@@ -931,13 +976,16 @@ def build_coinfer_suggestions(  # noqa
     for a, b, sc in scored:
         if _pair(a, b) not in keep_pairs:
             continue
-        out.append({
-            "source": a,
-            "target": b,
-            "score": sc,
-            "weight": pair_weight[(a, b)],
-            "same_sector": sector_map.get(a) is not None and sector_map.get(a) == sector_map.get(b),
-        })
+        out.append(
+            {
+                "source": a,
+                "target": b,
+                "score": sc,
+                "weight": pair_weight[(a, b)],
+                "same_sector": sector_map.get(a) is not None
+                and sector_map.get(a) == sector_map.get(b),
+            }
+        )
     out.sort(key=lambda d: (-d["score"], d["source"], d["target"]))
     return out
 
@@ -1025,7 +1073,9 @@ def render_coinfer(suggestions: list[dict]) -> str:
     lines = ["score  weight  sector  pair", "-" * 70]
     for s in suggestions:
         flag = "same" if s["same_sector"] else "diff"
-        lines.append(f"{s['score']:<6.2f} {s['weight']:<6.1f}  {flag:<5}  {s['source']} <-> {s['target']}")
+        lines.append(
+            f"{s['score']:<6.2f} {s['weight']:<6.1f}  {flag:<5}  {s['source']} <-> {s['target']}"
+        )
     lines.append(f"({len(suggestions)} suggestions · sidecar: --apply to append)")
     return "\n".join(lines)
 
@@ -1045,25 +1095,41 @@ def run_coinfer_pass(
     duplicate sidecar rows).
     """
     path = COINFER_SIDECAR_PATH if sidecar_path is None else sidecar_path
-    suggestions = build_coinfer_suggestions(
-        conn, per_company=per_company, threshold=threshold
-    )
+    suggestions = build_coinfer_suggestions(conn, per_company=per_company, threshold=threshold)
     mode = "dry-run" if dry_run else "apply"
-    log.info("%s: %d coinfer candidates (per_company=%d, threshold=%.3f)",
-             mode, len(suggestions), per_company, threshold)
+    log.info(
+        "%s: %d coinfer candidates (per_company=%d, threshold=%.3f)",
+        mode,
+        len(suggestions),
+        per_company,
+        threshold,
+    )
     if dry_run:
         print(render_coinfer(suggestions))
         # Also surface a small summary of idempotency state
         if suggestions:
             prior = coinfer_prior_pairs(path)
             existing = coinfer_business_existing_pairs(conn)
-            fresh = [s for s in suggestions if frozenset((s["source"], s["target"])) not in prior and frozenset((s["source"], s["target"])) not in existing]
+            fresh = [
+                s
+                for s in suggestions
+                if frozenset((s["source"], s["target"])) not in prior
+                and frozenset((s["source"], s["target"])) not in existing
+            ]
             print(f"fresh (not in graph/sidecar): {len(fresh)} of {len(suggestions)}")
         return 0
     # Apply: append to sidecar (idempotent)
     n = append_coinfer_suggestions(suggestions, path=path, conn=conn)
-    log.info("coinfer: appended %d suggestions to %s (of %d candidates; rest deduped)", n, path, len(suggestions))
-    print(f"appended {n} coinfer suggestions to {path}" + ("" if n == len(suggestions) else f" (of {len(suggestions)}; rest deduped)"))
+    log.info(
+        "coinfer: appended %d suggestions to %s (of %d candidates; rest deduped)",
+        n,
+        path,
+        len(suggestions),
+    )
+    print(
+        f"appended {n} coinfer suggestions to {path}"
+        + ("" if n == len(suggestions) else f" (of {len(suggestions)}; rest deduped)")
+    )
     return 0
 
 
@@ -1086,10 +1152,12 @@ def _holder_normalized(name: str) -> str:
     """normalized_name for an institution (dedup key)."""
     try:
         from helpers.core.parse_newsletter import normalize_name as _norm  # noqa: WPS433
+
         return _norm(name)
     except Exception:
         # fallback: same contract as normalize_name (PascalCase underscored)
         import re as _re
+
         n = _re.sub(r"[&\(\)\-]", " ", name)
         n = _re.sub(r"[^A-Za-z0-9 _]", "", n)
         parts = [p for p in n.split() if p]
@@ -1103,6 +1171,7 @@ def _parse_pct_holder(val) -> float | None:
     try:
         # pandas NA
         import math as _math
+
         if isinstance(val, float) and _math.isnan(val):
             return None
     except Exception:  # noqa: S110
@@ -1127,6 +1196,7 @@ def _parse_holder_date(val) -> str | None:
         return None
     try:
         import math as _math
+
         if isinstance(val, float) and _math.isnan(val):
             return None
     except Exception:  # noqa: S110
@@ -1137,6 +1207,7 @@ def _parse_holder_date(val) -> str | None:
     # Try pandas Timestamp
     try:
         import pandas as _pd
+
         if isinstance(val, _pd.Timestamp):
             return val.date().isoformat()
     except Exception:  # noqa: S110
@@ -1160,39 +1231,68 @@ def _parse_holders_dataframe(df) -> list[dict]:  # noqa
     try:
         # pandas DataFrame
         import pandas as _pd  # noqa: F401
+
         if hasattr(df, "empty") and df.empty:
             return []
         if hasattr(df, "columns"):
             cols = {str(c).lower().strip(): c for c in df.columns}
             # Map flexible column names
-            holder_col = cols.get("holder") or cols.get("holder ") or next((v for k, v in cols.items() if "holder" in k), None)
+            holder_col = (
+                cols.get("holder")
+                or cols.get("holder ")
+                or next((v for k, v in cols.items() if "holder" in k), None)
+            )
             shares_col = next((v for k, v in cols.items() if "share" in k), None)
             date_col = next((v for k, v in cols.items() if "date" in k), None)
-            pct_col = next((v for k, v in cols.items() if "%" in k or "pct" in k or "out" in k), None)
+            pct_col = next(
+                (v for k, v in cols.items() if "%" in k or "pct" in k or "out" in k), None
+            )
             value_col = next((v for k, v in cols.items() if "value" in k), None)
             rows: list[dict] = []
             # Iterate rows
             try:
                 for _, row in df.iterrows():
-                    holder = str(row[holder_col]).strip() if holder_col is not None and holder_col in row else ""
+                    holder = (
+                        str(row[holder_col]).strip()
+                        if holder_col is not None and holder_col in row
+                        else ""
+                    )
                     if not holder or holder.lower() == "nan":
                         continue
-                    shares = row[shares_col] if shares_col is not None and shares_col in row else None
+                    shares = (
+                        row[shares_col] if shares_col is not None and shares_col in row else None
+                    )
                     pct_raw = row[pct_col] if pct_col is not None and pct_col in row else None
                     value = row[value_col] if value_col is not None and value_col in row else None
                     date_raw = row[date_col] if date_col is not None and date_col in row else None
                     # Normalize shares/value to int/float where possible
                     try:
-                        shares_n = int(float(str(shares).replace(",", ""))) if shares not in (None, "") and str(shares).lower() != "nan" else None
+                        shares_n = (
+                            int(float(str(shares).replace(",", "")))
+                            if shares not in (None, "") and str(shares).lower() != "nan"
+                            else None
+                        )
                     except Exception:
                         shares_n = None
                     try:
-                        value_n = float(str(value).replace(",", "").replace("$", "")) if value not in (None, "") and str(value).lower() != "nan" else None
+                        value_n = (
+                            float(str(value).replace(",", "").replace("$", ""))
+                            if value not in (None, "") and str(value).lower() != "nan"
+                            else None
+                        )
                     except Exception:
                         value_n = None
                     pct = _parse_pct_holder(pct_raw)
                     date_s = _parse_holder_date(date_raw)
-                    rows.append({"holder": holder, "shares": shares_n, "pct": pct, "value": value_n, "date": date_s})
+                    rows.append(
+                        {
+                            "holder": holder,
+                            "shares": shares_n,
+                            "pct": pct,
+                            "value": value_n,
+                            "date": date_s,
+                        }
+                    )
                 return rows
             except Exception:
                 return []
@@ -1217,6 +1317,7 @@ def fetch_holders_for_one(ticker: str, fetch_fn=None) -> list[dict]:
         return _parse_holders_dataframe(df)
     try:
         import yfinance as yf  # noqa: WPS433
+
         t = yf.Ticker(ticker)
         df = getattr(t, "institutional_holders", None)
         # yfinance 1.6.0: institutional_holders is a property returning DataFrame
@@ -1322,7 +1423,12 @@ def apply_holders_edges(
     existing_edges: set[tuple[str, str]] = set()
     existing_insts: set[str] = set()
     try:
-        existing_edges = {(r[0], r[1]) for r in conn.execute("SELECT source, target FROM graph_edges WHERE edge_type='invested_in'").fetchall()}
+        existing_edges = {
+            (r[0], r[1])
+            for r in conn.execute(
+                "SELECT source, target FROM graph_edges WHERE edge_type='invested_in'"
+            ).fetchall()
+        }
     except sqlite3.OperationalError:
         existing_edges = set()
     try:
@@ -1368,12 +1474,24 @@ def run_holders_pass(
     """E5 driver: fetch institutional holders -> institutions + invested_in edges."""
     companies, unlisted = load_companies(conn)
     log.info("holders pass: %d tickered, %d unlisted skipped", len(companies), len(unlisted))
-    holders_by_company, with_holders = fetch_holders_for_all(companies, fetch_fn=fetch_fn, workers=workers)
-    log.info("holders pass: %d companies with holder data (of %d fetched)", len(with_holders), len(companies))
+    holders_by_company, with_holders = fetch_holders_for_all(
+        companies, fetch_fn=fetch_fn, workers=workers
+    )
+    log.info(
+        "holders pass: %d companies with holder data (of %d fetched)",
+        len(with_holders),
+        len(companies),
+    )
     edges, inst_norm = build_holders_edges(holders_by_company)
     n_new_insts, n_fresh, n_inserted = apply_holders_edges(conn, edges, inst_norm, dry_run=dry_run)
     mode = "dry-run" if dry_run else "apply"
-    log.info("%s: %d invested_in candidates, %d would insert (%d new institutions)", mode, len(edges), n_fresh, n_new_insts)
+    log.info(
+        "%s: %d invested_in candidates, %d would insert (%d new institutions)",
+        mode,
+        len(edges),
+        n_fresh,
+        n_new_insts,
+    )
     if not dry_run:
         log.info("apply: inserted %d invested_in edges, %d institutions", n_inserted, n_new_insts)
     # Report appendix
@@ -1407,12 +1525,18 @@ def run_holders_pass(
         print("reminder: run `make graph-rebuild` so DuckDB picks up the new invested_in edges")
     # Human dry-run summary
     if dry_run:
-        print(f"[holders dry-run] {len(edges)} candidates, {n_fresh} fresh, {len(inst_norm)} institutions ({n_new_insts} new)")
+        print(
+            f"[holders dry-run] {len(edges)} candidates, {n_fresh} fresh, {len(inst_norm)} institutions ({n_new_insts} new)"
+        )
         if with_holders:
-            print(f"companies with holders: {', '.join(sorted(with_holders)[:10])}" + (f" (+{len(with_holders)-10} more)" if len(with_holders) > 10 else ""))
+            print(
+                f"companies with holders: {', '.join(sorted(with_holders)[:10])}"
+                + (f" (+{len(with_holders) - 10} more)" if len(with_holders) > 10 else "")
+            )
         else:
             print("no holders found (expected for .NS-only universe; US tickers only)")
     return 0
+
 
 # --------------------------------------------------------------------------- #
 # The Google-Finance fallback pass (F2: tier 1 + curated read)                #
@@ -1422,15 +1546,15 @@ class GfOutcome:
     """Resolution result for one target; becomes one report row."""
 
     entity: str
-    ticker: str | None              # None for deliberately-unlisted targets
-    outcome: str                    # curated (...)/curated-broken/resolved
-                                    # gf-only/resolved yahoo-candidate/
-                                    # unverified/still-dead/no-candidates
+    ticker: str | None  # None for deliberately-unlisted targets
+    outcome: str  # curated (...)/curated-broken/resolved
+    # gf-only/resolved yahoo-candidate/
+    # unverified/still-dead/no-candidates
     slug: str | None = None
     score: float | None = None
     parsed_name: str | None = None  # the page's own About-name
     stats: dict = field(default_factory=dict)
-    source_tier: int = 0            # 1/2/3 for report annotation [tN]
+    source_tier: int = 0  # 1/2/3 for report annotation [tN]
 
 
 def _stats_with_price(parsed: dict) -> dict:
@@ -1442,8 +1566,12 @@ def _stats_with_price(parsed: dict) -> dict:
 
 
 def _verified_outcome(
-    entity: str, ticker: str | None, slug: str,
-    parsed: dict, score: float, tier: int,
+    entity: str,
+    ticker: str | None,
+    slug: str,
+    parsed: dict,
+    score: float,
+    tier: int,
 ) -> GfOutcome:
     """Classify a verified (>= threshold) quote-page hit.
 
@@ -1456,14 +1584,23 @@ def _verified_outcome(
     stem = slug.rsplit(":", 1)[0]
     yahoo = yahoo_symbol_for_slug(slug)
     different = yahoo and (ticker is None or stem != ticker.rsplit(".", 1)[0])
-    outcome = ("resolved yahoo-candidate" if different else "resolved gf-only")
-    return GfOutcome(entity, ticker, outcome, slug, score,
-                     parsed["company_name"], _stats_with_price(parsed),
-                     source_tier=tier)
+    outcome = "resolved yahoo-candidate" if different else "resolved gf-only"
+    return GfOutcome(
+        entity,
+        ticker,
+        outcome,
+        slug,
+        score,
+        parsed["company_name"],
+        _stats_with_price(parsed),
+        source_tier=tier,
+    )
 
 
 def load_gf_targets(
-    report_path: Path, *, include_unlisted: bool,
+    report_path: Path,
+    *,
+    include_unlisted: bool,
 ) -> list[tuple[str, str | None]]:
     """GF pass targets (§4.4): [ticker_issues] rows of the last yfinance
     report as (name, ticker); with --include-unlisted also the [universe]
@@ -1494,8 +1631,7 @@ def load_curated(conn: sqlite3.Connection) -> dict[str, tuple[str, str]]:
     page has since rotted is reported as curated-broken, never silently
     re-resolved — curation stays an explicit human act.
     """
-    rows = conn.execute(
-        "SELECT entity_name, gf_slug, kind FROM entity_gf_map").fetchall()
+    rows = conn.execute("SELECT entity_name, gf_slug, kind FROM entity_gf_map").fetchall()
     return {r[0]: (r[1], r[2]) for r in rows}
 
 
@@ -1526,8 +1662,7 @@ def append_terminal_report_section(
     """
     lines = [
         "",
-        "[terminal]  # classified dead ends (--classify); excluded from "
-        "all resolution sweeps",
+        "[terminal]  # classified dead ends (--classify); excluded from all resolution sweeps",
         f"  generated: {datetime.now(UTC).isoformat(timespec='seconds')}",
         f"  classified: {len(statuses)}",
         "  # entity | status | successor",
@@ -1575,11 +1710,17 @@ def _scan_slugs(
             continue
         score = name_match_score(parsed["company_name"], entity)
         if score >= GF_NAME_MATCH_THRESHOLD:
-            return (_verified_outcome(entity, ticker, slug, parsed, score,
-                                      tier=tier), best)
-        candidate = GfOutcome(entity, ticker, "unverified", slug, score,
-                              parsed["company_name"],
-                              _stats_with_price(parsed), source_tier=tier)
+            return (_verified_outcome(entity, ticker, slug, parsed, score, tier=tier), best)
+        candidate = GfOutcome(
+            entity,
+            ticker,
+            "unverified",
+            slug,
+            score,
+            parsed["company_name"],
+            _stats_with_price(parsed),
+            source_tier=tier,
+        )
         if best is None or (best.score or 0) < score:
             best = candidate
     return None, best
@@ -1602,13 +1743,16 @@ def _resolve_curated(
     slug, kind = curated
     parsed = _fetch_parse(slug, cache_dir, fetch_fn, delay)
     if parsed is None:
-        return GfOutcome(entity, ticker, "curated-broken", slug,
-                         source_tier=3)
+        return GfOutcome(entity, ticker, "curated-broken", slug, source_tier=3)
     return GfOutcome(
-        entity, ticker, f"curated ({kind})", slug,
+        entity,
+        ticker,
+        f"curated ({kind})",
+        slug,
         score=name_match_score(parsed["company_name"], entity),
         parsed_name=parsed["company_name"],
-        stats=_stats_with_price(parsed), source_tier=3,
+        stats=_stats_with_price(parsed),
+        source_tier=3,
     )
 
 
@@ -1628,11 +1772,20 @@ def _resolve_tier1(
     classify gf-only (the classifier's yahoo-candidate branch is
     tier-2/curation territory).
     """
-    hit, best = _scan_slugs(entity, ticker, slug_candidates(ticker),
-                            cache_dir=cache_dir, fetch_fn=fetch_fn,
-                            delay=delay, tier=1)
-    return hit if hit is not None else (
-        best if best is not None else GfOutcome(entity, ticker, "still-dead"))
+    hit, best = _scan_slugs(
+        entity,
+        ticker,
+        slug_candidates(ticker),
+        cache_dir=cache_dir,
+        fetch_fn=fetch_fn,
+        delay=delay,
+        tier=1,
+    )
+    return (
+        hit
+        if hit is not None
+        else (best if best is not None else GfOutcome(entity, ticker, "still-dead"))
+    )
 
 
 def _resolve_tier2(
@@ -1654,8 +1807,7 @@ def _resolve_tier2(
     try:
         matches, from_cache = search_fn(entity, cache_dir)
     except Exception:  # network/BSE hiccup: tier 2 unavailable, not fatal
-        log.warning("tier-2 search failed for %s — skipping",
-                    entity, exc_info=True)
+        log.warning("tier-2 search failed for %s — skipping", entity, exc_info=True)
         return None
     if not from_cache and delay > 0:
         time.sleep(delay)
@@ -1667,15 +1819,20 @@ def _resolve_tier2(
         if m.symbol:
             slugs.append(f"{m.symbol}:NSE")
         hit, candidate = _scan_slugs(
-            entity, ticker, slugs, cache_dir=cache_dir, fetch_fn=fetch_fn,
-            delay=delay, tier=2, tried=tried)
+            entity,
+            ticker,
+            slugs,
+            cache_dir=cache_dir,
+            fetch_fn=fetch_fn,
+            delay=delay,
+            tier=2,
+            tried=tried,
+        )
         if hit is not None:
             return hit
-        if (candidate is not None
-                and (best is None or (best.score or 0) < (candidate.score or 0))):
+        if candidate is not None and (best is None or (best.score or 0) < (candidate.score or 0)):
             best = candidate
-    return best if best is not None else GfOutcome(
-        entity, ticker, "still-dead", source_tier=2)
+    return best if best is not None else GfOutcome(entity, ticker, "still-dead", source_tier=2)
 
 
 def resolve_gf_target(
@@ -1698,34 +1855,39 @@ def resolve_gf_target(
     as ``unverified`` for human curation, never applied.
     """
     if curated is not None:
-        return _resolve_curated(entity, ticker, curated,
-                                cache_dir=cache_dir, fetch_fn=fetch_fn,
-                                delay=delay)
+        return _resolve_curated(
+            entity, ticker, curated, cache_dir=cache_dir, fetch_fn=fetch_fn, delay=delay
+        )
 
     tried: set[str] = set()
     fallback: GfOutcome | None = None  # best below-threshold evidence
     if ticker is not None and slug_candidates(ticker):
         tried.update(slug_candidates(ticker))
-        out = _resolve_tier1(entity, ticker, cache_dir=cache_dir,
-                             fetch_fn=fetch_fn, delay=delay)
+        out = _resolve_tier1(entity, ticker, cache_dir=cache_dir, fetch_fn=fetch_fn, delay=delay)
         if out.outcome.startswith("resolved"):
             return out
         if out.outcome == "unverified":
             fallback = out
 
     if tier2:
-        out2 = _resolve_tier2(entity, ticker, tried=tried,
-                              cache_dir=cache_dir, fetch_fn=fetch_fn,
-                              delay=delay, search_fn=search_fn)
+        out2 = _resolve_tier2(
+            entity,
+            ticker,
+            tried=tried,
+            cache_dir=cache_dir,
+            fetch_fn=fetch_fn,
+            delay=delay,
+            search_fn=search_fn,
+        )
         if out2 is not None:
             # A tier-2 hit must not mask better tier-1 evidence:
             # still-dead loses to any unverified page (even score 0 —
             # a live wrong-name page is curatable, a shell is not);
             # unverified-vs-unverified keeps the higher-scoring page.
-            if (fallback is not None
-                    and (out2.outcome == "still-dead"
-                         or (out2.outcome == "unverified"
-                             and (fallback.score or 0) > (out2.score or 0)))):
+            if fallback is not None and (
+                out2.outcome == "still-dead"
+                or (out2.outcome == "unverified" and (fallback.score or 0) > (out2.score or 0))
+            ):
                 return fallback
             return out2
 
@@ -1759,24 +1921,27 @@ def append_gf_report_section(
     Append-only: the yfinance pass regenerates the file wholesale, so a
     fresh GF section simply follows the latest yfinance run (§4.4 ordering).
     """
+
     def count(prefix: str) -> int:
         return sum(1 for o in outcomes if o.outcome.startswith(prefix))
 
     resolved = [o for o in outcomes if o.outcome.startswith("resolved")]
-    yahoo_candidates = sum(1 for o in resolved
-                           if o.outcome == "resolved yahoo-candidate")
+    yahoo_candidates = sum(1 for o in resolved if o.outcome == "resolved yahoo-candidate")
     lines = [
         "",
         "[google_finance]  # fallback resolution pass (curated + tier 1"
-        + (" + tier 2" if tier2 else "") + ", dry-run)",
+        + (" + tier 2" if tier2 else "")
+        + ", dry-run)",
         f"  generated: {datetime.now(UTC).isoformat(timespec='seconds')}",
         f"  unlisted opt-in: {'yes' if include_unlisted else 'no'}"
         f" · tier2 (BSE name search): {'on' if tier2 else 'off'}",
-        (f"  outcomes: {count('curated (')} curated ({count('curated-broken')} broken)"
-         f" · {len(resolved)} resolved ({yahoo_candidates} yahoo-candidates,"
-         f" {len(resolved) - yahoo_candidates} gf-only)"
-         f" · {count('unverified')} unverified · {count('still-dead')} still-dead"
-         f" · {count('no-candidates')} no-candidates"),
+        (
+            f"  outcomes: {count('curated (')} curated ({count('curated-broken')} broken)"
+            f" · {len(resolved)} resolved ({yahoo_candidates} yahoo-candidates,"
+            f" {len(resolved) - yahoo_candidates} gf-only)"
+            f" · {count('unverified')} unverified · {count('still-dead')} still-dead"
+            f" · {count('no-candidates')} no-candidates"
+        ),
         "  # entity | outcome | gf_slug | name_match | sample (px / mkt_cap / P/E)",
     ]
     if apply_info:
@@ -1793,8 +1958,7 @@ def append_gf_report_section(
         else:
             s = o.stats
             px = s.get("price", s.get("prev_close"))
-            sample = " / ".join(_fmt_gf_num(x) for x in
-                                (px, s.get("mkt_cap"), s.get("pe_ratio")))
+            sample = " / ".join(_fmt_gf_num(x) for x in (px, s.get("mkt_cap"), s.get("pe_ratio")))
         slug = o.slug or "-"
         lines.append(f"    {o.entity} | {outcome} | {slug} | {score} | {sample}")
     with open(path, "a") as f:
@@ -1819,18 +1983,17 @@ def _persist_gf_resolutions(
     Returns (n_map_rows, n_metric_rows).
     """
     resolved = [o for o in outcomes if o.outcome.startswith("resolved")]
-    gf_only = [o for o in resolved
-               if o.outcome != "resolved yahoo-candidate"]
+    gf_only = [o for o in resolved if o.outcome != "resolved yahoo-candidate"]
     now = datetime.now(UTC).isoformat(timespec="seconds")
     with conn:
         for o in resolved:
-            kind = ("yahoo_mapped_back"
-                    if o.outcome == "resolved yahoo-candidate" else "gf_only")
+            kind = "yahoo_mapped_back" if o.outcome == "resolved yahoo-candidate" else "gf_only"
             conn.execute(
                 "INSERT OR REPLACE INTO entity_gf_map "
                 "(entity_name, gf_slug, kind, resolved_at, verified_name) "
                 "VALUES (?, ?, ?, ?, ?)",
-                (o.entity, o.slug or "", kind, now, o.parsed_name or ""))
+                (o.entity, o.slug or "", kind, now, o.parsed_name or ""),
+            )
 
     n_metrics = 0
     if not gf_only:
@@ -1839,15 +2002,16 @@ def _persist_gf_resolutions(
         from helpers.maintenance.googlesheets_metrics import (  # noqa: E402  # lazy: gspread is venv-only
             fetch_gf_metrics,
         )
+
         metrics_fn = fetch_gf_metrics
-    requests = [(o.slug or "", attr) for o in gf_only
-                for attr in GF_ATTRIBUTES]
+    requests = [(o.slug or "", attr) for o in gf_only for attr in GF_ATTRIBUTES]
     values = metrics_fn(requests)
     with conn:
         for o in gf_only:
             conn.execute(
                 "DELETE FROM company_metrics WHERE source_ref LIKE ?",
-                (f"googlefinance:{o.slug}:%",))
+                (f"googlefinance:{o.slug}:%",),
+            )
             for attr in GF_ATTRIBUTES:
                 v = values.get((o.slug or "", attr))
                 if v is None:
@@ -1859,11 +2023,19 @@ def _persist_gf_resolutions(
                     "(entity, metric_label, value_raw, value_num, unit,"
                     " source_quote, source_ref, properties) "
                     "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                    (o.entity, label, f"{v:g}", v, unit,
-                     f'GOOGLEFINANCE("{o.slug}","{attr}")',
-                     f"googlefinance:{o.slug}:{attr}",
-                     json.dumps({"fetched_at": now, "slug": o.slug,
-                                 "via": "sheets"}, sort_keys=True)))
+                    (
+                        o.entity,
+                        label,
+                        f"{v:g}",
+                        v,
+                        unit,
+                        f'GOOGLEFINANCE("{o.slug}","{attr}")',
+                        f"googlefinance:{o.slug}:{attr}",
+                        json.dumps(
+                            {"fetched_at": now, "slug": o.slug, "via": "sheets"}, sort_keys=True
+                        ),
+                    ),
+                )
                 n_metrics += 1
     return len(resolved), n_metrics
 
@@ -1894,56 +2066,74 @@ def run_googlefinance_pass(
     report_path = REPORT_PATH if report_path is None else report_path
     cache_dir = GF_PAGE_CACHE_DIR if cache_dir is None else cache_dir
     if not report_path.exists():
-        log.error("no relations report at %s — run the yfinance pass first "
-                  "(--source yfinance [--check-only]) to produce it",
-                  report_path)
+        log.error(
+            "no relations report at %s — run the yfinance pass first "
+            "(--source yfinance [--check-only]) to produce it",
+            report_path,
+        )
         return 2
     conn.execute(ENTITY_GF_MAP_DDL)
     conn.execute(ENTITY_TICKER_STATUS_DDL)
     curated = load_curated(conn)
     terminal = load_terminal_statuses(conn)
-    current_ticker = dict(conn.execute(
-        "SELECT name, ticker FROM entities WHERE entity_type = 'company'"
-    ).fetchall())
-    stale = [n for n, t in load_gf_targets(report_path,
-                                           include_unlisted=include_unlisted)
-             if t is not None and current_ticker.get(n) not in (None, t)]
-    targets = [t for t in load_gf_targets(report_path,
-                                          include_unlisted=include_unlisted)
-               if t[0] not in terminal
-               and current_ticker.get(t[0]) in (None, t[1])]
+    current_ticker = dict(
+        conn.execute("SELECT name, ticker FROM entities WHERE entity_type = 'company'").fetchall()
+    )
+    stale = [
+        n
+        for n, t in load_gf_targets(report_path, include_unlisted=include_unlisted)
+        if t is not None and current_ticker.get(n) not in (None, t)
+    ]
+    targets = [
+        t
+        for t in load_gf_targets(report_path, include_unlisted=include_unlisted)
+        if t[0] not in terminal and current_ticker.get(t[0]) in (None, t[1])
+    ]
     if stale:
-        log.info("skipping %d already-resolved targets (report predates "
-                 "writebacks): %s", len(stale), ", ".join(sorted(stale)))
+        log.info(
+            "skipping %d already-resolved targets (report predates writebacks): %s",
+            len(stale),
+            ", ".join(sorted(stale)),
+        )
     n_issues = sum(1 for _n, t in targets if t is not None)
-    log.info("GF pass: %d ticker_issues (+%d unlisted opt-in), %d curated "
-             "overrides, tier2 %s, %s", n_issues, len(targets) - n_issues,
-             len(curated), "on" if tier2 else "off",
-             "APPLY" if apply_resolutions else "dry-run")
+    log.info(
+        "GF pass: %d ticker_issues (+%d unlisted opt-in), %d curated overrides, tier2 %s, %s",
+        n_issues,
+        len(targets) - n_issues,
+        len(curated),
+        "on" if tier2 else "off",
+        "APPLY" if apply_resolutions else "dry-run",
+    )
 
     outcomes = [
         resolve_gf_target(
-            name, ticker, curated=curated.get(name),
-            cache_dir=cache_dir, fetch_fn=fetch_fn, delay=delay,
-            tier2=tier2, search_fn=search_fn,
+            name,
+            ticker,
+            curated=curated.get(name),
+            cache_dir=cache_dir,
+            fetch_fn=fetch_fn,
+            delay=delay,
+            tier2=tier2,
+            search_fn=search_fn,
         )
         for name, ticker in targets
     ]
     for o in outcomes:
-        log.info("  %s: %s%s", o.entity, o.outcome,
-                 f" [{o.slug}]" if o.slug else "")
+        log.info("  %s: %s%s", o.entity, o.outcome, f" [{o.slug}]" if o.slug else "")
 
     applied_info = ""
     if apply_resolutions:
-        n_map, n_metrics = _persist_gf_resolutions(
-            conn, outcomes, metrics_fn=metrics_fn)
-        applied_info = (f"apply: {n_map} entity_gf_map rows · "
-                        f"{n_metrics} company_metrics rows")
+        n_map, n_metrics = _persist_gf_resolutions(conn, outcomes, metrics_fn=metrics_fn)
+        applied_info = f"apply: {n_map} entity_gf_map rows · {n_metrics} company_metrics rows"
         log.info("%s", applied_info)
 
-    append_gf_report_section(report_path, outcomes,
-                             include_unlisted=include_unlisted, tier2=tier2,
-                             apply_info=applied_info)
+    append_gf_report_section(
+        report_path,
+        outcomes,
+        include_unlisted=include_unlisted,
+        tier2=tier2,
+        apply_info=applied_info,
+    )
     if terminal:
         append_terminal_report_section(report_path, terminal)
     log.info("GF section appended to %s", report_path)
@@ -1960,16 +2150,17 @@ class FhOutcome:
 
     entity: str
     old_ticker: str | None
-    outcome: str    # writeback-candidate / unverified / still-dead /
-                    # no-candidates
+    outcome: str  # writeback-candidate / unverified / still-dead /
+    # no-candidates
     new_ticker: str | None = None
     score: float | None = None
-    sample: str = ""                # yfinance longName · industry
+    sample: str = ""  # yfinance longName · industry
     info: dict = field(default_factory=dict)  # verified payload (cache ext)
 
 
-def _candidate_allowed(old_ticker: str | None, candidate: str,
-                       taken: dict[str, str] | None = None) -> bool:
+def _candidate_allowed(
+    old_ticker: str | None, candidate: str, taken: dict[str, str] | None = None
+) -> bool:
     """Exchange-class + ownership guards (proposal §5 traps).
 
     FinnHub returns global matches — for an India-domiciled entity (or
@@ -1996,7 +2187,9 @@ def _candidate_allowed(old_ticker: str | None, candidate: str,
 
 
 def _verify_candidate(
-    entity: str, candidate: str, verify_fn,
+    entity: str,
+    candidate: str,
+    verify_fn,
 ) -> tuple[bool, dict | None]:
     """Single-ticker yfinance fetch + fuzzy name check.
 
@@ -2025,8 +2218,7 @@ def _set_frontmatter_ticker(note_path: Path, new_ticker: str) -> bool:
     if end < 0:
         return False
     head, tail = text[:end], text[end:]
-    new_head, n = re.subn(
-        r"(?m)^ticker:.*$", f"ticker: {new_ticker}", head)
+    new_head, n = re.subn(r"(?m)^ticker:.*$", f"ticker: {new_ticker}", head)
     if n == 0:
         return False
     note_path.write_text(new_head + tail, encoding="utf-8")
@@ -2040,27 +2232,27 @@ def append_finhub_report_section(
     mode: str,
 ) -> None:
     """Append the [finnhub] section to the existing report."""
+
     def count(name: str) -> int:
         return sum(1 for o in outcomes if o.outcome == name)
 
     lines = [
         "",
         "[finnhub]  # stage-1 discovery + yfinance verify (writebacks on --apply)",
-        f"  generated: {datetime.now(UTC).isoformat(timespec='seconds')}"
-        f"  mode: {mode}",
-        (f"  outcomes: {count('writeback-candidate')} writeback-candidates"
-         f" · {count('unverified')} unverified"
-         f" · {count('still-dead')} still-dead"
-         f" · {count('no-candidates')} no-candidates"),
+        f"  generated: {datetime.now(UTC).isoformat(timespec='seconds')}  mode: {mode}",
+        (
+            f"  outcomes: {count('writeback-candidate')} writeback-candidates"
+            f" · {count('unverified')} unverified"
+            f" · {count('still-dead')} still-dead"
+            f" · {count('no-candidates')} no-candidates"
+        ),
         "  # entity | outcome | ticker | name_match | yfinance",
     ]
     for o in outcomes:
-        change = (f"{o.old_ticker} -> {o.new_ticker}"
-                  if o.new_ticker else (o.old_ticker or "-"))
+        change = f"{o.old_ticker} -> {o.new_ticker}" if o.new_ticker else (o.old_ticker or "-")
         score = f"{o.score:.2f}" if o.score is not None else "-"
         sample = o.sample or "-"
-        lines.append(
-            f"    {o.entity} | {o.outcome} | {change} | {score} | {sample}")
+        lines.append(f"    {o.entity} | {o.outcome} | {change} | {score} | {sample}")
     with open(path, "a") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -2079,13 +2271,11 @@ def _resolve_finnhub_target(
     try:
         matches, from_cache = lookup_fn(entity, cache_dir)
     except Exception:  # network/token hiccup: source unavailable, not fatal
-        log.warning("finnhub lookup failed for %s — skipping",
-                    entity, exc_info=True)
+        log.warning("finnhub lookup failed for %s — skipping", entity, exc_info=True)
         return FhOutcome(entity, old_ticker, "no-candidates")
     if not from_cache and delay > 0:
         time.sleep(delay)
-    candidates = [m.symbol for m in matches
-                  if _candidate_allowed(old_ticker, m.symbol, taken)][:3]
+    candidates = [m.symbol for m in matches if _candidate_allowed(old_ticker, m.symbol, taken)][:3]
     best: FhOutcome | None = None
     for cand in candidates:
         ok, info = _verify_candidate(entity, cand, verify_fn)
@@ -2095,17 +2285,20 @@ def _resolve_finnhub_target(
         sample = " · ".join(x for x in (name, info.get("industry", "")) if x)
         score = name_match_score(name, entity)
         if ok:
-            return FhOutcome(entity, old_ticker, "writeback-candidate",
-                             new_ticker=cand, score=score,
-                             sample=sample, info=info)
+            return FhOutcome(
+                entity,
+                old_ticker,
+                "writeback-candidate",
+                new_ticker=cand,
+                score=score,
+                sample=sample,
+                info=info,
+            )
         if best is None or score > (best.score or 0):
-            best = FhOutcome(entity, old_ticker, "unverified",
-                             score=score, sample=sample)
+            best = FhOutcome(entity, old_ticker, "unverified", score=score, sample=sample)
     if best is not None:
         return best
-    return FhOutcome(
-        entity, old_ticker,
-        "no-candidates" if not candidates else "still-dead")
+    return FhOutcome(entity, old_ticker, "no-candidates" if not candidates else "still-dead")
 
 
 def _apply_finnhub_writebacks(
@@ -2122,26 +2315,23 @@ def _apply_finnhub_writebacks(
         cache_payload = json.loads(fetch_cache.read_text(encoding="utf-8"))
     with conn:
         for o in writebacks:
-            conn.execute(
-                "UPDATE entities SET ticker = ? WHERE name = ?",
-                (o.new_ticker, o.entity))
+            conn.execute("UPDATE entities SET ticker = ? WHERE name = ?", (o.new_ticker, o.entity))
             fp = file_path_of.get(o.entity)
-            if fp and _set_frontmatter_ticker(PROJECT_ROOT / fp,
-                                              o.new_ticker or ""):
+            if fp and _set_frontmatter_ticker(PROJECT_ROOT / fp, o.new_ticker or ""):
                 log.info("frontmatter ticker updated: %s", fp)
             else:
-                log.warning("no frontmatter ticker line for %s "
-                            "(DB updated; note needs a manual look)",
-                            o.entity)
+                log.warning(
+                    "no frontmatter ticker line for %s (DB updated; note needs a manual look)",
+                    o.entity,
+                )
             if cache_payload is not None:
                 cache_payload["info_by_name"][o.entity] = o.info
                 cache_payload["failures"] = [
-                    f for f in cache_payload.get("failures", [])
-                    if f[0] != o.entity]
+                    f for f in cache_payload.get("failures", []) if f[0] != o.entity
+                ]
     if cache_payload is not None and fetch_cache is not None:
         fetch_cache.write_text(json.dumps(cache_payload), encoding="utf-8")
-        log.info("fetch cache extended; the next bulk sweep sees the new "
-                 "tickers")
+        log.info("fetch cache extended; the next bulk sweep sees the new tickers")
     return len(writebacks)
 
 
@@ -2180,20 +2370,24 @@ def _collect_finnhub_targets(
     """
     rows = conn.execute(
         "SELECT name, ticker, file_path FROM entities "  # noqa: S608
-        "WHERE entity_type = 'company'").fetchall()
+        "WHERE entity_type = 'company'"
+    ).fetchall()
     file_path_of = {r[0]: r[2] for r in rows}
     current_ticker = {r[0]: r[1] for r in rows}
     taken: dict[str, str] = {}
     for name, tick, _fp in rows:
         if tick:
             taken[tick] = name
-    stale = [n for n, t in load_gf_targets(report_path,
-                                           include_unlisted=include_unlisted)
-             if t is not None and current_ticker.get(n) not in (None, t)]
-    targets = [t for t in load_gf_targets(report_path,
-                                          include_unlisted=include_unlisted)
-               if t[0] not in terminal
-               and current_ticker.get(t[0]) in (None, t[1])]
+    stale = [
+        n
+        for n, t in load_gf_targets(report_path, include_unlisted=include_unlisted)
+        if t is not None and current_ticker.get(n) not in (None, t)
+    ]
+    targets = [
+        t
+        for t in load_gf_targets(report_path, include_unlisted=include_unlisted)
+        if t[0] not in terminal and current_ticker.get(t[0]) in (None, t[1])
+    ]
     return file_path_of, targets, taken, stale
 
 
@@ -2228,63 +2422,74 @@ def run_finnhub_pass(
     """
     verify_store: dict = {}
     if verify_cache is not None and verify_cache.exists():
-        verify_store = json.loads(
-            verify_cache.read_text(encoding="utf-8"))
+        verify_store = json.loads(verify_cache.read_text(encoding="utf-8"))
     verify = _cached_verify(verify_fn, verify_store)
     report_path = REPORT_PATH if report_path is None else report_path
     cache_dir = GF_PAGE_CACHE_DIR if cache_dir is None else cache_dir
     if not report_path.exists():
-        log.error("no relations report at %s — run the yfinance pass first "
-                  "(--source yfinance [--check-only]) to produce it",
-                  report_path)
+        log.error(
+            "no relations report at %s — run the yfinance pass first "
+            "(--source yfinance [--check-only]) to produce it",
+            report_path,
+        )
         return 2
     conn.execute(ENTITY_TICKER_STATUS_DDL)
     terminal = load_terminal_statuses(conn)
     file_path_of, targets, taken, stale = _collect_finnhub_targets(
-        conn, report_path, include_unlisted, set(terminal))
+        conn, report_path, include_unlisted, set(terminal)
+    )
     if stale:
-        log.info("skipping %d already-resolved targets (report predates "
-                 "writebacks): %s", len(stale), ", ".join(sorted(stale)))
-    log.info("finnhub pass: %d targets (%d unlisted opt-in), %s",
-             len(targets),
-             sum(1 for _n, t in targets if t is None),
-             "dry-run" if dry_run else "APPLY")
+        log.info(
+            "skipping %d already-resolved targets (report predates writebacks): %s",
+            len(stale),
+            ", ".join(sorted(stale)),
+        )
+    log.info(
+        "finnhub pass: %d targets (%d unlisted opt-in), %s",
+        len(targets),
+        sum(1 for _n, t in targets if t is None),
+        "dry-run" if dry_run else "APPLY",
+    )
 
     outcomes = [
         _resolve_finnhub_target(
-            entity, old_ticker, lookup_fn=lookup_fn, verify_fn=verify,
-            cache_dir=cache_dir, delay=delay, taken=taken)
+            entity,
+            old_ticker,
+            lookup_fn=lookup_fn,
+            verify_fn=verify,
+            cache_dir=cache_dir,
+            delay=delay,
+            taken=taken,
+        )
         for entity, old_ticker in targets
     ]
     if verify_store and verify_cache is not None:
         verify_cache.parent.mkdir(parents=True, exist_ok=True)
         verify_cache.write_text(json.dumps(verify_store), encoding="utf-8")
     for o in outcomes:
-        log.info("  %s: %s%s", o.entity, o.outcome,
-                 f" [{o.old_ticker} -> {o.new_ticker}]"
-                 if o.new_ticker else "")
+        log.info(
+            "  %s: %s%s",
+            o.entity,
+            o.outcome,
+            f" [{o.old_ticker} -> {o.new_ticker}]" if o.new_ticker else "",
+        )
 
     writebacks = [o for o in outcomes if o.outcome == "writeback-candidate"]
     applied = 0
     if not dry_run and writebacks:
         applied = _apply_finnhub_writebacks(
-            conn, writebacks, file_path_of=file_path_of,
-            fetch_cache=fetch_cache)
+            conn, writebacks, file_path_of=file_path_of, fetch_cache=fetch_cache
+        )
 
-    append_finhub_report_section(
-        report_path, outcomes, mode="dry-run" if dry_run else "apply")
+    append_finhub_report_section(report_path, outcomes, mode="dry-run" if dry_run else "apply")
     if terminal:
         append_terminal_report_section(report_path, terminal)
     log.info("finnhub section appended to %s", report_path)
     if dry_run:
-        log.info("dry-run: %d writeback-candidates (re-run with --apply)",
-                 len(writebacks))
+        log.info("dry-run: %d writeback-candidates (re-run with --apply)", len(writebacks))
     else:
         log.info("apply: %d tickers written", applied)
     return 0
-
-
-
 
 
 # --------------------------------------------------------------------------- #
@@ -2303,8 +2508,8 @@ def _run_classify(args) -> int:
         if args.unclassify:
             with conn:
                 cur = conn.execute(
-                    "DELETE FROM entity_ticker_status WHERE entity_name = ?",
-                    (args.unclassify,))
+                    "DELETE FROM entity_ticker_status WHERE entity_name = ?", (args.unclassify,)
+                )
             if cur.rowcount:
                 log.info("%s: classification removed", args.unclassify)
             else:
@@ -2314,9 +2519,11 @@ def _run_classify(args) -> int:
         entity, status = parts[0], parts[1]
         successor = " ".join(parts[2:]) or None
         if len(parts) < 2 or status not in TERMINAL_STATUSES:
-            log.error("--classify expects ENTITY %s [SUCCESSOR] "
-                      "(got %r)", "/".join(TERMINAL_STATUSES),
-                      " ".join(parts))
+            log.error(
+                "--classify expects ENTITY %s [SUCCESSOR] (got %r)",
+                "/".join(TERMINAL_STATUSES),
+                " ".join(parts),
+            )
             return 2
         now = datetime.now(UTC).isoformat(timespec="seconds")
         with conn:
@@ -2324,9 +2531,15 @@ def _run_classify(args) -> int:
                 "INSERT OR REPLACE INTO entity_ticker_status "
                 "(entity_name, status, successor, decided_at) "
                 "VALUES (?, ?, ?, ?)",
-                (entity, status, successor, now))
-        log.info("classified: %s -> %s%s (%s)", entity, status,
-                 f" -> {successor}" if successor else "", now)
+                (entity, status, successor, now),
+            )
+        log.info(
+            "classified: %s -> %s%s (%s)",
+            entity,
+            status,
+            f" -> {successor}" if successor else "",
+            now,
+        )
         return 0
     finally:
         conn.close()
@@ -2346,59 +2559,103 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     p.add_argument("--source", choices=SOURCES, default="yfinance")
-    p.add_argument("--classify", nargs="+", metavar="ARG",
-                   help="explicit terminal classification write: ENTITY "
-                        "delisted | amalgamated [SUCCESSOR WORDS...] — "
-                        "upserts entity_ticker_status; the entity leaves "
-                        "all resolution sweeps and is reported under "
-                        "[terminal]. Performs only this write.")
-    p.add_argument("--unclassify", metavar="ENTITY",
-                   help="remove ENTITY's terminal classification (re-opens "
-                        "resolution). Performs only this write.")
-    p.add_argument("--include-unlisted", action="store_true",
-                   help="googlefinance only: also attempt the deliberately-"
-                        "unlisted set (served by tier 2 / curation only)")
-    p.add_argument("--tier2", action="store_true",
-                   help="googlefinance only: enable tier-2 name->symbol "
-                        "discovery via BSE's PeerSmartSearch (NSE's own API "
-                        "is Akamai-blocked from this network, 2026-08-25; "
-                        "BSE rows carry NSE symbols anyway)")
-    p.add_argument("--topology", choices=("knn", "clique"), default="knn",
-                   help="competes_with shape: knn (default, bounded) or "
-                        "clique (full n*(n-1)/2, kept reproducible)")
-    p.add_argument("--mutual", action="store_true",
-                   help="keep a KNN pair only when BOTH endpoints picked each "
-                        "other (reciprocity precision filter; measured "
-                        "2026-08-24: 3385 -> 2341 pairs)")
-    p.add_argument("--k", type=int, default=8,
-                   help="K nearest neighbours per company for knn topology "
-                        "(yfinance knn default 8; embeddings E3 default 10 when --source embeddings)")
-    p.add_argument("--threshold", type=float, default=0.0,
-                   help="cosine threshold for embeddings E3 (default 0.0 = no filter); "
-                        "for coinfer E4 it is the minimum score to emit")
-    p.add_argument("--per-company", type=int, default=3,
-                   help="coinfer E4: max suggestions per company (default 3)")
+    p.add_argument(
+        "--classify",
+        nargs="+",
+        metavar="ARG",
+        help="explicit terminal classification write: ENTITY "
+        "delisted | amalgamated [SUCCESSOR WORDS...] — "
+        "upserts entity_ticker_status; the entity leaves "
+        "all resolution sweeps and is reported under "
+        "[terminal]. Performs only this write.",
+    )
+    p.add_argument(
+        "--unclassify",
+        metavar="ENTITY",
+        help="remove ENTITY's terminal classification (re-opens "
+        "resolution). Performs only this write.",
+    )
+    p.add_argument(
+        "--include-unlisted",
+        action="store_true",
+        help="googlefinance only: also attempt the deliberately-"
+        "unlisted set (served by tier 2 / curation only)",
+    )
+    p.add_argument(
+        "--tier2",
+        action="store_true",
+        help="googlefinance only: enable tier-2 name->symbol "
+        "discovery via BSE's PeerSmartSearch (NSE's own API "
+        "is Akamai-blocked from this network, 2026-08-25; "
+        "BSE rows carry NSE symbols anyway)",
+    )
+    p.add_argument(
+        "--topology",
+        choices=("knn", "clique"),
+        default="knn",
+        help="competes_with shape: knn (default, bounded) or "
+        "clique (full n*(n-1)/2, kept reproducible)",
+    )
+    p.add_argument(
+        "--mutual",
+        action="store_true",
+        help="keep a KNN pair only when BOTH endpoints picked each "
+        "other (reciprocity precision filter; measured "
+        "2026-08-24: 3385 -> 2341 pairs)",
+    )
+    p.add_argument(
+        "--k",
+        type=int,
+        default=8,
+        help="K nearest neighbours per company for knn topology "
+        "(yfinance knn default 8; embeddings E3 default 10 when --source embeddings)",
+    )
+    p.add_argument(
+        "--threshold",
+        type=float,
+        default=0.0,
+        help="cosine threshold for embeddings E3 (default 0.0 = no filter); "
+        "for coinfer E4 it is the minimum score to emit",
+    )
+    p.add_argument(
+        "--per-company",
+        type=int,
+        default=3,
+        help="coinfer E4: max suggestions per company (default 3)",
+    )
     p.add_argument("--workers", type=int, default=2)
-    p.add_argument("--dry-run", action="store_true",
-                   help="explicit dry-run (this is already the default; "
-                        "accepted so '--dry-run' in docs/make targets works)")
-    p.add_argument("--apply", action="store_true",
-                   help="write edges (default OFF = dry-run)")
-    p.add_argument("--check-only", action="store_true",
-                   help="fetch + ticker-hygiene report only; no edge writes")
+    p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="explicit dry-run (this is already the default; "
+        "accepted so '--dry-run' in docs/make targets works)",
+    )
+    p.add_argument("--apply", action="store_true", help="write edges (default OFF = dry-run)")
+    p.add_argument(
+        "--check-only",
+        action="store_true",
+        help="fetch + ticker-hygiene report only; no edge writes",
+    )
     default_cache_disp = str(FETCH_CACHE_PATH.relative_to(PROJECT_ROOT))
-    p.add_argument("--fetch-cache", metavar="PATH", default=None,
-                   help="PATH override for the persistent fetch cache "
-                        f"(default: {default_cache_disp})")
-    p.add_argument("--refresh-cache", action="store_true",
-                   help="ignore any existing fetch cache and refetch all "
-                        "tickers (rewrites the cache)")
-    p.add_argument("--no-cache", action="store_true",
-                   help="disable the fetch cache entirely (fetch and discard)")
+    p.add_argument(
+        "--fetch-cache",
+        metavar="PATH",
+        default=None,
+        help=f"PATH override for the persistent fetch cache (default: {default_cache_disp})",
+    )
+    p.add_argument(
+        "--refresh-cache",
+        action="store_true",
+        help="ignore any existing fetch cache and refetch all tickers (rewrites the cache)",
+    )
+    p.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="disable the fetch cache entirely (fetch and discard)",
+    )
     args = p.parse_args(argv)
 
-    logging.basicConfig(level=logging.INFO,
-                        format="%(asctime)s [%(levelname)s] %(message)s")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 
     if args.classify or args.unclassify:
         return _run_classify(args)
@@ -2407,8 +2664,11 @@ def main(argv: list[str] | None = None) -> int:
         conn = connect(DB_PATH)
         try:
             return run_googlefinance_pass(
-                conn, include_unlisted=args.include_unlisted,
-                tier2=args.tier2, apply_resolutions=args.apply)
+                conn,
+                include_unlisted=args.include_unlisted,
+                tier2=args.tier2,
+                apply_resolutions=args.apply,
+            )
         finally:
             conn.close()
 
@@ -2416,10 +2676,11 @@ def main(argv: list[str] | None = None) -> int:
         conn = connect(DB_PATH)
         try:
             return run_finnhub_pass(
-                conn, dry_run=not args.apply,
+                conn,
+                dry_run=not args.apply,
                 include_unlisted=args.include_unlisted,
-                verify_cache=PROJECT_ROOT / "memory"
-                / "fh_verify_cache.json")
+                verify_cache=PROJECT_ROOT / "memory" / "fh_verify_cache.json",
+            )
         finally:
             conn.close()
 
@@ -2428,8 +2689,7 @@ def main(argv: list[str] | None = None) -> int:
         k = args.k if args.k != 8 else 10
         conn = connect(DB_PATH)
         try:
-            return run_embeddings_pass(
-                conn, k=k, threshold=args.threshold, dry_run=not args.apply)
+            return run_embeddings_pass(conn, k=k, threshold=args.threshold, dry_run=not args.apply)
         finally:
             conn.close()
 
@@ -2437,8 +2697,8 @@ def main(argv: list[str] | None = None) -> int:
         conn = connect(DB_PATH)
         try:
             return run_coinfer_pass(
-                conn, per_company=args.per_company, threshold=args.threshold,
-                dry_run=not args.apply)
+                conn, per_company=args.per_company, threshold=args.threshold, dry_run=not args.apply
+            )
         finally:
             conn.close()
 
@@ -2451,20 +2711,28 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.source != "yfinance":
         owner = _NOT_IMPLEMENTED[args.source]
-        print(f"source '{args.source}' is not implemented yet ({owner}); "
-              f"E2 ships the yfinance pass only", file=sys.stderr)
+        print(
+            f"source '{args.source}' is not implemented yet ({owner}); "
+            f"E2 ships the yfinance pass only",
+            file=sys.stderr,
+        )
         return 2
 
     conn = connect(DB_PATH)
 
     try:
         return run_yfinance_pass(
-            conn, topology=args.topology, k=args.k, workers=args.workers,
+            conn,
+            topology=args.topology,
+            k=args.k,
+            workers=args.workers,
             dry_run=not args.apply,
             check_only=args.check_only,
-            fetch_cache=(None if args.no_cache else
-                         (Path(args.fetch_cache)
-                          if args.fetch_cache else FETCH_CACHE_PATH)),
+            fetch_cache=(
+                None
+                if args.no_cache
+                else (Path(args.fetch_cache) if args.fetch_cache else FETCH_CACHE_PATH)
+            ),
             refresh_cache=args.refresh_cache,
             mutual=args.mutual,
         )

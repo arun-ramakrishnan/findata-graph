@@ -125,6 +125,7 @@ def _attach_vec_db(conn: sqlite3.Connection) -> None:
         except sqlite3.Error:
             pass
 
+
 # Keep module importable (and unit-testable) without the package installed.
 try:  # pragma: no cover - exercised implicitly via vec_available()
     import sqlite_vec
@@ -142,7 +143,7 @@ def _load_vec_extension(conn: sqlite3.Connection) -> bool:
         conn.enable_load_extension(True)  # type: ignore[attr-defined]
         conn.load_extension(_EXTENSION_PATH)
         conn.enable_load_extension(False)  # type: ignore[attr-defined]
-    except (sqlite3.Error, AttributeError):
+    except sqlite3.Error, AttributeError:
         return False
     return True
 
@@ -232,7 +233,7 @@ def backfill_from_fts(conn: sqlite3.Connection, dims: int) -> int:
             vec = json.loads(embedding_json)
             if not isinstance(vec, list) or len(vec) != dims:
                 continue
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         try:
             conn.execute(f"DELETE FROM {qualified()} WHERE file_path = ?", (file_path,))  # noqa: S608  # qualified() constant
@@ -309,7 +310,7 @@ def knn_similarities(
     for file_path, distance in hits:
         try:
             out[str(file_path)] = 1.0 - float(distance)  # raw cosine, no clamp
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
     return out
 
@@ -325,13 +326,14 @@ def _upsert_vec_rows(
     written = 0
     for file_path, embedding_json in upsert_rows:
         conn.execute(
-            f"DELETE FROM {qualified()} WHERE file_path = ?", (file_path,)  # noqa: S608  # qualified() constant
+            f"DELETE FROM {qualified()} WHERE file_path = ?",  # noqa: S608  # qualified() constant
+            (file_path,),
         )
         if not embedding_json:
             continue
         try:
             vec = json.loads(embedding_json)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         if not isinstance(vec, list) or len(vec) != dims:
             continue
@@ -388,7 +390,8 @@ def sync_vec_table(
                 written = backfill_from_fts(conn, dims)
             for file_path in delete_paths:
                 conn.execute(
-                    f"DELETE FROM {qualified()} WHERE file_path = ?", (file_path,)  # noqa: S608  # qualified() constant
+                    f"DELETE FROM {qualified()} WHERE file_path = ?",  # noqa: S608  # qualified() constant
+                    (file_path,),
                 )
             written += _upsert_vec_rows(conn, dims, upsert_rows)
     except sqlite3.Error:
@@ -417,9 +420,13 @@ def main() -> int:  # pragma: no cover - manual diagnostic
     conn = connect(args.db)
     try:
         ok = vec_available(conn, args.dims, lazy_backfill=False)
-        n = conn.execute(
-            f"SELECT COUNT(*) FROM {qualified()}"  # noqa: S608  # identifier is the qualified() constant
-        ).fetchone()[0] if ok else 0
+        n = (
+            conn.execute(
+                f"SELECT COUNT(*) FROM {qualified()}"  # noqa: S608  # identifier is the qualified() constant
+            ).fetchone()[0]
+            if ok
+            else 0
+        )
         fts = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
         print(f"extension+table: {'ok' if ok else 'unavailable'}")
         print(f"vec rows: {n}  (fts rows: {fts})")

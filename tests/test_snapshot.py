@@ -21,9 +21,7 @@ def _make_db(path: Path, n_entities: int = 5) -> None:
     conn.executemany(
         "INSERT INTO entities VALUES (?,?)", [(f"e{i}", "v") for i in range(n_entities)]
     )
-    conn.executemany(
-        "INSERT INTO relations (src,dst) VALUES (?,?)", [("e0", "e1"), ("e1", "e2")]
-    )
+    conn.executemany("INSERT INTO relations (src,dst) VALUES (?,?)", [("e0", "e1"), ("e1", "e2")])
     conn.commit()
     conn.close()
 
@@ -61,9 +59,7 @@ def test_verify_detects_staleness(tmp_path):
 
     # Mutate the source after snapshotting.
     conn = sqlite3.connect(db)
-    conn.executemany(
-        "INSERT INTO entities VALUES (?,?)", [("extra1", "v"), ("extra2", "v")]
-    )
+    conn.executemany("INSERT INTO entities VALUES (?,?)", [("extra1", "v"), ("extra2", "v")])
     conn.commit()
     conn.close()
 
@@ -91,7 +87,6 @@ def test_restore_via_zstd_matches_source(tmp_path):
     assert ents == 4 and rels == 2
 
 
-
 # ---------------------------------------------------------------------------
 # Parquet snapshot tests (Bundle L1)
 # ---------------------------------------------------------------------------
@@ -113,7 +108,11 @@ def _make_db_with_data(path: Path) -> None:
     )
     conn.executemany(
         "INSERT INTO entities VALUES (?,?,?)",
-        [("Reliance", "company", "RELIANCE.NS"), ("TCS", "company", "TCS.NS"), ("Nifty50", "index", None)],
+        [
+            ("Reliance", "company", "RELIANCE.NS"),
+            ("TCS", "company", "TCS.NS"),
+            ("Nifty50", "index", None),
+        ],
     )
     conn.executemany(
         "INSERT INTO graph_edges (source, target, edge_type, weight) VALUES (?,?,?,?)",
@@ -162,12 +161,12 @@ def test_parquet_sqlite_excludes_fts5_shadow_tables(tmp_path):
     con = sqlite3.connect(db)
     tables = _list_sqlite_tables(con)
     con.close()
-    assert "note_search" not in tables            # virtual table itself
-    assert "note_search_content" in tables         # content shadow — needed for rebuild
-    assert "note_search_data" not in tables        # derived shadow
-    assert "note_search_idx" not in tables         # derived shadow
-    assert "note_search_docsize" not in tables     # derived shadow
-    assert "note_search_config" not in tables      # derived shadow
+    assert "note_search" not in tables  # virtual table itself
+    assert "note_search_content" in tables  # content shadow — needed for rebuild
+    assert "note_search_data" not in tables  # derived shadow
+    assert "note_search_idx" not in tables  # derived shadow
+    assert "note_search_docsize" not in tables  # derived shadow
+    assert "note_search_config" not in tables  # derived shadow
     assert "entities" in tables
 
 
@@ -223,6 +222,7 @@ def test_parquet_pandas_readability(tmp_path):
     export_parquet_sqlite(db, out_dir, _logger())
 
     import pandas as pd
+
     df = pd.read_parquet(out_dir / "entities.parquet")
     assert len(df) == 3
     assert "name" in df.columns
@@ -235,9 +235,7 @@ def test_parquet_missing_db_returns_skipped(tmp_path):
     """Export should gracefully skip if the source DB does not exist."""
     from maintenance.snapshot_db import export_parquet_sqlite
 
-    result = export_parquet_sqlite(
-        tmp_path / "nonexistent.db", tmp_path / "out", _logger()
-    )
+    result = export_parquet_sqlite(tmp_path / "nonexistent.db", tmp_path / "out", _logger())
     assert result.get("skipped") is True
 
 
@@ -271,9 +269,7 @@ def test_parquet_duckdb_export_order_deterministic(tmp_path):
 
     # Simulate a rebuild: same content, different physical order.
     con = duckdb.connect(str(db))
-    con.execute(
-        "CREATE TABLE t AS SELECT * FROM e_belongs ORDER BY company_name DESC"
-    )
+    con.execute("CREATE TABLE t AS SELECT * FROM e_belongs ORDER BY company_name DESC")
     con.execute("DROP TABLE e_belongs")
     con.execute("ALTER TABLE t RENAME TO e_belongs")
     con.close()
@@ -284,7 +280,11 @@ def test_parquet_duckdb_export_order_deterministic(tmp_path):
     b = (out2 / "e_belongs.parquet").read_bytes()
     assert a == b
     # And the export is in canonical (column) order, not insertion order.
-    rel = duckdb.connect().execute(
-        f"SELECT company_name FROM read_parquet('{out1 / 'e_belongs.parquet'}')"  # noqa: S608  # tmp_path-constant identifier
-    ).fetchall()
+    rel = (
+        duckdb.connect()
+        .execute(
+            f"SELECT company_name FROM read_parquet('{out1 / 'e_belongs.parquet'}')"  # noqa: S608  # tmp_path-constant identifier
+        )
+        .fetchall()
+    )
     assert [r[0] for r in rel] == [1, 3, 5]

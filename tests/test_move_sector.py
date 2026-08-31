@@ -1,4 +1,5 @@
 """Unit tests for helpers/maintenance/move_sector.py."""
+
 from __future__ import annotations
 import sys
 from pathlib import Path
@@ -47,7 +48,7 @@ def test_update_yaml_field_add_absent():
 
 
 def test_update_yaml_field_quoted_value():
-    yaml = "---\ntitle: Foo\npermalink: \"companies/old/X\"\n---"
+    yaml = '---\ntitle: Foo\npermalink: "companies/old/X"\n---'
     result = update_yaml_field(yaml, "permalink", "companies/new/X")
     assert "companies/new/X" in result
 
@@ -208,16 +209,10 @@ def _make_move_test_db(tmp_path, sector="Healthcare"):
     conn.execute(
         "INSERT INTO entities VALUES ('Test Co', 'company', '2025-01-01', "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
         "'findata/Companies/" + sector + "/Test_Co.md', '2025-01-01', 'Test_Co', ?, NULL)",
-        (sector,)
+        (sector,),
     )
-    conn.execute(
-        "INSERT INTO graph_edges VALUES ('Test Co', ?, 'part_of', 'test')"
-        , (sector,)
-    )
-    conn.execute(
-        "INSERT INTO graph_edges VALUES (?, 'Test Co', 'has_company', 'test')"
-        , (sector,)
-    )
+    conn.execute("INSERT INTO graph_edges VALUES ('Test Co', ?, 'part_of', 'test')", (sector,))
+    conn.execute("INSERT INTO graph_edges VALUES (?, 'Test Co', 'has_company', 'test')", (sector,))
     conn.commit()
     conn.close()
     return db_path
@@ -226,6 +221,7 @@ def _make_move_test_db(tmp_path, sector="Healthcare"):
 class TestMoveEntity:
     def test_move_to_new_sector(self, tmp_path, monkeypatch):
         import helpers.maintenance.move_sector as ms_mod
+
         monkeypatch.setattr(ms_mod, "PROJECT_ROOT", tmp_path)
         db_path = _make_move_test_db(tmp_path, "Healthcare")
         conn = _sqlite3.connect(str(db_path))
@@ -247,6 +243,7 @@ class TestMoveEntity:
 
     def test_move_dry_run(self, tmp_path, monkeypatch):
         import helpers.maintenance.move_sector as ms_mod
+
         monkeypatch.setattr(ms_mod, "PROJECT_ROOT", tmp_path)
         db_path = _make_move_test_db(tmp_path, "Healthcare")
         conn = _sqlite3.connect(str(db_path))
@@ -263,6 +260,7 @@ class TestMoveEntity:
 
     def test_move_invalid_sector(self, tmp_path, monkeypatch):
         import helpers.maintenance.move_sector as ms_mod
+
         monkeypatch.setattr(ms_mod, "PROJECT_ROOT", tmp_path)
         db_path = _make_move_test_db(tmp_path)
         conn = _sqlite3.connect(str(db_path))
@@ -272,6 +270,7 @@ class TestMoveEntity:
 
     def test_move_entity_not_found(self, tmp_path, monkeypatch):
         import helpers.maintenance.move_sector as ms_mod
+
         monkeypatch.setattr(ms_mod, "PROJECT_ROOT", tmp_path)
         db_path = _make_move_test_db(tmp_path)
         conn = _sqlite3.connect(str(db_path))
@@ -281,6 +280,7 @@ class TestMoveEntity:
 
     def test_move_same_sector(self, tmp_path, monkeypatch):
         import helpers.maintenance.move_sector as ms_mod
+
         monkeypatch.setattr(ms_mod, "PROJECT_ROOT", tmp_path)
         db_path = _make_move_test_db(tmp_path, "Healthcare")
         conn = _sqlite3.connect(str(db_path))
@@ -290,6 +290,7 @@ class TestMoveEntity:
 
     def test_move_updates_yaml(self, tmp_path, monkeypatch):
         import helpers.maintenance.move_sector as ms_mod
+
         monkeypatch.setattr(ms_mod, "PROJECT_ROOT", tmp_path)
         db_path = _make_move_test_db(tmp_path, "Healthcare")
         conn = _sqlite3.connect(str(db_path))
@@ -304,6 +305,7 @@ class TestMoveEntity:
 
     def test_move_updates_edges(self, tmp_path, monkeypatch):
         import helpers.maintenance.move_sector as ms_mod
+
         monkeypatch.setattr(ms_mod, "PROJECT_ROOT", tmp_path)
         db_path = _make_move_test_db(tmp_path, "Healthcare")
         conn = _sqlite3.connect(str(db_path))

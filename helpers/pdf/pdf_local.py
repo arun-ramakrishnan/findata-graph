@@ -55,9 +55,7 @@ except PackageNotFoundError:  # pragma: no cover - metadata always present
     ENGINE_LABEL = "pymupdf4llm"
 
 # Tesseract text pymupdf4llm inlines next to embedded rasters.
-PIC_BLOCK_RE = re.compile(
-    r"<!-- Start of picture text -->.*?<!-- End of picture text -->", re.S
-)
+PIC_BLOCK_RE = re.compile(r"<!-- Start of picture text -->.*?<!-- End of picture text -->", re.S)
 # pymupdf4llm image reference: ![](path)
 IMG_REF_RE = re.compile(r"!\[[^\]]*\]\(([^)]+)\)")
 # Pure page numbers: "3/22", "1/27".
@@ -71,29 +69,65 @@ HEADING_LINE_RE = re.compile(r"^(#{1,6})\s+(.+)$")
 # SBI_Delhivery_Titan p11) — rescue them into real headings.
 BOLD_LINE_RE = re.compile(r"^(?:\*\*.+?\*\*\s*)+$")
 # Cap tokens in the "| Large Cap |" tail — a glued heading always has one.
-CAP_TAIL_RE = re.compile(
-    r"\|[^|]*\b(?:large|mid|small|micro|nano|mega)\s*cap", re.I
-)
+CAP_TAIL_RE = re.compile(r"\|[^|]*\b(?:large|mid|small|micro|nano|mega)\s*cap", re.I)
 # Sector phrases a glued heading may start with (mirrors parse_newsletter
 # _SECTOR_WORDS + the observed newsletter vocabulary; longest-first order
 # matters — checked at match time, so keep this list readable instead).
 SECTOR_PREFIXES = (
-    "aerospace & defence", "engineering & capital goods",
-    "tourism & hospitality", "heavy electrical equipment",
-    "consumer durables", "financial services", "financial service",
-    "real estate", "auto ancillary", "capital markets",
-    "housing finance", "building materials", "ems manufacturing",
-    "regulator", "logistics", "retail", "fmcg", "healthcare", "pharma",
-    "technology", "software", "energy", "renewables", "metals",
-    "chemicals", "defence", "telecom", "telecommunications", "media",
-    "entertainment", "textiles", "packaging", "agriculture", "education",
-    "edtech", "electronics", "mining", "aviation", "infrastructure",
-    "railways", "hotels", "hotel", "tourism", "diversified", "insurance",
-    "nbfc", "consumer", "fertilizer", "diagnostics", "hospitals",
-    "automotive", "pharmaceuticals",
+    "aerospace & defence",
+    "engineering & capital goods",
+    "tourism & hospitality",
+    "heavy electrical equipment",
+    "consumer durables",
+    "financial services",
+    "financial service",
+    "real estate",
+    "auto ancillary",
+    "capital markets",
+    "housing finance",
+    "building materials",
+    "ems manufacturing",
+    "regulator",
+    "logistics",
+    "retail",
+    "fmcg",
+    "healthcare",
+    "pharma",
+    "technology",
+    "software",
+    "energy",
+    "renewables",
+    "metals",
+    "chemicals",
+    "defence",
+    "telecom",
+    "telecommunications",
+    "media",
+    "entertainment",
+    "textiles",
+    "packaging",
+    "agriculture",
+    "education",
+    "edtech",
+    "electronics",
+    "mining",
+    "aviation",
+    "infrastructure",
+    "railways",
+    "hotels",
+    "hotel",
+    "tourism",
+    "diversified",
+    "insurance",
+    "nbfc",
+    "consumer",
+    "fertilizer",
+    "diagnostics",
+    "hospitals",
+    "automotive",
+    "pharmaceuticals",
 )
-_LEGAL_SUFFIX_ONLY = {"ltd", "ltd.", "limited", "pvt", "private", "inc",
-                      "co", "corp"}
+_LEGAL_SUFFIX_ONLY = {"ltd", "ltd.", "limited", "pvt", "private", "inc", "co", "corp"}
 
 
 class LocalRefusalError(RuntimeError):
@@ -175,7 +209,7 @@ def _split_sector_glue(body: str) -> tuple[str, str] | None:
     low = pre.lower().strip()
     for sector in sorted(SECTOR_PREFIXES, key=len, reverse=True):
         if low.startswith(sector):
-            rest = pre.strip()[len(sector):].strip()
+            rest = pre.strip()[len(sector) :].strip()
             if rest and rest.lower() not in _LEGAL_SUFFIX_ONLY:
                 return pre.strip()[: len(sector)].strip(), f"{rest} | {tail.strip()}"
     return None

@@ -8,6 +8,7 @@ Two layers:
   * apply_edges + create_theme_entities hit a temp SQLite DB — these pin
     idempotency (INSERT OR IGNORE) and the theme-entity creation contract.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -60,8 +61,9 @@ class TestExtractionPrecision:
     a future broadening (e.g. adding bare 'pli') doesn't silently fan out."""
 
     def test_pli_scheme_alias_triggers_edge(self, tmp_path):
-        _write_note(tmp_path, "Acme_Electronics",
-                    "Acme is a beneficiary of the PLI scheme for components.")
+        _write_note(
+            tmp_path, "Acme_Electronics", "Acme is a beneficiary of the PLI scheme for components."
+        )
         edges = dt.derive_edges(dt.extract_theme_membership(tmp_path))
         targets = {e[1] for e in edges}
         assert "PLI_Scheme" in targets
@@ -69,8 +71,9 @@ class TestExtractionPrecision:
     def test_bare_pli_does_not_trigger_edge(self, tmp_path):
         """Bare 'pli' is boilerplate (appears in 42/42 sector notes) and must
         NOT create a PLI edge — this is the precision guard."""
-        _write_note(tmp_path, "Acme_Chemicals",
-                    "The company filed its PLI. No scheme detail available.")
+        _write_note(
+            tmp_path, "Acme_Chemicals", "The company filed its PLI. No scheme detail available."
+        )
         edges = dt.derive_edges(dt.extract_theme_membership(tmp_path))
         targets = {e[1] for e in edges}
         assert "PLI_Scheme" not in targets, (
@@ -78,17 +81,15 @@ class TestExtractionPrecision:
         )
 
     def test_china_plus_one_variants_match(self, tmp_path):
-        _write_note(tmp_path, "Acme_Textiles",
-                    "Benefiting from the China+1 diversification trend.")
+        _write_note(tmp_path, "Acme_Textiles", "Benefiting from the China+1 diversification trend.")
         edges = dt.derive_edges(dt.extract_theme_membership(tmp_path))
-        assert any(
-            e[0] == "Acme_Textiles" and e[1] == "China_Plus_One" for e in edges
-        )
+        assert any(e[0] == "Acme_Textiles" and e[1] == "China_Plus_One" for e in edges)
 
     def test_multiple_themes_one_note(self, tmp_path):
         """A company exposed to several themes yields one edge per theme."""
-        _write_note(tmp_path, "Acme_Auto",
-                    "EV transition + premiumization + China plus one strategy.")
+        _write_note(
+            tmp_path, "Acme_Auto", "EV transition + premiumization + China plus one strategy."
+        )
         edges = dt.derive_edges(dt.extract_theme_membership(tmp_path))
         themes = {e[1] for e in edges if e[0] == "Acme_Auto"}
         assert {"EV_Transition", "Premiumization", "China_Plus_One"} <= themes
@@ -108,7 +109,9 @@ class TestExtractionPrecision:
         mention is inside the YAML block must not match (frontmatter is
         stripped before scanning)."""
         p = tmp_path / "Acme.md"
-        p.write_text("---\ntitle: Acme\ntype: company\ninvestment_theme: ev_transition\n---\nJust a stub.\n")
+        p.write_text(
+            "---\ntitle: Acme\ntype: company\ninvestment_theme: ev_transition\n---\nJust a stub.\n"
+        )
         edges = dt.derive_edges(dt.extract_theme_membership(tmp_path))
         assert edges == []
 
@@ -171,6 +174,7 @@ class TestApplyAndIdempotency:
 def test_unreadable_file_skipped(tmp_path):
     """A file that raises OSError is silently skipped (line 174-175)."""
     import os
+
     bad = tmp_path / "bad.md"
     bad.write_text("# ok")
     os.chmod(str(bad), 0o000)

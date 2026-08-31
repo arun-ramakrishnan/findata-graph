@@ -14,6 +14,7 @@ report's ``quotes.as_of_edition`` bridge.
 Resolution is honest, never guessing: unmatched strings resolve to
 None (the caller reports them).
 """
+
 from __future__ import annotations
 
 import re
@@ -60,8 +61,11 @@ def note_title(text: str, stem: str) -> str:
 def source_trees(vault: Path) -> list[Path]:
     """Every vault subtree that is NOT one of the derived trees."""
     return sorted(
-        (d for d in vault.iterdir()
-         if d.is_dir() and d.name not in DERIVED_TREES and not d.name.startswith(".")),
+        (
+            d
+            for d in vault.iterdir()
+            if d.is_dir() and d.name not in DERIVED_TREES and not d.name.startswith(".")
+        ),
         key=lambda d: d.name,
     )
 
@@ -92,9 +96,9 @@ def _resolve_variants(c: str, index: dict[str, Path]) -> Path | None:
     """Match one candidate string's variant forms against the index."""
     variants = [c]
     variants += re.split(r"[,;(]?\b[Ee]dition\s*#?\d+", c)
-    variants += [re.split(
-        r",\s*(?:Zerodha|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b)",
-        c)[0]]
+    variants += [
+        re.split(r",\s*(?:Zerodha|(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\b)", c)[0]
+    ]
     m = re.match(rf"{SERIES_RE}\s*[—:-]*(.*)$", c, re.I)
     if m:
         variants.append(m.group(1))
@@ -110,9 +114,11 @@ def _resolve_variants(c: str, index: dict[str, Path]) -> Path | None:
     return None
 
 
-def resolve_edition_string(cand: str, index: dict[str, Path],
-                           memo: dict[str, Path | None] | None = None,
-                           ) -> Path | None:
+def resolve_edition_string(
+    cand: str,
+    index: dict[str, Path],
+    memo: dict[str, Path | None] | None = None,
+) -> Path | None:
     """Resolve ONE free-text edition reference to a source note, or None.
 
     Variants tried in order: the raw string; the string minus an
@@ -134,9 +140,11 @@ def resolve_edition_string(cand: str, index: dict[str, Path],
     return hit
 
 
-def resolve_editions(text: str, index: dict[str, Path],
-                     memo: dict[str, Path | None] | None = None,
-                     ) -> list[Path]:
+def resolve_editions(
+    text: str,
+    index: dict[str, Path],
+    memo: dict[str, Path | None] | None = None,
+) -> list[Path]:
     """Source notes referenced by a derived note's body, deduped, sorted.
 
     Candidates: auto-block ``## <series> — <edition>`` headings and the
@@ -182,12 +190,14 @@ def _batch_add_dates() -> dict[str, str] | None:
         return None
     try:
         out = subprocess.run(  # noqa: S603  # resolved absolute path, fixed argv, no shell
-            [git, "log", "--diff-filter=A", "--name-only",
-             "--format=%x00%as"],
-            capture_output=True, text=True, timeout=60, check=True,
+            [git, "log", "--diff-filter=A", "--name-only", "--format=%x00%as"],
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=True,
             cwd=_REPO_ROOT,
         ).stdout
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return None
     dates: dict[str, str] = {}
     date = ""
@@ -210,13 +220,15 @@ def _git_add_date_follow(path: Path) -> str | None:
         return None
     try:
         out = subprocess.run(  # noqa: S603  # resolved absolute path, fixed argv, no shell
-            [git, "log", "--follow", "--diff-filter=A", "--format=%as",
-             "--", str(path)],
-            capture_output=True, text=True, timeout=30, check=True,
+            [git, "log", "--follow", "--diff-filter=A", "--format=%as", "--", str(path)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
             cwd=_REPO_ROOT,
         ).stdout.splitlines()
         return out[-1].strip() if out else None
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return None
 
 
@@ -253,9 +265,7 @@ def edition_source_entry(src: Path, vault: Path) -> dict:
     }
     tkey = str(src)
     if tkey not in _TITLE_MEMO:
-        _TITLE_MEMO[tkey] = note_title(
-            src.read_text(encoding="utf-8", errors="replace"), src.stem
-        )
+        _TITLE_MEMO[tkey] = note_title(src.read_text(encoding="utf-8", errors="replace"), src.stem)
     entry["title"] = _TITLE_MEMO[tkey]
     d = git_add_date(src)
     if d:
@@ -263,9 +273,13 @@ def edition_source_entry(src: Path, vault: Path) -> dict:
     return entry
 
 
-def merged_sources(fm: dict, text: str, index: dict[str, Path],
-                   vault: Path,
-                   memo: dict[str, Path | None] | None = None) -> list[dict]:
+def merged_sources(
+    fm: dict,
+    text: str,
+    index: dict[str, Path],
+    vault: Path,
+    memo: dict[str, Path | None] | None = None,
+) -> list[dict]:
     """Existing frontmatter sources + newly resolved edition entries, deduped.
 
     Existing entries are kept verbatim (accepted Q2: entries for deleted
@@ -274,18 +288,19 @@ def merged_sources(fm: dict, text: str, index: dict[str, Path],
     ``memo`` (optional, caller-owned) caches edition-string resolution
     across calls.
     """
-    entries = [edition_source_entry(s, vault)
-               for s in resolve_editions(_body(text), index, memo)]
-    existing = ([e for e in fm["sources"]
-                 if isinstance(e, dict)] if isinstance(
-                     fm.get("sources"), list) else [])
-    return existing + [e for e in entries
-                        if e["id"] not in {x.get("id") for x in existing}]
+    entries = [edition_source_entry(s, vault) for s in resolve_editions(_body(text), index, memo)]
+    existing = (
+        [e for e in fm["sources"] if isinstance(e, dict)]
+        if isinstance(fm.get("sources"), list)
+        else []
+    )
+    return existing + [e for e in entries if e["id"] not in {x.get("id") for x in existing}]
 
 
 def _body(text: str) -> str:
     """Note text minus its frontmatter block (leading blank lines kept)."""
     from helpers.core.frontmatter import split_frontmatter
+
     _, _, rest = split_frontmatter(text)
     if rest.startswith("---"):
         rest = rest[3:].lstrip(" \t")

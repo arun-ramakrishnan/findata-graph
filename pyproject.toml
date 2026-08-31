@@ -119,6 +119,11 @@ ignore = ["E501"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["E402", "S101"]
 "doc/templates/test_module.py" = ["S101"]  # test SEED — asserts are the contract (same rationale as tests/**)
+# query.py composes parameterized SQL by purpose — every S608 there is the
+# same reviewed pattern (interpolations are ?-clause builders / constant
+# identifiers; values always bound). Per-file rule beats ~15 inline noqas
+# that ruff-format keeps stranding off their anchor lines (corpus_uniformity S7b).
+"helpers/graph/query.py" = ["S608"]
 "helpers/core/get_tickers.py" = ["E402"]
 "helpers/core/parse_newsletter.py" = ["E402"]
 "helpers/graph/embeddings.py" = ["E402"]
@@ -129,6 +134,9 @@ ignore = ["E501"]
 # Treat the local package as first-party so it isn't flagged as an undeclared dep.
 # Reads [project].dependencies + [project.optional-dependencies] directly.
 known_first_party = ["helpers", "app", "core", "mojo_regex_battery"]
+# doc/templates seeds import their toolchain (pytest, helpers) to TEACH it —
+# they are not shipped code; exclude them from dependency analysis.
+extend_exclude = ["doc/templates"]
 # The `dev` and `mojo` optional-dependencies groups hold command-line tooling
 # (pytest, hypothesis, ruff, ty, deptry; the mojo + max compiler toolchain)
 # that is never imported from the codebase, so deptry cannot observe it as

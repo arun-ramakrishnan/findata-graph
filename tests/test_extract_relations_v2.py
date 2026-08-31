@@ -13,6 +13,7 @@ Covers:
   6. Snapshot parity: legacy v1 families still fire alongside v2 on a
      combined fixture document.
 """
+
 from __future__ import annotations
 
 import json
@@ -33,20 +34,35 @@ from helpers.misc.relation_diff_audit import (  # noqa: E402
 
 def _run(resolver, content):
     return extract_relations(
-        content, edition_title="E1 Test Edition",
-        newsletter_type="The_Chatter", resolver=resolver,
+        content,
+        edition_title="E1 Test Edition",
+        newsletter_type="The_Chatter",
+        resolver=resolver,
     )
 
 
 @pytest.fixture
 def resolver():
-    return EntityResolver([
-        "Hindalco Industries", "UltraTech Cement", "Grasim Industries",
-        "Aditya Birla Fashion", "Titan", "Damas", "Tata Elxsi",
-        "Triveni Engineering", "Tech Mahindra", "Mahindra CIE Automotive",
-        "Tata Motors", "Tata Elxsi International", "Microsoft",
-        "Great Eastern Shipping", "Great Eastern Energy", "Vedanta",
-    ])
+    return EntityResolver(
+        [
+            "Hindalco Industries",
+            "UltraTech Cement",
+            "Grasim Industries",
+            "Aditya Birla Fashion",
+            "Titan",
+            "Damas",
+            "Tata Elxsi",
+            "Triveni Engineering",
+            "Tech Mahindra",
+            "Mahindra CIE Automotive",
+            "Tata Motors",
+            "Tata Elxsi International",
+            "Microsoft",
+            "Great Eastern Shipping",
+            "Great Eastern Energy",
+            "Vedanta",
+        ]
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -88,8 +104,7 @@ class TestStakePatterns:
         by_type, unresolved = _run(resolver, content)
         assert unresolved == []
         edge = by_type["subsidiary_of"][0]
-        assert (edge.source, edge.target) == (
-            "Triveni Engineering", "Hindalco Industries")
+        assert (edge.source, edge.target) == ("Triveni Engineering", "Hindalco Industries")
         assert edge.properties["stake_pct"] == 74.0
         assert edge.symmetric is False
 
@@ -191,9 +206,12 @@ class TestGroupPatternsV2:
 # --------------------------------------------------------------------------- #
 class TestAmbiguityLog:
     def test_tied_fuzzy_candidates_logged(self):
-        r = EntityResolver([
-            "Great Eastern Shipping", "Great Eastern Energy",
-        ])
+        r = EntityResolver(
+            [
+                "Great Eastern Shipping",
+                "Great Eastern Energy",
+            ]
+        )
         best = r.resolve("great eastern")
         # Resolution still returns ONE of the tied candidates (which one
         # depends on candidate-set iteration order — deterministic within a
@@ -201,8 +219,7 @@ class TestAmbiguityLog:
         assert best in {"Great Eastern Shipping", "Great Eastern Energy"}
         # ...but the N-way tie itself is recorded for Tier-C reporting.
         assert r.ambiguous_log == [
-            ("great eastern",
-             ["Great Eastern Energy", "Great Eastern Shipping"]),
+            ("great eastern", ["Great Eastern Energy", "Great Eastern Shipping"]),
         ]
 
     def test_clear_winner_not_logged(self):
@@ -217,7 +234,8 @@ class TestAmbiguityLog:
 class TestDiffAudit:
     def test_diff_counts_rows(self):
         rows = diff_counts(
-            {"acquired": 19, "jv_with": 37}, {"acquired": 20, "jv_with": 37},
+            {"acquired": 19, "jv_with": 37},
+            {"acquired": 20, "jv_with": 37},
         )
         assert rows == [("acquired", 19, 20, 1), ("jv_with", 37, 37, 0)]
 
@@ -233,8 +251,7 @@ class TestDiffAudit:
 
     def test_load_counts_roundtrip(self, tmp_path):
         p = tmp_path / "counts.json"
-        p.write_text(json.dumps(
-            {"files": 3, "per_type": {"acquired": 5}, "total_edges": 5}))
+        p.write_text(json.dumps({"files": 3, "per_type": {"acquired": 5}, "total_edges": 5}))
         assert load_counts(p) == {"acquired": 5}
 
 
@@ -258,9 +275,9 @@ class TestSnapshotParity:
         by_type, unresolved = _run(resolver, content)
         types = set(by_type)
         # v1 families untouched...
-        assert "jv_with" in types          # "joint venture with Microsoft"
-        assert "competes_with" in types    # "Peers like Vedanta"
+        assert "jv_with" in types  # "joint venture with Microsoft"
+        assert "competes_with" in types  # "Peers like Vedanta"
         # ...v2 families co-present on the SAME corpus.
-        assert "acquired" in types         # stake pattern
+        assert "acquired" in types  # stake pattern
         assert by_type["acquired"][0].properties.get("stake_pct") == 26.0
         assert unresolved == []

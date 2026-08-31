@@ -21,6 +21,7 @@ Semantics (okf_readside N3):
 - dry-run default: ``--apply`` performs the write (note-content footprint
   rule: the operator stamps, never a background pass).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -73,14 +74,13 @@ def verify_note(path: Path, by: str, *, apply: bool = False) -> str:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Stamp a human verified[] entry onto note frontmatter "
-                    "(OKF §5.2/§5.3; the human-reviewed census tier).",
+        "(OKF §5.2/§5.3; the human-reviewed census tier).",
     )
-    p.add_argument("notes", nargs="+", type=Path,
-                   help="Note path(s) to verify.")
-    p.add_argument("--by", default="human:user",
-                   help="Human actor (must be human:<id>; default: human:user).")
-    p.add_argument("--apply", action="store_true",
-                   help="Write (default: dry-run report).")
+    p.add_argument("notes", nargs="+", type=Path, help="Note path(s) to verify.")
+    p.add_argument(
+        "--by", default="human:user", help="Human actor (must be human:<id>; default: human:user)."
+    )
+    p.add_argument("--apply", action="store_true", help="Write (default: dry-run report).")
     args = p.parse_args(argv)
     if not args.by.startswith("human:") or len(args.by) <= len("human:"):
         p.error("--by must be human:<id> (strictly human; adoption Q2)")
@@ -88,8 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     for note in args.notes:
         status = verify_note(note, args.by, apply=args.apply)
         print(status)
-        rc |= 1 if status.startswith(("missing", "no frontmatter",
-                                       "unparseable")) else 0
+        rc |= 1 if status.startswith(("missing", "no frontmatter", "unparseable")) else 0
     return rc
 
 

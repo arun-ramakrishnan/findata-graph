@@ -1,4 +1,5 @@
 """Unit tests for helpers/pdf/pdf_conv_md.py (no network calls)."""
+
 from __future__ import annotations
 import sys
 from pathlib import Path
@@ -158,15 +159,19 @@ class TestModdateToIsoDate:
 class TestBuildOkfFrontmatter:
     def test_block_shape_and_actor(self, tmp_path):
         pdf = tmp_path / "elsewhere.pdf"  # NOT under Reports/ -> no sources
-        fm = build_okf_frontmatter(_PAGES, pdf, "PP-StructureV3", "the_chatter",
-                                   now="2026-08-18T09:00:00Z")
+        fm = build_okf_frontmatter(
+            _PAGES, pdf, "PP-StructureV3", "the_chatter", now="2026-08-18T09:00:00Z"
+        )
         assert fm.startswith("---\n")
         import yaml
+
         data = yaml.safe_load(fm.split("\n---\n")[0][4:])
         assert data["type"] == "newsletter"
         assert data["title"] == "The Chatter: Bosch Edition"  # first heading
-        assert data["generated"] == {"by": "pdf_conv_md.py/PP-StructureV3",
-                                     "at": "2026-08-18T09:00:00Z"}
+        assert data["generated"] == {
+            "by": "pdf_conv_md.py/PP-StructureV3",
+            "at": "2026-08-18T09:00:00Z",
+        }
         assert "sources" not in data  # Q1 decision: only when PDF is in Reports/
 
     def test_sources_only_when_pdf_under_reports(self, tmp_path, monkeypatch):
@@ -182,44 +187,51 @@ class TestBuildOkfFrontmatter:
         # _pdf_metadata is looked up inside build_okf_frontmatter via the
         # module global, so patch the module attribute directly.
         import helpers.pdf.pdf_conv_md as PCM
-        monkeypatch.setattr(PCM, "_pdf_metadata",
-                            lambda p: {"Title": "The Chatter: Bosch",
-                                       "ModDate": "D:20260813120000+05'30'"})
+
+        monkeypatch.setattr(
+            PCM,
+            "_pdf_metadata",
+            lambda p: {"Title": "The Chatter: Bosch", "ModDate": "D:20260813120000+05'30'"},
+        )
         monkeypatch.setattr(PCM, "__file__", str(repo / "helpers/pdf/pdf_conv_md.py"))
-        fm = build_okf_frontmatter([], pdf, "PP-StructureV3", "bosch_amara_zydus",
-                                   now="2026-08-18T09:00:00Z")
+        fm = build_okf_frontmatter(
+            [], pdf, "PP-StructureV3", "bosch_amara_zydus", now="2026-08-18T09:00:00Z"
+        )
         import yaml
+
         data = yaml.safe_load(fm.split("\n---\n")[0][4:])
-        assert data["sources"] == [{
-            "id": "bosch_amara_zydus",
-            "resource": "/Reports/Bosch_Amara_Zydus.pdf",
-            "title": "The Chatter: Bosch",
-            "author": "process:pdf_conv_md",
-            "last_modified": "2026-08-13",
-        }]
+        assert data["sources"] == [
+            {
+                "id": "bosch_amara_zydus",
+                "resource": "/Reports/Bosch_Amara_Zydus.pdf",
+                "title": "The Chatter: Bosch",
+                "author": "process:pdf_conv_md",
+                "last_modified": "2026-08-13",
+            }
+        ]
 
     def test_title_falls_back_to_stem_without_headings(self, tmp_path):
         pdf = tmp_path / "x.pdf"
-        fm = build_okf_frontmatter([{"markdown": {"text": "no headings"}}],
-                                   pdf, "M", "my_edition")
+        fm = build_okf_frontmatter([{"markdown": {"text": "no headings"}}], pdf, "M", "my_edition")
         import yaml
+
         data = yaml.safe_load(fm.split("\n---\n")[0][4:])
         assert data["title"] == "my_edition"
 
     def test_tags_series_and_publisher_for_known_dir(self, tmp_path):
         pdf = tmp_path / "x.pdf"
-        fm = build_okf_frontmatter([], pdf, "M", "ed",
-                                   out_dir="/vault/findata/The_PlotLines")
+        fm = build_okf_frontmatter([], pdf, "M", "ed", out_dir="/vault/findata/The_PlotLines")
         import yaml
+
         data = yaml.safe_load(fm.split("\n---\n")[0][4:])
         assert data["tags"] == ["series/the_plotlines", "publisher/zerodha"]
 
     def test_tags_series_only_for_unknown_dir(self, tmp_path):
         # Accepted Q1: publisher omitted when the series is not in the map.
         pdf = tmp_path / "x.pdf"
-        fm = build_okf_frontmatter([], pdf, "M", "ed",
-                                   out_dir=tmp_path / "Future_Series")
+        fm = build_okf_frontmatter([], pdf, "M", "ed", out_dir=tmp_path / "Future_Series")
         import yaml
+
         data = yaml.safe_load(fm.split("\n---\n")[0][4:])
         assert data["tags"] == ["series/future_series"]
 
@@ -227,6 +239,7 @@ class TestBuildOkfFrontmatter:
         pdf = tmp_path / "x.pdf"
         fm = build_okf_frontmatter([], pdf, "M", "ed")
         import yaml
+
         data = yaml.safe_load(fm.split("\n---\n")[0][4:])
         assert "tags" not in data
 
@@ -242,8 +255,9 @@ class TestBuildOkfFrontmatter:
 class TestWriteOutputsFrontmatter:
     def test_frontmatter_prepended_to_md(self, tmp_path):
         pages = [{"markdown": {"text": "# Hello", "images": {}}}]
-        write_outputs(pages, tmp_path, "hello", fetch_images=False,
-                      frontmatter="---\ntype: newsletter\n---\n")
+        write_outputs(
+            pages, tmp_path, "hello", fetch_images=False, frontmatter="---\ntype: newsletter\n---\n"
+        )
         md = (tmp_path / "hello.md").read_text()
         assert md.startswith("---\ntype: newsletter\n---\n\n# Hello")
 

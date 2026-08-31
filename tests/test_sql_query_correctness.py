@@ -15,6 +15,7 @@ All fixes verified against live code 2026-08-13; these are regression guards
 that lock the fixes in (not red TDD drivers). F1/F2/wrapper-SQLite tests run in
 make qa; F3 + sector_members_with_market_cap are `live` (need the real research.db).
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -132,7 +133,8 @@ def _ref_co_mention(db, n):
         rows = con.execute(
             "SELECT source AS entity, COUNT(*) AS co_mentions "
             "FROM graph_edges WHERE edge_type='co_mentioned_in' "
-            "GROUP BY source ORDER BY co_mentions DESC LIMIT ?", (n,)
+            "GROUP BY source ORDER BY co_mentions DESC LIMIT ?",
+            (n,),
         ).fetchall()
     finally:
         con.close()
@@ -154,11 +156,14 @@ def test_co_mention_top_matches_reference(tmp_path):
 def _ref_cross_sector_bridges(db):
     con = _conn(db)
     try:
-        ents = {r["name"]: r["sector_classification"]
-                for r in con.execute("SELECT name, sector_classification FROM entities")}
+        ents = {
+            r["name"]: r["sector_classification"]
+            for r in con.execute("SELECT name, sector_classification FROM entities")
+        }
         edges = con.execute(
             "SELECT edge_type, source, target FROM graph_edges "
-            "WHERE edge_type IN ('jv_with','acquired')").fetchall()
+            "WHERE edge_type IN ('jv_with','acquired')"
+        ).fetchall()
     finally:
         con.close()
     counts = {}
@@ -167,8 +172,10 @@ def _ref_cross_sector_bridges(db):
         sb = ents.get(e["target"])
         if sa and sb and sa != sb:
             counts[(e["edge_type"], sa, sb)] = counts.get((e["edge_type"], sa, sb), 0) + 1
-    out = [{"edge_type": k[0], "sector_a": k[1], "sector_b": k[2], "count": v}
-           for k, v in counts.items()]
+    out = [
+        {"edge_type": k[0], "sector_a": k[1], "sector_b": k[2], "count": v}
+        for k, v in counts.items()
+    ]
     out.sort(key=lambda d: (-d["count"], d["edge_type"]))
     return out
 
@@ -229,7 +236,8 @@ def _ref_sector_members(db, sector):
             LEFT JOIN entity_tags t
               ON t.entity_name = e.name AND t.tag LIKE 'market_cap/%'
             GROUP BY e.name ORDER BY e.name
-            """, (sector,)
+            """,
+            (sector,),
         ).fetchall()
     finally:
         con.close()

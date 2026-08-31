@@ -34,6 +34,7 @@ from datetime import datetime, timedelta, UTC
 from pathlib import Path
 
 import yfinance as yf
+
 logging.getLogger("yfinance").setLevel(logging.CRITICAL)
 
 # --- project bootstrap -------------------------------------------------------
@@ -102,6 +103,7 @@ def _outside_auto_region(text: str, pos: int) -> int:
             return start
     return pos
 
+
 # yfinance fields that go to company_metrics (volatile, DB-only)
 _METRIC_FIELDS = {
     "market_capitalization": "marketCap",
@@ -144,6 +146,7 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 """
 
 # --- fetching ----------------------------------------------------------------
+
 
 def _format_value(raw: float, metric_label: str) -> str:
     """Format a numeric value for the value_raw column (human-readable)."""
@@ -206,7 +209,7 @@ def extract_metrics(name: str, info: dict) -> list[dict]:
             continue
         try:
             raw_float = float(raw)
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             continue
         # Convert USD revenue to INR for consistency
         if metric_label in ("total_revenue",) and fin_currency == "USD":
@@ -214,18 +217,20 @@ def extract_metrics(name: str, info: dict) -> list[dict]:
         unit, period = _METRIC_META[metric_label]
         value_num = _convert_value(raw_float, metric_label)
         value_raw = _format_value(raw_float, metric_label)
-        metrics.append({
-            "entity": name,
-            "metric_label": metric_label,
-            "value_raw": value_raw,
-            "value_num": value_num,
-            "unit": unit,
-            "period": period,
-            "as_of_edition": None,
-            "source_quote": None,
-            "source_ref": SOURCE_REF,
-            "properties": props,
-        })
+        metrics.append(
+            {
+                "entity": name,
+                "metric_label": metric_label,
+                "value_raw": value_raw,
+                "value_num": value_num,
+                "unit": unit,
+                "period": period,
+                "as_of_edition": None,
+                "source_quote": None,
+                "source_ref": SOURCE_REF,
+                "properties": props,
+            }
+        )
     return metrics
 
 
@@ -279,6 +284,7 @@ def render_profile_block(profile: dict) -> str:
 
 # --- note updates ------------------------------------------------------------
 
+
 def _update_frontmatter(text: str, industry: str) -> str:
     """Add or update the `industry:` field in YAML frontmatter."""
     lines = text.split("\n")
@@ -325,7 +331,7 @@ def _insert_profile_section(text: str, block: str) -> str:
     for heading_re in (r"^## Company Overview", r"^## Overview", r"^## "):
         m = re.search(heading_re, text, re.MULTILINE)
         if m:
-            nxt = re.search(r"^## ", text[m.end():], re.MULTILINE)
+            nxt = re.search(r"^## ", text[m.end() :], re.MULTILINE)
             pos = m.end() + (nxt.start() if nxt else 0)
             # Don't insert inside a sibling auto-block region (e.g. the
             # derive_insights key-figures block): place before its BEGIN marker.
@@ -361,6 +367,7 @@ def update_note(file_path: Path, industry: str | None, profile: dict | None) -> 
 
 # --- DB writes ---------------------------------------------------------------
 
+
 def write_metrics(conn: sqlite3.Connection, metrics: list[dict]) -> int:
     """Delete old yfinance metrics for affected entities, then insert new ones."""
     if not metrics:
@@ -377,9 +384,18 @@ def write_metrics(conn: sqlite3.Connection, metrics: list[dict]) -> int:
     for m in metrics:
         cur = conn.execute(
             _INSERT_METRIC_SQL,
-            (m["entity"], m["metric_label"], m["value_raw"], m["value_num"],
-             m["unit"], m["period"], m["as_of_edition"], m["source_quote"],
-             m["source_ref"], m["properties"]),
+            (
+                m["entity"],
+                m["metric_label"],
+                m["value_raw"],
+                m["value_num"],
+                m["unit"],
+                m["period"],
+                m["as_of_edition"],
+                m["source_quote"],
+                m["source_ref"],
+                m["properties"],
+            ),
         )
         inserted += cur.rowcount
     return inserted
@@ -394,16 +410,16 @@ def write_metrics(conn: sqlite3.Connection, metrics: list[dict]) -> int:
 
 # --- skip logic --------------------------------------------------------------
 
-def get_stale_companies(conn: sqlite3.Connection,
-                        all_names: list[str],
-                        max_age_days: int) -> set[str]:
+
+def get_stale_companies(
+    conn: sqlite3.Connection, all_names: list[str], max_age_days: int
+) -> set[str]:
     """Return names of companies that have yfinance data newer than max_age_days."""
     if max_age_days <= 0:
         return set()
     cutoff = (datetime.now(UTC) - timedelta(days=max_age_days)).isoformat()
     rows = conn.execute(
-        "SELECT DISTINCT entity FROM company_metrics "
-        "WHERE source_ref = ? AND created_at >= ?",
+        "SELECT DISTINCT entity FROM company_metrics WHERE source_ref = ? AND created_at >= ?",
         (SOURCE_REF, cutoff),
     ).fetchall()
     return {r[0] for r in rows}
@@ -429,7 +445,6 @@ def get_enriched_companies(file_paths: list[tuple[str, str | None]]) -> set[str]
             if fm_end > 0 and "\nindustry:" in text[:fm_end]:
                 enriched.add(name)
     return enriched
-
 
 
 # --- report -------------------------------------------------------------------
@@ -472,6 +487,7 @@ def write_report(
     # Success details — industry distribution
     if results:
         from collections import Counter
+
         industries = Counter()
         for _, _, _, info in results:
             ind = info.get("industry", "(unknown)")
@@ -501,18 +517,24 @@ def write_report(
 
 # --- main --------------------------------------------------------------------
 
+
 def main(argv: list[str] | None = None) -> int:  # noqa: C901
-    parser = argparse.ArgumentParser(
-        description="Enrich company data from yfinance."
+    parser = argparse.ArgumentParser(description="Enrich company data from yfinance.")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Fetch and display without writing to DB or notes"
     )
-    parser.add_argument("--dry-run", action="store_true",
-                        help="Fetch and display without writing to DB or notes")
-    parser.add_argument("--workers", type=int, default=2,
-                        help="ThreadPool parallelism (default: 8)")
-    parser.add_argument("--company", type=str, default=None,
-                        help="Enrich only one company (by name or ticker)")
-    parser.add_argument("--max-age-days", type=int, default=0,
-                        help="Skip companies refreshed within N days (default: 0 = all)")
+    parser.add_argument(
+        "--workers", type=int, default=2, help="ThreadPool parallelism (default: 8)"
+    )
+    parser.add_argument(
+        "--company", type=str, default=None, help="Enrich only one company (by name or ticker)"
+    )
+    parser.add_argument(
+        "--max-age-days",
+        type=int,
+        default=0,
+        help="Skip companies refreshed within N days (default: 0 = all)",
+    )
     args = parser.parse_args(argv)
 
     conn = connect(DB_PATH)
@@ -532,7 +554,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         # name still matches. This mirrors get_tickers.py's resolution, which
         # matches the yfinance longName — not the stored ticker string.
         if not rows:
-            base = re.sub(r'\.[A-Za-z]{1,3}$', '', args.company.strip())
+            base = re.sub(r"\.[A-Za-z]{1,3}$", "", args.company.strip())
             if base != args.company:
                 base_like = f"%{base}%"
                 rows = conn.execute(
@@ -568,12 +590,21 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     skip_set = fresh | industry_enriched
     notes_skipped = len(skip_set)
     if skip_set:
-        log.info("skipping %d companies (%d fresh metrics, %d already enriched)",
-                 notes_skipped, len(fresh), len(industry_enriched))
+        log.info(
+            "skipping %d companies (%d fresh metrics, %d already enriched)",
+            notes_skipped,
+            len(fresh),
+            len(industry_enriched),
+        )
 
     todo = [(r[0], r[1], r[2]) for r in rows if r[0] not in skip_set]
-    log.info("enriching %d/%d companies (workers=%d, dry_run=%s)",
-             len(todo), len(rows), args.workers, args.dry_run)
+    log.info(
+        "enriching %d/%d companies (workers=%d, dry_run=%s)",
+        len(todo),
+        len(rows),
+        args.workers,
+        args.dry_run,
+    )
 
     # Fetch in parallel
     results: list[tuple[str, str, str, dict]] = []  # (name, ticker, file_path, info)
@@ -599,22 +630,27 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                 log.info("  fetched %d/%d...", completed, len(todo))
 
     fetch_time = time.perf_counter() - t0
-    log.info("fetched %d/%d companies in %.1fs (%d failed)",
-             len(results), len(todo), fetch_time, len(failures))
+    log.info(
+        "fetched %d/%d companies in %.1fs (%d failed)",
+        len(results),
+        len(todo),
+        fetch_time,
+        len(failures),
+    )
 
     if failures:
-        log.info("failed tickers (%d): %s",
-                 len(failures),
-                 ", ".join(f"{n}({t})" for n, t, _ in failures))
+        log.info(
+            "failed tickers (%d): %s", len(failures), ", ".join(f"{n}({t})" for n, t, _ in failures)
+        )
 
     if args.dry_run:
         # Display sample results
         for name, ticker, _, info in results[:5]:
             metrics = extract_metrics(name, info)
             profile = extract_profile(name, info)
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print(f"  {name} ({ticker})")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
             if profile:
                 print(f"  Industry: {profile['industry']}")
                 print(f"  Employees: {profile.get('employees')}")
@@ -659,9 +695,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
         # Write metrics
         metrics_written = write_metrics(conn, all_metrics)
-        log.info("wrote %d metric rows for %d companies",
-                 metrics_written, len({m["entity"] for m in all_metrics}))
-
+        log.info(
+            "wrote %d metric rows for %d companies",
+            metrics_written,
+            len({m["entity"] for m in all_metrics}),
+        )
 
     log.info("updated %d company notes", notes_updated)
 
@@ -669,10 +707,24 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
     total_time = time.perf_counter() - t0
     # E2: edges_written is gone — competes_with moved to enrich_relations.py.
-    log.info("✓ enrichment complete in %.1fs (%d fetched, %d metrics, %d notes, %d skipped)",
-             total_time, len(results), metrics_written, notes_updated, notes_skipped)
-    write_report(results, failures, metrics_written, 0, notes_updated,
-                 notes_skipped, total_time, dry_run=False)
+    log.info(
+        "✓ enrichment complete in %.1fs (%d fetched, %d metrics, %d notes, %d skipped)",
+        total_time,
+        len(results),
+        metrics_written,
+        notes_updated,
+        notes_skipped,
+    )
+    write_report(
+        results,
+        failures,
+        metrics_written,
+        0,
+        notes_updated,
+        notes_skipped,
+        total_time,
+        dry_run=False,
+    )
     return 0
 
 

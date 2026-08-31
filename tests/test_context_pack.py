@@ -59,31 +59,45 @@ def con(tmp_path: Path):
         ("e_belongs_to", 1, 7, 1.0, None),
         ("e_exposed_to", 1, 8, 0.3, None),
     ]
-    for tbl in ("e_subsidiary", "e_acquired", "e_jv", "e_supplier", "e_customer",
-                "e_group", "e_competes", "e_belongs_to", "e_exposed_to",
-                "e_cited_in", "e_comention"):
-        cols = {"e_subsidiary": ("subsidiary_name", "parent_name"),
-                "e_acquired": ("acquirer_name", "target_name"),
-                "e_jv": ("a_name", "b_name"),
-                "e_supplier": ("supplier_name", "customer_name"),
-                "e_customer": ("customer_name", "supplier_name"),
-                "e_group": ("a_name", "b_name"),
-                "e_competes": ("a_name", "b_name"),
-                "e_belongs_to": ("child_id", "parent_id"),
-                "e_exposed_to": ("company_id", "theme_id"),
-                "e_cited_in": ("company_id", "edition_id"),
-                "e_comention": ("a_name", "b_name")}[tbl]
+    for tbl in (
+        "e_subsidiary",
+        "e_acquired",
+        "e_jv",
+        "e_supplier",
+        "e_customer",
+        "e_group",
+        "e_competes",
+        "e_belongs_to",
+        "e_exposed_to",
+        "e_cited_in",
+        "e_comention",
+    ):
+        cols = {
+            "e_subsidiary": ("subsidiary_name", "parent_name"),
+            "e_acquired": ("acquirer_name", "target_name"),
+            "e_jv": ("a_name", "b_name"),
+            "e_supplier": ("supplier_name", "customer_name"),
+            "e_customer": ("customer_name", "supplier_name"),
+            "e_group": ("a_name", "b_name"),
+            "e_competes": ("a_name", "b_name"),
+            "e_belongs_to": ("child_id", "parent_id"),
+            "e_exposed_to": ("company_id", "theme_id"),
+            "e_cited_in": ("company_id", "edition_id"),
+            "e_comention": ("a_name", "b_name"),
+        }[tbl]
         c.execute(
             f"CREATE TABLE {tbl}({cols[0]} BIGINT, {cols[1]} BIGINT, weight DOUBLE,"
             " properties VARCHAR, source_ref VARCHAR, valid_from DATE, valid_to DATE"
-            + (", year VARCHAR" if tbl == "e_acquired" else "") + ")"
+            + (", year VARCHAR" if tbl == "e_acquired" else "")
+            + ")"
         )
         for _t, s, o, w, src in edges:
             if _t == tbl:
                 year = "2023" if tbl == "e_acquired" else None
                 c.execute(
                     f"INSERT INTO {tbl} VALUES (?, ?, ?, NULL, ?, NULL, NULL"  # noqa: S608  # fixture-local table constant
-                    + (", ?" if tbl == "e_acquired" else "") + ")",
+                    + (", ?" if tbl == "e_acquired" else "")
+                    + ")",
                     [s, o, w, src] + ([year] if tbl == "e_acquired" else []),
                 )
     # extra comention + a far comention NOT touching Acme (must not appear)
@@ -97,8 +111,12 @@ class TestBuildContextPack:
     def test_profile_section(self, con):
         pack = CP.build_context_pack(con, "Acme")
         assert "# Context pack — Acme" in pack
-        for bit in ("kind: company", "sector: Aerospace",
-                    "market_cap: large_cap", "ticker: ACME.NS"):
+        for bit in (
+            "kind: company",
+            "sector: Aerospace",
+            "market_cap: large_cap",
+            "ticker: ACME.NS",
+        ):
             assert bit in pack
 
     def test_name_resolution_case_insensitive_and_ticker(self, con):
@@ -134,8 +152,7 @@ class TestBuildContextPack:
         # display fact ranked LAST (trims with the firehose), and hop
         # expansion never runs through editions — Far Co citing the same
         # edition must NOT enter Acme's pack via the edition.
-        con.execute(
-            "INSERT INTO v_node VALUES (10, 'Edition_Q1', 'edition', NULL, NULL, NULL)")
+        con.execute("INSERT INTO v_node VALUES (10, 'Edition_Q1', 'edition', NULL, NULL, NULL)")
         con.execute("INSERT INTO e_cited_in VALUES (1, 10, 1.0, NULL, 'okf', NULL, NULL)")
         con.execute("INSERT INTO e_cited_in VALUES (9, 10, 1.0, NULL, 'okf', NULL, NULL)")
         pack = CP.build_context_pack(con, "Acme", budget=50)

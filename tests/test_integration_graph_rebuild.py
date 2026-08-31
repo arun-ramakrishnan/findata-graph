@@ -9,6 +9,7 @@ workflow:
 
 See doc/improvements/archive/testing/integration_plan.txt § Nice-to-have 6.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -75,14 +76,12 @@ def _seed_sqlite(conn, companies, sectors, edges):
     """Populate the SQLite DB with entities + edges."""
     for name, etype, sector in companies + sectors:
         conn.execute(
-            "INSERT INTO entities(name, entity_type, sector_classification) "
-            "VALUES (?,?,?)",
+            "INSERT INTO entities(name, entity_type, sector_classification) VALUES (?,?,?)",
             (name, etype, sector),
         )
     for source, target, etype in edges:
         conn.execute(
-            "INSERT INTO graph_edges(source, target, edge_type, source_ref) "
-            "VALUES (?,?,?,'seed')",
+            "INSERT INTO graph_edges(source, target, edge_type, source_ref) VALUES (?,?,?,'seed')",
             (source, target, etype),
         )
     conn.commit()
@@ -130,6 +129,7 @@ def p9_db(tmp_path):
 def _get_duckdb_conn(db_path):
     """Open a DuckDB connection with rebuilt property graph."""
     from helpers.graph.query import connect
+
     return connect(db_path=db_path, fresh=True)
 
 
@@ -151,6 +151,7 @@ def _count_sectors(con):
 def _sector_members(con, sector_name):
     """Get companies in a sector via GRAPH_TABLE query."""
     from helpers.graph.query import sector_members
+
     return sector_members(con, sector_name)
 
 
@@ -215,9 +216,7 @@ class TestInitialRebuild:
         con = _get_duckdb_conn(db_path)
         try:
             # Count total edges across all edge tables
-            duckdb_edges = con.execute(
-                "SELECT COUNT(*) FROM fin.graph_edges"
-            ).fetchone()[0]
+            duckdb_edges = con.execute("SELECT COUNT(*) FROM fin.graph_edges").fetchone()[0]
             assert duckdb_edges == sqlite_edges
         finally:
             con.close()
@@ -273,9 +272,7 @@ class TestAddEntityRebuild:
         con.close()
 
         # Add a new sector + company
-        conn.execute(
-            "INSERT INTO entities(name, entity_type) VALUES ('Pharma', 'sector')"
-        )
+        conn.execute("INSERT INTO entities(name, entity_type) VALUES ('Pharma', 'sector')")
         conn.execute(
             "INSERT INTO entities(name, entity_type, sector_classification) "
             "VALUES ('Sun Pharma', 'company', 'Pharma')"

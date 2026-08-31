@@ -4,6 +4,7 @@ original test_extract_relations.py for navigability.
 
 DB persistence (apply_edges), sidecar writing, CLI path expansion.
 """
+
 from __future__ import annotations
 
 import json
@@ -25,6 +26,7 @@ class TestApplyEdges:
     def test_apply_edges_dry_run_counts_inserts(self, tmp_path, monkeypatch):
         # Build an in-memory DB with the graph_edges schema.
         import sqlite3
+
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
         conn.execute("""
@@ -44,11 +46,23 @@ class TestApplyEdges:
             )
         """)
         edges = [
-            Edge(source="A", target="B", edge_type="jv_with",
-                 properties={"edition": "T"}, source_ref="t", symmetric=True),
+            Edge(
+                source="A",
+                target="B",
+                edge_type="jv_with",
+                properties={"edition": "T"},
+                source_ref="t",
+                symmetric=True,
+            ),
             # Different edge type — should also count.
-            Edge(source="A", target="B", edge_type="subsidiary_of",
-                 properties={"edition": "T"}, source_ref="t", symmetric=False),
+            Edge(
+                source="A",
+                target="B",
+                edge_type="subsidiary_of",
+                properties={"edition": "T"},
+                source_ref="t",
+                symmetric=False,
+            ),
         ]
         # Dry-run: both would be inserted (different edge types).
         result = apply_edges(edges, conn=conn, dry_run=True)
@@ -71,6 +85,7 @@ class TestApplyEdges:
         entity Y. Without suppression, re-runs would re-add the wrong edge.
         """
         import sqlite3
+
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
         conn.execute("""
@@ -94,11 +109,23 @@ class TestApplyEdges:
         src, tgt, et = next(iter(_SUPPRESSED_EDGES))
         edges = [
             # Suppressed edge — should NOT be written.
-            Edge(source=src, target=tgt, edge_type=et,
-                 properties={"edition": "T"}, source_ref="t", symmetric=False),
+            Edge(
+                source=src,
+                target=tgt,
+                edge_type=et,
+                properties={"edition": "T"},
+                source_ref="t",
+                symmetric=False,
+            ),
             # Normal edge — should be written.
-            Edge(source="A", target="B", edge_type="jv_with",
-                 properties={"edition": "T"}, source_ref="t", symmetric=True),
+            Edge(
+                source="A",
+                target="B",
+                edge_type="jv_with",
+                properties={"edition": "T"},
+                source_ref="t",
+                symmetric=True,
+            ),
         ]
         result = apply_edges(edges, conn=conn, dry_run=False)
         assert result.inserted == 1  # only the jv_with edge
@@ -116,6 +143,7 @@ class TestApplyEdges:
         """competes_with edges persist with symmetric=1 and are idempotent
         under re-apply via UNIQUE(source, target, edge_type)."""
         import sqlite3
+
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
         conn.execute("""
@@ -136,10 +164,14 @@ class TestApplyEdges:
         """)
         # Canonical alphabetical ordering for symmetric edges.
         edges = [
-            Edge(source="Ashok Leyland", target="Tata Motors",
-                 edge_type="competes_with",
-                 properties={"edition": "T", "quote": "...", "newsletter": "X"},
-                 source_ref="derive:relations:The_Chatter", symmetric=True),
+            Edge(
+                source="Ashok Leyland",
+                target="Tata Motors",
+                edge_type="competes_with",
+                properties={"edition": "T", "quote": "...", "newsletter": "X"},
+                source_ref="derive:relations:The_Chatter",
+                symmetric=True,
+            ),
         ]
         assert apply_edges(edges, conn=conn, dry_run=True).inserted == 1
         assert apply_edges(edges, conn=conn, dry_run=False).inserted == 1
@@ -167,6 +199,7 @@ class TestApplyEdges:
         NOT FK violations (those still raise and hit the except path).
         """
         import sqlite3
+
         conn = sqlite3.connect(":memory:")
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON")
@@ -188,16 +221,27 @@ class TestApplyEdges:
             )
         """)
         # Only GoodCo/OtherCo exist as entities; MissingCo does not.
-        conn.executemany("INSERT INTO entities(name) VALUES (?)",
-                         [("GoodCo",), ("OtherCo",)])
+        conn.executemany("INSERT INTO entities(name) VALUES (?)", [("GoodCo",), ("OtherCo",)])
         edges = [
             # Bad: source "MissingCo" is not in entities → FK violation →
             # caught by apply_edges' except path → skipped_fk += 1.
-            Edge(source="MissingCo", target="OtherCo", edge_type="jv_with",
-                 properties={"edition": "T"}, source_ref="t", symmetric=True),
+            Edge(
+                source="MissingCo",
+                target="OtherCo",
+                edge_type="jv_with",
+                properties={"edition": "T"},
+                source_ref="t",
+                symmetric=True,
+            ),
             # Good: both endpoints exist → inserts normally.
-            Edge(source="GoodCo", target="OtherCo", edge_type="jv_with",
-                 properties={"edition": "T"}, source_ref="t", symmetric=True),
+            Edge(
+                source="GoodCo",
+                target="OtherCo",
+                edge_type="jv_with",
+                properties={"edition": "T"},
+                source_ref="t",
+                symmetric=True,
+            ),
         ]
         result = apply_edges(edges, conn=conn, dry_run=False)
         # The result is a NamedTuple — the three counters are now visible to
@@ -216,16 +260,20 @@ class TestApplyEdges:
 class TestSidecar:
     def test_write_sidecar_appends_jsonl(self, tmp_path, monkeypatch):
         sidecar = tmp_path / "pending.jsonl"
-        monkeypatch.setattr(
-            "helpers.graph.extract_relations.SIDECAR_PATH", sidecar
-        )
+        monkeypatch.setattr("helpers.graph.extract_relations.SIDECAR_PATH", sidecar)
         u1 = Unresolved(
-            edge_type="acquired", source="A", target_mention="X",
-            quote="...", edition="E1",
+            edge_type="acquired",
+            source="A",
+            target_mention="X",
+            quote="...",
+            edition="E1",
         )
         u2 = Unresolved(
-            edge_type="jv_with", source="B", target_mention="Y",
-            quote="...", edition="E2",
+            edge_type="jv_with",
+            source="B",
+            target_mention="Y",
+            quote="...",
+            edition="E2",
         )
         n = write_sidecar([u1, u2], path=sidecar)
         assert n == 2
@@ -343,4 +391,3 @@ class TestExpandPaths:
         out = _expand_paths([str(nl_dir)], project_root=tmp_path)
         names = [p.name for p in out]
         assert names == ["A.md", "B.md", "C.md"]
-

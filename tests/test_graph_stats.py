@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests for helpers/graph/stats.py."""
+
 from __future__ import annotations
 
 import contextlib
@@ -78,8 +79,7 @@ def test_print_stats_lists_analytics_metrics(stats_render):
     _, out = stats_render
     # graph_analytics was populated by the algorithms dispatcher; should list
     # at least these four metrics.
-    for metric in ["pagerank", "degree_centrality",
-                   "betweenness_centrality", "louvain_community"]:
+    for metric in ["pagerank", "degree_centrality", "betweenness_centrality", "louvain_community"]:
         assert metric in out
 
 

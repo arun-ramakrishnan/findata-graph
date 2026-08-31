@@ -105,11 +105,13 @@ site):
 # The bridge's auto-conversion chokes on typed columns; the only
 # production SET today lives (conditionally) inside
 # _materialise_embeddings (query.py:778) — issue it here too, idempotent.
-con.execute('SET sqlite_all_varchar=true')
-con.execute("CREATE TABLE v_note_embeddings AS "
-            "SELECT file_path, doc_type, title, "
-            "CAST(embedding AS FLOAT[%d]) AS emb FROM fin.note_search "
-            "WHERE embedding IS NOT NULL AND embedding != ''" % dims)
+con.execute("SET sqlite_all_varchar=true")
+con.execute(
+    "CREATE TABLE v_note_embeddings AS "
+    "SELECT file_path, doc_type, title, "
+    "CAST(embedding AS FLOAT[%d]) AS emb FROM fin.note_search "
+    "WHERE embedding IS NOT NULL AND embedding != ''" % dims
+)
 ```
 
 - **Drop-list:** add `v_note_embeddings` to the `_build_graph` DROP loop

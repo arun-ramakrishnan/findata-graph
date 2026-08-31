@@ -10,6 +10,7 @@ not the live DB itself, so they're safe to run in CI without mutating
 production data. They're NOT marked ``live`` because they don't hit
 memory/research.db directly — they copy it and rebuild the copy.
 """
+
 import sqlite3
 from pathlib import Path
 
@@ -35,9 +36,7 @@ def tmp_db(tmp_path) -> Path:
 
 
 def _ddl_for(con, table):
-    return con.execute(
-        "SELECT sql FROM sqlite_master WHERE name=?", (table,)
-    ).fetchone()[0]
+    return con.execute("SELECT sql FROM sqlite_master WHERE name=?", (table,)).fetchone()[0]
 
 
 class TestRebuildDataPreservation:
@@ -59,8 +58,8 @@ class TestRebuildDataPreservation:
         ``> 0`` guard rejects the one false-pass the equality allows on its
         own (an empty rebuild: ``0 == 0``)."""
         s = rebuild(tmp_db, dry_run=False)
-        assert s["pre_entities"] == s["post_entities"]   # zero entity rows lost
-        assert s["pre_edges"] == s["post_edges"]         # zero edge rows lost
+        assert s["pre_entities"] == s["post_entities"]  # zero entity rows lost
+        assert s["pre_edges"] == s["post_edges"]  # zero edge rows lost
         assert s["pre_analytics"] == s["post_analytics"]  # zero analytics rows lost
         assert s["pre_entities"] > 0 and s["pre_edges"] > 0 and s["pre_analytics"] > 0
 
@@ -170,6 +169,7 @@ class TestRebuildP2EntitiesCheck:
         Uses a fresh DB with the canonical DDL (not the rebuilt live copy,
         which already contains Private_Sector and would hit the UNIQUE PK)."""
         from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL
+
         db = tmp_path / "fresh.db"
         con = sqlite3.connect(str(db))
         con.executescript(ENTITIES_DDL)
@@ -221,12 +221,8 @@ class TestRebuildP3PkReversal:
                 "graph_analytics WHERE metric = 'pagerank' ORDER BY entity_name"
             ).fetchall()
             detail = plan[-1][-1]  # the detail column of the leaf node
-            assert "SEARCH" in detail, (
-                f"expected SEARCH after P3 PK reversal, got: {detail}"
-            )
-            assert "metric=?" in detail, (
-                f"expected metric=? prefix scan, got: {detail}"
-            )
+            assert "SEARCH" in detail, f"expected SEARCH after P3 PK reversal, got: {detail}"
+            assert "metric=?" in detail, f"expected metric=? prefix scan, got: {detail}"
         finally:
             con.close()
 
@@ -240,7 +236,8 @@ class TestRebuildIndexes:
         con = sqlite3.connect(str(tmp_db))
         try:
             indexes = {
-                r[0] for r in con.execute(
+                r[0]
+                for r in con.execute(
                     "SELECT name FROM sqlite_master WHERE type='index' "
                     "AND sql IS NOT NULL ORDER BY name"
                 ).fetchall()
@@ -254,9 +251,7 @@ class TestRebuildIndexes:
                 "ge_target_idx",
                 "ge_valid_idx",
             }
-            assert expected <= indexes, (
-                f"missing indexes post-rebuild: {expected - indexes}"
-            )
+            assert expected <= indexes, f"missing indexes post-rebuild: {expected - indexes}"
         finally:
             con.close()
 
@@ -284,8 +279,9 @@ class TestRebuildGenerationTriggers:
         assert stats["generation_triggers"] == 6
         con = sqlite3.connect(str(tmp_db))
         try:
-            names = {r[0] for r in con.execute(
-                "SELECT name FROM sqlite_master WHERE type='trigger'")}
+            names = {
+                r[0] for r in con.execute("SELECT name FROM sqlite_master WHERE type='trigger'")
+            }
             for tbl in ("entities", "graph_edges"):
                 for op in ("insert", "delete", "update"):
                     assert f"trg_{tbl}_{op}_gen" in names
@@ -298,18 +294,15 @@ class TestRebuildGenerationTriggers:
         rebuild(tmp_db, dry_run=False)
         con = sqlite3.connect(str(tmp_db))
         try:
-            gen_before = int(con.execute(
-                "SELECT value FROM db_meta WHERE key='generation'"
-            ).fetchone()[0])
-            name = con.execute(
-                "SELECT name FROM entities LIMIT 1").fetchone()[0]
-            con.execute(
-                "UPDATE entities SET last_updated = last_updated "
-                "WHERE name = ?", (name,))
+            gen_before = int(
+                con.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()[0]
+            )
+            name = con.execute("SELECT name FROM entities LIMIT 1").fetchone()[0]
+            con.execute("UPDATE entities SET last_updated = last_updated WHERE name = ?", (name,))
             con.commit()
-            gen_after = int(con.execute(
-                "SELECT value FROM db_meta WHERE key='generation'"
-            ).fetchone()[0])
+            gen_after = int(
+                con.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()[0]
+            )
         finally:
             con.close()
         assert gen_after == gen_before + 1
@@ -325,6 +318,7 @@ class TestRebuildAtomicity:
         pre.close()
 
         import helpers.maintenance.rebuild_schema as rs
+
         orig = rs._rebuild_table
         calls = {"n": 0}
 
@@ -382,5 +376,6 @@ def test_ddl_only_replaces_first_occurrence():
 def test_rebuild_raises_on_missing_db(tmp_path):
     """rebuild() raises FileNotFoundError when DB doesn't exist."""
     import pytest
+
     with pytest.raises(FileNotFoundError, match="Database not found"):
         rs.rebuild(str(tmp_path / "nonexistent.db"))

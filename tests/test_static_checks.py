@@ -4,6 +4,7 @@ Tier 1 tests for the static_checks validator itself.
 Each test seeds a minimal fake findata/ + DB layout under tmp_path and proves
 the check under test flags the intended defect and passes when clean.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -113,9 +114,7 @@ def test_orphan_markdown_passes_when_all_files_known(tmp_path, monkeypatch):
     conn.close()
 
     (tmp_path / "findata" / "Companies" / "Tech").mkdir(parents=True)
-    (tmp_path / "findata" / "Companies" / "Tech" / "Acme.md").write_text(
-        "# Acme", encoding="utf-8"
-    )
+    (tmp_path / "findata" / "Companies" / "Tech" / "Acme.md").write_text("# Acme", encoding="utf-8")
 
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
     assert sc.check_orphan_markdown_files() == []
@@ -129,9 +128,7 @@ def test_permalink_mismatch_is_fatal(tmp_path, monkeypatch):
     companies = tmp_path / "findata" / "Companies" / "Tech"
     companies.mkdir(parents=True)
     (companies / "Acme.md").write_text(
-        "---\n"
-        "title: Acme\npermalink: companies/wrong/acme\n"
-        "---\n# Acme\n",
+        "---\ntitle: Acme\npermalink: companies/wrong/acme\n---\n# Acme\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
@@ -146,9 +143,7 @@ def test_permalink_match_passes(tmp_path, monkeypatch):
     companies = tmp_path / "findata" / "Companies" / "Tech"
     companies.mkdir(parents=True)
     (companies / "Acme.md").write_text(
-        "---\n"
-        "title: Acme\npermalink: companies/tech/acme\n"
-        "---\n# Acme\n",
+        "---\ntitle: Acme\npermalink: companies/tech/acme\n---\n# Acme\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
@@ -164,9 +159,7 @@ def test_date_sanity_flags_modified_before_created(tmp_path, monkeypatch):
     findata = tmp_path / "findata"
     findata.mkdir()
     (findata / "X.md").write_text(
-        "---\n"
-        "title: X\ncreated: '2026-07-10'\nlast_modified: '2026-07-01'\n"
-        "---\n# X\n",
+        "---\ntitle: X\ncreated: '2026-07-10'\nlast_modified: '2026-07-01'\n---\n# X\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
@@ -179,9 +172,7 @@ def test_date_sanity_passes_when_modified_after_created(tmp_path, monkeypatch):
     findata = tmp_path / "findata"
     findata.mkdir()
     (findata / "X.md").write_text(
-        "---\n"
-        "title: X\ncreated: '2026-07-01'\nlast_modified: '2026-07-10'\n"
-        "---\n# X\n",
+        "---\ntitle: X\ncreated: '2026-07-01'\nlast_modified: '2026-07-10'\n---\n# X\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
@@ -294,9 +285,17 @@ def test_no_sqlite3_connect_outside_allowlist():
 
     # grep -rn for sqlite3.connect( across helpers/ + app.py, excluding venv.
     result = subprocess.run(
-        ["grep", "-rn", "--include=*.py", r"sqlite3\.connect(",  # noqa: S607  # PATH-resolved interpreter/binary (python3/node/grep) by design
-         "helpers/", "app.py"],
-        capture_output=True, text=True, cwd=str(REPO_ROOT),
+        [  # noqa: S607  # PATH-resolved interpreter/binary (python3/node/grep) by design
+            "grep",
+            "-rn",
+            "--include=*.py",
+            r"sqlite3\.connect(",
+            "helpers/",
+            "app.py",
+        ],
+        capture_output=True,
+        text=True,
+        cwd=str(REPO_ROOT),
     )
     # grep returns 1 for "no matches", which is the success case for new code.
     hits = [line for line in result.stdout.strip().splitlines() if line]
@@ -312,8 +311,7 @@ def test_no_sqlite3_connect_outside_allowlist():
         "sqlite3.connect() found outside the allowlist. These callers bypass "
         "helpers.core.db.connect() and silently skip FK enforcement + WAL. "
         "Route through connect() or, if you have a documented reason, add the "
-        "path to _SQLITE3_CONNECT_ALLOWLIST.\n\nViolations:\n  "
-        + "\n  ".join(violations)
+        "path to _SQLITE3_CONNECT_ALLOWLIST.\n\nViolations:\n  " + "\n  ".join(violations)
     )
 
 
@@ -349,8 +347,7 @@ def test_entities_name_nocase_index_constant_is_valid_ddl(tmp_path):
 
     # And the resolver query plan uses it as a SEARCH, not a SCAN.
     plan = conn.execute(
-        "EXPLAIN QUERY PLAN "
-        "SELECT name FROM entities WHERE name = ? COLLATE NOCASE",
+        "EXPLAIN QUERY PLAN SELECT name FROM entities WHERE name = ? COLLATE NOCASE",
         ("ceat",),
     ).fetchall()
     plan_str = " ".join(row[-1] for row in plan)
@@ -411,8 +408,7 @@ def test_helper_entry_points_set_sys_path_before_helpers_import():
         "up sys.path — they crash with ModuleNotFoundError when run as a "
         "subprocess (make targets, maint.py, perf tests). Add a "
         "`sys.path.insert(0, str(PROJECT_ROOT))` bootstrap before the first "
-        "`from helpers.* import`.\n\nViolations:\n  "
-        + "\n  ".join(violations)
+        "`from helpers.* import`.\n\nViolations:\n  " + "\n  ".join(violations)
     )
 
 
@@ -435,8 +431,13 @@ def test_entities_ddl_constant_creates_table_with_all_columns():
     conn.execute(ENTITIES_DDL)
     cols = [r[1] for r in conn.execute("PRAGMA table_info(entities)").fetchall()]
     expected = [
-        "name", "entity_type", "created_at",
-        "file_path", "last_updated", "normalized_name", "sector_classification",
+        "name",
+        "entity_type",
+        "created_at",
+        "file_path",
+        "last_updated",
+        "normalized_name",
+        "sector_classification",
         "ticker",
     ]
     assert cols == expected, f"columns mismatch: {cols}"
@@ -575,12 +576,8 @@ def test_graph_edges_rejects_malformed_properties():
     conn = sqlite3.connect(":memory:")
     conn.execute(ENTITIES_DDL)
     conn.execute(GRAPH_EDGES_DDL)
-    conn.execute(
-        "INSERT INTO entities (name, entity_type) VALUES (?, ?)", ("A", "company")
-    )
-    conn.execute(
-        "INSERT INTO entities (name, entity_type) VALUES (?, ?)", ("B", "company")
-    )
+    conn.execute("INSERT INTO entities (name, entity_type) VALUES (?, ?)", ("A", "company"))
+    conn.execute("INSERT INTO entities (name, entity_type) VALUES (?, ?)", ("B", "company"))
     # Valid JSON inserts fine.
     conn.execute(
         "INSERT INTO graph_edges (source, target, edge_type, source_ref, properties) "
@@ -663,9 +660,7 @@ def test_live_graph_edges_has_json_valid_check():
         pytest.skip("live DB not present")
     conn = sqlite3.connect(str(LIVE_DB))
     try:
-        ddl = conn.execute(
-            "SELECT sql FROM sqlite_master WHERE name='graph_edges'"
-        ).fetchone()[0]
+        ddl = conn.execute("SELECT sql FROM sqlite_master WHERE name='graph_edges'").fetchone()[0]
         assert "json_valid(properties)" in ddl, (
             "LIVE graph_edges is missing CHECK (json_valid(properties)) — "
             "run: python3 helpers/maintenance/rebuild_schema.py"
@@ -686,9 +681,9 @@ def test_live_graph_analytics_pk_is_metric_first():
         pytest.skip("live DB not present")
     conn = sqlite3.connect(str(LIVE_DB))
     try:
-        ddl = conn.execute(
-            "SELECT sql FROM sqlite_master WHERE name='graph_analytics'"
-        ).fetchone()[0]
+        ddl = conn.execute("SELECT sql FROM sqlite_master WHERE name='graph_analytics'").fetchone()[
+            0
+        ]
         assert "PRIMARY KEY (metric, entity_name)" in ddl, (
             "LIVE graph_analytics PK is not (metric, entity_name) — "
             "run: python3 helpers/maintenance/rebuild_schema.py"
@@ -738,7 +733,8 @@ def test_live_entities_has_no_market_cap_column():
         )
         # The index on the dropped column must also be gone.
         idx_names = {
-            r[0] for r in conn.execute(
+            r[0]
+            for r in conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='index' AND tbl_name='entities'"
             ).fetchall()
         }
@@ -905,7 +901,7 @@ def test_check_date_one_missing_modified():
 
 def test_check_date_one_quoted_dates():
     p = sc.REPO_ROOT / "findata" / "Test.md"
-    fm = {"created": "\'2025-06-01\'", "last_modified": "\'2025-01-01\'"}
+    fm = {"created": "'2025-06-01'", "last_modified": "'2025-01-01'"}
     failures = sc._check_date_one(p, fm)
     assert len(failures) == 1
 
@@ -939,10 +935,7 @@ def test_has_node_returns_bool():
 def test_dependency_pinning_with_unpinned(tmp_path, monkeypatch):
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
     (tmp_path / "pyproject.toml").write_text(
-        "[project]\n"
-        'name = "x"\n'
-        'version = "0.1.0"\n'
-        'dependencies = ["yfinance>=0.2", "yaml==6.0"]\n',
+        '[project]\nname = "x"\nversion = "0.1.0"\ndependencies = ["yfinance>=0.2", "yaml==6.0"]\n',
     )
     _, advisory = sc.check_dependency_pinning()
     assert len(advisory) == 1
@@ -952,10 +945,7 @@ def test_dependency_pinning_with_unpinned(tmp_path, monkeypatch):
 def test_dependency_pinning_all_pinned(tmp_path, monkeypatch):
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
     (tmp_path / "pyproject.toml").write_text(
-        "[project]\n"
-        'name = "x"\n'
-        'version = "0.1.0"\n'
-        'dependencies = ["yfinance==0.2.31"]\n',
+        '[project]\nname = "x"\nversion = "0.1.0"\ndependencies = ["yfinance==0.2.31"]\n',
     )
     _, advisory = sc.check_dependency_pinning()
     assert advisory == []
@@ -1094,12 +1084,7 @@ def test_merge_markers_clean(tmp_path, monkeypatch):
 def test_merge_markers_detects_conflict(tmp_path, monkeypatch):
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
     (tmp_path / "conflict.py").write_text(
-        "x = 1\n"
-        "<<<<<<< HEAD\n"
-        "a = 1\n"
-        "=======\n"
-        "a = 2\n"
-        ">>>>>>> feature\n"
+        "x = 1\n<<<<<<< HEAD\na = 1\n=======\na = 2\n>>>>>>> feature\n"
     )
     merge_failures, artifact_failures = sc.check_merge_markers_and_artifacts()
     assert len(merge_failures) == 1
@@ -1217,6 +1202,7 @@ def test_db_meta_generation_missing_db(tmp_path, monkeypatch):
 
 def test_db_meta_generation_missing_table(tmp_path, monkeypatch):
     import sqlite3
+
     monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
     db_dir = tmp_path / "memory"
     db_dir.mkdir()
@@ -1239,16 +1225,20 @@ class TestMakefileHelpCompleteness:
         """Every `name: ## desc` target appears in the help echo block."""
         mk = (Path(__file__).resolve().parents[1] / "Makefile").read_text()
         import re
-        annotated = {m.group(1) for m in re.finditer(
-            r"^([a-z0-9-]+):[^#\n]*##", mk, re.M)} - {"help"}
+
+        annotated = {m.group(1) for m in re.finditer(r"^([a-z0-9-]+):[^#\n]*##", mk, re.M)} - {
+            "help"
+        }
         echoed = set(re.findall(r'@echo "  ([a-z0-9-]+)', mk))
         assert annotated == echoed, (
             f"missing from help: {sorted(annotated - echoed)}; "
-            f"stale in help: {sorted(echoed - annotated)}")
+            f"stale in help: {sorted(echoed - annotated)}"
+        )
 
     def test_help_lines_are_alphabetical(self):
         mk = (Path(__file__).resolve().parents[1] / "Makefile").read_text()
         import re
+
         names = re.findall(r'@echo "  ([a-z0-9-]+)', mk)
         assert names == sorted(names), "help lines drifted out of alphabetical order"
 
@@ -1275,14 +1265,14 @@ def test_stack_scope_artifacts_and_stray_dirs(tmp_path, monkeypatch):
     (tmp_path / "helpers" / "__pycache__").mkdir()
     (tmp_path / "helpers" / "__pycache__" / "m.py").write_text("ok")
     monkeypatch.setattr(
-        sc, "_stack_files",
-        lambda: {tmp_path / "helpers" / "x.bak",
-                 tmp_path / "helpers" / "__pycache__" / "m.py"},
+        sc,
+        "_stack_files",
+        lambda: {tmp_path / "helpers" / "x.bak", tmp_path / "helpers" / "__pycache__" / "m.py"},
     )
     merge_failures, advisory = sc.check_merge_markers_and_artifacts()
     assert merge_failures == []
-    assert any("x.bak" in a for a in advisory)          # artifact advisory
-    assert any("__pycache__" in a for a in advisory)    # stray dir, no recursion
+    assert any("x.bak" in a for a in advisory)  # artifact advisory
+    assert any("__pycache__" in a for a in advisory)  # stray dir, no recursion
 
 
 def test_fallback_flags_stray_dirs_without_recursing(tmp_path, monkeypatch):

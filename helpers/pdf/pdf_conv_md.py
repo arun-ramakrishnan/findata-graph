@@ -51,6 +51,7 @@ import tempfile
 import time
 from pathlib import Path
 from urllib.parse import urlparse
+
 # slugify is shared with capture_newsletter_images.py (see helpers/pdf/common.py).
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -60,6 +61,7 @@ from helpers.pdf.pdf_local import (  # noqa: E402
     LocalRefusalError,
     convert as convert_local,
 )
+
 # LiteParse + Pix2Text engines (Slice 2, liteparse_pdf_engine proposal)
 # liteparse_engine mirrors pdf_local.convert shape and provides the bbox
 # sidecar for no-OCR plus the OCR fallback with image sidecar.
@@ -109,9 +111,7 @@ POLL_INTERVAL = 5
 
 # An <img> wrapped in the centered <div> the API emits around each image.
 # Group 1 captures the relative imgs/... src.
-IMG_DIV_RE = re.compile(
-    r'<div style="text-align: center;"><img src="(imgs/[^"]+)"[^>]*/></div>'
-)
+IMG_DIV_RE = re.compile(r'<div style="text-align: center;"><img src="(imgs/[^"]+)"[^>]*/></div>')
 # A bare <img> whose src is a relative imgs/ path (fallback if not div-wrapped).
 IMG_TAG_RE = re.compile(r'<img src="(imgs/[^"]+)"[^>]*/?>')
 # Leftover empty wrapper after the <img> was replaced.
@@ -129,11 +129,7 @@ CONTENT_TYPE_EXT = {
 DEFAULT_EXT = ".jpeg"
 
 
-
-
-def submit_job(
-    pdf_path: Path, token: str, model: str, optional_payload: dict
-) -> str:
+def submit_job(pdf_path: Path, token: str, model: str, optional_payload: dict) -> str:
     """Submit the PDF and return the job id."""
     headers = {"Authorization": f"bearer {token}"}
     data = {"model": model, "optionalPayload": json.dumps(optional_payload)}
@@ -144,9 +140,7 @@ def submit_job(
         # the failure was always a client-side write timeout, never a
         # server rejection. requests' timeout applies per-socket-op, so a
         # healthy transfer resets it chunk-by-chunk.
-        resp = requests.post(
-            JOB_URL, headers=headers, data=data, files={"file": f}, timeout=300
-        )
+        resp = requests.post(JOB_URL, headers=headers, data=data, files={"file": f}, timeout=300)
     if resp.status_code != 200:
         raise RuntimeError(f"submit failed {resp.status_code}: {resp.text}")
     return resp.json()["data"]["jobId"]
@@ -179,11 +173,7 @@ def poll_job(job_id: str, token: str, timeout: int) -> str:
 def download_jsonl(url: str) -> list[dict]:
     resp = requests.get(url, timeout=120)
     resp.raise_for_status()
-    return [
-        json.loads(line)
-        for line in resp.text.strip().splitlines()
-        if line.strip()
-    ]
+    return [json.loads(line) for line in resp.text.strip().splitlines() if line.strip()]
 
 
 def parse_pages(lines: list[dict]) -> list[dict]:
@@ -292,9 +282,12 @@ def _pdf_metadata(pdf_path: Path) -> dict[str, str]:
     try:
         proc = subprocess.run(  # noqa: S603  # resolved absolute path, no shell
             [pdfinfo, str(pdf_path)],
-            capture_output=True, text=True, timeout=30, check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=True,
         )
-    except (OSError, subprocess.SubprocessError):
+    except OSError, subprocess.SubprocessError:
         return {}
     out: dict[str, str] = {}
     for line in proc.stdout.splitlines():
@@ -316,8 +309,13 @@ def _first_heading_title(pages: list[dict], stem: str) -> str:
 
 
 def build_okf_frontmatter(
-    pages: list[dict], pdf_path: Path, model: str, stem: str,
-    *, now: str | None = None, out_dir: Path | str | None = None,
+    pages: list[dict],
+    pdf_path: Path,
+    model: str,
+    stem: str,
+    *,
+    now: str | None = None,
+    out_dir: Path | str | None = None,
 ) -> str:
     """Render the OKF v0.2 provenance frontmatter for a converted note.
 
@@ -343,8 +341,7 @@ def build_okf_frontmatter(
     fm["title"] = _first_heading_title(pages, stem)
     tags: list[str] = []
     if out_dir is not None:
-        series = re.sub(r"[^a-z0-9]+", "_",
-                        Path(out_dir).name.lower()).strip("_")
+        series = re.sub(r"[^a-z0-9]+", "_", Path(out_dir).name.lower()).strip("_")
         if series:
             tags.append(f"series/{series}")
             publisher = _PUBLISHER_BY_SERIES.get(series)
@@ -368,13 +365,14 @@ def build_okf_frontmatter(
     return render_frontmatter(fm)
 
 
-def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: bool,
-                   frontmatter: str | None = None) -> None:
+def write_outputs(
+    pages: list[dict], out_dir: Path, stem: str, fetch_images: bool, frontmatter: str | None = None
+) -> None:
     """Write combined .md, raw .json, and (optionally) download images.
 
     ``frontmatter`` (OKF provenance block, §okf_adoption 2.2) is prepended
     to the combined markdown when given.
-"""
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     json_path = out_dir / f"{stem}.json"
     json_path.write_text(json.dumps(pages, ensure_ascii=False), encoding="utf-8")
@@ -383,7 +381,7 @@ def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: boo
     img_dir = out_dir / "images"
     img_counter = 0
     n_captured = 0  # this run only — images/ is shared across editions, so
-    md_parts = []   # a dir-wide count would mostly report older editions
+    md_parts = []  # a dir-wide count would mostly report older editions
     for i, page in enumerate(pages, start=1):
         md = page["markdown"]
         images_map = md.get("images", {})
@@ -417,9 +415,7 @@ def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: boo
 
     md_path = out_dir / f"{stem}.md"
     body = "\n\n".join(md_parts)
-    md_path.write_text(
-        (frontmatter + "\n" + body) if frontmatter else body, encoding="utf-8"
-    )
+    md_path.write_text((frontmatter + "\n" + body) if frontmatter else body, encoding="utf-8")
     print(f"wrote {md_path} ({md_path.stat().st_size} bytes)")
 
     if fetch_images:
@@ -431,9 +427,7 @@ def _convert_paddle(pdf_path: Path, args: argparse.Namespace) -> list[dict]:
     load_memory_env()  # memory/.env may supply PADDLE_API_KEY
     args.token = args.token or os.environ.get("PADDLE_API_KEY")
     if not args.token:
-        raise SystemExit(
-            "error: no API token: set PADDLE_API_KEY or pass --token"
-        )
+        raise SystemExit("error: no API token: set PADDLE_API_KEY or pass --token")
     optional_payload = {
         "useDocOrientationClassify": False,
         "useDocUnwarping": False,
@@ -467,12 +461,14 @@ def main() -> int:  # noqa: C901  # engine dispatch — linear fallback chain, n
     ap.add_argument("--token", default=os.environ.get("PADDLE_API_KEY"))
     ap.add_argument("--timeout", type=int, default=600)
     ap.add_argument("--no-images", action="store_true")
-    ap.add_argument("--no-verify", action="store_true",
-                    help="skip the post-conversion self-check")
-    ap.add_argument("--layout", action="store_true",
-                    help="local engine: use pymupdf's ONNX layout model "
-                         "(default off since 2026-08-26: ~3x faster without "
-                         "it and better word coverage on the Reports corpus)")
+    ap.add_argument("--no-verify", action="store_true", help="skip the post-conversion self-check")
+    ap.add_argument(
+        "--layout",
+        action="store_true",
+        help="local engine: use pymupdf's ONNX layout model "
+        "(default off since 2026-08-26: ~3x faster without "
+        "it and better word coverage on the Reports corpus)",
+    )
     args = ap.parse_args()
 
     pdf_path = Path(args.source_pdf)
@@ -487,6 +483,7 @@ def main() -> int:  # noqa: C901  # engine dispatch — linear fallback chain, n
     pages: list[dict] | None = None
     engine_label = ""
     tmpdir: tempfile.TemporaryDirectory[str] | None = None
+
     # Helper to wrap lite/pix2text markdown (plain text) into the pdf_conv_md pages shape
     def _wrap_markdown_as_pages(md_text: str, label: str) -> list[dict]:
         # Minimal pages shape: single page with text, no images (images via pymupdf sidecar if needed)
@@ -519,9 +516,7 @@ def main() -> int:  # noqa: C901  # engine dispatch — linear fallback chain, n
         if args.engine in ("auto", "local"):
             tmpdir = tempfile.TemporaryDirectory(prefix="pdf_local_")
             try:
-                pages = convert_local(
-                    pdf_path, Path(tmpdir.name) / "imgs", layout=args.layout
-                )
+                pages = convert_local(pdf_path, Path(tmpdir.name) / "imgs", layout=args.layout)
                 engine_label = LOCAL_ENGINE_LABEL
                 print(f"parsed locally with {engine_label}")
             except LocalRefusalError as e:
@@ -556,7 +551,10 @@ def main() -> int:  # noqa: C901  # engine dispatch — linear fallback chain, n
                     if args.engine in ("lite", "lite-ocr"):
                         pass
                 except LocalRefusalError as e:
-                    print(f"  lite {args.engine} refused ({e}) — trying next fallback", file=sys.stderr)
+                    print(
+                        f"  lite {args.engine} refused ({e}) — trying next fallback",
+                        file=sys.stderr,
+                    )
                     pages = None
                 except Exception as e:
                     print(f"  lite failed ({e}) — trying next fallback", file=sys.stderr)
@@ -574,7 +572,9 @@ def main() -> int:  # noqa: C901  # engine dispatch — linear fallback chain, n
                     else:
                         pages = _wrap_markdown_as_pages(md, meta.get("engine", "liteparse-ocr"))
                     engine_label = meta.get("engine", "liteparse-ocr-eng")
-                    print(f"parsed via lite OCR {engine_label} ({meta.get('chars', len(md))} chars, {meta.get('pages', 1)}p)")
+                    print(
+                        f"parsed via lite OCR {engine_label} ({meta.get('chars', len(md))} chars, {meta.get('pages', 1)}p)"
+                    )
                 except Exception as e:
                     print(f"  lite OCR failed ({e}) — trying next fallback", file=sys.stderr)
                     pages = None
@@ -594,8 +594,9 @@ def main() -> int:  # noqa: C901  # engine dispatch — linear fallback chain, n
             pages = _convert_paddle(pdf_path, args)
 
         stem = slugify(pdf_path.stem)
-        fm = build_okf_frontmatter(pages, pdf_path, engine_label, stem,
-                                   out_dir=Path(args.output_dir))
+        fm = build_okf_frontmatter(
+            pages, pdf_path, engine_label, stem, out_dir=Path(args.output_dir)
+        )
         write_outputs(pages, Path(args.output_dir), stem, not args.no_images, fm)
     finally:
         if tmpdir is not None:
@@ -603,11 +604,11 @@ def main() -> int:  # noqa: C901  # engine dispatch — linear fallback chain, n
 
     if not args.no_verify:
         from helpers.pdf.verify_extraction import summarize
+
         manifest = verify_extraction(pdf_path, Path(args.output_dir), stem)
         print(summarize(manifest))
         if manifest["verdict"] == "FAIL":
-            print(f"error: verification FAILED — see {stem}.verify.json",
-                  file=sys.stderr)
+            print(f"error: verification FAILED — see {stem}.verify.json", file=sys.stderr)
             return 1
     return 0
 

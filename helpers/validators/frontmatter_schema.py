@@ -75,9 +75,7 @@ SCHEMA_FILES = {
     "proposal": "frontmatter.proposal.v1.json",
 }
 # Source trees registered above (used for chrome skipping in the corpus walk).
-_NEWSLETTER_TREES = frozenset(
-    d for d, t in DIR_TO_TYPE.items() if t == "newsletter"
-)
+_NEWSLETTER_TREES = frozenset(d for d, t in DIR_TO_TYPE.items() if t == "newsletter")
 
 _VALIDATORS: dict[str, object] = {}
 
@@ -175,29 +173,7 @@ def check_frontmatter_schema(root: Path | None = None) -> tuple[list[str], list[
         import jsonschema  # noqa: F401  # availability gate
     except ImportError:
         return [], ["frontmatter schema: jsonschema not installed (dev extra)"]
-    # Proposal contract (corpus_uniformity S3) — a walk DECOUPLED from
-    # DIR_TO_TYPE because proposals live under doc/improvements, not
-    # findata/. Runs BEFORE the findata early-return: a doc-only tree
-    # (tests, partial checkouts) still gets proposal validation. Live
-    # proposals must carry the block; archived files that ever were
-    # proposals (bold-line Status/Date header present) must too. Plain
-    # archive docs without a proposal header (triage/acceptance notes)
-    # are a different artifact class — outside it.
-    improvements = root / "doc" / "improvements"
-    if improvements.is_dir() and (SCHEMA_DIR / SCHEMA_FILES["proposal"]).exists():
-        candidates = sorted(improvements.glob("proposals/*.md"))
-        candidates += sorted(improvements.glob("archive/**/*.md"))
-        for p in candidates:
-            if p.name == "README.md":
-                continue
-            fm = parse_frontmatter(p)
-            if fm is None:
-                if p.parent.name == "proposals" or _has_proposal_header(p):
-                    fatal.append(
-                        f"{p.relative_to(root)}: no parsable frontmatter block")
-                continue
-            for err in validate_frontmatter(fm, "proposal"):
-                fatal.append(f"{p.relative_to(root)}: {err}")
+    _check_proposal_units(root, fatal)
     findata = root / "findata"
     if not findata.is_dir():
         return fatal, advisory
@@ -219,6 +195,28 @@ def check_frontmatter_schema(root: Path | None = None) -> tuple[list[str], list[
             for err in validate_frontmatter(fm, note_type):
                 fatal.append(f"{p.relative_to(root)}: {err}")
     return fatal, advisory
+
+
+def _check_proposal_units(root: Path, fatal: list[str]) -> None:
+    """corpus_uniformity S3: validate proposal frontmatter under
+    doc/improvements — live proposals must carry the block; archived
+    files with proposal headers must too; headerless archive docs stay
+    outside the contract."""
+    improvements = root / "doc" / "improvements"
+    if not (improvements.is_dir() and (SCHEMA_DIR / SCHEMA_FILES["proposal"]).exists()):
+        return
+    candidates = sorted(improvements.glob("proposals/*.md"))
+    candidates += sorted(improvements.glob("archive/**/*.md"))
+    for p in candidates:
+        if p.name == "README.md":
+            continue
+        fm = parse_frontmatter(p)
+        if fm is None:
+            if p.parent.name == "proposals" or _has_proposal_header(p):
+                fatal.append(f"{p.relative_to(root)}: no parsable frontmatter block")
+            continue
+        for err in validate_frontmatter(fm, "proposal"):
+            fatal.append(f"{p.relative_to(root)}: {err}")
 
 
 def _has_proposal_header(path: Path) -> bool:
@@ -338,9 +336,7 @@ def _okf_newsletter_shape(fm: dict, rel: str, root: Path) -> list[str]:
             issues.append(f"{rel}: generated present but malformed (need by/at)")
         else:
             at = gen.get("at")
-            if not isinstance(at, str) or not re.match(
-                r"^\d{4}-\d{2}-\d{2}[Tt]", at
-            ):
+            if not isinstance(at, str) or not re.match(r"^\d{4}-\d{2}-\d{2}[Tt]", at):
                 issues.append(f"{rel}: generated.at is not an ISO 8601 datetime")
     for src in fm.get("sources") or []:
         if not isinstance(src, dict):
@@ -356,8 +352,7 @@ def _okf_newsletter_shape(fm: dict, rel: str, root: Path) -> list[str]:
 
 def _okf_group(p, findata) -> str:
     """Census group for a note: derived tree, OCR-source tree, or other."""
-    top = (p.parts[len(findata.parts)]
-           if len(p.parts) > len(findata.parts) else "")
+    top = p.parts[len(findata.parts)] if len(p.parts) > len(findata.parts) else ""
     if top in ("Companies", "Sectors", "Super_Sectors"):
         return "derived"
     if DIR_TO_TYPE.get(top) == "newsletter":
@@ -365,8 +360,7 @@ def _okf_group(p, findata) -> str:
     return "other"
 
 
-def _okf_visit_note(p, findata, root, rel, fatal, advisory, tiers, stale,
-                    pre_rollout) -> None:
+def _okf_visit_note(p, findata, root, rel, fatal, advisory, tiers, stale, pre_rollout) -> None:
     """Classify one note for check_okf_conformance (§11 + tiers + staleness).
 
     Mutates the passed lists/dicts: *fatal* (§11 hard-rule breaks),
@@ -409,20 +403,16 @@ def _okf_visit_note(p, findata, root, rel, fatal, advisory, tiers, stale,
 
 def _okf_tier(tiers: dict, group: str, tier: str) -> None:
     """Increment the group-scoped census tier counter."""
-    g = tiers.setdefault(
-        group, {"human-reviewed": 0, "machine-confirmed": 0, "unverified": 0}
-    )
+    g = tiers.setdefault(group, {"human-reviewed": 0, "machine-confirmed": 0, "unverified": 0})
     g[tier] += 1
 
 
-def _okf_census_note(fm: dict, rel: str, tiers: dict, stale: dict,
-                     group: str) -> None:
+def _okf_census_note(fm: dict, rel: str, tiers: dict, stale: dict, group: str) -> None:
     """Count one frontmatter-bearing note's trust tier + staleness (§5.3/§5.5)."""
     import datetime as _dt
 
     verified = fm.get("verified") or []
-    if any(isinstance(v, dict) and str(v.get("by", "")).startswith("human:")
-           for v in verified):
+    if any(isinstance(v, dict) and str(v.get("by", "")).startswith("human:") for v in verified):
         _okf_tier(tiers, group, "human-reviewed")
     elif fm.get("generated") or verified:
         _okf_tier(tiers, group, "machine-confirmed")
@@ -459,17 +449,16 @@ def check_okf_conformance(root: Path | None = None) -> tuple[list[str], list[str
         return [], []
     fatal: list[str] = []
     advisory: list[str] = []
-    tiers: dict[str, dict[str, int]] = {}   # group -> tier -> count
-    stale: dict[str, list[str]] = {}        # group -> past-due rel paths
-    pre_rollout: list[str] = []   # newsletters predating OKF adoption (Q5)
+    tiers: dict[str, dict[str, int]] = {}  # group -> tier -> count
+    stale: dict[str, list[str]] = {}  # group -> past-due rel paths
+    pre_rollout: list[str] = []  # newsletters predating OKF adoption (Q5)
     for p in sorted(findata.rglob("*.md")):
         if p.name in _OKF_RESERVED:
             continue  # OKF listing files have their own §8/§9 formats
         if p.name in _OKF_SKIP_FILES or "images" in p.parts:
             continue
         rel = str(p.relative_to(root))
-        _okf_visit_note(p, findata, root, rel, fatal, advisory,
-                        tiers, stale, pre_rollout)
+        _okf_visit_note(p, findata, root, rel, fatal, advisory, tiers, stale, pre_rollout)
     n_notes = sum(sum(t.values()) for t in tiers.values())
     if pre_rollout:
         advisory.append(
@@ -490,12 +479,12 @@ def check_okf_conformance(root: Path | None = None) -> tuple[list[str], list[str
         n_stale = len(stale.get(group, []))
         groups.append(
             f"{group}: {sum(t.values())} ({bits}"
-            + (f"; {n_stale} past stale_after" if n_stale else "") + ")"
+            + (f"; {n_stale} past stale_after" if n_stale else "")
+            + ")"
         )
     census = f"OKF census: {n_notes} notes — " + "; ".join(groups)
     advisory.append(census)
     return fatal, advisory
-
 
 
 def emit_key_doc() -> str:
@@ -514,16 +503,13 @@ def emit_key_doc() -> str:
         schema = json.loads((SCHEMA_DIR / fname).read_text())
         req = set(schema["required"])
         lines += [f"## {note_type}", "", f"Source: [`{fname}`]({fname})", ""]
-        lines += ["| key | required | type | constraint | description |",
-                  "|---|---|---|---|---|"]
+        lines += ["| key | required | type | constraint | description |", "|---|---|---|---|---|"]
         for key in sorted(schema["properties"]):
             prop = _resolve(dict(schema["properties"][key]), schema)
             typ = _type_str(prop) or "—"
             cons = _constraint_str(prop) or "—"
             desc = (prop.get("description") or "").replace("|", "/").replace("\n", " ")
-            lines.append(
-                f"| `{key}` | {'yes' if key in req else 'no'} | {typ} | {cons} | {desc} |"
-            )
+            lines.append(f"| `{key}` | {'yes' if key in req else 'no'} | {typ} | {cons} | {desc} |")
         lines.append("")
     return "\n".join(lines) + "\n"
 
@@ -532,11 +518,16 @@ def main(argv: list[str] | None = None) -> int:
     import argparse
 
     ap = argparse.ArgumentParser(description="findata frontmatter JSON-Schema tooling")
-    ap.add_argument("--emit-doc", action="store_true", help=f"write {KEY_DOC} from the schemas and exit")
-    ap.add_argument("--okf", action="store_true",
-                    help="OKF v0.2 §11 conformance sweep over ALL findata notes "
-                         "(newsletters included) + provenance census, instead of "
-                         "the JSON-Schema check")
+    ap.add_argument(
+        "--emit-doc", action="store_true", help=f"write {KEY_DOC} from the schemas and exit"
+    )
+    ap.add_argument(
+        "--okf",
+        action="store_true",
+        help="OKF v0.2 §11 conformance sweep over ALL findata notes "
+        "(newsletters included) + provenance census, instead of "
+        "the JSON-Schema check",
+    )
     ap.add_argument("--root", type=Path, default=REPO_ROOT, help="repo root (default: autodetect)")
     args = ap.parse_args(argv)
     if args.emit_doc:

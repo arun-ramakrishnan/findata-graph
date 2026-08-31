@@ -17,6 +17,7 @@ synthetic newsletter, verifying:
 
 Marked `integration` so it can be excluded from fast `make test` runs.
 """
+
 from __future__ import annotations
 
 import json
@@ -40,6 +41,7 @@ from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E40
 # --------------------------------------------------------------------------- #
 # Schema helpers
 # --------------------------------------------------------------------------- #
+
 
 def _build_db(db_path: Path) -> sqlite3.Connection:
     """Create a minimal but realistic SQLite DB with entities + graph_edges."""
@@ -112,6 +114,7 @@ This marks their entry into the renewables segment.
 # Fixture: synthetic project tree + DB
 # --------------------------------------------------------------------------- #
 
+
 @pytest.fixture
 def synth_project(tmp_path, monkeypatch):
     """Build a synthetic project root, DB, and sector directories.
@@ -159,11 +162,9 @@ def synth_project(tmp_path, monkeypatch):
     monkeypatch.setattr(pn, "COMPANIES", companies)
     monkeypatch.setattr(pn, "FINDATA", root / "findata")
     # search_ticker: mock — returns a fake ticker tuple
-    monkeypatch.setattr(pn, "search_ticker",
-                        lambda name: (f"FAKE_{name[:3].upper()}.NS", {}))
+    monkeypatch.setattr(pn, "search_ticker", lambda name: (f"FAKE_{name[:3].upper()}.NS", {}))
     # capture_images: always succeed (no image capture in tests)
-    monkeypatch.setattr(pn, "capture_images",
-                        lambda md_path, apply: True)
+    monkeypatch.setattr(pn, "capture_images", lambda md_path, apply: True)
     # run_validation: always succeed (no validator subprocess)
     monkeypatch.setattr(pn, "run_validation", lambda apply: True)
     # run_graph_analytics: always succeed
@@ -208,6 +209,7 @@ def _open_db(project):
 # Test: full pipeline — entities created
 # --------------------------------------------------------------------------- #
 
+
 class TestEntitiesCreated:
     """Verify entity rows are created in SQLite with correct attributes."""
 
@@ -217,9 +219,12 @@ class TestEntitiesCreated:
         _run_apply(synth_project, monkeypatch)
         conn = _open_db(synth_project)
         try:
-            names = {r[0] for r in conn.execute(
-                "SELECT name FROM entities WHERE entity_type='company'"
-            ).fetchall()}
+            names = {
+                r[0]
+                for r in conn.execute(
+                    "SELECT name FROM entities WHERE entity_type='company'"
+                ).fetchall()
+            }
             assert "Acme Banking Corp" in names
             assert "Zeta Technologies" in names
             assert "Epsilon Energy" in names
@@ -233,9 +238,9 @@ class TestEntitiesCreated:
         _run_apply(synth_project, monkeypatch)
         conn = _open_db(synth_project)
         try:
-            count = conn.execute(
-                "SELECT COUNT(*) FROM entities WHERE name='HDFC Bank'"
-            ).fetchone()[0]
+            count = conn.execute("SELECT COUNT(*) FROM entities WHERE name='HDFC Bank'").fetchone()[
+                0
+            ]
             assert count == 1
         finally:
             conn.close()
@@ -257,14 +262,12 @@ class TestEntitiesCreated:
         conn = _open_db(synth_project)
         try:
             sector = conn.execute(
-                "SELECT sector_classification FROM entities "
-                "WHERE name='Acme Banking Corp'"
+                "SELECT sector_classification FROM entities WHERE name='Acme Banking Corp'"
             ).fetchone()[0]
             assert sector == "Banking"
 
             sector = conn.execute(
-                "SELECT sector_classification FROM entities "
-                "WHERE name='Zeta Technologies'"
+                "SELECT sector_classification FROM entities WHERE name='Zeta Technologies'"
             ).fetchone()[0]
             assert sector == "Technology"
         finally:
@@ -275,8 +278,7 @@ class TestEntitiesCreated:
         conn = _open_db(synth_project)
         try:
             norm = conn.execute(
-                "SELECT normalized_name FROM entities "
-                "WHERE name='Acme Banking Corp'"
+                "SELECT normalized_name FROM entities WHERE name='Acme Banking Corp'"
             ).fetchone()[0]
             assert norm == "Acme_Banking_Corp"
         finally:
@@ -310,6 +312,7 @@ class TestEntitiesCreated:
 # --------------------------------------------------------------------------- #
 # Test: note files created on disk
 # --------------------------------------------------------------------------- #
+
 
 class TestNoteFilesCreated:
     """Verify markdown stub files are written to findata/Companies/<sector>/."""
@@ -366,6 +369,7 @@ class TestNoteFilesCreated:
 # Test: graph edges created
 # --------------------------------------------------------------------------- #
 
+
 class TestGraphEdges:
     """Verify bidirectional part_of / has_company edges are created."""
 
@@ -375,7 +379,7 @@ class TestGraphEdges:
         try:
             edges = conn.execute(
                 "SELECT * FROM graph_edges WHERE source=? AND edge_type='part_of'",
-                ("Acme Banking Corp",)
+                ("Acme Banking Corp",),
             ).fetchall()
             assert len(edges) == 1
             assert edges[0]["target"] == "Banking"
@@ -388,7 +392,7 @@ class TestGraphEdges:
         try:
             edges = conn.execute(
                 "SELECT * FROM graph_edges WHERE target=? AND edge_type='has_company'",
-                ("Acme Banking Corp",)
+                ("Acme Banking Corp",),
             ).fetchall()
             assert len(edges) == 1
             assert edges[0]["source"] == "Banking"
@@ -399,11 +403,10 @@ class TestGraphEdges:
         _run_apply(synth_project, monkeypatch)
         conn = _open_db(synth_project)
         try:
-            for name in ("Acme Banking Corp", "Zeta Technologies",
-                         "Epsilon Energy"):
+            for name in ("Acme Banking Corp", "Zeta Technologies", "Epsilon Energy"):
                 n = conn.execute(
-                    "SELECT COUNT(*) FROM graph_edges WHERE source=? "
-                    "AND edge_type='part_of'", (name,)
+                    "SELECT COUNT(*) FROM graph_edges WHERE source=? AND edge_type='part_of'",
+                    (name,),
                 ).fetchone()[0]
                 assert n == 1, f"{name} missing part_of edge"
         finally:
@@ -415,8 +418,8 @@ class TestGraphEdges:
         conn = _open_db(synth_project)
         try:
             ref = conn.execute(
-                "SELECT source_ref FROM graph_edges WHERE source=? "
-                "AND edge_type='part_of'", ("Acme Banking Corp",)
+                "SELECT source_ref FROM graph_edges WHERE source=? AND edge_type='part_of'",
+                ("Acme Banking Corp",),
             ).fetchone()[0]
             assert ref == "parse_newsletter"
         finally:
@@ -426,6 +429,7 @@ class TestGraphEdges:
 # --------------------------------------------------------------------------- #
 # Test: idempotency
 # --------------------------------------------------------------------------- #
+
 
 class TestIdempotency:
     """Running the pipeline twice should not create duplicates."""
@@ -454,18 +458,14 @@ class TestIdempotency:
         _run_apply(synth_project, monkeypatch)
         conn = _open_db(synth_project)
         try:
-            edges_1 = conn.execute(
-                "SELECT COUNT(*) FROM graph_edges"
-            ).fetchone()[0]
+            edges_1 = conn.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0]
         finally:
             conn.close()
 
         _run_apply(synth_project, monkeypatch)
         conn = _open_db(synth_project)
         try:
-            edges_2 = conn.execute(
-                "SELECT COUNT(*) FROM graph_edges"
-            ).fetchone()[0]
+            edges_2 = conn.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0]
             assert edges_1 == edges_2
         finally:
             conn.close()
@@ -479,6 +479,7 @@ class TestIdempotency:
 # --------------------------------------------------------------------------- #
 # Test: dry-run mode
 # --------------------------------------------------------------------------- #
+
 
 class TestDryRun:
     """In dry-run mode (no --apply), nothing should be written."""
@@ -516,6 +517,7 @@ class TestDryRun:
 # Test: worklist content
 # --------------------------------------------------------------------------- #
 
+
 class TestWorklist:
     """Verify the enhancement worklist JSON structure."""
 
@@ -546,6 +548,7 @@ class TestWorklist:
 # --------------------------------------------------------------------------- #
 # Test: sector classification
 # --------------------------------------------------------------------------- #
+
 
 class TestSectorGuessing:
     """Verify guess_sector_for assigns correct sectors from heading context."""
@@ -583,10 +586,10 @@ class TestSectorGuessing:
         assert sector is None
 
 
-
 # --------------------------------------------------------------------------- #
 # Test: existing-entity classification
 # --------------------------------------------------------------------------- #
+
 
 class TestExistingEntityClassification:
     """Companies already in the DB should be classified as existing, not new."""
@@ -638,9 +641,9 @@ class TestExistingEntityClassification:
 
         conn = _open_db(synth_project)
         try:
-            count = conn.execute(
-                "SELECT COUNT(*) FROM entities WHERE name='HDFC Bank'"
-            ).fetchone()[0]
+            count = conn.execute("SELECT COUNT(*) FROM entities WHERE name='HDFC Bank'").fetchone()[
+                0
+            ]
             assert count == 1
         finally:
             conn.close()
@@ -649,6 +652,7 @@ class TestExistingEntityClassification:
 # --------------------------------------------------------------------------- #
 # Test: non-company headings skipped
 # --------------------------------------------------------------------------- #
+
 
 class TestNonCompanyHeadings:
     """Headings without cap tokens or pipes should not be treated as companies."""
@@ -674,10 +678,9 @@ class TestNonCompanyHeadings:
 
         wl_path = synth_project["newsletter"].parent / "Test_Edition_enhancement_worklist.json"
         wl = json.loads(wl_path.read_text())
-        all_names = (
-            {e["name"] for e in wl["new_entities"]}
-            | {e["name"] for e in wl["existing_entities_to_enhance"]}
-        )
+        all_names = {e["name"] for e in wl["new_entities"]} | {
+            e["name"] for e in wl["existing_entities_to_enhance"]
+        }
         assert "The Chatter — Test Edition" not in all_names
 
     def test_exactly_three_companies_extracted(self, synth_project, monkeypatch):
@@ -693,6 +696,7 @@ class TestNonCompanyHeadings:
 # Tests: Stage 2b --cross-check (semantic NEW-name guard)
 # --------------------------------------------------------------------------- #
 
+
 class TestCrossCheck:
     """--cross-check annotates NEW names via query.notes_like_text."""
 
@@ -700,11 +704,9 @@ class TestCrossCheck:
         """--cross-check calls cross_check_new with the NEW-classified names
         (existing companies like HDFC Bank are not passed)."""
         calls = []
-        monkeypatch.setattr(pn, "cross_check_new",
-                            lambda names, min_sim=0.55: calls.append(names))
+        monkeypatch.setattr(pn, "cross_check_new", lambda names, min_sim=0.55: calls.append(names))
         rel = str(synth_project["newsletter"].relative_to(synth_project["root"]))
-        monkeypatch.setattr(sys, "argv",
-                            ["parse_newsletter.py", rel, "--cross-check"])
+        monkeypatch.setattr(sys, "argv", ["parse_newsletter.py", rel, "--cross-check"])
         try:
             pn.main()
         except SystemExit:
@@ -715,8 +717,7 @@ class TestCrossCheck:
 
     def test_no_flag_no_cross_check(self, synth_project, monkeypatch):
         calls = []
-        monkeypatch.setattr(pn, "cross_check_new",
-                            lambda names, min_sim=0.55: calls.append(names))
+        monkeypatch.setattr(pn, "cross_check_new", lambda names, min_sim=0.55: calls.append(names))
         _run_dry(synth_project, monkeypatch)
         assert calls == []
 
@@ -724,11 +725,9 @@ class TestCrossCheck:
         """Monkeypatched notes_like_text hits become ⚠ annotation lines."""
         import helpers.graph.query as gq
 
-        def fake_notes_like_text(con, text, k=5, doc_type="company",
-                                 min_sim=0.0, embed_fn=None):
+        def fake_notes_like_text(con, text, k=5, doc_type="company", min_sim=0.0, embed_fn=None):
             if text == "Acme Banking Corp":
-                return [("findata/Companies/Banking/Hdfc_Bank.md",
-                         "HDFC Bank", 0.81)]
+                return [("findata/Companies/Banking/Hdfc_Bank.md", "HDFC Bank", 0.81)]
             return []
 
         monkeypatch.setattr(gq, "notes_like_text", fake_notes_like_text)
@@ -743,9 +742,7 @@ class TestCrossCheck:
         """notes_like_text None → one unavailable line, no per-name noise."""
         import helpers.graph.query as gq
 
-        monkeypatch.setattr(
-            gq, "notes_like_text",
-            lambda *a, **kw: None)
+        monkeypatch.setattr(gq, "notes_like_text", lambda *a, **kw: None)
         monkeypatch.setattr(gq, "connect", lambda *a, **kw: SimpleNamespace(close=lambda: None))
         pn.cross_check_new(["A", "B", "C"])
         out = capsys.readouterr().out

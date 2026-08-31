@@ -4,6 +4,7 @@ original test_extract_relations.py for navigability.
 
 End-to-end relation extraction: JV, subsidiary, competes-with, supplier/customer, H1 new-verb patterns.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -20,13 +21,22 @@ from helpers.graph.extract_relations import (  # noqa: E402
 class TestExtractRelations:
     @pytest.fixture
     def resolver(self):
-        return EntityResolver([
-            "Jio Financial Services", "BlackRock", "Allianz",
-            "Titan", "IFB Industries",
-            "Rallis India", "Tata Chemicals", "Tata Motors",
-            "Hindustan Zinc", "Vedanta",
-            "HDFC Bank", "HDB Financial Services",
-        ])
+        return EntityResolver(
+            [
+                "Jio Financial Services",
+                "BlackRock",
+                "Allianz",
+                "Titan",
+                "IFB Industries",
+                "Rallis India",
+                "Tata Chemicals",
+                "Tata Motors",
+                "Hindustan Zinc",
+                "Vedanta",
+                "HDFC Bank",
+                "HDB Financial Services",
+            ]
+        )
 
     def test_jv_with_extraction(self, resolver):
         content = (
@@ -35,8 +45,10 @@ class TestExtractRelations:
             "scale by targeting first-time investors.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test Edition",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test Edition",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "jv_with" in by_type
         assert len(by_type["jv_with"]) == 1
@@ -58,8 +70,10 @@ class TestExtractRelations:
             "of Tata Group, operating in Agri-Sciences.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test Edition",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test Edition",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "subsidiary_of" in by_type
         edge = by_type["subsidiary_of"][0]
@@ -74,8 +88,10 @@ class TestExtractRelations:
             "of Vedanta Limited, it holds a significant market share.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test Edition",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test Edition",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "subsidiary_of" in by_type
         edge = by_type["subsidiary_of"][0]
@@ -87,9 +103,12 @@ class TestExtractRelations:
         # Two companies in the same newsletter both declare Aditya Birla Group.
         # They should get a same_group edge even though "Aditya Birla Group"
         # itself isn't a known entity.
-        resolver2 = EntityResolver([
-            "UltraTech Cement", "Aditya Birla Fashion and Retail",
-        ])
+        resolver2 = EntityResolver(
+            [
+                "UltraTech Cement",
+                "Aditya Birla Fashion and Retail",
+            ]
+        )
         content = (
             "## UltraTech Cement Limited | Large Cap | Building Materials\n\n"
             "UltraTech Cement, part of the Aditya Birla Group, is a leading "
@@ -99,13 +118,16 @@ class TestExtractRelations:
             "the Aditya Birla Group.\n"
         )
         by_type, _ = extract_relations(
-            content, edition_title="Test Edition",
-            newsletter_type="The_Chatter", resolver=resolver2,
+            content,
+            edition_title="Test Edition",
+            newsletter_type="The_Chatter",
+            resolver=resolver2,
         )
         assert "same_group" in by_type
         edge = by_type["same_group"][0]
         assert {edge.source, edge.target} == {
-            "UltraTech Cement", "Aditya Birla Fashion and Retail",
+            "UltraTech Cement",
+            "Aditya Birla Fashion and Retail",
         }
         assert edge.properties["group"] == "Aditya Birla"
 
@@ -116,8 +138,10 @@ class TestExtractRelations:
             "our footprint in luxury jewellery.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test Edition",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test Edition",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         # Damas is not in the resolver — should appear in unresolved.
         assert by_type == {}
@@ -135,8 +159,10 @@ class TestExtractRelations:
             "Jio Financial Services acquired Jio Financial Services in a strange deal.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "acquired" not in by_type
 
@@ -148,8 +174,10 @@ class TestExtractRelations:
             "BlackRock has been profitable.\n"
         )
         by_type, _ = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert len(by_type.get("jv_with", [])) == 1
 
@@ -169,13 +197,20 @@ class TestH1NewVerbPatterns:
     def resolver(self):
         # Seed both the section source and the expected counterpart so the
         # edges resolve (mirrors the TestExtractRelations fixture convention).
-        return EntityResolver([
-            "Motherson Sumi Wiring India", "Samvardhana Motherson",
-            "Devyani International", "Sapphire Foods",
-            "LTM", "Larsen and Toubro",
-            "Samsung Electronics", "Samsung SDI",
-            "Unilever", "Hindustan Unilever",
-        ])
+        return EntityResolver(
+            [
+                "Motherson Sumi Wiring India",
+                "Samvardhana Motherson",
+                "Devyani International",
+                "Sapphire Foods",
+                "LTM",
+                "Larsen and Toubro",
+                "Samsung Electronics",
+                "Samsung SDI",
+                "Unilever",
+                "Hindustan Unilever",
+            ]
+        )
 
     def test_demerged_from_produces_reverse_acquired(self, resolver):
         # "demerged from X" → X is the source (continuing parent entity),
@@ -186,8 +221,10 @@ class TestH1NewVerbPatterns:
             "in 2021, listing the Indian wiring business separately.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "acquired" in by_type
         edge = by_type["acquired"][0]
@@ -203,8 +240,10 @@ class TestH1NewVerbPatterns:
             "India's largest quick-service restaurant operators.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "acquired" in by_type
         edge = by_type["acquired"][0]
@@ -224,17 +263,17 @@ class TestH1NewVerbPatterns:
             "Larsen & Toubro Infotech and Mindtree in 2022.\n"
         )
         by_type, _ = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "acquired" in by_type
         edge = by_type["acquired"][0]
         assert edge.source == "Larsen and Toubro"
         assert edge.target == "LTM"
 
-    def test_listed_subsidiary_is_X_produces_reverse_subsidiary_of(
-        self, resolver
-    ):
+    def test_listed_subsidiary_is_X_produces_reverse_subsidiary_of(self, resolver):
         # "listed subsidiary is X" / "its Indian subsidiary is X" → section
         # company is the PARENT, X is the subsidiary. This is the reverse of
         # the "subsidiary of X" forward pattern.
@@ -244,8 +283,10 @@ class TestH1NewVerbPatterns:
             "Hindustan Unilever, the country's largest FMCG company.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "subsidiary_of" in by_type
         edge = by_type["subsidiary_of"][0]
@@ -264,8 +305,10 @@ class TestH1NewVerbPatterns:
             "serves global markets with premium devices.\n"
         )
         by_type, _ = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         # The bare "Subsidiary Samsung Mobile" form must not produce an edge.
         assert "subsidiary_of" not in by_type or all(
@@ -281,8 +324,10 @@ class TestH1NewVerbPatterns:
             "Devyani International merged with Acme Holdings, a fictional firm.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "acquired" not in by_type
         assert len(unresolved) == 1
@@ -302,8 +347,10 @@ class TestGenericAcquiredFilter:
             "acquisition of land, which may be a world record.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         # No edges and no unresolved (filter rejects before sidecar).
         assert by_type == {}
@@ -314,17 +361,22 @@ class TestSupplierCustomerExtraction:
     """Integration tests for supplier_to / customer_of edge extraction."""
 
     def test_supplier_to_with_named_entity(self):
-        resolver = EntityResolver([
-            "Laxmi Organic", "Hitachi Energy India",
-        ])
+        resolver = EntityResolver(
+            [
+                "Laxmi Organic",
+                "Hitachi Energy India",
+            ]
+        )
         content = (
             "## Laxmi Organic | Mid Cap | Chemicals\n\n"
             "We are going to be the global supplier for Hitachi Energy for an "
             "SF6 replacement product with the same functionality.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "supplier_to" in by_type
         edge = by_type["supplier_to"][0]
@@ -340,8 +392,10 @@ class TestSupplierCustomerExtraction:
             "Bosch is a leading supplier to OEMs and the aftermarket globally.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         # OEMs is a generic target — filtered out, not sidecarred.
         assert "supplier_to" not in by_type
@@ -349,24 +403,26 @@ class TestSupplierCustomerExtraction:
 
     def test_customer_of_parens_chunked(self):
         # Multi-entity parenthesised list. Only resolvable chunks emit edges.
-        resolver = EntityResolver([
-            "GAIL India", "Indian Oil Corporation",  # NOT BPCI
-        ])
+        resolver = EntityResolver(
+            [
+                "GAIL India",
+                "Indian Oil Corporation",  # NOT BPCI
+            ]
+        )
         content = (
             "## GAIL India Limited | Large Cap | Energy\n\n"
             "Competitive vulnerability revealed as major customers "
             "(IOCL 1.5 MMSCMD, BPCI 0.8 MMSCMD) easily switched to liquid fuels.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "customer_of" in by_type
         # IOCL resolves via alias to Indian Oil Corporation.
-        ioc_edge = next(
-            e for e in by_type["customer_of"]
-            if e.target == "Indian Oil Corporation"
-        )
+        ioc_edge = next(e for e in by_type["customer_of"] if e.target == "Indian Oil Corporation")
         assert ioc_edge.source == "GAIL India"
 
     def test_customer_of_all_chunks_unresolved_goes_to_sidecar(self):
@@ -376,8 +432,10 @@ class TestSupplierCustomerExtraction:
             "Major customers (FOO 1.0 X, BAR 2.0 Y) easily switched this quarter.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert by_type == {}
         # FOO/BAR weren't resolvable; record the whole mention for review.
@@ -398,12 +456,17 @@ class TestCompetesWithExtraction:
 
     @pytest.fixture
     def resolver(self):
-        return EntityResolver([
-            "Hero MotoCorp",                              # the section company
-            "Bajaj Auto", "TVS Motor Company", "Eicher Motors",
-            "Tata Motors", "Ashok Leyland",
-            "Pfizer",                                     # Pattern B single-target
-        ])
+        return EntityResolver(
+            [
+                "Hero MotoCorp",  # the section company
+                "Bajaj Auto",
+                "TVS Motor Company",
+                "Eicher Motors",
+                "Tata Motors",
+                "Ashok Leyland",
+                "Pfizer",  # Pattern B single-target
+            ]
+        )
 
     def test_competes_with_named_list_emits_one_edge_per_target(self, resolver):
         # Pattern A happy path: comma + "and" list. The wide capture is split
@@ -414,8 +477,10 @@ class TestCompetesWithExtraction:
             "are gaining share in the entry-level segment.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test Edition",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test Edition",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert "competes_with" in by_type
         pairs = {(e.source, e.target) for e in by_type["competes_with"]}
@@ -440,8 +505,10 @@ class TestCompetesWithExtraction:
             "commercial vehicle market.\n"
         )
         by_type, _ = extract_relations(
-            content, edition_title="T",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="T",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         pairs = {(e.source, e.target) for e in by_type.get("competes_with", [])}
         assert ("Ashok Leyland", "Hero MotoCorp") in pairs
@@ -455,8 +522,10 @@ class TestCompetesWithExtraction:
             "The company competes with Pfizer in the vaccine segment.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="T",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="T",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert len(by_type.get("competes_with", [])) == 1
         edge = by_type["competes_with"][0]
@@ -474,14 +543,15 @@ class TestCompetesWithExtraction:
             "intense competition from Chinese imports.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="T",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="T",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert by_type.get("competes_with", []) == []
         cw_sidecar = [u for u in unresolved if u.edge_type == "competes_with"]
         assert cw_sidecar == [], (
-            "generic competes_with targets must be silently dropped, not "
-            f"sidecarred: {cw_sidecar}"
+            f"generic competes_with targets must be silently dropped, not sidecarred: {cw_sidecar}"
         )
 
     def test_competes_with_self_edge_skipped(self, resolver):
@@ -491,8 +561,10 @@ class TestCompetesWithExtraction:
             "Indian peers like Hero MotoCorp and Bajaj Auto both grew volumes.\n"
         )
         by_type, _ = extract_relations(
-            content, edition_title="T",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="T",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         cw = by_type.get("competes_with", [])
         # Only the Bajaj Auto edge; Hero<->Hero self-edge must be skipped.
@@ -508,8 +580,10 @@ class TestCompetesWithExtraction:
             "with Pfizer in oncology.\n"
         )
         by_type, _ = extract_relations(
-            content, edition_title="T",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="T",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert len(by_type.get("competes_with", [])) == 1
 
@@ -517,17 +591,22 @@ class TestCompetesWithExtraction:
         # Mix of resolvable + unresolvable chunks in a list. Only resolvable
         # chunks emit edges; the unresolvable name is NOT sidecarred because
         # at least one edge was emitted (matches customer_of behaviour).
-        resolver = EntityResolver([
-            "UPL", "Syngenta",  # PiLimited & BASF intentionally absent
-        ])
+        resolver = EntityResolver(
+            [
+                "UPL",
+                "Syngenta",  # PiLimited & BASF intentionally absent
+            ]
+        )
         content = (
             "## UPL | Large Cap | Chemicals\n\n"
             "Competitors such as Syngenta, BASF, and Bayer dominate the "
             "agrochemicals market.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="T",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="T",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         cw = by_type.get("competes_with", [])
         # Only Syngenta resolves; BASF and Bayer are absent from the resolver.
@@ -537,7 +616,8 @@ class TestCompetesWithExtraction:
         assert [u for u in unresolved if u.edge_type == "competes_with"] == []
 
     def test_competes_with_unresolved_single_mention_goes_to_sidecar(
-        self, resolver,
+        self,
+        resolver,
     ):
         # Single unresolvable target (no list): goes to sidecar for triage.
         content = (
@@ -545,8 +625,10 @@ class TestCompetesWithExtraction:
             "The company competes with UnknownCo in the premium segment.\n"
         )
         by_type, unresolved = extract_relations(
-            content, edition_title="Test Edition",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content,
+            edition_title="Test Edition",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert by_type.get("competes_with", []) == []
         cw_sidecar = [u for u in unresolved if u.edge_type == "competes_with"]
@@ -563,8 +645,10 @@ class TestCompetesWithExtraction:
             "Operates alongside peers like Bajaj Auto in the domestic market.\n"
         )
         by_type, _ = extract_relations(
-            content_alongside, edition_title="T",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content_alongside,
+            edition_title="T",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert by_type.get("competes_with", []) == []
 
@@ -574,8 +658,9 @@ class TestCompetesWithExtraction:
             "with peers such as Bajaj Auto and TVS Motor Company.\n"
         )
         by_type2, _ = extract_relations(
-            content_grouped, edition_title="T",
-            newsletter_type="The_Chatter", resolver=resolver,
+            content_grouped,
+            edition_title="T",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
         )
         assert by_type2.get("competes_with", []) == []
-

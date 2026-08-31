@@ -10,6 +10,7 @@ Covers the curated taxonomy's integrity guarantees:
   - Idempotency: re-running --apply is a no-op (INSERT OR IGNORE).
   - --check mode validates without writing.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -60,15 +61,48 @@ CREATE TABLE graph_edges (
 
 # The 42 live sectors — what the script must fully cover.
 LIVE_SECTORS = [
-    "Agriculture", "Automotive", "Aviation", "Banking", "Building_Materials",
-    "Capital_Markets", "Chemicals", "Consumer", "Defense", "Diagnostics",
-    "Diversified", "EMS_Manufacturing", "Education_Training", "Electronics",
-    "Energy", "Engineering_Capital_Goods", "FMCG", "Fertilizer",
-    "Financial_Services", "Fintech_Payments", "Healthcare", "Hospitals",
-    "Housing_Finance", "Infrastructure", "Insurance", "International",
-    "Logistics", "Media_Entertainment", "Metals", "Mining", "NBFC",
-    "Packaging", "Pharma", "Railways", "Real_Estate", "Renewables", "Retail",
-    "Semiconductors", "Technology", "Telecommunications", "Textiles", "Travel",
+    "Agriculture",
+    "Automotive",
+    "Aviation",
+    "Banking",
+    "Building_Materials",
+    "Capital_Markets",
+    "Chemicals",
+    "Consumer",
+    "Defense",
+    "Diagnostics",
+    "Diversified",
+    "EMS_Manufacturing",
+    "Education_Training",
+    "Electronics",
+    "Energy",
+    "Engineering_Capital_Goods",
+    "FMCG",
+    "Fertilizer",
+    "Financial_Services",
+    "Fintech_Payments",
+    "Healthcare",
+    "Hospitals",
+    "Housing_Finance",
+    "Infrastructure",
+    "Insurance",
+    "International",
+    "Logistics",
+    "Media_Entertainment",
+    "Metals",
+    "Mining",
+    "NBFC",
+    "Packaging",
+    "Pharma",
+    "Railways",
+    "Real_Estate",
+    "Renewables",
+    "Retail",
+    "Semiconductors",
+    "Technology",
+    "Telecommunications",
+    "Textiles",
+    "Travel",
 ]
 
 
@@ -214,15 +248,11 @@ class TestTaxonomyShape:
         # regression — no super-sector name (normalized) may equal a child.
         for ss, members in bsh.SUPER_SECTORS.items():
             stem = bsh._normalize(ss)
-            assert stem not in members, (
-                f"super-sector {ss!r} ({stem!r}) equals a child sector name"
-            )
+            assert stem not in members, f"super-sector {ss!r} ({stem!r}) equals a child sector name"
 
     def test_sub_category_parents_are_real_sectors(self):
         for parent in bsh.SUB_CATEGORIES:
-            assert parent in LIVE_SECTORS, (
-                f"sub-category parent {parent!r} is not a live sector"
-            )
+            assert parent in LIVE_SECTORS, f"sub-category parent {parent!r} is not a live sector"
 
 
 # ---------------------------------------------------------------------------
@@ -322,10 +352,13 @@ class TestCheckDrift:
         db = _build_db(tmp_path)
         _run_build(db, "apply", tmp_path)
         note = next((tmp_path / "findata" / "Super_Sectors").glob("*.md"))
-        note.write_text(note.read_text().replace(
-            "---\n",
-            "---\ngenerated:\n  by: process:okf_backfill\n"
-            "  at: '2026-08-19T00:00:00Z'\n", 1))
+        note.write_text(
+            note.read_text().replace(
+                "---\n",
+                "---\ngenerated:\n  by: process:okf_backfill\n  at: '2026-08-19T00:00:00Z'\n",
+                1,
+            )
+        )
         assert _run_build(db, "check", tmp_path) == 0
 
     def test_drifted_uplink_fails_check(self, tmp_path):
@@ -336,8 +369,7 @@ class TestCheckDrift:
         # Defense belongs to Industrials (curated taxonomy).
         defense = sectors_dir / "Defense.md"
         defense.write_text("# Defense\n", encoding="utf-8")
-        _run_build(db, "apply", tmp_path)          # writes the uplink
+        _run_build(db, "apply", tmp_path)  # writes the uplink
         assert "Industrials" in defense.read_text()
-        defense.write_text(
-            defense.read_text().replace("Industrials", "Wrong_Super"))
+        defense.write_text(defense.read_text().replace("Industrials", "Wrong_Super"))
         assert _run_build(db, "check", tmp_path) == 1

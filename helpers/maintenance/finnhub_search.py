@@ -17,6 +17,7 @@ tests/fixtures/finnhub_search/):
   - token comes from FINNHUB_API_KEY in gitignored memory/.env (see
     helpers/core/env.py); never printed or committed
 """
+
 from __future__ import annotations
 
 import json
@@ -37,7 +38,7 @@ _QUERY_LIMIT = 20  # FinnHub 422s above ~20 chars (measured)
 
 @dataclass(frozen=True)
 class FhMatch:
-    symbol: str       # '544399.BO' — exact Yahoo format, directly
+    symbol: str  # '544399.BO' — exact Yahoo format, directly
     description: str  # 'Srigee DLM Ltd' (display; callers verify names)
 
 
@@ -55,7 +56,8 @@ def parse_search_response(text: str) -> list[FhMatch]:
     data = json.loads(text)
     return [
         FhMatch(symbol=r["symbol"], description=r.get("description", ""))
-        for r in data.get("result", []) if r.get("symbol")
+        for r in data.get("result", [])
+        if r.get("symbol")
     ]
 
 
@@ -69,8 +71,8 @@ def _resolve_token(env_file: Path | None = None) -> str:
     token = os.environ.get("FINNHUB_API_KEY")
     if not token:
         raise RuntimeError(
-            "no finnhub token: set FINNHUB_API_KEY in memory/.env "
-            "(gitignored) or export it")
+            "no finnhub token: set FINNHUB_API_KEY in memory/.env (gitignored) or export it"
+        )
     return token
 
 
@@ -82,24 +84,27 @@ def fh_search(query: str, *, timeout: int = 20) -> str:
     'source unavailable' for that target, non-fatal).
     """
     token = _resolve_token()
-    url = (f"{FINNHUB_SEARCH_URL}?q={urllib.parse.quote(trim_query(query))}"
-           f"&token={token}")
-    req = urllib.request.Request(url, headers={  # noqa: S310  # https-only constant + quoted param
-        "User-Agent": "findata-research/1.0"})
+    url = f"{FINNHUB_SEARCH_URL}?q={urllib.parse.quote(trim_query(query))}&token={token}"
+    req = urllib.request.Request(  # noqa: S310  # https-only constant + quoted param
+        url,
+        headers={"User-Agent": "findata-research/1.0"},
+    )
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
         return resp.read().decode("utf-8", "replace")
 
 
 def fh_search_cached(
-    query: str, cache_dir: Path, *, timeout: int = 20,
+    query: str,
+    cache_dir: Path,
+    *,
+    timeout: int = 20,
 ) -> tuple[list[FhMatch], bool]:
     """fh_search with a per-query text cache (same contract as
     exchange_search.bse_search_cached / googlefinance.load_or_fetch)."""
     safe = re.sub(r"[^A-Za-z0-9._\-]", "_", trim_query(query))[:80]
     cache_file = cache_dir / f"fh_search_{safe}.txt"
     if cache_file.exists():
-        return parse_search_response(
-            cache_file.read_text(encoding="utf-8")), True
+        return parse_search_response(cache_file.read_text(encoding="utf-8")), True
     text = fh_search(query, timeout=timeout)
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(text, encoding="utf-8")
@@ -128,10 +133,13 @@ def probe_queries(name: str) -> list[str]:
 
 
 def fh_search_multi(
-    name: str, cache_dir: Path, *, timeout: int = 20, delay: float = 1.0,
+    name: str,
+    cache_dir: Path,
+    *,
+    timeout: int = 20,
+    delay: float = 1.0,
     sleeper: Callable[[float], None] = time.sleep,
-    search_fn: Callable[..., tuple[list[FhMatch], bool]] =
-    fh_search_cached,
+    search_fn: Callable[..., tuple[list[FhMatch], bool]] = fh_search_cached,
 ) -> tuple[list[FhMatch], bool]:
     """Progressive-probe search — same ``(matches, from_cache)`` contract
     as :func:`fh_search_cached`, drop-in as the resolution driver's

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """S3 tests — googlesheets_metrics.py batch client (no network, no
 gspread import: client_factory is always faked)."""
+
 from __future__ import annotations
 
 import pytest
@@ -31,8 +32,13 @@ class TestParseCell:
         assert parse_cell(" 7.3 ") == 7.3
 
     def test_error_text_is_none(self):
-        assert parse_cell("#N/A (When evaluating GOOGLEFINANCE, the query "
-                          "for the symbol: 'SRIGEE' returned no data.)") is None
+        assert (
+            parse_cell(
+                "#N/A (When evaluating GOOGLEFINANCE, the query "
+                "for the symbol: 'SRIGEE' returned no data.)"
+            )
+            is None
+        )
         assert parse_cell("") is None
         assert parse_cell(None) is None
         assert parse_cell(True) is None
@@ -60,8 +66,7 @@ class _FakeWS:
         pass
 
     def update(self, *, values, range_name, raw=True):
-        self.update_calls.append(
-            {"values": values, "range": range_name, "raw": raw})
+        self.update_calls.append({"values": values, "range": range_name, "raw": raw})
 
     def get_values(self, _rng, value_render_option=None):
         self.polls += 1
@@ -98,8 +103,8 @@ class TestFetchGfMetrics:
             ("NSE:SRIGEE", "price"): "#N/A no data",
         }
         out = fetch_gf_metrics(
-            list(results), client_factory=self._factory(results),
-            poll_seconds=0, attempts=3)
+            list(results), client_factory=self._factory(results), poll_seconds=0, attempts=3
+        )
         assert out[("544399:BOM", "pe")] == pytest.approx(7.3)
         assert out[("544399:BOM", "marketcap")] == pytest.approx(501782400)
         assert out[("NSE:SRIGEE", "price")] is None  # #N/A -> None
@@ -109,15 +114,17 @@ class TestFetchGfMetrics:
         sheet = _FakeSheet({})
         sheet.computed[("grid", 0)] = [("BOM:544399", "price", 84)]
 
-        fetch_gf_metrics([("544399:BOM", "price")],
-                         client_factory=lambda: _FakeClient(sheet),
-                         poll_seconds=0, attempts=2)
+        fetch_gf_metrics(
+            [("544399:BOM", "price")],
+            client_factory=lambda: _FakeClient(sheet),
+            poll_seconds=0,
+            attempts=2,
+        )
         ws = sheet.ws
-        assert len(ws.update_calls) == 1          # ONE batch, not per-cell
+        assert len(ws.update_calls) == 1  # ONE batch, not per-cell
         call = ws.update_calls[0]
-        assert call["raw"] is False               # USER_ENTERED trap
-        assert call["values"][1] == ["BOM:544399", "price",
-                                     '=GOOGLEFINANCE("BOM:544399","price")']
+        assert call["raw"] is False  # USER_ENTERED trap
+        assert call["values"][1] == ["BOM:544399", "price", '=GOOGLEFINANCE("BOM:544399","price")']
 
     def test_empty_requests_short_circuit(self):
         assert fetch_gf_metrics([], client_factory=None) == {}

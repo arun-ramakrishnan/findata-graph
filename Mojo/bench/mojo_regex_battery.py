@@ -93,6 +93,7 @@ def run():
 def run_cases(iters=100000):
     """`iters` case calls, cycling all case callables; return elapsed seconds."""
     import time
+
     cs = cases()
     nc = len(cs)
     t0 = time.perf_counter()
@@ -103,4 +104,4 @@ def run_cases(iters=100000):
 
 def bench_report(iters=100000):
     t = run_cases(iters)
-    return f"{iters} case calls: {t:.4f} s, {iters/t:.0f} calls/s"
+    return f"{iters} case calls: {t:.4f} s, {iters / t:.0f} calls/s"

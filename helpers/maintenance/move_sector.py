@@ -20,6 +20,7 @@ Safety:
     - Idempotent: if entity is already in new_sector, skips.
     - Runs in a transaction; rolls back on any error.
 """
+
 from __future__ import annotations
 
 import json
@@ -121,7 +122,9 @@ def bump_last_modified(yaml_text: str) -> str:
     return yaml_text + f"last_modified: {TODAY}\n"
 
 
-def move_entity(conn: sqlite3.Connection, entity_name: str, new_sector: str, dry_run: bool = False) -> bool:
+def move_entity(
+    conn: sqlite3.Connection, entity_name: str, new_sector: str, dry_run: bool = False
+) -> bool:
     print(f"\n→ {entity_name} → {new_sector}")
 
     if new_sector not in CANONICAL_SECTORS:
@@ -238,6 +241,7 @@ def main() -> int:
         return 2
 
     from helpers.core.db import connect
+
     # row_factory=None: this helper uses positional tuple unpacking
     conn = connect(DB_PATH, row_factory=None)
     rc = 0

@@ -30,6 +30,7 @@ runners (``make perf`` for Python, ``make mojo-bench`` for Mojo legs,
 which gate measured time per leg since 2026-08-30). Only complexity-class
 scaling assertions belong in pytest.
 """
+
 from __future__ import annotations
 
 import shutil
@@ -58,9 +59,26 @@ def test_ruff_python_footprint_clean():
     """`ruff check .` (the make lint command) passes from the repo root."""
     r = subprocess.run(  # noqa: S603  # repo-local venv binary, no shell
         [str(RUFF), "check", "."],
-        capture_output=True, text=True, cwd=REPO_ROOT, check=False,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=False,
     )
     assert r.returncode == 0, f"ruff found violations:\n{r.stdout}\n{r.stderr}"
+
+
+def test_ruff_format_footprint_clean():
+    """`ruff format --check .` passes — Python formatting is canonical
+    (corpus_uniformity S7b; native --check, no copy-diff needed). Width
+    comes from [tool.ruff] line-length = 100; the fixer is `make format`."""
+    r = subprocess.run(  # noqa: S603  # repo-local venv binary, no shell
+        [str(RUFF), "format", "--check", "."],
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=False,
+    )
+    assert r.returncode == 0, f"ruff format would change files (run: make format):\n{r.stdout}"
 
 
 def test_ruff_sees_every_tracked_python_file():
@@ -74,7 +92,10 @@ def test_ruff_sees_every_tracked_python_file():
     assert GIT, "git not found on PATH — probe broken?"
     out = subprocess.run(  # noqa: S603
         [GIT, "ls-files", "--", "*.py"],
-        capture_output=True, text=True, cwd=REPO_ROOT, check=True,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=True,
     )
     tracked = [REPO_ROOT / line for line in out.stdout.splitlines() if line]
     assert tracked, "git ls-files returned no python files — probe broken?"
@@ -82,11 +103,13 @@ def test_ruff_sees_every_tracked_python_file():
     assert not missing, f"tracked but absent from worktree: {missing}"
     r = subprocess.run(  # noqa: S603
         [str(RUFF), "check", "--no-cache", *map(str, tracked)],
-        capture_output=True, text=True, cwd=REPO_ROOT, check=False,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=False,
     )
     assert r.returncode == 0, (
-        f"ruff flagged {len(tracked)} explicitly-named tracked files:\n"
-        f"{r.stdout}\n{r.stderr}"
+        f"ruff flagged {len(tracked)} explicitly-named tracked files:\n{r.stdout}\n{r.stderr}"
     )
 
 
@@ -115,7 +138,10 @@ def test_mojo_format_footprint_clean(tmp_path):
 
     r = subprocess.run(  # noqa: S603
         [str(MOJO), "format", *map(str, copies)],
-        capture_output=True, text=True, cwd=REPO_ROOT, check=False,
+        capture_output=True,
+        text=True,
+        cwd=REPO_ROOT,
+        check=False,
     )
     assert r.returncode == 0, f"mojo format failed:\n{r.stdout}\n{r.stderr}"
 
@@ -125,6 +151,5 @@ def test_mojo_format_footprint_clean(tmp_path):
         if src.read_bytes() != copy.read_bytes()
     ]
     assert not diverged, (
-        "mojo format would change these files (run: make mojo-format):\n  "
-        + "\n  ".join(diverged)
+        "mojo format would change these files (run: make mojo-format):\n  " + "\n  ".join(diverged)
     )

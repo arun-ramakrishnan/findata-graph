@@ -11,6 +11,7 @@ Invariants pinned:
   5. extract_tags always returns a list of non-empty strings.
   6. split_frontmatter_with_title title is None or a non-empty string.
 """
+
 from __future__ import annotations
 
 from hypothesis import given, settings, strategies as st
@@ -170,10 +171,12 @@ def test_fuzz_structured_fm_split_reconstructs(text: str):
 @given(
     st.lists(
         st.text(
-            min_size=1, max_size=30,
+            min_size=1,
+            max_size=30,
             alphabet=st.characters(blacklist_categories=("Cs", "Cc")),  # no control chars in tags
         ),
-        min_size=0, max_size=5,
+        min_size=0,
+        max_size=5,
     ),
     st.text(min_size=0, max_size=200, alphabet=st.characters(blacklist_categories=("Cs",))),
 )

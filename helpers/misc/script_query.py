@@ -56,19 +56,25 @@ def main(argv: list[str] | None = None) -> int:
         description="Query the script metadata index (script_search sidecar).",
     )
     p.add_argument("query", help="free-text query; punctuation is safe")
-    p.add_argument("--kind", choices=["script", "test", "make", "mojo", "ts"],
-                   default=None,
-                   help="filter: script | test | make | mojo | ts rows")
-    p.add_argument("--area", default=None,
-                   help="filter by area (helpers subdir | app | test | make | "
-                        "Mojo package: bench/common | TS package: core/views/"
-                        "src/types)")
+    p.add_argument(
+        "--kind",
+        choices=["script", "test", "make", "mojo", "ts"],
+        default=None,
+        help="filter: script | test | make | mojo | ts rows",
+    )
+    p.add_argument(
+        "--area",
+        default=None,
+        help="filter by area (helpers subdir | app | test | make | "
+        "Mojo package: bench/common | TS package: core/views/"
+        "src/types)",
+    )
     p.add_argument("--limit", type=int, default=5, help="max hits (default 5)")
     p.add_argument("--db", default=None, help="sidecar path (default: module SCRIPT_DB)")
-    p.add_argument("--bm25", action="store_true",
-                   help="lexical leg only (skip the cosine re-rank)")
-    p.add_argument("--json", action="store_true", dest="as_json",
-                   help="emit the raw result dicts as JSON")
+    p.add_argument("--bm25", action="store_true", help="lexical leg only (skip the cosine re-rank)")
+    p.add_argument(
+        "--json", action="store_true", dest="as_json", help="emit the raw result dicts as JSON"
+    )
     args = p.parse_args(argv)
 
     db_path = Path(args.db) if args.db else rss.SCRIPT_DB
@@ -89,8 +95,12 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
         out = rss.search_scripts(
-            conn, args.query, limit=max(1, min(args.limit, 100)),
-            kind=args.kind, area=args.area, hybrid=not args.bm25,
+            conn,
+            args.query,
+            limit=max(1, min(args.limit, 100)),
+            kind=args.kind,
+            area=args.area,
+            hybrid=not args.bm25,
         )
     finally:
         conn.close()

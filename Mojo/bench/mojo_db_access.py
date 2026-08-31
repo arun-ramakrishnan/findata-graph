@@ -7,6 +7,7 @@ CPython and from Mojo through the bridge, consuming rows on the Mojo
 side (repr checksum) — that marshaling cost is the thing being measured.
 Connections are read-only and module-lazy.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -46,47 +47,70 @@ def _duck() -> duckdb.DuckDBPyConnection:
 
 def fts5_search(limit=20):
     """The production hybrid-search path: BM25-ranked FTS5 MATCH."""
-    return _sqlite().execute(
-        "SELECT file_path, bm25(note_search) FROM note_search "
-        "WHERE note_search MATCH ? ORDER BY rank LIMIT ?",
-        ("revenue growth", limit)).fetchall()
+    return (
+        _sqlite()
+        .execute(
+            "SELECT file_path, bm25(note_search) FROM note_search "
+            "WHERE note_search MATCH ? ORDER BY rank LIMIT ?",
+            ("revenue growth", limit),
+        )
+        .fetchall()
+    )
 
 
 def graph_edges(limit=200):
     """Relational slice: one edge type with its JSON properties column."""
-    return _sqlite().execute(
-        "SELECT source, target, edge_type, weight, properties "
-        "FROM graph_edges WHERE edge_type='competes_with' LIMIT ?",
-        (limit,)).fetchall()
+    return (
+        _sqlite()
+        .execute(
+            "SELECT source, target, edge_type, weight, properties "
+            "FROM graph_edges WHERE edge_type='competes_with' LIMIT ?",
+            (limit,),
+        )
+        .fetchall()
+    )
 
 
 def quotes(limit=200):
     """Text-heavy rows (quote_text + paraphrase)."""
-    return _sqlite().execute(
-        "SELECT entity, quote_text, paraphrase, speaker_name "
-        "FROM quotes LIMIT ?", (limit,)).fetchall()
+    return (
+        _sqlite()
+        .execute(
+            "SELECT entity, quote_text, paraphrase, speaker_name FROM quotes LIMIT ?", (limit,)
+        )
+        .fetchall()
+    )
 
 
 def company_metrics(limit=500):
     """Numeric/label rows."""
-    return _sqlite().execute(
-        "SELECT entity, metric_label, value_num, unit, period "
-        "FROM company_metrics LIMIT ?", (limit,)).fetchall()
+    return (
+        _sqlite()
+        .execute(
+            "SELECT entity, metric_label, value_num, unit, period FROM company_metrics LIMIT ?",
+            (limit,),
+        )
+        .fetchall()
+    )
 
 
 def duckdb_edges(limit=200):
     """DuckDB undirected-edge scan."""
-    return _duck().execute(
-        "SELECT a_id, b_id, edge_type, valid_from FROM e_all_und LIMIT ?",
-        [limit]).fetchall()
+    return (
+        _duck()
+        .execute("SELECT a_id, b_id, edge_type, valid_from FROM e_all_und LIMIT ?", [limit])
+        .fetchall()
+    )
 
 
 def duckdb_wide_embeddings(limit=200):
     """WIDE rows — 384-float embedding as a Python list (~8 KB/row): the
     marshaling sensitivity case."""
-    return _duck().execute(
-        "SELECT company_name, embedding FROM v_embeddings LIMIT ?",
-        [limit]).fetchall()
+    return (
+        _duck()
+        .execute("SELECT company_name, embedding FROM v_embeddings LIMIT ?", [limit])
+        .fetchall()
+    )
 
 
 def cases():
@@ -150,6 +174,8 @@ def elapsed_of(name):
 def bench_report(reps=50):
     lines = [f"python native, {reps} reps/case:"]
     for name, (nrows, checksum, dt) in bench_native(reps).items():
-        lines.append(f"  {name:24s} rows={nrows:4d} checksum={checksum:>9d} "
-                     f"elapsed={dt:.3f}s ({reps * nrows / dt:,.0f} rows/s)")
+        lines.append(
+            f"  {name:24s} rows={nrows:4d} checksum={checksum:>9d} "
+            f"elapsed={dt:.3f}s ({reps * nrows / dt:,.0f} rows/s)"
+        )
     return "\n".join(lines)

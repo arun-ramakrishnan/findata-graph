@@ -4472,3 +4472,40 @@ Measured: live `-n auto` 218/218 ×5 (43.8–51.2s); in-gate 5/5 green at
 default qa gate) stays OFF per the proposal. BFS oracle tests deliberately
 not trimmed (correctness coverage > ~4s).
 # FinData Knowledge Graph — Completed Improvements
+
+## 190
+
+**Date:** 2026-08-31 · **Type:** tooling (corpus uniformity) ·
+**Proposal:** `doc/improvements/archive/tooling/corpus_uniformity.md` ·
+**Status:** EXECUTED 2026-08-31 (all slices same day)
+
+Templates + contracts + the doc/ boundary: doc/ now has an explicit
+five-class taxonomy — `doc/okf/` (contracts, was doc/schema/),
+`doc/design/` (was the loose root docs; schema.md → db_schema.md),
+`doc/templates/` (seeds), procedures, improvements — swept across 37
+files + 2 split-path constants, with the relative-pointer and
+exact-rel-path-resolver traps fixed along the way. The template corpus:
+python/mojo/test/ts/proposal code seeds + 4 note YAML seeds + the
+language matrix (adopting a language = add a row), guarded by a
+`PAIRINGS` registry (unpaired = failure) in tests/test_templates.py
+(13 guards). The TS footprint landed in script_search (`kind='ts'`,
+232 units / 287 rows) via frontend/scripts/extract_ts_docs.mjs — a
+STRUCTURAL SCANNER, because typescript@7 is the native compiler and
+ships no JS API. Proposals got the option-2 FULL frontmatter contract
+(frontmatter.proposal.v1.json + a walk decoupled from DIR_TO_TYPE +
+the Proposal-lifecycle static check) with a 36-file backfill whose
+numbers were audited against completed.md — two headers had pointed at
+wrong entries all along (zero_churn #143→147, local_embeddings
+#115→141; fixed in both FM and bold header). Format gates: prettier
+(tabWidth 4 after a churn probe: 8 files/1,309 lines vs ~7k at
+defaults; bundles rebuilt — esbuild keeps comments) in advisory
+frontend-check; `ruff format --check` as a 4th test_lint_gates gate +
+`make format`, normalizing 211 files (11,485+/7,472−). Generalizable:
+ruff format splits multi-line statements and STRANDS trailing noqas —
+the gate sweep found 22 across five codes (E402/F401/S607/S608×14/C901
+×5); NEVER place a noqa after a `"""` opener (it lands INSIDE the
+string — corrupting SQL bodies; query.py's 14 S608s became a
+documented per-file-ignore instead); deptry `exclude` REPLACES its
+defaults (.venv got scanned) — use `extend_exclude`; `format` sorts
+BEFORE `frontend` (o < r). Proposal bold headers have four spellings —
+match both colon placements.

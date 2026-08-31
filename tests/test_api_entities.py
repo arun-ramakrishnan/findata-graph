@@ -94,9 +94,7 @@ def _seeded_db(tmp_path):
             (name, etype, sec, fp),
         )
         for t in tags:
-            conn.execute(
-                "INSERT INTO entity_tags (entity_name, tag) VALUES (?,?)", (name, t)
-            )
+            conn.execute("INSERT INTO entity_tags (entity_name, tag) VALUES (?,?)", (name, t))
     conn.commit()
     conn.close()
 

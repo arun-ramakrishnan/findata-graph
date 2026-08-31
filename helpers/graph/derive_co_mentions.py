@@ -26,6 +26,7 @@ CLI
     python3 helpers/graph/derive_co_mentions.py --newsletter The_Chatter
     python3 helpers/graph/derive_co_mentions.py --newsletter The_Chatter --apply
 """
+
 from __future__ import annotations
 
 import argparse
@@ -91,7 +92,9 @@ def _heading_regex(newsletter_type: str) -> re.Pattern[str]:
 
 def _footer_regex(newsletter_type: str) -> re.Pattern[str]:
     """Build the source-footer regex for a given newsletter slug."""
-    return re.compile(_FOOTER_RE_TEMPLATE.format(nl=re.escape(_newsletter_title(newsletter_type))), re.MULTILINE)
+    return re.compile(
+        _FOOTER_RE_TEMPLATE.format(nl=re.escape(_newsletter_title(newsletter_type))), re.MULTILINE
+    )
 
 
 def _newsletter_title(newsletter_type: str) -> str:
@@ -113,9 +116,7 @@ def _resolve_entity_name(conn, file_path: str) -> str | None:
     Returns None if the note isn't registered as an entity (avoids FK
     violations when inserting edges).
     """
-    row = conn.execute(
-        "SELECT name FROM entities WHERE file_path = ?", (file_path,)
-    ).fetchone()
+    row = conn.execute("SELECT name FROM entities WHERE file_path = ?", (file_path,)).fetchone()
     return row["name"] if row else None
 
 
@@ -178,7 +179,7 @@ def extract_co_mentions(  # noqa: C901
         for md_path in sorted(root.rglob("*.md")):
             try:
                 text = md_path.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
+            except OSError, UnicodeDecodeError:
                 continue
             for m in footer_re.finditer(text):
                 title, paren = m.group(1).strip(), m.group(2)
@@ -191,7 +192,7 @@ def extract_co_mentions(  # noqa: C901
         for md_path in sorted(root.rglob("*.md")):
             try:
                 text = md_path.read_text(encoding="utf-8")
-            except (OSError, UnicodeDecodeError):
+            except OSError, UnicodeDecodeError:
                 continue
             matches = heading_re.findall(text)
             if not matches:
@@ -354,7 +355,8 @@ def _cli(argv: list[str] | None = None) -> int:
         help="Write edges to graph_edges (default: dry-run summary only).",
     )
     p.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Print every edge in addition to the summary.",
     )

@@ -16,6 +16,7 @@ Invariants pinned (see doc/improvements/archive/pipeline/pdf_conv_md_hardening_f
   5. to_wikilinks: never raises on arbitrary text + well-shaped plan; returns str.
   6. resolve_markdown: never raises; returns str.
 """
+
 from __future__ import annotations
 
 import sys
@@ -53,9 +54,7 @@ _json_st = st.recursive(
         st.booleans(),
         st.none(),
     ),
-    lambda children: st.one_of(
-        st.lists(children), st.dictionaries(st.text(), children)
-    ),
+    lambda children: st.one_of(st.lists(children), st.dictionaries(st.text(), children)),
     max_leaves=12,
 )
 

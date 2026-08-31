@@ -41,6 +41,7 @@ edit adds/updates only the changed rows. The ``--check`` mode validates
 coverage (all 42 live sectors mapped, 0 orphans, 0 collisions) and exits
 nonzero on drift — suitable for a CI gate.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -89,23 +90,43 @@ SUPER_SECTORS_DIR = VAULT_ROOT / "Super_Sectors"
 #   - International     -> Industrials (holding-company bucket)
 SUPER_SECTORS: dict[str, list[str]] = {
     "Financials": [
-        "Banking", "Financial_Services", "NBFC", "Housing_Finance",
-        "Insurance", "Capital_Markets", "Fintech_Payments",
+        "Banking",
+        "Financial_Services",
+        "NBFC",
+        "Housing_Finance",
+        "Insurance",
+        "Capital_Markets",
+        "Fintech_Payments",
     ],
     "Healthcare_Super": ["Pharma", "Healthcare", "Hospitals", "Diagnostics"],
     "Industrials": [
-        "Engineering_Capital_Goods", "EMS_Manufacturing", "Infrastructure",
-        "Railways", "Logistics", "Defense",
-        "Diversified", "International",
+        "Engineering_Capital_Goods",
+        "EMS_Manufacturing",
+        "Infrastructure",
+        "Railways",
+        "Logistics",
+        "Defense",
+        "Diversified",
+        "International",
     ],
     "Materials": [
-        "Chemicals", "Metals", "Mining", "Building_Materials",
-        "Packaging", "Fertilizer", "Textiles",
+        "Chemicals",
+        "Metals",
+        "Mining",
+        "Building_Materials",
+        "Packaging",
+        "Fertilizer",
+        "Textiles",
     ],
     "Energy_Super": ["Energy", "Renewables"],
     "Consumer Discretionary": [
-        "Automotive", "Retail", "Travel", "Real_Estate", "Consumer",
-        "Aviation", "Education_Training",
+        "Automotive",
+        "Retail",
+        "Travel",
+        "Real_Estate",
+        "Consumer",
+        "Aviation",
+        "Education_Training",
     ],
     "Consumer Staples": ["FMCG", "Agriculture"],
     "Information Technology": ["Technology", "Semiconductors", "Electronics"],
@@ -135,8 +156,11 @@ SUB_CATEGORIES: dict[str, list[str]] = {
     "Diagnostics": ["Imaging", "IVD", "Pathology"],
     "Diversified": ["Multi Segment"],
     "Education_Training": [
-        "Formal Education", "Test Preparation", "EdTech Platforms",
-        "Vocational Training", "Corporate Training",
+        "Formal Education",
+        "Test Preparation",
+        "EdTech Platforms",
+        "Vocational Training",
+        "Corporate Training",
     ],
     "FMCG": ["Food Beverages", "Household Care", "Personal Care"],
     "Hospitals": ["Cancer Care", "Hospital Chains", "Specialty Care"],
@@ -144,8 +168,12 @@ SUB_CATEGORIES: dict[str, list[str]] = {
     "Logistics": ["Transportation", "Supply Chain Services", "Specialized Logistics"],
     "Media_Entertainment": ["Broadcasting", "Cinema", "Digital"],
     "Metals": [
-        "Iron and Steel", "Aluminum", "Copper",
-        "Zinc and Lead", "Precious Metals", "Minor Metals",
+        "Iron and Steel",
+        "Aluminum",
+        "Copper",
+        "Zinc and Lead",
+        "Precious Metals",
+        "Minor Metals",
     ],
     "Mining": ["Coal", "Iron Ore", "Non Ferrous"],
     "Packaging": ["Flexible Packaging", "Rigid Packaging"],
@@ -154,8 +182,10 @@ SUB_CATEGORIES: dict[str, list[str]] = {
     "Renewables": ["Biofuel", "Solar", "Wind"],
     "Semiconductors": ["Design", "Foundry", "Memory"],
     "Textiles": [
-        "Traditional Textiles", "Technical Textiles",
-        "Apparel Manufacturing", "Textile Machinery",
+        "Traditional Textiles",
+        "Technical Textiles",
+        "Apparel Manufacturing",
+        "Textile Machinery",
     ],
     "Travel": ["Hotels", "Leisure", "Resorts"],
 }
@@ -187,9 +217,7 @@ def _super_sector_note(display_name: str, child_sectors: list[str]) -> str:
     created = date.today().isoformat()
     # Wikilinks to the child SECTOR notes. Sector notes live in
     # findata/Sectors/<Stem>.md; Obsidian resolves [[Stem]] to them.
-    links = "\n".join(
-        f"- [[{_normalize(s)}]]" for s in sorted(child_sectors)
-    )
+    links = "\n".join(f"- [[{_normalize(s)}]]" for s in sorted(child_sectors))
     return f"""---
 title: {display_name}
 type: super_sector
@@ -198,7 +226,7 @@ file_path: {_note_path("super_sector", display_name)}
 permalink: {permalink}
 tags:
 - entity_type/super_sector
-- super_sector/{display_name.lower().replace(' ', '_')}
+- super_sector/{display_name.lower().replace(" ", "_")}
 created: '{created}'
 last_modified: '{created}'
 ---
@@ -230,9 +258,7 @@ def _write_super_note(ss: str, members: list[str]) -> bool:
     """
     note_path = SUPER_SECTORS_DIR / f"{_normalize(ss)}.md"
     rendered = _super_sector_note(ss, members)
-    region_re = re.compile(
-        re.escape(_CHILD_BEGIN) + r".*?" + re.escape(_CHILD_END), re.DOTALL
-    )
+    region_re = re.compile(re.escape(_CHILD_BEGIN) + r".*?" + re.escape(_CHILD_END), re.DOTALL)
     fresh_match = region_re.search(rendered)
     if fresh_match is None:  # template invariant broken — fall back to full write
         note_path.write_text(rendered, encoding="utf-8")
@@ -251,7 +277,7 @@ def _write_super_note(ss: str, members: list[str]) -> bool:
         m = re.search(r"^# .+$", text, re.MULTILINE)
         block = f"\n\n{fresh_region}"
         if m:
-            new_text = text[: m.end()] + block + text[m.end():]
+            new_text = text[: m.end()] + block + text[m.end() :]
         else:
             new_text = text.rstrip() + "\n" + block
     if new_text == text:
@@ -272,27 +298,22 @@ def _validate_coverage(live_sectors: set[str]) -> list[str]:  # noqa: C901
         for m in members:
             mapped.append(m)
             if m not in live_sectors:
-                errors.append(
-                    f"super-sector {ss!r} references unknown sector {m!r}"
-                )
+                errors.append(f"super-sector {ss!r} references unknown sector {m!r}")
     # orphans: live sectors not mapped to any super-sector
     orphans = live_sectors - set(mapped)
     for o in sorted(orphans):
         errors.append(f"sector {o!r} is not mapped to any super-sector")
     # collisions: a sector listed under >1 super-sector
     from collections import Counter
+
     dupes = [s for s, c in Counter(mapped).items() if c > 1]
     for d in sorted(dupes):
         owners = [ss for ss, mem in SUPER_SECTORS.items() if d in mem]
-        errors.append(
-            f"sector {d!r} is mapped to {len(owners)} super-sectors: {owners}"
-        )
+        errors.append(f"sector {d!r} is mapped to {len(owners)} super-sectors: {owners}")
     # sub-category parents must be real sectors
     for parent in SUB_CATEGORIES:
         if parent not in live_sectors:
-            errors.append(
-                f"sub-category parent {parent!r} is not a live sector"
-            )
+            errors.append(f"sub-category parent {parent!r} is not a live sector")
     # super-sector names must NOT collide with any existing sector name —
     # entities.name is the PK, so INSERT OR IGNORE would silently skip a
     # colliding super_sector and leave the existing sector row mis-typed.
@@ -337,9 +358,8 @@ def build(*, write: bool) -> int:  # noqa: C901
     """
     conn = connect(DB_PATH)
     live_sectors = {
-        r[0] for r in conn.execute(
-            "SELECT name FROM entities WHERE entity_type='sector'"
-        ).fetchall()
+        r[0]
+        for r in conn.execute("SELECT name FROM entities WHERE entity_type='sector'").fetchall()
     }
 
     errors = _validate_coverage(live_sectors)
@@ -359,17 +379,26 @@ def build(*, write: bool) -> int:  # noqa: C901
     # 9 super_sector entities.
     for ss, members in SUPER_SECTORS.items():
         stem = _normalize(ss)
-        entity_rows.append((
-            stem, "super_sector", _note_path("super_sector", ss),
-            stem, today,
-        ))
+        entity_rows.append(
+            (
+                stem,
+                "super_sector",
+                _note_path("super_sector", ss),
+                stem,
+                today,
+            )
+        )
         # sector -> super_sector belongs_to edges.
         for sector in members:
-            edge_rows.append((
-                sector, stem, "belongs_to",
-                json.dumps({"hierarchy": "sector->super_sector"}),
-                f"derive:sector_hierarchy:{today}",
-            ))
+            edge_rows.append(
+                (
+                    sector,
+                    stem,
+                    "belongs_to",
+                    json.dumps({"hierarchy": "sector->super_sector"}),
+                    f"derive:sector_hierarchy:{today}",
+                )
+            )
 
     # ~21 sub_sector entities + sub_sector -> sector belongs_to edges.
     for parent_sector, subs in SUB_CATEGORIES.items():
@@ -377,14 +406,24 @@ def build(*, write: bool) -> int:  # noqa: C901
             stem = _normalize(sub)
             # Sub-categories are facets, not first-class notes — give them a
             # synthetic path but no markdown file (file_path NULL).
-            entity_rows.append((
-                stem, "sub_sector", None, stem, today,
-            ))
-            edge_rows.append((
-                stem, parent_sector, "belongs_to",
-                json.dumps({"hierarchy": "sub_sector->sector"}),
-                f"derive:sector_hierarchy:{today}",
-            ))
+            entity_rows.append(
+                (
+                    stem,
+                    "sub_sector",
+                    None,
+                    stem,
+                    today,
+                )
+            )
+            edge_rows.append(
+                (
+                    stem,
+                    parent_sector,
+                    "belongs_to",
+                    json.dumps({"hierarchy": "sub_sector->sector"}),
+                    f"derive:sector_hierarchy:{today}",
+                )
+            )
 
     n_entities = len(entity_rows)
     n_edges = len(edge_rows)
@@ -412,8 +451,7 @@ def build(*, write: bool) -> int:  # noqa: C901
             )
             conn.close()
             return 1
-        print("(--check mode: taxonomy + notes fresh, no writes performed)",
-              file=sys.stderr)
+        print("(--check mode: taxonomy + notes fresh, no writes performed)", file=sys.stderr)
         conn.close()
         return 0
 
@@ -440,9 +478,7 @@ def build(*, write: bool) -> int:  # noqa: C901
     # Uses SUPER_SECTORS_DIR (which derives from VAULT_ROOT, monkeypatchable
     # in tests) so build(write=True) never touches the real findata/ vault.
     SUPER_SECTORS_DIR.mkdir(parents=True, exist_ok=True)
-    refreshed = sum(
-        _write_super_note(ss, members) for ss, members in SUPER_SECTORS.items()
-    )
+    refreshed = sum(_write_super_note(ss, members) for ss, members in SUPER_SECTORS.items())
 
     # Bidirectional mapping: write the upward `super_sector:` frontmatter
     # field + an auto up-link section into each sector note so the hierarchy
@@ -450,9 +486,11 @@ def build(*, write: bool) -> int:  # noqa: C901
     # Child Sectors section above; sector notes link UP via this section).
     _sync_sector_uplinks(conn)
 
-    print(f"Applied: {n_entities} entities + {n_edges} edges + "
-          f"{refreshed} super-sector note region(s) + sector up-links.",
-          file=sys.stderr)
+    print(
+        f"Applied: {n_entities} entities + {n_edges} edges + "
+        f"{refreshed} super-sector note region(s) + sector up-links.",
+        file=sys.stderr,
+    )
     conn.close()
     return 0
 
@@ -489,9 +527,7 @@ def _check_super_notes() -> int:
 
 def _child_region(text: str) -> str | None:
     """The sentinel-bracketed Child Sectors region, or None when absent."""
-    m = re.search(
-        rf"{re.escape(_CHILD_BEGIN)}(.*?){re.escape(_CHILD_END)}", text, re.S
-    )
+    m = re.search(rf"{re.escape(_CHILD_BEGIN)}(.*?){re.escape(_CHILD_END)}", text, re.S)
     return m.group(1) if m else None
 
 
@@ -503,7 +539,8 @@ def _uplink_changes(conn) -> list[tuple[Path, str, str]]:
     """
     # Build sector -> super_sector lookup from the belongs_to edges.
     sector_to_super = {
-        r[0]: r[1] for r in conn.execute(
+        r[0]: r[1]
+        for r in conn.execute(
             "SELECT source, target FROM graph_edges "
             "WHERE edge_type='belongs_to' AND source IN "
             "(SELECT name FROM entities WHERE entity_type='sector')"
@@ -531,8 +568,7 @@ def _sync_sector_uplinks(conn) -> None:
     changes = _uplink_changes(conn)
     for note_path, _old, new_content in changes:
         note_path.write_text(new_content, encoding="utf-8")
-    print(f"synced super-sector up-links in {len(changes)} sector note(s)",
-          file=sys.stderr)
+    print(f"synced super-sector up-links in {len(changes)} sector note(s)", file=sys.stderr)
 
 
 def _inject_uplink(content: str, super_name: str) -> str:
@@ -543,6 +579,7 @@ def _inject_uplink(content: str, super_name: str) -> str:
     idempotent: existing field/section is replaced, not duplicated.
     """
     import re
+
     super_stem = _normalize(super_name)
     section = (
         f"{_UP_BEGIN}\n## Super Sector (auto)\n\n"
@@ -570,15 +607,15 @@ def _inject_uplink(content: str, super_name: str) -> str:
 
     # --- 2. Set/replace the `super_sector:` frontmatter field. ---
     # Remove any existing auto-set field first (idempotent).
-    content = re.sub(
-        r"^super_sector:.*\n", "", content, count=1, flags=re.MULTILINE
-    )
+    content = re.sub(r"^super_sector:.*\n", "", content, count=1, flags=re.MULTILINE)
     # Insert after the `type:` line (matches CANONICAL_ORDER: title, type,
     # sector, super_sector, ...).
     content = re.sub(
         r"(^type:.*\n)",
         rf"\1super_sector: {super_name}\n",
-        content, count=1, flags=re.MULTILINE,
+        content,
+        count=1,
+        flags=re.MULTILINE,
     )
     return content
 
@@ -587,19 +624,20 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     g = p.add_mutually_exclusive_group()
     g.add_argument(
-        "--check", action="store_true",
+        "--check",
+        action="store_true",
         help="Validate taxonomy coverage without writing (CI gate).",
     )
     g.add_argument(
-        "--apply", action="store_true",
+        "--apply",
+        action="store_true",
         help="Write entities, edges, and super-sector notes.",
     )
     args = p.parse_args()
     write = args.apply or (not args.check)
     # Default (no flag) is --check for safety; require explicit --apply.
     if not args.apply and not args.check:
-        print("No --apply/--check given; defaulting to --check (dry-run).",
-              file=sys.stderr)
+        print("No --apply/--check given; defaulting to --check (dry-run).", file=sys.stderr)
         write = False
     return build(write=write)
 

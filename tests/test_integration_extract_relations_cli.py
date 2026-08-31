@@ -8,6 +8,7 @@ resolution end-to-end, the _pending_relations sidecar contract
 (append-on-dry-run, --no-write-sidecar keeps it clean), symmetric
 canonical ordering, and re-apply idempotence.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -44,8 +45,8 @@ Reliance Industries acquired Globex, a small regional player.
 """
 
 _REL = "Reliance Industries"
-_FSN = "FSN E-Commerce"   # reached via the "nykaa" brand alias
-_UNKNOWN = "Globex"       # unresolved -> sidecar
+_FSN = "FSN E-Commerce"  # reached via the "nykaa" brand alias
+_UNKNOWN = "Globex"  # unresolved -> sidecar
 
 
 def _make_db(db: Path) -> None:
@@ -53,14 +54,22 @@ def _make_db(db: Path) -> None:
     dst = sqlite3.connect(str(db))
     src.backup(dst)
     src.close()
-    for t in ("graph_edges", "entity_tags", "graph_analytics", "events",
-              "quotes", "company_metrics", "company_embeddings",
-              "note_search", "note_search_meta"):
+    for t in (
+        "graph_edges",
+        "entity_tags",
+        "graph_analytics",
+        "events",
+        "quotes",
+        "company_metrics",
+        "company_embeddings",
+        "note_search",
+        "note_search_meta",
+    ):
         dst.execute(f"DELETE FROM {t}")  # noqa: S608  # schema-constant identifiers
     dst.execute("DELETE FROM entities")
     dst.executemany(
-        "INSERT INTO entities (name, entity_type) VALUES (?, 'company')",
-        [(_REL,), (_FSN,)])
+        "INSERT INTO entities (name, entity_type) VALUES (?, 'company')", [(_REL,), (_FSN,)]
+    )
     dst.commit()
     dst.close()
 
@@ -71,8 +80,7 @@ class _XrProject:
         self.db = root / "research.db"
         self.vault = root / "findata"
         (self.vault / "The_Chatter").mkdir(parents=True)
-        (self.vault / "The_Chatter" / "TC_Alpha.md").write_text(
-            _NEWSLETTER, encoding="utf-8")
+        (self.vault / "The_Chatter" / "TC_Alpha.md").write_text(_NEWSLETTER, encoding="utf-8")
         self.sidecar = self.vault / "_pending_relations.txt"
         _make_db(self.db)
 
@@ -83,10 +91,9 @@ class _XrProject:
         # tmp path (otherwise dry-runs append to the LIVE sidecar).
         real_ws = xr.write_sidecar
         monkeypatch.setattr(
-            xr, "write_sidecar",
-            lambda unresolved, path=None: real_ws(unresolved, self.sidecar))
-        monkeypatch.setattr(xr, "connect",
-                            lambda *a, **k: db_connect(str(self.db)))
+            xr, "write_sidecar", lambda unresolved, path=None: real_ws(unresolved, self.sidecar)
+        )
+        monkeypatch.setattr(xr, "connect", lambda *a, **k: db_connect(str(self.db)))
         err = StringIO()
         with redirect_stderr(err):
             rc = xr._cli([str(self.vault / "The_Chatter"), *args])
@@ -95,8 +102,8 @@ class _XrProject:
     def edges(self, edge_type: str) -> list[tuple]:
         conn = sqlite3.connect(str(self.db))
         rows = conn.execute(
-            "SELECT source, target, symmetric FROM graph_edges "
-            "WHERE edge_type = ?", (edge_type,)).fetchall()
+            "SELECT source, target, symmetric FROM graph_edges WHERE edge_type = ?", (edge_type,)
+        ).fetchall()
         conn.close()
         return rows
 
@@ -107,8 +114,7 @@ def xr_project(tmp_path) -> _XrProject:
 
 
 class TestExtractRelationsCli:
-    def test_dry_run_writes_sidecar_and_zero_edges(self, xr_project,
-                                                   monkeypatch):
+    def test_dry_run_writes_sidecar_and_zero_edges(self, xr_project, monkeypatch):
         rc, err = xr_project.run(monkeypatch)  # dry-run, sidecar ON
         assert rc == 0
         assert xr_project.sidecar.exists()
@@ -117,9 +123,8 @@ class TestExtractRelationsCli:
         assert xr_project.edges("acquired") == []
         assert xr_project.edges("jv_with") == []
 
-    def test_apply_writes_edges_with_alias_resolution(self, xr_project,
-                                                      monkeypatch):
-        """"acquired Nykaa" resolves the BRAND ALIAS to the FSN E-Commerce
+    def test_apply_writes_edges_with_alias_resolution(self, xr_project, monkeypatch):
+        """ "acquired Nykaa" resolves the BRAND ALIAS to the FSN E-Commerce
         entity — the _ALIASES end-to-end contract."""
         rc, _ = xr_project.run(monkeypatch, "--apply")
         assert rc == 0
@@ -149,8 +154,6 @@ class TestExtractRelationsCli:
     def test_no_self_edges_ever_written(self, xr_project, monkeypatch):
         assert xr_project.run(monkeypatch, "--apply")[0] == 0
         conn = sqlite3.connect(str(xr_project.db))
-        n = conn.execute(
-            "SELECT COUNT(*) FROM graph_edges WHERE source = target"
-        ).fetchone()[0]
+        n = conn.execute("SELECT COUNT(*) FROM graph_edges WHERE source = target").fetchone()[0]
         conn.close()
         assert n == 0

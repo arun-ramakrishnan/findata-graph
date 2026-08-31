@@ -92,12 +92,12 @@ FINDATA = _REPO_ROOT / "findata"
 # ADD COLUMN, so a schema change requires DROP + recreate (see _migrate_schema).
 NOTE_SEARCH_DDL = (
     "CREATE VIRTUAL TABLE IF NOT EXISTS note_search USING fts5("
-    "doc_type, "            # 0
+    "doc_type, "  # 0
     "file_path UNINDEXED, "  # 1
-    "title, "               # 2
-    "sector, "              # 3
-    "content, "             # 4
-    "embedding UNINDEXED, " # 5
+    "title, "  # 2
+    "sector, "  # 3
+    "content, "  # 4
+    "embedding UNINDEXED, "  # 5
     "tokenize = 'porter unicode61'"
     ")"
 )
@@ -240,7 +240,7 @@ def stored_embed_dims(conn) -> int | None:
         return None
     try:
         vec = json.loads(row[0])
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return len(vec) if isinstance(vec, list) and vec else None
 
@@ -303,8 +303,9 @@ def _iter_findata_docs():
         yield dtype, p, rel
 
 
-def _carry_row(row: tuple, dtype: str, rel_posix: str,
-               ent_by_path: dict[str, tuple[str, str | None]]) -> bool:
+def _carry_row(
+    row: tuple, dtype: str, rel_posix: str, ent_by_path: dict[str, tuple[str, str | None]]
+) -> bool:
     """P2.2: can the stored note_search row be carried verbatim?
 
     Entity docs take title/sector from the entities table, so they must
@@ -318,9 +319,16 @@ def _carry_row(row: tuple, dtype: str, rel_posix: str,
     return True
 
 
-def _emit_row(rows: list[tuple], deferred: list[tuple[int, str]] | None,
-              dtype: str, rel_posix: str, title: str, sector: str,
-              body: str, embed_fn) -> None:
+def _emit_row(
+    rows: list[tuple],
+    deferred: list[tuple[int, str]] | None,
+    dtype: str,
+    rel_posix: str,
+    title: str,
+    sector: str,
+    body: str,
+    embed_fn,
+) -> None:
     """Append one FTS row — single emission point for both modes.
 
     Two-phase mode (``deferred`` is a list): row gets a None embedding and
@@ -331,14 +339,17 @@ def _emit_row(rows: list[tuple], deferred: list[tuple[int, str]] | None,
         deferred.append((len(rows) - 1, _embedding_text(title, sector, body)))
     else:
         rows.append(
-            (dtype, rel_posix, title, sector, body,
-             _embedding_json(embed_fn, title, sector, body))
+            (dtype, rel_posix, title, sector, body, _embedding_json(embed_fn, title, sector, body))
         )
 
 
-def _collect_rows(conn, embed_fn=None, reuse: dict[str, tuple[float, tuple]] | None = None,
-                  carried: set[str] | None = None,
-                  deferred: list[tuple[int, str]] | None = None) -> list[tuple]:
+def _collect_rows(
+    conn,
+    embed_fn=None,
+    reuse: dict[str, tuple[float, tuple]] | None = None,
+    carried: set[str] | None = None,
+    deferred: list[tuple[int, str]] | None = None,
+) -> list[tuple]:
     """Collect one 6-tuple row per doc: (dtype, rel_path, title, sector,
     body, embedding_json).
 
@@ -406,14 +417,12 @@ def _collect_rows(conn, embed_fn=None, reuse: dict[str, tuple[float, tuple]] | N
             # the YAML title if the entity isn't in the DB (shouldn't happen
             # for entity docs, but be defensive).
             title = norm_name or fm_title or ""
-            _emit_row(rows, deferred, dtype, rel_posix, title, sector or "",
-                      body.strip(), embed_fn)
+            _emit_row(rows, deferred, dtype, rel_posix, title, sector or "", body.strip(), embed_fn)
         else:
             # Newsletter: no frontmatter, no entity row. Title = H1.
             title = _newsletter_title(text) or abs_path.stem
             body = _clean_body(text)
-            _emit_row(rows, deferred, dtype, rel_posix, title, "", body,
-                      embed_fn)
+            _emit_row(rows, deferred, dtype, rel_posix, title, "", body, embed_fn)
     return rows
 
 
@@ -427,6 +436,7 @@ NOTE_SEARCH_META_DDL = (
     " content_hash TEXT NOT NULL"
     ")"
 )
+
 
 def _file_fingerprint(abs_path: Path, title: str, sector: str, content: str) -> tuple[float, str]:
     """Return (mtime, hash) for incremental check (P2.1).
@@ -464,6 +474,7 @@ def _migrate_schema(conn) -> bool:
     conn.execute("DROP TABLE note_search")
     return True
 
+
 def _stamp_note_model(conn, model_label: str) -> None:
     """Record the note_search embedding model in db_meta (A1, apply path only).
 
@@ -473,10 +484,7 @@ def _stamp_note_model(conn, model_label: str) -> None:
     384->384 swap). Never called from --check: the stamp must describe the
     table's CONTENT, and --check writes no rows.
     """
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS db_meta "
-        "(key TEXT PRIMARY KEY, value TEXT NOT NULL)"
-    )
+    conn.execute("CREATE TABLE IF NOT EXISTS db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
     conn.execute(
         "INSERT OR REPLACE INTO db_meta(key, value) VALUES ('note_embed_model', ?)",
         (model_label,),
@@ -484,8 +492,12 @@ def _stamp_note_model(conn, model_label: str) -> None:
     conn.commit()
 
 
-def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noqa: C901
-            embed_fn=None) -> dict:
+def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic line (ruff-format split)
+    db_path: Path,
+    write: bool = True,
+    incremental: bool = False,
+    embed_fn=None,
+) -> dict:
     """Rebuild the note_search FTS index. Returns a stats dict."""
     conn = connect(db_path)
     stats: dict = {}
@@ -504,11 +516,13 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
         if embed_fn is None:
             embed_fn, embed_dims, model_label = resolve_embedder()
             stats["embed_model"] = model_label
-            cache = CachedEmbed(embed_fn, model_label, conn, source="note") if (
+            cache = (
+                CachedEmbed(embed_fn, model_label, conn, source="note")
                 # Pseudo embedding is a hash — caching it would only bloat
                 # the sidecar; only the real model costs CPU per doc.
-                model_label != f"dry-run-v{_PSEUDO_DIMS}"
-            ) else None
+                if (model_label != f"dry-run-v{_PSEUDO_DIMS}")
+                else None
+            )
             if cache is not None:
                 embed_fn = cache
         # P2.2 fast path: in incremental mode, preload the meta table and
@@ -518,12 +532,13 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
         reuse: dict[str, tuple[float, tuple]] | None = None
         carried: set[str] | None = None
         if incremental:
-            existing = {r[0]: (r[1], r[2]) for r in conn.execute(
-                "SELECT file_path, mtime, content_hash FROM note_search_meta")}
+            existing = {
+                r[0]: (r[1], r[2])
+                for r in conn.execute("SELECT file_path, mtime, content_hash FROM note_search_meta")
+            }
             reuse = {}
             for r in conn.execute(
-                "SELECT doc_type, file_path, title, sector, content, embedding "
-                "FROM note_search"
+                "SELECT doc_type, file_path, title, sector, content, embedding FROM note_search"
             ):
                 prev = existing.get(r[1])
                 if prev is not None:
@@ -537,8 +552,9 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
         # the pool never spawns). Injected embed_fn (tests) and the pseudo
         # fallback keep the per-doc path.
         deferred: list[tuple[int, str]] | None = [] if cache is not None else None
-        rows = _collect_rows(conn, embed_fn=embed_fn, reuse=reuse,
-                             carried=carried, deferred=deferred)
+        rows = _collect_rows(
+            conn, embed_fn=embed_fn, reuse=reuse, carried=carried, deferred=deferred
+        )
         if deferred is None:
             if cache is not None:
                 stats["embed_cache_hits"] = cache.hits
@@ -564,7 +580,9 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
                 raise RuntimeError("batch embed without a model label")
             try:
                 vec_list, cstats = cached_embed_batch(
-                    conn, texts, model_label,
+                    conn,
+                    texts,
+                    model_label,
                     local_embedder.embed_documents_parallel,
                     source="note",
                 )
@@ -579,8 +597,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
                 # break the rebuild — docs stay lexical-searchable (mirrors
                 # _embedding_json's per-doc degrade, just coarser).
                 print(
-                    f"WARNING: batch embed failed ({e}); docs remain "
-                    "searchable without vectors",
+                    f"WARNING: batch embed failed ({e}); docs remain searchable without vectors",
                     file=sys.stderr,
                 )
                 stats["embed_cache_hits"] = 0
@@ -588,6 +605,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
 
         # Per-doc_type counts for the report.
         from collections import Counter
+
         by_type = Counter(r[0] for r in rows)
         stats["by_type"] = dict(by_type)
         stats["total_docs"] = len(rows)
@@ -604,9 +622,8 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
         # / rebuild_script_search already do — note-search-check in the
         # advisory gate previously passed silently even when stale).
         stored_meta = existing or {
-            r[0]: (r[1], r[2]) for r in conn.execute(
-                "SELECT file_path, mtime, content_hash FROM note_search_meta"
-            )
+            r[0]: (r[1], r[2])
+            for r in conn.execute("SELECT file_path, mtime, content_hash FROM note_search_meta")
         }
         row_by_path = {r[1]: r for r in rows}
         current_meta: dict[str, tuple[float, str]] = {}
@@ -616,8 +633,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
             if row is None:
                 continue
             _, _, title, sector, content, _emb = row
-            current_meta[rel_posix] = _file_fingerprint(
-                abs_path, title, sector, content)
+            current_meta[rel_posix] = _file_fingerprint(abs_path, title, sector, content)
         on_disk = set(current_meta)
         stale_new = sorted(fp for fp in on_disk if fp not in stored_meta)
         stale_deleted = sorted(fp for fp in stored_meta if fp not in on_disk)
@@ -627,8 +643,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
         # content (2026-08-30). The hash covers title+sector+content, so
         # entity DB changes (sector reclass) still invalidate.
         stale_changed = sorted(
-            fp for fp in on_disk
-            if fp in stored_meta and stored_meta[fp][1] != current_meta[fp][1]
+            fp for fp in on_disk if fp in stored_meta and stored_meta[fp][1] != current_meta[fp][1]
         )
         stats["stale_new"] = stale_new
         stats["stale_changed"] = stale_changed
@@ -646,12 +661,15 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
             # changed — the full branch bumped unconditionally, flipping
             # _is_warm and churning db_meta on every no-op maint-full cycle.
             from collections import Counter as _Counter
+
             # tuple() each row: sqlite3.Row never == a plain tuple, so the
             # multiset compare would report a phantom change every cycle.
-            existing_rows = [tuple(r) for r in conn.execute(
-                "SELECT doc_type, file_path, title, sector, content, embedding "
-                "FROM note_search"
-            )]
+            existing_rows = [
+                tuple(r)
+                for r in conn.execute(
+                    "SELECT doc_type, file_path, title, sector, content, embedding FROM note_search"
+                )
+            ]
             content_changed = _Counter(existing_rows) != _Counter(rows)
             # Full rebuild inside one transaction: DELETE + executemany insert.
             with conn:
@@ -725,8 +743,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False,  # noq
                 if row is None:
                     continue
                 prev = existing.get(rel_posix)
-                if (prev is not None and carried is not None
-                        and rel_posix in carried):
+                if prev is not None and carried is not None and rel_posix in carried:
                     # DB-carried row whose mtime still matches: the content
                     # is by construction the stored one — skip the re-hash.
                     try:
@@ -790,17 +807,17 @@ def _print_staleness(stats: dict) -> None:
     changed = stats.get("stale_changed", [])
     deleted = stats.get("stale_deleted", [])
     if not (new or changed or deleted):
-        print(f"index state: FRESH ({stats.get('total_docs', 0)} docs unchanged)",
-              file=sys.stderr)
+        print(f"index state: FRESH ({stats.get('total_docs', 0)} docs unchanged)", file=sys.stderr)
         return
     print(
-        f"index state: STALE — {len(changed)} changed, {len(new)} new, "
-        f"{len(deleted)} deleted",
+        f"index state: STALE — {len(changed)} changed, {len(new)} new, {len(deleted)} deleted",
         file=sys.stderr,
     )
-    drift = ([(fp, "changed") for fp in changed]
-             + [(fp, "new") for fp in new]
-             + [(fp, "deleted") for fp in deleted])
+    drift = (
+        [(fp, "changed") for fp in changed]
+        + [(fp, "new") for fp in new]
+        + [(fp, "deleted") for fp in deleted]
+    )
     for fp, kind in drift[:10]:
         print(f"  {kind:8s} {fp}", file=sys.stderr)
     if len(drift) > 10:
@@ -811,15 +828,18 @@ def _print_staleness(stats: dict) -> None:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument(
-        "--db", default=str(DEFAULT_DB),
+        "--db",
+        default=str(DEFAULT_DB),
         help="Path to research.db (default: memory/research.db).",
     )
     p.add_argument(
-        "--check", action="store_true",
+        "--check",
+        action="store_true",
         help="Count indexable docs without writing (for CI / dry-run).",
     )
     p.add_argument(
-        "--incremental", action="store_true",
+        "--incremental",
+        action="store_true",
         help="Incremental rebuild (only re-index changed/deleted files, P2.1).",
     )
     args = p.parse_args(argv)
@@ -841,8 +861,7 @@ def main(argv: list[str] | None = None) -> int:
     if not args.check:
         print(f"indexed {stats.get('indexed', 0)} rows", file=sys.stderr)
         if stats.get("migrated"):
-            print("(schema migrated: note_search recreated with embedding column)",
-                  file=sys.stderr)
+            print("(schema migrated: note_search recreated with embedding column)", file=sys.stderr)
         emb = stats.get("embedded")
         if emb is not None:
             print(f"embedded {emb} rows", file=sys.stderr)

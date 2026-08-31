@@ -6,6 +6,7 @@ Uses a seeded SQLite DB via the conftest seeded_graph_sqlite_db fixture pattern.
 
 See doc/improvements/archive/testing/integration_plan.txt § Priority 2 for full rationale.
 """
+
 from __future__ import annotations
 
 
@@ -316,7 +317,14 @@ class TestApiResponseShapes:
         if data["entities"]:
             e = data["entities"][0]
             # EntityListItem shape
-            for k in ("name", "entity_type", "sector_classification", "market_cap", "enhanced_tags", "file_path"):
+            for k in (
+                "name",
+                "entity_type",
+                "sector_classification",
+                "market_cap",
+                "enhanced_tags",
+                "file_path",
+            ):
                 assert k in e, f"EntityListItem missing key '{k}'"
 
     def test_api_stats_response_has_expected_keys(self, p2_client):
@@ -356,6 +364,14 @@ class TestApiResponseShapes:
             ev = data["events"][0]
             # EventItem: event_type, event_date, period, date_precision, magnitude,
             # counterparty, source_quote, as_of_edition
-            for k in ("event_type", "event_date", "period", "date_precision", "magnitude",
-                      "counterparty", "source_quote", "as_of_edition"):
+            for k in (
+                "event_type",
+                "event_date",
+                "period",
+                "date_precision",
+                "magnitude",
+                "counterparty",
+                "source_quote",
+                "as_of_edition",
+            ):
                 assert k in ev, f"EventItem missing key '{k}'"

@@ -116,9 +116,14 @@ def _source_pages(pdf_path: Path) -> list[str]:
         doc.close()
 
 
-def verify(pdf_path: Path, out_dir: Path, stem: str,
-           *, warn_below: float = WARN_BELOW,
-           fail_below: float = FAIL_BELOW) -> dict:
+def verify(
+    pdf_path: Path,
+    out_dir: Path,
+    stem: str,
+    *,
+    warn_below: float = WARN_BELOW,
+    fail_below: float = FAIL_BELOW,
+) -> dict:
     """Verify outputs; return the manifest dict (also written to disk)."""
     md_path = out_dir / f"{stem}.md"
     json_path = out_dir / f"{stem}.json"
@@ -158,8 +163,9 @@ def verify(pdf_path: Path, out_dir: Path, stem: str,
                 "md_coverage": round(_multiset_coverage(jw, md_body_stripped_words), 4),
             }
         )
-    md_json_bad = [m for m in md_json_pages
-                   if m["json_words"] >= 20 and m["md_coverage"] < MD_JSON_FAIL_BELOW]
+    md_json_bad = [
+        m for m in md_json_pages if m["json_words"] >= 20 and m["md_coverage"] < MD_JSON_FAIL_BELOW
+    ]
     from collections import Counter
 
     missing_words = Counter(doc_src) - Counter(doc_out)
@@ -167,21 +173,22 @@ def verify(pdf_path: Path, out_dir: Path, stem: str,
     src_nums = canon_numbers("\n".join(src_pages))
     out_nums = canon_numbers(md_text)  # md is what downstream consumes
     missing_all = sorted(set(src_nums) - set(out_nums), key=lambda s: (-len(s), s))
-    missing_nums = [n for n in missing_all
-                    if len(n) >= MIN_SIGNIFICANT_NUM_DIGITS]
+    missing_nums = [n for n in missing_all if len(n) >= MIN_SIGNIFICANT_NUM_DIGITS]
 
     wikilinks = WIKILINK_RE.findall(md_text)
-    missing_links = sorted(
-        {w for w in wikilinks if not (out_dir / "images" / w).is_file()}
-    )
+    missing_links = sorted({w for w in wikilinks if not (out_dir / "images" / w).is_file()})
 
     content_pages = [m for m in page_metrics if m["src_words"] >= MIN_PAGE_WORDS]
     bad_pages = [m for m in content_pages if m["coverage"] < fail_below]
     warn_pages = [m for m in content_pages if fail_below <= m["coverage"] < warn_below]
     if bad_pages or missing_links or doc_coverage < FAIL_DOC_BELOW or md_json_bad:
         verdict = "FAIL"
-    elif (warn_pages or doc_coverage < WARN_DOC_BELOW
-          or fail_below <= doc_coverage < WARN_DOC_BELOW or missing_nums):
+    elif (
+        warn_pages
+        or doc_coverage < WARN_DOC_BELOW
+        or fail_below <= doc_coverage < WARN_DOC_BELOW
+        or missing_nums
+    ):
         verdict = "WARN"
     else:
         verdict = "PASS"
@@ -189,11 +196,13 @@ def verify(pdf_path: Path, out_dir: Path, stem: str,
     manifest = {
         "schema_version": 1,
         "source": {
-            "path": str(pdf_path), "sha256": _sha256(pdf_path),
+            "path": str(pdf_path),
+            "sha256": _sha256(pdf_path),
             "pages": len(src_pages),
         },
         "extraction": {
-            "md": str(md_path), "sha256": _sha256(md_path),
+            "md": str(md_path),
+            "sha256": _sha256(md_path),
             "engine": _engine_of(md_text),
         },
         "thresholds": {"warn_below": warn_below, "fail_below": fail_below},
@@ -220,15 +229,13 @@ def _engine_of(md_text: str) -> str:
 def summarize(manifest: dict) -> str:
     m = manifest
     lo = min((p["coverage"] for p in m["pages"]), default=1.0)
-    line = (f"verify {m['verdict']}: doc coverage {m['doc_coverage']:.1%}, "
-            f"lowest page {lo:.1%}")
+    line = f"verify {m['verdict']}: doc coverage {m['doc_coverage']:.1%}, lowest page {lo:.1%}"
     if m["missing_numbers_count"]:
         line += f", {m['missing_numbers_count']} source number(s) missing"
     if m["missing_wikilinks"]:
         line += f", {len(m['missing_wikilinks'])} broken wikilink(s)"
     if m["md_json_mismatch_pages"]:
-        line += (f", md/json mismatch on page(s) "
-                 f"{m['md_json_mismatch_pages']}")
+        line += f", md/json mismatch on page(s) {m['md_json_mismatch_pages']}"
     return line
 
 
@@ -248,9 +255,9 @@ def main() -> int:
         return 2
     stem = args.stem or pdf_path.stem
     try:
-        manifest = verify(pdf_path, out_dir, stem,
-                          warn_below=args.warn_below,
-                          fail_below=args.fail_below)
+        manifest = verify(
+            pdf_path, out_dir, stem, warn_below=args.warn_below, fail_below=args.fail_below
+        )
     except (OSError, KeyError, json.JSONDecodeError) as e:
         print(f"error: verification failed: {e}", file=sys.stderr)
         return 2

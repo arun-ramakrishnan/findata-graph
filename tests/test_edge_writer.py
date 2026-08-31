@@ -8,6 +8,7 @@ through the public API; this file pins the shared util's contract directly,
 so a future third caller (or a refactor of the wrapper signatures) has a
 focused regression net.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -67,8 +68,11 @@ class TestApplyTypedEdges:
         conn = sqlite3.connect(db)
         try:
             n = apply_typed_edges(
-                _edges(), edge_type="exposed_to", symmetric=0,
-                conn=conn, dry_run=False,
+                _edges(),
+                edge_type="exposed_to",
+                symmetric=0,
+                conn=conn,
+                dry_run=False,
             )
             assert n == 3
             rows = conn.execute(
@@ -89,8 +93,11 @@ class TestApplyTypedEdges:
         conn = sqlite3.connect(db)
         try:
             n = apply_typed_edges(
-                _edges(), edge_type="exposed_to", symmetric=0,
-                conn=conn, dry_run=True,
+                _edges(),
+                edge_type="exposed_to",
+                symmetric=0,
+                conn=conn,
+                dry_run=True,
             )
             assert n == 3  # would insert all 3
             # Nothing actually written.
@@ -106,12 +113,18 @@ class TestApplyTypedEdges:
         conn = sqlite3.connect(db)
         try:
             first = apply_typed_edges(
-                _edges(), edge_type="exposed_to", symmetric=0,
-                conn=conn, dry_run=False,
+                _edges(),
+                edge_type="exposed_to",
+                symmetric=0,
+                conn=conn,
+                dry_run=False,
             )
             second = apply_typed_edges(
-                _edges(), edge_type="exposed_to", symmetric=0,
-                conn=conn, dry_run=False,
+                _edges(),
+                edge_type="exposed_to",
+                symmetric=0,
+                conn=conn,
+                dry_run=False,
             )
             assert first == 3
             assert second == 0  # all already present
@@ -127,12 +140,18 @@ class TestApplyTypedEdges:
         conn = sqlite3.connect(db)
         try:
             apply_typed_edges(
-                _edges(), edge_type="co_mentioned_in", symmetric=1,
-                conn=conn, dry_run=False,
+                _edges(),
+                edge_type="co_mentioned_in",
+                symmetric=1,
+                conn=conn,
+                dry_run=False,
             )
             n = apply_typed_edges(
-                _edges(), edge_type="co_mentioned_in", symmetric=1,
-                conn=conn, dry_run=True,
+                _edges(),
+                edge_type="co_mentioned_in",
+                symmetric=1,
+                conn=conn,
+                dry_run=True,
             )
             assert n == 0  # bulk-fetch sees all existing pairs
         finally:
@@ -145,12 +164,18 @@ class TestApplyTypedEdges:
         conn = sqlite3.connect(db)
         try:
             apply_typed_edges(
-                _edges(), edge_type="co_mentioned_in", symmetric=1,
-                conn=conn, dry_run=False,
+                _edges(),
+                edge_type="co_mentioned_in",
+                symmetric=1,
+                conn=conn,
+                dry_run=False,
             )
             apply_typed_edges(
-                _edges(), edge_type="exposed_to", symmetric=0,
-                conn=conn, dry_run=False,
+                _edges(),
+                edge_type="exposed_to",
+                symmetric=0,
+                conn=conn,
+                dry_run=False,
             )
             # Same (source, target) pairs, different edge_types → both present.
             cm = conn.execute(
@@ -175,12 +200,16 @@ class TestApplyTypedEdges:
 
         db = _build_db(tmp_path)
         monkeypatch.setattr(
-            _edge_writer, "connect",
+            _edge_writer,
+            "connect",
             lambda: sqlite3.connect(db),
         )
         n = apply_typed_edges(
-            _edges(), edge_type="exposed_to", symmetric=0,
-            conn=None, dry_run=False,
+            _edges(),
+            edge_type="exposed_to",
+            symmetric=0,
+            conn=None,
+            dry_run=False,
         )
         assert n == 3
         # Verify via a fresh connection that the write committed.
@@ -198,8 +227,11 @@ class TestApplyTypedEdges:
         conn = sqlite3.connect(db)
         try:
             n = apply_typed_edges(
-                [], edge_type="exposed_to", symmetric=0,
-                conn=conn, dry_run=False,
+                [],
+                edge_type="exposed_to",
+                symmetric=0,
+                conn=conn,
+                dry_run=False,
             )
             assert n == 0
         finally:

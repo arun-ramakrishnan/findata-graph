@@ -5,6 +5,7 @@ key survives (especially generated), the body is byte-identical, re-run
 writes nothing (idempotent per actor), and the result validates against the
 frontmatter schema.
 """
+
 from __future__ import annotations
 
 import sys
@@ -63,8 +64,7 @@ class TestVerifyNote:
         assert len(v) == 1 and v[0]["by"] == "human:user"
         assert v[0]["at"].endswith("Z")  # ISO 8601 UTC
         # generated untouched; all other keys intact.
-        assert fm["generated"] == {"by": "derive_insights.py/v1",
-                                   "at": "2026-08-19T10:00:00Z"}
+        assert fm["generated"] == {"by": "derive_insights.py/v1", "at": "2026-08-19T10:00:00Z"}
         assert fm["title"] == "Marico" and fm["tags"] == ["chatter/fmcg"]
         assert split_frontmatter(note.read_text())[2] == before_body
 
@@ -87,13 +87,19 @@ class TestVerifyNote:
 
     def test_result_validates_against_schema(self, note):
         verify_note(note, "human:user", apply=True)
-        errs = validate_frontmatter(dict(_fm(note), sector="FMCG",
-                                         normalized_name="Marico",
-                                         permalink="/companies/fmcg/marico",
-                                         created="2026-01-01",
-                                         last_modified="2026-08-19",
-                                         ticker=None, market_cap=None),
-                                    "company")
+        errs = validate_frontmatter(
+            dict(
+                _fm(note),
+                sector="FMCG",
+                normalized_name="Marico",
+                permalink="/companies/fmcg/marico",
+                created="2026-01-01",
+                last_modified="2026-08-19",
+                ticker=None,
+                market_cap=None,
+            ),
+            "company",
+        )
         assert errs == []
 
 

@@ -42,6 +42,7 @@ Usage::
 
     python3 tests/run_gate_report.py qa|integration|advisory
 """
+
 from __future__ import annotations
 
 import fcntl
@@ -69,19 +70,19 @@ _TY = shutil.which("ty") or "ty"
 _DEPTRY = shutil.which("deptry") or "deptry"
 _MAKE = shutil.which("make") or "make"
 
-_TAIL_LINES = 60      # lines appended to the report per step
+_TAIL_LINES = 60  # lines appended to the report per step
 # ty-tests digest budget: concise diagnostics are 1 line each; 120 covers
 # the worst historical burst (91 diagnostics, 2026-08-25) with margin.
 _TY_TESTS_TAIL_LINES = 120
 _CAPTURE_LINES = 400  # rolling in-memory cap while streaming
-_DEFAULT_JOBS = 4     # 4 cores (user directive 2026-08-25); override: --jobs N / make -j N
+_DEFAULT_JOBS = 4  # 4 cores (user directive 2026-08-25); override: --jobs N / make -j N
 
 
 @dataclass(frozen=True)
 class Step:
     label: str
     args: tuple[str, ...]
-    nonblocking: bool = False       # recorded, never fails the gate (advisory's ty-tests)
+    nonblocking: bool = False  # recorded, never fails the gate (advisory's ty-tests)
     # Per-step report-tail override (None -> _TAIL_LINES). Steps whose
     # output is a diagnostic DIGEST (ty-tests concise: 1 line/diagnostic)
     # raise it so every diagnostic lands in the report, not just the last
@@ -135,8 +136,9 @@ GATES: dict[str, Gate] = {
     ),
     "integration": Gate(
         steps=(
-            Step("pytest-integration",
-                 (_PY, "-m", "pytest", "-m", "integration", "-v", "-n", "auto")),
+            Step(
+                "pytest-integration", (_PY, "-m", "pytest", "-m", "integration", "-v", "-n", "auto")
+            ),
         ),
     ),
     # The advisory recipe: the ty-tests line never blocks (was `|| true`);
@@ -153,33 +155,37 @@ GATES: dict[str, Gate] = {
     # runnable via `make integration`.
     "advisory": Gate(
         steps=(
-            Step("ty-tests", (_MAKE, "types-tests", "TYPES_TESTS_FMT=concise"),
-                 nonblocking=True, tail_lines=_TY_TESTS_TAIL_LINES),
+            Step(
+                "ty-tests",
+                (_MAKE, "types-tests", "TYPES_TESTS_FMT=concise"),
+                nonblocking=True,
+                tail_lines=_TY_TESTS_TAIL_LINES,
+            ),
             # live-invariants under -n auto (gate_xdist_phase2 Slice A):
             # conftest redirects the default graph cache to a per-worker
             # copy, so the live suite spreads across workers without
             # cross-process DuckDB lock collisions (serial 72.5s -> ~50s).
             # Tests asserting real-cache semantics carry `real_graph_cache`.
-            Step("live-invariants", (_PY, "-m", "pytest", "-m", "live",
-                                     "-n", "auto")),
+            Step("live-invariants", (_PY, "-m", "pytest", "-m", "live", "-n", "auto")),
             Step("frontend-check", (_MAKE, "frontend-check")),
             Step("graph-algos", (_MAKE, "graph-algos")),
             Step("analytics", (_MAKE, "analytics")),
             Step("suggest-relations", (_MAKE, "suggest-relations")),
-            Step("doc-search-check",
-                 (_PY, "helpers/maintenance/rebuild_doc_search.py", "--check")),
-            Step("script-search-check",
-                 (_PY, "helpers/maintenance/rebuild_script_search.py", "--check")),
-            Step("note-search-check",
-                 (_PY, "helpers/maintenance/rebuild_note_search.py", "--check")),
+            Step("doc-search-check", (_PY, "helpers/maintenance/rebuild_doc_search.py", "--check")),
+            Step(
+                "script-search-check",
+                (_PY, "helpers/maintenance/rebuild_script_search.py", "--check"),
+            ),
+            Step(
+                "note-search-check", (_PY, "helpers/maintenance/rebuild_note_search.py", "--check")
+            ),
             Step("lint-audit", (_RUFF, "check", "--select", "S,UP,C901", ".")),
         ),
     ),
 }
 
 
-def run_step(step: Step, *, jobs: int = 1,
-             out_lock: threading.Lock | None = None) -> Result:
+def run_step(step: Step, *, jobs: int = 1, out_lock: threading.Lock | None = None) -> Result:
     """Run one gate step: stream its output live, capture a rolling tail.
 
     jobs > 1: every streamed line is prefixed ``[label]`` under a shared
@@ -201,8 +207,11 @@ def run_step(step: Step, *, jobs: int = 1,
     capture: deque[str] = deque(maxlen=_CAPTURE_LINES)
     t0 = time.perf_counter()
     proc = subprocess.Popen(  # noqa: S603  # list-form call; shell=False (default); args are GATES constants or runner-derived cache_dir flags
-        args, cwd=REPO_ROOT,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+        args,
+        cwd=REPO_ROOT,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
     )
     assert proc.stdout is not None
     for raw in proc.stdout:
@@ -231,8 +240,7 @@ def run_gate(gate: Gate, jobs: int = 1) -> list[Result]:
     by_step: dict[str, Result] = {}
     with ThreadPoolExecutor(max_workers=min(jobs, len(gate.steps))) as pool:
         futures: dict[Future, Step] = {
-            pool.submit(run_step, s, jobs=jobs, out_lock=lock): s
-            for s in gate.steps
+            pool.submit(run_step, s, jobs=jobs, out_lock=lock): s for s in gate.steps
         }
         for fut in as_completed(futures):
             by_step[futures[fut].label] = fut.result()
@@ -273,8 +281,7 @@ def table_lines(results: list[Result]) -> list[str]:
     return lines
 
 
-def write_report(report_path: Path, gate_name: str, results: list[Result],
-                 jobs: int = 1) -> None:
+def write_report(report_path: Path, gate_name: str, results: list[Result], jobs: int = 1) -> None:
     """Append one report block; whole-block under an exclusive flock.
 
     Parallel-safety (2026-08-25): the in-process report is written once at
@@ -290,8 +297,11 @@ def write_report(report_path: Path, gate_name: str, results: list[Result],
     with open(report_path, "a") as f:
         fcntl.flock(f.fileno(), fcntl.LOCK_EX)
         try:
-            f.write(f"=== make {gate_name}  {ts}  (Python {sys.version.split()[0]})"
-                    + (f"  jobs={jobs}" if jobs > 1 else "") + " ===\n")
+            f.write(
+                f"=== make {gate_name}  {ts}  (Python {sys.version.split()[0]})"
+                + (f"  jobs={jobs}" if jobs > 1 else "")
+                + " ===\n"
+            )
             f.write("\n".join(table_lines(results)) + "\n")
             for r in results:
                 if r.skipped:
@@ -322,14 +332,16 @@ def main(argv: list[str] | None = None) -> int:
         if a == "--jobs":
             try:
                 cli_jobs = int(next(it))
-            except (StopIteration, ValueError):
+            except StopIteration, ValueError:
                 print("usage: --jobs N", file=sys.stderr)
                 return 2
         else:
             rest.append(a)
     if len(rest) != 1 or rest[0] not in GATES:
-        print(f"usage: python3 tests/run_gate_report.py {{{'|'.join(GATES)}}}"
-              " [--jobs N]", file=sys.stderr)
+        print(
+            f"usage: python3 tests/run_gate_report.py {{{'|'.join(GATES)}}} [--jobs N]",
+            file=sys.stderr,
+        )
         return 2
     name = rest[0]
     jobs = resolve_jobs(cli_jobs)

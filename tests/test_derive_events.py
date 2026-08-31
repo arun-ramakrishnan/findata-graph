@@ -14,6 +14,7 @@ Two layers, mirroring test_derive_themes.py:
     arm (edge -> event mapping) and the DELETE-then-INSERT idempotency +
     manual-row preservation contract.
 """
+
 from __future__ import annotations
 
 import json
@@ -192,8 +193,10 @@ class TestManagementPrecision:
     def test_incoming_without_title_is_rejected(self):
         # PRECISION GUARD: "incoming" without an executive title is generic
         # prose ("incoming revenue", "incoming shipment") and must NOT fire.
-        body = ("- Incoming revenue growth is expected to accelerate in H2."
-                " A new shipment arrives next week.")
+        body = (
+            "- Incoming revenue growth is expected to accelerate in H2."
+            " A new shipment arrives next week."
+        )
         events = de._extract_management("Test Co", body, "findata/Test.md")
         assert events == []
 
@@ -215,8 +218,7 @@ def test_frontmatter_only_note_yields_nothing():
 class TestPromotionFromEdges:
     def test_acquired_edge_promoted_to_acquisition_event(self, tmp_path):
         conn = _connect(tmp_path)
-        props = json.dumps({"quote": "acquired Akzo Nobel", "year": 2025,
-                            "stake": "61.2%"})
+        props = json.dumps({"quote": "acquired Akzo Nobel", "year": 2025, "stake": "61.2%"})
         conn.execute(
             "INSERT INTO graph_edges (source, target, edge_type, valid_from, "
             "properties, source_ref) VALUES (?, ?, 'acquired', ?, ?, 'manual')",
@@ -284,8 +286,7 @@ def test_extract_from_prose_resolves_via_path_to_name(tmp_path):
     # for a tmp_path outside the repo it falls back to the stem. Verify the
     # fallback still yields a guidance event keyed by the stem.
     events = de.extract_from_prose(tmp_path, None)
-    assert any(e.event_type == "guidance" and "FY27" in (e.period or "")
-               for e in events)
+    assert any(e.event_type == "guidance" and "FY27" in (e.period or "") for e in events)
 
 
 # --------------------------------------------------------------------------- #
@@ -294,12 +295,22 @@ def test_extract_from_prose_resolves_via_path_to_name(tmp_path):
 class TestApplyAndIdempotency:
     def _sample_events(self):
         return [
-            de.Event(entity="Co A", event_type="acquisition", event_date="2025-01-01",
-                     counterparty="Target", source_quote="bought Target",
-                     source_ref=de.PROMOTE_SOURCE_REF),
-            de.Event(entity="Co A", event_type="guidance", period="FY27",
-                     magnitude="10-12%", source_quote="FY27 guidance 10-12%",
-                     source_ref=de.GUIDANCE_SOURCE_REF),
+            de.Event(
+                entity="Co A",
+                event_type="acquisition",
+                event_date="2025-01-01",
+                counterparty="Target",
+                source_quote="bought Target",
+                source_ref=de.PROMOTE_SOURCE_REF,
+            ),
+            de.Event(
+                entity="Co A",
+                event_type="guidance",
+                period="FY27",
+                magnitude="10-12%",
+                source_quote="FY27 guidance 10-12%",
+                source_ref=de.GUIDANCE_SOURCE_REF,
+            ),
         ]
 
     def test_dry_run_writes_nothing(self, tmp_path):
@@ -334,8 +345,13 @@ class TestApplyAndIdempotency:
         )
         conn.commit()
         events = [
-            de.Event(entity="Co A", event_type="guidance", period="FY27",
-                     source_quote="FY27 guidance", source_ref=de.GUIDANCE_SOURCE_REF),
+            de.Event(
+                entity="Co A",
+                event_type="guidance",
+                period="FY27",
+                source_quote="FY27 guidance",
+                source_ref=de.GUIDANCE_SOURCE_REF,
+            ),
         ]
         de.apply(events, conn=conn, dry_run=False)
         rows = conn.execute(
@@ -351,15 +367,18 @@ class TestApplyAndIdempotency:
         # A prior derived row should be CLEARED and replaced, not accumulated.
         conn = _connect(tmp_path)
         conn.execute(
-            "INSERT INTO events (entity, event_type, source_ref) "
-            "VALUES ('Co A', 'guidance', ?)",
+            "INSERT INTO events (entity, event_type, source_ref) VALUES ('Co A', 'guidance', ?)",
             (de.GUIDANCE_SOURCE_REF,),
         )
         conn.commit()
         events = [
-            de.Event(entity="Co A", event_type="guidance", period="FY27",
-                     source_quote="updated FY27 guidance",
-                     source_ref=de.GUIDANCE_SOURCE_REF),
+            de.Event(
+                entity="Co A",
+                event_type="guidance",
+                period="FY27",
+                source_quote="updated FY27 guidance",
+                source_ref=de.GUIDANCE_SOURCE_REF,
+            ),
         ]
         de.apply(events, conn=conn, dry_run=False)
         n = conn.execute(
@@ -422,12 +441,26 @@ def test_capture_period_token_none():
 def test_dedup_removes_near_duplicates():
     """Near-duplicate events are collapsed."""
     events = [
-        de.Event(entity="Co A", event_type="guidance",
-                 event_date=None, period="FY27", date_precision="year",
-                 magnitude="1000", source_quote="test", source_ref="t"),
-        de.Event(entity="Co A", event_type="guidance",
-                 event_date=None, period="FY27", date_precision="year",
-                 magnitude="1000", source_quote="very similar test", source_ref="t"),
+        de.Event(
+            entity="Co A",
+            event_type="guidance",
+            event_date=None,
+            period="FY27",
+            date_precision="year",
+            magnitude="1000",
+            source_quote="test",
+            source_ref="t",
+        ),
+        de.Event(
+            entity="Co A",
+            event_type="guidance",
+            event_date=None,
+            period="FY27",
+            date_precision="year",
+            magnitude="1000",
+            source_quote="very similar test",
+            source_ref="t",
+        ),
     ]
     result = de._dedup(events)
     assert len(result) == 1
@@ -436,15 +469,30 @@ def test_dedup_removes_near_duplicates():
 def test_dedup_preserves_different_types():
     """Events with different types are kept."""
     events = [
-        de.Event(entity="Co A", event_type="guidance",
-                 event_date=None, period="FY27", date_precision="year",
-                 magnitude="1000", source_quote="a", source_ref="t"),
-        de.Event(entity="Co A", event_type="management_change",
-                 event_date=None, period="FY27", date_precision="year",
-                 magnitude=None, source_quote="b", source_ref="t"),
+        de.Event(
+            entity="Co A",
+            event_type="guidance",
+            event_date=None,
+            period="FY27",
+            date_precision="year",
+            magnitude="1000",
+            source_quote="a",
+            source_ref="t",
+        ),
+        de.Event(
+            entity="Co A",
+            event_type="management_change",
+            event_date=None,
+            period="FY27",
+            date_precision="year",
+            magnitude=None,
+            source_quote="b",
+            source_ref="t",
+        ),
     ]
     result = de._dedup(events)
     assert len(result) == 2
+
 
 def test_dedup_empty():
     assert de._dedup([]) == []

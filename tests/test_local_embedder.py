@@ -40,8 +40,7 @@ _BACKEND = importlib.util.find_spec("llama_cpp") is not None
 _MODEL_FILE = LE.MODEL_PATH.is_file()
 needs_model = pytest.mark.skipif(
     not (_BACKEND and _MODEL_FILE),
-    reason="llama-cpp-python + pinned GGUF not present "
-           "(setup: local_embedder module docstring)",
+    reason="llama-cpp-python + pinned GGUF not present (setup: local_embedder module docstring)",
 )
 
 
@@ -100,7 +99,8 @@ class TestGates:
         # And the correct pin against the same file flips it to True
         # (hermetic happy path; no load happens inside available()).
         monkeypatch.setattr(
-            LE, "MODEL_SHA256",
+            LE,
+            "MODEL_SHA256",
             hashlib.sha256(fake.read_bytes()).hexdigest(),
         )
         monkeypatch.setattr(LE, "_verified", False)
@@ -141,9 +141,7 @@ class TestRealModel:
         shrimp = LE.embed_document(
             "Avanti Feeds manufactures shrimp feed and exports frozen shrimp."
         )
-        diamonds = LE.embed_document(
-            "Ramkrishna Exports cuts and polishes diamonds."
-        )
+        diamonds = LE.embed_document("Ramkrishna Exports cuts and polishes diamonds.")
         q = LE.embed_query("aquaculture feed company")
         # A related-domain query must rank the shrimp-feed company above the
         # diamond company — the whole point of real embeddings over pseudo.
@@ -159,9 +157,12 @@ class TestRealModel:
 
     def test_embed_documents_empty_list(self, real_backend):
         assert LE.embed_documents([]) == []
+
+
 # --------------------------------------------------------------------------- #
 # Parallel pool (parallel_cold_embed proposal, 2026-08-29)                    #
 # --------------------------------------------------------------------------- #
+
 
 @needs_model
 class TestParallelPool:
@@ -177,9 +178,7 @@ class TestParallelPool:
         seq = LE.embed_documents(texts)
         par = LE.embed_documents_parallel(texts, workers=2)
         assert len(par) == len(seq)
-        worst = max(
-            abs(a - b) for vs, vp in zip(seq, par) for a, b in zip(vs, vp)
-        )
+        worst = max(abs(a - b) for vs, vp in zip(seq, par) for a, b in zip(vs, vp))
         # Byte-identical: same model, same per-text forward, same
         # normalizer — worker count must not move a single bit.
         assert worst == 0.0
@@ -187,7 +186,8 @@ class TestParallelPool:
     def test_pool_disabled_falls_back_in_process(self, real_backend, monkeypatch):
         called = []
         monkeypatch.setattr(
-            LE, "embed_documents",
+            LE,
+            "embed_documents",
             lambda texts: called.append(list(texts)) or [_fake_vec(t) for t in texts],
         )
         monkeypatch.setenv("EMBED_POOL_WORKERS", "0")

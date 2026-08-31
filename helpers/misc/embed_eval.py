@@ -67,8 +67,9 @@ def run_search() -> None:
     for q in QUESTIONS["search"]:
         bm = _top5(client, q["query"], hybrid=False)
         hy = _top5(client, q["query"], hybrid=True)
-        rows.append((q, any(e in bm for e in q["expect"]),
-                     any(e in hy for e in q["expect"]), bm, hy))
+        rows.append(
+            (q, any(e in bm for e in q["expect"]), any(e in hy for e in q["expect"]), bm, hy)
+        )
 
     print(f"{'category':10s} {'n':>3s} {'bm25':>5s} {'hybrid':>6s}")
     cats = ["exact", "variant", "semantic", "newsletter"]
@@ -80,8 +81,8 @@ def run_search() -> None:
         tot_b += b
         tot_h += h
         tot_n += len(sub)
-        print(f"{cat:10s} {len(sub):3d} {b/len(sub):5.2f} {h/len(sub):6.2f}")
-    print(f"{'TOTAL':10s} {tot_n:3d} {tot_b/tot_n:5.2f} {tot_h/tot_n:6.2f}")
+        print(f"{cat:10s} {len(sub):3d} {b / len(sub):5.2f} {h / len(sub):6.2f}")
+    print(f"{'TOTAL':10s} {tot_n:3d} {tot_b / tot_n:5.2f} {tot_h / tot_n:6.2f}")
 
     diffs = [r for r in rows if r[1] != r[2]]
     if diffs:
@@ -91,11 +92,15 @@ def run_search() -> None:
             print(f"  {mark}{q['id']:8s} {q['query']!r}")
             if h and not b:
                 hit = next(e for e in q["expect"] if e in hy)
-                print(f"         hybrid found {hit.split('/')[-1]} "
-                      f"(bm25 top: {bm[0].split('/')[-1] if bm else '-'})")
+                print(
+                    f"         hybrid found {hit.split('/')[-1]} "
+                    f"(bm25 top: {bm[0].split('/')[-1] if bm else '-'})"
+                )
             if b and not h:
-                print(f"         bm25 found it at rank "
-                      f"{bm.index(next(e for e in q['expect'] if e in bm)) + 1}")
+                print(
+                    f"         bm25 found it at rank "
+                    f"{bm.index(next(e for e in q['expect'] if e in bm)) + 1}"
+                )
     zeros = [r for r in rows if not r[1] and not r[2]]
     if zeros:
         print("\nmissed by BOTH modes (label sanity check):")
@@ -135,15 +140,25 @@ def run_docs() -> None:  # noqa: C901
         A._docs_index_search = real_index
         bm, bm_mode = _docs_top5(client, q["query"], "bm25")
         hy, hy_mode = _docs_top5(client, q["query"], "hybrid")
-        rows.append((q,
-                     any(e in sc for e in q["expect"]),
-                     any(e in bm for e in q["expect"]),
-                     any(e in hy for e in q["expect"]), sc, bm, hy, hy_mode))
+        rows.append(
+            (
+                q,
+                any(e in sc for e in q["expect"]),
+                any(e in bm for e in q["expect"]),
+                any(e in hy for e in q["expect"]),
+                sc,
+                bm,
+                hy,
+                hy_mode,
+            )
+        )
 
     served = {r[7] for r in rows}
     if served != {"hybrid"}:
-        print(f"NOTE: hybrid leg served modes {sorted(served)} — expected "
-              "{'hybrid'}; a stale/missing index degrades the comparison.")
+        print(
+            f"NOTE: hybrid leg served modes {sorted(served)} — expected "
+            "{'hybrid'}; a stale/missing index degrades the comparison."
+        )
 
     print(f"{'category':10s} {'n':>3s} {'scan':>5s} {'bm25':>5s} {'hybrid':>6s}")
     cats = ["exact", "variant", "semantic"]
@@ -157,8 +172,12 @@ def run_docs() -> None:  # noqa: C901
         tot_b += b
         tot_h += h
         tot_n += len(sub)
-        print(f"{cat:10s} {len(sub):3d} {s/len(sub):5.2f} {b/len(sub):5.2f} {h/len(sub):6.2f}")
-    print(f"{'TOTAL':10s} {tot_n:3d} {tot_s/tot_n:5.2f} {tot_b/tot_n:5.2f} {tot_h/tot_n:6.2f}")
+        print(
+            f"{cat:10s} {len(sub):3d} {s / len(sub):5.2f} {b / len(sub):5.2f} {h / len(sub):6.2f}"
+        )
+    print(
+        f"{'TOTAL':10s} {tot_n:3d} {tot_s / tot_n:5.2f} {tot_b / tot_n:5.2f} {tot_h / tot_n:6.2f}"
+    )
 
     diffs = [r for r in rows if r[1] != r[2] or r[2] != r[3]]
     if diffs:
@@ -168,8 +187,7 @@ def run_docs() -> None:  # noqa: C901
             print(f"  {flags} {q['id']:8s} {q['query']!r}")
             if h and not s:
                 hit = next(e for e in q["expect"] if e in hy)
-                print(f"         index found {hit} (scan top: "
-                      f"{sc[0] if sc else '-'})")
+                print(f"         index found {hit} (scan top: {sc[0] if sc else '-'})")
             if s and not h:
                 lost = next(e for e in q["expect"] if e in sc)
                 print(f"         scan found {lost} — REGRESSION vs index")
@@ -185,8 +203,10 @@ def run_vss() -> None:
     from helpers.core.get_tickers import vss_match
 
     con = connect(str(DB_PATH))
-    names = [r[0] for r in con.execute(
-        "SELECT name FROM entities WHERE entity_type = 'company'").fetchall()]
+    names = [
+        r[0]
+        for r in con.execute("SELECT name FROM entities WHERE entity_type = 'company'").fetchall()
+    ]
     con.close()
 
     ok = 0
@@ -218,8 +238,9 @@ def run_neighbors() -> None:
         good = same >= 3
         ok += good
         if not good:
-            misses.append((q["company"], f"{same}/5 same-sector: "
-                          + ", ".join(f"{n[0]}({n[1]})" for n in nn)))
+            misses.append(
+                (q["company"], f"{same}/5 same-sector: " + ", ".join(f"{n[0]}({n[1]})" for n in nn))
+            )
     con.close()
     print(f"neighbors same-sector dominance (>=3/5): {ok}/{len(QUESTIONS['neighbors'])}")
     for co, why in misses:

@@ -52,8 +52,7 @@ MODEL_FILE = "bge-small-en-v1.5-q8_0.gguf"
 MODEL_PATH = _REPO_ROOT / "models" / MODEL_FILE
 MODEL_SHA256 = "ec38e8da142596baa913124ae50550de284b6916bf59577ef2f0cb9660c2f514"
 MODEL_URL = (
-    "https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf"
-    f"/resolve/main/{MODEL_FILE}"
+    f"https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/{MODEL_FILE}"
 )
 
 # bge-small-en-v1.5: 384 dims — same as the live company_embeddings table,
@@ -125,6 +124,7 @@ def available() -> bool:
     between the real embedder and the pseudo fallback."""
     try:
         import llama_cpp  # noqa: F401  # availability probe only
+
         return MODEL_PATH.is_file() and _hashes_ok()
     except Exception:
         return False

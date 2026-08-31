@@ -1,4 +1,5 @@
 """Unit tests for helpers/graph/query.py — pure helper functions."""
+
 from __future__ import annotations
 import sys
 from pathlib import Path

@@ -13,6 +13,7 @@ Every test drives the genuine `_cli()` entrypoint with only the two
 module seams the unit suite already established (``di.connect`` and
 ``di.PROJECT_ROOT``); the live vault/DB is never touched.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -107,8 +108,7 @@ Margins remain resilient despite input cost pressure.
 """
 
 _GUIDANCE_PARAPHRASE = (
-    "Management reiterated FY27 revenue growth guidance at 10-12% "
-    "for the full year."
+    "Management reiterated FY27 revenue growth guidance at 10-12% for the full year."
 )
 
 _BASE_NOTE = """\
@@ -149,7 +149,8 @@ class _Project:
         conn.executescript(_SCHEMA_SQL)
         conn.execute(
             "INSERT INTO entities(name, entity_type, file_path) "
-            "VALUES ('Marico','company','findata/Companies/FMCG/Marico.md')")
+            "VALUES ('Marico','company','findata/Companies/FMCG/Marico.md')"
+        )
         conn.commit()
         conn.close()
 
@@ -169,7 +170,8 @@ class _Project:
         rows = conn.execute(
             "SELECT id, entity, quote_text, paraphrase, speaker_name, "
             "speaker_title, as_of_edition, source_ref, properties, created_at "
-            "FROM quotes ORDER BY id").fetchall()
+            "FROM quotes ORDER BY id"
+        ).fetchall()
         conn.close()
         return [tuple(r) for r in rows]
 
@@ -178,7 +180,8 @@ class _Project:
         rows = conn.execute(
             "SELECT id, entity, metric_label, value_raw, value_num, unit, "
             "period, as_of_edition, source_quote, source_ref, properties, "
-            "created_at FROM company_metrics ORDER BY id").fetchall()
+            "created_at FROM company_metrics ORDER BY id"
+        ).fetchall()
         conn.close()
         return [tuple(r) for r in rows]
 
@@ -201,8 +204,7 @@ class _Project:
         for s in fm.get("sources", []):
             if isinstance(s, dict):
                 s["last_modified"] = "2026-08-15"
-        self.note.write_text(
-            render_frontmatter(stringify_dates(fm)) + body, encoding="utf-8")
+        self.note.write_text(render_frontmatter(stringify_dates(fm)) + body, encoding="utf-8")
 
 
 @pytest.fixture
@@ -214,8 +216,7 @@ def insights_project(tmp_path, monkeypatch) -> _Project:
 # DB write path (--no-notes) + stable writes                                  #
 # --------------------------------------------------------------------------- #
 class TestApplyNoNotes:
-    def test_apply_no_notes_writes_rows_and_second_apply_is_byte_stable(
-            self, insights_project):
+    def test_apply_no_notes_writes_rows_and_second_apply_is_byte_stable(self, insights_project):
         """--apply --no-notes writes quotes + company_metrics; a second
         identical apply must not restamp created_at or reshuffle ids (the
         _stable_prefix_replace contract, 2026-08-21)."""
@@ -274,8 +275,7 @@ class TestApplyRendersNotes:
         fm = p.note_fm()
         ids = {s.get("id"): s for s in fm.get("sources", [])}
         assert "TC_Alpha" in ids
-        assert ids["TC_Alpha"]["resource"] == (
-            "/findata/The_Chatter/TC_Alpha.md")
+        assert ids["TC_Alpha"]["resource"] == ("/findata/The_Chatter/TC_Alpha.md")
         text = p.note_text()
         assert "[^chatter-TC_Alpha]:" in text
         assert "[[TC_Alpha]]" in text
@@ -297,14 +297,14 @@ class TestApplyRendersNotes:
         # report zero (byte-identical block + already-spliced sources).
         assert "0 notes wrote" in err
 
-    def test_curation_safety_hand_written_block_preserved(self, tmp_path,
-                                                          monkeypatch):
+    def test_curation_safety_hand_written_block_preserved(self, tmp_path, monkeypatch):
         """A hand-written (non-sentinel) `## The Chatter — <edition>` block
         for the SAME edition blocks the auto block: hand text survives
         verbatim, no sentinel region is added, no duplication."""
         note = _BASE_NOTE + (
             "\n## The Chatter — The Chatter: Alpha Edition\n\n"
-            "Hand-curated commentary that must survive.\n")
+            "Hand-curated commentary that must survive.\n"
+        )
         p = _Project(tmp_path, monkeypatch, note_text=note)
         rc, err = p.run(["--apply"])
         assert rc == 0
@@ -347,22 +347,19 @@ class TestStaleOnlyCli:
 # Chain contract: step 8 (derive_insights) feeds step 9 (derive_events)        #
 # --------------------------------------------------------------------------- #
 class TestChainContract:
-    def test_rendered_chatter_is_what_derive_events_extracts(
-            self, insights_project):
+    def test_rendered_chatter_is_what_derive_events_extracts(self, insights_project):
         """maint-full runs derive-insights BEFORE derive-events because the
         events extractor reads the rendered chatter bullets out of company
         notes. Before the render there is no guidance event; after it, the
         guidance event's source_quote IS the rendered paraphrase bullet."""
         p = insights_project
         companies = p.root / "findata" / "Companies"
-        before = [e for e in de.extract_from_prose(root=companies)
-                  if e.event_type == "guidance"]
+        before = [e for e in de.extract_from_prose(root=companies) if e.event_type == "guidance"]
         assert before == []
 
         rc, _ = p.run(["--apply"])
         assert rc == 0
-        events = [e for e in de.extract_from_prose(root=companies)
-                  if e.event_type == "guidance"]
+        events = [e for e in de.extract_from_prose(root=companies) if e.event_type == "guidance"]
         assert len(events) == 1
         ev = events[0]
         assert ev.entity == "Marico"

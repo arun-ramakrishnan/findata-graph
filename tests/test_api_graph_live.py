@@ -3,6 +3,7 @@ test_api_graph.py for navigability.
 
 Live tests (require real memory/research.db) pinning the wiring between each /api/graph/* route and the underlying helpers.graph.query wrapper. Run under `make test-live`, not `make qa`.
 """
+
 from __future__ import annotations
 
 import pytest
@@ -13,6 +14,7 @@ import app as A
 # --------------------------------------------------------------------------- #
 # Live tests — pin wiring against the real memory/research.db                 #
 # --------------------------------------------------------------------------- #
+
 
 @pytest.fixture(scope="module")
 def live_client():
@@ -64,9 +66,16 @@ class TestGraphEndpointsLive:
         data = r.get_json()
         # All expected keys present.
         expected_keys = {
-            "company", "file_path", "sector", "peers", "jv_partners",
-            "group_siblings", "acquired", "subsidiary_of",
-            "suppliers", "customers",
+            "company",
+            "file_path",
+            "sector",
+            "peers",
+            "jv_partners",
+            "group_siblings",
+            "acquired",
+            "subsidiary_of",
+            "suppliers",
+            "customers",
         }
         assert set(data) >= expected_keys
         assert data["company"] == "CEAT"
@@ -146,7 +155,7 @@ class TestGraphEndpointsLive:
         # edges (sector, peers, etc.) which have NULL valid_from.
         r = live_client.get("/api/graph/neighbors/CEAT?as_of=2022")
         data = r.get_json()
-        assert data["sector"] == "Automotive"   # NULL valid_from → always valid
+        assert data["sector"] == "Automotive"  # NULL valid_from → always valid
         assert "Apollo Tyres" in data["peers"]  # competes_with, NULL valid_from
         assert "MRF" in data["peers"]
 
@@ -187,9 +196,7 @@ class TestGraphEndpointsLive:
         # returned as JSON, not as an error. We use two obscure companies
         # and a max_hops=1 to make a no-path outcome likely.
         # Skip gracefully if both happen to be 1-hop-connected.
-        r = live_client.get(
-            "/api/graph/shortest?a=CEAT&b=Tata%20Chemicals&max_hops=1"
-        )
+        r = live_client.get("/api/graph/shortest?a=CEAT&b=Tata%20Chemicals&max_hops=1")
         assert r.status_code == 200
         data = r.get_json()
         # Either there's a path (hops=1) or null — both are valid responses.
@@ -240,6 +247,7 @@ class TestGraphEndpointsLive:
         # on rebuild() to confirm the disk-rebuild half fires AND that
         # the connection was already None when rebuild() was called.
         import helpers.graph.query as q
+
         called = {"rebuild": False, "con_was_none": False}
         orig_rebuild = q.rebuild
 

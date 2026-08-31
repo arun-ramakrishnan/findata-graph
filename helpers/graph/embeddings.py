@@ -57,6 +57,7 @@ The SQLite table schema:
 The DuckDB side (query.py) joins this to v_node.id via the company_name,
 materialising FLOAT[] rows for array_cosine_similarity etc.
 """
+
 import ast
 import argparse
 import hashlib
@@ -104,10 +105,7 @@ def _ensure_schema(conn: sqlite3.Connection, dims: int) -> None:
             CHECK (json_array_length(embedding) = {dims})
         )
     """)
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_emb_company "
-        "ON company_embeddings(company_name)"
-    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_emb_company ON company_embeddings(company_name)")
 
 
 def _pseudo_embedding(text: str, dims: int, seed: int = 42) -> list[float]:
@@ -135,8 +133,8 @@ def _pseudo_embedding(text: str, dims: int, seed: int = 42) -> list[float]:
     vec = []
     for i in range(dims):
         # Extract 4 bytes and convert to a signed float in [-1, 1]
-        b = h[i*4:(i+1)*4]
-        val = int.from_bytes(b, byteorder='little', signed=True)
+        b = h[i * 4 : (i + 1) * 4]
+        val = int.from_bytes(b, byteorder="little", signed=True)
         # Map to [-1, 1] using tanh to avoid outliers
         vec.append(math.tanh(val / (2**31)))
 
@@ -155,8 +153,7 @@ def _get_company_text(conn: sqlite3.Connection, company_name: str) -> str:
     Falls back to the company name + sector if the file is missing.
     """
     r = conn.execute(
-        "SELECT file_path, sector_classification FROM entities WHERE name = ?",
-        (company_name,)
+        "SELECT file_path, sector_classification FROM entities WHERE name = ?", (company_name,)
     ).fetchone()
 
     if not r:
@@ -188,7 +185,8 @@ def _ensure_single_model(conn: sqlite3.Connection, model: str) -> None:
 
     Raises SystemExit with the remediation instead of mixing silently."""
     foreign = [
-        r[0] for r in conn.execute(
+        r[0]
+        for r in conn.execute(
             "SELECT DISTINCT model FROM company_embeddings WHERE model != ?",
             (model,),
         ).fetchall()
@@ -227,9 +225,12 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     if company:
         names = [company]
     else:
-        names = [r[0] for r in conn.execute(
-            "SELECT name FROM entities WHERE entity_type = 'company' ORDER BY name"
-        ).fetchall()]
+        names = [
+            r[0]
+            for r in conn.execute(
+                "SELECT name FROM entities WHERE entity_type = 'company' ORDER BY name"
+            ).fetchall()
+        ]
 
     # Batch embed through the cache: misses go through the pinned spawn
     # pool (parallel_cold_embed proposal, 2026-08-29 — cold populate
@@ -238,7 +239,9 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     # local_embedder.
     texts = [_get_company_text(conn, n) for n in names]
     vecs, cache_stats = cached_embed_batch(
-        conn, texts, local_embedder.MODEL_ID,
+        conn,
+        texts,
+        local_embedder.MODEL_ID,
         local_embedder.embed_documents_parallel,
         source="company",
     )
@@ -258,7 +261,7 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
             "    created_at = excluded.created_at "
             "WHERE company_embeddings.embedding IS NOT excluded.embedding "
             "   OR company_embeddings.model     IS NOT excluded.model",
-            (name, vec_str, local_embedder.MODEL_ID)
+            (name, vec_str, local_embedder.MODEL_ID),
         )
         count += cur.rowcount
 
@@ -266,8 +269,7 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     # companies would keep ghost rows (mirrors the rebuild's deleted-file
     # handling in note_search).
     gc = conn.execute(
-        "DELETE FROM company_embeddings "
-        "WHERE company_name NOT IN (SELECT name FROM entities)"  # noqa: S608  # no interpolation
+        "DELETE FROM company_embeddings WHERE company_name NOT IN (SELECT name FROM entities)"  # noqa: S608  # no interpolation
     ).rowcount
 
     conn.commit()
@@ -352,9 +354,12 @@ def populate_dry_run(conn: sqlite3.Connection, dims: int = 64, company: str | No
     if company:
         names = [company]
     else:
-        names = [r[0] for r in conn.execute(
-            "SELECT name FROM entities WHERE entity_type = 'company' ORDER BY name"
-        ).fetchall()]
+        names = [
+            r[0]
+            for r in conn.execute(
+                "SELECT name FROM entities WHERE entity_type = 'company' ORDER BY name"
+            ).fetchall()
+        ]
 
     count = 0
     for name in names:
@@ -365,7 +370,7 @@ def populate_dry_run(conn: sqlite3.Connection, dims: int = 64, company: str | No
         conn.execute(
             "INSERT OR REPLACE INTO company_embeddings (company_name, embedding, model) "
             "VALUES (?, ?, ?)",
-            (name, vec_str, model)
+            (name, vec_str, model),
         )
         count += 1
 
@@ -391,9 +396,12 @@ def stats(conn: sqlite3.Connection) -> dict:
     if total == 0:
         return {"total": 0, "models": [], "sample_dim": None}
 
-    models = [row[0] for row in conn.execute(
-        "SELECT DISTINCT model FROM company_embeddings ORDER BY model"
-    ).fetchall()]
+    models = [
+        row[0]
+        for row in conn.execute(
+            "SELECT DISTINCT model FROM company_embeddings ORDER BY model"
+        ).fetchall()
+    ]
 
     out = {"total": total, "models": models}
 
@@ -420,25 +428,36 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Generate and persist company embeddings for VSS vector search."
     )
-    parser.add_argument("--model", default=None,
-                        help="Model label. The special value 'bge-small-en-v1.5' "
-                             "populates via the LOCAL real embedder "
-                             "(helpers/core/local_embedder.py); anything else is a "
-                             "pseudo-embedding label (default: dry-run-v{dims})")
-    parser.add_argument("--dims", type=int, default=None,
-                        help="Embedding dimensions (default: 64 dry-run, 1536 API)")
-    parser.add_argument("--company", default=None,
-                        help="Single company name (default: all companies)")
-    parser.add_argument("--clear", action="store_true",
-                        help="Delete all existing embeddings before populating")
-    parser.add_argument("--stats", action="store_true",
-                        help="Print embedding stats and exit")
-    parser.add_argument("--maint", action="store_true",
-                        help="Best-effort cached refresh for maint-full: exits 0 "
-                             "with a WARNING (no writes) when the embedder is "
-                             "unavailable or the table isn't bge-populated — "
-                             "maint never auto-upgrades; otherwise a warm cached "
-                             "refresh + GC of deleted companies")
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Model label. The special value 'bge-small-en-v1.5' "
+        "populates via the LOCAL real embedder "
+        "(helpers/core/local_embedder.py); anything else is a "
+        "pseudo-embedding label (default: dry-run-v{dims})",
+    )
+    parser.add_argument(
+        "--dims",
+        type=int,
+        default=None,
+        help="Embedding dimensions (default: 64 dry-run, 1536 API)",
+    )
+    parser.add_argument(
+        "--company", default=None, help="Single company name (default: all companies)"
+    )
+    parser.add_argument(
+        "--clear", action="store_true", help="Delete all existing embeddings before populating"
+    )
+    parser.add_argument("--stats", action="store_true", help="Print embedding stats and exit")
+    parser.add_argument(
+        "--maint",
+        action="store_true",
+        help="Best-effort cached refresh for maint-full: exits 0 "
+        "with a WARNING (no writes) when the embedder is "
+        "unavailable or the table isn't bge-populated — "
+        "maint never auto-upgrades; otherwise a warm cached "
+        "refresh + GC of deleted companies",
+    )
 
     args = parser.parse_args(argv)
 
@@ -465,22 +484,23 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.model == local_embedder.MODEL_ID:
         # Local real path: dims + label come from the module, not the CLI.
-        print(f"Generating local embeddings ({local_embedder.MODEL_ID}, "
-              f"dims={local_embedder.DIM})...", file=sys.stderr)
+        print(
+            f"Generating local embeddings ({local_embedder.MODEL_ID}, "
+            f"dims={local_embedder.DIM})...",
+            file=sys.stderr,
+        )
         count = populate_local(conn, company=args.company)
     else:
         dims = args.dims or 64
         model = args.model or f"dry-run-v{dims}"
-        print(f"Generating pseudo-embeddings (dims={dims}, model={model})..."
-              , file=sys.stderr)
+        print(f"Generating pseudo-embeddings (dims={dims}, model={model})...", file=sys.stderr)
         count = populate_dry_run(conn, dims=dims, company=args.company)
 
     print(f"Inserted/updated {count} embeddings", file=sys.stderr)
     print(f"Stats: {json.dumps(stats(conn))}", file=sys.stderr)
 
     # Note: after populating, run `make graph-rebuild` to materialise into DuckDB
-    print("\nNext: run 'make graph-rebuild' to materialise embeddings into DuckDB",
-          file=sys.stderr)
+    print("\nNext: run 'make graph-rebuild' to materialise embeddings into DuckDB", file=sys.stderr)
 
     conn.close()
     return 0

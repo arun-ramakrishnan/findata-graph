@@ -95,8 +95,8 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
 
 ```python
 # Extraction patterns
-companies = re.findall(r'#[A-Z][a-zA-Z\s]+(?:Limited|Ltd|Private)', content)
-sectors   = re.findall(r'#(?:Banking|Healthcare|Technology)', content)
+companies = re.findall(r"#[A-Z][a-zA-Z\s]+(?:Limited|Ltd|Private)", content)
+sectors = re.findall(r"#(?:Banking|Healthcare|Technology)", content)
 ```
 
 ## PDF → Markdown
@@ -290,33 +290,47 @@ Auto-detection by regex over content (first match wins per category; default to 
 
 ```python
 def extract_enhanced_tags(content, entity_name, entity_type):
-    tags = [f'entity_type/{entity_type}']
+    tags = [f"entity_type/{entity_type}"]
     sector_patterns = {
         # Carve-outs first (more specific) — order matters, first match wins
-        'renewables':      r'\b(solar|wind|renewable|biofuel|biomass)\b',
-        'pharma':          r'\b(pharma|drug|api|formulation|vaccine)\b',
-        'hospitals':       r'\b(hospital|clinic chain)\b',
-        'diagnostics':     r'\b(diagnostic|pathlab|pathology|ivd)\b',
-        'semiconductors':  r'\b(semiconductor|chip|foundry|wafer)\b',
-        'nbfc':            r'\bnbfc\b',
-        'housing_finance': r'\b(housing finance|home loan)\b',
-        'fintech_payments':r'\b(fintech|payments|upi|wallet)\b',
+        "renewables": r"\b(solar|wind|renewable|biofuel|biomass)\b",
+        "pharma": r"\b(pharma|drug|api|formulation|vaccine)\b",
+        "hospitals": r"\b(hospital|clinic chain)\b",
+        "diagnostics": r"\b(diagnostic|pathlab|pathology|ivd)\b",
+        "semiconductors": r"\b(semiconductor|chip|foundry|wafer)\b",
+        "nbfc": r"\bnbfc\b",
+        "housing_finance": r"\b(housing finance|home loan)\b",
+        "fintech_payments": r"\b(fintech|payments|upi|wallet)\b",
         # Parent catch-alls
-        'banking':         r'\b(bank|banking)\b',
-        'healthcare':      r'\b(healthcare|medical|wellness)\b',
-        'technology':      r'\b(software|it services|technology|saas|cloud)\b',
-        'energy':          r'\b(oil|gas|power|energy|petroleum|refiner)\b',
+        "banking": r"\b(bank|banking)\b",
+        "healthcare": r"\b(healthcare|medical|wellness)\b",
+        "technology": r"\b(software|it services|technology|saas|cloud)\b",
+        "energy": r"\b(oil|gas|power|energy|petroleum|refiner)\b",
     }
     for sector, pattern in sector_patterns.items():
         if re.search(pattern, content, re.IGNORECASE):
-            tags.append(f'sector/{sector}'); break
-    if re.search(r'\b(large cap|big cap)\b', content, re.I):    tags.append('market_cap/large_cap')
-    elif re.search(r'\b(mid cap|medium)\b', content, re.I):     tags.append('market_cap/mid_cap')
-    tags.append('geography/india' if re.search(r'\b(India|Mumbai|Delhi)\b', content, re.I) else 'geography/global')
-    tags.append('business_model/b2b' if re.search(r'\b(B2B|enterprise|wholesale)\b', content, re.I) else 'business_model/b2c')
-    if re.search(r'\b(dividend|yield)\b', content, re.I):       tags.append('risk_investment/dividend')
-    elif re.search(r'\b(growth|expansion)\b', content, re.I):   tags.append('risk_investment/high_growth')
-    else:                                                        tags.append('risk_investment/medium_risk')
+            tags.append(f"sector/{sector}")
+            break
+    if re.search(r"\b(large cap|big cap)\b", content, re.I):
+        tags.append("market_cap/large_cap")
+    elif re.search(r"\b(mid cap|medium)\b", content, re.I):
+        tags.append("market_cap/mid_cap")
+    tags.append(
+        "geography/india"
+        if re.search(r"\b(India|Mumbai|Delhi)\b", content, re.I)
+        else "geography/global"
+    )
+    tags.append(
+        "business_model/b2b"
+        if re.search(r"\b(B2B|enterprise|wholesale)\b", content, re.I)
+        else "business_model/b2c"
+    )
+    if re.search(r"\b(dividend|yield)\b", content, re.I):
+        tags.append("risk_investment/dividend")
+    elif re.search(r"\b(growth|expansion)\b", content, re.I):
+        tags.append("risk_investment/high_growth")
+    else:
+        tags.append("risk_investment/medium_risk")
     return tags
 ```
 
@@ -346,32 +360,48 @@ For each entity: extract tags → compute `normalized_name` → resolve `file_pa
 > **Legacy snippet (predates 2026-07-28).** `entities.market_cap` no longer exists as a column — it is tag-derived (Bundle C2); membership edges are written to **`graph_edges`**, not a `relations` table (that name is now a backward-compat VIEW over graph_edges); and the dual-MCP tool subsystem shown below was removed. Follow the flow shape; use the house insert paths (`create_entity`, `helpers.core.db.connect`) today.
 
 ```python
-def add_entity_with_tags(name, content, entity_type='company', sector=None, market_cap=None, ticker=None):
+def add_entity_with_tags(
+    name, content, entity_type="company", sector=None, market_cap=None, ticker=None
+):
     tags = extract_enhanced_tags(content, name, entity_type)
-    normalized_name = normalize_name(name)                       # MUST match filename exactly
-    sector_dir = get_sector_directory(sector) if sector else 'Other'
-    if entity_type == 'company':
-        file_path = f'findata/Companies/{sector_dir}/{normalized_name}.md'
-    elif entity_type == 'sector':
-        file_path = f'findata/Sectors/{normalized_name}.md'
+    normalized_name = normalize_name(name)  # MUST match filename exactly
+    sector_dir = get_sector_directory(sector) if sector else "Other"
+    if entity_type == "company":
+        file_path = f"findata/Companies/{sector_dir}/{normalized_name}.md"
+    elif entity_type == "sector":
+        file_path = f"findata/Sectors/{normalized_name}.md"
     else:
-        file_path = f'findata/{entity_type.title()}s/{normalized_name}.md'
+        file_path = f"findata/{entity_type.title()}s/{normalized_name}.md"
 
-    sqlite_result = use_mcp_tool___sqlite___create_record({
-        'table': 'entities',
-        'data': {
-            'name': name, 'normalized_name': normalized_name, 'entity_type': entity_type,
-            'sector_classification': sector, 'market_cap': market_cap,
-            'file_path': file_path, 'ticker': ticker,
-            'last_updated': datetime.now().isoformat(),
-        },
-    })
-    yaml_content = create_yaml_front_matter(name, tags, normalized_name, entity_type, sector, ticker=ticker)
+    sqlite_result = use_mcp_tool___sqlite___create_record(
+        {
+            "table": "entities",
+            "data": {
+                "name": name,
+                "normalized_name": normalized_name,
+                "entity_type": entity_type,
+                "sector_classification": sector,
+                "market_cap": market_cap,
+                "file_path": file_path,
+                "ticker": ticker,
+                "last_updated": datetime.now().isoformat(),
+            },
+        }
+    )
+    yaml_content = create_yaml_front_matter(
+        name, tags, normalized_name, entity_type, sector, ticker=ticker
+    )
     create_file_at_path(file_path, yaml_content + f"# {name}\n\n[Entity content from document]")
     # NOTE: tags are NOT stored on the entities row. They live in the note YAML
     # and are mirrored into the entity_tags table by sync_tags (see Validation).
-    return {'sqlite': sqlite_result, 'tags_applied': tags, 'file_path': file_path,
-            'normalized_name': normalized_name, 'ticker': ticker, 'validation_required': True}
+    return {
+        "sqlite": sqlite_result,
+        "tags_applied": tags,
+        "file_path": file_path,
+        "normalized_name": normalized_name,
+        "ticker": ticker,
+        "validation_required": True,
+    }
 ```
 
 `create_yaml_front_matter(...)` renders the YAML template above with the entity's values (`normalized_name`, `sector`, `market_cap`, `geography`, `ticker`, etc.).
@@ -382,10 +412,18 @@ def add_entity_with_tags(name, content, entity_type='company', sector=None, mark
 for company in companies:
     for sector in sectors:
         if related_in_context(company, sector, content):
-            use_mcp_tool___sqlite___create_record({'table': 'relations', 'data':
-                {'source': company, 'target': sector, 'relation_type': 'part_of'}})
-            use_mcp_tool___sqlite___create_record({'table': 'relations', 'data':
-                {'source': sector, 'target': company, 'relation_type': 'has_company'}})
+            use_mcp_tool___sqlite___create_record(
+                {
+                    "table": "relations",
+                    "data": {"source": company, "target": sector, "relation_type": "part_of"},
+                }
+            )
+            use_mcp_tool___sqlite___create_record(
+                {
+                    "table": "relations",
+                    "data": {"source": sector, "target": company, "relation_type": "has_company"},
+                }
+            )
 ```
 
 ## Enhancing Existing Entities
@@ -536,28 +574,47 @@ Fix any issue traceable to the current run, then re-run. Pre-existing unrelated 
 
 ```python
 def validate_normalized_name_format(filename, normalized_name):
-    for c in ['&', ' ', '(', ')', '-', '__']:
-        if c in filename: return False, f"Invalid char '{c}'"
-    if len(filename) > 100: return False, "Exceeds 100 chars"
-    if filename.replace('.md', '') != normalized_name: return False, "filename != normalized_name"
+    for c in ["&", " ", "(", ")", "-", "__"]:
+        if c in filename:
+            return False, f"Invalid char '{c}'"
+    if len(filename) > 100:
+        return False, "Exceeds 100 chars"
+    if filename.replace(".md", "") != normalized_name:
+        return False, "filename != normalized_name"
     return True, "OK"
 
+
 def validate_entity_creation(entity_name):
-    entity = query_sqlite("SELECT normalized_name, file_path FROM entities WHERE name = ?", [entity_name])
-    if not entity: return False, "Not in SQLite"
+    entity = query_sqlite(
+        "SELECT normalized_name, file_path FROM entities WHERE name = ?", [entity_name]
+    )
+    if not entity:
+        return False, "Not in SQLite"
     entity = entity[0]
-    if not file_exists(entity['file_path']): return False, f"Missing file: {entity['file_path']}"
-    ok, msg = validate_normalized_name_format(entity['file_path'].split('/')[-1], entity['normalized_name'])
-    if not ok: return False, msg
-    dup = query_sqlite("SELECT COUNT(*) c FROM entities WHERE normalized_name = ?", [entity['normalized_name']])
-    if dup[0]['c'] > 1: return False, f"Duplicate normalized_name: {entity['normalized_name']}"
+    if not file_exists(entity["file_path"]):
+        return False, f"Missing file: {entity['file_path']}"
+    ok, msg = validate_normalized_name_format(
+        entity["file_path"].split("/")[-1], entity["normalized_name"]
+    )
+    if not ok:
+        return False, msg
+    dup = query_sqlite(
+        "SELECT COUNT(*) c FROM entities WHERE normalized_name = ?", [entity["normalized_name"]]
+    )
+    if dup[0]["c"] > 1:
+        return False, f"Duplicate normalized_name: {entity['normalized_name']}"
     return True, "All sync rules validated"
+
 
 def validate_bidirectional_sync():
     issues = []
-    for m in query_sqlite("SELECT name, file_path FROM entities WHERE file_path NOT LIKE 'findata/%'"):
+    for m in query_sqlite(
+        "SELECT name, file_path FROM entities WHERE file_path NOT LIKE 'findata/%'"
+    ):
         issues.append(f"Bad path: {m['name']} -> {m['file_path']}")
-    for d in query_sqlite("SELECT normalized_name, COUNT(*) c FROM entities GROUP BY normalized_name HAVING c > 1"):
+    for d in query_sqlite(
+        "SELECT normalized_name, COUNT(*) c FROM entities GROUP BY normalized_name HAVING c > 1"
+    ):
         issues.append(f"Duplicate: {d['normalized_name']} ({d['c']})")
     return not issues, issues
 ```

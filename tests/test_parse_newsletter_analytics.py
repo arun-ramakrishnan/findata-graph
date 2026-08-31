@@ -10,6 +10,7 @@ Stage 6 must:
 We don't execute the full main() — instead we drive main() with a fake
 newsletter and intercept subprocess.run so no real writes happen.
 """
+
 from __future__ import annotations
 
 import sys
@@ -35,15 +36,21 @@ def test_with_analytics_requires_apply(monkeypatch, fake_newsletter):
     monkeypatch.setattr(pn, "classify", lambda _c, _e: ([], [], []))
     monkeypatch.setattr(pn, "get_existing_entity_names", lambda _conn: set())
     monkeypatch.setattr(pn, "get_sector_dirs", lambda: set())
-    monkeypatch.setattr(pn, "emit_worklist", lambda *a, **k: PROJECT_ROOT / "_test_scratch" / "wl.json")
+    monkeypatch.setattr(
+        pn, "emit_worklist", lambda *a, **k: PROJECT_ROOT / "_test_scratch" / "wl.json"
+    )
     monkeypatch.setattr(pn, "run_validation", lambda _apply: True)
     monkeypatch.setattr(pn, "run_graph_analytics", lambda: True)
 
-    monkeypatch.setattr(sys, "argv", [
-        "parse_newsletter.py",
-        str(fake_newsletter),
-        "--with-analytics",  # but no --apply
-    ])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "parse_newsletter.py",
+            str(fake_newsletter),
+            "--with-analytics",  # but no --apply
+        ],
+    )
     with pytest.raises(SystemExit) as exc:
         pn.main()
     assert exc.value.code != 0
@@ -82,7 +89,9 @@ def test_stage6_skipped_without_with_analytics_flag(monkeypatch, fake_newsletter
     monkeypatch.setattr(pn, "classify", lambda _c, _e: ([], [], []))
     monkeypatch.setattr(pn, "get_existing_entity_names", lambda _conn: set())
     monkeypatch.setattr(pn, "get_sector_dirs", lambda: set())
-    monkeypatch.setattr(pn, "emit_worklist", lambda *a, **k: PROJECT_ROOT / "_test_scratch" / "wl.json")
+    monkeypatch.setattr(
+        pn, "emit_worklist", lambda *a, **k: PROJECT_ROOT / "_test_scratch" / "wl.json"
+    )
     monkeypatch.setattr(pn, "run_validation", lambda _apply: True)
     monkeypatch.setattr(pn, "run_graph_analytics", _boom)
 
@@ -106,16 +115,22 @@ def test_stage6_invoked_when_both_flags_set(monkeypatch, fake_newsletter):
     monkeypatch.setattr(pn, "classify", lambda _c, _e: ([], [], []))
     monkeypatch.setattr(pn, "get_existing_entity_names", lambda _conn: set())
     monkeypatch.setattr(pn, "get_sector_dirs", lambda: set())
-    monkeypatch.setattr(pn, "emit_worklist", lambda *a, **k: PROJECT_ROOT / "_test_scratch" / "wl.json")
+    monkeypatch.setattr(
+        pn, "emit_worklist", lambda *a, **k: PROJECT_ROOT / "_test_scratch" / "wl.json"
+    )
     monkeypatch.setattr(pn, "run_validation", lambda _apply: True)
     monkeypatch.setattr(pn, "run_graph_analytics", _stub)
 
-    monkeypatch.setattr(sys, "argv", [
-        "parse_newsletter.py",
-        str(fake_newsletter),
-        "--apply",
-        "--with-analytics",
-    ])
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "parse_newsletter.py",
+            str(fake_newsletter),
+            "--apply",
+            "--with-analytics",
+        ],
+    )
     with pytest.raises(SystemExit) as exc:
         pn.main()
     assert exc.value.code == 0
@@ -148,12 +163,11 @@ def test_run_graph_analytics_invokes_algorithms_script(monkeypatch):
 
 def test_run_graph_analytics_returns_false_on_nonzero(monkeypatch):
     """A non-zero exit from algorithms.py is surfaced (but does not raise)."""
+
     class _FakeResult:
         returncode = 2
 
-    monkeypatch.setattr(
-        pn.subprocess, "run", lambda *a, **_k: _FakeResult()
-    )
+    monkeypatch.setattr(pn.subprocess, "run", lambda *a, **_k: _FakeResult())
     assert pn.run_graph_analytics() is False
 
 

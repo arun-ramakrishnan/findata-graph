@@ -12,6 +12,7 @@ python-dotenv is already a declared runtime dependency (pyproject.toml),
 so this wrapper is deliberately thin: path pinning plus house semantics,
 nothing more.
 """
+
 from __future__ import annotations
 
 import os
@@ -24,7 +25,9 @@ MEMORY_ENV = Path(__file__).resolve().parents[2] / "memory" / ".env"
 
 
 def load_memory_env(
-    env_file: Path | str | None = None, *, override: bool = False,
+    env_file: Path | str | None = None,
+    *,
+    override: bool = False,
 ) -> bool:
     """Populate os.environ from memory/.env (or an explicit path).
 
@@ -43,9 +46,7 @@ def require_env(name: str, *, what: str) -> str:
     """Fetch a mandatory secret from os.environ with a house error."""
     value = os.environ.get(name)
     if not value:
-        raise RuntimeError(
-            f"no {what}: set {name} in gitignored {MEMORY_ENV} "
-            f"or export it")
+        raise RuntimeError(f"no {what}: set {name} in gitignored {MEMORY_ENV} or export it")
     return value
 
 
@@ -53,7 +54,6 @@ if __name__ == "__main__":
     import sys
 
     load_memory_env()
-    names = [k for k in os.environ
-             if k.endswith("_API_KEY") and k in MEMORY_ENV.read_text()]
+    names = [k for k in os.environ if k.endswith("_API_KEY") and k in MEMORY_ENV.read_text()]
     print(f"{MEMORY_ENV}: loaded ({len(names)} keys: {', '.join(names)})")
     sys.exit(0)

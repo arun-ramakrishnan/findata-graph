@@ -67,9 +67,7 @@ _EDGE_SPECS: tuple[tuple[str, str, str, str, int], ...] = (
 )
 # Hop expansion runs over these; firehose/display tables stay out.
 _NON_STRUCTURED = frozenset({"co_mentioned_with", "cited_in"})
-_STRUCTURED_TABLES = tuple(
-    s[0] for s in _EDGE_SPECS if s[3] not in _NON_STRUCTURED
-)
+_STRUCTURED_TABLES = tuple(s[0] for s in _EDGE_SPECS if s[3] not in _NON_STRUCTURED)
 
 
 @dataclass(frozen=True)
@@ -140,9 +138,16 @@ def _collect_facts(
             year, source_ref = rest[0], rest[1]
             referenced.update((int(sid), int(oid)))
             raw.append(
-                (table, int(sid), int(oid), float(weight or 0.0),
-                 str(year) if year else None,
-                 str(source_ref) if source_ref else None, label, priority)
+                (
+                    table,
+                    int(sid),
+                    int(oid),
+                    float(weight or 0.0),
+                    str(year) if year else None,
+                    str(source_ref) if source_ref else None,
+                    label,
+                    priority,
+                )
             )
     name_by_id = _names_for(con, referenced)
     facts = [
@@ -173,9 +178,7 @@ def _names_for(con: duckdb.DuckDBPyConnection, ids: set[int]) -> dict[int, str]:
     }
 
 
-def _expand_hops(
-    con: duckdb.DuckDBPyConnection, seed_id: int, hops: int
-) -> set[int]:
+def _expand_hops(con: duckdb.DuckDBPyConnection, seed_id: int, hops: int) -> set[int]:
     """Entity id set for fact collection.
 
     hops=1 is the EGO pack: facts touching the seed only (no expansion).
@@ -208,16 +211,18 @@ def _profile_of(
 ) -> tuple[str | None, str | None, str | None, str | None]:
     """(kind, sector, market_cap, ticker) for the seed node."""
     prof = con.execute(
-        "SELECT kind, sector_classification, market_cap, ticker FROM v_node"
-        " WHERE id = $1",
+        "SELECT kind, sector_classification, market_cap, ticker FROM v_node WHERE id = $1",
         [seed_id],
     ).fetchone()
     return prof if prof else (None, None, None, None)
 
 
 def _semantic_of(
-    con: duckdb.DuckDBPyConnection, seed_name: str, kind: str | None,
-    ticker: str | None, k_semantic: int,
+    con: duckdb.DuckDBPyConnection,
+    seed_name: str,
+    kind: str | None,
+    ticker: str | None,
+    k_semantic: int,
 ) -> list[tuple[str, str, float]]:
     """Embedding kNN neighbors; empty when the entity has no vector or the
     embeddings table is absent (read-only conns on a cold sidecar graph)."""
@@ -231,9 +236,7 @@ def _semantic_of(
         return []
 
 
-def _rollup_of(
-    con: duckdb.DuckDBPyConnection, entities: set[str]
-) -> list[tuple[str | None, int]]:
+def _rollup_of(con: duckdb.DuckDBPyConnection, entities: set[str]) -> list[tuple[str | None, int]]:
     """Sector distribution of the given entity names, biggest first."""
     if not entities:
         return []
@@ -366,10 +369,15 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     con = duckdb.connect(str(args.duckdb), read_only=True)
     try:
-        print(build_context_pack(
-            con, args.name, hops=args.hops, budget=args.budget,
-            k_semantic=args.k_semantic,
-        ))
+        print(
+            build_context_pack(
+                con,
+                args.name,
+                hops=args.hops,
+                budget=args.budget,
+                k_semantic=args.k_semantic,
+            )
+        )
     except ValueError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

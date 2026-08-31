@@ -61,7 +61,7 @@ from pathlib import Path
 # --- project paths ---------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../pdf-ocr-obsidian
 # Ensure the repo root is importable when this script is run as a subprocess
-    # (make parse, maint orchestrator) — the late `from helpers.core.db import
+# (make parse, maint orchestrator) — the late `from helpers.core.db import
 # connect` inside main() needs `helpers` on sys.path.
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -71,6 +71,7 @@ from helpers.core.frontmatter import bump_generated  # noqa: E402  (OKF §5.2 st
 # Shared ticker resolution and entity matching (unified with get_tickers.py)
 from helpers.core.get_tickers import search_ticker
 from helpers.core.fuzzy_match import fuzzy_match
+
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 FINDATA = PROJECT_ROOT / "findata"
 COMPANIES = FINDATA / "Companies"
@@ -99,25 +100,71 @@ _HEADING_RE = re.compile(r"^(#{1,3})\s+(.+)$", re.MULTILINE)
 
 # --- company-heading constants (hoisted from extract_companies for reuse) -----
 _CAP_TOKENS = (
-    "large cap", "mid cap", "small cap", "micro cap", "nano cap", "mega cap",
+    "large cap",
+    "mid cap",
+    "small cap",
+    "micro cap",
+    "nano cap",
+    "mega cap",
     "unlisted",
 )
 # Cut the name at the first cap token (incl. OCR variants like 'Larg Cap', 'Mid Cap.').
 _CAP_CUT_RE = re.compile(r"\s+(?:large|larg|mid|small|micro|nano|mega)\s*cap", re.IGNORECASE)
-_SECTOR_WORDS = frozenset({
-    "retail", "energy", "renewables", "metals", "metal", "healthcare",
-    "pharma", "pharmaceuticals", "hospitals", "diagnostics", "technology",
-    "semiconductors", "financial services", "nbfc", "housing finance",
-    "capital markets", "fintech", "insurance", "consumer durables",
-    "automotive", "automotives", "telecom", "telecommunications",
-    "real estate", "realty", "defence", "defense", "chemicals",
-    "aerospace & defence", "engineering & capital goods", "railways",
-    "ems manufacturing", "consumer", "software", "hotels", "hotel",
-    "tourism", "logistics", "media", "entertainment", "textiles",
-    "building materials", "packaging", "agriculture", "education",
-    "edtech", "electronics", "mining", "aviation", "infrastructure",
-    "fertilizer",
-})
+_SECTOR_WORDS = frozenset(
+    {
+        "retail",
+        "energy",
+        "renewables",
+        "metals",
+        "metal",
+        "healthcare",
+        "pharma",
+        "pharmaceuticals",
+        "hospitals",
+        "diagnostics",
+        "technology",
+        "semiconductors",
+        "financial services",
+        "nbfc",
+        "housing finance",
+        "capital markets",
+        "fintech",
+        "insurance",
+        "consumer durables",
+        "automotive",
+        "automotives",
+        "telecom",
+        "telecommunications",
+        "real estate",
+        "realty",
+        "defence",
+        "defense",
+        "chemicals",
+        "aerospace & defence",
+        "engineering & capital goods",
+        "railways",
+        "ems manufacturing",
+        "consumer",
+        "software",
+        "hotels",
+        "hotel",
+        "tourism",
+        "logistics",
+        "media",
+        "entertainment",
+        "textiles",
+        "building materials",
+        "packaging",
+        "agriculture",
+        "education",
+        "edtech",
+        "electronics",
+        "mining",
+        "aviation",
+        "infrastructure",
+        "fertilizer",
+    }
+)
 
 
 def log(stage: str, msg: str) -> None:
@@ -129,9 +176,7 @@ def log(stage: str, msg: str) -> None:
 # ===========================================================================
 def get_existing_entity_names(conn) -> set:
     """All company entity names + normalized_names currently in the DB."""
-    rows = conn.execute(
-        "SELECT name FROM entities WHERE entity_type='company'"
-    ).fetchall()
+    rows = conn.execute("SELECT name FROM entities WHERE entity_type='company'").fetchall()
     norm = conn.execute(
         "SELECT normalized_name FROM entities WHERE entity_type='company' "
         "AND normalized_name IS NOT NULL"
@@ -145,9 +190,7 @@ def get_sector_dirs() -> set:
 
 
 def get_sector_entities(conn) -> set:
-    rows = conn.execute(
-        "SELECT name FROM entities WHERE entity_type='sector'"
-    ).fetchall()
+    rows = conn.execute("SELECT name FROM entities WHERE entity_type='sector'").fetchall()
     return {r[0] for r in rows}
 
 
@@ -180,6 +223,7 @@ def extract_companies(content: str):
       ## Foo Limited Mid Cap Sector           (no pipes; cap token inline)
     """
     _nl_offsets = [i for i, c in enumerate(content) if c == "\n"]
+
     def _line_of(pos: int) -> int:
         return bisect.bisect_right(_nl_offsets, pos) + 1
 
@@ -232,7 +276,6 @@ _STOPWORDS = {
 # match must share at least one token NOT in this set, otherwise two unrelated
 
 
-
 def classify(companies, existing_names: set):
     """
     Split into (new, existing, uncertain).
@@ -256,9 +299,7 @@ def classify(companies, existing_names: set):
         # Use shared fuzzy matcher (exact -> abbreviation -> word_overlap -> spellfix)
         fuzzy, method, score = fuzzy_match(name, existing_list)
         if fuzzy:
-            uncertain_co.append(
-                {"candidate": name, "likely_existing": fuzzy, "section_line": line}
-            )
+            uncertain_co.append({"candidate": name, "likely_existing": fuzzy, "section_line": line})
         else:
             new_co.append((name, line))
     return new_co, existing_co, uncertain_co
@@ -608,17 +649,13 @@ def create_entity(conn, name, sector, ticker, apply, sector_entities=None):
 # ===========================================================================
 # Stage 4: emit enhancement worklist (NOT executed — for an agent)
 # ===========================================================================
-def emit_worklist(
-    md_path, edition_title, new_cos, existing_cos, uncertain_cos, out_dir
-):
+def emit_worklist(md_path, edition_title, new_cos, existing_cos, uncertain_cos, out_dir):
     slug = md_path.stem
     wl = {
         "newsletter": str(md_path.relative_to(PROJECT_ROOT)),
         "edition_title": edition_title,
         "new_entities": [{"name": n, "section_line": ln} for n, ln in new_cos],
-        "existing_entities_to_enhance": [
-            {"name": n, "section_line": ln} for n, ln in existing_cos
-        ],
+        "existing_entities_to_enhance": [{"name": n, "section_line": ln} for n, ln in existing_cos],
         "uncertain_entities": uncertain_cos,
         "instructions": (
             "For each entity, read its concall section (starting at section_line in "
@@ -818,14 +855,10 @@ def main():  # noqa: C901
     # In dry-run, skip ticker resolution entirely (ticker=None).
     if args.apply and resolved:
         from concurrent.futures import ThreadPoolExecutor
+
         with ThreadPoolExecutor(max_workers=4) as pool:
-            ticker_results = list(
-                pool.map(lambda ns: search_ticker(ns[0]), resolved)
-            )
-        tickers = {
-            resolved[i][0]: (r[0] if r else None)
-            for i, r in enumerate(ticker_results)
-        }
+            ticker_results = list(pool.map(lambda ns: search_ticker(ns[0]), resolved))
+        tickers = {resolved[i][0]: (r[0] if r else None) for i, r in enumerate(ticker_results)}
     else:
         tickers = {}
 
@@ -849,14 +882,11 @@ def main():  # noqa: C901
 
     # Stage 4: worklist (always emitted — dry-run or apply)
     out_dir = md_path.parent
-    wl = emit_worklist(
-        md_path, edition_title, new_cos, existing_cos, uncertain_cos, out_dir
-    )
+    wl = emit_worklist(md_path, edition_title, new_cos, existing_cos, uncertain_cos, out_dir)
     log("4", f"enhancement worklist -> {wl.relative_to(PROJECT_ROOT)}")
     log(
         "4",
-        "Stage 4 (insight enrichment) is NOT auto-executed. "
-        "Hand the worklist to an agent.",
+        "Stage 4 (insight enrichment) is NOT auto-executed. Hand the worklist to an agent.",
     )
     print()
 

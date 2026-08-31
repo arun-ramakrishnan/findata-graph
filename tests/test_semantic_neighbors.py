@@ -11,6 +11,7 @@ because building the DuckDB materialisation needs the duckdb + vss
 extensions installed (network install on first run). The tests themselves do
 NOT touch memory/research.db or the live findata vault.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -67,21 +68,34 @@ CREATE TABLE graph_edges (
 
 # (name, entity_type, sector_classification, ticker, file_path, normalized_name)
 _SYNTH_ENTITIES = [
-    ("CEAT", "company", "Automotive", "CEAT.NS",
-     "findata/Companies/Automotive/CEAT.md", "CEAT"),
-    ("Apollo Tyres", "company", "Automotive", "APOLLOTYRE.NS",
-     "findata/Companies/Automotive/Apollo_Tyres.md", "Apollo_Tyres"),
-    ("MRF", "company", "Automotive", "MRF.NS",
-     "findata/Companies/Automotive/MRF.md", "MRF"),
-    ("Infosys", "company", "Technology", "INFY.NS",
-     "findata/Companies/Technology/Infosys.md", "Infosys"),
-    ("TCS", "company", "Technology", "TCS.NS",
-     "findata/Companies/Technology/Tata_Consultancy_Services.md",
-     "Tata_Consultancy_Services"),
-    ("Automotive", "sector", None, None,
-     "findata/Sectors/Automotive.md", "Automotive"),
-    ("Technology", "sector", None, None,
-     "findata/Sectors/Technology.md", "Technology"),
+    ("CEAT", "company", "Automotive", "CEAT.NS", "findata/Companies/Automotive/CEAT.md", "CEAT"),
+    (
+        "Apollo Tyres",
+        "company",
+        "Automotive",
+        "APOLLOTYRE.NS",
+        "findata/Companies/Automotive/Apollo_Tyres.md",
+        "Apollo_Tyres",
+    ),
+    ("MRF", "company", "Automotive", "MRF.NS", "findata/Companies/Automotive/MRF.md", "MRF"),
+    (
+        "Infosys",
+        "company",
+        "Technology",
+        "INFY.NS",
+        "findata/Companies/Technology/Infosys.md",
+        "Infosys",
+    ),
+    (
+        "TCS",
+        "company",
+        "Technology",
+        "TCS.NS",
+        "findata/Companies/Technology/Tata_Consultancy_Services.md",
+        "Tata_Consultancy_Services",
+    ),
+    ("Automotive", "sector", None, None, "findata/Sectors/Automotive.md", "Automotive"),
+    ("Technology", "sector", None, None, "findata/Sectors/Technology.md", "Technology"),
 ]
 
 _SYNTH_TAGS = [
@@ -102,12 +116,18 @@ _SYNTH_EDGES = [
 ]
 
 COMPANIES = ["CEAT", "Apollo Tyres", "MRF", "Infosys", "TCS"]
-SECTOR_OF = {"CEAT": "Automotive", "Apollo Tyres": "Automotive",
-             "MRF": "Automotive", "Infosys": "Technology", "TCS": "Technology"}
+SECTOR_OF = {
+    "CEAT": "Automotive",
+    "Apollo Tyres": "Automotive",
+    "MRF": "Automotive",
+    "Infosys": "Technology",
+    "TCS": "Technology",
+}
 
 
-def _build_synthetic_db(db_path: Path, dims: int = 8,
-                        with_embeddings: bool = True) -> sqlite3.Connection:
+def _build_synthetic_db(
+    db_path: Path, dims: int = 8, with_embeddings: bool = True
+) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path))
     conn.executescript(_SYNTH_DDL)
     conn.executemany(
@@ -115,12 +135,9 @@ def _build_synthetic_db(db_path: Path, dims: int = 8,
         "ticker, file_path, normalized_name) VALUES (?,?,?,?,?,?)",
         _SYNTH_ENTITIES,
     )
+    conn.executemany("INSERT INTO entity_tags (entity_name, tag) VALUES (?,?)", _SYNTH_TAGS)
     conn.executemany(
-        "INSERT INTO entity_tags (entity_name, tag) VALUES (?,?)", _SYNTH_TAGS
-    )
-    conn.executemany(
-        "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
-        "VALUES (?,?,?,?)",
+        "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
         _SYNTH_EDGES,
     )
     if with_embeddings:

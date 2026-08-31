@@ -8,6 +8,7 @@ without raising; the path helper must survive arbitrary file paths.
 Runs in `make fuzz` and `make qa`. No network / DB required (only the module
 import, which pulls in yfinance).
 """
+
 from __future__ import annotations
 
 import sys
@@ -28,22 +29,24 @@ from core.get_tickers import (  # noqa: E402
 # Heterogeneous "value" stream a formatter might receive from yfinance / JSON.
 _VAL = st.one_of(
     st.none(),
-    st.integers(-10**12, 10**12),
+    st.integers(-(10**12), 10**12),
     st.floats(allow_nan=True, allow_infinity=True, width=64),
     st.booleans(),
-    st.decimals(min_value=-10**6, max_value=10**6, allow_nan=False),
+    st.decimals(min_value=-(10**6), max_value=10**6, allow_nan=False),
     st.text(alphabet=st.characters(blacklist_categories=("Cs",)), max_size=12),
 )
 _FMT = st.text(alphabet=st.characters(max_codepoint=0x2000), max_size=3)
-_PATH = st.text(alphabet=st.characters(blacklist_categories=("Cs",),
-                                      blacklist_characters="\r"), max_size=200)
+_PATH = st.text(
+    alphabet=st.characters(blacklist_categories=("Cs",), blacklist_characters="\r"), max_size=200
+)
 
 
 # ---------------------------------------------------------------------------
 # 1. _fmt_number — never raises, always str, across heterogeneous values
 # ---------------------------------------------------------------------------
-@settings(max_examples=400, deadline=None,
-          suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=400, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 @given(val=_VAL, prefix=_FMT, suffix=_FMT)
 def test_fmt_number_never_raises(val, prefix, suffix):
     try:
@@ -56,8 +59,9 @@ def test_fmt_number_never_raises(val, prefix, suffix):
 # ---------------------------------------------------------------------------
 # 2. _fmt_pct — never raises, always str
 # ---------------------------------------------------------------------------
-@settings(max_examples=400, deadline=None,
-          suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=400, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 @given(val=_VAL)
 def test_fmt_pct_never_raises(val):
     try:
@@ -70,8 +74,9 @@ def test_fmt_pct_never_raises(val):
 # ---------------------------------------------------------------------------
 # 3. extract_company_name_from_path — never raises, returns str
 # ---------------------------------------------------------------------------
-@settings(max_examples=300, deadline=None,
-          suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=300, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 @given(_PATH)
 def test_extract_company_name_from_path_never_raises(path: str):
     try:
@@ -81,8 +86,9 @@ def test_extract_company_name_from_path_never_raises(path: str):
     assert isinstance(result, str)
 
 
-@settings(max_examples=100, deadline=None,
-          suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=100, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 @given(_PATH)
 def test_extract_company_name_strips_extension_and_underscores(path: str):
     """The helper drops the extension and turns underscores into spaces."""

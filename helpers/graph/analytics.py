@@ -44,8 +44,7 @@ if str(_REPO_ROOT) not in sys.path:
 import duckdb  # noqa: E402  # after sys.path bootstrap
 
 DEFAULT_SNAPSHOTS = _REPO_ROOT / "snapshots" / "parquet"
-REPORTS = ("summary", "edge-growth", "sector-growth", "top-entities",
-           "coverage", "temporal")
+REPORTS = ("summary", "edge-growth", "sector-growth", "top-entities", "coverage", "temporal")
 
 # Membership edges are structural (company -> sector/dir) and would drown
 # every activity signal; analytics exclude them unless noted. cited_in is
@@ -71,16 +70,16 @@ def _p(root: Path, side: str, table: str) -> str:
 
 
 def _summary(root: Path, con: duckdb.DuckDBPyConnection) -> Report:
-    meta = dict(con.execute(
-        "SELECT key, value FROM read_parquet($1) ORDER BY key",
-        [_p(root, "duckdb", "_build_meta.parquet")],
-    ).fetchall())
+    meta = dict(
+        con.execute(
+            "SELECT key, value FROM read_parquet($1) ORDER BY key",
+            [_p(root, "duckdb", "_build_meta.parquet")],
+        ).fetchall()
+    )
     rows = []
     for side in ("duckdb", "sqlite"):
         for f in sorted((root / side).glob("*.parquet")):
-            row = con.execute(
-                "SELECT count(*) FROM read_parquet($1)", [f.as_posix()]
-            ).fetchone()
+            row = con.execute("SELECT count(*) FROM read_parquet($1)", [f.as_posix()]).fetchone()
             n = row[0] if row else 0
             rows.append([side, f.stem, str(n)])
     return Report(
@@ -204,9 +203,11 @@ def _coverage(root: Path, con: duckdb.DuckDBPyConnection) -> Report:
         ORDER BY companies DESC, series, sector
         LIMIT 40
         """,  # noqa: S608  # parameterized; interpolated CTE is a schema-constant literal
-        [_p(root, "sqlite", "entities.parquet"),
-         _p(root, "sqlite", "note_tags.parquet"),
-         _p(root, "sqlite", "graph_edges.parquet")],
+        [
+            _p(root, "sqlite", "entities.parquet"),
+            _p(root, "sqlite", "note_tags.parquet"),
+            _p(root, "sqlite", "graph_edges.parquet"),
+        ],
     ).fetchall()
     rollup = con.execute(
         f"""
@@ -228,9 +229,11 @@ def _coverage(root: Path, con: duckdb.DuckDBPyConnection) -> Report:
         GROUP BY 1
         ORDER BY 1
         """,  # noqa: S608  # parameterized; interpolated CTE is a schema-constant literal
-        [_p(root, "sqlite", "entities.parquet"),
-         _p(root, "sqlite", "note_tags.parquet"),
-         _p(root, "sqlite", "graph_edges.parquet")],
+        [
+            _p(root, "sqlite", "entities.parquet"),
+            _p(root, "sqlite", "note_tags.parquet"),
+            _p(root, "sqlite", "graph_edges.parquet"),
+        ],
     ).fetchall()
     row = con.execute(
         "SELECT COUNT(*) FROM read_parquet($1) WHERE edge_type = 'cited_in'",
@@ -247,9 +250,11 @@ def _coverage(root: Path, con: duckdb.DuckDBPyConnection) -> Report:
         "Series × sector coverage (cited_in)",
         ["series", "sector", "companies", "editions", "quotes"],
         [[r[0], r[1], str(r[2]), str(r[3]), str(r[4])] for r in matrix],
-        note=(f"per series: {rollup_txt}. "
-              f"{joined}/{total} cited_in edges joined a series-tagged edition"
-              + (" — sync_tags/derive drift!" if joined != total else "")),
+        note=(
+            f"per series: {rollup_txt}. "
+            f"{joined}/{total} cited_in edges joined a series-tagged edition"
+            + (" — sync_tags/derive drift!" if joined != total else "")
+        ),
     )
 
 
@@ -311,10 +316,16 @@ def _temporal(root: Path, con: duckdb.DuckDBPyConnection) -> list[Report]:
         "Chatter volume by quarter",
         ["quarter", "editions", "quotes"],
         [[r[0], str(r[1]), str(r[2])] for r in by_quarter],
-        note=(f"edition stem join: {unmatched_n} unmatched quote editions"
-              + (" — concall/company-source chatter whose as_of_edition is a"
-                 " concall title (honest-miss by design, #136)" if unmatched_n else "")
-              + "; quarter = edition first-ingest date (entities.created_at)"),
+        note=(
+            f"edition stem join: {unmatched_n} unmatched quote editions"
+            + (
+                " — concall/company-source chatter whose as_of_edition is a"
+                " concall title (honest-miss by design, #136)"
+                if unmatched_n
+                else ""
+            )
+            + "; quarter = edition first-ingest date (entities.created_at)"
+        ),
     )
 
     # --- T2: coverage trend per edition -----------------------------------
@@ -341,8 +352,10 @@ def _temporal(root: Path, con: duckdb.DuckDBPyConnection) -> list[Report]:
     t2 = Report(
         "Coverage trend per edition (ingest order)",
         ["ingested", "edition", "quotes", "events", "thin"],
-        [[str(r[0]), r[1], str(r[2]), str(r[3]),
-          "*" if r[2] + r[3] < 10 else ""] for r in per_edition],
+        [
+            [str(r[0]), r[1], str(r[2]), str(r[3]), "*" if r[2] + r[3] < 10 else ""]
+            for r in per_edition
+        ],
         note="thin* = quotes+events < 10; ingested = edition first-ingest date",
     )
 
@@ -371,8 +384,7 @@ def _temporal(root: Path, con: duckdb.DuckDBPyConnection) -> list[Report]:
     t3 = Report(
         "Staleness curve by sector (days since last_updated)",
         ["sector", "companies", "p50_days", "p90_days", "max_days", "stale>30d"],
-        [[r[0], str(r[1]),
-          f"{r[2]:.0f}", f"{r[3]:.0f}", str(r[4]), str(r[5])] for r in stale],
+        [[r[0], str(r[1]), f"{r[2]:.0f}", f"{r[3]:.0f}", str(r[4]), str(r[5])] for r in stale],
         note="staleness relative to report-run time (now()); company entities only",
     )
 
@@ -391,9 +403,11 @@ def _temporal(root: Path, con: duckdb.DuckDBPyConnection) -> list[Report]:
         "Events timeline (D7 spine)",
         ["year", "event_type", "events"],
         [[r[0], r[1], str(r[2])] for r in ev_tl],
-        note=("'?' = undated events (NULL event_date, date_precision "
-              "none/absent); future years are guidance forward-dates by "
-              "D7 design, not data errors"),
+        note=(
+            "'?' = undated events (NULL event_date, date_precision "
+            "none/absent); future years are guidance forward-dates by "
+            "D7 design, not data errors"
+        ),
     )
     return [t1, t2, t3, t4]
 
@@ -424,10 +438,12 @@ def fetch(name: str, root: Path = DEFAULT_SNAPSHOTS) -> Report | list[Report]:
 def render_markdown(r: Report) -> str:
     """Plain aligned table (stable across terminals, git-diffable)."""
     widths = [
-        max(len(str(r.headers[i])), *(len(row[i]) for row in r.rows)) if r.rows
+        max(len(str(r.headers[i])), *(len(row[i]) for row in r.rows))
+        if r.rows
         else len(str(r.headers[i]))
         for i in range(len(r.headers))
     ]
+
     def fmt(cells: list[str]) -> str:
         return "  ".join(str(c).ljust(w) for c, w in zip(cells, widths, strict=True)).rstrip()
 
@@ -446,9 +462,9 @@ def render_markdown(r: Report) -> str:
 def render_json(r: Report) -> str:
     """Machine-readable form (headers + rows + meta + note)."""
     return json.dumps(
-        {"title": r.title, "headers": r.headers, "rows": r.rows,
-         "meta": r.meta, "note": r.note},
-        indent=2, ensure_ascii=False,
+        {"title": r.title, "headers": r.headers, "rows": r.rows, "meta": r.meta, "note": r.note},
+        indent=2,
+        ensure_ascii=False,
     )
 
 
@@ -467,9 +483,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if isinstance(r, list):  # composite report (temporal)
         if args.json:
-            print(json.dumps(
-                [json.loads(render_json(x)) for x in r], indent=2,
-                ensure_ascii=False))
+            print(json.dumps([json.loads(render_json(x)) for x in r], indent=2, ensure_ascii=False))
         else:
             print("\n\n".join(render_markdown(x) for x in r))
     else:

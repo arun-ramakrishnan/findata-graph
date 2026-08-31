@@ -27,6 +27,7 @@ Usage: python3 Mojo/bench/bench_cosine_knn.py [--scales 1,4,16] [--reps 5]
        (or just: make mojo-bench [MOJO_BENCH_SCALE=1,4,16] [MOJO_BENCH_REPS=5])
 Exit 0 when all cross-validations pass, 1 otherwise.
 """
+
 from __future__ import annotations
 
 import array
@@ -96,9 +97,7 @@ def _best_of(fn: Callable[[], object], reps: int) -> float:
 def _load_corpus(
     conn: sqlite3.Connection,
 ) -> tuple[list[str], list[str], list[list[float]]]:
-    rows = conn.execute(
-        "SELECT file_path, embedding FROM note_search ORDER BY rowid"
-    ).fetchall()
+    rows = conn.execute("SELECT file_path, embedding FROM note_search ORDER BY rowid").fetchall()
     file_paths: list[str] = []
     jsons: list[str] = []
     vecs: list[list[float]] = []
@@ -124,17 +123,17 @@ def _write_dump(path: Path, vecs: list[list[float]], block_reps: int) -> None:
 def _ensure_mojo_bin() -> str | None:
     if _MOJO_BIN.exists():
         return str(_MOJO_BIN)
-    print(f"WARNING: {_MOJO_BIN} missing — run `make mojo-build`; "
-          "mojo legs skipped", file=sys.stderr)
+    print(
+        f"WARNING: {_MOJO_BIN} missing — run `make mojo-build`; mojo legs skipped", file=sys.stderr
+    )
     return None
 
 
-def _run_mojo(
-    mojo_bin: str, matrix: Path, query: Path, rows: int, reps: int
-) -> dict[str, str]:
+def _run_mojo(mojo_bin: str, matrix: Path, query: Path, rows: int, reps: int) -> dict[str, str]:
     result = subprocess.run(  # noqa: S603  # list-form call; shell=False (default); args are locally constructed constants (repo-local binary + dump paths)
         [mojo_bin, str(matrix), str(query), str(rows), str(DIMS), str(reps)],
-        capture_output=True, text=True,
+        capture_output=True,
+        text=True,
     )
     if result.returncode != 0:
         raise RuntimeError(f"mojo bench failed: {result.stderr.strip()}")
@@ -146,10 +145,12 @@ def _run_mojo(
     return out
 
 
-def _startup_legs(mojo_bin: str | None, matrix: Path, query: Path,
-                  rows: int) -> list[tuple[str, float]]:
+def _startup_legs(
+    mojo_bin: str | None, matrix: Path, query: Path, rows: int
+) -> list[tuple[str, float]]:
     """Fixed cost per CLI invocation — the real price of Python-side
     maintenance scripts is import tax, not the numeric loops."""
+
     def wall(cmd: list[str]) -> float:
         best = float("inf")
         for _ in range(3):
@@ -163,19 +164,23 @@ def _startup_legs(mojo_bin: str | None, matrix: Path, query: Path,
         ("python -c 'import pandas' (import tax)", wall([sys.executable, "-c", "import pandas"])),
     ]
     if mojo_bin:
-        legs.append((
-            "mojo binary, full run (start+load+KNN, reps=1)",
-            wall([mojo_bin, str(matrix), str(query), str(rows), str(DIMS), "1"]),
-        ))
+        legs.append(
+            (
+                "mojo binary, full run (start+load+KNN, reps=1)",
+                wall([mojo_bin, str(matrix), str(query), str(rows), str(DIMS), "1"]),
+            )
+        )
     return legs
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--scales", default="1,4,16",
-                        help="corpus replication factors (comma list)")
-    parser.add_argument("--reps", type=int, default=5,
-                        help="best-of reps for the Python/sqlite legs")
+    parser.add_argument(
+        "--scales", default="1,4,16", help="corpus replication factors (comma list)"
+    )
+    parser.add_argument(
+        "--reps", type=int, default=5, help="best-of reps for the Python/sqlite legs"
+    )
     args = parser.parse_args()
     scales = [int(s) for s in args.scales.split(",")]
 
@@ -184,8 +189,7 @@ def main() -> int:
         file_paths, jsons, vecs = _load_corpus(conn)
         # sqlite-vec leg (x1 only): the production native path.
         _ = knn_similarities(conn, vecs[0], None, DIMS)  # warm-up (ATTACH etc.)
-        vec_best = _best_of(lambda: knn_similarities(conn, vecs[0], None, DIMS),
-                            args.reps)
+        vec_best = _best_of(lambda: knn_similarities(conn, vecs[0], None, DIMS), args.reps)
         vec_knn = knn_similarities(conn, vecs[0], None, DIMS)
     finally:
         conn.close()
@@ -200,8 +204,7 @@ def main() -> int:
 
     mojo_bin = _ensure_mojo_bin()
     if mojo_bin is None:
-        print("WARNING: mojo toolchain unavailable — mojo legs skipped",
-              file=sys.stderr)
+        print("WARNING: mojo toolchain unavailable — mojo legs skipped", file=sys.stderr)
 
     with tempfile.TemporaryDirectory(prefix="knn_bench_") as tmp:
         tmp_dir = Path(tmp)
@@ -210,11 +213,21 @@ def main() -> int:
         _write_dump(query, [q], 1)
 
         ok = True
-        print(f"corpus: {rows_n} docs x {DIMS} dims (bge-small f32), "
-              f"query = doc[0] embedding (top-1 must be itself, score ~1.0)")
+        print(
+            f"corpus: {rows_n} docs x {DIMS} dims (bge-small f32), "
+            f"query = doc[0] embedding (top-1 must be itself, score ~1.0)"
+        )
         print()
-        headers = ["scale", "rows", "py_math", "py_json", "sqlite-vec",
-                   "mojo_simd", "mojo vs py_math", "mojo vs py_json"]
+        headers = [
+            "scale",
+            "rows",
+            "py_math",
+            "py_json",
+            "sqlite-vec",
+            "mojo_simd",
+            "mojo vs py_math",
+            "mojo vs py_json",
+        ]
         table_rows: list[list[str]] = []
         for scale in scales:
             scaled_vecs = vecs * scale
@@ -233,21 +246,31 @@ def main() -> int:
                 m_idx, m_score = int(mojo_out["top1_idx"]), float(mojo_out["top1_score"])
                 if m_idx != py_idx or abs(m_score - py_score) > 1e-4:
                     ok = False
-                    print(f"VALIDATION FAIL scale={scale}: mojo top1 ({m_idx}, "
-                          f"{m_score}) != python ({py_idx}, {py_score})",
-                          file=sys.stderr)
+                    print(
+                        f"VALIDATION FAIL scale={scale}: mojo top1 ({m_idx}, "
+                        f"{m_score}) != python ({py_idx}, {py_score})",
+                        file=sys.stderr,
+                    )
 
             vec_cell = f"{t_vec * 1e3:.2f}ms" if t_vec is not None else "—"
             mojo_cell = f"{t_mojo * 1e3:.3f}ms" if t_mojo is not None else "—"
             sp_math = f"{t_math / t_mojo:.0f}x" if t_mojo else "—"
             sp_json = f"{t_json / t_mojo:.0f}x" if t_mojo else "—"
-            table_rows.append([f"x{scale}", str(rows_n * scale),
-                               f"{t_math * 1e3:.2f}ms", f"{t_json * 1e3:.2f}ms",
-                               vec_cell, mojo_cell, sp_math, sp_json])
+            table_rows.append(
+                [
+                    f"x{scale}",
+                    str(rows_n * scale),
+                    f"{t_math * 1e3:.2f}ms",
+                    f"{t_json * 1e3:.2f}ms",
+                    vec_cell,
+                    mojo_cell,
+                    sp_math,
+                    sp_json,
+                ]
+            )
 
         # Aligned grid: pad every cell to its column's widest entry.
-        widths = [max(len(h), *(len(r[i]) for r in table_rows))
-                  for i, h in enumerate(headers)]
+        widths = [max(len(h), *(len(r[i]) for r in table_rows)) for i, h in enumerate(headers)]
 
         def _render(cells: list[str]) -> str:
             return "| " + " | ".join(c.ljust(widths[i]) for i, c in enumerate(cells)) + " |"
@@ -265,12 +288,11 @@ def main() -> int:
             vec_ok = vec_top1 == file_paths[py_idx]
             ok = ok and vec_ok
             print()
-            print(f"validation: python top1 idx={py_idx} score={py_score:.6f} "
-                  f"({file_paths[py_idx]})")
-            print(f"validation: sqlite-vec top1 = {vec_top1} "
-                  f"[{'OK' if vec_ok else 'MISMATCH'}]")
-            print(f"validation: mojo top1 matches python at every scale "
-                  f"[{'OK' if ok else 'FAIL'}]")
+            print(
+                f"validation: python top1 idx={py_idx} score={py_score:.6f} ({file_paths[py_idx]})"
+            )
+            print(f"validation: sqlite-vec top1 = {vec_top1} [{'OK' if vec_ok else 'MISMATCH'}]")
+            print(f"validation: mojo top1 matches python at every scale [{'OK' if ok else 'FAIL'}]")
 
         print()
         print("Fixed cost per invocation (best of 3):")

@@ -94,9 +94,7 @@ def seeded_tree(tmp_path, monkeypatch):
     co_path = findata / "Companies" / "Agriculture" / "Acme_Feeds.md"
     co_path.write_text(_COMPANY, encoding="utf-8")
     (findata / "Sectors" / "Agriculture.md").write_text(_SECTOR, encoding="utf-8")
-    (findata / "The_Chatter" / "Aquaculture_Edition.md").write_text(
-        _NEWSLETTER, encoding="utf-8"
-    )
+    (findata / "The_Chatter" / "Aquaculture_Edition.md").write_text(_NEWSLETTER, encoding="utf-8")
 
     # Build the entities DB so the rebuild can look up title + sector by path.
     db_path = tmp_path / "test.db"
@@ -105,14 +103,18 @@ def seeded_tree(tmp_path, monkeypatch):
     conn.execute(
         "INSERT INTO entities (name, entity_type, sector_classification, "
         "file_path, normalized_name) VALUES (?,?,?,?,?)",
-        ("Acme_Feeds", "company", "Agriculture",
-         "findata/Companies/Agriculture/Acme_Feeds.md", "Acme_Feeds"),
+        (
+            "Acme_Feeds",
+            "company",
+            "Agriculture",
+            "findata/Companies/Agriculture/Acme_Feeds.md",
+            "Acme_Feeds",
+        ),
     )
     conn.execute(
         "INSERT INTO entities (name, entity_type, sector_classification, "
         "file_path, normalized_name) VALUES (?,?,?,?,?)",
-        ("Agriculture", "sector", None,
-         "findata/Sectors/Agriculture.md", "Agriculture"),
+        ("Agriculture", "sector", None, "findata/Sectors/Agriculture.md", "Agriculture"),
     )
     conn.commit()
     conn.close()
@@ -149,7 +151,7 @@ class TestRebuild:
                 "WHERE note_search MATCH 'Acme_Feeds'"
             ).fetchone()
             assert row is not None
-            assert row[0] == "Acme_Feeds"   # normalized_name from entities
+            assert row[0] == "Acme_Feeds"  # normalized_name from entities
             assert row[1] == "Agriculture"  # sector_classification
             assert row[2] == "company"
         finally:
@@ -172,9 +174,9 @@ class TestRebuild:
         rns.rebuild(seeded_tree, write=True)
         con = sqlite3.connect(str(seeded_tree))
         try:
-            sql = con.execute(
-                "SELECT sql FROM sqlite_master WHERE name='note_search'"
-            ).fetchone()[0]
+            sql = con.execute("SELECT sql FROM sqlite_master WHERE name='note_search'").fetchone()[
+                0
+            ]
             # porter tokenizer => standalone FTS, not external-content mode.
             assert "porter" in sql
             assert "tokenize" in sql
@@ -187,8 +189,7 @@ class TestRebuild:
         try:
             # The newsletter (no frontmatter, no entity row) is indexed by H1.
             rows = con.execute(
-                "SELECT title, doc_type FROM note_search "
-                "WHERE doc_type = 'chatter'"
+                "SELECT title, doc_type FROM note_search WHERE doc_type = 'chatter'"
             ).fetchall()
             assert len(rows) == 1
             # H1 was "# The Chatter: Aquaculture Edition".
@@ -214,9 +215,9 @@ class TestEmbeddingColumn:
         rns.rebuild(seeded_tree, write=True)
         con = sqlite3.connect(str(seeded_tree))
         try:
-            sql = con.execute(
-                "SELECT sql FROM sqlite_master WHERE name='note_search'"
-            ).fetchone()[0]
+            sql = con.execute("SELECT sql FROM sqlite_master WHERE name='note_search'").fetchone()[
+                0
+            ]
             assert "embedding UNINDEXED" in sql
         finally:
             con.close()
@@ -227,9 +228,7 @@ class TestEmbeddingColumn:
 
         con = sqlite3.connect(str(seeded_tree))
         try:
-            rows = con.execute(
-                "SELECT embedding FROM note_search ORDER BY file_path"
-            ).fetchall()
+            rows = con.execute("SELECT embedding FROM note_search ORDER BY file_path").fetchall()
             assert len(rows) == 3
             for (emb,) in rows:
                 assert emb is not None
@@ -297,9 +296,9 @@ class TestEmbeddingColumn:
 
         con = sqlite3.connect(str(seeded_tree))
         try:
-            sql = con.execute(
-                "SELECT sql FROM sqlite_master WHERE name='note_search'"
-            ).fetchone()[0]
+            sql = con.execute("SELECT sql FROM sqlite_master WHERE name='note_search'").fetchone()[
+                0
+            ]
             assert "embedding" in sql
             # Old row gone (rebuilt from files).
             n = con.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
@@ -314,9 +313,7 @@ class TestEmbeddingColumn:
         assert s2["indexed"] == 3
         con = sqlite3.connect(str(seeded_tree))
         try:
-            assert con.execute(
-                "SELECT COUNT(*) FROM note_search"
-            ).fetchone()[0] == 3
+            assert con.execute("SELECT COUNT(*) FROM note_search").fetchone()[0] == 3
         finally:
             con.close()
 
@@ -326,6 +323,7 @@ class TestEmbeddingColumn:
 # available, threads its dims into the vec0 mirror, and self-heals a          #
 # dims change on the next rebuild. Fakes stand in for the model (hermetic).   #
 # --------------------------------------------------------------------------- #
+
 
 def _fake_384(text: str) -> list[float]:
     """Deterministic fake 384-dim unit vector (position 0 = text length)."""
@@ -345,15 +343,14 @@ def fake_local(monkeypatch):
     seen: list[str] = []
     monkeypatch.setattr(LE, "available", lambda: True)
     monkeypatch.setattr(LE, "embed_document", _fake_384)
-    monkeypatch.setattr(LE, "embed_query",
-                        lambda t: _fake_384("Q:" + t))
-    monkeypatch.setattr(LE, "embed_documents",
-                        lambda texts: [_fake_384(t) for t in texts])
+    monkeypatch.setattr(LE, "embed_query", lambda t: _fake_384("Q:" + t))
+    monkeypatch.setattr(LE, "embed_documents", lambda texts: [_fake_384(t) for t in texts])
     # Batch path (parallel_cold_embed): same fake so the pool seam is
     # hermetic — the REAL function would spawn subprocesses that re-import
     # the unpatched module (monkeypatch never crosses spawn boundaries).
-    monkeypatch.setattr(LE, "embed_documents_parallel",
-                        lambda texts, workers=None: [_fake_384(t) for t in texts])
+    monkeypatch.setattr(
+        LE, "embed_documents_parallel", lambda texts, workers=None: [_fake_384(t) for t in texts]
+    )
     monkeypatch.setattr(LE, "_seen", seen, raising=False)
     return LE
 
@@ -470,8 +467,7 @@ class TestLocalEmbedderWiring:
         assert warm == cold  # byte-identical vectors via the cache
 
         co = rns.FINDATA / "Companies" / "Agriculture" / "Acme_Feeds.md"
-        co.write_text(co.read_text(encoding="utf-8") + "\nNew product line.\n",
-                      encoding="utf-8")
+        co.write_text(co.read_text(encoding="utf-8") + "\nNew product line.\n", encoding="utf-8")
         s3 = rns.rebuild(seeded_tree, write=True, incremental=True)
         assert s3["embed_cache_misses"] == 1  # only the edited doc
         # P2.2: unchanged docs are CARRIED from note_search on the
@@ -489,9 +485,7 @@ class TestLocalEmbedderWiring:
         con = sqlite3.connect(str(seeded_tree))
         try:
             VS._attach_vec_db(con)
-            n = con.execute(
-                "SELECT COUNT(*) FROM vecdb.embed_cache"
-            ).fetchone()[0]
+            n = con.execute("SELECT COUNT(*) FROM vecdb.embed_cache").fetchone()[0]
         finally:
             con.close()
         assert n == 3
@@ -515,10 +509,11 @@ class TestLocalEmbedderWiring:
         con = sqlite3.connect(str(seeded_tree))
         try:
             VS._attach_vec_db(con)
-            groups = dict(con.execute(
-                "SELECT model, COUNT(*) FROM vecdb.embed_cache "
-                "GROUP BY model"
-            ).fetchall())
+            groups = dict(
+                con.execute(
+                    "SELECT model, COUNT(*) FROM vecdb.embed_cache GROUP BY model"
+                ).fetchall()
+            )
         finally:
             con.close()
         assert groups == {"bge-small-en-v1.5": 3, "bge-small-en-v1.5-tmp": 3}
@@ -532,9 +527,7 @@ class TestLocalEmbedderWiring:
         from helpers.core.db import get_generation
 
         con = sqlite3.connect(str(seeded_tree))
-        con.execute(
-            "CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
-        )
+        con.execute("CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         con.execute("INSERT INTO db_meta VALUES ('generation', '50')")
         con.commit()
         con.close()
@@ -558,6 +551,7 @@ class TestLocalEmbedderWiring:
 # A1: sqlite-vec mirror table (note_search_vec) maintenance                  #
 # --------------------------------------------------------------------------- #
 
+
 class TestVecMirror:
     """The rebuild keeps the vec0 mirror in lock-step with the FTS table."""
 
@@ -575,7 +569,6 @@ class TestVecMirror:
         conn.enable_load_extension(False)
         _attach_vec_db(conn)  # the vec0 table lives in the sidecar (vecdb)
         return conn
-
 
     def test_full_rebuild_populates_vec_table(self, seeded_tree):
         import helpers.maintenance.rebuild_note_search as R
@@ -632,7 +625,8 @@ class TestVecMirror:
         try:
             con.execute(
                 "UPDATE entities SET sector_classification = 'Chemicals' "
-                "WHERE file_path IS NOT NULL AND entity_type = 'company'")
+                "WHERE file_path IS NOT NULL AND entity_type = 'company'"
+            )
             con.commit()
         finally:
             con.close()
@@ -641,8 +635,8 @@ class TestVecMirror:
         con = sqlite3.connect(str(R.DEFAULT_DB))
         try:
             sec = con.execute(
-                "SELECT sector FROM note_search WHERE doc_type = 'company' "
-                "LIMIT 1").fetchone()[0]
+                "SELECT sector FROM note_search WHERE doc_type = 'company' LIMIT 1"
+            ).fetchone()[0]
         finally:
             con.close()
         assert sec == "Chemicals"
@@ -681,8 +675,7 @@ class TestVecMirror:
         conn = self._vec_conn(R.DEFAULT_DB)
         try:
             rows = conn.execute(
-                "SELECT file_path, embedding FROM note_search "
-                "WHERE embedding IS NOT NULL"
+                "SELECT file_path, embedding FROM note_search WHERE embedding IS NOT NULL"
             ).fetchall()
             q = R._default_embed("Acme Feeds shrimp feed")
             got = knn_similarities(conn, q, k=len(rows), dims=R._PSEUDO_DIMS)
@@ -696,6 +689,7 @@ class TestVecMirror:
                 assert got[fp] == pytest.approx(expect, abs=1e-6)
         finally:
             conn.close()
+
 
 class TestStalenessCheck:
     """--check drift reporting (2026-08-26): note_search must report the
@@ -764,8 +758,7 @@ class TestStalenessCheck:
         db_path = seeded_tree
         self._rebuild(db_path)
         p = rns.FINDATA / "Companies" / "Agriculture" / "Acme_Feeds.md"
-        p.write_text(p.read_text(encoding="utf-8") + "\nprobe edit\n",
-                     encoding="utf-8")
+        p.write_text(p.read_text(encoding="utf-8") + "\nprobe edit\n", encoding="utf-8")
         stats = rns.rebuild(db_path, write=False)
         assert stats["index_stale"] is True
         assert stats["stale_changed"] == [self.CO]
@@ -781,7 +774,8 @@ class TestStalenessCheck:
         db_path = seeded_tree
         self._rebuild(db_path)
         (rns.FINDATA / "Companies" / "Agriculture" / "Probe_Co.md").write_text(
-            "# Probe Co\n\nbody\n", encoding="utf-8")
+            "# Probe Co\n\nbody\n", encoding="utf-8"
+        )
         stats = rns.rebuild(db_path, write=False)
         assert stats["stale_new"] == ["findata/Companies/Agriculture/Probe_Co.md"]
         rc = rns.main(["--check"])
@@ -803,8 +797,8 @@ class TestStalenessCheck:
         self._rebuild(db_path)
         conn = sqlite3.connect(str(db_path))
         conn.execute(
-            "UPDATE entities SET sector_classification='Aquaculture' "
-            "WHERE file_path=?", (self.CO,))
+            "UPDATE entities SET sector_classification='Aquaculture' WHERE file_path=?", (self.CO,)
+        )
         conn.commit()
         conn.close()
         stats = rns.rebuild(db_path, write=False)
@@ -814,12 +808,13 @@ class TestStalenessCheck:
         db_path = seeded_tree
         self._rebuild(db_path)
         p = rns.FINDATA / "Companies" / "Agriculture" / "Acme_Feeds.md"
-        p.write_text(p.read_text(encoding="utf-8") + "\nprobe edit\n",
-                     encoding="utf-8")
+        p.write_text(p.read_text(encoding="utf-8") + "\nprobe edit\n", encoding="utf-8")
         assert rns.main([]) == 0  # applying rebuild
         err = capsys.readouterr().err
         assert "index was STALE before this rebuild: 1 changed" in err
         assert rns.main(["--check"]) == 0  # converged
+
+
 class TestBatchEmbedPath:
     """Two-phase batch mode (parallel_cold_embed proposal): rows collected
     without embeddings, misses batch-embedded via cached_embed_batch ->
@@ -835,9 +830,7 @@ class TestBatchEmbedPath:
 
         con = sqlite3.connect(str(seeded_tree))
         try:
-            rows = con.execute(
-                "SELECT file_path, embedding FROM note_search"
-            ).fetchall()
+            rows = con.execute("SELECT file_path, embedding FROM note_search").fetchall()
             assert len(rows) == 3
             first = {fp: emb for fp, emb in rows}
         finally:
@@ -851,15 +844,12 @@ class TestBatchEmbedPath:
         assert stats2["embedded"] == 3
         con = sqlite3.connect(str(seeded_tree))
         try:
-            second = dict(
-                con.execute("SELECT file_path, embedding FROM note_search").fetchall()
-            )
+            second = dict(con.execute("SELECT file_path, embedding FROM note_search").fetchall())
         finally:
             con.close()
         assert first == second
 
-    def test_batch_failure_degrades_to_lexical(self, seeded_tree, fake_local,
-                                               monkeypatch, capsys):
+    def test_batch_failure_degrades_to_lexical(self, seeded_tree, fake_local, monkeypatch, capsys):
         from helpers.core import local_embedder as LE
 
         def boom(texts, workers=None):

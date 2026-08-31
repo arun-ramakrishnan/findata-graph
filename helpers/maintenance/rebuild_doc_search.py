@@ -86,12 +86,12 @@ DOC_EXTS = {".md", ".txt"}
 # recreate (see _migrate_schema).
 DOC_SEARCH_DDL = (
     "CREATE VIRTUAL TABLE IF NOT EXISTS doc_search USING fts5("
-    "title, "                 # 0  file-level title (#107 _doc_title derivation)
-    "section_title, "         # 1  '## ' header text of this chunk ('' = preamble)
-    "file_path UNINDEXED, "   # 2  doc/-relative POSIX path
-    "anchor UNINDEXED, "      # 3  1-based line number of the section header
-    "content, "               # 4  full section body (header line included)
-    "embedding UNINDEXED, "   # 5  JSON vector for hybrid ranking; not tokenized
+    "title, "  # 0  file-level title (#107 _doc_title derivation)
+    "section_title, "  # 1  '## ' header text of this chunk ('' = preamble)
+    "file_path UNINDEXED, "  # 2  doc/-relative POSIX path
+    "anchor UNINDEXED, "  # 3  1-based line number of the section header
+    "content, "  # 4  full section body (header line included)
+    "embedding UNINDEXED, "  # 5  JSON vector for hybrid ranking; not tokenized
     "tokenize = 'porter unicode61'"
     ")"
 )
@@ -114,10 +114,7 @@ DOC_SEARCH_META_DDL = (
 # sidecar — research.db must stay untouched). --check never writes it: the
 # stamp must describe the table's CONTENT.
 DOC_SEARCH_INFO_DDL = (
-    "CREATE TABLE IF NOT EXISTS doc_search_info ("
-    " key TEXT PRIMARY KEY,"
-    " value TEXT NOT NULL"
-    ")"
+    "CREATE TABLE IF NOT EXISTS doc_search_info ( key TEXT PRIMARY KEY, value TEXT NOT NULL)"
 )
 
 # How much of each chunk's body feeds the embedder. bge-small truncates at
@@ -209,7 +206,7 @@ def _split_sections(text: str) -> list[tuple[str, int, str]]:
     for lineno, line in enumerate(text.split("\n"), start=1):
         if line.startswith(_H2):
             _flush()
-            title = line[len(_H2):].strip()
+            title = line[len(_H2) :].strip()
             anchor = lineno
             lines = [line]
         else:
@@ -286,7 +283,7 @@ def stored_embed_dims(conn: sqlite3.Connection) -> int | None:
         return None
     try:
         vec = json.loads(row[0])
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return len(vec) if isinstance(vec, list) and vec else None
 
@@ -336,14 +333,16 @@ def _file_rows(abs_path: Path, rel: str, embed_fn) -> tuple[list[tuple], str | N
     title = _doc_title(text, rel)
     rows = []
     for section_title, anchor, body in _split_sections(text):
-        rows.append((
-            title,
-            section_title,
-            rel,
-            anchor,
-            body,
-            _embedding_json(embed_fn, title, section_title, body),
-        ))
+        rows.append(
+            (
+                title,
+                section_title,
+                rel,
+                anchor,
+                body,
+                _embedding_json(embed_fn, title, section_title, body),
+            )
+        )
     # Raw text IS the change key for this corpus (no DB-side inputs).
     chash = hashlib.blake2b(text.encode("utf-8", errors="replace"), digest_size=8).hexdigest()
     return rows, chash
@@ -376,8 +375,7 @@ def _backup_file(src: Path, dest: Path) -> bool:
 
     zst_dest = zst_path(dest)
     try:
-        with tempfile.NamedTemporaryFile(
-                suffix=".db", dir=dest.parent, delete=False) as tf:
+        with tempfile.NamedTemporaryFile(suffix=".db", dir=dest.parent, delete=False) as tf:
             tmp = _Path(tf.name)
         try:
             src_conn = _db_connect(src, enable_fk=False, wal=False)
@@ -422,30 +420,37 @@ def _backup_last_good_index(db_path: Path) -> None:
     try:
         conn = connect(db_path, read_only=True)
         try:
-            rows = conn.execute(
-                "SELECT COUNT(*) FROM doc_search").fetchone()[0]
+            rows = conn.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0]
         finally:
             conn.close()
     except sqlite3.Error:
         rows = 0
     if not rows:
-        print(f"WARNING: {db_path.name} empty ({rows} rows) — last-good "
-              "backup skipped (recovery point kept; rebuild continues)",
-              file=sys.stderr)
+        print(
+            f"WARNING: {db_path.name} empty ({rows} rows) — last-good "
+            "backup skipped (recovery point kept; rebuild continues)",
+            file=sys.stderr,
+        )
         return
     try:
         Path(BACKUP_DIR).mkdir(parents=True, exist_ok=True)
     except OSError:
-        print(f"WARNING: cannot create backup dir {BACKUP_DIR} "
-              "(recovery point skipped; rebuild continues)", file=sys.stderr)
+        print(
+            f"WARNING: cannot create backup dir {BACKUP_DIR} "
+            "(recovery point skipped; rebuild continues)",
+            file=sys.stderr,
+        )
         return
     for src, dest in backups:
         if not src.exists():
             continue
         if _backup_file(src, dest):
             continue
-        print(f"WARNING: could not back up {src.name} to {dest} "
-              "(recovery point skipped; rebuild continues)", file=sys.stderr)
+        print(
+            f"WARNING: could not back up {src.name} to {dest} "
+            "(recovery point skipped; rebuild continues)",
+            file=sys.stderr,
+        )
 
 
 def _migrate_schema(conn: sqlite3.Connection) -> bool:
@@ -463,8 +468,11 @@ def _migrate_schema(conn: sqlite3.Connection) -> bool:
 
 
 def rebuild(  # noqa: C901
-    db_path: Path | None = None, write: bool = True, incremental: bool = False,
-    embed_fn=None, root: Path | None = None,
+    db_path: Path | None = None,
+    write: bool = True,
+    incremental: bool = False,
+    embed_fn=None,
+    root: Path | None = None,
 ) -> dict:
     """Rebuild the doc_search FTS index. Returns a stats dict."""
     db_path = Path(db_path) if db_path is not None else DOC_DB
@@ -494,13 +502,14 @@ def rebuild(  # noqa: C901
         reuse: dict[str, list[tuple]] | None = None
         carried: set[str] = set()
         if incremental:
-            existing = {r[0]: (r[1], r[2]) for r in conn.execute(
-                "SELECT file_path, mtime, content_hash FROM doc_search_meta")}
+            existing = {
+                r[0]: (r[1], r[2])
+                for r in conn.execute("SELECT file_path, mtime, content_hash FROM doc_search_meta")
+            }
             reuse = {}
             by_file: dict[str, list[tuple]] = {}
             for r in conn.execute(
-                "SELECT title, section_title, file_path, anchor, content, embedding "
-                "FROM doc_search"
+                "SELECT title, section_title, file_path, anchor, content, embedding FROM doc_search"
             ):
                 by_file.setdefault(r[2], []).append(tuple(r))
             for fp, rows in by_file.items():
@@ -522,8 +531,11 @@ def rebuild(  # noqa: C901
                     rows_by_file[rel] = reuse[rel]
                     carried.add(rel)
                     continue
-                if mtime is not None and existing[rel][1] and (
-                        _text_hash(abs_path) == existing[rel][1]):
+                if (
+                    mtime is not None
+                    and existing[rel][1]
+                    and (_text_hash(abs_path) == existing[rel][1])
+                ):
                     # mtime drifted but the content hash matches (git
                     # worktree/checkout, touch, shared index DBs): the hash
                     # is the identity of record — carry the stored rows,
@@ -560,13 +572,16 @@ def rebuild(  # noqa: C901
         # (2026-08-30). Always computed — cheap — so stats carry it;
         # --check prints it and main() turns drift into exit 1 (the house
         # --check gate doctrine).
-        stored_meta = existing or {r[0]: (r[1], r[2]) for r in conn.execute(
-            "SELECT file_path, mtime, content_hash FROM doc_search_meta")}
+        stored_meta = existing or {
+            r[0]: (r[1], r[2])
+            for r in conn.execute("SELECT file_path, mtime, content_hash FROM doc_search_meta")
+        }
         on_disk = set(rows_by_file)
         stale_new = sorted(fp for fp in on_disk if fp not in stored_meta)
         stale_deleted = sorted(fp for fp in stored_meta if fp not in on_disk)
         stale_changed = sorted(
-            fp for fp in on_disk
+            fp
+            for fp in on_disk
             if fp in stored_meta
             and fp not in carried  # carried = mtime/hash match = unchanged
             and stored_meta[fp][1] != hash_by_file[fp]
@@ -591,9 +606,13 @@ def rebuild(  # noqa: C901
             # Zero-churn sibling (the maint_full_zero_churn lesson): bump
             # nothing when the content multiset is unchanged. tuple() each
             # stored row — sqlite3.Row never == a plain tuple.
-            stored = [tuple(r) for r in conn.execute(
-                "SELECT title, section_title, file_path, anchor, content, embedding "
-                "FROM doc_search")]
+            stored = [
+                tuple(r)
+                for r in conn.execute(
+                    "SELECT title, section_title, file_path, anchor, content, embedding "
+                    "FROM doc_search"
+                )
+            ]
             content_changed = Counter(stored) != Counter(all_rows)
             with conn:
                 conn.execute("DELETE FROM doc_search")
@@ -608,10 +627,7 @@ def rebuild(  # noqa: C901
                 conn.executemany(
                     "INSERT OR REPLACE INTO doc_search_meta (file_path, mtime, content_hash) "
                     "VALUES (?, ?, ?)",
-                    [
-                        (rel, _mtime_of(root, rel), hash_by_file[rel])
-                        for rel in rows_by_file
-                    ],
+                    [(rel, _mtime_of(root, rel), hash_by_file[rel]) for rel in rows_by_file],
                 )
                 if model_label is not None:
                     _stamp_model(conn, model_label, embed_dims)
@@ -677,17 +693,19 @@ def _print_staleness(stats: dict) -> None:
     changed = stats.get("stale_changed", [])
     deleted = stats.get("stale_deleted", [])
     if not (new or changed or deleted):
-        print(f"index state: FRESH ({stats.get('total_files', 0)} files unchanged)",
-              file=sys.stderr)
+        print(
+            f"index state: FRESH ({stats.get('total_files', 0)} files unchanged)", file=sys.stderr
+        )
         return
     print(
-        f"index state: STALE — {len(changed)} changed, {len(new)} new, "
-        f"{len(deleted)} deleted",
+        f"index state: STALE — {len(changed)} changed, {len(new)} new, {len(deleted)} deleted",
         file=sys.stderr,
     )
-    drift = ([(fp, "changed") for fp in changed]
-             + [(fp, "new") for fp in new]
-             + [(fp, "deleted") for fp in deleted])
+    drift = (
+        [(fp, "changed") for fp in changed]
+        + [(fp, "new") for fp in new]
+        + [(fp, "deleted") for fp in deleted]
+    )
     for fp, kind in drift[:10]:
         print(f"  {kind:8s} {fp}", file=sys.stderr)
     if len(drift) > 10:
@@ -760,8 +778,7 @@ def doc_index_stale(conn: sqlite3.Connection, root: Path | None = None) -> bool:
     cheap enough to run per request. Any error counts as stale (safe side).
     """
     try:
-        meta = {r[0]: r[1] for r in conn.execute(
-            "SELECT file_path, mtime FROM doc_search_meta")}
+        meta = {r[0]: r[1] for r in conn.execute("SELECT file_path, mtime FROM doc_search_meta")}
     except sqlite3.Error:
         return True
     if not meta:
@@ -780,8 +797,14 @@ def doc_index_stale(conn: sqlite3.Connection, root: Path | None = None) -> bool:
     return bool(meta.keys() - on_disk)
 
 
-def search_docs(conn: sqlite3.Connection, q: str, limit: int = 25, offset: int = 0,  # noqa: C901
-                *, hybrid: bool = True) -> dict:
+def search_docs(  # noqa: C901  # noqa anchor moved to the statement's diagnostic line (ruff-format split)
+    conn: sqlite3.Connection,
+    q: str,
+    limit: int = 25,
+    offset: int = 0,
+    *,
+    hybrid: bool = True,
+) -> dict:
     """Hybrid BM25 + cosine search over doc_search. Never raises.
 
     Returns {"mode": "hybrid"|"bm25", "results": [...]}. Degradation:
@@ -843,7 +866,7 @@ def search_docs(conn: sqlite3.Connection, q: str, limit: int = 25, offset: int =
         ):
             try:
                 vec = json.loads(emb)
-            except (TypeError, ValueError):
+            except TypeError, ValueError:
                 continue
             if not isinstance(vec, list) or len(vec) != len(q_vec):
                 continue
@@ -862,9 +885,9 @@ def search_docs(conn: sqlite3.Connection, q: str, limit: int = 25, offset: int =
     if cos_rank is not None:
         page_rids = {row[0] for row in page}
         rows_by_rid = {
-            r[0]: r for r in conn.execute(
-                "SELECT rowid, title, section_title, file_path, anchor, content "
-                "FROM doc_search"
+            r[0]: r
+            for r in conn.execute(
+                "SELECT rowid, title, section_title, file_path, anchor, content FROM doc_search"
             )
         }
         extra_pos = 0
@@ -935,24 +958,25 @@ def search_docs(conn: sqlite3.Connection, q: str, limit: int = 25, offset: int =
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument(
-        "--db", default=str(DOC_DB),
+        "--db",
+        default=str(DOC_DB),
         help="Path to the doc_search sidecar (default: memory/doc_search.db).",
     )
     p.add_argument(
-        "--check", action="store_true",
+        "--check",
+        action="store_true",
         help="Dry-run: count files/rows, report index freshness "
-             "(changed/new/deleted), no writes. Exits 1 when stale.",
+        "(changed/new/deleted), no writes. Exits 1 when stale.",
     )
     p.add_argument(
-        "--incremental", action="store_true",
+        "--incremental",
+        action="store_true",
         help="Incremental rebuild (only re-index changed/deleted files).",
     )
     args = p.parse_args(argv)
 
     try:
-        stats = rebuild(
-            Path(args.db), write=not args.check, incremental=args.incremental
-        )
+        stats = rebuild(Path(args.db), write=not args.check, incremental=args.incremental)
     except Exception as exc:  # pragma: no cover - defensive
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

@@ -4,6 +4,7 @@ original test_extract_relations.py for navigability.
 
 Pure unit tests: entity resolution, regex patterns, section splitting.
 """
+
 from __future__ import annotations
 
 
@@ -77,10 +78,17 @@ class TestEntityResolver:
         # must resolve to an existing entity, and must NOT collapse a global
         # parent mention into its Indian subsidiary (which would suppress
         # legitimate subsidiary_of edges).
-        r = EntityResolver([
-            "Bata India", "CEAT", "Diageo plc", "Fintellix", "Sagility",
-            "Shigan Quantum Technologies", "Swaraj Engines",
-        ])
+        r = EntityResolver(
+            [
+                "Bata India",
+                "CEAT",
+                "Diageo plc",
+                "Fintellix",
+                "Sagility",
+                "Shigan Quantum Technologies",
+                "Swaraj Engines",
+            ]
+        )
         assert r.resolve("bata") == "Bata India"
         assert r.resolve("CEAT") == "CEAT"
         assert r.resolve("Diageo") == "Diageo plc"
@@ -113,10 +121,14 @@ class TestEntityResolver:
         # "Japan's Kubota Corporation", "Sweden's AB Volvo", "the Volvo Group"
         # must resolve via the brand token, stripping the leading article /
         # country-possessive first.
-        r = EntityResolver([
-            "Kubota Corporation", "AB Volvo", "TotalEnergies SE",
-            "Innoviz Technologies",
-        ])
+        r = EntityResolver(
+            [
+                "Kubota Corporation",
+                "AB Volvo",
+                "TotalEnergies SE",
+                "Innoviz Technologies",
+            ]
+        )
         assert r.resolve("Japan's Kubota Corporation") == "Kubota Corporation"
         assert r.resolve("Sweden's AB Volvo") == "AB Volvo"
         assert r.resolve("the Volvo Group") == "AB Volvo"
@@ -376,7 +388,11 @@ class TestPatterns:
             if m:
                 # If it matched, the captured group must not be a generic word.
                 assert m.group(1).strip().lower() not in {
-                    "peers", "rivals", "competitors", "chinese", "indian",
+                    "peers",
+                    "rivals",
+                    "competitors",
+                    "chinese",
+                    "indian",
                 }, f"pattern falsely captured generic target: {m.group(1)!r}"
 
 
@@ -420,4 +436,3 @@ class TestSplitSections:
         assert _looks_like_speaker("Karan Bhagat, MD and CEO")
         assert not _looks_like_speaker("Jio Financial Services")
         assert not _looks_like_speaker("Tata Steel")
-

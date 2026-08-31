@@ -6,6 +6,7 @@ _clean_body runs over every newsletter doc in the vault; _doc_type_for /
 _newsletter_title classify every path; the _carry_row fast path decides
 incremental no-op cycles (P2.2). None had properties.
 """
+
 from __future__ import annotations
 
 import re
@@ -24,7 +25,8 @@ _SETTINGS = settings(max_examples=75, deadline=None)
 
 _TEXT = st.text(
     st.characters(blacklist_categories=("Cs",), blacklist_characters="\r"),
-    min_size=0, max_size=300,
+    min_size=0,
+    max_size=300,
 )
 
 
@@ -43,16 +45,32 @@ def test_clean_body_strips_noise_and_collapses_ws(body):
     out = rns._clean_body(body)
     assert "<img" not in out and "<div" not in out
     assert "\n" not in out and "\t" not in out
-    assert "  " not in out                 # whitespace collapsed to single
+    assert "  " not in out  # whitespace collapsed to single
 
 
 @_SETTINGS
-@given(st.lists(st.sampled_from(
-    ["Companies", "Sectors", "Super_Sectors", "The_Chatter",
-     "Points_And_Figures", "The_PlotLines", "unmapped_tree"]),
-    min_size=1, max_size=4),
-    st.text(st.characters(blacklist_categories=("Cs",), blacklist_characters="/\\\0"),
-            min_size=1, max_size=20).map(lambda s: s.replace("/", "")))
+@given(
+    st.lists(
+        st.sampled_from(
+            [
+                "Companies",
+                "Sectors",
+                "Super_Sectors",
+                "The_Chatter",
+                "Points_And_Figures",
+                "The_PlotLines",
+                "unmapped_tree",
+            ]
+        ),
+        min_size=1,
+        max_size=4,
+    ),
+    st.text(
+        st.characters(blacklist_categories=("Cs",), blacklist_characters="/\\\0"),
+        min_size=1,
+        max_size=20,
+    ).map(lambda s: s.replace("/", "")),
+)
 def test_doc_type_for_typed_and_path_based(parts, name):
     """_doc_type_for is a pure path-prefix classifier: typed output,
     deterministic, and unmapped trees map to None."""
@@ -72,26 +90,27 @@ def test_newsletter_title_typed(text):
     assert isinstance(t, str)
     assert "\n" not in t
     if t:
-        assert "# " not in t               # the H1 marker is stripped
+        assert "# " not in t  # the H1 marker is stripped
 
 
 @_SETTINGS
-@given(st.sampled_from(["company", "sector", "super_sector", "chatter",
-                        "points_and_figures", "plotlines"]),
-       _TEXT, _TEXT)
+@given(
+    st.sampled_from(
+        ["company", "sector", "super_sector", "chatter", "points_and_figures", "plotlines"]
+    ),
+    _TEXT,
+    _TEXT,
+)
 def test_carry_row_is_db_consistency_only(dtype, title_a, title_b):
     """The P2.2 carry contract: an entity row carries iff its entities-row
     metadata matches the stored row; non-entity docs always carry."""
     row = (dtype, "findata/x.md", title_a, "sec", "content", None)
-    ent_by_path: dict[str, tuple[str, str | None]] = {
-        "findata/x.md": (title_a, "sec")}
-    ent_changed: dict[str, tuple[str, str | None]] = {
-        "findata/x.md": (title_b, "sec")}
+    ent_by_path: dict[str, tuple[str, str | None]] = {"findata/x.md": (title_a, "sec")}
+    ent_changed: dict[str, tuple[str, str | None]] = {"findata/x.md": (title_b, "sec")}
     if dtype in ("company", "sector", "super_sector"):
         assert rns._carry_row(row, dtype, "findata/x.md", ent_by_path) is True
         same_meta = title_b == title_a
-        assert rns._carry_row(
-            row, dtype, "findata/x.md", ent_changed) is same_meta
+        assert rns._carry_row(row, dtype, "findata/x.md", ent_changed) is same_meta
     else:
         assert rns._carry_row(row, dtype, "findata/x.md", ent_changed) is True
 

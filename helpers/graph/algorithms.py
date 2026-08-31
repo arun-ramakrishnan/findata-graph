@@ -44,6 +44,7 @@ Conventions (mirrors helpers/graph/query.py):
   - Results written to ``graph_analytics`` (PRIMARY KEY metric, entity_name)
     via UPSERT.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -61,6 +62,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+
 # Metric wrappers from query.py — Onager-backed since Phase A of the
 # duckpgq-retirement proposal (formerly duckpgq-native):
 from helpers.graph.query import (  # noqa: E402
@@ -72,6 +74,7 @@ from helpers.graph.query import (  # noqa: E402
     pagerank as _graph_pagerank,
     weakly_connected_components as _graph_wcc,
 )
+
 # Onager-backed metrics (replaces the NetworkX bridge):
 from helpers.graph.onager import (  # noqa: E402
     onager_betweenness,
@@ -398,9 +401,7 @@ def link_prediction(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return onager_link_prediction(
-            con, edge_types=edge_types, method=method, top=top
-        )
+        return onager_link_prediction(con, edge_types=edge_types, method=method, top=top)
     finally:
         if own:
             con.close()
@@ -489,7 +490,9 @@ def _run_wcc(con, *, edges, edge_label, vertex_label, **_) -> dict[str, Any]:
 def _run_clustering(con, *, edges, edge_label, vertex_label, **_) -> dict[str, Any]:
     if edges is not None:
         return onager_clustering(con, edges=edges)
-    return {n: c for n, c in _graph_clustering(con, edge_label=edge_label, vertex_label=vertex_label)}
+    return {
+        n: c for n, c in _graph_clustering(con, edge_label=edge_label, vertex_label=vertex_label)
+    }
 
 
 def _run_louvain(con, *, edges, **_) -> dict[str, Any]:
@@ -507,9 +510,7 @@ def _run_degree(con, *, edges, **_) -> dict[str, Any]:
 
 
 def _run_closeness(con, *, edges, approximate, **_) -> dict[str, Any]:
-    return closeness_centrality(
-        con, approximate=_resolve_approx(approximate, False), edges=edges
-    )
+    return closeness_centrality(con, approximate=_resolve_approx(approximate, False), edges=edges)
 
 
 def _run_eigenvector(con, *, edges, **_) -> dict[str, Any]:
@@ -601,9 +602,7 @@ def compute(
 # --------------------------------------------------------------------------- #
 # Persistence
 # --------------------------------------------------------------------------- #
-def write_analytics(
-    metric: str, values: dict[str, Any], conn: Any | None = None
-) -> int:
+def write_analytics(metric: str, values: dict[str, Any], conn: Any | None = None) -> int:
     """Persist a metric result to ``graph_analytics`` (UPSERT).
 
     ``values`` maps entity_name -> value (value is json-serialised). Returns
@@ -711,17 +710,28 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p.add_argument(
         "cmd",
         nargs="?",
-        choices=["degree", "pagerank", "betweenness", "louvain", "wcc",
-                 "clustering", "closeness", "eigenvector", "harmonic",
-                 "katz", "laplacian", "local-reaching", "link-predict",
-                 "voterank"],
+        choices=[
+            "degree",
+            "pagerank",
+            "betweenness",
+            "louvain",
+            "wcc",
+            "clustering",
+            "closeness",
+            "eigenvector",
+            "harmonic",
+            "katz",
+            "laplacian",
+            "local-reaching",
+            "link-predict",
+            "voterank",
+        ],
         help="Algorithm to run. Omit when using --all.",
     )
     p.add_argument("--top", type=int, default=None, help="Show/print only top-N nodes.")
     p.add_argument(
         "--method",
-        choices=["jaccard", "adamic-adar", "common-neighbors", "pref-attach",
-                 "resource-alloc"],
+        choices=["jaccard", "adamic-adar", "common-neighbors", "pref-attach", "resource-alloc"],
         default="jaccard",
         help="Link-prediction similarity measure (link-predict command).",
     )
@@ -729,8 +739,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "--edge-types",
         default=None,
         help="Comma-separated edge_type projection for link-predict (default: "
-             "co_mentioned_in,jv_with,competes_with,same_group — the "
-             "non-membership types).",
+        "co_mentioned_in,jv_with,competes_with,same_group — the "
+        "non-membership types).",
     )
     p.add_argument(
         "--edge-label",
@@ -741,16 +751,16 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "--all",
         action="store_true",
         help="Run all metrics (degree, pagerank, betweenness, louvain, wcc, "
-             "clustering, closeness, eigenvector, harmonic, katz, laplacian, "
-             "local-reaching) plus link-predict and voterank.",
+        "clustering, closeness, eigenvector, harmonic, katz, laplacian, "
+        "local-reaching) plus link-predict and voterank.",
     )
     write_flags = p.add_mutually_exclusive_group()
     write_flags.add_argument(
         "--apply",
         action="store_true",
         help="Persist results to graph_analytics (UPSERT). Opt-in for EVERY "
-             "metric, link-predict and voterank included (D13); the default "
-             "is dry-run. `make recompute-graph` = --all --apply.",
+        "metric, link-predict and voterank included (D13); the default "
+        "is dry-run. `make recompute-graph` = --all --apply.",
     )
     write_flags.add_argument(
         "--no-apply",
@@ -761,7 +771,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "--exact-betweenness",
         action="store_true",
         help="Retained for CLI compatibility. Onager computes exact "
-             "betweenness efficiently, so this flag is a no-op.",
+        "betweenness efficiently, so this flag is a no-op.",
     )
     args = p.parse_args(argv)
 
@@ -800,7 +810,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 print(f"\nlink-predict (method={args.method}):")
                 edge_types = (
                     [t.strip() for t in args.edge_types.split(",") if t.strip()]
-                    if args.edge_types else None
+                    if args.edge_types
+                    else None
                 )
                 try:
                     # Full ranked list: --top caps the DISPLAY, persistence
@@ -817,15 +828,21 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 for a, b, s in shown:
                     print(f"  {a:36} {b:36} {s:.6f}")
                 if len(pairs) > len(shown):
-                    print(f"  ... ({len(pairs)} candidate pairs total, "
-                          f"showing {len(shown)})", file=sys.stderr)
+                    print(
+                        f"  ... ({len(pairs)} candidate pairs total, showing {len(shown)})",
+                        file=sys.stderr,
+                    )
                 if not args.apply:
-                    print("  [dry-run: nothing written to graph_analytics "
-                          "(pass --apply to persist)]", file=sys.stderr)
+                    print(
+                        "  [dry-run: nothing written to graph_analytics (pass --apply to persist)]",
+                        file=sys.stderr,
+                    )
                 else:
                     n_rows = _persist_link_prediction(pairs, args.method, edge_types)
-                    print(f"  applied link_prediction: {n_rows} entity rows to "
-                          f"graph_analytics", file=sys.stderr)
+                    print(
+                        f"  applied link_prediction: {n_rows} entity rows to graph_analytics",
+                        file=sys.stderr,
+                    )
                 continue
             if cmd == "voterank":
                 print("\nvoterank (seed set, in seed order):")
@@ -840,12 +857,16 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                     for i, name in enumerate(seeds, 1):
                         print(f"  {i:2}. {name}")
                 if not args.apply:
-                    print("  [dry-run: nothing written to graph_analytics "
-                          "(pass --apply to persist)]", file=sys.stderr)
+                    print(
+                        "  [dry-run: nothing written to graph_analytics (pass --apply to persist)]",
+                        file=sys.stderr,
+                    )
                 else:
                     n_rows = _persist_voterank(seeds)
-                    print(f"  applied voterank: {n_rows} entity rows to "
-                          f"graph_analytics", file=sys.stderr)
+                    print(
+                        f"  applied voterank: {n_rows} entity rows to graph_analytics",
+                        file=sys.stderr,
+                    )
                 continue
             metric = cmd_to_metric[cmd]
             print(f"\n{cmd} (metric={metric}):")
@@ -868,15 +889,15 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             # Every metric states its write status (D13 made dry-run the
             # default for ALL commands; silent dry-runs read as omissions).
             if not args.apply:
-                print("  [dry-run: nothing written to graph_analytics "
-                      "(pass --apply to persist)]", file=sys.stderr)
+                print(
+                    "  [dry-run: nothing written to graph_analytics (pass --apply to persist)]",
+                    file=sys.stderr,
+                )
                 continue
             metric_db = _METRIC_TO_ANALYTICS_NAME.get(cmd)
             if metric_db is None:
                 continue
-            payload = _wrap_for_analytics(
-                cmd, result, modularity=louvain_modularity
-            )
+            payload = _wrap_for_analytics(cmd, result, modularity=louvain_modularity)
             pending_writes.append((metric_db, payload))
 
         if args.apply:

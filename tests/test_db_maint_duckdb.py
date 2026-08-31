@@ -9,6 +9,7 @@ The tests need a real DuckDB file to back up, so they're marked ``live``.
 They use the production ``memory/graph.duckdb`` as the source and write
 backups to ``tmp_path`` for isolation.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -59,6 +60,7 @@ def built_cache(tmp_path_factory) -> Path:
         dst.close()
         src.close()
     from helpers.graph.query import connect
+
     c = connect(out)
     c.close()
     return out
@@ -197,9 +199,7 @@ class TestDryRunIncludesDuckDBBackup:
         assert steps.index("DuckDB BACKUP") < steps.index("DuckDB CHECKPOINT")
         assert steps.index("DuckDB CHECKPOINT") < steps.index("DuckDB VACUUM")
 
-    def test_dry_run_omits_duckdb_steps_when_no_file(
-        self, tmp_sqlite, tmp_path
-    ):
+    def test_dry_run_omits_duckdb_steps_when_no_file(self, tmp_sqlite, tmp_path):
         # When duckdb_path points at a nonexistent file, the dry-run plan
         # must NOT include any DuckDB steps.
         m = DBMaintainer(

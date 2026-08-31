@@ -53,10 +53,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("query", help="free-text query; punctuation is safe")
     p.add_argument("--limit", type=int, default=5, help="max hits (default 5)")
     p.add_argument("--db", default=None, help="sidecar path (default: module DOC_DB)")
-    p.add_argument("--bm25", action="store_true",
-                   help="lexical leg only (skip the cosine re-rank)")
-    p.add_argument("--json", action="store_true", dest="as_json",
-                   help="emit the raw result dicts as JSON")
+    p.add_argument("--bm25", action="store_true", help="lexical leg only (skip the cosine re-rank)")
+    p.add_argument(
+        "--json", action="store_true", dest="as_json", help="emit the raw result dicts as JSON"
+    )
     args = p.parse_args(argv)
 
     db_path = Path(args.db) if args.db else rds.DOC_DB
@@ -76,7 +76,9 @@ def main(argv: list[str] | None = None) -> int:
                 file=sys.stderr,
             )
         out = rds.search_docs(
-            conn, args.query, limit=max(1, min(args.limit, 100)),
+            conn,
+            args.query,
+            limit=max(1, min(args.limit, 100)),
             hybrid=not args.bm25,
         )
     finally:

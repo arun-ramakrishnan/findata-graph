@@ -19,6 +19,7 @@ These tests pin the resolution contract:
   - display_ticker prints concise output without --detailed
   - display_ticker prints detailed sections with --detailed
 """
+
 import sys
 from pathlib import Path
 
@@ -67,20 +68,28 @@ class _FakeYf:
         self.ticker_lookups.append(symbol)
         return _FakeTicker(symbol, self._tickers.get(symbol, {}))
 
+
 class TestSearchTicker:
     def test_skips_non_matching_quote(self, monkeypatch):
         """A wrong-name quote (e.g. TCS for Tata Motors) must not be returned."""
         monkeypatch.setattr(
-            gt, "yf",
+            gt,
+            "yf",
             _FakeYf(
                 tickers={"TATAMOTORS.NS": _FakeInfo(longName="Tata Motors Limited")},
                 search_results={
                     "Tata Motors": [
                         # decoy: symbol present, name does NOT match the query
-                        {"symbol": "TCS.NS", "shortname": "TCS",
-                         "longname": "Tata Consultancy Services"},
-                        {"symbol": "TATAMOTORS.NS", "shortname": "Tata Motors",
-                         "longname": "Tata Motors Limited"},
+                        {
+                            "symbol": "TCS.NS",
+                            "shortname": "TCS",
+                            "longname": "Tata Consultancy Services",
+                        },
+                        {
+                            "symbol": "TATAMOTORS.NS",
+                            "shortname": "Tata Motors",
+                            "longname": "Tata Motors Limited",
+                        },
                     ],
                 },
             ),
@@ -97,11 +106,13 @@ class TestSearchTicker:
         constructed wrong symbols like "RELIANCEINDUSTRIES.NS" that always 404'd.
         """
         monkeypatch.setattr(
-            gt, "yf",
-            _FakeYf(tickers={
-                "TataSteel.NS": _FakeInfo(symbol="TataSteel.NS",
-                                         longName="Tata Steel Limited"),
-            }),
+            gt,
+            "yf",
+            _FakeYf(
+                tickers={
+                    "TataSteel.NS": _FakeInfo(symbol="TataSteel.NS", longName="Tata Steel Limited"),
+                }
+            ),
         )
         result = gt.search_ticker("Tata Steel")
         assert result == (None, None)
@@ -161,6 +172,7 @@ class TestGetBasicInfo:
         class _BadYf:
             def Ticker(self, symbol):
                 raise RuntimeError("network down")
+
         monkeypatch.setattr(gt, "yf", _BadYf())
         result = gt.get_basic_info("ANYTHING.NS")
         assert result is None
@@ -172,7 +184,9 @@ class TestGetBasicInfo:
 class TestDisplayTicker:
     def test_concise_mode_prints_one_line(self, monkeypatch, capsys):
         fake_info = _FakeInfo(
-            longName="Tata Steel Limited", exchange="NSI", currency="INR",
+            longName="Tata Steel Limited",
+            exchange="NSI",
+            currency="INR",
             marketCap=1500000000000,
         )
         monkeypatch.setattr(gt, "yf", _FakeYf(tickers={"TATASTEEL.NS": fake_info}))
@@ -185,14 +199,28 @@ class TestDisplayTicker:
 
     def test_detailed_mode_prints_sections(self, monkeypatch, capsys):  # noqa: C901
         fake_info = _FakeInfo(
-            longName="Tata Steel Limited", exchange="NSI", currency="INR",
-            sector="Basic Materials", industry="Steel",
-            marketCap=1500000000000, enterpriseValue=1600000000000,
-            fullTimeEmployees=36000, country="India", city="Mumbai",
-            website="https://tatasteel.com", previousClose=145.0, open=146.0,
-            dayLow=144.0, dayHigh=148.0, fiftyTwoWeekLow=120.0,
-            fiftyTwoWeekHigh=165.0, trailingPE=12.5, forwardPE=11.0,
-            priceToBook=1.8, enterpriseToEbitda=6.5, dividendRate=3.6,
+            longName="Tata Steel Limited",
+            exchange="NSI",
+            currency="INR",
+            sector="Basic Materials",
+            industry="Steel",
+            marketCap=1500000000000,
+            enterpriseValue=1600000000000,
+            fullTimeEmployees=36000,
+            country="India",
+            city="Mumbai",
+            website="https://tatasteel.com",
+            previousClose=145.0,
+            open=146.0,
+            dayLow=144.0,
+            dayHigh=148.0,
+            fiftyTwoWeekLow=120.0,
+            fiftyTwoWeekHigh=165.0,
+            trailingPE=12.5,
+            forwardPE=11.0,
+            priceToBook=1.8,
+            enterpriseToEbitda=6.5,
+            dividendRate=3.6,
             dividendYield=0.0248,
         )
         import pandas as pd
@@ -201,61 +229,84 @@ class TestDisplayTicker:
             def __init__(self, symbol, info):
                 self.symbol = symbol
                 self.info = info
+
             def history(self, period=None):
-                return pd.DataFrame({
-                    "Close": [145.0, 146.5, 147.0],
-                    "Volume": [1000000, 1200000, 1100000],
-                }, index=pd.date_range("2026-08-05", periods=3))
+                return pd.DataFrame(
+                    {
+                        "Close": [145.0, 146.5, 147.0],
+                        "Volume": [1000000, 1200000, 1100000],
+                    },
+                    index=pd.date_range("2026-08-05", periods=3),
+                )
+
             @property
             def income_stmt(self):
-                return pd.DataFrame({"2026-03-31": [200000, 50000]},
-                                    index=["Total Revenue", "Net Income"])
+                return pd.DataFrame(
+                    {"2026-03-31": [200000, 50000]}, index=["Total Revenue", "Net Income"]
+                )
+
             @property
             def quarterly_income_stmt(self):
                 return pd.DataFrame()
+
             @property
             def balance_sheet(self):
-                return pd.DataFrame({"2026-03-31": [300000, 150000]},
-                                    index=["Total Assets", "Total Liabilities"])
+                return pd.DataFrame(
+                    {"2026-03-31": [300000, 150000]}, index=["Total Assets", "Total Liabilities"]
+                )
+
             @property
             def quarterly_balance_sheet(self):
                 return pd.DataFrame()
+
             @property
             def cashflow(self):
                 return pd.DataFrame()
+
             @property
             def quarterly_cashflow(self):
                 return pd.DataFrame()
+
             @property
             def recommendations(self):
                 return pd.DataFrame()
+
             @property
             def institutional_holders(self):
                 return pd.DataFrame()
+
             @property
             def major_holders(self):
                 return pd.DataFrame()
+
             @property
             def sustainability(self):
                 return pd.DataFrame()
+
             @property
             def earnings(self):
                 return pd.DataFrame()
+
             @property
             def quarterly_earnings(self):
                 return pd.DataFrame()
+
             @property
             def recommendations_summary(self):
                 return pd.DataFrame()
+
             @property
             def calendar(self):
                 return {}
+
             @property
             def isin(self):
                 return "INE081A01020"
+
             @property
             def options(self):
                 return None
+
             @property
             def fund_holders(self):
                 return None
@@ -317,9 +368,9 @@ def _embed_db(tmp_path, names, dims=16, seed=1):
         h = hashlib.sha256(f"{seed}:{name}".encode()).digest()
         v = []
         for i in range(dims):
-            b = h[i * 4:(i + 1) * 4]
+            b = h[i * 4 : (i + 1) * 4]
             val = int.from_bytes(b, byteorder="little", signed=True)
-            v.append(val / 2 ** 31)
+            v.append(val / 2**31)
         norm = (sum(x * x for x in v)) ** 0.5
         return [x / norm for x in v]
 
@@ -355,22 +406,23 @@ class TestVssMatch:
         db, vec_fn = _embed_db(tmp_path, ["Alpha", "Beta", "Gamma"])
         # Gamma has the highest cosine to "Alpha" textually in this scheme,
         # but is excluded by the entities allowlist.
-        match, score = gt.vss_match("Alpha", ["Alpha", "Beta"], db_path=db,
-                                    embed_fn=_test_embed_fn(vec_fn))
+        match, score = gt.vss_match(
+            "Alpha", ["Alpha", "Beta"], db_path=db, embed_fn=_test_embed_fn(vec_fn)
+        )
         assert match == "Alpha"
 
     def test_threshold_gates_low_similarity(self, tmp_path):
         db, vec_fn = _embed_db(tmp_path, ["One", "Two", "Three"])
         # A query that shares no hash-vector with any entity.
-        match, score = gt.vss_match("Zebra", ["One", "Two", "Three"],
-                                    db_path=db, embed_fn=_test_embed_fn(vec_fn))
+        match, score = gt.vss_match(
+            "Zebra", ["One", "Two", "Three"], db_path=db, embed_fn=_test_embed_fn(vec_fn)
+        )
         assert match is None
         assert score == 0.0
 
     def test_empty_table_returns_none(self, tmp_path):
         db, vec_fn = _embed_db(tmp_path, [])
-        match, score = gt.vss_match("Any", ["Any"], db_path=db,
-                                    embed_fn=_test_embed_fn(vec_fn))
+        match, score = gt.vss_match("Any", ["Any"], db_path=db, embed_fn=_test_embed_fn(vec_fn))
         assert match is None
         assert score == 0.0
 
@@ -383,9 +435,9 @@ class TestVssMatch:
     def test_resolve_entity_vss_fallback(self, tmp_path, monkeypatch):
         """fuzzy_match misses, VSS catches — method is 'vss'."""
         db, vec_fn = _embed_db(tmp_path, ["Tata Consultancy Services", "Wipro"])
-        monkeypatch.setattr(gt, "vss_match", lambda q, e, conn=None: (
-            "Tata Consultancy Services", 0.98
-        ))
+        monkeypatch.setattr(
+            gt, "vss_match", lambda q, e, conn=None: ("Tata Consultancy Services", 0.98)
+        )
         # "TataC Ltd" shares no distinctive token with the entity names
         # ("tatac" vs "tata consultancy services" — zero overlap), so no
         # heuristic fires and the VSS fallback catches it.
@@ -502,6 +554,7 @@ def test_print_history_none(capsys):
 
 def test_print_history_empty(capsys):
     import pandas as pd
+
     gt._print_history_section(pd.DataFrame())
     captured = capsys.readouterr()
     assert captured.out == ""
@@ -572,7 +625,7 @@ class TestPickEmbedderLocalModel:
             h = hashlib.sha256(f"7:{text}".encode()).digest()
             v = []
             for i in range(dims):
-                b = h[(i * 4) % len(h):(i * 4) % len(h) + 4]
+                b = h[(i * 4) % len(h) : (i * 4) % len(h) + 4]
                 v.append(int.from_bytes(b, byteorder="little", signed=True) / 2**31)
             n = (sum(x * x for x in v)) ** 0.5
             return [x / n for x in v]

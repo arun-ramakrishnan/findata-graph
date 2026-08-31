@@ -17,6 +17,7 @@ Design constraints (same as googlefinance.py):
     never auto-applied (Tier-C discipline).
   - Raw responses cache under gitignored memory/ so sweeps never re-query.
 """
+
 from __future__ import annotations
 
 import json
@@ -26,18 +27,19 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
-BSE_SEARCH_URL = ("https://api.bseindia.com/BseIndiaAPI/api/"
-                  "PeerSmartSearch/w")
-_USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-               "(KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36")
+BSE_SEARCH_URL = "https://api.bseindia.com/BseIndiaAPI/api/PeerSmartSearch/w"
+_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36"
+)
 
 
 @dataclass(frozen=True)
 class BseMatch:
-    scrip: str      # '544399'  -> GF slug '544399:BOM'
-    symbol: str     # 'TMPV'    -> GF slug 'TMPV:NSE' / Yahoo 'TMPV.NS'
-    name: str       # 'SRIGEE DLM LTD' (display only — verification always
-                    #  re-checks the quote page against OUR entity name)
+    scrip: str  # '544399'  -> GF slug '544399:BOM'
+    symbol: str  # 'TMPV'    -> GF slug 'TMPV:NSE' / Yahoo 'TMPV.NS'
+    name: str  # 'SRIGEE DLM LTD' (display only — verification always
+    #  re-checks the quote page against OUR entity name)
     isin: str = ""
 
 
@@ -77,8 +79,9 @@ def parse_bse_response(text: str) -> list[BseMatch]:
         tokens = [t for t in span.replace("&nbsp;", " ").split() if t]
         symbol = tokens[0] if tokens else ""
         isin = tokens[1] if len(tokens) > 1 and tokens[1].startswith("IN") else ""
-        matches.append(BseMatch(scrip=m.group("scrip"), symbol=symbol,
-                                name=m.group("name"), isin=isin))
+        matches.append(
+            BseMatch(scrip=m.group("scrip"), symbol=symbol, name=m.group("name"), isin=isin)
+        )
     return matches
 
 
@@ -89,25 +92,30 @@ def bse_search(query: str, *, timeout: int = 20) -> str:
     treats any raise as 'tier 2 unavailable' for that target).
     """
     url = f"{BSE_SEARCH_URL}?Type=SS&text={urllib.parse.quote(query)}"
-    req = urllib.request.Request(url, headers={  # noqa: S310  # https-only constant URL + quoted param
-        "User-Agent": _USER_AGENT,
-        "Accept": "application/json, text/plain, */*",
-        "Referer": "https://www.bseindia.com/",
-    })
+    req = urllib.request.Request(  # noqa: S310  # https-only constant URL + quoted param
+        url,
+        headers={
+            "User-Agent": _USER_AGENT,
+            "Accept": "application/json, text/plain, */*",
+            "Referer": "https://www.bseindia.com/",
+        },
+    )
     with urllib.request.urlopen(req, timeout=timeout) as resp:  # noqa: S310
         return _decode_body(resp.read().decode("utf-8", "replace"))
 
 
 def bse_search_cached(
-    query: str, cache_dir: Path, *, timeout: int = 20,
+    query: str,
+    cache_dir: Path,
+    *,
+    timeout: int = 20,
 ) -> tuple[list[BseMatch], bool]:
     """bse_search with a per-query text cache (same contract as
     googlefinance.load_or_fetch: returns (matches, from_cache))."""
     safe = re.sub(r"[^A-Za-z0-9._\-]", "_", query)[:80]
     cache_file = cache_dir / f"bse_search_{safe}.txt"
     if cache_file.exists():
-        return parse_bse_response(
-            cache_file.read_text(encoding="utf-8")), True
+        return parse_bse_response(cache_file.read_text(encoding="utf-8")), True
     text = bse_search(query, timeout=timeout)
     cache_dir.mkdir(parents=True, exist_ok=True)
     cache_file.write_text(text, encoding="utf-8")

@@ -40,6 +40,7 @@ Usage (CLI):
     python3 helpers/graph/query.py rebuild           # refresh stale cache
     python3 helpers/graph/query.py sql "SELECT * FROM e_belongs LIMIT 5"
 """
+
 from __future__ import annotations
 
 import argparse
@@ -66,6 +67,7 @@ from helpers.graph.onager import (  # noqa: E402  (sys.path set above)
     onager_components,
     onager_pagerank,
 )
+
 DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 # Disk-based DuckDB cache. The materialised tables (v_node, e_*) persist
 # in this file across sessions; only the SQLite ATTACH is re-established
@@ -92,9 +94,11 @@ _QUERY_CACHE: dict[tuple, Any] = {}
 _QUERY_CACHE_LOCK = threading.Lock()
 _QUERY_CACHE_MAX = 256
 
+
 def _query_cache_get(key: tuple) -> Any | None:
     with _QUERY_CACHE_LOCK:
         return _QUERY_CACHE.get(key)
+
 
 def _query_cache_set(key: tuple, value: Any) -> None:
     with _QUERY_CACHE_LOCK:
@@ -104,14 +108,17 @@ def _query_cache_set(key: tuple, value: Any) -> None:
             _QUERY_CACHE.pop(oldest, None)
         _QUERY_CACHE[key] = value
 
+
 def _query_cache_clear() -> None:
     with _QUERY_CACHE_LOCK:
         _QUERY_CACHE.clear()
+
 
 def _current_generation_for_cache(duckdb_path: Path | None = None) -> str | None:
     """Generation string for cache key — None if db_meta absent (pre-migration)."""
     try:
         from helpers.core.db import connect as _dbc
+
         cand = duckdb_path or DUCKDB_PATH
         # Try DB_PATH first, then sibling
         for c in (DB_PATH, Path(cand).with_suffix(".db")):
@@ -119,7 +126,9 @@ def _current_generation_for_cache(duckdb_path: Path | None = None) -> str | None
                 try:
                     con = _dbc(str(c))
                     try:
-                        row = con.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
+                        row = con.execute(
+                            "SELECT value FROM db_meta WHERE key='generation'"
+                        ).fetchone()
                         if row:
                             return str(row[0])
                     finally:
@@ -134,6 +143,7 @@ def _current_generation_for_cache(duckdb_path: Path | None = None) -> str | None
 
 def _with_generation_cache(fn):
     """Decorator for query wrappers — cache per generation+args (P2.3)."""
+
     @functools.wraps(fn)
     def _wrapper(con, *args, **kwargs):
         # con is DuckDB handle — not part of cache key (same logical DB)
@@ -149,7 +159,9 @@ def _with_generation_cache(fn):
         result = fn(con, *args, **kwargs)
         _query_cache_set(key, result)
         return result
+
     return _wrapper
+
 
 # Schema-version recorded in the .duckdb file's _build_meta table. Bump
 # when the materialisation shape changes in a way that requires a rebuild
@@ -210,6 +222,7 @@ def _lit(value: str | int) -> str:
     """Render a Python string as a SQL string literal (single-quoted, escaped)."""
     return "'" + _STRING_LIT_RE.sub("''", _CONTROL_RE.sub("", str(value))) + "'"
 
+
 # Edge-type registry: maps graph_edges.edge_type →
 # (table_name, source_col, target_col, source_kind, target_kind, label_name).
 # New edge types must be registered here so they show up in the property graph.
@@ -219,75 +232,99 @@ def _lit(value: str | int) -> str:
 EDGE_REGISTRY: dict[str, dict[str, str]] = {
     "part_of": {
         "table": "e_belongs",
-        "src": "company_name", "dst": "sector_name",
-        "src_kind": "company", "dst_kind": "sector",
+        "src": "company_name",
+        "dst": "sector_name",
+        "src_kind": "company",
+        "dst_kind": "sector",
         "label": "BelongsTo",
     },
     "has_company": {
         "table": "e_has",
-        "src": "sector_name", "dst": "company_name",
-        "src_kind": "sector", "dst_kind": "company",
+        "src": "sector_name",
+        "dst": "company_name",
+        "src_kind": "sector",
+        "dst_kind": "company",
         "label": "HasCompany",
     },
     # Phase 2 edge types (company ↔ company unless noted):
     "competes_with": {
         "table": "e_competes",
-        "src": "a_name", "dst": "b_name",
-        "src_kind": "company", "dst_kind": "company",
+        "src": "a_name",
+        "dst": "b_name",
+        "src_kind": "company",
+        "dst_kind": "company",
         "label": "CompetesWith",
     },
     "jv_with": {
         "table": "e_jv",
-        "src": "a_name", "dst": "b_name",
-        "src_kind": "company", "dst_kind": "company",
+        "src": "a_name",
+        "dst": "b_name",
+        "src_kind": "company",
+        "dst_kind": "company",
         "label": "JvWith",
     },
     "same_group": {
         "table": "e_group",
-        "src": "a_name", "dst": "b_name",
-        "src_kind": "company", "dst_kind": "company",
+        "src": "a_name",
+        "dst": "b_name",
+        "src_kind": "company",
+        "dst_kind": "company",
         "label": "SameGroup",
     },
     "supplier_to": {
         "table": "e_supplier",
-        "src": "supplier_name", "dst": "customer_name",
-        "src_kind": "company", "dst_kind": "company",
+        "src": "supplier_name",
+        "dst": "customer_name",
+        "src_kind": "company",
+        "dst_kind": "company",
         "label": "SuppliesTo",
     },
     "customer_of": {
         "table": "e_customer",
-        "src": "customer_name", "dst": "supplier_name",
-        "src_kind": "company", "dst_kind": "company",
+        "src": "customer_name",
+        "dst": "supplier_name",
+        "src_kind": "company",
+        "dst_kind": "company",
         "label": "CustomerOf",
     },
     "acquired": {
         "table": "e_acquired",
-        "src": "acquirer_name", "dst": "target_name",
-        "src_kind": "company", "dst_kind": "company",
+        "src": "acquirer_name",
+        "dst": "target_name",
+        "src_kind": "company",
+        "dst_kind": "company",
         "label": "AcquiredBy",
     },
     "subsidiary_of": {
         "table": "e_subsidiary",
-        "src": "subsidiary_name", "dst": "parent_name",
-        "src_kind": "company", "dst_kind": "company",
+        "src": "subsidiary_name",
+        "dst": "parent_name",
+        "src_kind": "company",
+        "dst_kind": "company",
         "label": "SubsidiaryOf",
     },
     "co_mentioned_in": {
         "table": "e_comention",
-        "src": "a_name", "dst": "b_name",
-        "src_kind": "company", "dst_kind": "company",
+        "src": "a_name",
+        "dst": "b_name",
+        "src_kind": "company",
+        "dst_kind": "company",
         "label": "CoMentionedIn",
     },
     "semantic_peer": {
         "table": "e_semantic_peer",
-        "src": "a_name", "dst": "b_name",
-        "src_kind": "company", "dst_kind": "company",
+        "src": "a_name",
+        "dst": "b_name",
+        "src_kind": "company",
+        "dst_kind": "company",
         "label": "SemanticPeer",
     },
     "invested_in": {
         "table": "e_invested",
-        "src": "institution_name", "dst": "company_name",
-        "src_kind": "institution", "dst_kind": "company",
+        "src": "institution_name",
+        "dst": "company_name",
+        "src_kind": "institution",
+        "dst_kind": "company",
         "label": "InvestedIn",
     },
 }
@@ -296,8 +333,7 @@ EDGE_REGISTRY: dict[str, dict[str, str]] = {
 # Used by _shortest_path_cte to translate a graph label into the graph_edges
 # .edge_type value for the recursive-walk WHERE filter. Built once at import.
 EDGE_REGISTRY_BY_LABEL: dict[str, dict[str, str]] = {
-    spec["label"]: {**spec, "edge_type": etype}
-    for etype, spec in EDGE_REGISTRY.items()
+    spec["label"]: {**spec, "edge_type": etype} for etype, spec in EDGE_REGISTRY.items()
 }
 
 
@@ -428,11 +464,7 @@ def connect(  # noqa: C901
     if rebuild or fresh:
         clear_graph_cache()
 
-    needs_build = (
-        fresh
-        or rebuild
-        or not (duckdb_path.exists() and _is_warm(duckdb_path))
-    )
+    needs_build = fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path))
 
     # Cross-process readers (the make advisory parallelism): N read-only
     # openers coexist with each other; only a read-write opener excludes
@@ -464,22 +496,13 @@ def connect(  # noqa: C901
             # fail, which must not be misread as corruption and unlinked
             # mid-build (that deletion raced live builders before the
             # serialization existed).
-            if (
-                not fresh
-                and not rebuild
-                and duckdb_path.exists()
-                and not _is_warm(duckdb_path)
-            ):
+            if not fresh and not rebuild and duckdb_path.exists() and not _is_warm(duckdb_path):
                 try:
                     duckdb_path.unlink()
                     duckdb_path.with_suffix(".duckdb.wal").unlink(missing_ok=True)
                 except OSError:
                     pass
-            needs_build = (
-                fresh
-                or rebuild
-                or not (duckdb_path.exists() and _is_warm(duckdb_path))
-            )
+            needs_build = fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path))
             if read_only and not needs_build:
                 con = duckdb.connect(str(duckdb_path), read_only=True)
                 _prep_graph_connection(con)
@@ -507,9 +530,7 @@ def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901
     try:
         con = duckdb.connect(str(duckdb_path), read_only=True)
         try:
-            r = con.execute(
-                "SELECT value FROM _build_meta WHERE key='schema_version'"
-            ).fetchone()
+            r = con.execute("SELECT value FROM _build_meta WHERE key='schema_version'").fetchone()
             if r is None or r[0] != _SCHEMA_VERSION:
                 return False
             # P0: generation staleness — compare SQLite generation vs
@@ -524,7 +545,9 @@ def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901
             # Read SQLite generation via helper (tolerate missing table)
             sqlite_gen = None
             try:
-                from helpers.core.db import EXPECTED_SCHEMA_VERSION as _exp_sv, connect as _db_connect  # noqa: F401  (keep import local to avoid cycle)
+                # Local import: importing at module level would create a cycle.
+                from helpers.core.db import connect as _db_connect
+
                 # Candidate order: the .db COLOCATED with this .duckdb first
                 # (test/custom DBs — connect() resolves the sibling
                 # <db_path>.duckdb), then the production DB_PATH. Production
@@ -541,7 +564,9 @@ def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901
                     try:
                         _scon = _db_connect(str(cand))
                         try:
-                            _row = _scon.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
+                            _row = _scon.execute(
+                                "SELECT value FROM db_meta WHERE key='generation'"
+                            ).fetchone()
                             if _row is not None:
                                 sqlite_gen = int(_row[0])
                         finally:
@@ -569,9 +594,15 @@ def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901
             try:
                 _row = con.execute("SELECT version()").fetchone()
                 cur_duckdb = _row[0] if _row is not None else None
-                r_duck = con.execute("SELECT value FROM _build_meta WHERE key='duckdb_version'").fetchone()
+                r_duck = con.execute(
+                    "SELECT value FROM _build_meta WHERE key='duckdb_version'"
+                ).fetchone()
                 stored_duck = r_duck[0] if r_duck else None
-                if stored_duck is not None and cur_duckdb is not None and str(stored_duck) != str(cur_duckdb):
+                if (
+                    stored_duck is not None
+                    and cur_duckdb is not None
+                    and str(stored_duck) != str(cur_duckdb)
+                ):
                     return False
             except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
                 pass
@@ -665,6 +696,7 @@ def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
     note_model = None
     try:
         from helpers.core.db import connect as _db_connect
+
         _scon = _db_connect(str(db_path))
         try:
             _row = _scon.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
@@ -686,8 +718,7 @@ def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
     # detect a dims-changing model swap.
     note_dims = None
     try:
-        _row = con.execute(
-            "SELECT len(emb) FROM v_note_embeddings LIMIT 1").fetchone()
+        _row = con.execute("SELECT len(emb) FROM v_note_embeddings LIMIT 1").fetchone()
         note_dims = str(int(_row[0])) if _row and _row[0] else None
     except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
         pass
@@ -707,7 +738,11 @@ def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
         source_db_val = str(Path(db_path).relative_to(PROJECT_ROOT))
     except ValueError:
         source_db_val = str(db_path)  # temp DBs outside the repo (tests)
-    base_vals = [("schema_version", _SCHEMA_VERSION), ("built_at", date.today().isoformat()), ("source_db", source_db_val)]
+    base_vals = [
+        ("schema_version", _SCHEMA_VERSION),
+        ("built_at", date.today().isoformat()),
+        ("source_db", source_db_val),
+    ]
     if gen_val is not None:
         base_vals.append(("generation", gen_val))
     if note_dims is not None:
@@ -731,13 +766,25 @@ def _mark_warm(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
 # tables are skipped + warned — a 2026-08-21 benchmark leftover otherwise
 # shipped an orphan parquet into a snapshot commit).
 _EXTRA_MATERIALIZED = (
-    "v_node", "v_company", "v_sector", "v_super_sector", "v_sub_sector",
-    "v_theme", "v_edition", "v_institution", "v_embeddings", "v_note_embeddings",
-    "e_belongs_to", "e_exposed_to", "e_cited_in", "e_all_und", "e_dir",
+    "v_node",
+    "v_company",
+    "v_sector",
+    "v_super_sector",
+    "v_sub_sector",
+    "v_theme",
+    "v_edition",
+    "v_institution",
+    "v_embeddings",
+    "v_note_embeddings",
+    "e_belongs_to",
+    "e_exposed_to",
+    "e_cited_in",
+    "e_all_und",
+    "e_dir",
 )
-MATERIALISED_TABLES = frozenset(
-    spec["table"] for spec in EDGE_REGISTRY.values()
-).union(_EXTRA_MATERIALIZED, {"_build_meta"})
+MATERIALISED_TABLES = frozenset(spec["table"] for spec in EDGE_REGISTRY.values()).union(
+    _EXTRA_MATERIALIZED, {"_build_meta"}
+)
 
 
 def _build_graph(con: duckdb.DuckDBPyConnection) -> None:
@@ -802,8 +849,7 @@ def _rebuild_via_swap(db_path: Path | str = DB_PATH, *, fresh: bool) -> None:
         c.close()
         # Clean close leaves no WAL behind; refuse to swap otherwise.
         if tmp_wal.exists():
-            raise RuntimeError(
-                f"rebuild temp not cleanly closed: {tmp_wal} still exists")
+            raise RuntimeError(f"rebuild temp not cleanly closed: {tmp_wal} still exists")
         os.replace(tmp, duckdb_path)
     finally:
         tmp.unlink(missing_ok=True)
@@ -856,18 +902,17 @@ def update_extensions() -> list[tuple[str, str]]:
     try:
         # DuckDB exposes installed extensions via duckdb_extensions().
         before = {
-            r[1]: r[4] for r in con.execute(
-                "SELECT * FROM duckdb_extensions() WHERE installed"
-            ).fetchall()
+            r[1]: r[4]
+            for r in con.execute("SELECT * FROM duckdb_extensions() WHERE installed").fetchall()
         }
         con.execute("UPDATE EXTENSIONS;")
         after = {
-            r[1]: r[4] for r in con.execute(
-                "SELECT * FROM duckdb_extensions() WHERE installed"
-            ).fetchall()
+            r[1]: r[4]
+            for r in con.execute("SELECT * FROM duckdb_extensions() WHERE installed").fetchall()
         }
-        changed = [(name, after[name]) for name in after
-                   if name in before and before[name] != after[name]]
+        changed = [
+            (name, after[name]) for name in after if name in before and before[name] != after[name]
+        ]
         return changed
     finally:
         con.close()
@@ -939,34 +984,24 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
         "SELECT id, name, sector_classification, market_cap, ticker "
         "FROM v_node WHERE kind='company'"
     )
-    con.execute(
-        "CREATE TABLE v_sector AS SELECT id, name FROM v_node WHERE kind='sector'"
-    )
+    con.execute("CREATE TABLE v_sector AS SELECT id, name FROM v_node WHERE kind='sector'")
     # Bundle M4: super_sector / sub_sector projections. Used by the
     # e_belongs_to CTAS and the hierarchy query helpers (super_sector_of,
     # sub_sectors_of). Sectors, super-sectors, and sub-sectors all share
     # v_node's id space, so a belongs_to edge resolves to consistent ids.
     con.execute(
-        "CREATE TABLE v_super_sector AS "
-        "SELECT id, name FROM v_node WHERE kind='super_sector'"
+        "CREATE TABLE v_super_sector AS SELECT id, name FROM v_node WHERE kind='super_sector'"
     )
-    con.execute(
-        "CREATE TABLE v_sub_sector AS "
-        "SELECT id, name FROM v_node WHERE kind='sub_sector'"
-    )
+    con.execute("CREATE TABLE v_sub_sector AS SELECT id, name FROM v_node WHERE kind='sub_sector'")
     # D4: theme projection. Cross-sector dimension nodes (China+1, PLI, ...).
     # Endpoint of the exposed_to edge (company -> theme); mixed kind-pair, so
     # like belongs_to it gets a dedicated CTAS rather than the binary
     # EDGE_REGISTRY loop (which only resolves company<->sector).
-    con.execute(
-        "CREATE TABLE v_theme AS SELECT id, name FROM v_node WHERE kind='theme'"
-    )
+    con.execute("CREATE TABLE v_theme AS SELECT id, name FROM v_node WHERE kind='theme'")
     # okf_activation P: edition projection. Newsletter-edition nodes (name =
     # note stem) are the target of cited_in (company/sector -> edition).
     # Out-of-registry like v_theme for the same mixed-endpoint reason.
-    con.execute(
-        "CREATE TABLE v_edition AS SELECT id, name FROM v_node WHERE kind='edition'"
-    )
+    con.execute("CREATE TABLE v_edition AS SELECT id, name FROM v_node WHERE kind='edition'")
     # Relations 2.0 E5: institution projection — endpoint of invested_in
     # (institution → company). Out-of-registry size is trivial (dozens of US
     # holders), but keeping a dedicated projection mirrors the v_theme/v_edition
@@ -1015,8 +1050,7 @@ def _materialise_embeddings(con: duckdb.DuckDBPyConnection) -> None:
     """
     try:
         r = con.execute(
-            "SELECT COUNT(*) FROM sqlite_master "
-            "WHERE type='table' AND name='company_embeddings'"
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='company_embeddings'"
         ).fetchone()
         table_exists = r is not None and r[0] > 0
     except Exception:
@@ -1027,7 +1061,7 @@ def _materialise_embeddings(con: duckdb.DuckDBPyConnection) -> None:
         # JSON text) and fails with a TypeMismatchError. Setting
         # sqlite_all_varchar=true makes the bridge read columns as VARCHAR,
         # then we CAST to FLOAT[] for the VSS scalar functions.
-        con.execute('SET sqlite_all_varchar=true')
+        con.execute("SET sqlite_all_varchar=true")
         con.execute(
             """
             CREATE TABLE v_embeddings AS
@@ -1076,8 +1110,7 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
     """
     try:
         r = con.execute(
-            "SELECT COUNT(*) FROM sqlite_master "
-            "WHERE type='table' AND name='note_search'"
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='note_search'"
         ).fetchone()
         table_exists = r is not None and r[0] > 0
     except Exception:
@@ -1085,7 +1118,7 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
 
     dims = 0
     if table_exists:
-        con.execute('SET sqlite_all_varchar=true')
+        con.execute("SET sqlite_all_varchar=true")
         try:
             row = con.execute(
                 "SELECT json_array_length(embedding) FROM fin.note_search "
@@ -1103,7 +1136,7 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
                    CAST(embedding AS FLOAT[{dims}]) AS emb
             FROM fin.note_search
             WHERE embedding IS NOT NULL AND embedding != ''
-            """  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            """
         )
     else:
         con.execute(
@@ -1140,10 +1173,7 @@ def _stage_edges(con: duckdb.DuckDBPyConnection) -> None:
     what the CTAS previously read from the attached table under the same
     setting, so the e_* schemas are unchanged either way.
     """
-    con.execute(
-        "CREATE OR REPLACE TEMP TABLE _stg_edges AS "
-        "SELECT * FROM fin.graph_edges"
-    )
+    con.execute("CREATE OR REPLACE TEMP TABLE _stg_edges AS SELECT * FROM fin.graph_edges")
 
 
 def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
@@ -1203,7 +1233,7 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
                 JOIN v_node dst ON dst.name = ge.target
                               AND dst.kind = 'company'
                 WHERE ge.edge_type = '{etype}'
-                """  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                """
             )
             continue
         src_table = _KIND_TO_TABLE.get(spec["src_kind"], "v_company")
@@ -1220,10 +1250,7 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
         # single hot-read JSON key worth denormalising (see Bundle L2 notes).
         year_col = ""
         if etype == "acquired":
-            year_col = (
-                ", COALESCE(json_extract_string(ge.properties, 'year'), '') "
-                "AS year"
-            )
+            year_col = ", COALESCE(json_extract_string(ge.properties, 'year'), '') AS year"
         con.execute(
             f"""
             CREATE TABLE {spec["table"]} AS
@@ -1235,7 +1262,7 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
             JOIN {src_table} src ON src.name = ge.source
             JOIN {dst_table} dst ON dst.name = ge.target
             WHERE ge.edge_type = '{etype}'
-            """  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            """
         )
 
     # Bundle M4: `belongs_to` is the sector-hierarchy edge (sector ->
@@ -1371,11 +1398,16 @@ def _normalise_as_of(as_of: str | None) -> str | None:
     if len(s) == 7 and s[:4].isdigit() and s[4] == "-" and s[5:7].isdigit():
         return f"{s}-01"
     # Full date: '2023-06-15'
-    if (len(s) == 10 and s[:4].isdigit() and s[4] == "-"
-            and s[5:7].isdigit() and s[7] == "-" and s[8:10].isdigit()):
+    if (
+        len(s) == 10
+        and s[:4].isdigit()
+        and s[4] == "-"
+        and s[5:7].isdigit()
+        and s[7] == "-"
+        and s[8:10].isdigit()
+    ):
         return s
-    raise ValueError(
-        "as_of must be a year (YYYY), year-month (YYYY-MM), or date (YYYY-MM-DD)")
+    raise ValueError("as_of must be a year (YYYY), year-month (YYYY-MM), or date (YYYY-MM-DD)")
 
 
 def _as_of_predicate(as_of: str | None, edge_alias: str = "e") -> str:
@@ -1402,8 +1434,7 @@ def _as_of_predicate(as_of: str | None, edge_alias: str = "e") -> str:
 
 
 @_with_generation_cache
-def sector_of(con: duckdb.DuckDBPyConnection, company: str,
-              as_of: str | None = None) -> str | None:
+def sector_of(con: duckdb.DuckDBPyConnection, company: str, as_of: str | None = None) -> str | None:
     """Return the sector name for a company, or None.
 
     `as_of` (optional ISO date or year) filters out part_of edges that weren't
@@ -1416,15 +1447,17 @@ def sector_of(con: duckdb.DuckDBPyConnection, company: str,
         JOIN v_node v_c ON v_c.id = e.company_name
         JOIN v_node v_s ON v_s.id = e.sector_name
         WHERE v_c.name = ? AND v_c.kind = 'company' AND v_s.kind = 'sector'
-        """ + _as_of_predicate(as_of),  # noqa: S608  # parameterized; interpolated parts (`_as_of_predicate`/`where`/`pred`) emit ?-clauses & constants only
+        """
+        + _as_of_predicate(as_of),
         [company],
     ).fetchall()
     return r[0][0] if r else None
 
 
 @_with_generation_cache
-def sector_members(con: duckdb.DuckDBPyConnection, sector: str,
-                   market_cap: str | None = None) -> list[str]:
+def sector_members(
+    con: duckdb.DuckDBPyConnection, sector: str, market_cap: str | None = None
+) -> list[str]:
     """All companies in a sector, optionally filtered by market_cap."""
     where = "v_s.name = ? AND v_s.kind = 'sector' AND v_c.kind = 'company'"
     params: list[str] = [sector]
@@ -1437,7 +1470,8 @@ def sector_members(con: duckdb.DuckDBPyConnection, sector: str,
         FROM e_belongs e
         JOIN v_node v_c ON v_c.id = e.company_name
         JOIN v_node v_s ON v_s.id = e.sector_name
-        WHERE """ + where,  # noqa: S608  # parameterized; interpolated parts (`_as_of_predicate`/`where`/`pred`) emit ?-clauses & constants only
+        WHERE """
+        + where,
         params,
     ).fetchall()
     return sorted(row[0] for row in r)
@@ -1466,7 +1500,8 @@ def theme_members(con: duckdb.DuckDBPyConnection, theme: str) -> list[str]:
 
 @_with_generation_cache
 def sector_members_with_market_cap(
-    con: duckdb.DuckDBPyConnection, sector: str,
+    con: duckdb.DuckDBPyConnection,
+    sector: str,
     market_cap: str | None = None,
 ) -> list[tuple[str, str | None]]:
     """Same as ``sector_members`` but also returns each member's market_cap.
@@ -1495,7 +1530,8 @@ def sector_members_with_market_cap(
         FROM e_belongs e
         JOIN v_node v_c ON v_c.id = e.company_name
         JOIN v_node v_s ON v_s.id = e.sector_name
-        WHERE """ + where,  # noqa: S608  # parameterized; interpolated parts (`_as_of_predicate`/`where`/`pred`) emit ?-clauses & constants only
+        WHERE """
+        + where,
         params,
     ).fetchall()
     return sorted((row[0], row[1]) for row in r)
@@ -1560,8 +1596,9 @@ def sub_sectors_of(con: duckdb.DuckDBPyConnection, sector: str) -> list[str]:
 
 
 @_with_generation_cache
-def neighbors(con: duckdb.DuckDBPyConnection, entity: str,
-              max_hops: int = 1) -> list[tuple[str, str, str]]:
+def neighbors(
+    con: duckdb.DuckDBPyConnection, entity: str, max_hops: int = 1
+) -> list[tuple[str, str, str]]:
     """1-hop neighbours of an entity via BelongsTo/HasCompany.
 
     Returns list of (direction, other_name, edge_label):
@@ -1609,9 +1646,14 @@ def neighbors(con: duckdb.DuckDBPyConnection, entity: str,
     return sorted({(d, o, label) for (d, o, label) in r})
 
 
-def shortest_path(con: duckdb.DuckDBPyConnection, src: str, dst: str,
-                  max_hops: int = 5, edge_label: str | None = "BelongsTo",
-                  as_of: str | None = None) -> list[tuple[str, int]] | None:
+def shortest_path(
+    con: duckdb.DuckDBPyConnection,
+    src: str,
+    dst: str,
+    max_hops: int = 5,
+    edge_label: str | None = "BelongsTo",
+    as_of: str | None = None,
+) -> list[tuple[str, int]] | None:
     """Shortest path src → dst via the given edge label (level-by-level BFS).
 
     sql_capability_unlocks B2: the recursive-CTE walk over the attached
@@ -1633,12 +1675,10 @@ def shortest_path(con: duckdb.DuckDBPyConnection, src: str, dst: str,
     traverses all edge types. ``as_of`` filters each hop temporally (valid_from/valid_to
     window must contain the date; NULL valid_from is always-valid).
     """
-    return _shortest_path_bfs(con, src, dst, max_hops,
-                              edge_label=edge_label, as_of=as_of)
+    return _shortest_path_bfs(con, src, dst, max_hops, edge_label=edge_label, as_of=as_of)
 
 
-def _bfs_step_where(edge_label: str | None,
-                    as_of: str | None) -> tuple[str, list]:
+def _bfs_step_where(edge_label: str | None, as_of: str | None) -> tuple[str, list]:
     """Per-query WHERE fragments + binds for one BFS step.
 
     edge_label resolves via EDGE_REGISTRY; None or an unrecognized label =
@@ -1662,10 +1702,14 @@ def _bfs_step_where(edge_label: str | None,
     return clauses, params
 
 
-def _shortest_path_bfs(con: duckdb.DuckDBPyConnection, src: str, dst: str,
-                       max_hops: int,
-                       edge_label: str | None = None,
-                       as_of: str | None = None) -> list[tuple[str, int]] | None:
+def _shortest_path_bfs(
+    con: duckdb.DuckDBPyConnection,
+    src: str,
+    dst: str,
+    max_hops: int,
+    edge_label: str | None = None,
+    as_of: str | None = None,
+) -> list[tuple[str, int]] | None:
     """BFS over ``e_all_und`` — the primary shortest-path implementation.
 
     Mechanics (pinned by the sql_capability_unlocks review): temp tables
@@ -1706,14 +1750,12 @@ def _shortest_path_bfs(con: duckdb.DuckDBPyConnection, src: str, dst: str,
 
     try:
         con.execute(
-            "CREATE OR REPLACE TEMP TABLE _bfs_frontier AS "
-            "SELECT ?::BIGINT AS id", [src_id])
+            "CREATE OR REPLACE TEMP TABLE _bfs_frontier AS SELECT ?::BIGINT AS id", [src_id]
+        )
+        con.execute("CREATE OR REPLACE TEMP TABLE _bfs_visited AS SELECT ?::BIGINT AS id", [src_id])
         con.execute(
-            "CREATE OR REPLACE TEMP TABLE _bfs_visited AS "
-            "SELECT ?::BIGINT AS id", [src_id])
-        con.execute(
-            "CREATE OR REPLACE TEMP TABLE _bfs_parents ("
-            "id BIGINT PRIMARY KEY, parent BIGINT)")
+            "CREATE OR REPLACE TEMP TABLE _bfs_parents (id BIGINT PRIMARY KEY, parent BIGINT)"
+        )
         for _level in range(hops):
             con.execute(
                 f"""
@@ -1724,22 +1766,19 @@ def _shortest_path_bfs(con: duckdb.DuckDBPyConnection, src: str, dst: str,
                   AND NOT EXISTS (SELECT 1 FROM _bfs_visited v
                                   WHERE v.id = e.b_id){step_where}
                 GROUP BY e.b_id
-                """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                """,
                 params,
             )
-            found = con.execute(
-                "SELECT 1 FROM _bfs_next WHERE id = ? LIMIT 1", [dst_id]
-            ).fetchone() is not None
-            con.execute(
-                "INSERT INTO _bfs_parents SELECT id, parent FROM _bfs_next")
+            found = (
+                con.execute("SELECT 1 FROM _bfs_next WHERE id = ? LIMIT 1", [dst_id]).fetchone()
+                is not None
+            )
+            con.execute("INSERT INTO _bfs_parents SELECT id, parent FROM _bfs_next")
             con.execute("INSERT INTO _bfs_visited SELECT id FROM _bfs_next")
-            con.execute(
-                "CREATE OR REPLACE TEMP TABLE _bfs_frontier AS "
-                "SELECT id FROM _bfs_next")
+            con.execute("CREATE OR REPLACE TEMP TABLE _bfs_frontier AS SELECT id FROM _bfs_next")
             if found:
                 return _bfs_reconstruct(con, src_name, dst_id, dst_name)
-            if con.execute(
-                    "SELECT 1 FROM _bfs_frontier LIMIT 1").fetchone() is None:
+            if con.execute("SELECT 1 FROM _bfs_frontier LIMIT 1").fetchone() is None:
                 return None  # walk exhausted — no path exists
     finally:
         for t in ("_bfs_frontier", "_bfs_visited", "_bfs_parents", "_bfs_next"):
@@ -1747,8 +1786,9 @@ def _shortest_path_bfs(con: duckdb.DuckDBPyConnection, src: str, dst: str,
     return None
 
 
-def _bfs_reconstruct(con: duckdb.DuckDBPyConnection, src_name: str,
-                     dst_id: int, dst_name: str) -> list[tuple[str, int]]:
+def _bfs_reconstruct(
+    con: duckdb.DuckDBPyConnection, src_name: str, dst_id: int, dst_name: str
+) -> list[tuple[str, int]]:
     """Walk ``_bfs_parents`` from dst back to src; emit (name, hop) pairs.
 
     src has no parent row (it was seeded, never discovered), so the chain
@@ -1771,15 +1811,19 @@ def _bfs_reconstruct(con: duckdb.DuckDBPyConnection, src_name: str,
             break
         node, name = row
         seq.append(name)
-    seq.reverse()          # [src, ..., parent(dst)]
-    seq.append(dst_name)   # [src, ..., dst]
+    seq.reverse()  # [src, ..., parent(dst)]
+    seq.append(dst_name)  # [src, ..., dst]
     return [(name, hop) for hop, name in enumerate(seq)]
 
 
-def _shortest_path_cte(con: duckdb.DuckDBPyConnection, src: str, dst: str,
-                       max_hops: int = 5,
-                       edge_label: str | None = None,
-                       as_of: str | None = None) -> list[tuple[str, int]] | None:
+def _shortest_path_cte(
+    con: duckdb.DuckDBPyConnection,
+    src: str,
+    dst: str,
+    max_hops: int = 5,
+    edge_label: str | None = None,
+    as_of: str | None = None,
+) -> list[tuple[str, int]] | None:
     """Recursive-CTE shortest-path walk (TEST ORACLE — not production).
 
     sql_capability_unlocks B2 retired this from the production path: it
@@ -1848,7 +1892,7 @@ def _shortest_path_cte(con: duckdb.DuckDBPyConnection, src: str, dst: str,
     )
     SELECT path, depth FROM walk WHERE node = {_lit(dst)}
     ORDER BY depth LIMIT 1
-    """  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+    """
     r = con.execute(query).fetchall()
     if not r:
         return None
@@ -1862,10 +1906,13 @@ def sql(con: duckdb.DuckDBPyConnection, query: str) -> list[tuple]:
     return con.execute(query).fetchall()
 
 
-def find_cycles(con: duckdb.DuckDBPyConnection, *,
-                max_hops: int = 4,
-                edge_label: str | None = None,
-                limit: int = 100) -> list[list[str]]:
+def find_cycles(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    max_hops: int = 4,
+    edge_label: str | None = None,
+    limit: int = 100,
+) -> list[list[str]]:
     """Find cycles in the directed graph (Bundle G3 — diagnostic helper).
 
     A cycle is a directed path ``A -> ... -> A`` of length 2..max_hops (a
@@ -1958,7 +2005,7 @@ def find_cycles(con: duckdb.DuckDBPyConnection, *,
     SELECT path FROM walk
     WHERE depth >= 2 AND node = start
     LIMIT ?
-    """  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+    """
     rows = con.execute(query, params + [int(max_hops), int(limit)]).fetchall()
     return [r[0].split("||") for r in rows]
 
@@ -1967,8 +2014,7 @@ def find_cycles(con: duckdb.DuckDBPyConnection, *,
 # Phase 2 wrappers — multi-hop / multi-label queries
 # --------------------------------------------------------------------------- #
 @_with_generation_cache
-def peers(con: duckdb.DuckDBPyConnection, company: str,
-          as_of: str | None = None) -> list[str]:
+def peers(con: duckdb.DuckDBPyConnection, company: str, as_of: str | None = None) -> list[str]:
     """Companies that compete with the given company (symmetric).
 
     Returns a sorted list of competitor names. Empty if no competes_with
@@ -1982,15 +2028,17 @@ def peers(con: duckdb.DuckDBPyConnection, company: str,
         JOIN v_node v_a ON v_a.id = e.a_name
         JOIN v_node v_b ON v_b.id = e.b_name
         WHERE (v_a.name = ? OR v_b.name = ?)
-        """ + _as_of_predicate(as_of),  # noqa: S608  # parameterized; interpolated parts (`_as_of_predicate`/`where`/`pred`) emit ?-clauses & constants only
+        """
+        + _as_of_predicate(as_of),
         [company, company, company],
     ).fetchall()
     return sorted({row[0] for row in r})
 
 
 @_with_generation_cache
-def jv_partners(con: duckdb.DuckDBPyConnection, company: str,
-                as_of: str | None = None) -> list[tuple[str, str]]:
+def jv_partners(
+    con: duckdb.DuckDBPyConnection, company: str, as_of: str | None = None
+) -> list[tuple[str, str]]:
     """JV partners of the given company.
 
     Returns a sorted list of (partner_name, venture_name) tuples.
@@ -2004,7 +2052,8 @@ def jv_partners(con: duckdb.DuckDBPyConnection, company: str,
         JOIN v_node v_a ON v_a.id = e.a_name
         JOIN v_node v_b ON v_b.id = e.b_name
         WHERE (v_a.name = ? OR v_b.name = ?)
-        """ + _as_of_predicate(as_of),  # noqa: S608  # parameterized; interpolated parts (`_as_of_predicate`/`where`/`pred`) emit ?-clauses & constants only
+        """
+        + _as_of_predicate(as_of),
         [company, company, company],
     ).fetchall()
     # Bundle F4: json extraction pushed down to DuckDB (json_extract_string).
@@ -2014,8 +2063,9 @@ def jv_partners(con: duckdb.DuckDBPyConnection, company: str,
     return sorted((partner, venture) for partner, venture in r)
 
 
-def group_siblings(con: duckdb.DuckDBPyConnection, company: str,
-                   as_of: str | None = None) -> list[str]:
+def group_siblings(
+    con: duckdb.DuckDBPyConnection, company: str, as_of: str | None = None
+) -> list[str]:
     """Companies in the same promoter group as `company` (symmetric).
 
     `as_of` filters temporally (NULL valid_from is treated as always-valid).
@@ -2027,14 +2077,16 @@ def group_siblings(con: duckdb.DuckDBPyConnection, company: str,
         JOIN v_node v_a ON v_a.id = e.a_name
         JOIN v_node v_b ON v_b.id = e.b_name
         WHERE (v_a.name = ? OR v_b.name = ?)
-        """ + _as_of_predicate(as_of),  # noqa: S608  # parameterized; interpolated parts (`_as_of_predicate`/`where`/`pred`) emit ?-clauses & constants only
+        """
+        + _as_of_predicate(as_of),
         [company, company, company],
     ).fetchall()
     return sorted({row[0] for row in r})
 
 
-def acquisitions(con: duckdb.DuckDBPyConnection, acquirer: str,
-                 as_of: str | None = None) -> list[tuple[str, str]]:
+def acquisitions(
+    con: duckdb.DuckDBPyConnection, acquirer: str, as_of: str | None = None
+) -> list[tuple[str, str]]:
     """Companies acquired by `acquirer`.
 
     Returns sorted list of (acquired_name, year_str_or_empty).
@@ -2047,7 +2099,8 @@ def acquisitions(con: duckdb.DuckDBPyConnection, acquirer: str,
         JOIN v_node v_a ON v_a.id = e.acquirer_name
         JOIN v_node v_b ON v_b.id = e.target_name
         WHERE v_a.name = ?
-        """ + _as_of_predicate(as_of),  # noqa: S608  # parameterized; interpolated parts (`_as_of_predicate`/`where`/`pred`) emit ?-clauses & constants only
+        """
+        + _as_of_predicate(as_of),
         [acquirer],
     ).fetchall()
     # Bundle L2: `year` is a typed column on e_acquired (projected from
@@ -2057,8 +2110,9 @@ def acquisitions(con: duckdb.DuckDBPyConnection, acquirer: str,
     return sorted((acquired, year) for acquired, year in r)
 
 
-def subsidiary_of_company(con: duckdb.DuckDBPyConnection, company: str,
-                          as_of: str | None = None) -> str | None:
+def subsidiary_of_company(
+    con: duckdb.DuckDBPyConnection, company: str, as_of: str | None = None
+) -> str | None:
     """Parent company of `company` via SubsidiaryOf, or None.
 
     Inverse-direction lookup: matches the edge where `company` is the
@@ -2072,14 +2126,16 @@ def subsidiary_of_company(con: duckdb.DuckDBPyConnection, company: str,
         JOIN v_node v_a ON v_a.id = e.subsidiary_name
         JOIN v_node v_b ON v_b.id = e.parent_name
         WHERE v_a.name = ?
-        """ + _as_of_predicate(as_of),  # noqa: S608  # parameterized; interpolated parts (`_as_of_predicate`/`where`/`pred`) emit ?-clauses & constants only
+        """
+        + _as_of_predicate(as_of),
         [company],
     ).fetchall()
     return r[0][0] if r else None
 
 
 def suppliers_and_customers(
-    con: duckdb.DuckDBPyConnection, company: str,
+    con: duckdb.DuckDBPyConnection,
+    company: str,
     as_of: str | None = None,
 ) -> tuple[list[str], list[str]]:
     """(suppliers_of_company, customers_of_company).
@@ -2112,28 +2168,35 @@ def suppliers_and_customers(
         JOIN v_node v_a ON v_a.id = e.supplier_name
         JOIN v_node v_b ON v_b.id = e.customer_name
         WHERE v_b.name = ?
-        """ + pred + """
+        """
+        + pred
+        + """
         UNION ALL
         SELECT 'supplier', v_b.name
         FROM e_customer e
         JOIN v_node v_a ON v_a.id = e.customer_name
         JOIN v_node v_b ON v_b.id = e.supplier_name
         WHERE v_a.name = ?
-        """ + pred + """
+        """
+        + pred
+        + """
         UNION ALL
         SELECT 'customer', v_b.name
         FROM e_supplier e
         JOIN v_node v_a ON v_a.id = e.supplier_name
         JOIN v_node v_b ON v_b.id = e.customer_name
         WHERE v_a.name = ?
-        """ + pred + """
+        """
+        + pred
+        + """
         UNION ALL
         SELECT 'customer', v_a.name
         FROM e_customer e
         JOIN v_node v_a ON v_a.id = e.customer_name
         JOIN v_node v_b ON v_b.id = e.supplier_name
         WHERE v_b.name = ?
-        """ + pred,  # noqa: S608  # parameterized; interpolated parts (`_as_of_predicate`/`where`/`pred`) emit ?-clauses & constants only
+        """
+        + pred,
         [company] * 4,
     ).fetchall()
     suppliers: set[str] = set()
@@ -2144,7 +2207,8 @@ def suppliers_and_customers(
 
 
 def company_neighbors_bundle(
-    con: duckdb.DuckDBPyConnection, company: str,
+    con: duckdb.DuckDBPyConnection,
+    company: str,
     as_of: str | None = None,
 ) -> dict:
     """One-round-trip ego-network bundle for a company.
@@ -2199,7 +2263,8 @@ def company_neighbors_bundle(
     # it ambiguously. Symmetric labels (CompetesWith/JvWith/SameGroup) match
     # both orientations via the CASE/WHERE-pair pattern; e_customer arms use
     # v_ct(customer)/v_sb(supplier) aliases.
-    q = """
+    q = (
+        """
     WITH bag AS (
       SELECT 'sector' AS kind, v_s.name AS other,
              CAST(NULL AS VARCHAR) AS props
@@ -2207,7 +2272,9 @@ def company_neighbors_bundle(
       JOIN v_node v_c ON v_c.id = e.company_name
       JOIN v_node v_s ON v_s.id = e.sector_name
       WHERE v_c.name = ? AND v_c.kind = 'company' AND v_s.kind = 'sector'
-      """ + pred + """
+      """
+        + pred
+        + """
       UNION ALL
       SELECT 'peer', CASE WHEN v_a.name = ? THEN v_b.name ELSE v_a.name END,
              CAST(NULL AS VARCHAR)
@@ -2215,7 +2282,9 @@ def company_neighbors_bundle(
       JOIN v_node v_a ON v_a.id = e.a_name
       JOIN v_node v_b ON v_b.id = e.b_name
       WHERE (v_a.name = ? OR v_b.name = ?)
-      """ + pred + """
+      """
+        + pred
+        + """
       UNION ALL
       SELECT 'jv_partner', CASE WHEN v_a.name = ? THEN v_b.name ELSE v_a.name END,
              COALESCE(json_extract_string(e.properties, 'venture'), '')
@@ -2223,7 +2292,9 @@ def company_neighbors_bundle(
       JOIN v_node v_a ON v_a.id = e.a_name
       JOIN v_node v_b ON v_b.id = e.b_name
       WHERE (v_a.name = ? OR v_b.name = ?)
-      """ + pred + """
+      """
+        + pred
+        + """
       UNION ALL
       SELECT 'group_sibling', CASE WHEN v_a.name = ? THEN v_b.name ELSE v_a.name END,
              CAST(NULL AS VARCHAR)
@@ -2231,52 +2302,67 @@ def company_neighbors_bundle(
       JOIN v_node v_a ON v_a.id = e.a_name
       JOIN v_node v_b ON v_b.id = e.b_name
       WHERE (v_a.name = ? OR v_b.name = ?)
-      """ + pred + """
+      """
+        + pred
+        + """
       UNION ALL
       SELECT 'acquired', v_b.name, e.year
       FROM e_acquired e
       JOIN v_node v_a ON v_a.id = e.acquirer_name
       JOIN v_node v_b ON v_b.id = e.target_name
       WHERE v_a.name = ?
-      """ + pred + """
+      """
+        + pred
+        + """
       UNION ALL
       SELECT 'parent', v_b.name, CAST(NULL AS VARCHAR)
       FROM e_subsidiary e
       JOIN v_node v_a ON v_a.id = e.subsidiary_name
       JOIN v_node v_b ON v_b.id = e.parent_name
       WHERE v_a.name = ?
-      """ + pred + """
+      """
+        + pred
+        + """
       UNION ALL
       SELECT 'supplier', v_a.name, CAST(NULL AS VARCHAR)
       FROM e_supplier e
       JOIN v_node v_a ON v_a.id = e.supplier_name
       JOIN v_node v_b ON v_b.id = e.customer_name
       WHERE v_b.name = ?
-      """ + pred + """
+      """
+        + pred
+        + """
       UNION ALL
       SELECT 'supplier', v_sb.name, CAST(NULL AS VARCHAR)
       FROM e_customer e
       JOIN v_node v_ct ON v_ct.id = e.customer_name
       JOIN v_node v_sb ON v_sb.id = e.supplier_name
       WHERE v_ct.name = ?
-      """ + pred + """
+      """
+        + pred
+        + """
       UNION ALL
       SELECT 'customer', v_b.name, CAST(NULL AS VARCHAR)
       FROM e_supplier e
       JOIN v_node v_a ON v_a.id = e.supplier_name
       JOIN v_node v_b ON v_b.id = e.customer_name
       WHERE v_a.name = ?
-      """ + pred + """
+      """
+        + pred
+        + """
       UNION ALL
       SELECT 'customer', v_ct.name, CAST(NULL AS VARCHAR)
       FROM e_customer e
       JOIN v_node v_ct ON v_ct.id = e.customer_name
       JOIN v_node v_sb ON v_sb.id = e.supplier_name
       WHERE v_sb.name = ?
-      """ + pred + """
+      """
+        + pred
+        + """
     )
     SELECT kind, other, props FROM bag
-    """  # noqa: S608  # parameterized; interpolated parts (`_as_of_predicate`/`where`/`pred`) emit ?-clauses & constants only
+    """
+    )
     # Parameter order mirrors the arms above: sector 1, peer 3, jv 3,
     # group 3, acquired 1, parent 1, supplier 2, customer 2.
     rows = con.execute(q, [company] * 16).fetchall()
@@ -2326,6 +2412,7 @@ def company_neighbors_bundle(
 # /api/graph/* endpoint.                                                        #
 # --------------------------------------------------------------------------- #
 
+
 def co_mention_top(n: int = 20, conn=None) -> list[dict]:
     """C1: Top entities by co-mention frequency.
 
@@ -2349,9 +2436,9 @@ def co_mention_top(n: int = 20, conn=None) -> list[dict]:
             """,
             (n,),
         ).fetchall()
-        return [{"entity": r["entity"], "co_mentions": r["co_mentions"]}
-                for r in rows]
+        return [{"entity": r["entity"], "co_mentions": r["co_mentions"]} for r in rows]
     from helpers.core.db import connect
+
     conn = connect()
     try:
         rows = conn.execute(
@@ -2365,8 +2452,7 @@ def co_mention_top(n: int = 20, conn=None) -> list[dict]:
             """,
             (n,),
         ).fetchall()
-        return [{"entity": r["entity"], "co_mentions": r["co_mentions"]}
-                for r in rows]
+        return [{"entity": r["entity"], "co_mentions": r["co_mentions"]} for r in rows]
     finally:
         conn.close()
 
@@ -2396,15 +2482,22 @@ def cross_sector_bridges(conn=None) -> list[dict]:
         GROUP BY e.edge_type, c1.sector_classification, c2.sector_classification
         ORDER BY n DESC, e.edge_type
     """
+
     def _build(rows):
-        return [{"edge_type": r["edge_type"],
-                 "sector_a": r["sector_a"],
-                 "sector_b": r["sector_b"],
-                 "count": r["n"]}
-                for r in rows]
+        return [
+            {
+                "edge_type": r["edge_type"],
+                "sector_a": r["sector_a"],
+                "sector_b": r["sector_b"],
+                "count": r["n"],
+            }
+            for r in rows
+        ]
+
     if conn is not None:
         return _build(conn.execute(SQL).fetchall())
     from helpers.core.db import connect
+
     conn = connect()
     try:
         return _build(conn.execute(SQL).fetchall())
@@ -2431,12 +2524,14 @@ def edges_by_year(conn=None) -> list[dict]:
         GROUP BY substr(valid_from, 1, 4), edge_type
         ORDER BY year, edge_type
     """
+
     def _build(rows):
-        return [{"year": r["year"], "edge_type": r["edge_type"], "count": r["n"]}
-                for r in rows]
+        return [{"year": r["year"], "edge_type": r["edge_type"], "count": r["n"]} for r in rows]
+
     if conn is not None:
         return _build(conn.execute(SQL).fetchall())
     from helpers.core.db import connect
+
     conn = connect()
     try:
         return _build(conn.execute(SQL).fetchall())
@@ -2518,9 +2613,7 @@ def semantic_neighbors(
     # cross-sector subquery) — _lit() interpolation is gone from this path,
     # so the _CONTROL_RE NUL-crack class can't reach it. dim/k/metric are
     # internal ints and schema-constant identifiers, safe by construction.
-    ref_vec = (
-        "(SELECT embedding FROM v_embeddings WHERE company_name = ?)"
-    )
+    ref_vec = "(SELECT embedding FROM v_embeddings WHERE company_name = ?)"
 
     sector_filter = ""
     if cross_sector:
@@ -2535,10 +2628,18 @@ def semantic_neighbors(
     # with ? binds (ref_vec, sector_filter); the company name never
     # touches the SQL text.
     query = (
-        "SELECT v.name, v.sector_classification, ce.sim "  # noqa: S608
+        "SELECT v.name, v.sector_classification, ce.sim "
         "FROM ( "
         "  SELECT id, "
-        "         " + sim_expr + "(CAST(embedding AS FLOAT[" + str(dim) + "]), CAST(" + ref_vec + " AS FLOAT[" + str(dim) + "])) AS sim "
+        "         "
+        + sim_expr
+        + "(CAST(embedding AS FLOAT["
+        + str(dim)
+        + "]), CAST("
+        + ref_vec
+        + " AS FLOAT["
+        + str(dim)
+        + "])) AS sim "
         "  FROM v_embeddings "
         "  WHERE company_name != ? "
         ") ce "
@@ -2584,8 +2685,9 @@ def _note_emb_dims(con: duckdb.DuckDBPyConnection) -> int:
 
 
 @_with_generation_cache
-def similar_notes(con: duckdb.DuckDBPyConnection, file_path: str, k: int = 10,
-                  doc_type: str | None = None) -> list[tuple[str, str, float]] | None:
+def similar_notes(
+    con: duckdb.DuckDBPyConnection, file_path: str, k: int = 10, doc_type: str | None = None
+) -> list[tuple[str, str, float]] | None:
     """K nearest notes to a note, by cosine over ``v_note_embeddings``.
 
     Returns ``list[(file_path, title, sim)]`` sorted by descending
@@ -2624,7 +2726,7 @@ def similar_notes(con: duckdb.DuckDBPyConnection, file_path: str, k: int = 10,
         WHERE sim IS NOT NULL AND sim > 0
         ORDER BY sim DESC
         LIMIT {int(k)}
-        """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        """,
         params,
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
@@ -2632,7 +2734,9 @@ def similar_notes(con: duckdb.DuckDBPyConnection, file_path: str, k: int = 10,
 
 @_with_generation_cache
 def notes_like_entity(
-    con: duckdb.DuckDBPyConnection, entity: str, k: int = 10,
+    con: duckdb.DuckDBPyConnection,
+    entity: str,
+    k: int = 10,
     doc_types: tuple[str, ...] = _EDITION_DOC_TYPES,
 ) -> list[tuple[str, str, float]] | None:
     """Newsletter notes semantically closest to an entity's note.
@@ -2648,8 +2752,7 @@ def notes_like_entity(
     if dim == 0:
         return None
     ref = con.execute(
-        "SELECT file_path FROM fin.entities WHERE name = ? "
-        "AND file_path IS NOT NULL",
+        "SELECT file_path FROM fin.entities WHERE name = ? AND file_path IS NOT NULL",
         [entity],
     ).fetchone()
     if ref is None:
@@ -2671,15 +2774,18 @@ def notes_like_entity(
         WHERE sim IS NOT NULL AND sim > 0
         ORDER BY sim DESC
         LIMIT {int(k)}
-        """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        """,
         [ref_path, ref_path, *doc_types],
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
 
 
 def notes_like_text(
-    con: duckdb.DuckDBPyConnection, text: str, k: int = 5,
-    doc_type: str = "company", min_sim: float = 0.0,
+    con: duckdb.DuckDBPyConnection,
+    text: str,
+    k: int = 5,
+    doc_type: str = "company",
+    min_sim: float = 0.0,
     embed_fn: Callable[[str], list[float]] | None = None,
 ) -> list[tuple[str, str, float]] | None:
     """Embedded notes closest to arbitrary TEXT (not an existing note).
@@ -2698,6 +2804,7 @@ def notes_like_text(
         return None
     if embed_fn is None:
         from helpers.core import local_embedder
+
         if not local_embedder.available():
             return None
         embed_fn = local_embedder.embed_query
@@ -2718,15 +2825,16 @@ def notes_like_text(
         WHERE sim IS NOT NULL AND sim > ?
         ORDER BY sim DESC
         LIMIT {int(k)}
-        """,  # noqa: S608  # parameterized; interpolated parts are int casts / schema-constant identifiers
+        """,
         [vec, doc_type, float(min_sim)],
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
 
 
 @_with_generation_cache
-def edition_companies(con: duckdb.DuckDBPyConnection, edition: str,
-                      k: int = 10) -> list[tuple[str, str, float]] | None:
+def edition_companies(
+    con: duckdb.DuckDBPyConnection, edition: str, k: int = 10
+) -> list[tuple[str, str, float]] | None:
     """Companies most similar to an edition (newsletter) note.
 
     ``edition`` is resolved against the newsletter doc types by exact
@@ -2750,9 +2858,17 @@ def edition_companies(con: duckdb.DuckDBPyConnection, edition: str,
                OR split_part(file_path, '/', -1) IN (?, ?))
         ORDER BY file_path
         LIMIT 1
-        """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-        [*_EDITION_DOC_TYPES, edition, stem, edition, stem,
-         f"findata/{edition}", stem, f"{stem}.md"],
+        """,
+        [
+            *_EDITION_DOC_TYPES,
+            edition,
+            stem,
+            edition,
+            stem,
+            f"findata/{edition}",
+            stem,
+            f"{stem}.md",
+        ],
     ).fetchone()
     if ref is None:
         return None
@@ -2771,15 +2887,18 @@ def edition_companies(con: duckdb.DuckDBPyConnection, edition: str,
         WHERE sim IS NOT NULL AND sim > 0
         ORDER BY sim DESC
         LIMIT {int(k)}
-        """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        """,
         [ref_path, ref_path],
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
 
 
-def near_duplicate_notes(con: duckdb.DuckDBPyConnection, min_sim: float = 0.9,
-                         doc_type: str = "company",
-                         limit: int = 100) -> list[tuple[str, str, str, str, float]]:
+def near_duplicate_notes(
+    con: duckdb.DuckDBPyConnection,
+    min_sim: float = 0.9,
+    doc_type: str = "company",
+    limit: int = 100,
+) -> list[tuple[str, str, str, str, float]]:
     """Near-duplicate note pairs above a cosine threshold (QA tripwire).
 
     Pairwise self-join over ``v_note_embeddings`` restricted to one
@@ -2811,7 +2930,7 @@ def near_duplicate_notes(con: duckdb.DuckDBPyConnection, min_sim: float = 0.9,
         WHERE sim >= ?
         ORDER BY sim DESC
         LIMIT {limit}
-        """,  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+        """,
         [doc_type, doc_type, float(min_sim)],
     ).fetchall()
     return [(row[0], row[1], row[2], row[3], row[4]) for row in r]
@@ -2853,8 +2972,9 @@ def _company_names(con: duckdb.DuckDBPyConnection) -> set[str]:
     return {r[0] for r in con.execute("SELECT name FROM v_company").fetchall()}
 
 
-def pagerank(con: duckdb.DuckDBPyConnection, edge_label: str = "BelongsTo",
-             vertex_label: str = "Entity") -> list[tuple[str, float]]:
+def pagerank(
+    con: duckdb.DuckDBPyConnection, edge_label: str = "BelongsTo", vertex_label: str = "Entity"
+) -> list[tuple[str, float]]:
     """PageRank over the graph (Onager-backed).
 
     Returns a list of (entity_name, pagerank_score) sorted by score desc.
@@ -2873,9 +2993,9 @@ def pagerank(con: duckdb.DuckDBPyConnection, edge_label: str = "BelongsTo",
     return rows
 
 
-def weakly_connected_components(con: duckdb.DuckDBPyConnection,
-                                edge_label: str = "BelongsTo",
-                                vertex_label: str = "Entity") -> list[tuple[str, int]]:
+def weakly_connected_components(
+    con: duckdb.DuckDBPyConnection, edge_label: str = "BelongsTo", vertex_label: str = "Entity"
+) -> list[tuple[str, int]]:
     """Weakly-connected component labels (Onager-backed).
 
     Returns a list of (entity_name, component_id) sorted by (component_id,
@@ -2890,9 +3010,9 @@ def weakly_connected_components(con: duckdb.DuckDBPyConnection,
     return rows
 
 
-def clustering_coefficient(con: duckdb.DuckDBPyConnection,
-                           edge_label: str = "BelongsTo",
-                           vertex_label: str = "Entity") -> list[tuple[str, float]]:
+def clustering_coefficient(
+    con: duckdb.DuckDBPyConnection, edge_label: str = "BelongsTo", vertex_label: str = "Entity"
+) -> list[tuple[str, float]]:
     """Local clustering coefficient per vertex (Onager-backed).
 
     Returns a list of (entity_name, coefficient) sorted by coefficient desc.
@@ -2935,7 +3055,9 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     sp.add_argument("dst")
     sp.add_argument("--max-hops", type=int, default=5)
 
-    sp = sub.add_parser("sql", help="Run arbitrary SQL over the attached databases (fin.*, e_*, v_node)")
+    sp = sub.add_parser(
+        "sql", help="Run arbitrary SQL over the attached databases (fin.*, e_*, v_node)"
+    )
     sp.add_argument("query")
 
     sp = sub.add_parser("peers", help="Competitors of a company (competes_with)")
@@ -2950,11 +3072,16 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     sp = sub.add_parser("acquisitions", help="Companies acquired by the given acquirer")
     sp.add_argument("acquirer")
 
-    sp = sub.add_parser("cycles", help="Find directed cycles (diagnostic — Bundle G3). "
-                                       "Should be empty for same_group/co_mentioned_in (one row per pair) "
-                                       "and acquired/subsidiary_of (strictly acyclic).")
+    sp = sub.add_parser(
+        "cycles",
+        help="Find directed cycles (diagnostic — Bundle G3). "
+        "Should be empty for same_group/co_mentioned_in (one row per pair) "
+        "and acquired/subsidiary_of (strictly acyclic).",
+    )
     sp.add_argument("--max-hops", type=int, default=4, help="Max cycle length (2..6; default 4)")
-    sp.add_argument("--edge-label", default=None, help="Restrict to one edge label (e.g. SubsidiaryOf)")
+    sp.add_argument(
+        "--edge-label", default=None, help="Restrict to one edge label (e.g. SubsidiaryOf)"
+    )
     sp.add_argument("--limit", type=int, default=100, help="Cap on cycles returned")
 
     sp = sub.add_parser("semantic-neighbors", help="Find companies with similar embeddings (VSS)")
@@ -2963,8 +3090,12 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     sp.add_argument("--metric", choices=["cosine", "ip"], default="cosine")
     sp.add_argument("--cross-sector", action="store_true", help="Exclude same-sector companies")
 
-    sp = sub.add_parser("similar-notes", help="K nearest notes by embedding cosine (v_note_embeddings)")
-    sp.add_argument("file_path", help="Reference note path (e.g. findata/Companies/Agriculture/Avanti_Feeds.md)")
+    sp = sub.add_parser(
+        "similar-notes", help="K nearest notes by embedding cosine (v_note_embeddings)"
+    )
+    sp.add_argument(
+        "file_path", help="Reference note path (e.g. findata/Companies/Agriculture/Avanti_Feeds.md)"
+    )
     sp.add_argument("-k", "--k", type=int, default=10)
     sp.add_argument("--doc-type", default=None, help="Restrict candidates to one doc_type")
 
@@ -2976,14 +3107,24 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     sp.add_argument("edition", help="Edition title or file stem")
     sp.add_argument("-k", "--k", type=int, default=10)
 
-    sp = sub.add_parser("near-duplicates", help="Near-duplicate note pairs above a cosine threshold (QA tripwire)")
+    sp = sub.add_parser(
+        "near-duplicates", help="Near-duplicate note pairs above a cosine threshold (QA tripwire)"
+    )
     sp.add_argument("--min-sim", type=float, default=0.9)
     sp.add_argument("--doc-type", default="company")
     sp.add_argument("--limit", type=int, default=100)
 
-    sub.add_parser("rebuild", help="Rebuild materialised tables in-place (run after parse_newsletter --apply / derive-relations)")
-    sub.add_parser("fresh", help="Drop the .duckdb file and rebuild from scratch (use after version bumps or corruption)")
-    sub.add_parser("update-extensions", help="Check installed DuckDB extensions for updates and install them")
+    sub.add_parser(
+        "rebuild",
+        help="Rebuild materialised tables in-place (run after parse_newsletter --apply / derive-relations)",
+    )
+    sub.add_parser(
+        "fresh",
+        help="Drop the .duckdb file and rebuild from scratch (use after version bumps or corruption)",
+    )
+    sub.add_parser(
+        "update-extensions", help="Check installed DuckDB extensions for updates and install them"
+    )
 
     args = p.parse_args(argv)
 
@@ -3055,8 +3196,9 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         # Bundle G3 diagnostic: directed cycles in the graph. Should be empty
         # for symmetric edge types (one directed row per pair) and strictly
         # acyclic types (acquired, subsidiary_of). Any cycle is a data bug.
-        cycles = find_cycles(con, max_hops=args.max_hops,
-                             edge_label=args.edge_label, limit=args.limit)
+        cycles = find_cycles(
+            con, max_hops=args.max_hops, edge_label=args.edge_label, limit=args.limit
+        )
         if not cycles:
             label_note = f" for edge_label={args.edge_label!r}" if args.edge_label else ""
             print(f"no directed cycles found{label_note} (max_hops={args.max_hops})")
@@ -3066,11 +3208,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             print(f"({len(cycles)} cycle(s))", file=sys.stderr)
     elif args.cmd == "semantic-neighbors":
         results = semantic_neighbors(
-            con, args.company, k=args.k,
-            metric=args.metric, cross_sector=args.cross_sector
+            con, args.company, k=args.k, metric=args.metric, cross_sector=args.cross_sector
         )
         if not results:
-            print("no embeddings found for " + repr(args.company) + " (run helpers/graph/embeddings.py)")
+            print(
+                "no embeddings found for "
+                + repr(args.company)
+                + " (run helpers/graph/embeddings.py)"
+            )
             return 1
         for name, sector, sim in results:
             print("{:.4f}  {}  [{}]".format(sim, name, sector or "unknown"))
@@ -3100,8 +3245,9 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             print(f"{sim:.4f}  {title}  ({path})")
         print(f"({len(results)} results)", file=sys.stderr)
     elif args.cmd == "near-duplicates":
-        pairs = near_duplicate_notes(con, min_sim=args.min_sim,
-                                     doc_type=args.doc_type, limit=args.limit)
+        pairs = near_duplicate_notes(
+            con, min_sim=args.min_sim, doc_type=args.doc_type, limit=args.limit
+        )
         if not pairs:
             print(f"no note pairs above {args.min_sim} (doc_type={args.doc_type!r})")
         for pa, pb, ta, tb, sim in pairs:

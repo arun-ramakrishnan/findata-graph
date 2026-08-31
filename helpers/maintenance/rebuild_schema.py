@@ -45,6 +45,7 @@ cache (its _SCHEMA_VERSION bumps to "3" so warm files auto-rebuild).
 
 See doc/improvements/sqlite_improvs.txt Bundle P for the full finding + rationale.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -131,16 +132,33 @@ def _rebuild_table(
 # Column lists (must match the canonical DDL exactly, in order).
 # Bundle C2/L2 (2026-07-28): market_cap + index_membership dropped.
 _ENTITIES_COLS = [
-    "name", "entity_type", "created_at",
-    "file_path", "last_updated", "normalized_name", "sector_classification",
+    "name",
+    "entity_type",
+    "created_at",
+    "file_path",
+    "last_updated",
+    "normalized_name",
+    "sector_classification",
     "ticker",
 ]
 _GRAPH_EDGES_COLS = [
-    "id", "source", "target", "edge_type", "weight", "properties",
-    "valid_from", "valid_to", "source_ref", "symmetric", "created_at",
+    "id",
+    "source",
+    "target",
+    "edge_type",
+    "weight",
+    "properties",
+    "valid_from",
+    "valid_to",
+    "source_ref",
+    "symmetric",
+    "created_at",
 ]
 _GRAPH_ANALYTICS_COLS = [
-    "entity_name", "metric", "value", "computed_at",
+    "entity_name",
+    "metric",
+    "value",
+    "computed_at",
 ]
 
 
@@ -170,8 +188,7 @@ def rebuild(db_path: Path | str = DB_PATH, *, dry_run: bool = False) -> dict:
                 f"FK violations pre-rebuild ({len(fk_violations)} rows) — "
                 f"fix before rebuilding: {fk_violations[:3]}"
             )
-        stats.update(pre_entities=pre_entities, pre_edges=pre_edges,
-                     pre_analytics=pre_analytics)
+        stats.update(pre_entities=pre_entities, pre_edges=pre_edges, pre_analytics=pre_analytics)
 
         if dry_run:
             stats["action"] = "dry-run, no writes"
@@ -242,15 +259,14 @@ def rebuild(db_path: Path | str = DB_PATH, *, dry_run: bool = False) -> dict:
         # schema_version (graph_analytics carries no triggers).
         ensure_db_meta(conn)
         stats["generation_triggers"] = conn.execute(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' "
-            "AND name LIKE 'trg_%_gen'"
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='trigger' AND name LIKE 'trg_%_gen'"
         ).fetchone()[0]
 
         stats.update(
-            post_entities=n_ent, post_edges=n_edge, post_analytics=n_an,
-            relations_view_rows=conn.execute(
-                "SELECT COUNT(*) FROM relations"
-            ).fetchone()[0],
+            post_entities=n_ent,
+            post_edges=n_edge,
+            post_analytics=n_an,
+            relations_view_rows=conn.execute("SELECT COUNT(*) FROM relations").fetchone()[0],
             indexes_recreated=len(ENTITIES_INDEXES) + 1 + len(GRAPH_EDGES_INDEXES),
             json_valid_check=(
                 "json_valid(properties)"
@@ -281,29 +297,36 @@ def _refresh_duckdb_cache() -> None:
     guarantees the cache is consistent immediately after the rebuild."""
     try:
         from helpers.graph.query import fresh_rebuild
+
         fresh_rebuild()
         print("DuckDB cache rebuilt (schema v3).")
     except Exception as e:
         # Non-fatal: the cache auto-rebuilds on next connect(). Just warn.
-        print(f"WARNING: DuckDB cache rebuild skipped ({e}); "
-              f"first request will rebuild it (~150ms).", file=sys.stderr)
+        print(
+            f"WARNING: DuckDB cache rebuild skipped ({e}); first request will rebuild it (~150ms).",
+            file=sys.stderr,
+        )
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="One-shot rebuild of entities/graph_edges/graph_analytics "
-                    "from canonical DDL (Bundle P)."
+        "from canonical DDL (Bundle P)."
     )
     parser.add_argument(
-        "--db", default=str(DB_PATH),
+        "--db",
+        default=str(DB_PATH),
         help="SQLite DB path (default: memory/research.db).",
     )
     parser.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help="Report what would be rebuilt without writing.",
     )
     parser.add_argument(
-        "--no-duckdb-refresh", dest="refresh_duckdb", action="store_false",
+        "--no-duckdb-refresh",
+        dest="refresh_duckdb",
+        action="store_false",
         help="Skip the DuckDB cache refresh (it will rebuild on next connect).",
     )
     parser.set_defaults(refresh_duckdb=True)

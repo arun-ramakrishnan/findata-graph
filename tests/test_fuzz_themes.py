@@ -2,6 +2,7 @@
 
 Property-based tests (via Hypothesis) for `helpers/graph/derive_themes.py`.
 """
+
 from __future__ import annotations
 
 from hypothesis import given, strategies as st, settings

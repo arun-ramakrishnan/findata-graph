@@ -178,6 +178,7 @@ class TestGetCompanyText:
         conn.commit()
         # Patch PROJECT_ROOT to tmp_path so file doesn't exist
         import helpers.graph.embeddings as emb_mod
+
         orig_root = emb_mod.PROJECT_ROOT
         emb_mod.PROJECT_ROOT = tmp_path
         try:
@@ -200,14 +201,13 @@ class TestGetCompanyText:
         # Create a note file
         note_path = tmp_path / "notes" / "TestCo.md"
         note_path.parent.mkdir()
-        note_path.write_text(
-            "---\ntitle: TestCo\ntype: company\n---\n\n# TestCo\n\nGreat company."
-        )
+        note_path.write_text("---\ntitle: TestCo\ntype: company\n---\n\n# TestCo\n\nGreat company.")
         conn.execute(
             "INSERT INTO entities VALUES ('TestCo', 'company', 'notes/TestCo.md', 'Banking')"
         )
         conn.commit()
         import helpers.graph.embeddings as emb_mod
+
         orig_root = emb_mod.PROJECT_ROOT
         emb_mod.PROJECT_ROOT = tmp_path
         try:
@@ -290,15 +290,11 @@ class TestPopulateDryRun:
                 sector_classification TEXT
             )
         """)
-        conn.execute(
-            "INSERT INTO entities VALUES ('TestCo', 'company', '', 'Tech')"
-        )
+        conn.execute("INSERT INTO entities VALUES ('TestCo', 'company', '', 'Tech')")
         conn.commit()
         n = populate_dry_run(conn, dims=64, company="TestCo")
         assert n == 1
-        row = conn.execute(
-            "SELECT company_name, model FROM company_embeddings"
-        ).fetchone()
+        row = conn.execute("SELECT company_name, model FROM company_embeddings").fetchone()
         assert row[0] == "TestCo"
         assert row[1] == "dry-run-v64"
 
@@ -333,9 +329,7 @@ class TestPopulateDryRun:
                 sector_classification TEXT
             )
         """)
-        conn.execute(
-            "INSERT INTO entities VALUES ('TestCo', 'company', '', 'Tech')"
-        )
+        conn.execute("INSERT INTO entities VALUES ('TestCo', 'company', '', 'Tech')")
         conn.commit()
         populate_dry_run(conn, dims=32, company="TestCo")
         populate_dry_run(conn, dims=32, company="TestCo")  # replace
@@ -373,14 +367,13 @@ class TestPopulateLocal:
         _add_entities(conn)
         monkeypatch.setattr(LE, "available", lambda: True)
         monkeypatch.setattr(
-            LE, "embed_documents",
+            LE,
+            "embed_documents",
             lambda texts: [[0.25] * LE.DIM for _ in texts],
         )
         n = populate_local(conn)
         assert n == 1  # companies only, not sectors
-        row = conn.execute(
-            "SELECT model, embedding FROM company_embeddings"
-        ).fetchone()
+        row = conn.execute("SELECT model, embedding FROM company_embeddings").fetchone()
         assert row[0] == "bge-small-en-v1.5"
         assert len(ast.literal_eval(row[1])) == LE.DIM
 
@@ -547,9 +540,7 @@ class TestPopulateLocalCached:
 
         populate_local(conn)
         # CoA's text basis changes (sector feeds _get_company_text).
-        conn.execute(
-            "UPDATE entities SET sector_classification = 'Banking' WHERE name = 'CoA'"
-        )
+        conn.execute("UPDATE entities SET sector_classification = 'Banking' WHERE name = 'CoA'")
         conn.commit()
 
         populate_local(conn)
@@ -563,9 +554,7 @@ class TestPopulateLocalCached:
         _fake_local(monkeypatch)
 
         populate_local(conn)
-        assert conn.execute(
-            "SELECT COUNT(*) FROM company_embeddings"
-        ).fetchone()[0] == 2
+        assert conn.execute("SELECT COUNT(*) FROM company_embeddings").fetchone()[0] == 2
 
         conn.execute("DELETE FROM entities WHERE name = 'CoB'")
         conn.commit()
@@ -573,9 +562,9 @@ class TestPopulateLocalCached:
 
         n = populate_local(conn)
         assert n == 0  # stable write: CoA's identical vector wrote nothing; only the GC removed CoB
-        remaining = [r[0] for r in conn.execute(
-            "SELECT company_name FROM company_embeddings"
-        ).fetchall()]
+        remaining = [
+            r[0] for r in conn.execute("SELECT company_name FROM company_embeddings").fetchall()
+        ]
         assert remaining == ["CoA"]
         assert "gc: removed 1" in capsys.readouterr().err
 
@@ -592,8 +581,7 @@ class TestMaintRefresh:
         assert "WARNING" in err and "unavailable" in err
         # No table was created — the gate must not even build schema.
         r = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' "
-            "AND name='company_embeddings'"
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='company_embeddings'"
         ).fetchone()
         assert r is None
 
@@ -609,9 +597,9 @@ class TestMaintRefresh:
         assert rc == 0
         err = capsys.readouterr().err
         assert "WARNING" in err and "empty" in err and "apply" in err
-        assert conn.execute(
-            "SELECT COUNT(*) FROM company_embeddings"
-        ).fetchone()[0] == 0  # never auto-populates
+        assert (
+            conn.execute("SELECT COUNT(*) FROM company_embeddings").fetchone()[0] == 0
+        )  # never auto-populates
 
     def test_pseudo_table_never_auto_upgrades(self, tmp_path, monkeypatch, capsys):
         conn, _ = _make_embed_db(tmp_path, with_table=True, existing_dims=384)
@@ -627,9 +615,7 @@ class TestMaintRefresh:
         assert rc == 0
         err = capsys.readouterr().err
         assert "WARNING" in err and "--clear" in err
-        row = conn.execute(
-            "SELECT model FROM company_embeddings"
-        ).fetchone()
+        row = conn.execute("SELECT model FROM company_embeddings").fetchone()
         assert row[0] == "dry-run-v64"  # untouched
 
     def test_applied_table_refreshes_warm(self, tmp_path, monkeypatch, capsys):
@@ -675,9 +661,7 @@ class TestMaintRefresh:
 
         # With db_meta present: a genuinely changed row (stored vector
         # corrupted; the re-embed reproduces different bytes) bumps.
-        conn.execute(
-            "CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
-        )
+        conn.execute("CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         conn.execute("INSERT INTO db_meta VALUES ('generation', '100')")
         conn.execute(
             "UPDATE company_embeddings SET embedding = ? WHERE company_name = 'CoA'",

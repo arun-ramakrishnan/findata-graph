@@ -78,7 +78,6 @@ def _pragma_ident(name: str) -> str:
     return name
 
 
-
 # Repo root: helpers/maintenance/db_maint.py -> parents[2]. Required for the
 # lazy `from helpers.core.vec_search import EMBED_DB_PATH` in
 # _backup_embed_store — without it the script crashes with ModuleNotFoundError
@@ -86,6 +85,7 @@ def _pragma_ident(name: str) -> str:
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+
 
 class DBMaintainer:
     """Encapsulates maintenance steps for a SQLite database (+ optional DuckDB cache)."""
@@ -149,13 +149,9 @@ class DBMaintainer:
             except sqlite3.Error:
                 snap[p] = None
         if isinstance(snap.get("synchronous"), int):
-            snap["synchronous"] = _SYNC_MAP.get(
-                snap["synchronous"], snap["synchronous"]
-            )
+            snap["synchronous"] = _SYNC_MAP.get(snap["synchronous"], snap["synchronous"])
         if isinstance(snap.get("auto_vacuum"), int):
-            snap["auto_vacuum"] = _AUTO_VACUUM_MAP.get(
-                snap["auto_vacuum"], snap["auto_vacuum"]
-            )
+            snap["auto_vacuum"] = _AUTO_VACUUM_MAP.get(snap["auto_vacuum"], snap["auto_vacuum"])
         return snap
 
     def metrics(self, conn) -> dict:
@@ -188,7 +184,7 @@ class DBMaintainer:
                 continue
             try:
                 est_by_tbl[tbl] = int(stat.split()[0])
-            except (ValueError, IndexError):
+            except ValueError, IndexError:
                 pass
         out = {}
         for tbl, est in est_by_tbl.items():
@@ -236,9 +232,7 @@ class DBMaintainer:
             except sqlite3.Error:
                 row_count = None
             empty_table = row_count == 0
-            idx_rows = conn.execute(
-                f"PRAGMA index_list({_pragma_ident(table)})"
-            ).fetchall()
+            idx_rows = conn.execute(f"PRAGMA index_list({_pragma_ident(table)})").fetchall()
             # cols: seq, name, unique, origin, partial
             indexes: list[dict[str, Any]] = []
             for _seq, name, unique, origin, partial in idx_rows:
@@ -247,9 +241,7 @@ class DBMaintainer:
                 # rowid/extra column. We only compare key columns.
                 xinfo = [
                     r
-                    for r in conn.execute(
-                        f"PRAGMA index_xinfo({_pragma_ident(name)})"
-                    ).fetchall()
+                    for r in conn.execute(f"PRAGMA index_xinfo({_pragma_ident(name)})").fetchall()
                     if r[5] == 1  # key columns only
                 ]
                 cols = [r[2] for r in xinfo]
@@ -294,8 +286,8 @@ class DBMaintainer:
 
         dst = zst_path(self.backup_path)
         with tempfile.NamedTemporaryFile(
-                suffix=".db", dir=self.backup_path.parent,
-                delete=False) as tf:
+            suffix=".db", dir=self.backup_path.parent, delete=False
+        ) as tf:
             tmp_path = Path(tf.name)
         try:
             bconn = sqlite3.connect(str(tmp_path))
@@ -324,23 +316,24 @@ class DBMaintainer:
         as _backup; absent state just skips."""
         vec_src = self.db_path.with_name(self.db_path.name + "_vec.db")
         if vec_src.exists():
-            src, dst = vec_src, self.backup_path.with_name(
-                self.backup_path.name.replace(".db", "_vec.db"))
+            src, dst = (
+                vec_src,
+                self.backup_path.with_name(self.backup_path.name.replace(".db", "_vec.db")),
+            )
         else:
             from helpers.core.vec_search import EMBED_DB_PATH
 
             src = Path(EMBED_DB_PATH)
             if not src.exists():
-                self._log(
-                    logging.INFO, f"Embed store absent — backup skipped ({src})")
+                self._log(logging.INFO, f"Embed store absent — backup skipped ({src})")
                 return 0
             dst = self.backup_path.parent / "embed_store_backup.db"
         from helpers.core.zstd_io import compress_file, zst_path
 
         zst_dst = zst_path(dst)
         with tempfile.NamedTemporaryFile(
-                suffix=".db", dir=self.backup_path.parent,
-                delete=False) as tf:
+            suffix=".db", dir=self.backup_path.parent, delete=False
+        ) as tf:
             tmp_path = Path(tf.name)
         try:
             sconn = sqlite3.connect(str(src))
@@ -378,6 +371,7 @@ class DBMaintainer:
         See https://ducklake.select/docs/stable/duckdb/guides/backups_and_recovery.html
         """
         import shutil
+
         try:
             import duckdb
         except ImportError:
@@ -404,8 +398,7 @@ class DBMaintainer:
         from helpers.core.zstd_io import compress_file, zst_path
 
         zst_bp = zst_path(bp)
-        with tempfile.NamedTemporaryFile(
-                suffix=".duckdb", dir=bp.parent, delete=False) as tf:
+        with tempfile.NamedTemporaryFile(suffix=".duckdb", dir=bp.parent, delete=False) as tf:
             tmp_path = Path(tf.name)
         try:
             shutil.copy2(src, tmp_path)
@@ -467,13 +460,18 @@ class DBMaintainer:
                     conn.execute(f"PRAGMA incremental_vacuum({int(freelist_before)})")
                     self._log(logging.INFO, "incremental_vacuum done (no full rewrite)")
                 except sqlite3.Error as e:
-                    self._log(logging.WARNING, f"incremental_vacuum failed ({e}); falling back to VACUUM")
+                    self._log(
+                        logging.WARNING, f"incremental_vacuum failed ({e}); falling back to VACUUM"
+                    )
                     conn.execute("VACUUM")
             else:
                 if freelist_before == 0:
                     self._log(logging.INFO, "VACUUM skipped (freelist=0, no wasted pages)")
                 else:
-                    self._log(logging.INFO, f"VACUUM (freelist={freelist_before} pages, auto_vacuum={_AUTO_VACUUM_MAP.get(auto_vac, auto_vac)})")
+                    self._log(
+                        logging.INFO,
+                        f"VACUUM (freelist={freelist_before} pages, auto_vacuum={_AUTO_VACUUM_MAP.get(auto_vac, auto_vac)})",
+                    )
                     conn.execute("VACUUM")
             self._log(logging.INFO, "ANALYZE")
             # P1.1: use PRAGMA optimize when available (faster than ANALYZE on large DBs, SQLite 3.32+)
@@ -497,9 +495,15 @@ class DBMaintainer:
                 wpct = m.get("wasted_pct", 0)
                 wbytes = m.get("wal_bytes", 0)
                 if wpct > 5.0:
-                    self._log(logging.WARNING, f"P3.6 alert ({label}): freelist {wpct:.1f}% ({m.get('freelist')} pages) >5% — consider VACUUM")
+                    self._log(
+                        logging.WARNING,
+                        f"P3.6 alert ({label}): freelist {wpct:.1f}% ({m.get('freelist')} pages) >5% — consider VACUUM",
+                    )
                 if wbytes > 67108864:  # 64 MB
-                    self._log(logging.WARNING, f"P3.6 alert ({label}): WAL {wbytes} bytes >64 MB — check checkpoint")
+                    self._log(
+                        logging.WARNING,
+                        f"P3.6 alert ({label}): WAL {wbytes} bytes >64 MB — check checkpoint",
+                    )
 
             integrity = conn.execute("PRAGMA integrity_check").fetchone()[0]
             fk_violations = conn.execute("PRAGMA foreign_key_check").fetchall()
@@ -606,9 +610,7 @@ def _print_report(r: dict) -> None:  # noqa: C901
     metrics_line("metrics", r["before"])
     staleness_line("stat_staleness", r["stat_staleness_before"])
 
-    print(
-        f"\n=== BACKUP ===\n-> {r['backup']['path']} ({_fmt_bytes(r['backup']['size'])})"
-    )
+    print(f"\n=== BACKUP ===\n-> {r['backup']['path']} ({_fmt_bytes(r['backup']['size'])})")
 
     print("\n=== MAINTENANCE ===\nVACUUM: ok\nANALYZE: ok\nREINDEX: ok")
 
@@ -632,10 +634,7 @@ def _print_report(r: dict) -> None:  # noqa: C901
             flags.append("redundancy=none")
         if empty:
             flags.append("EMPTY-TABLE")
-        print(
-            f"{table}: {rc} rows; {len(user)} user + {len(auto)} auto; "
-            + "; ".join(flags)
-        )
+        print(f"{table}: {rc} rows; {len(user)} user + {len(auto)} auto; " + "; ".join(flags))
         for i in idxs:
             attrs = []
             if i["unique"]:
@@ -647,9 +646,7 @@ def _print_report(r: dict) -> None:  # noqa: C901
             # Surface non-default collation (NOCASE indexes look like plain
             # column indexes otherwise and are easy to mistake for redundant).
             non_default = [
-                f"{c}:{col}"
-                for c, col in zip(i["columns"], i["collations"])
-                if col != "BINARY"
+                f"{c}:{col}" for c, col in zip(i["columns"], i["collations"]) if col != "BINARY"
             ]
             if non_default:
                 attrs.append("collation=" + ",".join(non_default))
@@ -738,6 +735,7 @@ def main() -> int:  # noqa: C901
     # P2.5 one-time migration: convert auto_vacuum NONE -> INCREMENTAL
     if args.migrate_incremental:
         import sqlite3 as _sqlite3
+
         root_m = _compute_root()
         dbp = Path(args.db)
         if not dbp.is_absolute():
@@ -778,7 +776,9 @@ def main() -> int:  # noqa: C901
         duckdb_backup_path = dbk if dbk.is_absolute() else root / dbk
 
     maintainer = DBMaintainer(
-        db_path, backup_path, dry_run=args.dry_run,
+        db_path,
+        backup_path,
+        dry_run=args.dry_run,
         logger=logging.getLogger("db_maint"),
         duckdb_path=duckdb_path,
         duckdb_backup_path=duckdb_backup_path,
@@ -815,9 +815,7 @@ def main() -> int:  # noqa: C901
 
     # exit non-zero if integrity failed, FK violations, or sync-check failed
     healthy = (
-        results["integrity_check"] == "ok"
-        and results["foreign_key_violations"] == 0
-        and sync_ok
+        results["integrity_check"] == "ok" and results["foreign_key_violations"] == 0 and sync_ok
     )
     return 0 if healthy else 1
 

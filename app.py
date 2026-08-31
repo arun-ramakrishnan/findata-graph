@@ -37,6 +37,7 @@ if not app.logger.handlers:
     )
 app.logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
 
+
 # --- Static File Routes ---
 @app.route("/points_and_figures/images/<path:filename>")
 def serve_points_and_figures_images(filename):
@@ -65,6 +66,7 @@ def get_db_connection():
     access columns by name.
     """
     from helpers.core.db import connect
+
     return connect()
 
 
@@ -78,9 +80,9 @@ def _super_sector_hierarchy() -> list[dict]:
     conn = get_db_connection()
     try:
         super_sectors = [
-            r[0] for r in conn.execute(
-                "SELECT name FROM entities WHERE entity_type='super_sector' "
-                "ORDER BY name"
+            r[0]
+            for r in conn.execute(
+                "SELECT name FROM entities WHERE entity_type='super_sector' ORDER BY name"
             ).fetchall()
         ]
         if not super_sectors:
@@ -88,10 +90,12 @@ def _super_sector_hierarchy() -> list[dict]:
         result = []
         for ss in super_sectors:
             children = [
-                r[0] for r in conn.execute(
+                r[0]
+                for r in conn.execute(
                     "SELECT source FROM graph_edges "
                     "WHERE target=? AND edge_type='belongs_to' "
-                    "ORDER BY source", (ss,)
+                    "ORDER BY source",
+                    (ss,),
                 ).fetchall()
             ]
             result.append({"name": ss, "sectors": children})
@@ -158,13 +162,16 @@ def get_graph_connection():
         if _graph_con is not None:
             return _graph_con
         # Cached error still within TTL? Re-raise without retrying.
-        if (_graph_con_error is not None
-                and _graph_error_at is not None
-                and time.monotonic() - _graph_error_at < _GRAPH_ERROR_TTL):
+        if (
+            _graph_con_error is not None
+            and _graph_error_at is not None
+            and time.monotonic() - _graph_error_at < _GRAPH_ERROR_TTL
+        ):
             raise _graph_con_error
         # Either no cached error, or it's stale — attempt (re)connect.
         try:
             from helpers.graph.query import connect as duckdb_connect
+
             # read_only=True: every /api/graph/* handler only QUERIES the
             # cache, and a read-write DuckDB open demands exclusivity against
             # ALL other connections (even read-only ones — that single detail
@@ -216,18 +223,15 @@ def _graph_build_etag() -> str | None:
     try:
         if _graph_con is not None:
             # Reuse the live read-write connection (production common case).
-            r = _graph_con.execute(
-                "SELECT value FROM _build_meta WHERE key='built_at'"
-            ).fetchone()
+            r = _graph_con.execute("SELECT value FROM _build_meta WHERE key='built_at'").fetchone()
         else:
             # Cold start: no singleton yet, so a read-only connection is safe.
             import duckdb
             from helpers.graph.query import DUCKDB_PATH
+
             con = duckdb.connect(str(DUCKDB_PATH), read_only=True)
             try:
-                r = con.execute(
-                    "SELECT value FROM _build_meta WHERE key='built_at'"
-                ).fetchone()
+                r = con.execute("SELECT value FROM _build_meta WHERE key='built_at'").fetchone()
             finally:
                 con.close()
     except Exception as e:
@@ -272,6 +276,7 @@ def _reset_graph_connection() -> None:
         # so the next get_graph_connection() sees the fresh generation.
         try:
             from helpers.graph.query import clear_graph_cache
+
             clear_graph_cache()
         except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
             pass
@@ -327,6 +332,7 @@ def _parse_as_of_or_400():
     if not raw:
         return None
     from helpers.graph.query import _normalise_as_of
+
     try:
         return _normalise_as_of(raw)
     except ValueError as e:
@@ -387,15 +393,13 @@ def api_entities():
 
     if sector:
         where.append(
-            "EXISTS (SELECT 1 FROM entity_tags t "
-            "WHERE t.entity_name = entities.name AND t.tag = ?)"
+            "EXISTS (SELECT 1 FROM entity_tags t WHERE t.entity_name = entities.name AND t.tag = ?)"
         )
         params.append("sector/" + sector.lower())
 
     if marketcap:
         where.append(
-            "EXISTS (SELECT 1 FROM entity_tags t "
-            "WHERE t.entity_name = entities.name AND t.tag = ?)"
+            "EXISTS (SELECT 1 FROM entity_tags t WHERE t.entity_name = entities.name AND t.tag = ?)"
         )
         params.append("market_cap/" + marketcap.lower())
 
@@ -497,7 +501,7 @@ def _scored_rows(rows, q_vec, knn: dict[str, float] | None) -> list[tuple[int, A
             if embedding:
                 try:
                     vec = json.loads(embedding)
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     vec = None
             sim = _cosine(q_vec, vec) if (q_vec and vec) else 0.0
         out.append((orig_index, row, sim))
@@ -520,9 +524,7 @@ def _cosine_positions(
         knn_order = sorted(knn, key=lambda fp: knn[fp], reverse=True)
         knn_rank = {fp: pos for pos, fp in enumerate(knn_order)}
         worst = len(knn_order)
-        return {
-            idx: knn_rank.get(row[1], worst + idx) for idx, row in enumerate(rows)
-        }
+        return {idx: knn_rank.get(row[1], worst + idx) for idx, row in enumerate(rows)}
     cosine_order = sorted(scored, key=lambda t: t[2], reverse=True)
     return {idx: i for i, (idx, _r, _s) in enumerate(cosine_order)}
 
@@ -602,15 +604,17 @@ def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> l
     fused.sort(key=lambda t: t[0], reverse=True)
 
     results = []
-    for _rrf, row, sim in fused[offset: offset + limit]:
-        results.append({
-            "doc_type": row[0],
-            "file_path": row[1],
-            "title": row[2],
-            "sector": row[3],
-            "snippet": row[6],
-            "similarity": round(sim, 6),
-        })
+    for _rrf, row, sim in fused[offset : offset + limit]:
+        results.append(
+            {
+                "doc_type": row[0],
+                "file_path": row[1],
+                "title": row[2],
+                "sector": row[3],
+                "snippet": row[6],
+                "similarity": round(sim, 6),
+            }
+        )
     return results
 
 
@@ -664,18 +668,19 @@ def api_search():
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name='note_search'"
         ).fetchone()
         if not exists:
-            return jsonify({
-                "error": "search index not built; run "
-                         "helpers/maintenance/rebuild_note_search.py",
-            }), 503
+            return jsonify(
+                {
+                    "error": "search index not built; run "
+                    "helpers/maintenance/rebuild_note_search.py",
+                }
+            ), 503
 
         if hybrid:
             # Hybrid needs the embedding column. A pre-embedding schema (old
             # rebuild, or a DB built before this feature) lacks it — downgrade
             # to plain FTS ranking rather than 500 on the column reference.
             has_embedding = cursor.execute(
-                "SELECT 1 FROM pragma_table_info('note_search') "
-                "WHERE name = 'embedding'"
+                "SELECT 1 FROM pragma_table_info('note_search') WHERE name = 'embedding'"
             ).fetchone()
             if not has_embedding:
                 app.logger.info(
@@ -703,8 +708,8 @@ def api_search():
             select_cols = (
                 "doc_type, file_path, title, sector, embedding, rank, "
                 "snippet(note_search, 4, '<mark>', '</mark>', '…', 12)"
-                if hybrid else
-                "doc_type, file_path, title, sector, "
+                if hybrid
+                else "doc_type, file_path, title, sector, "
                 "snippet(note_search, 4, '<mark>', '</mark>', '…', 12)"
             )
             cursor.execute(
@@ -715,14 +720,17 @@ def api_search():
             )
             rows = cursor.fetchall()
             cursor.execute(
-                f"SELECT COUNT(*) FROM note_search WHERE {where_clause}", params  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                f"SELECT COUNT(*) FROM note_search WHERE {where_clause}",  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                params,
             )
             total_count = cursor.fetchone()[0]
         except Exception as exc:  # sqlite3.OperationalError on bad MATCH syntax
             app.logger.info("search MATCH error for q=%r: %s", q, exc)
-            return jsonify({
-                "error": f"invalid query syntax: {exc}",
-            }), 400
+            return jsonify(
+                {
+                    "error": f"invalid query syntax: {exc}",
+                }
+            ), 400
 
         if hybrid and rows:
             results = _hybrid_search_results(conn, rows, q, limit, offset)
@@ -829,7 +837,7 @@ def _resolve_doc_path(rel_path: str) -> Path | None:
         return None
     strip = _DOC_ROOT.name + "/"
     if rel_path.startswith(strip):
-        rel_path = rel_path[len(strip):]
+        rel_path = rel_path[len(strip) :]
     candidate = (_DOC_ROOT / rel_path).resolve()
     try:
         candidate.relative_to(_DOC_ROOT.resolve())
@@ -863,14 +871,16 @@ def api_docs():
             st = full.stat()
         except OSError:
             continue
-        docs.append({
-            "path": rooted,
-            "name": full.name,
-            "section": str(Path(rel_path).parent) if Path(rel_path).parent != Path(".") else "",
-            "title": _doc_title(rel_path, full),
-            "size_bytes": st.st_size,
-            "mtime": int(st.st_mtime),
-        })
+        docs.append(
+            {
+                "path": rooted,
+                "name": full.name,
+                "section": str(Path(rel_path).parent) if Path(rel_path).parent != Path(".") else "",
+                "title": _doc_title(rel_path, full),
+                "size_bytes": st.st_size,
+                "mtime": int(st.st_mtime),
+            }
+        )
     return jsonify({"docs": docs})
 
 
@@ -899,15 +909,17 @@ def api_docs_content():
     except OSError:
         return jsonify({"error": "unable to read doc"}), 500
     doc_rel = full.relative_to(_DOC_ROOT.resolve())
-    return jsonify({
-        "path": f"{_DOC_ROOT.name}/{doc_rel.as_posix()}",
-        "name": full.name,
-        "section": str(doc_rel.parent) if str(doc_rel.parent) != "." else "",
-        "title": _doc_title(doc_rel.as_posix(), full),
-        "content": content,
-        "size_bytes": st.st_size,
-        "mtime": int(st.st_mtime),
-    })
+    return jsonify(
+        {
+            "path": f"{_DOC_ROOT.name}/{doc_rel.as_posix()}",
+            "name": full.name,
+            "section": str(doc_rel.parent) if str(doc_rel.parent) != "." else "",
+            "title": _doc_title(doc_rel.as_posix(), full),
+            "content": content,
+            "size_bytes": st.st_size,
+            "mtime": int(st.st_mtime),
+        }
+    )
 
 
 def _snippet(text: str, q: str, radius: int = 140) -> str:
@@ -963,8 +975,7 @@ def _docs_index_search(query: str, limit: int, offset: int, hybrid_on: bool):
     try:
         if not rds.doc_index_ready(conn) or rds.doc_index_stale(conn):
             return None
-        return rds.search_docs(conn, query, limit=limit, offset=offset,
-                               hybrid=hybrid_on)
+        return rds.search_docs(conn, query, limit=limit, offset=offset, hybrid=hybrid_on)
     except Exception:  # noqa: S110  # corrupt index must never 500 the search
         return None
     finally:
@@ -1007,12 +1018,14 @@ def api_docs_search():  # noqa: C901
 
     indexed = _docs_index_search(q, limit, 0, hybrid_on)
     if indexed is not None:
-        return jsonify({
-            "query": q,
-            "mode": indexed["mode"],
-            "stale": False,
-            "results": indexed["results"][:limit],
-        })
+        return jsonify(
+            {
+                "query": q,
+                "mode": indexed["mode"],
+                "stale": False,
+                "results": indexed["results"][:limit],
+            }
+        )
 
     # Fallback: the #107 filesystem scan. stale=true when an index exists
     # but no longer matches doc/ (probe best-effort — this path must not 500).
@@ -1041,11 +1054,11 @@ def api_docs_search():  # noqa: C901
         title_low = title.lower()
         score = 0
         for w in words:
-            score += 3 * low.count(f" {w} ")          # word match in body
-            score += 2 * low.count(f" {w}")            # word-boundary substring
-            score += 5 * title_low.count(w)            # in the title
+            score += 3 * low.count(f" {w} ")  # word match in body
+            score += 2 * low.count(f" {w}")  # word-boundary substring
+            score += 5 * title_low.count(w)  # in the title
             if w in rel_path.lower():
-                score += 4                              # in the path
+                score += 4  # in the path
         if score <= 0:
             continue
         section = str(Path(rel_path).parent) if Path(rel_path).parent != Path(".") else ""
@@ -1129,7 +1142,7 @@ def api_entity_detail(entity_path):
         try:
             if not full_path.is_relative_to(project_root):
                 return jsonify({"error": "Invalid file path"}), 400
-        except (OSError, ValueError):
+        except OSError, ValueError:
             return jsonify({"error": "Invalid file path"}), 400
         if full_path.exists():
             with open(full_path, encoding="utf-8") as f:
@@ -1146,9 +1159,7 @@ def api_entity_detail(entity_path):
                 yaml_tags = frontmatter["tags"]
 
             # Combine database tags with YAML frontmatter tags, avoiding duplicates
-            combined_tags = (
-                entity["enhanced_tags"].copy() if entity["enhanced_tags"] else []
-            )
+            combined_tags = entity["enhanced_tags"].copy() if entity["enhanced_tags"] else []
             for tag in yaml_tags:
                 if tag not in combined_tags:
                     combined_tags.append(tag)
@@ -1244,11 +1255,13 @@ def api_sectors():
     # keys are unchanged for backward compatibility.
     super_sectors = _super_sector_hierarchy()
 
-    return jsonify({
-        "classifications": sectors,
-        "sector_entities": sector_entities,
-        "super_sectors": super_sectors,
-    })
+    return jsonify(
+        {
+            "classifications": sectors,
+            "sector_entities": sector_entities,
+            "super_sectors": super_sectors,
+        }
+    )
 
 
 @app.route("/api/stats")
@@ -1328,9 +1341,11 @@ def _graph_cache_headers(response):
     (cold cache), the response gets Cache-Control but no ETag (worst case:
     no 304s, identical to pre-C4 behaviour).
     """
-    if (request.method == "GET"
-            and request.path.startswith("/api/graph/")
-            and response.status_code == 200):
+    if (
+        request.method == "GET"
+        and request.path.startswith("/api/graph/")
+        and response.status_code == 200
+    ):
         response.headers["Cache-Control"] = "no-cache"
         etag = _graph_build_etag()
         if etag is not None:
@@ -1367,6 +1382,7 @@ def api_graph_peers(name: str):
     company = _resolve_entity_or_404(name)
     try:
         from helpers.graph.query import peers
+
         result = peers(get_graph_connection(), company)
     except Exception as e:
         app.logger.exception("graph peers failed for %r", company)
@@ -1423,18 +1439,21 @@ def _company_neighbors_bundle(company: str, as_of: str | None = None):
     """
     try:
         from helpers.graph.query import company_neighbors_bundle
+
         con = get_graph_connection()
         bundle = company_neighbors_bundle(con, company, as_of=as_of)
     except Exception as e:
         app.logger.exception("graph neighbors failed for %r", company)
         return jsonify({"error": f"graph query failed: {e}"}), 500
-    return jsonify({
-        "entity_type": "company",
-        "company": company,
-        "as_of": as_of,
-        "file_path": _entity_file_path(company),
-        **bundle,
-    })
+    return jsonify(
+        {
+            "entity_type": "company",
+            "company": company,
+            "as_of": as_of,
+            "file_path": _entity_file_path(company),
+            **bundle,
+        }
+    )
 
 
 def _sector_neighbors_bundle(sector: str):
@@ -1455,6 +1474,7 @@ def _sector_neighbors_bundle(sector: str):
     market_cap = request.args.get("market_cap") or None
     try:
         from helpers.graph.query import sector_members_with_market_cap
+
         con = get_graph_connection()
         pairs = sector_members_with_market_cap(con, sector, market_cap=market_cap)
     except Exception as e:
@@ -1469,14 +1489,16 @@ def _sector_neighbors_bundle(sector: str):
         key = cap or "unknown"
         market_cap_counts[key] = market_cap_counts.get(key, 0) + 1
 
-    return jsonify({
-        "entity_type": "sector",
-        "sector": sector,
-        "file_path": _entity_file_path(sector),
-        "members": members,
-        "member_count": len(members),
-        "market_cap_counts": market_cap_counts,
-    })
+    return jsonify(
+        {
+            "entity_type": "sector",
+            "sector": sector,
+            "file_path": _entity_file_path(sector),
+            "members": members,
+            "member_count": len(members),
+            "market_cap_counts": market_cap_counts,
+        }
+    )
 
 
 def _theme_neighbors_bundle(theme: str):
@@ -1491,18 +1513,21 @@ def _theme_neighbors_bundle(theme: str):
     """
     try:
         from helpers.graph.query import theme_members
+
         con = get_graph_connection()
         members = theme_members(con, theme)
     except Exception as e:
         app.logger.exception("graph theme-members failed for %r", theme)
         return jsonify({"error": f"graph query failed: {e}"}), 500
-    return jsonify({
-        "entity_type": "theme",
-        "theme": theme,
-        "file_path": _entity_file_path(theme),
-        "members": members,
-        "member_count": len(members),
-    })
+    return jsonify(
+        {
+            "entity_type": "theme",
+            "theme": theme,
+            "file_path": _entity_file_path(theme),
+            "members": members,
+            "member_count": len(members),
+        }
+    )
 
 
 def _super_sector_neighbors_bundle(super_sector: str):
@@ -1514,20 +1539,21 @@ def _super_sector_neighbors_bundle(super_sector: str):
     """
     try:
         from helpers.graph.query import sectors_in_super
+
         con = get_graph_connection()
         children = sectors_in_super(con, super_sector)
     except Exception as e:
-        app.logger.exception(
-            "graph super-sector-children failed for %r", super_sector
-        )
+        app.logger.exception("graph super-sector-children failed for %r", super_sector)
         return jsonify({"error": f"graph query failed: {e}"}), 500
-    return jsonify({
-        "entity_type": "super_sector",
-        "super_sector": super_sector,
-        "file_path": _entity_file_path(super_sector),
-        "sectors": children,
-        "sector_count": len(children),
-    })
+    return jsonify(
+        {
+            "entity_type": "super_sector",
+            "super_sector": super_sector,
+            "file_path": _entity_file_path(super_sector),
+            "sectors": children,
+            "sector_count": len(children),
+        }
+    )
 
 
 def _sub_sector_neighbors_bundle(sub_sector: str):
@@ -1544,22 +1570,21 @@ def _sub_sector_neighbors_bundle(sub_sector: str):
         # belongs_to target is a sector, so we read it explicitly here.
         conn = get_db_connection()
         parent = conn.execute(
-            "SELECT target FROM graph_edges "
-            "WHERE source=? AND edge_type='belongs_to' LIMIT 1",
-            (sub_sector,)
+            "SELECT target FROM graph_edges WHERE source=? AND edge_type='belongs_to' LIMIT 1",
+            (sub_sector,),
         ).fetchone()
         parent_name = parent[0] if parent else None
         conn.close()
     except Exception as e:
-        app.logger.exception(
-            "graph sub-sector-parent failed for %r", sub_sector
-        )
+        app.logger.exception("graph sub-sector-parent failed for %r", sub_sector)
         return jsonify({"error": f"graph query failed: {e}"}), 500
-    return jsonify({
-        "entity_type": "sub_sector",
-        "sub_sector": sub_sector,
-        "parent_sector": parent_name,
-    })
+    return jsonify(
+        {
+            "entity_type": "sub_sector",
+            "sub_sector": sub_sector,
+            "parent_sector": parent_name,
+        }
+    )
 
 
 @app.route("/api/events/<path:name>")
@@ -1598,23 +1623,28 @@ def api_events(name: str):
     finally:
         conn.close()
 
-    events = [{
-        "event_type": r["event_type"],
-        "event_date": r["event_date"],
-        "period": r["period"],
-        "date_precision": r["date_precision"],
-        "magnitude": r["magnitude"],
-        "counterparty": r["counterparty"],
-        "source_quote": r["source_quote"],
-        "as_of_edition": r["as_of_edition"],
-    } for r in rows]
-    return jsonify({
-        "entity": canonical,
-        "entity_type": entity_type,
-        "file_path": _entity_file_path(canonical),
-        "event_count": len(events),
-        "events": events,
-    })
+    events = [
+        {
+            "event_type": r["event_type"],
+            "event_date": r["event_date"],
+            "period": r["period"],
+            "date_precision": r["date_precision"],
+            "magnitude": r["magnitude"],
+            "counterparty": r["counterparty"],
+            "source_quote": r["source_quote"],
+            "as_of_edition": r["as_of_edition"],
+        }
+        for r in rows
+    ]
+    return jsonify(
+        {
+            "entity": canonical,
+            "entity_type": entity_type,
+            "file_path": _entity_file_path(canonical),
+            "event_count": len(events),
+            "events": events,
+        }
+    )
 
 
 @app.route("/api/graph/shortest")
@@ -1644,23 +1674,30 @@ def api_graph_shortest():
     b_canon = _resolve_entity_or_404(b)
     try:
         from helpers.graph.query import shortest_path
-        path = shortest_path(get_graph_connection(), a_canon, b_canon, max_hops,
-                             as_of=as_of)
+
+        path = shortest_path(get_graph_connection(), a_canon, b_canon, max_hops, as_of=as_of)
     except Exception as e:
         app.logger.exception("graph shortest failed a=%r b=%r", a_canon, b_canon)
         return jsonify({"error": f"graph query failed: {e}"}), 500
     if path is None:
-        return jsonify({
-            "source": a_canon, "target": b_canon, "path": None, "hops": None,
+        return jsonify(
+            {
+                "source": a_canon,
+                "target": b_canon,
+                "path": None,
+                "hops": None,
+                "as_of": as_of,
+            }
+        )
+    return jsonify(
+        {
+            "source": a_canon,
+            "target": b_canon,
+            "path": [{"name": n, "hop": h} for n, h in path],
+            "hops": path[-1][1] if path else 0,
             "as_of": as_of,
-        })
-    return jsonify({
-        "source": a_canon,
-        "target": b_canon,
-        "path": [{"name": n, "hop": h} for n, h in path],
-        "hops": path[-1][1] if path else 0,
-        "as_of": as_of,
-    })
+        }
+    )
 
 
 @app.route("/api/graph/semantic/<path:name>")
@@ -1694,23 +1731,26 @@ def api_graph_semantic(name: str):
     cross_sector = request.args.get("cross_sector", "false").lower() in ("1", "true", "yes")
     try:
         from helpers.graph.query import semantic_neighbors
+
         results = semantic_neighbors(
-            get_graph_connection(), company, k=k,
-            metric=metric, cross_sector=cross_sector,
+            get_graph_connection(),
+            company,
+            k=k,
+            metric=metric,
+            cross_sector=cross_sector,
         )
     except Exception as e:
         app.logger.exception("graph semantic failed for %r", company)
         return jsonify({"error": f"graph query failed: {e}"}), 500
-    return jsonify({
-        "company": company,
-        "k": k,
-        "metric": metric,
-        "cross_sector": cross_sector,
-        "neighbors": [
-            {"name": n, "sector": s, "similarity": sim}
-            for n, s, sim in results
-        ],
-    })
+    return jsonify(
+        {
+            "company": company,
+            "k": k,
+            "metric": metric,
+            "cross_sector": cross_sector,
+            "neighbors": [{"name": n, "sector": s, "similarity": sim} for n, s, sim in results],
+        }
+    )
 
 
 @app.route("/api/graph/similar/<path:note_path>")
@@ -1742,23 +1782,21 @@ def api_graph_similar(note_path: str):
         note_path = f"findata/{note_path}"
     try:
         from helpers.graph.query import similar_notes
-        results = similar_notes(
-            get_graph_connection(), note_path, k=k, doc_type=doc_type
-        )
+
+        results = similar_notes(get_graph_connection(), note_path, k=k, doc_type=doc_type)
     except Exception as e:
         app.logger.exception("graph similar failed for %r", note_path)
         return jsonify({"error": f"graph query failed: {e}"}), 500
     if results is None:
         return jsonify({"error": f"no embedded note for path: {note_path}"}), 404
-    return jsonify({
-        "note": note_path,
-        "k": k,
-        "doc_type": doc_type,
-        "neighbors": [
-            {"file_path": p, "title": t, "similarity": sim}
-            for p, t, sim in results
-        ],
-    })
+    return jsonify(
+        {
+            "note": note_path,
+            "k": k,
+            "doc_type": doc_type,
+            "neighbors": [{"file_path": p, "title": t, "similarity": sim} for p, t, sim in results],
+        }
+    )
 
 
 @app.route("/api/graph/edition_companies")
@@ -1786,20 +1824,20 @@ def api_graph_edition_companies():
         return jsonify({"error": "k must be non-negative"}), 400
     try:
         from helpers.graph.query import edition_companies
+
         results = edition_companies(get_graph_connection(), edition, k=k)
     except Exception as e:
         app.logger.exception("graph edition_companies failed for %r", edition)
         return jsonify({"error": f"graph query failed: {e}"}), 500
     if results is None:
         return jsonify({"error": f"no edition note matches: {edition}"}), 404
-    return jsonify({
-        "edition": edition,
-        "k": k,
-        "companies": [
-            {"file_path": p, "title": t, "similarity": sim}
-            for p, t, sim in results
-        ],
-    })
+    return jsonify(
+        {
+            "edition": edition,
+            "k": k,
+            "companies": [{"file_path": p, "title": t, "similarity": sim} for p, t, sim in results],
+        }
+    )
 
 
 @app.route("/api/graph/near-duplicates")
@@ -1834,22 +1872,26 @@ def api_graph_near_duplicates():
         return jsonify({"error": "limit must be between 1 and 500"}), 400
     try:
         from helpers.graph.query import near_duplicate_notes
+
         results = near_duplicate_notes(
-            get_graph_connection(), min_sim=min_sim, doc_type=doc_type,
+            get_graph_connection(),
+            min_sim=min_sim,
+            doc_type=doc_type,
             limit=limit,
         )
     except Exception as e:
         app.logger.exception("graph near-duplicates failed")
         return jsonify({"error": f"graph query failed: {e}"}), 500
-    return jsonify({
-        "doc_type": doc_type,
-        "min_sim": min_sim,
-        "pairs": [
-            {"path_a": pa, "path_b": pb, "title_a": ta, "title_b": tb,
-             "similarity": sim}
-            for pa, pb, ta, tb, sim in results
-        ],
-    })
+    return jsonify(
+        {
+            "doc_type": doc_type,
+            "min_sim": min_sim,
+            "pairs": [
+                {"path_a": pa, "path_b": pb, "title_a": ta, "title_b": tb, "similarity": sim}
+                for pa, pb, ta, tb, sim in results
+            ],
+        }
+    )
 
 
 @app.route("/api/graph/suggestions")
@@ -1871,13 +1913,25 @@ def api_graph_suggestions():
     the materialised e_* tables).
     """
     method = request.args.get("method", "jaccard").strip().lower()
-    if method not in ("jaccard", "adamic-adar", "common-neighbors",
-                      "pref-attach", "resource-alloc"):
-        return jsonify({
-            "error": f"unknown method {method!r}",
-            "valid_methods": ["jaccard", "adamic-adar", "common-neighbors",
-                              "pref-attach", "resource-alloc"],
-        }), 400
+    if method not in (
+        "jaccard",
+        "adamic-adar",
+        "common-neighbors",
+        "pref-attach",
+        "resource-alloc",
+    ):
+        return jsonify(
+            {
+                "error": f"unknown method {method!r}",
+                "valid_methods": [
+                    "jaccard",
+                    "adamic-adar",
+                    "common-neighbors",
+                    "pref-attach",
+                    "resource-alloc",
+                ],
+            }
+        ), 400
     try:
         top = int(request.args.get("top", "25"))
     except ValueError:
@@ -1891,25 +1945,34 @@ def api_graph_suggestions():
     if not 0.0 <= min_score <= 1.0:
         return jsonify({"error": "min_score must be in [0, 1]"}), 400
     companies_only = request.args.get("companies_only", "1").strip().lower() in (
-        "1", "true", "yes", "on")
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
     try:
         from helpers.graph.suggest_relations import suggest_relations
+
         results = suggest_relations(
-            get_graph_connection(), method=method, top=top,
-            min_score=min_score, companies_only=companies_only,
+            get_graph_connection(),
+            method=method,
+            top=top,
+            min_score=min_score,
+            companies_only=companies_only,
         )
     except Exception as e:
         app.logger.exception("graph suggestions failed")
         return jsonify({"error": f"graph query failed: {e}"}), 500
-    return jsonify({
-        "method": method,
-        "top": top,
-        "suggestions": [
-            {"source": s.source, "target": s.target, "score": s.score,
-             "edition": s.edition}
-            for s in results
-        ],
-    })
+    return jsonify(
+        {
+            "method": method,
+            "top": top,
+            "suggestions": [
+                {"source": s.source, "target": s.target, "score": s.score, "edition": s.edition}
+                for s in results
+            ],
+        }
+    )
 
 
 @app.route("/api/analytics/<name>")
@@ -1927,11 +1990,14 @@ def api_analytics(name: str):
     /api/graph/*) — reports are cold-opened rarely.
     """
     from helpers.graph.analytics import REPORTS, fetch
+
     if name not in REPORTS:
-        return jsonify({
-            "error": f"unknown report {name!r}",
-            "valid_reports": sorted(REPORTS),
-        }), 404
+        return jsonify(
+            {
+                "error": f"unknown report {name!r}",
+                "valid_reports": sorted(REPORTS),
+            }
+        ), 404
     try:
         report = fetch(name)
     except FileNotFoundError as e:
@@ -1940,17 +2006,23 @@ def api_analytics(name: str):
         app.logger.exception("analytics report %r failed", name)
         return jsonify({"error": f"analytics query failed: {e}"}), 500
     if isinstance(report, list):
-        return jsonify({
-            "titles": [r.title for r in report],
-            "reports": [{"title": r.title, "headers": r.headers,
-                         "rows": r.rows, "note": r.note} for r in report],
-        })
-    return jsonify({
-        "title": report.title,
-        "headers": report.headers,
-        "rows": report.rows,
-        "note": report.note,
-    })
+        return jsonify(
+            {
+                "titles": [r.title for r in report],
+                "reports": [
+                    {"title": r.title, "headers": r.headers, "rows": r.rows, "note": r.note}
+                    for r in report
+                ],
+            }
+        )
+    return jsonify(
+        {
+            "title": report.title,
+            "headers": report.headers,
+            "rows": report.rows,
+            "note": report.note,
+        }
+    )
 
 
 @app.route("/api/graph/sector/<path:name>")
@@ -1963,35 +2035,43 @@ def api_graph_sector(name: str):
     conn = get_db_connection()
     try:
         sector_row = conn.execute(
-            "SELECT name FROM entities WHERE name = ? COLLATE NOCASE "
-            "AND entity_type = 'sector'",
+            "SELECT name FROM entities WHERE name = ? COLLATE NOCASE AND entity_type = 'sector'",
             (name,),
         ).fetchone()
-        company_row = None if sector_row else conn.execute(
-            "SELECT name FROM entities WHERE name = ? COLLATE NOCASE "
-            "AND entity_type = 'company'",
-            (name,),
-        ).fetchone()
+        company_row = (
+            None
+            if sector_row
+            else conn.execute(
+                "SELECT name FROM entities WHERE name = ? COLLATE NOCASE "
+                "AND entity_type = 'company'",
+                (name,),
+            ).fetchone()
+        )
     finally:
         conn.close()
     if sector_row is None and company_row is None:
         abort(404, description=f"Entity not found: {name}")
     try:
         from helpers.graph.query import sector_members, sector_of
+
         con = get_graph_connection()
         if sector_row is not None:
             canonical = sector_row["name"]
-            return jsonify({
-                "sector": canonical,
-                "members": sector_members(con, canonical),
-            })
+            return jsonify(
+                {
+                    "sector": canonical,
+                    "members": sector_members(con, canonical),
+                }
+            )
         if company_row is None:
             abort(404, description=f"Entity not found: {name}")
         canonical = company_row["name"]
-        return jsonify({
-            "company": canonical,
-            "sector": sector_of(con, canonical),
-        })
+        return jsonify(
+            {
+                "company": canonical,
+                "sector": sector_of(con, canonical),
+            }
+        )
     except Exception as e:
         app.logger.exception("graph sector failed for %r", name)
         return jsonify({"error": f"graph query failed: {e}"}), 500
@@ -2004,12 +2084,13 @@ def api_graph_stats():
     All-SQLite (no DuckDB needed). Used by the Graph tab's header summary."""
     conn = get_db_connection()
     try:
-        entity_counts = dict(conn.execute(
-            "SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type"
-        ).fetchall())
+        entity_counts = dict(
+            conn.execute(
+                "SELECT entity_type, COUNT(*) FROM entities GROUP BY entity_type"
+            ).fetchall()
+        )
         edge_rows = conn.execute(
-            "SELECT edge_type, COUNT(*) FROM graph_edges GROUP BY edge_type "
-            "ORDER BY COUNT(*) DESC"
+            "SELECT edge_type, COUNT(*) FROM graph_edges GROUP BY edge_type ORDER BY COUNT(*) DESC"
         ).fetchall()
         edges_by_type = {row["edge_type"]: row[1] for row in edge_rows}
         total_edges = sum(edges_by_type.values())
@@ -2077,9 +2158,7 @@ def api_graph_stats():
     finally:
         conn.close()
     stale = bool(
-        most_recent_entity
-        and most_recent_analytics
-        and most_recent_entity > most_recent_analytics
+        most_recent_entity and most_recent_analytics and most_recent_entity > most_recent_analytics
     )
 
     # Phase 2 (doc/improvements/archive/graph/graph_algos.txt): whole-graph
@@ -2089,43 +2168,48 @@ def api_graph_stats():
     structure = None
     try:
         from helpers.graph.algorithms import graph_metrics
+
         structure = graph_metrics(con=get_graph_connection())
     except Exception:
         structure = None
 
-    return jsonify({
-        "structure": structure,
-        "entities": {
-            "total": sum(entity_counts.values()),
-            "by_type": entity_counts,
-        },
-        "edges": {
-            "total": total_edges,
-            "by_type": edges_by_type,
-        },
-        "sectors": {
-            "count": len(sector_sizes),
-            "top": [{"sector": row["sector_classification"], "n": row["n"]}
-                    for row in sector_sizes[:10]],
-            "size_distribution": {
-                "min": min(sizes) if sizes else 0,
-                "max": max(sizes) if sizes else 0,
-                "mean": round(sum(sizes) / len(sizes), 1) if sizes else 0,
+    return jsonify(
+        {
+            "structure": structure,
+            "entities": {
+                "total": sum(entity_counts.values()),
+                "by_type": entity_counts,
             },
-        },
-        "hygiene": {
-            "orphan_companies": orphan_companies,
-            "no_ticker": no_ticker,
-            "self_loops": self_loops,
-            "orphan_edges": orphan_edges,
-            "conflicting_market_cap": conflicting_market_cap,
-        },
-        "staleness": {
-            "stale": stale,
-            "most_recent_entity_update": most_recent_entity,
-            "most_recent_analytics_compute": most_recent_analytics,
-        },
-    })
+            "edges": {
+                "total": total_edges,
+                "by_type": edges_by_type,
+            },
+            "sectors": {
+                "count": len(sector_sizes),
+                "top": [
+                    {"sector": row["sector_classification"], "n": row["n"]}
+                    for row in sector_sizes[:10]
+                ],
+                "size_distribution": {
+                    "min": min(sizes) if sizes else 0,
+                    "max": max(sizes) if sizes else 0,
+                    "mean": round(sum(sizes) / len(sizes), 1) if sizes else 0,
+                },
+            },
+            "hygiene": {
+                "orphan_companies": orphan_companies,
+                "no_ticker": no_ticker,
+                "self_loops": self_loops,
+                "orphan_edges": orphan_edges,
+                "conflicting_market_cap": conflicting_market_cap,
+            },
+            "staleness": {
+                "stale": stale,
+                "most_recent_entity_update": most_recent_entity,
+                "most_recent_analytics_compute": most_recent_analytics,
+            },
+        }
+    )
 
 
 # Relationship-type semantics for the graph cloud + relationship cloud card.
@@ -2219,22 +2303,16 @@ def api_graph_cloud():
     try:
         if edge_type:
             edge_rows = conn.execute(
-                "SELECT source, target, edge_type FROM graph_edges "
-                "WHERE edge_type = ?",
+                "SELECT source, target, edge_type FROM graph_edges WHERE edge_type = ?",
                 (edge_type,),
             ).fetchall()
         else:
-            edge_rows = conn.execute(
-                "SELECT source, target, edge_type FROM graph_edges"
-            ).fetchall()
-        entity_rows = conn.execute(
-            "SELECT name, entity_type FROM entities"
-        ).fetchall()
+            edge_rows = conn.execute("SELECT source, target, edge_type FROM graph_edges").fetchall()
+        entity_rows = conn.execute("SELECT name, entity_type FROM entities").fetchall()
         # Relationship-type counts (full edge set — the summary card always
         # shows the whole corpus, even when the canvas is filtered).
         count_rows = conn.execute(
-            "SELECT edge_type, COUNT(*) AS n FROM graph_edges "
-            "GROUP BY edge_type ORDER BY n DESC"
+            "SELECT edge_type, COUNT(*) AS n FROM graph_edges GROUP BY edge_type ORDER BY n DESC"
         ).fetchall()
     finally:
         conn.close()
@@ -2250,11 +2328,13 @@ def api_graph_cloud():
         for name in (source, target):
             if name not in seen:
                 seen.add(name)
-                nodes.append({
-                    "id": name,
-                    "label": name,
-                    "entity_type": entity_types.get(name, "unknown"),
-                })
+                nodes.append(
+                    {
+                        "id": name,
+                        "label": name,
+                        "entity_type": entity_types.get(name, "unknown"),
+                    }
+                )
     # Sort by type so the legend/rendering order is stable.
     nodes.sort(key=lambda n: (n["entity_type"], n["id"]))
 
@@ -2263,32 +2343,40 @@ def api_graph_cloud():
             "edge_type": row[0],
             "count": row[1],
             "symmetric": bool(_EDGE_SEMANTICS.get(row[0], {}).get("symmetric", False)),
-            "semantics": str(_EDGE_SEMANTICS.get(row[0], {}).get(
-                "semantics", "custom / derived edge type")),
+            "semantics": str(
+                _EDGE_SEMANTICS.get(row[0], {}).get("semantics", "custom / derived edge type")
+            ),
         }
         for row in count_rows
     ]
 
-    return jsonify({
-        "nodes": nodes,
-        "edges": edges,
-        "relationship_types": relationship_types,
-        "total_nodes": len(nodes),
-        "total_edges": len(edges),
-    })
+    return jsonify(
+        {
+            "nodes": nodes,
+            "edges": edges,
+            "relationship_types": relationship_types,
+            "total_nodes": len(nodes),
+            "total_edges": len(edges),
+        }
+    )
 
 
 # Metrics whose values are scalar floats (sortable, rankable). The label
 # metrics (louvain_community, weakly_connected_component) carry int labels
 # that group rather than rank — handled separately below.
 _SCALAR_GRAPH_METRICS = {
-    "pagerank", "degree_centrality", "betweenness_centrality",
-    "local_clustering_coefficient", "closeness_centrality",
+    "pagerank",
+    "degree_centrality",
+    "betweenness_centrality",
+    "local_clustering_coefficient",
+    "closeness_centrality",
     "eigenvector_centrality",  # last two added in Bundle G1
     # graph_docs_ui_redesign S1: the four unserved centralities computed &
     # persisted by `make recompute-graph`; all store {"value": float}, so the
     # scalar branch below serves them unchanged.
-    "harmonic_centrality", "katz_centrality", "laplacian_centrality",
+    "harmonic_centrality",
+    "katz_centrality",
+    "laplacian_centrality",
     "local_reaching_centrality",
 }
 # Label metrics: value is an int community/component id. Ranked/grouped, not
@@ -2298,9 +2386,7 @@ _LABEL_GRAPH_METRICS = {"louvain_community", "weakly_connected_component"}
 # its own response shape in the handler below (graph_docs_ui_redesign §4.3).
 _PAYLOAD_GRAPH_METRICS = {"link_prediction", "voterank"}
 # Union — the full allowlist served by /api/graph/metrics/<metric>.
-_GRAPH_METRIC_ALLOWLIST = (
-    _SCALAR_GRAPH_METRICS | _LABEL_GRAPH_METRICS | _PAYLOAD_GRAPH_METRICS
-)
+_GRAPH_METRIC_ALLOWLIST = _SCALAR_GRAPH_METRICS | _LABEL_GRAPH_METRICS | _PAYLOAD_GRAPH_METRICS
 
 
 @app.route("/api/graph/metrics/<metric>")
@@ -2339,10 +2425,12 @@ def api_graph_metrics(metric: str):  # noqa: C901
     # names in lowercase; accept case-insensitively for URL friendliness.
     metric_lc = metric.lower()
     if metric_lc not in _GRAPH_METRIC_ALLOWLIST:
-        return jsonify({
-            "error": f"unknown metric {metric!r}",
-            "valid_metrics": sorted(_GRAPH_METRIC_ALLOWLIST),
-        }), 400
+        return jsonify(
+            {
+                "error": f"unknown metric {metric!r}",
+                "valid_metrics": sorted(_GRAPH_METRIC_ALLOWLIST),
+            }
+        ), 400
 
     # Parse top= (scalar metrics only). Capped at 500 to bound payload size.
     top = 10
@@ -2360,6 +2448,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
     conn = get_db_connection()
     try:
         import json as _json
+
         if metric_lc in _PAYLOAD_GRAPH_METRICS:
             # graph_docs_ui_redesign S1: structured payloads persisted by
             # algorithms._persist_link_prediction / _persist_voterank.
@@ -2374,23 +2463,25 @@ def api_graph_metrics(metric: str):  # noqa: C901
                 for r in rows:
                     try:
                         parsed = _json.loads(r["value"])
-                    except (ValueError, TypeError):
+                    except ValueError, TypeError:
                         continue
                     cand = parsed.get("seeds")
                     if isinstance(cand, list) and len(cand) > len(seeds):
                         seeds = [s for s in cand if isinstance(s, str)]
-                return jsonify({
-                    "metric": metric_lc,
-                    "total": len(seeds),
-                    "seeds": seeds,
-                })
+                return jsonify(
+                    {
+                        "metric": metric_lc,
+                        "total": len(seeds),
+                        "seeds": seeds,
+                    }
+                )
             # link_prediction: node-keyed rows, each carrying that node's
             # candidate list. Ranked by best candidate score desc.
             entities: list[dict] = []
             for r in rows:
                 try:
                     parsed = _json.loads(r["value"])
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     continue
                 cands = [
                     {"name": c.get("name"), "score": c.get("score")}
@@ -2399,23 +2490,26 @@ def api_graph_metrics(metric: str):  # noqa: C901
                 ]
                 if entity_filter and r["entity_name"].lower() != entity_filter.lower():
                     continue
-                entities.append({
-                    "entity": r["entity_name"],
-                    "method": parsed.get("method"),
-                    "edge_types": parsed.get("edge_types", []),
-                    "best_score": max(
-                        (c["score"] for c in cands
-                         if isinstance(c.get("score"), (int, float))),
-                        default=0.0,
-                    ),
-                    "candidates": cands,
-                })
+                entities.append(
+                    {
+                        "entity": r["entity_name"],
+                        "method": parsed.get("method"),
+                        "edge_types": parsed.get("edge_types", []),
+                        "best_score": max(
+                            (c["score"] for c in cands if isinstance(c.get("score"), (int, float))),
+                            default=0.0,
+                        ),
+                        "candidates": cands,
+                    }
+                )
             entities.sort(key=lambda e: e["best_score"], reverse=True)
-            return jsonify({
-                "metric": metric_lc,
-                "total": len(entities),
-                "entities": entities,
-            })
+            return jsonify(
+                {
+                    "metric": metric_lc,
+                    "total": len(entities),
+                    "entities": entities,
+                }
+            )
         if metric_lc in _SCALAR_GRAPH_METRICS:
             # value JSON is {"value": float}. Bundle V2: push the json_extract
             # + CAST + ORDER BY into SQL (was: per-row json.loads in Python +
@@ -2435,8 +2529,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
                     """,
                     (metric_lc, entity_filter),
                 ).fetchall()
-                ranked = [{"entity": r["entity_name"], "value": float(r["v"])}
-                          for r in rows]
+                ranked = [{"entity": r["entity_name"], "value": float(r["v"])} for r in rows]
                 total = len(ranked)
             else:
                 # B3: COUNT(*) OVER() piggybacks the total on the same scan
@@ -2455,14 +2548,15 @@ def api_graph_metrics(metric: str):  # noqa: C901
                     """,
                     (metric_lc, top),
                 ).fetchall()
-                ranked = [{"entity": r["entity_name"], "value": float(r["v"])}
-                          for r in rows]
+                ranked = [{"entity": r["entity_name"], "value": float(r["v"])} for r in rows]
                 total = rows[0]["total"] if rows else 0
-            return jsonify({
-                "metric": metric_lc,
-                "total": total,
-                "ranked": ranked,
-            })
+            return jsonify(
+                {
+                    "metric": metric_lc,
+                    "total": total,
+                    "ranked": ranked,
+                }
+            )
         else:
             # Label metric: value JSON is {"community": int} or
             # {"componentId": int} (+ "modularity" for louvain, G2). Group by
@@ -2479,7 +2573,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
             for r in rows:
                 try:
                     parsed = _json.loads(r["value"])
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     continue
                 label = parsed.get(label_key)
                 if isinstance(label, int):
@@ -2488,9 +2582,7 @@ def api_graph_metrics(metric: str):  # noqa: C901
                     modularity = parsed["modularity"]
             group_list = [
                 {"label": label, "size": len(members), "members": members}
-                for label, members in sorted(
-                    groups.items(), key=lambda kv: (-len(kv[1]), kv[0])
-                )
+                for label, members in sorted(groups.items(), key=lambda kv: (-len(kv[1]), kv[0]))
             ]
             payload = {
                 "metric": metric_lc,
@@ -2514,6 +2606,7 @@ def api_graph_co_mentions():
     Returns: {"ranked": [{"entity": ..., "co_mentions": int}, ...]}
     """
     from helpers.graph.query import co_mention_top
+
     top = 20
     raw_top = request.args.get("top")
     if raw_top is not None:
@@ -2536,6 +2629,7 @@ def api_graph_bridges():
              "count": int}, ...]}
     """
     from helpers.graph.query import cross_sector_bridges
+
     conn = get_db_connection()
     try:
         return jsonify({"bridges": cross_sector_bridges(conn=conn)})
@@ -2550,6 +2644,7 @@ def api_graph_edges_by_year():
     Returns: {"timeline": [{"year": "YYYY", "edge_type": ..., "count": int}, ...]}
     """
     from helpers.graph.query import edges_by_year
+
     conn = get_db_connection()
     try:
         return jsonify({"timeline": edges_by_year(conn=conn)})
@@ -2580,6 +2675,7 @@ def api_graph_refresh():
     _reset_graph_connection()
     try:
         from helpers.graph.query import rebuild
+
         rebuild()
     except Exception as e:
         app.logger.error("graph rebuild failed: %s", e)

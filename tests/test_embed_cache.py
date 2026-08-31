@@ -117,27 +117,33 @@ class TestCachedEmbedBatch:
         assert st["misses"] == 1
         assert st["hits"] == 0
         assert len(calls) == 2  # re-embedded
+
+
 class TestPoolWorkers:
     """_pool_workers decision logic (pure, hermetic)."""
 
     def test_below_min_texts_is_in_process(self):
         from helpers.core.local_embedder import _pool_workers
+
         assert _pool_workers(3, 4) == 0
         assert _pool_workers(7, 8) == 0
 
     def test_explicit_disable(self):
         from helpers.core.local_embedder import _pool_workers
+
         assert _pool_workers(100, 0) == 0
         assert _pool_workers(100, 1) == 0
 
     def test_default_and_clamping(self):
         from helpers.core.local_embedder import _pool_workers
+
         assert _pool_workers(100, None) == 4
         assert _pool_workers(10, 8) == 8
         assert _pool_workers(3, 8) == 0  # clamped away by text count
 
     def test_env_knob(self, monkeypatch):
         from helpers.core import local_embedder as LE
+
         monkeypatch.setenv("EMBED_POOL_WORKERS", "0")
         assert LE._pool_workers(100, None) == 0
         monkeypatch.setenv("EMBED_POOL_WORKERS", "2")

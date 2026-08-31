@@ -9,6 +9,7 @@ normalize_name implementations.
 Runs alongside regular pytest in `make qa`. Hypothesis defaults to 100
 random examples per @given test; each completes in <1s.
 """
+
 from __future__ import annotations
 
 import re
@@ -51,10 +52,12 @@ def _is_valid_filename_fragment(s: str) -> bool:
 # Broad input: any printable + whitespace, excluding surrogate codepoints
 # (which can't be encoded as filenames). Cap at 80 chars to match realistic
 # company-name lengths.
-@given(st.text(
-    alphabet=st.characters(blacklist_categories=("Cs",), blacklist_characters="/\\"),
-    max_size=80,
-))
+@given(
+    st.text(
+        alphabet=st.characters(blacklist_categories=("Cs",), blacklist_characters="/\\"),
+        max_size=80,
+    )
+)
 def test_normalize_name_produces_valid_filename(name):
     result = normalize_name(name)
     # Contract: output is either empty (all-special-char input) or a valid
@@ -64,9 +67,7 @@ def test_normalize_name_produces_valid_filename(name):
     )
     # No forbidden character may survive normalization.
     for c in FORBIDDEN_CHARS:
-        assert c not in result, (
-            f"normalize_name({name!r}) = {result!r} still contains {c!r}"
-        )
+        assert c not in result, f"normalize_name({name!r}) = {result!r} still contains {c!r}"
 
 
 # ---------------------------------------------------------------------------
@@ -79,11 +80,13 @@ def test_normalize_name_produces_valid_filename(name):
 #
 # We test the shared function against the constrained alphabet where both
 # legacy implementations were expected to agree.
-@given(st.text(
-    alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 &-_",
-    min_size=1,
-    max_size=40,
-))
+@given(
+    st.text(
+        alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 &-_",
+        min_size=1,
+        max_size=40,
+    )
+)
 def test_normalize_name_valid_for_rename_inputs(name):
     # rename_entity calls normalize_name(new_name) — result must be a valid
     # filename fragment for any plausible entity name.
@@ -102,16 +105,17 @@ def test_normalize_name_valid_for_rename_inputs(name):
 # image filenames. Running it twice should be a no-op (slugify(slugify(x))
 # == slugify(x)). If not, a re-run of capture_newsletter_images.py would
 # rename already-captured images.
-@given(st.text(
-    alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-",
-    max_size=60,
-))
+@given(
+    st.text(
+        alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 _-",
+        max_size=60,
+    )
+)
 def test_slugify_idempotent(stem):
     once = slugify(stem)
     twice = slugify(once)
     assert once == twice, (
-        f"slugify not idempotent: slugify({stem!r}) = {once!r}, "
-        f"slugify({once!r}) = {twice!r}"
+        f"slugify not idempotent: slugify({stem!r}) = {once!r}, slugify({once!r}) = {twice!r}"
     )
 
 

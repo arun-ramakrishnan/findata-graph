@@ -44,6 +44,7 @@ USAGE
     python3 helpers/maintenance/sync_sector_wikilinks.py --check    # dry-run gate
     python3 helpers/maintenance/sync_sector_wikilinks.py --sector Banking
 """
+
 from __future__ import annotations
 
 import argparse
@@ -86,9 +87,7 @@ def _company_title(file_path: str) -> str:
     return Path(file_path).stem.replace("_", " ")
 
 
-def _companies_for_sector(
-    conn, sector_classification: str
-) -> list[tuple[str, str, str]]:
+def _companies_for_sector(conn, sector_classification: str) -> list[tuple[str, str, str]]:
     """Return ``(name, stem, title)`` for every company in the sector, sorted by name.
 
     ``stem`` is the filename basename (Obsidian's link TARGET); ``title`` is
@@ -100,15 +99,10 @@ def _companies_for_sector(
         "ORDER BY name",
         (sector_classification,),
     ).fetchall()
-    return [
-        (r["name"], Path(r["file_path"]).stem, _company_title(r["file_path"]))
-        for r in rows
-    ]
+    return [(r["name"], Path(r["file_path"]).stem, _company_title(r["file_path"])) for r in rows]
 
 
-def _render_section(
-    companies: list[tuple[str, str, str]], sector_name: str
-) -> str:
+def _render_section(companies: list[tuple[str, str, str]], sector_name: str) -> str:
     """Render the auto section markdown for a list of companies."""
     lines = [
         _BEGIN,
@@ -196,11 +190,13 @@ def main() -> int:
         description="Sync an auto-generated company index into every sector note."
     )
     parser.add_argument(
-        "--check", action="store_true",
+        "--check",
+        action="store_true",
         help="Report drift without writing. Exits nonzero if any sector is stale.",
     )
     parser.add_argument(
-        "--sector", default=None,
+        "--sector",
+        default=None,
         help="Sync only this sector (by filename stem, e.g. Banking).",
     )
     args = parser.parse_args()
@@ -218,17 +214,14 @@ def main() -> int:
         if args.sector:
             targets = [p for p in targets if p.stem == args.sector]
             if not targets:
-                print(f"ERROR: no sector file matches --sector {args.sector!r}",
-                      file=sys.stderr)
+                print(f"ERROR: no sector file matches --sector {args.sector!r}", file=sys.stderr)
                 return 1
 
         for sp in targets:
             # The sector_classification stored on company rows is the
             # PascalCase sector name, which equals the sector file's stem
             # (verified: 0 mismatches in the corpus audit).
-            changed, n = sync_sector(
-                conn, sp, sp.stem, dry_run=args.check
-            )
+            changed, n = sync_sector(conn, sp, sp.stem, dry_run=args.check)
             total_companies += n
             sectors_processed += 1
             marker = "STALE" if (changed and args.check) else ("updated" if changed else "ok")
@@ -238,10 +231,7 @@ def main() -> int:
     finally:
         conn.close()
 
-    print(
-        f"\n{sectors_processed} sector(s) processed, {total_companies} company "
-        f"links total."
-    )
+    print(f"\n{sectors_processed} sector(s) processed, {total_companies} company links total.")
     if args.check:
         if stale:
             print(f"{stale} sector(s) are stale. Re-run without --check to update.")

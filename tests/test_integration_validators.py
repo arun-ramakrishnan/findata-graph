@@ -6,6 +6,7 @@ checks, and that malformed entities are caught.
 
 See doc/improvements/archive/testing/integration_plan.txt § Nice-to-have 5.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -65,6 +66,7 @@ def p8_env(tmp_path, monkeypatch):
 
     # Patch parse_newsletter's PROJECT_ROOT so create_entity writes to tmp
     import helpers.core.parse_newsletter as pn
+
     monkeypatch.setattr(pn, "PROJECT_ROOT", tmp_path)
     # NotesVerifier takes project_root as a constructor arg — no patch needed.
 
@@ -84,19 +86,23 @@ class TestParseNewsletterValidatesClean:
         # Create a clean entity
         normalized = "HDFC_Bank"
         file_path = f"findata/Companies/Banking/{normalized}.md"
-        note = render_stub("HDFC Bank", normalized, "Banking", "HDFCBANK",
-                           f"/companies/banking/{normalized.lower()}")
+        note = render_stub(
+            "HDFC Bank",
+            normalized,
+            "Banking",
+            "HDFCBANK",
+            f"/companies/banking/{normalized.lower()}",
+        )
         (tmp / file_path).parent.mkdir(parents=True, exist_ok=True)
         (tmp / file_path).write_text(note)
 
         # Run validator on the company note
         nv = NotesVerifier(project_root=tmp)
-        nv.process_directory(
-            tmp / "findata" / "Companies" / "Banking", "company"
-        )
+        nv.process_directory(tmp / "findata" / "Companies" / "Banking", "company")
         # Should have 0 issues for this file
         issues_for_file = [
-            issue for bucket_issues in nv.issues.values()
+            issue
+            for bucket_issues in nv.issues.values()
             for issue in bucket_issues
             if normalized in str(issue)
         ]
@@ -116,8 +122,11 @@ class TestParseNewsletterValidatesClean:
         for name, norm, sector, ticker in entities:
             fp = tmp / "findata" / "Companies" / sector / f"{norm}.md"
             fp.parent.mkdir(parents=True, exist_ok=True)
-            fp.write_text(render_stub(name, norm, sector, ticker,
-                                      f"/companies/{sector.lower()}/{norm.lower()}"))
+            fp.write_text(
+                render_stub(
+                    name, norm, sector, ticker, f"/companies/{sector.lower()}/{norm.lower()}"
+                )
+            )
 
         nv = NotesVerifier(project_root=tmp)
         nv.verify_all()
@@ -199,14 +208,16 @@ class TestParseNewsletterDbConsistency:
         tmp, findata, conn, db_path = p8_env
 
         # Seed a sector entity so belongs_to edges can be created
-        conn.execute(
-            "INSERT INTO entities(name, entity_type) VALUES ('Banking', 'sector')"
-        )
+        conn.execute("INSERT INTO entities(name, entity_type) VALUES ('Banking', 'sector')")
         conn.commit()
 
         sector_entities = get_sector_entities(conn)
         normalized, file_path = create_entity(
-            conn, "HDFC Bank", "Banking", "HDFCBANK", apply=True,
+            conn,
+            "HDFC Bank",
+            "Banking",
+            "HDFCBANK",
+            apply=True,
             sector_entities=sector_entities,
         )
         conn.commit()
@@ -237,19 +248,19 @@ class TestParseNewsletterDbConsistency:
         from helpers.core.parse_newsletter import create_entity, get_sector_entities
 
         tmp, findata, conn, db_path = p8_env
-        conn.execute(
-            "INSERT INTO entities(name, entity_type) VALUES ('Banking', 'sector')"
-        )
+        conn.execute("INSERT INTO entities(name, entity_type) VALUES ('Banking', 'sector')")
         conn.commit()
         sector_entities = get_sector_entities(conn)
 
-        create_entity(conn, "ICICI Bank", "Banking", "ICICIBANK", apply=True,
-                      sector_entities=sector_entities)
+        create_entity(
+            conn, "ICICI Bank", "Banking", "ICICIBANK", apply=True, sector_entities=sector_entities
+        )
         conn.commit()
 
         # Second call should be a no-op
-        create_entity(conn, "ICICI Bank", "Banking", "ICICIBANK", apply=True,
-                      sector_entities=sector_entities)
+        create_entity(
+            conn, "ICICI Bank", "Banking", "ICICIBANK", apply=True, sector_entities=sector_entities
+        )
         conn.commit()
 
         rows = conn.execute("SELECT COUNT(*) FROM entities WHERE name='ICICI Bank'").fetchone()[0]

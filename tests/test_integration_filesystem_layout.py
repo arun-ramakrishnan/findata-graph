@@ -14,6 +14,7 @@ Builds a synthetic findata tree + seeded DB, then runs invariant checks.
 
 See doc/improvements/archive/testing/integration_plan.txt § Priority 4.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -108,8 +109,7 @@ def p4_tree(tmp_path):
             )
         elif etype == "sector":
             (sectors_dir / f"{slug}.md").write_text(
-                f"---\ntitle: {name}\ntype: sector\n---\n\n"
-                f"# {name}\n\nSector note for {name}.\n",
+                f"---\ntitle: {name}\ntype: sector\n---\n\n# {name}\n\nSector note for {name}.\n",
                 encoding="utf-8",
             )
 
@@ -132,8 +132,7 @@ def p4_tree(tmp_path):
 
     for source, target, edge_type in _SEED_EDGES:
         conn.execute(
-            "INSERT INTO graph_edges(source, target, edge_type, source_ref) "
-            "VALUES (?,?,?,?)",
+            "INSERT INTO graph_edges(source, target, edge_type, source_ref) VALUES (?,?,?,?)",
             (source, target, edge_type, "seed:test"),
         )
     conn.commit()
@@ -169,8 +168,9 @@ class TestCompanyNotesExist:
         ).fetchall()
         for c in companies:
             fp = c["file_path"]
-            assert fp.startswith("findata/Companies/"), \
+            assert fp.startswith("findata/Companies/"), (
                 f"Company {c['name']} file_path not under Companies/: {fp}"
+            )
 
 
 class TestSectorNotesExist:
@@ -193,8 +193,7 @@ class TestSectorNotesExist:
         ).fetchall()
         for s in sectors:
             fp = s["file_path"]
-            assert fp.startswith("findata/Sectors/"), \
-                f"Sector file_path not under Sectors/: {fp}"
+            assert fp.startswith("findata/Sectors/"), f"Sector file_path not under Sectors/: {fp}"
 
 
 class TestSectorClassificationConsistency:
@@ -212,8 +211,9 @@ class TestSectorClassificationConsistency:
             assert len(parts) == 4, f"Unexpected path shape: {c['file_path']}"
             dir_sector = parts[2]
             db_sector = c["sector_classification"]
-            assert dir_sector == db_sector, \
+            assert dir_sector == db_sector, (
                 f"Company {c['name']}: dir='{dir_sector}' vs DB='{db_sector}'"
+            )
 
 
 class TestFilePathFormat:
@@ -253,17 +253,13 @@ class TestBelongsToEdges:
 
     def test_every_company_has_belongs_to(self, p4_tree):
         findata, conn = p4_tree
-        companies = conn.execute(
-            "SELECT name FROM entities WHERE entity_type='company'"
-        ).fetchall()
+        companies = conn.execute("SELECT name FROM entities WHERE entity_type='company'").fetchall()
         for c in companies:
             edges = conn.execute(
-                "SELECT target FROM graph_edges "
-                "WHERE source=? AND edge_type='belongs_to'",
+                "SELECT target FROM graph_edges WHERE source=? AND edge_type='belongs_to'",
                 (c["name"],),
             ).fetchall()
-            assert len(edges) >= 1, \
-                f"Company {c['name']} has no belongs_to edge"
+            assert len(edges) >= 1, f"Company {c['name']} has no belongs_to edge"
 
     def test_belongs_to_target_is_sector(self, p4_tree):
         findata, conn = p4_tree
@@ -274,10 +270,10 @@ class TestBelongsToEdges:
             target = conn.execute(
                 "SELECT entity_type FROM entities WHERE name=?", (e["target"],)
             ).fetchone()
-            assert target is not None, \
-                f"belongs_to target '{e['target']}' not in entities"
-            assert target["entity_type"] == "sector", \
+            assert target is not None, f"belongs_to target '{e['target']}' not in entities"
+            assert target["entity_type"] == "sector", (
                 f"belongs_to target '{e['target']}' is not a sector"
+            )
 
     def test_belongs_to_source_is_company(self, p4_tree):
         findata, conn = p4_tree
@@ -288,10 +284,10 @@ class TestBelongsToEdges:
             source = conn.execute(
                 "SELECT entity_type FROM entities WHERE name=?", (e["source"],)
             ).fetchone()
-            assert source is not None, \
-                f"belongs_to source '{e['source']}' not in entities"
-            assert source["entity_type"] == "company", \
+            assert source is not None, f"belongs_to source '{e['source']}' not in entities"
+            assert source["entity_type"] == "company", (
                 f"belongs_to source '{e['source']}' is not a company"
+            )
 
 
 class TestEntityCountMatchesFilesystem:
@@ -303,8 +299,9 @@ class TestEntityCountMatchesFilesystem:
             "SELECT COUNT(*) FROM entities WHERE entity_type='company'"
         ).fetchone()[0]
         file_count = sum(1 for _ in (findata / "Companies").rglob("*.md"))
-        assert db_count == file_count, \
+        assert db_count == file_count, (
             f"DB has {db_count} companies but {file_count} company files on disk"
+        )
 
     def test_sector_count_matches_files(self, p4_tree):
         findata, conn = p4_tree
@@ -312,8 +309,9 @@ class TestEntityCountMatchesFilesystem:
             "SELECT COUNT(*) FROM entities WHERE entity_type='sector'"
         ).fetchone()[0]
         file_count = sum(1 for _ in (findata / "Sectors").glob("*.md"))
-        assert db_count == file_count, \
+        assert db_count == file_count, (
             f"DB has {db_count} sectors but {file_count} sector files on disk"
+        )
 
 
 class TestNormalizedNamesConsistency:
@@ -325,8 +323,9 @@ class TestNormalizedNamesConsistency:
             "SELECT name, normalized_name FROM entities WHERE normalized_name IS NOT NULL"
         ).fetchall()
         for r in rows:
-            assert r["normalized_name"] == r["name"].lower(), \
+            assert r["normalized_name"] == r["name"].lower(), (
                 f"normalized_name mismatch: {r['name']} → {r['normalized_name']}"
+            )
 
 
 class TestOrphanedFilesDetection:
@@ -343,8 +342,7 @@ class TestOrphanedFilesDetection:
             "SELECT COUNT(*) FROM entities WHERE entity_type='company'"
         ).fetchone()[0]
         file_count = sum(1 for _ in (findata / "Companies").rglob("*.md"))
-        assert file_count == db_count + 1, \
-            f"Orphan not detected: files={file_count}, db={db_count}"
+        assert file_count == db_count + 1, f"Orphan not detected: files={file_count}, db={db_count}"
 
     def test_orphaned_sector_file_detected(self, p4_tree):
         findata, conn = p4_tree
@@ -355,5 +353,6 @@ class TestOrphanedFilesDetection:
             "SELECT COUNT(*) FROM entities WHERE entity_type='sector'"
         ).fetchone()[0]
         file_count = sum(1 for _ in (findata / "Sectors").glob("*.md"))
-        assert file_count == db_count + 1, \
+        assert file_count == db_count + 1, (
             f"Orphan sector not detected: files={file_count}, db={db_count}"
+        )

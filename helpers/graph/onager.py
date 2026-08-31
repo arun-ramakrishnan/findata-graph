@@ -35,6 +35,7 @@ Storage summary
   graph; ``query.py`` materialises plain ``v_node`` / ``e_*`` tables and all
   pattern queries are plain SQL JOINs. See doc/design/graph_design.txt.
 """
+
 from __future__ import annotations
 
 import re
@@ -111,8 +112,7 @@ def _where_inline(edge_types: list[str] | None) -> str:
         return ""
     for t in edge_types:
         if not _IDENT_RE.match(t):
-            raise ValueError(
-                f"edge type not a bare identifier: {t!r} — refusing to inline")
+            raise ValueError(f"edge type not a bare identifier: {t!r} — refusing to inline")
     lst = ", ".join(f"'{t}'" for t in edge_types)
     return f" WHERE edge_type IN ({lst})"
 
@@ -171,8 +171,11 @@ def _materialize_edges(con: duckdb.DuckDBPyConnection, edges: list[tuple[int, in
 
 
 def _onager_named(
-    con: duckdb.DuckDBPyConnection, fn: str, col: str,
-    extra: str = "", params: list[Any] | None = None,
+    con: duckdb.DuckDBPyConnection,
+    fn: str,
+    col: str,
+    extra: str = "",
+    params: list[Any] | None = None,
 ) -> dict[str, float]:
     """Run an Onager table function and map integer node_ids back to names.
 
@@ -184,15 +187,18 @@ def _onager_named(
         SELECT i.name, out.{col}
         FROM {fn}((SELECT src, dst, weight FROM _onager_e){extra}) out
         JOIN _onager_int i ON i.nid = out.node_id
-        """  # noqa: S608
-        , params or [],
+        """,  # noqa: S608
+        params or [],
     ).fetchall()
     return {r[0]: r[1] for r in rows}
 
 
 def _onager_int(
-    con: duckdb.DuckDBPyConnection, fn: str, col: str,
-    extra: str = "", params: list[Any] | None = None,
+    con: duckdb.DuckDBPyConnection,
+    fn: str,
+    col: str,
+    extra: str = "",
+    params: list[Any] | None = None,
 ) -> dict[int, float]:
     """Run an Onager table function, returning int node_id -> value."""
     rows = con.execute(
@@ -206,7 +212,8 @@ def _onager_int(
 # Public API
 # --------------------------------------------------------------------------- #
 def onager_eigenvector(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> dict[Any, float]:
     """Eigenvector centrality (unweighted) -> name->score or int->score.
@@ -236,7 +243,8 @@ def onager_eigenvector(
 
 
 def onager_closeness(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> dict[Any, float]:
     """Closeness centrality (unweighted) -> name->score or int->score."""
@@ -256,7 +264,8 @@ def onager_closeness(
 
 
 def onager_betweenness(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> dict[Any, float]:
     """Betweenness centrality (unweighted) -> name->score or int->score."""
@@ -276,7 +285,8 @@ def onager_betweenness(
 
 
 def onager_degree(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> dict[Any, float]:
     """Degree centrality -> name->score or int->score.
@@ -308,7 +318,8 @@ def onager_degree(
 
 
 def onager_pagerank(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> dict[Any, float]:
     """PageRank -> name->score or int->score.
@@ -333,7 +344,8 @@ def onager_pagerank(
 
 
 def onager_components(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> dict[Any, int]:
     """Weakly-connected components -> name->component id or int->component id.
@@ -359,7 +371,8 @@ def onager_components(
 
 
 def onager_clustering(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> dict[Any, float]:
     """Local clustering coefficient -> name->coefficient or int->coefficient.
@@ -400,7 +413,8 @@ def _canonical_relabel(labels: dict[Any, int]) -> dict[Any, int]:
 
 
 def onager_louvain(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> tuple[dict[Any, int], float]:
     """Louvain community detection -> (labels, modularity).
@@ -470,7 +484,10 @@ _LINK_METHODS: dict[str, tuple[str, str]] = {
 # types (proposal risk #1 — predicting over membership/hierarchy edges is
 # trivially sector co-occurrence). Callers override with edge_types=[...].
 DEFAULT_PREDICTION_EDGE_TYPES = [
-    "co_mentioned_in", "jv_with", "competes_with", "same_group",
+    "co_mentioned_in",
+    "jv_with",
+    "competes_with",
+    "same_group",
 ]
 
 
@@ -501,8 +518,7 @@ def onager_link_prediction(
     """
     if method not in _LINK_METHODS:
         raise ValueError(
-            f"unknown link-prediction method: {method!r} "
-            f"(choose from {sorted(_LINK_METHODS)})"
+            f"unknown link-prediction method: {method!r} (choose from {sorted(_LINK_METHODS)})"
         )
     fn, col = _LINK_METHODS[method]
     con, owns = _prepare(con)
@@ -512,10 +528,7 @@ def onager_link_prediction(
             if not _materialize_from_db(con, types):
                 return []
             endpoints = "i1.name, i2.name"
-            name_joins = (
-                "JOIN _onager_int i1 ON i1.nid = p.lo "
-                "JOIN _onager_int i2 ON i2.nid = p.hi"
-            )
+            name_joins = "JOIN _onager_int i1 ON i1.nid = p.lo JOIN _onager_int i2 ON i2.nid = p.hi"
         else:
             _materialize_edges(con, edges)
             endpoints = "p.lo, p.hi"
@@ -624,7 +637,8 @@ def onager_graph_metrics(
 
 
 def _modularity(
-    edges: list[tuple[int, int, float]], labels: dict[Any, int],
+    edges: list[tuple[int, int, float]],
+    labels: dict[Any, int],
     id_to_name: dict[int, str] | None,
 ) -> float:
     """Standard modularity Q for an undirected weighted graph.
@@ -663,7 +677,8 @@ def _modularity(
 # onager build wires the personalization column through.
 # --------------------------------------------------------------------------- #
 def onager_harmonic(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> dict[Any, float]:
     """Harmonic centrality (unweighted) -> name->score or int->score.
@@ -687,9 +702,11 @@ def onager_harmonic(
 
 
 def onager_katz(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
-    alpha: float = 0.0001, beta: float = 1.0,
+    alpha: float = 0.0001,
+    beta: float = 1.0,
 ) -> dict[Any, float]:
     """Katz centrality -> name->score or int->score.
 
@@ -707,13 +724,19 @@ def onager_katz(
             if not _materialize_from_db(con, edge_types):
                 return {}
             return _onager_named(
-                con, "onager_ctr_katz", "katz",
-                extra=", alpha => $1, beta => $2", params=[alpha, beta],
+                con,
+                "onager_ctr_katz",
+                "katz",
+                extra=", alpha => $1, beta => $2",
+                params=[alpha, beta],
             )
         _materialize_edges(con, edges)
         return _onager_int(
-            con, "onager_ctr_katz", "katz",
-            extra=", alpha => $1, beta => $2", params=[alpha, beta],
+            con,
+            "onager_ctr_katz",
+            "katz",
+            extra=", alpha => $1, beta => $2",
+            params=[alpha, beta],
         )
     finally:
         if owns:
@@ -721,7 +744,8 @@ def onager_katz(
 
 
 def onager_laplacian(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> dict[Any, float]:
     """Laplacian centrality (Qi et al. 2012, unweighted) -> name->score or
@@ -743,7 +767,8 @@ def onager_laplacian(
 
 
 def onager_local_reaching(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
 ) -> dict[Any, float]:
     """Local reaching centrality -> name->score or int->score.
@@ -767,7 +792,8 @@ def onager_local_reaching(
 
 
 def onager_voterank(
-    con: duckdb.DuckDBPyConnection | None = None, edge_types: list[str] | None = None,
+    con: duckdb.DuckDBPyConnection | None = None,
+    edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
     num_seeds: int | None = None,
 ) -> list[Any]:
@@ -790,8 +816,8 @@ def onager_voterank(
                 FROM onager_ctr_voterank(
                     (SELECT src, dst, weight FROM _onager_e){extra}) v
                 JOIN _onager_int i ON i.nid = v.node_id
-                """  # noqa: S608
-                , params,
+                """,  # noqa: S608
+                params,
             ).fetchall()
             return [r[0] for r in rows]
         _materialize_edges(con, edges)

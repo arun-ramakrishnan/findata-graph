@@ -57,7 +57,7 @@ def test_onager_eigenvector_clique():
     # onager L2-normalises to unit norm.
     norm = sum(v * v for v in vals) ** 0.5
     assert abs(norm - 1.0) < 1e-9
-    assert abs(vals[0] - 1.0 / (N ** 0.5)) < 1e-9
+    assert abs(vals[0] - 1.0 / (N**0.5)) < 1e-9
 
 
 def test_onager_closeness_clique():
@@ -106,8 +106,11 @@ def test_onager_louvain_two_disjoint_triangles():
 def test_onager_centrality_is_undirected():
     star = [(0, 1, 1.0), (0, 2, 1.0), (0, 3, 1.0)]  # hub at 0
     reversed_star = [(1, 0, 1.0), (2, 0, 1.0), (3, 0, 1.0)]
-    for fn in (onager_mod.onager_eigenvector, onager_mod.onager_closeness,
-               onager_mod.onager_betweenness):
+    for fn in (
+        onager_mod.onager_eigenvector,
+        onager_mod.onager_closeness,
+        onager_mod.onager_betweenness,
+    ):
         fwd = fn(edges=star)
         rev = fn(edges=reversed_star)
         # Onager centrality is undirected (reversing every edge leaves the
@@ -165,9 +168,12 @@ def synth_db(tmp_path):
             (name,),
         )
     for src, tgt in [
-        ("CompanyA", "SectorA"), ("SectorA", "CompanyA"),
-        ("CompanyB", "SectorA"), ("SectorA", "CompanyB"),
-        ("CompanyC", "SectorA"), ("SectorA", "CompanyC"),
+        ("CompanyA", "SectorA"),
+        ("SectorA", "CompanyA"),
+        ("CompanyB", "SectorA"),
+        ("SectorA", "CompanyB"),
+        ("CompanyC", "SectorA"),
+        ("SectorA", "CompanyC"),
     ]:
         conn.execute(
             "INSERT INTO graph_edges(source, target, edge_type, source_ref) "
@@ -207,10 +213,14 @@ def test_onager_louvain_name_keyed(synth_db):
 def test_onager_loads_in_extension_build():
     """Onager must be installable/loadable from the community repo."""
     out = subprocess.run(
-        [sys.executable, "-c",
-         "import duckdb; c=duckdb.connect(); c.execute('INSTALL onager FROM community'); "
-         "c.execute('LOAD onager'); print('ok')"],
-        capture_output=True, text=True,
+        [
+            sys.executable,
+            "-c",
+            "import duckdb; c=duckdb.connect(); c.execute('INSTALL onager FROM community'); "
+            "c.execute('LOAD onager'); print('ok')",
+        ],
+        capture_output=True,
+        text=True,
         cwd=Path(__file__).resolve().parents[1],
         timeout=120,
     )
@@ -315,8 +325,16 @@ def test_onager_clustering_name_keyed_via_edge_types(synth_db):
 # --------------------------------------------------------------------------- #
 def _cycle4():
     """Bidirectional 4-cycle 0-1-2-3-0 (edges 0-1, 1-2, 2-3, 3-0)."""
-    return [(0, 1, 1.0), (1, 0, 1.0), (1, 2, 1.0), (2, 1, 1.0),
-            (2, 3, 1.0), (3, 2, 1.0), (0, 3, 1.0), (3, 0, 1.0)]
+    return [
+        (0, 1, 1.0),
+        (1, 0, 1.0),
+        (1, 2, 1.0),
+        (2, 1, 1.0),
+        (2, 3, 1.0),
+        (3, 2, 1.0),
+        (0, 3, 1.0),
+        (3, 0, 1.0),
+    ]
 
 
 def test_link_prediction_excludes_existing_edges_and_self():
@@ -344,17 +362,13 @@ def test_link_prediction_adamic_adar_cycle4():
     # Two common neighbours, each of degree 2 -> 1/ln(2) + 1/ln(2).
     expected = 2.0 / math.log(2.0)
     pairs = onager_mod.onager_link_prediction(edges=_cycle4(), method="adamic-adar")
-    assert {(a, b): s for a, b, s in pairs} == pytest.approx(
-        {(0, 2): expected, (1, 3): expected}
-    )
+    assert {(a, b): s for a, b, s in pairs} == pytest.approx({(0, 2): expected, (1, 3): expected})
 
 
 def test_link_prediction_resource_alloc_cycle4():
     # 1/deg(1) + 1/deg(3) = 1/2 + 1/2.
     pairs = onager_mod.onager_link_prediction(edges=_cycle4(), method="resource-alloc")
-    assert {(a, b): s for a, b, s in pairs} == pytest.approx(
-        {(0, 2): 1.0, (1, 3): 1.0}
-    )
+    assert {(a, b): s for a, b, s in pairs} == pytest.approx({(0, 2): 1.0, (1, 3): 1.0})
 
 
 def test_link_prediction_pref_attach_hub_pairs():
@@ -393,9 +407,7 @@ def test_onager_link_prediction_name_keyed(synth_db):
     try:
         # Explicit projection: the fixture only has part_of edges
         # (bidirectional Company{A,B,C} <-> SectorA).
-        pairs = onager_mod.onager_link_prediction(
-            con, edge_types=["part_of"], method="jaccard"
-        )
+        pairs = onager_mod.onager_link_prediction(con, edge_types=["part_of"], method="jaccard")
     finally:
         con.close()
     # Company pairs share SectorA as their only neighbour -> J = 1/1 = 1.0;
@@ -458,8 +470,13 @@ def test_graph_metrics_4cycle():
 def test_graph_metrics_single_edge():
     m = onager_mod.onager_graph_metrics(edges=[(0, 1, 1.0)])
     assert m == {
-        "density": 1.0, "diameter": 1, "radius": 1, "avg_path_length": 1.0,
-        "transitivity": 0.0, "triangles": 0, "avg_clustering": 0.0,
+        "density": 1.0,
+        "diameter": 1,
+        "radius": 1,
+        "avg_path_length": 1.0,
+        "transitivity": 0.0,
+        "triangles": 0,
+        "avg_clustering": 0.0,
         "assortativity": 0.0,
     }
 
@@ -525,8 +542,8 @@ def test_harmonic_star_and_path():
         assert res[leaf] == pytest.approx(2.5)  # 1 + 3 * 1/2
     res = onager_mod.onager_harmonic(edges=_PATH5)
     assert res[0] == pytest.approx(25.0 / 12.0)  # 1 + 1/2 + 1/3 + 1/4
-    assert res[1] == pytest.approx(17.0 / 6.0)   # 1 + 1 + 1/2 + 1/3
-    assert res[2] == pytest.approx(3.0)          # 2*1 + 2*(1/2)
+    assert res[1] == pytest.approx(17.0 / 6.0)  # 1 + 1 + 1/2 + 1/3
+    assert res[2] == pytest.approx(3.0)  # 2*1 + 2*(1/2)
     assert res[3] == pytest.approx(17.0 / 6.0)
     assert res[4] == pytest.approx(25.0 / 12.0)
 
@@ -599,11 +616,15 @@ def test_phase3_centralities_dedup_reverse_directions():
     # Same contract as the Phase 2 metrics: duplicate reverse edge rows
     # (e.g. part_of + has_company) collapse to one undirected edge.
     doubled = _STAR5 + [(i, 0, 1.0) for i in range(1, 5)]
-    for fn in (onager_mod.onager_harmonic, onager_mod.onager_laplacian,
-               onager_mod.onager_local_reaching):
+    for fn in (
+        onager_mod.onager_harmonic,
+        onager_mod.onager_laplacian,
+        onager_mod.onager_local_reaching,
+    ):
         assert fn(edges=_STAR5) == fn(edges=doubled)
-    assert (onager_mod.onager_katz(edges=_STAR5, alpha=0.1)
-            == onager_mod.onager_katz(edges=doubled, alpha=0.1))
+    assert onager_mod.onager_katz(edges=_STAR5, alpha=0.1) == onager_mod.onager_katz(
+        edges=doubled, alpha=0.1
+    )
     assert onager_mod.onager_voterank(edges=_STAR5) == onager_mod.onager_voterank(edges=doubled)
 
 

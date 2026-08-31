@@ -9,14 +9,20 @@ first so a no-op derive cycle keeps every unchanged row's id and
 created_at — the snapshot blobs change only when content actually changes
 (the embed_cache stable-write pattern).
 """
+
 from __future__ import annotations
 
 from typing import Any
 
 
-def stable_prefix_replace(conn: Any, table: str, prefix: str,
-                          cols: tuple[str, ...], insert_sql: str,
-                          new_rows: list[tuple]) -> int:
+def stable_prefix_replace(
+    conn: Any,
+    table: str,
+    prefix: str,
+    cols: tuple[str, ...],
+    insert_sql: str,
+    new_rows: list[tuple],
+) -> int:
     """Prefix-scoped replace preserving id/created_at of unchanged rows.
 
     Hand-seeded rows outside ``prefix`` are untouched; stale derived rows
@@ -49,8 +55,10 @@ def stable_prefix_replace(conn: Any, table: str, prefix: str,
             to_insert.append(content)
     stale_ids = [i for ids in pool.values() for i in ids]
     if stale_ids:
-        conn.executemany(f"DELETE FROM {table} WHERE id = ?",  # noqa: S608  # schema-constant table name
-                         [(i,) for i in stale_ids])
+        conn.executemany(
+            f"DELETE FROM {table} WHERE id = ?",  # noqa: S608  # schema-constant table name
+            [(i,) for i in stale_ids],
+        )
     if to_insert:
         conn.executemany(insert_sql, to_insert)
     return kept + len(to_insert)

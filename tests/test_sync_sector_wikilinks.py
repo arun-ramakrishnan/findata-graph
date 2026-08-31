@@ -9,6 +9,7 @@ SQLite source of truth. These tests pin the core contract:
   - curated content is preserved (the auto section is additive)
   - --check detects drift without writing
 """
+
 import re
 import sqlite3
 import sys
@@ -177,6 +178,7 @@ def tmp_sector_db(tmp_path):
     )
     # Monkeypatch PROJECT_ROOT so _company_title resolves against tmp_path.
     import maintenance.sync_sector_wikilinks as m
+
     orig_root = m.PROJECT_ROOT
     m.PROJECT_ROOT = tmp_path
     try:
@@ -237,9 +239,7 @@ def test_sync_sector_link_targets_are_filename_stems(tmp_sector_db):
     conn.row_factory = sqlite3.Row
     sync_sector(conn, sector_file, "Test", dry_run=False)
     text = sector_file.read_text(encoding="utf-8")
-    _m = re.search(
-        rf"{re.escape(_BEGIN)}.*?{re.escape(_END)}", text, re.DOTALL
-    )
+    _m = re.search(rf"{re.escape(_BEGIN)}.*?{re.escape(_END)}", text, re.DOTALL)
     assert _m is not None, "section not found in sector file"
     section = _m.group(0)
     links = re.findall(r"\[\[([^\]]+)\]\]", section)
@@ -259,6 +259,7 @@ def test_sync_sector_link_targets_are_filename_stems(tmp_sector_db):
 def test_replace_or_insert_adds_section_with_no_newline_prefix():
     """When text doesn't end with newline, one is added (line 170-173)."""
     import maintenance.sync_sector_wikilinks as m
+
     text = "# Some heading"  # no trailing newline, no Newsletter heading
     section = m._render_section([], "Test")
     new_text, changed = m._replace_or_insert(text, section)
@@ -269,6 +270,7 @@ def test_replace_or_insert_adds_section_with_no_newline_prefix():
 def test_replace_or_insert_adds_section_with_single_newline_prefix():
     """When text ends with single newline, add one more (line 170-171)."""
     import maintenance.sync_sector_wikilinks as m
+
     text = "# Some heading\n"
     section = m._render_section([], "Test")
     new_text, changed = m._replace_or_insert(text, section)
@@ -279,6 +281,7 @@ def test_replace_or_insert_adds_section_with_single_newline_prefix():
 def test_find_insertion_point_no_newsletter_heading():
     """Falls back to end of file when Newsletter heading is absent (line 149)."""
     import maintenance.sync_sector_wikilinks as m
+
     text = "# No newsletter here\n\nSome content"
     idx = m._find_insertion_point(text)
     assert idx == len(text)
@@ -287,6 +290,7 @@ def test_find_insertion_point_no_newsletter_heading():
 def test_find_insertion_point_at_newsletter_heading():
     """Returns offset of Newsletter synthesis heading."""
     import maintenance.sync_sector_wikilinks as m
+
     text = "# Title\n\nIntro\n\n## Newsletter synthesis\n\nStuff"
     idx = m._find_insertion_point(text)
     # Points to the start of "## Newsletter synthesis"
@@ -299,6 +303,7 @@ def test_find_insertion_point_at_newsletter_heading():
 def test_company_title_missing_file():
     """Returns stem with spaces when file doesn't exist (line 81)."""
     import maintenance.sync_sector_wikilinks as m
+
     result = m._company_title("findata/Companies/F/Fake_Company.md")
     assert result == "Fake Company"
 
@@ -306,6 +311,7 @@ def test_company_title_missing_file():
 def test_company_title_no_title_in_yaml(tmp_path, monkeypatch):
     """Returns stem when YAML has no title field (line 86)."""
     import maintenance.sync_sector_wikilinks as m
+
     note = tmp_path / "Test_Co.md"
     note.write_text("---\ntype: company\n---\n\n# Body")
     monkeypatch.setattr(m, "PROJECT_ROOT", tmp_path)

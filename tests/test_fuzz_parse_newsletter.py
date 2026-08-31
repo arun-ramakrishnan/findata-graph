@@ -14,6 +14,7 @@ invariants:
 
 Runs in `make fuzz` and `make qa`. No DB / network required.
 """
+
 from __future__ import annotations
 
 import sys
@@ -35,10 +36,26 @@ from core.parse_newsletter import (  # noqa: E402
 # Sectors that appear in the real 42-sector taxonomy. "Diversified" is the
 # documented fallback the classifier returns when no keyword matches.
 SECTOR_POOL = [
-    "Banking", "NBFC", "Insurance", "Capital_Markets", "Fintech_Payments",
-    "Financial_Services", "Pharma", "Healthcare", "Hospitals", "Diagnostics",
-    "Renewables", "Energy", "Technology", "IT_Services", "Manufacturing",
-    "Automobile", "Consumer", "Retail", "Real_Estate", "Diversified",
+    "Banking",
+    "NBFC",
+    "Insurance",
+    "Capital_Markets",
+    "Fintech_Payments",
+    "Financial_Services",
+    "Pharma",
+    "Healthcare",
+    "Hospitals",
+    "Diagnostics",
+    "Renewables",
+    "Energy",
+    "Technology",
+    "IT_Services",
+    "Manufacturing",
+    "Automobile",
+    "Consumer",
+    "Retail",
+    "Real_Estate",
+    "Diversified",
 ]
 
 # Arbitrary markdown / prose (surrogate codepoints excluded — they can't be
@@ -53,8 +70,9 @@ _TEXT = st.text(
 # ---------------------------------------------------------------------------
 # 1. extract_companies — shape + never raises
 # ---------------------------------------------------------------------------
-@settings(max_examples=300, deadline=None,
-          suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=300, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 @given(_TEXT)
 def test_extract_companies_shape(content: str):
     """Every yielded item is a (name:str>=3, line:int>=1) pair in-range."""
@@ -69,8 +87,9 @@ def test_extract_companies_shape(content: str):
 # ---------------------------------------------------------------------------
 # 2. guess_sector_for — returns a member of sector_dirs or None
 # ---------------------------------------------------------------------------
-@settings(max_examples=300, deadline=None,
-          suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=300, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 @given(
     content_window=_TEXT,
     sector_dirs=st.sets(st.sampled_from(SECTOR_POOL), max_size=len(SECTOR_POOL)),
@@ -80,8 +99,10 @@ def test_guess_sector_for_in_dirs_or_none(content_window: str, sector_dirs: set)
     try:
         result = guess_sector_for("unused-name", content_window, sector_dirs)
     except Exception as e:
-        pytest.fail(f"guess_sector_for raised {type(e).__name__}: {e} "
-                    f"on window={content_window!r}, dirs={sector_dirs!r}")
+        pytest.fail(
+            f"guess_sector_for raised {type(e).__name__}: {e} "
+            f"on window={content_window!r}, dirs={sector_dirs!r}"
+        )
     assert result is None or isinstance(result, str)
     assert result is None or result in sector_dirs, (
         f"guess_sector_for returned {result!r} not in {sector_dirs!r}"
@@ -91,8 +112,9 @@ def test_guess_sector_for_in_dirs_or_none(content_window: str, sector_dirs: set)
 # ---------------------------------------------------------------------------
 # 3. render_stub — never raises + emits valid YAML frontmatter
 # ---------------------------------------------------------------------------
-@settings(max_examples=200, deadline=None,
-          suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=200, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 @given(_TEXT)
 def test_render_stub_never_raises(content: str):
     """render_stub is a pure string builder and must not raise."""
@@ -105,20 +127,23 @@ def test_render_stub_never_raises(content: str):
 
 # Constrained, entity-like inputs so the generated frontmatter is real YAML.
 _SAFE_TXT = st.text(
-    alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"),
-                          whitelist_characters=" -_"),
-    min_size=1, max_size=40,
+    alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters=" -_"),
+    min_size=1,
+    max_size=40,
 )
 _TICKER = st.one_of(
     st.none(),
-    st.text(alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"),
-                                  whitelist_characters="._-"),
-            min_size=1, max_size=12),
+    st.text(
+        alphabet=st.characters(whitelist_categories=("Lu", "Ll", "Nd"), whitelist_characters="._-"),
+        min_size=1,
+        max_size=12,
+    ),
 )
 
 
-@settings(max_examples=200, deadline=None,
-          suppress_health_check=[HealthCheck.function_scoped_fixture])
+@settings(
+    max_examples=200, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+)
 @given(
     name=_SAFE_TXT,
     normalized_name=_SAFE_TXT,

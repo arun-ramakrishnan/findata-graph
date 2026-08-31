@@ -175,8 +175,7 @@ def cached_embed_batch(
             # A short/long reply would silently shift vectors onto the wrong
             # companies below — fail loudly instead.
             raise ValueError(
-                f"batch embedder returned {len(new_vecs)} vectors "
-                f"for {len(miss_idx)} texts"
+                f"batch embedder returned {len(new_vecs)} vectors for {len(miss_idx)} texts"
             )
         for i, vec in zip(miss_idx, new_vecs):
             vecs[i] = vec

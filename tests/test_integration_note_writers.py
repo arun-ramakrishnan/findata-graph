@@ -12,6 +12,7 @@ green after apply, re-runs converging byte-identically, hierarchy writes
 staying REGION-scoped (never clobbering OKF frontmatter), and cited_in
 edge counts matching the sources[] evidence.
 """
+
 from __future__ import annotations
 
 import re
@@ -81,8 +82,10 @@ class _WritersProject:
             "GROUP BY name HAVING MIN(o))",
             (_COMPANY,),
         )
-        dst.execute("DELETE FROM graph_edges WHERE source NOT IN "
-                    "(SELECT name FROM keep) OR target NOT IN (SELECT name FROM keep)")
+        dst.execute(
+            "DELETE FROM graph_edges WHERE source NOT IN "
+            "(SELECT name FROM keep) OR target NOT IN (SELECT name FROM keep)"
+        )
         # cited_in edges are RE-DERIVED from sources[] by derive_cited_in;
         # production edges survive the entity prune (editions are
         # non-company) and would pollute the count assertions.
@@ -94,15 +97,19 @@ class _WritersProject:
     def _build_vault(self) -> None:
         (self.vault / "The_Chatter").mkdir(parents=True)
         (self.vault / "The_Chatter" / "TC_Alpha.md").write_text(
-            "# The Chatter: Alpha Edition\n\nNewsletter body.\n", encoding="utf-8")
+            "# The Chatter: Alpha Edition\n\nNewsletter body.\n", encoding="utf-8"
+        )
         (self.vault / "Sectors").mkdir(parents=True)
         (self.vault / "Sectors" / "Banking.md").write_text(
             "---\ntitle: Banking\ntype: sector\ntags:\n- entity_type/sector\n"
             "created: '2026-01-01'\nlast_modified: '2026-01-02'\n---\n"
-            "# Banking\n\nBanking sector overview.\n", encoding="utf-8")
+            "# Banking\n\nBanking sector overview.\n",
+            encoding="utf-8",
+        )
         conn = sqlite3.connect(str(self.db))
-        fp = conn.execute("SELECT file_path FROM entities WHERE name = ?",
-                          (_COMPANY,)).fetchone()[0]
+        fp = conn.execute("SELECT file_path FROM entities WHERE name = ?", (_COMPANY,)).fetchone()[
+            0
+        ]
         conn.close()
         p = self.root / fp
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -113,10 +120,14 @@ class _WritersProject:
         # SUPER_SECTORS_DIR patched DIRECTLY: it binds at import
         # (VAULT_ROOT / "Super_Sectors"), so patching VAULT_ROOT alone
         # leaves the writer pointing at the live vault.
-        saved.update(bsh_DB=bsh.DB_PATH, bsh_VAULT=bsh.VAULT_ROOT,
-                     bsh_SUPERS=bsh.SUPER_SECTORS_DIR,
-                     ssw_DB=ssw.DB_PATH, ssw_DIR=ssw.SECTORS_DIR,
-                     argv=list(sys.argv))
+        saved.update(
+            bsh_DB=bsh.DB_PATH,
+            bsh_VAULT=bsh.VAULT_ROOT,
+            bsh_SUPERS=bsh.SUPER_SECTORS_DIR,
+            ssw_DB=ssw.DB_PATH,
+            ssw_DIR=ssw.SECTORS_DIR,
+            argv=list(sys.argv),
+        )
         bsh.DB_PATH = self.db
         bsh.VAULT_ROOT = self.vault
         bsh.SUPER_SECTORS_DIR = self.vault / "Super_Sectors"
@@ -135,8 +146,7 @@ class _WritersProject:
         saved: dict = {}
         self._patch(saved)
         try:
-            sys.argv = ["build_sector_hierarchy.py",
-                        "--apply" if apply else "--check"]
+            sys.argv = ["build_sector_hierarchy.py", "--apply" if apply else "--check"]
             err = StringIO()
             with redirect_stderr(err):
                 rc = bsh.main()
@@ -163,8 +173,10 @@ class _WritersProject:
 
     # -- helpers --------------------------------------------------------- #
     def note_bytes(self) -> dict[str, bytes]:
-        return {p.relative_to(self.vault).as_posix(): p.read_bytes()
-                for p in sorted(self.vault.rglob("*.md"))}
+        return {
+            p.relative_to(self.vault).as_posix(): p.read_bytes()
+            for p in sorted(self.vault.rglob("*.md"))
+        }
 
     def sql(self, sql: str, params: tuple = ()) -> list[tuple]:
         conn = sqlite3.connect(str(self.db))
@@ -188,9 +200,7 @@ class TestConvergence:
     def test_sector_roster_matches_db(self, writers):
         """The Banking roster lists exactly the DB's Banking companies, in
         the [[stem|title]] wikilink form (the Obsidian resolution rule)."""
-        fp = writers.sql(
-            "SELECT file_path FROM entities WHERE name = ?", (_COMPANY,)
-        )[0][0]
+        fp = writers.sql("SELECT file_path FROM entities WHERE name = ?", (_COMPANY,))[0][0]
         stem = Path(fp).stem
         text = (writers.vault / "Sectors" / "Banking.md").read_text(encoding="utf-8")
         assert re.search(rf"\[\[{stem}\|{re.escape(_COMPANY)}\]\]", text)
@@ -214,10 +224,8 @@ class TestConvergence:
         text = note.read_text(encoding="utf-8")
         opener, fm_text, body = _split_fm(text)
         fm = yaml.safe_load(fm_text)
-        fm["generated"] = {"by": "process:okf_backfill",
-                           "at": "2026-08-19T00:00:00Z"}
-        fm["sources"] = [{"id": "TC_Alpha",
-                          "resource": "/findata/The_Chatter/TC_Alpha.md"}]
+        fm["generated"] = {"by": "process:okf_backfill", "at": "2026-08-19T00:00:00Z"}
+        fm["sources"] = [{"id": "TC_Alpha", "resource": "/findata/The_Chatter/TC_Alpha.md"}]
         note.write_text(_render_fm(fm) + body, encoding="utf-8")
 
         assert writers._run_bsh(apply=True) == 0
@@ -236,24 +244,27 @@ class TestCitedIn:
         """derive_cited_in --apply: one cited_in edge per valid sources[]
         entry, the edition entity created, and a second apply idempotent."""
         assert writers._run_dci(monkeypatch) == 0
-        edges = writers.sql(
-            "SELECT source, target FROM graph_edges "
-            "WHERE edge_type = 'cited_in'")
+        edges = writers.sql("SELECT source, target FROM graph_edges WHERE edge_type = 'cited_in'")
         assert edges == [(_COMPANY, "TC_Alpha")]
-        assert writers.sql(
-            "SELECT COUNT(*) FROM entities WHERE name='TC_Alpha' "
-            "AND entity_type='edition'")[0][0] == 1
+        assert (
+            writers.sql(
+                "SELECT COUNT(*) FROM entities WHERE name='TC_Alpha' AND entity_type='edition'"
+            )[0][0]
+            == 1
+        )
         assert writers._run_dci(monkeypatch) == 0
         assert writers.sql(
-            "SELECT source, target FROM graph_edges "
-            "WHERE edge_type = 'cited_in'") == [(_COMPANY, "TC_Alpha")]
+            "SELECT source, target FROM graph_edges WHERE edge_type = 'cited_in'"
+        ) == [(_COMPANY, "TC_Alpha")]
 
 
 def _split_fm(text: str) -> tuple[str, str, str]:
     from helpers.core.frontmatter import split_frontmatter
+
     return split_frontmatter(text)
 
 
 def _render_fm(fm: dict) -> str:
     from helpers.core.frontmatter import render_frontmatter, stringify_dates
+
     return render_frontmatter(stringify_dates(fm))

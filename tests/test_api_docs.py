@@ -53,7 +53,12 @@ class TestDocsCatalog:
         for doc in data["docs"]:
             # Shape pin (mirrors DocItem in frontend/types/api.ts).
             assert set(doc.keys()) == {
-                "path", "name", "section", "title", "size_bytes", "mtime",
+                "path",
+                "name",
+                "section",
+                "title",
+                "size_bytes",
+                "mtime",
             }
             assert isinstance(doc["size_bytes"], int)
             assert isinstance(doc["mtime"], int)
@@ -112,7 +117,13 @@ class TestDocsContent:
         assert r.status_code == 200
         data = r.get_json()
         assert set(data.keys()) == {
-            "path", "name", "section", "title", "content", "size_bytes", "mtime",
+            "path",
+            "name",
+            "section",
+            "title",
+            "content",
+            "size_bytes",
+            "mtime",
         }
         # The canonical echo is repo-rooted regardless of the requested form.
         assert data["path"] == "doc/design/architecture.md"
@@ -139,8 +150,8 @@ class TestDocsContent:
             "../README.md",
             "../../etc/passwd",
             "..%2f..%2fapp.py",  # encoded slash
-            "/etc/passwd",       # absolute
-            "..\\..\\app.py",    # windows-style
+            "/etc/passwd",  # absolute
+            "..\\..\\app.py",  # windows-style
         ]
         for escape in escapes:
             r = client.get(f"/api/docs/content?path={escape}")
@@ -165,8 +176,15 @@ class TestDocsSearch:
         assert data["results"]
         for hit in data["results"]:
             assert set(hit.keys()) == {
-                "path", "name", "section", "title", "section_title",
-                "anchor", "snippet", "score", "similarity",
+                "path",
+                "name",
+                "section",
+                "title",
+                "section_title",
+                "anchor",
+                "snippet",
+                "score",
+                "similarity",
             }
             assert hit["snippet"]
 

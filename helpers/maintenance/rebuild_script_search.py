@@ -117,18 +117,24 @@ NODE_BIN = shutil.which("node")
 # DROP + recreate (see _migrate_schema).
 SCRIPT_SEARCH_DDL = (
     "CREATE VIRTUAL TABLE IF NOT EXISTS script_search USING fts5("
-    "title, "                 # 0  rel path (scripts/tests) or 'make <target>'
-    "kind UNINDEXED, "        # 1  'script' | 'test' | 'make'
-    "rel_path UNINDEXED, "    # 2  repo-rooted path or bare make target name
-    "area UNINDEXED, "        # 3  helpers/<area> dir | 'app' | 'test' | 'make'
-    "purpose UNINDEXED, "     # 4  docstring first para / '##' annotation (display)
-    "content, "               # 5  composed block (purpose/details/cli/defs/...)
-    "embedding UNINDEXED, "   # 6  JSON vector for hybrid ranking; not tokenized
+    "title, "  # 0  rel path (scripts/tests) or 'make <target>'
+    "kind UNINDEXED, "  # 1  'script' | 'test' | 'make'
+    "rel_path UNINDEXED, "  # 2  repo-rooted path or bare make target name
+    "area UNINDEXED, "  # 3  helpers/<area> dir | 'app' | 'test' | 'make'
+    "purpose UNINDEXED, "  # 4  docstring first para / '##' annotation (display)
+    "content, "  # 5  composed block (purpose/details/cli/defs/...)
+    "embedding UNINDEXED, "  # 6  JSON vector for hybrid ranking; not tokenized
     "tokenize = 'porter unicode61'"
     ")"
 )
 _SCRIPT_SEARCH_COLUMNS = {
-    "title", "kind", "rel_path", "area", "purpose", "content", "embedding",
+    "title",
+    "kind",
+    "rel_path",
+    "area",
+    "purpose",
+    "content",
+    "embedding",
 }
 
 # Per-unit fingerprint (py file or Makefile). The raw file text IS the change
@@ -146,10 +152,7 @@ SCRIPT_SEARCH_META_DDL = (
 # Model stamp home inside the sidecar (never research.db). --check never
 # writes it: the stamp must describe the table's CONTENT.
 SCRIPT_SEARCH_INFO_DDL = (
-    "CREATE TABLE IF NOT EXISTS script_search_info ("
-    " key TEXT PRIMARY KEY,"
-    " value TEXT NOT NULL"
-    ")"
+    "CREATE TABLE IF NOT EXISTS script_search_info ( key TEXT PRIMARY KEY, value TEXT NOT NULL)"
 )
 
 # Raw `mojo doc` JSON per Mojo unit, content-addressed (unit_path,
@@ -201,9 +204,9 @@ def connect_script_db(db_path: Path | str | None = None) -> sqlite3.Connection:
     return _db_connect(path)
 
 
-def _iter_py_units(helpers_root: Path | None = None,
-                   tests_root: Path | None = None,
-                   app_py: Path | None = None):
+def _iter_py_units(
+    helpers_root: Path | None = None, tests_root: Path | None = None, app_py: Path | None = None
+):
     """Yield (rel, abs_path, kind) for every indexable Python file.
 
     Repo-rooted rel paths ("helpers/misc/x.py", "tests/test_x.py",
@@ -212,8 +215,10 @@ def _iter_py_units(helpers_root: Path | None = None,
     (pure package markers); conftest.py is KEPT (it carries the fixtures
     a session most often needs to find).
     """
-    for root, kind in ((Path(helpers_root or HELPERS_ROOT), "script"),
-                       (Path(tests_root or TESTS_ROOT), "test")):
+    for root, kind in (
+        (Path(helpers_root or HELPERS_ROOT), "script"),
+        (Path(tests_root or TESTS_ROOT), "test"),
+    ):
         if not root.is_dir():
             continue
         for p in sorted(root.rglob("*.py")):
@@ -239,7 +244,7 @@ def _area_of(rel: str) -> str:
 def _dotted(rel: str) -> str:
     """Module dotted name for import matching (helpers/misc/x.py ->
     'helpers.misc.x'; app.py -> 'app')."""
-    return rel[:-len(".py")].replace("/", ".")
+    return rel[: -len(".py")].replace("/", ".")
 
 
 def _split_docstring(doc: str | None) -> tuple[str, str]:
@@ -390,9 +395,7 @@ def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> lis
     imports_by_test: dict[str, list[str]] = {}
     tested_by: dict[str, set[str]] = {}
     for t in tests:
-        matched = sorted(
-            dotted_to_rel[d] for d in t["imports"] if d in dotted_to_rel
-        )
+        matched = sorted(dotted_to_rel[d] for d in t["imports"] if d in dotted_to_rel)
         imports_by_test[t["rel"]] = matched
         for rel in matched:
             tested_by.setdefault(rel, set()).add(t["rel"])
@@ -412,51 +415,84 @@ def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> lis
             f"recipe:\n{t['recipe'][:_RECIPE_CAP]}\n"
             f"scripts: {' '.join(refs.get(t['name'], []))}"
         )
-        make_rows.append(_row(
-            title=f"make {t['name']}", kind="make", rel_path=t["name"],
-            area="make", purpose=purpose, content=content, embed_fn=embed_fn,
-        ))
+        make_rows.append(
+            _row(
+                title=f"make {t['name']}",
+                kind="make",
+                rel_path=t["name"],
+                area="make",
+                purpose=purpose,
+                content=content,
+                embed_fn=embed_fn,
+            )
+        )
 
     rows = list(make_rows)
     for u in scripts:
-        rows.append(_row(
-            title=u["rel"], kind="script", rel_path=u["rel"], area=u["area"],
-            purpose=u["purpose"], content=_module_content(
-                u,
-                make_targets=sorted(make_by_script.get(u["rel"], [])),
-                tests=sorted(tested_by.get(u["rel"], [])),
-            ),
-            embed_fn=embed_fn,
-        ))
-    for u in tests:
-        rows.append(_row(
-            title=u["rel"], kind="test", rel_path=u["rel"], area=u["area"],
-            purpose=u["purpose"], content=_module_content(
-                u,
-                imports=sorted(
-                    d for d in u["imports"] if d in dotted_to_rel
+        rows.append(
+            _row(
+                title=u["rel"],
+                kind="script",
+                rel_path=u["rel"],
+                area=u["area"],
+                purpose=u["purpose"],
+                content=_module_content(
+                    u,
+                    make_targets=sorted(make_by_script.get(u["rel"], [])),
+                    tests=sorted(tested_by.get(u["rel"], [])),
                 ),
-            ),
-            embed_fn=embed_fn,
-        ))
+                embed_fn=embed_fn,
+            )
+        )
+    for u in tests:
+        rows.append(
+            _row(
+                title=u["rel"],
+                kind="test",
+                rel_path=u["rel"],
+                area=u["area"],
+                purpose=u["purpose"],
+                content=_module_content(
+                    u,
+                    imports=sorted(d for d in u["imports"] if d in dotted_to_rel),
+                ),
+                embed_fn=embed_fn,
+            )
+        )
     for u in mojo_units:
-        rows.append(_row(
-            title=u["rel"], kind="mojo", rel_path=u["rel"], area=u["area"],
-            purpose=u["purpose"], content=_mojo_content(u),
-            embed_fn=embed_fn,
-        ))
+        rows.append(
+            _row(
+                title=u["rel"],
+                kind="mojo",
+                rel_path=u["rel"],
+                area=u["area"],
+                purpose=u["purpose"],
+                content=_mojo_content(u),
+                embed_fn=embed_fn,
+            )
+        )
     for u in ts_units:
-        rows.append(_row(
-            title=u["rel"], kind="ts", rel_path=u["rel"], area=u["area"],
-            purpose=u["purpose"], content=_ts_content(u),
-            embed_fn=embed_fn,
-        ))
+        rows.append(
+            _row(
+                title=u["rel"],
+                kind="ts",
+                rel_path=u["rel"],
+                area=u["area"],
+                purpose=u["purpose"],
+                content=_ts_content(u),
+                embed_fn=embed_fn,
+            )
+        )
     return rows
 
 
-def _module_content(u: dict, *, make_targets: list[str] | None = None,
-                    tests: list[str] | None = None,
-                    imports: list[str] | None = None) -> str:
+def _module_content(
+    u: dict,
+    *,
+    make_targets: list[str] | None = None,
+    tests: list[str] | None = None,
+    imports: list[str] | None = None,
+) -> str:
     """Labeled content block for a py row: purpose/details/cli/defs plus the
     cross-file wiring (make targets, tested_by / imports)."""
     parts = [f"purpose: {u['purpose']}"]
@@ -480,13 +516,19 @@ def _module_content(u: dict, *, make_targets: list[str] | None = None,
     return "\n".join(parts)
 
 
-def _row(*, title: str, kind: str, rel_path: str, area: str,
-         purpose: str, content: str, embed_fn) -> tuple:
+def _row(
+    *, title: str, kind: str, rel_path: str, area: str, purpose: str, content: str, embed_fn
+) -> tuple:
     """One FTS row tuple, embedding via the doc_search helper (title +
     purpose + capped content as the vector basis — the purpose paragraph
     dominates, which is exactly the intent signal this index exists for)."""
     return (
-        title, kind, rel_path, area, purpose, content,
+        title,
+        kind,
+        rel_path,
+        area,
+        purpose,
+        content,
         rds._embedding_json(embed_fn, title, purpose, content),
     )
 
@@ -500,17 +542,15 @@ def _extract_make_unit(makefile: Path | None) -> dict | None:
     return {
         "rel": "Makefile",
         "mtime": mtime,
-        "hash": hashlib.blake2b(
-            text.encode("utf-8", errors="replace"), digest_size=8
-        ).hexdigest(),
+        "hash": hashlib.blake2b(text.encode("utf-8", errors="replace"), digest_size=8).hexdigest(),
         "targets": _parse_makefile(text),
     }
 
 
 # --- Mojo footprint (mojo_doc_script_search proposal) -----------------------
 
-def _iter_mojo_units(src_root: Path | None = None,
-                     tests_root: Path | None = None):
+
+def _iter_mojo_units(src_root: Path | None = None, tests_root: Path | None = None):
     """Yield (rel, abs_path, area) for every Mojo source/test module.
 
     rel is "<Mojo-parent-name>/src/<pkg>/<name>.mojo" (or /tests/), built
@@ -553,15 +593,17 @@ def _run_mojo_doc(path: Path, src_root: Path, mojo_bin: Path | None) -> str | No
         out = Path(fh.name)
     try:
         r = subprocess.run(  # noqa: S603  # repo-local venv binary, constant args
-            [str(binary), "doc", *_mojo_import_flags(src_root),
-             "-o", str(out), str(path)],
-            capture_output=True, text=True, timeout=90,
-            cwd=str(_REPO_ROOT), check=False,
+            [str(binary), "doc", *_mojo_import_flags(src_root), "-o", str(out), str(path)],
+            capture_output=True,
+            text=True,
+            timeout=90,
+            cwd=str(_REPO_ROOT),
+            check=False,
         )
         if r.returncode != 0 or not out.is_file():
             return None
         return out.read_text(encoding="utf-8", errors="replace")
-    except (OSError, subprocess.TimeoutExpired):
+    except OSError, subprocess.TimeoutExpired:
         return None
     finally:
         out.unlink(missing_ok=True)
@@ -581,8 +623,9 @@ def _unwrap_mojo_decl(doc_json: str | None) -> dict | None:
     return doc.get("decl") if isinstance(doc, dict) else None
 
 
-def _mojo_stored_doc(conn: sqlite3.Connection | None, rel: str,
-                     chash: str) -> tuple[str | None, bool]:
+def _mojo_stored_doc(
+    conn: sqlite3.Connection | None, rel: str, chash: str
+) -> tuple[str | None, bool]:
     """(doc_json, is_exact) for a unit from the sidecar cache: the exact
     content-hash copy when present, else the LAST stored copy (the regen
     fallback). (None, False) when never generated or the store errors."""
@@ -590,24 +633,28 @@ def _mojo_stored_doc(conn: sqlite3.Connection | None, rel: str,
         return None, False
     try:
         row = conn.execute(
-            "SELECT doc_json FROM script_search_mojo_doc "
-            "WHERE unit_path = ? AND content_hash = ?",
+            "SELECT doc_json FROM script_search_mojo_doc WHERE unit_path = ? AND content_hash = ?",
             (rel, chash),
         ).fetchone()
         if row is not None:
             return row[0], True
         old = conn.execute(
-            "SELECT doc_json FROM script_search_mojo_doc "
-            "WHERE unit_path = ?", (rel,),
+            "SELECT doc_json FROM script_search_mojo_doc WHERE unit_path = ?",
+            (rel,),
         ).fetchone()
         return (old[0], False) if old else (None, False)
     except sqlite3.Error:
         return None, False
 
 
-def _mojo_decl_cached(conn: sqlite3.Connection | None, rel: str, chash: str,
-                      path: Path, src_root: Path,
-                      mojo_bin: Path | None) -> dict | None:
+def _mojo_decl_cached(
+    conn: sqlite3.Connection | None,
+    rel: str,
+    chash: str,
+    path: Path,
+    src_root: Path,
+    mojo_bin: Path | None,
+) -> dict | None:
     """Parsed `mojo doc` decl for a unit, via the content-addressed sidecar
     cache (regenerate only when the source hash changed; a failed regen
     falls back to the LAST stored JSON for that unit). --check mode also
@@ -684,8 +731,9 @@ def _mojo_header_purpose(src: str) -> str:
     return " ".join(" ".join(para).split())
 
 
-def _extract_mojo_unit(rel: str, path: Path, area: str, decl: dict | None,
-                       mtime: float, chash: str) -> dict:
+def _extract_mojo_unit(
+    rel: str, path: Path, area: str, decl: dict | None, mtime: float, chash: str
+) -> dict:
     """One mojo unit dict, same shape contract as the py units."""
     try:
         src = path.read_text(encoding="utf-8", errors="replace")
@@ -697,9 +745,7 @@ def _extract_mojo_unit(rel: str, path: Path, area: str, decl: dict | None,
         # mojo doc splits the module docstring: first paragraph -> 'summary',
         # remainder -> 'description' (both must join, or the purpose loses
         # its opening sentence — the whole intent line for most modules).
-        purpose = (
-            (decl.get("summary") or "") + " " + (decl.get("description") or "")
-        ).strip()
+        purpose = ((decl.get("summary") or "") + " " + (decl.get("description") or "")).strip()
     if not purpose:
         purpose = _mojo_header_purpose(src)
     if not purpose:
@@ -733,8 +779,8 @@ def _mojo_content(u: dict) -> str:
 
 # --- TS footprint (corpus_uniformity S6) -------------------------------------
 
-def _iter_ts_units(src_root: Path | None = None,
-                   types_root: Path | None = None):
+
+def _iter_ts_units(src_root: Path | None = None, types_root: Path | None = None):
     """Yield (rel, abs_path, area) for every first-party TS module.
 
     rel is 'frontend/src/<dir>/<name>.ts' (or /types/), built from the
@@ -746,8 +792,7 @@ def _iter_ts_units(src_root: Path | None = None,
     prefix = src_root.parent.name  # 'frontend' live and in tmp trees alike
     if src_root.is_dir():
         for p in sorted(src_root.glob("**/*.ts")):
-            yield (f"{prefix}/src/{p.relative_to(src_root).as_posix()}", p,
-                   p.parent.name)
+            yield (f"{prefix}/src/{p.relative_to(src_root).as_posix()}", p, p.parent.name)
     if types_root.is_dir():
         for p in sorted(types_root.glob("*.ts")):
             yield f"{prefix}/types/{p.name}", p, "types"
@@ -763,10 +808,13 @@ def _run_ts_extract(path: Path, node_bin: str | None = None) -> str | None:
     try:
         r = subprocess.run(  # noqa: S603  # repo-local node + checked-in extractor
             [binary, str(TS_EXTRACTOR), str(path)],
-            capture_output=True, text=True, timeout=60,
-            cwd=str(_REPO_ROOT), check=False,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            cwd=str(_REPO_ROOT),
+            check=False,
         )
-    except (OSError, subprocess.TimeoutExpired):
+    except OSError, subprocess.TimeoutExpired:
         return None
     if r.returncode != 0 or not r.stdout.strip():
         return None
@@ -786,31 +834,32 @@ def _unwrap_ts_decl(doc_json: str | None) -> dict | None:
     return doc if isinstance(doc, dict) and "exports" in doc else None
 
 
-def _ts_stored_doc(conn: sqlite3.Connection | None, rel: str,
-                   chash: str) -> tuple[str | None, bool]:
+def _ts_stored_doc(
+    conn: sqlite3.Connection | None, rel: str, chash: str
+) -> tuple[str | None, bool]:
     """(doc_json, is_exact) for a TS unit from the sidecar cache — the
     exact-hash copy, else the LAST stored one (regen fallback)."""
     if conn is None:
         return None, False
     try:
         row = conn.execute(
-            "SELECT doc_json FROM script_search_ts_doc "
-            "WHERE unit_path = ? AND content_hash = ?",
+            "SELECT doc_json FROM script_search_ts_doc WHERE unit_path = ? AND content_hash = ?",
             (rel, chash),
         ).fetchone()
         if row is not None:
             return row[0], True
         old = conn.execute(
-            "SELECT doc_json FROM script_search_ts_doc "
-            "WHERE unit_path = ?", (rel,),
+            "SELECT doc_json FROM script_search_ts_doc WHERE unit_path = ?",
+            (rel,),
         ).fetchone()
         return (old[0], False) if old else (None, False)
     except sqlite3.Error:
         return None, False
 
 
-def _ts_decl_cached(conn: sqlite3.Connection | None, rel: str, chash: str,
-                    path: Path, node_bin: str | None) -> dict | None:
+def _ts_decl_cached(
+    conn: sqlite3.Connection | None, rel: str, chash: str, path: Path, node_bin: str | None
+) -> dict | None:
     """Parsed extractor decl for a TS unit, content-addressed exactly like
     _mojo_decl_cached (regen only on hash change; failed regen falls back
     to the LAST stored JSON; --check also populates the cache)."""
@@ -877,8 +926,9 @@ def _ts_header_purpose(src: str) -> str:
     return " ".join(" ".join(para).split())
 
 
-def _extract_ts_unit(rel: str, path: Path, area: str, decl: dict | None,
-                     mtime: float, chash: str) -> dict:
+def _extract_ts_unit(
+    rel: str, path: Path, area: str, decl: dict | None, mtime: float, chash: str
+) -> dict:
     """One ts unit dict, same shape contract as the py/mojo units."""
     try:
         src = path.read_text(encoding="utf-8", errors="replace")
@@ -942,16 +992,17 @@ def _backup_last_good_index(db_path: Path) -> None:
     try:
         conn = connect(db_path, read_only=True)
         try:
-            rows = conn.execute(
-                "SELECT COUNT(*) FROM script_search").fetchone()[0]
+            rows = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
         finally:
             conn.close()
     except sqlite3.Error:
         rows = 0
     if not rows:
-        print(f"WARNING: {db_path.name} empty ({rows} rows) — last-good "
-              "backup skipped (recovery point kept; rebuild continues)",
-              file=sys.stderr)
+        print(
+            f"WARNING: {db_path.name} empty ({rows} rows) — last-good "
+            "backup skipped (recovery point kept; rebuild continues)",
+            file=sys.stderr,
+        )
         return
     dests = [
         (db_path, Path(BACKUP_DIR) / "script_search_backup.db"),
@@ -959,13 +1010,19 @@ def _backup_last_good_index(db_path: Path) -> None:
     try:
         Path(BACKUP_DIR).mkdir(parents=True, exist_ok=True)
     except OSError:
-        print(f"WARNING: cannot create backup dir {BACKUP_DIR} "
-              "(recovery point skipped; rebuild continues)", file=sys.stderr)
+        print(
+            f"WARNING: cannot create backup dir {BACKUP_DIR} "
+            "(recovery point skipped; rebuild continues)",
+            file=sys.stderr,
+        )
         return
     for src, dest in dests:
         if src.exists() and not rds._backup_file(src, dest):
-            print(f"WARNING: could not back up {src.name} to {dest} "
-                  "(recovery point skipped; rebuild continues)", file=sys.stderr)
+            print(
+                f"WARNING: could not back up {src.name} to {dest} "
+                "(recovery point skipped; rebuild continues)",
+                file=sys.stderr,
+            )
 
 
 def _migrate_schema(conn: sqlite3.Connection) -> bool:
@@ -982,9 +1039,19 @@ def _migrate_schema(conn: sqlite3.Connection) -> bool:
     return True
 
 
-def _collect_units(helpers_root, tests_root, app_py, makefile, conn=None,
-                   mojo_src=None, mojo_tests=None, mojo_bin=None,
-                   ts_src=None, ts_types=None, node_bin=None):
+def _collect_units(
+    helpers_root,
+    tests_root,
+    app_py,
+    makefile,
+    conn=None,
+    mojo_src=None,
+    mojo_tests=None,
+    mojo_bin=None,
+    ts_src=None,
+    ts_types=None,
+    node_bin=None,
+):
     """Extract every unit: py files + the Makefile + Mojo sources/tests +
     frontend TS modules. Returns (py_units, make_unit, units_meta) where
     units_meta keys the --check/incremental fingerprint. Mojo and TS units
@@ -1017,8 +1084,7 @@ def _collect_units(helpers_root, tests_root, app_py, makefile, conn=None,
             continue
         chash = hashlib.blake2b(src_bytes, digest_size=8).hexdigest()
         decl = _mojo_decl_cached(conn, rel, chash, path, src_root, mojo_bin)
-        py_units.append(
-            _extract_mojo_unit(rel, path, area, decl, mtime, chash))
+        py_units.append(_extract_mojo_unit(rel, path, area, decl, mtime, chash))
         units_meta[rel] = (mtime, chash)
     ts_src_root = Path(ts_src) if ts_src else base / "frontend" / "src"
     ts_types_root = Path(ts_types) if ts_types else base / "frontend" / "types"
@@ -1030,8 +1096,7 @@ def _collect_units(helpers_root, tests_root, app_py, makefile, conn=None,
             continue
         chash = hashlib.blake2b(src_bytes, digest_size=8).hexdigest()
         decl = _ts_decl_cached(conn, rel, chash, path, node_bin)
-        py_units.append(
-            _extract_ts_unit(rel, path, area, decl, mtime, chash))
+        py_units.append(_extract_ts_unit(rel, path, area, decl, mtime, chash))
         units_meta[rel] = (mtime, chash)
     return py_units, make_unit, units_meta
 
@@ -1041,8 +1106,12 @@ def _unit_bases(helpers_root, tests_root, app_py, makefile) -> list[Path]:
     etc.) back to an abs path — the PARENTS of the four corpus roots, so
     monkeypatched tmp trees resolve like the live tree."""
     bases = []
-    for p in (helpers_root or HELPERS_ROOT, tests_root or TESTS_ROOT,
-              app_py or APP_PY, makefile or MAKEFILE):
+    for p in (
+        helpers_root or HELPERS_ROOT,
+        tests_root or TESTS_ROOT,
+        app_py or APP_PY,
+        makefile or MAKEFILE,
+    ):
         base = Path(p).parent
         if base not in bases:
             bases.append(base)
@@ -1050,19 +1119,27 @@ def _unit_bases(helpers_root, tests_root, app_py, makefile) -> list[Path]:
 
 
 def _stored_meta(conn: sqlite3.Connection) -> dict[str, tuple[float, str]]:
-    return {r[0]: (r[1], r[2]) for r in conn.execute(
-        "SELECT unit_path, mtime, content_hash FROM script_search_meta")}
+    return {
+        r[0]: (r[1], r[2])
+        for r in conn.execute("SELECT unit_path, mtime, content_hash FROM script_search_meta")
+    }
 
 
-def _write_full(conn: sqlite3.Connection, all_rows: list[tuple],
-                units_meta: dict, model_label: str | None, embed_dims: int) -> bool:
+def _write_full(
+    conn: sqlite3.Connection,
+    all_rows: list[tuple],
+    units_meta: dict,
+    model_label: str | None,
+    embed_dims: int,
+) -> bool:
     """Full rewrite (the convergence pass). Returns content_changed — the
     zero-churn stat (the maint_full_zero_churn lesson); tuple() each stored
     row because sqlite3.Row never == a plain tuple."""
     from collections import Counter
 
     stored = [
-        tuple(r) for r in conn.execute(
+        tuple(r)
+        for r in conn.execute(
             f"SELECT {_ROW_COLS} FROM script_search"  # noqa: S608  # interpolates the fixed column-list constant only
         )
     ]
@@ -1085,26 +1162,28 @@ def _write_full(conn: sqlite3.Connection, all_rows: list[tuple],
     return content_changed
 
 
-def _write_incremental(conn: sqlite3.Connection, all_rows: list[tuple],
-                       units_meta: dict, stored_meta: dict,
-                       model_label: str | None, embed_dims: int) -> tuple[int, int]:
+def _write_incremental(
+    conn: sqlite3.Connection,
+    all_rows: list[tuple],
+    units_meta: dict,
+    stored_meta: dict,
+    model_label: str | None,
+    embed_dims: int,
+) -> tuple[int, int]:
     """Row-keyed diff write: only titles whose tuple moved get
     DELETE+INSERT; meta is refreshed for changed units and GC'd for
     vanished ones. Returns (upserts, deletes)."""
     stored_by_title: dict[str, tuple] = {
-        r[0]: tuple(r) for r in conn.execute(
+        r[0]: tuple(r)
+        for r in conn.execute(
             f"SELECT {_ROW_COLS} FROM script_search"  # noqa: S608  # interpolates the fixed column-list constant only
         )
     }
     new_by_title = {r[0]: r for r in all_rows}
     to_delete = [t for t in stored_by_title if t not in new_by_title]
-    to_upsert = [
-        t for t, row in new_by_title.items()
-        if stored_by_title.get(t) != row
-    ]
+    to_upsert = [t for t, row in new_by_title.items() if stored_by_title.get(t) != row]
     changed_units = [
-        u for u in units_meta
-        if u not in stored_meta or stored_meta[u][1] != units_meta[u][1]
+        u for u in units_meta if u not in stored_meta or stored_meta[u][1] != units_meta[u][1]
     ]
     with conn:
         for t in to_delete:
@@ -1129,10 +1208,16 @@ def _write_incremental(conn: sqlite3.Connection, all_rows: list[tuple],
     return len(to_upsert), len(to_delete)
 
 
-def rebuild(db_path: Path | None = None, write: bool = True, incremental: bool = False,
-            embed_fn=None, helpers_root: Path | None = None,
-            tests_root: Path | None = None, app_py: Path | None = None,
-            makefile: Path | None = None) -> dict:
+def rebuild(
+    db_path: Path | None = None,
+    write: bool = True,
+    incremental: bool = False,
+    embed_fn=None,
+    helpers_root: Path | None = None,
+    tests_root: Path | None = None,
+    app_py: Path | None = None,
+    makefile: Path | None = None,
+) -> dict:
     """Rebuild the script_search FTS index. Returns a stats dict."""
     db_path = Path(db_path) if db_path is not None else SCRIPT_DB
     conn = connect_script_db(db_path)
@@ -1156,7 +1241,11 @@ def rebuild(db_path: Path | None = None, write: bool = True, incremental: bool =
                 embed_fn = CachedEmbed(embed_fn, model_label, conn, source="script")
 
         py_units, make_unit, units_meta = _collect_units(
-            helpers_root, tests_root, app_py, makefile, conn=conn,
+            helpers_root,
+            tests_root,
+            app_py,
+            makefile,
+            conn=conn,
         )
         all_rows = _compose_rows(py_units, make_unit, embed_fn)
 
@@ -1181,8 +1270,7 @@ def rebuild(db_path: Path | None = None, write: bool = True, incremental: bool =
         stale_new = sorted(u for u in units_meta if u not in stored_meta)
         stale_deleted = sorted(u for u in stored_meta if u not in units_meta)
         stale_changed = sorted(
-            u for u in units_meta
-            if u in stored_meta and stored_meta[u][1] != units_meta[u][1]
+            u for u in units_meta if u in stored_meta and stored_meta[u][1] != units_meta[u][1]
         )
         stats["stale_new"] = stale_new
         stats["stale_changed"] = stale_changed
@@ -1203,8 +1291,7 @@ def rebuild(db_path: Path | None = None, write: bool = True, incremental: bool =
             stats["content_changed"] = _write_full(
                 conn, all_rows, units_meta, model_label, embed_dims
             )
-            stats["indexed"] = conn.execute(
-                "SELECT COUNT(*) FROM script_search").fetchone()[0]
+            stats["indexed"] = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
             _backup_last_good_index(db_path)
             return stats
 
@@ -1215,8 +1302,7 @@ def rebuild(db_path: Path | None = None, write: bool = True, incremental: bool =
         stats["upserts"], stats["deletes"] = _write_incremental(
             conn, all_rows, units_meta, stored_meta, model_label, embed_dims
         )
-        stats["indexed"] = conn.execute(
-            "SELECT COUNT(*) FROM script_search").fetchone()[0]
+        stats["indexed"] = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
         return stats
     finally:
         conn.close()
@@ -1229,17 +1315,19 @@ def _print_staleness(stats: dict) -> None:
     changed = stats.get("stale_changed", [])
     deleted = stats.get("stale_deleted", [])
     if not (new or changed or deleted):
-        print(f"index state: FRESH ({stats.get('total_units', 0)} units unchanged)",
-              file=sys.stderr)
+        print(
+            f"index state: FRESH ({stats.get('total_units', 0)} units unchanged)", file=sys.stderr
+        )
         return
     print(
-        f"index state: STALE — {len(changed)} changed, {len(new)} new, "
-        f"{len(deleted)} deleted",
+        f"index state: STALE — {len(changed)} changed, {len(new)} new, {len(deleted)} deleted",
         file=sys.stderr,
     )
-    drift = ([(u, "changed") for u in changed]
-             + [(u, "new") for u in new]
-             + [(u, "deleted") for u in deleted])
+    drift = (
+        [(u, "changed") for u in changed]
+        + [(u, "new") for u in new]
+        + [(u, "deleted") for u in deleted]
+    )
     for u, kind in drift[:10]:
         print(f"  {kind:8s} {u}", file=sys.stderr)
     if len(drift) > 10:
@@ -1248,6 +1336,7 @@ def _print_staleness(stats: dict) -> None:
 
 
 # --- read-path gates (script_query CLI; an /api endpoint would reuse these) ---
+
 
 def script_index_ready(conn: sqlite3.Connection) -> bool:
     """True when the script_search table exists (at least one rebuild ran)."""
@@ -1315,8 +1404,7 @@ def _scan_ts_units(base: Path) -> set[str]:
     return units
 
 
-def _units_current(meta: dict[str, float], on_disk: set[str],
-                   bases: list[Path]) -> bool:
+def _units_current(meta: dict[str, float], on_disk: set[str], bases: list[Path]) -> bool:
     """True when every on-disk unit's mtime matches the stored meta."""
     for rel in on_disk:
         prev = meta.get(rel)
@@ -1328,17 +1416,19 @@ def _units_current(meta: dict[str, float], on_disk: set[str],
     return True
 
 
-def script_index_stale(conn: sqlite3.Connection, *,
-                       helpers_root: Path | None = None,
-                       tests_root: Path | None = None,
-                       app_py: Path | None = None,
-                       makefile: Path | None = None) -> bool:
+def script_index_stale(
+    conn: sqlite3.Connection,
+    *,
+    helpers_root: Path | None = None,
+    tests_root: Path | None = None,
+    app_py: Path | None = None,
+    makefile: Path | None = None,
+) -> bool:
     """True when the corpus differs from script_search_meta (unit set or
     mtimes) — the cheap read-path staleness probe (~190 stats). Any error
     counts as stale (safe side)."""
     try:
-        meta = {r[0]: r[1] for r in conn.execute(
-            "SELECT unit_path, mtime FROM script_search_meta")}
+        meta = {r[0]: r[1] for r in conn.execute("SELECT unit_path, mtime FROM script_search_meta")}
     except sqlite3.Error:
         return True
     if not meta:
@@ -1351,6 +1441,7 @@ def script_index_stale(conn: sqlite3.Connection, *,
 
 
 # --- query core (shared by helpers/misc/script_query; future /api/scripts) ---
+
 
 def _script_stored_embed_dims(conn: sqlite3.Connection) -> int | None:
     """Dims of the first stored script_search embedding, or None when empty.
@@ -1369,12 +1460,14 @@ def _script_stored_embed_dims(conn: sqlite3.Connection) -> int | None:
         return None
     try:
         vec = json.loads(row[0])
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return None
     return len(vec) if isinstance(vec, list) and vec else None
 
 
-def _cosine_leg(conn: sqlite3.Connection, q: str) -> tuple[list[tuple[int, float]], dict[int, float]]:
+def _cosine_leg(
+    conn: sqlite3.Connection, q: str
+) -> tuple[list[tuple[int, float]], dict[int, float]]:
     """Cosine ranking: (scored [(rowid, sim)] sorted desc, sims map).
 
     ([], {}) when the embedder is unavailable or the stored dims mismatch —
@@ -1391,12 +1484,11 @@ def _cosine_leg(conn: sqlite3.Connection, q: str) -> tuple[list[tuple[int, float
     scored: list[tuple[int, float]] = []
     norm_q = sum(x * x for x in q_vec) ** 0.5 or 1.0
     for rid, emb in conn.execute(
-        "SELECT rowid, embedding FROM script_search "
-        "WHERE embedding IS NOT NULL AND embedding != ''"
+        "SELECT rowid, embedding FROM script_search WHERE embedding IS NOT NULL AND embedding != ''"
     ):
         try:
             vec = json.loads(emb)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         if not isinstance(vec, list) or len(vec) != len(q_vec):
             continue
@@ -1408,8 +1500,9 @@ def _cosine_leg(conn: sqlite3.Connection, q: str) -> tuple[list[tuple[int, float
     return scored, sims
 
 
-def _rows_by_rid(conn: sqlite3.Connection, kind: str | None,
-                 area: str | None) -> dict[int, sqlite3.Row]:
+def _rows_by_rid(
+    conn: sqlite3.Connection, kind: str | None, area: str | None
+) -> dict[int, sqlite3.Row]:
     """rowid -> row map for cosine-only candidates, filtered like the page
     (UNINDEXED kind/area can't take part in MATCH, but a plain Python-side
     predicate is free at this scale)."""
@@ -1417,14 +1510,18 @@ def _rows_by_rid(conn: sqlite3.Connection, kind: str | None,
     def _match(r) -> bool:
         return (kind is None or r[2] == kind) and (area is None or r[4] == area)
 
-    return {r[0]: r for r in conn.execute(
-        "SELECT rowid, title, kind, rel_path, area, purpose, content "
-        "FROM script_search"
-    ) if _match(r)}
+    return {
+        r[0]: r
+        for r in conn.execute(
+            "SELECT rowid, title, kind, rel_path, area, purpose, content FROM script_search"
+        )
+        if _match(r)
+    }
 
 
-def _fuse_scores(candidates: list[tuple[int, sqlite3.Row, str]],
-                 cos_rank: dict[int, int] | None) -> list[tuple[float, sqlite3.Row, str]]:
+def _fuse_scores(
+    candidates: list[tuple[int, sqlite3.Row, str]], cos_rank: dict[int, int] | None
+) -> list[tuple[float, sqlite3.Row, str]]:
     """RRF-fuse (bm25_pos, row, snippet) candidates into sorted hits
     (rds._RRF_K, same formula as search_docs)."""
     worst = len(cos_rank) if cos_rank else 0
@@ -1441,10 +1538,17 @@ def _fuse_scores(candidates: list[tuple[int, sqlite3.Row, str]],
     return fused
 
 
-def _fused_hits(conn: sqlite3.Connection, page: list[sqlite3.Row],
-                scored: list[tuple[int, float]], cos_rank: dict[int, int] | None,
-                *, kind: str | None, area: str | None,
-                limit: int, offset: int) -> list[tuple[float, sqlite3.Row, str]]:
+def _fused_hits(
+    conn: sqlite3.Connection,
+    page: list[sqlite3.Row],
+    scored: list[tuple[int, float]],
+    cos_rank: dict[int, int] | None,
+    *,
+    kind: str | None,
+    area: str | None,
+    limit: int,
+    offset: int,
+) -> list[tuple[float, sqlite3.Row, str]]:
     """Final hit page: union the BM25 page with cosine-only candidates
     (content-head snippets — no lexical match to mark), fuse, window by
     offset+limit. The fused head is pool-independent, so pagination stays
@@ -1465,11 +1569,10 @@ def _fused_hits(conn: sqlite3.Connection, page: list[sqlite3.Row],
             head = " ".join((row[6] or "").split())[:200]
             candidates.append((len(page) + extra_pos, row, head))
             extra_pos += 1
-    return _fuse_scores(candidates, cos_rank)[offset: offset + limit]
+    return _fuse_scores(candidates, cos_rank)[offset : offset + limit]
 
 
-def _hit_dicts(hits: list[tuple[float, sqlite3.Row, str]],
-               sims: dict[int, float]) -> list[dict]:
+def _hit_dicts(hits: list[tuple[float, sqlite3.Row, str]], sims: dict[int, float]) -> list[dict]:
     """Shape fused hits into result dicts — keys always present (null when
     no cosine leg) so future API surfaces get uniform shapes (the
     TS-contract lesson)."""
@@ -1488,9 +1591,16 @@ def _hit_dicts(hits: list[tuple[float, sqlite3.Row, str]],
     ]
 
 
-def search_scripts(conn: sqlite3.Connection, q: str, limit: int = 25,
-                   offset: int = 0, *, kind: str | None = None,
-                   area: str | None = None, hybrid: bool = True) -> dict:
+def search_scripts(
+    conn: sqlite3.Connection,
+    q: str,
+    limit: int = 25,
+    offset: int = 0,
+    *,
+    kind: str | None = None,
+    area: str | None = None,
+    hybrid: bool = True,
+) -> dict:
     """Hybrid BM25 + cosine search over script_search. Never raises.
 
     Same candidate-union + RRF design as rebuild_doc_search.search_docs
@@ -1524,8 +1634,14 @@ def search_scripts(conn: sqlite3.Connection, q: str, limit: int = 25,
     scored, sims = _cosine_leg(conn, q) if hybrid else ([], {})
     cos_rank = {rid: pos for pos, (rid, _s) in enumerate(scored)} if scored else None
     hits = _fused_hits(
-        conn, page, scored, cos_rank, kind=kind, area=area,
-        limit=limit, offset=offset,
+        conn,
+        page,
+        scored,
+        cos_rank,
+        kind=kind,
+        area=area,
+        limit=limit,
+        offset=offset,
     )
     mode = "hybrid" if cos_rank is not None else "bm25"
     return {"mode": mode, "results": _hit_dicts(hits, sims)}
@@ -1534,24 +1650,25 @@ def search_scripts(conn: sqlite3.Connection, q: str, limit: int = 25,
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument(
-        "--db", default=str(SCRIPT_DB),
+        "--db",
+        default=str(SCRIPT_DB),
         help="Path to the script_search sidecar (default: memory/script_search.db).",
     )
     p.add_argument(
-        "--check", action="store_true",
+        "--check",
+        action="store_true",
         help="Dry-run: count units/rows, report index freshness "
-             "(changed/new/deleted), no writes. Exits 1 when stale.",
+        "(changed/new/deleted), no writes. Exits 1 when stale.",
     )
     p.add_argument(
-        "--incremental", action="store_true",
+        "--incremental",
+        action="store_true",
         help="Incremental rebuild (row-keyed diff; unchanged rows not rewritten).",
     )
     args = p.parse_args(argv)
 
     try:
-        stats = rebuild(
-            Path(args.db), write=not args.check, incremental=args.incremental
-        )
+        stats = rebuild(Path(args.db), write=not args.check, incremental=args.incremental)
     except Exception as exc:  # pragma: no cover - defensive
         print(f"ERROR: {exc}", file=sys.stderr)
         return 1

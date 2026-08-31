@@ -1,4 +1,5 @@
 """Unit tests for helpers/pdf/pdf_local.py (no network calls)."""
+
 from __future__ import annotations
 
 import sys
@@ -63,10 +64,11 @@ def test_normalize_headings_strips_wrappers():
 
 
 def test_normalize_headings_splits_sector_glue():
-    out = _normalize_headings("# Engineering & Capital Goods Inox India | Small Cap | Engineering & Capita Goods")
+    out = _normalize_headings(
+        "# Engineering & Capital Goods Inox India | Small Cap | Engineering & Capita Goods"
+    )
     assert out == (
-        "## Engineering & Capital Goods\n"
-        "## Inox India | Small Cap | Engineering & Capita Goods"
+        "## Engineering & Capital Goods\n## Inox India | Small Cap | Engineering & Capita Goods"
     )
 
 
@@ -90,10 +92,7 @@ def test_normalize_headings_no_split_for_legal_suffix_remainder():
 
 def test_normalize_headings_rescues_bold_body_heading():
     out = _normalize_headings("**Logistics** **<u>Delhivery | Large Cap | Logistics</u>**")
-    assert out == (
-        "## Logistics\n"
-        "## Delhivery | Large Cap | Logistics"
-    )
+    assert out == ("## Logistics\n## Delhivery | Large Cap | Logistics")
 
 
 def test_normalize_headings_leaves_plain_bold_alone():
@@ -154,11 +153,14 @@ def test_convert_refuses_scanned_pdf(tmp_path):
 
 
 def test_convert_pages_shape(tmp_path):
-    pdf = _text_pdf(tmp_path / "doc.pdf", [
-        "The Chatter: Test Edition",
-        "Welcome body text here, long enough to matter for the guard.",
-        "More body text to keep the average character count safely above.",
-    ])
+    pdf = _text_pdf(
+        tmp_path / "doc.pdf",
+        [
+            "The Chatter: Test Edition",
+            "Welcome body text here, long enough to matter for the guard.",
+            "More body text to keep the average character count safely above.",
+        ],
+    )
     pages = convert(pdf, tmp_path / "imgs")
     assert len(pages) == 1
     page = pages[0]

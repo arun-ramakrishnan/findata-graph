@@ -1,4 +1,5 @@
 """Unit tests for helpers/pdf/verify_extraction.py (no network calls)."""
+
 from __future__ import annotations
 
 import json
@@ -46,9 +47,12 @@ def _write_outputs(out_dir: Path, stem: str, page_texts: list[str]) -> Path:
     """Minimal <stem>.md/.json pair shaped like pdf_conv_md output."""
     out_dir.mkdir(parents=True, exist_ok=True)
     pages = [
-        {"prunedResult": None,
-         "markdown": {"text": t, "images": {}},
-         "outputImages": [], "inputImage": None}
+        {
+            "prunedResult": None,
+            "markdown": {"text": t, "images": {}},
+            "outputImages": [],
+            "inputImage": None,
+        }
         for t in page_texts
     ]
     (out_dir / f"{stem}.json").write_text(json.dumps(pages))
@@ -57,9 +61,11 @@ def _write_outputs(out_dir: Path, stem: str, page_texts: list[str]) -> Path:
     return out_dir / f"{stem}.md"
 
 
-FILLER = ("lorem ipsum dolor sit amet consectetur adipiscing elit sed do "
-          "eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim "
-          "ad minim veniam quis nostrud exercitation ullamco laboris nisi ")
+FILLER = (
+    "lorem ipsum dolor sit amet consectetur adipiscing elit sed do "
+    "eiusmod tempor incididunt ut labore et dolore magna aliqua ut enim "
+    "ad minim veniam quis nostrud exercitation ullamco laboris nisi "
+)
 
 
 def _content_page(extra: str = "") -> str:
@@ -174,10 +180,17 @@ def test_md_json_ignores_image_markup_differences(tmp_path):
     # wikilink instead — image markup must not count as a mismatch
     body = _content_page()
     pdf = _text_pdf(tmp_path / "doc.pdf", [body])
-    pages = [{"prunedResult": None,
-              "markdown": {"text": body + '\n<div style="text-align: center;"><img src="imgs/img1"/></div>',
-                           "images": {"imgs/img1": "http://x/img1.jpeg"}},
-              "outputImages": [], "inputImage": None}]
+    pages = [
+        {
+            "prunedResult": None,
+            "markdown": {
+                "text": body + '\n<div style="text-align: center;"><img src="imgs/img1"/></div>',
+                "images": {"imgs/img1": "http://x/img1.jpeg"},
+            },
+            "outputImages": [],
+            "inputImage": None,
+        }
+    ]
     (tmp_path / "out").mkdir(parents=True)
     (tmp_path / "out" / "doc.json").write_text(json.dumps(pages))
     (tmp_path / "out" / "doc.md").write_text(

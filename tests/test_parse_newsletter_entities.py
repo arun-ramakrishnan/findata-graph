@@ -6,6 +6,7 @@ making the existence check atomic with the write and consistent with the
 ``graph_edges`` writes in the same function. These tests pin that idempotency
 contract without running the full parse_newsletter pipeline.
 """
+
 from __future__ import annotations
 
 import re
@@ -54,23 +55,22 @@ class TestCreateEntityIdempotent:
         conn.execute("INSERT INTO entities(name, entity_type) VALUES ('Tech', 'sector')")
         conn.commit()
         try:
-            pn.create_entity(conn, "Acme Corp", "Tech", "ACME", apply=True,
-                             sector_entities={"Tech"})
+            pn.create_entity(
+                conn, "Acme Corp", "Tech", "ACME", apply=True, sector_entities={"Tech"}
+            )
             # Second call: must not raise (the old SELECT-then-INSERT was racy;
             # INSERT OR IGNORE is atomic + idempotent).
-            pn.create_entity(conn, "Acme Corp", "Tech", "ACME", apply=True,
-                             sector_entities={"Tech"})
+            pn.create_entity(
+                conn, "Acme Corp", "Tech", "ACME", apply=True, sector_entities={"Tech"}
+            )
             conn.commit()
             # Exactly one entity row.
-            n = conn.execute(
-                "SELECT COUNT(*) FROM entities WHERE name='Acme Corp'"
-            ).fetchone()[0]
+            n = conn.execute("SELECT COUNT(*) FROM entities WHERE name='Acme Corp'").fetchone()[0]
             assert n == 1
             # Exactly one part_of / one has_company edge (idempotent via
             # UNIQUE + INSERT OR IGNORE on graph_edges too).
             n_part = conn.execute(
-                "SELECT COUNT(*) FROM graph_edges WHERE source='Acme Corp' "
-                "AND edge_type='part_of'"
+                "SELECT COUNT(*) FROM graph_edges WHERE source='Acme Corp' AND edge_type='part_of'"
             ).fetchone()[0]
             n_has = conn.execute(
                 "SELECT COUNT(*) FROM graph_edges WHERE target='Acme Corp' "
@@ -90,12 +90,14 @@ class TestCreateEntityIdempotent:
         conn.executescript(_schema_sql())
         conn.commit()
         try:
-            pn.create_entity(conn, "Solo Co", "GhostSector", "SOLO", apply=True,
-                             sector_entities=set())
+            pn.create_entity(
+                conn, "Solo Co", "GhostSector", "SOLO", apply=True, sector_entities=set()
+            )
             conn.commit()
-            assert conn.execute(
-                "SELECT COUNT(*) FROM entities WHERE name='Solo Co'"
-            ).fetchone()[0] == 1
+            assert (
+                conn.execute("SELECT COUNT(*) FROM entities WHERE name='Solo Co'").fetchone()[0]
+                == 1
+            )
             assert conn.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0] == 0
         finally:
             conn.close()
@@ -108,24 +110,21 @@ class TestRenderStubShape:
     the D3 normalization pass fixed across the existing corpus."""
 
     def test_title_is_unquoted(self):
-        s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", "ACME",
-                           "companies/tech/acme_corp")
-        assert 'title: Acme Corp\n' in s
+        s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", "ACME", "companies/tech/acme_corp")
+        assert "title: Acme Corp\n" in s
         assert 'title: "Acme Corp"' not in s, "title must not be quoted"
 
     def test_unlisted_company_gets_listed_false(self):
         """ticker:null marks an unlisted company — render it explicit with
         `listed: false` so the listed_missing validator check doesn't fire."""
-        s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", None,
-                           "companies/tech/acme_corp")
+        s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", None, "companies/tech/acme_corp")
         assert "ticker: null\n" in s
         assert "listed: false\n" in s
 
     def test_listed_company_has_no_listed_field(self):
         """A company WITH a ticker must NOT emit `listed:` (listed:true is
         implicit; the field exists only to mark the unlisted category)."""
-        s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", "ACME",
-                           "companies/tech/acme_corp")
+        s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", "ACME", "companies/tech/acme_corp")
         assert "ticker: ACME\n" in s
         assert "\nlisted:" not in s, "listed field must not appear for a listed company"
 
@@ -134,20 +133,17 @@ class TestRenderStubShape:
         fatals static-checks until hand-fixed. null is the schema-legal
         'unknown'; the enrichment flow upgrades it once a cap is known."""
         for ticker in ("ACME", None):
-            s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", ticker,
-                               "companies/tech/acme_corp")
+            s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", ticker, "companies/tech/acme_corp")
             assert "market_cap: null\n" in s
 
     def test_stub_is_born_okf_machine_confirmed(self):
         """OKF §5.2: provenance is written where it is generated — render_stub
         stamps `generated` (actor parse_newsletter.py/v1) + `stale_after`, so
         fresh stubs enter the census as machine-confirmed, not unverified."""
-        s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", None,
-                           "companies/tech/acme_corp")
+        s = pn.render_stub("Acme Corp", "Acme_Corp", "Tech", None, "companies/tech/acme_corp")
         assert "by: parse_newsletter.py/v1" in s
         assert re.search(r"^  at: '\d{4}-\d{2}-\d{2}T", s, re.M)
         assert re.search(r"^stale_after: '\d{4}-\d{2}-\d{2}'$", s, re.M)
-
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +170,9 @@ def test_normalize_name_strips_hyphens():
 
 
 def test_normalize_name_idempotent():
-    assert pn.normalize_name(pn.normalize_name("Foo & Bar Ltd")) == pn.normalize_name("Foo & Bar Ltd")
+    assert pn.normalize_name(pn.normalize_name("Foo & Bar Ltd")) == pn.normalize_name(
+        "Foo & Bar Ltd"
+    )
 
 
 def test_normalize_name_leading_digit():
@@ -251,8 +249,7 @@ def test_extract_companies_no_cap_or_pipe():
 
 def test_extract_companies_dedup():
     content = (
-        "## Reliance Industries | Large Cap | Energy\n\n"
-        "## Reliance Industries | Mid Cap | Energy\n"
+        "## Reliance Industries | Large Cap | Energy\n\n## Reliance Industries | Mid Cap | Energy\n"
     )
     results = list(pn.extract_companies(content))
     # classify dedups, but extract yields both; check both

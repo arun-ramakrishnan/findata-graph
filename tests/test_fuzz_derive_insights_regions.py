@@ -12,6 +12,7 @@ mixes of filler and EVERY auto-marker flavor the vault carries
 markers), plus the incident's exact interleave (a KF block nested inside
 a chatter region).
 """
+
 from __future__ import annotations
 
 import sys
@@ -30,37 +31,47 @@ from helpers.graph import derive_insights as di  # noqa: E402
 # House printable-ish text strategy.
 _TEXT = st.text(
     st.characters(blacklist_categories=("Cs",), blacklist_characters="\r"),
-    min_size=0, max_size=80,
+    min_size=0,
+    max_size=80,
 )
 # Every auto-marker flavor the renderers can meet in a note — plus
 # near-miss marker-ish comments to stress _AUTO_MARKER_RE itself.
-_MARKERISH = st.sampled_from([
-    "<!-- BEGIN auto yfinance (enrich_from_yfinance.py) -->",
-    "<!-- END auto profile -->",
-    "<!-- BEGIN auto key figures (other tool) -->",
-    "<!-- BEGIN auto -->",
-    "<!--   END   auto something -->",
-])
+_MARKERISH = st.sampled_from(
+    [
+        "<!-- BEGIN auto yfinance (enrich_from_yfinance.py) -->",
+        "<!-- END auto profile -->",
+        "<!-- BEGIN auto key figures (other tool) -->",
+        "<!-- BEGIN auto -->",
+        "<!--   END   auto something -->",
+    ]
+)
 _ATOM = st.one_of(
     _TEXT,
-    st.just(di._BEGIN), st.just(di._END),
-    st.just(di._KF_BEGIN), st.just(di._KF_END),
+    st.just(di._BEGIN),
+    st.just(di._END),
+    st.just(di._KF_BEGIN),
+    st.just(di._KF_END),
     _MARKERISH,
 )
-_NOTES = st.lists(_ATOM, min_size=0, max_size=12).map(
-    lambda parts: "\n".join(parts))
+_NOTES = st.lists(_ATOM, min_size=0, max_size=12).map(lambda parts: "\n".join(parts))
 _EDITION = st.text(min_size=1, max_size=30)
 
 _SETTINGS = settings(
-    max_examples=50, deadline=None,
+    max_examples=50,
+    deadline=None,
     suppress_health_check=[HealthCheck.function_scoped_fixture],
 )
 
 
 def _quote(text: str, paraphrase: str | None) -> di.Quote:
-    return di.Quote(entity="Co", quote_text=text, paraphrase=paraphrase,
-                    speaker_name="Anon Speaker", speaker_title="CEO",
-                    as_of_edition="Ed")
+    return di.Quote(
+        entity="Co",
+        quote_text=text,
+        paraphrase=paraphrase,
+        speaker_name="Anon Speaker",
+        speaker_title="CEO",
+        as_of_edition="Ed",
+    )
 
 
 _QUOTE_INPUT = st.tuples(
@@ -78,7 +89,7 @@ def test_auto_region_spans_are_disjoint_sorted_and_well_formed(text):
     spans = di._auto_region_spans(text)
     assert spans == sorted(spans)
     for (s1, e1), (s2, e2) in zip(spans, spans[1:]):
-        assert e1 <= s2                       # no overlap
+        assert e1 <= s2  # no overlap
     for s, e in spans:
         region = text[s:e]
         # A span opens with a BEGIN marker and closes with an END marker
@@ -98,7 +109,7 @@ def test_outside_auto_regions_never_lands_inside_a_span(text):
     for pos in range(0, len(text) + 1, max(1, len(text) // 8 or 1)):
         moved = di._outside_auto_regions(text, pos)
         assert moved <= pos
-        assert not any(s < moved < e for s, e in spans)   # strict interior
+        assert not any(s < moved < e for s, e in spans)  # strict interior
 
 
 @_SETTINGS
@@ -124,7 +135,7 @@ def test_balanced_in_bounded_out(text):
 def test_render_chatter_block_stable_and_bounded(edition, quotes):
     qs = [_quote(t, p) for t, p in quotes]
     b1 = di.render_chatter_block(edition, qs)
-    assert b1 == di.render_chatter_block(edition, qs)   # deterministic
+    assert b1 == di.render_chatter_block(edition, qs)  # deterministic
     assert b1.count(di._BEGIN) == 1 and b1.count(di._END) == 1
     assert di._markers_balanced(b1)
     assert f"## The Chatter — {edition}" in b1
@@ -133,8 +144,10 @@ def test_render_chatter_block_stable_and_bounded(edition, quotes):
 @_SETTINGS
 @given(st.lists(st.tuples(_TEXT, _TEXT, _TEXT), min_size=0, max_size=6))
 def test_render_key_figures_block_stable(metric_inputs):
-    ms = [di.Metric(entity="Co", value_raw=vr, metric_label=lbl, period=per)
-          for lbl, vr, per in metric_inputs]
+    ms = [
+        di.Metric(entity="Co", value_raw=vr, metric_label=lbl, period=per)
+        for lbl, vr, per in metric_inputs
+    ]
     b1 = di.render_key_figures_block(ms)
     assert b1 == di.render_key_figures_block(ms)
     assert b1.count(di._KF_BEGIN) == 1 and b1.count(di._KF_END) == 1
@@ -155,9 +168,9 @@ def test_replace_or_insert_block_reaches_fixed_point(text, edition):
     out2, ch2 = di._replace_or_insert_block(out1, edition, block)
     if "<!--" not in text:
         assert out1 == out2
-        assert ch2 is False                 # clean insert -> strict no-op
+        assert ch2 is False  # clean insert -> strict no-op
     out3, ch3 = di._replace_or_insert_block(out2, edition, block)
-    assert out3 == out2 and ch3 is False    # fixed point by run 3
+    assert out3 == out2 and ch3 is False  # fixed point by run 3
     assert out1.count(di._BEGIN) >= 1
 
 
@@ -175,6 +188,7 @@ def test_hand_text_outside_regions_preserved(pre, post, edition):
     (correct behavior, outside this property)."""
     from hypothesis import assume
     import re
+
     assume("<!--" not in pre and "<!--" not in post)
     assume(not re.search(r"^## ", pre + "\n" + post, re.MULTILINE))
     other = di.render_chatter_block("Other Ed", [_quote("q", None)])
@@ -193,16 +207,18 @@ def test_kf_nested_in_chatter_is_rescued(filler, edition):
     chatter sentinel region. Refreshing the chatter block must rescue the
     nested KF block (present exactly once afterwards), never delete it."""
     from hypothesis import assume
+
     assume("<!--" not in filler)
     chatter = di.render_chatter_block(edition, [_quote("q", None)])
     kf = di.render_key_figures_block(
-        [di.Metric(entity="Co", value_raw="42%", metric_label="growth")])
+        [di.Metric(entity="Co", value_raw="42%", metric_label="growth")]
+    )
     nested = chatter.replace(di._END, kf + di._END)
     text = filler + "\n" + nested
     block2 = di.render_chatter_block(edition, [_quote("q2", None)])
     out, changed = di._replace_or_insert_block(text, edition, block2)
     assert changed is True
-    assert out.count(di._KF_BEGIN) == 1     # rescued, not deleted
+    assert out.count(di._KF_BEGIN) == 1  # rescued, not deleted
     assert out.count(di._KF_END) == 1
     assert di._markers_balanced(out)
 
@@ -213,7 +229,8 @@ def test_replace_or_insert_kf_reaches_fixed_point(text):
     """Same contract as the chatter block: strict no-op on run 2 for clean
     input, fixed point by run 3 for malformed (crossed-marker) input."""
     kf = di.render_key_figures_block(
-        [di.Metric(entity="Co", value_raw="1", metric_label="revenue")])
+        [di.Metric(entity="Co", value_raw="1", metric_label="revenue")]
+    )
     out1, ch1 = di._replace_or_insert_kf(text, kf)
     out2, ch2 = di._replace_or_insert_kf(out1, kf)
     if "<!--" not in text:
@@ -236,10 +253,12 @@ def _splice_state() -> tuple[dict, Path]:
     global _SPLICE_STATE
     if _SPLICE_STATE is None:
         import tempfile
+
         vault = Path(tempfile.mkdtemp()) / "findata"
         (vault / "The_Chatter").mkdir(parents=True)
         (vault / "The_Chatter" / "TC_Alpha.md").write_text(
-            "# The Chatter: Alpha Edition\n\nbody\n", encoding="utf-8")
+            "# The Chatter: Alpha Edition\n\nbody\n", encoding="utf-8"
+        )
         _SPLICE_STATE = (ei.source_note_index(vault), vault)
     return _SPLICE_STATE
 
@@ -278,10 +297,9 @@ def test_splice_sources_idempotent_and_preserving(body, existing_ids):
     _, fm_text, _ = di.split_frontmatter(out1)
     fm = yaml.safe_load(fm_text)
     assert fm["title"] == "T" and fm["type"] == "company"
-    ids_after = {str(s.get("id")) for s in (fm.get("sources") or [])
-                 if isinstance(s, dict)}
+    ids_after = {str(s.get("id")) for s in (fm.get("sources") or []) if isinstance(s, dict)}
     if existing_ids:
-        assert set(existing_ids) <= ids_after         # nothing dropped
+        assert set(existing_ids) <= ids_after  # nothing dropped
 
     out_nofm, ch_nofm = di._splice_sources(body, index, vault)
-    assert out_nofm == body and ch_nofm is False     # never invents FM
+    assert out_nofm == body and ch_nofm is False  # never invents FM

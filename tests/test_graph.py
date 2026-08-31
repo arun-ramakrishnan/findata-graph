@@ -7,6 +7,7 @@ on first run) and `graph` so they can be filtered.
 Run:
     pytest tests/test_graph.py -v
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -73,10 +74,17 @@ def _minimal_db(tmp_path, name):
     dst = sqlite3.connect(str(tmp_db))
     src.backup(dst)
     src.close()
-    for t in ("graph_edges", "entity_tags", "graph_analytics", "events",
-              "quotes", "company_metrics", "company_embeddings",
-              "note_search"):
-            dst.execute(f"DELETE FROM {t}")  # noqa: S608  # parameterized; interpolated parts are schema-constant identifiers
+    for t in (
+        "graph_edges",
+        "entity_tags",
+        "graph_analytics",
+        "events",
+        "quotes",
+        "company_metrics",
+        "company_embeddings",
+        "note_search",
+    ):
+        dst.execute(f"DELETE FROM {t}")  # noqa: S608  # parameterized; interpolated parts are schema-constant identifiers
     dst.execute("DELETE FROM entities")
     dst.commit()
     dst.close()
@@ -125,9 +133,11 @@ class TestConnect:
         company, sector = r[0]
         assert isinstance(company, str) and isinstance(sector, str)
         # And no property graph catalog entry remains.
-        graphs = con.execute(
-            "SELECT count(*) FROM duckdb_graphs()"
-        ).fetchone() if _has_duckdb_graphs(con) else (0,)
+        graphs = (
+            con.execute("SELECT count(*) FROM duckdb_graphs()").fetchone()
+            if _has_duckdb_graphs(con)
+            else (0,)
+        )
         assert graphs[0] == 0
 
     def test_company_sector_counts_match_sqlite(self, con):
@@ -135,9 +145,7 @@ class TestConnect:
         sqlite_n_company = con.execute(
             "SELECT COUNT(*) FROM fin.entities WHERE entity_type='company'"
         ).fetchone()[0]
-        duck_n_company = con.execute(
-            "SELECT COUNT(*) FROM v_company"
-        ).fetchone()[0]
+        duck_n_company = con.execute("SELECT COUNT(*) FROM v_company").fetchone()[0]
         assert duck_n_company == sqlite_n_company
 
 
@@ -365,6 +373,7 @@ class TestShortestPath:
         caller asking for BelongsTo would silently get a path via
         CompetesWith."""
         from helpers.graph.query import _shortest_path_cte
+
         a, b = "Indigo Paints", "Kansai Nerolac Paints"
         # CompetesWith path exists (direct competitor edge).
         assert _shortest_path_cte(con, a, b, max_hops=3, edge_label="CompetesWith") is not None
@@ -378,6 +387,7 @@ class TestShortestPath:
         the entry point shortest_path uses when the label isn't in
         EDGE_REGISTRY."""
         from helpers.graph.query import _shortest_path_cte
+
         # CEAT and MRF are connected via CompetesWith (1 hop) and via
         # BelongsTo through the Automotive sector (2 hops). An unknown label
         # should find SOME path (traverses all types).
@@ -395,8 +405,7 @@ class TestShortestPath:
         # CEAT -competes_with-> MRF -part_of(BelongsTo)-> Automotive:
         # via BelongsTo alone CEAT->Automotive is 1 hop; use an entity pair
         # whose shortest path genuinely has an interior vertex.
-        path = shortest_path(con, "CEAT", "MRF", max_hops=3,
-                             edge_label="BelongsTo")
+        path = shortest_path(con, "CEAT", "MRF", max_hops=3, edge_label="BelongsTo")
         # CEAT and MRF are both companies; BelongsTo connects company ->
         # sector, so the shortest BelongsTo path between two companies in
         # different sectors is 2 hops (CEAT -> their shared sector? no —
@@ -409,16 +418,14 @@ class TestShortestPath:
             assert all(h == i for i, (_, h) in enumerate(path))  # 0..N-1
 
         # Undirected traversal: a sector -> company path also works.
-        p2 = shortest_path(con, "Automotive", "CEAT", max_hops=2,
-                           edge_label="BelongsTo")
+        p2 = shortest_path(con, "Automotive", "CEAT", max_hops=2, edge_label="BelongsTo")
         assert p2 is not None and p2[0] == ("Automotive", 0) and p2[-1][0] == "CEAT"
 
     def test_cte_unknown_label_traverses_all_types(self, con):
         """An unrecognized edge_label means no edge-type filter (historical
         behaviour, now exercised directly since the label-resolution branch
         of the old native path is gone)."""
-        path = shortest_path(con, "CEAT", "MRF", max_hops=3,
-                             edge_label="NoSuchLabel")
+        path = shortest_path(con, "CEAT", "MRF", max_hops=3, edge_label="NoSuchLabel")
         # competes_with CEAT<->MRF exists, so an unfiltered walk finds it.
         assert path is not None
         assert path[0][0] == "CEAT" and path[-1][0] == "MRF"
@@ -455,6 +462,7 @@ class TestBfsShortestPath:
 
     def test_bfs_matches_cte_oracle(self, con):
         from helpers.graph.query import _shortest_path_cte
+
         for a, b in self.PAIRS:
             for hops in (1, 2, 3):
                 for label in ("BelongsTo", "CompetesWith", "NoSuchLabel"):
@@ -468,6 +476,7 @@ class TestBfsShortestPath:
 
     def test_bfs_matches_cte_oracle_temporal(self, con):
         from helpers.graph.query import _shortest_path_cte
+
         # edge_label=None on BOTH sides — shortest_path's signature default
         # is "BelongsTo" while the oracle's is None, so the label must be
         # pinned explicitly or the sweep compares different filters.
@@ -520,6 +529,7 @@ class TestBfsShortestPath:
         _lit() class is gone from this path)."""
         assert shortest_path(con, "No\x00Such'", "CEAT", max_hops=2) is None
 
+
 class TestCompanyNeighborsBundle:
     """C1: the coalesced mega-query must reproduce the 7 serial wrappers
     exactly, honor as_of, and degrade gracefully for unknown companies.
@@ -538,8 +548,11 @@ class TestCompanyNeighborsBundle:
         # ICICI Prudential AMC — jv_partners; Muthoot Finance — group_siblings;
         # Indian Oil Corp — customers; GAIL India — suppliers.
         companies = [
-            "CEAT", "HDB Financial Services", "ICICI Prudential Asset "
-            "Management Company", "Muthoot Finance", "Indian Oil Corporation",
+            "CEAT",
+            "HDB Financial Services",
+            "ICICI Prudential Asset Management Company",
+            "Muthoot Finance",
+            "Indian Oil Corporation",
             "GAIL India",
         ]
         for company in companies:
@@ -547,11 +560,9 @@ class TestCompanyNeighborsBundle:
             expected = {
                 "sector": sector_of(con, company),
                 "peers": peers(con, company),
-                "jv_partners": [{"partner": p, "venture": v}
-                                for p, v in jv_partners(con, company)],
+                "jv_partners": [{"partner": p, "venture": v} for p, v in jv_partners(con, company)],
                 "group_siblings": group_siblings(con, company),
-                "acquired": [{"name": n, "year": y}
-                             for n, y in acquisitions(con, company)],
+                "acquired": [{"name": n, "year": y} for n, y in acquisitions(con, company)],
                 "subsidiary_of": subsidiary_of_company(con, company),
                 "suppliers": suppliers_and_customers(con, company)[0],
                 "customers": suppliers_and_customers(con, company)[1],
@@ -605,6 +616,7 @@ class TestSqlPassthrough:
             """,
         )
         assert len(r) >= 1
+
 
 class TestPhase2Edges:
     """Tests for competes_with, jv_with, same_group, acquired, subsidiary_of.
@@ -747,7 +759,9 @@ class TestCascadePropagation:
         conn = sqlite_connect(tmp_db)
         try:
             conn.execute("INSERT INTO entities(name, entity_type) VALUES ('__TestCo__', 'company')")
-            conn.execute("INSERT INTO entities(name, entity_type) VALUES ('__TestSector__', 'sector')")
+            conn.execute(
+                "INSERT INTO entities(name, entity_type) VALUES ('__TestSector__', 'sector')"
+            )
             conn.execute(
                 "INSERT INTO graph_edges(source, target, edge_type, source_ref) "
                 "VALUES ('__TestCo__', '__TestSector__', 'part_of', 'test')"
@@ -815,14 +829,12 @@ class TestBundleFShortestPathCycleGuard:
             # schema-only copy wiped them).
             for n in ("__ITC", "__ITC Extended", "__Mid"):
                 conn.execute(
-                    "INSERT INTO entities(name, entity_type) "
-                    "VALUES (?, 'company')",
+                    "INSERT INTO entities(name, entity_type) VALUES (?, 'company')",
                     (n,),
                 )
             # Linear chain: __ITC Extended — __Mid — __ITC (undirected).
             conn.executemany(
-                "INSERT INTO graph_edges(source, target, edge_type, source_ref) "
-                "VALUES (?,?,?,?)",
+                "INSERT INTO graph_edges(source, target, edge_type, source_ref) VALUES (?,?,?,?)",
                 [
                     ("__ITC Extended", "__Mid", "competes_with", "test"),
                     ("__Mid", "__ITC Extended", "competes_with", "test"),
@@ -839,9 +851,14 @@ class TestBundleFShortestPathCycleGuard:
             # as_of forces the recursive-CTE fallback (where the F1 fix lives;
             # native ANY SHORTEST returns endpoints only and doesn't hit the
             # guard). The as_of value satisfies all edges (NULL valid_from).
-            path = shortest_path(c, "__ITC Extended", "__ITC",
-                                 max_hops=4, edge_label="CompetesWith",
-                                 as_of="2026-01-01")
+            path = shortest_path(
+                c,
+                "__ITC Extended",
+                "__ITC",
+                max_hops=4,
+                edge_label="CompetesWith",
+                as_of="2026-01-01",
+            )
             assert path is not None, (
                 "expected path __ITC Extended → __Mid → __ITC; None means the "
                 "substring cycle guard regressed (falsely pruned __ITC as a "
@@ -957,9 +974,9 @@ class TestBundleL2TypedYearColumn:
         """e_acquired must have a `year` column; other edge tables must not
         (only acquired has a single hot-read JSON key worth denormalising)."""
         cols = {
-            r[0] for r in con.execute(
-                "SELECT column_name FROM information_schema.columns "
-                "WHERE table_name = 'e_acquired'"
+            r[0]
+            for r in con.execute(
+                "SELECT column_name FROM information_schema.columns WHERE table_name = 'e_acquired'"
             ).fetchall()
         }
         assert "year" in cols, f"e_acquired missing `year` column: {cols}"
@@ -968,7 +985,8 @@ class TestBundleL2TypedYearColumn:
         # type has a single hot-read key).
         for table in ("e_jv", "e_belongs", "e_competes", "e_supplier"):
             cols = {
-                r[0] for r in con.execute(
+                r[0]
+                for r in con.execute(
                     f"SELECT column_name FROM information_schema.columns "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
                     f"WHERE table_name = '{table}'"
                 ).fetchall()
@@ -989,12 +1007,8 @@ class TestBundleL2TypedYearColumn:
             """
         ).fetchall()
         assert rows, "fixture has no e_acquired rows"
-        mismatches = [
-            (yr, js) for yr, js in rows if yr != js
-        ]
-        assert not mismatches, (
-            f"typed `year` column disagrees with json_extract: {mismatches[:5]}"
-        )
+        mismatches = [(yr, js) for yr, js in rows if yr != js]
+        assert not mismatches, f"typed `year` column disagrees with json_extract: {mismatches[:5]}"
 
     def test_schema_version_bumped_to_force_rebuild(self):
         """Adding a column to e_acquired changes the materialisation shape,
@@ -1003,6 +1017,7 @@ class TestBundleL2TypedYearColumn:
         bundles raised it further — C2 to 4, C2-fix to 5 — each forcing a
         rebuild for a materialisation-shape change)."""
         from helpers.graph.query import _SCHEMA_VERSION
+
         # Accept any version >= 2: the contract is "bumped past v1 so warm
         # files rebuild". Pinning an exact value would break on every
         # legitimate future bump.
@@ -1025,9 +1040,7 @@ class TestBundleL2TypedYearColumn:
         # At least one acquired edge in the fixture has no year; its value
         # in the typed column must be '' (empty string), matching the old
         # COALESCE(json_extract_string(...), '') behaviour.
-        has_empty = con.execute(
-            "SELECT COUNT(*) FROM e_acquired WHERE year = ''"
-        ).fetchone()[0]
+        has_empty = con.execute("SELECT COUNT(*) FROM e_acquired WHERE year = ''").fetchone()[0]
         assert has_empty > 0, "fixture has no yearless acquired edge to test"
 
 
@@ -1050,11 +1063,11 @@ class TestFindCycles:
         class G3 catches (e.g. two acquired rows forming A→B→A, or a
         symmetric type accidentally doubled)."""
         from helpers.graph.query import EDGE_REGISTRY_BY_LABEL
+
         for label in sorted(EDGE_REGISTRY_BY_LABEL):
             cycles = find_cycles(con, edge_label=label, max_hops=4, limit=1000)
             assert cycles == [], (
-                f"edge_label={label!r} has {len(cycles)} directed cycle(s); "
-                f"first: {cycles[:2]}"
+                f"edge_label={label!r} has {len(cycles)} directed cycle(s); first: {cycles[:2]}"
             )
 
     def test_mixed_type_walk_does_find_bidirectional_pairs(self, con):
@@ -1113,10 +1126,12 @@ class TestFindCycles:
         dcon.execute("INSTALL sqlite; LOAD sqlite;")
         dcon.execute(f"ATTACH '{sqlite_path}' AS fin (TYPE sqlite, READ_ONLY);")
         from helpers.graph.query import _materialise_walk_substrate, _stage_edges
+
         dcon.execute(
             "CREATE TABLE v_node AS "
             "SELECT row_number() OVER () AS id, name, entity_type AS kind "
-            "FROM fin.entities")
+            "FROM fin.entities"
+        )
         _stage_edges(dcon)
         _materialise_walk_substrate(dcon)
         try:
@@ -1156,10 +1171,12 @@ class TestFindCycles:
         dcon.execute("INSTALL sqlite; LOAD sqlite;")
         dcon.execute(f"ATTACH '{sqlite_path}' AS fin (TYPE sqlite, READ_ONLY);")
         from helpers.graph.query import _materialise_walk_substrate, _stage_edges
+
         dcon.execute(
             "CREATE TABLE v_node AS "
             "SELECT row_number() OVER () AS id, name, entity_type AS kind "
-            "FROM fin.entities")
+            "FROM fin.entities"
+        )
         _stage_edges(dcon)
         _materialise_walk_substrate(dcon)
         try:

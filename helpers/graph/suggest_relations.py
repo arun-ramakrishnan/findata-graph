@@ -181,9 +181,7 @@ def suggest_relations(
         own = True
     try:
         companies = _company_names(con)
-        raw = link_prediction(
-            con, edge_types=edge_types, method=method, top=max(top * 8, top)
-        )
+        raw = link_prediction(con, edge_types=edge_types, method=method, top=max(top * 8, top))
     finally:
         if own:
             con.close()
@@ -202,7 +200,8 @@ def suggest_relations(
 
 
 def append_suggestions(
-    suggestions: list[Suggestion], path: Path = SIDECAR_PATH,
+    suggestions: list[Suggestion],
+    path: Path = SIDECAR_PATH,
     existing_pairs: set[frozenset[str]] | None = None,
 ) -> int:
     """Append Suggestions to the sidecar, deduped. Returns count written."""
@@ -212,7 +211,8 @@ def append_suggestions(
         existing_pairs = existing_edge_pairs()
     known = prior_suggestion_pairs(path)
     fresh = [
-        s for s in suggestions
+        s
+        for s in suggestions
         if frozenset((s.source, s.target)) not in known
         and frozenset((s.source, s.target)) not in existing_pairs
     ]
@@ -240,32 +240,52 @@ def main(argv: list[str] | None = None) -> int:
     import argparse
 
     p = argparse.ArgumentParser(description="Link-prediction relation suggestions (C2)")
-    p.add_argument("--method", default="jaccard",
-                   help="jaccard | adamic-adar | common-neighbors | pref-attach | resource-alloc")
-    p.add_argument("--edge-types", default=None,
-                   help="comma-separated projection types (default: non-membership set)")
+    p.add_argument(
+        "--method",
+        default="jaccard",
+        help="jaccard | adamic-adar | common-neighbors | pref-attach | resource-alloc",
+    )
+    p.add_argument(
+        "--edge-types",
+        default=None,
+        help="comma-separated projection types (default: non-membership set)",
+    )
     p.add_argument("--top", type=int, default=25)
     p.add_argument("--min-score", type=float, default=0.3)
-    p.add_argument("--all-kinds", action="store_true",
-                   help="allow non-company endpoints (default: companies only)")
-    p.add_argument("--append", action="store_true",
-                   help="append to findata/_pending_relations.txt (default: dry-run)")
-    p.add_argument("--out", type=Path, default=SIDECAR_PATH,
-                   help="sidecar path (default: findata/_pending_relations.txt)")
+    p.add_argument(
+        "--all-kinds",
+        action="store_true",
+        help="allow non-company endpoints (default: companies only)",
+    )
+    p.add_argument(
+        "--append",
+        action="store_true",
+        help="append to findata/_pending_relations.txt (default: dry-run)",
+    )
+    p.add_argument(
+        "--out",
+        type=Path,
+        default=SIDECAR_PATH,
+        help="sidecar path (default: findata/_pending_relations.txt)",
+    )
     args = p.parse_args(argv)
     if not DEFAULT_DUCKDB.exists():
-        print(f"error: {DEFAULT_DUCKDB} not found (run make graph-rebuild first)",
-              file=sys.stderr)
+        print(f"error: {DEFAULT_DUCKDB} not found (run make graph-rebuild first)", file=sys.stderr)
         return 2
     edge_types = args.edge_types.split(",") if args.edge_types else None
     suggestions = suggest_relations(
-        method=args.method, edge_types=edge_types, top=args.top,
-        min_score=args.min_score, companies_only=not args.all_kinds,
+        method=args.method,
+        edge_types=edge_types,
+        top=args.top,
+        min_score=args.min_score,
+        companies_only=not args.all_kinds,
     )
     if args.append:
         n = append_suggestions(suggestions, path=args.out)
-        print(f"appended {n} suggestions to {args.out}"
-              + ("" if n == len(suggestions) else f" (of {len(suggestions)}; rest deduped)"))
+        print(
+            f"appended {n} suggestions to {args.out}"
+            + ("" if n == len(suggestions) else f" (of {len(suggestions)}; rest deduped)")
+        )
     else:
         print(render(suggestions))
     return 0

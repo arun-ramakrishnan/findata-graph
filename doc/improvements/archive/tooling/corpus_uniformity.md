@@ -1,15 +1,15 @@
 ---
 title: Corpus uniformity — templates, contracts, and the doc/okf boundary
-status: proposed
+status: executed
 filed: '2026-08-31'
-executed: null
-completed_md: null
-area: doc/templates/` (new)
+executed: '2026-08-31'
+completed_md: '190'
+area: doc/templates
 ---
 
 # Corpus uniformity — templates, contracts, and the doc/okf boundary
 
-**Date:** 2026-08-31 · **Status:** PROPOSED ·
+**Date:** 2026-08-31 · **Status:** EXECUTED 2026-08-31 (completed.md #190) ·
 **Area:** `doc/templates/` (new) · `doc/schema/` → `doc/okf/` (rename) ·
 `doc/okf.md` → `doc/okf/README.md` · `helpers/validators/frontmatter_schema.py`
 · `helpers/validators/static_checks.py` · `tests/test_templates.py` ·
@@ -350,7 +350,18 @@ Effort: ~2-3h.
 same?" Yes; Python and TS are the gaps. Follow the Mojo precedent:
 normalize once, then a gate keeps it canonical.
 
-- **Python — `ruff format`.** `ruff format --check .` added to
+- **Python — `ruff format`.** EXECUTED 2026-08-31 (user go; landed in
+  the `ruff_format` stgit patch): 4th gate test in test_lint_gates.py
+  (native --check) + `make format` fixer (help sorts between
+  frontend-check and fuzz) + one-time normalize of **211 files**
+  (11,485+/7,472−). The reformat stranded `# noqa`s by splitting
+  multi-line statements — the full-gate sweep caught 22 across five
+  codes (E402/F401/S607/S608/C901); the S608s in query.py became a
+  documented per-file-ignore (a noqa after a `"""` opener lands
+  INSIDE the SQL string — corruption, not suppression), and the two
+  S3-grown C901s were refactored into helpers instead of suppressed.
+  The S3 validator's `check_frontmatter_schema`/`check_proposal_lifecycle`
+  each dropped under the complexity budget via extraction. `ruff format --check .` added to
   `test_lint_gates.py` (native `--check` — no copy-diff workaround
   needed) + a `make format` fixer (help line sorts between
   `frontend-check` and `fuzz`). Effective width is the repo's

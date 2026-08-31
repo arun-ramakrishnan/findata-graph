@@ -19,6 +19,7 @@ doc/improvements/archive/okf/okf_adoption.md), shared by the two generators
 that own the data: pdf/pdf_conv_md.py emits generated+sources at conversion
 time; graph/derive_insights.py bumps generated on each auto-block rewrite.
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -38,7 +39,7 @@ def strip_frontmatter(text: str) -> str:
     If no frontmatter is present the original text is returned unchanged.
     """
     m = _FM_RE.match(text)
-    return text[m.end():] if m else text
+    return text[m.end() :] if m else text
 
 
 def split_frontmatter(text: str) -> tuple[str, str, str]:
@@ -73,7 +74,7 @@ def split_frontmatter_with_title(text: str) -> tuple[str | None, str]:
     if end == -1:
         return None, text
     fm = text[3:end]
-    body = text[end + 4:]  # skip the closing "\n---"
+    body = text[end + 4 :]  # skip the closing "\n---"
     m = re.search(r"^title:\s*(.+?)\s*$", fm, re.MULTILINE)
     title = m.group(1).strip().strip("\"'") if m else None
     return title, body
@@ -85,8 +86,7 @@ def split_frontmatter_with_title(text: str) -> tuple[str | None, str]:
 # YAML dump settings for frontmatter round-trips: preserve key order (the
 # hand-authored order is meaningful to readers), keep non-ASCII readable,
 # and never wrap long scalar lines (inline lists stay on one line).
-_YAML_DUMP_KW = dict(sort_keys=False, allow_unicode=True,
-                      default_flow_style=False, width=10**6)
+_YAML_DUMP_KW = dict(sort_keys=False, allow_unicode=True, default_flow_style=False, width=10**6)
 
 _ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
@@ -121,9 +121,13 @@ _HUMAN_PDF_DATE_RE = re.compile(
     r"^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+([A-Z][a-z]{2})\s+(\d{1,2})\s+"
     r"\d{2}:\d{2}:\d{2}\s+(\d{4})(?:\s+(\S+))?$"
 )
-_MONTHS = {m: i for i, m in enumerate(
-    ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], start=1)}
+_MONTHS = {
+    m: i
+    for i, m in enumerate(
+        ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+        start=1,
+    )
+}
 
 
 def _human_pdf_date(s: str) -> str | None:
@@ -156,8 +160,9 @@ def moddate_to_iso_date(s: str | None) -> str | None:
         return _human_pdf_date(s)
     y, mo, d, h, mi, sec, sign, oh, om = m.groups()
     try:
-        dt = _dt.datetime(int(y), int(mo or 1), int(d or 1),
-                          int(h or 0), int(mi or 0), int(sec or 0))
+        dt = _dt.datetime(
+            int(y), int(mo or 1), int(d or 1), int(h or 0), int(mi or 0), int(sec or 0)
+        )
     except ValueError:
         return None
     if sign and oh:
@@ -190,7 +195,11 @@ def stringify_dates(obj):
 
 
 def bump_generated(
-    text: str, by: str, *, stale_days: int = 180, now: str | None = None,
+    text: str,
+    by: str,
+    *,
+    stale_days: int = 180,
+    now: str | None = None,
 ) -> str:
     """Bump OKF ``generated`` (and recompute ``stale_after``) in *text*'s
     frontmatter. Returns *text* unchanged when it has no frontmatter block

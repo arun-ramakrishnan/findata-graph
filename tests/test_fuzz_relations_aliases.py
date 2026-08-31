@@ -7,6 +7,7 @@ entry (self-alias, dangling target, inconsistent case) silently breaks
 resolution or creates self-edges. These properties pin the table's own
 invariants and the resolver's whole-mention-over-first-token precedence.
 """
+
 from __future__ import annotations
 
 import sys
@@ -24,7 +25,8 @@ _SETTINGS = settings(max_examples=50, deadline=None)
 
 _TEXT = st.text(
     st.characters(blacklist_categories=("Cs",), blacklist_characters="\r"),
-    min_size=0, max_size=60,
+    min_size=0,
+    max_size=60,
 )
 
 
@@ -51,8 +53,7 @@ def test_alias_resolves_to_its_target(alias):
 
 
 @_SETTINGS
-@given(st.sampled_from(
-    [a for a in sorted(xr._ALIASES) if " " not in a]))
+@given(st.sampled_from([a for a in sorted(xr._ALIASES) if " " not in a]))
 def test_first_token_alias_resolves_decorated_mention(alias):
     """The 0b fallback for single-token aliases: "<alias> Corporation" /
     "the <alias> Group" style decorated mentions resolve through the

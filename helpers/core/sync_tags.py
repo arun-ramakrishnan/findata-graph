@@ -131,9 +131,7 @@ def rebuild_note_tags(conn, root: Path | None = None) -> tuple[int, int]:
         for p in sorted(tree_dir.rglob("*.md")):
             if p.name == "image_map.md" or "images" in p.parts:
                 continue
-            tags = split_front_matter(
-                p.read_text(encoding="utf-8", errors="replace")
-            )
+            tags = split_front_matter(p.read_text(encoding="utf-8", errors="replace"))
             for t in tags:
                 t = t.strip()
                 if t.split("/", 1)[0] in NOTE_TAG_CATEGORIES and "/" in t:
@@ -286,8 +284,7 @@ def main():  # noqa: C901
         print(f"note_tags: {nt_tags} tags across {nt_notes} source notes.")
         if sector_changed:
             print(
-                f"  sector_classification: {sector_changed} row(s) updated "
-                f"from note sector/* tags."
+                f"  sector_classification: {sector_changed} row(s) updated from note sector/* tags."
             )
 
         if missing_files:
@@ -310,8 +307,7 @@ def main():  # noqa: C901
                 print(f"    ... ({len(no_tags) - 20} more)", file=sys.stderr)
         if unknown_sectors:
             print(
-                f"  [warn] {len(unknown_sectors)} entities with non-canonical "
-                f"sector tags:",
+                f"  [warn] {len(unknown_sectors)} entities with non-canonical sector tags:",
                 file=sys.stderr,
             )
             for n, tag in unknown_sectors[:20]:

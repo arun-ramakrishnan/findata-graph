@@ -34,7 +34,7 @@ _VIEW_TS = (
     " */\n"
     "export class StatsView {\n"
     "  mount(el: HTMLElement): void {\n"
-    "    el.textContent = \"stats\";\n"
+    '    el.textContent = "stats";\n'
     "  }\n"
     "}\n"
 )
@@ -78,15 +78,12 @@ def env(tmp_path, monkeypatch):
     tree = tmp_path
     (tree / "helpers" / "misc").mkdir(parents=True)
     (tree / "tests").mkdir()
-    (tree / "helpers" / "misc" / "stats_audit.py").write_text(
-        '"""Audit stats diffs."""\n'
-    )
+    (tree / "helpers" / "misc" / "stats_audit.py").write_text('"""Audit stats diffs."""\n')
     (tree / "tests" / "test_stats_audit.py").write_text(
         '"""Tests."""\nfrom helpers.misc import stats_audit  # noqa: F401\n'
     )
     (tree / "Makefile").write_text(
-        ".RECIPEPREFIX := >\nstats-audit: ## audit\n"
-        "> python3 helpers/misc/stats_audit.py\n"
+        ".RECIPEPREFIX := >\nstats-audit: ## audit\n> python3 helpers/misc/stats_audit.py\n"
     )
     (tree / "frontend" / "src" / "views").mkdir(parents=True)
     (tree / "frontend" / "types").mkdir()
@@ -98,14 +95,18 @@ def env(tmp_path, monkeypatch):
     def fake_extract(path, node_bin=None):
         calls.append(path)
         if path.name == "api.ts":
-            return json.dumps({
-                "module_doc": "Response contracts for the stats endpoint.",
-                "exports": [{
-                    "name": "StatsResponse",
-                    "signature": "interface StatsResponse",
-                    "doc": "Summary tiles payload.",
-                }],
-            })
+            return json.dumps(
+                {
+                    "module_doc": "Response contracts for the stats endpoint.",
+                    "exports": [
+                        {
+                            "name": "StatsResponse",
+                            "signature": "interface StatsResponse",
+                            "doc": "Summary tiles payload.",
+                        }
+                    ],
+                }
+            )
         return json.dumps(_FAKE_TS_DECL)
 
     monkeypatch.setattr(rss, "_run_ts_extract", fake_extract)
@@ -124,9 +125,7 @@ def _rebuild(env, db=None, **kw):
     kw.setdefault("tests_root", tree / "tests")
     kw.setdefault("app_py", tree / "app.py")
     kw.setdefault("makefile", tree / "Makefile")
-    return rss.rebuild(
-        db or tree / "script_search.db", embed_fn=_fake_embed, **kw
-    )
+    return rss.rebuild(db or tree / "script_search.db", embed_fn=_fake_embed, **kw)
 
 
 class TestTsRows:
@@ -135,8 +134,7 @@ class TestTsRows:
         tree = env["tree"]
         conn = rss.connect_script_db(tree / "script_search.db")
         try:
-            kinds = dict(conn.execute(
-                "SELECT kind, COUNT(*) FROM script_search GROUP BY kind"))
+            kinds = dict(conn.execute("SELECT kind, COUNT(*) FROM script_search GROUP BY kind"))
             assert kinds["ts"] == 2  # src/views/stats.ts + types/api.ts
             row = conn.execute(
                 "SELECT title, kind, area, purpose, content FROM script_search "
@@ -177,14 +175,12 @@ class TestTsRows:
     def test_purpose_prefers_module_doc(self, env, monkeypatch):
         decl = json.loads(json.dumps(_FAKE_TS_DECL))
         decl["module_doc"] = "Module doc wins over the block comment."
-        monkeypatch.setattr(
-            rss, "_run_ts_extract", lambda *a, **k: json.dumps(decl))
+        monkeypatch.setattr(rss, "_run_ts_extract", lambda *a, **k: json.dumps(decl))
         _rebuild(env)
         conn = rss.connect_script_db(env["tree"] / "script_search.db")
         try:
             (purpose,) = conn.execute(
-                "SELECT purpose FROM script_search "
-                "WHERE title = 'frontend/src/views/stats.ts'"
+                "SELECT purpose FROM script_search WHERE title = 'frontend/src/views/stats.ts'"
             ).fetchone()
         finally:
             conn.close()
@@ -203,8 +199,7 @@ class TestTsRows:
         conn = rss.connect_script_db(env["tree"] / "script_search.db")
         try:
             row = conn.execute(
-                "SELECT content FROM script_search "
-                "WHERE title = 'frontend/src/views/stats.ts'"
+                "SELECT content FROM script_search WHERE title = 'frontend/src/views/stats.ts'"
             ).fetchone()
         finally:
             conn.close()
@@ -215,9 +210,7 @@ class TestTsRows:
         _rebuild(env)
         assert rss.main(["--check"]) == 0
         capsys.readouterr()
-        (env["tree"] / "frontend" / "types" / "api.ts").write_text(
-            _API_TS + "\n// touched\n"
-        )
+        (env["tree"] / "frontend" / "types" / "api.ts").write_text(_API_TS + "\n// touched\n")
         assert rss.main(["--check"]) == 1
         err = capsys.readouterr().err
         assert "frontend/types/api.ts" in err
@@ -235,8 +228,7 @@ class TestTsRows:
         assert "frontend/src/views/stats.ts" in paths
         assert "frontend/types/api.ts" in paths
         assert all(h["kind"] == "ts" for h in ts_hits["results"])
-        assert all(h["path"] != "frontend/src/views/stats.ts"
-                   for h in script_hits["results"])
+        assert all(h["path"] != "frontend/src/views/stats.ts" for h in script_hits["results"])
         assert {h["area"] for h in views_hits["results"]} == {"views"}
 
     def test_new_ts_file_is_stale_new(self, env):

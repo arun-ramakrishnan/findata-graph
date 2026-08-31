@@ -17,6 +17,7 @@ NetworkX graph objects are involved.
 
 See doc/improvements/archive/testing/integration_plan.txt § Priority 7.
 """
+
 from __future__ import annotations
 
 import json
@@ -44,7 +45,9 @@ pytestmark = [pytest.mark.integration]
 # --------------------------------------------------------------------------- #
 # Synthetic edge-list generators (Onager consumes (src, dst, weight) BIGINTs)
 # --------------------------------------------------------------------------- #
-def make_random_edges(n: int, edge_prob: float = 0.05, seed: int = 42) -> list[tuple[int, int, float]]:
+def make_random_edges(
+    n: int, edge_prob: float = 0.05, seed: int = 42
+) -> list[tuple[int, int, float]]:
     """Erdős–Rényi random edge list over nodes 0..n-1."""
     rng = random.Random(seed)  # noqa: S311  # deterministic non-crypto RNG (tests)
     edges: list[tuple[int, int, float]] = []
@@ -61,8 +64,11 @@ def make_cycle_edges(n: int) -> list[tuple[int, int, float]]:
 
 
 def make_clustered_edges(
-    n_clusters: int = 3, per_cluster: int = 10, p_in: float = 0.5,
-    p_out: float = 0.02, seed: int = 42,
+    n_clusters: int = 3,
+    per_cluster: int = 10,
+    p_in: float = 0.5,
+    p_out: float = 0.02,
+    seed: int = 42,
 ) -> list[tuple[int, int, float]]:
     """Edge list with strong community structure for louvain/wcc testing."""
     rng = random.Random(seed)  # noqa: S311
@@ -138,9 +144,12 @@ def synth_db(tmp_path):
     # Known topology so the Onager-backed compute() path (over fin.graph_edges)
     # returns name-keyed results that match the seeded entities.
     for name, etype in [
-        ("SectorA", "sector"), ("SectorB", "sector"),
-        ("CompanyA", "company"), ("CompanyB", "company"),
-        ("CompanyC", "company"), ("CompanyD", "company"),
+        ("SectorA", "sector"),
+        ("SectorB", "sector"),
+        ("CompanyA", "company"),
+        ("CompanyB", "company"),
+        ("CompanyC", "company"),
+        ("CompanyD", "company"),
     ]:
         conn.execute(
             "INSERT OR IGNORE INTO entities(name, entity_type) VALUES (?, ?)",
@@ -279,8 +288,7 @@ class TestAlgorithmScaling:
         """degree_centrality is O(V+E); doubling nodes should be <5x."""
         e_small = make_cycle_edges(10000)
         e_large = make_cycle_edges(20000)
-        ratio, t_small, t_large = _scaling_ratio(
-            degree_centrality, e_small, e_large)
+        ratio, t_small, t_large = _scaling_ratio(degree_centrality, e_small, e_large)
         if t_small < 0.001:
             pytest.skip("baseline too fast to measure reliably")
         assert ratio < 5.0, (
@@ -292,8 +300,7 @@ class TestAlgorithmScaling:
         """Exact betweenness is O(V*E); doubling should be <8x."""
         e_small = make_random_edges(150, edge_prob=0.05, seed=300)
         e_large = make_random_edges(300, edge_prob=0.05, seed=300)
-        ratio, t_small, t_large = _scaling_ratio(
-            betweenness_centrality, e_small, e_large)
+        ratio, t_small, t_large = _scaling_ratio(betweenness_centrality, e_small, e_large)
         if t_small < 0.001:
             pytest.skip("baseline too fast to measure reliably")
         assert ratio < 8.0, (
@@ -305,8 +312,7 @@ class TestAlgorithmScaling:
         """Louvain is near-linear; doubling nodes should be <8x."""
         e_small = make_clustered_edges(3, 50, 0.1, 0.01, seed=400)
         e_large = make_clustered_edges(3, 100, 0.1, 0.01, seed=400)
-        ratio, t_small, t_large = _scaling_ratio(
-            louvain_communities, e_small, e_large)
+        ratio, t_small, t_large = _scaling_ratio(louvain_communities, e_small, e_large)
         if t_small < 0.001:
             pytest.skip("baseline too fast to measure reliably")
         assert ratio < 8.0, (
@@ -318,8 +324,7 @@ class TestAlgorithmScaling:
         """Closeness is O(V*(V+E)); doubling must stay under a generous budget."""
         e_small = make_clustered_edges(3, 50, 0.1, 0.01, seed=500)
         e_large = make_clustered_edges(3, 100, 0.1, 0.01, seed=500)
-        ratio, t_small, t_large = _scaling_ratio(
-            closeness_centrality, e_small, e_large)
+        ratio, t_small, t_large = _scaling_ratio(closeness_centrality, e_small, e_large)
         if t_small < 0.001:
             pytest.skip("baseline too fast to measure reliably")
         assert ratio < 12.0, (
@@ -358,10 +363,10 @@ class TestGraphMutationCorrectness:
         """Adding a bridge node increases its betweenness."""
         edges = []
         for i in range(5):
-            edges.append((i, i + 1, 1.0))          # left chain 0-1-2-3-4
+            edges.append((i, i + 1, 1.0))  # left chain 0-1-2-3-4
         for i in range(5, 10):
-            edges.append((i, i + 1, 1.0))          # right chain 5-6-7-8-9
-        edges.append((4, 5, 1.0))                  # bridge 4-5 (no B yet)
+            edges.append((i, i + 1, 1.0))  # right chain 5-6-7-8-9
+        edges.append((4, 5, 1.0))  # bridge 4-5 (no B yet)
         btwn = betweenness_centrality(con, edges=edges)
         assert max(btwn, key=lambda k: btwn[k]) in (4, 5)
 
@@ -458,9 +463,13 @@ class TestMultiMetricConsistency:
         """compute() routes each metric through the Onager backend."""
         edges = make_random_edges(60, edge_prob=0.1, seed=7)
         nodes = node_ids(edges)
-        for metric in ("degree_centrality", "betweenness_centrality",
-                      "closeness_centrality", "eigenvector_centrality",
-                      "louvain_community"):
+        for metric in (
+            "degree_centrality",
+            "betweenness_centrality",
+            "closeness_centrality",
+            "eigenvector_centrality",
+            "louvain_community",
+        ):
             res = compute(metric, con=con, edges=edges)
             assert set(res.keys()) == nodes
 
@@ -523,8 +532,7 @@ class TestEndToEndComputePersist:
         btwn = betweenness_centrality(con)
         write_analytics("betweenness_centrality", btwn, conn=conn_db)
         rows = conn_db.execute(
-            "SELECT entity_name, value FROM graph_analytics "
-            "WHERE metric='betweenness_centrality'"
+            "SELECT entity_name, value FROM graph_analytics WHERE metric='betweenness_centrality'"
         ).fetchall()
         assert len(rows) == len(btwn)
         for r in rows:
@@ -542,8 +550,7 @@ class TestEndToEndComputePersist:
         }
         write_analytics("louvain_community", wrapped, conn=conn_db)
         rows = conn_db.execute(
-            "SELECT entity_name, value FROM graph_analytics "
-            "WHERE metric='louvain_community'"
+            "SELECT entity_name, value FROM graph_analytics WHERE metric='louvain_community'"
         ).fetchall()
         assert len(rows) == len(wrapped)
         for r in rows:

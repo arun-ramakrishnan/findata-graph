@@ -1,5 +1,5 @@
-"""Unit tests for maintenance utility helpers.
-"""
+"""Unit tests for maintenance utility helpers."""
+
 from __future__ import annotations
 
 import sqlite3
@@ -97,6 +97,7 @@ class TestMoveEntity:
 
     def test_same_sector_idempotent_skip(self, tmp_path, monkeypatch):
         import helpers.maintenance.move_sector as ms
+
         monkeypatch.setattr(ms, "PROJECT_ROOT", tmp_path)
         db_path = _make_move_db(tmp_path)
         conn = self._conn(db_path)
@@ -120,6 +121,7 @@ class TestMoveEntity:
 
     def test_destination_file_exists_refused(self, tmp_path, monkeypatch):
         import helpers.maintenance.move_sector as ms
+
         monkeypatch.setattr(ms, "PROJECT_ROOT", tmp_path)
         db_path = _make_move_db(tmp_path)
         # Pre-create the destination file so the move must be refused.
@@ -141,6 +143,7 @@ class TestMoveEntity:
 
     def test_non_canonical_sector_refused(self, tmp_path, monkeypatch):
         import helpers.maintenance.move_sector as ms
+
         monkeypatch.setattr(ms, "PROJECT_ROOT", tmp_path)
         db_path = _make_move_db(tmp_path)
         conn = self._conn(db_path)
@@ -156,6 +159,7 @@ class TestMoveEntity:
 
     def test_rollback_on_relation_update_error(self, tmp_path, monkeypatch):  # noqa: C901
         import helpers.maintenance.move_sector as ms
+
         monkeypatch.setattr(ms, "PROJECT_ROOT", tmp_path)
         db_path = _make_move_db(tmp_path)
 
@@ -221,13 +225,19 @@ class TestMoveEntity:
                 "SELECT sector_classification FROM entities WHERE name='Test Co'"
             ).fetchone()
             assert row[0] == "Healthcare"
-            assert conn.execute(
-                "SELECT 1 FROM graph_edges WHERE source='Test Co' AND target='Healthcare' "
-                "AND edge_type='part_of'"
-            ).fetchone() is not None
-            assert conn.execute(
-                "SELECT 1 FROM graph_edges WHERE source='Test Co' AND target='Technology' "
-                "AND edge_type='part_of'"
-            ).fetchone() is None
+            assert (
+                conn.execute(
+                    "SELECT 1 FROM graph_edges WHERE source='Test Co' AND target='Healthcare' "
+                    "AND edge_type='part_of'"
+                ).fetchone()
+                is not None
+            )
+            assert (
+                conn.execute(
+                    "SELECT 1 FROM graph_edges WHERE source='Test Co' AND target='Technology' "
+                    "AND edge_type='part_of'"
+                ).fetchone()
+                is None
+            )
         finally:
             conn.close()

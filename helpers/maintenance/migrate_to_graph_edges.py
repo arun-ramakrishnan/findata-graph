@@ -23,6 +23,7 @@ Notes:
   will fail because the view is read-only.
 - WAL mode + PRAGMA foreign_keys = ON are set via the central connect() helper.
 """
+
 from __future__ import annotations
 
 import sys
@@ -81,16 +82,13 @@ CREATE TABLE IF NOT EXISTS entities (
 ENTITIES_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_entities_sector_classification "
     "ON entities(sector_classification);",
-    "CREATE INDEX IF NOT EXISTS idx_entities_normalized_name "
-    "ON entities(normalized_name);",
-    "CREATE INDEX IF NOT EXISTS idx_entities_entity_type "
-    "ON entities(entity_type);",
+    "CREATE INDEX IF NOT EXISTS idx_entities_normalized_name ON entities(normalized_name);",
+    "CREATE INDEX IF NOT EXISTS idx_entities_entity_type ON entities(entity_type);",
     # Bundle Q1: file_path lookup is the hot path for /api/entity/<path>
     # and derive_co_mentions. Without this index both did a full SCAN of
     # entities (verified via EXPLAIN QUERY PLAN). The OR-form query in
     # api_entity_detail is also rewritten to a UNION of two indexed SELECTs.
-    "CREATE INDEX IF NOT EXISTS idx_entities_file_path "
-    "ON entities(file_path);",
+    "CREATE INDEX IF NOT EXISTS idx_entities_file_path ON entities(file_path);",
 ]
 
 GRAPH_EDGES_DDL = """
@@ -170,8 +168,7 @@ EVENTS_INDEXES = [
 # index SQLite falls back to a SCAN of the entities PRIMARY KEY (verified via
 # EXPLAIN QUERY PLAN). With it, the resolver becomes a SEARCH. Idempotent.
 ENTITIES_NAME_NOCASE_INDEX = (
-    "CREATE INDEX IF NOT EXISTS idx_entities_name_nocase "
-    "ON entities(name COLLATE NOCASE);"
+    "CREATE INDEX IF NOT EXISTS idx_entities_name_nocase ON entities(name COLLATE NOCASE);"
 )
 
 # Quotes — verbatim executive quotes lifted from newsletter concall sections.
@@ -204,8 +201,7 @@ CREATE TABLE IF NOT EXISTS quotes (
 """
 
 QUOTES_INDEXES = [
-    "CREATE INDEX IF NOT EXISTS idx_quotes_entity_edition "
-    "ON quotes(entity, as_of_edition);",
+    "CREATE INDEX IF NOT EXISTS idx_quotes_entity_edition ON quotes(entity, as_of_edition);",
     "CREATE INDEX IF NOT EXISTS idx_quotes_speaker ON quotes(speaker_name);",
 ]
 
@@ -237,8 +233,7 @@ CREATE TABLE IF NOT EXISTS company_metrics (
 """
 
 COMPANY_METRICS_INDEXES = [
-    "CREATE INDEX IF NOT EXISTS idx_metrics_entity_label "
-    "ON company_metrics(entity, metric_label);",
+    "CREATE INDEX IF NOT EXISTS idx_metrics_entity_label ON company_metrics(entity, metric_label);",
     "CREATE INDEX IF NOT EXISTS idx_metrics_edition ON company_metrics(as_of_edition);",
 ]
 
@@ -284,9 +279,7 @@ def _view_exists(conn, name: str) -> bool:
 
 
 def _object_kind(conn, name: str) -> str | None:
-    row = conn.execute(
-        "SELECT type FROM sqlite_master WHERE name=?", (name,)
-    ).fetchone()
+    row = conn.execute("SELECT type FROM sqlite_master WHERE name=?", (name,)).fetchone()
     return row[0] if row else None
 
 
@@ -296,9 +289,11 @@ def migrate(verbose: bool = True) -> dict:  # noqa: C901
     stats: dict = {}
     try:
         conn.execute("BEGIN")
-        n_relations_before = conn.execute(
-            "SELECT COUNT(*) FROM relations"
-        ).fetchone()[0] if _table_exists(conn, "relations") else 0
+        n_relations_before = (
+            conn.execute("SELECT COUNT(*) FROM relations").fetchone()[0]
+            if _table_exists(conn, "relations")
+            else 0
+        )
 
         # 0. entities table + production indexes. Must precede graph_edges and
         #    graph_analytics (both FK-reference entities(name)). IF NOT EXISTS
@@ -363,12 +358,8 @@ def migrate(verbose: bool = True) -> dict:  # noqa: C901
         # 5. Stats
         stats["relations_rows_before"] = n_relations_before
         stats["graph_edges_backfilled"] = backfilled
-        stats["graph_edges_total"] = conn.execute(
-            "SELECT COUNT(*) FROM graph_edges"
-        ).fetchone()[0]
-        stats["relations_view_rows"] = conn.execute(
-            "SELECT COUNT(*) FROM relations"
-        ).fetchone()[0]
+        stats["graph_edges_total"] = conn.execute("SELECT COUNT(*) FROM graph_edges").fetchone()[0]
+        stats["relations_view_rows"] = conn.execute("SELECT COUNT(*) FROM relations").fetchone()[0]
         stats["object_kind_relations"] = _object_kind(conn, "relations")
         stats["object_kind_graph_edges"] = _object_kind(conn, "graph_edges")
         stats["object_kind_graph_analytics"] = _object_kind(conn, "graph_analytics")

@@ -14,6 +14,7 @@ and sibling disambiguation ("Adani Port" → "Adani Ports and SEZ", not
 
 Data coverage of the vault is ~97%; only a few entities are truly missing.
 """
+
 from collections.abc import Iterable
 import sqlite3
 
@@ -38,7 +39,6 @@ ABBREVIATIONS = {
     "CYIENT": "Cyient",
     "ZENSAR": "Zensar Technologies",
     "NIIT": "NIIT",
-
     # Automotive
     "M&M": "Mahindra & Mahindra",
     "MMFIN": "Mahindra & Mahindra Financial Services",
@@ -50,7 +50,6 @@ ABBREVIATIONS = {
     "TVS": "TVS Motor Company",
     "ASHOKLEY": "Ashok Leyland",
     "FORCEMOT": "Force Motors",
-
     # Pharma
     "SUNPHARMA": "Sun Pharmaceutical Industries",
     "DRREDDY": "Dr Reddys Laboratories",
@@ -63,7 +62,6 @@ ABBREVIATIONS = {
     "TORNTPHARM": "Torrent Pharmaceuticals",
     "GLENMARK": "Glenmark Pharmaceuticals",
     "IPCALAB": "IPCA Laboratories",
-
     # Banking / Finance
     "HDFCBANK": "HDFC Bank",
     "ICICIBANK": "ICICI Bank",
@@ -84,7 +82,6 @@ ABBREVIATIONS = {
     "HDFCLIFE": "HDFC Life",
     "ICICIPRULI": "ICICI Prudential Life Insurance",
     "ICICIGI": "ICICI Lombard General Insurance",
-
     # FMCG
     "HINDUNILVR": "Hindustan Unilever",
     "NESTLEIND": "Nestle India",
@@ -93,7 +90,6 @@ ABBREVIATIONS = {
     "MARICO": "Marico",
     "GODREJCP": "Godrej Consumer Products",
     "PGHH": "P&G Hygiene and Healthcare",
-
     # Energy / Utilities
     "RELIANCE": "Reliance Industries",
     "NTPC": "NTPC",
@@ -103,7 +99,6 @@ ABBREVIATIONS = {
     "ADANIGREEN": "Adani Green Energy",
     "TATAPOWER": "Tata Power",
     "NHPC": "NHPC",
-
     # Industrial / Manufacturing
     "LT": "Larsen and Toubro",
     "BHEL": "Bharat Heavy Electricals",
@@ -114,47 +109,38 @@ ABBREVIATIONS = {
     "GRSE": "Garden Reach Shipbuilders & Engineers",
     "COCHINSHIP": "Cochin Shipyard",
     "MAZDOCK": "Mazagon Dock Shipbuilders",
-
     # Retail / E-Commerce
     "NYKAA": "FSN E-Commerce",
     "PAYTM": "One 97 Communications PayTM",
-
     # Telecom
     "BHARTIARTL": "Bharti Airtel",
     "IDEA": "Vodafone Idea",
-
     # Fintech (Yahoo Finance variant names)
     "One97 Communications": "One 97 Communications PayTM",
     "One97 Communications Limited": "One 97 Communications PayTM",
-
     # Cement
     "ULTRACEMCO": "UltraTech Cement",
     "AMBUJACEM": "Ambuja Cement",
     "SHREECEM": "Shree Cement",
     "ACC": "ACC",
     "RAMCOCEM": "The Ramco Cements",
-
     # Paints
     "ASIANPAINT": "Asian Paints",
     "BERGEPAINT": "Berger Paints India",
     "KANSAINER": "Kansai Nerolac Paints",
-
     # Consumer Durables
     "HAVELLS": "Havells India",
     "CROMPTON": "Crompton Greaves Consumer Electricals",
     "VGUARD": "V-Guard Industries",
     "SYMPHONY": "Symphony",
     "BLUESTARCO": "Blue Star",
-
     # Pipes / Cables
     "POLYCAB": "Polycab India",
     "KEI": "KEI Industries",
     "FINCABLES": "Finolex Cables",
-
     # Logistics
     "CONCOR": "Container Corporation of India",
     "INDIGO": "Interglobe Aviation",
-
     # Insurance
     "NIACL": "The New India Assurance",
     "GICRE": "General Insurance Corporation",
@@ -168,26 +154,84 @@ ABBREVIATION_BY_ENTITY = {v: k for k, v in ABBREVIATIONS.items()}
 # Word-overlap heuristic
 # ---------------------------------------------------------------------------
 
-_STOPWORDS = frozenset({
-    "limited", "ltd", "corporation", "corp", "company", "co", "inc",
-    "incorporated", "the", "and", "of", "at", "to", "in", "on", "for",
-    "with", "by", "per", "a", "an", "india", "indian",
-})
+_STOPWORDS = frozenset(
+    {
+        "limited",
+        "ltd",
+        "corporation",
+        "corp",
+        "company",
+        "co",
+        "inc",
+        "incorporated",
+        "the",
+        "and",
+        "of",
+        "at",
+        "to",
+        "in",
+        "on",
+        "for",
+        "with",
+        "by",
+        "per",
+        "a",
+        "an",
+        "india",
+        "indian",
+    }
+)
 
 # Generic words that are common suffixes/prefixes across many company names.
 # A match based ONLY on these words is rejected — at least one shared word
 # must be distinctive. This prevents "HDFC Asset Management" from matching
 # "UTI Asset Management" while still allowing "Power Grid Corporation" to
 # match "Power Grid Corporation of India" (shared "power"/"grid" are distinctive).
-_GENERIC_WORDS = frozenset({
-    "asset", "management", "financial", "finance", "capital", "markets",
-    "services", "solutions", "industries", "holdings", "group", "ventures",
-    "enterprises", "international", "global", "india", "indian",
-    "life", "general", "insurance", "mutual", "fund", "securities",
-    "investment", "investments", "credit", "housing", "bank", "banking",
-    "power", "energy", "oil", "gas", "steel", "cement", "pharma",
-    "healthcare", "technology", "technologies", "retail", "consumer",
-})
+_GENERIC_WORDS = frozenset(
+    {
+        "asset",
+        "management",
+        "financial",
+        "finance",
+        "capital",
+        "markets",
+        "services",
+        "solutions",
+        "industries",
+        "holdings",
+        "group",
+        "ventures",
+        "enterprises",
+        "international",
+        "global",
+        "india",
+        "indian",
+        "life",
+        "general",
+        "insurance",
+        "mutual",
+        "fund",
+        "securities",
+        "investment",
+        "investments",
+        "credit",
+        "housing",
+        "bank",
+        "banking",
+        "power",
+        "energy",
+        "oil",
+        "gas",
+        "steel",
+        "cement",
+        "pharma",
+        "healthcare",
+        "technology",
+        "technologies",
+        "retail",
+        "consumer",
+    }
+)
 
 
 def _tokenize(name: str) -> set:
@@ -250,6 +294,7 @@ def word_overlap_match(
 # ---------------------------------------------------------------------------
 # Hybrid matcher
 # ---------------------------------------------------------------------------
+
 
 def fuzzy_match(
     query: str,

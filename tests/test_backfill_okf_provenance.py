@@ -1,4 +1,5 @@
 """Unit tests for helpers/misc/backfill_okf_provenance.py (tmp vault only)."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -61,9 +62,7 @@ def _make_vault(root: Path) -> Path:
         "---\ntitle: X\ntype: super_sector\ncreated: 2026-02-02\n"
         "last_modified: 2026-03-05\n---\nbody\n"
     )
-    (v / "The_Chatter" / "edition.md").write_text(
-        "---\ntype: newsletter\n---\nbody\n"
-    )
+    (v / "The_Chatter" / "edition.md").write_text("---\ntype: newsletter\n---\nbody\n")
     return v
 
 
@@ -87,9 +86,7 @@ def test_generated_at_uses_last_modified_not_stamp_time(tmp_path):
     # Sector fixture: last_modified 2026-03-05 (unquoted YAML date object).
     fm = _fm_of(v / "Sectors" / "Tech.md")
     assert fm["generated"]["at"] == "2026-03-05T00:00:00Z"
-    assert fm["stale_after"] == (
-        dt.date(2026, 3, 5) + dt.timedelta(days=180)
-    ).isoformat()
+    assert fm["stale_after"] == (dt.date(2026, 3, 5) + dt.timedelta(days=180)).isoformat()
     # Company fixture has no last_modified -> falls back to created.
     fm = _fm_of(v / "Companies" / "Tech" / "Acme.md")
     assert fm["generated"]["at"] == "2026-01-01T00:00:00Z"
@@ -102,8 +99,7 @@ def test_apply_preserves_verified_and_keys(tmp_path):
     assert fm["verified"] == [{"by": "human:user", "at": "2026-06-01T10:00:00Z"}]
     assert fm["title"] == "Acme Ltd"
     assert fm["tags"] == ["entity_type/company"]
-    assert (v / "Companies" / "Tech" / "NoFrontmatter.md"
-            ).read_text() == "# bare\n"
+    assert (v / "Companies" / "Tech" / "NoFrontmatter.md").read_text() == "# bare\n"
     assert (v / "The_Chatter" / "edition.md").read_text() == (
         "---\ntype: newsletter\n---\nbody\n"  # sources mode's job, not derived
     )
@@ -117,23 +113,22 @@ def test_edition_reference_becomes_sources_entry(tmp_path, monkeypatch):
         "Hand-written body.\n\n## The Chatter — Big Edition\n\n- q\n",
     )
     acme.write_text(text)
-    monkeypatch.setattr(ei, "_GIT_DATE_MEMO",
-                        {str(v / "The_Chatter" / "edition.md"): None})
-    monkeypatch.setattr(ei, "git_add_date",
-                        lambda p: "2026-08-15"
-                        if p.name == "edition.md" else None)
+    monkeypatch.setattr(ei, "_GIT_DATE_MEMO", {str(v / "The_Chatter" / "edition.md"): None})
+    monkeypatch.setattr(
+        ei, "git_add_date", lambda p: "2026-08-15" if p.name == "edition.md" else None
+    )
     counts = backfill(v, apply=True)
     fm = _fm_of(acme)
-    assert fm["sources"] == [{
-        "id": "edition",
-        "resource": "/findata/The_Chatter/edition.md",
-        "title": "edition",  # no heading -> stem fallback
-        "last_modified": "2026-08-15",
-    }]
+    assert fm["sources"] == [
+        {
+            "id": "edition",
+            "resource": "/findata/The_Chatter/edition.md",
+            "title": "edition",  # no heading -> stem fallback
+            "last_modified": "2026-08-15",
+        }
+    ]
     # Stale anchored to the SOURCE date, not the note's own created date.
-    assert fm["stale_after"] == (
-        dt.date(2026, 8, 15) + dt.timedelta(days=180)
-    ).isoformat()
+    assert fm["stale_after"] == (dt.date(2026, 8, 15) + dt.timedelta(days=180)).isoformat()
     # generated.at still the note's own content date.
     assert fm["generated"]["at"] == "2026-01-01T00:00:00Z"
     assert counts["Companies"]["sourced"] == 1
@@ -142,30 +137,28 @@ def test_edition_reference_becomes_sources_entry(tmp_path, monkeypatch):
 def test_real_writer_stamp_preserved_but_augmented(tmp_path, monkeypatch):
     v = _make_vault(tmp_path)
     acme = v / "Companies" / "Tech" / "Acme.md"
-    text = acme.read_text().replace(
-        "created: 2026-01-01\n",
-        "created: 2026-01-01\nlast_modified: 2026-08-18\n", 1
-    ).replace(
-        "Hand-written body.",
-        "Hand-written body.\n\n*Source: The Chatter — edition*",
-    ).replace(
-        "verified:",
-        "generated:\n  by: derive_insights.py/v1\n"
-        "  at: 2026-08-18T09:00:00Z\nverified:",
+    text = (
+        acme.read_text()
+        .replace("created: 2026-01-01\n", "created: 2026-01-01\nlast_modified: 2026-08-18\n", 1)
+        .replace(
+            "Hand-written body.",
+            "Hand-written body.\n\n*Source: The Chatter — edition*",
+        )
+        .replace(
+            "verified:",
+            "generated:\n  by: derive_insights.py/v1\n  at: 2026-08-18T09:00:00Z\nverified:",
+        )
     )
     acme.write_text(text)
-    monkeypatch.setattr(ei, "git_add_date",
-                        lambda p: "2026-08-15"
-                        if p.name == "edition.md" else None)
+    monkeypatch.setattr(
+        ei, "git_add_date", lambda p: "2026-08-15" if p.name == "edition.md" else None
+    )
     backfill(v, apply=True)
     fm = _fm_of(acme)
     # generated untouched (real writer), sources+stale added.
-    assert fm["generated"] == {"by": "derive_insights.py/v1",
-                               "at": "2026-08-18T09:00:00Z"}
+    assert fm["generated"] == {"by": "derive_insights.py/v1", "at": "2026-08-18T09:00:00Z"}
     assert fm["sources"][0]["id"] == "edition"
-    assert fm["stale_after"] == (
-        dt.date(2026, 8, 15) + dt.timedelta(days=180)
-    ).isoformat()
+    assert fm["stale_after"] == (dt.date(2026, 8, 15) + dt.timedelta(days=180)).isoformat()
     assert fm["verified"] == [{"by": "human:user", "at": "2026-06-01T10:00:00Z"}]
 
 
@@ -174,8 +167,7 @@ def test_real_writer_without_sources_skipped(tmp_path):
     acme = v / "Companies" / "Tech" / "Acme.md"
     text = acme.read_text().replace(
         "verified:",
-        "generated:\n  by: derive_insights.py/v1\n"
-        "  at: 2026-08-18T09:00:00Z\nverified:",
+        "generated:\n  by: derive_insights.py/v1\n  at: 2026-08-18T09:00:00Z\nverified:",
     )
     acme.write_text(text)
     before = acme.read_text()
@@ -207,9 +199,7 @@ def test_sources_mode_constructs_frontmatter(tmp_path, monkeypatch):
     assert fm["type"] == "newsletter"
     assert fm["title"] == "The Chatter: Hot Edition"
     assert fm["generated"] == {"by": _ACTOR, "at": "2026-08-15T00:00:00Z"}
-    assert fm["stale_after"] == (
-        dt.date(2026, 8, 15) + dt.timedelta(days=180)
-    ).isoformat()
+    assert fm["stale_after"] == (dt.date(2026, 8, 15) + dt.timedelta(days=180)).isoformat()
     assert "sources" not in fm  # no PDF -> no fabricated resource
     assert counts["The_Chatter"]["stamped"] == 2  # edition.md + Hot_Edition.md
     # existing frontmatter is augmented, not replaced
@@ -225,22 +215,23 @@ def test_sources_mode_links_pdf_when_present(tmp_path, monkeypatch):
     note = v / "The_Chatter" / "Hot_Edition.md"
     note.write_text("# Hot Edition\n\nprose\n")
     monkeypatch.setattr(
-        bk, "_pdf_metadata",
+        bk,
+        "_pdf_metadata",
         lambda p: {"Title": "Hot Edition", "ModDate": "Mon Aug 10 21:35:08 2026 IST"},
     )
     counts = backfill_sources(v, apply=True, repo_root=tmp_path)
     fm = _fm_of(note)
-    assert fm["sources"] == [{
-        "id": "Hot_Edition",
-        "resource": "/Reports/Hot_Edition.pdf",
-        "title": "Hot Edition",
-        "author": "process:pdf_conv_md",
-        "last_modified": "2026-08-10",
-    }]
+    assert fm["sources"] == [
+        {
+            "id": "Hot_Edition",
+            "resource": "/Reports/Hot_Edition.pdf",
+            "title": "Hot Edition",
+            "author": "process:pdf_conv_md",
+            "last_modified": "2026-08-10",
+        }
+    ]
     assert fm["generated"]["at"] == "2026-08-10T00:00:00Z"
-    assert fm["stale_after"] == (
-        dt.date(2026, 8, 10) + dt.timedelta(days=180)
-    ).isoformat()
+    assert fm["stale_after"] == (dt.date(2026, 8, 10) + dt.timedelta(days=180)).isoformat()
     assert counts["The_Chatter"]["pdf_linked"] == 1
 
 
@@ -250,18 +241,17 @@ def test_sources_mode_tags_untagged_notes(tmp_path, monkeypatch):
     plot.write_text("# Deep Dive\n")
     monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     backfill_sources(v, apply=True, repo_root=tmp_path)
-    assert _fm_of(plot)["tags"] == ["series/the_plotlines",
-                                    "publisher/zerodha"]
+    assert _fm_of(plot)["tags"] == ["series/the_plotlines", "publisher/zerodha"]
     assert _fm_of(v / "The_Chatter" / "edition.md")["tags"] == [
-        "series/the_chatter", "publisher/zerodha"]
+        "series/the_chatter",
+        "publisher/zerodha",
+    ]
 
 
 def test_sources_mode_migrates_flat_tags(tmp_path, monkeypatch):
     v = _make_vault(tmp_path)
     note = v / "The_Chatter" / "edition.md"
-    note.write_text(
-        "---\ntype: newsletter\ntags:\n- zerodha\n- chatter\n---\nbody\n"
-    )
+    note.write_text("---\ntype: newsletter\ntags:\n- zerodha\n- chatter\n---\nbody\n")
     monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     counts = backfill_sources(v, apply=True, repo_root=tmp_path)
     fm = _fm_of(note)
@@ -269,30 +259,32 @@ def test_sources_mode_migrates_flat_tags(tmp_path, monkeypatch):
     assert counts["The_Chatter"]["tag_migrations"] == 1
 
 
-def test_sources_mode_keeps_unknown_flat_tags_and_warns(
-        tmp_path, monkeypatch, capsys):
+def test_sources_mode_keeps_unknown_flat_tags_and_warns(tmp_path, monkeypatch, capsys):
     v = _make_vault(tmp_path)
     note = v / "The_Chatter" / "edition.md"
     note.write_text("---\ntype: newsletter\ntags:\n- mystery\n---\nbody\n")
     monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     backfill_sources(v, apply=True, repo_root=tmp_path)
     fm = _fm_of(note)
-    assert fm["tags"] == ["series/the_chatter", "publisher/zerodha",
-                          "mystery"]  # kept; schema gate flags it
+    assert fm["tags"] == [
+        "series/the_chatter",
+        "publisher/zerodha",
+        "mystery",
+    ]  # kept; schema gate flags it
     assert "mystery" in capsys.readouterr().err
 
 
 def test_sources_mode_preserves_namespaced_tags(tmp_path, monkeypatch):
     v = _make_vault(tmp_path)
     note = v / "The_Chatter" / "edition.md"
-    note.write_text(
-        "---\ntype: newsletter\ntags:\n- company/avanti_feeds\n---\nbody\n"
-    )
+    note.write_text("---\ntype: newsletter\ntags:\n- company/avanti_feeds\n---\nbody\n")
     monkeypatch.setattr(ei, "git_add_date", lambda p: "2026-08-15")
     backfill_sources(v, apply=True, repo_root=tmp_path)
-    assert _fm_of(note)["tags"] == ["series/the_chatter",
-                                    "publisher/zerodha",
-                                    "company/avanti_feeds"]
+    assert _fm_of(note)["tags"] == [
+        "series/the_chatter",
+        "publisher/zerodha",
+        "company/avanti_feeds",
+    ]
 
 
 def test_sources_mode_idempotent(tmp_path, monkeypatch):

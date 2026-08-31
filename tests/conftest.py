@@ -231,9 +231,7 @@ def integrity_db(fake_vault):
     conn.close()
 
     # Materialise the bad-filename file so its sole defect is the format.
-    _write(
-        fake_vault / "findata" / "Companies" / "Banking" / "Bad-Name.md", GOOD_COMPANY
-    )
+    _write(fake_vault / "findata" / "Companies" / "Banking" / "Bad-Name.md", GOOD_COMPANY)
 
     checker = DatabaseIntegrityChecker(db_path=str(db_path), base_path=str(fake_vault))
     yield db_path, checker
@@ -289,16 +287,12 @@ CREATE TABLE graph_analytics (
 
 # (name, type, file_path, sector_classification, ticker)
 _UNIT_ENTITIES = [
-    ("HDFC Bank", "company", "findata/Companies/Banking/Hdfc_Bank.md",
-     "Banking", "HDFCBANK"),
-    ("ICICI Bank", "company", "findata/Companies/Banking/ICICI_Bank.md",
-     "Banking", "ICICIBANK"),
-    ("Infosys", "company", "findata/Companies/Technology/Infosys.md",
-     "Technology", "INFY"),
+    ("HDFC Bank", "company", "findata/Companies/Banking/Hdfc_Bank.md", "Banking", "HDFCBANK"),
+    ("ICICI Bank", "company", "findata/Companies/Banking/ICICI_Bank.md", "Banking", "ICICIBANK"),
+    ("Infosys", "company", "findata/Companies/Technology/Infosys.md", "Technology", "INFY"),
     ("Banking", "sector", "findata/Sectors/Banking.md", None, None),
     ("Technology", "sector", "findata/Sectors/Technology.md", None, None),
-    ("No Ticker Co", "company", "findata/Companies/X/No_Ticker.md",
-     "Technology", None),
+    ("No Ticker Co", "company", "findata/Companies/X/No_Ticker.md", "Technology", None),
 ]
 
 # market_cap/* tags for the unit entities (the source of truth post-C2).
@@ -332,6 +326,7 @@ def seeded_graph_sqlite_db(tmp_path):
     row["name"] would break under the test fixture.
     """
     import app as A  # lazy: avoid Flask-app startup at collection time
+
     db_path = tmp_path / "unit_graph.db"
     conn = sqlite3.connect(str(db_path))
     conn.executescript(_UNIT_SCHEMA)
@@ -346,8 +341,7 @@ def seeded_graph_sqlite_db(tmp_path):
         _UNIT_TAGS,
     )
     conn.executemany(
-        "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
-        "VALUES (?,?,?,?)",
+        "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
         _UNIT_EDGES,
     )
     conn.commit()
@@ -370,6 +364,7 @@ def seeded_graph_sqlite_db(tmp_path):
     # semantics. query.connect() already isolates the .duckdb cache file as
     # a sibling of a non-production db_path.
     import helpers.graph.query as _q
+
     _real_q_connect = _q.connect
     _real_q_rebuild = _q.rebuild
     _real_q_fresh_rebuild = _q.fresh_rebuild
@@ -517,6 +512,7 @@ def unit_client(tmp_path):
 # runs FAILed before the PID was added). Tests that must exercise the REAL
 # default path use the `real_graph_cache` marker; worker files (+
 # .wal/.build.lock/rebuild temporaries) are removed at session finish.
+
 
 def pytest_configure(config):
     worker = os.environ.get("PYTEST_XDIST_WORKER")

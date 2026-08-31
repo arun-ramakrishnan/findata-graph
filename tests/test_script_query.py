@@ -41,8 +41,7 @@ _WIDGET_AUDIT = (
 )
 
 _TEST_WIDGET = (
-    '"""Tests for the widget audit CLI."""\n'
-    "from helpers.misc import widget_audit  # noqa: F401\n"
+    '"""Tests for the widget audit CLI."""\nfrom helpers.misc import widget_audit  # noqa: F401\n'
 )
 
 
@@ -133,8 +132,14 @@ class TestScriptQueryCli:
         assert payload["mode"] in ("hybrid", "bm25")
         assert payload["results"]
         assert {
-            "path", "title", "kind", "area", "purpose",
-            "snippet", "score", "similarity",
+            "path",
+            "title",
+            "kind",
+            "area",
+            "purpose",
+            "snippet",
+            "score",
+            "similarity",
         } <= set(payload["results"][0])
 
     def test_missing_index_exit_1_with_hint(self, seeded, capsys):

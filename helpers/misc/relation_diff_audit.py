@@ -12,6 +12,7 @@ Usage:
 Exit code 0 always (report-only); use --fail-on-regression to exit 1 when any
 family LOSES edges (guard against pattern edits breaking v1 coverage).
 """
+
 from __future__ import annotations
 
 import argparse
@@ -29,13 +30,12 @@ def load_counts(path: str | Path) -> dict[str, int]:
     return {str(k): int(v) for k, v in per_type.items()}
 
 
-def diff_counts(
-    before: dict[str, int], after: dict[str, int]
-) -> list[tuple[str, int, int, int]]:
+def diff_counts(before: dict[str, int], after: dict[str, int]) -> list[tuple[str, int, int, int]]:
     """Return sorted (edge_type, before, after, delta) rows."""
     types = sorted(set(before) | set(after))
-    return [(t, before.get(t, 0), after.get(t, 0),
-             after.get(t, 0) - before.get(t, 0)) for t in types]
+    return [
+        (t, before.get(t, 0), after.get(t, 0), after.get(t, 0) - before.get(t, 0)) for t in types
+    ]
 
 
 def format_table(rows: list[tuple[str, int, int, int]]) -> str:
@@ -55,7 +55,8 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("before", help="counts JSON from BEFORE the change")
     p.add_argument("after", help="counts JSON from AFTER the change")
     p.add_argument(
-        "--fail-on-regression", action="store_true",
+        "--fail-on-regression",
+        action="store_true",
         help="exit 1 if any edge type lost edges",
     )
     args = p.parse_args(argv)

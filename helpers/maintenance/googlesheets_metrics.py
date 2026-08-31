@@ -14,14 +14,14 @@ gspread is imported LAZILY: it is a venv-only dependency until S3 ships
 it via ``uv add`` (tests always inject client_factory, so the test
 suite never needs it).
 """
+
 from __future__ import annotations
 
 import time
 from pathlib import Path
 
-SA_KEY_PATH = (Path(__file__).resolve().parents[2] / "memory"
-               / "goog_svc_account.json")
-SHEET_TITLE = "Search Test"   # scratch sheet, cleared and rewritten per batch
+SA_KEY_PATH = Path(__file__).resolve().parents[2] / "memory" / "goog_svc_account.json"
+SHEET_TITLE = "Search Test"  # scratch sheet, cleared and rewritten per batch
 GF_ATTRIBUTES = ("price", "marketcap", "pe", "eps", "high52", "low52")
 
 
@@ -74,24 +74,20 @@ def fetch_gf_metrics(
 
     ws = client_factory().open(sheet_title).sheet1
     rows = [
-        [to_sheets_ticker(slug), attr,
-         f'=GOOGLEFINANCE("{to_sheets_ticker(slug)}","{attr}")']
+        [to_sheets_ticker(slug), attr, f'=GOOGLEFINANCE("{to_sheets_ticker(slug)}","{attr}")']
         for slug, attr in requests
     ]
     ws.clear()
-    ws.update(values=[["ticker", "attribute", "value"]] + rows,
-              range_name=f"A1:C{1 + len(rows)}", raw=False)
+    ws.update(
+        values=[["ticker", "attribute", "value"]] + rows,
+        range_name=f"A1:C{1 + len(rows)}",
+        raw=False,
+    )
 
     values: list[list] = []
     for _attempt in range(attempts):
         time.sleep(poll_seconds)
-        values = ws.get_values(
-            f"A1:C{1 + len(rows)}",
-            value_render_option="UNFORMATTED_VALUE")[1:]
-        if (len(values) == len(rows)
-                and all(len(r) >= 3 and r[2] != "" for r in values)):
+        values = ws.get_values(f"A1:C{1 + len(rows)}", value_render_option="UNFORMATTED_VALUE")[1:]
+        if len(values) == len(rows) and all(len(r) >= 3 and r[2] != "" for r in values):
             break
-    return {
-        req: (parse_cell(v[2]) if len(v) >= 3 else None)
-        for req, v in zip(requests, values)
-    }
+    return {req: (parse_cell(v[2]) if len(v) >= 3 else None) for req, v in zip(requests, values)}

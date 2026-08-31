@@ -239,7 +239,7 @@ class TestSectorYamlConsistency:
         v.check_sector_yaml_consistency(
             "/path/Banking.md",
             {"title": "Banking"},
-            'title: \"Banking\"',
+            'title: "Banking"',
         )
         descs = [i["description"] for i in v.issues["yaml_structure"]]
         assert any("should not be quoted" in d for d in descs)
@@ -257,10 +257,8 @@ class TestSectorYamlConsistency:
                 "permalink": "/sectors/banking",
                 "created": "2025-01-01",
                 "last_modified": "2025-01-02",
-                "generated": {"by": "process:okf_backfill",
-                              "at": "2026-08-19T03:03:17Z"},
-                "verified": [{"by": "human:user",
-                              "at": "2026-06-01T10:00:00Z"}],
+                "generated": {"by": "process:okf_backfill", "at": "2026-08-19T03:03:17Z"},
+                "verified": [{"by": "human:user", "at": "2026-06-01T10:00:00Z"}],
                 "sources": [{"id": "x", "resource": "/Reports/x.pdf"}],
                 "status": "stable",
                 "stale_after": "2027-02-15",
@@ -330,8 +328,7 @@ class TestSuperSectorYaml:
                 "tags": ["entity_type/super_sector"],
                 "created": "2025-01-01",
                 "last_modified": "2025-01-02",
-                "generated": {"by": "process:okf_backfill",
-                              "at": "2026-08-19T03:03:17Z"},
+                "generated": {"by": "process:okf_backfill", "at": "2026-08-19T03:03:17Z"},
                 "stale_after": "2027-02-15",
             },
             "title: Financials\ntype: super_sector\npermalink: /super_sectors/financials\n"
@@ -427,7 +424,7 @@ class TestCompanyYamlConsistency:
         v.check_company_yaml_consistency(
             "/path/Test_Co.md",
             {"title": "Test Co"},
-            'title: \"Test Co\"',
+            'title: "Test Co"',
         )
         assert len(v.warnings["company_title_quoted"]) >= 1
 
@@ -482,11 +479,7 @@ class TestContentQuality:
 class TestHeadingDuplicates:
     def test_exact_duplicate(self):
         v = make_verifier()
-        content = (
-            "---\ntitle: T\n---\n\n"
-            "### Overview\n\nText.\n\n"
-            "### Overview\n\nMore text.\n"
-        )
+        content = "---\ntitle: T\n---\n\n### Overview\n\nText.\n\n### Overview\n\nMore text.\n"
         v.check_heading_duplicates("/path/Test.md", content=content)
         assert len(v.issues["duplicates"]) >= 1
 
@@ -502,11 +495,7 @@ class TestHeadingDuplicates:
 
     def test_case_variant(self):
         v = make_verifier()
-        content = (
-            "---\ntitle: T\n---\n\n"
-            "### Overview\n\nText.\n\n"
-            "### OVERVIEW\n\nMore text.\n"
-        )
+        content = "---\ntitle: T\n---\n\n### Overview\n\nText.\n\n### OVERVIEW\n\nMore text.\n"
         v.check_heading_duplicates("/path/Test.md", content=content)
         assert len(v.warnings["case_variant_heading"]) >= 1
 
@@ -531,9 +520,7 @@ class TestHeadingDuplicates:
         """Headings with known false-positive suffixes should not flag."""
         v = make_verifier()
         content = (
-            "---\ntitle: T\n---\n\n"
-            "### Two Wheelers\n\nText.\n\n"
-            "### Three Wheelers\n\nMore text.\n"
+            "---\ntitle: T\n---\n\n### Two Wheelers\n\nText.\n\n### Three Wheelers\n\nMore text.\n"
         )
         v.check_heading_duplicates("/path/Test.md", content=content)
         assert len(v.warnings["near_duplicate_heading"]) == 0

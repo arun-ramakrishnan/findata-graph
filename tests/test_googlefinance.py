@@ -5,6 +5,7 @@ Fixtures: real saved pages under tests/fixtures/googlefinance/ (slimmed:
 style blocks stripped). The BOGUS fixture is a dead-slug shell that still
 returns HTTP 200 - parse_quote must reject it on content.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -21,8 +22,7 @@ from helpers.maintenance.googlefinance import (  # noqa: E402
     yahoo_symbol_for_slug,
 )
 
-FIXTURES = (Path(__file__).resolve().parents[1] / "tests"
-            / "fixtures" / "googlefinance")
+FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "googlefinance"
 
 
 def _load(fname: str) -> str:
@@ -71,15 +71,18 @@ class TestParseQuote:
 
 
 class TestParseNumber:
-    @pytest.mark.parametrize("raw,expected", [
-        ("79.10", 79.10),
-        ("65.78B", 65.78e9),
-        ("501.78M", 501.78e6),
-        ("1,234.5", 1234.5),
-        ("19.20K", 19_200.0),
-        ("-", None),
-        ("srigee.com", None),
-    ])
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("79.10", 79.10),
+            ("65.78B", 65.78e9),
+            ("501.78M", 501.78e6),
+            ("1,234.5", 1234.5),
+            ("19.20K", 19_200.0),
+            ("-", None),
+            ("srigee.com", None),
+        ],
+    )
     def test_number_forms(self, raw, expected):
         if expected is None:
             assert _parse_number(raw) is None
@@ -94,14 +97,11 @@ class TestParseNumber:
 
 class TestNameMatchScore:
     def test_same_company_variants_score_high(self):
-        assert name_match_score(
-            "Srigee DLM Ltd", "Srigee DLM Limited") > 0.9
-        assert name_match_score(
-            "AJAX Engineering Ltd", "Ajax Engineering") > 0.75
+        assert name_match_score("Srigee DLM Ltd", "Srigee DLM Limited") > 0.9
+        assert name_match_score("AJAX Engineering Ltd", "Ajax Engineering") > 0.75
 
     def test_unrelated_companies_score_low(self):
-        assert name_match_score(
-            "Bosch Limited", "Srigee DLM Ltd") < 0.4
+        assert name_match_score("Bosch Limited", "Srigee DLM Ltd") < 0.4
 
 
 class TestParsePrice:

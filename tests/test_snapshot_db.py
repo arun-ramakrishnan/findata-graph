@@ -1,4 +1,5 @@
 """Unit tests for helpers/maintenance/snapshot_db.py."""
+
 from __future__ import annotations
 import logging
 import sqlite3
@@ -166,8 +167,7 @@ def _make_fts_db(path):
     conn.execute("INSERT INTO entities VALUES ('Alpha', 'revenue growth')")
     conn.execute("INSERT INTO entities VALUES ('Beta', NULL)")
     conn.execute(
-        "CREATE VIRTUAL TABLE note_search USING FTS5("
-        "name, content, tokenize='porter unicode61')"
+        "CREATE VIRTUAL TABLE note_search USING FTS5(name, content, tokenize='porter unicode61')"
     )
     conn.execute("INSERT INTO note_search(name, content) VALUES ('Alpha', 'revenue growth')")
     conn.execute("INSERT INTO note_search(name, content) VALUES ('Beta', 'cost cuts')")
@@ -251,9 +251,7 @@ def test_restore_duckdb_roundtrip(tmp_path):
     con.close()
 
 
-def test_main_restore_refuses_existing_target_without_force(
-    tmp_path, monkeypatch
-):
+def test_main_restore_refuses_existing_target_without_force(tmp_path, monkeypatch):
     # an existing "live" DB + no --force -> refusal before anything runs
     live = tmp_path / "live.db"
     live.write_bytes(b"sentinel")
@@ -261,9 +259,12 @@ def test_main_restore_refuses_existing_target_without_force(
         sys,
         "argv",
         [
-            "snapshot_db.py", "--restore",
-            "--db", str(live),
-            "--parquet-dir", str(tmp_path / "pq"),
+            "snapshot_db.py",
+            "--restore",
+            "--db",
+            str(live),
+            "--parquet-dir",
+            str(tmp_path / "pq"),
         ],
     )
     assert snapshot_main() == 1
@@ -293,19 +294,25 @@ def test_export_skips_and_warns_on_stray_tables(tmp_path, caplog):
     with caplog.at_level(logging.WARNING, logger="test_snapshot"):
         res = export_parquet_duckdb(src, out_dir, _log)
 
-    assert "v_node" in res["tables"]             # manifest table exported
+    assert "v_node" in res["tables"]  # manifest table exported
     assert "e_bench_scratch" not in res["tables"]  # stray skipped
     assert (out_dir / "v_node.parquet").exists()
     assert not (out_dir / "e_bench_scratch.parquet").exists()
     schema = (tmp_path / "pq" / "_schema.duckdb.sql").read_text()
     assert "v_node" in schema
-    assert "e_bench_scratch" not in schema       # no DDL leak either
-    assert "e_bench_scratch" in caplog.text      # the warning names the stray
+    assert "e_bench_scratch" not in schema  # no DDL leak either
+    assert "e_bench_scratch" in caplog.text  # the warning names the stray
     # Guard must not be vacuous — the manifest covers the real tables,
     # including the walk substrates + note vectors added by
     # sql_capability_unlocks B1/A1.
-    assert {"v_node", "v_embeddings", "v_note_embeddings", "e_all_und",
-            "e_dir", "_build_meta"} <= MATERIALISED_TABLES
+    assert {
+        "v_node",
+        "v_embeddings",
+        "v_note_embeddings",
+        "e_all_und",
+        "e_dir",
+        "_build_meta",
+    } <= MATERIALISED_TABLES
 
 
 # ---------------------------------------------------------------------------
@@ -322,8 +329,16 @@ def test_run_snapshot_backs_up_vec_sidecar(tmp_path):
 
     # No sidecar yet: run must succeed and log the skip.
     rc = _cmd_create(
-        src_db, out, None, None, None, None, None, fmt="binary",
-        with_duckdb=False, logger=_log,
+        src_db,
+        out,
+        None,
+        None,
+        None,
+        None,
+        None,
+        fmt="binary",
+        with_duckdb=False,
+        logger=_log,
     )
     assert rc == 0
     assert not (tmp_path / "snap" / "snapshot.db_vec.db.zst").exists()
@@ -335,8 +350,16 @@ def test_run_snapshot_backs_up_vec_sidecar(tmp_path):
     vec.commit()
     vec.close()
     rc = _cmd_create(
-        src_db, out, None, None, None, None, None, fmt="binary",
-        with_duckdb=False, logger=_log,
+        src_db,
+        out,
+        None,
+        None,
+        None,
+        None,
+        None,
+        fmt="binary",
+        with_duckdb=False,
+        logger=_log,
     )
     assert rc == 0
     vec_zst = tmp_path / "snap" / "snapshot.db_vec.db.zst"
@@ -366,8 +389,16 @@ def test_run_snapshot_backs_up_shared_embed_store(tmp_path):
     VS.EMBED_DB_PATH = store
     try:
         rc = _cmd_create(
-            src_db, out, None, None, None, None, None, fmt="binary",
-            with_duckdb=False, logger=_log,
+            src_db,
+            out,
+            None,
+            None,
+            None,
+            None,
+            None,
+            fmt="binary",
+            with_duckdb=False,
+            logger=_log,
         )
     finally:
         VS.EMBED_DB_PATH = saved
@@ -400,8 +431,9 @@ def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
     saved = VS.EMBED_DB_PATH
     VS.EMBED_DB_PATH = store
     try:
-        rc = _cmd_create(src_db, out, None, None, None, None, None,
-                         fmt="binary", with_duckdb=False, logger=_log)
+        rc = _cmd_create(
+            src_db, out, None, None, None, None, None, fmt="binary", with_duckdb=False, logger=_log
+        )
         assert rc == 0
         store_zst = tmp_path / "snap" / "embed_store.snapshot.db.zst"
         first_bytes = store_zst.read_bytes()
@@ -411,8 +443,9 @@ def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
         # within one test can collide at coarse resolutions), re-run, and the
         # .zst must be reused untouched.
         os.utime(store, ns=((first_mtime - 1_000_000) // 1, 0))
-        rc = _cmd_create(src_db, out, None, None, None, None, None,
-                         fmt="binary", with_duckdb=False, logger=_log)
+        rc = _cmd_create(
+            src_db, out, None, None, None, None, None, fmt="binary", with_duckdb=False, logger=_log
+        )
         assert rc == 0
         assert store_zst.stat().st_mtime_ns == first_mtime
         assert store_zst.read_bytes() == first_bytes
@@ -422,12 +455,11 @@ def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
         sconn.execute("INSERT INTO embed_cache VALUES ('y')")
         sconn.commit()
         sconn.close()
-        rc = _cmd_create(src_db, out, None, None, None, None, None,
-                         fmt="binary", with_duckdb=False, logger=_log)
+        rc = _cmd_create(
+            src_db, out, None, None, None, None, None, fmt="binary", with_duckdb=False, logger=_log
+        )
         assert rc == 0
         assert store_zst.stat().st_mtime_ns != first_mtime
         assert store_zst.read_bytes() != first_bytes
     finally:
         VS.EMBED_DB_PATH = saved
-
-

@@ -64,6 +64,7 @@ CLI
 
 See `doc/design/graph_design.txt` §4 for the symmetric-edge convention.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -84,7 +85,10 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
-from helpers.core.frontmatter import strip_frontmatter as _strip_yaml_front_matter, _FM_RE as _YAML_FRONT_MATTER_RE  # noqa: E402
+from helpers.core.frontmatter import (  # noqa: E402  # after the sys.path bootstrap above
+    strip_frontmatter as _strip_yaml_front_matter,
+    _FM_RE as _YAML_FRONT_MATTER_RE,
+)
 from helpers.graph.triage_pending_relations import noise_target  # noqa: E402
 
 # --------------------------------------------------------------------------- #
@@ -107,15 +111,19 @@ def _alias_overrides() -> dict[str, str]:
     """Loaded once per process; absent/unreadable file degrades to {}."""
     try:
         raw = json.loads(ALIAS_OVERRIDES_PATH.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
+    except OSError, ValueError:
         return {}
-    return {str(k).lower(): str(v) for k, v in raw.items()
-            if isinstance(k, str) and isinstance(v, str) and k and v}
+    return {
+        str(k).lower(): str(v)
+        for k, v in raw.items()
+        if isinstance(k, str) and isinstance(v, str) and k and v
+    }
 
 
 def _lookup_alias(lower_key: str) -> str | None:
     """_ALIASES first, then the runtime alias file (file wins on overlap)."""
     return _ALIASES.get(lower_key) or _alias_overrides().get(lower_key)
+
 
 # --------------------------------------------------------------------------- #
 # Entity resolver                                                             #
@@ -123,14 +131,48 @@ def _lookup_alias(lower_key: str) -> str | None:
 # Stopwords stripped before tokenising candidate names. Conservative — keep it
 # small to avoid eating distinctive tokens.
 _STOPWORDS = {
-    "ltd", "ltd.", "limited", "pvt", "private", "company", "co", "co.",
-    "inc", "inc.", "corp", "corporation", "the", "of", "and", "&",
+    "ltd",
+    "ltd.",
+    "limited",
+    "pvt",
+    "private",
+    "company",
+    "co",
+    "co.",
+    "inc",
+    "inc.",
+    "corp",
+    "corporation",
+    "the",
+    "of",
+    "and",
+    "&",
 }
 _GENERIC_WORDS = {
-    "bank", "financial", "finance", "services", "holdings", "industries",
-    "capital", "group", "technologies", "technology", "energy", "power",
-    "oil", "gas", "insurance", "auto", "motors", "chemicals", "pharma",
-    "steel", "cement", "realty", "retail", "enterprises",
+    "bank",
+    "financial",
+    "finance",
+    "services",
+    "holdings",
+    "industries",
+    "capital",
+    "group",
+    "technologies",
+    "technology",
+    "energy",
+    "power",
+    "oil",
+    "gas",
+    "insurance",
+    "auto",
+    "motors",
+    "chemicals",
+    "pharma",
+    "steel",
+    "cement",
+    "realty",
+    "retail",
+    "enterprises",
 }
 
 # Common abbreviation aliases. These are tried before fuzzy resolution so
@@ -177,11 +219,11 @@ _ALIASES: dict[str, str] = {
     # add an alias that collapses the two (would suppress legitimate
     # `subsidiary_of` edges to a future parent stub). Those parents are
     # tracked as stub candidates in doc/improvements/pending_improvs.txt.
-    "bata": "Bata India",        # "Bata" alone = Indian entity; "Bata (BN) B.V." is a stub candidate
-    "ceat": "CEAT",              # single canonical entity
-    "diageo": "Diageo plc",       # entity is the global plc itself
-    "fintellix": "Fintellix",     # single canonical entity
-    "sagility": "Sagility",       # single canonical entity
+    "bata": "Bata India",  # "Bata" alone = Indian entity; "Bata (BN) B.V." is a stub candidate
+    "ceat": "CEAT",  # single canonical entity
+    "diageo": "Diageo plc",  # entity is the global plc itself
+    "fintellix": "Fintellix",  # single canonical entity
+    "sagility": "Sagility",  # single canonical entity
     "shigan": "Shigan Quantum Technologies",
     "swaraj": "Swaraj Engines",
     # Tier-2: foreign parents / JV partners whose stubs were added by an
@@ -221,7 +263,7 @@ _ALIASES: dict[str, str] = {
     "3m company": "3M Company",
     "holcim": "Holcim",
     "nerofix": "Nerofix",
-    "perma": "Nerofix",   # Kansai Nerolac acquired Nerofix + Perma together
+    "perma": "Nerofix",  # Kansai Nerolac acquired Nerofix + Perma together
     # Foreign parents / JV partners added 2026-08-04 from the foreign-parent
     # triage set. Surface forms in prose that the fuzzy matcher rejected.
     "kokusan denki": "Kokusan Denki",
@@ -244,9 +286,7 @@ def _tokens(name: str) -> frozenset[str]:
     # that to ~1200 calls. Returns frozenset (hashable) so callers can use it
     # in set operations and as a dict key.
     return frozenset(
-        t
-        for t in re.sub(r"[^a-z0-9 ]", " ", name.lower()).split()
-        if t and t not in _STOPWORDS
+        t for t in re.sub(r"[^a-z0-9 ]", " ", name.lower()).split() if t and t not in _STOPWORDS
     )
 
 
@@ -267,9 +307,7 @@ class EntityResolver:
         self._names: list[str] = list(names)
         self._by_lower: dict[str, str] = {n.lower(): n for n in self._names}
         # Pre-tokenized entity names (avoids re-tokenizing in the _fuzzy loop).
-        self._name_tokens: list[tuple[str, frozenset]] = [
-            (n, _tokens(n)) for n in self._names
-        ]
+        self._name_tokens: list[tuple[str, frozenset]] = [(n, _tokens(n)) for n in self._names]
         # Reverse index: single token → names containing it. Lets _fuzzy find
         # candidate entities sharing ≥1 token in O(candidates) instead of
         # scanning all N entities per resolve() call.
@@ -307,7 +345,9 @@ class EntityResolver:
         # resolve via the brand token.
         stripped_m = re.sub(
             r"^(?:the|a|an|sweden'?s|japan'?s|germany'?s|korea'?s|france'?s|usa'?s|u\.s\.'?s|china'?s|uk'?s|india'?s)\s+",
-            "", m, flags=re.IGNORECASE,
+            "",
+            m,
+            flags=re.IGNORECASE,
         )
         first = re.split(r"[\s,/]+", stripped_m, maxsplit=1)[0].lower()
         if first and first != m.lower():
@@ -320,7 +360,9 @@ class EntityResolver:
         # 2. Suffix-stripped exact.
         stripped = re.sub(
             r"\s+(Limited|Ltd\.?|Private|Pvt\.?|Company|Co\.?)$",
-            "", m, flags=re.IGNORECASE,
+            "",
+            m,
+            flags=re.IGNORECASE,
         ).strip()
         if stripped.lower() in self._by_lower:
             return self._by_lower[stripped.lower()]
@@ -407,6 +449,7 @@ class Unresolved:
 
     Written to the sidecar `findata/_pending_relations.txt` for human review.
     """
+
     edge_type: str
     source: str
     target_mention: str
@@ -442,7 +485,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:to|for|in|and\s+|which|that|is|has|will)\s|$))",
             re.IGNORECASE,
         ),
-        "jv_with", True, "forward",
+        "jv_with",
+        True,
+        "forward",
     ),
     (
         re.compile(
@@ -451,7 +496,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:to|for|in|and\s+|which|that|is|has|will)\s|$))",
             re.IGNORECASE,
         ),
-        "jv_with", True, "forward",
+        "jv_with",
+        True,
+        "forward",
     ),
     # G1.1 (2026-08): JV synonyms — common Indian-English / corporate forms that
     # the literal "joint venture with" / "JV with" patterns above miss. Maps to
@@ -467,9 +514,10 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:to|for|in|and\s+|which|that|is|has|will)\s|$))",
             re.IGNORECASE,
         ),
-        "jv_with", True, "forward",
+        "jv_with",
+        True,
+        "forward",
     ),
-
     # --- acquired (asymmetric) ---
     # NOTE: the forward pattern explicitly excludes `by|from` after `acquired`
     # so it doesn't fire on `acquired by X` (the reverse pattern handles that).
@@ -481,7 +529,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will)\s|$))",
             re.IGNORECASE,
         ),
-        "acquired", False, "forward",
+        "acquired",
+        False,
+        "forward",
     ),
     (
         re.compile(
@@ -490,7 +540,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will)\s|$))",
             re.IGNORECASE,
         ),
-        "acquired", False, "reverse",
+        "acquired",
+        False,
+        "reverse",
     ),
     (
         re.compile(
@@ -499,7 +551,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will)\s|$))",
             re.IGNORECASE,
         ),
-        "acquired", False, "forward",
+        "acquired",
+        False,
+        "forward",
     ),
     # H1 (2026-07-28): additional `acquired` REVERSE forms for corporate
     # actions that the forward "acquired X" / reverse "acquired by X" patterns
@@ -519,7 +573,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will)\s|$))",
             re.IGNORECASE,
         ),
-        "acquired", False, "reverse",
+        "acquired",
+        False,
+        "reverse",
     ),
     (
         re.compile(
@@ -529,9 +585,10 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will|and)\s|$))",
             re.IGNORECASE,
         ),
-        "acquired", False, "reverse",
+        "acquired",
+        False,
+        "reverse",
     ),
-
     # --- subsidiary_of (asymmetric, source subsidiary, target parent) ---
     (
         re.compile(
@@ -542,7 +599,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:is|which|that|operates|it|has|with)\s|$))",
             re.IGNORECASE,
         ),
-        "subsidiary_of", False, "forward",
+        "subsidiary_of",
+        False,
+        "forward",
     ),
     (
         re.compile(
@@ -551,7 +610,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:is|which|that|operates|it|has|with)\s|$))",
             re.IGNORECASE,
         ),
-        "subsidiary_of", False, "reverse",
+        "subsidiary_of",
+        False,
+        "reverse",
     ),
     # H1 (2026-07-28): reverse subsidiary_of for the "listed subsidiary is X"
     # / "its Indian subsidiary is X" form — the section's company is the
@@ -569,9 +630,10 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:is|which|that|operates|it|has|with|a\s)\s|$))",
             re.IGNORECASE,
         ),
-        "subsidiary_of", False, "reverse",
+        "subsidiary_of",
+        False,
+        "reverse",
     ),
-
     # --- supplier_to (asymmetric: source = supplier, target = customer) ---
     # High-precision only — captured target must be a named entity.
     # General prose like "supplier to OEMs" / "supplier to the industry" is
@@ -585,7 +647,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will|because|since|and\s)\s|$))",
             re.IGNORECASE,
         ),
-        "supplier_to", False, "forward",
+        "supplier_to",
+        False,
+        "forward",
     ),
     (
         re.compile(
@@ -594,7 +658,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will|because|since|and\s)\s|$))",
             re.IGNORECASE,
         ),
-        "supplier_to", False, "forward",
+        "supplier_to",
+        False,
+        "forward",
     ),
     # "securing <Company> orders" / "won <Company> contract"
     # NOTE: no re.IGNORECASE here — the [A-Z] anchor must stay case-sensitive
@@ -605,7 +671,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"([A-Z][A-Za-z0-9&.\-\s]{1,60}?)\s+"
             r"(?:orders|contract|contracts|business|deal|RFQ|rfq)\b"
         ),
-        "supplier_to", False, "forward",
+        "supplier_to",
+        False,
+        "forward",
     ),
     # "providing X% of <Company>'s volume/demand/supply" — strong signal
     # that source supplies to <Company>.
@@ -618,7 +686,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:for|since|because|and\s|which|that)\s|$))",
             re.IGNORECASE,
         ),
-        "supplier_to", False, "forward",
+        "supplier_to",
+        False,
+        "forward",
     ),
     # G1.3 (2026-08): "vendor to/for X" — synonym for "supplier to" (forward).
     # Same shape as the first supplier_to pattern above; flows through the same
@@ -632,7 +702,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will|because|since|and\s)\s|$))",
             re.IGNORECASE,
         ),
-        "supplier_to", False, "forward",
+        "supplier_to",
+        False,
+        "forward",
     ),
     # G1.3 (2026-08): "sources/sourcing/procures from X" — REVERSE supplier_to.
     # The named party X is the SUPPLIER; the section's company is the CUSTOMER.
@@ -645,9 +717,10 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|last|this|which|that|is|has|will|because|since|and\s)\s|$))",
             re.IGNORECASE,
         ),
-        "supplier_to", False, "reverse",
+        "supplier_to",
+        False,
+        "reverse",
     ),
-
     # --- customer_of (asymmetric: source = customer, target = supplier) ---
     # "<Company>'s largest customer is <X>" → X supplies to Company.
     # "major customers (X, Y, Z)" → listed entities are customers of source.
@@ -660,9 +733,10 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:!?\n/\"']|\s+(?:in|for|during|last|this|which|that|is|has|have|will|because|since|and|but|while|when|to|from|with|easily|also)\s|$))",
             re.IGNORECASE,
         ),
-        "customer_of", False, "forward",
+        "customer_of",
+        False,
+        "forward",
     ),
-
     # --- competes_with (symmetric) ---
     # High-precision patterns only. The bare "competes with X" / "competition
     # from X" forms are ~95% generic noise ("peers", "OEMs", "Chinese imports"),
@@ -693,7 +767,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[.;:()\n\"']|\s+(?:which|that|is|has|will|but\s|while\s|when\s|because|since)\s|$))",
             re.IGNORECASE,
         ),
-        "competes_with", True, "forward",
+        "competes_with",
+        True,
+        "forward",
     ),
     # Pattern B — bare "competes with X" / "rival X" with a negative lookahead
     # that rejects the generic noise which got competes_with deferred in v1.
@@ -706,9 +782,10 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:in|for|on|at|last|this|which|that|is|has|will|and\s|but\s|while\s|when\s|because|since)\s|$))",
             re.IGNORECASE,
         ),
-        "competes_with", True, "forward",
+        "competes_with",
+        True,
+        "forward",
     ),
-
     # G2 (2026-08-23): stake-percentage family — Indian-market ownership
     # phrasing. These patterns capture TWO groups: group(1) = percentage,
     # group(2) = target mention. extract_relations() detects them by checking
@@ -729,7 +806,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:from|for|last|this|which|that|is|has|will|and\s)\s|$))",
             re.IGNORECASE,
         ),
-        "acquired", False, "forward",
+        "acquired",
+        False,
+        "forward",
     ),
     (
         re.compile(
@@ -742,7 +821,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:from|for|last|this|which|that|is|has|will|and\s)\s|$))",
             re.IGNORECASE,
         ),
-        "acquired", False, "forward",
+        "acquired",
+        False,
+        "forward",
     ),
     # "holds/owns N% stake in X" is ongoing OWNERSHIP, not an acquisition
     # event. At >=50% it implies control, so we emit subsidiary_of with
@@ -761,7 +842,9 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
             r"(?=\s*(?:[,.;:()\n/\"']|\s+(?:via|through|which|that|is|has|will|and\s)\s|$))",
             re.IGNORECASE,
         ),
-        "subsidiary_of", False, "reverse",
+        "subsidiary_of",
+        False,
+        "reverse",
     ),
 ]
 
@@ -813,13 +896,17 @@ def _normalize_group_name(raw: str) -> str:
     """
     name = re.sub(
         r"\s+(?:Corp(?:oration)?|Group|Holdings|Industries)$",
-        "", raw.strip(), flags=re.IGNORECASE,
+        "",
+        raw.strip(),
+        flags=re.IGNORECASE,
     ).strip()
     name = re.sub(
-        r"^(?:a|an|the)\s+", "", name, flags=re.IGNORECASE,
+        r"^(?:a|an|the)\s+",
+        "",
+        name,
+        flags=re.IGNORECASE,
     ).strip()
     return name
-
 
 
 # --------------------------------------------------------------------------- #
@@ -873,7 +960,9 @@ def _split_sections(content: str) -> list[tuple[str, int, int, int]]:  # noqa: C
         heading_text = m.group(1).split("|")[0].strip().rstrip("-·")
         heading_text = re.sub(
             r"\s+(Limited|Ltd\.?|Private|Pvt\.?)$",
-            "", heading_text, flags=re.IGNORECASE,
+            "",
+            heading_text,
+            flags=re.IGNORECASE,
         ).strip()
         # Strip surrounding [] brackets (e.g. "[Concall]").
         heading_text = heading_text.strip("[]")
@@ -898,7 +987,7 @@ def _split_sections(content: str) -> list[tuple[str, int, int, int]]:  # noqa: C
         while line_start < len(content) and content[line_start] in " \t\n":
             line_start += 1
         line_end = content.find("\n", line_start)
-        line = content[line_start:line_end if line_end != -1 else len(content)]
+        line = content[line_start : line_end if line_end != -1 else len(content)]
         if _PIPE_SEP_RE.search(line) or _CAP_TOKEN_RE.search(line):
             company_indices.append(i)
 
@@ -935,10 +1024,23 @@ def _looks_like_speaker(heading: str) -> bool:
 
 # Heading texts that are newsletter chrome, not companies.
 _NEWSLETTER_CHROME = {
-    "concall", "reference", "key takeaways", "key takeaway", "summary",
-    "overview", "the chatter", "points & figures", "the plotlines",
-    "introduction", "conclusion", "all editions", "disclaimer",
-    "the chatter —", "management commentary", "outlook", "earnings call",
+    "concall",
+    "reference",
+    "key takeaways",
+    "key takeaway",
+    "summary",
+    "overview",
+    "the chatter",
+    "points & figures",
+    "the plotlines",
+    "introduction",
+    "conclusion",
+    "all editions",
+    "disclaimer",
+    "the chatter —",
+    "management commentary",
+    "outlook",
+    "earnings call",
 }
 
 # Generic noun-phrase targets that the `acquired` pattern matches too eagerly.
@@ -946,10 +1048,27 @@ _NEWSLETTER_CHROME = {
 # real acquisition targets. Anything matching one of these (case-insensitive,
 # as a substring) is dropped to the sidecar with a `reason:generic_target` flag.
 _GENERIC_ACquired_TARGETS = (
-    "land", "property", "assets", "customers", "clients", "shares",
-    "stake", "businesses", "companies", "brands", "portfolios", "portfolio",
-    "new business", "recently was at", "aviation assets", "whisky brand",
-    "digital brands", "from standard", "last year", "this year", "this quarter",
+    "land",
+    "property",
+    "assets",
+    "customers",
+    "clients",
+    "shares",
+    "stake",
+    "businesses",
+    "companies",
+    "brands",
+    "portfolios",
+    "portfolio",
+    "new business",
+    "recently was at",
+    "aviation assets",
+    "whisky brand",
+    "digital brands",
+    "from standard",
+    "last year",
+    "this year",
+    "this quarter",
     " tanfac ",  # surrounded by spaces to avoid matching real "Tanfac Ltd"
 )
 
@@ -959,14 +1078,42 @@ _GENERIC_ACquired_TARGETS = (
 # Anything matching (case-insensitive, exact match after stripping articles)
 # is rejected before resolution.
 _GENERIC_SUPPLIER_TARGETS = {
-    "oems", "oem", "the industry", "the market", "industry", "market",
-    "customers", "clients", "consumers", "the government", "government",
-    "the public sector", "public sector", "the private sector", "private sector",
-    "automakers", "auto makers", "the company", "its customers", "its clients",
-    "retailers", "wholesalers", "distributors", "dealers",
-    "the indian market", "the indian industry", "india",
-    "us", "usa", "uk", "europe", "china", "asia",
-    "the world", "global markets", "the region",
+    "oems",
+    "oem",
+    "the industry",
+    "the market",
+    "industry",
+    "market",
+    "customers",
+    "clients",
+    "consumers",
+    "the government",
+    "government",
+    "the public sector",
+    "public sector",
+    "the private sector",
+    "private sector",
+    "automakers",
+    "auto makers",
+    "the company",
+    "its customers",
+    "its clients",
+    "retailers",
+    "wholesalers",
+    "distributors",
+    "dealers",
+    "the indian market",
+    "the indian industry",
+    "india",
+    "us",
+    "usa",
+    "uk",
+    "europe",
+    "china",
+    "asia",
+    "the world",
+    "global markets",
+    "the region",
     "original equipment manufacturers",
 }
 
@@ -979,12 +1126,36 @@ _GENERIC_SUPPLIER_TARGETS = {
 # (case-insensitive, exact OR first-word) is dropped before resolution —
 # NOT sidecarred, because the prose carried no resolvable entity.
 _GENERIC_COMPETITOR_TARGETS = {
-    "peers", "rivals", "competitors", "competition", "incumbents",
-    "players", "challengers", "entrants", "newcomers", "startups",
-    "chinese", "indian", "european", "american", "japanese", "korean",
-    "global", "domestic", "foreign", "multinational",
-    "oems", "the industry", "the market", "others", "many", "some",
-    "several", "various", "both", "all",
+    "peers",
+    "rivals",
+    "competitors",
+    "competition",
+    "incumbents",
+    "players",
+    "challengers",
+    "entrants",
+    "newcomers",
+    "startups",
+    "chinese",
+    "indian",
+    "european",
+    "american",
+    "japanese",
+    "korean",
+    "global",
+    "domestic",
+    "foreign",
+    "multinational",
+    "oems",
+    "the industry",
+    "the market",
+    "others",
+    "many",
+    "some",
+    "several",
+    "various",
+    "both",
+    "all",
 }
 
 # Phrase prefixes that signal SECTOR GROUPING rather than direct competition.
@@ -1082,7 +1253,7 @@ def _parse_yaml_field(content: str, field: str) -> str | None:
     m = _YAML_FRONT_MATTER_RE.match(content)
     if not m:
         return None
-    yaml_block = content[:m.end()]
+    yaml_block = content[: m.end()]
     pat = re.compile(
         r"^" + re.escape(field) + r"\s*:\s*(.+?)\s*$",
         re.MULTILINE,
@@ -1092,9 +1263,7 @@ def _parse_yaml_field(content: str, field: str) -> str | None:
         return None
     val = fm.group(1).strip()
     # Strip surrounding quotes.
-    if (val.startswith('"') and val.endswith('"')) or (
-        val.startswith("'") and val.endswith("'")
-    ):
+    if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
         val = val[1:-1]
     return val
 
@@ -1182,18 +1351,30 @@ _NOISE_LINE_RE = re.compile(
 
 # Month name → month number (1-12).
 _MONTHS = {
-    "jan": 1, "january": 1,
-    "feb": 2, "february": 2,
-    "mar": 3, "march": 3,
-    "apr": 4, "april": 4,
+    "jan": 1,
+    "january": 1,
+    "feb": 2,
+    "february": 2,
+    "mar": 3,
+    "march": 3,
+    "apr": 4,
+    "april": 4,
     "may": 5,
-    "jun": 6, "june": 6,
-    "jul": 7, "july": 7,
-    "aug": 8, "august": 8,
-    "sep": 9, "sept": 9, "september": 9,
-    "oct": 10, "october": 10,
-    "nov": 11, "november": 11,
-    "dec": 12, "december": 12,
+    "jun": 6,
+    "june": 6,
+    "jul": 7,
+    "july": 7,
+    "aug": 8,
+    "august": 8,
+    "sep": 9,
+    "sept": 9,
+    "september": 9,
+    "oct": 10,
+    "october": 10,
+    "nov": 11,
+    "november": 11,
+    "dec": 12,
+    "december": 12,
 }
 
 # "Q1 FY26" → (month, year). FY in India starts April 1, so Q1 FY26 is
@@ -1219,7 +1400,8 @@ _YEAR_RE = re.compile(r"\b(20\d{2})\b")
 
 # Captures "last year" / "this year" / "previous year".
 _REL_YEAR_RE = re.compile(
-    r"\b(last|this|previous|prior)\s+year\b", re.IGNORECASE,
+    r"\b(last|this|previous|prior)\s+year\b",
+    re.IGNORECASE,
 )
 
 
@@ -1304,6 +1486,7 @@ def _extract_year_from_context(
         # legitimately completed, past-tense event — excluding it would
         # silently drop real signal. Only truly-future years are rejected.
         from datetime import date as _date
+
         current_year = _date.today().year
         plausible = [y for y in candidates if 2018 <= y <= current_year]
         if plausible:
@@ -1414,25 +1597,26 @@ def extract_relations(  # noqa: C901
                 if edge_type == "customer_of" and m.group(2):
                     target_mention = m.group(2).strip()
                 elif (
-                    m.lastindex is not None and m.lastindex >= 2
-                    and m.group(1) is not None and m.group(2) is not None
+                    m.lastindex is not None
+                    and m.lastindex >= 2
+                    and m.group(1) is not None
+                    and m.group(2) is not None
                     and re.fullmatch(r"\d{1,3}(?:\.\d+)?", m.group(1))
                 ):
                     stake_pct = float(m.group(1))
                     target_mention = m.group(2).strip()
                 else:
                     target_mention = m.group(1).strip()
-                if (
-                    edge_type == "subsidiary_of"
-                    and stake_pct is not None and stake_pct < 50
-                ):
+                if edge_type == "subsidiary_of" and stake_pct is not None and stake_pct < 50:
                     # G2 holds-below-50%: passive holding, not a subsidiary.
                     # Tier C drop (see PATTERNS comment).
                     continue
                 # Strip trailing articles / whitespace junk.
                 target_mention = re.sub(
                     r"\s+(?:the|a|an|its|their|our|in|on|at|to|for|and|or)$",
-                    "", target_mention, flags=re.IGNORECASE,
+                    "",
+                    target_mention,
+                    flags=re.IGNORECASE,
                 ).strip(" .,;:")
                 if not target_mention or len(target_mention) < 2:
                     continue
@@ -1476,7 +1660,7 @@ def extract_relations(  # noqa: C901
                     # These describe sector classification, not direct
                     # competition (e.g. "Bharti Airtel grouped with peers
                     # such as Pace Digitek").
-                    window = body[max(0, m.start() - 60):m.start()].lower()
+                    window = body[max(0, m.start() - 60) : m.start()].lower()
                     if any(p in window for p in _COMPETES_GROUPING_PREFIXES):
                         continue
 
@@ -1491,7 +1675,8 @@ def extract_relations(  # noqa: C901
                 if edge_type in ("customer_of", "competes_with"):
                     raw = re.split(
                         r"\s*,\s*|\s+\band\b\s+|\s+\bor\b\s+|\s+&\s+",
-                        target_mention, flags=re.IGNORECASE,
+                        target_mention,
+                        flags=re.IGNORECASE,
                     )
                     chunks = [c.strip() for c in raw if c.strip()]
                 else:
@@ -1506,12 +1691,15 @@ def extract_relations(  # noqa: C901
                         # are Capitalised throughout, so the first
                         # lowercase word marks the end of the name.
                         chunk_clean = re.sub(
-                            r"^(?:and|or|&)\s+", "", chunk,
+                            r"^(?:and|or|&)\s+",
+                            "",
+                            chunk,
                             flags=re.IGNORECASE,
                         )
                         chunk_clean = re.sub(
                             r"\s+\d+(?:\.\d+)?\s+\w+(?:\s+\w+){0,2}$",
-                            "", chunk_clean,
+                            "",
+                            chunk_clean,
                         )
                         # Truncate at first lowercase word (heuristic for
                         # trailing prose bleed in Pattern A's wide capture).
@@ -1534,15 +1722,21 @@ def extract_relations(  # noqa: C901
                             csrc, ctgt = chunk_entity, source_entity
                         if symmetric and csrc > ctgt:
                             csrc, ctgt = ctgt, csrc
-                        edges_by_type.setdefault(edge_type, []).append(Edge(
-                            source=csrc, target=ctgt, edge_type=edge_type,
-                            properties=_make_properties(
-                                edition_title, newsletter_type,
-                                doc_type, _extract_quote_around(body, m.start()),
-                            ),
-                            source_ref=source_ref_default,
-                            symmetric=symmetric,
-                        ))
+                        edges_by_type.setdefault(edge_type, []).append(
+                            Edge(
+                                source=csrc,
+                                target=ctgt,
+                                edge_type=edge_type,
+                                properties=_make_properties(
+                                    edition_title,
+                                    newsletter_type,
+                                    doc_type,
+                                    _extract_quote_around(body, m.start()),
+                                ),
+                                source_ref=source_ref_default,
+                                symmetric=symmetric,
+                            )
+                        )
                     # Only skip the sidecar if we emitted at least one edge.
                     # Otherwise, fall through so the unresolved whole-mention
                     # is recorded for human triage.
@@ -1557,13 +1751,15 @@ def extract_relations(  # noqa: C901
                     if noise_target(target_mention):
                         continue
                     # Sidecar for human review.
-                    unresolved.append(Unresolved(
-                        edge_type=edge_type,
-                        source=source_entity,
-                        target_mention=target_mention,
-                        quote=_extract_quote_around(body, m.start()),
-                        edition=edition_title,
-                    ))
+                    unresolved.append(
+                        Unresolved(
+                            edge_type=edge_type,
+                            source=source_entity,
+                            target_mention=target_mention,
+                            quote=_extract_quote_around(body, m.start()),
+                            edition=edition_title,
+                        )
+                    )
                     continue
                 if target_entity == source_entity:
                     continue  # self-edge; skip
@@ -1589,12 +1785,19 @@ def extract_relations(  # noqa: C901
                 iso_date: str | None = None
                 if edge_type in _EDGE_TYPES_WITH_PROSE_YEAR_EXTRACTION:
                     year, iso_date = _extract_year_from_context(
-                        quote, edition_label=edition_title,
+                        quote,
+                        edition_label=edition_title,
                     )
                 edge = Edge(
-                    source=src, target=tgt, edge_type=edge_type,
+                    source=src,
+                    target=tgt,
+                    edge_type=edge_type,
                     properties=_make_properties(
-                        edition_title, newsletter_type, doc_type, quote, year,
+                        edition_title,
+                        newsletter_type,
+                        doc_type,
+                        quote,
+                        year,
                     ),
                     source_ref=source_ref_default,
                     symmetric=symmetric,
@@ -1633,7 +1836,9 @@ def extract_relations(  # noqa: C901
 
 
 def _capture_groups(
-    body: str, _heading: str, source_entity: str | None,
+    body: str,
+    _heading: str,
+    source_entity: str | None,
     group_to_companies: dict[str, set[str]],
 ) -> None:
     """Record group-membership matches against the section's company.
@@ -1673,16 +1878,20 @@ def _derive_same_group(
         if len(members) < 2:
             continue
         for a, b in combinations(sorted(members), 2):
-            edges.append(Edge(
-                source=a, target=b, edge_type="same_group",
-                properties={
-                    "group": group_name,
-                    "edition": edition_title,
-                    "newsletter": newsletter_type,
-                },
-                source_ref=source_ref,
-                symmetric=True,
-            ))
+            edges.append(
+                Edge(
+                    source=a,
+                    target=b,
+                    edge_type="same_group",
+                    properties={
+                        "group": group_name,
+                        "edition": edition_title,
+                        "newsletter": newsletter_type,
+                    },
+                    source_ref=source_ref,
+                    symmetric=True,
+                )
+            )
     return edges
 
 
@@ -1713,6 +1922,7 @@ class ApplyEdgesResult(NamedTuple):
     an integrity error (e.g. after a schema change adding a NOT NULL column).
     The three counters are now surfaced explicitly; the CLI prints all three.
     """
+
     inserted: int
     skipped_fk: int
     skipped_suppressed: int
@@ -1731,9 +1941,7 @@ def _load_existing_edges(conn) -> set[tuple[str, str, str]]:
     """
     return {
         (r[0], r[1], r[2])
-        for r in conn.execute(
-            "SELECT source, target, edge_type FROM graph_edges"
-        ).fetchall()
+        for r in conn.execute("SELECT source, target, edge_type FROM graph_edges").fetchall()
     }
 
 
@@ -1804,8 +2012,15 @@ def apply_edges(  # noqa: C901
                              symmetric, valid_from)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                         """,
-                        (e.source, e.target, e.edge_type, props_json,
-                         e.source_ref, 1 if e.symmetric else 0, e.valid_from),
+                        (
+                            e.source,
+                            e.target,
+                            e.edge_type,
+                            props_json,
+                            e.source_ref,
+                            1 if e.symmetric else 0,
+                            e.valid_from,
+                        ),
                     )
                     inserted += cur.rowcount
                 except Exception as exc:
@@ -1890,8 +2105,9 @@ _PARALLEL_THRESHOLD = 20
 def _extract_batch(
     file_paths: list[str],
     entity_names: list[str],
-) -> list[tuple[str, str, list[Edge], list[Unresolved], dict[str, int],
-               list[tuple[str, list[str]]]]]:
+) -> list[
+    tuple[str, str, list[Edge], list[Unresolved], dict[str, int], list[tuple[str, list[str]]]]
+]:
     """Process a batch of newsletter files in a worker process.
 
     Builds its own EntityResolver from entity_names (cheap; avoids serializing
@@ -1919,10 +2135,7 @@ def _extract_batch(
         if doc_type == "company":
             norm = _parse_yaml_field(content, "normalized_name")
             if norm:
-                resolved = (
-                    resolver.resolve(norm.replace("_", " "))
-                    or resolver.resolve(norm)
-                )
+                resolved = resolver.resolve(norm.replace("_", " ")) or resolver.resolve(norm)
                 if resolved:
                     source_entity_override = resolved
         edges_by_type, unresolved = extract_relations(
@@ -1936,8 +2149,7 @@ def _extract_batch(
         type_counts = {et: len(es) for et, es in edges_by_type.items()}
         all_edges = [e for es in edges_by_type.values() for e in es]
         ambiguities = resolver.ambiguous_log[ambig_before:]
-        results.append((str(nl_path), doc_type, all_edges, unresolved,
-                        type_counts, ambiguities))
+        results.append((str(nl_path), doc_type, all_edges, unresolved, type_counts, ambiguities))
     return results
 
 
@@ -2032,7 +2244,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         ),
     )
     p.add_argument(
-        "paths", nargs="+",
+        "paths",
+        nargs="+",
         help=(
             "Paths to newsletter .md files OR directories containing them. "
             "Directories are scanned recursively. image_map.md and files "
@@ -2040,23 +2253,32 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         ),
     )
     p.add_argument(
-        "--apply", action="store_true",
+        "--apply",
+        action="store_true",
         help="Write edges to graph_edges (default: dry-run).",
     )
     p.add_argument(
-        "--write-sidecar", action="store_true", default=True,
+        "--write-sidecar",
+        action="store_true",
+        default=True,
         help="Append unresolved matches to findata/_pending_relations.txt "
-             "(default: on). Pass --no-write-sidecar to disable.",
+        "(default: on). Pass --no-write-sidecar to disable.",
     )
     p.add_argument(
-        "--no-write-sidecar", dest="write_sidecar", action="store_false",
+        "--no-write-sidecar",
+        dest="write_sidecar",
+        action="store_false",
     )
     p.add_argument(
-        "--verbose", "-v", action="store_true",
+        "--verbose",
+        "-v",
+        action="store_true",
         help="Print every extracted edge in addition to the summary.",
     )
     p.add_argument(
-        "--counts-json", metavar="PATH", default=None,
+        "--counts-json",
+        metavar="PATH",
+        default=None,
         help=(
             "Write per-edge-type totals as JSON to PATH (E1 diff-audit "
             "harness: run once before and once after a pattern change, "
@@ -2076,7 +2298,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     conn = connect()
     try:
         names = [
-            r["name"] for r in conn.execute(
+            r["name"]
+            for r in conn.execute(
                 "SELECT name FROM entities WHERE entity_type='company'"
             ).fetchall()
         ]
@@ -2102,10 +2325,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         from concurrent.futures.process import BrokenProcessPool
 
         workers = min(4, os.cpu_count() or 1)
-        chunks = [
-            ([str(p) for p in nl_paths[i::workers]], names)
-            for i in range(workers)
-        ]
+        chunks = [([str(p) for p in nl_paths[i::workers]], names) for i in range(workers)]
         try:
             with ProcessPoolExecutor(max_workers=workers) as ex:
                 batch_results = list(ex.map(_extract_batch_arg, chunks))
@@ -2113,8 +2333,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             # Fallback to serial processing if child processes crash
             # (e.g., under memory pressure or OOM killer).
             import sys as _sys
-            print("WARNING: ProcessPoolExecutor crashed, falling back to serial",
-                  file=_sys.stderr)
+
+            print("WARNING: ProcessPoolExecutor crashed, falling back to serial", file=_sys.stderr)
             batch_results = [_extract_batch(chunk[0], chunk[1]) for chunk in chunks]
         # Flatten worker results into per-file tuples, preserving order.
         file_results = []
@@ -2128,12 +2348,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     # Perf (2026-08-26): load the dry-run existing-edge set ONCE here and
     # hand it to every apply_edges call below — was one full graph_edges
     # scan per note (~15ms × ~110 notes of identical work).
-    existing_edges = (
-        _load_existing_edges(conn)
-        if conn is not None and not args.apply else None
-    )
-    for (nl_path_str, doc_type, all_edges, unresolved, type_counts,
-         ambiguities) in file_results:
+    existing_edges = _load_existing_edges(conn) if conn is not None and not args.apply else None
+    for nl_path_str, doc_type, all_edges, unresolved, type_counts, ambiguities in file_results:
         nl_path = Path(nl_path_str)
         if doc_type == "sector":
             continue
@@ -2175,15 +2391,12 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             for mention, tied in ambiguities:
                 # Tier-C audit line: fuzzy resolution hit an N-way tie.
                 print(
-                    f"  ~ ambiguous resolve: '{mention}' "
-                    f"(equally scored: {', '.join(tied)})",
+                    f"  ~ ambiguous resolve: '{mention}' (equally scored: {', '.join(tied)})",
                     file=sys.stderr,
                 )
 
         # Apply (or dry-run count).
-        result = apply_edges(
-            all_edges, conn=conn, dry_run=not args.apply,
-            existing=existing_edges)
+        result = apply_edges(all_edges, conn=conn, dry_run=not args.apply, existing=existing_edges)
         total_applied += result.inserted
         total_skipped_fk += result.skipped_fk
         total_skipped_suppressed += result.skipped_suppressed
@@ -2205,8 +2418,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     )
     if total_skipped_fk or total_skipped_suppressed:
         print(
-            f"      skipped_fk={total_skipped_fk} "
-            f"skipped_suppressed={total_skipped_suppressed}",
+            f"      skipped_fk={total_skipped_fk} skipped_suppressed={total_skipped_suppressed}",
             file=sys.stderr,
         )
     if total_ambiguous:

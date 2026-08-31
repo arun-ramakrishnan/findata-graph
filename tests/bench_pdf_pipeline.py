@@ -14,6 +14,7 @@ Warm reference: 2026-08-26 pre-O3 ≈7.4s convert with the ONNX layout
 model; post-O3 layout-off ≈2.1s (corpus A/B: faster AND higher word
 coverage on all 7 PDFs; surviving image refs identical at zero).
 """
+
 from __future__ import annotations
 
 import sys
@@ -50,8 +51,9 @@ def main() -> int:
         manifest = verify(PDF, td / "out", stem)
         t3 = time.perf_counter()
     dt_conv, dt_write, dt_ver = t1 - t0, t2 - t1, t3 - t2
-    print(f"pages={len(pages)} verdict={manifest['verdict']} "
-          f"doc_coverage={manifest['doc_coverage']}")
+    print(
+        f"pages={len(pages)} verdict={manifest['verdict']} doc_coverage={manifest['doc_coverage']}"
+    )
     print(f"convert={dt_conv:.2f}s write={dt_write:.2f}s verify={dt_ver:.2f}s")
     ok = True
     if dt_conv + dt_write > CONVERT_BUDGET:

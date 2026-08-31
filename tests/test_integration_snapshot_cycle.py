@@ -14,6 +14,7 @@ The source DB is a schema-only backup of production (the test_graph.py
 ``_minimal_db`` pattern) seeded with a handful of entities/edges, so the
 materialisation runs the real DDL against the real schema.
 """
+
 from __future__ import annotations
 
 import logging
@@ -71,17 +72,25 @@ def _seeded_db(tmp_path: Path, name: str = "src.db") -> Path:
     dst = sqlite3.connect(str(db))
     src.backup(dst)
     src.close()
-    for t in ("graph_edges", "entity_tags", "graph_analytics", "events",
-              "quotes", "company_metrics", "company_embeddings",
-              "note_search"):
+    for t in (
+        "graph_edges",
+        "entity_tags",
+        "graph_analytics",
+        "events",
+        "quotes",
+        "company_metrics",
+        "company_embeddings",
+        "note_search",
+    ):
         dst.execute(f"DELETE FROM {t}")  # noqa: S608  # schema-constant identifiers
     dst.execute("DELETE FROM entities")
     dst.executemany(
-        "INSERT INTO entities (name, entity_type, sector_classification) "
-        "VALUES (?,?,?)", _ENTITIES)
+        "INSERT INTO entities (name, entity_type, sector_classification) VALUES (?,?,?)", _ENTITIES
+    )
     dst.executemany(
-        "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
-        "VALUES (?,?,?,'seed')", _EDGES)
+        "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,'seed')",
+        _EDGES,
+    )
     dst.commit()
     dst.execute("VACUUM")
     dst.close()
@@ -145,23 +154,19 @@ class TestDuckdbSnapshotCycle:
         # blocks verify's read-only source connect, whose except-fallback
         # would then compare the snapshot against itself (always green).
         con = duckdb.connect(str(ddb))
-        old = con.execute(
-            "SELECT value FROM _build_meta WHERE key = 'generation'"
-        ).fetchone()[0]
+        old = con.execute("SELECT value FROM _build_meta WHERE key = 'generation'").fetchone()[0]
         con.execute(
-            "UPDATE _build_meta SET value = CAST(value AS BIGINT) + 1 "
-            "WHERE key = 'generation'")
+            "UPDATE _build_meta SET value = CAST(value AS BIGINT) + 1 WHERE key = 'generation'"
+        )
         con.close()
         try:
             result = verify_duckdb_snapshot(out, ddb, _log)
         finally:
             con = duckdb.connect(str(ddb))
-            con.execute(
-                "UPDATE _build_meta SET value = ? "
-                "WHERE key = 'generation'", (str(old),))
+            con.execute("UPDATE _build_meta SET value = ? WHERE key = 'generation'", (str(old),))
             con.close()
         assert result["tables"] == result["source_tables"]  # data agrees…
-        assert result["match"] is False                     # …but gen drifted
+        assert result["match"] is False  # …but gen drifted
 
     def test_create_skips_cleanly_when_no_duckdb_exists(self, tmp_path):
         """SQLite-only deployments: no .duckdb file -> create skips, and
@@ -216,12 +221,24 @@ class TestCliCycle:
         pq = db.parent / "pq"
 
         def _main(*flags):
-            monkeypatch.setattr(sys, "argv", [
-                "snapshot_db.py", *flags,
-                "--db", str(db), "--out", str(out),
-                "--duckdb", str(ddb), "--duckdb-out", str(dout),
-                "--parquet-dir", str(pq),
-            ])
+            monkeypatch.setattr(
+                sys,
+                "argv",
+                [
+                    "snapshot_db.py",
+                    *flags,
+                    "--db",
+                    str(db),
+                    "--out",
+                    str(out),
+                    "--duckdb",
+                    str(ddb),
+                    "--duckdb-out",
+                    str(dout),
+                    "--parquet-dir",
+                    str(pq),
+                ],
+            )
             return snapshot_main()
 
         assert _main("--format", "both") == 0

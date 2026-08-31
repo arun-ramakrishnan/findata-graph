@@ -31,6 +31,7 @@ from helpers.maintenance.enrich_from_yfinance import (
 # Value formatting / conversion
 # ---------------------------------------------------------------------------
 
+
 class TestFormatValue:
     def test_percent_decimal(self):
         assert _format_value(0.338, "operating_margin") == "33.8%"
@@ -141,6 +142,7 @@ class TestExtractMetrics:
 # Profile extraction / rendering
 # ---------------------------------------------------------------------------
 
+
 class TestExtractProfile:
     def test_extracts_structural_data(self):
         profile = extract_profile("Test Co", SAMPLE_INFO)
@@ -165,9 +167,13 @@ class TestExtractProfile:
 
 class TestRenderProfileBlock:
     def test_contains_sentinel_markers(self):
-        profile = {"industry": "IT", "employees": 100,
-                   "promoter_holding": 0.5, "institutional_holding": 0.3,
-                   "business_summary": "Summary"}
+        profile = {
+            "industry": "IT",
+            "employees": 100,
+            "promoter_holding": 0.5,
+            "institutional_holding": 0.3,
+            "business_summary": "Summary",
+        }
         block = render_profile_block(profile)
         assert _PROFILE_BEGIN in block
         assert _PROFILE_END in block
@@ -252,6 +258,7 @@ class TestInsertProfileSection:
 # DB writes (in-memory DB)
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def mem_db():
     """In-memory DB with company_metrics + graph_edges tables."""
@@ -277,10 +284,18 @@ def mem_db():
 class TestWriteMetrics:
     def test_inserts_metrics(self, mem_db):
         metrics = [
-            {"entity": "Co A", "metric_label": "pe_ratio", "value_raw": "20.0",
-             "value_num": 20.0, "unit": "ratio", "period": "latest",
-             "as_of_edition": None, "source_quote": None,
-             "source_ref": SOURCE_REF, "properties": "{}"},
+            {
+                "entity": "Co A",
+                "metric_label": "pe_ratio",
+                "value_raw": "20.0",
+                "value_num": 20.0,
+                "unit": "ratio",
+                "period": "latest",
+                "as_of_edition": None,
+                "source_quote": None,
+                "source_ref": SOURCE_REF,
+                "properties": "{}",
+            },
         ]
         count = write_metrics(mem_db, metrics)
         assert count == 1
@@ -289,10 +304,18 @@ class TestWriteMetrics:
 
     def test_delete_before_insert_idempotent(self, mem_db):
         metrics = [
-            {"entity": "Co A", "metric_label": "pe_ratio", "value_raw": "20.0",
-             "value_num": 20.0, "unit": "ratio", "period": "latest",
-             "as_of_edition": None, "source_quote": None,
-             "source_ref": SOURCE_REF, "properties": "{}"},
+            {
+                "entity": "Co A",
+                "metric_label": "pe_ratio",
+                "value_raw": "20.0",
+                "value_num": 20.0,
+                "unit": "ratio",
+                "period": "latest",
+                "as_of_edition": None,
+                "source_quote": None,
+                "source_ref": SOURCE_REF,
+                "properties": "{}",
+            },
         ]
         write_metrics(mem_db, metrics)
         write_metrics(mem_db, metrics)  # second run
@@ -305,13 +328,23 @@ class TestWriteMetrics:
             "VALUES ('Co A', 'revenue', 1000, 'crore', 'derive:metrics:xyz', '{}')"
         )
         metrics = [
-            {"entity": "Co A", "metric_label": "pe_ratio", "value_raw": "20.0",
-             "value_num": 20.0, "unit": "ratio", "period": "latest",
-             "as_of_edition": None, "source_quote": None,
-             "source_ref": SOURCE_REF, "properties": "{}"},
+            {
+                "entity": "Co A",
+                "metric_label": "pe_ratio",
+                "value_raw": "20.0",
+                "value_num": 20.0,
+                "unit": "ratio",
+                "period": "latest",
+                "as_of_edition": None,
+                "source_quote": None,
+                "source_ref": SOURCE_REF,
+                "properties": "{}",
+            },
         ]
         write_metrics(mem_db, metrics)
-        rows = mem_db.execute("SELECT metric_label FROM company_metrics WHERE entity='Co A'").fetchall()
+        rows = mem_db.execute(
+            "SELECT metric_label FROM company_metrics WHERE entity='Co A'"
+        ).fetchall()
         labels = {r[0] for r in rows}
         assert "revenue" in labels  # original metric preserved
         assert "pe_ratio" in labels  # new yfinance metric added
@@ -325,6 +358,7 @@ class TestWriteCompetitorEdges:
 
     def test_clique_path_retired(self):
         from helpers.maintenance import enrich_from_yfinance as ef
+
         assert not hasattr(ef, "write_competitor_edges")
 
 
@@ -332,18 +366,14 @@ class TestGetEnrichedCompanies:
     def test_detects_industry_tag(self, tmp_path):
         """Company with industry: in frontmatter is detected as enriched."""
         note = tmp_path / "Co A.md"
-        note.write_text(
-            "---\ntitle: Co A\ntype: company\nindustry: Software\n---\n\n# Co A\n"
-        )
+        note.write_text("---\ntitle: Co A\ntype: company\nindustry: Software\n---\n\n# Co A\n")
         result = get_enriched_companies([("Co A", str(note))])
         assert "Co A" in result
 
     def test_no_industry_tag_not_enriched(self, tmp_path):
         """Company without industry: is not enriched."""
         note = tmp_path / "Co B.md"
-        note.write_text(
-            "---\ntitle: Co B\ntype: company\nsector: Tech\n---\n\n# Co B\n"
-        )
+        note.write_text("---\ntitle: Co B\ntype: company\nsector: Tech\n---\n\n# Co B\n")
         result = get_enriched_companies([("Co B", str(note))])
         assert "Co B" not in result
 

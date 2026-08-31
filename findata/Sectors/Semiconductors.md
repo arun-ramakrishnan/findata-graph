@@ -38,13 +38,14 @@ Spun out of [[Technology]] in the 2026 sector-rebalancing pass.
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 6 company note(s) in Semiconductors. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 7 company note(s) in Semiconductors. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Advanced_Micro_Devices|Advanced Micro Devices]]
 - [[Broadcom]]
 - [[Intel_Corporation|Intel Corporation]]
 - [[Micron_Technology|Micron Technology]]
 - [[NVIDIA_Corporation|NVIDIA Corporation]]
+- [[SAS_Taiwan|SAS Taiwan]]
 - [[Western_Digital|Western Digital]]
 
 <!-- END auto company index -->

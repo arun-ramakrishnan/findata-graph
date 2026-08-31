@@ -25,6 +25,7 @@ Usage:
     python3 helpers/graph/derive_themes.py --apply    # write edges + entities
     python3 helpers/graph/derive_themes.py --verbose  # list every edge
 """
+
 from __future__ import annotations
 
 import argparse
@@ -64,55 +65,104 @@ SOURCE_REF = "derive:themes:keyword"
 # for review, so precision is auditable after the fact.
 THEME_ALIASES: dict[str, list[str]] = {
     "China_Plus_One": [
-        "china+1", "china plus one", "china plus 1", "china + 1",
-        "china-one", "china one strategy",
+        "china+1",
+        "china plus one",
+        "china plus 1",
+        "china + 1",
+        "china-one",
+        "china one strategy",
     ],
     "PLI_Scheme": [
-        "pli scheme", "pli benefit", "production linked incentive",
-        "production-linked incentive", "pli for",
+        "pli scheme",
+        "pli benefit",
+        "production linked incentive",
+        "production-linked incentive",
+        "pli for",
     ],
     "Premiumization": [
-        "premiumization", "premiumisation", "premium portfolio",
-        "premium mix", "premiumisation trend", "premiumization trend",
+        "premiumization",
+        "premiumisation",
+        "premium portfolio",
+        "premium mix",
+        "premiumisation trend",
+        "premiumization trend",
     ],
     "EV_Transition": [
-        "ev transition", "electric vehicle transition", "ev adoption",
-        "ev penetration", "ev strategy", "ev ecosystem",
-        "electric vehicle adoption", "battery electric vehicle",
+        "ev transition",
+        "electric vehicle transition",
+        "ev adoption",
+        "ev penetration",
+        "ev strategy",
+        "ev ecosystem",
+        "electric vehicle adoption",
+        "battery electric vehicle",
     ],
     "Data_Center_Infrastructure": [
-        "data center", "datacentre", "data-centre", "data-center",
-        "hyperscaler", "ai infra", "ai infrastructure",
+        "data center",
+        "datacentre",
+        "data-centre",
+        "data-center",
+        "hyperscaler",
+        "ai infra",
+        "ai infrastructure",
     ],
     "Renewable_Energy": [
-        "renewable energy", "clean energy", "solar power", "wind power",
-        "renewables capacity", "green energy", "energy transition",
+        "renewable energy",
+        "clean energy",
+        "solar power",
+        "wind power",
+        "renewables capacity",
+        "green energy",
+        "energy transition",
     ],
     "Make_In_India": [
-        "make in india", "make-in-india", "atmanirbhar",
-        "localization", "localisation", "import substitution",
+        "make in india",
+        "make-in-india",
+        "atmanirbhar",
+        "localization",
+        "localisation",
+        "import substitution",
     ],
     "Defense_Indigenization": [
-        "indigenization", "indigenisation", "defense import substitution",
-        "defence indigen", "defense indigen", "indigenous defense",
+        "indigenization",
+        "indigenisation",
+        "defense import substitution",
+        "defence indigen",
+        "defense indigen",
+        "indigenous defense",
         "indigenous defence",
     ],
     # Widen (P3 widen) — curated multi-word only, mined from 79 chatter editions; each alias is ≥2 words to avoid boilerplate single-token false positives (e.g. bare "api"/"bev" rejected).
     "Battery_Energy_Storage": [
-        "battery storage", "battery recycling", "lithium ion battery", "sodium ion battery",
-        "battery energy storage", "battery material", "battery manufacturing",
+        "battery storage",
+        "battery recycling",
+        "lithium ion battery",
+        "sodium ion battery",
+        "battery energy storage",
+        "battery material",
+        "battery manufacturing",
     ],
     "Electronic_Manufacturing_Services": [
-        "electronic manufacturing services", "ems electronics", "electronics manufacturing",
-        "electronic system design", "pcb assembly",
+        "electronic manufacturing services",
+        "ems electronics",
+        "electronics manufacturing",
+        "electronic system design",
+        "pcb assembly",
     ],
     "API_Manufacturing": [
-        "api manufacturing", "api development", "active pharmaceutical ingredient",
-        "api capacity", "api portfolio",
+        "api manufacturing",
+        "api development",
+        "active pharmaceutical ingredient",
+        "api capacity",
+        "api portfolio",
     ],
     "Beverage_Portfolio": [
-        "beverage portfolio", "alcoholic beverage", "carbonated beverage",
-        "food and beverage", "beverage industry", "beverage product",
+        "beverage portfolio",
+        "alcoholic beverage",
+        "carbonated beverage",
+        "food and beverage",
+        "beverage industry",
+        "beverage product",
     ],
 }
 
@@ -122,6 +172,7 @@ _THEME_PATTERNS: list[tuple[str, str, re.Pattern[str]]] = [
     for theme, aliases in THEME_ALIASES.items()
     for alias in aliases
 ]
+
 
 # --------------------------------------------------------------------------- #
 # Stage 1 — create theme entities                                             #
@@ -150,8 +201,9 @@ def create_theme_entities(conn, *, apply: bool = True) -> int:
 # --------------------------------------------------------------------------- #
 # Stage 2 — scan notes, derive membership                                     #
 # --------------------------------------------------------------------------- #
-def extract_theme_membership(root: Path = COMPANIES_DIR,
-                              path_to_name: dict[str, str] | None = None):
+def extract_theme_membership(
+    root: Path = COMPANIES_DIR, path_to_name: dict[str, str] | None = None
+):
     """Scan company notes and return ``(company_name, theme, matched_aliases)``.
 
     Args:
@@ -191,7 +243,11 @@ def extract_theme_membership(root: Path = COMPANIES_DIR,
         if company is None:
             continue
         # Chatter-block scoping: prefer the sentinel-wrapped auto chatter block (concall prose) when present — that is where The_Chatter richness lives. Fallback to full body for notes without chatter.
-        m_chatter = re.search(r"<!-- BEGIN auto chatter block.*?-->(.*?)<!-- END auto chatter block -->", text, flags=re.S | re.I)
+        m_chatter = re.search(
+            r"<!-- BEGIN auto chatter block.*?-->(.*?)<!-- END auto chatter block -->",
+            text,
+            flags=re.S | re.I,
+        )
         scan_text = m_chatter.group(1).lower() if m_chatter else _strip_frontmatter(text).lower()
         if not scan_text:
             continue
@@ -255,7 +311,8 @@ def _cli(argv: list[str] | None = None) -> int:
         help="Write theme entities + edges (default: dry-run summary only).",
     )
     p.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Print every edge in addition to the summary.",
     )
@@ -267,7 +324,8 @@ def _cli(argv: list[str] | None = None) -> int:
         # notes resolve to the entity display name (spaces, e.g. "ABB India"),
         # not the underscore stem. Only companies with a file_path are scannable.
         path_to_name = {
-            r[1]: r[0] for r in conn.execute(
+            r[1]: r[0]
+            for r in conn.execute(
                 "SELECT name, file_path FROM entities "
                 "WHERE entity_type = 'company' AND file_path IS NOT NULL"
             ).fetchall()
@@ -294,7 +352,9 @@ def _cli(argv: list[str] | None = None) -> int:
             )
 
         # Create theme entities first (edges FK to entities.name).
-        ent_inserted = create_theme_entities(conn, apply=args.apply) if args.apply else len(CANONICAL_THEMES)
+        ent_inserted = (
+            create_theme_entities(conn, apply=args.apply) if args.apply else len(CANONICAL_THEMES)
+        )
         edge_inserted = apply_edges(edges, conn=conn, dry_run=not args.apply)
         action = "inserted" if args.apply else "would insert"
         print(

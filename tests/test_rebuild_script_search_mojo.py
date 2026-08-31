@@ -33,10 +33,7 @@ _WIDGET_MOJO = (
     "    return String(x)\n"
 )
 
-_TEST_MOJO = (
-    "# Tests for the widget probe.\n"
-    "from tests.test_widget import check\n"
-)
+_TEST_MOJO = "# Tests for the widget probe.\nfrom tests.test_widget import check\n"
 
 _FAKE_DECL = {
     "decl": {
@@ -45,11 +42,13 @@ _FAKE_DECL = {
         "functions": [
             {
                 "name": "run_probe",
-                "overloads": [{
-                    "signature": "def run_probe(x: Int) -> String",
-                    "summary": "Drives the probe once per rep.",
-                    "args": [{"name": "x", "type": "Int"}],
-                }],
+                "overloads": [
+                    {
+                        "signature": "def run_probe(x: Int) -> String",
+                        "summary": "Drives the probe once per rep.",
+                        "args": [{"name": "x", "type": "Int"}],
+                    }
+                ],
             },
         ],
         "aliases": [
@@ -79,15 +78,12 @@ def env(tmp_path, monkeypatch):
     tree = tmp_path
     (tree / "helpers" / "misc").mkdir(parents=True)
     (tree / "tests").mkdir()
-    (tree / "helpers" / "misc" / "widget_audit.py").write_text(
-        '"""Audit widget diffs."""\n'
-    )
+    (tree / "helpers" / "misc" / "widget_audit.py").write_text('"""Audit widget diffs."""\n')
     (tree / "tests" / "test_widget_audit.py").write_text(
         '"""Tests."""\nfrom helpers.misc import widget_audit  # noqa: F401\n'
     )
     (tree / "Makefile").write_text(
-        ".RECIPEPREFIX := >\nwidget-audit: ## audit\n"
-        "> python3 helpers/misc/widget_audit.py\n"
+        ".RECIPEPREFIX := >\nwidget-audit: ## audit\n> python3 helpers/misc/widget_audit.py\n"
     )
     (tree / "Mojo" / "src" / "bench").mkdir(parents=True)
     (tree / "Mojo" / "tests").mkdir()
@@ -116,9 +112,7 @@ def _rebuild(env, db=None, **kw):
     kw.setdefault("tests_root", tree / "tests")
     kw.setdefault("app_py", tree / "app.py")
     kw.setdefault("makefile", tree / "Makefile")
-    return rss.rebuild(
-        db or tree / "script_search.db", embed_fn=_fake_embed, **kw
-    )
+    return rss.rebuild(db or tree / "script_search.db", embed_fn=_fake_embed, **kw)
 
 
 class TestMojoRows:
@@ -127,8 +121,7 @@ class TestMojoRows:
         tree = env["tree"]
         conn = rss.connect_script_db(tree / "script_search.db")
         try:
-            kinds = dict(conn.execute(
-                "SELECT kind, COUNT(*) FROM script_search GROUP BY kind"))
+            kinds = dict(conn.execute("SELECT kind, COUNT(*) FROM script_search GROUP BY kind"))
             assert kinds["mojo"] == 2  # src/bench/widget.mojo + test_widget.mojo
             row = conn.execute(
                 "SELECT title, kind, area, purpose, content FROM script_search "
@@ -156,8 +149,7 @@ class TestMojoRows:
         conn = rss.connect_script_db(env["tree"] / "script_search.db")
         try:
             content = conn.execute(
-                "SELECT content FROM script_search "
-                "WHERE title = 'Mojo/src/bench/widget.mojo'"
+                "SELECT content FROM script_search WHERE title = 'Mojo/src/bench/widget.mojo'"
             ).fetchone()[0]
         finally:
             conn.close()
@@ -174,20 +166,16 @@ class TestMojoRows:
         # description; the purpose must join BOTH in order.
         decl["decl"]["summary"] = "Module docstring wins over the header."
         decl["decl"]["description"] = "Remainder follows."
-        monkeypatch.setattr(
-            rss, "_run_mojo_doc", lambda *a, **k: json.dumps(decl))
+        monkeypatch.setattr(rss, "_run_mojo_doc", lambda *a, **k: json.dumps(decl))
         _rebuild(env)
         conn = rss.connect_script_db(env["tree"] / "script_search.db")
         try:
             (purpose,) = conn.execute(
-                "SELECT purpose FROM script_search "
-                "WHERE title = 'Mojo/src/bench/widget.mojo'"
+                "SELECT purpose FROM script_search WHERE title = 'Mojo/src/bench/widget.mojo'"
             ).fetchone()
         finally:
             conn.close()
-        assert purpose == (
-            "Module docstring wins over the header. Remainder follows."
-        )
+        assert purpose == ("Module docstring wins over the header. Remainder follows.")
 
     def test_doc_failure_degrades_to_stored_doc(self, env, monkeypatch):
         _rebuild(env)  # good doc cached
@@ -202,8 +190,7 @@ class TestMojoRows:
         conn = rss.connect_script_db(env["tree"] / "script_search.db")
         try:
             row = conn.execute(
-                "SELECT content FROM script_search "
-                "WHERE title = 'Mojo/src/bench/widget.mojo'"
+                "SELECT content FROM script_search WHERE title = 'Mojo/src/bench/widget.mojo'"
             ).fetchone()
         finally:
             conn.close()
@@ -234,8 +221,7 @@ class TestMojoRows:
         assert "Mojo/src/bench/widget.mojo" in paths
         assert "Mojo/tests/test_widget.mojo" in paths
         assert all(h["kind"] == "mojo" for h in mojo_hits["results"])
-        assert all(h["path"] != "Mojo/src/bench/widget.mojo"
-                   for h in script_hits["results"])
+        assert all(h["path"] != "Mojo/src/bench/widget.mojo" for h in script_hits["results"])
         assert {h["area"] for h in bench_hits["results"]} == {"bench"}
 
     def test_new_mojo_file_is_stale_new(self, env):

@@ -30,6 +30,7 @@ House rules for test modules (don't fight them):
     qa doesn't flap; explore with --hypothesis-seed=<n> locally, never
     repin the default to land a flake.
 """
+
 from __future__ import annotations
 
 import pytest

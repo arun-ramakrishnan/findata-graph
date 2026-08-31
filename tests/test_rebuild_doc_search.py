@@ -49,17 +49,10 @@ _ARCHITECTURE = (
     "Edges and centrality beta notes.\n"
 )
 
-_GRAPH_TXT = (
-    "Graph Design Notes\n"
-    "\n"
-    "Plain text about graphs and graph builders.\n"
-)
+_GRAPH_TXT = "Graph Design Notes\n\nPlain text about graphs and graph builders.\n"
 
 _PRIVATE_LOCAL_DOC = (
-    "# Secret Review\n"
-    "\n"
-    "## Hidden Assessment\n"
-    "private alpha assessment about security\n"
+    "# Secret Review\n\n## Hidden Assessment\nprivate alpha assessment about security\n"
 )
 
 
@@ -167,9 +160,13 @@ class TestRebuild:
         assert stats["total_rows"] == 6  # arch 3 + txt 1 + secret 2 + empty 0
         con = _conn(seeded_docs)
         try:
-            anchors = [r[0] for r in con.execute(
-                "SELECT anchor FROM doc_search WHERE file_path = 'doc/design/architecture.md' "
-                "ORDER BY anchor")]
+            anchors = [
+                r[0]
+                for r in con.execute(
+                    "SELECT anchor FROM doc_search WHERE file_path = 'doc/design/architecture.md' "
+                    "ORDER BY anchor"
+                )
+            ]
             assert anchors == [1, 5, 11]
             # The ### subsection stays inside the ## Ingest chunk.
             ingest = con.execute(
@@ -240,9 +237,12 @@ class TestRebuild:
         try:
             # DDL ran (table exists) but no rows and no model stamp.
             assert con.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0] == 0
-            assert con.execute(
-                "SELECT COUNT(*) FROM doc_search_info WHERE key = 'embed_model'"
-            ).fetchone()[0] == 0
+            assert (
+                con.execute(
+                    "SELECT COUNT(*) FROM doc_search_info WHERE key = 'embed_model'"
+                ).fetchone()[0]
+                == 0
+            )
         finally:
             con.close()
 
@@ -387,13 +387,19 @@ class TestLastGoodIndexBackup:
         assert stats["deletes"] == 0
         con = _conn(seeded_docs)
         try:
-            assert con.execute(
-                "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/local/secret.md'"
-            ).fetchone()[0] == 3
+            assert (
+                con.execute(
+                    "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/local/secret.md'"
+                ).fetchone()[0]
+                == 3
+            )
             # Untouched files keep their rows.
-            assert con.execute(
-                "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/design/architecture.md'"
-            ).fetchone()[0] == 3
+            assert (
+                con.execute(
+                    "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/design/architecture.md'"
+                ).fetchone()[0]
+                == 3
+            )
             assert con.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0] == 7
         finally:
             con.close()
@@ -411,12 +417,18 @@ class TestLastGoodIndexBackup:
         assert stats["deletes"] == 1
         con = _conn(seeded_docs)
         try:
-            assert con.execute(
-                "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/design/graph_design.txt'"
-            ).fetchone()[0] == 0
-            assert con.execute(
-                "SELECT COUNT(*) FROM doc_search_meta WHERE file_path = 'doc/design/graph_design.txt'"
-            ).fetchone()[0] == 0
+            assert (
+                con.execute(
+                    "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/design/graph_design.txt'"
+                ).fetchone()[0]
+                == 0
+            )
+            assert (
+                con.execute(
+                    "SELECT COUNT(*) FROM doc_search_meta WHERE file_path = 'doc/design/graph_design.txt'"
+                ).fetchone()[0]
+                == 0
+            )
         finally:
             con.close()
 
@@ -426,9 +438,12 @@ class TestLastGoodIndexBackup:
         rds.rebuild(write=True)
         con = _conn(seeded_docs)
         try:
-            assert con.execute(
-                "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/local/secret.md'"
-            ).fetchone()[0] == 0
+            assert (
+                con.execute(
+                    "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/local/secret.md'"
+                ).fetchone()[0]
+                == 0
+            )
             assert con.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0] == 4
         finally:
             con.close()

@@ -12,6 +12,7 @@ Invariants pinned:
   3. word_overlap_match() returns (name, score) or (None, 0.0) for any query.
   4. _tokenize() never raises and returns only non-empty lowercase tokens.
 """
+
 from __future__ import annotations
 
 from hypothesis import given, settings, strategies as st
@@ -117,6 +118,7 @@ from helpers.core.fuzzy_match import _STOPWORDS
 
 _TOKEN_TEXT = st.text(min_size=0, max_size=80)
 
+
 @settings(max_examples=300, deadline=None)
 @given(_TOKEN_TEXT)
 def test_fuzz_tokenize_collapse_invariance(s):
@@ -124,6 +126,7 @@ def test_fuzz_tokenize_collapse_invariance(s):
     substituting them for spaces never changes the token set."""
     collapsed = s.replace("&", " ").replace("-", " ").replace(".", " ")
     assert _tokenize(s) == _tokenize(collapsed)
+
 
 @settings(max_examples=300, deadline=None)
 @given(_TOKEN_TEXT)
@@ -134,13 +137,15 @@ def test_fuzz_tokenize_lowercasing_idempotent(s):
     lowercases — that is the contract.)"""
     assert _tokenize(s) == _tokenize(s.lower())
 
+
 @settings(max_examples=300, deadline=None)
 @given(_TOKEN_TEXT)
 def test_fuzz_tokenize_no_collapsed_punct_and_nonempty(s):
     toks = _tokenize(s)
-    assert all(tok for tok in toks)                       # non-empty tokens
-    assert not any(ch in "&-." for tok in toks for ch in tok)   # collapsed punct never survives
-    assert all(tok not in _STOPWORDS for tok in toks)     # stopwords removed
+    assert all(tok for tok in toks)  # non-empty tokens
+    assert not any(ch in "&-." for tok in toks for ch in tok)  # collapsed punct never survives
+    assert all(tok not in _STOPWORDS for tok in toks)  # stopwords removed
+
 
 @settings(max_examples=300, deadline=None)
 @given(_TOKEN_TEXT)
@@ -150,6 +155,7 @@ def test_fuzz_tokenize_tokens_drawn_from_cleaned_words(s):
     cleaned = s.lower().replace("&", " ").replace("-", " ").replace(".", " ")
     words = set(cleaned.split())
     assert _tokenize(s) == (words - _STOPWORDS)
+
 
 @settings(max_examples=60, deadline=None)
 @given(st.sampled_from(sorted(ABBREVIATIONS)))

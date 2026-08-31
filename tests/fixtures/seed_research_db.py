@@ -14,6 +14,7 @@ cross_sector_bridges, edges_by_year, sector_members_with_market_cap):
 
 Schema mirrors tests/conftest._UNIT_SCHEMA (unit-test shaped; no FK cascade).
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -58,8 +59,13 @@ def build_seed_db(path: Path) -> Path:
     con.executescript(SEED_SCHEMA)
     entities = [
         ("HDFC Bank", "company", "findata/Companies/Banking/Hdfc_Bank.md", "Banking", "HDFCBANK"),
-        ("ICICI Bank", "company",
-         "findata/Companies/Banking/ICICI_Bank.md", "Banking", "ICICIBANK"),
+        (
+            "ICICI Bank",
+            "company",
+            "findata/Companies/Banking/ICICI_Bank.md",
+            "Banking",
+            "ICICIBANK",
+        ),
         ("Infosys", "company", "findata/Companies/Technology/Infosys.md", "Technology", "INFY"),
         ("No Ticker Co", "company", "findata/Companies/X/No_Ticker.md", "Technology", None),
         ("Cap Conflict Co", "company", "findata/Companies/X/Cap_Conflict.md", "Technology", None),
@@ -105,7 +111,9 @@ def build_seed_db(path: Path) -> Path:
     ]
     con.executemany(
         "INSERT INTO graph_edges (source, target, edge_type, source_ref, valid_from) "
-        "VALUES (?,?,?,?,?)", edges)
+        "VALUES (?,?,?,?,?)",
+        edges,
+    )
     con.commit()
     con.close()
     return path

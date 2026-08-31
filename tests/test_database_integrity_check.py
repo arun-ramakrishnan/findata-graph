@@ -14,6 +14,7 @@ These need an `events` table, which the shared `integrity_db` fixture's
 schema does not create — so each test builds a small DB in tmp_path with
 the production `events` DDL and seeds the specific defect under test.
 """
+
 import sqlite3
 import sys
 from contextlib import contextmanager
@@ -176,8 +177,11 @@ class TestCheckEvents:
         try:
             r = checker.check_events()
             assert r == {
-                "total": 0, "unknown_type": 0, "orphaned": 0,
-                "bad_properties": 0, "errors": 0,
+                "total": 0,
+                "unknown_type": 0,
+                "orphaned": 0,
+                "bad_properties": 0,
+                "errors": 0,
             }
         finally:
             checker.close()
@@ -261,7 +265,6 @@ class TestCheckDuplicateTickers:
             assert r["errors"] == 0
 
 
-
 # ===========================================================================
 # Additional unit tests — pure helpers + DB-backed check methods
 # ===========================================================================
@@ -271,11 +274,7 @@ GRAPH_EDGES_DDL = (
     "source TEXT, target TEXT, edge_type TEXT, "
     "valid_from TEXT, valid_to TEXT, properties TEXT)"
 )
-ENTITY_TAGS_DDL = (
-    "CREATE TABLE entity_tags ("
-    "entity_name TEXT, tag TEXT, "
-    "UNIQUE(entity_name, tag))"
-)
+ENTITY_TAGS_DDL = "CREATE TABLE entity_tags (entity_name TEXT, tag TEXT, UNIQUE(entity_name, tag))"
 QUOTES_DDL = (
     "CREATE TABLE quotes ("
     "id INTEGER PRIMARY KEY AUTOINCREMENT, entity TEXT NOT NULL, "
@@ -349,33 +348,38 @@ class TestMeaningfulTokens:
 class TestDirectoryStructure:
     def test_company_valid(self, tmp_path):
         checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
-        assert checker._check_directory_structure(
-            "findata/Companies/Energy/Test_Co.md", "company") is True
+        assert (
+            checker._check_directory_structure("findata/Companies/Energy/Test_Co.md", "company")
+            is True
+        )
 
     def test_company_too_deep(self, tmp_path):
         checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
-        assert checker._check_directory_structure(
-            "findata/Companies/Energy/Sub/Test_Co.md", "company") is False
+        assert (
+            checker._check_directory_structure("findata/Companies/Energy/Sub/Test_Co.md", "company")
+            is False
+        )
 
     def test_sector_valid(self, tmp_path):
         checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
-        assert checker._check_directory_structure(
-            "findata/Sectors/Energy.md", "sector") is True
+        assert checker._check_directory_structure("findata/Sectors/Energy.md", "sector") is True
 
     def test_super_sector_valid(self, tmp_path):
         checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
-        assert checker._check_directory_structure(
-            "findata/Super_Sectors/Financials.md", "super_sector") is True
+        assert (
+            checker._check_directory_structure(
+                "findata/Super_Sectors/Financials.md", "super_sector"
+            )
+            is True
+        )
 
     def test_sub_sector_exempt(self, tmp_path):
         checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
-        assert checker._check_directory_structure(
-            "any/path.md", "sub_sector") is True
+        assert checker._check_directory_structure("any/path.md", "sub_sector") is True
 
     def test_unknown_prefix(self, tmp_path):
         checker = DatabaseIntegrityChecker(base_path=str(tmp_path))
-        assert checker._check_directory_structure(
-            "other/Test_Co.md", "company") is False
+        assert checker._check_directory_structure("other/Test_Co.md", "company") is False
 
 
 # ---------------------------------------------------------------------------
@@ -446,8 +450,12 @@ class TestOrphanCompanies:
             conn = sqlite3.connect(db_path)
             conn.execute("INSERT INTO entities VALUES ('Co A', 'company', 'x', 'Co_A', 'X', NULL)")
             conn.execute("INSERT INTO entities VALUES ('Co B', 'company', 'x', 'Co_B', 'X', NULL)")
-            conn.execute("INSERT INTO graph_edges VALUES ('Co A', 'X', 'part_of', NULL, NULL, '{}')")
-            conn.execute("INSERT INTO graph_edges VALUES ('Co B', 'X', 'part_of', NULL, NULL, '{}')")
+            conn.execute(
+                "INSERT INTO graph_edges VALUES ('Co A', 'X', 'part_of', NULL, NULL, '{}')"
+            )
+            conn.execute(
+                "INSERT INTO graph_edges VALUES ('Co B', 'X', 'part_of', NULL, NULL, '{}')"
+            )
             conn.execute(
                 "CREATE VIEW relations AS "
                 "SELECT source, target, edge_type AS relation_type FROM graph_edges"
@@ -464,7 +472,9 @@ class TestOrphanCompanies:
             conn.execute("INSERT INTO entities VALUES ('Co A', 'company', 'x', 'Co_A', 'X', NULL)")
             conn.execute("INSERT INTO entities VALUES ('Co B', 'company', 'x', 'Co_B', 'X', NULL)")
             # Only Co A has part_of; Co B is orphan
-            conn.execute("INSERT INTO graph_edges VALUES ('Co A', 'X', 'part_of', NULL, NULL, '{}')")
+            conn.execute(
+                "INSERT INTO graph_edges VALUES ('Co A', 'X', 'part_of', NULL, NULL, '{}')"
+            )
             conn.execute(
                 "CREATE VIEW relations AS "
                 "SELECT source, target, edge_type AS relation_type FROM graph_edges"
@@ -483,7 +493,9 @@ class TestNormalization:
     def test_clean(self, tmp_path):
         with _make_checker_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
-            conn.execute("INSERT INTO entities VALUES ('Test Co', 'company', 'findata/Companies/X/Test_Co.md', 'Test_Co', 'X', NULL)")
+            conn.execute(
+                "INSERT INTO entities VALUES ('Test Co', 'company', 'findata/Companies/X/Test_Co.md', 'Test_Co', 'X', NULL)"
+            )
             conn.commit()
             conn.close()
             result = checker.check_normalization()
@@ -502,8 +514,12 @@ class TestNormalization:
     def test_duplicate_normalized_name(self, tmp_path):
         with _make_checker_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
-            conn.execute("INSERT INTO entities VALUES ('A', 'company', 'x', 'Same_Name', 'X', NULL)")
-            conn.execute("INSERT INTO entities VALUES ('B', 'company', 'x', 'Same_Name', 'X', NULL)")
+            conn.execute(
+                "INSERT INTO entities VALUES ('A', 'company', 'x', 'Same_Name', 'X', NULL)"
+            )
+            conn.execute(
+                "INSERT INTO entities VALUES ('B', 'company', 'x', 'Same_Name', 'X', NULL)"
+            )
             conn.commit()
             conn.close()
             result = checker.check_normalization()
@@ -513,7 +529,9 @@ class TestNormalization:
     def test_bad_format_double_underscore(self, tmp_path):
         with _make_checker_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
-            conn.execute("INSERT INTO entities VALUES ('A', 'company', 'x', 'Bad__Name', 'X', NULL)")
+            conn.execute(
+                "INSERT INTO entities VALUES ('A', 'company', 'x', 'Bad__Name', 'X', NULL)"
+            )
             conn.commit()
             conn.close()
             result = checker.check_normalization()
@@ -522,7 +540,9 @@ class TestNormalization:
     def test_file_mismatch_warning(self, tmp_path):
         with _make_checker_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
-            conn.execute("INSERT INTO entities VALUES ('Test', 'company', 'path/Different.md', 'Test', 'X', NULL)")
+            conn.execute(
+                "INSERT INTO entities VALUES ('Test', 'company', 'path/Different.md', 'Test', 'X', NULL)"
+            )
             conn.commit()
             conn.close()
             result = checker.check_normalization()
@@ -575,7 +595,9 @@ class TestValidityWindow:
     def test_all_dated(self, tmp_path):
         with _make_rich_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
-            conn.execute("INSERT INTO graph_edges VALUES ('A', 'B', 'acquired', '2024-01-01', NULL, '{}')")
+            conn.execute(
+                "INSERT INTO graph_edges VALUES ('A', 'B', 'acquired', '2024-01-01', NULL, '{}')"
+            )
             conn.commit()
             conn.close()
             result = checker.check_validity_window()
@@ -609,8 +631,12 @@ class TestFuzzyDuplicates:
     def test_no_duplicates(self, tmp_path):
         with _make_checker_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
-            conn.execute("INSERT INTO entities VALUES ('Tata Motors', 'company', 'x', 'Tata_Motors', 'X', 'TATAMOTORS.NS')")
-            conn.execute("INSERT INTO entities VALUES ('Infosys', 'company', 'x', 'Infosys', 'X', 'INFY.NS')")
+            conn.execute(
+                "INSERT INTO entities VALUES ('Tata Motors', 'company', 'x', 'Tata_Motors', 'X', 'TATAMOTORS.NS')"
+            )
+            conn.execute(
+                "INSERT INTO entities VALUES ('Infosys', 'company', 'x', 'Infosys', 'X', 'INFY.NS')"
+            )
             conn.commit()
             conn.close()
             result = checker.check_fuzzy_duplicate_names()
@@ -619,8 +645,12 @@ class TestFuzzyDuplicates:
     def test_single_token_match(self, tmp_path):
         with _make_rich_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
-            conn.execute("INSERT INTO entities VALUES ('Hindalco', 'company', 'x', 'Hindalco', 'X', 'A')")
-            conn.execute("INSERT INTO entities VALUES ('Hindalco Industries', 'company', 'x', 'Hindalco_Industries', 'X', 'B')")
+            conn.execute(
+                "INSERT INTO entities VALUES ('Hindalco', 'company', 'x', 'Hindalco', 'X', 'A')"
+            )
+            conn.execute(
+                "INSERT INTO entities VALUES ('Hindalco Industries', 'company', 'x', 'Hindalco_Industries', 'X', 'B')"
+            )
             conn.commit()
             conn.close()
             result = checker.check_fuzzy_duplicate_names()
@@ -629,8 +659,12 @@ class TestFuzzyDuplicates:
     def test_same_ticker_skipped(self, tmp_path):
         with _make_rich_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
-            conn.execute("INSERT INTO entities VALUES ('Hindalco', 'company', 'x', 'Hindalco', 'X', 'HINDALCO.NS')")
-            conn.execute("INSERT INTO entities VALUES ('Hindalco Industries', 'company', 'x', 'Hindalco_Industries', 'X', 'HINDALCO.NS')")
+            conn.execute(
+                "INSERT INTO entities VALUES ('Hindalco', 'company', 'x', 'Hindalco', 'X', 'HINDALCO.NS')"
+            )
+            conn.execute(
+                "INSERT INTO entities VALUES ('Hindalco Industries', 'company', 'x', 'Hindalco_Industries', 'X', 'HINDALCO.NS')"
+            )
             conn.commit()
             conn.close()
             result = checker.check_fuzzy_duplicate_names()
@@ -651,7 +685,9 @@ class TestQuotes:
         with _make_rich_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
             conn.execute("INSERT INTO entities VALUES ('Co A', 'company', 'x', 'Co_A', 'X', NULL)")
-            conn.execute("INSERT INTO quotes (entity, speaker, source_quote, source_ref) VALUES ('Co A', 'CEO', 'quote', 'test')")
+            conn.execute(
+                "INSERT INTO quotes (entity, speaker, source_quote, source_ref) VALUES ('Co A', 'CEO', 'quote', 'test')"
+            )
             conn.commit()
             conn.close()
             result = checker.check_quotes()
@@ -661,7 +697,9 @@ class TestQuotes:
     def test_orphaned_entity(self, tmp_path):
         with _make_rich_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
-            conn.execute("INSERT INTO quotes (entity, speaker, source_quote, source_ref) VALUES ('Ghost', 'CEO', 'q', 't')")
+            conn.execute(
+                "INSERT INTO quotes (entity, speaker, source_quote, source_ref) VALUES ('Ghost', 'CEO', 'q', 't')"
+            )
             conn.commit()
             conn.close()
             result = checker.check_quotes()
@@ -682,7 +720,9 @@ class TestCompanyMetrics:
         with _make_rich_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
             conn.execute("INSERT INTO entities VALUES ('Co A', 'company', 'x', 'Co_A', 'X', NULL)")
-            conn.execute("INSERT INTO company_metrics (entity, metric_label, source_ref) VALUES ('Co A', 'pe_ratio', 'test')")
+            conn.execute(
+                "INSERT INTO company_metrics (entity, metric_label, source_ref) VALUES ('Co A', 'pe_ratio', 'test')"
+            )
             conn.commit()
             conn.close()
             result = checker.check_company_metrics()
@@ -691,7 +731,9 @@ class TestCompanyMetrics:
     def test_orphaned(self, tmp_path):
         with _make_rich_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
-            conn.execute("INSERT INTO company_metrics (entity, metric_label, source_ref) VALUES ('Ghost', 'pe_ratio', 't')")
+            conn.execute(
+                "INSERT INTO company_metrics (entity, metric_label, source_ref) VALUES ('Ghost', 'pe_ratio', 't')"
+            )
             conn.commit()
             conn.close()
             result = checker.check_company_metrics()
@@ -712,11 +754,21 @@ class TestGraphSummary:
     def test_with_data(self, tmp_path):
         with _make_rich_db(tmp_path) as (db_path, checker):
             conn = sqlite3.connect(db_path)
-            conn.execute("INSERT INTO entities VALUES ('Co A', 'company', 'x', 'Co_A', 'Energy', NULL)")
-            conn.execute("INSERT INTO entities VALUES ('Co B', 'company', 'x', 'Co_B', 'Energy', NULL)")
-            conn.execute("INSERT INTO entities VALUES ('Energy', 'sector', 'x', 'Energy', NULL, NULL)")
-            conn.execute("INSERT INTO graph_edges VALUES ('Co A', 'Energy', 'part_of', NULL, NULL, '{}')")
-            conn.execute("INSERT INTO graph_edges VALUES ('Co B', 'Energy', 'part_of', NULL, NULL, '{}')")
+            conn.execute(
+                "INSERT INTO entities VALUES ('Co A', 'company', 'x', 'Co_A', 'Energy', NULL)"
+            )
+            conn.execute(
+                "INSERT INTO entities VALUES ('Co B', 'company', 'x', 'Co_B', 'Energy', NULL)"
+            )
+            conn.execute(
+                "INSERT INTO entities VALUES ('Energy', 'sector', 'x', 'Energy', NULL, NULL)"
+            )
+            conn.execute(
+                "INSERT INTO graph_edges VALUES ('Co A', 'Energy', 'part_of', NULL, NULL, '{}')"
+            )
+            conn.execute(
+                "INSERT INTO graph_edges VALUES ('Co B', 'Energy', 'part_of', NULL, NULL, '{}')"
+            )
             conn.commit()
             conn.close()
             result = checker.check_graph_summary()
@@ -805,13 +857,11 @@ class TestCheckNoteTags:
                 "tag TEXT NOT NULL, PRIMARY KEY (note_path, tag))"
             )
             conn.execute(
-                "INSERT INTO note_tags VALUES "
-                "('findata/The_Chatter/Ed.md', 'series/the_chatter')"
+                "INSERT INTO note_tags VALUES ('findata/The_Chatter/Ed.md', 'series/the_chatter')"
             )
             conn.commit()
             conn.close()
-            assert checker.check_note_tags() == {
-                "total": 1, "stale": 0, "errors": 0}
+            assert checker.check_note_tags() == {"total": 1, "stale": 0, "errors": 0}
 
     def test_missing_note_and_dropped_tag_flagged(self, tmp_path):
         with _make_checker_db(tmp_path) as (db_path, checker):
@@ -825,8 +875,10 @@ class TestCheckNoteTags:
             )
             conn.executemany(
                 "INSERT INTO note_tags VALUES (?, ?)",
-                [("findata/The_Chatter/Ed.md", "series/the_chatter"),
-                 ("findata/The_Chatter/Gone.md", "series/the_chatter")],
+                [
+                    ("findata/The_Chatter/Ed.md", "series/the_chatter"),
+                    ("findata/The_Chatter/Gone.md", "series/the_chatter"),
+                ],
             )
             conn.commit()
             conn.close()
@@ -835,5 +887,4 @@ class TestCheckNoteTags:
 
     def test_missing_table_returns_zeros(self, tmp_path):
         with _make_checker_db(tmp_path) as (db_path, checker):
-            assert checker.check_note_tags() == {
-                "total": 0, "stale": 0, "errors": 0}
+            assert checker.check_note_tags() == {"total": 0, "stale": 0, "errors": 0}

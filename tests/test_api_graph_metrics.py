@@ -3,6 +3,7 @@ test_api_graph.py for navigability.
 
 Unit tests for /api/graph/metrics/<metric> (Bundle J3). Carries its own _J3_ANALYTICS seed + _seeded_sqlite_db_with_analytics helper (extends the shared _seeded_sqlite_db with graph_analytics rows).
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -11,7 +12,10 @@ from contextlib import contextmanager
 
 import app as A
 from tests.conftest import (  # noqa: E402
-    _UNIT_SCHEMA, _UNIT_ENTITIES, _UNIT_TAGS, _UNIT_EDGES,
+    _UNIT_SCHEMA,
+    _UNIT_ENTITIES,
+    _UNIT_TAGS,
+    _UNIT_EDGES,
 )
 
 
@@ -23,38 +27,44 @@ from tests.conftest import (  # noqa: E402
 # for wcc.
 _J3_ANALYTICS = [
     # pagerank (scalar) — 3 companies, descending
-    ("HDFC Bank",  "pagerank",      '{"value": 0.05}'),
-    ("ICICI Bank", "pagerank",      '{"value": 0.03}'),
-    ("Infosys",    "pagerank",      '{"value": 0.01}'),
+    ("HDFC Bank", "pagerank", '{"value": 0.05}'),
+    ("ICICI Bank", "pagerank", '{"value": 0.03}'),
+    ("Infosys", "pagerank", '{"value": 0.01}'),
     # closeness (scalar, G1) — different ranking than pagerank
-    ("HDFC Bank",  "closeness_centrality", '{"value": 0.2}'),
+    ("HDFC Bank", "closeness_centrality", '{"value": 0.2}'),
     ("ICICI Bank", "closeness_centrality", '{"value": 0.4}'),
-    ("Infosys",    "closeness_centrality", '{"value": 0.6}'),
+    ("Infosys", "closeness_centrality", '{"value": 0.6}'),
     # louvain (label, G2 modularity) — HDFC+ICICI in comm 0, Infosys in comm 1
-    ("HDFC Bank",  "louvain_community", '{"community": 0, "modularity": 0.55}'),
+    ("HDFC Bank", "louvain_community", '{"community": 0, "modularity": 0.55}'),
     ("ICICI Bank", "louvain_community", '{"community": 0, "modularity": 0.55}'),
-    ("Infosys",    "louvain_community", '{"community": 1, "modularity": 0.55}'),
+    ("Infosys", "louvain_community", '{"community": 1, "modularity": 0.55}'),
     # wcc (label, no modularity)
-    ("HDFC Bank",  "weakly_connected_component", '{"componentId": 10}'),
+    ("HDFC Bank", "weakly_connected_component", '{"componentId": 10}'),
     ("ICICI Bank", "weakly_connected_component", '{"componentId": 10}'),
-    ("Infosys",    "weakly_connected_component", '{"componentId": 20}'),
+    ("Infosys", "weakly_connected_component", '{"componentId": 20}'),
     # malformed value JSON — must be skipped, not crash
-    ("HDFC Bank",  "degree_centrality", '{"not_value": true}'),
+    ("HDFC Bank", "degree_centrality", '{"not_value": true}'),
     # graph_docs_ui_redesign S1: newly-served scalar centrality…
-    ("HDFC Bank",  "harmonic_centrality", '{"value": 0.7}'),
+    ("HDFC Bank", "harmonic_centrality", '{"value": 0.7}'),
     ("ICICI Bank", "harmonic_centrality", '{"value": 0.5}'),
     # …and payload metrics. link_prediction is node-keyed; each row carries
     # that node's candidate list exactly as _persist_link_prediction wrote it.
-    ("HDFC Bank",  "link_prediction",
-     '{"method": "jaccard", "edge_types": ["co_mentioned_in"], '
-     '"candidates": [{"name": "ICICI Bank", "score": 0.8}]}'),
-    ("ICICI Bank", "link_prediction",
-     '{"method": "jaccard", "edge_types": ["co_mentioned_in"], '
-     '"candidates": [{"name": "HDFC Bank", "score": 0.8}, '
-     '{"name": "Infosys", "score": 0.9}]}'),
+    (
+        "HDFC Bank",
+        "link_prediction",
+        '{"method": "jaccard", "edge_types": ["co_mentioned_in"], '
+        '"candidates": [{"name": "ICICI Bank", "score": 0.8}]}',
+    ),
+    (
+        "ICICI Bank",
+        "link_prediction",
+        '{"method": "jaccard", "edge_types": ["co_mentioned_in"], '
+        '"candidates": [{"name": "HDFC Bank", "score": 0.8}, '
+        '{"name": "Infosys", "score": 0.9}]}',
+    ),
     # voterank is graph-valued: every seed row repeats the same ordered list
-    ("HDFC Bank",  "voterank", '{"seeds": ["HDFC Bank", "Infosys"]}'),
-    ("Infosys",    "voterank", '{"seeds": ["HDFC Bank", "Infosys"]}'),
+    ("HDFC Bank", "voterank", '{"seeds": ["HDFC Bank", "Infosys"]}'),
+    ("Infosys", "voterank", '{"seeds": ["HDFC Bank", "Infosys"]}'),
 ]
 
 
@@ -75,13 +85,11 @@ def _seeded_sqlite_db_with_analytics(tmp_path):
         _UNIT_TAGS,
     )
     conn.executemany(
-        "INSERT INTO graph_edges (source, target, edge_type, source_ref) "
-        "VALUES (?,?,?,?)",
+        "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
         _UNIT_EDGES,
     )
     conn.executemany(
-        "INSERT INTO graph_analytics (entity_name, metric, value) "
-        "VALUES (?,?,?)",
+        "INSERT INTO graph_analytics (entity_name, metric, value) VALUES (?,?,?)",
         _J3_ANALYTICS,
     )
     conn.commit()
@@ -201,7 +209,6 @@ class TestGraphMetricsEndpoint:
             assert client.get("/api/graph/metrics/pagerank?top=501").status_code == 400
 
 
-
 class TestGraphMetricsPayloadMetrics:
     """graph_docs_ui_redesign S1: link_prediction + voterank payload shapes
     (and the four newly-served scalar centralities)."""
@@ -220,9 +227,14 @@ class TestGraphMetricsPayloadMetrics:
         with _seeded_sqlite_db_with_analytics(tmp_path) as client:
             r = client.get("/api/graph/metrics/bogus")
         valid = r.get_json()["valid_metrics"]
-        for m in ("harmonic_centrality", "katz_centrality",
-                  "laplacian_centrality", "local_reaching_centrality",
-                  "link_prediction", "voterank"):
+        for m in (
+            "harmonic_centrality",
+            "katz_centrality",
+            "laplacian_centrality",
+            "local_reaching_centrality",
+            "link_prediction",
+            "voterank",
+        ):
             assert m in valid
 
     def test_link_prediction_ranked_by_best_candidate(self, tmp_path):
@@ -248,8 +260,7 @@ class TestGraphMetricsPayloadMetrics:
         body = r.get_json()
         assert body["total"] == 1
         assert body["entities"][0]["entity"] == "HDFC Bank"
-        assert body["entities"][0]["candidates"] == [
-            {"name": "ICICI Bank", "score": 0.8}]
+        assert body["entities"][0]["candidates"] == [{"name": "ICICI Bank", "score": 0.8}]
 
     def test_voterank_seeds_served_once_in_order(self, tmp_path):
         with _seeded_sqlite_db_with_analytics(tmp_path) as client:

@@ -12,6 +12,7 @@ doc/improvements/proposals/zstd_binary_backups.md §2).
 Manual recovery of a compressed backup:
   zstd -dc db-backup/research_backup.db.zst > memory/research.db
 """
+
 from __future__ import annotations
 
 import shutil

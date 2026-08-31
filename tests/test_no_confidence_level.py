@@ -5,6 +5,7 @@ The column was dropped in Jul 2026 (pending item #3 VOID) because it was
 unused — zero reads across the entire codebase. This test prevents accidental
 reintroduction via a schema migration or copy-paste from stale docs.
 """
+
 from __future__ import annotations
 
 import sys
@@ -21,6 +22,7 @@ def test_confidence_level_column_dropped():
     db_path = REPO_ROOT / "memory" / "research.db"
     if not db_path.exists():
         import pytest
+
         pytest.skip("live DB not available")
     conn = connect(db_path, row_factory=None)
     try:
