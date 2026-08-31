@@ -6,6 +6,7 @@ two validators can be exercised deterministically, isolated from the live
 memory/research.db / findata vault.
 """
 
+import os
 import sqlite3
 import sys
 from contextlib import contextmanager
@@ -495,3 +496,69 @@ def unit_client(tmp_path):
     """Flask test_client backed by a seeded SQLite graph DB (unit-isolated)."""
     with seeded_graph_sqlite_db(tmp_path) as c:
         yield c
+
+
+# --------------------------------------------------------------------------- #
+# xdist: per-worker graph cache (gate_xdist_phase2 Slice A, 2026-08-31)        #
+# --------------------------------------------------------------------------- #
+# query.connect() resolves the default cache path from the module global
+# DUCKDB_PATH at call time. Under pytest-xdist each worker is a separate
+# PROCESS, and a process holding an open RW connection excludes every other
+# process's open — the live suite's module-scoped fixtures held the real
+# memory/graph.duckdb for a module lifetime, so `pytest -m live -n 4`
+# collided 67-72 times at setup ("Could not set lock on file ...graph.duckdb:
+# Conflicting lock is held"). Redirecting the default to
+# memory/graph.xdist-<worker>-<pid>.duckdb gives every worker its own cache
+# built from the same research.db: N workers, N files, zero cross-process
+# locks. The PID is part of the key because the advisory gate runs TWO
+# concurrent pytest invocations (live-invariants AND integration), each
+# numbering its workers gw0..gw3 — worker index alone would put both
+# invocations' gw0 on the same file (measured 2026-08-31: 4/5 advisory
+# runs FAILed before the PID was added). Tests that must exercise the REAL
+# default path use the `real_graph_cache` marker; worker files (+
+# .wal/.build.lock/rebuild temporaries) are removed at session finish.
+
+def pytest_configure(config):
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    if not worker:
+        return
+    from helpers.graph import query as gq
+
+    key = f"{worker}-{os.getpid()}"
+    gq._REAL_DUCKDB_PATH = gq.DUCKDB_PATH
+    gq.DUCKDB_PATH = gq.DUCKDB_PATH.with_name(
+        f"{gq.DUCKDB_PATH.stem}.xdist-{key}{gq.DUCKDB_PATH.suffix}"
+    )
+
+
+@pytest.fixture(autouse=True)
+def _real_graph_cache_optout(request):
+    """`real_graph_cache`-marked tests use the production default path even
+    under xdist (they assert real-cache semantics, not worker-copy ones)."""
+    if os.environ.get("PYTEST_XDIST_WORKER") is None:
+        yield
+        return
+    if request.node.get_closest_marker("real_graph_cache") is None:
+        yield
+        return
+    from helpers.graph import query as gq
+
+    redirected = gq.DUCKDB_PATH
+    gq.DUCKDB_PATH = gq._REAL_DUCKDB_PATH
+    yield
+    gq.DUCKDB_PATH = redirected
+
+
+def pytest_sessionfinish(session, exitstatus):
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    if not worker:
+        return
+    from helpers.graph import query as gq
+
+    cache = gq.DUCKDB_PATH
+    if f".xdist-{worker}-{os.getpid()}" not in cache.name:
+        return  # name guard: never unlink anything but this worker's copy
+    # cache file + .wal + .build.lock, plus the rebuild path's
+    # <cache>.rebuild-<id>.tmp[.build.lock] temporaries (prefix glob)
+    for leftover in cache.parent.glob(cache.name + "*"):
+        leftover.unlink(missing_ok=True)

@@ -70,12 +70,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Development / testing dependencies — migrated from requirements-dev.txt.
+# Dev tooling — lint / type-check / dependency audit.
 dev = [
     "pytest",
     "pytest-cov",
+    "pytest-xdist",
     "hypothesis",
-    # Dev tooling — lint / type-check / dependency audit.
     "ruff",
     "ty",
     "deptry",

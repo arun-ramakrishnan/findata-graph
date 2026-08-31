@@ -28,7 +28,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
-> @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, integration, lint-audit (appends advisory_report.txt)"
+> @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, lint-audit (appends advisory_report.txt)"
 > @echo "  analytics                Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)"
 > @echo "  cover                    Run all tests with coverage over helpers/ (branch + missing-line report)"
 > @echo "  deptry                   Run deptry dependency-health scan (unused/undeclared/transitive deps)"
@@ -52,7 +52,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  integration              Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends integration_report.txt)"
 > @echo "  lint                     Run ruff linter (replaces flake8)"
 > @echo "  lint-audit               Run ruff S/UP/C901 audits (security + modernization + complexity) — Bandit/Refurb/Radon equivs"
-> @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live; skip-safe on pristine clone)"
+> @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live, xdist -n auto; skip-safe on pristine clone)"
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
 > @echo "  maint-full               Post-ingest re-derivation: PRE_FULL index refresh (sync-tags, note-search) + maint + TIER2_STEPS (sector gates, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
 > @echo "  metrics-rebuild          Refresh company financials + note industry sections from yfinance (~1 min, 931 tickers)"
@@ -87,11 +87,14 @@ qa:             ## Run lint + types + deptry + static + pytest + notes + integri
 > python3 tests/run_gate_report.py qa
 > @echo "✓ QA passed (lint + types + deptry + static + pytest + notes + integrity + snapshot; appended to qa_report.txt)"
 
-test:           ## pytest unit tests only (no live DB, no slow benchmarks)
-> pytest -m "not live"
+test:           ## pytest unit tests only (no live DB, no slow benchmarks; xdist -n auto)
+> pytest -m "not live" -n auto
 
-live-invariants: ## Run ONLY the live-marked invariant tests (-m live; skip-safe on pristine clone)
-> pytest -m live 
+# xdist-safe (gate_xdist_phase2 Slice A): conftest.py redirects the default
+# graph cache to a per-worker copy under PYTEST_XDIST_WORKER; tests that
+# must hit the real cache carry the real_graph_cache marker.
+live-invariants: ## Run ONLY the live-marked invariant tests (-m live, xdist -n auto; skip-safe on pristine clone)
+> pytest -m live -n auto
 > @echo "✓ live invariant tests passed"
 
 perf:           ## Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt
@@ -102,8 +105,8 @@ cover:          ## Run all tests with coverage over helpers/ (branch + missing-l
 > pytest --cov=helpers --cov-branch --cov-report=term-missing --cov-report=html
 > @echo "✓ coverage report written to htmlcov/index.html"
 
-fuzz:           ## Run Hypothesis property-based tests (deterministic seed for reproducibility)
-> pytest tests/test_fuzz_*.py -v
+fuzz:           ## Run Hypothesis property-based tests (deterministic seed for reproducibility; xdist -n auto)
+> pytest tests/test_fuzz_*.py -v -n auto
 
 integration:    ## Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends integration_report.txt)
 > python3 tests/run_gate_report.py integration
@@ -328,6 +331,6 @@ lint-audit:     ## Run ruff S/UP/C901 audits (security + modernization + complex
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, integration, lint-audit (appends advisory_report.txt)
+advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, lint-audit (appends advisory_report.txt)
 > python3 tests/run_gate_report.py advisory
 > @echo "✓ Advisory checks complete (appended to advisory_report.txt; these do NOT block \`make qa\`)"

@@ -126,6 +126,8 @@ a pure findata graph server). Survivors form a layered DAG: `core/db.py`,
 `architecture.md` (this file) · `schema.md` (DB + cache schemas, integrity
 checks) · `findata.md` (vault, YAML, tags, sync rules) · `graph_design.txt`
 (engine + algorithm catalog) · `procedures/markdown_parse.md` ·
+`templates/` (start-from skeletons for new Python helpers, Mojo sources,
+and proposals — gated by `tests/test_templates.py`) ·
 `improvements/` (`pending.md`, `completed.md` numbered log, `archive/`
 closed proposals — was `proposals/`).
 

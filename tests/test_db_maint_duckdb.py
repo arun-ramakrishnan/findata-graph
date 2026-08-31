@@ -40,10 +40,17 @@ from helpers.maintenance.db_maint import DBMaintainer  # noqa: E402
 # --------------------------------------------------------------------------- #
 # Fixtures                                                                     #
 # --------------------------------------------------------------------------- #
-@pytest.fixture
-def tmp_sqlite(tmp_path) -> Path:
-    """A copy of the production SQLite DB at tmp_path/test.db."""
-    out = tmp_path / "test.db"
+@pytest.fixture(scope="module")
+def built_cache(tmp_path_factory) -> Path:
+    """One production-copy SQLite DB + materialised DuckDB cache, shared by
+    the whole module: connect() on a full production copy costs ~1.5-3s per
+    build and every test here only READS/backups it — CHECKPOINT, VACUUM and
+    backup don't change row counts, so sharing one cache across tests keeps
+    every assertion intact (test_backup_overwrites_existing already runs
+    m.run() twice against the same cache).
+    """
+    tmp = tmp_path_factory.mktemp("dbmaint")
+    out = tmp / "test.db"
     src = sqlite3.connect(str(SQLITE_DB))
     dst = sqlite3.connect(str(out))
     try:
@@ -51,16 +58,20 @@ def tmp_sqlite(tmp_path) -> Path:
     finally:
         dst.close()
         src.close()
+    from helpers.graph.query import connect
+    c = connect(out)
+    c.close()
     return out
 
 
 @pytest.fixture
-def tmp_duckdb(tmp_path, tmp_sqlite) -> Path:
-    """Build a fresh DuckDB cache for tmp_sqlite by calling connect()."""
-    from helpers.graph.query import connect
-    c = connect(tmp_sqlite)
-    c.close()
-    return tmp_sqlite.with_suffix(".duckdb")
+def tmp_sqlite(built_cache) -> Path:
+    return built_cache
+
+
+@pytest.fixture
+def tmp_duckdb(built_cache) -> Path:
+    return built_cache.with_suffix(".duckdb")
 
 
 # --------------------------------------------------------------------------- #

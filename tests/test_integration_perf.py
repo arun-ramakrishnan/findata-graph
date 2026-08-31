@@ -36,7 +36,7 @@ from helpers.graph.algorithms import (
     louvain_communities,
     write_analytics,
 )
-from helpers.graph.query import connect as duckdb_connect
+from helpers.graph.query import DUCKDB_PATH, connect as duckdb_connect
 
 pytestmark = [pytest.mark.integration]
 
@@ -170,8 +170,19 @@ def synth_db(tmp_path):
 
 @pytest.fixture
 def con():
-    """A DuckDB connection with Onager loaded."""
-    c = duckdb_connect()
+    """A DuckDB connection with Onager loaded.
+
+    Read-only whenever the shared cache exists: the perf cases pass
+    ``edges=`` explicitly (the connection is just the Onager engine), and
+    N read-only connections coexist across processes while an RW one holds
+    an EXCLUSIVE lock — the pre-xdist source of "Conflicting lock" errors
+    against the production graph.duckdb (xdist workers or a concurrently
+    running live-invariants suite).
+    """
+    if DUCKDB_PATH.exists():
+        c = duckdb_connect(read_only=True)
+    else:
+        c = duckdb_connect()  # pristine clone: build the cache once
     yield c
     c.close()
 
@@ -233,14 +244,34 @@ class TestMetricCorrectness:
 # --------------------------------------------------------------------------- #
 # 2. Scaling: algorithmic complexity stays within bounds
 # --------------------------------------------------------------------------- #
-def _best_of(fn, *args, runs=5, **kwargs):
-    """Min-of-N wall-clock of ``fn(*args, **kwargs)`` over ``runs`` repeats."""
+def _scaling_ratio(fn, edges_small, edges_large, rounds=3):
+    """Min over `rounds` of (t_large / t_small), measured back-to-back.
+
+    Paired rounds are the contention-robust statistic for scaling guards
+    under an xdist gate: a scheduler stall inflates BOTH legs of a round
+    roughly equally, so the round's ratio stays near the true complexity
+    factor — independent minima (the old shape) let a stall inflate one
+    size's minimum and flake the budget (measured 2026-08-31: betweenness
+    failed 2/5 advisory runs at -n auto; 550 passed, this test the only
+    failure).
+
+    Returns (min_ratio, smallest t_small seen) so callers keep the
+    too-fast-to-measure skip.
+    """
     best = float("inf")
-    for _ in range(runs):
+    t_small_min = float("inf")
+    t_large_min = float("inf")
+    for _ in range(rounds):
         t0 = time.perf_counter()
-        fn(*args, **kwargs)
-        best = min(best, time.perf_counter() - t0)
-    return best
+        fn(edges=edges_small)
+        t_small = time.perf_counter() - t0
+        t0 = time.perf_counter()
+        fn(edges=edges_large)
+        t_large = time.perf_counter() - t0
+        best = min(best, t_large / t_small)
+        t_small_min = min(t_small_min, t_small)
+        t_large_min = min(t_large_min, t_large)
+    return best, t_small_min, t_large_min
 
 
 class TestAlgorithmScaling:
@@ -248,11 +279,10 @@ class TestAlgorithmScaling:
         """degree_centrality is O(V+E); doubling nodes should be <5x."""
         e_small = make_cycle_edges(10000)
         e_large = make_cycle_edges(20000)
-        t_small = _best_of(degree_centrality, con, edges=e_small)
-        t_large = _best_of(degree_centrality, con, edges=e_large)
+        ratio, t_small, t_large = _scaling_ratio(
+            degree_centrality, e_small, e_large)
         if t_small < 0.001:
             pytest.skip("baseline too fast to measure reliably")
-        ratio = t_large / t_small
         assert ratio < 5.0, (
             f"Degree centrality scaling: 20000 nodes took {ratio:.1f}x of 10000 "
             f"(expected ~2x, budget 5x). t_small={t_small:.3f}s t_large={t_large:.3f}s"
@@ -262,11 +292,10 @@ class TestAlgorithmScaling:
         """Exact betweenness is O(V*E); doubling should be <8x."""
         e_small = make_random_edges(150, edge_prob=0.05, seed=300)
         e_large = make_random_edges(300, edge_prob=0.05, seed=300)
-        t_small = _best_of(betweenness_centrality, con, edges=e_small)
-        t_large = _best_of(betweenness_centrality, con, edges=e_large)
+        ratio, t_small, t_large = _scaling_ratio(
+            betweenness_centrality, e_small, e_large)
         if t_small < 0.001:
             pytest.skip("baseline too fast to measure reliably")
-        ratio = t_large / t_small
         assert ratio < 8.0, (
             f"Betweenness scaling: 300 nodes took {ratio:.1f}x of 150 "
             f"(budget 8x). t_small={t_small:.3f}s t_large={t_large:.3f}s"
@@ -276,11 +305,10 @@ class TestAlgorithmScaling:
         """Louvain is near-linear; doubling nodes should be <8x."""
         e_small = make_clustered_edges(3, 50, 0.1, 0.01, seed=400)
         e_large = make_clustered_edges(3, 100, 0.1, 0.01, seed=400)
-        t_small = _best_of(louvain_communities, con, edges=e_small)
-        t_large = _best_of(louvain_communities, con, edges=e_large)
+        ratio, t_small, t_large = _scaling_ratio(
+            louvain_communities, e_small, e_large)
         if t_small < 0.001:
             pytest.skip("baseline too fast to measure reliably")
-        ratio = t_large / t_small
         assert ratio < 8.0, (
             f"Louvain scaling: 300 nodes took {ratio:.1f}x of 150 nodes "
             f"(budget 8x). t_small={t_small:.3f}s t_large={t_large:.3f}s"
@@ -290,11 +318,10 @@ class TestAlgorithmScaling:
         """Closeness is O(V*(V+E)); doubling must stay under a generous budget."""
         e_small = make_clustered_edges(3, 50, 0.1, 0.01, seed=500)
         e_large = make_clustered_edges(3, 100, 0.1, 0.01, seed=500)
-        t_small = _best_of(closeness_centrality, con, edges=e_small)
-        t_large = _best_of(closeness_centrality, con, edges=e_large)
+        ratio, t_small, t_large = _scaling_ratio(
+            closeness_centrality, e_small, e_large)
         if t_small < 0.001:
             pytest.skip("baseline too fast to measure reliably")
-        ratio = t_large / t_small
         assert ratio < 12.0, (
             f"Closeness scaling: 300 nodes took {ratio:.1f}x of 150 nodes "
             f"(budget 12x; degrades super-linearly). "

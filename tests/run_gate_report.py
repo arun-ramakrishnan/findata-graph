@@ -35,8 +35,8 @@ the shared ``.pytest_cache``. ALL steps always run (no cancellation);
 console lines get ``[label]`` prefixes in parallel mode; the report keeps
 clean per-step tails, and ``write_report`` appends each whole block under
 an exclusive flock — concurrent gate runners on the same report file
-(e.g. advisory's nested integration step vs a parallel ``make
-integration``) serialize instead of interleaving.
+(e.g. two concurrent ``make integration`` runners) serialize instead of
+interleaving.
 
 Usage::
 
@@ -122,7 +122,12 @@ GATES: dict[str, Gate] = {
             Step("types", (_TY, "check", "helpers", "app.py")),
             Step("deptry", (_DEPTRY, ".")),
             Step("static_checks", (_PY, "helpers/validators/static_checks.py")),
-            Step("pytest", (_PY, "-m", "pytest", "-m", "not live")),
+            # -n auto (not the gate's -j): pytest workers scale with CORES,
+            # steps with the user's concurrency preference — different axes.
+            # The suite is the qa critical path (113s serial -> ~65s on 4
+            # workers, 2026-08-31 shakedown: 2423 passed, no shared-state
+            # breakage).
+            Step("pytest", (_PY, "-m", "pytest", "-m", "not live", "-n", "auto")),
             Step("verify_notes", (_PY, "helpers/validators/verify_notes.py")),
             Step("integrity_check", (_PY, "helpers/misc/database_integrity_check.py")),
             Step("snapshot_check", (_PY, "helpers/maintenance/snapshot_db.py", "--check")),
@@ -130,20 +135,33 @@ GATES: dict[str, Gate] = {
     ),
     "integration": Gate(
         steps=(
-            Step("pytest-integration", (_PY, "-m", "pytest", "-m", "integration", "-v")),
+            Step("pytest-integration",
+                 (_PY, "-m", "pytest", "-m", "integration", "-v", "-n", "auto")),
         ),
     ),
     # The advisory recipe: the ty-tests line never blocks (was `|| true`);
-    # every step runs even after a failure (all gates are run-all now);
-    # integration re-enters this runner so advisory runs also append to
-    # integration_report.txt. ty-tests delegates to the `types-tests` make
-    # target — the single source of truth for the extra-search-path flag
-    # list + ty.tests.toml config (standalone-invocable after a feature).
+    # every step runs even after a failure (all gates are run-all now).
+    # ty-tests delegates to the `types-tests` make target — the single
+    # source of truth for the extra-search-path flag list + ty.tests.toml
+    # config (standalone-invocable after a feature).
+    #
+    # NO integration step (user directive 2026-08-31, the advisory-side
+    # resolution of the old Slice C): qa's `-m "not live"` already runs
+    # the 551 integration tests under the GATING gate; re-running them
+    # here only doubled execution and its 4 workers stretched
+    # live-invariants ~50s → 76-87s. Integration stays explicitly
+    # runnable via `make integration`.
     "advisory": Gate(
         steps=(
             Step("ty-tests", (_MAKE, "types-tests", "TYPES_TESTS_FMT=concise"),
                  nonblocking=True, tail_lines=_TY_TESTS_TAIL_LINES),
-            Step("live-invariants", (_MAKE, "live-invariants")),
+            # live-invariants under -n auto (gate_xdist_phase2 Slice A):
+            # conftest redirects the default graph cache to a per-worker
+            # copy, so the live suite spreads across workers without
+            # cross-process DuckDB lock collisions (serial 72.5s -> ~50s).
+            # Tests asserting real-cache semantics carry `real_graph_cache`.
+            Step("live-invariants", (_PY, "-m", "pytest", "-m", "live",
+                                     "-n", "auto")),
             Step("frontend-check", (_MAKE, "frontend-check")),
             Step("graph-algos", (_MAKE, "graph-algos")),
             Step("analytics", (_MAKE, "analytics")),
@@ -154,8 +172,6 @@ GATES: dict[str, Gate] = {
                  (_PY, "helpers/maintenance/rebuild_script_search.py", "--check")),
             Step("note-search-check",
                  (_PY, "helpers/maintenance/rebuild_note_search.py", "--check")),
-            Step("integration",
-                 (_PY, str(Path(__file__).resolve()), "integration")),
             Step("lint-audit", (_RUFF, "check", "--select", "S,UP,C901", ".")),
         ),
     ),

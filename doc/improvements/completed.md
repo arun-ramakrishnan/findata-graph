@@ -4437,3 +4437,38 @@ across the mojo corpus are full prose. Remaining known limit: queries
 whose answer genuinely isn't in Mojo code (e.g. community detection —
 that lives in the Onager extension / Python fixture) still surface
 nearest-neighbors, not answers.
+
+
+## 189
+
+**Date:** 2026-08-31 · **Type:** tooling (gate parallelism) ·
+**Files:** `tests/conftest.py` (xdist per-worker cache), `pytest.ini`
+(`real_graph_cache` marker), `tests/run_gate_report.py` + `Makefile`
+(live-invariants → `-n auto`), `tests/test_integration_perf.py`
+(paired-ratio scaling guards + RO `con` fixture), `tests/test_graph_stats.py`
+/ `tests/test_db_maint_duckdb.py` (module-scoped fixtures) ·
+
+**Gate parallelism phase 2 — the live suite went xdist.** Proposal
+`gate_xdist_phase2.md` (§2 documents phase 1, the xdist wiring that took
+`make qa` 114s → 65s). Slice A: `pytest_configure` redirects
+`query.DUCKDB_PATH` to `memory/graph.xdist-<worker>-<pid>.duckdb` under
+xdist — each worker materialises its own cache from the same research.db,
+so the live suite's module-scoped RW connections stop excluding other
+processes (serial 72.5s, `-n 4` had 67–72 setup IOExceptions). The
+**worker-pid key is load-bearing**: the advisory gate runs live-invariants
+AND integration as concurrent invocations whose workers are both named
+gw0..gw3 — index-only keying shared files across invocations and failed
+4/5 advisory runs before the PID was added. `real_graph_cache` marker is
+the opt-out for tests that must hit the production default path; worker
+files (+ .wal/.build.lock/rebuild temporaries) unlink at session finish.
+Slice B: one `print_stats` render per module (was 9), one built cache per
+db_maint module (was 6), and the four integration scaling guards now use
+paired rounds — min per-round t_large/t_small — instead of independent
+minima (contention inflates both legs of a round equally; betweenness
+flaked 2/5 under the 8-thread overlap with the old shape).
+
+Measured: live `-n auto` 218/218 ×5 (43.8–51.2s); in-gate 5/5 green at
+76–87s; serial live 72.5s → 57.4s; `make advisory` ~94s → 76–87s wall,
+11/11; `make qa` 8/8. Slice C (splitting integration+fuzz out of the
+default qa gate) stays OFF per the proposal. BFS oracle tests deliberately
+not trimmed (correctness coverage > ~4s).

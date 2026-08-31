@@ -94,10 +94,23 @@ def synthetic_db(tmp_path):
 # show ~8x.
 
 def _run_fuzzy_check(checker):
-    """Run check_fuzzy_duplicate_names and return elapsed seconds."""
-    t0 = time.perf_counter()
-    checker.check_fuzzy_duplicate_names()
-    return time.perf_counter() - t0
+    """Best-of-3 elapsed seconds for a BURST of 10 consecutive
+    check_fuzzy_duplicate_names runs.
+
+    The burst lifts the small-size sample well above the 1ms skip threshold
+    (a single synthetic-200 pass measures a few hundred microseconds), and
+    the best-of-3 strips xdist scheduler noise that would otherwise flake
+    the ratio budget. Both sizes get the same burst factor, so the
+    quadratic ratio under test is unchanged.
+    """
+    best = None
+    for _ in range(3):
+        t0 = time.perf_counter()
+        for _ in range(10):
+            checker.check_fuzzy_duplicate_names()
+        dt = time.perf_counter() - t0
+        best = dt if best is None else min(best, dt)
+    return best
 
 
 def test_fuzzy_duplicates_scales_quadratically_not_worse(synthetic_db):
@@ -162,10 +175,17 @@ def test_fuzzy_match_scales_linearly_with_entities():
     ]
 
     def batch(n):
+        # Each sample times 10 inner iterations (lifting it well above the
+        # 1ms skip threshold; same factor both sizes so the ratio is
+        # unchanged) and the min of 3 strips xdist scheduler noise.
+        return min(_once(n) for _ in range(3))
+
+    def _once(n):
         entities = [f"Company {i} Group Private Limited" for i in range(n)]
         t0 = time.perf_counter()
-        for q in queries:
-            fuzzy_match(q, entities)
+        for _ in range(10):
+            for q in queries:
+                fuzzy_match(q, entities)
         return time.perf_counter() - t0
 
     t_small = batch(200)

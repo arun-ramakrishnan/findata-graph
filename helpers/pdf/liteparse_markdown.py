@@ -15,10 +15,12 @@ text, so we only add `## ` where a line looks like a company heading.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
-# Reuse glue detection from liteparse_post (kept in sync)
-from helpers.pdf.liteparse_post import CAP_TAIL_RE, SECTOR_PREFIXES
+if __package__ in (None, ""):  # noqa: E402  # run as script: python helpers/pdf/liteparse_markdown.py
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+from helpers.pdf.liteparse_post import CAP_TAIL_RE, SECTOR_PREFIXES  # noqa: E402
 
 TESSDATA_DEFAULT = "/usr/share/tesseract-ocr/5/tessdata"
 
