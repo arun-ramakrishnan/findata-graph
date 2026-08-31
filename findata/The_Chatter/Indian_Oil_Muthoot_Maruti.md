@@ -17,13 +17,13 @@ tags:
 
 Q1 FY27 | Edition #75
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026080400030661be533b34fe4ffa%2Fcrop_1_1785773022922.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=3QBU6PWTbC1kKH0E7o6KKMk8VUA%3D&Expires=1786377822' alt='OCR图片'/></div>
+![[images/Indian_Oil_Muthoot_Maruti_p1_img1.jpeg]]
 
 Welcome to the 75th edition of The Chatter a newsletter where we dig through what India's biggest companies are saying and bring you the most interesting bits of insight, whether about the business, its sector, or the wider economy. We read every major Indian earnings call and listen to the interviews so you don't have to.
 
 We're always eager to improve—please share your ideas on how else we can innova "The Chatter" format to better serve your needs.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026080400030661be533b34fe4ffa%2Fcrop_1_1785773022980.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9JmkewjVZRmmQQvta8CI7h7rtcg%3D&Expires=1786377822' alt='OCR图片'/></div>
+![[images/Indian_Oil_Muthoot_Maruti_p2_img2.jpeg]]
 
 Check out Concall Monitor
 
@@ -413,7 +413,7 @@ The company is shifting its financial reserves to cover the small segment of loa
 
 Maruti Suzuki is India's largest passenger vehicle manufacturer with a dominant presence in the entry-level and SUV segments. The company operates multiple manufacturing facilities in Haryana and Gujarat and leads the country in automotive exports.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026080400030661be533b34fe4ffa%2Fcrop_1_1785773022985.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Jmt%2FjSFi7a4RnZyCM32Dy7twxss%3D&Expires=1786377822' alt='OCR图片'/></div>
+![[images/Indian_Oil_Muthoot_Maruti_p3_img3.jpeg]]
 
 The company is seeing a simultaneous surge in both entry-level small cars and premium SUVs. This broad-based demand is helping the company regain lost mark share across different price points.
 
@@ -607,7 +607,7 @@ Disclaimer: We've used AI tools in filtering and cleaning up these quotes so the
 
 that we are just a small team of 5 people running everything you see on Zerodha Markets So, all the good stuff is human and mistakes are AI.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026080400030661be533b34fe4ffa%2Fcrop_1_1785773022997.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5L%2FAfR8rz9j2Gkjd0mQ14h8iKiU%3D&Expires=1786377823' alt='OCR图片'/></div>
+![[images/Indian_Oil_Muthoot_Maruti_p4_img4.jpeg]]
 
 10 Likes
 
@@ -617,6 +617,6 @@ Comments
 
 Restacks
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026080400030661be533b34fe4ffa%2Fcrop_2_1785773023002.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=VfrpKQmWezYMqFF%2FHg5hGVJdMQU%3D&Expires=1786377823' alt='OCR图片'/></div>
+![[images/Indian_Oil_Muthoot_Maruti_p4_img5.jpeg]]
 
 Write a comment...

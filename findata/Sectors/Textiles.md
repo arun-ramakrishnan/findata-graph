@@ -101,7 +101,7 @@ Source: The Chatter Newsletter - Edition #39
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 28 company note(s) in Textiles. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 29 company note(s) in Textiles. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Arvind_Limited|Arvind Limited]]
 - [[Arvind_Fashions|Arvind Fashions Limited]]
@@ -112,6 +112,7 @@ Source: The Chatter Newsletter - Edition #39
 - [[Dollar_Industries|Dollar Industries]]
 - [[Ganesha_Ecosphere|Ganesha Ecosphere]]
 - [[Garware_Technical_Fibres|Garware Technical Fibres]]
+- [[Gokaldas_Exports|Gokaldas Exports]]
 - [[Hanesbrands]]
 - [[Indian_Terrain_Fashions|Indian Terrain Fashions]]
 - [[Indo_Count_Industries|Indo Count Industries Limited]]

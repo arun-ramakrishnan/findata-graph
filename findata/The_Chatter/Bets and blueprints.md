@@ -17,13 +17,7 @@ tags:
 
 Edition #47
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606201200255b2751fc95614cbc%2Fcrop_1_1781928070353.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2B2TYB42d9jpSrToWRFbPTkGGXyc%3D&Expires=1782532870' alt='OCR图片'/></div>
-
 ZERODHA FEB20,2026
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606201200255b2751fc95614cbc%2Fcrop_2_1781928070405.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5HOfUCz%2FprhMtNdFyfRANabvez4%3D&Expires=1782532870' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606201200255b2751fc95614cbc%2Fcrop_3_1781928070410.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dmDyT7LVId3nbjRFNGFGwCMOF%2F8%3D&Expires=1782532870' alt='OCR图片'/></div>
 
 Welcome to the 47th edition of The Chatter a weekly newsletter where we dig through what India's biggest companies are saying and bring you the most interesting bits of insight, whether about the business, its sector, or the wider economy. We read every major Indian earnings call and listen to the interviews so you don't have to.
 
@@ -1393,8 +1387,6 @@ We go through every major investor presentation so you don't have to, surfacing 
 
 You can check it out here.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606201200255b2751fc95614cbc%2Fcrop_1_1781928070425.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=KvYOlLzzlxolX%2F9WFhdB8nSxYtI%3D&Expires=1782532870' alt='OCR图片'/></div>
-
 9 Likes
 
 Discussion about this post
@@ -1402,8 +1394,6 @@ Discussion about this post
 Comments
 
 Restacks
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606201200255b2751fc95614cbc%2Fcrop_2_1781928070430.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ktmzJT9zDvIajbozT2SMaPCZLbY%3D&Expires=1782532870' alt='OCR图片'/></div>
 
 Write a comment...
 

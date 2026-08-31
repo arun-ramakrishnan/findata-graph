@@ -19,13 +19,7 @@ POINTS & FIGURES
 
 Edition #22
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549399.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Lk1XDekNw7dSM%2FPaB9b3Q3DA4kI%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 ZERODHA MAR10,2026
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549463.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2FWTxtQz3idTA%2B5pzii3zyNMUvPY%3D&Expires=1782890349' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285549467.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PF3wblGS4CQOoQnKA%2BR00Y99zRk%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 Sometimes, a single slide can explain more than a long report. Points and Figures i our way of breaking down what India's leading companies are telling their shareholders and analysts. We comb through the decks, pull out the charts and data
 
@@ -99,8 +93,6 @@ Global Salmon Consumption
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549478.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=aMvZFElR7JD%2FvXTRDC2o6e0Jba8%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 - The value of salmon sold has increase by 98% from 2014 to 2024
 
 - 8% demand CAGR past 10 years vs 39 supply growth
@@ -111,8 +103,6 @@ Global Salmon Consumption
 
 - This highlights the strong underlying demand for salmon.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549483.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2FxsY9Z2%2BKzx%2Bf3Me8FVJnY1tH44%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 <div align="center">
 
 The USA is the largest salmon market, followed by France, Germany, and the UI While total consumption varies widely across countries, per capita consumption Nordic markets such as Norway, Sweden, and Finland is significantly higher, indicating growth potential in other large markets.
@@ -121,19 +111,13 @@ The USA is the largest salmon market, followed by France, Germany, and the UI Wh
 
 ## Top 10 Salmon Markets by size
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549489.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2B8YeKtoZa69NtKQVpBscDmkzpmI%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 - In the 10 largest markets by country consumption per capita varies from 0.1 kg WFE to 3.8 kg WFE in France, which is high.
 
 - In Norway, Sweden and Finland consumption per capita is between 6-8 kg WFE. This means that there is significant growth potential among the largest markets.
 
 *Source Mowi Handbook 2025
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549500.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7LE8SGR51%2BsK5DritiD5Q%2Fbh2dA%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 Salmon prices have remained broadly stable with periodic spikes driven by temporary demand-supply gaps. Strong retail demand in Europe, growing packa consumption in the US, and rising demand in Asia have supported steady pricein trends.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549506.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=4O9W%2BfA4o3CnKP891pYCKsuV378%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 Geosynthetics are polymer-based materials used in infrastructure projects to improve durability, environmental sustainability, and cost efficiency. They are widely applied across roads, railways, airports, ports, and coastal protection projects.
 
@@ -141,33 +125,17 @@ Geosynthetics are polymer-based materials used in infrastructure projects to imp
 
 Geosynthetics are polymer-based materials used in infrastructure solutions for environmental friendliness and lower overall cost
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549515.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=sIb43nyTVzNLg0j23pEr7HHt%2Bh8%3D&Expires=1782890349' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549522.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=4PVkBaq2sQw03BhOkwg6KEPxF7I%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 Slope Protection works for a project
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285549528.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=4pVbcy8eIY2hBsjv3FUg2egeynE%3D&Expires=1782890349' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285549533.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=GUj3JdKRDrKTn6BkBAXLEZ9jwLU%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 Large infrastructure spending in India is expected to drive demand for geosynthetics across railways, roads, tunnels, and landfill containment systems. Government capex and stricter environmental regulations create strong long-ter growth opportunities for these solutions.
 
 ## Geosynthetics Forward Path - Driving Growth in Strategic Segments
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549542.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6u%2FH4Kqt4R7Chus5GrNTdQJloLE%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 Railways: FY27 Indian Railways capex of ₹2.8 lakh crore opens opportunities for GTFL geosynthetics in track bed reinforcement and ballast reduction.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549547.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=W%2B8AkYq6utnFFEzi%2FhYIMdBNjyw%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 Landfill & Lining: Stricter hazardous waste and landfill compliance norms are expected to expand demand for high-performance geosynthetic liners and containment solutions, directly aligning with GTFL's engineered product portfolio.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285549554.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=k0DQUdbc115G32mJdxTg7dqnDDM%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 Roads & Tunnels: रु3.9 lakh crore MoRTH capex, Bharatmala's 34,800 km plan, and new corridors create scope for GTFL solutions in slope stabilization, subgrade reinforcement, and tunnel waterproofing.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285549561.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=nFzlEr6Bimi%2FnZA2ALjD5lE2Z0U%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 ## Real Estate
 
@@ -185,13 +153,9 @@ channel partners. Developers bear marketing expenses in both models, allowing co
 
 Business operates on the following two distinct revenue models
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549565.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2F%2BWQyMOBjh%2BXE3rg%2FpOCus7EkpI%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 ## Direct Revenue
 
 Under this model, we receive gross percentage fees of the total sales value from the developer. This amount also includes the fees payable to Channel Partners (CP's).
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549570.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8Bst%2FGrIE4Hg5hXvZJTok%2F8KjuQ%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 ## Net Revenue
 
@@ -205,35 +169,21 @@ Project Life Cycle
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285549578.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PZBVHoS2SR0A69dr9CBWWa8z73o%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 Justo Realfintech operates across two primary verticals Mandate Business and Financial Advisory. The mandate business, which includes residential launches, leasing, strata sales, and plots/villas, contributes ~95% of revenue, while home loan advisory contributes ~5%.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549594.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6xoX3YEUGM1vYuoaVRvoDLdIPfA%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 India's real estate sector accounts for ~6.8% of GDP (~₹20.1 trillion) and faces a housing shortage of ~93 million homes by 2036. The organized real estate manda industry is growing rapidly and currently represents ~10-15% of the broader real estate market.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549623.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=CdWwho7J8nHYmE2pyjUagcvRGxc%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 Among major cities, MMR recorded the highest sales with a 6% YoY increase, while Pune saw a 20% decline in sales despite being the second-largest market. NCR a Bangalore recorded healthy growth, while Tier-2 cities experienced a 16% declin overall unit sales.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549704.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=D87QkHXhGKUfiLLaBFm4gYRzS8E%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 ## Units Sold Trend in Top 8 Metro Cities & Tier 2 Cities
 
 As usual, MMR recorded the highest sales, with a 6% increase year-on-year. Pune despite being second in sales had a 20% decline in sales on YoY comparison.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549709.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=EYN4K1iDNYZy27qlnkgCsFzJV%2Fc%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 The organized real estate advisory and mandate segment has grown ~28-32% CA between FY20-FY25. Growth is driven by RERA compliance, institutional capital professional sales platforms, and digital lead ecosystems, with developers increasingly adopting exclusive mandate models.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549725.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Al28BwZlphQpaQAOXsFwCF4fiVY%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 ## Real Estate Madate Industry
 
 India's residential sales & mandate-led distribution ecosystem has structurally expanded post-RERA and post-COVID, with organized mandate firms gaining share across primary housing markets.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549734.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PM7S8ZswrNVWIQa2zPS3BwMH0I8%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 ## Industry Facts
 
@@ -250,10 +200,6 @@ India's residential sales & mandate-led distribution ecosystem has structurally 
 ## Sources:
 
 - ANAROCK Channel Partner & Developer Sentiment Survey 2024
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285549739.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=FZsFUB735FaZTp%2FOm6Hy9At6fRQ%3D&Expires=1782890349' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285549745.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=TuLk3msE9js1b%2Fb5C8wBBlTCtnA%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 - PropEquity Housing Market Data 2025
 
@@ -281,8 +227,6 @@ The company operates in two large housing markets Pune and Mumbai (MM] Pune sees
 
 ## Justo's Market: Huge Growth Opportunity
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549752.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=XHBZgyXaem22ut0res%2B1eq6jQRE%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 <div align="center">
 
 Pune:
@@ -303,8 +247,6 @@ Mumbai Metropolitan Region (MMR):
 
 <table border="1"><tr><td>Mumbai Market</td><td>Reported Sales per month</td><td>Justo&#x27;s figures</td></tr><tr><td>No of Units</td><td>~13,970 units p.m.</td><td>~50-60 units per month&lt;1% of the Market</td></tr></table>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549759.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=CpJ7G%2Bh6QmBoSxcooYVLIGZ1SAs%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 ## Engineering & Capital Goods
 
 ## Centum Electronics | Small Cap | Engineering & Capital Goods
@@ -317,17 +259,7 @@ Centum is a leading Indian provider of end-to-end electronics system design and 
 
 ## India's leading provider of end-to-end Electronics System Design and Manufacturing solutions
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549764.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hn3BSS8u4jA4a6vePSDPQQz%2Ftwo%3D&Expires=1782890349' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549771.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=FKfOrJSm4%2F74yBmAfqnewn1MCgc%3D&Expires=1782890349' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285549781.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=d1FyzoLqgXmEQcxOcc0xNpPXrD4%3D&Expires=1782890349' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285549786.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=w4xL3gfKSx1ueoWKoSJyRwTUqKo%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 Consolidated revenue across Geographies
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_5_1782285549790.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=89Gy3fxGpJkxn%2BibXwmh1cgHB%2BM%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 The company operates across rapidly expanding markets such as EMS, ER&D, and defence electronics, supported by initiatives like Make in India and indigenization of defence manufacturing. India's EMS and ER&D exports are expected to grow strongly, while defence production and exports are projected to expand at ~18-19 CAGR.
 
@@ -337,13 +269,7 @@ The company operates across rapidly expanding markets such as EMS, ER&D, and def
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549796.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=LEmBDFkpoxdXajtI8P1QdFxlMu0%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 ## EMS Market
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549803.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hkA4jVPimFnPNihalkwKcI3dTvc%3D&Expires=1782890349' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285549808.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=uZa9hyBZYJSYpmuOy80qgXIqv78%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 The Global EMS Market is expected to grow from USD 789 Bn in CY23 to reach USD 1,304 Bn by CY28
 
@@ -375,8 +301,6 @@ Indian ER&D exports (USD Bn)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285549815.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7XVsQrsTwTruAwX4NgOdu8tb7Gk%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 India's Engineering Research and Development (ER&D) sector is expected to contribute 22% to the Global ER&D sourcing market by 2030
 
 India's ER&D export market is expected to increase from $44-45 billion in CY23 to $130-170 billion by CY30
@@ -394,8 +318,6 @@ India's cost advantage and growing skilled talent pool
 ## India Built to Spec (Defence & Space)
 
 Source: F&S Report; "DAP = Defence Acquisition Procedure, PLI = Production Linked Incentives, Design Linked Incentives
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_5_1782285549822.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7bh4%2FGv%2Bh5ykr8IxX8Fk8pMfca8%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 ## Defence:
 
@@ -417,15 +339,7 @@ Centum provides custom-built electronic subsystems and mission-critical solution
 
 ## Build-To-Specification (BTS)
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549844.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=z8rzJ3XCPvxgGZ%2FgcmWhXmjyhJ0%3D&Expires=1782890349' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549849.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=xuOObuVI2FiSwWwgrcQShiXZucw%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 The EMS division manufactures high-reliability and high-complexity electronic products, ranging from PCB assemblies to complete system integration. Key application areas include industrial electronics, healthcare devices, electric mob systems, and defence & aerospace electronics.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549866.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=WcF6LhGJb49A%2FYu%2FFnjenk8sUIQ%3D&Expires=1782890349' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549875.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=J0ezBWAcAGhfMVfa9as%2F5cftdAg%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 ## Prime Cable Industries | Nano Cap | Engineering & Capital Goods
 
@@ -435,11 +349,7 @@ Prime Cable Industries Limited manufactures and sells ISI-marked low-voltage cab
 
 Prime Cables reported provisional revenue of 71.8 crore in Q3 FY26, reflecting 95% YoY growth. The company is expanding capacity with a new plant in Ghilot Rajasthan (operational by Q1 FY27), has secured new BIS certifications, and maintains an order book of 130 crore.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549883.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=XplnWUb69KrxxKOQDjm5O8A03rc%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 ## Q3 FY26 business updates
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549890.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=p6rQdtWLI2pHOCFcsmfZc%2FlPKvM%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 Continue to build scale through capacity expansion, product portfolio enhancement, and improving order visibility. Aiming to more than doubl our business by FY27 $ ^{1} $
 
@@ -447,11 +357,7 @@ Continue to build scale through capacity expansion, product portfolio enhancemen
 
 The company has a nationwide presence with revenue spread across multiple states with ~88.3% coming from its top 12 states. Key contributors include Tamil Nadu (15%)，Bihar (14%)，Rajasthan (11%)，and Karnataka (11%)，indicating diversified demand across regions.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549897.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=BSve9HZ3Vlj2kzEMngMeKzPNni8%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 ## Well-diversified revenue pool with significant headroom for geographic expansion
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549908.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=R5krx92W6cgPqSGsawKM%2FxPK9Xg%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 Prime Cables offers a diverse range of cable products including control cables, power cables, aerial bunch cables, instrumentation cables, and building wires. Control cables contribute the largest share (~47% of revenue), followed by power cables (~27%) and aerial bunch cables (~16%).
 
@@ -461,8 +367,6 @@ Prime Cables offers a diverse range of cable products including control cables, 
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549918.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=aglagw1cbo5q9UQPE4RQW271F40%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 <div align="center">
 
 The company's products serve across the entire electricity value chain—from power generation and transmission to distribution and consumption. The largest reven contribution comes from the transmission segment (~53.5%) followed by distribution (~33.5%).
@@ -470,8 +374,6 @@ The company's products serve across the entire electricity value chain—from po
 </div>
 
 ## Positioning across India's power transmission and distribution ecosystem
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549937.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Fi0SqM1Lb60HGJ1IEW6aNQZI6yU%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 ## Chemicals
 
@@ -483,25 +385,17 @@ SPEB Adhesives Ltd. manufactures synthetic rubber, resin and water-based adhesiv
 
 The company has a strong regional concentration in Maharashtra (~69% of revenue), followed by Gujarat (~11%) and Karnataka (~5.7%). Most sales come from dealer-distributor networks (~81.7%), with domestic markets contributing ~93% of revenue.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549969.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=sZJ6b8KBn8R%2FGJN2ijwnEPwUNXg%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 <div align="center">
 
 # GEOGRAPHIC PRESENCE
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285549975.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=a93%2FEzWsAs%2B22sEegzXR%2FoxtcPo%3D&Expires=1782890349' alt='OCR图片'/></div>
-
 <div align="center">
 
 Customer Segment wise bifurcation
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285549981.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=s2ian0ch38A7yJB8IS4K8kzVA4A%3D&Expires=1782890349' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285549992.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=DROUkcjjE3xxPHsyUVa6ZpGq01s%3D&Expires=1782890349' alt='OCR图片'/></div>
 
 The production process begins with raw material procurement and underground storage, followed by mixing in industrial stirrers and transfer to holding tanks. The final adhesive is then filled, sealed, labelled, and packaged using automated seaming and filling machines.
 
@@ -511,21 +405,13 @@ The production process begins with raw material procurement and underground stor
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285549999.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ERcHbWp93eQvn7QHvOK8mjRBsV8%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550014.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=jE%2Bi9728O%2BVQ5RiduGIDtNU7FFo%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 The company has built a digital presence across platforms like IndiaMART, Amazon, Flipkart, ExportersIndia, Justdial, and Ajio. These platforms support le generation, order visibility, and customer acquisition, complementing the offline distributor network.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550022.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=W4lhTW8qiOwMbKzJM%2B6tIfQvYXo%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 Amazon - for wider brand visibility and direct-to-customer engagement
 
 The global synthetic rubber adhesive market is valued at ~$18-22 billion in 2024 is expected to grow to ~$26-27 billion by 2030. In India, the market stands at $15,000-18,000 crore and is projected to grow at 7-9% CAGR, supported by manufacturing and export industries.
 
 ## INDUSTRY OVERVIEW
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550032.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=B1INz73KzKO1DpynJ%2BjbAARsOo4%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Global Synthetic Rubber-Based Adhesives Market
 
@@ -539,11 +425,7 @@ The global synthetic rubber adhesive market is valued at ~$18-22 billion in 2024
 
 Source: Fortune Business Insights, Mordor Intelligence, Future Market Insights
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550039.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=j%2BbPHKM%2BX6R92GLuPFrUlp3g2rU%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Investor Presentation
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285550051.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=etcuwf3VF9YUOwgx1tZj%2FD2Dbs0%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Indian Synthetic Rubber-Based Adhesives Market
 
@@ -555,11 +437,7 @@ Investor Presentation
 
 Source: Grand View Research, MarketsandMarkets
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285550059.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=z%2BnfkuOyB%2FZVEH36uXALs%2BuD0Fs%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Solvent-based adhesives offer stronger bonding, faster drying, and durability but have higher VOC emissions. Water-based adhesives are cleaner, low-VOC, and e friendly, though they typically have slower drying times and lighter bonding strength.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550109.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=FS%2F0MpC2dggfHvuv817Ako5qLqI%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Logistics
 
@@ -571,8 +449,6 @@ Afcom Holdings specializes in operating Cargo Flights to ASEAN countries, with a
 
 AFCOM handles a diverse cargo mix including odd-dimensional cargo (29%) general cargo (28%) and dangerous goods (26%) which together make up the majority of shipments. Smaller categories include other goods (12%) and hazardc materials (5%) , reflecting capability in handling specialized freight.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550120.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=tJ1d%2BVijsUi67yj6mdUgfujzSzo%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 The company recorded strong operational growth in 2026 with trips increasing from 372 in Q1 to 502 in Q3 and charge weight rising from ~5,080 tons to ~6,143 tons. Both revenue per kg and average yield also improved, indicating better price and higher cargo demand.
 
 <div align="center">
@@ -581,25 +457,11 @@ Strong Performance Growth in 2026
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550133.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=H63P9fMphPNVDPLKCKajQyPsSbQ%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550137.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=EQfN%2BADc2ZYo6f6%2BIREff5B4mdI%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285550161.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=CR8Dq90IBXBOqaqhdCjcm9FJ5Po%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285550203.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=pf7PjPs4eb4KO6UKMbliE8HnDS8%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_5_1782285550210.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ClyMksoGv4a6joVCd%2BZsTLC%2Fdzk%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 AFCOM positions itself as a standalone cargo airline focused on fast and flexible logistics solutions. Its services emphasize 24-hour cargo delivery, last-mile connectivity, track & trace systems, bonded trucking, and chartering options.
 
 Fast, Flexible, Solutions For All Cargo Needs
 
 Being a Standalone Cargo Airline the main focus of AFCOM is
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550256.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=4lO1nIV6wm4JksErDaHCZ1xf3UA%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550263.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=vpVhJsXC9u6yVvvy%2BldhLwzcxKQ%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 The company has partnerships with major global logistics and airline operators such as DHL, DB Schenker, Turkish Airlines, Etihad, Kuehne+Nagel, and DSV. These collaborations strengthen AFCOM's global cargo network, routing option and logistics capabilities.
 
@@ -607,41 +469,19 @@ Tie-Up + Strength
 
 SOME OF OUR CLIENTS & TIE-UPS
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550272.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=i6xk%2F289WY9n1nLV9ehOiW6qpBs%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 KWE Kintetsu World Express
 
 DB SCHENKER
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550277.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=H94PuJdu9q4bBcp5W5VNF3fV3js%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 virgin atlantic
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285550291.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7x1A8GXKgodQl7ee55vN%2BwnBHVs%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285550301.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JLC%2FC1IVGkMwqq5Snbn6DVTunis%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_5_1782285550307.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=XYjM3E8aN%2FmSdm%2FBHf3tVWivr%2BE%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_6_1782285550314.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=LC2FuTGhflILMKobbx9L2ozHzbI%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 KUEHNE+NAGEL
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_7_1782285550318.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=aaYKO6Q21Fhey%2FgkH32iG2o94Kw%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_8_1782285550322.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=qceNHQORF31mvoZVPWx3oJoYeCY%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_9_1782285550332.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=qG2w8GpnFisONF1LT1yKNETTF%2BM%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_10_1782285550338.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=UeveZHlsvv1%2F%2BfD1VrWIfTpWbco%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 WORLDWIDE GSA
 
 vietjetAir.com
 
 flydubai
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_11_1782285550343.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8XvzLKdG9qw6d6gE1hLmkCXLrsU%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## FMCG
 
@@ -655,63 +495,39 @@ DSM Fresh Foods operates an integrated farm-to-fork meat and food platform throu
 
 ## DSM Fresh Foods Limited : A Decade of Trusted Execution Integrated Farm-to-Fork Fresh Food Platform
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550348.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=rDikxJiZ%2BesZfXQYDABgkOjnCnY%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 ## Organizing India's Unorganized Food Market - Profitably
 
 ## Zappfres
 
 3 advanced meat processing facilities with end-to-end automation
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550353.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=DxSjrL7FEM0D7sS4qlWuEGcuoHI%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Multi-category manufacturing capability across Frozen, RTE & RTC products
 
 Omni-channel distribution presence across D2C App & Website, B2B (HoReCa) & Retail Stores.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285550357.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=inXO95aznHkc1pzAkK82xDV%2Bvfw%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285550361.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PmNNhqja3a3pPbJC22cCSqRct5M%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 2 prominent consumer brands: ZappFresh & Meevaa Foods
 
 Secondary processing controls ensuring consistent quality, safety & freshness
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_5_1782285550365.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=bu3aou98r2yl18PwlIvPu0AS8WU%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_6_1782285550371.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Ds2cW%2FHYEn2sEIHw7QXzqgoS%2BNc%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_7_1782285550377.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6WLmnDC9p1MluRpcp2SBMRHDF2s%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Zappfresh follows a low-capex, partner-led retail expansion model, requiring onl. 3-5 lakh investment per store. The small-format stores help scale quickly, reduce risk, and strengthen local brand visibility and neighborhood recall.
 
 ## 2b. Asset-Light, High Recall Retail Network Low Capex, Partner-led Expansion
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_8_1782285550384.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6m1fqXP5QGrJ%2FYQArCUD%2BUygXdY%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Zappfres
 
 Number of Retail Stores (H1FY26) :~20
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_9_1782285550390.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=F2MaTto0yu8%2FlFGcBzcnmdIUlAg%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 ## Low Investment Model
 
 Minimal upfront capital (Rs. 3-5 Lacs Capex) enables faster rollout, lower risk, and quicker break-even per store.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_10_1782285550395.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5v%2FNJvvL5IwigT5%2FcnmzGrUwuaM%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Co-Branded Expansion Model
 
 Partner-driven rollout accelerates market penetration and reduced execution risk.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_11_1782285550400.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=saKPtjp71lNwTF%2BuP1xVSXxLAl0%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 ## Capital-Efficient Format
 
 Small-store model enables low capex and faster payback cycles.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_12_1782285550412.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=iFl7R1u6vX3jJkSs1RYXisKeNE4%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Brand Trust & Visibility
 
@@ -727,31 +543,21 @@ The company currently operates mainly in North and West India and plans to expan
 
 Zappfre
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550418.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ukMHQv0MQXCgKF5oS7B28HxgQnI%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Structural shifts such as formalization of meat supply chains, rising protein consumption, and digital commerce growth are driving demand for packaged me products. Changing lifestyles and convenience-driven consumption are accelerated adoption of ready-to-eat (RTE) and ready-to-cook (RTC) formats.
 
 Industry Momentum Shift in Trends & Lifestyle
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550433.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=xy%2By61H4ZHYvv1TeVbKnwm0INRg%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 Formalization of Meat Supply
 
 Unorganized wet markets are gradually giving way to hygienic, branded, and compliant processors driven by food safety awareness and regulatory tightening.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550438.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=3fSFedDHTTR%2Bv%2FUuw%2FryEhuKInc%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Health, Nutrition & Protein Focus
 
 Rising awareness around protein intake and food safety is accelerating demand for lab-tested, portion-controlled and branded products.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285550443.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=CsFjj10ivX8ZEEyms32PQvzDvsI%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Digital & Quick Commerce Expansion
 
 E-grocery and quick-commerce platforms are accelerating discovery and repeat purchase of packaged meat and RTC products.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285550449.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=VPFlKl8gHPZEiNUuOf1GbehNpFk%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 Lifestyle & Convenience-led Consumption Shift
 
@@ -761,27 +567,17 @@ India's HoReCa, food processing, and RTE/RTC markets are expanding rapidly, whil
 
 Industry Momentum Structural growth across HoReCa, Packaged Food and RTE/RTC categories
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_5_1782285550453.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=35yBHXBnhxLjQKFgPaE%2BQaNg6G8%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 <div align="center">
 
 ~90% of the meat processing market remains unorganized, offering large growth headroom
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_6_1782285550460.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=q6rXM5eheT7uswRihHtoUGVHNDA%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_7_1782285550465.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=e%2BFXpl0dTsKV6OeYM6Zfvfk7Wqg%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_8_1782285550469.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ItMzGEPMpehep8jrGalJ36NloPs%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 <div align="center">
 
 Domestic Packaged Meat/Poultry Market (In INR Bn)
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_9_1782285550474.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=qNsqrjxD1jMfJq6EkmseewE%2FszE%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 Source: Imarc Group, Motilal Oswal Consumer-Processed Food, Jan'26, Technopak; *inclusive of sweets
 
@@ -791,15 +587,11 @@ RTE/RTC* (In INR Bn)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_10_1782285550479.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=O18Lj705Z%2Bozph9Y08%2B%2FrHtHSv8%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 <div align="center">
 
 Domestic Protein Based Product Market (In INR Bn)
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_11_1782285550486.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=aCONVhaUzX32x%2F1Ol27afO6ygzo%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 Zappfresh operates a full-stack supply chain from farm sourcing to last-mile delivery, bypassing traditional mandis and wholesalers to improve margins. The model combines direct farmer procurement, centralized processing, standardize SKUs, and omnichannel distribution to ensure consistent quality and operationa efficiency.
 
@@ -808,8 +600,6 @@ Zappfresh operates a full-stack supply chain from farm sourcing to last-mile del
 Vertically Integrated Business Model Ensuring End-to-End Quality Control
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550491.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=qZbbBcyGubpJi2GDNaArG3D2HFU%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Bio Energy
 
@@ -823,31 +613,17 @@ Shubhshree Biofuels operates an integrated process from order intake and dema an
 
 ## Our Core Process Flow
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550500.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YeSqXmOe8UW4VdZHa4jIMwsN8Zk%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 "Delivering integrated biofuel solutions that align producers, processes and client needs."
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550504.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1k2SXPfny1oPVWVoUrzwLuT%2BICY%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 The company aggregates crop residue from over 2.5 lakh farmers, converting agricultural waste into bioenergy while reducing emissions from stubble burning This model creates a predictable low-cost feedstock supply while transforming an environmental challenge into a scalable clean energy solution.
 
 ## From Waste to Energy
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550511.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7YvyI%2FqExMQz5b5v0P%2FlQPdymN8%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550515.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hndjoq%2FpnyBmc8MYI1ncwDZ67Ns%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Aggregating crop waste from 2,50,000+ farmers and converting it into viable bioenergy, mitigating $ \mathrm{C o}_{2} $ emissions, saving water and improving the quality of life.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285550520.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Hbmrn3FaHcKoQJYgOIcgl2oSCBE%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 230 million tonnes of crop residue in North India is burned annually, releasing ~149 million tonnes of $ \mathrm{C o_{2}} $ , over 9 million tonnes of Carbon Monoxide (CO), 0.25 million tonnes of Oxide Sulphur (SOx).
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_4_1782285550525.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hXq7wweuTqDUhyplNT3yN9wM41k%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Each tonne diverted from burning reduces emissions while creating a predictable, low-cost feedstock stream for energy production.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_5_1782285550530.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=pG1SltkbQK1q1DrQiq8s6fVtnO4%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 This shift converts environmental liability into scalable energy asset, loweri supply risk, improvi margins, and building a relial waste-to-energy ecosystem.
 
@@ -857,19 +633,11 @@ India generates over 683 million tonnes of agricultural residue annually, much o
 
 ## Opportunity Analysis | $21.68 Bn TAM in 2023
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_6_1782285550535.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=axe3730QdJCilwy4fLILNEWEFEs%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_7_1782285550540.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=a10GUz%2BrOA2KNJ2ZA3BYjWGcsFA%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 - India generates over 683 million tonnes of agricultural residue annually, a vast portion of which remains either unutilized or openly burned
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_8_1782285550545.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=P1gYMFEd%2FjeiJt0S6GSVtc7EcJA%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 - Shubshree Biofuel is uniquely positioned to capitalize on this opportunity. With operations already active in over 20 thermal power plants and an ambitious target to reach 50+ plants by fiscal year-end, the company is emerging as a front-runner in India's bioenergy transformation.
 
 - By turning agricultural residue into biomass fuel, Shubhshree not only addresses critical environmental concerns but also taps into a resilient, policy-backed demand.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_9_1782285550551.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=nFBXg9YMg24J117rav%2FE9n4%2F6vc%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Industry Overview
 
@@ -889,15 +657,9 @@ Market Size & Revenue Growth
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_10_1782285550556.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=fuAUt%2BrOMnymkQukNAYujgX6LwE%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Biomass briquettes offer significant cost savings compared to traditional fuels, while supporting rural development and sustainability. The company's ecosystem currently involves 1,000+ villages and 20,000+ livelihoods, while reducing carbon emissions and creating green jobs.
 
 Strategic Impact Economic, Social & Environmental Value
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550563.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=e5%2BgcFqMsstWBe6NUUfZcwalfF4%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550570.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=xTDlHqIT%2FciVWKoJHAEBR0jkj8E%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Rural Ecosystem Empowerment
 
@@ -920,8 +682,6 @@ Women in Workforce
 Generating 2500+ green jobs for unskilled and semi-skilled workers
 
 ## Sustainability At Scale
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285550575.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=nyM4SYJiEc3BjeXv7gsgSUv1gnM%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 0. 5 MMT
 
@@ -949,8 +709,6 @@ Distribution of Recruitment India B2B business billings by customer type for FY2
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550580.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=lf0M2v1y1IirufL2DOxZoz4xXV4%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Direct contribution from IT Services (incl. IT services and GCC IT Services companies) is ~25% Overall contribution from IT Services incl. Direct and through Consultants on a pro-rata basis would be 30-35%
 
 infoedge | naukri
@@ -965,15 +723,11 @@ No. of billed customer ('000)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550605.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=nC8QMZW%2BcxVhTI79nJoAog%2BSSs4%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 <div align="center">
 
 Avg. realization per customer (Rs. '000)
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550610.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=kyqd5Lww3u5tdzrywHDcdV%2BQD4Q%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 Customer growth of ~11% was driven by deeper Tier-2/3 penetration and higher SMB client additions, with average realization remaining flat due to the shift in customer mix.
 
@@ -989,8 +743,6 @@ Overall traffic (from desktops & laptops, web mobile)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550616.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=F7o1DsXHjpG%2ByE7JSkXZPleHJVQ%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 infoedge | 99acres Source: SimilarWeb
 
 99acres leads competitors in user engagement with the lowest bounce rate and highest time spent. High traffic quality supports superior pricing power as advertisers value conversion over reach.
@@ -1003,15 +755,11 @@ Lower bounce rate on 99Acres platform demonstrating the high quality of traffic
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550624.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=mjMeavL04h%2BlIo8fxVMGgaWSdkE%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 <div align="center">
 
 Higher time spent by buyers and tenants on 99Acres platform demonstrating high engagement
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550629.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=nL8OuSeyXwBohEdx02%2BVW3y5q5w%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 infoedge | 99acres Source: SimilarWeb; Desktop + Mobile Web
 
@@ -1023,21 +771,15 @@ Key business metrics for 99acres
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550633.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=WWSbTarC%2Biyf21vAXbXnFCtiAHw%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 <div align="center">
 
 Distribution of 96.2K total customer base
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550648.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=OKH%2BTuCemW%2FmqswCqC2%2F8vyXJ3Y%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 infoedge | 99acres
 
 Billing breakdown by customer type
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285550653.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6u935zGCy4uBYMonAJNqYWHLdhM%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 Investments represent nearly 90% of total assets, marking Info Edge's evolution is a tech-focused holding company. Standalone operational performance is now secondary to the net asset value of the underlying venture portfolio.
 
@@ -1045,11 +787,7 @@ Investments represent nearly 90% of total assets, marking Info Edge's evolution 
 
 Assets (Total: Rs.47,674 cr)
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550658.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=UxS6UnU8RmRmdGssiUwcV8U2feo%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Liabilities (Total: Rs.47,674 cr)
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550665.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9d6zt1G11FrZtUWX%2FMi46gaXRTY%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 - Shareholder's Equity
 
@@ -1083,13 +821,9 @@ suite covers everything from home loans to loans against shares, ETFs, and mutu 
 
 ## Products: Diversified, trusted, smart
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550669.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=MAQ17PJ2VRi4beynavQrsRGydM0%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Legend: "Third-party products, ^launched in partnership with Mastercard for a closed-user group, commercial launch to follow shortly
 
 With 18% of investors new to mutual funds and 40% of retail AUM from B30 citie the 'financialization' strategy is successfully reaching untapped markets. High active SIP rates indicate retail AUM stickiness, which supports better long-term margins compared to institutional flows.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550677.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=cfInp%2FvXGGyVxpmdfuHWhKE%2B1f4%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Investments
 
@@ -1135,11 +869,7 @@ Q3 FY26
 
 Jio BlackRock Investment Advisers Private Limited and Jio BlackRock Broking Private Limited
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550696.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=cg4rLqSkxrg8W0Ssc63kKr2soKE%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Wealth Management launched website and early access campaign^
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285550700.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=jNlJErGBSvCmMK3CO4TgexTaDRA%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 Product roadmap and GTM strategy for Broking under development
 
@@ -1148,8 +878,6 @@ BlackRock - BlackRock Advisors Singapore Pte. Ltd. and BlackRock, Inc.; $ ^{**} 
 A sequential decline in facilitated premiums underscores the lumpy nature of corporate renewal cycles in insurance broking. Future growth hinges on the Alli JVs, which will pivot the business from pure distribution to high-margin reinsurance manufacturing.
 
 ## Insurance
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550721.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6TWlCGC8G8awsBRTOAJkq9Y6aXU%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Jio Insurance Broking Limited
 
@@ -1166,10 +894,6 @@ A sequential decline in facilitated premiums underscores the lumpy nature of cor
 Premium Facilitated* (Rs. Cr)
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550727.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=XA832XYjmcHqqc6itMGbZdazReQ%3D&Expires=1782890350' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_3_1782285550732.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ZeBh1%2BHRDjW8th7TOKL6oODaw%2F4%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 *Premium facilitated may not be comparable on a sequential basis due to timing of renewal of high-value corporate policies
 
@@ -1189,8 +913,6 @@ Provision Coverage Ratio at 75%
 
 Recovery & Upgradation of 246 Cr in Q3
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550737.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2BsCGBd0JuLh5Ecy7EkXb5hxeGjE%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 ## Movement of NPA
 
 <table border="1"><tr><td>Gross NPA as on 30.09.2025</td><td>4,532</td></tr><tr><td>Add Fresh Slippage</td><td>435</td></tr><tr><td>Add Increase in Balances in Existing NPAs</td><td>8</td></tr><tr><td>Deduct Recoveries/Upgrades/Reduction in existing NPA/Sale to ARC</td><td>246</td></tr><tr><td>Deduct Written Off</td><td>282</td></tr><tr><td>Gross NPA as on 31.12.2025</td><td>4,447</td></tr></table>
@@ -1206,8 +928,6 @@ Provisions in Q3
 ## Federal Bc
 
 Federal Bank is actively rebalancing its loan book the share of medium-yieldi advances (core agri, auto, gold, LAP, small business, CV/CE) rose from 52.2% to 51.0% in gross advances, while high-growth segments like credit cards (24% YoY CV/CE (26% YoY), and small business loans (17% YoY) are leading the charge with gross advances of $ \textcircled{3} $4,270 Cr, $ \textcircled{3} $5,343 Cr, and $ \textcircled{3} $48,558 Cr respectively. On the flip si personal loans and micro advances saw slight declines of -3% and -1% YoY, suggesting a deliberate pullback from certain segments. The interest income mix also shifting the medium-yielding bucket's share grew from 45.3% to 47.7% while low-yielding segments like housing and CIB dipped from 46.0% to 44.3%.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550744.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=AOgv51Ip4qDlxf2ly%2FpNo0H7NJk%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 ## Aviation
 
@@ -1253,8 +973,6 @@ Humility | Entrepreneurship | Teamwork & Respect for Individual | Deliver the Pr
 
 Expanding into retail and real estate transforms airports into high-margin luxur marketplaces rather than simple utility providers. This shift reduces exposure to regulated tariffs and secures more resilient cash flows.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550752.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=aUaldo2sCWCqTlypMzTlwp%2BsmXA%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 Humility | Entrepreneurship | Teamwork & Respect for Individual | Deliver the Promise | Learning & Inner Excellence | Social Responsibility | Financial Prudence - Frugality
 
 ## Tourism & Hospitality
@@ -1272,8 +990,6 @@ Most of the company's revenue comes from hotels operated under global brands wit
 ## Our hotels operate under some of the most well recognized global hotel brands
 
 This gives us access to loyalty programs distribution and high degree of customer affinity
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550758.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ydqaGr2wIWz9EGEGFXoql4%2BDKJQ%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 Nearly half the capital sits in mature assets earning ~18-19% RoCE, while lower- return turnaround and growth assets are currently dragging the portfolio average down to ~11%.
 
@@ -1309,14 +1025,10 @@ See you there!
 
 Points and Figures is run by the same team that creates The Daily Brief and Aftermarket Report.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_1_1782285550764.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Brwnk2%2F7qu911S5RnNfJRQt9zsc%3D&Expires=1782890350' alt='OCR图片'/></div>
-
 17 Likes
 
 ## Discussion about this post
 
 Comments Restacks
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606241518037504cfda381a4186%2Fcrop_2_1782285550769.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YSl1dk3jJuWGnuyfutHMyCSxyAQ%3D&Expires=1782890350' alt='OCR图片'/></div>
 
 Write a comment...

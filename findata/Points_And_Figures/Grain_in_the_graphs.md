@@ -19,13 +19,7 @@ POINTS & FIGURES
 
 Edition #19
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698946811.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=DNeJeNPKqH1%2B6gteQTyu3R87C6k%3D&Expires=1782303746' alt='OCR图片'/></div>
-
 ZERODHA FEB17,2026
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698946865.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=IYQHL7Jb0SMMmexoLC1v0EYLSLA%3D&Expires=1782303746' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698946870.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=CgVIdbonmFRYHlAh7cxDWBNK8Tk%3D&Expires=1782303746' alt='OCR图片'/></div>
 
 Sometimes, a single slide can explain more than a long report. Points and Figures i our way of breaking down what India's leading companies are telling their shareholders and analysts. We comb through the decks, pull out the charts and data
 
@@ -101,17 +95,11 @@ AI innovation has accelerated dramatically between 2023 and 2025, with model siz
 
 ## AI is evolving at an astonishing speed led by hyper competitive market, large capital access and rapid R&D
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698946878.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=cKtqdRxdK7wf2UaDsPiog9lIr2c%3D&Expires=1782303746' alt='OCR图片'/></div>
-
 AI is becoming central to enterprise IT, now accounting for ~23% of IT spend, with ~50% of firms allocating dedicated AI budgets. The balance is shifting toward "Build" models for customization, control, and proprietary advantage rather than standardized vendor-led "Buy" solutions.
 
 ## Build vs Buy: balance moves towards build and reengineering as Al becomes the core
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698946888.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wl%2BWi9xNzgjNEl55LsCQiFMZ8Do%3D&Expires=1782303746' alt='OCR图片'/></div>
-
 AI as a core of enterprise IT
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698946893.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PnNwGTVzZ6OOin4zaIZvEIiHah8%3D&Expires=1782303746' alt='OCR图片'/></div>
 
 <table border="1"><tr><td>Build</td><td>Buy</td></tr><tr><td>Customizable</td><td>Standardized</td></tr><tr><td>Proprietary</td><td>Vendor dependency</td></tr><tr><td>Organic and steady</td><td>Faster deployment</td></tr><tr><td>High internal control</td><td>External control</td></tr><tr><td>Continuous investment</td><td>Lock-in &amp; renewals</td></tr></table>
 
@@ -123,8 +111,6 @@ AI is on track to become the fastest technology to reach 1 billion users, outpac
 
 ## Al adoption is faster than the earlier tech transitions
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698946898.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=NbKsN9DAREWvkQDsasK14%2BhEmqw%3D&Expires=1782303746' alt='OCR图片'/></div>
-
 Enterprise IT has evolved from computerization (mainframes $ \rightarrow $ PCs) to internet based models (client-server, web) and then cloud-based digital scalability. Each transition reshaped enterprise architectures, culminating in modular, scalable cl ecosystems.
 
 <div align="center">
@@ -133,19 +119,11 @@ Enterprise IT has evolved from computerization (mainframes $ \rightarrow $ PCs) 
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698946904.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=c0uCHlkNUlMa1pF0N8psiTmLTXk%3D&Expires=1782303746' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698946909.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=OvBQcCrElzrucZH5Rfy93lOhKqQ%3D&Expires=1782303746' alt='OCR图片'/></div>
-
 Enterprise tech transitions
 
 Technology waves—from the printing press to electrification, PCs, cloud, GenA and now agentic AI—have continuously expanded economic output. The shift fr physical/static systems to digital/dynamic operations is accelerating GDP impact the modern era.
 
 ## Technology has seen fundamental shifts over the years
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698946919.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=4aAZJkjNG9UhqhxdVGVrm1PSKQk%3D&Expires=1782303746' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698946924.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=tw7wuGzApG6iTzvYQEl62a1KLH4%3D&Expires=1782303746' alt='OCR图片'/></div>
 
 AI-first services are estimated to create a $300-400 billion opportunity by 2030, driven by AI-led expansion. However, rising AI productivity may also compress traditional IT services revenue, creating a dual impact of growth and margin pressure.
 
@@ -157,11 +135,7 @@ INVESTOR A
 
 AI First services opportunity*: $300 - $400 billion by 2030
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698946934.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6ToPk0NUUFqqYSCLAf1h04NlsUg%3D&Expires=1782303746' alt='OCR图片'/></div>
-
 Al services led expansion
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698946955.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7ZLqUNaWdEf7j3YRka1cmSbQAos%3D&Expires=1782303746' alt='OCR图片'/></div>
 
 Al Productivity led compression
 
@@ -171,29 +145,17 @@ Infosys highlights enterprise AI engagements spanning AI Trust, AI Strategy & En
 
 ## We have successful AI programs at several clients in these areas
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698946960.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=yNKJFa4Bn21cy7PUddoBK%2BswUZc%3D&Expires=1782303746' alt='OCR图片'/></div>
-
 Legacy IT roles such as front-end developers, QA testers, and IT support are declining, with ~92 million traditional jobs expected to be displaced. At the same time, 170 million new roles—such as AI engineers, data annotators, AI forensic analysts, and forward-deployed engineers—are projected to emerge, signaling a major skills transition.
 
 ## Talent demand is pivoting from legacy roles to high-growth AI skills
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698946968.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=88os2ghc0K4%2BxDt26Q3Ee5%2BAXDs%3D&Expires=1782303746' alt='OCR图片'/></div>
-
 ## Fastest declining IT jobs
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698946972.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7fsbfdPHsAFpsYEa6WDjcksg34M%3D&Expires=1782303746' alt='OCR图片'/></div>
 
 Front-End Web Developers
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698946981.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=qc5lQSE7UHI7AY%2BF4Gfzz1QVq80%3D&Expires=1782303746' alt='OCR图片'/></div>
-
 QA Testers
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698946987.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Yu%2BCYJE7UyUOQGRbiUPtKXCq5Yk%3D&Expires=1782303746' alt='OCR图片'/></div>
-
 IT Support Specialist
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_5_1781698946993.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=38%2BZj6MNLpxN9UMseO6WYKiKCGM%3D&Expires=1782303746' alt='OCR图片'/></div>
 
 Blockchain Developers
 
@@ -201,25 +163,15 @@ Traditional jobs to be displaced
 
 ## New/upcoming IT jobs
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_6_1781698946998.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=fbjmaHDx2qHAnPbrVR1jQpm7Nyc%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Data Annotator
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_7_1781698947003.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=n60wLNDvev0fHl8YIfqTUX3TpQg%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Al Forensic Analyst
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_8_1781698947011.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YpEEns3pi7NLuR4dXq15MF9oX8M%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 AI Engineer
 
 All leads
 
 Source: WEF
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_9_1781698947017.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Zfacyoteg8%2FDexSZBbXYnr9QRjc%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_10_1781698947028.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=RpUPZIS0pPAvIGIzHqzcG0d%2FMZs%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Forward Deployed Engineers
 
@@ -233,19 +185,11 @@ Enterprise IT has evolved from computerization (mainframes $ \rightarrow $ PCs) 
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947036.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=tznb9twhT6fojYd39AQz9nFuDhI%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947041.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Ah%2FM0YMdttxmhCKuMqnH21JB8%2F4%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Enterprise tech transitions
 
 Technology waves—from the printing press to electrification, PCs, cloud, GenA and now agentic AI—have continuously expanded economic output. The shift fr physical/static systems to digital/dynamic operations is accelerating GDP impact the modern era.
 
 ## Technology has seen fundamental shifts over the years
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947060.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Hl%2BZ3BWnxQdcs6xwe0XXFVIaLv4%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947066.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=2nWSZk3Zy6eevydcZdV5QTsporM%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 AI-first services are estimated to create a $300-400 billion opportunity by 2030, driven by AI-led expansion. However, rising AI productivity may also compress traditional IT services revenue, creating a dual impact of growth and margin pressure.
 
@@ -257,11 +201,7 @@ INVESTOR A
 
 AI First services opportunity*: $300 - $400 billion by 2030
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947073.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PpfAtXwSusnvIpQiD2QU2Q6F4Dk%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Al services led expansion
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698947078.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=EzofTxZIar8muWX%2BW%2Br574XIctE%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Al Productivity led compression
 
@@ -271,29 +211,17 @@ Infosys highlights enterprise AI engagements spanning AI Trust, AI Strategy & En
 
 ## We have successful AI programs at several clients in these areas
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947086.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=eOCnrLhOdiJYaPDtQXhO03eS9jI%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Legacy IT roles such as front-end developers, QA testers, and IT support are declining, with ~92 million traditional jobs expected to be displaced. At the same time, 170 million new roles—such as AI engineers, data annotators, AI forensic analysts, and forward-deployed engineers—are projected to emerge, signaling a major skills transition.
 
 ## Talent demand is pivoting from legacy roles to high-growth Al skills
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947097.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8WuyxgZObdzPY2lh4FnlsD4qlDE%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 ## Fastest declining IT jobs
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947106.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=cxrVNqkCCzWQdXoWnmmaQKzekls%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Front-End Web Developers
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947114.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5NMr8oLwcL5hp5M5kMNvjBYTx%2Fg%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 QA Testers
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698947119.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=h9h6%2BElFuotbREe0oycWeLCTHXY%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 IT Support Specialist
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_5_1781698947126.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=eKCjr3HInx3WGrP%2BrmSSvIdwing%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Blockchain Developers
 
@@ -301,25 +229,15 @@ Blockchain Developers
 
 ## New/upcoming IT jobs
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_6_1781698947130.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Ya95Mj8TZjmL%2F35xlVXr2SIFKV4%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Data Annotator
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_7_1781698947138.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=uai9QUQY%2FwSugiAthEXtdXUkv5E%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Al Forensic Analyst
 
 Al leads
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_8_1781698947144.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=lI6Zaw6Q%2Bz0KKAWR%2FILm3mBSATs%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 AI Engineer
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_9_1781698947161.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=k3mi2xWbGUIKDjv29dhclVJyIMM%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Source: WEF
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_10_1781698947167.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=sqiHCZLoNo%2BEbwG0mRC%2FQtxRBDg%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Forward Deployed Engineers
 
@@ -343,11 +261,7 @@ bn in 2024 to USD 3.13 bn by 2029 (5.8% CAGR), driven by favorable farm conditio
 
 ## Indian Foundry & Tractor Industry Outlook
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947172.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=TVNztTrB6Ar0udgdsPiCJknXD%2BE%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Indian Foundry Industry size (USD bn)
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947178.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=O%2FDhoI2RlZqKDu7OHMrS1Tl%2FXiQ%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 - Long-term growth expected in Earth Moving & CV Industry
 
@@ -358,8 +272,6 @@ Indian Foundry Industry size (USD bn)
 - Increasing focus on infrastructure across industries, driving demand for castings
 
 ## Indian Agricultural Tractor market (USD bn)
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947186.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=sE51Le1IC9Tf5ME3tyKZHEB1nVo%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 - Increased tractor demand due to good farming conditions, government support, and market factors
 
@@ -374,8 +286,6 @@ Source: Foundiry Informatics Centre; IMARC Grp Report; 6W Research; Mordor Intel
 India ranks 2nd globally in casting production, with ~5,000 units and direct employment of 5 lakh people, while the auto sector consumes ~40% of output. Key growth drivers include the vehicle scrappage policy, higher axle load norms, manufacturing policy reforms, infrastructure spending, and planned investments USD 6-8 bn to enhance productivity and capacity.
 
 ## Foundry / Casting Industry
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947191.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Re3j6h0hm3g5v9IRAcaEacFs%2FQg%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 ## India Industry Overview
 
@@ -405,8 +315,6 @@ $ 6-8 bn Investment required over next 10 years
 
 Vehicle Scrap Policy to greatly benefit foundry industry
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947202.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9qxEWbxHbIHpBTlgGyRR%2FFwlnqQ%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Government's 20-25% increase in load capacity per axle for p vehicles boosts demand for heavy vehicles, benefiting found sector
 
 New Manufacturing Policy aims to elevate manufacturing GI share to 25%, underscoring foundry industry's critical role
@@ -422,8 +330,6 @@ Prostarm Info Systems is a company in India that designs, manufactures, assemble
 ## [Presentation]
 
 India's BESS market is set for explosive growth, scaling from ~0.2 GW to 66 GW 2032, driven by renewable integration, policy support, EV adoption, and grid stability needs. Solar EPC demand remains strong, supported by India's 280 GW renewable target, rooftop solar expansion, and sustained government capex.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947208.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=2u2vAdEhWF3w5JuBk0HlMdI%2FeVM%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 ## Industrial Outlook- BESS & Solar EPC
 
@@ -455,15 +361,9 @@ India's Battery Energy Storage System (BESS) market is set to grow from under 0.
 
 ## BESS Installed Capacity in India (GW)
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947214.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=WrOVRs5vA5YhlBOCGBvq2Ju8mEQ%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947219.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=kK%2FWs41RlmWpWBjFnJWrnVzsr9A%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 India's inverter and backup power market is expected to grow steadily, fueled by rising power reliability concerns, data center expansion, and ESG-driven energy shifts. Strong growth is visible across UPS, lithium-ion battery packs, solar hybr inverters, and lift inverter segments through FY27E.
 
 ## Industrial Outlook - Power Backup And Power Solution
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947225.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=RQTGI9CaUM6xm7NxzHrFz3Juv8Q%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 India's power inverter market, valued at USD 6 billion in 2024, is expected to reach USD 22 billion by 2034, growing at a CAGR of 15%. The surge is driven by r demand for backup power, renewable energy adoption, and supportive government policies.. Rising demand for uninterrupted power in industrial, commercial, residential segments. The Indian uninterrupted power supply market is projected to grow at a CAGR of 8%-10% during the forecasted period 2023-28.
 
@@ -487,8 +387,6 @@ UPS Market in India(INR Mn)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947230.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=LSnhTIe965m5cSjPwXxDtJfeFhU%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 <div align="center">
 
 Lithium Ion Battery Pack Market in India(INR Mn)
@@ -497,15 +395,9 @@ Lithium Ion Battery Pack Market in India(INR Mn)
 
 Investor Presentation
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947236.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=k%2FEK5O5Xhy6gQuvrtVcJWAm5e5Q%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Solar Hybrid Inverter Market in India (INR Mn)
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698947244.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=bi1DaM50fDFRwySd1xG%2FhiOhKKI%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Lift Inverter Market in India (INR Mn)
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_5_1781698947249.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=It%2BcDUQ3fjbsyxq5qrUoNXnoI7o%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Source- CareEdge Report as on February 2025
 
@@ -523,15 +415,7 @@ Its Train Control & Signalling division focuses on three core offerings: TCAS
 
 ## Multiple Tailwinds and Growth Opportunities
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947266.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=J5sl%2FuTD%2B7ULUNrWjPfH8VVAYXE%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947272.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YJoHnu5778MFEtnu%2FGpJ92M3GPM%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 The Train Control and Signalling division primarily consists of three parts:
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947277.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=I94ivgSHjj0%2FLw3aNjWub2Uu%2Fhs%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698947283.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ll%2BiF%2B82vt6YRpBi3ilxOiH%2BFT8%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Leveraging the successful deployment of our indigenously developed Train Collision Avoidance System, Quadrant is now strategically positioned to accelerate growth by expanding into new, high potential business segments aligned with the Ministr of Railways (MoR) safety initiatives.
 
@@ -539,25 +423,13 @@ Indian Railways' expanding safety budget and 7,500 Cr allocation for signalling 
 
 ## KAVACH System: Growth Drivers
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947289.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=2MCiWLdOR0XtFgTDaLBL9BrNWDs%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 ## Indian Railways: Growing budgetary outlay
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947294.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=mDBfTWT2wTYE1HlYAKI%2FxTHRw2s%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 ~ ₹1.2 lakh Cr allocated to enhance railway safety for FY2026-27
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947314.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=NqyZEkl4xKuW%2FmtjSsKmuU2jGN4%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 ~₹7,500 Cr allocated towards Signalling & Telecommunication in FY2026-27
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698947321.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ygDDDljHEFQairAgeEGfAekWr%2BI%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_5_1781698947326.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=TWO5etHycihS3yl9as8q%2FBOGxw0%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 15,512 km of railway track currently being equipped with KAVACH systems
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_6_1781698947332.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2BQW4g8rtWKgKHdcBl5njFHIW0Uw%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Full network coverage within 6-8 years via phased rollout
 
@@ -565,11 +437,7 @@ New semi-high speed fleet needs KAVACH 4.0 compliance
 
 ## Quadrant's success in TCAS
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_7_1781698947337.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Js7I0bS83lHe%2BwtTWF8pKg2Sunw%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 End-to-end capabilities in KAVACH design, manufacturing, installation, testing, and commissioning
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_8_1781698947343.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=IZeW%2F%2Bfb1KrMsdxECVXtfTEJW5I%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Our capabilities in TCAS have been further reinforced with multiple orders from RailTel for deploying KAVACH systems on low-density railway sections and on-board locomotives; an active order book of 8,287 Mn.
 
@@ -579,19 +447,9 @@ KAVACH integrates trackside infrastructure (RFID tags, antennas, stationary TC u
 
 ## KAVACH-A multi-year opportunity
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947348.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ra1LLuhihOpCNw%2BtjUAQCt4Umew%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947360.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ztff8PZgaXk5NR6eeHlIvvtsCaQ%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947368.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=R2rZveICq4WYdT2fmUsUaWG3gm8%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Specialty cable demand is projected to grow across railways, defence, EVs, and renewables, driven by electrification, indigenization, and higher capex. Quadrant offers advanced, certified cables (RDSO, DGQA, IATF, BIS) that enhance durability, reduce lifecycle costs, and support next-gen mobility and energy solutions.
 
 ## Growth Drivers - Specialty Cables
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947377.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=vo7bHi1%2F4N5nOHZhIKb1XdfZ51U%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947386.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1jxWVJBDUuBkUuvAmFWsavl0bxo%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Quadrant: Specialized in Electric & Control Cables, well positioned to meet the growing industrial demand of futu
 
@@ -601,11 +459,7 @@ Its strategy combines strengthening legacy segments with venturing into value-ad
 
 ## Product Portfolio
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947394.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2Fcb8Jfh%2FYgohhlhs92ElH0AUVr0%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 ## Quadrant provides Specialty Cables across major growth segments
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947401.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=caFoMxIarLmrRZP0FjFcTqupAnw%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 ## Railways
 
@@ -617,8 +471,6 @@ Its strategy combines strengthening legacy segments with venturing into value-ad
 
 - 3.6/6.0KV Irradiated Cables
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947407.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ZAhK%2FNcThuvcl385G2M1S6PRReM%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 ## Defence
 
 - Irradiated Cables EED-50-12
@@ -629,21 +481,15 @@ Its strategy combines strengthening legacy segments with venturing into value-ad
 
 Strengthening current segments
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698947415.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=oCATIbjDXEd%2FQMz5mo%2BfWIs5o4I%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 ## Renewables
 
 Venturing into high growth niche cable sectors along with providing value-added solutions
 
 E-Beam cables, preferred for solar & wind installations, where thermal, UV resistance, long-term durability & extended warranties are key
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_5_1781698947422.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=bRjwuYxXSIDjxiXD0Jia0rQuups%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 ## Electric Vehicles
 
 E-Beam cables, preferred for hybrid & EVs, where lightweight and long-term performance are key to meet latest technological advances
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_6_1781698947427.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=bnfsa3vgDf%2Fj%2FbOsLK8mYnMUDFE%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 ## Submarines
 
@@ -659,17 +505,11 @@ The process is energy-efficient, synchronized, and ideal for high-growth sectors
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947433.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=J%2F69CTO%2FH2isZggpKXMtYnyEN7o%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Rising adoption of Electron Beam Cables across high-growth applications-EVs, fuel cell vehicles, renewable energy, aerospace, and high-rise infrastructure-driven by superior performance and reliability
 
 ## Enhanced Cross Linking
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947438.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Rjyk1v2SsOCeCCv9tAsKn7pqjBA%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Electron Beam (E-beam) processing technique provides enhanced cross linking and polymer modification to cables to achieve much superior mechanical and thermal properties.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947444.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=bKrFTfOlWSe2S0ZWHRiyxeu7I9s%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 ## Energy Efficient
 
@@ -701,8 +541,6 @@ The Union Budget 2026-27 allocations for water (₹84,000+ crore) and energy (�
 
 SPML aims to leverage its EPC track record and BESS partnership to convert budgetary outlays into tenders, orders, and long-term revenue growth, supported by rising capex trends.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947459.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=SknGIs3BzlM1UMNYjNLqADPlL10%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 ## Shakti Pumps | Small Cap | Engineering & Capital Goods
 
 ## [Presentation]
@@ -721,8 +559,6 @@ Average Billing Rate (in Rs./kWh)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947468.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=0resLiHSSD6cQg%2BWUedhKXNxSCg%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 <div align="center">
 
 Transmission & Distribution Losses
@@ -730,8 +566,6 @@ Transmission & Distribution Losses
 </div>
 
 Source: https://iced.niti.gov.in
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947475.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8u7rSb%2FOB6g43kXM75xDb93fwX4%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Why are Distribution Companies moving towards Installation of Solar Pumps?
 
@@ -767,8 +601,6 @@ In the 1st Year, the scheme installed over 8.6 lakh solar panels and subsidies w
 
 As per the Union Budget 2026-27, the Government has allocated a higher budget estimate for 2026-27 under PM Surya Ghar: Muft Bijli Yojana schemes, with the allocated amount growing by 10% to $ \textcircled{2}20 $ Bn respectively, in both these schemes.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947481.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2FURAsqiPItF1Ct%2FRX84dQ2ZMWFs%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Consumer savings on electricity bills
 
 ## Benefits of Solar Rooftop
@@ -787,8 +619,6 @@ Aids in managing daytime peak loads for DISCOMs
 
 Contributes to energy security through lower carbon emissions
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947491.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=nPsfEXepZKPfxspHzb%2BvzYgH3Kg%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Indian Solar Rooftop Market is expected to reach 41.52 GW in installed base by 2030; growing at a 19% CAGR between 2025-30
 
 * Source: Mordor Intelligence
@@ -803,13 +633,7 @@ Indian Terrain Fashions Ltd (ITFL) is a leading ready-made garment retailer in I
 
 ITFL has a strong pan-India footprint with a higher concentration of exclusive stores in South and West India. Region-wise, South leads both LFO and MBO formats, followed by North and West, while East has a relatively smaller presenc
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947496.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=yHeDZnogdtmSEhwvtcEXjQ5SxsU%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Region Wise - LFO
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947507.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=i7LceurHd8NAPbnYG%2B3kNH7d4PI%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947514.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2BUVf0zPoORQSHepqKE0ICWTZ97g%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Q3 witnessed demand recovery driven by festive and wedding-led spending, along with improved consumer sentiment. GST rationalisation, premiumisation trends and a stable macro environment supported higher footfalls, with a positive outlook for H2 FY26 backed by organised retail growth and supply-chain efficiencies.
 
@@ -839,17 +663,9 @@ housing, renewable energy, anti-dumping measures, and power transmission investm
 
 ## Key Drivers Fueling Growth across Segments
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947521.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hIShz4CSuEy6F45qwtiZqH1V4I0%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947529.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=VnIw7ps5AGm6E7B85hjmS1lE5zA%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 The global aluminium market is projected to grow at ~6.2% CAGR to ~$394 bn by 2032E, while India is expected to grow faster at ~7.6% CAGR to ~$20 bn by 2030. Key drivers include EV-led lightweighting, urbanisation, manufacturing growth, packaging demand, and strong bauxite reserves supporting domestic production
 
 ## Aluminium Industry Growth: Opportunities on the Horizon
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947540.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2F5xFE9nGIypbhHcQgFBsOplqFpQ%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947555.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2FAtb3aIVpnEF6kma8oRkEQB0DL4%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 - Sustainability with Aluminium Recycling: Aluminium's infinite recyclability makes it a top eco-friendly choice for reducing carbon footprints.
 
@@ -858,8 +674,6 @@ The global aluminium market is projected to grow at ~6.2% CAGR to ~$394 bn by 20
 - EVs Drive Lightweight Aluminium Demand: The rise of electric vehicles (EVs) fuels demand for aluminium, enhancing vehicle range and efficiency.
 
 ## Growth Drivers:
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947560.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=mUect4kVIMdN7n%2Fj3zVb5KqlO%2BY%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 ## Growth Drivers:
 
@@ -887,23 +701,15 @@ and North East. Total revenue increased to $ \textcircled{2} $6,389.9lakhs in FY
 
 ## Geographical Presence & State wise Revenue Breakup
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947566.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hS8G5wldYxPRrfvjrNTzRWYWBUY%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 In ₹ Lakh
 
 <table border="1"><tr><td>State</td><td>FY25</td><td>%</td><td>FY24</td><td>%</td><td>FY23</td><td>%</td></tr><tr><td>Telangana</td><td>2,108.67</td><td>33.00%</td><td>2508.99</td><td>49.33%</td><td>2445.69</td><td>54.11%</td></tr><tr><td>Andhra Pradesh</td><td>1,277.98</td><td>20.00%</td><td>1434.93</td><td>28.21%</td><td>1200.10</td><td>26.55%</td></tr><tr><td>Karnataka</td><td>958.49</td><td>15.00%</td><td>496.86</td><td>9.77%</td><td>458.21</td><td>10.14%</td></tr><tr><td>West Bengal</td><td>185.31</td><td>2.90%</td><td>76.39</td><td>1.50%</td><td>36.48</td><td>0.81%</td></tr><tr><td>Maharashtra</td><td>198.09</td><td>3.10%</td><td>71.65</td><td>1.41%</td><td>58.72</td><td>1.30%</td></tr><tr><td>Odisha</td><td>115.02</td><td>1.80%</td><td>56.92</td><td>1.12%</td><td>33.98</td><td>0.75%</td></tr><tr><td>Tamil Nadu</td><td>638.99</td><td>10.00%</td><td>311.39</td><td>6.12%</td><td>195.03</td><td>4.32%</td></tr><tr><td>Kerala</td><td>210.87</td><td>3.30%</td><td>35.51</td><td>0.70%</td><td>21.10</td><td>0.47%</td></tr><tr><td>Madhya Pradesh</td><td>255.60</td><td>4.00%</td><td>33.07</td><td>0.65%</td><td>27.83</td><td>0.62%</td></tr><tr><td>Goa</td><td>172.53</td><td>2.70%</td><td>40.20</td><td>0.79%</td><td>33.13</td><td>0.73%</td></tr><tr><td>Gujarat</td><td>0.00</td><td>0.00%</td><td>20.16</td><td>0.40%</td><td>15.60</td><td>0.35%</td></tr><tr><td>Chhattisgarh</td><td>146.97</td><td>2.30%</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>North East</td><td>121.41</td><td>1.90%</td><td>0.00</td><td>0.00</td><td>0.00</td><td>0.00</td></tr><tr><td>Total</td><td>6,389.92</td><td>100.00%</td><td>5086.07</td><td>100.00%</td><td>4519.48</td><td>100.00%</td></tr></table>
 
 The Indian publishing market is projected to grow at a 5.8% CAGR (2025-2031), driven by digital adoption, regional language demand, and government literacy initiatives. While high paper costs, piracy, and low rural digital literacy remain challenges, opportunities lie in e-learning, edtech-aligned publishing, and subscription-based models. Trends include interactive eBooks, AI-driven personalization, and hybrid retail formats.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947573.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=HFfxqrJctGziVSrfuWL9%2Fmz4nNw%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 India's education sector has expanded from $117 billion (FY20) to an estimated $ billion (FY25E), supported by strong demographics and policy reforms like NEP 2020. The country has over 580 million youth (5-24 years), 52,000+ colleges, and growing digital adoption, with 62% of enrollments through online channels. Edt and K-12 segments are witnessing strong long-term growth momentum.
 
 ## Education Sector In India
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947583.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=FqhShJF2RNEYLufXl4UF%2F0IVwgY%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947590.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8qOF2RcLR9eZtgqr7QcHvk9Df3M%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 India has 15+ lakh K-12 institutions and a massive 25+ crore student base, creatin large and scalable market opportunity. Growth is being driven by rapid expansio in private and CBSE-affiliated schools, rising demand from Tier 2/3 cities, and a shift toward centralized procurement. The fragmented market structure present strong consolidation opportunity for organized players.
 
@@ -917,29 +723,19 @@ Total Institutions
 
 K-12 Schools across India
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947597.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hi0M9qGYLpn3Q0IRiRjWpDN7c4E%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Student Base
 
 25+ Crore
 
 Students enrolled in K-12
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947616.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wX4hXx1MadUEgWUZn3fonqwgVtM%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947621.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=43AN0FwtKwstMmVZIB%2BQKVvph3U%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Rapid Growth
 
 Explosive increase in CBSE affiliations & private institutions demanding standardized quality.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698947626.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=3YPKzzUg6Razm4j2F%2BmHVCSLkxs%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Regional Expansion
 
 Tier 2 & Tier 3 cities are the new growth engines, seeking seeking metropolitan-grade educational access.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_5_1781698947632.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=jhyZloP8k01ZoVnGVHM7n8QzG7E%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Increasing shift from ad-hoc local purchasing to organized centralized procurement contracts.
 
@@ -959,19 +755,11 @@ Tenneco Clean Air India Ltd. (TCAIL), founded in 1979 and part of U.S.-based Ten
 
 Low vehicle penetration, rising disposable income, tightening emission norms, a premiumisation are creating strong multi-year growth tailwinds for the auto components sector. Domestic PVs, tractors, and CEs are expected to grow at healthy CAGRs, while exports are projected to expand 5.8-8.9% through FY30.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947638.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1kvJpcwupiPt%2BYRPo0veIux47WY%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Tenneco holds leadership or top-two positions across key segments-passenger vehicles, commercial trucks, and off-highway-with dominant market shares in clean air solutions and engine bearings. FY25 value-added revenue stands at 44 largely driven by passenger vehicles (63.5%).
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947647.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wN1U%2F2Bep4sVQRCH1QpsDSOLFrA%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Revenue is split between Clean Air & Powertrain Solutions (52.6% , ~₹23 bn VAR) and Advanced Ride Technologies (47.4% , ~₹21 bn VAR). The portfolio spans emission systems, mufflers, bearings, spark plugs, and a wide range of shock absorbers and strut assemblies.
 
 ## Business Segments Delivering Diverse Products For Evolving Mobility Needs
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947658.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hD175vlWpjvsFF%2FHm3JwV9RsjRo%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947665.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zpQNKNJf6EJstIdCKHTFQh4%2B8Kw%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Source: RHP
 
@@ -991,15 +779,11 @@ A Clean air solutions $ ^{1} $
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947688.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dV2kI%2FDh9eLyxWvxkKIaARfUmu0%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 <div align="center">
 
 B Domestic suspension $ ^{2} $
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947694.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=B9R702PCrdvUMLcDdMu5YY3kFd0%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -1012,8 +796,6 @@ Domestic spark plug $ ^{2} $
 D Bearings and sealings $ ^{3} $
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947701.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=KevNa3YQE58u4W4n6Rg4H7NZibc%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 ## Chemicals
 
@@ -1047,11 +829,7 @@ Expected Capacity - Thin PET Film
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947706.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=V5k2%2FC%2FmJTl3Edvo9gQ1qVa8Qfc%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 ## Polyplex Strengths
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947712.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2F9vTojgOTfX%2B%2BtatPjrrYs%2BfAFE%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 - Players with global footprint can better withstand the regional imbalances, industry volatility and trade barriers (recent reciprocal tariffs in the US)
 
@@ -1085,8 +863,6 @@ Thin BOPET Films Expected to Be the Fastest Growing Segment in the Global BOPET 
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947719.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=LvwzW2%2FCDy0t0FCuBq1S6dAZT7k%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 <div align="center">
 
 Source: Industry Publications/Company Estimates
@@ -1098,8 +874,6 @@ Polyplex has delivered more stable and superior value-added margins versus indus
 ## Polyplex Has Consistently Generated Superior and Stable Gross Margins Relative to the Industry
 
 VA Stability
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947730.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6XW%2BoC4MmVjDaBEk0qYYOxxAyFk%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Value Addition (VA/material margin) is dependent on industry CUF
 
@@ -1121,8 +895,6 @@ Polyplex consistently maintained high capacity utilization (~96-100%) compared i
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947737.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hWC1Z5pssbRA%2FdmIzyDvs8btqwM%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 *Reduction in Polyplex Capacity utilization in YTD Q3 FY26 is due to the start up of new film line in USA - under ramp up
 
 <div align="center">
@@ -1130,8 +902,6 @@ Polyplex consistently maintained high capacity utilization (~96-100%) compared i
 Key Drivers for Strong Capacity Utilization
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947746.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=DXuzFqJWU%2B7hCGuyR3mytdoAKVo%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 ## POLYPLEX
 
@@ -1149,8 +919,6 @@ Backward integration is vital to developing resins required for specialty produc
 
 In-house mechanical and chemical recycling furthers Polyplex's sustainability goals, by replacing virgin PET resins (made from PTA and MEG) with Post consumer PET bales / flakes
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947757.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=2vA8ZXeaE9zw%2BlAUoXcJ4%2F27r5g%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 ## FMCG
 
 ## Britannia Inds | Large Cap | FMCG
@@ -1167,19 +935,7 @@ Commodity Price Trend
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947766.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=n%2FQUOgOTJU%2FarsbX1Xg1YMkuJR0%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947773.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=vmcuakQaEKfzpi0QZgs8C1Ai12w%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947782.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=P3s6JO0ac%2FE0WhjOfPOy6Yo%2BWsY%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698947788.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=HyuaCUNtBKJQE6TEa4oWklMXTnU%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_5_1781698947795.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=X9fUUTEscZ543864Rs51MHiHzK4%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Strategic covers enabled input costs being lower than market prices
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_6_1781698947802.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=q7Yt3unvajy91i0oeONdSsWVwRs%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Note: Above values are based on average actual consumption rates for the q
 
@@ -1199,23 +955,17 @@ India on track to become the world's third largest consumer market by 2026
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947808.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JqB9H1Z9o2CvCmMUiiXnSWLgx84%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 <div align="center">
 
 Global consumption market - India remains one of the key consumer markets in the world (US$ trillion)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947813.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8xm365UgJ2Lq6aILswg42FB%2BIlU%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 <div align="center">
 
 India's consumption growth (in nominal terms) outpaced Chin US and Germany (in US$ terms)
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947820.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=NOuAQM%2BNu9fHpDxjP3c1hvdeAuk%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -1235,11 +985,7 @@ expected to grow at 12.1% annually, reflecting rising consumer interest in premi
 
 Strong premiumisation trend is expected to continue to be driven by favourable demographics
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947830.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=KoJP%2BUEuRib4Y8c3HNOGrycW9IU%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Sales of Spirits by Category (Volume)
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947836.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=GpGJqIzLqcGYgIVv9Yub2zETKPw%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -1247,35 +993,23 @@ Sales of Spirits by Category (Value)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947846.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Gw93WSp9cvPr%2FZWvJ6arEUrVnec%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698947851.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=X23F50%2BCYyUhkxRu4Or15DRULeQ%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Spirits sales in India is estimated to have crossed 400 million cases in CY2024, representing an increase of 2.8% over CY2023
 
 During CY2024-29 period, IMFL sales volume is expected to grow at a CAGR of 5.1% and sales value at 13.4%
 
 White spirits, Vodka and Gin, remain the fastest growing category in volume terms
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_5_1781698947857.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=HWpXHB9lLwUKuQhwr6KXpoDBV8E%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Source: Euromonitor International
 
 Investor Presentation | February 2026
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_6_1781698947863.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=i%2FNoXFou0WZVw9MnJeMTUEF4guM%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Radico Khaitan's prestige and above portfolio has been growing at 13% annually since 2019, significantly outpacing their regular brands. The premium segment's share of total volume has jumped from 28.3% in FY2019 to 46.1% in FY2025, now accounting for nearly half of all sales. The company has been consistently launch new premium and luxury products, including Indian single malts like Rampur, cis spirits, and premium vodkas across recent years. This shift towards higher-price products explains why the company is seeing stronger value growth compared to volume growth in the overall spirits market.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947869.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=tXRlajYPPaIyD3EP2zb62tiqgjA%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 <div align="center">
 
 Continued strong premium growth Prestige & Above brands have grown at a CAGR of 13% since FY2019
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947875.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dsO%2BP4pHxouaVTG8Fgh0rjluMhA%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Investor Presentation | February 2026
 
@@ -1301,8 +1035,6 @@ Continued strong premium growth Coupled with the raw materials tailwinds has led
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947881.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=L3oBJqonzxEGlqmzNNEVlPAwiuE%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Investor Presentation | February 2026
 
 ROCE = LTM EBIT + Average Capital Employed (Equity + Gross Debt)
@@ -1323,17 +1055,11 @@ most of the year, hovering in the 10-12% range before picking up slightly to 14.
 
 Bond issuance quantum (Rs. billion)
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947890.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6whqvta1%2B3oampZYAUMRBYoTEVI%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Source: Prime Database, RBI
 
 *Data may get revised by Prime Database
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947895.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=X20CmPlvnjhspKD%2BWr1MDr9E30k%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Dec 2025 is not comparable to prior period due to change in reporting end date/period by RBI
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947911.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YJNUtIdDlE1nzA1NCwFsO8YfS5U%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 Indian banks have seen their gross NPAs drop steadily from 8.4% in FY20 to an estimated 2.2-2.3% in FY26, indicating much healthier loan books and better ass quality. At the same time, mutual fund assets under management have more than doubled from Rs. 3,864 crore in 2021 to Rs. 8,267 crore by Q4 2025. This shows strong domestic savings flowing into the financial system through mutual funds while banks are dealing with cleaner balance sheets. Together, these trends poin a robust environment for Indian financial institutions with more capital availabl and fewer bad loans to worry about.
 
@@ -1345,17 +1071,11 @@ Indian banking sector gross NPAs (%)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947917.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=t5kbQoPODMntUX9qsrUqSNY%2FVpY%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 Source: Crisil Intelligence
 
 India mutual funds AUM*
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947923.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=AQyXzpT4qJ1RKw1cvwHMubZppys%3D&Expires=1782303747' alt='OCR图片'/></div>
-
 *Average AUM for the Quarter; Source: AMFI
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947929.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=yO%2BT26Tk%2BCUC0jLIFOindGFe%2FUs%3D&Expires=1782303747' alt='OCR图片'/></div>
 
 ## KFin Technologies | Small Cap | Financial Services
 
@@ -1373,25 +1093,9 @@ India Performance
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698947935.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=aJIBOF5dTaTcUbYd9W74sFTbcZA%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698947942.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2B%2B3kGS4tqkxQW7yP2eKSxoeEQvo%3D&Expires=1782303747' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698947997.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=QJSydMEzH%2BMGrbmLr0oJbRkYzpo%3D&Expires=1782303748' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_4_1781698948004.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1AQEqkrWBwjT7rx3sZWQQvO%2BKvw%3D&Expires=1782303748' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_5_1781698948010.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=WbT7hLMfxXbhH5eVN9sgr4dCq%2Fk%3D&Expires=1782303748' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_6_1781698948016.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Phw7vEHISnktwJNu8ER6WyFV%2B%2Bg%3D&Expires=1782303748' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_7_1781698948023.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=J8XVIG0spBzh%2FYP3bv5YUWn7m%2BQ%3D&Expires=1782303748' alt='OCR图片'/></div>
-
 KFintech, with its multi-asset servicing platform, is well positioned to benefit from strong growth across large markets in India
 
 (1) Last quarter average; (2) Source: AMFI; (3) Source: SEBI; (4) Source: NPS Trust
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_8_1781698948031.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YmbH%2Bl9wdgOooL9ADRLwyCWHtC4%3D&Expires=1782303748' alt='OCR图片'/></div>
 
 ## Tourism & Hospitality
 
@@ -1407,29 +1111,17 @@ Indian Hotels has diversified its business across brands and geographies to redu
 
 ## PILLARS OF DIVERSIFICATION HIGHLY DIVERSIFIED BUSINESS MODEL
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698948038.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=tIibapzCPlLCLDdGe%2FDHSk9Gkpw%3D&Expires=1782303748' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698948045.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=GTD9Nw%2B8UytxaxcmkcEA37M8d4o%3D&Expires=1782303748' alt='OCR图片'/></div>
-
 Indian Hotels operates a mix of owned and asset-light models to drive margins a returns. Of the 32,300 operational keys, 55% are managed properties, 27% are ow or leased, 13% are capital light leases, and 5% are joint ventures, making 68% of t portfolio capital light overall. In the pipeline of 30,200 keys under development,
 
 asset-light share is even higher at 94%, with 80% being managed properties and being capital light leases. This shift towards managing properties rather than owning them means the company can grow its footprint without tying up large amounts of capital, leading to better returns on invested capital.
 
 ## PILLARS OF DIVERSIFICATION DRIVING MARGINS & RoCE
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698948100.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YVkqfVCfkwbctz6VKko%2BA6UAvvI%3D&Expires=1782303748' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698948107.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JJXlSz%2FfkygJDvSwChi2JqFJhGM%3D&Expires=1782303748' alt='OCR图片'/></div>
-
 *Capital Light Lease means Revenue share leases where the capex is spent by Lessor and IHCL retains P&L net of Revenue share lease payments
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_3_1781698948113.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1qmqhGf8AQ66p61st54grCcVNs0%3D&Expires=1782303748' alt='OCR图片'/></div>
 
 Indian Hotels gets most of its room revenue from transient guests at 57%, followed by MICE at 23%, corporate at 9%, leisure at 6%, long stay at 3%, and crew at 2%. On the distribution side, direct bookings through the hotel reservation system contribute 47%, while the company's website accounts for 18%, up 170 basis point from the previous year. Online travel agents and alternative distribution systems make up 22%, with the remaining coming from global distribution systems and centers. The growing share of direct bookings, especially through the website, is positive as it means lower commission costs and better margins for the company
 
 ## ROOM REVENUE CUSTOMER SEGMENTS & CHANNEL MIX 9MFY26
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698948119.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=T%2BckRLCmfgx00S9bOEshuMvw28A%3D&Expires=1782303748' alt='OCR图片'/></div>
 
 Data for IHCL Enterprise hotels (Traditional domestic segment)
 
@@ -1451,14 +1143,10 @@ See you there!
 
 Points and Figures is run by the same team that creates The Daily Brief and Aftermarket Report.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_1_1781698948138.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=IDOdO%2F7YZxbVaprUJaLQCVnrSVc%3D&Expires=1782303748' alt='OCR图片'/></div>
-
 9 Likes
 
 ## Discussion about this post
 
 Comments Restacks
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606172021148628cb38164b4fae%2Fcrop_2_1781698948143.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=iuW1y0MzGBJwUbkGX%2BLEAVsnIiw%3D&Expires=1782303748' alt='OCR图片'/></div>
 
 Write a comment...

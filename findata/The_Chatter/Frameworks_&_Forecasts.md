@@ -17,13 +17,7 @@ tags:
 
 Edition #45
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202603011322187802072f3a4541bc%2Fcrop_1_1772342572601.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=rqNrav7a84u4L5ISeSynMvxEvok%3D&Expires=1772947372' alt='OCR图片'/></div>
-
 ZERODHA FEB 06,2026
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202603011322187802072f3a4541bc%2Fcrop_2_1772342572664.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=3ifxuF9kw3dXxh2U0%2FdKq17Gzv8%3D&Expires=1772947372' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202603011322187802072f3a4541bc%2Fcrop_3_1772342572670.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=DNj%2FaxXgOmFPo8XRJdF4ZupNimg%3D&Expires=1772947372' alt='OCR图片'/></div>
 
 Welcome to the 45th edition of The Chatter a weekly newsletter where we dig through what India's biggest companies are saying and bring you the most interesting bits of insight, whether about the business, its sector, or the wider economy. We read every major Indian earnings call and listen to the interviews so you don't have to.
 
@@ -807,14 +801,10 @@ We go through every major investor presentation so you don't have to, surfacing 
 
 You can check it out here.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202603011322187802072f3a4541bc%2Fcrop_1_1772342572682.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=SPW%2BjzB8%2FknGEhAJwIjbxbwaWJw%3D&Expires=1772947372' alt='OCR图片'/></div>
-
 9 Likes
 
 ## Discussion about this post
 
 Comments Restacks
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202603011322187802072f3a4541bc%2Fcrop_1_1772342572693.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7chEsi2C2B2zTq9r8wDUREjSyxs%3D&Expires=1772947372' alt='OCR图片'/></div>
 
 Write a comment...

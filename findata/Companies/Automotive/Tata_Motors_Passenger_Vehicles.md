@@ -130,7 +130,6 @@ Tata Motors Passenger Vehicles (TMPV) is the entity that manages Tata's domestic
 - **Consumer Trends**: Increasing demand for SUVs and premium vehicles
 - **Global Expansion**: Opportunities for international growth and exports
 
-
 # Tata Motors Passenger Vehicles
 
 Tata Motors Passenger Vehicles (TMPV) is the new name for the entity that manages Tata's domestic passenger vehicle and electric vehicle (EV) businesses, which was created after a demerger from its commercial vehicles business. This entity also includes the operations of Jaguar Land Rover (JLR). The split created two separate, publicly listed companies to allow each to focus on its own strategy and market.
@@ -182,13 +181,10 @@ Tata Motors posted its highest-ever quarterly EV offtake at 24.9K units (+59% Yo
 - **JLR debt recovery delayed**: Won't return to net cash in next 2–3 quarters.
   > "Our debt has increased. It will certainly not get back to net cash over the next two or three quarters." — Richard Molyneux, CFO, Jaguar Land Rover
 
-
 ## The Chatter — Infosys, Adani, Tata Motors, Canara & More
 **JLR cycle:** JLR guidance for FY led by new model refreshes (Range Rover, Defender) and improving mix; wholesale volume recovery underway.
 **India CV:** Commercial vehicle upcycle continuing with H2 pickup expected from infra/real estate.
 **India PV / EV:** Passenger vehicle EV leadership in India intact with new Punch.ev / Curvv launches; premiumisation lifting realizations.
 **Balance sheet:** Net auto debt declining; JLR cash generation strong.
-
-![[images/Infosys_Adani_Tata_Motors_p2_img2.jpeg]]
 
 *Source: The Chatter — Infosys, Adani, Tata Motors, Canara & More*

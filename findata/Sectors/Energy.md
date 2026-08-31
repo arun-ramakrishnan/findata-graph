@@ -15,7 +15,7 @@ tags:
 - risk_investment/medium_risk
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-08-31'
 generated:
   by: process:okf_backfill
   at: '2026-07-29T00:00:00Z'
@@ -194,3 +194,25 @@ A cross-edition synthesis of management commentary across upstream oil & gas, re
 > — Gautam Adani, Chairman, Adani Enterprises
 
 *Sources: The Chatter — ONGC, Divi's, LG; Tata Steel, LIC; Reliance, Vedanta, Gillette; Infosys, Adani, Tata Motors; Pressure Points (PTC India); Reading the terrain (Adani Total Gas, GAIL); On Record (PFC, IEX); Talking Points (Smarten Power). Points & Figures — From figures to foresight (PFC, REC, IREDA); Stakes in the Stacks (Waaree Renewable); What margins reveal (editions #11–66, 2025-26).*
+
+## The Chatter — Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More
+
+**The grid is a railway artifact:** open access and grid harmonisation were driven substantially by railway electrification (as narrated by former POSOCO chief S.K. Soonee) — standards, frequency continuity and inter-regional connectivity followed transport corridors because almost no consumer needed continuous cross-region power. Infrastructure geography today still reflects that.
+
+**Coal's scale was imported, not homegrown:** large-scale opencast mining came from Soviet technology transfer — British-style underground methods could not scale in India's fractured seams. Diesel and explosives, not geology, made the million-tonne-per-annum mine possible.
+
+**Nationalisation mandates still bind:** coal nationalisation (1970s) rested on three justifications — unscientific mining, labour exploitation, energy security — and those founding mandates still dictate Coal India's social obligations and operating scale today.
+
+**PSU leadership is external-risk management:** for public-sector energy companies, the chairman's decisive skill is managing the political/bureaucratic environment, not operational efficiency — a structural lens for reading PSU behaviour and leadership churn.
+
+**DISCOM price sensitivity caps the power market:** states prefer load-shedding to buying expensive short-term power (no legal penalty for not supplying), which caps short-term prices; Coal India's cash-and-carry policy meanwhile protects its own balance sheet by pushing stress onto DISCOMs and generators — the sector's defining public-policy tension "for the next decade."
+
+**Centralised solar is hitting structural limits:** India built solar like coal — hulking parks in Gujarat and Rajasthan — despite renewables' decentralisation advantage; grid-connection waits now run a year or more and money can't fix it. Six states hold 97% of grid-connected renewables (the ministry is issuing advisories to disperse), and "green jobs" claims are oversold — power enclaves have not spawned secondary local economies.
+
+> "If you're moving from Eastern India to Central India, you're switching to a different grid, but the power can't stop all of a sudden just because you've moved into another region. But that's how islanded and isolated our grids were."
+> — Prof. Rohit Chandra, Assistant Professor, School of Public Policy, IIT Delhi
+
+> "Six states are responsible for 97% of India's grid-connected renewable energy... That's just reproducing previous economic geography. That's not some renewable energy revolution as far as I'm concerned."
+> — Prof. Rohit Chandra, Assistant Professor, School of Public Policy, IIT Delhi
+
+*Source: The Chatter — Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More*

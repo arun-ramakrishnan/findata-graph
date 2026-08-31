@@ -17,15 +17,9 @@ tags:
 
 Edition #50
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062415194437b1c6490b0848da%2Fcrop_1_1782285633309.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2FyCc4STmFgj%2BLHhQ0qgAqO8XhSs%3D&Expires=1782890433' alt='OCR图片'/></div>
-
 ZERODHA MAR 13,2026
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062415194437b1c6490b0848da%2Fcrop_2_1782285633363.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9Olz8VlnSQZ7Q0e0ZCn4NeQ4jIQ%3D&Expires=1782890433' alt='OCR图片'/></div>
-
 Share
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062415194437b1c6490b0848da%2Fcrop_3_1782285633369.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PKeipC54Ayy%2BvNwllKwMCJDCnQo%3D&Expires=1782890433' alt='OCR图片'/></div>
 
 Today we're at the 50th edition.
 
@@ -236,8 +230,6 @@ Recent high sales volumes were partly driven by distributors stocking up ahead o
 ## Precision Camshafts | Micro Cap | Auto Ancillary
 
 Precision Camshafts Limited is one of the world's leading manufacturers and supply of camshafts, a critical engine component, in the passenger vehicle segment based on its estimated global market share by volume. The company supplies several varieties camshafts for passenger vehicles, tractors, light commercial vehicles and locomotive engine applications.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062415194437b1c6490b0848da%2Fcrop_1_1782285633382.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Sg1SanNif6THPjoR%2B%2BjHKUr481w%3D&Expires=1782890433' alt='OCR图片'/></div>
 
 Strong demand from existing Indian customers contributed to a standalone revenue INR153 crores and a 14% EBITDA margin, demonstrating the company's stability despite global economic challenges.
 
@@ -903,15 +895,11 @@ We go through every major investor presentation so you don't have to, surfacing 
 
 You can check it out here.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062415194437b1c6490b0848da%2Fcrop_1_1782285633388.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=O9keB3a38I4BBoUKr%2F%2Fo3eOwk3w%3D&Expires=1782890433' alt='OCR图片'/></div>
-
 3 Likes
 
 ## Discussion about this post
 
 Comments Restacks
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062415194437b1c6490b0848da%2Fcrop_1_1782285633396.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=2p6YaCi%2F5MgNY7SiLpR5PY2n764%3D&Expires=1782890433' alt='OCR图片'/></div>
 
 Write a comment...
 

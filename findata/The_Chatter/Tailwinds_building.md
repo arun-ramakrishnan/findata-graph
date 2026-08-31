@@ -17,13 +17,7 @@ tags:
 
 Edition #46
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606152003153b50b41bee314102%2Fcrop_1_1781525050715.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2B7Ug61%2FoxhawczaNFF4egaUecQ4%3D&Expires=1782129850' alt='OCR图片'/></div>
-
 ZERODHA FEB13,2026
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606152003153b50b41bee314102%2Fcrop_2_1781525050767.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=OHaBM%2FCC6GPfC%2BtErbt9SWlF0E8%3D&Expires=1782129850' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606152003153b50b41bee314102%2Fcrop_3_1781525050773.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=jtJay1wx3ihTvfnK89qbtG7BwoQ%3D&Expires=1782129850' alt='OCR图片'/></div>
 
 Welcome to the 46th edition of The Chatter a weekly newsletter where we dig through what India's biggest companies are saying and bring you the most interesting bits of insight, whether about the business, its sector, or the wider economy. We read every major Indian earnings call and listen to the interviews so you don't have to.
 
@@ -935,8 +929,6 @@ reality behind it.
 
 You can check it out here.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606152003153b50b41bee314102%2Fcrop_1_1781525050782.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5LqOOKJnePm%2FtQt7Daas3P4PC0I%3D&Expires=1782129850' alt='OCR图片'/></div>
-
 14 Likes
 
 ## Discussion about this post
@@ -945,11 +937,7 @@ Comments
 
 Restacks
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606152003153b50b41bee314102%2Fcrop_2_1781525050788.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=t%2FYs%2BH0SqfYJ6K56BJs7GsPLZt8%3D&Expires=1782129850' alt='OCR图片'/></div>
-
 Write a comment...
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F202606152003153b50b41bee314102%2Fcrop_3_1781525050796.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ZkBJY2Yxo6TuQpZxG%2BxvfSH2gdk%3D&Expires=1782129850' alt='OCR图片'/></div>
 
 ## Subbu 10h
 

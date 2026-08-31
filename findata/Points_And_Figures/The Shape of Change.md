@@ -19,15 +19,9 @@ POINTS & FIGURES
 
 Edition #20
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389178.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=0n2udxbKM9lg6X6BFl%2FlW96qTkA%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 ZERODHA FEB24,2026
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389186.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=IqRoSnJHLSEZhCUp49m96FzHFZM%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 Share
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389197.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=OzP51LUI5%2Fp9HKfBd4c19abjXxk%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 Sometimes, a single slide can explain more than a long report. Points and Figures i our way of breaking down what India's leading companies are telling their shareholders and analysts. We comb through the decks, pull out the charts and data
 
@@ -103,15 +97,9 @@ Gulf Oil Lubricants India Ltd (GOLIL), a part of the Hinduja Group, is a key pla
 
 India is the 3rd largest lubricants market globally, with demand expected to grow from 2.6 million tonnes in 2023 to 3.6 million tonnes by 2033. Even with decarbonisation, volume growth is projected at 3-4% CAGR and value growth at 6 driven by premiumization. Favorable demographics, low vehicle penetration, infrastructure development, and government support make India one of the fastest growing lubricant markets among the US, Europe, and APAC.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389204.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=TfzsmY0exWfSvyNXKDO9kGtuFuE%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 India's auto market is still deeply under-penetrated with just 8% of households owning cars, and the middle class has more than doubled from 14% in FY05 to 3 now, projected to hit 60-63% by 2047. On top of that, the shift from older BS3/BS vehicles to BS6, growing SUV preferences, and stricter emission norms are all pushing demand toward pricier, premium lubricants. The market is quickly transitioning from volume to value.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389212.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=FISunq%2FjxK5P2xJOFKVSNscxwEc%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 India's infrastructure investments are expected to hit 143 trillion between FY24 and FY30, with flagship programs like Bharatmala, Sagarmala, UDAN, and industrial corridors driving activity. All of this is generating high demand for industrial lubricants across categories like hydraulic oils, metalworking fluids, premium oils, and greases. Sectors like manufacturing, power & energy, mining, metals, textile, and cement add further tailwinds.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389220.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=exVLXBne2XZKQb4OQrYENdJYuVE%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 ## CIE Automotive India Limited | Small Cap |. Engineering & Capital Goods
 
@@ -121,10 +109,6 @@ CIE Automotive India is a diversified global auto-component manufacturer special
 
 Heavy European forging exposure tethers group performance to cyclical industry shocks and volatile energy costs in the EU. India's diversified product mix acts as the primary margin cushion, offsetting high-risk specialization in mature Weste markets.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389228.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1TND1BtmVO7F0RQTMxAsBBmK9Oo%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389232.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=BnpZAwRDrRL8v%2BZd%2FLRo0YmU2XI%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 ## * - Non Operational
 
 <div align="center">
@@ -133,25 +117,13 @@ Note : The liquidation process of BFPPL has been completed and the liquidator ha
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389241.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7jODbKFqe4PIKWVaHLjZvyPmLRo%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 High customer concentration in India, with the largest client accounting for 32% sales, ties financial performance closely to the success of specific OEMs. Strateg resilience depends on maintaining these anchor relationships while gradually diversifying the client base to mitigate potential market share shifts by lead customers.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389254.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=NZOEoTYr9c9OW4CUune1fUQRCLM%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 SALES BY GEOGRAPHY & TECHNOLOGY APPROXIMATE BREAKUP
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389260.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Ly7%2Ff%2FXHAL5weQVRM0UHfs53Sws%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389265.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=D7cSZelPwB2%2B1nDbaCUJpJWk8ag%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 The multi-year performance trend reveals a structural step-up in Return on Net Assets (RONA) compared to the pre-2021 period, despite recent margin volatility Sustaining these higher return levels suggests the business has achieved a more favorable product mix and better cost control than in previous automotive cycles
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389271.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Na6QJ4EivCHFYJqApDYcEfuhiN0%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 A massive 31.5% surge in tractor production during the final quarter indicates a strong rural recovery and potential inventory restocking. This sharp inflection p suggests that the cyclical bottom in the farm equipment segment is likely behind and will drive volume growth in early CY26.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389287.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zbkUUwSJrjLXdoy0KdCzp5NYC6M%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 INDIA:KEY SEGMENTS - UPDATE Production Numbers
 
@@ -201,8 +173,6 @@ Source: IHS
 
 Long-term projections favor the two-wheeler segment with 7-9% growth, while heavy truck market is expected to face structural stagnation due to rail competit This shift in the internal product mix will require realigning manufacturing capacity to maintain margin stability over the next five years.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389292.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9erH%2FHqGlkpaIaohQUJW0AD1xXY%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 <table border="1"><tr><td>Light Vehicles</td><td>2W</td><td>Tractors</td><td>Heavy Trucks</td></tr><tr><td>CAGR(2025-30):5.3%</td><td>CAGR(FY25-30):7-9%</td><td>CAGR(FY26-30):5-7%</td><td>CAGR(2025-29):1.8%</td></tr><tr><td>CY26:7.4%</td><td></td><td></td><td>CY26:5.3%</td></tr><tr><td>Source:IHS Feb&#x27;26</td><td>Source:CRISIL Oct&#x27;25</td><td>Source:CRISIL Oct&#x27;25</td><td>Source:IHS Feb&#x27;26</td></tr><tr><td>Increasing affordability,but growth was slowing down on large base</td><td>Total cost of ownership had increased sharply after BSVI,steel price increase and other regulatory requirements</td><td>Market growing post Covid.Rural spending by govt&amp;good monsoons key.</td><td>Structural&amp;Technological changes in road transport sector;competition from Railways</td></tr><tr><td>GST reduction has revived growth</td><td>GST reduction has improved affordability</td><td>Trends expected to continue,subject to monsoonCyclical nature</td><td>Hard to predict</td></tr></table>
 
 ## Metals
@@ -225,12 +195,6 @@ This strategy reduces long-term environmental provisioning risks and improves lo
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389297.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=30IsX1bdMLyc23aeh0vd6JKZP1E%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389302.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=VmDK57HB66vzN%2Bi%2BqSaMtHRoqt0%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389307.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=OfaGkq3%2BUjp4whsoG26MFVK98mQ%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 <div align="center">
 
 % Recycling of Bauxite Residue (Excluding Utkal)
@@ -239,11 +203,7 @@ This strategy reduces long-term environmental provisioning risks and improves lo
 
 Ash Recycling % has improved post monsoon and is in line with previous year.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931389313.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Bb%2BxcGEYU8Rnhpp52HjKdR8okwM%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 YoY increase in Bauxite Residue recycling driven by onboarding of new cement companies to buy Bauxite residue and increased customer demand for co-processing by Belagavi Plant additional demand from NHAI for road projects.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_5_1781931389319.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=WDBk2UyhQ58zfKKWjy4BXUH%2Bkqg%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 YoY increase in recycling of Copper slag, driven by higher demand by cement, Abrasives and RMCs industries
 
@@ -252,10 +212,6 @@ YoY increase in recycling of Copper slag, driven by higher demand by cement, Abr
 Hindalco Q3 FY26-Earnings Presentation
 
 Deploying pumped storage for round-the-clock renewable energy signals a push solve the intermittency problem of green power at a structural scale. This move locks in lower baseline energy costs and effectively hedges the business against future carbon-based trade barriers in key export regions.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389326.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zZefwRUCykNW4rXrL1IEH781e6M%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389331.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wn3Jsc3uHJotRGgKCf8OrQ6iEC0%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 Hindalco Q3 FY26-Earnings Presentation
 
@@ -266,10 +222,6 @@ Chinese supply caps and the green energy transition are creating a structural fl
 </div>
 
 ## LME Trends
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389338.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wDhZYASEdDbjU4Ed0gRzEeT4WzU%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389344.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=UY0BkT41mf%2BdKmMiAF2nfdl2ez0%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 Market Snapshot: LME trends influenced by fundamentals, policies, sentiment and tariffs
 
@@ -291,15 +243,9 @@ Hindalco Q3 FY26-Earnings Presentation
 
 Strong 9% growth in domestic aluminium demand, led primarily by the automotive sector, indicates a robust industrial cycle that is absorbing local supply. A higher domestic consumption mix typically allows for better realizations compared to the export market, strengthening the quality of the India business earnings.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389362.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hFT5io90f%2BJW7WkkkTWpoaFZ9c8%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 ## Domestic aluminium demand & supply
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389367.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=beiXu30xJcVDJUKKnBemJStIde8%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 Domestic Scrap Imports Imports Ex. Scrap
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389373.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=MuzftxuyZHR0cAFQldNssYjL8sA%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 In Q3 FY26, the total Indian demand is likely to reach 1,508 Kt (up 9%) primarily by strong demand in Auto
 
@@ -307,25 +253,15 @@ Hindalco Q3 FY26-Earnings Presentation
 
 Domestic demand and byproduct gains are insulating copper margins from weal global smelting fees. This stability secures a reliable cash engine regardless of volatile global market rates.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389379.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=pxMGn%2Bo2zdVMDexYDhgRLjxWgLg%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389385.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=l3NWAb53GT30RNwYes%2FV1H3G6nA%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389401.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2FOVLVVurjiVn7FZn7aVJz%2F0zhSA%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 Hindalco Q3 FY26-Earnings Presentation
 
 In Q3 FY26, domestic producer's demand wa up 10% at 401 KT
 
 A sharp drop in copper EBITDA per ton reflects tightening global treatment and refining charges (Tc/Rc) alongside a less favorable concentrate mix. This highlight the copper segment's vulnerability to global supply-side constraints for raw materials despite maintaining steady shipment volumes.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389408.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9WW2p9Wi%2FQutnJ9Bk0TvrASwGLg%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 Hindalco Q3 FY26-Earnings Presentation
 
 Operational and Financial Performance Hindalco (India) Business
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389412.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zYqBlIy6wy3mMAo41WhtytmBKdA%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 novelis
 
@@ -338,16 +274,6 @@ Aluminium
 Downstream
 
 copper
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389417.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=11P%2B6QhUkh6g3B53Ij5%2B82HWtd4%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931389422.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=LkRSXpjM29Is4iilQtmW13yN3jE%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_5_1781931389428.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1c%2BMCAZ9dTvlimJar3CWJpwxsDw%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_6_1781931389435.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dBQi2fQEz1PDU5bnIq20Hi%2BmIRk%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_7_1781931389442.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=I6FRLX5XTtumUGVValYrY0QJm1Y%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 ## Frontier Springs | Small Cap | Metals
 
@@ -364,8 +290,6 @@ Indian Railways is Frontier Springs' primary customer, with a budgeted revenue o
 </div>
 
 INDIAN RAILWAYS IS THE FOURTH LARGEST RAILWAY NETWORK IN THE WORLD.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389448.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=EHh44WWA8h0nFjf3Yf%2Bk8bbvdHg%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 ₹3.02 lakh crore
 
@@ -457,8 +381,6 @@ Titan is India's leading lifestyle company with a dominant presence in organized
 
 Revenue scaling from roughly 11,000 crore to over 57,000 crore in a decade reflects a masterclass in organized retail expansion. This trajectory validates the success of the multi-category lifestyle strategy and suggests high replicability as company enters new segments like sarees and bags.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389456.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=WYx7oJsijzW5dvDf62HiZyX098U%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 Low organized jewellery penetration of only 8% despite Titan's dominance indicates a massive, long-term runway for growth driven by market formalization High digital influence in sales confirms that the brand's moat is evolving beyond physical presence to capture younger, tech-savvy consumer segments.
 
 ## FMCG
@@ -471,27 +393,15 @@ Hindustan Unilever is India's leading consumer goods company with a vast portfol
 
 Volume-led growth of 4% nearly matching sales growth confirms that demand is recovering without relying on aggressive price hikes. This shift toward volume suggests a healthier consumption environment and better long-term operating leverage compared to inflation-driven revenue spikes.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389463.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=viYKFX5L62PXGJrVkd5xjXbNC34%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 A 1400-basis point improvement in service levels for quick commerce shows a dedicated effort to own the fastest-growing urban channel. By institutionalizing quick-commerce capabilities, the firm protects its market share against digital-f brands while lowering fulfillment lead times by 20%.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389471.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=eIux2901hesp%2BU1qejFh9igk5cs%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 Scaling premium acquisitions like Minimalist shows HUL is successfully transitioning from a mass-market giant to a luxury-niche competitor. This shift reduces reliance on price-sensitive consumers, protecting margins even when ra material costs for basic soaps rise.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389479.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ejQq3DKHVRwRuhVlIkEaL5xdXPM%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 Resilient 4% volume growth indicates pricing power is stabilizing as commodity volatility subsides across key categories. This suggests a structural shift toward volume-led market share gains rather than inflation-driven revenue growth seen previous cycles.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389487.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=rGc86N4sDT3a0kZmbdWRut1Fkr4%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 Price-led growth masks a decline in core demand, suggesting consumers are trading down to cheaper regional brands. Margin durability now hinges on volu recovery rather than further price hikes which have likely peaked.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389497.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=DVAHXy7ncUm4%2FJWrS3pkT54IfvY%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 The exit from ice cream and full acquisition of OZiva signals an aggressive pivot toward high-margin wellness and digital-native categories. This portfolio prunir aims to improve capital efficiency by reducing exposure to capital-intensive and lower-margin seasonal businesses.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389508.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6U%2BjORh1L7yJA%2Fv%2BxnMA1V6sR8U%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -499,19 +409,11 @@ The exit from ice cream and full acquisition of OZiva signals an aggressive pivo
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389514.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2FNXy1sTQwzpxdFLiCEUGMHMtAOc%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 Delivered strong double digit growth in the quarter
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389524.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=EdInYC9VToRccVUF0Zf5cYPTXgM%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 Acquisition of remaining 49% stake approved by Board
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931389530.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=nvIUhb90FZBU75AH7%2BNyKQcn8N8%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 Divestment of 19.8% stake approved by Board
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_5_1781931389535.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=mbTgRSoxV1EqLbfltN%2FrTPYvUlY%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 Demerger completed; KV listing process underwa
 
@@ -524,8 +426,6 @@ Monika Alcobev is a prominent player in the imported liquor sector, focusing on 
 ## [Presentation]
 
 Customs and state duties account for ~50-60% of MRP across key states like Maharashtra, Karnataka, and Haryana, significantly compressing trade margins. State-driven tax structures and distribution models (private distributor vs corporation model) lead to non-uniform pricing across India.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389541.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=TZ5ATbDhk1%2BrIvZ6X15QPjZUtEQ%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -541,8 +441,6 @@ Imported Spirits (BIO) Value Chain across key markets
 
 Duties may vary based on applicable criteria, values shown represent the closest applicable fit
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389546.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=U4GmNpAy6S8ZxHzo5qvdoJ9OfVs%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 <table border="1"><tr><td>Distribution Mode</td><td>Sub-Type</td><td>Differentiating Details</td><td>Example States</td></tr><tr><td>Distributor Model Company &gt; Licensed Distributor &gt; Licensed Retailer/HORECA</td><td>Type-1</td><td>Retail Private Distributor Private</td><td>Maharashtra, Goa Assam, Delhi-NCR</td></tr><tr><td>Corporation Model Company &gt; State Corporation &gt; Licensed Retailer/HORECA</td><td>Type-2</td><td>Retail Private The corporation buys from the company and sells it to the retailer</td><td>Rajasthan, Karnataka, Telengana</td></tr></table>
 
 Custom and State duties account for approximately 50% of the MRP in key markets, significantly compressing trade margins. As Taxes are also driven by states, it leads to non-uniform pricing across all states
@@ -553,15 +451,11 @@ Imported spirits dominate India's premium segment, capturing ~68% share in th MR
 
 Business Overview
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389551.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=arQZhGB%2BlCu8Nl8WVciMvUh1mF0%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 <div align="center">
 
 Growing Significance of Imported Spirits (BIO)
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389556.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=jxMYNXdPvX%2BjaPOLZbSeoiZyh0c%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 Imported (BIO) spirits dominate the premium segment, capturing 68% of the market share in the MRP > INR 1000 category.
 
@@ -569,21 +463,15 @@ Total Alcohol beverage Import and Exports from India
 
 Source: Industry Report
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389572.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=HWbJoqguSiGkm0ZREkPU%2BeyOr%2Fg%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 The consistent rise in import values reflects the evolving preferences of Indian consumers and their growing appreciation for the heritage and quality of global craftsmanship
 
 India's upward income mobility is expanding the upper-middle and high-income segments, increasing the addressable base for premium and luxury alco-bev products. The premium segment is scaling rapidly, with market value projected nearly double by 2029.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389578.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=XmRlEEn1Dn4Et3KtxcpalKIvhgw%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 India has one of the youngest populations globally (median age ~29.5), with ~68% the working-age bracket, supporting long-term consumption growth. A large yo demographic below legal drinking age is expected to drive future premiumization and sustained demand expansion.
 
 ## Business Overview
 
 ## Evolving Demographic Tailwinds Supporting AlcoBev Consumption in India
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389589.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ufgTiB6w4OXqh%2FG9qAzgGAFS8f0%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 ## Median Age of Key Global Economies
 
@@ -596,8 +484,6 @@ India has one of the youngest populations among major economies
 Population distribution of India
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389594.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=r8fNclpivJHkRxJ7xFjdaXwWyPE%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 A large portion of Indian consumers are still below LDA, and are expected to reshape the consumption landscape
 
@@ -621,8 +507,6 @@ Jubilant FoodWorks Limited (JFL) is part of the Jubilant Bhartia Group and is on
 
 Jubilant FoodWorks is the 3rd largest QSR franchisee operator globally with 3,60 stores, and the largest in India by a wide margin at 1.7x the second-biggest playe serves roughly 25% of the world's population across India, Turkey, Bangladesh, a Sri Lanka. Beyond the dominant Domino's brand, it's building newer bets like Popeyes, Coffy, and Hong's Kitchen as independent growth drivers.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389602.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=a9S7XtUp6iitFIv9If7bJLhEBvU%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 India has just 55 QSR stores per million urban population compared to 392 in Thailand and 1,284 in the US, and as incomes rise, store counts could grow up to Pizza is still less than 1% of the overall food service market, and only about 2.5 million out of 350 million households order pizza in a month. The penetration ga is massive.
 
 <div align="center">
@@ -630,8 +514,6 @@ India has just 55 QSR stores per million urban population compared to 392 in Tha
 India is an underserved QSR market - Massive Headroom for Growth
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389611.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zptwOr0RVAs2VMP9WCgY1HTABjI%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 <table border="1"><tr><td></td><td>GDP per capita($)</td><td>Total QSR stores(A)</td><td>Stores per mn urban population(A/B)</td><td>Leader</td><td>Leader store count</td></tr><tr><td>美国</td><td>86k</td><td>~370,000</td><td>1,284</td><td>SUBWAY</td><td>21,000</td></tr><tr><td>泰国</td><td>7k</td><td>~15,000</td><td>3926X</td><td>KFC</td><td>1,100</td></tr><tr><td>印度</td><td>3k</td><td>~30,000</td><td>55</td><td>Domino&#x27;s</td><td>2,400</td></tr></table>
 
@@ -653,12 +535,6 @@ Domino's is present in just 511 cities and towns, well behind brands like HDFC B
 
 ## India is an underserved QSR market - Massive Headroom for Growth
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389622.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=09inpzX4oWdg%2FaOnsKwO3EXh6RY%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389627.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Jjve1lQ4mX4fTtQ09xEUFeqO4P4%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389635.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6G399v9iBC%2F1R3NTdhmSWHjtkRw%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 Domino's POPEYES COFFY HONG'S KITCHEN ROMY LAND CHEFT
 
 Domino's has ~2,400 stores in India as of December 2025, nearly double the next biggest QSR player KFC at ~1,340. From 378 stores in FY11 to 2,400 now, it's gro faster and more consistently than every major competitor including Pizza Hut, McDonald's, and Burger King.
@@ -669,8 +545,6 @@ Store Growth vs Competitors
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389641.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=t0V7s%2F532J82xpRR0W4t4jd2NE0%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 ## KRBL Limited | Small Cap | FMCG
 
 KRBL Limited is India's leading integrated rice miller and exporter, widely recogni for its flagship basmati brand, India Gate. The company maintains a dominant mar share in both domestic and international markets through a robust distribution network and integrated processing facilities.
@@ -679,27 +553,13 @@ KRBL Limited is India's leading integrated rice miller and exporter, widely reco
 
 KRBL is the world's largest rice miller and basmati exporter, with FY25 total income of 5,655 crore and a market share of 37.8% in general trade and 39.3% in modern trade. It reaches 12 million households in India and exports to over 90 countries. FY25 EBITDA margin stood at 13% with a PAT margin of 8.4%.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389649.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6V7zfChEUspgtNYGbDPmd6b5i4g%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 ## LEADING RICE COMPANY
 
 Market Leader in India, , Exports to 90+ Countries
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389688.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=j12u1KN4gnrJy2gTkDxE%2FQRhAUk%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389696.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=iztXe%2Fr5Peu9SK0iEPOOJsuMSp8%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 5,655 cr FY 25 Total Income
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931389703.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=QQDCdTHPXneDc7oIKVh9An13MBA%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_5_1781931389710.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=rGhloCP18z9JYaR3eNsk9f7l3qA%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_6_1781931389714.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=HKo7I5ni2dx6zrFMoTbOv9baDqQ%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 37. 8%* Highest GT Market Share
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_7_1781931389728.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=eqf3i524IDEGiX%2BrGwo11LMuybY%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 39.3%*
 
@@ -709,37 +569,15 @@ Highest MT Market Share
 
 FY 25 EBITDA
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_8_1781931389734.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=4G1RVZo5EqAd9bPJ4qlyv5DRyTI%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_9_1781931389739.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=nKbMRlLmAWBUrIYy8YpDzjlKgFE%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_10_1781931389781.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ER%2FPiVngcmo7rPVHwUAgEWZP2N0%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_11_1781931389788.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=kMT85aOKDPlySZjsTf%2F9cqZ1F4Y%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_12_1781931389794.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=kAMkp%2FKw0xUQm2qHL3wUr0SlEqM%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 All figures in ₹ crore and are based on consolidated financials. * Q3FY26 Market share of basmati packaged rice in India as per Nielsen # Source: NSE @ Source: Kantar Household Panel (MAT Sep'25) - 13 Major Markets (Urban)
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_13_1781931389799.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=2KjjIWDeUrVujjI%2Bbe4bBaZjzlc%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_14_1781931389806.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=eRQ%2Fwkh4Nihhu3SqZQpwqThp7p8%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 KRBL operates the largest rice milling plant in Punjab, has 850+ distributors across India, and runs the largest contact farming network for rice. The India Gate brand commands a significant premium over the industry average on basmati export realization per MT, reflecting strong pricing power. All of this is backed by a strong financial position with substantial internal accruals and minimal debt.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389812.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=QOYOAoEZyLNie9qpJplrmwCUFkk%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 ## Market Leadership
 
 Highlights
 
 Unparalleled processing capacity with the Largest Rice Milling Plant in Punjab
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389819.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=C59lW2t6garexlPEtjr7wZ70UII%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389826.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dpHnynfCZ9VAn%2FvMnNUzMBwlH3w%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931389833.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=KYaW1SKH1r5e1bmrnlcsFo5VFrs%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 Robust domestic network supported by over 850+ distributors
 
@@ -751,25 +589,15 @@ Pricing Power On the back of Strong Brand & Superior Product
 
 Basmati Realization (per MT) $ ^{*} $
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_5_1781931389840.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Q9Tyg19wxv3uniU7e323UBIjwvY%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 KRBL enjoys significant premium, reflecting strong brand and superior product.
 
 *KRBL FY25 Basmati Export Realisation per MT compared with India's export realization. Latter is per APEDA export data of I
 
 KRBL's net worth has grown steadily from ₹3,693 crore in FY21 to ₹5,240 crore in FY25, with very low debt dependence throughout. Net bank debt has swung between small positive and negative figures, sitting at -₹405 crore in FY25, mean the company is effectively net cash. It's a clean balance sheet with minimal leverage.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389847.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wHaAd6Eqxmte8hSDdKlB0vOu4yY%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 ## ROBUST CASH FLOW
 
 Low Debt Dependence
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389853.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=0lNKltA9B6E5Evrrp%2BqMZB1NAH0%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389859.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=vBAlDJHWAX1AzFvTK28hUfZ5gZE%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931389870.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9ZucNZpBZLqqVmUAuqPlOp0Adas%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 All figures in ₹ crore and are based on consolidated financials
 
@@ -803,8 +631,6 @@ Middle east accounts for nearly 3/4th India's basmati exports.
 
 ## BASMATI RICE EXPORTS FROM INDIA FOR FY25 Volume - (%)
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389877.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=lTu0emE%2BcfCLBaFbylh3Vb0rlFg%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 Middle East Europe North America Africa Asia Others
 
 ## Agriculture
@@ -823,25 +649,13 @@ Industry Overview - Cotton seed Market
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389881.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2BHA7WXw9CrTbFVmnkaEoDlHPjQU%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389887.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=h9wY6V%2FEqgcrIbW4gxO8e5XoyfY%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 India's cattle feed market stood at ₹1,110Bn in 2024 and is expected to grow to ₹2,025Bn by 2030+, driven by ~6.9% CAGR. Strong milk production leadership ar rising livestock GVA contribution are fueling demand for scientific and nutritionally balanced feed.
 
 ## Industry Overview - Cattle Feed Market
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389893.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7ZHoboDqYByxMzi7%2FTUl50LYDe4%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389906.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=uNNHkoq5JzTJ2yLOuOXCwacDXtY%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 The company offers diversified feed products including Guar Korma, Maize Mea Cattle Feed (Mesh), and Compound Cattle Feed. These products provide high protein, mineral-rich, and nutritionally balanced solutions to enhance livestock health, growth, and productivity.
 
 ## Product Portfolio & its Usage
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389913.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2FTCr6rwAglIMqkrVmDM8P6Np7pE%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389918.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=fdwhf%2F3KkWGYArkTaDvDcV059bc%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 ## Guar Korma
 
@@ -851,13 +665,9 @@ Usage
 
 The Product is used as a substitute for soybean meal offering similar nutritional value at a lower cost
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389923.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=F6hNbHVrkLtfgOZnk%2Fd7IcWgSLU%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 ## Maize Meal
 
 It is produced from fresh high-quality maize, free from foreign matter, harmful substances, excess moisture fungal contamination, or insect damage
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931389929.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=kKWH%2BdZytHLuivY0VQHOOjhc1iU%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 ## Usage
 
@@ -871,8 +681,6 @@ A scientifically formulated blend of high-quality grains, oil cakes/meals, brans
 
 The product is made with highquality grains, brans, molasses, and oilseed extracts product for livestock
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_5_1781931389935.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7VyYXXV1qDGzA2Nf4EzkljBFiXA%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 ## Compound Cattle Feed
 
 a nutritionally balanced pellet-form feed designed to support the health, growth, and productivity of cattle, buffaloes sheep, and goats
@@ -885,8 +693,6 @@ The portfolio includes cottonseed meal, cotton linters, bleached cotton linters,
 
 ## Product Portfolio & its Usage
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_6_1781931389941.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=QPdli2HOpI2SgCgyRyNYDGV%2BLbA%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 ## Cottonseed meal
 
 High-protein by-product obtained after oil extraction from whole cottonseed. It is widely used as a nutritious feed for livestock
@@ -894,8 +700,6 @@ High-protein by-product obtained after oil extraction from whole cottonseed. It 
 ## Usage
 
 The product is used as Highprotein by-product obtained from whole cottonseed for livestock
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_7_1781931389946.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=vAXjid1VXbDqe6K0Ft2M5L0zwOw%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 ## Bleached Cotton Linters
 
@@ -905,8 +709,6 @@ High-purity viscose fiber derived from cottonseed rich in alpha/nitro cellulose 
 
 The product is used in nitrocellulose, cellulose acetate, and other specialty products
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_8_1781931389950.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=diEpcj5Ab7dTaTnMRuTH1Gvw2bo%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 ## Cotton Linters
 
 Short fibers left on cottonseeds after ginning. These are obtained by delinting and are primarily used in high-grade cotton batting pulp, and cellulose-based industrial applications
@@ -914,10 +716,6 @@ Short fibers left on cottonseeds after ginning. These are obtained by delinting 
 ## Usage
 
 The product is used in the production of cotton batting cellulose pulp, and paper-grade applications
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_9_1781931389955.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=cCGHElbp96oHTafrahe%2BUxJFGik%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_10_1781931389960.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=MAz32I8Qflq%2FGJQ5y%2FsCJtq0SIs%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 ## Cotton Seed Oil Cake
 
@@ -943,21 +741,15 @@ The company has a diversified presence across Television (200+ shows), Filmed En
 
 ## Business - At a Glance
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389966.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=flCqWGPzaMKToRA0WSJ5Cp0lsmw%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 GEC and movies account for 75% of total TV viewership, a trend stable over six years, while sports viewership declined due to OTT migration. Total TV channel increased to 936 by June 2024, with 61% being free-to-air and news channels comprising 40% of the total.
 
 ## Industry Overview - Television
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389972.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=25%2BoP%2BkCtBu9n0mb3gUVykKujaM%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 <div align="center">
 
 Viewership Share by Genre
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389977.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=uyDYMMY1CKs4tVpY%2FyF0IgbvdGg%3D&Expires=1782536189' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -983,15 +775,9 @@ India's screen count rose 2% to 9,927 in 2024, though box office collections dip
 
 ## Industry Overview - Movies
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931389982.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=j%2BY8LMIwfqVhua7rl4v95JjsDFc%3D&Expires=1782536189' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931389987.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=usXtGn4schoqF43FnTkYu%2BPN1Ik%3D&Expires=1782536189' alt='OCR图片'/></div>
-
 Screen count increased 2% to reach 9,927 screens led by Maharashtra which added 50 new screens (5% increase), Kerala which added 36 new screens (5% increase)
 
 The largest multiplex distributor proposed to rationalize 70 screens across India in FY 2025, to remove redundancies and reduce lowperforming screens
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931389997.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=tBi%2BWY8Qe%2Bu0%2B6nNdJYnzhrYIU0%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Gross box office collection dipped to INR114 billion in 2024 from INR120 billion in 2023
 
@@ -1003,25 +789,17 @@ Indians spent 4.95 hours per day on phone apps in 2024, with digital video viewe
 
 ## Industry Overview - Digital
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390002.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=AnTyeriNquP8HXlb5l%2F9TQAkX10%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 <div align="center">
 
 Average hours per day spent on phones
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390007.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6vDkCOKPQ8Ntz55Os335l7%2FqbWE%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 <div align="center">
 
 Online video viewers continues to grow in India
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931390013.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=NF2mZx%2BZ0rJOFn2c8EsF%2BYCbUQE%3D&Expires=1782536190' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931390019.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Ia4Sjr6Niu%2BXaYb9dRTJ9Lg3zW4%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Indians spent 4.95 hours per day on phone apps in 2024, a 3.1% growth over 2023
 
@@ -1036,8 +814,6 @@ Source: E&Y Report on Indian M&E Mark
 India's M&E sector is projected to grow at ~10% CAGR, reaching 3.08 trillion by 2026, driven by OTT expansion and subscription growth. Paid OTT subscriptions are expected to rise from 97 million in 2023 to 138 million by 2026, with increasing household penetration.
 
 ## Industry Overview
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390024.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JnJLnE52tP6qU4OhzKkP3mIVD5E%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 India's Media & Entertainment (M&E) sector set for strong growth projected 10.2% increase to Rs.2.55 trillion (US$ 30.8 billion) by 2024 and a 10% CAGR, hitting Rs.3.08 trillion (US$ 37.2 billion) by 2026
 
@@ -1056,8 +832,6 @@ Indian OTT platforms demonstrated significant growth in global market, witnessin
 Global M&E market size 2023-2028
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390029.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=SJa2OZQ2Yim%2Bk6gJQd3EqA4PmBQ%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 (in Million) $ ^{*} $
 
@@ -1079,8 +853,6 @@ REVENUE MIX REMAINS BALANCED AND RESILIENT
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390034.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YFAfu98hx65FeffbnjWq7ovav%2Bg%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 The overall revenue mix reflects a balanced and resilient portfolio, driven by growth in the Education Solutions and a sustained Research Solutions base, while the contribution has gradually moderated in Corporate Learning segment over recent quarters.
 
 Research remains the dominant segment, contributing around 63.3% of total revenue, underscoring its continued importance to the business.
@@ -1098,8 +870,6 @@ On a 9-month basis, Research still leads at 61.1% of revenue in 9M FY26, while E
 REVENUE MIX REMAINS BALANCED AND RESILIENT
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390039.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=G2Ox06QnMDlXbOmWSMHLVaI7b1Y%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 The overall revenue mix reflects a balanced and resilient portfolio, driven by strong growth in the Education Solutions and asustained Research Solutions base, while the contribution has gradually moderated in Corporate Learning segment over recent quarters.
 
@@ -1131,10 +901,6 @@ India's #1 crop protection company (by FY25 pro-forma revenue ₹ cr)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390045.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=LdvSs9REHjeMiBZeLtUDvdsIJ9I%3D&Expires=1782536190' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390050.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2BUnE5bURDmkFWJMv%2B5oR1dLaDeg%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 (1) Corteva has announced plans to split its seeds and crop protection business into two separate publicly traded listed entities
 
 Despite muted revenue growth across peers, UPL delivered industry-leading EBITDA growth of 157% (Sep'25 TTM). This reflects strong operational executio and margin recovery compared to competitors like Syngenta, BASF, FMC, and Bayer.
@@ -1147,8 +913,6 @@ Sep 25 TTM-UPL continues to deliver strong EBITDA growth
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931390055.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=uc8ZXMIjBDs8YHxRxsBftWns92g%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Note: While revenue growth is for CP, EBITDA for Syngenta is at group level, for Bayer and BASF are including seeds. EBITDA for Bayer, BASF, Corteva do not account for corporate overheads allocation. FMC revenues are GAAP revenues including India Source: Company reports, AgbioInvestor segment revenue estimates (BASF CP)
 
 The crop protection mix is increasingly shifting toward post-patent products (59 in 2011 to 82% by 2029P). UPL's total addressable market (TAM) is expected to g steadily, with bio-solutions expanding faster (9-11% CAGR) than the broader cro protection market.
@@ -1157,15 +921,9 @@ The crop protection mix is increasingly shifting toward post-patent products (59
 
 ... with post patent continuing to gain prominence
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390061.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dqh6aPGUudNxELAGaR3GZRTIojg%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 UPL TAM to grow faster than market
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390066.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dNN90hyNh%2FgennKbM2aoCYhkeWE%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Crop Protection spend remains resilient through the cycles
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931390070.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7EFJk2QPZ0xgfC9tQT2VejbzBPg%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 To meet growing demands, growers need smarter, sustainable solutions
 
@@ -1181,8 +939,6 @@ Agrochemical prices spiked due to COVID disruptions, supply chain issues, and Ru
 
 ## Global crop protection price trajectory
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390075.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=BPGZ3GbQly2qEveOELA%2FP9SHkHY%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Source: AgbioInvestor
 
 Prices for AI's stable at lower level...
@@ -1190,8 +946,6 @@ Prices for AI's stable at lower level...
 Structural demand drivers such as population growth (9.6bn by 2050), rising pest pressures, climate change, and yield gaps support sustained volume growth in cr protection. Increasing cropland, biofuel demand, and resistance management ne further reinforce long-term resilience in grower demand.
 
 Creating a global crop protection powerhouse
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390081.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9sHIfioQPuAQX1npglNndZaZWyk%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 ## Volume growth in Crop Protection products expected to sustain over long-terr
 
@@ -1217,15 +971,11 @@ Growing population to create higher food demand (In bn)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390086.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=TTk4h6B%2F9DbgUFNbZ2H3guMvZDk%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 <div align="center">
 
 Current yield trend is not enough to meet food demand till 2050
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931390090.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ujeRY%2BWRARUgEaQhIGJcPsj6%2BZk%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Grower demand continues to be resilient...
 
@@ -1241,37 +991,21 @@ CPL offers a comprehensive portfolio across drip and sprinkler irrigation, inclu
 
 ## CPL's Drip Irrigation: Advanced Solutions For Agriculture
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390097.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Fp%2FfpIl%2FuZ3j%2Fu%2BQdLazlNls9ls%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 ## Products under Drip Irrigation
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390101.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=n6i5LqihCPvS7cc0CCNztmz5f94%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Emitting Pipe
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931390107.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=J%2BhxoELM3QbuizZlZ2GoNd008xE%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Inline Emitters
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931390130.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=i%2FCQIdtghIhqBN%2B0SD0LfyBAWf4%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Lateral Pipe
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_5_1781931390134.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=4RGedpHs3ctrhglkfaeCqRtNWz4%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Online Emitters
 
 ## Products under Sprinkler Irrigation
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_6_1781931390139.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=i9FRRDmH0zYG20l8Bjg49h0VqbY%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Sprinkler Pipe
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_7_1781931390145.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=N7frApbAmdXn73SsXbraXxPe9Rk%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Mini Sprinkler
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_8_1781931390150.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=QKW6M%2BFd7D9k0zRlYkX5eWQvUjo%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Sprinkler nozzles
 
@@ -1283,13 +1017,9 @@ The PM-KUSUM scheme drives solar pump adoption through heavy subsidies (u to ~60
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390157.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=iNR4y6SL36QKxybXdX4HtxNRfjM%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 ## PM Kusum Scheme
 
 Launched in 2019 the PM-KUSUM scheme is a flagship Government of India initiative aimed at dieselizing the agriculture sector, enhancing water security for farmers, and promoting the use of renewable energy in rural India.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390163.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=3eVvi1yyenhqZch3HhGMg24geLM%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 ## Subsidies to farmers from PM Kusum
 
@@ -1297,21 +1027,15 @@ Launched in 2019 the PM-KUSUM scheme is a flagship Government of India initiativ
 
 - State Governments typically contribute another 30%, while farmers can avail bank loans for up to 30% of the project cost. As a result, the farmer's out-of-pocket contribution is limited to around 10%, making solar adoption financially viable.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931390168.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=lN%2Fpg376DXa5jnuMq6vcshf9Ato%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 ## Progress Under the Scheme
 
 - Over 9.42 lakh standalone solar pumps have been installed under Component B
 
 - more than 10.99 lakh grid-connected pumps have been solarized under Component C
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931390176.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JbjsXIJDTsNN5DGdXM3BBICTw0g%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 ## Economic Benefits to Farmers
 
 - Benefits to farmers are significant. Replacing a 5 HP diesel pump with a solar pump can result in annual fuel cost savings of 50,000-60,000, improving farm-level profitability and reducing dependence on volatile fuel prices. Overall, PM-KUSUM continues to play a critical role in advancing India's renewable energy goals while supporting sustainable agricultural practices
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_5_1781931390183.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=qiN3CuzyedCyZhEz3RI5n8NX%2FLM%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 ## Future Outlook & Market Potential
 
@@ -1328,10 +1052,6 @@ Under PM Surya Ghar, rooftop solar adoption is scaling rapidly with over 10 lakl
 # Accelerating Rooftop Adoption: Residential Solar on the Rise
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390188.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5FRt417lSDA5kOkm5A5hHIvVF1s%3D&Expires=1782536190' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390192.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ViZuA%2B6M%2BmSiUsU2MhGfLJ1SzZU%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Source: Press Information Bureau
 
@@ -1397,11 +1117,7 @@ Financial Performance Snapshot Q3FY26
 
 An 11% increase in average revenue per inpatient despite stable occupancy indicates a deliberate shift toward more complex clinical cases and specialized surgeries. This improvement in case-mix strengthens the company's competitive moat against smaller regional players and protects margins against rising medical inflation.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390200.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=VmYRcvcrHpstJgXxgjmKdzbce9k%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 The rising share of private label and generic sales at 15.5% within the pharmacy distribution business points to a structural shift toward higher-margin product categories. This internal mix change is essential for funding the continued expansion of the 7,113-store physical footprint without diluting overall pharmac returns.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390208.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dUh2FriWC9KDSLo0llbIfAvqYpg%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 A payor mix where 85% of revenue comes from self-pay and insurance patients provides superior cash flow predictability and shields the business from government pricing pressures. Focusing on high-end specialties like Cardiology and Oncology ensures the brand remains positioned as a high-end provider with significant pricing power.
 
@@ -1411,31 +1127,19 @@ Inpatients Revenue Mix YTD Dec25
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390216.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=SNaGVmIFp1KYtDNcEEdef%2FG8kYU%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 * Oncology includes Radiotherapy and Chemotherapy
 
 © 2025 Apollo Hospitals Enterprise Ltd, All Rights Reserved
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390224.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=DZPTwBLEScePmOLAQtgKpEj6MlQ%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Massive greenfield expansion in Tier-1 cities signals a pivot from asset-light gro to aggressive land-grab dominance. Investors should expect temporary return-or capital dilution while these high-cost hubs reach critical occupancy levels.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390229.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Wz1C%2F%2FJ%2FoSwwO501sMYYTUvvZzY%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 ## Healthcare Services: Expansion Plan
 
 Total Project Cost of ~₹ 8,200crs with Balance to be spent of ~₹5,400crs.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390236.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6NKEULZr19pV3KvRw4YCdjLRtHQ%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 A firm listing timeline indicates management's commitment to stripping away the conglomerate discount from the core hospital business. Pure-play status will like unlock higher valuation multiples for the fast-growing digital health and pharmaceuticals.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390242.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=KU3EkyDGPoHCz7jUwi6b0l2rJUE%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 ## Apollo HealthCo: Composite Scheme as approved by the Board on June 30, 2025
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390247.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=CiiGQXbjZkay6ZBj%2FT%2BFLfflPgg%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 - Proposes to undertake below transactions sequentially, via a scheme of arrangement, subject to requisite corporate and regulatory approvals
 
@@ -1456,8 +1160,6 @@ Upon effectiveness of the Scheme (Post Shareholder and NCLT approval), New Co to
 The complex web of subsidiaries and regional joint ventures reveals a capital-efficient expansion strategy that relies on local partnerships in key growth mark Investors must monitor the share of profits attributable to minority interests as these regional hubs increasingly contribute to the total earnings mix.
 
 ## Basis of Consolidation
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390252.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=jTC5W%2BtN%2F9tK155yLEpfo6QFENg%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 <table border="1"><tr><td>AHEL Standalone Hospitals(100% Ownership)</td><td>Location</td></tr><tr><td>Chennai Main</td><td>Chennai</td></tr><tr><td>ACI-Chennai</td><td>Chennai</td></tr><tr><td>Tondiarpet-Chennai</td><td>Chennai</td></tr><tr><td>FirstMed-Chennai</td><td>Chennai</td></tr><tr><td>Apollo Children&#x27;s Hospital</td><td>Chennai</td></tr><tr><td>Apollo Specialty,Vanagaram</td><td>Chennai</td></tr><tr><td>ASH Perungudi</td><td>Chennai</td></tr><tr><td>Women&amp;Child,Shafee Mohammed Road</td><td>Chennai</td></tr><tr><td>Apollo Proton&amp;Cancer care</td><td>Chennai</td></tr><tr><td>Madurai</td><td>Madurai</td></tr><tr><td>Karur</td><td>Karur</td></tr><tr><td>Karaikudi</td><td>Karaikudi</td></tr><tr><td>Trichy</td><td>Trichy</td></tr><tr><td>Nellore</td><td>Nellore</td></tr><tr><td>Hyderabad</td><td>Hyderabad</td></tr><tr><td>Bilaspur</td><td>Bilaspur</td></tr><tr><td>Rourkela</td><td>Odisha</td></tr><tr><td>Mysore</td><td>Mysore</td></tr><tr><td>Vizag(old&amp;new)</td><td>Vizag</td></tr><tr><td>Karim Nagar</td><td>Karim Nagar</td></tr><tr><td>Bhubaneswar</td><td>Bhubaneswar</td></tr><tr><td>Jayanagar</td><td>Bangalore</td></tr><tr><td>Nashik</td><td>Nashik</td></tr><tr><td>Malleswaram</td><td>Bangalore</td></tr><tr><td>Navi Mumbai</td><td>Mumbai</td></tr><tr><td>Pune</td><td>Pune</td></tr><tr><td>Defence Colony,Delhi</td><td>Delhi</td></tr></table>
 
@@ -1486,8 +1188,6 @@ Logistics hitting profitability marks the transition of secondary investments fr
 
 ## Growth Gems
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390260.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=xYoBczHUr16BIMIbPVF3eeU63jk%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 - Positive PAT after 11 quarters
 
 - Strong momentum in Auto & E-com
@@ -1496,10 +1196,6 @@ Logistics hitting profitability marks the transition of secondary investments fr
 
 *Excluding impact of change in labour code regulation
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390267.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5N7t6kps9PhmVw6%2BfhdOzplqibE%3D&Expires=1782536190' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931390272.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=DzzLwVsCieGZLGvzVxERQ3Iw8a4%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 - Signature luxury resorts launched
 
 - HCRO Fx headwinds (23) cr.
@@ -1507,8 +1203,6 @@ Logistics hitting profitability marks the transition of secondary investments fr
 <table border="1"><tr><td></td><td>Q3 F26</td><td>VPY</td></tr><tr><td>Room inventory</td><td>6,015</td><td>6%</td></tr><tr><td>Total members</td><td>304K+</td><td>0.2%</td></tr><tr><td>Business PAT</td><td>2 cr.</td><td>(94)%</td></tr></table>
 
 ## Real estate
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931390276.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YHRPOuRZoABmkBSC4gwddywVOk4%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 - Multiple residential OCs secured
 
@@ -1528,8 +1222,6 @@ VOLUMES ('000s)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390281.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6DWU2eKnqfPvN5MSskpIqlrC3Nc%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 <div align="center">
 
 REVENUE MARKET SHARE
@@ -1542,17 +1234,11 @@ REVENUE MARKET SHARE
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390287.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JG3XH27ByeTSFklNqyvIbzGJWZ4%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Volumes & RMS include ICE SUVs & E-SUVs
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931390292.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JosEraUJt9sQoJTFpgCxfy3lxb0%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Achieving positive EBITDA at the electric vehicle subsidiary (MEAL) during the early ramp-up phase marks a critical inflection point for unit economics. It demonstrates that the new EV platform can be financially viable at lower volume reducing the risk of permanent margin dilution during the multi-year technology shift.
 
 ## Q3 F26 AUTO STANDALONE (EXCL BEV) MARGIN
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390297.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=J8Fkb1BJLYO7FqrPalfHhA7d4AI%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 <table border="1"><tr><td></td><td colspan="3">Auto Standalone* + eSUV Contract Mfg. = Auto Standalone as reported</td></tr><tr><td>Revenue</td><td>25777</td><td>2584</td><td>28361</td></tr><tr><td>PBIT</td><td>2674</td><td>10</td><td>2684</td></tr><tr><td>PBIT%</td><td>10.4%</td><td>0.4%</td><td>9.5%</td></tr><tr><td></td><td>*Auto business excl eSUVContract Mfg.for MEAL</td><td>eSUV Contract Mfg.for MEAL by Auto</td><td>Auto Standalone Results will reflect sales to MEAL</td></tr></table>
 
@@ -1562,11 +1248,7 @@ Q3 F26 PBIT is after labour code impact
 
 Outpacing industry growth in the truck and bus segment indicates a successful scale-up of commercial operations beyond their traditional core. Higher volumes these heavy categories improve operational efficiency and provide a broader base for long-term service-led revenue.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390303.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Krz1YQ1cJEqa5lkq4JvgxJkhH1U%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 ## TRUCK & BUS: VOLUMES
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390308.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=y3DSzZwC%2F4vH9ZEuWp2%2B3CQVVe0%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Q3 F26:
 
@@ -1582,8 +1264,6 @@ Sustaining 20% margins through industry downturns reveals structural pricing pow
 
 ## STABILITY IN VOLATILITY
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390313.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=L7ChIbzMtA0cK6m2NFabzSKXcoY%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Q3 F26 PBIT% is after labour code impact Core Tractor comprises of Tractor business (incl exports) and excludes Powerol & Farm Machinery business * 0.7% one-time impact of World Cup sponsorship in Q3 F24
 
 The automotive division has emerged as the primary earnings engine, offsetting relatively stagnant growth in the core farm equipment segment. While the service spike appears large, much of that boost stems from one-off gains and investment income rather than recurring operations.
@@ -1591,8 +1271,6 @@ The automotive division has emerged as the primary earnings engine, offsetting r
 ## PAT: Q3 F26 CONSOLIDATED M&M
 
 <table border="1"><tr><td></td><td>Q3 F25</td><td>Q3 F26</td></tr><tr><td>Auto</td><td>1,438</td><td>1,993</td></tr><tr><td>Farm</td><td>996</td><td>1,044</td></tr><tr><td>Services</td><td>747</td><td>1,637</td></tr><tr><td>TechM</td><td>275</td><td>315</td></tr><tr><td>MMFSL</td><td>474</td><td>433</td></tr><tr><td>Growth Gems</td><td>42</td><td>119</td></tr><tr><td>Investment</td><td>(45)</td><td>770</td></tr><tr><td>Total</td><td>3,181</td><td>4,675</td></tr></table>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390320.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1PoPEmKYxXk1KOA4tVRf8L5hXYM%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 ## Financial Services
 
@@ -1606,35 +1284,19 @@ Profit growth outpacing loan expansion reveals superior pricing power and the ab
 
 company to fund aggressive branch expansion using internal cash rather than taking on expensive new debt.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390327.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=fuxi5%2F95IfjXVdksbz0vZgGcuyc%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 ## Muthoot Finance Performance highlights for the 9 months ended Dec 31,2025
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390332.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JfodffJwNrpwPYIjckiX8wGiH%2BQ%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Highest Ever Consolidated Loan AUM: 48% YoY increase at ₹1,64,720 Crores
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_3_1781931390337.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YSqAL5jsQ9aFMQQO8wEbTRfo6Xk%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Highest Ever Consolidated Profit After Tax in 9 Months of any year: 84% YoY increase at 7,209 Crores
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_4_1781931390342.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=DJncIhHxqwiSg%2F%2F1tPqsBseknxw%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Highest Ever Standalone Loan AUM: 51% YoY increase at ₹1,47,552 Crores
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_5_1781931390346.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=NQwmGhZlCeOpVcun21B6rNZb4Eo%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Highest Ever Gold Loan AUM: 50% YoY increase at ₹1,39,658 Crores
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_6_1781931390350.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=u5%2Fd1ZaCjCwWryuM8XxGPNYa41s%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Highest Ever Standalone Profit After Tax in 9 Months of any year : 91% YoY increase at ₹ 7,048 Crores
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_7_1781931390355.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YwGZKPQTXEwgDYCpP4Lr1LSCKhQ%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 The explosive 168% growth in vehicle finance contrasted with a decline in microfinance AUM reveals a deliberate strategic shift toward asset-backed lendi While this rebalancing diversifies the book, it also introduces different credit ris profiles that require a move away from the simple gold-only underwriting model
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390360.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=h3VqOrrnRrpy0N9Ez%2FvjwYW8ACM%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 <table border="1"><tr><td colspan="6">Loan Assets Under Management* of the Group(₹ in millions)</td></tr><tr><td></td><td>Dec-25</td><td>Sep-25</td><td>Jun-25</td><td>Mar-25</td><td>Dec-24</td><td>YoY(%)</td></tr><tr><td>Muthoot Finance Limited</td><td>1,475,524</td><td>1,323,049</td><td>1,200,310</td><td>1,086,478</td><td>974,872</td><td>51</td></tr><tr><td>Muthoot Homefin(India) Limited</td><td>33,802</td><td>32,465</td><td>30,961</td><td>29,846</td><td>27,196</td><td>24</td></tr><tr><td>Belstar Microfinance Limited</td><td>79,106</td><td>77,145</td><td>77,065</td><td>79,699</td><td>87,032</td><td>(9)</td></tr><tr><td>Muthoot Money Limited</td><td>80,033</td><td>63,933</td><td>50,001</td><td>39,027</td><td>29,822</td><td>168</td></tr><tr><td>Asia Asset Finance PLC</td><td>12,233</td><td>11,342</td><td>9,947</td><td>9,059</td><td>8,306</td><td>47</td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>Less: Intra-Group Loan Assets</td><td>33,500</td><td>31,200</td><td>28,900</td><td>22,300</td><td>14,150</td><td>137</td></tr><tr><td>Total</td><td>1,647,198</td><td>1,476,734</td><td>1,339,383</td><td>1,221,809</td><td>1,113,078</td><td>48</td></tr></table>
 
@@ -1643,8 +1305,6 @@ The explosive 168% growth in vehicle finance contrasted with a decline in microf
 Significant losses in the microfinance subsidiary during a record-breaking perio for the parent company highlight the stark performance gap between secured an unsecured portfolios. This divergence reinforces the view that gold loans remain the group's primary engine of stability and high-quality earnings compared to ot segments.
 
 ## THE GROUP
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390366.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=b5dLElJpj34y9%2BA1kkbNVDyqs1w%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -1655,8 +1315,6 @@ Standalone Profit of Group Companies
 <table border="1"><tr><td></td><td>9M FY 2026</td><td>9M FY 2025</td><td>Q3 FY 2026</td><td>Q3 FY 2025</td><td>Q2 FY 2026</td><td>Q1 FY 2026</td><td>FY 2026</td></tr><tr><td>Muthoot Finance Limited</td><td>70,479</td><td>36,929</td><td>26,564</td><td>13,631</td><td>23,452</td><td>20,463</td><td>52,000</td></tr><tr><td>Muthoot Homefin(India) Limited</td><td>193</td><td>267</td><td>89</td><td>94</td><td>84</td><td>20</td><td>395</td></tr><tr><td>Muthoot Insurance Brokers Private Limited</td><td>226</td><td>292</td><td>(1)</td><td>61</td><td>120</td><td>107</td><td>364</td></tr><tr><td>Belstar Microfinance Limited</td><td>(1,086)</td><td>1,448</td><td>509</td><td>24</td><td>(316)</td><td>(1,280)</td><td>464</td></tr><tr><td>Muthoot Money Limited</td><td>2,034</td><td>(23)</td><td>972</td><td>29</td><td>693</td><td>370</td><td>121</td></tr><tr><td>Asia Asset Finance PLC</td><td>196</td><td>141</td><td>81</td><td>56</td><td>63</td><td>52</td><td>125</td></tr><tr><td>Muthoot Asset Management Private Limited</td><td>59</td><td>56</td><td>20</td><td>19</td><td>20</td><td>19</td><td>74</td></tr><tr><td>Muthoot Trustee Private Limited</td><td>0.43</td><td>0.44</td><td>0.13</td><td>0.16</td><td>0.16</td><td>0.14</td><td>0.57</td></tr></table>
 
 Profit after tax grew by 91% while interest income rose 57%, a divergence primar driven by a sharp 58% reduction in impairment costs. This suggests current earnings quality is heavily influenced by credit cost moderation, which may be a cyclical rather than permanent tailwind.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390370.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zff4kSCkm%2B66JfD9kL2a%2F7YQtBk%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -1674,10 +1332,6 @@ Muthoot is folding its underperforming vehicle loan business into its core gold-
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390375.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=XQWa2ivmBXlryYRXMnCxyvZqY8I%3D&Expires=1782536190' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_2_1781931390381.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zZEQfBY2V%2FO6WvF8txnFJHS0ehg%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 Muthoot Money Ltd (MML), became a wholly owned subsidiary of Muthoot Finance Ltd in October 2018. MML a RBI registered Non-Banking Finance Company engaged in extending gold loans. Initially, the Company was formed to extend loans for commercial vehicles and equipment. However, due to low margins, stiff competition high operating cost and high defaults, such loans have been stopped. Now the Company is focusing only on Gold Loans and is present in locations where Muthoot Finance do not have presence.
 
 As of December 31, 2025, MML operations are spread over 21 States and 5 UTs (Tripura, Uttarakhand, Himachal Pradesh, Andhra Pradesh, Goa, Gujarat, Karnataka, Madhya Pradesh, Maharashtra, Odisha, Punjab, Tamil Nadu Telangana, Uttar Pradesh, Bihar, Chhattisgarh, Haryana, Rajasthan, West Bengal, Assam, Jharkhand, Chandigarh Dadra and Nagar Haveli and Daman and Diu, Jammu and Kashmir, Puducherry and Delhi).
@@ -1688,13 +1342,9 @@ CRISIL assigned Long Term Debt Rating of CRISIL AA/Stable for its bank limits.
 
 Muthoot Money has achieved a massive turnaround, growing AUM by over 100% year-on-year while simultaneously slashing the Stage III ratio from 1.37% to 0.60 This scale-up indicates that the subsidiary is now a meaningful contributor to group profitability and has successfully stabilized its credit underwriting process
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390386.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Chd77jzlvAzNU7Trl2uRHS2KT9Q%3D&Expires=1782536190' alt='OCR图片'/></div>
-
 <table border="1"><tr><td colspan="7">Key Financial Parameters(₹ in millions)</td></tr><tr><td>Particulars</td><td>9M FY 2026</td><td>9M FY 2025</td><td>Q3 FY 2026</td><td>Q2 FY 2026</td><td>Q1 FY 2026</td><td>FY 2022</td></tr><tr><td>Number of branches</td><td>998</td><td>998</td><td>998</td><td>997</td><td>997</td><td>992</td></tr><tr><td>Number of Employees</td><td>4,780</td><td>4,302</td><td>4,780</td><td>4,791</td><td>4,432</td><td>4,437</td></tr><tr><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr><tr><td>Loan AUM(₹)</td><td>80,033</td><td>29,822</td><td>80,033</td><td>63,933</td><td>50,001</td><td>39,027</td></tr><tr><td>Capital Adequacy Ratio(%)</td><td>27.05</td><td>31.54</td><td>27.05</td><td>24.68</td><td>20.37</td><td>24.81</td></tr><tr><td>Total Revenue(₹)</td><td>8,623</td><td>2,678</td><td>3,614</td><td>2,875</td><td>2,134</td><td>4,300</td></tr><tr><td>Total Expense(₹)</td><td>5,909</td><td>2,709</td><td>2,317</td><td>1,953</td><td>1,639</td><td>4,138</td></tr><tr><td>Profit Before Tax(₹)</td><td>2,714</td><td>(31)</td><td>1,297</td><td>922</td><td>495</td><td>162</td></tr><tr><td>Profit After Tax(₹)</td><td>2,034</td><td>(23)</td><td>972</td><td>693</td><td>370</td><td>121</td></tr><tr><td>Stage III Loan Assets</td><td>480</td><td>538</td><td>480</td><td>511</td><td>480</td><td>535</td></tr><tr><td>% Stage III assets on Gross Loan Asset</td><td>0.60</td><td>1.80</td><td>0.60</td><td>0.78</td><td>0.96</td><td>1.37</td></tr><tr><td>Stage III ECL Provision</td><td>105</td><td>94</td><td>105</td><td>108</td><td>100</td><td>96</td></tr><tr><td>ECL Provision</td><td>434</td><td>223</td><td>434</td><td>372</td><td>309</td><td>262</td></tr><tr><td>ECL Provision as a % of Gross Loan Asset</td><td>0.54</td><td>0.75</td><td>0.54</td><td>0.57</td><td>0.62</td><td>0.67</td></tr><tr><td>Shareholders Funds(₹)</td><td>22,234</td><td>10,061</td><td>22,234</td><td>16,261</td><td>10,570</td><td>10,203</td></tr><tr><td>Total Outside Liabilities(₹)</td><td>64,907</td><td>22,684</td><td>64,907</td><td>52,417</td><td>46,142</td><td>34,197</td></tr><tr><td>Total Assets(₹)</td><td>87,141</td><td>32,744</td><td>87,141</td><td>68,678</td><td>56,712</td><td>44,400</td></tr></table>
 
 A significant contraction in premium collections and policy volumes within the insurance brokerage unit points to a major shift in distribution strategy or a loss momentum in third-party product sales. The resulting swing from profit to a marginal loss in this segment underscores the difficulty of scaling capital-light f businesses compared to the core lending book.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390390.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=AkS0sv69LITSeT5AUSS18ftpchs%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 ## Key Business Parameters
 
@@ -1729,8 +1379,6 @@ Points and Figures is run by the same team that creates The Daily Brief and Afte
 Comments
 
 Restacks
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F2026062012542428d54f4365ac4677%2Fcrop_1_1781931390396.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=aScTf9GDhMamTrR5%2FYnOgVXc7u0%3D&Expires=1782536190' alt='OCR图片'/></div>
 
 Write a comment...
 

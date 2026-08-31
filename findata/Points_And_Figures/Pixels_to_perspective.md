@@ -19,15 +19,9 @@ POINTS & FIGURES
 
 Edition #24
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350309.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=GB377qw0VKsrpGUoU3sKkwIsqH4%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 ZERODHA MAR24,2026
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350371.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=NFroCtQcZyqFIAuI1Pw3xpRNo5k%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 Share
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350377.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=C6BDoUyxD17j32yG%2FxRTMm0vjCQ%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 Sometimes, a single slide can explain more than a long report. Points and Figures i our way of breaking down what India's leading companies are telling their shareholders and analysts. We comb through the decks, pull out the charts and data
 
@@ -103,23 +97,13 @@ POWERGRID has compounded its asset base at ~10% CAGR over the last decade with �
 
 ## Execution Track Record Underpins the Next Growth Phase
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350395.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=aan9%2B2u7Cx2I%2FvZHg4Ox63MaPTY%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 <div align="center">
 
 Gross Fixed Assets
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350411.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=GgCujLwbECmpIsg4BDAVtyo4p4I%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 Near-term visibility remains robust with 1.48 lakh crore order book, while the long-term opportunity is massive. Even at a conservative win rate, this translates into a multi-lakh crore execution runway (~9 lakh crore).
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350447.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zB0JLPjK%2BIMrr2PrCWLqhhJO5Nw%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350459.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=apipI2y1VVWeKhyOxeBPtsdpgjo%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350470.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=uyMKOR8Xj2nXUxOoYlTBfbD7L5U%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 Robust near-term execution visibility, complemented by substantial long-term upside
 
@@ -128,8 +112,6 @@ Robust near-term execution visibility, complemented by substantial long-term ups
 India's transmission build-out is entering a policy-driven, multi-decade expansion phase, driven by renewables integration and rising demand. The opportunity size 8-15 trillion, backed by nationwide grid expansion and cross-border connectivi
 
 ## Transmission: Large Structural Opportunity
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350481.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=HzbzQ3Qz201HH1DMDtyFyCq8SFs%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 Policy Visibility Identified Projects New Demand Drivers
 
@@ -167,17 +149,11 @@ A clear capex ramp-up is underway (₹82,000 crore planned over FY27-28), which 
 
 ## Multi-Year Capex and Capitalization Runway
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350486.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=p69bd4Oi1%2BQWYbyrbB8b9BnS%2BBg%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350503.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JlLCwlB%2FrTjeByiPA923n0PAst8%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 <div align="center">
 
 Capital Expenditure
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350517.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JzXUrbpt10%2BCtmFSW4CuqTSUx%2FY%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -185,23 +161,15 @@ Capitalization
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457350523.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ZkXkCD2gnnQOCYw3O3D6M6yDalc%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 FY29-FY36 Estimates: Capex & Capitalization are estimated to average over ₹40,000 Cr. and ₹35,000 Cr. per year, respectively, subject to the pace of pipeline bidding and POWERGRID's win rate in Tl 10
 
 POWERGRID holds a system-critical position with unmatched scale in transmission, leadership in HVDC, and dominant inter-regional capacity. Its deep execution capability and high entry barriers create a durable moat that is difficult replicate.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350537.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9hNVb%2FT%2BWI7559o63PJR7Jrf2LY%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 ## POWERGRID: Positioned for India's Transmission Opportunity
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350545.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=G4wnoO5HfOVnhy8OXtMKdzXtnxo%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 ## Unmatched scale, operating depth and system relevance
 
 ## Transmission Lines
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350550.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=y%2B6961%2B0xLA5g%2FU2lXwZHALA97Y%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 1,575 nos.
 
@@ -213,17 +181,7 @@ Sub-Stations
 
 6,12,331 MVA
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457350556.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=GGi%2BIh3DU8JUXbFcaIqqxlaEroQ%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457350562.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zdUa29eFwlpeAuX58T8pbdwv77A%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 WORLD'S LARGEST 765 kV TRANSMISSION NETWORK IS OPERATED BY POWERGRID
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_6_1782457350576.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=rfLEqxEvjevmkh7m80GocW4bt0Q%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_7_1782457350583.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=2PKVA0y2bZckaFeV6yfN9STD1Gg%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_8_1782457350593.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7gUl1GZUo40zYbj7KFPT%2BD4VAgs%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 Visible Growth Long Asset Life Resilient Cash Flows
 
@@ -231,15 +189,9 @@ All information as on 15-Mar-
 
 Transmission demand is being driven by long-term structural shifts—rising pow demand, renewable expansion, and increasing grid complexity. This makes the capex cycle sustained and predictable rather than short-lived.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350601.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=0QKzW5lLHvP6Z6sPMAzKLoGH%2FbM%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 ## India's Transmission Upcycle Has Become Structural
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350607.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9VoYiiKEXU7HrOK%2FNyAUcjG2vSE%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 Structural demand drivers are expanding transmission demand
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350612.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2BUfm6yL7P4rvfZ09s1uhU514pEM%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 ## Rising Power Demand
 
@@ -293,21 +245,13 @@ ATGL: Diversified Energy Platform
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350626.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ssjL%2FyvPIfQWpDEP0k34UZ1QrEo%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350632.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2F2NVrnS4I8zNLuJ8RLKrIfNjqeE%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 <div align="center">
 
 GA:Geographical Area
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350637.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=HZ54zikBoMYDksb%2BNQ9AsPNEIfY%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 ATGL's new energy bets are beginning to scale, with EV charging expanding to ~4,900 points across 226 cities and biomass seeing steady traction with rising CE volumes and strong growth in FOM sales. The focus on B2B clients to improve utilization and early positive response to its bio-energy brand suggest these adjacencies are moving from pilot phase to meaningful contributors, supporting ATGL's broader transition beyond traditional gas distribution.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350650.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=D2pduMp3s28jX74t01ir6mE1rww%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 ## Gujarat Gas Limited Mid Cap City Gas Distribution
 
@@ -317,19 +261,11 @@ Gujarat Gas is India's largest city gas distribution player, operating a vast ne
 
 Industrial dominance makes volumes a proxy for manufacturing cycles and fuelswitching economics. This exposure links margins directly to the price gap betw gas and alternative fuels.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350667.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8ZvIj3dk4EwAUNSGWH2wlHUmGRI%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 ## Business Stream Breakdown Q3 FY 2025-26
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350676.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Rj3Si%2FbXq6uOOO6%2BfHf54coQYb8%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 Expanding to 27 bio-gas agreements helps decouple supply from volatile global pricing and currency risks. This localization strategy protects unit margins while ensuring compliance with green energy mandates.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350687.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=F5PEXsRiRvYnzeup7tFf0mFGxvQ%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 ## ESG Initiatives (1/3): CBG Blending
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350694.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2F%2BunjenD32%2FkdnAGYtBpdC0qCCU%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 ## CBG Offtake by GGL
 
@@ -349,8 +285,6 @@ www.gujaratgas.co
 
 The 12 MW captive solar project reduces fixed utility costs for CNG stations and corporate offices. Generating power internally protects margins from rising grid tariffs as the retail network expands geographically.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350705.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1z0AKo6tlQUtbPupoczYIJq06es%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 ## ESG Initiatives (3/3):Others
 
 Solar Group Captive project: GGL has planned to install around 12 MW of Group Captive Solar plant under the capex model for the Company Owned CNG stations, CGS and Offices.
@@ -358,12 +292,6 @@ Solar Group Captive project: GGL has planned to install around 12 MW of Group Ca
 Tree Plantation: In Q-3 FY26, 450+ sapling/trees were planted across GGL locations taking total tally to 4,600 till date in current Financial Year.
 
 Reducing CO2 emissions by virtue of Gas sales: Reduced CO2 emissions by approx. 56 Lakhs KG /day due to PNG utilization by customers instead of coal and through its CNG sales reduced CO2 emissions by approx. 21 Lakhs KG/day due to NG utilization by customers instead of petrol/diesel.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350718.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=0gF7xdNIiRyM9rMmVrCKdePSU4c%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350724.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=qDzoIbwQk0W%2F9Z6jK%2F2hAVta6uc%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457350730.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=n0WTRO2JYPw0Qk5NA53VuHPQyMs%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 ## Hindustan Petroleum Corporation Limited Large Cap Oil & Gas - Refining & Marketing
 
@@ -379,17 +307,11 @@ HPCL's 20.3% market share significantly outpaces its 13.87% refining capacity, c
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350735.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Puk070HIo%2Bh8QHjErYkhXFTty4s%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 Shareholding Profile as of 31st Dec, 2025
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350742.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=nRz%2FZfeg%2Bv9FAT%2B%2FWW69hnvy450%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 FPI-Foreign Portfolio investors
 
 Strong presence in Indian Oil & Gas Sector
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350750.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zI8QZNapIfwie7yE5QfagfqvJrc%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 * Incl. HMEL capacity and Visakh Refinery Capacity at 15.0 MMTPA as of 31.12.202 (~ 16.9% post expansion of HMEL and post-completion of HRRL)
 
@@ -400,10 +322,6 @@ Expansion into 25 city gas geographic areas and a 5 MMTPA LNG terminal sign a st
 Diversified Portfolio
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350755.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wgaNUVYl8%2BOhbOxnY%2FRm2A%2BpLIA%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350760.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=G7IOraRit9WdSNUZkDYZmnF7%2BhQ%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -416,10 +334,6 @@ HPCL's 302 granted patents and focus on indigenous catalysts signal a pivot tow 
 # Focus on Research and Development
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350771.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8qTXIDKsYbqECmfgZowsfFQrM1I%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350776.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=avFYqoZ2okHtaOIAastuqKphiFk%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 ## R&D Achievements
 
@@ -447,23 +361,9 @@ Operating refineries at 105-115% utilization indicates that HPCL has reached its
 
 ## Strong Refining & Marketing Performance
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350791.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=HqkvOAPrKEhCvNYSKc1yiUIBRjk%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350801.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=kqphqKi0YMz1YmurkBdeauuKW2s%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350810.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YXq46GpPvEGzLGVOYnxT0ZcEiw4%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457350816.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=XA2w91yWimLkEHCNjI2GVLS4Dbk%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457350824.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=T0qtjR6w%2BXTRUEDaVH3smeNSYWM%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 Rapidly scaling CNG and EV charging stations ensures HPCL retains its retail dominance as consumer mobility patterns shift. This infrastructure pivot hedges against long-term demand risks for traditional petrol and diesel.
 
 ## Infrastructure Capability enhancement in last 5 Years (Till Mar 2025)
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350830.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=QI3a7UywH0oqIpXWlMB%2BwRo0sNY%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350844.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dS3ombxA4VafZi8RC%2FFZhwaAuWI%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -471,21 +371,11 @@ Refining Capacity (MMTPA)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350855.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=oQ5K49ztOpi6Bsnl%2FwL7M0Uz3MQ%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457350865.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=3JpsmPLK7aDYB302TCei2yghuEY%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457350874.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=AehTmymCUIOtdmMAUdpECkXrVHE%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 <div align="center">
 
 Customer Touchpoints Infrastructure
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_6_1782457350879.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=jgDv7gfAnYV1fu5iu1E6axH%2B7rw%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_7_1782457350886.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zWSUB%2BTh9tpDcSqdLrXIz7ECd2Y%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -493,27 +383,15 @@ Retail Outlet (Nos.)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_8_1782457350895.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=mJe3Aw21PiV2qEJedCav6IUtWlU%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_9_1782457350908.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=e4QH9L%2BG9FLAfhdzurUQqskM2VY%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 <div align="center">
 
 LPG Distributors (Nos.)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_10_1782457350915.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=h79ZgN1HfZevPaiPcdvcdAc2MzE%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_11_1782457350925.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=08MmN1tcVyLDCAHloouep7%2BXR1Y%3D&Expires=1783062150' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_12_1782457350940.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=54%2B2xI8wOwDqI7h9zYpFXxn%2F6tY%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 Increasing refining capacity to 45.3 MMTPA captures integrated margins by eliminating the need for expensive third-party fuel purchases. This self-sufficien protects earnings from volatile global price spreads.
 
 Refinery Capacity Additions
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350949.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=lwXEzZE8jdNsO6ENdfwhoIMnpqo%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 ## Refining Capacity
 
@@ -521,23 +399,17 @@ Refinery Capacity Additions
 
 MMTPA
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350956.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ueBDEfn2%2BusfeV%2BnjA9ktdTFkdA%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 45.3
 
 MMTPA
 
 <table border="1"><tr><td>Refinery</td><td>2024-25(MMTPA)</td><td>2027-28(MMTPA)</td><td>Capacity Addition(MMTPA)</td></tr><tr><td>MR</td><td>9.5</td><td>9.5</td><td>0.0</td></tr><tr><td>VR</td><td>15.0</td><td>15.0</td><td>0.0</td></tr><tr><td>HMEL(JVC)</td><td>11.3</td><td>11.8</td><td>0.5</td></tr><tr><td>HRRL</td><td>0.0</td><td>9.0</td><td>9.0</td></tr><tr><td>Total</td><td>35.8</td><td>45.3</td><td>9.5</td></tr></table>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350965.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=oUrz%2BYqeiUXefiOGThY1UdMG43U%3D&Expires=1783062150' alt='OCR图片'/></div>
-
 <table border="1"><tr><td>Project Completed/Ongoing</td><td>Physical progress(As of Dec&#x27;25)</td><td>Project C(Rs. Cr)(As of Dec&#x27;25)</td></tr><tr><td>MR Expansion(7.5 to 9.5 MMTPA)</td><td>Commissioned</td><td>5,381</td></tr><tr><td>VR Modernization(8.3 to 15.0 MMTPA)</td><td>Dedicated to Nation</td><td>30,609</td></tr><tr><td>HRRL-9 MMTPA Green Field Refinery&amp;Petrochemical complex</td><td>90.4%</td><td>79,459</td></tr><tr><td>Lube Modernization&amp;Bottom Upgradation Project at MR</td><td>6.9%</td><td>4,679</td></tr></table>
 
 Scaling CNG and petrochemical capacity provides a strategic hedge against plateauing domestic demand for traditional fuels. This diversification secures growth in cleaner energy markets while reducing terminal value risk.
 
 ## Portfolio expansion in Petrochemicals & Natural Gas
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457350975.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=0kVwyhw6%2F%2BtUZhN40HuY0fqARWk%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 ## Petrochemical Capacity
 
@@ -546,8 +418,6 @@ Scaling CNG and petrochemical capacity provides a strategic hedge against platea
 MMTPA
 
 2024-25
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457350982.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=X9NZAGoB8Pagh8WJO0%2FosUplfnU%3D&Expires=1783062150' alt='OCR图片'/></div>
 
 4. 6 MMTPA
 
@@ -569,19 +439,11 @@ MMTPA
 
 CNG Stations (No.)
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457350994.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=fohbLUrkoV2DB1hY1RGoV7j1vBA%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 Expanding biofuel capacity to 300 TMT reflects a structural response to domestic blending mandates. Success in this segment is critical for protecting marketing margins as traditional fuel demand slows.
 
 Green Opportunities - Biofuels
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351014.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=dpT%2F82PbKrrNnEV1ixtHV%2Bgk4SI%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 Biofuel Capacity
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351020.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9ISRGEyfZqMllSfYeL%2FKL4r%2F6Ps%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351027.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=FAc%2BPtHZg4kS3endsAe4qlu7LQs%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -597,13 +459,7 @@ Commissioning refinery-based green hydrogen plants marks a shift from research t
 
 Green Opportunities - Green Hydrogen
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351035.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Yg7U7bC%2BuDgR7rWGAphlqSSu0%2FQ%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 Green Hydrogen
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351049.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=uhko%2F7Po6voHkIotPaIEb3oJRXg%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351056.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=CF2B0ilLGoJ28v0Pd4VR%2BK8QxYE%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 - A 370 TPA Green Hydrogen Plant commissioned at Visakh Refinery (first Green Hydrogen plant in any Indian refinery)
 
@@ -623,12 +479,6 @@ Relying on biogas for nearly half of emission reductions indicates a strategy fo
 
 ## HPCL Net Zero Plan: Development of Roadmap
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351064.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=t9gtiMKp1UBgxV9eMdXsz00br18%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351070.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=3SQfk19rHs5y%2Fl0NIprhhp6vC0w%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351076.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=jeLm4X4f5ZtFFVumOiccRTeOsSc%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 ## JSW Energy Limited | Large Cap | Utilities - Power Generation
 
 JSW Energy is a leading Indian power producer transitioning from a thermal-heavy base to a diversified green energy portfolio. The company operates across the power value chain, including generation, transmission, and now green hydrogen production
@@ -639,15 +489,11 @@ Liquidity risk has decreased as debtor days fell from 96 to 73, providing the ca
 
 ## Healthy Trade Receivables
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351085.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=DvSRLe6oF6%2FUPriS7qA5j2DDDCs%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 <div align="center">
 
 Trade Receivables* ( ₹ Cr )
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351091.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9Iws6vCctVE%2FX2r09r%2BLXmVgNhE%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -656,8 +502,6 @@ Off-taker & Installed Capacity
 </div>
 
 JSW Energy Q3 FY26 Results Presentation
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351098.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=LjxmJ4Jk5AMPwccdumCZHBuKNtQ%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 Diversified Fuel Source and Offftaker, Leading to De-risked Business Model
 
@@ -671,13 +515,9 @@ Generation Capacity-30 GW by 2030
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351105.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=f4IoO3XcaG6WUxyfSBnNjZASj58%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 - High-quality C&I Offftakers with higher tariffs: $ \sim 3.3 $ GW ( $ \sim 25\% $ ) of current installed capacity tied to group captive and C&I customers; scaling to $ \sim 5.7 $ GW by 2030
 
 - Earnings visibility and de-risked portfolio: Long-term contracts with diversified offtakers across fuel sources drives quality of underlying EBITDA resulting in stable cash flows
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351112.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=nVAwimW%2BRqyZYXdv9Tl9hVVOFQU%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 JSW Energy Q3 FY26 Results Presentation * Includes 150 MW of under-acquisition Tidong hydro plant ^ Pipeline: Projects where LoA/Loi is received and PPA to be signed (Project details on next slide) Mahanadi thermal optionality of 1,800 MW included in pipeline
 
@@ -688,14 +528,6 @@ Targeting 40 GWh of energy storage creates a structural moat by addressing renew
 Energy Storage - Target of 40 GWh by 2030
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351130.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=XjY1WEGQPPHR81kTCT2fKK1ndBc%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351135.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=MfNEq5u7Gwz3Qk2kZTNKWSwuZFw%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351143.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=3oSI97Xbq6rfT2J0ED7mKNQCUng%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457351152.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7qu7aEz6YnOz%2BF90rMpmKeFDNOc%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -719,8 +551,6 @@ Doubling capacity through renewables secures long-term cash flows and hedges aga
 
 ## Capacity and Offtaker Details
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351164.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Takk7Z9KfMGAi8Wl4CmaRdTgG2I%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 <div align="center">
 
 Capacity Overview
@@ -737,27 +567,15 @@ JSW Energy Q3 FY26 Results Presentation
 
 Offtaker for Installed + Under construction Portfolio
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351179.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=uh%2BxNOOMiUyMIzX6aKda5hgsZLw%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351184.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=TBpEvZoDEeMYAnVHwypkX4R7pO4%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 Renewables are actively displacing thermal generation, which has contracted to 73% of the total generation mix. Incremental demand is increasingly captured by green assets that benefit from lower variable costs.
 
 ## Power Generation Trends
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351190.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PawwmBHAqQPp%2FtNlyxLZJzVqGQ8%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351195.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ZBD2jVePMPJjoF6YcgPyOpjqrhU%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351200.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=57ucRp3B7y0sa4sXVKKr0jrI%2BlI%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 <div align="center">
 
 Power Generation by Source in BU
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457351206.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=gYbbwTUtEXERefcYgI4MGYqIB10%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 JSW Energy Q3 FY26 Results Presentation
 
@@ -770,8 +588,6 @@ JSW Energy Q3 FY26 Results Presentation
 - Hydro generation grew by 13.5% during Q3 FY26 at 35 BUs
 
 Source: Central Electricity Authority (CEA), National Power Portal
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457351212.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JdEZBovWXtgKORPzSTxj5avX4p0%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ## Fertilizers
 
@@ -787,10 +603,6 @@ coming from specialty nutrients, crop protection, and biologics, while TAN offer
 
 ## Growth Drivers
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351222.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=AMkCOdp0EYnyengQsXfYbZn7gqw%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351226.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wY0mcHvqTJd%2B1DsIM98aPgnN5%2FI%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 - Sustained government focus on food security, MSP support and rural income growth.
 
 - Rising irrigation coverage and cropping intensity driving higher input usage.
@@ -798,8 +610,6 @@ coming from specialty nutrients, crop protection, and biologics, while TAN offer
 - Shift toward yield optimisation and balanced nutrition, increasing per-hectare fertiliser consumption.
 
 - Growth in horticulture, oilseeds and speciality crops supporting nutrient intensity.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351231.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=U6b4tiwxLGxw4LOel5cVOeruvWw%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ## Fertilisers (Urea, DAP, NPK, MOP)
 
@@ -811,15 +621,11 @@ coming from specialty nutrients, crop protection, and biologics, while TAN offer
 
 - Domestic capacity additions reduce import dependence and support supply security.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457351236.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=fL2Hu4vt%2BgY142p7D0XbNTspV2E%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 ## Crop Solutions (Crop Protection, Biologicals & Speciality Nutrients)
 
 - Low domestic agrochemical consumption (~0.6 kg/ha) $ \rightarrow $ strong headroom for growth.
 
 - Rising pest pressure, climate variability and need for higher yields driving input intensity.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457351245.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=T6SCqNm2QGZahXtL%2Bc7zuXAv%2Bfs%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 - Increasing shift toward integrated crop solutions (chemicals + biologicals + specialty nutrients).
 
@@ -838,8 +644,6 @@ coming from specialty nutrients, crop protection, and biologics, while TAN offer
 India is a large, policy-driven market (~$46bn $63bn by 2030, ~6% CAGR) with stable demand but capped returns due to subsidy control. The real growth lies in non-urea, complex fertilisers and specialty inputs, supported by crop diversification and precision farming.
 
 ## Indian Fertiliser Industry
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351262.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=e7I5miIZfzF6%2B7joT2I1l3qJaW0%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 - Globally, India is the second-largest consumer and third-largest producer of fertilisers.
 
@@ -863,25 +667,17 @@ India's Fertiliser Consumption
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351267.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=lv8UvalZCP%2BP39W46%2Fv08pX2YFo%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 <div align="center">
 
 Total Fertiliser consumption (in MMT)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351273.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2B%2FOeY0IObwk%2FHZ3HEliYoqgOQtU%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 The sector has transitioned from cost-plus (RPS) to efficiency-linked regimes (N DBT), improving transparency and discipline. However, earnings remain tightly linked to gas prices and subsidy payouts, with FY23-24 highlighting how global shocks can distort profitability.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351283.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Ef%2BBuKSUqGWtVIg6jBatAT3Z9mE%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 India has very low agrochemical intensity (~0.6 kg/ha vs global 4-10 kg), creating significant headroom for growth. Premiumisation (biologicals, WSF, micronutrients) and export competitiveness position this segment as the key margin expansion lever.
 
 ## CPC & SN (including Biological) Solutions - Industry Opportunity
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351294.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6FqLOtnNhsf4s3bqR%2F26%2FntTHtg%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 - India is a key global CPC hub with strong exports to the US, Brazil and EU, supported by cost competitiveness and chemistry capabilities.
 
@@ -899,15 +695,9 @@ India has very low agrochemical intensity (~0.6 kg/ha vs global 4-10 kg), creati
 
 - While long-term demand remains strong,the industry is influenced by regulatory frameworks,environmental norms and global trade dynamics.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351300.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=35kPi8km7QXkZOqxFKBYrwwDZHU%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351310.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Dx0dSKzj0bJ1oKTW7na1B4G6r1I%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 TAN demand is driven by mining, infrastructure and explosives, with a persister domestic supply deficit. Capacity additions may reduce imports, but structurally this remains a tight, high-margin segment with strong volume visibility.
 
 ## Technical Ammonium Nitrate (TAN)-Industry Opportunity
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351317.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hNZlpnP3yp1KnJkgkQPVaqwZ4vU%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ## Structural Demand Drivers
 
@@ -935,13 +725,7 @@ Ammonium Nitrate Demand Supply Gap
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351325.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=nRIhQ2hnVgughf%2B3INBkWuYar9E%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 Subsidy receivables remain a core working capital swing factor, with improving trends but still elevated levels. While payouts are stabilising, cash flow visibility fertilisers continues to be policy-dependent rather than purely operational.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351332.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PiByR8KttTBKF23m%2BXsV%2FJf1jEE%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351338.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=W3IlEL5NnH9JS1dQjdks99wtyKE%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ## Engineering & Capital Goods
 
@@ -955,8 +739,6 @@ The company is transitioning from a domestic, asset-heavy crane business to a gl
 
 ## Shaping the 5 Year Vision
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351346.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zZLrGns%2FtsoTDOpZBHNj7ENMv4o%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 <table border="1"><tr><td>DIMENSION</td><td>PRIOR TO ELEVATE 2030</td><td>ELEVATE 2030</td></tr><tr><td>Business Structure</td><td>Single-business in India.</td><td>Global Group</td></tr><tr><td>Capital Model</td><td>Asset-heavy balance sheet dependent</td><td>Hybrid Model</td></tr><tr><td>Product Portfolio</td><td>Cranes only</td><td>Additional Products &amp; Services</td></tr><tr><td>Leadership &amp; Governance</td><td>Promoter-driven</td><td>Professional CXO management</td></tr><tr><td>Technology &amp; Processes</td><td>Must have applications only</td><td>Value adding, IT and OT Solutions</td></tr><tr><td>Strategy &amp; Direction</td><td>Growth is reactive and opportunistic</td><td>Elevate is Strategic Roadmap</td></tr></table>
 
 Key risks remain around margin compression, leverage, and execution volatility, the model is evolving toward asset-light structures, differentiated offerings, and better project visibility. Importantly, cash flow risk is mitigated through financial closed projects and institutional counterparties.
@@ -965,23 +747,15 @@ RISK MANAGEMENT
 
 ## Anticipating Challenges, Building Sustainable Solutions
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351352.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=YaMU9RNY4cRwBCrnEToCTWyY2hY%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 <table border="1"><tr><td>RISK</td><td>MITIGATION</td></tr><tr><td>Margin dilution risk-3-2% compression</td><td>Value differentiationComposite engineering solutionsContinuous fleet reinvestment</td></tr><tr><td>Leverage/Debt-Capex heavy model</td><td>Asset-light modelsSupplier credit of2-3 yearsFD-backed margin structures</td></tr><tr><td>Crane Rental-Renewables Transition Risk</td><td>Capital-lightExecution-ready ModelStrong pipeline visibility in renewables</td></tr><tr><td>Geographical risk-Deploying assets Internationally</td><td>Phased deployment approachAssets are mobile-enabling rapid relocation</td></tr><tr><td>EPC/Cash Flow Risk</td><td>IPP-backed projects with financially closureFunded by PE/Sovereign fund</td></tr></table>
 
 Strong positioning in high-value, critical lifts (~30-40% share) where execution complexity creates entry barriers. With India's O&G capex cycle picking up, this segment offers high-ticket, margin-accretive opportunities.
 
 ## Navigating Oil, Gas and Marine Infrastructure
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351360.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wu%2BSW5m0mDoiDIeFVewhCSHkL48%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 - India shipbuilding order book: USD 3.6 B (2025); target USD 30 B by 2030 (Amrit Kaal)
 
 - Shipyard infrastructure erection, pre-outfitting lifts, module shop roof structures, slipway equipment & large ship block turnover
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351373.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=tNY3t80ZFeDPsYlch2y5iJduvcM%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457351378.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5Hjky5FzMpnHO%2FrsLAmVnFtjBac%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ## UPSTREAM ENERGY
 
@@ -991,15 +765,11 @@ OIL & GAS
 
 - Critical-path lifts: rig assembly, flare towers, compressor modules for ONGC, OIL, RIL
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457351386.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ItKom1ehfXVXI3jPjiPkTMATkbI%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 <div align="center">
 
 KEY CLIENTS
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_6_1782457351392.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=gZpZ6OdMTSkDQYZkCr4wwu%2FhDtw%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 Core infra (metros, bridges, ports) and marine projects provide steady, visibility demand (~20-25% share). Government capex and mega projects (Sagarmala, defer infra) create a long runway for crane deployment.
 
@@ -1011,15 +781,9 @@ The Cranes behind India's Metro Network, its Biggest Stadium, and Its Strategic 
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351396.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PKvi1g%2BykM%2BSqMS%2FEepwYp9B1hw%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351407.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=0abOQtLCKNv8Swr7HgaE%2B%2BOdeTs%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 Well entrenched in large industrial capex cycles, with meaningful share across soil and cement projects. These sectors provide bulk, repeatable execution opportunities, though relatively more cyclical than infra.
 
 NATION BUILDING · MARKET LEADERSHIP
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351416.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=041XCbtF641riunZ4q3PNHwVG1k%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -1035,37 +799,21 @@ MARKET SHARE ~25-35%
 
 - Each plant: 20,000-80,000 MT erection scope
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351420.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Tt3oC2Comw6TAYAz3SK%2B7JefPv0%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 ## BUILDING MATERIALS CEMENT
 
 MARKET SHARE ~50-60%
 
 - India capacity: 55 MTPA (1989) $ \rightarrow $ ~600 MTPA (2025); each 1 MTPA needs 3,000-8,000 MT cumulative lift
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351434.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Yycx%2FucXF6KIoOfoP5Jhvu6mOJE%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 - Rotary kilns (200-400 MT), 185+ m preheater towers, raw mills & silos with sub-mm alignment
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457351446.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Y8udjzciv7xryi3flOlEwEth9oM%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 ## KEY CLIENTS
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457351454.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1iYQ56qB2OtJUtB5ygSHir0GXlA%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_6_1782457351469.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=u3Pd7dgyRZDsK%2FqdP6YaUQrBMZM%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_7_1782457351476.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=fDX7uN0%2B4uu8ybkdZ%2Fywky%2BJCjI%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_8_1782457351484.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6JbVHqy7SgO5OxEt5LN%2Faim4mPM%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 Strong execution track record in complex, critical-path projects (40-55% share) including refineries and thermal power. These projects drive high utilisation and premium pricing due to technical complexity.
 
 ## NATION BUILDING · MARKET LEADERSHIP
 
 ## Proven Execution Across Refining, Petrochemical, and Power Projects
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_9_1782457351499.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8iPusKLKdevlavC%2BND8dQ6Hepb4%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 OIL & CHEMICALS
 
@@ -1077,15 +825,11 @@ MARKET SHARE
 
 - 75 cranes deployed at RPL Jamnagar - world's largest refinery - in 18 months
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_10_1782457351507.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=SFd9kKIDMrNVvTuPL6snyWmhnms%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 - Column, reactor, exchanger & fired heater erection; critical-path heavy lifts
 
 ENERGY GENERATION
 
 THERMAL POWER
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_11_1782457351512.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=65MTOc77eKixk3J8yYgiOdQhhaY%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 - India added ~230 GW thermal capacity (1989-2025)
 
@@ -1093,53 +837,19 @@ THERMAL POWER
 
 MARKET SHARE
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_12_1782457351527.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=VcwqM%2BtUMIAfgthMGAfl4GjwX5k%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 ~45-55%
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_13_1782457351536.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=jP5OaYNItXyr%2BJ0M2BZ9OAC3sSs%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_14_1782457351547.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1H8waHP1j8c5g4AQ5DTuHQpqWzM%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 - Est. 15-25 million MT total erection scope supported
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_15_1782457351552.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=R3SbotovalZvidWgpeCtzS5QUpM%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_16_1782457351558.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Q5c6Q7mxUHuc52i5WoFquAf1%2Fqg%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_17_1782457351563.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Uez8ihNuw%2B6UdyK8Vdsv9IqyLuk%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_18_1782457351569.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ZRoPtpyovDvX9hVv0VKilBPOfxw%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_19_1782457351575.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=uuLC7fGM%2BA8i%2BYyW0gBJmWgUrSQ%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_20_1782457351580.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Mpu3JOYDFpyVdg9PihJeVPkt1uw%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 ## KEY CLIENTS
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_21_1782457351585.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=viUoC%2F10ANt13clzZPsltr5MLp4%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_22_1782457351593.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8t3qcUkNY4lJaoZqH9TL6MXGseg%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 Power
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_23_1782457351603.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=2j2Sm%2B2VKrRoIapT3n5T%2FxmyWUA%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 TATA POWER
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_24_1782457351618.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=iYihoeqYVXWtfG8iZa0yMKB9OR0%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_25_1782457351627.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1qBbGxSJ%2BaoO%2BrY2G3%2Fxw9ZdykI%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_26_1782457351638.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=ys1WuLHPAQYvQC15lhAft1cRPhQ%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 Leadership in wind (~50-60% share) and strong presence in nuclear reflects positioning in next-gen energy infrastructure. This is a key strategic pivot towar long-term, structurally growing segments.
 
 ## Market Leadership Across India's Infrastructure
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351644.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=F0MTDBSddUnHPFzMloO9U5Y8JQ0%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351654.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=6BP%2FSlH7gIa6kv8AC5aSwCWyHtg%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ~40-50%
 
@@ -1147,17 +857,9 @@ Leadership in wind (~50-60% share) and strong presence in nuclear reflects posit
 
 - Key Projects: Kakrapar, RAPS, KKNPP, BHAVINI, Kalpakam, Kalga
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351664.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Jaw2KmvYzJK3J26jw93CBzDOYuI%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457351671.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=3zIay1I9oQQhcqM2ryht2IAjVkE%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 meil
 
 HCC
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457351680.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=huIQVvM%2Bax%2Fio5wndDWIXgeBqws%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_6_1782457351693.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=4kD76igd8WH7CZslojP8RNSBWuM%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ## Media & Entertainment
 
@@ -1171,17 +873,11 @@ A services-led VFX company focused on execution for films, OTT, and commercials,
 
 ## Business Overview
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351699.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=UYQDeFCZ1wfe%2Fc41MYyampB0F%2BI%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351706.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=oUx0uCmbMef8vGXgakjAJvHI0dY%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 ## What we do
 
 - Provide visual effects execution services
 
 - For films, television series, web content, and commercials
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351712.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=IyM1O28lQ0vmIL5TSyv3lZ4YZDM%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ## Who we work for
 
@@ -1191,8 +887,6 @@ A services-led VFX company focused on execution for films, OTT, and commercials,
 
 - Global visual effects studios through outsourcing partnerships
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457351717.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=QSTW7XWxBs%2F4dERdLwxR%2Bx3Qdms%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 ## How we earn
 
 - Project-based contracts linked to scope and delivery timelines
@@ -1200,8 +894,6 @@ A services-led VFX company focused on execution for films, OTT, and commercials,
 - Commercial models include time-and-material and fixed-price arrangements
 
 Services-led, asset-light, and scalable operating model with a predominantly international revenue base
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457351727.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=WJb%2BLNlGjEXaobUWF1mGkDNMdk0%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ## How work is executed
 
@@ -1211,23 +903,13 @@ Services-led, asset-light, and scalable operating model with a predominantly int
 
 AI significantly compresses timelines, lowers costs, and enables faster creative iteration. This strengthens client relationships by improving efficiency, consistency, and positioning the company as a long-term strategic partner.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351734.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=J9zvRxnJGPbgwwEiLRmHRTg50hE%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 Strong tax incentives across the UK, France, and India are making global VFX production more attractive and cost-efficient. These policies are driving higher project inflows and strengthening multi-country production ecosystems.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351750.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=K0kd%2BNVa7tjyG0dlsHkMymcUKcY%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 India's VFX industry is poised for strong growth, supported by talent, cost advantage, and policy support, with ~13% CAGR expected through 2027. After a temporary dip in 2024, demand is recovering on the back of global content reviva
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351788.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8OInYaZLmeC%2BgOlnNNQhGSYk3%2FM%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 Global VFX demand is expanding rapidly, driven by OTT spending, gaming, real time production, and immersive technologies. The market is expected to grow at ~12% CAGR, supported by rising content complexity and tech adoption.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351803.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5bEQI4spOPPVLasFjMD67r5G7ic%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 The company has contributed to globally recognized, award-winning projects and major productions. This establishes strong credibility and positions it as a trusted execution partner for high-end VFX work.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351810.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=2HL14Cl6yNxRv%2FxgtOAH6BJj0wM%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ## Auto Ancillary
 
@@ -1239,15 +921,11 @@ Escorts Kubota Limited, formerly Escorts Limited, is a leading engineering compa
 
 Industry demand remains weak YoY, though sequential recovery is visible in Q3. EKL volumes mirror this trend—sharp QoQ rebound but still lower on a YoY ba indicating a gradual recovery phase.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351818.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=huu2szQkLDYMDl%2FlUCXIUtnawKs%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 <div align="center">
 
 Construction Equipment Business Performance
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351833.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7gh5BklZCCMPUuaJQVVOzAODLpw%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -1255,19 +933,13 @@ EKL Construction Equipment Volumes
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351839.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=amwdkQZt3tI1ZnONxF3LgTdpjvI%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 Domestic tractor industry saw strong growth (~20%+), while EKL grew at a slower pace, leading to market share moderation. Exports, however, were a key positive with strong double-digit growth for EKL.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351847.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PZjdOhrL9Lfvt%2B2QF2wdG2VP7UQ%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 <div align="center">
 
 Tractor Industry and EKL Tractor Business
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351857.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=4Ug0qM4TCmykIIvFxlrEeRJ3swE%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -1275,19 +947,13 @@ Industry growth remained robust both YoY and QoQ, supported by rural demand EKL 
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351864.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Vn6V8DwAlq3L3jRrpSDTrTBv7ZU%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 <div align="center">
 
 Tractor Industry and EKL Tractor Business
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351869.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=2JSC9enmiYYkvy46VpGivvWeK30%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 EKL underperformed the industry in domestic tractors but significantly outperformed in exports. Construction equipment segments remained weak ove though declines were broadly in line with industry trends.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351885.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=G%2B%2FaRk1kr3JCeF5bFLvIFYvQnjo%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ## Q3 Standalone Highlights - Q3FY26 YoY
 
@@ -1313,11 +979,7 @@ streamline operations, collectively creating a more supportive environment for s
 
 ## GST cut boosts Industry Growth
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351892.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Mn11bVFRbvflFgBf8xScFCYuBUQ%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 PV & 2W posted impressive growth Entry level/small cars outpace UVs CV & OR segment grows by 17% & 32% resp.
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351905.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=U8gihyeiCcBkjNFmd0zQ8Dc4qUs%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 ## India - EU FTA to offer greater market access
 
@@ -1339,8 +1001,6 @@ Uno Minda's content per vehicle continues to rise across segments, with kit valu
 
 ## POTENTIAL KIT VALUE* (Excluding EV Specific Components)
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351913.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JVY%2BHWrupljOj5TTR2F1cIe%2FqEQ%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 <div align="center">
 
 Kit Value - 2 Wheelers
@@ -1349,15 +1009,11 @@ Kit Value - 2 Wheelers
 
 As at the end of FY 2021 2022 2023 2024 2025
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351917.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=w%2ByjgV6djc%2FqIlNq26SFmFp2NCE%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 <div align="center">
 
 As at the end of FY 2021 2022 2023 2024 2025
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457351925.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=yjeWXk8TD%2BvYcX4b17gBIq9k7Jg%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 *Potential is calculated on basis that all products manufactured by Uno Minda which can be supplied in the vehicle.
 
@@ -1368,8 +1024,6 @@ Uno Minda's portfolio is largely powertrain-agnostic (>95%) , meaning most of it
 Engine agnostic portfolio with potential upside from EV transition
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351959.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=WxCkDerRUo2ccJZNgTw0ZcJ5ZwM%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 <table border="1"><tr><td>Domains</td><td>Product Lines</td><td>ICE</td><td>Alternate Fuel Systems</td><td>Hybrid</td><td>BEV</td></tr><tr><td rowspan="4">Electronic&amp;Control Systems</td><td>4W Switches&amp;HVAC</td><td rowspan="16"></td><td rowspan="16"></td><td rowspan="16"></td><td rowspan="16"></td></tr><tr><td>Seat Belts</td></tr><tr><td>Shifters</td></tr><tr><td>Infotainment Systems</td></tr><tr><td rowspan="5">ADAS,Controllers and Sensors</td><td>Sensors</td></tr><tr><td>Controllers</td></tr><tr><td>RPAS&amp;ADAS</td></tr><tr><td>Cameras</td></tr><tr><td>Telematics&amp;TCU</td></tr><tr><td rowspan="10">Safety&amp;Comfort Systems</td><td>Steering Wheel with Airbags</td></tr><tr><td>Body Sealing</td></tr><tr><td>EA Pad</td></tr><tr><td>Air Ducts&amp;Washer Bottle</td></tr><tr><td>Spoiler</td></tr><tr><td>Seats</td></tr><tr><td>Horns</td></tr><tr><td>Speakers</td></tr><tr><td>Brake Hoses</td></tr><tr><td>Lighting&amp;Alternate Fuel</td><td>Lamps</td><td rowspan="3"></td><td rowspan="3"></td><td rowspan="3"></td><td rowspan="3"></td></tr><tr><td rowspan="2">Light Metal&amp;Power Train</td><td>Alloy Wheels</td></tr><tr><td>Casting</td></tr><tr><td>Battery</td><td>Lead Acid Battery</td><td></td><td></td><td></td><td></td></tr></table>
 
@@ -1387,15 +1041,11 @@ the primary market, with Ilumya leading the portfolio and a healthy pipeline sup
 
 ## Innovative Medicines Sales
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351972.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=r%2FB5TspDBJ3Tbw3juWBX7%2FQ0dkA%3D&Expires=1783062151' alt='OCR图片'/></div>
-
 <div align="center">
 
 Innovative Medicines Sales (USD mn)
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351979.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=8WlVli0ZzhwoHM%2BfG2%2BQtE0BAtc%3D&Expires=1783062151' alt='OCR图片'/></div>
 
 - US is the major contributor to Innovative Medicines revenues
 
@@ -1415,17 +1065,9 @@ US business: revenue progression
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457351987.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=z1nhrRh2yLJvYchf06FmzI93Sr0%3D&Expires=1783062151' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457351996.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=iH1yK7JRgsN4NjUkG8QlsWanAfY%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 India revenues have shown consistent growth, supported by a diversified therapy mix and strong presence across chronic segments. Sun Pharma maintains leadership with ~8.4% market share, underpinned by broad therapeutic coverage
 
 ## India: revenue progression
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352014.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=IzNEZZ66ubFDCVdzrqSd4V9Yv1o%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352020.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=mSqRaCYkIBQWQJ3nXPPkVDx7mkk%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 <div align="center">
 
@@ -1435,17 +1077,11 @@ Therapeutic breadth**
 
 $ \textcircled{c} $ Sun Pharmaceutical Industries Limited. All Rights Reserved.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457352026.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PWiGYO9LZl%2FOmyvbfOEkWwRJHOA%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 ** As per AIOCD AWACS MAT Dec 2025
 
 Sun Pharma leads the Indian pharma market with a clear gap over peers, driven scale, strong domestic formulations business, and wide portfolio reach. Its leadership position reinforces pricing power and distribution strength.
 
 ## Largest Pharma company in India
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352034.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zfOj%2BKEuulP0Kk4u0y92WrgZ91Y%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352054.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=993XaSCXeG6ljVADF%2FqXFV7MryM%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 Source: AIOCD AWACS MAT Dec 2025
 
@@ -1455,19 +1091,13 @@ R&D spend has steadily increased to over 32 bn, maintaining ~6% of sales indicat
 
 ## R&D investments
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352061.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2B6VGV2UQTui0Aeq8hGH9%2B0Ynjxk%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 <div align="center">
 
 R&D investments
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352068.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=RQbGeiAt9N533CvWr8OxJiOPqiY%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 Filings and approvals
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457352077.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=72S7zWDje4GTOM2KPY94%2BL2Ueak%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 $ \textcircled{c} $ Sun Pharmaceutical Industries Limited. All Rights Reserved.
 
@@ -1485,35 +1115,17 @@ JK Cement focuses on producing eco-friendly cement and allied products, aiming t
 
 JK Cement is seeing broad-based volume growth across both grey and white cement segments, with grey cement continuing to drive the bulk of volumes and growth (strong double-digit YoY), while the white cement business, though small is also scaling steadily. This highlights a balanced portfolio where grey provides scale and demand-led growth, and white adds niche, higher-value expansion.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352083.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=3qXZLN%2Bs%2BijSujrntzOfMERTbc4%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352089.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=S3e7Z8acvGvLFj%2BHyBfU4Nt0pQc%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 ## Sales Volume (in Lakh Tons)
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457352093.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=S8RoUhoS3Vv6hmOGHbkjVuf3gt8%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457352101.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=VCBG2102xLYgojOQpVPpPazA2%2Bo%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 White Business
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457352115.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=q%2B%2BgkgMvqYNUVEDtpGN8mt%2FeMUM%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_6_1782457352121.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=aecu0e9eDmfhvrszKg%2FXyT4SRHI%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 Double digit volume growth due to robust demand & extended footprint in Central Region & East Market
 
 Pet coke prices-one of the key cost drivers for cement-have largely stabilised after earlier volatility, trending in a narrow range in recent months. This suggest cost pressures are easing, which should support margin recovery if pricing holds
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352126.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=LDdgaggmkO73QdNm4jn1fJOUSCs%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352132.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5sK2eVE8snoSmCfVDP8ZY2KEiOQ%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 Key Cost Variables
 
 Pet Coke 6.5% Sulphur USA CFR (S/MT)
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457352143.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=9JgSouVUwA055w5z7opn6SWbSIo%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 Pet Coke prices are stable
 
@@ -1527,21 +1139,11 @@ JSW Steel is a leading Indian integrated steel manufacturer with a global presen
 
 The 2.5GW renewable energy investment signals a move to insulate steel production costs from volatile coal and grid pricing. This energy independence protects margins from inflation and supports high-value green steel exports.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352156.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=PvgiLt5B%2FyY6agMPb4VF1I6N%2Bwk%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352161.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hRcnUwmL%2FuwANCo9IEPoPdlEAfY%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 JSW Steel Investor Presentation: Aug 2025/1: Top Gas Recovery; 2: CCUS: Carbon Capture, Usage and Storage; 3: SEED: Sustainable Energy, Environment and Decarbonisation
 
 Targeting 51.5 mtpa capacity by FY31 aims for domestic market dominance through aggressive scale. Integration with group infrastructure and energy asset creates a captive ecosystem that supports margin protection and cross-segment growth.
 
 ## JSW Group: Listed Companies
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352171.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=fswsDOCU1sw%2FGHWrlmb4ol9Uigk%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352176.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wuOUVLDdJGSGbJ48flJ%2BzwFS984%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457352183.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Mz318STLg9bXV8pchFXx9IlLst8%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 - India's largest steel producer with capacity of 35.7 mtpa
 
@@ -1549,19 +1151,11 @@ Targeting 51.5 mtpa capacity by FY31 aims for domestic market dominance through 
 
 Market Cap of US$ 32.3 bn
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457352188.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Lsmqpd5nQl%2FAcJBCi2LRSZ3emU8%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457352193.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=QUmKTD%2Fl6vjlyCIkS6ngk0EktGE%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 - Installed power generation capacity of 13.34 GW
 
 - Targeting 30 GW generation with 40 GWh Storage before FY30
 
 - Market Cap of US$ 8.7 bn
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_6_1782457352228.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=RwZzMbGjHM2reBWnEfjqdtaUWlE%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_7_1782457352235.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=y9t%2BKpSzDf5hc17A2HEGc44kUjM%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 - Second largest private po operator in India with 17 mtpa capacity
 
@@ -1571,10 +1165,6 @@ Market Cap of US$ 32.3 bn
 
 - Market Cap of US$ 5.9
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_8_1782457352240.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=c3tMV6EarDDfTrjD7qQJIEUv5Eg%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_9_1782457352248.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7Ea0mU55ig%2F9gYvJ7eF8L2G3bkM%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 - Capacity of 21.6 mtpa growing to 42 mtpa
 
 - Lowest $ \mathrm{C O_{2}} $ emission intensity in Indian cement industry and among major global companies
@@ -1582,10 +1172,6 @@ Market Cap of US$ 32.3 bn
 - Targeting 60 mtpa capacity
 
 - Market Cap of US$ 1.7 bn
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_10_1782457352254.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=R4Vfcz5laun6cFUklxpTKInp1Fg%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_11_1782457352262.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2FxS%2FuRfDL3t7HMKt%2FE8yPN6aQMY%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 - Unlisted company started in 2019. Capacity of 219,000 klpa for Decorative and Industrial paints; targeting 800,000 klpa capacity by FY30
 
@@ -1611,8 +1197,6 @@ India crossing the 100kg per capita consumption threshold marks a structural pi 
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352269.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=v%2BqowWoh31H1JEfJiOIvxToPI6o%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 ## Nation-Building Phase
 
 - India is going through a 'Nation-Building Phase' with rising urbanisation and infrastructure investment
@@ -1625,8 +1209,6 @@ India crossing the 100kg per capita consumption threshold marks a structural pi 
 
 Japan:1950-1973 GDP growth 9.1% CAGR Steel Demand 14.2% CAGR Elasticity of steel demand to GDP growth of 1.56x
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352274.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wLaLWt46r%2FKnTdKriBaL2cjU940%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 China:2000-2013 GDP growth 10% CAGR Steel Demand 14.7% CAGR Elasticity of steel demand to GDP growth of 1.47x
 
 <div align="center">
@@ -1634,8 +1216,6 @@ China:2000-2013 GDP growth 10% CAGR Steel Demand 14.7% CAGR Elasticity of steel 
 Steel demand accelerates sharply once ASU per capita nears 100 kg
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457352279.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=tlyetk7TXM%2BOgTYWl8sisno8p%2B8%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 <table border="1"><tr><td></td><td>Year (T) when ASU per capita reached 100kg</td><td>ASU per capita CAGR in the next decade</td></tr><tr><td>South Korea</td><td>1976</td><td>10.2%</td></tr><tr><td>China</td><td>1999</td><td>14.7%</td></tr><tr><td>Vietnam</td><td>2008</td><td>9.4%</td></tr></table>
 
@@ -1645,8 +1225,6 @@ JSW Steel Investor Presentation: Feb 2026 / ASU: Apparent Steel Use. Source: MoS
 
 Expanding into high-value electrical steel decouples revenue from volatile commodity cycles while tapping into the energy transition. This shift into special products builds a technical moat that supports superior profitability through various economic cycles.
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352284.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=1a9EhxpNAzUH6a29RYs5mXbF%2BCQ%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 ## India: Automotive and Energy Transition
 
 <div align="center">
@@ -1654,8 +1232,6 @@ Expanding into high-value electrical steel decouples revenue from volatile commo
 Low car penetration offers growth headroom
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352290.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=mg%2BbhHfi951paSzgR3VLU4CamJc%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 ## India to be the world's second largest vehicle producer by 2032
 
@@ -1693,8 +1269,6 @@ The 50:50 joint venture for BPSL enables a $ \textcircled{3} 7,000 $ crore delev
 
 ## Strategic Joint Venture for BPSL
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352304.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=t4YdSIfHr5kjgaveUdvIWbxvRLM%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 ## Transaction Overview
 
 - 50:50 JV Partners: JSW Steel Ltd. & JFE Steel Corporation (Japan)
@@ -1717,11 +1291,7 @@ The 50:50 joint venture for BPSL enables a $ \textcircled{3} 7,000 $ crore delev
 
 - Plan to expand to 10mtpa by 2030; potential to grow further
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352311.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=mF7zGJknAXf%2FmQCGytlwQXZddY4%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 Mr. Sajjan Jindal, JSW Steel Chairman & MD and Mr. Masayuki Hirose, JFE Steel President
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457352317.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=zcV5QnQICWJm07rBTq86Z%2F7KHy8%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 Securing 1.6 billion tonnes of iron ore and coking coal assets in Australia and Mozambique insulates JSW from global raw material shocks. Vertical integration the essential defense for protecting unit economics as production capacity doub
 
@@ -1730,8 +1300,6 @@ Securing 1.6 billion tonnes of iron ore and coking coal assets in Australia and 
 # Strong Raw Material Linkages
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352325.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=7Dkxxy5xOFK72T9%2FO40tHCAG7TM%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 ## Iron Ore
 
@@ -1749,8 +1317,6 @@ Securing 1.6 billion tonnes of iron ore and coking coal assets in Australia and 
 
 - Mines provide strategic long-term iron ore security; consistent grades to enhance BF productivity; optimise logistics cost over time
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352330.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=aPCFv%2FaUbyZ7%2BpTmKm3kYbdJ0qY%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 ## Coking Coal
 
 - Secured 3 coking coal mines in Jharkhand, India with R&R of 380mt and ~5mt of long-term linkage from Coal India. To commence over next 2-3 years and yield ~3.5mtpa clean coking coal
@@ -1763,8 +1329,6 @@ IBM: Indian Bureau of Mines. R&R as of 31st March 2025. Illawarra reserves as of
 
 Scaling the influencer network to 111,000 partners allows for greater demand control at the fabricator and contractor level. This retail-centric approach improc pricing power and provides volume stability against cyclical institutional deman
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352341.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=U8acSGk0t%2FRnLoGURxhhXRpuyWM%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 ## Strong Retail and Influencer Network
 
 <div align="center">
@@ -1772,8 +1336,6 @@ Scaling the influencer network to 111,000 partners allows for greater demand con
 Retail Footprint
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352366.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=RmoNX8NGSoQtqqI8SYffX1D1Neo%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 - Presence in ~20,100 retail stores across 1,909 towns in India
 
@@ -1789,8 +1351,6 @@ JSW Privilege Club Total Partners
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457352372.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=qh2vF4A4yzlpJDNOTGCOrJrATSw%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 ## JSW Privilege Club
 
 - A platform to build long-term engagement with fabricators, masons, contractors and engineers to increase demand generation
@@ -1799,15 +1359,11 @@ JSW Privilege Club Total Partners
 
 - The influencers play a critical role in affecting purchasing behavior of consumers
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457352377.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=HWc0NvV7hOrGc36d3fp2DzXnWus%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 <div align="center">
 
 32 Experience Centres across India
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457352383.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=CotzdCh4r50Uh9sVkhrcKl4RmKg%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 JSW Steel Investor Presentation: Feb 2026 / Note: Data as of FY25; Number of Experience Centres as of 31st December 2025
 
@@ -1815,29 +1371,17 @@ China's sustained export surge continues to act as a structural ceiling on regio
 
 Global Steel
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352389.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=LkqDkhPot%2BCjwILXKf6zVytQhT0%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 <div align="center">
 
 Crude Steel Production (mt)
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352398.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2BP3%2BiUj4LC2PlOaoJqxae3r9SSw%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 <div align="center">
 
 Finished Steel Demand (mt)
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457352409.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=opsHCiba7Q3%2FhsiZ%2BDV3Wj7Jkfg%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457352420.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=yLAeej%2Bqx692UI%2FBwhz0izoT8uU%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457352429.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=gS7qXMupEfvnGJkadRTTYKVE9Fg%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_6_1782457352443.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Pxvine8RPll%2B2hI%2BL65h6M7POds%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 Elevated China exports kept Asian prices subdued in '25. Policy support in China should be supportive for prices
 
@@ -1859,15 +1403,9 @@ centres. What stands out is the disproportionate weight of rural India (~60% of 
 
 ## Indian Jewellery Market: Favorable Trends And Characteristics
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352454.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=XsJpMqy%2F7FC3idffYTUTi7VvjdY%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 Rising Share Of Organised Retail In Jewellery To Continue
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352460.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=HjzwolotSf9A%2Fgons70ldlqKwNA%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 Wedding Jewellery Dominates The Industry
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457352469.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=JTkrgEDpAuHWyFY%2FwrqtY5Ma3CY%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 ## 2nd
 
@@ -1889,11 +1427,7 @@ Inventory obsolescence risk given recyclability of jewellery
 
 Gold Jewellery Demand And Ownership Is Higher In Rural India An Rises With Income Levels
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457352475.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2Fmu3ZHwhtseet1ve%2F3mhJD8Yzok%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 South Constitutes Largest Pie In The Indian Jewellery Market
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457352482.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Ql7XbP%2FKHN1fYQjv9ANTwbbeIPY%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 KALYAN JEWELLERS INDIA LIMITED
 
@@ -1905,10 +1439,6 @@ Kalyan is building a multi-brand, multi-product portfolio to cater to distinct c
 
 </div>
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352491.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Pkl2IhpBSouG%2Fza%2FMmIaUKPDUms%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352510.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=0kK0jPgJ4FZ49kThd8AR6IifZV4%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 Kalyan's expansion is increasingly being driven by an asset-light FOCO model, allowing it to scale its showroom network rapidly (especially via Candere and ne formats) while bringing down debt and improving return ratios. The shift is visil in rising ROCE/ROE and declining standalone debt, indicating that growth is becoming more capital-efficient rather than balance-sheet heavy.
 
 ## Performance Highlights
@@ -1918,8 +1448,6 @@ Kalyan's expansion is increasingly being driven by an asset-light FOCO model, al
 Kalyan's Asset Light Journey Continues
 
 </div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352525.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=jdV1Fxgs2sFoewOafC0VwiRxHfo%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 ## Vishal Mega Mart Limited Mid Cap Retailir
 
@@ -1931,17 +1459,9 @@ Expanding hyperlocal delivery to 723 stores and a 55% surge in digital users sig
 
 ## Consistent Progress in Quick Commerce platform
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352531.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=DnN1jKb4XCEKJhHzHGr7wvcn56Y%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 ## Easy access to available products at nearest store offered through our website and mobile application
 
 New User-friendly Interface
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_2_1782457352538.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=%2Fo9%2FGOf1lBCrDjETQl5F56gI3EQ%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_3_1782457352544.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=vQUrPcEtVincpz0J9%2Bb3Z%2Bngyrs%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_4_1782457352552.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=cE6mDND6VUpUc4CHPKer%2BCEi24k%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 ## Q3FY26 & Growth YoY
 
@@ -1951,10 +1471,6 @@ New User-friendly Interface
 
 New offers everyday,new collection every season
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_5_1782457352558.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=IQoJ29T3kV%2BoL%2BcQqY%2FkPmfNi%2BU%3D&Expires=1783062152' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_6_1782457352572.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=Gf%2BC964FcSS6Ixkx1Ce5q%2FDAdpI%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 Earn points on every order
 
 Hassle-free express doorstep delivery and store pickup facility available
@@ -1963,11 +1479,7 @@ Hassle-free express doorstep delivery and store pickup facility available
 
 # registered users
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_7_1782457352577.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=hqhMR2cqUl0o8%2FczH8KDR30THcg%3D&Expires=1783062152' alt='OCR图片'/></div>
-
 Secure payment options, flexible return and exchange policy
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_8_1782457352581.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=CM8DF6Gjhual0EwxQv0UCiXWKe0%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 ## Aviation
 
@@ -1982,8 +1494,6 @@ A big chunk of IndiGo's weak headline profitability this quarter comes from exce
 costs. Strip these out, and profits jump sharply, showing that the core business is far stronger than reported numbers suggest.
 
 Adjusted Profitability-Q3 FY26
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626150028ba5913c45a6048fc%2Fcrop_1_1782457352625.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=wJ83DcCNDqFb8UaPM9HUuic5hZY%3D&Expires=1783062152' alt='OCR图片'/></div>
 
 That's it for now! Your feedback will really help shape how Points and Figures evolve Drop it down in the comments below!
 

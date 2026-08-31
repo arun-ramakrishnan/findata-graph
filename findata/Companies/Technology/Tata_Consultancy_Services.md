@@ -16,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-01-17'
-last_modified: '2026-07-11'
+last_modified: '2026-08-31'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-28T15:04:16Z'
@@ -268,3 +268,18 @@ Management acknowledged AI could initially cannibalize traditional services but 
 > — K. Krithivasan, CEO & MD
 
 *Source: The Chatter — TCS, Indian Bank, Amagi, CMR Green & More*
+
+## The Chatter — Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More
+
+**MHP acquired from Porsche:** TCS takes over Porsche's automotive-consulting arm MHP — ~€700 mn revenue at double-digit margins, with Porsche ≈30% of MHP's client base. CEO K Krithivasan steered away from the reported €1.25 bn figure, calling it "more a partnership commitment" than a revenue target.
+
+**Mobility Centre of Excellence, Porsche as customer zero:** MHP's digital-advisory depth in automobiles combined with TCS's AI and scale targets the full mobility value chain — product engineering, manufacturing, customer experience — with the aim of expanding beyond Porsche to other European automotive and manufacturing clients.
+
+**White space TCS fills:** MHP does no engineering work and very little offshoring today. TCS brings engineering services, offshore delivery and its GBS/supply-chain-transformation capability into the account, widening scope and cost-competitiveness.
+
+**Standalone, no hard integration:** MHP keeps its independent European identity (France, Germany, Netherlands) and grows with TCS's scale behind it — management explicitly ruled out merging it into TCS. Porsche frames the divestiture as refocusing on core automotive amid geopolitical and competitive pressure.
+
+> "We are talking about a revenue of around €700 million per year. That is for a double-digit—around double-digit—margin."
+> — Michael Leiters, CEO, Porsche (Partner Management)
+
+*Source: The Chatter — Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More*

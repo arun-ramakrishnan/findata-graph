@@ -382,7 +382,8 @@ def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: boo
 
     img_dir = out_dir / "images"
     img_counter = 0
-    md_parts = []
+    n_captured = 0  # this run only — images/ is shared across editions, so
+    md_parts = []   # a dir-wide count would mostly report older editions
     for i, page in enumerate(pages, start=1):
         md = page["markdown"]
         images_map = md.get("images", {})
@@ -395,6 +396,7 @@ def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: boo
                 local_src = Path(item["url"])
                 if local_src.is_file():  # local engine: copy, no network
                     shutil.copy2(local_src, dest)
+                    n_captured += 1
                     continue
                 try:
                     r = requests.get(item["url"], timeout=60)
@@ -404,6 +406,7 @@ def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: boo
                         dest = dest.with_suffix(ext)
                         item["filename"] = dest.name
                     dest.write_bytes(r.content)
+                    n_captured += 1
                 except requests.RequestException as e:
                     print(f"  warn: page{i} image {rel}: {e}")
 
@@ -419,9 +422,8 @@ def write_outputs(pages: list[dict], out_dir: Path, stem: str, fetch_images: boo
     )
     print(f"wrote {md_path} ({md_path.stat().st_size} bytes)")
 
-    if fetch_images and img_dir.exists():
-        n = sum(1 for _ in img_dir.rglob("*") if _.is_file())
-        print(f"images downloaded: {n} -> {img_dir}")
+    if fetch_images:
+        print(f"images captured: {n_captured} -> {img_dir}")
 
 
 def _convert_paddle(pdf_path: Path, args: argparse.Namespace) -> list[dict]:

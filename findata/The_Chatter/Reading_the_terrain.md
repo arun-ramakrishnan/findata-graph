@@ -17,13 +17,7 @@ tags:
 
 Edition #51
 
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626145903511bbdbe142443b3%2Fcrop_1_1782457184855.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=5o9HdtVBHGdE6RUUVjsHoHp%2FHyA%3D&Expires=1783061984' alt='OCR图片'/></div>
-
 ZERODHA MAR20,2026
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626145903511bbdbe142443b3%2Fcrop_2_1782457184912.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=LhQXqkjsNWGTaDoXljfrB%2BjQuys%3D&Expires=1783061984' alt='OCR图片'/></div>
-
-<div style='text-align: center;'><img src='https://maas-watermark-prod-new.cn-wlcb.ufileos.com/ocr%2Fcrop%2F20260626145903511bbdbe142443b3%2Fcrop_3_1782457184920.png?UCloudPublicKey=TOKEN_6df395df-5d8c-4f69-90f8-a4fe46088958&Signature=3hagK3T8OYjWEXzZWXcOO%2BUcTAc%3D&Expires=1783061984' alt='OCR图片'/></div>
 
 Welcome to the 51st edition of The Chatter a weekly newsletter where we dig through what India's biggest companies are saying and bring you the most interesting bits of insight, whether about the business, its sector, or the wider economy. We read every major Indian earnings call and listen to the interviews so you don't have to.
 

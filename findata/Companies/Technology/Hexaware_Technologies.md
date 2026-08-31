@@ -15,7 +15,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-07-31'
-last_modified: '2026-07-31'
+last_modified: '2026-08-31'
 generated:
   by: process:okf_backfill
   at: '2026-07-31T00:00:00Z'
@@ -65,3 +65,20 @@ The Chatter — RBI Tata Steel
 > — R. Srikrishna, Chief Executive Officer and Executive Director
 
 *Source: The Chatter — RBI Tata Steel*
+
+## The Chatter — Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More
+
+**$3 bn aspiration on five levers:** organic growth plus M&A toward $3 bn revenue, powered by (1) legacy modernization — now branded "zero tech debt", (2) the private-equity channel, (3) a newly entered high-tech vertical (dedicated leader hired last October), (4) the Middle East, and (5) AI.
+
+**AI is already in the P&L:** more than 50% of current work carries AI that "positively impacts customers either in reducing cost, improving service, or often both" — the measure behind the company's first AI mission.
+
+**TAM discipline:** 220 bn lines of COBOL remain in production (>$0.5 tn notional TAM), but management sizes the actionable slice at $30–40 bn; of the ~$900 bn SaaS market, only 4–5 identified archetypes are considered addressable.
+
+**Four SaaS-replacement archetypes:** easy-to-replace workflow software; double-license stacks (e.g. Salesforce with a Veeva license on top); ~150 vendors that have announced product sunsets; and data-renting deals where clients hand over a decade of transaction data and get PDF reports back.
+
+**Early traction:** two double-digit-million-dollar "zero tech debt" deals (first announced earlier this year, second last quarter), with more expected before year-end; "zero license" (started Jan) is in prove-it pilots on a platform where eight AI agents assess a named SaaS product in about two minutes.
+
+> "If you look at why SaaS grew in the first place, there were two promises. One was 'processes encoded into my platform'... The second promise, which was true, is that it's too expensive and too time-consuming to custom-build software to replace SaaS. The second part is no longer true. The first part people never liked in the first place."
+> — R. Srikrishna, CEO
+
+*Source: The Chatter — Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More*

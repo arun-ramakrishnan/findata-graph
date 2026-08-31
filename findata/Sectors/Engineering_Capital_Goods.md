@@ -171,7 +171,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 75 company note(s) in Engineering_Capital_Goods. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 76 company note(s) in Engineering_Capital_Goods. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[AB_Volvo|AB Volvo]]
 - [[ABB_India|ABB India]]
@@ -242,6 +242,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 - [[TD_Power_Systems|TD Power Systems]]
 - [[TIL_Limited|TIL Limited]]
 - [[Tega_Industries|Tega Industries]]
+- [[Tempsens_Instruments|Tempsens Instruments]]
 - [[The_ePlane_Company|The ePlane Company]]
 - [[Thermax]]
 - [[Thomas_Scott|Thomas Scott]]
