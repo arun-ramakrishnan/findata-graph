@@ -3,17 +3,23 @@
 Rebuild the `script_search` FTS5 index over the repo's own code surface.
 
 The repo has ~57 scripts under helpers/, ~127 test modules under tests/,
-the root app.py, and 44 Makefile targets — and grows weekly. codebase-memory
+the root app.py, 44 Makefile targets — and the Mojo footprint (15
+Mojo/src + Mojo/tests modules) — and grows weekly. codebase-memory
 answers STRUCTURE questions (symbols, callers); it does not answer INTENT
 questions: which script audits relation diffs, which test file covers the
-yfinance driver, what `make qa` actually runs. That knowledge lives in
-module docstrings, argparse declarations, and the Makefile — unindexed.
-This script gives it the content-addressable treatment doc/ already has
-(proposal: doc/improvements/archive/tooling/script_metadata_search.md):
+yfinance driver, what `make qa` actually runs, which Mojo module owns the
+integrity parity checks. That knowledge lives in module docstrings,
+argparse declarations, the Makefile, and (for Mojo) `mojo doc`'s API JSON —
+unindexed. This script gives it the content-addressable treatment doc/
+already has (proposal:
+doc/improvements/archive/tooling/script_metadata_search.md; Mojo corpus:
+doc/improvements/archive/tooling/mojo_doc_script_search.md):
 
-- one FTS5 row per script / test module / make target, composed from the
-  module docstring (purpose = first paragraph), regex-extracted argparse
-  flags, AST-import-derived `tested_by` links, and Makefile wiring;
+- one FTS5 row per script / test module / make target / Mojo source module,
+  composed from the module docstring (purpose = first paragraph),
+  regex-extracted argparse flags, AST-import-derived `tested_by` links,
+  Makefile wiring, and for Mojo rows the `mojo doc` decl (signatures,
+  summaries, aliases) + the source's leading '#' header block;
 - per-row JSON embedding (local bge-small when available, deterministic
   pseudo fallback) for hybrid RRF ranking, reusing the shared
   (sha256(text), model) sidecar cache — machinery imported from
@@ -53,7 +59,9 @@ import hashlib
 import json
 import re
 import sqlite3
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 # Repo root: helpers/maintenance/rebuild_script_search.py -> parents[2]. Must
@@ -75,6 +83,14 @@ APP_PY = _REPO_ROOT / "app.py"
 MAKEFILE = _REPO_ROOT / "Makefile"
 SCRIPT_DB = _REPO_ROOT / "memory" / "script_search.db"
 BACKUP_DIR = _REPO_ROOT / "db-backup"
+# Mojo footprint (mojo_doc_script_search proposal): every src/test module is
+# one 'mojo' row, composed from `mojo doc` JSON (cached content-addressed in
+# the sidecar — ~3.5 s/file compiler cost must not ride every rebuild) plus
+# the source's leading '#' header block (mojo doc doesn't surface it, and
+# that's where the prose lives).
+MOJO_SRC_ROOT = _REPO_ROOT / "Mojo" / "src"
+MOJO_TESTS_ROOT = _REPO_ROOT / "Mojo" / "tests"
+MOJO_BIN = _REPO_ROOT / ".venv" / "bin" / "mojo"
 
 # FTS5 DDL, mirroring doc_search's shape (title is the match-heavy column;
 # kind/rel_path/area/purpose are UNINDEXED handles + display surface, never
@@ -114,6 +130,19 @@ SCRIPT_SEARCH_INFO_DDL = (
     "CREATE TABLE IF NOT EXISTS script_search_info ("
     " key TEXT PRIMARY KEY,"
     " value TEXT NOT NULL"
+    ")"
+)
+
+# Raw `mojo doc` JSON per Mojo unit, content-addressed (unit_path,
+# content_hash = blake2b of the SOURCE text). The ~3.5 s/file compiler
+# invocation only runs when the source hash changes; unchanged rebuilds read
+# the stored JSON. Lives in the same gitignored sidecar (rides the last-good
+# backup); delete the DB and one rebuild regenerates everything.
+MOJO_DOC_DDL = (
+    "CREATE TABLE IF NOT EXISTS script_search_mojo_doc ("
+    " unit_path TEXT PRIMARY KEY,"
+    " content_hash TEXT NOT NULL,"
+    " doc_json TEXT NOT NULL"
     ")"
 )
 
@@ -319,9 +348,11 @@ def _make_refs(targets: list[dict], known_paths: list[str]) -> dict[str, list[st
 
 def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> list[tuple]:
     """Compose every FTS row from the extracted units (pure function of the
-    units — deterministic, so row-level diffs are meaningful)."""
+    units — deterministic, so row-level diffs are meaningful). Mojo units
+    (kind='mojo') ride the same _row/embed path."""
     scripts = [u for u in py_units if u["kind"] == "script"]
     tests = [u for u in py_units if u["kind"] == "test"]
+    mojo_units = [u for u in py_units if u["kind"] == "mojo"]
     dotted_to_rel = {u["dotted"]: u["rel"] for u in scripts}
 
     # test -> imported script rels; inverse onto script rows (tested_by).
@@ -375,6 +406,12 @@ def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> lis
                     d for d in u["imports"] if d in dotted_to_rel
                 ),
             ),
+            embed_fn=embed_fn,
+        ))
+    for u in mojo_units:
+        rows.append(_row(
+            title=u["rel"], kind="mojo", rel_path=u["rel"], area=u["area"],
+            purpose=u["purpose"], content=_mojo_content(u),
             embed_fn=embed_fn,
         ))
     return rows
@@ -431,6 +468,230 @@ def _extract_make_unit(makefile: Path | None) -> dict | None:
         ).hexdigest(),
         "targets": _parse_makefile(text),
     }
+
+
+# --- Mojo footprint (mojo_doc_script_search proposal) -----------------------
+
+def _iter_mojo_units(src_root: Path | None = None,
+                     tests_root: Path | None = None):
+    """Yield (rel, abs_path, area) for every Mojo source/test module.
+
+    rel is "<Mojo-parent-name>/src/<pkg>/<name>.mojo" (or /tests/), built
+    from the roots' own parents so monkeypatched tmp trees behave like the
+    live tree. area mirrors the py convention: the package dir (bench/common)
+    for sources, 'test' for tests."""
+    src_root = Path(src_root or MOJO_SRC_ROOT)
+    tests_root = Path(tests_root or MOJO_TESTS_ROOT)
+    prefix = src_root.parent.name  # 'Mojo' live and in tmp trees alike
+    if src_root.is_dir():
+        for p in sorted(src_root.glob("*/*.mojo")):
+            yield f"{prefix}/src/{p.relative_to(src_root).as_posix()}", p, p.parent.name
+    if tests_root.is_dir():
+        for p in sorted(tests_root.glob("*.mojo")):
+            yield f"{prefix}/tests/{p.name}", p, "test"
+
+
+def _mojo_import_flags(src_root: Path) -> list[str]:
+    """-I flags for `mojo doc`: every src package dir + vendored lib srcs
+    (mirrors Makefile.mojo's MOJO_IMPORT_FLAGS)."""
+    flags: list[str] = []
+    for d in sorted(src_root.glob("*")):
+        if d.is_dir():
+            flags += ["-I", str(d)]
+    vendor = src_root.parent / "vendor"
+    for d in sorted(vendor.glob("*/src")) if vendor.is_dir() else []:
+        flags += ["-I", str(d)]
+    return flags
+
+
+def _run_mojo_doc(path: Path, src_root: Path, mojo_bin: Path | None) -> str | None:
+    """Raw `mojo doc` JSON text for one source, or None on any failure.
+
+    Writes to a temp file (-o) rather than stdout: the toolchain prints
+    compiler warnings to stdout too. ~3.5 s/file — callers must cache."""
+    binary = Path(mojo_bin or MOJO_BIN)
+    if not binary.is_file():
+        return None
+    with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as fh:
+        out = Path(fh.name)
+    try:
+        r = subprocess.run(  # noqa: S603  # repo-local venv binary, constant args
+            [str(binary), "doc", *_mojo_import_flags(src_root),
+             "-o", str(out), str(path)],
+            capture_output=True, text=True, timeout=90,
+            cwd=str(_REPO_ROOT), check=False,
+        )
+        if r.returncode != 0 or not out.is_file():
+            return None
+        return out.read_text(encoding="utf-8", errors="replace")
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    finally:
+        out.unlink(missing_ok=True)
+
+
+def _unwrap_mojo_decl(doc_json: str | None) -> dict | None:
+    """Parse a mojo doc document (stored or freshly generated) to its
+    `decl` tree; None on malformed input. Every stored form is the FULL
+    document ("decl" + "version") — unwrapping here is the single gate
+    that keeps both cache paths composing identical rows."""
+    if doc_json is None:
+        return None
+    try:
+        doc = json.loads(doc_json)
+    except json.JSONDecodeError:
+        return None
+    return doc.get("decl") if isinstance(doc, dict) else None
+
+
+def _mojo_stored_doc(conn: sqlite3.Connection | None, rel: str,
+                     chash: str) -> tuple[str | None, bool]:
+    """(doc_json, is_exact) for a unit from the sidecar cache: the exact
+    content-hash copy when present, else the LAST stored copy (the regen
+    fallback). (None, False) when never generated or the store errors."""
+    if conn is None:
+        return None, False
+    try:
+        row = conn.execute(
+            "SELECT doc_json FROM script_search_mojo_doc "
+            "WHERE unit_path = ? AND content_hash = ?",
+            (rel, chash),
+        ).fetchone()
+        if row is not None:
+            return row[0], True
+        old = conn.execute(
+            "SELECT doc_json FROM script_search_mojo_doc "
+            "WHERE unit_path = ?", (rel,),
+        ).fetchone()
+        return (old[0], False) if old else (None, False)
+    except sqlite3.Error:
+        return None, False
+
+
+def _mojo_decl_cached(conn: sqlite3.Connection | None, rel: str, chash: str,
+                      path: Path, src_root: Path,
+                      mojo_bin: Path | None) -> dict | None:
+    """Parsed `mojo doc` decl for a unit, via the content-addressed sidecar
+    cache (regenerate only when the source hash changed; a failed regen
+    falls back to the LAST stored JSON for that unit). --check mode also
+    populates the cache: it's source-derived like the embed cache (the
+    --check pre-warm lesson), not a content stamp."""
+    stored, exact = _mojo_stored_doc(conn, rel, chash)
+    if exact:
+        return _unwrap_mojo_decl(stored)
+    generated = _run_mojo_doc(path, src_root, mojo_bin)
+    if generated is not None:
+        decl = _unwrap_mojo_decl(generated)
+        if decl is not None:
+            if conn is not None:
+                try:
+                    with conn:
+                        conn.execute(
+                            "INSERT OR REPLACE INTO script_search_mojo_doc "
+                            "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
+                            (rel, chash, generated),
+                        )
+                except sqlite3.Error:
+                    pass
+            return decl
+    return _unwrap_mojo_decl(stored)
+
+
+def _flatten_mojo_decl(decl: dict) -> tuple[str, list[str]]:
+    """(details block, top-level def names) from a `mojo doc` decl.
+
+    One line per API item: fn name(signature) — summary; args are already in
+    the signature, so only docstring summaries are appended. Aliases carry
+    their comptime value (constants ARE surface for graph-algos-style code);
+    structs carry field name: type lines."""
+    lines: list[str] = []
+    defs: list[str] = []
+    for fn in decl.get("functions", []):
+        defs.append(fn["name"])
+        ov = fn["overloads"][0] if fn.get("overloads") else {}
+        line = f"fn {ov.get('signature') or fn['name']}"
+        summary = (ov.get("summary") or ov.get("description") or "").strip()
+        if summary:
+            line += f" — {' '.join(summary.split())}"
+        lines.append(line)
+    for alias in decl.get("aliases", []):
+        defs.append(alias["name"])
+        value = (alias.get("value") or "").strip()
+        shown = f" = {value}" if value and len(value) <= 120 else ""
+        lines.append(f"alias {alias['name']}{shown}")
+    for st in decl.get("structs", []):
+        defs.append(st["name"])
+        lines.append(f"struct {st['name']}")
+        for field in st.get("fields", []):
+            lines.append(f"  {field['name']}: {field.get('type', '')}")
+    for tr in decl.get("traits", []):
+        defs.append(tr["name"])
+        lines.append(f"trait {tr['name']}")
+    return "\n".join(lines[:60]), defs
+
+
+def _mojo_header_purpose(src: str) -> str:
+    """First paragraph of the leading '#' comment block (mojo doc does not
+    surface '#' comments, and that's where our module prose lives)."""
+    lines: list[str] = []
+    for line in src.split("\n"):
+        if line.startswith("#"):
+            lines.append(line.lstrip("#").strip())
+        elif line.strip():
+            break  # first non-comment, non-blank code line ends the header
+    para: list[str] = []
+    for line in lines:
+        if not line:
+            break
+        para.append(line)
+    return " ".join(" ".join(para).split())
+
+
+def _extract_mojo_unit(rel: str, path: Path, area: str, decl: dict | None,
+                       mtime: float, chash: str) -> dict:
+    """One mojo unit dict, same shape contract as the py units."""
+    try:
+        src = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        src = ""
+    purpose, details, defs = "", "", []
+    if decl is not None:
+        details, defs = _flatten_mojo_decl(decl)
+        # mojo doc splits the module docstring: first paragraph -> 'summary',
+        # remainder -> 'description' (both must join, or the purpose loses
+        # its opening sentence — the whole intent line for most modules).
+        purpose = (
+            (decl.get("summary") or "") + " " + (decl.get("description") or "")
+        ).strip()
+    if not purpose:
+        purpose = _mojo_header_purpose(src)
+    if not purpose:
+        purpose = path.stem.replace("_", " ")
+    return {
+        "rel": rel,
+        "kind": "mojo",
+        "area": area,
+        "purpose": " ".join(purpose.split())[:240],
+        "details": details,
+        "defs": defs,
+        "mtime": mtime,
+        "hash": chash,
+    }
+
+
+def _mojo_content(u: dict) -> str:
+    """Labeled content block for a mojo row (no cross-file wiring yet: the
+    Makefile.mojo rules are wildcard-based, so no per-module make targets
+    exist; mojo tests can't be AST-import-matched)."""
+    parts = [f"purpose: {u['purpose']}"]
+    if u["details"]:
+        parts.append(f"api:\n{u['details'][:_DETAILS_CAP]}")
+    if u["defs"]:
+        shown = ", ".join(u["defs"][:_DEFS_CAP])
+        if len(u["defs"]) > _DEFS_CAP:
+            shown += f" (+{len(u['defs']) - _DEFS_CAP} more)"
+        parts.append(f"defs: {shown}")
+    return "\n".join(parts)
 
 
 def _stamp_model(conn: sqlite3.Connection, model_label: str, dims: int) -> None:
@@ -497,10 +758,18 @@ def _migrate_schema(conn: sqlite3.Connection) -> bool:
     return True
 
 
-def _collect_units(helpers_root, tests_root, app_py, makefile):
-    """Extract every unit: py files + the Makefile. Returns (py_units,
-    make_unit, units_meta) where units_meta keys the --check/incremental
-    fingerprint."""
+def _collect_units(helpers_root, tests_root, app_py, makefile, conn=None,
+                   mojo_src=None, mojo_tests=None, mojo_bin=None):
+    """Extract every unit: py files + the Makefile + Mojo sources/tests.
+    Returns (py_units, make_unit, units_meta) where units_meta keys the
+    --check/incremental fingerprint. Mojo units are APPENDED to py_units
+    (they flow through the same compose/embed/write paths; kind='mojo').
+
+    Mojo roots DERIVE from the helpers root's parent (<base>/Mojo/src|tests)
+    when not passed explicitly — the VAULT_ROOT lesson applied to the new
+    corpus: tmp-tree tests that retarget helpers_root must not silently
+    sweep the LIVE Mojo tree (and its ~3.5 s/file `mojo doc`) into their
+    fixtures."""
     py_units = []
     for rel, path, kind in _iter_py_units(helpers_root, tests_root, app_py):
         unit = _extract_py_unit(path, rel, kind)
@@ -510,6 +779,20 @@ def _collect_units(helpers_root, tests_root, app_py, makefile):
     units_meta = {u["rel"]: (u["mtime"], u["hash"]) for u in py_units}
     if make_unit is not None:
         units_meta[make_unit["rel"]] = (make_unit["mtime"], make_unit["hash"])
+    base = Path(helpers_root or HELPERS_ROOT).parent
+    src_root = Path(mojo_src) if mojo_src else base / "Mojo" / "src"
+    mojo_tests_root = Path(mojo_tests) if mojo_tests else base / "Mojo" / "tests"
+    for rel, path, area in _iter_mojo_units(src_root, mojo_tests_root):
+        try:
+            mtime = path.stat().st_mtime
+            src_bytes = path.read_bytes()
+        except OSError:
+            continue
+        chash = hashlib.blake2b(src_bytes, digest_size=8).hexdigest()
+        decl = _mojo_decl_cached(conn, rel, chash, path, src_root, mojo_bin)
+        py_units.append(
+            _extract_mojo_unit(rel, path, area, decl, mtime, chash))
+        units_meta[rel] = (mtime, chash)
     return py_units, make_unit, units_meta
 
 
@@ -619,6 +902,7 @@ def rebuild(db_path: Path | None = None, write: bool = True, incremental: bool =
         conn.execute(SCRIPT_SEARCH_DDL)
         conn.execute(SCRIPT_SEARCH_META_DDL)
         conn.execute(SCRIPT_SEARCH_INFO_DDL)
+        conn.execute(MOJO_DOC_DDL)
         # Resolve the embedder once; internally-resolved embedders get the
         # shared (sha256, model) sidecar cache (Attached as <sidecar>_vec.db —
         # shared text populations with the other indexers are free cache hits).
@@ -631,7 +915,7 @@ def rebuild(db_path: Path | None = None, write: bool = True, incremental: bool =
                 embed_fn = CachedEmbed(embed_fn, model_label, conn, source="script")
 
         py_units, make_unit, units_meta = _collect_units(
-            helpers_root, tests_root, app_py, makefile
+            helpers_root, tests_root, app_py, makefile, conn=conn,
         )
         all_rows = _compose_rows(py_units, make_unit, embed_fn)
 
@@ -737,8 +1021,9 @@ def script_index_ready(conn: sqlite3.Connection) -> bool:
 
 def _scan_disk_units(bases: list[Path]) -> set[str]:
     """Unit paths visible on disk under the candidate roots ('helpers/x.py',
-    'tests/y.py', 'app.py', 'Makefile') — the stale probe's corpus walk
-    (mirrors _iter_py_units' rel-path convention)."""
+    'tests/y.py', 'app.py', 'Makefile', 'Mojo/src/<pkg>/<n>.mojo',
+    'Mojo/tests/<n>.mojo') — the stale probe's corpus walk (rel-path
+    convention matches _iter_py_units/_iter_mojo_units)."""
     on_disk: set[str] = set()
     for base in bases:
         for name in ("helpers", "tests"):
@@ -752,7 +1037,23 @@ def _scan_disk_units(bases: list[Path]) -> set[str]:
             on_disk.add("app.py")
         if (base / "Makefile").is_file():
             on_disk.add("Makefile")
+        on_disk.update(_scan_mojo_units(base))
     return on_disk
+
+
+def _scan_mojo_units(base: Path) -> set[str]:
+    """Mojo source/test unit paths under one candidate base (rel-path
+    convention matches _iter_mojo_units)."""
+    units: set[str] = set()
+    mojo_src = base / "Mojo" / "src"
+    if mojo_src.is_dir():
+        for p in mojo_src.rglob("*.mojo"):
+            units.add(f"Mojo/src/{p.relative_to(mojo_src).as_posix()}")
+    mojo_tests = base / "Mojo" / "tests"
+    if mojo_tests.is_dir():
+        for p in mojo_tests.glob("*.mojo"):
+            units.add(f"Mojo/tests/{p.name}")
+    return units
 
 
 def _units_current(meta: dict[str, float], on_disk: set[str],

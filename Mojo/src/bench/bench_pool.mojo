@@ -1,16 +1,19 @@
-# bench_pool.mojo — process-pool scaling of the SIMD cosine-KNN kernel.
-#
-# Mojo equivalent of the Python embed-pool bench (2026-08-29): N worker
-# processes, each computing top-1 cosine for its slice of the query rows
-# against the full matrix. Mojo 1.0 stdlib has NO host-threads API
-# (parallelize/Thread/spawn absent, verified via mojo-mcp docs), so the
-# honest equivalent of the Python spawn-Pool is N compiled processes —
-# which also isolates whether the unpinned Python-pool collapse was
-# ggml-specific (these workers are plain SIMD, no llama).
-#
-# usage: bench_pool <matrix.f32> <rows> <dims> <nqueries> <worker> <nworkers> <reps>
-# matrix doubles as query bank: query i = matrix row i (pilot convention).
-# Prints: worker=<w> queries=<k> compute_ms=<best> score_sum=<S> last_top=<i>:<s>
+"""
+ bench_pool.mojo — process-pool scaling of the SIMD cosine-KNN kernel.
+
+ Mojo equivalent of the Python embed-pool bench (2026-08-29): N worker
+ processes, each computing top-1 cosine for its slice of the query rows
+ against the full matrix. Mojo 1.0 stdlib has NO host-threads API
+ (parallelize/Thread/spawn absent, verified via mojo-mcp docs), so the
+ honest equivalent of the Python spawn-Pool is N compiled processes —
+ which also isolates whether the unpinned Python-pool collapse was
+ ggml-specific (these workers are plain SIMD, no llama).
+
+ usage: bench_pool <matrix.f32> <rows> <dims> <nqueries> <worker> <nworkers> <reps>
+ matrix doubles as query bank: query i = matrix row i (pilot convention).
+ Prints: worker=<w> queries=<k> compute_ms=<best> score_sum=<S> last_top=<i>:<s>
+"""
+
 
 from std.io.file import open
 from std.memory.alloc import alloc, Layout
@@ -46,7 +49,9 @@ def row_cosine(
     return dot / (query_norm * row_norm)
 
 
-def load_f32(path: String, count: Int) raises -> Pointer[Float32, MutUntrackedOrigin]:
+def load_f32(
+    path: String, count: Int
+) raises -> Pointer[Float32, MutUntrackedOrigin]:
     """Typed-read count float32 values (read_bytes() clobbers the first
     8 bytes on this toolchain — see bench_cosine.mojo)."""
     var p = alloc(Layout[Float32](count=count)).unsafe_leak()
@@ -83,7 +88,9 @@ def main() raises:
         if q % nworkers == worker:
             mine += 1
 
-    def work() {imm matrix, imm rows, imm dims, imm nqueries, imm worker, imm nworkers} -> Tuple[Int, Float64, Float64]:
+    def work() {
+        imm matrix, imm rows, imm dims, imm nqueries, imm worker, imm nworkers
+    } -> Tuple[Int, Float64, Float64]:
         var score_sum: Float64 = 0.0
         var best_idx: Int = -1
         var best_score: Float64 = -2.0

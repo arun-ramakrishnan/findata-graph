@@ -1,16 +1,19 @@
-# Cosine-KNN benchmark — the Mojo leg of the Mojo/tests/bench_cosine_knn.py harness.
-#
-# Times a SIMD-vectorized whole-corpus brute-force cosine scan (dot product
-# + per-row norm per row — the same math as the Python cosine fallback in
-# app.py._scored_rows._cosine) over a real note-embedding corpus dumped to
-# a raw float32 file by the Python driver. Results + verdict:
-# doc/local/mojo_pilot.md.
-#
-# File format is headerless little-endian float32; rows/dims/reps arrive on
-# the command line:
-#   mojo run Mojo/src/bench/bench_cosine.mojo <matrix.f32> <query.f32> <rows> <dims> <reps>
-# (or build once with `mojo build` and run the binary directly — the
-# Python driver does exactly that so process startup is measurable too).
+"""
+ Cosine-KNN benchmark — the Mojo leg of the Mojo/tests/bench_cosine_knn.py harness.
+
+ Times a SIMD-vectorized whole-corpus brute-force cosine scan (dot product
+ + per-row norm per row — the same math as the Python cosine fallback in
+ app.py._scored_rows._cosine) over a real note-embedding corpus dumped to
+ a raw float32 file by the Python driver. Results + verdict:
+ doc/local/mojo_pilot.md.
+
+ File format is headerless little-endian float32; rows/dims/reps arrive on
+ the command line:
+   mojo run Mojo/src/bench/bench_cosine.mojo <matrix.f32> <query.f32> <rows> <dims> <reps>
+ (or build once with `mojo build` and run the binary directly — the
+ Python driver does exactly that so process startup is measurable too).
+"""
+
 
 from std.io.file import open
 from std.memory.alloc import alloc, Layout
@@ -45,7 +48,9 @@ def row_cosine(
     return dot / (query_norm * row_norm)
 
 
-def load_f32(path: String, count: Int) raises -> Pointer[Float32, MutUntrackedOrigin]:
+def load_f32(
+    path: String, count: Int
+) raises -> Pointer[Float32, MutUntrackedOrigin]:
     """Typed-read `count` float32 values from a headerless binary dump.
 
     read_bytes() is deliberately NOT used: on this toolchain (Mojo 1.0.0)
@@ -60,8 +65,12 @@ def load_f32(path: String, count: Int) raises -> Pointer[Float32, MutUntrackedOr
     if nbytes != count * 4:
         p.unsafe_free()
         raise Error(
-            "expected " + String(count * 4) + " bytes from " + path
-            + ", got " + String(nbytes)
+            "expected "
+            + String(count * 4)
+            + " bytes from "
+            + path
+            + ", got "
+            + String(nbytes)
         )
     return p
 
@@ -69,7 +78,9 @@ def load_f32(path: String, count: Int) raises -> Pointer[Float32, MutUntrackedOr
 def main() raises:
     var args = argv()
     if len(args) < 6:
-        print("usage: bench_cosine <matrix.f32> <query.f32> <rows> <dims> <reps>")
+        print(
+            "usage: bench_cosine <matrix.f32> <query.f32> <rows> <dims> <reps>"
+        )
         raise Error("expected 5 arguments: matrix, query, rows, dims, reps")
     var matrix_path = String(args[1])
     var query_path = String(args[2])
@@ -91,7 +102,9 @@ def main() raises:
         query_sq += q * q
     var query_norm = sqrt(query_sq)
 
-    def scan() {imm rows, imm dims, imm matrix, imm query, imm query_norm} -> Tuple[Int, Float64]:
+    def scan() {
+        imm rows, imm dims, imm matrix, imm query, imm query_norm
+    } -> Tuple[Int, Float64]:
         var best_idx: Int = -1
         var best_score: Float64 = -2.0
         for r in range(rows):

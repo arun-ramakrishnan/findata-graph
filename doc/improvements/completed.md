@@ -4298,6 +4298,7 @@ green through the symlink (81 doc files / 201 script units / 1237
 notes). Known unrelated: `test_graph_stats` interference when run after
 `test_api_graph_unit` — reproduces on pre-change code (stash-verified),
 pre-existing, not touched here.
+
 ## 186. LiteParse PDF engine promotion — OCR fallback + bbox sidecar (Slices 0–2)
 
 **Date:** 2026-09-01 · **Type:** pipeline (PDF) · **Proposal:** `doc/improvements/archive/pipeline/liteparse_pdf_engine.md` (filed 2026-09-01, Slices 0–2 executed same day) · **Follows:** `archive/pipeline/local_pdf_conversion_fallback.md` (#156), `doc/local/perf_skills.md:9.1` trial
@@ -4313,3 +4314,126 @@ pre-existing, not touched here.
 
 **Archival:** proposal moved to `archive/pipeline/`, `archive/README.md` pipeline index + `proposals/README.md` `_(none)_` (already), `pending.md` has no liteparse items; `embed_eval_questions.json` unchanged (no `proposals/` refs). Search indexes converged via `make search-fresh APPLY=1` + `make search-fresh` (doc/script/note 81/201/1237, 0 embed misses).
 
+## 187
+
+**Date:** 2026-08-30 · **Type:** tooling (lint + perf gates) ·
+**Files:** `tests/test_lint_gates.py` (new, 3 tests), `Mojo/bench/run_bench.py`,
+`Makefile` + `Makefile.mojo` (new `mojo-fmt` target), all 13
+`Mojo/src/**/*.mojo` + `Mojo/tests/*.mojo` (one-time format normalization) ·
+
+**Lint gates made pytest-visible, both footprints.** Python keeps `make lint`
+(ruff E/F, unchanged config) — new `tests/test_lint_gates.py` runs it as a
+pytest so it rides the `make qa` pytest leg, and adds the property the raw
+invocation can't express: every `git ls-files '*.py'` file is passed to ruff
+EXPLICITLY (explicit paths bypass ruff's gitignore/built-in exclusions, so a
+tracked file that fell into an excluded dir would fail — pins shut the same
+exclusion-blind-spot class as the doc/local search-index surprise,
+#184/#185). The Mojo harness Python (`Mojo/bench/*.py`) is in that tracked
+set, so it is linted like everything else.
+
+**Mojo footprint lint = `mojo format` copy-check.** This toolchain's
+`mojo format` has no `--check` flag, so the gate formats a COPY under
+tmp_path and byte-compares — the tree is never mutated by the test.
+One-time normalization landed first (`make mojo-fmt`, new target): 12 of 13
+files reformatted (~1.4k mechanical diff lines, integrity_check.mojo
+dominating); `mojo build` + `make mojo-test` verified green post-format.
+Vendored Mojo (`Mojo/vendor/`) is deliberately not gated. Negative-tested:
+a perturbed source fails the test with the `make mojo-fmt` hint.
+
+**Perf gates for the Mojo bench legs.** `run_bench.py` used budgets only as
+kill-timeouts (a leg 3x slower than historical still passed); it now carries
+a per-leg `gate` — a measured wall-clock ceiling checked separately from rc,
+mirroring `make perf`'s runner. rc-clean-but-over-gate → OVER_BUDGET row +
+exit 1. Gates calibrated from the 2026-08-30 full-harness run at loadavg
+4.68 (cosine-knn 7.1s→20, analyzer 0.45→3, pool-4x 0.27→5, regex-bridge
+2.6→8, yaml-corpus 0.12→5, regex-corpus 26.6→60, db-access 16.2→40,
+db-integrity 2.0→10, graph-algos 31.2→60) with ~2-3x headroom; note the
+yaml/regex-corpus gate covers only the corpus_sweep binary — the
+/tmp/note_paths.txt regen is outside the measured window. Negative-tested:
+gate pinned to 0.5s → ✗ row + rc 1; restored → rc 0. Wall-clock still
+deliberately lives ONLY in make runners (test_performance.py's 2026-08-14
+doctrine stands) — these gates are in `run_bench.py`, not pytest.
+
+Verified: full `make mojo-bench` 9/9 legs green under the new gates (and
+graph-algos parity 23/23 SQL + 16/16 metrics, unchanged); lint-gate tests
+3/3 in ~1.3s; ruff + ty clean on changed files; `make mojo-fmt` idempotent
+(second run: 0 reformatted).
+
+## 188
+
+**Date:** 2026-08-30 · **Type:** tooling (search index) ·
+**Files:** `helpers/maintenance/rebuild_script_search.py`, `helpers/misc/script_query.py`,
+`tests/test_rebuild_script_search_mojo.py` (new, 7 tests) ·
+**Proposal:** doc/improvements/archive/tooling/mojo_doc_script_search.md (EXECUTED same day)
+
+**Mojo API surface joins the script index.** Every `Mojo/src/*/*.mojo` +
+`Mojo/tests/*.mojo` module (13 files, 138 functions) is now a `script_search`
+row — `kind='mojo'`, `area` = package dir (bench/common) or `test` —
+composed from TWO sources: `mojo doc`'s structured API JSON (signatures,
+`##` docstring summaries, comptime alias values, struct fields — the
+surface) and the source's leading `#` header block (which `mojo doc` does
+not surface — and where the intent prose lives; only 16/70 functions carry
+`##` docstrings today). Purpose precedence: module docstring → header
+paragraph → stem. Rows embed through the shared cache; hybrid BM25+cosine,
+`--kind mojo` / `--area bench|common` filters, and the freshness/incremental
+machinery all work unchanged (mojo units join `units_meta` with the same
+(mtime, hash) fingerprint; no FTS schema change).
+
+**Storage**: raw `mojo doc` JSON is cached content-addressed in the sidecar
+(`script_search_mojo_doc(unit_path, content_hash, doc_json)` inside
+script_search.db, rides the last-good backup) — the compiler invocation
+costs ~3.5 s/file, so it only runs when a source's hash changes; warm
+rebuilds shell out 0 times (live: 2.9 s / 271 rows / 271 embed-cache hits).
+Failures degrade: regen failure falls back to the LAST stored doc, and a
+never-documented unit still indexes from its header alone.
+
+**Two bugs caught by the row-equality regression pin** (cache-hit rebuild ==
+generated rebuild): both stored-doc return paths initially handed back the
+FULL mojo doc document instead of unwrapping to `decl` — the fallback (caught
+by the degrade test) and the exact-hash hit path (caught live: the 2nd
+rebuild silently stripped every api: block and re-embedded 13 rows before
+the pin forced the fix).
+
+Verified: 7 new + 17 existing script_search tests green (tmp Mojo tree, fake
+doc generator, roots derived from the helpers root's parent so fixtures can
+never sweep the live Mojo tree); live `script_query "canonical parity
+metric" --kind mojo` ranks the probe modules; "Stopwords comptime alias"
+surfaces alias values in snippets; search-fresh green after APPLY.
+
+## 189
+
+**Date:** 2026-08-30 · **Type:** tooling (docs/search quality) ·
+**Files:** 13 × `Mojo/src/**/*.mojo` + `Mojo/tests/*.mojo` (module
+docstrings), `helpers/maintenance/rebuild_script_search.py` (one-line
+purpose fix), `tests/test_rebuild_script_search_mojo.py` ·
+**Proposal:** doc/improvements/archive/tooling/mojo_docstring_promotion.md
+(EXECUTED same day, 2 deviations documented in its Execution notes)
+
+**Every Mojo module now carries its intent prose as a real docstring.**
+The 13 source/test files' `#` prose banners — previously invisible to
+`mojo doc` (all 13 module descriptions empty) and to the script_search
+mojo rows (5 import-first modules indexed with stem-fallback purposes,
+e.g. `integrity_check.mojo` as literally "integrity check") — are now
+top-of-file `"""` module docstrings. `mojo doc` JSON: 13/13 modules carry
+summary+description (integrity_check 1.7 KB incl. the POLICY + section
+map; corpus_sweep 1.4 KB; graph_algos_probe 1.6 KB incl. the §1–§4
+structure). The indexer's purpose joins `decl.summary + decl.description`
+(mojo doc splits first-paragraph vs remainder — reading `description`
+alone drops the opening sentence; pinned by test). No behavior change:
+comments are inert; `mojo build` + `make mojo-test` + format gate green;
+live warm rebuild 1.6 s / 0 embed misses.
+
+**Two execution discoveries** (full detail in the proposal's Execution
+notes): (1) `##` comment blocks do NOT register as docstrings in this
+toolchain — docstrings are `"""` string literals (the design's `##`
+assumption produced 0/13 and was caught by the 13/13 verification before
+anything shipped); (2) the proposal's "6+ fn-adjacent promotion sites"
+were an inventory-script artifact — zero exist; all function docs were
+already `"""` literals, so the promotion is module-level only.
+
+Acceptance: "how consistent is the database" `--kind mojo` →
+`integrity_check.mojo` ranks FIRST (was `test_cosine.mojo`); purposes
+across the mojo corpus are full prose. Remaining known limit: queries
+whose answer genuinely isn't in Mojo code (e.g. community detection —
+that lives in the Onager extension / Python fixture) still surface
+nearest-neighbors, not answers.

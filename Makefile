@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild mojo-bench mojo-build mojo-test relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check maint maint-full metrics-rebuild mojo-bench mojo-build mojo-test mojo-fmt relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -56,8 +56,9 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
 > @echo "  maint-full               Post-ingest re-derivation: PRE_FULL index refresh (sync-tags, note-search) + maint + TIER2_STEPS (sector gates, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
 > @echo "  metrics-rebuild          Refresh company financials + note industry sections from yfinance (~1 min, 931 tickers)"
-> @echo "  mojo-bench               Run Mojo/bench/run_bench.py legs: cosine-knn, analyzer, pool-4x, regex-bridge, yaml-corpus, regex-corpus, db-access, db-integrity, graph-algos (report: Mojo/bench/bench_report.txt)"
+> @echo "  mojo-bench               Run perf-gated Mojo bench legs (cosine-knn, analyzer, pool-4x, regex-bridge, yaml-corpus, regex-corpus, db-access, db-integrity, graph-algos) — measured-time gate per leg, report: Mojo/bench/bench_report.txt"
 > @echo "  mojo-build               Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)"
+> @echo "  mojo-fmt                 Normalize Mojo/src + Mojo/tests with `mojo format` (fix for the tests/test_lint_gates.py format gate)"
 > @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt"
@@ -142,6 +143,9 @@ mojo-build:      ## Compile Mojo/ sources to native binaries in Mojo/bin/ (incre
 
 mojo-test:       ## Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)
 > $(MAKE) -f Makefile.mojo mojo-test
+
+mojo-fmt:        ## Normalize Mojo/src + Mojo/tests with `mojo format` (fix for the tests/test_lint_gates.py format gate)
+> $(MAKE) -f Makefile.mojo mojo-fmt
 
 # GF fallback pass runs AFTER the yfinance pass (it consumes that report's
 # [ticker_issues]); curated + tier 1 by default, --tier2 adds BSE

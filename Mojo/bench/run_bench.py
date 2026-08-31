@@ -41,6 +41,16 @@ Usage: .venv/bin/python3 Mojo/bench/run_bench.py [--scales 1,4,16]
           [--reps 3] [--leg NAME ...] [--list] [--keep-going]
 Exit 0 when every leg passes, 1 otherwise. NOT wired into `make perf` —
 a Mojo toolchain dependency does not belong in a regression gate.
+
+Perf gating (2026-08-30, mirrors tests/run_perf_benchmarks.py): each leg
+carries a `gate` — a measured wall-clock ceiling checked SEPARATELY from
+rc — and a `budget`, which stays a pure kill-timeout. A leg that finishes
+rc-clean but over its gate reports OVER_BUDGET and fails the harness, so
+a 3x slowdown passes neither the table nor `make mojo-bench`. Gates are
+steady-state numbers calibrated from bench_report.txt observations on the
+dev host with ~2x headroom; budget remains the generous safety net
+(parities/parity-gates may be slower on a loaded box without tripping
+rc, but the OVER_BUDGET row will say so).
 """
 from __future__ import annotations
 
@@ -213,22 +223,30 @@ LEGS: dict[str, dict] = {}  # filled by _build_legs(scales, reps)
 
 def _build_legs(scales: str, reps: int) -> dict[str, dict]:
     env = dict(os.environ, PATH=f"{REPO_ROOT / '.venv' / 'bin'}:{os.environ.get('PATH', '')}")
+    # gate = measured wall-clock ceiling (perf gate); budget = kill timeout.
+    # Gates calibrated 2026-08-30 from the bench_report.txt run at
+    # loadavg 4.68 (times: cosine 7.1, analyzer 0.45, pool 0.27, bridge 2.6,
+    # yaml 0.12, regex-corpus 26.6, db-access 16.2, db-integrity 2.0,
+    # graph-algos 31.2) with ~2-3x headroom. Note yaml/regex-corpus gate
+    # only covers the corpus_sweep BINARY — /tmp/note_paths.txt regen time
+    # is deliberately outside the measured window (it's I/O, not the
+    # kernel under test).
     return {
         "cosine-knn": dict(
-            budget=150.0,
+            budget=150.0, gate=20.0,
             fn=lambda: _run("cosine", [sys.executable, str(
                 REPO_ROOT / "Mojo" / "bench" / "bench_cosine_knn.py"),
                 "--scales", scales, "--reps", str(reps)], 150.0)),
-        "analyzer": dict(budget=60.0, fn=lambda: _run(
+        "analyzer": dict(budget=60.0, gate=3.0, fn=lambda: _run(
             "analyzer", [str(BIN / "analyzer")], 60.0)),
-        "pool-4x": dict(budget=90.0, fn=_leg_pool),
-        "regex-bridge": dict(budget=60.0, fn=lambda: _run(
+        "pool-4x": dict(budget=90.0, gate=5.0, fn=_leg_pool),
+        "regex-bridge": dict(budget=60.0, gate=8.0, fn=lambda: _run(
             "regex", [str(BIN / "mojo_regex_probe")], 60.0, env=env)),
-        "yaml-corpus": dict(budget=120.0, fn=_leg_yaml),
-        "regex-corpus": dict(budget=150.0, fn=_leg_regex_corpus),
-        "db-access": dict(budget=120.0, fn=_leg_db_access),
-        "db-integrity": dict(budget=120.0, fn=_leg_db_integrity),
-        "graph-algos": dict(budget=120.0, fn=_leg_graph_algos),
+        "yaml-corpus": dict(budget=120.0, gate=5.0, fn=_leg_yaml),
+        "regex-corpus": dict(budget=150.0, gate=60.0, fn=_leg_regex_corpus),
+        "db-access": dict(budget=120.0, gate=40.0, fn=_leg_db_access),
+        "db-integrity": dict(budget=120.0, gate=10.0, fn=_leg_db_integrity),
+        "graph-algos": dict(budget=120.0, gate=60.0, fn=_leg_graph_algos),
     }
 
 
@@ -245,7 +263,8 @@ def main() -> int:
     legs = _build_legs(args.scales, args.reps)
     if args.list:
         for name, spec in legs.items():
-            print(f"{name:14s} budget {spec['budget']:.0f}s")
+            print(f"{name:14s} gate {spec['gate']:.0f}s  "
+                  f"(timeout {spec['budget']:.0f}s)")
         return 0
     todo = [n for n in legs if not args.leg or n in args.leg]
 
@@ -255,15 +274,18 @@ def main() -> int:
     for name in todo:
         spec = legs[name]
         print(f"  running {name} ...", flush=True)
-        dt, ok, tail = spec["fn"]()
-        results.append((name, dt, spec["budget"], ok, tail))
+        dt, rc_ok, tail = spec["fn"]()
+        # Perf gate: rc-clean but over the measured-time ceiling → OVER_BUDGET
+        # (still a failure; rc failures keep their plain FAIL + tail detail).
+        over = rc_ok and dt > spec["gate"]
+        results.append((name, dt, spec["gate"], rc_ok and not over, tail))
 
     lines = ["", f"Mojo bench {time.strftime('%Y-%m-%d %H:%M')}  "
              f"loadavg={_loadavg()}  scales={args.scales} reps={args.reps}", ""]
-    lines.append("Leg               Time (s)   Budget   Status")
+    lines.append("Leg               Time (s)    Gate   Status")
     lines.append("-" * 52)
-    for name, dt, budget, ok, tail in results:
-        lines.append(f"  {name:.<15s} {dt:7.2f}  {budget:7.0f}s   "
+    for name, dt, gate, ok, tail in results:
+        lines.append(f"  {name:.<15s} {dt:7.2f}  {gate:7.1f}s   "
                      f"{'✓' if ok else '✗ FAIL'}")
     for name, dt, budget, ok, tail in results:
         lines.append(f"--- {name} ({dt:.2f}s) ---")

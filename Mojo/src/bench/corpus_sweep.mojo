@@ -1,28 +1,31 @@
-# Corpus sweep — the one Mojo tool over the whole findata corpus.
-#
-# Phases (argv[1], default "all"):
-#   yaml   — vendored mojo-yaml (Mojo/vendor/mojo-yaml) parses every
-#            note FRONTMATTER; expects FAIL: 0. PURE MOJO: no Python
-#            bridge, no CPython — the vendoring proof stays hermetic.
-#   regex  — every findall battery pattern (Mojo/bench/mojo_regex_cases
-#            .json, single source) over every note BODY, driven through
-#            the Python `regex` bridge; match-count PARITY with the
-#            native Python scan (Mojo/bench/mojo_regex_corpus.py) is the
-#            correctness check, the two elapsed times are the comparison.
-# Shared: /tmp/note_paths.txt (one absolute path per line). Regenerate:
-#   .venv/bin/python3 -c "import sys; sys.path.insert(0,'.'); \
-#     from helpers.maintenance.rebuild_note_search import _iter_findata_docs; \
-#     print('\\n'.join(str(p) for _t, p, _r in _iter_findata_docs()))" \
-#     > /tmp/note_paths.txt
-# (the bench harness regenerates it before each corpus leg)
-#
-# Standing runs:
-#   make mojo-bench MOJO_BENCH_ARGS='--leg yaml-corpus'    # phase yaml
-#   make mojo-bench MOJO_BENCH_ARGS='--leg regex-corpus'   # phase regex
-# The native phase is AD-HOC ONLY (~60 s; removed from the harness as too
-# slow — measured 2026-08-29: 8.5x slower than Python and 18/24 pattern
-# mismatches, see bench_report.txt history):
-#   Mojo/bin/corpus_sweep native
+"""
+ Corpus sweep — the one Mojo tool over the whole findata corpus.
+
+ Phases (argv[1], default "all"):
+   yaml   — vendored mojo-yaml (Mojo/vendor/mojo-yaml) parses every
+            note FRONTMATTER; expects FAIL: 0. PURE MOJO: no Python
+            bridge, no CPython — the vendoring proof stays hermetic.
+   regex  — every findall battery pattern (Mojo/bench/mojo_regex_cases
+            .json, single source) over every note BODY, driven through
+            the Python `regex` bridge; match-count PARITY with the
+            native Python scan (Mojo/bench/mojo_regex_corpus.py) is the
+            correctness check, the two elapsed times are the comparison.
+ Shared: /tmp/note_paths.txt (one absolute path per line). Regenerate:
+   .venv/bin/python3 -c "import sys; sys.path.insert(0,'.'); \
+     from helpers.maintenance.rebuild_note_search import _iter_findata_docs; \
+     print('\\n'.join(str(p) for _t, p, _r in _iter_findata_docs()))" \
+     > /tmp/note_paths.txt
+ (the bench harness regenerates it before each corpus leg)
+
+ Standing runs:
+   make mojo-bench MOJO_BENCH_ARGS='--leg yaml-corpus'    # phase yaml
+   make mojo-bench MOJO_BENCH_ARGS='--leg regex-corpus'   # phase regex
+ The native phase is AD-HOC ONLY (~60 s; removed from the harness as too
+ slow — measured 2026-08-29: 8.5x slower than Python and 18/24 pattern
+ mismatches, see bench_report.txt history):
+   Mojo/bin/corpus_sweep native
+"""
+
 
 from std.collections import Dict
 from std.python import Python, PythonObject
@@ -105,8 +108,19 @@ def phase_regex(paths: List[String]) raises -> Bool:
             matches += res.__len__()  # dunder returns Mojo Int directly
     var t1 = perf_counter_ns()
     var dt = Float64(t1 - t0) / 1_000_000_000.0
-    print("mojo  : docs=", len(paths), " bytes=", nbytes, " patterns=", npat,
-          " matches=", matches, " elapsed=", dt, "s")
+    print(
+        "mojo  : docs=",
+        len(paths),
+        " bytes=",
+        nbytes,
+        " patterns=",
+        npat,
+        " matches=",
+        matches,
+        " elapsed=",
+        dt,
+        "s",
+    )
 
     # python native side + parity verdict
     var py_line = corpus.scan_python()
@@ -115,8 +129,12 @@ def phase_regex(paths: List[String]) raises -> Bool:
     var py_matches = Int(String(st["matches"].__str__()))
     var py_dt = Float64(String(st["elapsed"].__str__()))
     if matches == py_matches:
-        print("PARITY OK: ", matches, "matches on both sides; "
-              "mojo/python time ratio = ", dt / py_dt)
+        print(
+            "PARITY OK: ",
+            matches,
+            "matches on both sides; mojo/python time ratio = ",
+            dt / py_dt,
+        )
         return True
     print("PARITY FAIL: mojo=", matches, " python=", py_matches)
     return False

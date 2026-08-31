@@ -1,16 +1,19 @@
-# Temperature Analyzer — compute tiers (publishable variant):
-#   1. scalar CPU loop (baseline)
-#   2. SIMD-vectorized CPU loop (vectorize + hardware register width)
-#   3. official MAX GPU path (CUDA/ROCm/Metal) — compile-time eliminated
-#      unless has_accelerator(); std+max only, no machine-specific deps.
-#
-# The full 4-tier variant (adds an Intel-GPU tier via the community
-# mojo_intel_gpu Level Zero shim) lives outside the repo:
-#   ~/Research/MCP/mojo-intel-gpu-demo/analyzer_intel.mojo
-# Findings log: doc/local/mojo_pilot.md.
-#
-# Run from the repo root (venv on PATH via direnv):
-#   .venv/bin/mojo run Mojo/src/bench/analyzer.mojo
+"""
+ Temperature Analyzer — compute tiers (publishable variant):
+   1. scalar CPU loop (baseline)
+   2. SIMD-vectorized CPU loop (vectorize + hardware register width)
+   3. official MAX GPU path (CUDA/ROCm/Metal) — compile-time eliminated
+      unless has_accelerator(); std+max only, no machine-specific deps.
+
+ The full 4-tier variant (adds an Intel-GPU tier via the community
+ mojo_intel_gpu Level Zero shim) lives outside the repo:
+   ~/Research/MCP/mojo-intel-gpu-demo/analyzer_intel.mojo
+ Findings log: doc/local/mojo_pilot.md.
+
+ Run from the repo root (venv on PATH via direnv):
+   .venv/bin/mojo run Mojo/src/bench/analyzer.mojo
+"""
+
 
 from std.math import sqrt
 from std.bit import log2_floor
@@ -100,10 +103,12 @@ def stats_kernel(
         i += stride
 
     # block-level tree reduction in shared memory
-    var sums = stack_allocation[dtype,
-        address_space=AddressSpace.SHARED](row_major[BLOCK]())
-    var sumsqs = stack_allocation[dtype,
-        address_space=AddressSpace.SHARED](row_major[BLOCK]())
+    var sums = stack_allocation[dtype, address_space=AddressSpace.SHARED](
+        row_major[BLOCK]()
+    )
+    var sumsqs = stack_allocation[dtype, address_space=AddressSpace.SHARED](
+        row_major[BLOCK]()
+    )
     sums[thread_idx.x] = local
     sumsqs[thread_idx.x] = local_sq
     barrier()
@@ -162,9 +167,12 @@ def main() raises:
     print("Accelerator census:")
     print("  logical cores:", num_logical_cores())
     print(
-        "  NVIDIA/CUDA:", has_nvidia_gpu_accelerator(),
-        " AMD/ROCm:", has_amd_gpu_accelerator(),
-        " Apple/Metal:", has_apple_gpu_accelerator(),
+        "  NVIDIA/CUDA:",
+        has_nvidia_gpu_accelerator(),
+        " AMD/ROCm:",
+        has_amd_gpu_accelerator(),
+        " Apple/Metal:",
+        has_apple_gpu_accelerator(),
     )
 
     # --- benchmark: 1M synthetic temperature samples -----------------------
@@ -178,7 +186,10 @@ def main() raises:
         data.append(Float64(seed % 2000) / 100.0 + 15.0)
 
     print()
-    print(t"Benchmark: {N} Float64 samples ({round(Float64(N) / 1e6, 1)}M synthetic temps)")
+    print(
+        t"Benchmark: {N} Float64 samples ({round(Float64(N) / 1e6, 1)}M"
+        t" synthetic temps)"
+    )
 
     var t0 = perf_counter_ns()
     var scalar_stats = stats_scalar(data)
@@ -188,8 +199,17 @@ def main() raises:
 
     var scalar_ms = Float64(t1 - t0) / 1e6
     var simd_ms = Float64(t2 - t1) / 1e6
-    print(t"  scalar loop  : {round(scalar_ms, 3)} ms  mean={round(scalar_stats.mean, 4)}  std={round(scalar_stats.std_dev, 4)}")
-    print(t"  SIMD (x{width})    : {round(simd_ms, 3)} ms  mean={round(simd_stats.mean, 4)}  std={round(simd_stats.std_dev, 4)}  speedup {round(scalar_ms / simd_ms, 2)}x")
+    print(
+        t"  scalar loop  : {round(scalar_ms, 3)} ms "
+        t" mean={round(scalar_stats.mean, 4)} "
+        t" std={round(scalar_stats.std_dev, 4)}"
+    )
+    print(
+        t"  SIMD (x{width})    : {round(simd_ms, 3)} ms "
+        t" mean={round(simd_stats.mean, 4)} "
+        t" std={round(simd_stats.std_dev, 4)}  speedup"
+        t" {round(scalar_ms / simd_ms, 2)}x"
+    )
 
     comptime if has_accelerator():
         var ctx = DeviceContext()
@@ -226,15 +246,25 @@ def main() raises:
 
         var gpu_stats = make_stats(total, total_sq, N)
         var gpu_ms = Float64(g1 - g0) / 1e6
-        print(t"  GPU ({BLOCKS} blocks x {BLOCK} threads): {round(gpu_ms, 3)} ms end-to-end incl. transfers  mean={round(gpu_stats.mean, 4)}  std={round(gpu_stats.std_dev, 4)}")
+        print(
+            t"  GPU ({BLOCKS} blocks x {BLOCK} threads): {round(gpu_ms, 3)} ms"
+            t" end-to-end incl. transfers  mean={round(gpu_stats.mean, 4)} "
+            t" std={round(gpu_stats.std_dev, 4)}"
+        )
     else:
-        print("  MAX accel.   : skipped — no CUDA/ROCm/Metal device on this machine")
+        print(
+            "  MAX accel.   : skipped — no CUDA/ROCm/Metal device on this"
+            " machine"
+        )
 
     # --- cross-check against numpy -----------------------------------------
 
     var np_std_obj = np.std(copy_to_numpy_array(data))
     var delta = np.abs(np_std_obj - PythonObject(simd_stats.std_dev))
-    print(t"Validation vs numpy std: mojo={round(simd_stats.std_dev, 6)} numpy={np_std_obj} delta={delta}")
+    print(
+        t"Validation vs numpy std:"
+        t" mojo={round(simd_stats.std_dev, 6)} numpy={np_std_obj} delta={delta}"
+    )
     if Bool(delta < 1e-6):
         print("  OK — SIMD (Float64) results match")
     else:

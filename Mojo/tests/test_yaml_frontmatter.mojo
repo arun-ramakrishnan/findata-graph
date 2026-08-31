@@ -1,7 +1,10 @@
-# Regression tests for the vendored mojo-yaml lexer patches
-# (Mojo/vendor/mojo-yaml — see its PROVENANCE.md). Each test pins one
-# real-YAML behavior the upstream 0.1.2 lexer got wrong on findata
-# frontmatter. Run via `make mojo-test`.
+"""
+ Regression tests for the vendored mojo-yaml lexer patches
+ (Mojo/vendor/mojo-yaml — see its PROVENANCE.md). Each test pins one
+ real-YAML behavior the upstream 0.1.2 lexer got wrong on findata
+ frontmatter. Run via `make mojo-test`.
+"""
+
 
 from std.testing import TestSuite, assert_true, assert_equal
 from yaml import parse, YamlValue
@@ -49,9 +52,12 @@ def test_typed_numbers_survive() raises:
 
 def test_single_quote_escape() raises:
     # Patch 6: '' inside single quotes = one literal quote (PyYAML parity).
-    var d = parse("title: \'\'\'The Chatter: Inflection Watch\'\'\'")
-    assert_equal(_s(d.get("title")), "\u0027The Chatter: Inflection Watch\u0027",
-                 "quoted-escape parity with PyYAML")
+    var d = parse("title: '''The Chatter: Inflection Watch'''")
+    assert_equal(
+        _s(d.get("title")),
+        "\u0027The Chatter: Inflection Watch\u0027",
+        "quoted-escape parity with PyYAML",
+    )
 
 
 def test_nested_mapping_and_block_list() raises:

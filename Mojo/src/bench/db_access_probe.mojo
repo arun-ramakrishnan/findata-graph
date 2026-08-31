@@ -1,17 +1,21 @@
+"""
+ DB access probe — SQLite (research.db: FTS5 + relational) and DuckDB
+ (graph.duckdb) driven from Mojo through the Python drivers (sqlite3 /
+ duckdb) via the bridge. Companion fixture: Mojo/bench/mojo_db_access.py.
+
+ Method (same three-way discipline as the regex battery):
+   1. python side — bench_native(): every case run natively in CPython
+   2. direct side — the SAME case callables invoked FROM Mojo; every
+      row is consumed on the Mojo side (repr checksum) — that row
+      marshaling cost is what "access the DB from Mojo" actually costs
+   3. compare     — checksum parity + per-case time ratio
+ Run from the repo root (the bench harness sets cwd).
+"""
+
+
 from std.python import Python
 from std.time import perf_counter_ns
 
-# DB access probe — SQLite (research.db: FTS5 + relational) and DuckDB
-# (graph.duckdb) driven from Mojo through the Python drivers (sqlite3 /
-# duckdb) via the bridge. Companion fixture: Mojo/bench/mojo_db_access.py.
-#
-# Method (same three-way discipline as the regex battery):
-#   1. python side — bench_native(): every case run natively in CPython
-#   2. direct side — the SAME case callables invoked FROM Mojo; every
-#      row is consumed on the Mojo side (repr checksum) — that row
-#      marshaling cost is what "access the DB from Mojo" actually costs
-#   3. compare     — checksum parity + per-case time ratio
-# Run from the repo root (the bench harness sets cwd).
 
 def main() raises:
     Python.evaluate("__import__('sys').path.insert(0, 'Mojo/bench')")
@@ -48,9 +52,22 @@ def main() raises:
         var py_dt = Float64(String(db.elapsed_of(name).__str__()))
         if checksum == py_ck:
             npass += 1
-            print("PASS ", name, ": rows=", nrows, " checksum=", checksum,
-                  " mojo=", dt, "s python=", py_dt, "s ratio=", dt / py_dt)
+            print(
+                "PASS ",
+                name,
+                ": rows=",
+                nrows,
+                " checksum=",
+                checksum,
+                " mojo=",
+                dt,
+                "s python=",
+                py_dt,
+                "s ratio=",
+                dt / py_dt,
+            )
         else:
-            print("FAIL ", name, ": mojo checksum=", checksum,
-                  " python=", py_ck)
+            print(
+                "FAIL ", name, ": mojo checksum=", checksum, " python=", py_ck
+            )
     print("---", npass, "/", n, "db access cases checksum-parity passed")

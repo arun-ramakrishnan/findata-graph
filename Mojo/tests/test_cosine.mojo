@@ -1,9 +1,12 @@
-# Correctness tests for the bench_cosine SIMD cosine kernel.
-#
-# Run via `make mojo-test` (mojo run -I Mojo/src/<pkg> Mojo/tests/<file>) — Mojo 1.0
-# has no `mojo test` CLI; each test file carries its own TestSuite runner.
-# The all-ones case is the regression guard for the read_bytes() clobber
-# bug (first 8 bytes zeroed → score collapsed to ~0.9977 instead of 1.0).
+"""
+ Correctness tests for the bench_cosine SIMD cosine kernel.
+
+ Run via `make mojo-test` (mojo run -I Mojo/src/<pkg> Mojo/tests/<file>) — Mojo 1.0
+ has no `mojo test` CLI; each test file carries its own TestSuite runner.
+ The all-ones case is the regression guard for the read_bytes() clobber
+ bug (first 8 bytes zeroed → score collapsed to ~0.9977 instead of 1.0).
+"""
+
 
 from std.math import sqrt
 from std.memory.alloc import Layout

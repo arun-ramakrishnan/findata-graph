@@ -38,15 +38,17 @@ Rules of the road:
 ## Query the script index before guessing filenames — and before writing a new script
 
 The code surface is content-addressable too: every `helpers/**` script,
-`tests/**` module, root `app.py`, and Makefile target is indexed with its
-purpose (docstring), CLI flags, make wiring, and tests. Before grepping for
-"the script that does X" — and **before writing any new helper/test** (it
-may already exist) — query it:
+`tests/**` module, root `app.py`, Makefile target, and Mojo source/test
+module (`Mojo/src`, `Mojo/tests` — `mojo doc` API signatures + header
+prose) is indexed with its purpose (docstring), CLI flags, make wiring, and
+tests. Before grepping for "the script that does X" — and **before writing
+any new helper/test** (it may already exist) — query it:
 
 ```bash
 .venv/bin/python3 helpers/misc/script_query.py "audit relation diffs"
 .venv/bin/python3 helpers/misc/script_query.py "yfinance" --kind test
 .venv/bin/python3 helpers/misc/script_query.py "what does make qa run" --kind make
+.venv/bin/python3 helpers/misc/script_query.py "canonical parity" --kind mojo
 ```
 
 - Output lines are `path [kind/area] score` + the purpose line; filters:

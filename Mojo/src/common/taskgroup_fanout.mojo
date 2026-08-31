@@ -1,16 +1,19 @@
-# Probe: does std.runtime.asyncrt.TaskGroup deliver real multicore on Mojo 1.0?
-#
-# Verified result (2026-08-29, 4 logical cores): 4 CPU-bound tasks via
-# TaskGroup fan-out run 2.89x faster than the sequential loop (15.6 ms ->
-# 5.4 ms); results come back through shared heap slots, tg.wait() is the
-# barrier. Two API contracts pinned here:
-#   * create_task() takes a NON-raising async def coroutine — a `raises`
-#     coroutine is a RaisingCoroutine and is rejected.
-#   * group tasks return None (no futures): write into Pointer/Atomic
-#     slots and read after wait().
-# Full study: doc/local/mojo_concurrency.md.
-#
-# Run: .venv/bin/mojo run -I Mojo/src/common Mojo/src/common/taskgroup_fanout.mojo
+"""
+ Probe: does std.runtime.asyncrt.TaskGroup deliver real multicore on Mojo 1.0?
+
+ Verified result (2026-08-29, 4 logical cores): 4 CPU-bound tasks via
+ TaskGroup fan-out run 2.89x faster than the sequential loop (15.6 ms ->
+ 5.4 ms); results come back through shared heap slots, tg.wait() is the
+ barrier. Two API contracts pinned here:
+   * create_task() takes a NON-raising async def coroutine — a `raises`
+     coroutine is a RaisingCoroutine and is rejected.
+   * group tasks return None (no futures): write into Pointer/Atomic
+     slots and read after wait().
+ Full study: doc/local/mojo_concurrency.md.
+
+ Run: .venv/bin/mojo run -I Mojo/src/common Mojo/src/common/taskgroup_fanout.mojo
+"""
+
 
 from std.memory.alloc import alloc, Layout
 from std.runtime.asyncrt import TaskGroup
@@ -58,7 +61,10 @@ def main() raises:
         total += res.unsafe_offset(i)[]
     print("seq == par:", seq == total, " sum:", total)
     print(
-        "sequential:", Float64(seq_ns) / 1e9,
-        "s   taskgroup:", Float64(par_ns) / 1e9,
-        "s   speedup:", Float64(seq_ns) / Float64(par_ns),
+        "sequential:",
+        Float64(seq_ns) / 1e9,
+        "s   taskgroup:",
+        Float64(par_ns) / 1e9,
+        "s   speedup:",
+        Float64(seq_ns) / Float64(par_ns),
     )

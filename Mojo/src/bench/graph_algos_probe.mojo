@@ -1,36 +1,40 @@
+"""
+ Graph-algos + FTS bridge probe — phase 1 of the graph-algos port
+ (proposal doc/improvements/proposals/mojo_graph_algos_port.md, APPROVED
+ 2026-08-30). The ORIGINAL python modules are the engine; this probe is
+ the Mojo driver:
+   §1 extension inventory  — onager / sqlite_scanner / vss must be LOADED
+        on the canonical graph connection (query.connect(read_only=True))
+   §2 SQL cases — the Mojo side EXECUTES the SQL itself (Onager temp-table
+        materialisation + table functions with named params (seed => 42),
+        graph aux counts, and the repo's full FTS5 surface: note_search /
+        doc_search / script_search shapes + the vec0 KNN mirror is §3).
+        Parity = row count + repr-byte checksum vs the native run
+        (fixture Mojo/bench/mojo_graph_algos.py, db_access pattern).
+   §3 metric cases — the original functions (all 14 `make graph-algos`
+        metrics + whole-graph metrics + vec0 KNN) driven from Mojo; the
+        CANONICAL string is rebuilt Mojo-side (sort/join/group logic here,
+        only %.6f float formatting via the fixture's bridge lambda) and
+        must equal the native canonical byte-for-byte.
+   §4 end-to-end — algorithms CLI --all --no-apply (the make target,
+        verbatim) driven from Mojo: rc==0, 12 (metric= headers +
+        link-predict + voterank, zero FAIL lines.
+
+ GATING (operator decision 2026-08-30): unlike the db-access /
+ db-integrity legs, ANY parity failure exits 1 — the bench leg goes red.
+ SKIPs (e.g. vec mirror absent) never fail and are excluded from the
+ denominator. Run from the repo root (the bench harness sets cwd):
+   make mojo-bench MOJO_BENCH_ARGS='--leg graph-algos'
+"""
+
+
 from std.python import Python, PythonObject
 from std.time import perf_counter_ns
-
-# Graph-algos + FTS bridge probe — phase 1 of the graph-algos port
-# (proposal doc/improvements/proposals/mojo_graph_algos_port.md, APPROVED
-# 2026-08-30). The ORIGINAL python modules are the engine; this probe is
-# the Mojo driver:
-#   §1 extension inventory  — onager / sqlite_scanner / vss must be LOADED
-#        on the canonical graph connection (query.connect(read_only=True))
-#   §2 SQL cases — the Mojo side EXECUTES the SQL itself (Onager temp-table
-#        materialisation + table functions with named params (seed => 42),
-#        graph aux counts, and the repo's full FTS5 surface: note_search /
-#        doc_search / script_search shapes + the vec0 KNN mirror is §3).
-#        Parity = row count + repr-byte checksum vs the native run
-#        (fixture Mojo/bench/mojo_graph_algos.py, db_access pattern).
-#   §3 metric cases — the original functions (all 14 `make graph-algos`
-#        metrics + whole-graph metrics + vec0 KNN) driven from Mojo; the
-#        CANONICAL string is rebuilt Mojo-side (sort/join/group logic here,
-#        only %.6f float formatting via the fixture's bridge lambda) and
-#        must equal the native canonical byte-for-byte.
-#   §4 end-to-end — algorithms CLI --all --no-apply (the make target,
-#        verbatim) driven from Mojo: rc==0, 12 (metric= headers +
-#        link-predict + voterank, zero FAIL lines.
-#
-# GATING (operator decision 2026-08-30): unlike the db-access /
-# db-integrity legs, ANY parity failure exits 1 — the bench leg goes red.
-# SKIPs (e.g. vec mirror absent) never fail and are excluded from the
-# denominator. Run from the repo root (the bench harness sets cwd):
-#   make mojo-bench MOJO_BENCH_ARGS='--leg graph-algos'
 
 
 # ---------------------------------------------------------------- helpers
 # (same patterns as integrity_check.mojo — each probe stays self-contained)
+
 
 def contains(lst: List[String], s: String) -> Bool:
     for i in range(len(lst)):
@@ -99,7 +103,9 @@ def head_bytes(s: String, n: Int) -> String:
 
 
 def metric_canonical(
-    res: PythonObject, kind: String, fx: PythonObject,
+    res: PythonObject,
+    kind: String,
+    fx: PythonObject,
     builtins: PythonObject,
 ) raises -> String:
     """Rebuild the fixture's canonical(kind, result) form Mojo-side.
@@ -120,8 +126,12 @@ def metric_canonical(
         for i in range(res.__len__()):
             var row = res[i]
             parts.append(
-                py_str(row[0]) + "|" + py_str(row[1]) + "|"
-                + py_str(fx.fmt_float(row[2])))
+                py_str(row[0])
+                + "|"
+                + py_str(row[1])
+                + "|"
+                + py_str(fx.fmt_float(row[2]))
+            )
         return join_list(merge_sort_strs(parts), ",")
     var items = builtins.list(res.items())
     var keys = List[String]()
@@ -133,8 +143,7 @@ def metric_canonical(
     if kind == "float_dict":
         var parts = List[String]()
         for i in range(len(skeys)):
-            parts.append(
-                skeys[i] + ":" + py_str(fx.fmt_float(res[skeys[i]])))
+            parts.append(skeys[i] + ":" + py_str(fx.fmt_float(res[skeys[i]])))
         return join_list(parts, ",")
     if kind == "int_dict":
         var parts = List[String]()
@@ -145,7 +154,8 @@ def metric_canonical(
         var parts = List[String]()
         for i in range(len(skeys)):
             parts.append(
-                skeys[i] + ":" + py_str(fx.canon_scalar(res[skeys[i]])))
+                skeys[i] + ":" + py_str(fx.canon_scalar(res[skeys[i]]))
+            )
         return join_list(parts, ",")
     if kind == "partition":
         # wcc: component ids are arbitrary labels — canonicalise the
@@ -203,8 +213,9 @@ def main() raises:
         fails += 1
     var tc = builtins.list(fx.table_counts().items())
     for i in range(tc.__len__()):
-        print("   fts table ", py_str(tc[i][0]), ": ", py_str(tc[i][1]),
-              " rows")
+        print(
+            "   fts table ", py_str(tc[i][0]), ": ", py_str(tc[i][1]), " rows"
+        )
 
     # ------------------------------------------------- 2. SQL cases
     print("== 2. SQL cases (mojo-side execute, checksum parity) ==")
@@ -242,13 +253,37 @@ def main() raises:
         var dt = Float64(t1 - t0) / 1e9
         if nrows == nat_rows and cks == nat_ck:
             sql_pass += 1
-            print("PASS ", group, "/", name, ": rows=", nrows, " checksum=",
-                  cks, " mojo=", dt, "s native=", nat_dt, "s")
+            print(
+                "PASS ",
+                group,
+                "/",
+                name,
+                ": rows=",
+                nrows,
+                " checksum=",
+                cks,
+                " mojo=",
+                dt,
+                "s native=",
+                nat_dt,
+                "s",
+            )
         else:
             fails += 1
-            print("FAIL ", group, "/", name, ": mojo rows=", nrows,
-                  " checksum=", cks, " vs native rows=", nat_rows,
-                  " checksum=", nat_ck)
+            print(
+                "FAIL ",
+                group,
+                "/",
+                name,
+                ": mojo rows=",
+                nrows,
+                " checksum=",
+                cks,
+                " vs native rows=",
+                nat_rows,
+                " checksum=",
+                nat_ck,
+            )
     print("sql cases: ", sql_pass, "/", nc, " checksum-parity passed")
 
     # --------------------------------------------- 3. metric functions
@@ -275,15 +310,33 @@ def main() raises:
         var dt = Float64(t1 - t0) / 1e9
         if canon == nat_canon:
             met_pass += 1
-            print("PASS ", name, " (", kind, ") mojo=", dt, "s native=",
-                  nat_dt, "s canon_bytes=", canon.byte_length())
+            print(
+                "PASS ",
+                name,
+                " (",
+                kind,
+                ") mojo=",
+                dt,
+                "s native=",
+                nat_dt,
+                "s canon_bytes=",
+                canon.byte_length(),
+            )
         else:
             fails += 1
             print("FAIL ", name, " (", kind, "): mojo canon != native canon")
             print("   mojo  [:160]: ", head_bytes(canon, 160))
             print("   native[:160]: ", head_bytes(nat_canon, 160))
-    print("metric cases: ", met_pass, "/", met_counted, " canonical-parity",
-          " passed (", skips, " skipped)")
+    print(
+        "metric cases: ",
+        met_pass,
+        "/",
+        met_counted,
+        " canonical-parity",
+        " passed (",
+        skips,
+        " skipped)",
+    )
 
     # ------------------------------------------- 4. CLI end-to-end
     print("== 4. cli end-to-end (algorithms --all --no-apply) ==")
@@ -297,9 +350,21 @@ def main() raises:
     var n_link = to_i(out.count("link-predict (method="))
     var n_vote = to_i(out.count("voterank (seed set"))
     var n_fail = to_i(err.count("FAIL:"))
-    print("rc=", rc, " metric headers=", n_metric_hdrs, " link-predict=",
-          n_link, " voterank=", n_vote, " FAIL lines=", n_fail,
-          " elapsed=", Float64(t1 - t0) / 1e9, "s")
+    print(
+        "rc=",
+        rc,
+        " metric headers=",
+        n_metric_hdrs,
+        " link-predict=",
+        n_link,
+        " voterank=",
+        n_vote,
+        " FAIL lines=",
+        n_fail,
+        " elapsed=",
+        Float64(t1 - t0) / 1e9,
+        "s",
+    )
     if rc != 0:
         print("FAIL: cli rc != 0")
         fails += 1
@@ -316,8 +381,16 @@ def main() raises:
     # ------------------------------------------------------ gate
     var t_end = perf_counter_ns()
     print("---")
-    print("graph-algos probe: ", "fails=", fails, " skips=", skips,
-          " | total wall=", Float64(t_end - t_all) / 1e9, "s")
+    print(
+        "graph-algos probe: ",
+        "fails=",
+        fails,
+        " skips=",
+        skips,
+        " | total wall=",
+        Float64(t_end - t_all) / 1e9,
+        "s",
+    )
     if fails > 0:
         print("GRAPH-ALGOS PARITY FAIL: ", fails, " failure(s)")
         sys_exit(1)
@@ -328,5 +401,4 @@ def sys_exit(code: Int) raises:
     # sys.exit raises SystemExit, which the bridge surfaces as an
     # unhandled error — os._exit terminates cleanly (integrity pattern)
     if code != 0:
-        Python.evaluate(
-            "__import__('os')._exit(" + String(code) + ")")
+        Python.evaluate("__import__('os')._exit(" + String(code) + ")")
