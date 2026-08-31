@@ -4,22 +4,27 @@ Rebuild the `script_search` FTS5 index over the repo's own code surface.
 
 The repo has ~57 scripts under helpers/, ~127 test modules under tests/,
 the root app.py, 44 Makefile targets — and the Mojo footprint (15
-Mojo/src + Mojo/tests modules) — and grows weekly. codebase-memory
-answers STRUCTURE questions (symbols, callers); it does not answer INTENT
-questions: which script audits relation diffs, which test file covers the
-yfinance driver, what `make qa` actually runs, which Mojo module owns the
-integrity parity checks. That knowledge lives in module docstrings,
-argparse declarations, the Makefile, and (for Mojo) `mojo doc`'s API JSON —
-unindexed. This script gives it the content-addressable treatment doc/
-already has (proposal:
+Mojo/src + Mojo/tests modules) plus the TS footprint (~13 first-party
+frontend/src + frontend/types modules; corpus_uniformity S6) — and grows
+weekly. codebase-memory answers STRUCTURE questions (symbols, callers);
+it does not answer INTENT questions: which script audits relation diffs,
+which test file covers the yfinance driver, what `make qa` actually
+runs, which Mojo module owns the integrity parity checks, which view
+wires the stats endpoint. That knowledge lives in module docstrings,
+argparse declarations, the Makefile, (for Mojo) `mojo doc`'s API JSON,
+and (for TS) the frontend/scripts/extract_ts_docs.mjs structural
+extract — unindexed. This script gives it the content-addressable
+treatment doc/ already has (proposal:
 doc/improvements/archive/tooling/script_metadata_search.md; Mojo corpus:
 doc/improvements/archive/tooling/mojo_doc_script_search.md):
 
-- one FTS5 row per script / test module / make target / Mojo source module,
-  composed from the module docstring (purpose = first paragraph),
-  regex-extracted argparse flags, AST-import-derived `tested_by` links,
-  Makefile wiring, and for Mojo rows the `mojo doc` decl (signatures,
-  summaries, aliases) + the source's leading '#' header block;
+- one FTS5 row per script / test module / make target / Mojo source
+  module / TS module, composed from the module docstring (purpose =
+  first paragraph), regex-extracted argparse flags, AST-import-derived
+  `tested_by` links, Makefile wiring, for Mojo rows the `mojo doc` decl
+  (signatures, summaries, aliases) + the source's leading '#' header
+  block, and for TS rows the extractor JSON (exported signatures + JSDoc)
+  + the leading block comment;
 - per-row JSON embedding (local bge-small when available, deterministic
   pseudo fallback) for hybrid RRF ranking, reusing the shared
   (sha256(text), model) sidecar cache — machinery imported from
@@ -58,6 +63,7 @@ import ast
 import hashlib
 import json
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
@@ -91,6 +97,19 @@ BACKUP_DIR = _REPO_ROOT / "db-backup"
 MOJO_SRC_ROOT = _REPO_ROOT / "Mojo" / "src"
 MOJO_TESTS_ROOT = _REPO_ROOT / "Mojo" / "tests"
 MOJO_BIN = _REPO_ROOT / ".venv" / "bin" / "mojo"
+# TS footprint (corpus_uniformity S6): every first-party frontend module
+# (frontend/src/** + frontend/types/**) is one 'ts' row, composed from the
+# frontend/scripts/extract_ts_docs.mjs JSON extract (content-addressed here
+# like mojo doc — node startup must not ride every rebuild) plus the
+# leading block comment. typescript@7 ships NO JS compiler API (native
+# compiler, version metadata only), so the extractor is a structural
+# scanner — see its header. node is nvm-managed (NOT under .venv), hence
+# the PATH lookup instead of a repo-local binary.
+FRONTEND_ROOT = _REPO_ROOT / "frontend"
+TS_SRC_ROOT = FRONTEND_ROOT / "src"
+TS_TYPES_ROOT = FRONTEND_ROOT / "types"
+TS_EXTRACTOR = FRONTEND_ROOT / "scripts" / "extract_ts_docs.mjs"
+NODE_BIN = shutil.which("node")
 
 # FTS5 DDL, mirroring doc_search's shape (title is the match-heavy column;
 # kind/rel_path/area/purpose are UNINDEXED handles + display surface, never
@@ -140,6 +159,17 @@ SCRIPT_SEARCH_INFO_DDL = (
 # backup); delete the DB and one rebuild regenerates everything.
 MOJO_DOC_DDL = (
     "CREATE TABLE IF NOT EXISTS script_search_mojo_doc ("
+    " unit_path TEXT PRIMARY KEY,"
+    " content_hash TEXT NOT NULL,"
+    " doc_json TEXT NOT NULL"
+    ")"
+)
+
+# Same content-addressed contract for the TS extractor JSON (per frontend
+# module, hash = blake2b of the SOURCE text; ~150 ms/file node startup is
+# cached away exactly like mojo doc's ~3.5 s/file compiler cost).
+TS_DOC_DDL = (
+    "CREATE TABLE IF NOT EXISTS script_search_ts_doc ("
     " unit_path TEXT PRIMARY KEY,"
     " content_hash TEXT NOT NULL,"
     " doc_json TEXT NOT NULL"
@@ -353,6 +383,7 @@ def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> lis
     scripts = [u for u in py_units if u["kind"] == "script"]
     tests = [u for u in py_units if u["kind"] == "test"]
     mojo_units = [u for u in py_units if u["kind"] == "mojo"]
+    ts_units = [u for u in py_units if u["kind"] == "ts"]
     dotted_to_rel = {u["dotted"]: u["rel"] for u in scripts}
 
     # test -> imported script rels; inverse onto script rows (tested_by).
@@ -412,6 +443,12 @@ def _compose_rows(py_units: list[dict], make_unit: dict | None, embed_fn) -> lis
         rows.append(_row(
             title=u["rel"], kind="mojo", rel_path=u["rel"], area=u["area"],
             purpose=u["purpose"], content=_mojo_content(u),
+            embed_fn=embed_fn,
+        ))
+    for u in ts_units:
+        rows.append(_row(
+            title=u["rel"], kind="ts", rel_path=u["rel"], area=u["area"],
+            purpose=u["purpose"], content=_ts_content(u),
             embed_fn=embed_fn,
         ))
     return rows
@@ -694,6 +731,193 @@ def _mojo_content(u: dict) -> str:
     return "\n".join(parts)
 
 
+# --- TS footprint (corpus_uniformity S6) -------------------------------------
+
+def _iter_ts_units(src_root: Path | None = None,
+                   types_root: Path | None = None):
+    """Yield (rel, abs_path, area) for every first-party TS module.
+
+    rel is 'frontend/src/<dir>/<name>.ts' (or /types/), built from the
+    roots' own parents so monkeypatched tmp trees behave like the live
+    tree. area mirrors the py convention: the package dir (core, views —
+    'src' for root-level modules) for src, 'types' for declarations."""
+    src_root = Path(src_root or TS_SRC_ROOT)
+    types_root = Path(types_root or TS_TYPES_ROOT)
+    prefix = src_root.parent.name  # 'frontend' live and in tmp trees alike
+    if src_root.is_dir():
+        for p in sorted(src_root.glob("**/*.ts")):
+            yield (f"{prefix}/src/{p.relative_to(src_root).as_posix()}", p,
+                   p.parent.name)
+    if types_root.is_dir():
+        for p in sorted(types_root.glob("*.ts")):
+            yield f"{prefix}/types/{p.name}", p, "types"
+
+
+def _run_ts_extract(path: Path, node_bin: str | None = None) -> str | None:
+    """Raw extractor JSON text for one TS module, or None on any failure
+    (node absent, extractor missing, timeout, nonzero exit) — the same
+    silent-skip contract as _run_mojo_doc; callers must cache."""
+    binary = node_bin if node_bin is not None else NODE_BIN
+    if not binary or not TS_EXTRACTOR.is_file():
+        return None
+    try:
+        r = subprocess.run(  # noqa: S603  # repo-local node + checked-in extractor
+            [binary, str(TS_EXTRACTOR), str(path)],
+            capture_output=True, text=True, timeout=60,
+            cwd=str(_REPO_ROOT), check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    if r.returncode != 0 or not r.stdout.strip():
+        return None
+    return r.stdout
+
+
+def _unwrap_ts_decl(doc_json: str | None) -> dict | None:
+    """Parse an extractor document (stored or freshly generated) to its
+    decl dict; None on malformed input. Single gate that keeps both cache
+    paths composing identical rows (the mojo unwrap-lesson)."""
+    if doc_json is None:
+        return None
+    try:
+        doc = json.loads(doc_json)
+    except json.JSONDecodeError:
+        return None
+    return doc if isinstance(doc, dict) and "exports" in doc else None
+
+
+def _ts_stored_doc(conn: sqlite3.Connection | None, rel: str,
+                   chash: str) -> tuple[str | None, bool]:
+    """(doc_json, is_exact) for a TS unit from the sidecar cache — the
+    exact-hash copy, else the LAST stored one (regen fallback)."""
+    if conn is None:
+        return None, False
+    try:
+        row = conn.execute(
+            "SELECT doc_json FROM script_search_ts_doc "
+            "WHERE unit_path = ? AND content_hash = ?",
+            (rel, chash),
+        ).fetchone()
+        if row is not None:
+            return row[0], True
+        old = conn.execute(
+            "SELECT doc_json FROM script_search_ts_doc "
+            "WHERE unit_path = ?", (rel,),
+        ).fetchone()
+        return (old[0], False) if old else (None, False)
+    except sqlite3.Error:
+        return None, False
+
+
+def _ts_decl_cached(conn: sqlite3.Connection | None, rel: str, chash: str,
+                    path: Path, node_bin: str | None) -> dict | None:
+    """Parsed extractor decl for a TS unit, content-addressed exactly like
+    _mojo_decl_cached (regen only on hash change; failed regen falls back
+    to the LAST stored JSON; --check also populates the cache)."""
+    stored, exact = _ts_stored_doc(conn, rel, chash)
+    if exact:
+        return _unwrap_ts_decl(stored)
+    generated = _run_ts_extract(path, node_bin)
+    if generated is not None:
+        decl = _unwrap_ts_decl(generated)
+        if decl is not None:
+            if conn is not None:
+                try:
+                    with conn:
+                        conn.execute(
+                            "INSERT OR REPLACE INTO script_search_ts_doc "
+                            "(unit_path, content_hash, doc_json) VALUES (?, ?, ?)",
+                            (rel, chash, generated),
+                        )
+                except sqlite3.Error:
+                    pass
+            return decl
+    return _unwrap_ts_decl(stored)
+
+
+def _flatten_ts_decl(decl: dict) -> tuple[str, list[str]]:
+    """(details block, export names) from an extractor decl: one line per
+    exported symbol — signature — JSDoc (mirrors _flatten_mojo_decl)."""
+    lines: list[str] = []
+    defs: list[str] = []
+    for ex in decl.get("exports", []):
+        defs.append(ex["name"])
+        line = ex.get("signature") or ex["name"]
+        doc = " ".join((ex.get("doc") or "").split())
+        if doc:
+            line += f" — {doc}"
+        lines.append(line)
+    return "\n".join(lines[:60]), defs
+
+
+def _ts_header_purpose(src: str) -> str:
+    """First paragraph of the leading block/line comment (where our module
+    prose lives — the JS-syntax sibling of _mojo_header_purpose)."""
+    text = src.lstrip("\ufeff").lstrip()
+    lines: list[str] = []
+    if text.startswith("/*"):
+        end = text.find("*/")
+        if end != -1:
+            for raw in text[2:end].split("\n"):
+                lines.append(raw.lstrip(" \t*").strip())
+    else:
+        for line in src.split("\n"):
+            t = line.lstrip()
+            if t.startswith("//"):
+                lines.append(t.lstrip("/").strip())
+            elif t.strip():
+                break
+    while lines and not lines[0]:
+        lines.pop(0)  # the /** opener leaves a blank first line
+    para: list[str] = []
+    for line in lines:
+        if not line:
+            break
+        para.append(line)
+    return " ".join(" ".join(para).split())
+
+
+def _extract_ts_unit(rel: str, path: Path, area: str, decl: dict | None,
+                     mtime: float, chash: str) -> dict:
+    """One ts unit dict, same shape contract as the py/mojo units."""
+    try:
+        src = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        src = ""
+    purpose, details, defs = "", "", []
+    if decl is not None:
+        details, defs = _flatten_ts_decl(decl)
+        purpose = " ".join((decl.get("module_doc") or "").split())
+    if not purpose:
+        purpose = _ts_header_purpose(src)
+    if not purpose:
+        purpose = path.stem.replace("_", " ")
+    return {
+        "rel": rel,
+        "kind": "ts",
+        "area": area,
+        "purpose": purpose[:240],
+        "details": details,
+        "defs": defs,
+        "mtime": mtime,
+        "hash": chash,
+    }
+
+
+def _ts_content(u: dict) -> str:
+    """Labeled content block for a ts row (no cross-file wiring: no make
+    targets run TS modules; the api.ts contract tests live Python-side)."""
+    parts = [f"purpose: {u['purpose']}"]
+    if u["details"]:
+        parts.append(f"api:\n{u['details'][:_DETAILS_CAP]}")
+    if u["defs"]:
+        shown = ", ".join(u["defs"][:_DEFS_CAP])
+        if len(u["defs"]) > _DEFS_CAP:
+            shown += f" (+{len(u['defs']) - _DEFS_CAP} more)"
+        parts.append(f"defs: {shown}")
+    return "\n".join(parts)
+
+
 def _stamp_model(conn: sqlite3.Connection, model_label: str, dims: int) -> None:
     """Record the embedding model + dims in script_search_info (apply only)."""
     conn.execute(SCRIPT_SEARCH_INFO_DDL)
@@ -759,17 +983,20 @@ def _migrate_schema(conn: sqlite3.Connection) -> bool:
 
 
 def _collect_units(helpers_root, tests_root, app_py, makefile, conn=None,
-                   mojo_src=None, mojo_tests=None, mojo_bin=None):
-    """Extract every unit: py files + the Makefile + Mojo sources/tests.
-    Returns (py_units, make_unit, units_meta) where units_meta keys the
-    --check/incremental fingerprint. Mojo units are APPENDED to py_units
-    (they flow through the same compose/embed/write paths; kind='mojo').
+                   mojo_src=None, mojo_tests=None, mojo_bin=None,
+                   ts_src=None, ts_types=None, node_bin=None):
+    """Extract every unit: py files + the Makefile + Mojo sources/tests +
+    frontend TS modules. Returns (py_units, make_unit, units_meta) where
+    units_meta keys the --check/incremental fingerprint. Mojo and TS units
+    are APPENDED to py_units (they flow through the same
+    compose/embed/write paths; kind='mojo' / kind='ts').
 
-    Mojo roots DERIVE from the helpers root's parent (<base>/Mojo/src|tests)
-    when not passed explicitly — the VAULT_ROOT lesson applied to the new
-    corpus: tmp-tree tests that retarget helpers_root must not silently
-    sweep the LIVE Mojo tree (and its ~3.5 s/file `mojo doc`) into their
-    fixtures."""
+    Mojo and TS roots DERIVE from the helpers root's parent
+    (<base>/Mojo/src|tests, <base>/frontend/src|types) when not passed
+    explicitly — the VAULT_ROOT lesson applied to each corpus: tmp-tree
+    tests that retarget helpers_root must not silently sweep the LIVE
+    Mojo tree (and its ~3.5 s/file `mojo doc`) or the live frontend into
+    their fixtures."""
     py_units = []
     for rel, path, kind in _iter_py_units(helpers_root, tests_root, app_py):
         unit = _extract_py_unit(path, rel, kind)
@@ -792,6 +1019,19 @@ def _collect_units(helpers_root, tests_root, app_py, makefile, conn=None,
         decl = _mojo_decl_cached(conn, rel, chash, path, src_root, mojo_bin)
         py_units.append(
             _extract_mojo_unit(rel, path, area, decl, mtime, chash))
+        units_meta[rel] = (mtime, chash)
+    ts_src_root = Path(ts_src) if ts_src else base / "frontend" / "src"
+    ts_types_root = Path(ts_types) if ts_types else base / "frontend" / "types"
+    for rel, path, area in _iter_ts_units(ts_src_root, ts_types_root):
+        try:
+            mtime = path.stat().st_mtime
+            src_bytes = path.read_bytes()
+        except OSError:
+            continue
+        chash = hashlib.blake2b(src_bytes, digest_size=8).hexdigest()
+        decl = _ts_decl_cached(conn, rel, chash, path, node_bin)
+        py_units.append(
+            _extract_ts_unit(rel, path, area, decl, mtime, chash))
         units_meta[rel] = (mtime, chash)
     return py_units, make_unit, units_meta
 
@@ -903,6 +1143,7 @@ def rebuild(db_path: Path | None = None, write: bool = True, incremental: bool =
         conn.execute(SCRIPT_SEARCH_META_DDL)
         conn.execute(SCRIPT_SEARCH_INFO_DDL)
         conn.execute(MOJO_DOC_DDL)
+        conn.execute(TS_DOC_DDL)
         # Resolve the embedder once; internally-resolved embedders get the
         # shared (sha256, model) sidecar cache (Attached as <sidecar>_vec.db —
         # shared text populations with the other indexers are free cache hits).
@@ -1022,8 +1263,9 @@ def script_index_ready(conn: sqlite3.Connection) -> bool:
 def _scan_disk_units(bases: list[Path]) -> set[str]:
     """Unit paths visible on disk under the candidate roots ('helpers/x.py',
     'tests/y.py', 'app.py', 'Makefile', 'Mojo/src/<pkg>/<n>.mojo',
-    'Mojo/tests/<n>.mojo') — the stale probe's corpus walk (rel-path
-    convention matches _iter_py_units/_iter_mojo_units)."""
+    'Mojo/tests/<n>.mojo', 'frontend/src/<dir>/<n>.ts',
+    'frontend/types/<n>.ts') — the stale probe's corpus walk (rel-path
+    convention matches _iter_py_units/_iter_mojo_units/_iter_ts_units)."""
     on_disk: set[str] = set()
     for base in bases:
         for name in ("helpers", "tests"):
@@ -1038,6 +1280,7 @@ def _scan_disk_units(bases: list[Path]) -> set[str]:
         if (base / "Makefile").is_file():
             on_disk.add("Makefile")
         on_disk.update(_scan_mojo_units(base))
+        on_disk.update(_scan_ts_units(base))
     return on_disk
 
 
@@ -1053,6 +1296,22 @@ def _scan_mojo_units(base: Path) -> set[str]:
     if mojo_tests.is_dir():
         for p in mojo_tests.glob("*.mojo"):
             units.add(f"Mojo/tests/{p.name}")
+    return units
+
+
+def _scan_ts_units(base: Path) -> set[str]:
+    """TS module unit paths under one candidate base (rel-path convention
+    matches _iter_ts_units). MANDATORY companion of the ts corpus: without
+    it, TS rows in script_search_meta would read as permanently stale."""
+    units: set[str] = set()
+    ts_src = base / "frontend" / "src"
+    if ts_src.is_dir():
+        for p in ts_src.rglob("*.ts"):
+            units.add(f"frontend/src/{p.relative_to(ts_src).as_posix()}")
+    ts_types = base / "frontend" / "types"
+    if ts_types.is_dir():
+        for p in ts_types.glob("*.ts"):
+            units.add(f"frontend/types/{p.name}")
     return units
 
 

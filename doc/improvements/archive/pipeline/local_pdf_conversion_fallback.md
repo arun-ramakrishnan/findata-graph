@@ -1,3 +1,12 @@
+---
+title: Local PDF-to-markdown conversion fallback
+status: executed
+filed: '2026-08-26'
+executed: '2026-08-26'
+completed_md: '156'
+area: helpers/pdf/
+---
+
 # Local PDF-to-markdown conversion fallback
 
 **Status:** EXECUTED (2026-08-26; completed.md #156)

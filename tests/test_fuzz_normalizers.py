@@ -32,7 +32,7 @@ from pdf.capture_newsletter_images import slugify  # noqa: E402
 # ---------------------------------------------------------------------------
 # Shared invariants
 # ---------------------------------------------------------------------------
-# The canonical filename contract (doc/findata.md §Sync Rules):
+# The canonical filename contract (doc/design/findata.md §Sync Rules):
 # PascalCase, single underscores, no special chars, ≤100 chars, must start
 # with an alphanumeric. We allow leading digits because real companies like
 # 3M India and 5 Paisa Capital exist in the DB with digit-leading names.

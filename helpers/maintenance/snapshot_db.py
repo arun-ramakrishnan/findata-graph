@@ -214,7 +214,7 @@ def create_duckdb_snapshot(
 
     Version-sensitive assumption: read-only CHECKPOINT relies on DuckDB
     ≥ 1.5 allowing a reader connection to flush the WAL. See
-    doc/graph_design.txt §9.3 (was §17.11, Bundle O3) for the full caveat + how to
+    doc/design/graph_design.txt §9.3 (was §17.11, Bundle O3) for the full caveat + how to
     re-test on pin bumps; the fallback below degrades gracefully.
 
     Skips silently if the DuckDB file does not exist (returns

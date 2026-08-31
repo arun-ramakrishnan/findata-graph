@@ -372,7 +372,7 @@ class DBMaintainer:
         Version-sensitive assumption: read-only CHECKPOINT relies on
         DuckDB ≥ 1.5 allowing a reader connection to flush the WAL. The
         fallback (catch duckdb.Error → copy file as-is) degrades
-        gracefully if a bump rejects it. See doc/graph_design.txt §9.3
+        gracefully if a bump rejects it. See doc/design/graph_design.txt §9.3
         (Bundle O3) for the full caveat + how to re-test on pin bumps.
 
         See https://ducklake.select/docs/stable/duckdb/guides/backups_and_recovery.html

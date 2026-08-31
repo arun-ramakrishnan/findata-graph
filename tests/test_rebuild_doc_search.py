@@ -68,8 +68,10 @@ def seeded_docs(tmp_path, monkeypatch):
     """Build a synthetic doc/ tree; repoint the module's DOC_ROOT + DOC_DB."""
     doc_root = tmp_path / "doc"
     (doc_root / "local").mkdir(parents=True)
-    (doc_root / "architecture.md").write_text(_ARCHITECTURE, encoding="utf-8")
-    (doc_root / "graph_design.txt").write_text(_GRAPH_TXT, encoding="utf-8")
+    # Post-S1 layout: design docs live in doc/design/ (tmp tree mirrors live).
+    (doc_root / "design").mkdir()
+    (doc_root / "design" / "architecture.md").write_text(_ARCHITECTURE, encoding="utf-8")
+    (doc_root / "design" / "graph_design.txt").write_text(_GRAPH_TXT, encoding="utf-8")
     (doc_root / "local" / "secret.md").write_text(_PRIVATE_LOCAL_DOC, encoding="utf-8")
     (doc_root / "empty.md").write_text("", encoding="utf-8")
     # Non-doc extension: must be skipped by the walk.
@@ -166,19 +168,19 @@ class TestRebuild:
         con = _conn(seeded_docs)
         try:
             anchors = [r[0] for r in con.execute(
-                "SELECT anchor FROM doc_search WHERE file_path = 'doc/architecture.md' "
+                "SELECT anchor FROM doc_search WHERE file_path = 'doc/design/architecture.md' "
                 "ORDER BY anchor")]
             assert anchors == [1, 5, 11]
             # The ### subsection stays inside the ## Ingest chunk.
             ingest = con.execute(
                 "SELECT content FROM doc_search "
-                "WHERE file_path = 'doc/architecture.md' AND section_title = 'Ingest'"
+                "WHERE file_path = 'doc/design/architecture.md' AND section_title = 'Ingest'"
             ).fetchone()
             assert "Sub detail" in ingest[0]
             # .txt without headers: one chunk, empty section_title, txt title rule.
             txt = con.execute(
                 "SELECT title, section_title, anchor FROM doc_search "
-                "WHERE file_path = 'doc/graph_design.txt'"
+                "WHERE file_path = 'doc/design/graph_design.txt'"
             ).fetchone()
             assert txt[0] == "Graph Design Notes"
             assert txt[1] == ""
@@ -301,11 +303,11 @@ class TestRebuild:
 
     def test_check_reports_new_and_deleted(self, seeded_docs, fake_local):
         rds.rebuild(write=True)
-        (Path(rds.DOC_ROOT) / "graph_design.txt").unlink()
+        (Path(rds.DOC_ROOT) / "design" / "graph_design.txt").unlink()
         (Path(rds.DOC_ROOT) / "fresh_doc.md").write_text("## Brand\nnew\n", encoding="utf-8")
         stats = rds.rebuild(write=False)
         assert stats["stale_new"] == ["doc/fresh_doc.md"]
-        assert stats["stale_deleted"] == ["doc/graph_design.txt"]
+        assert stats["stale_deleted"] == ["doc/design/graph_design.txt"]
         assert stats["stale_changed"] == []
 
     def test_check_without_index_reports_all_new(self, seeded_docs):
@@ -318,7 +320,7 @@ class TestRebuild:
         """The hash leg catches same-mtime content edits the mtime probe
         can't see — that's why --check is the deep diagnostic."""
         rds.rebuild(write=True)
-        guide = Path(rds.DOC_ROOT) / "architecture.md"
+        guide = Path(rds.DOC_ROOT) / "design" / "architecture.md"
         mtime = guide.stat().st_mtime
         guide.write_text(
             guide.read_text(encoding="utf-8") + "\n## Sneaky\nsame-mtime edit\n",
@@ -326,7 +328,7 @@ class TestRebuild:
         )
         os.utime(guide, (mtime, mtime))  # pin the mtime back
         stats = rds.rebuild(write=False)
-        assert stats["stale_changed"] == ["doc/architecture.md"]
+        assert stats["stale_changed"] == ["doc/design/architecture.md"]
 
 
 # --- db-backup recovery point -------------------------------------------------
@@ -390,7 +392,7 @@ class TestLastGoodIndexBackup:
             ).fetchone()[0] == 3
             # Untouched files keep their rows.
             assert con.execute(
-                "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/architecture.md'"
+                "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/design/architecture.md'"
             ).fetchone()[0] == 3
             assert con.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0] == 7
         finally:
@@ -404,16 +406,16 @@ class TestLastGoodIndexBackup:
 
     def test_incremental_deletes_removed_file(self, seeded_docs):
         rds.rebuild(write=True)
-        (Path(rds.DOC_ROOT) / "graph_design.txt").unlink()
+        (Path(rds.DOC_ROOT) / "design" / "graph_design.txt").unlink()
         stats = rds.rebuild(write=True, incremental=True)
         assert stats["deletes"] == 1
         con = _conn(seeded_docs)
         try:
             assert con.execute(
-                "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/graph_design.txt'"
+                "SELECT COUNT(*) FROM doc_search WHERE file_path = 'doc/design/graph_design.txt'"
             ).fetchone()[0] == 0
             assert con.execute(
-                "SELECT COUNT(*) FROM doc_search_meta WHERE file_path = 'doc/graph_design.txt'"
+                "SELECT COUNT(*) FROM doc_search_meta WHERE file_path = 'doc/design/graph_design.txt'"
             ).fetchone()[0] == 0
         finally:
             con.close()
@@ -485,7 +487,7 @@ class TestSearchDocs:
             out = rds.search_docs(con, "cache warmup")
             assert out["mode"] == "hybrid"
             top = out["results"][0]
-            assert top["path"] == "doc/architecture.md"
+            assert top["path"] == "doc/design/architecture.md"
             assert top["section_title"] == "Ingest"
             assert top["anchor"] == 5
             assert "<mark>" in top["snippet"]
@@ -498,7 +500,7 @@ class TestSearchDocs:
         try:
             out = rds.search_docs(con, "alpha", limit=10)
             paths = {r["path"] for r in out["results"]}
-            assert "doc/architecture.md" in paths  # preamble mentions alpha
+            assert "doc/design/architecture.md" in paths  # preamble mentions alpha
             assert "doc/local/secret.md" in paths
             for r in out["results"]:
                 # The #107 /api/docs/search response contract fields.
@@ -506,8 +508,8 @@ class TestSearchDocs:
                 assert {"section_title", "anchor", "score"} <= set(r)
             secret = next(r for r in out["results"] if r["path"] == "doc/local/secret.md")
             assert secret["section"] == "local"
-            arch = next(r for r in out["results"] if r["path"] == "doc/architecture.md")
-            assert arch["section"] == ""
+            arch = next(r for r in out["results"] if r["path"] == "doc/design/architecture.md")
+            assert arch["section"] == "design"  # post-S1: design docs live one level down
         finally:
             con.close()
 
@@ -565,7 +567,7 @@ class TestStaleness:
 
     def test_touched_file_stale(self, seeded_docs, fake_local):
         rds.rebuild(write=True)
-        arch = Path(rds.DOC_ROOT) / "architecture.md"
+        arch = Path(rds.DOC_ROOT) / "design" / "architecture.md"
         future = time.time() + 10
         os.utime(arch, (future, future))
         con = rds.connect_doc_db(seeded_docs)
@@ -585,7 +587,7 @@ class TestStaleness:
 
     def test_deleted_file_stale(self, seeded_docs, fake_local):
         rds.rebuild(write=True)
-        (Path(rds.DOC_ROOT) / "architecture.md").unlink()
+        (Path(rds.DOC_ROOT) / "design" / "architecture.md").unlink()
         con = rds.connect_doc_db(seeded_docs)
         try:
             assert rds.doc_index_stale(con)

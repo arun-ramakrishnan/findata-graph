@@ -322,7 +322,7 @@ def build_okf_frontmatter(
     """Render the OKF v0.2 provenance frontmatter for a converted note.
 
     - ``type: newsletter`` — self-describing; validated by
-      doc/schema/frontmatter.newsletter.v1.json since the source trees came
+      doc/okf/frontmatter.newsletter.v1.json since the source trees came
       under the B1 gate (newsletter_notes_adoption.md S1/S2).
     - ``tags``: namespaced source vocabulary — ``series/<out_dir slug>``
       always, plus ``publisher/<slug>`` when the series is in the known map

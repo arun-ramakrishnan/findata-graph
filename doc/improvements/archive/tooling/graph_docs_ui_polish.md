@@ -1,3 +1,12 @@
+---
+title: Lens + Reading Room UI polish — graph widget overhaul & reader comfort
+status: executed
+filed: '2026-08-27'
+executed: '2026-08-27'
+completed_md: '168'
+area: tooling
+---
+
 # Proposal: Lens + Reading Room UI polish — graph widget overhaul & reader comfort
 
 **Date**: 2026-08-27

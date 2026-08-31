@@ -1,4 +1,3 @@
-# FinData Knowledge Graph — Completed Improvements
 
 **Generated**: 2026-08-09
 **Total completed**: 128 items
@@ -4318,7 +4317,7 @@ pre-existing, not touched here.
 
 **Date:** 2026-08-30 · **Type:** tooling (lint + perf gates) ·
 **Files:** `tests/test_lint_gates.py` (new, 3 tests), `Mojo/bench/run_bench.py`,
-`Makefile` + `Makefile.mojo` (new `mojo-fmt` target), all 13
+`Makefile` + `Makefile.mojo` (new `mojo-format` target), all 13
 `Mojo/src/**/*.mojo` + `Mojo/tests/*.mojo` (one-time format normalization) ·
 
 **Lint gates made pytest-visible, both footprints.** Python keeps `make lint`
@@ -4334,11 +4333,11 @@ set, so it is linted like everything else.
 **Mojo footprint lint = `mojo format` copy-check.** This toolchain's
 `mojo format` has no `--check` flag, so the gate formats a COPY under
 tmp_path and byte-compares — the tree is never mutated by the test.
-One-time normalization landed first (`make mojo-fmt`, new target): 12 of 13
+One-time normalization landed first (`make mojo-format`, new target): 12 of 13
 files reformatted (~1.4k mechanical diff lines, integrity_check.mojo
 dominating); `mojo build` + `make mojo-test` verified green post-format.
 Vendored Mojo (`Mojo/vendor/`) is deliberately not gated. Negative-tested:
-a perturbed source fails the test with the `make mojo-fmt` hint.
+a perturbed source fails the test with the `make mojo-format` hint.
 
 **Perf gates for the Mojo bench legs.** `run_bench.py` used budgets only as
 kill-timeouts (a leg 3x slower than historical still passed); it now carries
@@ -4356,7 +4355,7 @@ doctrine stands) — these gates are in `run_bench.py`, not pytest.
 
 Verified: full `make mojo-bench` 9/9 legs green under the new gates (and
 graph-algos parity 23/23 SQL + 16/16 metrics, unchanged); lint-gate tests
-3/3 in ~1.3s; ruff + ty clean on changed files; `make mojo-fmt` idempotent
+3/3 in ~1.3s; ruff + ty clean on changed files; `make mojo-format` idempotent
 (second run: 0 reformatted).
 
 ## 188
@@ -4472,3 +4471,4 @@ Measured: live `-n auto` 218/218 ×5 (43.8–51.2s); in-gate 5/5 green at
 11/11; `make qa` 8/8. Slice C (splitting integration+fuzz out of the
 default qa gate) stays OFF per the proposal. BFS oracle tests deliberately
 not trimmed (correctness coverage > ~4s).
+# FinData Knowledge Graph — Completed Improvements

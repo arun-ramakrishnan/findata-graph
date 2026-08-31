@@ -1,3 +1,12 @@
+---
+title: Temporal Analytics — `REPORT=temporal`
+status: executed
+filed: '2026-08-25'
+executed: '2026-08-25'
+completed_md: '150'
+area: helpers/graph/analytics.py` (one new report function
+---
+
 # Proposal: Temporal Analytics — `REPORT=temporal`
 
 **Status:** EXECUTED (2026-08-25) — all four tables landed, 24 tests

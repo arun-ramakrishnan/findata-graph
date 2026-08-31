@@ -59,15 +59,15 @@ _SECTOR_LOWER_TO_CANON = {s.lower(): s for s in CANONICAL_SECTORS}
 # bad type value — it would just find no directory to scan.
 VALID_TYPES = {"company", "sector", "super_sector", "sub_sector", "theme"}
 
-# OKF v0.2 provenance keys (doc/okf.md): optional on every schema-targeted
-# note (doc/schema/frontmatter.*.v1.json). The strict sector/super_sector
+# OKF v0.2 provenance keys (doc/okf/README.md): optional on every schema-targeted
+# note (doc/okf/frontmatter.*.v1.json). The strict sector/super_sector
 # field allowlists below must mirror the schemas or the first OKF stamp on
 # those trees fails the gate (company notes have no strict allowlist).
 OKF_OPTIONAL_FIELDS = frozenset(
     {"generated", "verified", "sources", "status", "stale_after"}
 )
 
-# Filename rules (see doc/findata.md §Sync Rules): PascalCase + single underscores,
+# Filename rules (see doc/design/findata.md §Sync Rules): PascalCase + single underscores,
 # no special chars, no consecutive/trailing underscores, <= 100 chars.
 # Allow leading digit for brand names that legitimately start with a number
 # (e.g. "360_ONE_WAM"). Underscores and other constraints still apply downstream.

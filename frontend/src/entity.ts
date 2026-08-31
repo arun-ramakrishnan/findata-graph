@@ -125,8 +125,8 @@ class EntityPage {
         const entity = this.entity;
         if (!entity) return;
         const fm = entity.frontmatter;
-        const isEdition = entity.entity_type === "edition"
-            || this.fmString(fm, "type") === "newsletter";
+        const isEdition =
+            entity.entity_type === "edition" || this.fmString(fm, "type") === "newsletter";
 
         document.title = `${entity.name} — FinData Knowledge Graph`;
         getEl("page-title").textContent = entity.name;
@@ -196,7 +196,8 @@ class EntityPage {
         }
         const tags = entity.enhanced_tags.length
             ? `<div class="entity-tags">${entity.enhanced_tags
-                .map((t) => `<span class="entity-tag">${escapeHtml(t)}</span>`).join("")}</div>`
+                  .map((t) => `<span class="entity-tag">${escapeHtml(t)}</span>`)
+                  .join("")}</div>`
             : "";
         mount.innerHTML = `
             <header class="entity-head">
@@ -231,7 +232,10 @@ class EntityPage {
     private renderToc(headings: { level: number; text: string; id: string }[]): void {
         if (headings.length < 2) return;
         getEl("toc-content").innerHTML = headings
-            .map((h) => `<li class="toc-${h.level}"><a href="#${encodeURIComponent(h.id)}">${escapeHtml(h.text)}</a></li>`)
+            .map(
+                (h) =>
+                    `<li class="toc-${h.level}"><a href="#${encodeURIComponent(h.id)}">${escapeHtml(h.text)}</a></li>`,
+            )
             .join("");
         getEl("toc-block").style.display = "block";
     }
@@ -241,25 +245,31 @@ class EntityPage {
     /** Vertical events timeline (dated oldest→newest, undated last). */
     private async loadEvents(name: string): Promise<void> {
         try {
-            const data = await fetchJson<EventsResponse>(
-                `/api/events/${encodeURIComponent(name)}`,
-            );
+            const data = await fetchJson<EventsResponse>(`/api/events/${encodeURIComponent(name)}`);
             if (!data.events.length) return;
-            getEl("events-tl").innerHTML = data.events.map((ev) => {
-                const date = this.eventDateLabel(ev.event_date, ev.date_precision);
-                const body = [
-                    ev.counterparty ? escapeHtml(ev.counterparty) : "",
-                    ev.magnitude ? `<span class="ev-mag">${escapeHtml(ev.magnitude)}</span>` : "",
-                ].filter(Boolean).join(" · ");
-                const quote = ev.source_quote ? ` title="${escapeHtml(ev.source_quote).replace(/"/g, "&quot;")}"` : "";
-                return `
+            getEl("events-tl").innerHTML = data.events
+                .map((ev) => {
+                    const date = this.eventDateLabel(ev.event_date, ev.date_precision);
+                    const body = [
+                        ev.counterparty ? escapeHtml(ev.counterparty) : "",
+                        ev.magnitude
+                            ? `<span class="ev-mag">${escapeHtml(ev.magnitude)}</span>`
+                            : "",
+                    ]
+                        .filter(Boolean)
+                        .join(" · ");
+                    const quote = ev.source_quote
+                        ? ` title="${escapeHtml(ev.source_quote).replace(/"/g, "&quot;")}"`
+                        : "";
+                    return `
                     <li class="ev-item"${quote}>
                         <span class="ev-date">${escapeHtml(date)}</span>
                         <span class="ev-type">${escapeHtml(ev.event_type)}</span>
                         <span class="ev-body">${body}</span>
                     </li>
                 `;
-            }).join("");
+                })
+                .join("");
             getEl("rail-events").style.display = "block";
         } catch {
             // Most entities have no events — quiet.
@@ -273,14 +283,16 @@ class EntityPage {
                 `/api/graph/semantic/${encodeURIComponent(name)}?k=8`,
             );
             if (!data.neighbors.length) return;
-            getEl("peers-chips").innerHTML = data.neighbors.map((n) => {
-                const pct = Math.round(n.similarity * 100);
-                const href = this.wikilinks?.get(n.name);
-                const inner = `${escapeHtml(n.name.replace(/_/g, " "))} <b>${pct}%</b>`;
-                return href
-                    ? `<a class="peer-chip" href="/entity/${encodeURIComponent(href)}" title="${escapeHtml(n.sector || "")}">${inner}</a>`
-                    : `<span class="peer-chip" title="${escapeHtml(n.sector || "")}">${inner}</span>`;
-            }).join("");
+            getEl("peers-chips").innerHTML = data.neighbors
+                .map((n) => {
+                    const pct = Math.round(n.similarity * 100);
+                    const href = this.wikilinks?.get(n.name);
+                    const inner = `${escapeHtml(n.name.replace(/_/g, " "))} <b>${pct}%</b>`;
+                    return href
+                        ? `<a class="peer-chip" href="/entity/${encodeURIComponent(href)}" title="${escapeHtml(n.sector || "")}">${inner}</a>`
+                        : `<span class="peer-chip" title="${escapeHtml(n.sector || "")}">${inner}</span>`;
+                })
+                .join("");
             getEl("rail-peers").style.display = "block";
         } catch {
             // Not embedded / not a company — quiet.
@@ -294,9 +306,10 @@ class EntityPage {
                 `/api/graph/similar/${encodeURIComponent(filePath)}?k=6`,
             );
             if (!data.neighbors.length) return;
-            getEl("similar-list").innerHTML = data.neighbors.map((n) => {
-                const pct = Math.round(n.similarity * 100);
-                return `
+            getEl("similar-list").innerHTML = data.neighbors
+                .map((n) => {
+                    const pct = Math.round(n.similarity * 100);
+                    return `
                     <a class="related-row" href="/entity/${encodeURIComponent(n.file_path)}"
                        title="${escapeHtml(n.file_path)}">
                         <span class="related-title">${escapeHtml(n.title.replace(/_/g, " "))}</span>
@@ -304,7 +317,8 @@ class EntityPage {
                             class="bar-fill" style="width:${pct}%"></span></span>${pct}%</span>
                     </a>
                 `;
-            }).join("");
+                })
+                .join("");
             getEl("rail-similar").style.display = "block";
         } catch {
             // Unembedded note — quiet.
@@ -322,7 +336,8 @@ class EntityPage {
                 if (!entity.file_path) continue;
                 const stem = (entity.file_path.split("/").pop() || "").replace(/\.md$/i, "");
                 if (stem && !index.has(stem)) index.set(stem, entity.file_path);
-                if (entity.name && !index.has(entity.name)) index.set(entity.name, entity.file_path);
+                if (entity.name && !index.has(entity.name))
+                    index.set(entity.name, entity.file_path);
             }
             this.wikilinks = index;
             return index;
@@ -395,15 +410,19 @@ class EntityPage {
     // --- page chrome -------------------------------------------------------------- //
 
     private collectImages(): void {
-        this.images = Array.from(document.querySelectorAll<HTMLImageElement>("#entity-content .rich-image"))
-            .map((img) => ({ src: img.src, alt: img.alt || "Image" }));
+        this.images = Array.from(
+            document.querySelectorAll<HTMLImageElement>("#entity-content .rich-image"),
+        ).map((img) => ({ src: img.src, alt: img.alt || "Image" }));
     }
 
     /** Entry point for the lightbox (delegated via wireRichInteractions). */
     openLightbox(src: string): void {
         const lightbox = getEl("image-lightbox");
         const image = getEl("lightbox-image") as HTMLImageElement;
-        this.currentImageIndex = Math.max(0, this.images.findIndex((i) => i.src === src));
+        this.currentImageIndex = Math.max(
+            0,
+            this.images.findIndex((i) => i.src === src),
+        );
         image.src = src;
         (document.querySelector(".lightbox-caption") as HTMLElement).textContent =
             this.images[this.currentImageIndex]?.alt || "Image";
@@ -498,8 +517,7 @@ class EntityPage {
             : [];
         for (const tag of tags) {
             if (tag.startsWith("publisher/")) {
-                return tag.slice("publisher/".length)
-                    .replace(/\b\w/g, (c) => c.toUpperCase());
+                return tag.slice("publisher/".length).replace(/\b\w/g, (c) => c.toUpperCase());
             }
         }
         return null;

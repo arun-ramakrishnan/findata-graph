@@ -1,3 +1,12 @@
+---
+title: 'Mojo port of `make graph-algos` — phase 1: bridge-driven probe'
+status: executed
+filed: '2026-08-30'
+executed: '2026-08-30'
+completed_md: '183'
+area: Mojo tooling / `Mojo/src/bench/graph_algos_probe.mojo` +
+---
+
 # Mojo port of `make graph-algos` — phase 1: bridge-driven probe
 
 **Date:** 2026-08-30 · **Status:** EXECUTED same day (completed.md #183;

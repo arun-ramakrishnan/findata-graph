@@ -247,7 +247,7 @@ def _reset_graph_connection() -> None:
     Used by the /api/graph/refresh admin endpoint after the SQLite source has
     been updated (e.g. by parse_newsletter --apply + derive-relations) so the
     next /api/graph/* request sees fresh data. Also closes the file handle
-    (DuckDB single-writer contract — see doc/graph_design.txt §8) so the
+    (DuckDB single-writer contract — see doc/design/graph_design.txt §8) so the
     subsequent rebuild() can reopen the file read-write.
     """
     global _graph_con, _graph_con_error, _graph_error_at, _graph_etag
@@ -780,8 +780,8 @@ def _iter_doc_files():
     if not _DOC_ROOT.is_dir():
         return
     # Sort by POSIX string, NOT by Path: Path comparison is tuple-of-parts,
-    # so doc/schema/frontmatter_keys.md ('schema' < 'schema.md', prefix rule)
-    # would sort BEFORE doc/schema.md — contradicting the plain-string order
+    # so doc/okf/frontmatter_keys.md ('schema' < 'schema.md', prefix rule)
+    # would sort BEFORE doc/design/db_schema.md — contradicting the plain-string order
     # clients (and the API's own "sorted by path" contract) expect.
     for rel in sorted(
         p.relative_to(_DOC_ROOT).as_posix()
@@ -2129,7 +2129,7 @@ def api_graph_stats():
 
 
 # Relationship-type semantics for the graph cloud + relationship cloud card.
-# Mirrors the edge-type table in doc/graph_design.txt §4. Every live edge type
+# Mirrors the edge-type table in doc/design/graph_design.txt §4. Every live edge type
 # is listed; `symmetric` drives arrow rendering, `semantics` feeds the tooltip.
 _EDGE_SEMANTICS: dict[str, dict[str, object]] = {
     "co_mentioned_in": {

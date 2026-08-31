@@ -8,7 +8,7 @@ from the same edition therefore carries an identical edition title; those
 companies are "co-mentioned" and we materialise a symmetric `co_mentioned_in`
 edge between every unordered pair.
 
-This is Slice C of Graph Phase 2 — see `doc/graph_design.txt` §4 for the
+This is Slice C of Graph Phase 2 — see `doc/design/graph_design.txt` §4 for the
 symmetric-edge convention (`source LE target`, one row per pair).
 
 Public API

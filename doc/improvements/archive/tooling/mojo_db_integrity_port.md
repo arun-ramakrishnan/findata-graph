@@ -1,3 +1,12 @@
+---
+title: Mojo port of `database_integrity_check.py` — full check surface
+status: executed
+filed: '2026-08-30'
+executed: '2026-08-30'
+completed_md: '182'
+area: Mojo tooling / `Mojo/src/common/integrity_check.mojo` +
+---
+
 # Mojo port of `database_integrity_check.py` — full check surface
 
 **Date:** 2026-08-30 · **Status:** EXECUTED same day (completed.md #182;

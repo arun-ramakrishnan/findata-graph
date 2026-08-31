@@ -32,27 +32,38 @@ export function processRichContent(content: string): ProcessedContent {
 
     // Extract headings for TOC.
     const headings: TocHeading[] = [];
-    processedHtml = processedHtml.replace(/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi, (match, level: string, text: string) => {
-        const id = text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-        headings.push({
-            level: parseInt(level, 10),
-            text: text.replace(/<[^>]*>/g, ""),
-            id: id,
-        });
-        return `<h${level} id="${id}">${text}</h${level}>`;
-    });
+    processedHtml = processedHtml.replace(
+        /<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi,
+        (match, level: string, text: string) => {
+            const id = text
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, "-")
+                .replace(/^-+|-+$/g, "");
+            headings.push({
+                level: parseInt(level, 10),
+                text: text.replace(/<[^>]*>/g, ""),
+                id: id,
+            });
+            return `<h${level} id="${id}">${text}</h${level}>`;
+        },
+    );
 
     // Process images for lightbox.
-    processedHtml = processedHtml.replace(/<img([^>]+)src="([^"]+)"([^>]*)>/gi, (_match, before: string, src: string, after: string) => {
-        const imgId = `img-${Math.random().toString(36).substring(2, 11)}`;
-        return `<img${before}src="${src}"${after} class="rich-image" data-img-id="${imgId}" data-lightbox="${escapeAttr(src)}" loading="lazy">`;
-    });
+    processedHtml = processedHtml.replace(
+        /<img([^>]+)src="([^"]+)"([^>]*)>/gi,
+        (_match, before: string, src: string, after: string) => {
+            const imgId = `img-${Math.random().toString(36).substring(2, 11)}`;
+            return `<img${before}src="${src}"${after} class="rich-image" data-img-id="${imgId}" data-lightbox="${escapeAttr(src)}" loading="lazy">`;
+        },
+    );
 
     // Process code blocks with syntax highlighting.
-    processedHtml = processedHtml.replace(/<pre><code class="language-(\w+)">([\s\S]*?)<\/code><\/pre>/gi, (_match, lang: string, code: string) => {
-        const codeId = `code-${Math.random().toString(36).substring(2, 11)}`;
-        const highlightedCode = highlightCode(code, lang);
-        return `
+    processedHtml = processedHtml.replace(
+        /<pre><code class="language-(\w+)">([\s\S]*?)<\/code><\/pre>/gi,
+        (_match, lang: string, code: string) => {
+            const codeId = `code-${Math.random().toString(36).substring(2, 11)}`;
+            const highlightedCode = highlightCode(code, lang);
+            return `
             <div class="code-block">
                 <div class="code-header">
                     <span class="code-language">${lang}</span>
@@ -63,22 +74,32 @@ export function processRichContent(content: string): ProcessedContent {
                 <pre><code id="${codeId}" class="language-${lang}">${highlightedCode}</code></pre>
             </div>
         `;
-    });
+        },
+    );
 
     // Process inline code.
-    processedHtml = processedHtml.replace(/<code>([\s\S]*?)<\/code>/gi, '<code class="inline-code">$1</code>');
+    processedHtml = processedHtml.replace(
+        /<code>([\s\S]*?)<\/code>/gi,
+        '<code class="inline-code">$1</code>',
+    );
 
     // Process tables with responsive design.
-    processedHtml = processedHtml.replace(/<table([^>]*)>([\s\S]*?)<\/table>/gi, (_match, attributes: string, tableContent: string) => {
-        return `
+    processedHtml = processedHtml.replace(
+        /<table([^>]*)>([\s\S]*?)<\/table>/gi,
+        (_match, attributes: string, tableContent: string) => {
+            return `
             <div class="table-wrapper">
                 <table${attributes}>${tableContent}</table>
             </div>
         `;
-    });
+        },
+    );
 
     // Process blockquotes.
-    processedHtml = processedHtml.replace(/<blockquote>([\s\S]*?)<\/blockquote>/gi, '<blockquote class="rich-blockquote">$1</blockquote>');
+    processedHtml = processedHtml.replace(
+        /<blockquote>([\s\S]*?)<\/blockquote>/gi,
+        '<blockquote class="rich-blockquote">$1</blockquote>',
+    );
 
     // Add responsive embeds for external content.
     processedHtml = processExternalContent(processedHtml);
@@ -141,12 +162,15 @@ export function copyCode(codeId: string): void {
     const codeElement = getEl(codeId);
     if (codeElement) {
         const text = codeElement.textContent;
-        navigator.clipboard.writeText(text || "").then(() => {
-            showToast("Code copied to clipboard!", "success");
-        }).catch((err) => {
-            console.error("Failed to copy code:", err);
-            showToast("Failed to copy code", "error");
-        });
+        navigator.clipboard
+            .writeText(text || "")
+            .then(() => {
+                showToast("Code copied to clipboard!", "success");
+            })
+            .catch((err) => {
+                console.error("Failed to copy code:", err);
+                showToast("Failed to copy code", "error");
+            });
     }
 }
 
@@ -171,8 +195,10 @@ export function closeLightbox(): void {
 
 function processExternalContent(html: string): string {
     // Process YouTube embeds.
-    html = html.replace(/https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/gi,
-        '<div class="video-embed"><iframe src="https://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe></div>');
+    html = html.replace(
+        /https?:\/\/(?:www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/gi,
+        '<div class="video-embed"><iframe src="https://www.youtube.com/embed/$1" frameborder="0" allowfullscreen></iframe></div>',
+    );
 
     // Process general links.
     html = html.replace(/<a href="([^"]+)"([^>]*)>/gi, (match, href: string, rest: string) => {
@@ -197,8 +223,8 @@ export function initializeInteractiveElements(): void {
     }
 
     // Add smooth scrolling for TOC links (respect reduced-motion preference).
-    const prefersReducedMotion = window.matchMedia
-        && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const prefersReducedMotion =
+        window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     document.querySelectorAll<HTMLAnchorElement>(".toc-link").forEach((link) => {
         link.addEventListener("click", (e) => {
             e.preventDefault();

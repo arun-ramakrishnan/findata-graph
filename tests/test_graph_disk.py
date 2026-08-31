@@ -2,7 +2,7 @@
 """Tests for the disk-based DuckDB graph cache (helpers/graph/query.py).
 
 These tests exercise the new persistence model introduced in
-``doc/graph_design.txt §8``:
+``doc/design/graph_design.txt §8``:
 
   - First ``connect()`` on a cold file builds ``memory/graph.duckdb`` and
     records provenance in a ``_build_meta`` table.

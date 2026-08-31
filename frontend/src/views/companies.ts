@@ -6,11 +6,7 @@
 // lives here; behavior is unchanged, including the inline-onclick pagination
 // contract (`viewer.goToPage(n)` — re-exposed on the shell).
 
-import type {
-    EntitiesResponse,
-    EntityListItem,
-    SearchResponse,
-} from "../../types/api";
+import type { EntitiesResponse, EntityListItem, SearchResponse } from "../../types/api";
 import { getEl, escapeHtml } from "../core/dom";
 import { fetchJson } from "../core/api";
 import { showLoading, showError } from "../core/toast";
@@ -204,14 +200,20 @@ export class CompaniesView {
             const response = await fetch(`/api/search?${params}`);
             if (response.status === 503) {
                 // FTS index not built — surface a clear message, don't 500 the UI.
-                this.displayContentResults([], 0,
-                    "Search index not built. Run: python3 helpers/maintenance/rebuild_note_search.py");
+                this.displayContentResults(
+                    [],
+                    0,
+                    "Search index not built. Run: python3 helpers/maintenance/rebuild_note_search.py",
+                );
                 return;
             }
             if (!response.ok) {
                 const err = await response.json().catch((): { error?: string } => ({}));
-                this.displayContentResults([], 0,
-                    err.error || `Search failed (HTTP ${response.status})`);
+                this.displayContentResults(
+                    [],
+                    0,
+                    err.error || `Search failed (HTTP ${response.status})`,
+                );
                 return;
             }
             const data: SearchResponse = await response.json();
@@ -227,14 +229,19 @@ export class CompaniesView {
         }
     }
 
-    displayContentResults(results: SearchResponse["results"], totalCount: number, errorMessage: string | null = null): void {
+    displayContentResults(
+        results: SearchResponse["results"],
+        totalCount: number,
+        errorMessage: string | null = null,
+    ): void {
         const container = getEl("companies-container");
         if (errorMessage) {
             container.innerHTML = `<div class="no-results">${escapeHtml(errorMessage)}</div>`;
             return;
         }
         if (!results || results.length === 0) {
-            container.innerHTML = '<div class="no-results">No content matches. Try another term, or switch to Entities mode.</div>';
+            container.innerHTML =
+                '<div class="no-results">No content matches. Try another term, or switch to Entities mode.</div>';
             return;
         }
 
@@ -247,8 +254,11 @@ export class CompaniesView {
             const card = document.createElement("div");
             card.className = "entity-card content-search-card";
             const docLabel: Record<string, string> = {
-                company: "Company", sector: "Sector", super_sector: "Super-Sector",
-                chatter: "Newsletter (Chatter)", points_and_figures: "Newsletter (P&F)",
+                company: "Company",
+                sector: "Sector",
+                super_sector: "Super-Sector",
+                chatter: "Newsletter (Chatter)",
+                points_and_figures: "Newsletter (P&F)",
                 plotlines: "Newsletter (Plotlines)",
             };
             const safeSnippet = highlightSnippet(hit.snippet);
@@ -306,14 +316,22 @@ export class CompaniesView {
                     <i class="fas fa-industry"></i>
                     <span>${escapeHtml(entity.sector_classification || "Unknown")}</span>
                 </div>
-                ${marketCapTag ? `<div class="card-market-cap">
+                ${
+                    marketCapTag
+                        ? `<div class="card-market-cap">
                     <i class="fas fa-chart-line"></i>
                     <span>${escapeHtml(marketCapTag.replace("market_cap/", "").replace("_", " "))}</span>
-                </div>` : ""}
-                ${geographyTag ? `<div class="card-geography">
+                </div>`
+                        : ""
+                }
+                ${
+                    geographyTag
+                        ? `<div class="card-geography">
                     <i class="fas fa-globe"></i>
                     <span>${escapeHtml(geographyTag.replace("geography/", ""))}</span>
-                </div>` : ""}
+                </div>`
+                        : ""
+                }
             </div>
             <div class="card-footer">
                 <a href="/entity/${entity.file_path}" class="btn-primary" target="_blank" rel="noopener noreferrer">

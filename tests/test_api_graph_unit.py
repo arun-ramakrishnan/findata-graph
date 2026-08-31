@@ -811,7 +811,7 @@ class TestGraphRefresh:
     def test_refresh_closes_real_connection(self, unit_client, monkeypatch):
         """A1: refresh must call .close() on the cached DuckDB connection
         before nulling it, so the file lock is released for the rebuild
-        (DuckDB single-writer contract, doc/graph_design.txt §8)."""
+        (DuckDB single-writer contract, doc/design/graph_design.txt §8)."""
         closed = {"n": 0}
 
         class FakeCon:

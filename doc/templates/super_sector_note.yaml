@@ -1,0 +1,19 @@
+# schema: doc/okf/frontmatter.super_sector.v1.json
+# Seed for findata/Super_Sectors/<Name>.md frontmatter. Two quirks the
+# schema bakes in: file_path is REQUIRED here (unlike company notes where
+# it is legacy-optional), and the permalink pattern wants the LEADING
+# slash — build_sector_hierarchy historically emitted it without
+# (verify_notes treats that as a warning; never copy generator output
+# into hand-written notes). Keys ⊆ schema properties (test_templates).
+---
+title: "{Super_Sector_Title}"   # e.g. 'Consumer Discretionary'; == filename
+type: super_sector              # const 'super_sector' in Super_Sectors/
+normalized_name: "{Super_Sector_Title}"    # matches filename minus .md
+file_path: "findata/Super_Sectors/{Name}.md"    # vault-relative; required on this tree
+permalink: "/super_sectors/{super_sector_slug}"    # lowercase [a-z0-9_], LEADING slash
+tags:
+- entity_type/super_sector
+- "super_sector/{super_sector_slug}"
+created: "YYYY-MM-DD"           # quoted — unquoted YAML parses dates into date objects
+last_modified: "YYYY-MM-DD"
+---

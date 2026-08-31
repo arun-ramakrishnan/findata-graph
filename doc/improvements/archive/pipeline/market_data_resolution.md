@@ -1,3 +1,12 @@
+---
+title: Combined market-data resolution — FinnHub search → yfinance bulk → GF fallback
+status: executed
+filed: '2026-08-25'
+executed: '2026-08-25'
+completed_md: '152'
+area: pipeline
+---
+
 # Proposal: Combined market-data resolution — FinnHub search → yfinance bulk → GF fallback
 
 **Date**: 2026-08-25

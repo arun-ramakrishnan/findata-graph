@@ -24,7 +24,7 @@ NetworkX was retired earlier (2026-08-14 consolidation).
 
 Onager needs no property graph and stores nothing of its own: it reads the
 ``graph_edges`` table, projected as plain ``(src, dst, weight)`` integer
-edge ids. See helpers/graph/onager.py and doc/graph_design.txt.
+edge ids. See helpers/graph/onager.py and doc/design/graph_design.txt.
 
 The query wrappers live in ``helpers/graph/query.py`` (plain SQL) and
 ``helpers/graph/onager.py`` (Onager). This module hosts:

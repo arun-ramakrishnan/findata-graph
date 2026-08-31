@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "frontmatter.newsletter.v1.json",
+  "x-template": "doc/templates/newsletter_note.yaml",
   "title": "Source newsletter note frontmatter (v1)",
   "description": "Structural contract for the OCR source trees findata/{The_Chatter,The_PlotLines,Points_And_Figures}/*.md. These notes are PRIMARY sources (newsletter editions), not derived concepts: producers are pdf_conv_md.py (Stage 0) and the OKF backfill for pre-adoption notes. Covers the OKF v0.2 provenance block plus the namespaced tag vocabulary (series/, publisher/, company/) and the Obsidian-publish chrome observed on hand-managed notes (permalink/visibility/language/last_updated). Supersedes okf_adoption.md SS2.2's 'no schema needed' stance, whose premise (no frontmatter) was removed by the 2026-08-19 provenance backfill.",
   "type": "object",
@@ -17,7 +18,7 @@
     },
     "type": {
       "const": "newsletter",
-      "description": "Note type discriminator — always 'newsletter' in the source trees."
+      "description": "Note type discriminator \u2014 always 'newsletter' in the source trees."
     },
     "tags": {
       "type": "array",

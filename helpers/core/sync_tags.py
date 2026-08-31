@@ -13,7 +13,7 @@ Design:
 - Full rebuild each run (DELETE + reinsert) -> idempotent, self-correcting,
   no stale rows from deleted entities.
 - Entity -> note joined via entities.file_path (the sync contract, see
-  doc/architecture.md §5). Notes whose entity has no resolvable file_path are
+  doc/design/architecture.md §5). Notes whose entity has no resolvable file_path are
   skipped and reported — except the legitimately fileless types
   (sub_sector/theme/institution, see FILELESS_ENTITY_TYPES), which are
   silently skipped like database_integrity_check.py does.

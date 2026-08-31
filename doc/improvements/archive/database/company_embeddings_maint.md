@@ -1,3 +1,12 @@
+---
+title: Cached Company-Embeddings Refresh in maint-full
+status: executed
+filed: '2026-08-21'
+executed: '2026-08-21'
+completed_md: '142'
+area: helpers/graph/embeddings.py
+---
+
 # Proposal: Cached Company-Embeddings Refresh in maint-full
 
 **Status:** EXECUTED (2026-08-21) — code + tests landed; the one-time

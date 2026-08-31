@@ -1,3 +1,12 @@
+---
+title: maint-full single snapshot + zstd compression
+status: executed
+filed: '2026-08-29'
+executed: '2026-08-29'
+completed_md: '174'
+area: helpers/maintenance/maint.py
+---
+
 # maint-full single snapshot + zstd compression
 
 **Date:** 2026-08-29 · **Status:** EXECUTED 2026-08-29 (completed.md #174) ·

@@ -21,8 +21,8 @@ findata/
 
 ## YAML Front Matter
 
-**Authoritative key reference: [`doc/schema/frontmatter_keys.md`](schema/frontmatter_keys.md)
-(GENERATED from the JSON Schemas in `doc/schema/` — do not edit by hand).**
+**Authoritative key reference: [`doc/okf/frontmatter_keys.md`](schema/frontmatter_keys.md)
+(GENERATED from the JSON Schemas in `doc/okf/` — do not edit by hand).**
 The schemas are enforced structurally by `make static-checks`
 ("Frontmatter schema" check → `helpers/validators/frontmatter_schema.py`);
 relational rules (normalized_name == filename, permalink sector == directory)

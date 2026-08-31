@@ -1,3 +1,12 @@
+---
+title: Mojo docstring promotion — `#` prose → `##` docstrings
+status: executed
+filed: '2026-08-30'
+executed: '2026-08-30'
+completed_md: '188'
+area: 13 files under `Mojo/src/*/*.mojo
+---
+
 # Mojo docstring promotion — `#` prose → `##` docstrings
 
 **Status:** EXECUTED 2026-08-30 (see completed.md #189 — with two deviations
@@ -92,7 +101,7 @@ one-liners already in `##` form stay as-is.
 
 1. `make mojo-build` + `make mojo-test` green (docstrings are syntax-checked
    but inert).
-2. `make mojo-fmt` idempotent; `tests/test_lint_gates.py` green.
+2. `make mojo-format` idempotent; `tests/test_lint_gates.py` green.
 3. `mojo doc` JSON: `decl.description` non-empty for 13/13 modules.
 4. Live rebuild → `script_query` shows prose purposes (no stem fallbacks);
    re-run the two failing demo queries — `integrity_check.mojo` must rank

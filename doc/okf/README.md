@@ -70,7 +70,7 @@ The `findata/` vault is an OKF bundle in spirit:
 The project also **exceeds** OKF conformance: OKF requires only a non-empty
 `type`; this project enforces 10 required keys with regex constraints and
 `additionalProperties: false` via `helpers/validators/frontmatter_schema.py` +
-`doc/schema/frontmatter.*.v1.json`. No conformance work is needed — the format
+`doc/okf/frontmatter.*.v1.json`. No conformance work is needed — the format
 is already stricter than the spec.
 
 **Interop caveat (important):** because the project validator enforces
@@ -160,7 +160,7 @@ need to port them, but our `_normalize()` date-object handling mirrors their
    `generated` + `sources` at conversion time. `derive_insights.py` writes
    `generated` (machine) and preserves `verified` (hand) semantics via the
    existing sentinel rule.
-3. **One source of truth.** The JSON-Schemas in `doc/schema/` and the generated
+3. **One source of truth.** The JSON-Schemas in `doc/okf/` and the generated
    `frontmatter_keys.md` doc stay the single contract; the validator enforces it
    (as today).
 4. **DB remains the writer of relational truth.** Note-side change only;
@@ -288,7 +288,7 @@ The date-object normalization quirk already handled by
   `file_path` stand in for `resource`; body prose stands in for `description`).
   Revisit only if an `index.md` generator or an external OKF consumer appears.
 - **Source-tree tags/sync follow-up:** the OCR source trees gained their own
-  schema (`doc/schema/frontmatter.newsletter.v1.json`), a namespaced tag
+  schema (`doc/okf/frontmatter.newsletter.v1.json`), a namespaced tag
   vocabulary, and a `note_tags` SQL mirror AFTER this design landed — see
   `doc/improvements/archive/okf/newsletter_notes_adoption.md` (supersedes the
   "newsletter notes need no schema" note in §3.1; their OKF block is now

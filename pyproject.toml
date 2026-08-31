@@ -28,7 +28,7 @@ dependencies = [
     # Graph query + algorithm layer (helpers/graph/{query,onager,algorithms}.py).
     # The Onager graph-algorithm extension (Apache-2.0, DuckDB community repo)
     # is installed at runtime via INSTALL onager FROM community — see
-    # doc/graph_design.txt. duckpgq and NetworkX were retired 2026-08-14;
+    # doc/design/graph_design.txt. duckpgq and NetworkX were retired 2026-08-14;
     # duckdb itself is unpinned (decision D8).
     "duckdb",
     # Parquet/Arrow I/O (helpers/maintenance/snapshot_db.py).
@@ -52,7 +52,7 @@ dependencies = [
     # the extension is unavailable.
     "sqlite-vec",
     # JSON-Schema validation of findata note frontmatter (
-    # helpers/validators/frontmatter_schema.py; schemas in doc/schema/).
+    # helpers/validators/frontmatter_schema.py; schemas in doc/okf/).
     "jsonschema",
     # Local embedding backend (helpers/core/local_embedder.py): bge-small-en-v1.5
     # GGUF via llama.cpp, CPU-only, no torch. Built from sdist on first install
@@ -118,6 +118,7 @@ ignore = ["E501"]
 # late-import bug elsewhere still gets caught.
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["E402", "S101"]
+"doc/templates/test_module.py" = ["S101"]  # test SEED — asserts are the contract (same rationale as tests/**)
 "helpers/core/get_tickers.py" = ["E402"]
 "helpers/core/parse_newsletter.py" = ["E402"]
 "helpers/graph/embeddings.py" = ["E402"]

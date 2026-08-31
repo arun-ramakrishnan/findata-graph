@@ -1,3 +1,12 @@
+---
+title: Namespaced Tags, Validation & Tag Sync for Source Newsletter Notes
+status: executed
+filed: '2026-08-19'
+executed: '2026-08-19'
+completed_md: '132'
+area: findata/{The_Chatter
+---
+
 # Proposal: Namespaced Tags, Validation & Tag Sync for Source Newsletter Notes
 
 **Status:** EXECUTED 2026-08-19 (S1–S4 + S6 shipped; S5 `company/`

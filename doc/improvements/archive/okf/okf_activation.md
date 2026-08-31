@@ -1,3 +1,12 @@
+---
+title: Activating OKF Metadata — Coverage Analytics, Source-Driven Incremental Derivation, `cited_in` Provenance Edges
+status: executed
+filed: '2026-08-19'
+executed: '2026-08-19'
+completed_md: '134'
+area: okf
+---
+
 # Proposal: Activating OKF Metadata — Coverage Analytics, Source-Driven Incremental Derivation, `cited_in` Provenance Edges
 
 **Status:** **EXECUTED 2026-08-19 — COMPLETE** (all of F0/P/C2/I below

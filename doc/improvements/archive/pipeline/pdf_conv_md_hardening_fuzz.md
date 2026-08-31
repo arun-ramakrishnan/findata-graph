@@ -1,3 +1,12 @@
+---
+title: Harden Paddle `parse_pages`, consolidate `slugify`, add fuzz coverage
+status: executed
+filed: '2026-08-16'
+executed: '2026-08-16'
+completed_md: '114'
+area: helpers/pdf/pdf_conv_md.py
+---
+
 # Proposal: Harden Paddle `parse_pages`, consolidate `slugify`, add fuzz coverage
 
 **Status:** COMPLETE (2026-08-16)

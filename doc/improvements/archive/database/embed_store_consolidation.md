@@ -1,3 +1,12 @@
+---
+title: Single embed store — consolidate the vector sidecars
+status: executed
+filed: '2026-08-26'
+executed: '2026-08-27'
+completed_md: '166'
+area: database
+---
+
 # Proposal: Single embed store — consolidate the vector sidecars
 
 **Date**: 2026-08-26

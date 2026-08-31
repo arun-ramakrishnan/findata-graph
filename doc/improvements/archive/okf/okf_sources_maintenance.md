@@ -1,3 +1,12 @@
+---
+title: OKF `sources[]` Maintenance at Render Time
+status: executed
+filed: '2026-08-19'
+executed: '2026-08-19'
+completed_md: '135'
+area: helpers/graph/derive_insights.py
+---
+
 # Proposal: OKF `sources[]` Maintenance at Render Time
 
 **Status:** EXECUTED 2026-08-19. §3.1–§3.4 shipped (all §5 recommendations

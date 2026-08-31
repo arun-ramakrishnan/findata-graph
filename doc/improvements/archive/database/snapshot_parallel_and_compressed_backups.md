@@ -1,3 +1,12 @@
+---
+title: Parallel per-DB snapshot + zstd-compressed recovery backups
+status: executed
+filed: '2026-08-29'
+executed: '2026-08-29'
+completed_md: '175'
+area: helpers/maintenance/snapshot_db.py
+---
+
 # Parallel per-DB snapshot + zstd-compressed recovery backups
 
 > **Measured outcome (2026-08-29):** db-backup/ is now 100 % compressed —

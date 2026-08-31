@@ -1,0 +1,28 @@
+# schema: doc/okf/frontmatter.company.v1.json
+# Seed for findata/Companies/<Sector>/<Name>.md frontmatter — build by
+# string substitution; normalized_name is the sync-critical field (MUST
+# match the filename minus .md, char-for-char). Structural contract: the
+# JSON Schema above (additionalProperties: false), enforced by
+# helpers/validators/frontmatter_schema.py under make static-checks.
+# This seed's keys are a SUBSET of the schema's properties — a rogue key
+# in a seed is a bug in the seed (tests/test_templates.py guards this).
+---
+title: "{entity_name}"
+type: company                   # const 'company' in Companies/
+tags:
+- "entity_type/{entity_type}"
+- "sector/{sector}"
+- "market_cap/{market_cap}"
+- "geography/{geography}"
+- "business_model/{business_model}"
+- "risk_investment/{risk_investment}"
+normalized_name: "{normalized_name}"    # MUST match filename minus .md (verify_notes)
+sector: "{sector}"              # canonical CAPITALIZED sector name == parent dir title
+market_cap: "{market_cap}"      # large_cap | mid_cap | small_cap | micro_cap | null
+geography: "{geography}"        # lowercase [a-z_]
+ticker: "SYMBOL.NS"             # prefer .NS (NSE) over .BO (BSE); null when unlisted —
+                                # NEVER the string "N/A" (schema rejects it)
+created: "YYYY-MM-DD"           # quoted — unquoted YAML parses dates into date objects
+last_modified: "YYYY-MM-DD"
+permalink: "/companies/{sector_slug}/{company_slug}"   # lowercase [a-z0-9_], underscores
+---

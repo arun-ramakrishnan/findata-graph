@@ -177,7 +177,7 @@ def _note_path(kind: str, display_name: str) -> str:
 def _super_sector_note(display_name: str, child_sectors: list[str]) -> str:
     """Render a super-sector markdown note.
 
-    Uses the canonical sector-note YAML template (see doc/findata.md) with
+    Uses the canonical sector-note YAML template (see doc/design/findata.md) with
     ``type: super_sector`` and a ``## Child Sectors (auto)`` section listing
     the member sectors as wikilinks. The section is bracketed by sentinel
     markers so it can be refreshed idempotently by re-running this script.

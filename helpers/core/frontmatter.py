@@ -14,7 +14,7 @@ Public API:
     moddate_to_iso_date(s)             -> str|None             # PDF D:... -> YYYY-MM-DD
     bump_generated(text, by, ...)      -> str                  # OKF generated/stale_after
 
-The last four implement the OKF v0.2 provenance vocabulary (doc/okf.md,
+The last four implement the OKF v0.2 provenance vocabulary (doc/okf/README.md,
 doc/improvements/archive/okf/okf_adoption.md), shared by the two generators
 that own the data: pdf/pdf_conv_md.py emits generated+sources at conversion
 time; graph/derive_insights.py bumps generated on each auto-block rewrite.
@@ -80,7 +80,7 @@ def split_frontmatter_with_title(text: str) -> tuple[str | None, str]:
 
 
 # --------------------------------------------------------------------------- #
-# OKF v0.2 provenance helpers (doc/okf.md; adopted 2026-08-18)                #
+# OKF v0.2 provenance helpers (doc/okf/README.md; adopted 2026-08-18)                #
 # --------------------------------------------------------------------------- #
 # YAML dump settings for frontmatter round-trips: preserve key order (the
 # hand-authored order is meaningful to readers), keep non-ASCII readable,

@@ -1,3 +1,12 @@
+---
+title: In-House Semantic Embeddings via a Local bge-small-en Model
+status: executed
+filed: '2026-08-20'
+executed: '2026-08-20'
+completed_md: '141'
+area: 'helpers/core/local_embedder.py'
+---
+
 # Proposal: In-House Semantic Embeddings via a Local bge-small-en Model
 
 **Status:** EXECUTED (implemented 2026-08-20; user-run live apply + eval
@@ -5,7 +14,7 @@
 `doc/improvements/archive/database/local_embeddings.md`.
 **Date:** 2026-08-20
 **Author:** Agent analysis (user-directed)
-**Builds on:** completed.md #115 (real-API embedding path removed as
+**Builds on:** completed.md #141 (real-API embedding path removed as
 dead code), the A1 hybrid-ranking work (`vec_search.py`), and the
 2026-08-20 OpenViking pilot analysis (deferred —
 `doc/local/openviking_pilot_proposal.md`).

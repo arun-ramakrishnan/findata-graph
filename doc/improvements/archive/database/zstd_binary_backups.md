@@ -1,3 +1,12 @@
+---
+title: zstd binary backups — `.gz` → `.zst` for db-backup/ recovery artifacts
+status: executed
+filed: '2026-08-29'
+executed: '2026-08-29'
+completed_md: '176'
+area: helpers/maintenance/snapshot_db.py` (binary branch)
+---
+
 # zstd binary backups — `.gz` → `.zst` for db-backup/ recovery artifacts
 
 > **Measured outcome (2026-08-29):** snapshot binary branch now zstd

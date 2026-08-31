@@ -1,3 +1,12 @@
+---
+title: Gate parallelism phase 2 — live-invariants xdist safety and the advisory floor
+status: executed
+filed: '2026-08-31'
+executed: '2026-08-31'
+completed_md: '189'
+area: tests/run_gate_report.py
+---
+
 # Gate parallelism phase 2 — live-invariants xdist safety and the advisory floor
 
 **Date:** 2026-08-31 · **Status:** EXECUTED 2026-08-31 (completed.md #189) ·

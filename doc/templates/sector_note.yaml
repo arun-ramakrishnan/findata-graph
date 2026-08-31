@@ -1,0 +1,18 @@
+# schema: doc/okf/frontmatter.sector.v1.json
+# Seed for findata/Sectors/<Name>.md frontmatter. The auto-blocks in the
+# BODY (company roster, Child Sectors) are owned by sync_sector_wikilinks
+# and build_sector_hierarchy — this seed covers only the frontmatter.
+# Keys are a subset of the schema's properties (tests/test_templates.py).
+---
+title: "{Sector_Name}"          # canonical CAPITALIZED sector name == filename
+type: sector                    # const 'sector' in Sectors/
+super_sector: "{Super_Sector_Title}"    # parent Super_Sectors/ note title (relational check)
+normalized_name: "{Sector_Name}"        # matches filename minus .md
+permalink: "/sectors/{sector_slug}"     # lowercase [a-z0-9_], leading slash
+tags:
+- entity_type/sector
+- "sector/{sector_slug}"
+- geography/global
+created: "YYYY-MM-DD"           # quoted — unquoted YAML parses dates into date objects
+last_modified: "YYYY-MM-DD"
+---

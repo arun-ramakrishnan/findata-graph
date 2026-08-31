@@ -34701,23 +34701,31 @@
   function processRichContent(content) {
     let processedHtml = DOMPurify.sanitize(marked.parse(content));
     const headings = [];
-    processedHtml = processedHtml.replace(/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi, (match, level, text) => {
-      const id = text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-      headings.push({
-        level: parseInt(level, 10),
-        text: text.replace(/<[^>]*>/g, ""),
-        id
-      });
-      return `<h${level} id="${id}">${text}</h${level}>`;
-    });
-    processedHtml = processedHtml.replace(/<img([^>]+)src="([^"]+)"([^>]*)>/gi, (_match, before, src, after) => {
-      const imgId = `img-${Math.random().toString(36).substring(2, 11)}`;
-      return `<img${before}src="${src}"${after} class="rich-image" data-img-id="${imgId}" data-lightbox="${escapeAttr(src)}" loading="lazy">`;
-    });
-    processedHtml = processedHtml.replace(/<pre><code class="language-(\w+)">([\s\S]*?)<\/code><\/pre>/gi, (_match, lang, code) => {
-      const codeId = `code-${Math.random().toString(36).substring(2, 11)}`;
-      const highlightedCode = highlightCode(code, lang);
-      return `
+    processedHtml = processedHtml.replace(
+      /<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi,
+      (match, level, text) => {
+        const id = text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+        headings.push({
+          level: parseInt(level, 10),
+          text: text.replace(/<[^>]*>/g, ""),
+          id
+        });
+        return `<h${level} id="${id}">${text}</h${level}>`;
+      }
+    );
+    processedHtml = processedHtml.replace(
+      /<img([^>]+)src="([^"]+)"([^>]*)>/gi,
+      (_match, before, src, after) => {
+        const imgId = `img-${Math.random().toString(36).substring(2, 11)}`;
+        return `<img${before}src="${src}"${after} class="rich-image" data-img-id="${imgId}" data-lightbox="${escapeAttr(src)}" loading="lazy">`;
+      }
+    );
+    processedHtml = processedHtml.replace(
+      /<pre><code class="language-(\w+)">([\s\S]*?)<\/code><\/pre>/gi,
+      (_match, lang, code) => {
+        const codeId = `code-${Math.random().toString(36).substring(2, 11)}`;
+        const highlightedCode = highlightCode(code, lang);
+        return `
             <div class="code-block">
                 <div class="code-header">
                     <span class="code-language">${lang}</span>
@@ -34728,16 +34736,26 @@
                 <pre><code id="${codeId}" class="language-${lang}">${highlightedCode}</code></pre>
             </div>
         `;
-    });
-    processedHtml = processedHtml.replace(/<code>([\s\S]*?)<\/code>/gi, '<code class="inline-code">$1</code>');
-    processedHtml = processedHtml.replace(/<table([^>]*)>([\s\S]*?)<\/table>/gi, (_match, attributes, tableContent) => {
-      return `
+      }
+    );
+    processedHtml = processedHtml.replace(
+      /<code>([\s\S]*?)<\/code>/gi,
+      '<code class="inline-code">$1</code>'
+    );
+    processedHtml = processedHtml.replace(
+      /<table([^>]*)>([\s\S]*?)<\/table>/gi,
+      (_match, attributes, tableContent) => {
+        return `
             <div class="table-wrapper">
                 <table${attributes}>${tableContent}</table>
             </div>
         `;
-    });
-    processedHtml = processedHtml.replace(/<blockquote>([\s\S]*?)<\/blockquote>/gi, '<blockquote class="rich-blockquote">$1</blockquote>');
+      }
+    );
+    processedHtml = processedHtml.replace(
+      /<blockquote>([\s\S]*?)<\/blockquote>/gi,
+      '<blockquote class="rich-blockquote">$1</blockquote>'
+    );
     processedHtml = processExternalContent(processedHtml);
     return {
       html: processedHtml,
@@ -34837,7 +34855,10 @@
     const response = await fetch(url);
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      throw new ApiError(response.status, extractErrorMessage(body, response.statusText || `HTTP ${response.status}`));
+      throw new ApiError(
+        response.status,
+        extractErrorMessage(body, response.statusText || `HTTP ${response.status}`)
+      );
     }
     return await response.json();
   }
@@ -35264,19 +35285,49 @@
     displayStats(data) {
       const container = getEl("stats-container");
       container.innerHTML = "";
-      const totalCard = this.createStatCard("Total Entities", data.total_entities, "fas fa-database", "primary");
+      const totalCard = this.createStatCard(
+        "Total Entities",
+        data.total_entities,
+        "fas fa-database",
+        "primary"
+      );
       container.appendChild(totalCard);
-      const typesCard = this.createStatCard("Entity Types", Object.keys(data.entity_counts).length, "fas fa-tags", "secondary");
+      const typesCard = this.createStatCard(
+        "Entity Types",
+        Object.keys(data.entity_counts).length,
+        "fas fa-tags",
+        "secondary"
+      );
       container.appendChild(typesCard);
-      const sectorsCard = this.createStatCard("Sectors", Object.keys(data.top_sectors).length, "fas fa-industry", "success");
+      const sectorsCard = this.createStatCard(
+        "Sectors",
+        Object.keys(data.top_sectors).length,
+        "fas fa-industry",
+        "success"
+      );
       container.appendChild(sectorsCard);
-      const marketCapCard = this.createStatCard("Market Cap Categories", Object.keys(data.market_cap_counts).length, "fas fa-chart-line", "warning");
+      const marketCapCard = this.createStatCard(
+        "Market Cap Categories",
+        Object.keys(data.market_cap_counts).length,
+        "fas fa-chart-line",
+        "warning"
+      );
       container.appendChild(marketCapCard);
       const breakdownSection = document.createElement("div");
       breakdownSection.className = "stats-breakdown";
-      breakdownSection.appendChild(this.createBreakdownCard("Entity Types", data.entity_counts, "entity_type"));
-      breakdownSection.appendChild(this.createBreakdownCard("Top Sectors", data.top_sectors, "sector"));
-      breakdownSection.appendChild(this.createBreakdownCard("Market Cap Distribution", data.market_cap_counts, "market_cap"));
+      breakdownSection.appendChild(
+        this.createBreakdownCard("Entity Types", data.entity_counts, "entity_type")
+      );
+      breakdownSection.appendChild(
+        this.createBreakdownCard("Top Sectors", data.top_sectors, "sector")
+      );
+      breakdownSection.appendChild(
+        this.createBreakdownCard(
+          "Market Cap Distribution",
+          data.market_cap_counts,
+          "market_cap"
+        )
+      );
       container.appendChild(breakdownSection);
     }
     /** Full graph-stats block for the Statistics view (from /api/graph/stats). */
@@ -35306,11 +35357,13 @@
         ];
         const metrics = document.createElement("div");
         metrics.className = "breakdown-card stats-graph-structure";
-        metrics.innerHTML = `<h4>Structure</h4><div class="breakdown-items">` + items.map(([label, v]) => `
+        metrics.innerHTML = `<h4>Structure</h4><div class="breakdown-items">` + items.map(
+          ([label, v]) => `
                     <div class="breakdown-item">
                         <span class="breakdown-label">${escapeHtml(label)}</span>
                         <span class="breakdown-value">${v === null ? "\u2014" : typeof v === "number" ? v.toFixed(4) : escapeHtml(String(v))}</span>
-                    </div>`).join("") + `</div>`;
+                    </div>`
+        ).join("") + `</div>`;
         section.appendChild(metrics);
       } else {
         const note = document.createElement("div");
@@ -35507,7 +35560,10 @@
         } catch {
         }
       };
-      focusToggle.addEventListener("click", () => applyFocus(!view.classList.contains("focus-mode")));
+      focusToggle.addEventListener(
+        "click",
+        () => applyFocus(!view.classList.contains("focus-mode"))
+      );
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape" && view.classList.contains("focus-mode") && this.isActive()) {
           applyFocus(false);
@@ -35515,7 +35571,9 @@
       });
       try {
         const savedSize = localStorage.getItem(READSIZE_KEY);
-        applyReadSize(savedSize === "s" || savedSize === "m" || savedSize === "l" ? savedSize : "m");
+        applyReadSize(
+          savedSize === "s" || savedSize === "m" || savedSize === "l" ? savedSize : "m"
+        );
         if (localStorage.getItem(FOCUS_KEY) === "1") applyFocus(true);
       } catch {
         applyReadSize("m");
@@ -35554,17 +35612,19 @@
       }
       try {
         const data = await fetchJson("/api/docs");
-        this.renderGroups([{
-          label: null,
-          rows: data.docs.map((d) => ({
-            path: d.path,
-            title: d.title,
-            sub: d.section || null,
-            chip: null,
-            snippet: "",
-            sim: null
-          }))
-        }]);
+        this.renderGroups([
+          {
+            label: null,
+            rows: data.docs.map((d) => ({
+              path: d.path,
+              title: d.title,
+              sub: d.section || null,
+              chip: null,
+              snippet: "",
+              sim: null
+            }))
+          }
+        ]);
         getEl("docs-count").textContent = `${data.docs.length} documents`;
       } catch (error) {
         console.error("Error loading docs:", error);
@@ -35649,19 +35709,21 @@
       try {
         const url = `/api/docs/search?q=${encodeURIComponent(query)}`;
         const data = await fetchJson(url);
-        this.renderGroups([{
-          label: null,
-          rows: data.results.map((r) => ({
-            path: r.path,
-            title: r.title,
-            // Prefer the matched section's own title (deep-link
-            // context) over the bare directory; anchor rides the chip.
-            sub: r.section_title || r.section || null,
-            chip: r.anchor !== null && r.anchor !== void 0 ? `L${r.anchor}` : null,
-            snippet: r.snippet,
-            sim: r.similarity ?? null
-          }))
-        }]);
+        this.renderGroups([
+          {
+            label: null,
+            rows: data.results.map((r) => ({
+              path: r.path,
+              title: r.title,
+              // Prefer the matched section's own title (deep-link
+              // context) over the bare directory; anchor rides the chip.
+              sub: r.section_title || r.section || null,
+              chip: r.anchor !== null && r.anchor !== void 0 ? `L${r.anchor}` : null,
+              snippet: r.snippet,
+              sim: r.similarity ?? null
+            }))
+          }
+        ]);
         const total = data.results.length;
         const mode = data.mode ? ` \xB7 ${data.mode}` : "";
         const stale = data.stale ? " \xB7 stale (scan)" : "";
@@ -35677,18 +35739,20 @@
       const url = `/api/search?q=${encodeURIComponent(query)}&limit=50${hybrid ? "&hybrid=1" : ""}`;
       try {
         const data = await fetchJson(url);
-        this.renderGroups([{
-          label: null,
-          rows: data.results.map((r) => ({
-            path: r.file_path,
-            // note_search titles are stems for companies — prettify.
-            title: (r.title ?? "(untitled)").replace(/_/g, " "),
-            sub: r.sector,
-            chip: DOCTYPE_LABELS[r.doc_type] || r.doc_type,
-            snippet: r.snippet,
-            sim: hybrid ? r.similarity : null
-          }))
-        }]);
+        this.renderGroups([
+          {
+            label: null,
+            rows: data.results.map((r) => ({
+              path: r.file_path,
+              // note_search titles are stems for companies — prettify.
+              title: (r.title ?? "(untitled)").replace(/_/g, " "),
+              sub: r.sector,
+              chip: DOCTYPE_LABELS[r.doc_type] || r.doc_type,
+              snippet: r.snippet,
+              sim: hybrid ? r.similarity : null
+            }))
+          }
+        ]);
         getEl("docs-count").textContent = `${data.total_count.toLocaleString()} match${data.total_count === 1 ? "" : "es"}` + (hybrid ? " \xB7 hybrid" : "");
       } catch (error) {
         console.error("Error searching vault:", error);
@@ -35721,17 +35785,19 @@
     }
     /** Kept for the S2 public surface (flat lists = one label-less group). */
     renderList(items) {
-      this.renderGroups([{
-        label: null,
-        rows: items.map((i) => ({
-          path: i.path,
-          title: i.title,
-          sub: i.section || null,
-          chip: null,
-          snippet: i.snippet,
-          sim: null
-        }))
-      }]);
+      this.renderGroups([
+        {
+          label: null,
+          rows: items.map((i) => ({
+            path: i.path,
+            title: i.title,
+            sub: i.section || null,
+            chip: null,
+            snippet: i.snippet,
+            sim: null
+          }))
+        }
+      ]);
     }
     buildRow(item) {
       const row = document.createElement("button");
@@ -35964,7 +36030,9 @@
             `/api/graph/edition_companies?edition=${encodeURIComponent(stem)}&k=8`
           );
           if (companies.companies.length) {
-            parts.push('<h4><i class="fas fa-building"></i> Companies in this edition</h4>');
+            parts.push(
+              '<h4><i class="fas fa-building"></i> Companies in this edition</h4>'
+            );
             parts.push(...companies.companies.map((n) => this.relatedRow(n)));
           }
         } catch {
@@ -35992,7 +36060,9 @@
     // --- shared helpers --------------------------------------------------------- //
     /** Simple TOC linking the <h1..h6 id> headings marked.js produces. */
     renderToc(headings) {
-      const items = headings.map((h) => `<li class="toc-${h.level}"><a href="#${encodeURIComponent(h.id)}">${escapeHtml(h.text)}</a></li>`).join("");
+      const items = headings.map(
+        (h) => `<li class="toc-${h.level}"><a href="#${encodeURIComponent(h.id)}">${escapeHtml(h.text)}</a></li>`
+      ).join("");
       return `<nav class="docs-toc"><h4>On this page</h4><ul>${items}</ul></nav>`;
     }
     /** Reset the reader pane to its empty state. */
@@ -36187,7 +36257,8 @@
         const centreFromSearch = async () => {
           const name = getEl("graph-search").value.trim();
           if (!name) return;
-          if (this.graph && this.graph.mode === "all" && this.graph.cloud && this._spotlightInCloud(name)) return;
+          if (this.graph && this.graph.mode === "all" && this.graph.cloud && this._spotlightInCloud(name))
+            return;
           this._setMode("ego");
           await this.loadEgoNetwork(name);
         };
@@ -36321,7 +36392,10 @@
       getEl("lens-cloud-controls").style.display = mode === "all" ? "block" : "none";
       getEl("graph-cloud-panel").style.display = mode === "all" ? "block" : "none";
       getEl("graph-shortest").style.display = mode === "path" ? "block" : "none";
-      getEl("graph-filter").closest(".filters")?.style.setProperty("display", mode === "ego" ? "" : "none");
+      getEl("graph-filter").closest(".filters")?.style.setProperty(
+        "display",
+        mode === "ego" ? "" : "none"
+      );
       const tableMode = mode === "rank" || mode === "time";
       getEl("lens-rank").style.display = mode === "rank" ? "block" : "none";
       getEl("lens-time").style.display = mode === "time" ? "block" : "none";
@@ -36410,7 +36484,9 @@
       const everything = getEl("cloud-everything").checked;
       const minDegree = everything ? 1 : getEl("cloud-min-degree").checked ? 2 : 1;
       const hidden = this.graph.hiddenEdgeTypes;
-      const edgeFilterActive = cache.data.relationship_types.some((rt) => hidden.has(rt.edge_type));
+      const edgeFilterActive = cache.data.relationship_types.some(
+        (rt) => hidden.has(rt.edge_type)
+      );
       let kept;
       let visibleEdges;
       if (edgeFilterActive) {
@@ -36555,10 +36631,7 @@
       this._highlightCloudSet(node.data());
       const nbhd = node.closedNeighborhood();
       cy.stop();
-      cy.animate(
-        { fit: { eles: nbhd, padding: 90 } },
-        { duration: 280 }
-      );
+      cy.animate({ fit: { eles: nbhd, padding: 90 } }, { duration: 280 });
       this._setGraphStatus(
         `Spotlight \u2014 ${name} \xB7 ${nbhd.nodes().length} entities in its connected set`
       );
@@ -36596,10 +36669,12 @@
     _renderCloudLegend(data) {
       const legend = getEl("graph-cloud-legend");
       const nodeTypes = [...new Set(data.nodes.map((n) => n.entity_type))].sort();
-      const nodeHtml = nodeTypes.map((t) => `
+      const nodeHtml = nodeTypes.map(
+        (t) => `
             <span class="cloud-legend-chip">
                 <span class="cloud-swatch cloud-node-${CSS.escape(t)}"></span>${escapeHtml(t)}
-            </span>`).join("");
+            </span>`
+      ).join("");
       const chips = data.relationship_types.map((t) => {
         const off = this.graph?.hiddenEdgeTypes.has(t.edge_type) ? " off" : "";
         return `<button type="button" class="edge-chip${off}"
@@ -36772,7 +36847,9 @@
         if (!seeds) {
           wrap.innerHTML = loading;
           try {
-            const data2 = await fetchJson("/api/graph/metrics/voterank");
+            const data2 = await fetchJson(
+              "/api/graph/metrics/voterank"
+            );
             seeds = data2.seeds;
             this.graph.rankSeeds = seeds;
           } catch (e) {
@@ -36780,13 +36857,15 @@
             return;
           }
         }
-        const rows2 = seeds.slice(0, top).map((name, i) => `
+        const rows2 = seeds.slice(0, top).map(
+          (name, i) => `
                 <tr>
                     <td class="idx num">${i + 1}</td>
                     <td><button type="button" class="rank-entity" data-centre="${escapeHtml(name)}"
                                 title="Centre the Lens on ${escapeHtml(name)}">${escapeHtml(name)}</button></td>
                     <td class="num muted">seed ${i + 1} of ${seeds.length}</td>
-                </tr>`).join("");
+                </tr>`
+        ).join("");
         wrap.innerHTML = `<p class="panel-note mono">${escapeHtml(blurb)}</p>
                 <table class="rank-table">
                     <thead><tr><th class="num">#</th><th>entity</th><th class="num">note</th></tr></thead>
@@ -36794,7 +36873,9 @@
                 </table>
                 <p class="panel-note mono">${Math.min(seeds.length, top)} of ${seeds.length} seeds</p>`;
         this._wireCentre(wrap);
-        this._setGraphStatus(`Rank \u2014 voterank \xB7 ${Math.min(seeds.length, top)} of ${seeds.length} seeds`);
+        this._setGraphStatus(
+          `Rank \u2014 voterank \xB7 ${Math.min(seeds.length, top)} of ${seeds.length} seeds`
+        );
         return;
       }
       const key = `${metric}:${top}`;
@@ -36831,7 +36912,9 @@
                 </table>
                 <p class="panel-note mono">${Math.min(data2.entities.length, top)} of ${data2.total} scored entities</p>`;
         this._wireCentre(wrap);
-        this._setGraphStatus(`Rank \u2014 link prediction \xB7 ${Math.min(data2.entities.length, top)} of ${data2.total}`);
+        this._setGraphStatus(
+          `Rank \u2014 link prediction \xB7 ${Math.min(data2.entities.length, top)} of ${data2.total}`
+        );
         return;
       }
       let data = this.graph.rankData.get(key);
@@ -36852,14 +36935,16 @@
         return;
       }
       const max = Math.max(...data.ranked.map((r) => r.value), 0);
-      const rows = data.ranked.map((r, i) => `
+      const rows = data.ranked.map(
+        (r, i) => `
             <tr>
                 <td class="idx num">${i + 1}</td>
                 <td><button type="button" class="rank-entity" data-centre="${escapeHtml(r.entity)}"
                             title="Centre the Lens on ${escapeHtml(r.entity)}">${escapeHtml(r.entity)}</button></td>
                 <td class="num"><span class="score-bar" style="width:${max > 0 ? Math.max(2, Math.round(r.value / max * 46)) : 0}px"></span>
                     ${this._fmtScore(r.value)}</td>
-            </tr>`).join("");
+            </tr>`
+      ).join("");
       wrap.innerHTML = `<p class="panel-note mono">${escapeHtml(blurb)}</p>
             <table class="rank-table">
                 <thead><tr><th class="num">#</th><th>entity</th><th class="num">score</th></tr></thead>
@@ -36891,8 +36976,10 @@
       }
       mount.innerHTML = groups.map((g) => {
         const color = _COMMUNITY_PALETTE[g.label % _COMMUNITY_PALETTE.length];
-        const members = g.members.slice(0, 6).map((m) => `<button type="button" class="chip-entity" data-centre="${escapeHtml(m)}"
-                         title="Centre the Lens on ${escapeHtml(m)}">${escapeHtml(m)}</button>`).join("");
+        const members = g.members.slice(0, 6).map(
+          (m) => `<button type="button" class="chip-entity" data-centre="${escapeHtml(m)}"
+                         title="Centre the Lens on ${escapeHtml(m)}">${escapeHtml(m)}</button>`
+        ).join("");
         const more = g.members.length > 6 ? `<span class="chip-more">+${g.members.length - 6}</span>` : "";
         return `
             <div class="rank-group">
@@ -36931,14 +37018,16 @@
         return;
       }
       const max = Math.max(...rows.map((r) => r.score), 1e-4);
-      mount.innerHTML = rows.map((r, i) => `
+      mount.innerHTML = rows.map(
+        (r, i) => `
             <button type="button" class="suggest-row" data-centre="${escapeHtml(r.source)}"
                     title="${escapeHtml(r.source)} \u2194 ${escapeHtml(r.target)}${r.edition ? ` \xB7 ${escapeHtml(r.edition)}` : ""} \u2014 centre on ${escapeHtml(r.source)}">
                 <span class="idx mono">${i + 1}</span>
                 <span class="suggest-pair">${escapeHtml(r.source)} <span class="arrow">\u2194</span> ${escapeHtml(r.target)}</span>
                 <span class="suggest-bar"><span style="width:${(r.score / max * 100).toFixed(1)}%"></span></span>
                 <span class="val mono">${this._fmtScore(r.score)}</span>
-            </button>`).join("");
+            </button>`
+      ).join("");
       this._wireCentre(mount);
     }
     // --- Time mode (S4): temporal formation -------------------------------- //
@@ -36946,11 +37035,7 @@
     async _loadTimeView() {
       if (!this.graph) return;
       this._setGraphStatus("Time \u2014 loading...");
-      await Promise.allSettled([
-        this._loadByYear(),
-        this._loadBridges(),
-        this._loadCoMentions()
-      ]);
+      await Promise.allSettled([this._loadByYear(), this._loadBridges(), this._loadCoMentions()]);
     }
     /** Deal-activity-by-year stacked bars (M&A + JV edges per year). */
     async _loadByYear() {
@@ -36974,7 +37059,9 @@
         return;
       }
       const types = [...new Set(rows.map((r) => r.edge_type))].sort();
-      getEl("time-legend").innerHTML = types.map((t) => `<span class="legend-key"><span class="dot" style="background:${edgeColor(t)}"></span>${escapeHtml(t)}</span>`).join("");
+      getEl("time-legend").innerHTML = types.map(
+        (t) => `<span class="legend-key"><span class="dot" style="background:${edgeColor(t)}"></span>${escapeHtml(t)}</span>`
+      ).join("");
       const byYear = /* @__PURE__ */ new Map();
       rows.forEach((r) => {
         const y = byYear.get(r.year) || { total: 0, parts: [] };
@@ -36986,8 +37073,10 @@
       const max = Math.max(...years.map((y) => byYear.get(y).total), 1);
       mount.innerHTML = years.map((y) => {
         const { total, parts } = byYear.get(y);
-        const segs = parts.map((p) => `<span class="bar-seg" style="width:${(p.count / total * 100).toFixed(2)}%;background:${edgeColor(p.edge_type)}"
-                       title="${escapeHtml(p.edge_type)}: ${p.count}"></span>`).join("");
+        const segs = parts.map(
+          (p) => `<span class="bar-seg" style="width:${(p.count / total * 100).toFixed(2)}%;background:${edgeColor(p.edge_type)}"
+                       title="${escapeHtml(p.edge_type)}: ${p.count}"></span>`
+        ).join("");
         return `
             <div class="year-row">
                 <span class="yr mono">${escapeHtml(y)}</span>
@@ -37016,13 +37105,15 @@
         mount.innerHTML = `<p class="hint">No cross-sector M&A / JV edges yet.</p>`;
         return;
       }
-      mount.innerHTML = rows.map((b) => `
+      mount.innerHTML = rows.map(
+        (b) => `
             <div class="bridge-row">
                 <span class="edge-dot" style="background:${edgeColor(b.edge_type)}"
                       title="${escapeHtml(b.edge_type)}"></span>
                 <span class="bridge-pair">${escapeHtml(b.sector_a)} <span class="arrow">\u2194</span> ${escapeHtml(b.sector_b)}</span>
                 <span class="cnt mono">${b.count}</span>
-            </div>`).join("");
+            </div>`
+      ).join("");
     }
     /** Co-mention leaderboard (most-connected entities in prose). */
     async _loadCoMentions() {
@@ -37045,13 +37136,15 @@
         return;
       }
       const max = Math.max(...rows.map((r) => r.co_mentions), 1);
-      mount.innerHTML = rows.map((r) => `
+      mount.innerHTML = rows.map(
+        (r) => `
             <div class="cm-row">
                 <button type="button" class="rank-entity" data-centre="${escapeHtml(r.entity)}"
                         title="Centre the Lens on ${escapeHtml(r.entity)}">${escapeHtml(r.entity)}</button>
                 <span class="cm-bar"><span style="width:${(r.co_mentions / max * 100).toFixed(1)}%"></span></span>
                 <span class="cnt mono">${r.co_mentions}</span>
-            </div>`).join("");
+            </div>`
+      ).join("");
       this._wireCentre(mount);
     }
     /** Near-duplicate triage — explicit run only (the ~1s pairwise scan). */
@@ -37083,13 +37176,15 @@
         mount.innerHTML = `<p class="hint">Clean \u2014 no pairs at cosine \u2265 ${data.min_sim.toFixed(2)}.</p>`;
         return;
       }
-      mount.innerHTML = data.pairs.map((p) => `
+      mount.innerHTML = data.pairs.map(
+        (p) => `
             <div class="neardup-row">
                 <span class="sim mono">${p.similarity.toFixed(3)}</span>
                 <a href="/entity/${encodeURI(p.path_a)}" target="_blank" rel="noopener">${escapeHtml(p.title_a || p.path_a)}</a>
                 <span class="arrow">\u2194</span>
                 <a href="/entity/${encodeURI(p.path_b)}" target="_blank" rel="noopener">${escapeHtml(p.title_b || p.path_b)}</a>
-            </div>`).join("");
+            </div>`
+      ).join("");
     }
     // --- Shared S4 helpers --------------------------------------------------- //
     /** Jump the Lens to an ego view of `name` (Rank/Time click-outs). */
@@ -37213,7 +37308,14 @@
       };
       const addEdge = (src, dst, type, label, props = {}) => {
         edges.push({
-          data: { id: `${src}__${dst}__${type}`, source: src, target: dst, type, label, props }
+          data: {
+            id: `${src}__${dst}__${type}`,
+            source: src,
+            target: dst,
+            type,
+            label,
+            props
+          }
         });
       };
       if (focalGroup === "focal") {
@@ -37261,9 +37363,17 @@
       }
       if (filter === "all" && data.sector) {
         const sectorId = `sector:${data.sector}`;
-        nodes.push({ data: { id: sectorId, label: data.sector, group: "sector", centrality: 8 } });
+        nodes.push({
+          data: { id: sectorId, label: data.sector, group: "sector", centrality: 8 }
+        });
         edges.push({
-          data: { id: `${focal}__${sectorId}`, source: focal, target: sectorId, type: "part_of", label: "part of" }
+          data: {
+            id: `${focal}__${sectorId}`,
+            source: focal,
+            target: sectorId,
+            type: "part_of",
+            label: "part of"
+          }
         });
       }
       nodes.forEach((n) => {
@@ -37306,7 +37416,9 @@
         }
       });
       const ids = new Set(fresh.map((el) => el.data.id));
-      const freshEdges = els.filter((el) => el.data.source && el.data.target && (ids.has(el.data.source) || cy.getElementById(el.data.source).length > 0) && (ids.has(el.data.target) || cy.getElementById(el.data.target).length > 0));
+      const freshEdges = els.filter(
+        (el) => el.data.source && el.data.target && (ids.has(el.data.source) || cy.getElementById(el.data.source).length > 0) && (ids.has(el.data.target) || cy.getElementById(el.data.target).length > 0)
+      );
       cy.add([...fresh, ...freshEdges]);
       this._runGraphLayout(getEl("graph-layout").value, false, false);
       this._fitCapped(40, _EGO_FIT_MAX_ZOOM);
@@ -37411,7 +37523,9 @@
         const d = e.target.data();
         const rows = [];
         if (d.cloud === "1") {
-          rows.push(`<div class="tip-meta">degree ${String(d.deg ?? "?")} \xB7 ${escapeHtml(String(d.group || "entity"))}</div>`);
+          rows.push(
+            `<div class="tip-meta">degree ${String(d.deg ?? "?")} \xB7 ${escapeHtml(String(d.group || "entity"))}</div>`
+          );
         }
         if (d.community !== void 0) {
           rows.push(`<div class="tip-meta">community ${String(d.community)}</div>`);
@@ -37581,8 +37695,10 @@
       } else if (bundle) {
         const companyBundle = bundle;
         html += `<ul class="graph-detail-list">`;
-        if (companyBundle.sector) html += `<li><strong>Sector:</strong> ${escapeHtml(companyBundle.sector)}</li>`;
-        if (companyBundle.subsidiary_of) html += `<li><strong>Parent:</strong> ${escapeHtml(companyBundle.subsidiary_of)}</li>`;
+        if (companyBundle.sector)
+          html += `<li><strong>Sector:</strong> ${escapeHtml(companyBundle.sector)}</li>`;
+        if (companyBundle.subsidiary_of)
+          html += `<li><strong>Parent:</strong> ${escapeHtml(companyBundle.subsidiary_of)}</li>`;
         html += `<li><strong>Peers:</strong> ${companyBundle.peers.length || "\u2014"}</li>`;
         html += `<li><strong>JV partners:</strong> ${companyBundle.jv_partners.length || "\u2014"}</li>`;
         html += `<li><strong>Group siblings:</strong> ${companyBundle.group_siblings.length || "\u2014"}</li>`;
@@ -37675,7 +37791,7 @@
     // --- Stylesheet ---------------------------------------------------------- //
     _cytoscapeStyle() {
       const ss = import_cytoscape.default.stylesheet().selector("node").style({
-        "label": "data(label)",
+        label: "data(label)",
         "text-valign": "bottom",
         "text-halign": "center",
         "text-margin-y": 5,
@@ -37684,11 +37800,11 @@
         "text-background-opacity": 0.6,
         "text-background-padding": 2,
         "text-background-shape": "roundrectangle",
-        "color": "#DCE5EE",
+        color: "#DCE5EE",
         "font-family": "'IBM Plex Mono', monospace",
         "font-size": 10,
-        "width": 24,
-        "height": 24,
+        width: 24,
+        height: 24,
         "background-color": "#7E8FA3",
         "border-width": 1.5,
         "border-color": "#0B0F14",
@@ -37697,8 +37813,8 @@
         "transition-duration": 150
       }).selector('node[group="focal"]').style({
         "background-color": "#E0A93E",
-        "width": 32,
-        "height": 32,
+        width: 32,
+        height: 32,
         "border-width": 2,
         "border-color": "#F5D08C",
         "font-size": 12,
@@ -37708,74 +37824,76 @@
         "border-width": 1,
         "border-style": "dashed",
         "border-color": "#8CA0B4",
-        "width": 20,
-        "height": 20
+        width: 20,
+        height: 20
       }).selector('node[group="company"]').style({ "background-color": "#C7D3E0" }).selector('node[group="theme"]').style({
         "background-color": "#C39BFF",
-        "shape": "hexagon",
-        "width": 24,
-        "height": 24
+        shape: "hexagon",
+        width: 24,
+        height: 24
       }).selector('node[group="edition"]').style({
         "background-color": "#D8C9A3",
-        "shape": "rectangle",
-        "width": 30,
-        "height": 30
-      }).selector('node[group="sector"], node[group="sector-focal"], node[group="sub_sector"], node[group="edition"]').style({
+        shape: "rectangle",
+        width: 30,
+        height: 30
+      }).selector(
+        'node[group="sector"], node[group="sector-focal"], node[group="sub_sector"], node[group="edition"]'
+      ).style({
         "text-valign": "center",
         "text-margin-y": 0,
         "text-background-opacity": 0,
         "font-weight": "bold",
-        "color": "#06231F"
+        color: "#06231F"
       }).selector('node[group="super_sector"]').style({
         "text-valign": "center",
         "text-margin-y": 0,
         "text-background-opacity": 0,
         "font-weight": "bold",
-        "color": "#E8EDF2"
+        color: "#E8EDF2"
       }).selector('node[group="super_sector"]').style({
         "background-color": "#17766C",
-        "shape": "rectangle",
-        "width": 54,
-        "height": 32
+        shape: "rectangle",
+        width: 54,
+        height: 32
       }).selector('node[group="sub_sector"]').style({
         "background-color": "#3E8F86",
-        "shape": "round-rectangle",
-        "width": 44,
-        "height": 28
+        shape: "round-rectangle",
+        width: 44,
+        height: 28
       }).selector('node[group="sector"]').style({
         "background-color": "#2DD4BF",
-        "shape": "rectangle",
-        "width": 50,
-        "height": 30
+        shape: "rectangle",
+        width: 50,
+        height: 30
       }).selector('node[group="sector-focal"]').style({
         "background-color": "#1FB9A6",
-        "shape": "rectangle",
-        "width": 56,
-        "height": 36,
+        shape: "rectangle",
+        width: 56,
+        height: 36,
         "font-size": 12
       }).selector('node[group="member"]').style({
         "background-color": "#7CA8C9",
-        "width": 22,
-        "height": 22
+        width: 22,
+        height: 22
       }).selector('node[group="path-end"]').style({
         "background-color": "#E0A93E",
-        "width": 40,
-        "height": 40,
+        width: 40,
+        height: 40,
         "font-weight": "bold"
       }).selector("node.focal").style({
         "border-width": 3,
         "border-color": "#F5D08C"
       }).selector("node.shaded").style({ "background-color": "data(color)" }).selector("node.lbl-hide").style({ "text-opacity": 0 }).selector("edge").style({
-        "width": 1.6,
+        width: 1.6,
         "line-color": "rgba(96, 116, 140, 0.75)",
         "target-arrow-color": "rgba(96, 116, 140, 0.75)",
         "target-arrow-shape": "triangle",
         "target-arrow-scale": 0.7,
         "curve-style": "bezier",
-        "label": "data(label)",
+        label: "data(label)",
         "font-family": "'IBM Plex Mono', monospace",
         "font-size": 8.5,
-        "color": "#B9C6D4",
+        color: "#B9C6D4",
         "text-background-color": "#0B0F14",
         "text-background-padding": 2,
         "text-background-opacity": 0.75,
@@ -37784,7 +37902,7 @@
         "transition-property": "opacity",
         "transition-duration": 150
       }).selector('edge[type="path-hop"]').style({
-        "width": 3.5,
+        width: 3.5,
         "line-color": "#E0A93E",
         "target-arrow-color": "#E0A93E",
         "curve-style": "bezier",
@@ -37796,8 +37914,10 @@
           "target-arrow-color": edgeColor(t)
         });
       });
-      ss.selector('edge[type="co_mentioned_in"], edge[type="jv_with"], edge[type="competes_with"], edge[type="same_group"]').style({ "target-arrow-shape": "none" }).selector("edge.highlighted").style({
-        "width": 4,
+      ss.selector(
+        'edge[type="co_mentioned_in"], edge[type="jv_with"], edge[type="competes_with"], edge[type="same_group"]'
+      ).style({ "target-arrow-shape": "none" }).selector("edge.highlighted").style({
+        width: 4,
         "line-color": "#E0A93E",
         "target-arrow-color": "#E0A93E",
         "z-index": 10
@@ -37807,20 +37927,20 @@
         "z-index": 10
       }).selector('edge[cloud="1"]').style({
         "curve-style": "straight",
-        "width": 1,
-        "label": "",
+        width: 1,
+        label: "",
         "text-opacity": 0,
         "font-size": 0
       }).selector('node[cloud="1"]').style({
         "font-size": 9,
         "min-zoomed-font-size": 5,
-        "width": "data(size)",
-        "height": "data(size)"
-      }).selector(".hov-dim").style({ "opacity": 0.22 }).selector("node.hov-core").style({
+        width: "data(size)",
+        height: "data(size)"
+      }).selector(".hov-dim").style({ opacity: 0.22 }).selector("node.hov-core").style({
         "border-width": 2,
         "border-color": "#F5D08C"
       }).selector("edge.in-set").style({
-        "width": 4,
+        width: 4,
         "line-color": "#E0A93E",
         "target-arrow-color": "#E0A93E",
         "z-index": 12,
@@ -37829,7 +37949,7 @@
         "border-width": 3,
         "border-color": "#E0A93E",
         "z-index": 12
-      }).selector(".faded").style({ "opacity": 0.25 });
+      }).selector(".faded").style({ opacity: 0.25 });
       return ss;
     }
     // --- Path mode ------------------------------------------------------------ //
@@ -37861,7 +37981,9 @@
       }
       const chain = data.path.map((p) => p.name);
       const hops = data.hops ?? 0;
-      const ribbon = chain.map((n, i) => `<button type="button" class="hop-chip" data-hop-name="${escapeHtml(n)}" title="Centre the Lens on ${escapeHtml(n)}"><span class="hop-idx">${i + 1}</span>${escapeHtml(n)}</button>`).join(`<span class="hop-arrow">\u2192</span>`);
+      const ribbon = chain.map(
+        (n, i) => `<button type="button" class="hop-chip" data-hop-name="${escapeHtml(n)}" title="Centre the Lens on ${escapeHtml(n)}"><span class="hop-idx">${i + 1}</span>${escapeHtml(n)}</button>`
+      ).join(`<span class="hop-arrow">\u2192</span>`);
       result.innerHTML = `
             <div class="path-ribbon">${ribbon}</div>
             <p class="hint">${hops} hop${hops !== 1 ? "s" : ""}` + (this._asOf() ? ` \xB7 as of ${this._asOf()}` : " \xB7 now") + `</p>`;

@@ -32,7 +32,10 @@
     const response = await fetch(url);
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
-      throw new ApiError(response.status, extractErrorMessage(body, response.statusText || `HTTP ${response.status}`));
+      throw new ApiError(
+        response.status,
+        extractErrorMessage(body, response.statusText || `HTTP ${response.status}`)
+      );
     }
     return await response.json();
   }
@@ -50,23 +53,31 @@
   function processRichContent(content) {
     let processedHtml = DOMPurify.sanitize(marked.parse(content));
     const headings = [];
-    processedHtml = processedHtml.replace(/<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi, (match, level, text) => {
-      const id = text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-      headings.push({
-        level: parseInt(level, 10),
-        text: text.replace(/<[^>]*>/g, ""),
-        id
-      });
-      return `<h${level} id="${id}">${text}</h${level}>`;
-    });
-    processedHtml = processedHtml.replace(/<img([^>]+)src="([^"]+)"([^>]*)>/gi, (_match, before, src, after) => {
-      const imgId = `img-${Math.random().toString(36).substring(2, 11)}`;
-      return `<img${before}src="${src}"${after} class="rich-image" data-img-id="${imgId}" data-lightbox="${escapeAttr(src)}" loading="lazy">`;
-    });
-    processedHtml = processedHtml.replace(/<pre><code class="language-(\w+)">([\s\S]*?)<\/code><\/pre>/gi, (_match, lang, code) => {
-      const codeId = `code-${Math.random().toString(36).substring(2, 11)}`;
-      const highlightedCode = highlightCode(code, lang);
-      return `
+    processedHtml = processedHtml.replace(
+      /<h([1-6])[^>]*>(.*?)<\/h[1-6]>/gi,
+      (match, level, text) => {
+        const id = text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+        headings.push({
+          level: parseInt(level, 10),
+          text: text.replace(/<[^>]*>/g, ""),
+          id
+        });
+        return `<h${level} id="${id}">${text}</h${level}>`;
+      }
+    );
+    processedHtml = processedHtml.replace(
+      /<img([^>]+)src="([^"]+)"([^>]*)>/gi,
+      (_match, before, src, after) => {
+        const imgId = `img-${Math.random().toString(36).substring(2, 11)}`;
+        return `<img${before}src="${src}"${after} class="rich-image" data-img-id="${imgId}" data-lightbox="${escapeAttr(src)}" loading="lazy">`;
+      }
+    );
+    processedHtml = processedHtml.replace(
+      /<pre><code class="language-(\w+)">([\s\S]*?)<\/code><\/pre>/gi,
+      (_match, lang, code) => {
+        const codeId = `code-${Math.random().toString(36).substring(2, 11)}`;
+        const highlightedCode = highlightCode(code, lang);
+        return `
             <div class="code-block">
                 <div class="code-header">
                     <span class="code-language">${lang}</span>
@@ -77,16 +88,26 @@
                 <pre><code id="${codeId}" class="language-${lang}">${highlightedCode}</code></pre>
             </div>
         `;
-    });
-    processedHtml = processedHtml.replace(/<code>([\s\S]*?)<\/code>/gi, '<code class="inline-code">$1</code>');
-    processedHtml = processedHtml.replace(/<table([^>]*)>([\s\S]*?)<\/table>/gi, (_match, attributes, tableContent) => {
-      return `
+      }
+    );
+    processedHtml = processedHtml.replace(
+      /<code>([\s\S]*?)<\/code>/gi,
+      '<code class="inline-code">$1</code>'
+    );
+    processedHtml = processedHtml.replace(
+      /<table([^>]*)>([\s\S]*?)<\/table>/gi,
+      (_match, attributes, tableContent) => {
+        return `
             <div class="table-wrapper">
                 <table${attributes}>${tableContent}</table>
             </div>
         `;
-    });
-    processedHtml = processedHtml.replace(/<blockquote>([\s\S]*?)<\/blockquote>/gi, '<blockquote class="rich-blockquote">$1</blockquote>');
+      }
+    );
+    processedHtml = processedHtml.replace(
+      /<blockquote>([\s\S]*?)<\/blockquote>/gi,
+      '<blockquote class="rich-blockquote">$1</blockquote>'
+    );
     processedHtml = processExternalContent(processedHtml);
     return {
       html: processedHtml,
@@ -329,16 +350,16 @@
     /** TOC into the rail; hidden when the note has fewer than two headings. */
     renderToc(headings) {
       if (headings.length < 2) return;
-      getEl("toc-content").innerHTML = headings.map((h) => `<li class="toc-${h.level}"><a href="#${encodeURIComponent(h.id)}">${escapeHtml(h.text)}</a></li>`).join("");
+      getEl("toc-content").innerHTML = headings.map(
+        (h) => `<li class="toc-${h.level}"><a href="#${encodeURIComponent(h.id)}">${escapeHtml(h.text)}</a></li>`
+      ).join("");
       getEl("toc-block").style.display = "block";
     }
     // --- rail intel ---------------------------------------------------------- //
     /** Vertical events timeline (dated oldest→newest, undated last). */
     async loadEvents(name) {
       try {
-        const data = await fetchJson(
-          `/api/events/${encodeURIComponent(name)}`
-        );
+        const data = await fetchJson(`/api/events/${encodeURIComponent(name)}`);
         if (!data.events.length) return;
         getEl("events-tl").innerHTML = data.events.map((ev) => {
           const date = this.eventDateLabel(ev.event_date, ev.date_precision);
@@ -408,7 +429,8 @@
           if (!entity.file_path) continue;
           const stem = (entity.file_path.split("/").pop() || "").replace(/\.md$/i, "");
           if (stem && !index.has(stem)) index.set(stem, entity.file_path);
-          if (entity.name && !index.has(entity.name)) index.set(entity.name, entity.file_path);
+          if (entity.name && !index.has(entity.name))
+            index.set(entity.name, entity.file_path);
         }
         this.wikilinks = index;
         return index;
@@ -476,13 +498,18 @@
     }
     // --- page chrome -------------------------------------------------------------- //
     collectImages() {
-      this.images = Array.from(document.querySelectorAll("#entity-content .rich-image")).map((img) => ({ src: img.src, alt: img.alt || "Image" }));
+      this.images = Array.from(
+        document.querySelectorAll("#entity-content .rich-image")
+      ).map((img) => ({ src: img.src, alt: img.alt || "Image" }));
     }
     /** Entry point for the lightbox (delegated via wireRichInteractions). */
     openLightbox(src) {
       const lightbox = getEl("image-lightbox");
       const image = getEl("lightbox-image");
-      this.currentImageIndex = Math.max(0, this.images.findIndex((i) => i.src === src));
+      this.currentImageIndex = Math.max(
+        0,
+        this.images.findIndex((i) => i.src === src)
+      );
       image.src = src;
       document.querySelector(".lightbox-caption").textContent = this.images[this.currentImageIndex]?.alt || "Image";
       lightbox.style.display = "flex";

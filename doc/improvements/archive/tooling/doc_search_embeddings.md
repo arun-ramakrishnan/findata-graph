@@ -1,3 +1,12 @@
+---
+title: Content-Addressable Doc Search — FTS5 + Hybrid Embeddings over doc/
+status: executed
+filed: '2026-08-23'
+executed: '2026-08-23'
+completed_md: '148'
+area: '`helpers/maintenance/rebuild_doc_search.py` (indexer +'
+---
+
 # Proposal: Content-Addressable Doc Search — FTS5 + Hybrid Embeddings over doc/
 
 **Status:** EXECUTED (2026-08-23 — slices 0–5 landed, targeted tests

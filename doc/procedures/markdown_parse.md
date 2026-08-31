@@ -213,7 +213,7 @@ These rules apply to every file under `findata/Companies/` and `findata/Sectors/
 
 ## Tags
 
-The categories below apply to the DERIVED notes (Companies/Sectors/Super_Sectors) and are mirrored into the `entity_tags` table by `sync_tags.py`. The SOURCE newsletter notes (The_Chatter/The_PlotLines/Points_And_Figures) use their own namespaced vocabulary (same `^[a-z0-9_]+/[a-z0-9_]+$` grammar, validated by `doc/schema/frontmatter.newsletter.v1.json` and mirrored into the `note_tags` table):
+The categories below apply to the DERIVED notes (Companies/Sectors/Super_Sectors) and are mirrored into the `entity_tags` table by `sync_tags.py`. The SOURCE newsletter notes (The_Chatter/The_PlotLines/Points_And_Figures) use their own namespaced vocabulary (same `^[a-z0-9_]+/[a-z0-9_]+$` grammar, validated by `doc/okf/frontmatter.newsletter.v1.json` and mirrored into the `note_tags` table):
 
 ```
 series/          the_chatter | points_and_figures | the_plotlines (from the note's tree)
@@ -322,36 +322,20 @@ def extract_enhanced_tags(content, entity_name, entity_type):
 
 ## YAML Front Matter
 
-**Structural contract: [`doc/schema/frontmatter_keys.md`](../schema/frontmatter_keys.md) (GENERATED from the JSON Schemas in `doc/schema/`) — enforced by the "Frontmatter schema" static check (`helpers/validators/frontmatter_schema.py`).** When creating notes, the schema's rules apply in full; the four that most often bite:
+**Structural contract: [`doc/okf/frontmatter_keys.md`](../okf/frontmatter_keys.md) (GENERATED from the JSON Schemas in `doc/okf/`) — enforced by the "Frontmatter schema" static check (`helpers/validators/frontmatter_schema.py`).** When creating notes, the schema's rules apply in full; the four that most often bite:
 
 - `ticker: null` when unlisted — never the string `"N/A"` (the schema rejects it)
 - Quote the dates (`created: '2025-11-16'`) — unquoted YAML auto-parses into date objects (the validator normalizes, but quoting is the canonical form)
 - Permalink segments are lowercase `[a-z0-9_]` — underscores, no hyphens (`/companies/defense/apollo_micro_systems`, not `apollo-micro-systems`)
 - No rogue keys — only the keys in the generated reference (schema is `additionalProperties: false`); a new key means a schema update first
 
-Template (build by string substitution; `normalized_name` and `file_path` are the sync-critical fields):
-
-```yaml
----
-title: "{entity_name}"
-type: {entity_type}            # company | sector
-tags:
-- entity_type/{entity_type}
-- sector/{sector}
-- market_cap/{market_cap}
-- geography/{geography}
-- business_model/{business_model}
-- risk_investment/{risk_investment}
-normalized_name: {normalized_name}   # MUST match filename (minus .md)
-sector: {sector}
-market_cap: {market_cap}
-geography: {geography}
-ticker: {ticker}                      # prefer .NS (NSE) over .BO (BSE); e.g. INFY.NS
-created: YYYY-MM-DD
-last_modified: YYYY-MM-DD
-permalink: {permalink}
----
-```
+Template: the canonical seed lives at
+[`doc/templates/company_note.yaml`](../templates/company_note.yaml)
+(single source of truth — this procedure keeps the RULES, the seed keeps
+the shape; duplicated YAML drifts). Build by string substitution;
+`normalized_name` is the sync-critical field. The sector /
+super-sector / newsletter seeds sit alongside it, and
+`doc/templates/README.md` indexes every seed with its contract and gate.
 
 **Permalink rule** (lowercase): `companies/{sector}/{name}` · `sectors/{name}` · fallback `{type}s/{name}`.
 
@@ -544,7 +528,7 @@ python3 helpers/core/sync_tags.py                   # rebuild entity_tags from n
 python3 -m helpers.validators.frontmatter_schema    # B1: JSON-Schema contract (also part of `make static-checks`)
 ```
 
-If a run legitimately introduces a NEW frontmatter key or value class: update `doc/schema/frontmatter.<type>.v1.json`, regenerate the reference (`python3 -m helpers.validators.frontmatter_schema --emit-doc`), then re-run the check — do not weaken the schema to pass.
+If a run legitimately introduces a NEW frontmatter key or value class: update `doc/okf/frontmatter.<type>.v1.json`, regenerate the reference (`python3 -m helpers.validators.frontmatter_schema --emit-doc`), then re-run the check — do not weaken the schema to pass.
 
 Fix any issue traceable to the current run, then re-run. Pre-existing unrelated issues may be deferred.
 

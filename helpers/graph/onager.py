@@ -33,7 +33,7 @@ Storage summary
 * duckpgq: RETIRED entirely (Phases A-E, 2026-08-14 — see
   doc/improvements/archive/graph/duckpgq_retirement.txt). There is no property
   graph; ``query.py`` materialises plain ``v_node`` / ``e_*`` tables and all
-  pattern queries are plain SQL JOINs. See doc/graph_design.txt.
+  pattern queries are plain SQL JOINs. See doc/design/graph_design.txt.
 """
 from __future__ import annotations
 

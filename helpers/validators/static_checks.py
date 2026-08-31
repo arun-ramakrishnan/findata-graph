@@ -610,7 +610,7 @@ def check_frontmatter_schema_contract() -> tuple[list[str], list[str]]:
     """B1: JSON-Schema structural validation of note frontmatter.
 
     Thin wrapper over helpers/validators/frontmatter_schema.py, which loads
-    doc/schema/frontmatter.<type>.v1.json and checks key presence, value
+    doc/okf/frontmatter.<type>.v1.json and checks key presence, value
     types, formats/enums and rogue keys for Companies/Sectors/Super_Sectors
     notes (the frontmatter-bearing note types). Degrades to an advisory when
     the dev-only jsonschema package is absent.
@@ -622,8 +622,82 @@ def check_frontmatter_schema_contract() -> tuple[list[str], list[str]]:
     return check_frontmatter_schema()
 
 
+def check_proposal_lifecycle() -> tuple[list[str], list[str]]:
+    """P0 (corpus_uniformity S3): proposal frontmatter agrees with its
+    directory and itself — every live proposals/*.md (README excluded)
+    is status: proposed with null executed/completed_md; every archived
+    proposal (frontmatter OR bold-line header present) is status:
+    executed with a real executed date and completed_md number; the
+    proposals README live list references only files that exist there."""
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from helpers.validators.frontmatter_schema import (
+        _has_proposal_header, parse_frontmatter,
+    )
+
+    fatal: list[str] = []
+    proposals_dir = REPO_ROOT / "doc" / "improvements" / "proposals"
+    archive_dir = REPO_ROOT / "doc" / "improvements" / "archive"
+    if not proposals_dir.is_dir():
+        return fatal, []
+
+    live: set[str] = set()
+    for p in sorted(proposals_dir.glob("*.md")):
+        if p.name == "README.md":
+            continue
+        live.add(p.name)
+        fm = parse_frontmatter(p)
+        if fm is None:
+            fatal.append(f"{p.name}: live proposal without frontmatter block")
+            continue
+        if fm.get("status") != "proposed":
+            fatal.append(f"{p.name}: live proposal must be status: proposed")
+        if fm.get("executed") is not None or fm.get("completed_md") is not None:
+            fatal.append(
+                f"{p.name}: proposed proposal must keep executed/completed_md null"
+            )
+
+    if archive_dir.is_dir():
+        for p in sorted(archive_dir.rglob("*.md")):
+            if p.name == "README.md":
+                continue
+            fm = parse_frontmatter(p)
+            if fm is None:
+                if _has_proposal_header(p):
+                    fatal.append(
+                        f"archive/{p.relative_to(archive_dir)}: proposal header "
+                        f"present but no frontmatter block (backfill it)"
+                    )
+                continue
+            if fm.get("status") != "executed":
+                fatal.append(
+                    f"archive/{p.relative_to(archive_dir)}: archived proposal "
+                    f"must be status: executed"
+                )
+            if fm.get("executed") is None or fm.get("completed_md") is None:
+                fatal.append(
+                    f"archive/{p.relative_to(archive_dir)}: executed proposal "
+                    f"needs an executed date and completed_md number"
+                )
+
+    readme = proposals_dir / "README.md"
+    if readme.is_file():
+        text = readme.read_text(encoding="utf-8", errors="replace")
+        section = text.split("## Current live proposals", 1)[-1]
+        for name in re.findall(r"`([\w./-]+\.md)`", section):
+            if "/" in name:
+                continue  # cross-references to archive paths, not live entries
+            if name not in live:
+                fatal.append(
+                    f"proposals/README live list references {name}, which is "
+                    f"not in proposals/ (archived entries belong in "
+                    f"archive/README.md)"
+                )
+    return fatal, []
+
+
 def check_okf_conformance_contract() -> tuple[list[str], list[str]]:
-    """OKF v0.2 §11 sweep (doc/okf.md) — whole-vault, ADVISORY-ONLY.
+    """OKF v0.2 §11 sweep (doc/okf/README.md) — whole-vault, ADVISORY-ONLY.
 
     Thin wrapper over frontmatter_schema.check_okf_conformance: every
     non-reserved findata note must carry parseable frontmatter with a
@@ -770,8 +844,10 @@ CHECKS = [
     # Combined single-walk: tags + permalink/sector + date sanity in one pass
     # over the 1102-file corpus (was 3 separate walks + 3× YAML parse).
     ("Findata YAML",       check_findata_yaml),
-    # B1: structural frontmatter contract (doc/schema/*.json)
+    # B1: structural frontmatter contract (doc/okf/*.json)
     ("Frontmatter schema", check_frontmatter_schema_contract),
+    # corpus_uniformity S3: proposals/ = proposed, archive/ = executed
+    ("Proposal lifecycle", check_proposal_lifecycle),
     ("OKF conformance",    check_okf_conformance_contract),
     ("Dependency pinning", check_dependency_pinning),
     ("SQLite helper usage", check_sqlite_helper_usage),

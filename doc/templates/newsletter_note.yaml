@@ -1,0 +1,21 @@
+# schema: doc/okf/frontmatter.newsletter.v1.json
+# DOCUMENTATION seed, not a copy-paste seed: source-tree notes
+# (findata/{The_Chatter,The_PlotLines,Points_And_Figures}/*.md) have
+# exactly one producer pair — pdf_conv_md.py Stage 0 conversion, and the
+# okf_backfill process for pre-adoption notes. Never hand-write one;
+# this file documents the emitted shape so the schema can be read
+# instantiated. Keys ⊆ schema properties (tests/test_templates.py).
+---
+title: "The Chatter: <Edition Headline>"   # producer rule: frontmatter title, else
+                                           # first markdown heading, else file stem
+type: newsletter                          # const 'newsletter' in the source trees
+tags:                                     # machine-written, namespaced source vocabulary
+- "series/<tree-slug>"                    # ALWAYS (e.g. series/the_chatter)
+- "publisher/<slug>"                      # when the series is in the known publisher map
+generated:                                # OKF v0.2 §5.2 provenance block
+  by: pdf_conv_md.py/<engine-label>       # actor: <producer>/<version> | process:<id>
+  at: "2026-08-31T00:00:00Z"              # ISO 8601 UTC datetime (quoted)
+sources:                                  # EXACTLY one entry, and ONLY when the source
+- id: "{pdf-stem}"                        # PDF is kept under /Reports/ (bundle-relative)
+  resource: "/Reports/{Edition}.pdf"
+---

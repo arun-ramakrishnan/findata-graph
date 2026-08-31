@@ -1,3 +1,12 @@
+---
+title: Script metadata search (`script_search`) — find helpers/tests by purpose
+status: executed
+filed: '2026-08-25'
+executed: '2026-08-25'
+completed_md: '154'
+area: tooling
+---
+
 # Proposal: Script metadata search (`script_search`) — find helpers/tests by purpose
 
 **Date**: 2026-08-25

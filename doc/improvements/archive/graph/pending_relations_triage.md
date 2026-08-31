@@ -1,3 +1,12 @@
+---
+title: Pending-relations triage (`triage_pending_relations`) — enclose the recurring queue workflow
+status: executed
+filed: '2026-08-25'
+executed: '2026-08-25'
+completed_md: '155'
+area: graph
+---
+
 # Proposal: Pending-relations triage (`triage_pending_relations`) — enclose the recurring queue workflow
 
 **Date**: 2026-08-25

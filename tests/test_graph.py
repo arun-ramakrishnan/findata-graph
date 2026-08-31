@@ -772,7 +772,7 @@ class TestCascadePropagation:
 
         # After rename: must rebuild the .duckdb file to pick up the new
         # name (warm connect would otherwise serve stale materialised
-        # tables — see doc/graph_design.txt §8 on the staleness contract).
+        # tables — see doc/design/graph_design.txt §8 on the staleness contract).
         c2 = connect(tmp_db, rebuild=True)
         try:
             assert sector_of(c2, "__TestCo__") is None  # old name gone

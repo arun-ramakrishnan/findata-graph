@@ -1,10 +1,7 @@
 // Statistics view: /api/stats cards + breakdowns, and the /api/graph/stats
 // block (edge types, structure metrics, hygiene, staleness).
 
-import type {
-    GraphStatsResponse,
-    StatsResponse,
-} from "../../types/api";
+import type { GraphStatsResponse, StatsResponse } from "../../types/api";
 import { getEl, escapeHtml } from "../core/dom";
 import { fetchJson } from "../core/api";
 
@@ -43,28 +40,58 @@ export class StatsView {
         container.innerHTML = "";
 
         // Total entities.
-        const totalCard = this.createStatCard("Total Entities", data.total_entities, "fas fa-database", "primary");
+        const totalCard = this.createStatCard(
+            "Total Entities",
+            data.total_entities,
+            "fas fa-database",
+            "primary",
+        );
         container.appendChild(totalCard);
 
         // Entity types.
-        const typesCard = this.createStatCard("Entity Types", Object.keys(data.entity_counts).length, "fas fa-tags", "secondary");
+        const typesCard = this.createStatCard(
+            "Entity Types",
+            Object.keys(data.entity_counts).length,
+            "fas fa-tags",
+            "secondary",
+        );
         container.appendChild(typesCard);
 
         // Top sectors.
-        const sectorsCard = this.createStatCard("Sectors", Object.keys(data.top_sectors).length, "fas fa-industry", "success");
+        const sectorsCard = this.createStatCard(
+            "Sectors",
+            Object.keys(data.top_sectors).length,
+            "fas fa-industry",
+            "success",
+        );
         container.appendChild(sectorsCard);
 
         // Market cap distribution.
-        const marketCapCard = this.createStatCard("Market Cap Categories", Object.keys(data.market_cap_counts).length, "fas fa-chart-line", "warning");
+        const marketCapCard = this.createStatCard(
+            "Market Cap Categories",
+            Object.keys(data.market_cap_counts).length,
+            "fas fa-chart-line",
+            "warning",
+        );
         container.appendChild(marketCapCard);
 
         // Detailed breakdowns.
         const breakdownSection = document.createElement("div");
         breakdownSection.className = "stats-breakdown";
 
-        breakdownSection.appendChild(this.createBreakdownCard("Entity Types", data.entity_counts, "entity_type"));
-        breakdownSection.appendChild(this.createBreakdownCard("Top Sectors", data.top_sectors, "sector"));
-        breakdownSection.appendChild(this.createBreakdownCard("Market Cap Distribution", data.market_cap_counts, "market_cap"));
+        breakdownSection.appendChild(
+            this.createBreakdownCard("Entity Types", data.entity_counts, "entity_type"),
+        );
+        breakdownSection.appendChild(
+            this.createBreakdownCard("Top Sectors", data.top_sectors, "sector"),
+        );
+        breakdownSection.appendChild(
+            this.createBreakdownCard(
+                "Market Cap Distribution",
+                data.market_cap_counts,
+                "market_cap",
+            ),
+        );
 
         container.appendChild(breakdownSection);
     }
@@ -99,18 +126,24 @@ export class StatsView {
             ];
             const metrics = document.createElement("div");
             metrics.className = "breakdown-card stats-graph-structure";
-            metrics.innerHTML = `<h4>Structure</h4><div class="breakdown-items">` +
-                items.map(([label, v]) => `
+            metrics.innerHTML =
+                `<h4>Structure</h4><div class="breakdown-items">` +
+                items
+                    .map(
+                        ([label, v]) => `
                     <div class="breakdown-item">
                         <span class="breakdown-label">${escapeHtml(label)}</span>
                         <span class="breakdown-value">${v === null ? "—" : typeof v === "number" ? v.toFixed(4) : escapeHtml(String(v))}</span>
-                    </div>`).join("") +
+                    </div>`,
+                    )
+                    .join("") +
                 `</div>`;
             section.appendChild(metrics);
         } else {
             const note = document.createElement("div");
             note.className = "hint";
-            note.textContent = "Structure metrics unavailable (graph analysis layer not connected).";
+            note.textContent =
+                "Structure metrics unavailable (graph analysis layer not connected).";
             section.appendChild(note);
         }
 
@@ -119,7 +152,9 @@ export class StatsView {
         const sorted: Record<string, number> = {};
         Object.keys(byType)
             .sort((a, b) => byType[b] - byType[a])
-            .forEach((k) => { sorted[k] = byType[k]; });
+            .forEach((k) => {
+                sorted[k] = byType[k];
+            });
         section.appendChild(this.createBreakdownCard("Edge Types", sorted, "edge_type"));
 
         container.appendChild(section);

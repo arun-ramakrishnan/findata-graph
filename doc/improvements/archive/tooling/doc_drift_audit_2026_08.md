@@ -1,3 +1,12 @@
+---
+title: Documentation drift remediation — 7-day audit (2026-08-22 → 2026-08-29)
+status: executed
+filed: '2026-08-29'
+executed: '2026-08-29'
+completed_md: '178'
+area: tooling
+---
+
 # Proposal: Documentation drift remediation — 7-day audit (2026-08-22 → 2026-08-29)
 
 **Date**: 2026-08-29

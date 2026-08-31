@@ -184,16 +184,16 @@ Insights). Note `tags:` are mirrored into `entity_tags` by
 `make sync-tags`; nine namespaces are mirrored (`entity_type/`,
 `sector/`, `market_cap/`, `subsector/`, `holding_company/`, `geography/`,
 `business_model/`, `risk_investment/`, `investment_theme/`). Canonical sectors are defined by
-`findata/Sectors/` (42). Full spec: [`doc/findata.md`](doc/findata.md).
+`findata/Sectors/` (42). Full spec: [`doc/design/findata.md`](doc/design/findata.md).
 
 ## Documentation
 
 | Doc | Scope |
 |---|---|
-| [`doc/architecture.md`](doc/architecture.md) | system overview, operational path, tooling map |
-| [`doc/schema.md`](doc/schema.md) | SQLite + DuckDB cache schemas, integrity-check registry |
-| [`doc/findata.md`](doc/findata.md) | vault layout, YAML/tag spec, sync rules |
-| [`doc/graph_design.txt`](doc/graph_design.txt) | graph engine, algorithm catalog, decision log |
+| [`doc/design/architecture.md`](doc/design/architecture.md) | system overview, operational path, tooling map |
+| [`doc/design/db_schema.md`](doc/design/db_schema.md) | SQLite + DuckDB cache schemas, integrity-check registry |
+| [`doc/design/findata.md`](doc/design/findata.md) | vault layout, YAML/tag spec, sync rules |
+| [`doc/design/graph_design.txt`](doc/design/graph_design.txt) | graph engine, algorithm catalog, decision log |
 | [`doc/procedures/markdown_parse.md`](doc/procedures/markdown_parse.md) | the newsletter ingestion procedure |
 | [`doc/procedures/embeddings.md`](doc/procedures/embeddings.md) | local embeddings & note-search: apply procedure, pre-warm, refresh model |
 | [`doc/procedures/doc-search.md`](doc/procedures/doc-search.md) | the doc/ knowledge index: build, refresh, query (API + CLI) |

@@ -26,12 +26,12 @@ MOJO_TESTS := $(wildcard $(MOJO_DIR)/tests/*.mojo)
 # from any package (and packages can import each other's modules).
 MOJO_IMPORT_FLAGS := $(foreach d,$(MOJO_PACKAGES),-I $(d)) -I $(MOJO_VENDOR_SRC)
 
-.PHONY: mojo-build mojo-test mojo-bench mojo-fmt
+.PHONY: mojo-build mojo-test mojo-bench mojo-format
 
 # One-shot formatter (the fix command for the tests/test_lint_gates.py
 # mojo-format gate, which checks a formatted COPY against the tree and never
 # mutates sources). No -I flags needed: the formatter is purely lexical.
-mojo-fmt:
+mojo-format:
 > $(MOJO) format $(MOJO_SRC)/*/*.mojo $(MOJO_TESTS)
 
 mojo-build: $(MOJO_TARGETS)

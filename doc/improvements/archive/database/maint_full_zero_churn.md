@@ -1,3 +1,12 @@
+---
+title: Zero-Churn maint-full — Stable Event/Embedding Writes, Canonical Louvain Labels, Deterministic e_* Exports
+status: executed
+filed: '2026-08-22'
+executed: '2026-08-22'
+completed_md: '147'
+area: four small code changes across three helpers plus shared-module
+---
+
 # Proposal: Zero-Churn maint-full — Stable Event/Embedding Writes, Canonical Louvain Labels, Deterministic e_* Exports
 
 **Status:** EXECUTED (implemented 2026-08-22; four live maint-full cycles
@@ -8,7 +17,7 @@ advisory/perf, lint-audit findings cleared). Archived to
 **Date:** 2026-08-22
 **Author:** Agent analysis (user-directed)
 **Builds on:** commit `76ab554` (snapshot refresh documenting the churn,
-with the table-by-table diff evidence), completed.md #143 (stable derived
+with the table-by-table diff evidence), completed.md #147 (stable derived
 writes + B4 writer-side generation bumps, 2026-08-21), and the
 `_stable_prefix_replace` pattern from derive_insights
 (`helpers/graph/derive_insights.py:914`).

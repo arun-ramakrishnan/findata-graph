@@ -1,3 +1,12 @@
+---
+title: Relationship Enrichment from External Sources — "Relations 2.0"
+status: executed
+filed: '2026-08-22'
+executed: '2026-08-25'
+completed_md: '153'
+area: pipeline
+---
+
 # Proposal: Relationship Enrichment from External Sources — "Relations 2.0"
 
 **Date**: 2026-08-22

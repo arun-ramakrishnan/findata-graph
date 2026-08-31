@@ -1,3 +1,12 @@
+---
+title: OKF Read-Side — Per-Claim Footnotes + verify Helper
+status: executed
+filed: '2026-08-19'
+executed: '2026-08-19'
+completed_md: '137'
+area: okf
+---
+
 # Proposal: OKF Read-Side — Per-Claim Footnotes + verify Helper
 
 **Status:** EXECUTED 2026-08-19 — COMPLETE & ARCHIVED. N1 + N3 shipped

@@ -163,13 +163,20 @@ const EDGE_COLORS: Record<string, string> = {};
     }
 })();
 
-const edgeColor = (t: string | undefined): string =>
-    (t && EDGE_COLORS[t]) || "#5C6E7E";
+const edgeColor = (t: string | undefined): string => (t && EDGE_COLORS[t]) || "#5C6E7E";
 
 /** Louvain community hues (nodes get data(color) when shading is on). */
 const _COMMUNITY_PALETTE = [
-    "#E0A93E", "#2DD4BF", "#C39BFF", "#F5B14C", "#7CA8C9",
-    "#F28B82", "#9BE08A", "#E79BE0", "#8AD7C6", "#D8C9A3",
+    "#E0A93E",
+    "#2DD4BF",
+    "#C39BFF",
+    "#F5B14C",
+    "#7CA8C9",
+    "#F28B82",
+    "#9BE08A",
+    "#E79BE0",
+    "#8AD7C6",
+    "#D8C9A3",
 ];
 
 /** Cloud node considered a hub for zoom-fade labels + sizing. */
@@ -211,7 +218,13 @@ const METRIC_BLURBS: Record<string, string> = {
 
 /** Node groups that can never carry company events (skip the timeline fetch). */
 const _NON_EVENT_GROUPS = new Set([
-    "sector", "sector-focal", "member", "super_sector", "sub_sector", "edition", "theme",
+    "sector",
+    "sector-focal",
+    "member",
+    "super_sector",
+    "sub_sector",
+    "edition",
+    "theme",
 ]);
 
 export class GraphView {
@@ -300,8 +313,13 @@ export class GraphView {
                 // All mode: spotlight the entity inside the CURRENT filter
                 // instead of yanking the view to Ego (the old behaviour read
                 // as "the button does nothing"). Ego stays the fallback.
-                if (this.graph && this.graph.mode === "all" && this.graph.cloud
-                    && this._spotlightInCloud(name)) return;
+                if (
+                    this.graph &&
+                    this.graph.mode === "all" &&
+                    this.graph.cloud &&
+                    this._spotlightInCloud(name)
+                )
+                    return;
                 this._setMode("ego");
                 await this.loadEgoNetwork(name);
             };
@@ -457,8 +475,10 @@ export class GraphView {
         getEl("graph-cloud-panel").style.display = mode === "all" ? "block" : "none";
         getEl("graph-shortest").style.display = mode === "path" ? "block" : "none";
         // The ego edge-filter select is meaningless in the other modes.
-        (getEl("graph-filter").closest(".filters") as HTMLElement | null)
-            ?.style.setProperty("display", mode === "ego" ? "" : "none");
+        (getEl("graph-filter").closest(".filters") as HTMLElement | null)?.style.setProperty(
+            "display",
+            mode === "ego" ? "" : "none",
+        );
 
         // S4 table modes: Rank/Time replace the canvas row with data panels;
         // the Chronoscope has no as-of semantics for whole-graph aggregates.
@@ -466,8 +486,9 @@ export class GraphView {
         getEl("lens-rank").style.display = mode === "rank" ? "block" : "none";
         getEl("lens-time").style.display = mode === "time" ? "block" : "none";
         getEl("lens-asof-block").style.display = tableMode ? "none" : "block";
-        (document.querySelector("#graph-view .graph-layout-row") as HTMLElement | null)
-            ?.style.setProperty("display", tableMode ? "none" : "");
+        (
+            document.querySelector("#graph-view .graph-layout-row") as HTMLElement | null
+        )?.style.setProperty("display", tableMode ? "none" : "");
 
         // Empty-state prompt only makes sense in ego mode.
         const empty = getEl("graph-empty");
@@ -567,12 +588,16 @@ export class GraphView {
         const cache = this.graph && this.graph.cloud;
         if (!cy || !cache) return;
         const everything = (getEl("cloud-everything") as HTMLInputElement).checked;
-        const minDegree = everything ? 1
-            : (getEl("cloud-min-degree") as HTMLInputElement).checked ? 2 : 1;
+        const minDegree = everything
+            ? 1
+            : (getEl("cloud-min-degree") as HTMLInputElement).checked
+              ? 2
+              : 1;
 
         const hidden = this.graph!.hiddenEdgeTypes;
-        const edgeFilterActive =
-            cache.data.relationship_types.some((rt) => hidden.has(rt.edge_type));
+        const edgeFilterActive = cache.data.relationship_types.some((rt) =>
+            hidden.has(rt.edge_type),
+        );
 
         let kept: Set<string>;
         let visibleEdges: GraphCloudResponse["edges"];
@@ -626,9 +651,13 @@ export class GraphView {
             visDegree[e.target] = (visDegree[e.target] || 0) + 1;
         });
         let maxDeg = 1;
-        kept.forEach((id) => { maxDeg = Math.max(maxDeg, visDegree[id] || 0); });
-        const sizeFor = (deg: number): number => Math.round(
-            _NODE_SIZE_MIN + (_NODE_SIZE_MAX - _NODE_SIZE_MIN) * Math.sqrt(deg / maxDeg));
+        kept.forEach((id) => {
+            maxDeg = Math.max(maxDeg, visDegree[id] || 0);
+        });
+        const sizeFor = (deg: number): number =>
+            Math.round(
+                _NODE_SIZE_MIN + (_NODE_SIZE_MAX - _NODE_SIZE_MIN) * Math.sqrt(deg / maxDeg),
+            );
 
         const elements: GraphElement[] = cache.data.nodes
             .filter((n) => kept.has(n.id))
@@ -653,8 +682,9 @@ export class GraphView {
         // Single-type views stay silent (arrows + the chip caption suffice);
         // the cloud payload carries no per-edge properties, so there is
         // nothing richer to show without an API change.
-        const labelEdges = visibleEdges.length <= _EDGE_LABEL_EDGES
-            && cache.data.relationship_types.length - hidden.size > 1;
+        const labelEdges =
+            visibleEdges.length <= _EDGE_LABEL_EDGES &&
+            cache.data.relationship_types.length - hidden.size > 1;
         visibleEdges.forEach((e) => {
             if (!kept.has(e.source) || !kept.has(e.target)) return;
             elements.push({
@@ -663,7 +693,7 @@ export class GraphView {
                     source: e.source,
                     target: e.target,
                     type: e.edge_type,
-                    label: labelEdges ? e.edge_type : "",   // 4k+ labels are the #1 render cost
+                    label: labelEdges ? e.edge_type : "", // 4k+ labels are the #1 render cost
                     cloud: "1",
                 },
             });
@@ -678,8 +708,9 @@ export class GraphView {
         if (elements.length === 0) {
             this.graph!.labelAlways = false;
             this._setGraphStatus(
-                "Edge filter — no relationships selected. Click a relationship "
-                + "chip (or “all”) to show its subgraph.");
+                "Edge filter — no relationships selected. Click a relationship " +
+                    "chip (or “all”) to show its subgraph.",
+            );
             return;
         }
 
@@ -703,9 +734,8 @@ export class GraphView {
         // the ~700-node filtered cloud takes seconds on the main thread. An
         // explicit layout pick (layoutTouched) is always honored.
         const selected = (getEl("graph-layout") as HTMLSelectElement).value;
-        const cloudLayout = (selected === "fcose" && !this.graph!.layoutTouched)
-            ? "components"
-            : selected;
+        const cloudLayout =
+            selected === "fcose" && !this.graph!.layoutTouched ? "components" : selected;
         this._runGraphLayout(cloudLayout, true);
         this._fitCapped(30, _CLOUD_FIT_MAX_ZOOM);
         if (!small) this._applyLabelBucket(this._labelBucketFor(cy.zoom()));
@@ -713,12 +743,14 @@ export class GraphView {
         if (edgeFilterActive) {
             const shown = cache.data.relationship_types.length - hidden.size;
             this._setGraphStatus(
-                `Edge filter — ${nodeCount} entities · ${edgeCount} edges `
-                + `(${shown} of ${cache.data.relationship_types.length} relationship types)`);
+                `Edge filter — ${nodeCount} entities · ${edgeCount} edges ` +
+                    `(${shown} of ${cache.data.relationship_types.length} relationship types)`,
+            );
         } else {
             const filterNote = everything ? "everything" : "min degree ≥ 2";
             this._setGraphStatus(
-                `Full graph — ${nodeCount} entities · ${edgeCount} edges (${filterNote})`);
+                `Full graph — ${nodeCount} entities · ${edgeCount} edges (${filterNote})`,
+            );
         }
     }
 
@@ -753,12 +785,10 @@ export class GraphView {
         this._highlightCloudSet(node.data());
         const nbhd = node.closedNeighborhood();
         cy.stop();
-        cy.animate(
-            { fit: { eles: nbhd, padding: 90 } },
-            { duration: 280 },
-        );
+        cy.animate({ fit: { eles: nbhd, padding: 90 } }, { duration: 280 });
         this._setGraphStatus(
-            `Spotlight — ${name} · ${nbhd.nodes().length} entities in its connected set`);
+            `Spotlight — ${name} · ${nbhd.nodes().length} entities in its connected set`,
+        );
         return true;
     }
 
@@ -799,20 +829,26 @@ export class GraphView {
         // Swatch square + label BESIDE it — the old markup put the label
         // INSIDE the 12px swatch box, so the type names overlapped into a
         // garbled line (screenshot 1).
-        const nodeHtml = nodeTypes.map((t) => `
+        const nodeHtml = nodeTypes
+            .map(
+                (t) => `
             <span class="cloud-legend-chip">
                 <span class="cloud-swatch cloud-node-${CSS.escape(t)}"></span>${escapeHtml(t)}
-            </span>`).join("");
-        const chips = data.relationship_types.map((t) => {
-            const off = this.graph?.hiddenEdgeTypes.has(t.edge_type) ? " off" : "";
-            return `<button type="button" class="edge-chip${off}"
+            </span>`,
+            )
+            .join("");
+        const chips = data.relationship_types
+            .map((t) => {
+                const off = this.graph?.hiddenEdgeTypes.has(t.edge_type) ? " off" : "";
+                return `<button type="button" class="edge-chip${off}"
                             data-edge-type="${escapeHtml(t.edge_type)}"
                             title="${escapeHtml(t.semantics)} — ${t.count} edge${t.count !== 1 ? "s" : ""}. Click to hide/show.">
                         <span class="dot" style="background:${edgeColor(t.edge_type)}"></span>
                         ${escapeHtml(t.edge_type)}
                         <span class="chip-count">${t.count}</span>
                     </button>`;
-        }).join("");
+            })
+            .join("");
         legend.innerHTML = `
             <div class="cloud-legend-group"><strong>Entities</strong>
                 <div class="cloud-legend-chips">${nodeHtml}</div></div>
@@ -839,7 +875,8 @@ export class GraphView {
     private _syncChipStates(): void {
         document
             .querySelectorAll<HTMLButtonElement>(
-                ".edge-chip[data-edge-type], .rel-cloud-chip[data-edge-type]")
+                ".edge-chip[data-edge-type], .rel-cloud-chip[data-edge-type]",
+            )
             .forEach((chip) => {
                 const t = chip.dataset.edgeType;
                 if (!t || t.startsWith("__")) return;
@@ -892,18 +929,20 @@ export class GraphView {
             return;
         }
         const max = Math.max(...types.map((t) => t.count), 1);
-        const chips = types.map((t) => {
-            const ratio = t.count / max;
-            const size = 0.85 + ratio * 1.35;
-            const off = this.graph?.hiddenEdgeTypes.has(t.edge_type) ? " off" : "";
-            return `<button type="button" class="rel-cloud-chip${off}"
+        const chips = types
+            .map((t) => {
+                const ratio = t.count / max;
+                const size = 0.85 + ratio * 1.35;
+                const off = this.graph?.hiddenEdgeTypes.has(t.edge_type) ? " off" : "";
+                return `<button type="button" class="rel-cloud-chip${off}"
                             data-edge-type="${escapeHtml(t.edge_type)}"
                             title="${escapeHtml(`${t.semantics} — ${t.count} edge${t.count !== 1 ? "s" : ""}`)}"
                             style="font-size:${size.toFixed(2)}rem; color:${edgeColor(t.edge_type)};">
                     ${escapeHtml(t.edge_type)}
                     <span class="rel-cloud-count">${t.count} ${t.symmetric ? "↔" : "→"}</span>
                 </button>`;
-        }).join("");
+            })
+            .join("");
         card.innerHTML = `<h4 class="rel-cloud-title"><i class="fas fa-cloud"></i> Relationship Cloud</h4>
                           <div class="rel-cloud-chips">${chips}</div>`;
         card.querySelectorAll<HTMLButtonElement>(".rel-cloud-chip").forEach((chip) => {
@@ -934,13 +973,15 @@ export class GraphView {
         if (!cache.communities) {
             try {
                 const m = await fetchJson<MetricGroupsResponse>(
-                    "/api/graph/metrics/louvain_community");
+                    "/api/graph/metrics/louvain_community",
+                );
                 const map = new Map<string, number>();
                 m.groups.forEach((g) => g.members.forEach((name) => map.set(name, g.label)));
                 cache.communities = map;
             } catch (e) {
                 this._setGraphStatus(
-                    `communities unavailable: ${(e as Error).message} (run make recompute-graph)`);
+                    `communities unavailable: ${(e as Error).message} (run make recompute-graph)`,
+                );
                 (getEl("cloud-community") as HTMLInputElement).checked = false;
                 return;
             }
@@ -979,15 +1020,17 @@ export class GraphView {
         const blurb = METRIC_BLURBS[metric] || metric;
         const loading = `<p class="hint"><i class="fas fa-spinner fa-spin"></i> computing ${escapeHtml(metric)}…</p>`;
         const fail = (e: unknown): string =>
-            `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}`
-            + ` (is <span class="mono">make recompute-graph</span> fresh?)</p>`;
+            `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}` +
+            ` (is <span class="mono">make recompute-graph</span> fresh?)</p>`;
 
         if (metric === "voterank") {
             let seeds = this.graph.rankSeeds;
             if (!seeds) {
                 wrap.innerHTML = loading;
                 try {
-                    const data = await fetchJson<MetricSeedsResponse>("/api/graph/metrics/voterank");
+                    const data = await fetchJson<MetricSeedsResponse>(
+                        "/api/graph/metrics/voterank",
+                    );
                     seeds = data.seeds;
                     this.graph.rankSeeds = seeds;
                 } catch (e) {
@@ -995,13 +1038,18 @@ export class GraphView {
                     return;
                 }
             }
-            const rows = seeds.slice(0, top).map((name, i) => `
+            const rows = seeds
+                .slice(0, top)
+                .map(
+                    (name, i) => `
                 <tr>
                     <td class="idx num">${i + 1}</td>
                     <td><button type="button" class="rank-entity" data-centre="${escapeHtml(name)}"
                                 title="Centre the Lens on ${escapeHtml(name)}">${escapeHtml(name)}</button></td>
                     <td class="num muted">seed ${i + 1} of ${seeds.length}</td>
-                </tr>`).join("");
+                </tr>`,
+                )
+                .join("");
             wrap.innerHTML = `<p class="panel-note mono">${escapeHtml(blurb)}</p>
                 <table class="rank-table">
                     <thead><tr><th class="num">#</th><th>entity</th><th class="num">note</th></tr></thead>
@@ -1009,7 +1057,9 @@ export class GraphView {
                 </table>
                 <p class="panel-note mono">${Math.min(seeds.length, top)} of ${seeds.length} seeds</p>`;
             this._wireCentre(wrap);
-            this._setGraphStatus(`Rank — voterank · ${Math.min(seeds.length, top)} of ${seeds.length} seeds`);
+            this._setGraphStatus(
+                `Rank — voterank · ${Math.min(seeds.length, top)} of ${seeds.length} seeds`,
+            );
             return;
         }
 
@@ -1021,25 +1071,33 @@ export class GraphView {
                 try {
                     // The payload branch serves every entity; `top` slices here.
                     data = await fetchJson<LinkPredictionResponse>(
-                        `/api/graph/metrics/${metric}?top=${top}`);
+                        `/api/graph/metrics/${metric}?top=${top}`,
+                    );
                     this.graph.rankData.set(key, data);
                 } catch (e) {
                     wrap.innerHTML = fail(e);
                     return;
                 }
             }
-            const rows = data.entities.slice(0, top).map((ent, i) => {
-                const best = ent.candidates[0];
-                return `
+            const rows = data.entities
+                .slice(0, top)
+                .map((ent, i) => {
+                    const best = ent.candidates[0];
+                    return `
                 <tr>
                     <td class="idx num">${i + 1}</td>
                     <td><button type="button" class="rank-entity" data-centre="${escapeHtml(ent.entity)}"
                                 title="Centre the Lens on ${escapeHtml(ent.entity)}">${escapeHtml(ent.entity)}</button></td>
-                    <td>${best ? `<button type="button" class="rank-entity muted-entity" data-centre="${escapeHtml(best.name)}"
-                                title="Centre the Lens on ${escapeHtml(best.name)}">↔ ${escapeHtml(best.name)}</button>` : '<span class="muted">—</span>'}</td>
+                    <td>${
+                        best
+                            ? `<button type="button" class="rank-entity muted-entity" data-centre="${escapeHtml(best.name)}"
+                                title="Centre the Lens on ${escapeHtml(best.name)}">↔ ${escapeHtml(best.name)}</button>`
+                            : '<span class="muted">—</span>'
+                    }</td>
                     <td class="num">${this._fmtScore(ent.best_score)}</td>
                 </tr>`;
-            }).join("");
+                })
+                .join("");
             wrap.innerHTML = `<p class="panel-note mono">${escapeHtml(blurb)}</p>
                 <table class="rank-table">
                     <thead><tr><th class="num">#</th><th>entity</th><th>predicted partner</th><th class="num">best</th></tr></thead>
@@ -1047,7 +1105,9 @@ export class GraphView {
                 </table>
                 <p class="panel-note mono">${Math.min(data.entities.length, top)} of ${data.total} scored entities</p>`;
             this._wireCentre(wrap);
-            this._setGraphStatus(`Rank — link prediction · ${Math.min(data.entities.length, top)} of ${data.total}`);
+            this._setGraphStatus(
+                `Rank — link prediction · ${Math.min(data.entities.length, top)} of ${data.total}`,
+            );
             return;
         }
 
@@ -1057,7 +1117,8 @@ export class GraphView {
             wrap.innerHTML = loading;
             try {
                 data = await fetchJson<MetricRankedResponse>(
-                    `/api/graph/metrics/${metric}?top=${top}`);
+                    `/api/graph/metrics/${metric}?top=${top}`,
+                );
                 this.graph.rankData.set(key, data);
             } catch (e) {
                 wrap.innerHTML = fail(e);
@@ -1065,19 +1126,24 @@ export class GraphView {
             }
         }
         if (!data.ranked.length) {
-            wrap.innerHTML = `<p class="hint">No rows for ${escapeHtml(metric)} — run `
-                + `<span class="mono">make recompute-graph</span>.</p>`;
+            wrap.innerHTML =
+                `<p class="hint">No rows for ${escapeHtml(metric)} — run ` +
+                `<span class="mono">make recompute-graph</span>.</p>`;
             return;
         }
         const max = Math.max(...data.ranked.map((r) => r.value), 0);
-        const rows = data.ranked.map((r, i) => `
+        const rows = data.ranked
+            .map(
+                (r, i) => `
             <tr>
                 <td class="idx num">${i + 1}</td>
                 <td><button type="button" class="rank-entity" data-centre="${escapeHtml(r.entity)}"
                             title="Centre the Lens on ${escapeHtml(r.entity)}">${escapeHtml(r.entity)}</button></td>
                 <td class="num"><span class="score-bar" style="width:${max > 0 ? Math.max(2, Math.round((r.value / max) * 46)) : 0}px"></span>
                     ${this._fmtScore(r.value)}</td>
-            </tr>`).join("");
+            </tr>`,
+            )
+            .join("");
         wrap.innerHTML = `<p class="panel-note mono">${escapeHtml(blurb)}</p>
             <table class="rank-table">
                 <thead><tr><th class="num">#</th><th>entity</th><th class="num">score</th></tr></thead>
@@ -1096,26 +1162,37 @@ export class GraphView {
             mount.innerHTML = `<p class="hint"><i class="fas fa-spinner fa-spin"></i> loading…</p>`;
             try {
                 this.graph.rankGroups = await fetchJson<MetricGroupsResponse>(
-                    "/api/graph/metrics/louvain_community");
+                    "/api/graph/metrics/louvain_community",
+                );
             } catch (e) {
                 mount.innerHTML = `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}</p>`;
                 return;
             }
         }
         const groups = [...this.graph.rankGroups.groups]
-            .sort((a, b) => b.size - a.size).slice(0, 8);
+            .sort((a, b) => b.size - a.size)
+            .slice(0, 8);
         if (!groups.length) {
             mount.innerHTML = `<p class="hint">No communities — run <span class="mono">make recompute-graph</span>.</p>`;
             return;
         }
-        mount.innerHTML = groups.map((g) => {
-            const color = _COMMUNITY_PALETTE[g.label % _COMMUNITY_PALETTE.length];
-            const members = g.members.slice(0, 6).map((m) =>
-                `<button type="button" class="chip-entity" data-centre="${escapeHtml(m)}"
-                         title="Centre the Lens on ${escapeHtml(m)}">${escapeHtml(m)}</button>`).join("");
-            const more = g.members.length > 6
-                ? `<span class="chip-more">+${g.members.length - 6}</span>` : "";
-            return `
+        mount.innerHTML =
+            groups
+                .map((g) => {
+                    const color = _COMMUNITY_PALETTE[g.label % _COMMUNITY_PALETTE.length];
+                    const members = g.members
+                        .slice(0, 6)
+                        .map(
+                            (m) =>
+                                `<button type="button" class="chip-entity" data-centre="${escapeHtml(m)}"
+                         title="Centre the Lens on ${escapeHtml(m)}">${escapeHtml(m)}</button>`,
+                        )
+                        .join("");
+                    const more =
+                        g.members.length > 6
+                            ? `<span class="chip-more">+${g.members.length - 6}</span>`
+                            : "";
+                    return `
             <div class="rank-group">
                 <div class="rank-group-head">
                     <span class="swatch" style="background:${color}"></span>
@@ -1124,9 +1201,11 @@ export class GraphView {
                 </div>
                 <div class="rank-group-members">${members}${more}</div>
             </div>`;
-        }).join("") + (this.graph.rankGroups.modularity !== undefined
-            ? `<p class="panel-note mono">modularity ${this.graph.rankGroups.modularity.toFixed(3)}</p>`
-            : "");
+                })
+                .join("") +
+            (this.graph.rankGroups.modularity !== undefined
+                ? `<p class="panel-note mono">modularity ${this.graph.rankGroups.modularity.toFixed(3)}</p>`
+                : "");
         this._wireCentre(mount);
     }
 
@@ -1143,7 +1222,8 @@ export class GraphView {
             const minScore = method === "pref-attach" ? 0 : 0.3;
             try {
                 const data = await fetchJson<SuggestionsResponse>(
-                    `/api/graph/suggestions?method=${method}&top=15&min_score=${minScore}`);
+                    `/api/graph/suggestions?method=${method}&top=15&min_score=${minScore}`,
+                );
                 rows = data.suggestions;
                 this.graph.suggestions.set(method, rows);
             } catch (e) {
@@ -1156,14 +1236,18 @@ export class GraphView {
             return;
         }
         const max = Math.max(...rows.map((r) => r.score), 0.0001);
-        mount.innerHTML = rows.map((r, i) => `
+        mount.innerHTML = rows
+            .map(
+                (r, i) => `
             <button type="button" class="suggest-row" data-centre="${escapeHtml(r.source)}"
                     title="${escapeHtml(r.source)} ↔ ${escapeHtml(r.target)}${r.edition ? ` · ${escapeHtml(r.edition)}` : ""} — centre on ${escapeHtml(r.source)}">
                 <span class="idx mono">${i + 1}</span>
                 <span class="suggest-pair">${escapeHtml(r.source)} <span class="arrow">↔</span> ${escapeHtml(r.target)}</span>
                 <span class="suggest-bar"><span style="width:${((r.score / max) * 100).toFixed(1)}%"></span></span>
                 <span class="val mono">${this._fmtScore(r.score)}</span>
-            </button>`).join("");
+            </button>`,
+            )
+            .join("");
         this._wireCentre(mount);
     }
 
@@ -1173,11 +1257,7 @@ export class GraphView {
     private async _loadTimeView(): Promise<void> {
         if (!this.graph) return;
         this._setGraphStatus("Time — loading...");
-        await Promise.allSettled([
-            this._loadByYear(),
-            this._loadBridges(),
-            this._loadCoMentions(),
-        ]);
+        await Promise.allSettled([this._loadByYear(), this._loadBridges(), this._loadCoMentions()]);
     }
 
     /** Deal-activity-by-year stacked bars (M&A + JV edges per year). */
@@ -1188,7 +1268,8 @@ export class GraphView {
             mount.innerHTML = `<p class="hint"><i class="fas fa-spinner fa-spin"></i> loading…</p>`;
             try {
                 this.graph.timeByYear = await fetchJson<EdgesByYearResponse>(
-                    "/api/graph/edges-by-year");
+                    "/api/graph/edges-by-year",
+                );
             } catch (e) {
                 mount.innerHTML = `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}</p>`;
                 return;
@@ -1201,8 +1282,12 @@ export class GraphView {
             return;
         }
         const types = [...new Set(rows.map((r) => r.edge_type))].sort();
-        getEl("time-legend").innerHTML = types.map((t) =>
-            `<span class="legend-key"><span class="dot" style="background:${edgeColor(t)}"></span>${escapeHtml(t)}</span>`).join("");
+        getEl("time-legend").innerHTML = types
+            .map(
+                (t) =>
+                    `<span class="legend-key"><span class="dot" style="background:${edgeColor(t)}"></span>${escapeHtml(t)}</span>`,
+            )
+            .join("");
 
         const byYear = new Map<string, { total: number; parts: YearEdgeCount[] }>();
         rows.forEach((r) => {
@@ -1213,18 +1298,24 @@ export class GraphView {
         });
         const years = [...byYear.keys()].sort();
         const max = Math.max(...years.map((y) => byYear.get(y)!.total), 1);
-        mount.innerHTML = years.map((y) => {
-            const { total, parts } = byYear.get(y)!;
-            const segs = parts.map((p) =>
-                `<span class="bar-seg" style="width:${((p.count / total) * 100).toFixed(2)}%;background:${edgeColor(p.edge_type)}"
-                       title="${escapeHtml(p.edge_type)}: ${p.count}"></span>`).join("");
-            return `
+        mount.innerHTML = years
+            .map((y) => {
+                const { total, parts } = byYear.get(y)!;
+                const segs = parts
+                    .map(
+                        (p) =>
+                            `<span class="bar-seg" style="width:${((p.count / total) * 100).toFixed(2)}%;background:${edgeColor(p.edge_type)}"
+                       title="${escapeHtml(p.edge_type)}: ${p.count}"></span>`,
+                    )
+                    .join("");
+                return `
             <div class="year-row">
                 <span class="yr mono">${escapeHtml(y)}</span>
                 <span class="bar-track" style="width:${((total / max) * 100).toFixed(1)}%">${segs}</span>
                 <span class="cnt mono">${total}</span>
             </div>`;
-        }).join("");
+            })
+            .join("");
         const grand = rows.reduce((a, r) => a + r.count, 0);
         this._setGraphStatus(`Time — ${grand} dated deals across ${years.length} years`);
     }
@@ -1243,18 +1334,23 @@ export class GraphView {
             }
         }
         const rows = [...this.graph.timeBridges.bridges]
-            .sort((a, b) => b.count - a.count).slice(0, 12);
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 12);
         if (!rows.length) {
             mount.innerHTML = `<p class="hint">No cross-sector M&A / JV edges yet.</p>`;
             return;
         }
-        mount.innerHTML = rows.map((b) => `
+        mount.innerHTML = rows
+            .map(
+                (b) => `
             <div class="bridge-row">
                 <span class="edge-dot" style="background:${edgeColor(b.edge_type)}"
                       title="${escapeHtml(b.edge_type)}"></span>
                 <span class="bridge-pair">${escapeHtml(b.sector_a)} <span class="arrow">↔</span> ${escapeHtml(b.sector_b)}</span>
                 <span class="cnt mono">${b.count}</span>
-            </div>`).join("");
+            </div>`,
+            )
+            .join("");
     }
 
     /** Co-mention leaderboard (most-connected entities in prose). */
@@ -1265,7 +1361,8 @@ export class GraphView {
             mount.innerHTML = `<p class="hint"><i class="fas fa-spinner fa-spin"></i> loading…</p>`;
             try {
                 this.graph.timeCoMentions = await fetchJson<CoMentionsResponse>(
-                    "/api/graph/co-mentions?top=15");
+                    "/api/graph/co-mentions?top=15",
+                );
             } catch (e) {
                 mount.innerHTML = `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}</p>`;
                 return;
@@ -1277,13 +1374,17 @@ export class GraphView {
             return;
         }
         const max = Math.max(...rows.map((r) => r.co_mentions), 1);
-        mount.innerHTML = rows.map((r) => `
+        mount.innerHTML = rows
+            .map(
+                (r) => `
             <div class="cm-row">
                 <button type="button" class="rank-entity" data-centre="${escapeHtml(r.entity)}"
                         title="Centre the Lens on ${escapeHtml(r.entity)}">${escapeHtml(r.entity)}</button>
                 <span class="cm-bar"><span style="width:${((r.co_mentions / max) * 100).toFixed(1)}%"></span></span>
                 <span class="cnt mono">${r.co_mentions}</span>
-            </div>`).join("");
+            </div>`,
+            )
+            .join("");
         this._wireCentre(mount);
     }
 
@@ -1300,7 +1401,8 @@ export class GraphView {
         mount.innerHTML = `<p class="hint"><i class="fas fa-spinner fa-spin"></i> comparing note embeddings (~1s)…</p>`;
         try {
             this.graph.nearDup = await fetchJson<NearDuplicatesResponse>(
-                "/api/graph/near-duplicates?min_sim=0.9&limit=50");
+                "/api/graph/near-duplicates?min_sim=0.9&limit=50",
+            );
         } catch (e) {
             mount.innerHTML = `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}</p>`;
             return;
@@ -1316,13 +1418,17 @@ export class GraphView {
             mount.innerHTML = `<p class="hint">Clean — no pairs at cosine ≥ ${data.min_sim.toFixed(2)}.</p>`;
             return;
         }
-        mount.innerHTML = data.pairs.map((p) => `
+        mount.innerHTML = data.pairs
+            .map(
+                (p) => `
             <div class="neardup-row">
                 <span class="sim mono">${p.similarity.toFixed(3)}</span>
                 <a href="/entity/${encodeURI(p.path_a)}" target="_blank" rel="noopener">${escapeHtml(p.title_a || p.path_a)}</a>
                 <span class="arrow">↔</span>
                 <a href="/entity/${encodeURI(p.path_b)}" target="_blank" rel="noopener">${escapeHtml(p.title_b || p.path_b)}</a>
-            </div>`).join("");
+            </div>`,
+            )
+            .join("");
     }
 
     // --- Shared S4 helpers --------------------------------------------------- //
@@ -1364,8 +1470,7 @@ export class GraphView {
         const qs = params.toString();
         let data: NeighborsBundle;
         try {
-            const url = `/api/graph/neighbors/${encodeURIComponent(name)}`
-                + (qs ? `?${qs}` : "");
+            const url = `/api/graph/neighbors/${encodeURIComponent(name)}` + (qs ? `?${qs}` : "");
             data = await fetchJson<NeighborsBundle>(url);
         } catch (e) {
             this._setGraphStatus(`Error: ${(e as Error).message}`);
@@ -1376,14 +1481,16 @@ export class GraphView {
         const isSector = data.entity_type === "sector";
         const filter: GraphFilter = isSector
             ? "all"
-            : (getEl("graph-filter") as HTMLSelectElement).value as GraphFilter;
+            : ((getEl("graph-filter") as HTMLSelectElement).value as GraphFilter);
         const elements: GraphElement[] = isSector
             ? this._buildSectorEgoElements(data as SectorNeighbors)
             : this._bundleElements(data as CompanyNeighbors, filter, "focal");
 
         this.graph.cy.elements().remove();
         this.graph.cy.add(elements as unknown as CyElementInput[]);
-        this.graph.central = isSector ? (data as SectorNeighbors).sector : (data as CompanyNeighbors).company;
+        this.graph.central = isSector
+            ? (data as SectorNeighbors).sector
+            : (data as CompanyNeighbors).company;
         this.graph.elements = elements;
         this.graph.entityType = isSector ? "sector" : "company";
 
@@ -1403,10 +1510,11 @@ export class GraphView {
             const sectorBundle = data as SectorNeighbors;
             const capped = sectorBundle.member_count > _SECTOR_RENDER_CAP;
             this._setGraphStatus(
-                `${sectorBundle.sector} — ${sectorBundle.member_count} member`
-                + (sectorBundle.member_count !== 1 ? "s" : "")
-                + (capped ? ` (rendering first ${_SECTOR_RENDER_CAP})` : "")
-                + asOfSuffix);
+                `${sectorBundle.sector} — ${sectorBundle.member_count} member` +
+                    (sectorBundle.member_count !== 1 ? "s" : "") +
+                    (capped ? ` (rendering first ${_SECTOR_RENDER_CAP})` : "") +
+                    asOfSuffix,
+            );
         } else {
             const companyBundle = data as CompanyNeighbors;
             const counts = {
@@ -1419,8 +1527,10 @@ export class GraphView {
             };
             const total = Object.values(counts).reduce((a, b) => a + b, 0);
             this._setGraphStatus(
-                `${companyBundle.company} — ${total} relationship${total !== 1 ? "s" : ""}`
-                + (companyBundle.sector ? ` · ${companyBundle.sector}` : "") + asOfSuffix);
+                `${companyBundle.company} — ${total} relationship${total !== 1 ? "s" : ""}` +
+                    (companyBundle.sector ? ` · ${companyBundle.sector}` : "") +
+                    asOfSuffix,
+            );
         }
         getEl("graph-empty").style.display = "none";
     }
@@ -1441,8 +1551,11 @@ export class GraphView {
             nodes.push({ data: { id: m, label: m, group: "member", centrality: 5 } });
             edges.push({
                 data: {
-                    id: `${focal}__${m}`, source: focal, target: m,
-                    type: "has_company", label: "has",
+                    id: `${focal}__${m}`,
+                    source: focal,
+                    target: m,
+                    type: "has_company",
+                    label: "has",
                 },
             });
         });
@@ -1467,11 +1580,21 @@ export class GraphView {
             nodes.push({ data: { id: name, label: name, group, centrality: 0 } });
         };
         const addEdge = (
-            src: string, dst: string, type: string, label: string,
+            src: string,
+            dst: string,
+            type: string,
+            label: string,
             props: Record<string, unknown> = {},
         ): void => {
             edges.push({
-                data: { id: `${src}__${dst}__${type}`, source: src, target: dst, type, label, props },
+                data: {
+                    id: `${src}__${dst}__${type}`,
+                    source: src,
+                    target: dst,
+                    type,
+                    label,
+                    props,
+                },
             });
         };
 
@@ -1480,7 +1603,10 @@ export class GraphView {
         }
 
         if (filter === "all" || filter === "peers") {
-            data.peers.forEach((p) => { addNode(p, "peer"); addEdge(focal, p, "competes_with", "peer"); });
+            data.peers.forEach((p) => {
+                addNode(p, "peer");
+                addEdge(focal, p, "competes_with", "peer");
+            });
         }
         if (filter === "all" || filter === "jv") {
             data.jv_partners.forEach((j) => {
@@ -1489,7 +1615,10 @@ export class GraphView {
             });
         }
         if (filter === "all") {
-            data.group_siblings.forEach((s) => { addNode(s, "sibling"); addEdge(focal, s, "same_group", "same group"); });
+            data.group_siblings.forEach((s) => {
+                addNode(s, "sibling");
+                addEdge(focal, s, "same_group", "same group");
+            });
         }
         if (filter === "all" || filter === "acquired") {
             data.acquired.forEach((a) => {
@@ -1504,14 +1633,28 @@ export class GraphView {
             }
         }
         if (filter === "all" || filter === "supply") {
-            data.suppliers.forEach((s) => { addNode(s, "supplier"); addEdge(s, focal, "supplier_to", "supplies"); });
-            data.customers.forEach((c) => { addNode(c, "customer"); addEdge(focal, c, "customer_of", "customer"); });
+            data.suppliers.forEach((s) => {
+                addNode(s, "supplier");
+                addEdge(s, focal, "supplier_to", "supplies");
+            });
+            data.customers.forEach((c) => {
+                addNode(c, "customer");
+                addEdge(focal, c, "customer_of", "customer");
+            });
         }
         if (filter === "all" && data.sector) {
             const sectorId = `sector:${data.sector}`;
-            nodes.push({ data: { id: sectorId, label: data.sector, group: "sector", centrality: 8 } });
+            nodes.push({
+                data: { id: sectorId, label: data.sector, group: "sector", centrality: 8 },
+            });
             edges.push({
-                data: { id: `${focal}__${sectorId}`, source: focal, target: sectorId, type: "part_of", label: "part of" },
+                data: {
+                    id: `${focal}__${sectorId}`,
+                    source: focal,
+                    target: sectorId,
+                    type: "part_of",
+                    label: "part of",
+                },
             });
         }
 
@@ -1533,40 +1676,50 @@ export class GraphView {
         if (!cy || !this.graph) return;
         if (cy.nodes().length >= _EXPAND_NODE_CAP) {
             this._setGraphStatus(
-                `expansion cap (${_EXPAND_NODE_CAP} nodes) — centre on ${name} to continue there`);
+                `expansion cap (${_EXPAND_NODE_CAP} nodes) — centre on ${name} to continue there`,
+            );
             return;
         }
         this._setGraphStatus(`Adding neighbours of ${name}...`);
         let data: NeighborsBundle;
         try {
             data = await fetchJson<NeighborsBundle>(
-                `/api/graph/neighbors/${encodeURIComponent(name)}`);
+                `/api/graph/neighbors/${encodeURIComponent(name)}`,
+            );
         } catch (e) {
             this._setGraphStatus(`Error: ${(e as Error).message}`);
             return;
         }
-        const els = data.entity_type === "sector"
-            ? this._buildSectorEgoElements(data as SectorNeighbors)
-            : this._bundleElements(data as CompanyNeighbors, "all", "outer");
+        const els =
+            data.entity_type === "sector"
+                ? this._buildSectorEgoElements(data as SectorNeighbors)
+                : this._bundleElements(data as CompanyNeighbors, "all", "outer");
 
         const fresh: GraphElement[] = [];
         els.filter((el) => !el.data.source).forEach((el) => {
-            if (cy.getElementById(el.data.id).length === 0
-                    && !fresh.some((x) => x.data.id === el.data.id)) {
+            if (
+                cy.getElementById(el.data.id).length === 0 &&
+                !fresh.some((x) => x.data.id === el.data.id)
+            ) {
                 el.data.group = "outer";
                 fresh.push(el);
             }
         });
         const ids = new Set(fresh.map((el) => el.data.id));
-        const freshEdges = els.filter((el) => el.data.source && el.data.target
-            && (ids.has(el.data.source) || cy.getElementById(el.data.source).length > 0)
-            && (ids.has(el.data.target) || cy.getElementById(el.data.target).length > 0));
+        const freshEdges = els.filter(
+            (el) =>
+                el.data.source &&
+                el.data.target &&
+                (ids.has(el.data.source) || cy.getElementById(el.data.source).length > 0) &&
+                (ids.has(el.data.target) || cy.getElementById(el.data.target).length > 0),
+        );
 
         cy.add([...fresh, ...freshEdges] as unknown as CyElementInput[]);
         this._runGraphLayout((getEl("graph-layout") as HTMLSelectElement).value, false, false);
         this._fitCapped(40, _EGO_FIT_MAX_ZOOM); // include the merged outer ring in the view
         this._setGraphStatus(
-            `+${fresh.length} nodes from ${name} · ${cy.nodes().length} on canvas`);
+            `+${fresh.length} nodes from ${name} · ${cy.nodes().length} on canvas`,
+        );
     }
 
     // --- Zoom, tooltips, zoom-fade labels ---------------------------------- //
@@ -1677,7 +1830,9 @@ export class GraphView {
             const d = e.target.data();
             const rows: string[] = [];
             if (d.cloud === "1") {
-                rows.push(`<div class="tip-meta">degree ${String(d.deg ?? "?")} · ${escapeHtml(String(d.group || "entity"))}</div>`);
+                rows.push(
+                    `<div class="tip-meta">degree ${String(d.deg ?? "?")} · ${escapeHtml(String(d.group || "entity"))}</div>`,
+                );
             }
             if (d.community !== undefined) {
                 rows.push(`<div class="tip-meta">community ${String(d.community)}</div>`);
@@ -1695,7 +1850,8 @@ export class GraphView {
             if (d.cloud === "1" && !d.type) return; // hidden cloud edges carry no info
             const props = (d.props || {}) as Record<string, unknown>;
             const extra = Object.keys(props)
-                .map((k) => `${k}: ${String(props[k])}`).join(" · ");
+                .map((k) => `${k}: ${String(props[k])}`)
+                .join(" · ");
             tip.innerHTML =
                 `<div class="tip-type">${escapeHtml(String(d.type || "edge"))}</div>` +
                 `<div class="tip-name">${escapeHtml(String(d.source))} → ${escapeHtml(String(d.target))}</div>` +
@@ -1734,12 +1890,14 @@ export class GraphView {
             if (els.some((e) => e.data.component)) {
                 const positions = this._cloudComponentPositions(els);
                 if (Object.keys(positions).length) {
-                    this.graph.cy.layout({
-                        name: "preset",
-                        positions,
-                        animate,
-                        animationDuration: 300,
-                    }).run();
+                    this.graph.cy
+                        .layout({
+                            name: "preset",
+                            positions,
+                            animate,
+                            animationDuration: 300,
+                        })
+                        .run();
                     return;
                 }
             }
@@ -1747,7 +1905,10 @@ export class GraphView {
         }
 
         const opts: Record<string, unknown> = {
-            name, animate, animationDuration: 400, randomize,
+            name,
+            animate,
+            animationDuration: 400,
+            randomize,
         };
         if (name === "fcose") {
             // fcose tiles disconnected components natively (tile: true). On
@@ -1756,7 +1917,7 @@ export class GraphView {
             // bounded iteration budget. Valid qualities: default | proof.
             opts.quality = "default";
             opts.nodeSeparation = cloud ? 60 : 90;
-            opts.idealEdgeLength = cloud ? 70 : (small ? 70 : 110);
+            opts.idealEdgeLength = cloud ? 70 : small ? 70 : 110;
             opts.edgeElasticity = 0.45;
             opts.gravity = cloud ? 0.25 : 0.3;
             opts.numIter = cloud ? 600 : 2500;
@@ -1821,14 +1982,14 @@ export class GraphView {
         // labels, so pairs get a middle allowance.
         const maxComp = comps.length ? Math.max(...comps.map((c) => c.length)) : 0;
         const cellPad = maxComp >= 8 ? 90 : 70;
-        const cellRadius = (n: number): number => Math.max(30, Math.sqrt(n) * nodeSpacing / 2);
+        const cellRadius = (n: number): number => Math.max(30, (Math.sqrt(n) * nodeSpacing) / 2);
         const maxR = Math.max(...comps.map((c) => cellRadius(c.length)));
         const cell = maxR * 2 + cellPad;
         const cols = Math.max(1, Math.ceil(Math.sqrt(comps.length)));
         const positions: Record<string, { x: number; y: number }> = {};
         comps.forEach((comp, i) => {
             const cx = (i % cols) * cell + cell / 2;
-            const cyy = (Math.floor(i / cols)) * cell + cell / 2;
+            const cyy = Math.floor(i / cols) * cell + cell / 2;
             const r = cellRadius(comp.length);
             const sorted = [...comp].sort((a, b) => (degree[b] || 0) - (degree[a] || 0));
             const hub = sorted[0];
@@ -1856,8 +2017,9 @@ export class GraphView {
     _renderGraphDetail(nodeData: CyNodeData | null): void {
         const panel = getEl("graph-detail");
         if (!nodeData) {
-            panel.innerHTML = '<div class="graph-detail-empty"><i class="fas fa-hand-pointer"></i>' +
-                              "<p>Click a node to centre the graph on it.</p></div>";
+            panel.innerHTML =
+                '<div class="graph-detail-empty"><i class="fas fa-hand-pointer"></i>' +
+                "<p>Click a node to centre the graph on it.</p></div>";
             return;
         }
         const name = nodeData.id;
@@ -1884,8 +2046,10 @@ export class GraphView {
         } else if (bundle) {
             const companyBundle = bundle as CompanyNeighbors;
             html += `<ul class="graph-detail-list">`;
-            if (companyBundle.sector) html += `<li><strong>Sector:</strong> ${escapeHtml(companyBundle.sector)}</li>`;
-            if (companyBundle.subsidiary_of) html += `<li><strong>Parent:</strong> ${escapeHtml(companyBundle.subsidiary_of)}</li>`;
+            if (companyBundle.sector)
+                html += `<li><strong>Sector:</strong> ${escapeHtml(companyBundle.sector)}</li>`;
+            if (companyBundle.subsidiary_of)
+                html += `<li><strong>Parent:</strong> ${escapeHtml(companyBundle.subsidiary_of)}</li>`;
             html += `<li><strong>Peers:</strong> ${companyBundle.peers.length || "—"}</li>`;
             html += `<li><strong>JV partners:</strong> ${companyBundle.jv_partners.length || "—"}</li>`;
             html += `<li><strong>Group siblings:</strong> ${companyBundle.group_siblings.length || "—"}</li>`;
@@ -1915,7 +2079,8 @@ export class GraphView {
             const expandBtn = document.createElement("button");
             expandBtn.className = "btn-secondary";
             expandBtn.textContent = `＋ ${name}'s neighbours`;
-            expandBtn.title = "Merge this node's neighbours into the canvas (progressive expansion)";
+            expandBtn.title =
+                "Merge this node's neighbours into the canvas (progressive expansion)";
             expandBtn.addEventListener("click", () => this._expandNode(name));
             row.append(centreBtn, expandBtn);
             panel.appendChild(row);
@@ -1957,17 +2122,20 @@ export class GraphView {
                 <p class="hint">None recorded.</p>`;
             return;
         }
-        const items = data.events.map((ev) => {
-            const bits = [ev.counterparty, ev.magnitude]
-                .filter((x): x is string => Boolean(x))
-                .map((x) => escapeHtml(x)).join(" · ");
-            return `
+        const items = data.events
+            .map((ev) => {
+                const bits = [ev.counterparty, ev.magnitude]
+                    .filter((x): x is string => Boolean(x))
+                    .map((x) => escapeHtml(x))
+                    .join(" · ");
+                return `
             <li class="tl-item"${ev.source_quote ? ` title="${escapeHtml(ev.source_quote)}"` : ""}>
                 <span class="tl-date mono">${this._eventDateLabel(ev)}</span>
                 <span class="tl-type">${escapeHtml(ev.event_type)}</span>
                 <span class="tl-body">${bits || "&nbsp;"}</span>
             </li>`;
-        }).join("");
+            })
+            .join("");
         mount.innerHTML = `<h4 class="insp-events-head"><i class="fas fa-timeline"></i> Events
                 <span class="cnt mono">${data.event_count}</span></h4>
             <ol class="tl">${items}</ol>`;
@@ -1997,9 +2165,11 @@ export class GraphView {
         // opacity transitions make the hover-dim feel intentional; rectangles
         // carry their labels centred INSIDE the shape (bottom-valign clipped
         // them into the shape).
-        const ss = cytoscape.stylesheet()
-            .selector("node").style({
-                "label": "data(label)",
+        const ss = cytoscape
+            .stylesheet()
+            .selector("node")
+            .style({
+                label: "data(label)",
                 "text-valign": "bottom",
                 "text-halign": "center",
                 "text-margin-y": 5,
@@ -2008,11 +2178,11 @@ export class GraphView {
                 "text-background-opacity": 0.6,
                 "text-background-padding": 2,
                 "text-background-shape": "roundrectangle",
-                "color": "#DCE5EE",
+                color: "#DCE5EE",
                 "font-family": "'IBM Plex Mono', monospace",
                 "font-size": 10,
-                "width": 24,
-                "height": 24,
+                width: 24,
+                height: 24,
                 "background-color": "#7E8FA3",
                 "border-width": 1.5,
                 "border-color": "#0B0F14",
@@ -2020,89 +2190,144 @@ export class GraphView {
                 "transition-property": "opacity",
                 "transition-duration": 150,
             })
-            .selector('node[group="focal"]').style({
-                "background-color": "#E0A93E", "width": 32, "height": 32,
-                "border-width": 2, "border-color": "#F5D08C",
-                "font-size": 12, "font-weight": "bold",
+            .selector('node[group="focal"]')
+            .style({
+                "background-color": "#E0A93E",
+                width: 32,
+                height: 32,
+                "border-width": 2,
+                "border-color": "#F5D08C",
+                "font-size": 12,
+                "font-weight": "bold",
             })
-            .selector('node[group="peer"]').style({ "background-color": "#F5B14C" })
-            .selector('node[group="jv"]').style({ "background-color": "#C39BFF" })
-            .selector('node[group="sibling"]').style({ "background-color": "#B5838D" })
-            .selector('node[group="acquired"]').style({ "background-color": "#F28B82" })
-            .selector('node[group="parent"]').style({ "background-color": "#43AA8B" })
-            .selector('node[group="supplier"]').style({ "background-color": "#7CA8C9" })
-            .selector('node[group="customer"]').style({ "background-color": "#7CA8C9" })
-            .selector('node[group="outer"]').style({
+            .selector('node[group="peer"]')
+            .style({ "background-color": "#F5B14C" })
+            .selector('node[group="jv"]')
+            .style({ "background-color": "#C39BFF" })
+            .selector('node[group="sibling"]')
+            .style({ "background-color": "#B5838D" })
+            .selector('node[group="acquired"]')
+            .style({ "background-color": "#F28B82" })
+            .selector('node[group="parent"]')
+            .style({ "background-color": "#43AA8B" })
+            .selector('node[group="supplier"]')
+            .style({ "background-color": "#7CA8C9" })
+            .selector('node[group="customer"]')
+            .style({ "background-color": "#7CA8C9" })
+            .selector('node[group="outer"]')
+            .style({
                 "background-color": "#66788C",
-                "border-width": 1, "border-style": "dashed", "border-color": "#8CA0B4",
-                "width": 20, "height": 20,
+                "border-width": 1,
+                "border-style": "dashed",
+                "border-color": "#8CA0B4",
+                width: 20,
+                height: 20,
             })
             // Entity-type groups (cloud + sector ego).
-            .selector('node[group="company"]').style({ "background-color": "#C7D3E0" })
-            .selector('node[group="theme"]').style({
-                "background-color": "#C39BFF", "shape": "hexagon",
-                "width": 24, "height": 24,
+            .selector('node[group="company"]')
+            .style({ "background-color": "#C7D3E0" })
+            .selector('node[group="theme"]')
+            .style({
+                "background-color": "#C39BFF",
+                shape: "hexagon",
+                width: 24,
+                height: 24,
             })
-            .selector('node[group="edition"]').style({
-                "background-color": "#D8C9A3", "shape": "rectangle",
-                "width": 30, "height": 30,
+            .selector('node[group="edition"]')
+            .style({
+                "background-color": "#D8C9A3",
+                shape: "rectangle",
+                width: 30,
+                height: 30,
             })
             // Rectangles carry their labels centred INSIDE the shape — the
             // old bottom-valign clipped the label into the rectangle edge.
             // Dark text on the lighter teal/tan fills; super_sector's fill is
             // dark enough to need light text.
-            .selector('node[group="sector"], node[group="sector-focal"], node[group="sub_sector"], node[group="edition"]').style({
-                "text-valign": "center", "text-margin-y": 0,
-                "text-background-opacity": 0, "font-weight": "bold",
-                "color": "#06231F",
+            .selector(
+                'node[group="sector"], node[group="sector-focal"], node[group="sub_sector"], node[group="edition"]',
+            )
+            .style({
+                "text-valign": "center",
+                "text-margin-y": 0,
+                "text-background-opacity": 0,
+                "font-weight": "bold",
+                color: "#06231F",
             })
-            .selector('node[group="super_sector"]').style({
-                "text-valign": "center", "text-margin-y": 0,
-                "text-background-opacity": 0, "font-weight": "bold",
-                "color": "#E8EDF2",
+            .selector('node[group="super_sector"]')
+            .style({
+                "text-valign": "center",
+                "text-margin-y": 0,
+                "text-background-opacity": 0,
+                "font-weight": "bold",
+                color: "#E8EDF2",
             })
-            .selector('node[group="super_sector"]').style({
-                "background-color": "#17766C", "shape": "rectangle",
-                "width": 54, "height": 32,
+            .selector('node[group="super_sector"]')
+            .style({
+                "background-color": "#17766C",
+                shape: "rectangle",
+                width: 54,
+                height: 32,
             })
-            .selector('node[group="sub_sector"]').style({
-                "background-color": "#3E8F86", "shape": "round-rectangle",
-                "width": 44, "height": 28,
+            .selector('node[group="sub_sector"]')
+            .style({
+                "background-color": "#3E8F86",
+                shape: "round-rectangle",
+                width: 44,
+                height: 28,
             })
-            .selector('node[group="sector"]').style({
-                "background-color": "#2DD4BF", "shape": "rectangle",
-                "width": 50, "height": 30,
+            .selector('node[group="sector"]')
+            .style({
+                "background-color": "#2DD4BF",
+                shape: "rectangle",
+                width: 50,
+                height: 30,
             })
-            .selector('node[group="sector-focal"]').style({
-                "background-color": "#1FB9A6", "shape": "rectangle",
-                "width": 56, "height": 36, "font-size": 12,
+            .selector('node[group="sector-focal"]')
+            .style({
+                "background-color": "#1FB9A6",
+                shape: "rectangle",
+                width: 56,
+                height: 36,
+                "font-size": 12,
             })
-            .selector('node[group="member"]').style({
-                "background-color": "#7CA8C9", "width": 22, "height": 22,
+            .selector('node[group="member"]')
+            .style({
+                "background-color": "#7CA8C9",
+                width: 22,
+                height: 22,
             })
             // Path subgraph (Path mode).
-            .selector('node[group="path-end"]').style({
-                "background-color": "#E0A93E", "width": 40, "height": 40,
+            .selector('node[group="path-end"]')
+            .style({
+                "background-color": "#E0A93E",
+                width: 40,
+                height: 40,
                 "font-weight": "bold",
             })
-            .selector("node.focal").style({
-                "border-width": 3, "border-color": "#F5D08C",
+            .selector("node.focal")
+            .style({
+                "border-width": 3,
+                "border-color": "#F5D08C",
             })
             // Louvain shading overrides the type colour with data(color).
-            .selector("node.shaded").style({ "background-color": "data(color)" })
+            .selector("node.shaded")
+            .style({ "background-color": "data(color)" })
             // Zoom-fade labels (cloud).
-            .selector("node.lbl-hide").style({ "text-opacity": 0 })
-            .selector("edge").style({
-                "width": 1.6,
+            .selector("node.lbl-hide")
+            .style({ "text-opacity": 0 })
+            .selector("edge")
+            .style({
+                width: 1.6,
                 "line-color": "rgba(96, 116, 140, 0.75)",
                 "target-arrow-color": "rgba(96, 116, 140, 0.75)",
                 "target-arrow-shape": "triangle",
                 "target-arrow-scale": 0.7,
                 "curve-style": "bezier",
-                "label": "data(label)",
+                label: "data(label)",
                 "font-family": "'IBM Plex Mono', monospace",
                 "font-size": 8.5,
-                "color": "#B9C6D4",
+                color: "#B9C6D4",
                 "text-background-color": "#0B0F14",
                 "text-background-padding": 2,
                 "text-background-opacity": 0.75,
@@ -2111,9 +2336,13 @@ export class GraphView {
                 "transition-property": "opacity",
                 "transition-duration": 150,
             })
-            .selector('edge[type="path-hop"]').style({
-                "width": 3.5, "line-color": "#E0A93E", "target-arrow-color": "#E0A93E",
-                "curve-style": "bezier", "z-index": 10,
+            .selector('edge[type="path-hop"]')
+            .style({
+                width: 3.5,
+                "line-color": "#E0A93E",
+                "target-arrow-color": "#E0A93E",
+                "curve-style": "bezier",
+                "z-index": 10,
             });
 
         // Edge-type colours from the token palette.
@@ -2124,50 +2353,66 @@ export class GraphView {
             });
         });
 
-        ss.selector('edge[type="co_mentioned_in"], edge[type="jv_with"], edge[type="competes_with"], edge[type="same_group"]')
+        ss.selector(
+            'edge[type="co_mentioned_in"], edge[type="jv_with"], edge[type="competes_with"], edge[type="same_group"]',
+        )
             .style({ "target-arrow-shape": "none" })
-            .selector("edge.highlighted").style({
-                "width": 4, "line-color": "#E0A93E", "target-arrow-color": "#E0A93E",
+            .selector("edge.highlighted")
+            .style({
+                width: 4,
+                "line-color": "#E0A93E",
+                "target-arrow-color": "#E0A93E",
                 "z-index": 10,
             })
-            .selector("node.highlighted").style({
-                "border-width": 3, "border-color": "#E0A93E", "z-index": 10,
+            .selector("node.highlighted")
+            .style({
+                "border-width": 3,
+                "border-color": "#E0A93E",
+                "z-index": 10,
             })
             // Cloud styling: straight thin edges, no text (the #1 render
             // cost at 4k+ edges); degree-scaled nodes (sqrt curve — the px
             // diameter arrives precomputed in data(size)); zoom-gated labels
             // only on the FULL cloud (small subgraphs force bucket 2).
-            .selector('edge[cloud="1"]').style({
+            .selector('edge[cloud="1"]')
+            .style({
                 "curve-style": "straight",
-                "width": 1,
-                "label": "",
+                width: 1,
+                label: "",
                 "text-opacity": 0,
                 "font-size": 0,
             })
-            .selector('node[cloud="1"]').style({
+            .selector('node[cloud="1"]')
+            .style({
                 "font-size": 9,
                 "min-zoomed-font-size": 5,
-                "width": "data(size)",
-                "height": "data(size)",
+                width: "data(size)",
+                height: "data(size)",
             })
             // Hover neighbourhood highlight (setHover in _initTooltip).
-            .selector(".hov-dim").style({ "opacity": 0.22 })
-            .selector("node.hov-core").style({
-                "border-width": 2, "border-color": "#F5D08C",
+            .selector(".hov-dim")
+            .style({ opacity: 0.22 })
+            .selector("node.hov-core")
+            .style({
+                "border-width": 2,
+                "border-color": "#F5D08C",
             })
-            .selector("edge.in-set").style({
-                "width": 4,
+            .selector("edge.in-set")
+            .style({
+                width: 4,
                 "line-color": "#E0A93E",
                 "target-arrow-color": "#E0A93E",
                 "z-index": 12,
                 "overlay-opacity": 0,
             })
-            .selector("node.in-set").style({
+            .selector("node.in-set")
+            .style({
                 "border-width": 3,
                 "border-color": "#E0A93E",
                 "z-index": 12,
             })
-            .selector(".faded").style({ "opacity": 0.25 });
+            .selector(".faded")
+            .style({ opacity: 0.25 });
         return ss;
     }
 
@@ -2200,23 +2445,29 @@ export class GraphView {
         const cy = this.graph && this.graph.cy;
         if (data.path === null) {
             result.innerHTML =
-                `<p class="hint">No path found between <em>${escapeHtml(data.source)}</em> and `
-                + `<em>${escapeHtml(data.target)}</em> within the hop limit`
-                + (this._asOf() ? ` as of ${this._asOf()}` : "") + `.</p>`;
+                `<p class="hint">No path found between <em>${escapeHtml(data.source)}</em> and ` +
+                `<em>${escapeHtml(data.target)}</em> within the hop limit` +
+                (this._asOf() ? ` as of ${this._asOf()}` : "") +
+                `.</p>`;
             return;
         }
         const chain = data.path.map((p) => p.name);
         const hops = data.hops ?? 0;
         // Hop ribbon: chips are clickable — jumps to an ego view of that hop.
-        const ribbon = chain.map((n, i) =>
-            `<button type="button" class="hop-chip" data-hop-name="${escapeHtml(n)}" `
-            + `title="Centre the Lens on ${escapeHtml(n)}">`
-            + `<span class="hop-idx">${i + 1}</span>${escapeHtml(n)}</button>`)
+        const ribbon = chain
+            .map(
+                (n, i) =>
+                    `<button type="button" class="hop-chip" data-hop-name="${escapeHtml(n)}" ` +
+                    `title="Centre the Lens on ${escapeHtml(n)}">` +
+                    `<span class="hop-idx">${i + 1}</span>${escapeHtml(n)}</button>`,
+            )
             .join(`<span class="hop-arrow">→</span>`);
-        result.innerHTML = `
+        result.innerHTML =
+            `
             <div class="path-ribbon">${ribbon}</div>
-            <p class="hint">${hops} hop${hops !== 1 ? "s" : ""}`
-            + (this._asOf() ? ` · as of ${this._asOf()}` : " · now") + `</p>`;
+            <p class="hint">${hops} hop${hops !== 1 ? "s" : ""}` +
+            (this._asOf() ? ` · as of ${this._asOf()}` : " · now") +
+            `</p>`;
         result.querySelectorAll<HTMLButtonElement>(".hop-chip").forEach((chip) => {
             chip.addEventListener("click", () => {
                 const n = chip.dataset.hopName;
@@ -2234,16 +2485,19 @@ export class GraphView {
         if (this.graph && this.graph.mode === "path") {
             const elements: GraphElement[] = chain.map((n, i) => ({
                 data: {
-                    id: n, label: n,
-                    group: (i === 0 || i === chain.length - 1) ? "path-end" : "company",
+                    id: n,
+                    label: n,
+                    group: i === 0 || i === chain.length - 1 ? "path-end" : "company",
                 },
             }));
             for (let i = 0; i < chain.length - 1; i++) {
                 elements.push({
                     data: {
                         id: `path__${chain[i]}__${chain[i + 1]}`,
-                        source: chain[i], target: chain[i + 1],
-                        type: "path-hop", label: String(i + 1),
+                        source: chain[i],
+                        target: chain[i + 1],
+                        type: "path-hop",
+                        label: String(i + 1),
                     },
                 });
             }
@@ -2251,8 +2505,12 @@ export class GraphView {
             cy.add(elements as unknown as CyElementInput[]);
             if (this.graph) this.graph.labelAlways = false;
             cy.layout({
-                name: "breadthfirst", directed: true, spacingFactor: 1.4,
-                roots: `#${CSS.escape(chain[0])}`, animate: true, animationDuration: 400,
+                name: "breadthfirst",
+                directed: true,
+                spacingFactor: 1.4,
+                roots: `#${CSS.escape(chain[0])}`,
+                animate: true,
+                animationDuration: 400,
             }).run();
             this._fitCapped(60, _EGO_FIT_MAX_ZOOM);
             this._applyLabelBucket(-1);
@@ -2263,7 +2521,9 @@ export class GraphView {
             if (pathNodes.length === chain.length) {
                 const pathEles = cy.collection();
                 for (let i = 0; i < chain.length - 1; i++) {
-                    const e = cy.getElementById(chain[i]).edgesWith(cy.getElementById(chain[i + 1]));
+                    const e = cy
+                        .getElementById(chain[i])
+                        .edgesWith(cy.getElementById(chain[i + 1]));
                     pathEles.merge(e);
                     pathEles.merge(cy.getElementById(chain[i]));
                 }

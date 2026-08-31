@@ -38,9 +38,12 @@ export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> 
     const response = await fetch(url);
     if (!response.ok) {
         const body = await response.json().catch((): unknown => ({}));
-        throw new ApiError(response.status, extractErrorMessage(body, response.statusText || `HTTP ${response.status}`));
+        throw new ApiError(
+            response.status,
+            extractErrorMessage(body, response.statusText || `HTTP ${response.status}`),
+        );
     }
-    return await response.json() as T;
+    return (await response.json()) as T;
 }
 
 /** POST (no body — the API surface has no JSON-body writes) + parse JSON. */

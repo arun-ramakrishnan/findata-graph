@@ -1,3 +1,12 @@
+---
+title: Graph + Docs UI Redesign — "The Research Desk"
+status: executed
+filed: '2026-08-22'
+executed: '2026-08-22'
+completed_md: '145'
+area: app.py` (4 new read-only endpoint groups)
+---
+
 # Proposal: Graph + Docs UI Redesign — "The Research Desk"
 
 **Status:** IMPLEMENTED — S0–S7 executed 2026-08-22 (implementation log

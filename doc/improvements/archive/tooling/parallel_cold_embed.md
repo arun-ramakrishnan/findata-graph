@@ -1,3 +1,12 @@
+---
+title: Parallel cold embed — process pool for the bge-small llama.cpp path
+status: executed
+filed: '2026-08-29'
+executed: '2026-08-29'
+completed_md: '173'
+area: embeddings / `helpers/core/local_embedder.py
+---
+
 # Parallel cold embed — process pool for the bge-small llama.cpp path
 
 **Date:** 2026-08-29 · **Status:** EXECUTED 2026-08-29 (completed.md #173) ·

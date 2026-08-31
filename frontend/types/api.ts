@@ -185,11 +185,7 @@ export interface ThemeNeighbors {
 }
 
 export type NeighborsBundle =
-    | CompanyNeighbors
-    | SectorNeighbors
-    | SuperSectorNeighbors
-    | SubSectorNeighbors
-    | ThemeNeighbors;
+    CompanyNeighbors | SectorNeighbors | SuperSectorNeighbors | SubSectorNeighbors | ThemeNeighbors;
 
 /**
  * The graph view (loadEgoNetwork) only ever centres on a company or a sector

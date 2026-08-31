@@ -1,3 +1,12 @@
+---
+title: Perf optimization plan — `make perf` hotspots (measured 2026-08-26)
+status: executed
+filed: '2026-08-26'
+executed: '2026-08-26'
+completed_md: '163'
+area: tooling
+---
+
 # Perf optimization plan — `make perf` hotspots (measured 2026-08-26)
 
 **Status:** O1-O3 EXECUTED 2026-08-26 (completed.md #163) — make perf

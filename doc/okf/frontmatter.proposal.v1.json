@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "frontmatter.proposal.v1.json",
+  "x-template": "doc/templates/proposal.md",
+  "title": "Proposal frontmatter (v1)",
+  "description": "Structural contract for doc/improvements/proposals/*.md and their archived copies under doc/improvements/archive/** (corpus_uniformity S3, option 2 FULL, user-selected 2026-08-31). The bold-line Date/Status/Area header STAYS for human readers; this block is the machine-checkable status. Lifecycle agreement (proposals/ = proposed, archive/ = executed with a completed.md number, README live-list hygiene) is enforced by static_checks' Proposal lifecycle check \u2014 this schema covers structure only, same division as the note schemas.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "status",
+    "filed",
+    "executed",
+    "completed_md",
+    "area"
+  ],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "From the # heading; imperative, names the mechanism."
+    },
+    "status": {
+      "enum": [
+        "proposed",
+        "executed"
+      ],
+      "description": "'proposed' while in proposals/; 'executed' once archived (directory agreement enforced by static_checks)."
+    },
+    "filed": {
+      "$ref": "#/$defs/isoDate",
+      "description": "Date the proposal was filed into proposals/."
+    },
+    "executed": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/isoDate"
+        }
+      ],
+      "description": "Null while proposed; the execution date once archived."
+    },
+    "completed_md": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^\\d+[a-z]?(?:\\+\\d+[a-z]?)?$"
+        }
+      ],
+      "description": "The completed.md entry number as a string ('189'; suffix form '105b' for resolved duplicate numbers; '145+146' when one proposal spans several entries). Null while proposed."
+    },
+    "area": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Primary code/doc surface (first segment of the bold-line Area header; archive topic dir as fallback)."
+    }
+  },
+  "$defs": {
+    "isoDate": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO calendar date (YYYY-MM-DD). NOTE: unquoted YAML dates are auto-parsed into date objects by PyYAML; the validator normalizes these to ISO strings before checking."
+    }
+  }
+}

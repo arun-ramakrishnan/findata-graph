@@ -39,7 +39,7 @@ DESIGN PRINCIPLES
 3. **Idempotent.** Uses `INSERT OR IGNORE` against the existing
    `UNIQUE(source, target, edge_type)` constraint.
 4. **Symmetric types** (`jv_with`, `same_group`) canonicalise to
-   `source LE target` per `doc/graph_design.txt` §4.
+   `source LE target` per `doc/design/graph_design.txt` §4.
 5. **Directional types** (`acquired`, `subsidiary_of`) keep the literal
    direction from the source. `acquired`: source acquirer, target target.
    `subsidiary_of`: source subsidiary, target parent.
@@ -62,7 +62,7 @@ CLI
     python3 helpers/graph/extract_relations.py findata/The_Chatter/Foo.md --apply
     python3 helpers/graph/extract_relations.py findata/The_Chatter/*.md --apply  # batch
 
-See `doc/graph_design.txt` §4 for the symmetric-edge convention.
+See `doc/design/graph_design.txt` §4 for the symmetric-edge convention.
 """
 from __future__ import annotations
 

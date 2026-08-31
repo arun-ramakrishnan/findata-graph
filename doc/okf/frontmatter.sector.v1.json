@@ -1,6 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "frontmatter.sector.v1.json",
+  "x-template": "doc/templates/sector_note.yaml",
   "title": "Sector note frontmatter (v1)",
   "description": "Structural contract for findata/Sectors/<Name>.md YAML frontmatter (42 live notes, 2026-08-17).",
   "type": "object",

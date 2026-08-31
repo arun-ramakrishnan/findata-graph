@@ -1,3 +1,12 @@
+---
+title: 'Mojo doc → script_search: store, process, embed the Mojo API surface'
+status: executed
+filed: '2026-08-30'
+executed: '2026-08-30'
+completed_md: '187'
+area: helpers/maintenance/rebuild_script_search.py
+---
+
 # Mojo doc → script_search: store, process, embed the Mojo API surface
 
 **Status:** EXECUTED 2026-08-30 (same day; see completed.md #188)

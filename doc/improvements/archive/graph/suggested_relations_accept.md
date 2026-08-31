@@ -1,3 +1,12 @@
+---
+title: Accept path for pending relations — apply suggested + known-target rows to `graph_edges` (S4)
+status: executed
+filed: '2026-08-27'
+executed: '2026-08-27'
+completed_md: '169'
+area: graph
+---
+
 # Proposal: Accept path for pending relations — apply suggested + known-target rows to `graph_edges` (S4)
 
 **Date**: 2026-08-27

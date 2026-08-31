@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """DuckDB query layer over the FinData knowledge graph.
 
-Architecture (see doc/graph_design.txt §3, §5, §8):
+Architecture (see doc/design/graph_design.txt §3, §5, §8):
   - SQLite (memory/research.db) is the sole writer / source of truth.
   - DuckDB attaches it read-only via the sqlite extension.
   - Graph data is materialised as plain DuckDB tables (``v_node`` vertex

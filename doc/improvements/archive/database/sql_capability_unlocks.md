@@ -1,3 +1,12 @@
+---
+title: SQL Capability Unlocks — Note Vectors in DuckDB + Shortest-Path Fix
+status: executed
+filed: '2026-08-21'
+executed: '2026-08-21'
+completed_md: '143'
+area: helpers/graph/query.py` (materialisation
+---
+
 # Proposal: SQL Capability Unlocks — Note Vectors in DuckDB + Shortest-Path Fix
 
 **Status:** EXECUTED (2026-08-21) — all of Parts A/B/C implemented,

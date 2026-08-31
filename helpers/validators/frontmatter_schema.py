@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """JSON-Schema validation for findata note frontmatter (B1, 2026-08-17).
 
-doc/schema/frontmatter.<type>.v1.json formalizes the de-facto key sets of the
+doc/okf/frontmatter.<type>.v1.json formalizes the de-facto key sets of the
 Companies (1,068), Sectors (42) and Super_Sectors (9) notes into a structural
 contract: required keys, value types, formats/enums, and no rogue keys. This
 module loads those schemas, validates parsed frontmatter dicts, and exposes:
@@ -10,7 +10,7 @@ module loads those schemas, validates parsed frontmatter dicts, and exposes:
 - ``check_frontmatter_schema()`` — (fatal, advisory) walker wired into
   helpers/validators/static_checks.py CHECKS
 - ``emit_key_doc()`` — deterministic Markdown key reference GENERATED from the
-  schemas (doc/schema/frontmatter_keys.md), so the human docs and the validator
+  schemas (doc/okf/frontmatter_keys.md), so the human docs and the validator
   share one source of truth
 
 Design notes:
@@ -49,7 +49,7 @@ except ImportError:  # pragma: no cover - libyaml not built
     from yaml import SafeLoader as _SafeLoader
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SCHEMA_DIR = REPO_ROOT / "doc" / "schema"
+SCHEMA_DIR = REPO_ROOT / "doc" / "okf"
 KEY_DOC = SCHEMA_DIR / "frontmatter_keys.md"
 
 # Top-level findata directory -> schema id (note type).
@@ -68,6 +68,11 @@ SCHEMA_FILES = {
     "sector": "frontmatter.sector.v1.json",
     "super_sector": "frontmatter.super_sector.v1.json",
     "newsletter": "frontmatter.newsletter.v1.json",
+    # corpus_uniformity S3 (option 2 FULL): proposals are NOT a findata
+    # note type — DIR_TO_TYPE can't carry them. Registered here for
+    # load_validator/--emit-doc; the walk is the decoupled second loop in
+    # check_frontmatter_schema (proposals/ + archive/**, READMEs skipped).
+    "proposal": "frontmatter.proposal.v1.json",
 }
 # Source trees registered above (used for chrome skipping in the corpus walk).
 _NEWSLETTER_TREES = frozenset(
@@ -170,9 +175,32 @@ def check_frontmatter_schema(root: Path | None = None) -> tuple[list[str], list[
         import jsonschema  # noqa: F401  # availability gate
     except ImportError:
         return [], ["frontmatter schema: jsonschema not installed (dev extra)"]
+    # Proposal contract (corpus_uniformity S3) — a walk DECOUPLED from
+    # DIR_TO_TYPE because proposals live under doc/improvements, not
+    # findata/. Runs BEFORE the findata early-return: a doc-only tree
+    # (tests, partial checkouts) still gets proposal validation. Live
+    # proposals must carry the block; archived files that ever were
+    # proposals (bold-line Status/Date header present) must too. Plain
+    # archive docs without a proposal header (triage/acceptance notes)
+    # are a different artifact class — outside it.
+    improvements = root / "doc" / "improvements"
+    if improvements.is_dir() and (SCHEMA_DIR / SCHEMA_FILES["proposal"]).exists():
+        candidates = sorted(improvements.glob("proposals/*.md"))
+        candidates += sorted(improvements.glob("archive/**/*.md"))
+        for p in candidates:
+            if p.name == "README.md":
+                continue
+            fm = parse_frontmatter(p)
+            if fm is None:
+                if p.parent.name == "proposals" or _has_proposal_header(p):
+                    fatal.append(
+                        f"{p.relative_to(root)}: no parsable frontmatter block")
+                continue
+            for err in validate_frontmatter(fm, "proposal"):
+                fatal.append(f"{p.relative_to(root)}: {err}")
     findata = root / "findata"
     if not findata.is_dir():
-        return [], []
+        return fatal, advisory
     for dirname, note_type in sorted(DIR_TO_TYPE.items()):
         if not (SCHEMA_DIR / SCHEMA_FILES[note_type]).exists():
             advisory.append(f"frontmatter schema: {SCHEMA_FILES[note_type]} missing")
@@ -191,6 +219,16 @@ def check_frontmatter_schema(root: Path | None = None) -> tuple[list[str], list[
             for err in validate_frontmatter(fm, note_type):
                 fatal.append(f"{p.relative_to(root)}: {err}")
     return fatal, advisory
+
+
+def _has_proposal_header(path: Path) -> bool:
+    """True if the file carries the bold-line proposal header (Date or
+    Status) in its opening lines — the pre-S3 marker of proposal-hood."""
+    try:
+        head = path.read_text(encoding="utf-8", errors="replace")[:2000]
+    except OSError:
+        return False
+    return "**Status:**" in head or "**Date:**" in head
 
 
 def _resolve(prop: dict, schema: dict) -> dict:
@@ -261,7 +299,7 @@ def _constraint_str(prop: dict) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# OKF v0.2 conformance sweep (doc/okf.md §1.1; --okf mode)                    #
+# OKF v0.2 conformance sweep (doc/okf/README.md §1.1; --okf mode)                    #
 # --------------------------------------------------------------------------- #
 # OKF §11: a bundle is conformant when every non-reserved .md has parseable
 # frontmatter with a non-empty `type`. This project is a strict SUPERSET for
@@ -465,7 +503,7 @@ def emit_key_doc() -> str:
     lines = [
         "# Note frontmatter keys (GENERATED)",
         "",
-        "Generated from doc/schema/frontmatter.*.v1.json by",
+        "Generated from doc/okf/frontmatter.*.v1.json by",
         "`python3 -m helpers.validators.frontmatter_schema --emit-doc`.",
         "Do not edit by hand — edit the schema and regenerate.",
         "Relational rules (normalized_name == filename, permalink sector ==",

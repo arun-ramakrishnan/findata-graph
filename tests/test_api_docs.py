@@ -68,15 +68,17 @@ class TestDocsCatalog:
     def test_sections_include_top_level_and_nested(self, client):
         data = _catalog(client).get_json()
         sections = {d["section"] for d in data["docs"]}
-        # Top-level files carry ""; nested files carry their subdir.
-        assert "" in sections
+        # Post-S1 (2026-08-31) doc/ has no loose top-level files — the
+        # design docs moved into doc/design/ — so every live section is a
+        # subdir name; the walker's "" case is supported but unexercised.
+        assert "design" in sections
         assert any(s.startswith("improvements") for s in sections)
 
     def test_covers_known_corpus_files(self, client):
         data = _catalog(client).get_json()
         paths = {d["path"] for d in data["docs"]}
-        assert "doc/architecture.md" in paths
-        assert "doc/graph_design.txt" in paths
+        assert "doc/design/architecture.md" in paths
+        assert "doc/design/graph_design.txt" in paths
         assert "doc/improvements/completed.md" in paths
         assert any(p.startswith("doc/improvements/archive/") for p in paths)
 
@@ -92,7 +94,7 @@ class TestDocsCatalog:
 
     def test_md_title_from_first_heading(self, client):
         data = _catalog(client).get_json()
-        arch = next(d for d in data["docs"] if d["path"] == "doc/architecture.md")
+        arch = next(d for d in data["docs"] if d["path"] == "doc/design/architecture.md")
         # architecture.md starts with a "# " heading — title should derive from it.
         assert "Architecture" in arch["title"]
 
@@ -106,16 +108,16 @@ class TestDocsCatalog:
 
 class TestDocsContent:
     def test_returns_raw_markdown(self, client):
-        r = client.get("/api/docs/content?path=architecture.md")
+        r = client.get("/api/docs/content?path=design/architecture.md")
         assert r.status_code == 200
         data = r.get_json()
         assert set(data.keys()) == {
             "path", "name", "section", "title", "content", "size_bytes", "mtime",
         }
         # The canonical echo is repo-rooted regardless of the requested form.
-        assert data["path"] == "doc/architecture.md"
+        assert data["path"] == "doc/design/architecture.md"
         # Repo-rooted request form resolves identically.
-        r2 = client.get("/api/docs/content?path=doc/architecture.md")
+        r2 = client.get("/api/docs/content?path=doc/design/architecture.md")
         assert r2.status_code == 200
         assert r2.get_json()["content"] == data["content"]
         assert "content" in data and data["content"]

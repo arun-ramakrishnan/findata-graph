@@ -66,7 +66,7 @@ GOOD_NEWSLETTER = {
 }
 
 
-# OKF v0.2 provenance overlay (doc/okf.md §3.2) — every key optional.
+# OKF v0.2 provenance overlay (doc/okf/README.md §3.2) — every key optional.
 OKF_GENERATED: dict = {"by": "derive_insights.py/v1", "at": "2026-08-18T09:00:00Z"}
 OKF_SOURCE: dict = {
     "id": "bosch-amara-zydus",
@@ -176,7 +176,11 @@ class TestSchemasSelfValidate:
             jsonschema.Draft202012Validator.check_schema(schema)
 
     def test_dir_to_type_covers_all_schema_files(self):
-        assert set(FMS.DIR_TO_TYPE.values()) == set(FMS.SCHEMA_FILES)
+        # "proposal" is deliberately NOT in DIR_TO_TYPE (corpus_uniformity
+        # S3): proposals live under doc/improvements, walked by the
+        # decoupled second loop in check_frontmatter_schema.
+        expected = set(FMS.SCHEMA_FILES) - {"proposal"}
+        assert set(FMS.DIR_TO_TYPE.values()) == expected
 
 
 class TestValidFrontmatter:
@@ -563,7 +567,12 @@ class TestOkfVersionAnnotation:
     OKF_PROPS = ("generated", "verified", "sources", "status", "stale_after")
 
     def test_every_okf_prop_annotated_in_every_schema(self):
-        for fname in FMS.SCHEMA_FILES.values():
+        # The proposal schema (corpus_uniformity S3) deliberately carries
+        # NO OKF provenance props — wrong artifact class (§1.1 non-goal);
+        # its staleness is the single status bit.
+        for note_type, fname in FMS.SCHEMA_FILES.items():
+            if note_type == "proposal":
+                continue
             schema = json.loads((FMS.SCHEMA_DIR / fname).read_text())
             for prop in self.OKF_PROPS:
                 assert schema["properties"][prop].get("x-okf-version") == "0.2", \
@@ -578,3 +587,68 @@ class TestOkfVersionAnnotation:
         errs = FMS.validate_frontmatter(
             dict(GOOD_COMPANY, okf_version="0.2"), "company")
         assert errs != []
+
+
+class TestProposalContract:
+    """corpus_uniformity S3 — the proposal frontmatter contract: schema
+    shape, the decoupled doc/improvements walk (live must carry the block;
+    archived proposals too; plain archive docs without a proposal header
+    stay outside), and the emitted key doc gaining the section."""
+
+    GOOD = {
+        "title": "Widget audit — measure the thing",
+        "status": "proposed",
+        "filed": "2026-08-31",
+        "executed": None,
+        "completed_md": None,
+        "area": "helpers/misc",
+    }
+
+    def test_valid_block_passes_rogue_key_fails(self):
+        assert FMS.validate_frontmatter(dict(self.GOOD), "proposal") == []
+        errs = FMS.validate_frontmatter(
+            dict(self.GOOD, rogue_key=1), "proposal")
+        assert errs and "rogue_key" in errs[0]
+
+    def test_executed_shape(self):
+        good_exec = dict(self.GOOD, status="executed",
+                         executed="2026-08-31", completed_md="190")
+        assert FMS.validate_frontmatter(good_exec, "proposal") == []
+        bad_num = dict(good_exec, completed_md="not-a-number")
+        assert FMS.validate_frontmatter(bad_num, "proposal") != []
+        compound = dict(good_exec, completed_md="145+146")
+        assert FMS.validate_frontmatter(compound, "proposal") == []
+
+    def test_walk_covers_proposals_and_archive(self, tmp_path):
+        root = tmp_path / "repo"
+        prop = root / "doc" / "improvements" / "proposals"
+        arch = root / "doc" / "improvements" / "archive" / "tooling"
+        prop.mkdir(parents=True)
+        arch.mkdir(parents=True)
+        fm = ("---\ntitle: T\nstatus: proposed\nfiled: '2026-08-31'\n"
+              "executed: null\ncompleted_md: null\narea: x\n---\n")
+        (prop / "live_one.md").write_text(fm + "body\n")
+        (prop / "README.md").write_text("# index\n")
+        (arch / "done.md").write_text(
+            fm.replace("proposed", "executed").replace(
+                "executed: null", "executed: '2026-08-31'").replace(
+                "completed_md: null", "completed_md: '7'") + "body\n"
+        )
+        # Headerless archive doc (triage note) — outside the contract.
+        (arch / "plain_note.md").write_text("# just a doc\nno proposal header\n")
+        fatal, advisory = FMS.check_frontmatter_schema(root)
+        assert fatal == [] and advisory == []
+        # A live proposal WITHOUT the block is fatal...
+        (prop / "bare.md").write_text("# no frontmatter here\n**Status:** PROPOSED\n")
+        fatal, _ = FMS.check_frontmatter_schema(root)
+        assert any("bare.md" in e for e in fatal)
+        # ...and a rogue key is too.
+        (prop / "rogue.md").write_text(
+            fm.replace("area: x", "area: x\nrogue: 1") + "body\n")
+        fatal, _ = FMS.check_frontmatter_schema(root)
+        assert any("rogue.md" in e for e in fatal)
+
+    def test_key_doc_gains_proposal_section(self):
+        text = (FMS.SCHEMA_DIR / FMS.KEY_DOC.name).read_text(encoding="utf-8")
+        assert "## proposal" in text
+        assert "completed_md" in text

@@ -20,7 +20,7 @@ express: NOTHING in the tracked tree escapes the linter.
    copy-check over Mojo/src/** + Mojo/tests/**. This toolchain's
    ``mojo format`` has no ``--check`` flag, so the gate formats a COPY in
    tmp_path and diffs — the tree is never mutated by the test. One-time
-   normalization landed 2026-08-30 (``make mojo-fmt``); the gate keeps it
+   normalization landed 2026-08-30 (``make mojo-format``); the gate keeps it
    canonical. Vendored Mojo (Mojo/vendor/) is third-party code and is
    deliberately NOT gated.
 
@@ -125,6 +125,6 @@ def test_mojo_format_footprint_clean(tmp_path):
         if src.read_bytes() != copy.read_bytes()
     ]
     assert not diverged, (
-        "mojo format would change these files (run: make mojo-fmt):\n  "
+        "mojo format would change these files (run: make mojo-format):\n  "
         + "\n  ".join(diverged)
     )

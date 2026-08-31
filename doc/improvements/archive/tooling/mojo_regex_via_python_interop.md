@@ -1,3 +1,12 @@
+---
+title: Mojo regex via Python `regex` interop
+status: executed
+filed: '2026-08-29'
+executed: '2026-08-29'
+completed_md: '180'
+area: Mojo tooling / `Mojo/src/bench/mojo_regex_probe.mojo` +
+---
+
 # Mojo regex via Python `regex` interop
 
 **Date:** 2026-08-29 · **Status:** EXECUTED 2026-08-29 (completed.md #180) ·

@@ -1,3 +1,12 @@
+---
+title: Google-Finance-assisted ticker resolution & data fallback
+status: executed
+filed: '2026-08-24'
+executed: '2026-08-25'
+completed_md: '152'
+area: pipeline
+---
+
 # Proposal: Google-Finance-assisted ticker resolution & data fallback
 
 **Date**: 2026-08-24

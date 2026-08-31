@@ -41,7 +41,14 @@ type Collection = "docs" | "vault";
 /** One rendered sidebar group (header label null = flat list). */
 interface ListGroup {
     label: string | null;
-    rows: { path: string; title: string; sub: string | null; chip: string | null; snippet: string; sim: number | null }[];
+    rows: {
+        path: string;
+        title: string;
+        sub: string | null;
+        chip: string | null;
+        snippet: string;
+        sim: number | null;
+    }[];
 }
 
 /** Newsletter series directory → masthead publication label. */
@@ -159,7 +166,11 @@ export class DocsView {
             document.querySelectorAll<HTMLButtonElement>(".readsize-btn").forEach((b) => {
                 b.classList.toggle("active", b.dataset.readsize === size);
             });
-            try { localStorage.setItem(READSIZE_KEY, size); } catch { /* private mode */ }
+            try {
+                localStorage.setItem(READSIZE_KEY, size);
+            } catch {
+                /* private mode */
+            }
         };
         document.querySelectorAll<HTMLButtonElement>(".readsize-btn").forEach((btn) => {
             btn.addEventListener("click", () => applyReadSize(btn.dataset.readsize || "m"));
@@ -168,20 +179,25 @@ export class DocsView {
         const applyFocus = (on: boolean): void => {
             view.classList.toggle("focus-mode", on);
             focusToggle.classList.toggle("active", on);
-            try { localStorage.setItem(FOCUS_KEY, on ? "1" : "0"); } catch { /* private mode */ }
+            try {
+                localStorage.setItem(FOCUS_KEY, on ? "1" : "0");
+            } catch {
+                /* private mode */
+            }
         };
         focusToggle.addEventListener("click", () =>
-            applyFocus(!view.classList.contains("focus-mode")));
+            applyFocus(!view.classList.contains("focus-mode")),
+        );
         document.addEventListener("keydown", (e) => {
-            if (e.key === "Escape" && view.classList.contains("focus-mode")
-                    && this.isActive()) {
+            if (e.key === "Escape" && view.classList.contains("focus-mode") && this.isActive()) {
                 applyFocus(false);
             }
         });
         try {
             const savedSize = localStorage.getItem(READSIZE_KEY);
-            applyReadSize(savedSize === "s" || savedSize === "m" || savedSize === "l"
-                ? savedSize : "m");
+            applyReadSize(
+                savedSize === "s" || savedSize === "m" || savedSize === "l" ? savedSize : "m",
+            );
             if (localStorage.getItem(FOCUS_KEY) === "1") applyFocus(true);
         } catch {
             applyReadSize("m");
@@ -200,9 +216,10 @@ export class DocsView {
         getEl("hybrid-toggle").style.display = c === "vault" ? "flex" : "none";
         const search = getEl("docs-search") as HTMLInputElement;
         search.value = "";
-        search.placeholder = c === "vault"
-            ? "Search every vault note (FTS)..."
-            : "Search design docs, proposals, archives...";
+        search.placeholder =
+            c === "vault"
+                ? "Search every vault note (FTS)..."
+                : "Search design docs, proposals, archives...";
         getEl("docs-search-clear").style.display = "none";
         void this.loadCatalog();
     }
@@ -217,8 +234,7 @@ export class DocsView {
             try {
                 const entities = await this.ensureVault();
                 this.renderVaultList(entities);
-                getEl("docs-count").textContent =
-                    `${entities.length.toLocaleString()} notes`;
+                getEl("docs-count").textContent = `${entities.length.toLocaleString()} notes`;
             } catch (error) {
                 console.error("Error loading vault:", error);
                 getEl("docs-list").innerHTML =
@@ -228,17 +244,19 @@ export class DocsView {
         }
         try {
             const data = await fetchJson<DocsResponse>("/api/docs");
-            this.renderGroups([{
-                label: null,
-                rows: data.docs.map((d) => ({
-                    path: d.path,
-                    title: d.title,
-                    sub: d.section || null,
-                    chip: null,
-                    snippet: "",
-                    sim: null,
-                })),
-            }]);
+            this.renderGroups([
+                {
+                    label: null,
+                    rows: data.docs.map((d) => ({
+                        path: d.path,
+                        title: d.title,
+                        sub: d.section || null,
+                        chip: null,
+                        snippet: "",
+                        sim: null,
+                    })),
+                },
+            ]);
             getEl("docs-count").textContent = `${data.docs.length} documents`;
         } catch (error) {
             console.error("Error loading docs:", error);
@@ -302,9 +320,10 @@ export class DocsView {
         this.renderGroups(groups.filter((g) => g.rows.length > 0));
 
         function rowForTyped(e: VaultEntity): ListGroup["rows"][number] {
-            const sub = e.entity_type === "edition"
-                ? SERIES_LABELS[(e.file_path || "").split("/")[1]] || null
-                : e.sector_classification;
+            const sub =
+                e.entity_type === "edition"
+                    ? SERIES_LABELS[(e.file_path || "").split("/")[1]] || null
+                    : e.sector_classification;
             return {
                 path: e.file_path as string,
                 title: e.name.replace(/_/g, " "),
@@ -341,19 +360,21 @@ export class DocsView {
         try {
             const url = `/api/docs/search?q=${encodeURIComponent(query)}`;
             const data = await fetchJson<DocSearchResponse>(url);
-            this.renderGroups([{
-                label: null,
-                rows: data.results.map((r) => ({
-                    path: r.path,
-                    title: r.title,
-                    // Prefer the matched section's own title (deep-link
-                    // context) over the bare directory; anchor rides the chip.
-                    sub: r.section_title || r.section || null,
-                    chip: r.anchor !== null && r.anchor !== undefined ? `L${r.anchor}` : null,
-                    snippet: r.snippet,
-                    sim: r.similarity ?? null,
-                })),
-            }]);
+            this.renderGroups([
+                {
+                    label: null,
+                    rows: data.results.map((r) => ({
+                        path: r.path,
+                        title: r.title,
+                        // Prefer the matched section's own title (deep-link
+                        // context) over the bare directory; anchor rides the chip.
+                        sub: r.section_title || r.section || null,
+                        chip: r.anchor !== null && r.anchor !== undefined ? `L${r.anchor}` : null,
+                        snippet: r.snippet,
+                        sim: r.similarity ?? null,
+                    })),
+                },
+            ]);
             const total = data.results.length;
             const mode = data.mode ? ` · ${data.mode}` : "";
             const stale = data.stale ? " · stale (scan)" : "";
@@ -374,26 +395,28 @@ export class DocsView {
         const url = `/api/search?q=${encodeURIComponent(query)}&limit=50${hybrid ? "&hybrid=1" : ""}`;
         try {
             const data = await fetchJson<SearchResponse>(url);
-            this.renderGroups([{
-                label: null,
-                rows: data.results.map((r) => ({
-                    path: r.file_path,
-                    // note_search titles are stems for companies — prettify.
-                    title: (r.title ?? "(untitled)").replace(/_/g, " "),
-                    sub: r.sector,
-                    chip: DOCTYPE_LABELS[r.doc_type] || r.doc_type,
-                    snippet: r.snippet,
-                    sim: hybrid ? r.similarity : null,
-                })),
-            }]);
+            this.renderGroups([
+                {
+                    label: null,
+                    rows: data.results.map((r) => ({
+                        path: r.file_path,
+                        // note_search titles are stems for companies — prettify.
+                        title: (r.title ?? "(untitled)").replace(/_/g, " "),
+                        sub: r.sector,
+                        chip: DOCTYPE_LABELS[r.doc_type] || r.doc_type,
+                        snippet: r.snippet,
+                        sim: hybrid ? r.similarity : null,
+                    })),
+                },
+            ]);
             getEl("docs-count").textContent =
-                `${data.total_count.toLocaleString()} match${data.total_count === 1 ? "" : "es"}`
-                + (hybrid ? " · hybrid" : "");
+                `${data.total_count.toLocaleString()} match${data.total_count === 1 ? "" : "es"}` +
+                (hybrid ? " · hybrid" : "");
         } catch (error) {
             console.error("Error searching vault:", error);
-            getEl("docs-list").innerHTML =
-                `<div class="no-results">Search failed: ${escapeHtml(
-                    error instanceof Error ? error.message : "unknown error")}</div>`;
+            getEl("docs-list").innerHTML = `<div class="no-results">Search failed: ${escapeHtml(
+                error instanceof Error ? error.message : "unknown error",
+            )}</div>`;
         }
     }
 
@@ -422,14 +445,22 @@ export class DocsView {
     }
 
     /** Kept for the S2 public surface (flat lists = one label-less group). */
-    renderList(items: { path: string; name: string; section: string; title: string; snippet: string }[]): void {
-        this.renderGroups([{
-            label: null,
-            rows: items.map((i) => ({
-                path: i.path, title: i.title, sub: i.section || null,
-                chip: null, snippet: i.snippet, sim: null,
-            })),
-        }]);
+    renderList(
+        items: { path: string; name: string; section: string; title: string; snippet: string }[],
+    ): void {
+        this.renderGroups([
+            {
+                label: null,
+                rows: items.map((i) => ({
+                    path: i.path,
+                    title: i.title,
+                    sub: i.section || null,
+                    chip: null,
+                    snippet: i.snippet,
+                    sim: null,
+                })),
+            },
+        ]);
     }
 
     private buildRow(item: ListGroup["rows"][number]): HTMLButtonElement {
@@ -437,18 +468,15 @@ export class DocsView {
         row.type = "button";
         row.className = "docs-row";
         row.dataset.path = item.path;
-        const chip = item.chip
-            ? `<span class="doctype-chip">${escapeHtml(item.chip)}</span>`
-            : "";
-        const sub = item.sub
-            ? `<span class="docs-row-section">${escapeHtml(item.sub)}</span>`
-            : "";
+        const chip = item.chip ? `<span class="doctype-chip">${escapeHtml(item.chip)}</span>` : "";
+        const sub = item.sub ? `<span class="docs-row-section">${escapeHtml(item.sub)}</span>` : "";
         const snippet = item.snippet
             ? `<div class="docs-row-snippet">${highlightSnippet(item.snippet)}</div>`
             : "";
-        const sim = item.sim != null
-            ? `<span class="docs-row-sim">${(item.sim * 100).toFixed(0)}%</span>`
-            : "";
+        const sim =
+            item.sim != null
+                ? `<span class="docs-row-sim">${(item.sim * 100).toFixed(0)}%</span>`
+                : "";
         row.innerHTML = `
             <span class="docs-row-title">${chip}${escapeHtml(item.title)}</span>
             ${sub}${sim}${snippet}
@@ -515,8 +543,8 @@ export class DocsView {
             const url = `/api/entity/${encodeURIComponent(filePath)}`;
             const entity = await fetchJson<EntityDetailResponse>(url);
             const fm = entity.frontmatter;
-            const isEdition = entity.entity_type === "edition"
-                || this.fmString(fm, "type") === "newsletter";
+            const isEdition =
+                entity.entity_type === "edition" || this.fmString(fm, "type") === "newsletter";
             const { html, headings } = processRichContent(entity.content);
             getEl("docs-content-empty").style.display = "none";
             const pane = getEl("docs-content-pane");
@@ -553,8 +581,7 @@ export class DocsView {
     private renderMasthead(entity: EntityDetailResponse): string {
         const fm = entity.frontmatter;
         const series = SERIES_LABELS[(entity.file_path || "").split("/")[1]];
-        const title = this.fmString(fm, "title")
-            ?? entity.name.replace(/_/g, " ");
+        const title = this.fmString(fm, "title") ?? entity.name.replace(/_/g, " ");
         const bits: string[] = [];
         const publisher = this.fmPublisher(fm);
         if (publisher) bits.push(escapeHtml(publisher));
@@ -674,7 +701,8 @@ export class DocsView {
         const parts: string[] = [];
         try {
             const similar = await fetchJson<SimilarNotesResponse>(
-                `/api/graph/similar/${encodeURIComponent(entity.file_path)}?k=6`);
+                `/api/graph/similar/${encodeURIComponent(entity.file_path)}?k=6`,
+            );
             if (similar.neighbors.length) {
                 parts.push('<h4><i class="fas fa-clone"></i> Similar notes</h4>');
                 parts.push(...similar.neighbors.map((n) => this.relatedRow(n)));
@@ -686,18 +714,19 @@ export class DocsView {
             const stem = (entity.file_path.split("/").pop() || "").replace(/\.md$/i, "");
             try {
                 const companies = await fetchJson<EditionCompaniesResponse>(
-                    `/api/graph/edition_companies?edition=${encodeURIComponent(stem)}&k=8`);
+                    `/api/graph/edition_companies?edition=${encodeURIComponent(stem)}&k=8`,
+                );
                 if (companies.companies.length) {
-                    parts.push('<h4><i class="fas fa-building"></i> Companies in this edition</h4>');
+                    parts.push(
+                        '<h4><i class="fas fa-building"></i> Companies in this edition</h4>',
+                    );
                     parts.push(...companies.companies.map((n) => this.relatedRow(n)));
                 }
             } catch {
                 // Edition not embedded / unresolvable — quiet.
             }
         }
-        mount.innerHTML = parts.length
-            ? parts.join("")
-            : '<p class="hint">No related notes.</p>';
+        mount.innerHTML = parts.length ? parts.join("") : '<p class="hint">No related notes.</p>';
         mount.querySelectorAll<HTMLElement>("[data-note]").forEach((el) => {
             el.addEventListener("click", () => {
                 const note = el.dataset.note;
@@ -723,7 +752,10 @@ export class DocsView {
     /** Simple TOC linking the <h1..h6 id> headings marked.js produces. */
     renderToc(headings: { level: number; text: string; id: string }[]): string {
         const items = headings
-            .map((h) => `<li class="toc-${h.level}"><a href="#${encodeURIComponent(h.id)}">${escapeHtml(h.text)}</a></li>`)
+            .map(
+                (h) =>
+                    `<li class="toc-${h.level}"><a href="#${encodeURIComponent(h.id)}">${escapeHtml(h.text)}</a></li>`,
+            )
             .join("");
         return `<nav class="docs-toc"><h4>On this page</h4><ul>${items}</ul></nav>`;
     }
@@ -771,8 +803,7 @@ export class DocsView {
             : [];
         for (const tag of tags) {
             if (tag.startsWith("publisher/")) {
-                return tag.slice("publisher/".length)
-                    .replace(/\b\w/g, (c) => c.toUpperCase());
+                return tag.slice("publisher/".length).replace(/\b\w/g, (c) => c.toUpperCase());
             }
         }
         return null;

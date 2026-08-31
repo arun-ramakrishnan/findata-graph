@@ -1,6 +1,6 @@
 # Note frontmatter keys (GENERATED)
 
-Generated from doc/schema/frontmatter.*.v1.json by
+Generated from doc/okf/frontmatter.*.v1.json by
 `python3 -m helpers.validators.frontmatter_schema --emit-doc`.
 Do not edit by hand — edit the schema and regenerate.
 Relational rules (normalized_name == filename, permalink sector ==
@@ -94,4 +94,17 @@ Source: [`frontmatter.newsletter.v1.json`](frontmatter.newsletter.v1.json)
 | `type` | yes | string | always `newsletter` | Note type discriminator — always 'newsletter' in the source trees. |
 | `verified` | no | array | items: string | OKF v0.2 §5.2/§5.3 — independent confirmations. Array (never bare map) at write time. |
 | `visibility` | no | string | — | Obsidian-publish visibility (e.g. public); producers never emit it. |
+
+## proposal
+
+Source: [`frontmatter.proposal.v1.json`](frontmatter.proposal.v1.json)
+
+| key | required | type | constraint | description |
+|---|---|---|---|---|
+| `area` | yes | string | min length 1 | Primary code/doc surface (first segment of the bold-line Area header; archive topic dir as fallback). |
+| `completed_md` | yes | string? | pattern `^\d+[a-z]?(?:\+\d+[a-z]?)?$` | The completed.md entry number as a string ('189'; suffix form '105b' for resolved duplicate numbers; '145+146' when one proposal spans several entries). Null while proposed. |
+| `executed` | yes | ? | — | Null while proposed; the execution date once archived. |
+| `filed` | yes | string | pattern `^\d{4}-\d{2}-\d{2}$` | ISO calendar date (YYYY-MM-DD). NOTE: unquoted YAML dates are auto-parsed into date objects by PyYAML; the validator normalizes these to ISO strings before checking. |
+| `status` | yes | string | one of `proposed`, `executed` | 'proposed' while in proposals/; 'executed' once archived (directory agreement enforced by static_checks). |
+| `title` | yes | string | min length 1 | From the # heading; imperative, names the mechanism. |
 

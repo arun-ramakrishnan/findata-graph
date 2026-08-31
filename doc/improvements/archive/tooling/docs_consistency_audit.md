@@ -1,3 +1,12 @@
+---
+title: Documentation consistency pass — README files, procedures, schema & config guidance
+status: executed
+filed: '2026-08-27'
+executed: '2026-08-27'
+completed_md: '167'
+area: tooling
+---
+
 # Proposal: Documentation consistency pass — README files, procedures, schema & config guidance
 
 **Date**: 2026-08-27

@@ -1,3 +1,12 @@
+---
+title: Adopt OKF v0.2 Provenance Vocabulary in Note Frontmatter
+status: executed
+filed: '2026-08-18'
+executed: '2026-08-18'
+completed_md: '130'
+area: helpers/` writers
+---
+
 # Proposal: Adopt OKF v0.2 Provenance Vocabulary in Note Frontmatter
 
 **Status:** EXECUTED 2026-08-18 (§2.1/§2.2/§2.3/§2.5/§2.6 shipped; §2.4 is
