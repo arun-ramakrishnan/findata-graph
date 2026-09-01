@@ -18,7 +18,6 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import yaml
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
@@ -26,6 +25,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.core import edition_index as ei  # noqa: E402
+from helpers.core.frontmatter import yaml_safe_load  # noqa: E402
 from helpers.graph import derive_insights as di  # noqa: E402
 
 # House printable-ish text strategy.
@@ -295,7 +295,7 @@ def test_splice_sources_idempotent_and_preserving(body, existing_ids):
     assert out1 == out2 and ch2 is False
 
     _, fm_text, _ = di.split_frontmatter(out1)
-    fm = yaml.safe_load(fm_text)
+    fm = yaml_safe_load(fm_text)
     assert fm["title"] == "T" and fm["type"] == "company"
     ids_after = {str(s.get("id")) for s in (fm.get("sources") or []) if isinstance(s, dict)}
     if existing_ids:

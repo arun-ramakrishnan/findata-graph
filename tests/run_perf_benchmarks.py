@@ -76,9 +76,12 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     ("doc_query", ["helpers/misc/doc_query.py", "embed cache sidecar", "--limit", "5"], 3.0),
     ("script_query", ["helpers/misc/script_query.py", "database integrity", "--limit", "5"], 3.0),
     # Local PDF pipeline (#156/#157) on the largest Reports PDF (30 pp):
-    # convert + render + verify. Warm ≈7.5s (Tesseract on embedded rasters
-    # dominates); internal sub-budgets asserted by the script itself.
-    ("pdf_pipeline_local", ["tests/bench_pdf_pipeline.py"], 20.0),
+    # convert + render + verify. Warm ≈3.2s on this box (2026-09-01; the
+    # older ≈7.5s figure was a slower corpus/machine state); Tesseract on
+    # embedded rasters dominates; internal sub-budgets asserted by the
+    # script itself. Budget tightened 20s -> 7s (2026-09-01): 2.2x headroom
+    # over the measured warm time while still catching regressions.
+    ("pdf_pipeline_local", ["tests/bench_pdf_pipeline.py"], 7.0),
     ("derive_insights", ["helpers/graph/derive_insights.py"], 4.0),
     (
         "parse_newsletter",

@@ -23,12 +23,12 @@ from io import StringIO
 from pathlib import Path
 
 import pytest
-import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.core.db import connect as db_connect  # noqa: E402
+from helpers.core.frontmatter import yaml_safe_load  # noqa: E402
 from helpers.graph import derive_cited_in as dci  # noqa: E402
 from helpers.graph.query import DB_PATH  # noqa: E402
 from helpers.maintenance import build_sector_hierarchy as bsh  # noqa: E402
@@ -223,14 +223,14 @@ class TestConvergence:
         note = writers.vault / "Super_Sectors" / "Financials.md"
         text = note.read_text(encoding="utf-8")
         opener, fm_text, body = _split_fm(text)
-        fm = yaml.safe_load(fm_text)
+        fm = yaml_safe_load(fm_text)
         fm["generated"] = {"by": "process:okf_backfill", "at": "2026-08-19T00:00:00Z"}
         fm["sources"] = [{"id": "TC_Alpha", "resource": "/findata/The_Chatter/TC_Alpha.md"}]
         note.write_text(_render_fm(fm) + body, encoding="utf-8")
 
         assert writers._run_bsh(apply=True) == 0
         _, fm_text2, _ = _split_fm(note.read_text(encoding="utf-8"))
-        fm2 = yaml.safe_load(fm_text2)
+        fm2 = yaml_safe_load(fm_text2)
         assert fm2["generated"]["by"] == "process:okf_backfill"
         assert fm2["sources"][0]["id"] == "TC_Alpha"
         assert bsh._CHILD_BEGIN in note.read_text(encoding="utf-8")

@@ -28,4 +28,4 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- _(none)_
+_(none)_

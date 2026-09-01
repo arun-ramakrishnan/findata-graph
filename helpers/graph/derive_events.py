@@ -154,6 +154,26 @@ _TITLE_RE = re.compile(
 # of initials and the Indian "X. Y. Surname" shape; bounded so it doesn't run.
 _PERSON_RE = re.compile(r"([A-Z][a-zA-Z.]+(?:\s+[A-Z][a-zA-Z.]+){1,3})")
 
+# S4 perf (2026-09-01): necessary literal substrings for _CHANGE_VERB_RE —
+# every alternative contains at least one of these tokens ("set to" covers
+# the "set to (?:lead|head|take over)" branch; verified mechanically against
+# the pattern text). Lowercase because the pattern is IGNORECASE and callers
+# test the lowercased window. A window matching none can never pass the
+# regex, so the prefilter is additive-or-nothing (0 false negatives).
+_MGMT_VERB_TOKENS: tuple[str, ...] = (
+    "appoint",
+    " over",
+    " down",
+    "resign",
+    "join",
+    "succe",
+    "promot",
+    "elevat",
+    "charge",
+    "set to",
+    "incoming",
+)
+
 # P1 perf: compiled patterns for _iter_bullets + _capture_period_token (were
 # inline re.split / re.search per call — 169K + several K calls respectively).
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
@@ -336,6 +356,13 @@ def _extract_guidance(
     """
     events: list[Event] = []
     for window in windows if windows is not None else _iter_bullets(body):
+        # S4 perf: literal prefilter — both fiscal patterns require the
+        # substrings "fy"/"cy" (IGNORECASE), so a window missing both can
+        # never pass. Two C-speed `in` tests replace ~2 regex searches on
+        # ~98% of windows (89K windows -> 1.6K fiscal passes, 2026-09-01).
+        wl = window.lower()
+        if "fy" not in wl and "cy" not in wl:
+            continue
         has_fiscal = bool(_FY_TOKEN_RE.search(window) or _CY_QUARTER_RE.search(window))
         if not has_fiscal:
             continue
@@ -372,6 +399,11 @@ def _extract_management(
     """Management-change events: role-change verb AND an executive title."""
     events: list[Event] = []
     for window in windows if windows is not None else _iter_bullets(body):
+        # S4 perf: literal prefilter (see _MGMT_VERB_TOKENS) — rejects
+        # ~99.97% of windows (28 of 89K pass) before the verb regex runs.
+        wl = window.lower()
+        if not any(t in wl for t in _MGMT_VERB_TOKENS):
+            continue
         if not _CHANGE_VERB_RE.search(window):
             continue
         # Reject "Appointed Actuary / Auditor / ..." — a role-title adjective,

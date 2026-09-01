@@ -166,11 +166,14 @@ THEME_ALIASES: dict[str, list[str]] = {
     ],
 }
 
-# Pre-compile: theme -> list of (alias, compiled) for substring search.
-_THEME_PATTERNS: list[tuple[str, str, re.Pattern[str]]] = [
-    (theme, alias, re.compile(re.escape(alias)))
-    for theme, aliases in THEME_ALIASES.items()
-    for alias in aliases
+# Flatten to (theme, alias) pairs for C-speed substring tests. Every alias
+# is a literal substring probe by design, so ``alias in scan_text`` is
+# exactly equivalent to the former ``re.compile(re.escape(alias)).search``
+# (identical results verified over the full corpus, S4 2026-09-01) at
+# memmem speed with zero per-call regex overhead — this loop was ~82K
+# re.search calls per run, the module's dominant cost.
+_THEME_ALIAS_PAIRS: list[tuple[str, str]] = [
+    (theme, alias) for theme, aliases in THEME_ALIASES.items() for alias in aliases
 ]
 
 
@@ -253,8 +256,8 @@ def extract_theme_membership(
             continue
         # Collect matched aliases per theme for this note.
         matched: dict[str, list[str]] = defaultdict(list)
-        for theme, alias, pat in _THEME_PATTERNS:
-            if pat.search(scan_text):
+        for theme, alias in _THEME_ALIAS_PAIRS:
+            if alias in scan_text:
                 matched[theme].append(alias)
         for theme, aliases in matched.items():
             yield company, theme, sorted(set(aliases))

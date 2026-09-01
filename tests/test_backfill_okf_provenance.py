@@ -6,13 +6,12 @@ import datetime as dt
 import sys
 from pathlib import Path
 
-import yaml
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 import helpers.misc.backfill_okf_provenance as bk  # noqa: E402
 from helpers.core import edition_index as ei  # noqa: E402
+from helpers.core.frontmatter import yaml_safe_load  # noqa: E402
 from helpers.misc.backfill_okf_provenance import (  # noqa: E402
     _ACTOR,
     backfill,
@@ -25,7 +24,7 @@ pytestmark = [pytest.mark.integration]
 
 
 def _fm_of(p: Path) -> dict:
-    return yaml.safe_load(p.read_text().split("---")[1])
+    return yaml_safe_load(p.read_text().split("---")[1])
 
 
 def _make_vault(root: Path) -> Path:

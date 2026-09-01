@@ -279,6 +279,51 @@ _ALIASES: dict[str, str] = {
 }
 
 
+# --------------------------------------------------------------------------- #
+# S4 hoisted patterns (2026-09-01): these ran as inline re.sub/re.split/     #
+# re.match/re.search calls in hot loops (per mention / heading / chunk);     #
+# module-level compilation mirrors the file's own convention (GROUP_RE &     #
+# friends). Pattern-for-pattern moves — no semantics changes.                #
+# --------------------------------------------------------------------------- #
+_NON_ALNUM_SPACE_RE = re.compile(r"[^a-z0-9 ]")
+_LEADING_ARTICLE_POSS_RE = re.compile(
+    r"^(?:the|a|an|sweden'?s|japan'?s|germany'?s|korea'?s|france'?s|usa'?s|u\.s\.'?s|china'?s|uk'?s|india'?s)\s+",
+    re.IGNORECASE,
+)
+_MENTION_FIRST_TOKEN_RE = re.compile(r"[\s,/]+")
+_TRAILING_LEGAL_SUFFIX_RE = re.compile(
+    r"\s+(Limited|Ltd\.?|Private|Pvt\.?|Company|Co\.?)$",
+    re.IGNORECASE,
+)
+_GROUP_NAME_SUFFIX_RE = re.compile(
+    r"\s+(?:Corp(?:oration)?|Group|Holdings|Industries)$",
+    re.IGNORECASE,
+)
+_LEADING_ARTICLE_RE = re.compile(r"^(?:a|an|the)\s+", re.IGNORECASE)
+_HEADING_LEGAL_SUFFIX_RE = re.compile(
+    r"\s+(Limited|Ltd\.?|Private|Pvt\.?)$",
+    re.IGNORECASE,
+)
+_HEADING_START_RE = re.compile(r"^[A-Z0-9]")
+_SPEAKER_ROLE_RE = re.compile(
+    r"\b(managing director|chief executive|ceo|cfo|coo|cto|cio|md|director|"
+    r"chairman|president|head of|founder|co-founder)\b",
+    re.IGNORECASE,
+)
+_H1_TITLE_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
+_TRAILING_JUNK_RE = re.compile(
+    r"\s+(?:the|a|an|its|their|our|in|on|at|to|for|and|or)$",
+    re.IGNORECASE,
+)
+_LIST_CHUNK_SPLIT_RE = re.compile(
+    r"\s*,\s*|\s+\band\b\s+|\s+\bor\b\s+|\s+&\s+",
+    re.IGNORECASE,
+)
+_LEADING_CONJ_RE = re.compile(r"^(?:and|or|&)\s+", re.IGNORECASE)
+_TRAILING_NUM_UNIT_RE = re.compile(r"\s+\d+(?:\.\d+)?\s+\w+(?:\s+\w+){0,2}$")
+_WS_RUN_RE = re.compile(r"\s+")
+
+
 @cache
 def _tokens(name: str) -> frozenset[str]:
     # Memoized: extract_relations dry-run calls _tokens 600k+ times across
@@ -286,7 +331,7 @@ def _tokens(name: str) -> frozenset[str]:
     # that to ~1200 calls. Returns frozenset (hashable) so callers can use it
     # in set operations and as a dict key.
     return frozenset(
-        t for t in re.sub(r"[^a-z0-9 ]", " ", name.lower()).split() if t and t not in _STOPWORDS
+        t for t in _NON_ALNUM_SPACE_RE.sub(" ", name.lower()).split() if t and t not in _STOPWORDS
     )
 
 
@@ -343,13 +388,8 @@ class EntityResolver:
         # Strip leading articles and possessives first: "the Volvo Group",
         # "Sweden's AB Volvo", "Japan's Kubota Corporation" should all
         # resolve via the brand token.
-        stripped_m = re.sub(
-            r"^(?:the|a|an|sweden'?s|japan'?s|germany'?s|korea'?s|france'?s|usa'?s|u\.s\.'?s|china'?s|uk'?s|india'?s)\s+",
-            "",
-            m,
-            flags=re.IGNORECASE,
-        )
-        first = re.split(r"[\s,/]+", stripped_m, maxsplit=1)[0].lower()
+        stripped_m = _LEADING_ARTICLE_POSS_RE.sub("", m)
+        first = _MENTION_FIRST_TOKEN_RE.split(stripped_m, maxsplit=1)[0].lower()
         if first and first != m.lower():
             aliased_first = _lookup_alias(first)
             if aliased_first and aliased_first.lower() in self._by_lower:
@@ -358,12 +398,7 @@ class EntityResolver:
         if m.lower() in self._by_lower:
             return self._by_lower[m.lower()]
         # 2. Suffix-stripped exact.
-        stripped = re.sub(
-            r"\s+(Limited|Ltd\.?|Private|Pvt\.?|Company|Co\.?)$",
-            "",
-            m,
-            flags=re.IGNORECASE,
-        ).strip()
+        stripped = _TRAILING_LEGAL_SUFFIX_RE.sub("", m).strip()
         if stripped.lower() in self._by_lower:
             return self._by_lower[stripped.lower()]
         # 3. Fuzzy.
@@ -894,18 +929,8 @@ def _normalize_group_name(raw: str) -> str:
     the phrase sits at sentence start ("A Mahindra Group company" must key
     as "Mahindra", matching the "flagship of the Mahindra Group" form).
     """
-    name = re.sub(
-        r"\s+(?:Corp(?:oration)?|Group|Holdings|Industries)$",
-        "",
-        raw.strip(),
-        flags=re.IGNORECASE,
-    ).strip()
-    name = re.sub(
-        r"^(?:a|an|the)\s+",
-        "",
-        name,
-        flags=re.IGNORECASE,
-    ).strip()
+    name = _GROUP_NAME_SUFFIX_RE.sub("", raw.strip()).strip()
+    name = _LEADING_ARTICLE_RE.sub("", name).strip()
     return name
 
 
@@ -958,17 +983,12 @@ def _split_sections(content: str) -> list[tuple[str, int, int, int]]:  # noqa: C
     raw_matches: list[tuple[int, int, str]] = []  # (heading_start, heading_end, text)
     for m in SECTION_HEADING_RE.finditer(content):
         heading_text = m.group(1).split("|")[0].strip().rstrip("-·")
-        heading_text = re.sub(
-            r"\s+(Limited|Ltd\.?|Private|Pvt\.?)$",
-            "",
-            heading_text,
-            flags=re.IGNORECASE,
-        ).strip()
+        heading_text = _HEADING_LEGAL_SUFFIX_RE.sub("", heading_text).strip()
         # Strip surrounding [] brackets (e.g. "[Concall]").
         heading_text = heading_text.strip("[]")
         if not heading_text or len(heading_text) < 3:
             continue
-        if not re.match(r"^[A-Z0-9]", heading_text):
+        if not _HEADING_START_RE.match(heading_text):
             continue
         if heading_text.lower() in _NEWSLETTER_CHROME:
             continue
@@ -1015,11 +1035,7 @@ def _looks_like_speaker(heading: str) -> bool:
     """
     if "," not in heading:
         return False
-    role_tokens = (
-        r"\b(managing director|chief executive|ceo|cfo|coo|cto|cio|md|director|"
-        r"chairman|president|head of|founder|co-founder)\b"
-    )
-    return bool(re.search(role_tokens, heading, re.IGNORECASE))
+    return bool(_SPEAKER_ROLE_RE.search(heading))
 
 
 # Heading texts that are newsletter chrome, not companies.
@@ -1293,7 +1309,7 @@ def _resolve_h1_title(body: str, resolver: EntityResolver) -> str | None:
     Returns the resolved entity name, or None if no H1 / unresolved.
     Strips trailing legal suffixes (Limited/Ltd/Private) before resolving.
     """
-    m = re.search(r"^#\s+(.+?)\s*$", body, re.MULTILINE)
+    m = _H1_TITLE_RE.search(body)
     if not m:
         return None
     title = m.group(1).strip()
@@ -1612,12 +1628,7 @@ def extract_relations(  # noqa: C901
                     # Tier C drop (see PATTERNS comment).
                     continue
                 # Strip trailing articles / whitespace junk.
-                target_mention = re.sub(
-                    r"\s+(?:the|a|an|its|their|our|in|on|at|to|for|and|or)$",
-                    "",
-                    target_mention,
-                    flags=re.IGNORECASE,
-                ).strip(" .,;:")
+                target_mention = _TRAILING_JUNK_RE.sub("", target_mention).strip(" .,;:")
                 if not target_mention or len(target_mention) < 2:
                     continue
 
@@ -1673,11 +1684,7 @@ def extract_relations(  # noqa: C901
                 # Ashok Leyland, and Eicher Motors" (Pattern A captures the
                 # whole list span). Emits one edge per resolvable chunk.
                 if edge_type in ("customer_of", "competes_with"):
-                    raw = re.split(
-                        r"\s*,\s*|\s+\band\b\s+|\s+\bor\b\s+|\s+&\s+",
-                        target_mention,
-                        flags=re.IGNORECASE,
-                    )
+                    raw = _LIST_CHUNK_SPLIT_RE.split(target_mention)
                     chunks = [c.strip() for c in raw if c.strip()]
                 else:
                     chunks = []
@@ -1690,17 +1697,8 @@ def extract_relations(  # noqa: C901
                         # "Ashok Leyland") — proper-noun company names
                         # are Capitalised throughout, so the first
                         # lowercase word marks the end of the name.
-                        chunk_clean = re.sub(
-                            r"^(?:and|or|&)\s+",
-                            "",
-                            chunk,
-                            flags=re.IGNORECASE,
-                        )
-                        chunk_clean = re.sub(
-                            r"\s+\d+(?:\.\d+)?\s+\w+(?:\s+\w+){0,2}$",
-                            "",
-                            chunk_clean,
-                        )
+                        chunk_clean = _LEADING_CONJ_RE.sub("", chunk)
+                        chunk_clean = _TRAILING_NUM_UNIT_RE.sub("", chunk_clean)
                         # Truncate at first lowercase word (heuristic for
                         # trailing prose bleed in Pattern A's wide capture).
                         words = chunk_clean.split()
@@ -1905,7 +1903,7 @@ def _extract_quote_around(body: str, pos: int, *, window: int = 120) -> str:
     end = min(len(body), pos + window)
     snippet = body[start:end].replace("\n", " ").strip()
     # Collapse runs of whitespace (OCR fragments).
-    snippet = re.sub(r"\s+", " ", snippet)
+    snippet = _WS_RUN_RE.sub(" ", snippet)
     # Truncate at the first sentence boundary past `pos` if reasonable.
     return snippet[:240]
 

@@ -38,6 +38,7 @@ from helpers.core.frontmatter import (  # noqa: E402
     render_frontmatter,
     split_frontmatter,
     stringify_dates,
+    yaml_safe_load,
 )
 import yaml  # noqa: E402
 
@@ -51,7 +52,7 @@ def verify_note(path: Path, by: str, *, apply: bool = False) -> str:
     if not opener:
         return f"no frontmatter: {path}"
     try:
-        fm = yaml.safe_load(fm_text)
+        fm = yaml_safe_load(fm_text)
     except yaml.YAMLError:
         return f"unparseable frontmatter: {path}"
     if not isinstance(fm, dict):

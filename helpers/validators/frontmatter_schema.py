@@ -35,20 +35,22 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 
 import yaml
 
-# C-accelerated loader when libyaml is built into PyYAML (it is on this
-# box); pure-Python fallback otherwise. This module parses the frontmatter
-# of every findata note on each static_checks run (~2.4k safe_loads), where
-# the pure-Python scanner dominates the wall clock (~5s of 8s before this).
-try:
-    from yaml import CSafeLoader as _SafeLoader
-except ImportError:  # pragma: no cover - libyaml not built
-    from yaml import SafeLoader as _SafeLoader
-
+# Bootstrap so bare-script invocation (`python3 helpers/validators/...`)
+# resolves `helpers.*`; the -m form and the static_checks wrappers already
+# have the repo root on sys.path. Mirrors the shim in verify_notes.py.
 REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+# C-preferring loader (libyaml ~10x) via the shared core helper; the
+# try/except fallback dance lives there once.
+from helpers.core.frontmatter import yaml_safe_load  # noqa: E402
+
 SCHEMA_DIR = REPO_ROOT / "doc" / "okf"
 KEY_DOC = SCHEMA_DIR / "frontmatter_keys.md"
 
@@ -153,7 +155,7 @@ def parse_frontmatter(path: Path) -> dict | None:
     if end < 0:
         return None
     try:
-        fm = yaml.load(text[4:end], Loader=_SafeLoader)
+        fm = yaml_safe_load(text[4:end])
     except yaml.YAMLError:
         return None
     return fm if isinstance(fm, dict) else None

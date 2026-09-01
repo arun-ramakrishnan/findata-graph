@@ -4542,3 +4542,35 @@ target — wrong epoch (the search diff is drained by APPLY/maint-full,
 leaving a green-gate hole); only the content-hash mechanism is shared,
 never the epoch. 15 tests (9 original + 6 cache) with an autouse
 tmp-cache fixture; live red-path + Tier-1 verified.
+## 193
+
+**Date:** 2026-09-01 · **Type:** tooling (perf: YAML loaders + regex volume) ·
+**Proposal:** `doc/improvements/archive/tooling/libyaml_adoption_and_regex_hotspots.md` ·
+**Status:** EXECUTED 2026-09-01 (same day, S1–S5)
+
+Shared C-preferring YAML load/dump (`helpers/core/frontmatter.py`::
+`yaml_safe_load`/`yaml_safe_dump`, CSafeLoader/CSafeDumper with pure-Python
+fallback, the try/except dance centralized once) adopted across every
+production + test parse site: derive_insights, derive_cited_in, okf_verify,
+backfill_okf_provenance, app.py's frontmatter route, verify_notes and
+frontmatter_schema (which also gained the bare-script sys.path bootstrap);
+static_checks deliberately kept — its optional-yaml design is the
+run-anywhere degradation, and it already ran the C loader. Regex volume
+collapsed in the derivation scripts: derive_themes' 110 escaped-literal
+patterns became plain `in` substring tests (alternation option MEASURED and
+rejected — 341 ms vs 216 ms `in` vs 289 ms status quo), derive_events gained
+literal prefilters derived mechanically from its pattern texts ("fy"/"cy"
+fiscal gate; 11-token verb gate — additive-or-nothing, filter parity proven
+on all 89,127 windows), extract_relations' 16 inline re.* calls hoisted to
+module-level compiled patterns. Gates: whole-vault round-trip byte parity
+0/1243 notes (loader object-graph AND dumper bytes), derive_events 376
+events with identical by_type histogram, derive_themes 359 edges with all 12
+per-theme counts, extract_relations dry-run byte-identical old-vs-new.
+Timing: derive_insights 3.5–3.7 s → 2.16–2.27 s (budget 4.0 s, was the
+failing leg), derive_events ~1.5 s → 0.73–0.81 s, derive_themes ~0.6 s →
+0.50 s; test_derive_insights 1.54 s → 1.20 s, YAML-heavy set 4.76 s/268
+tests → 4.22–4.31 s/342 tests. Residual derive_insights cost is the regex
+section-split + extract_metrics path — future S6-class slice. Same day:
+pdf_pipeline_local perf budget tightened 20 s → 7 s (leg re-measured at
+3.09–3.31 s; the "warm ≈7.5 s" comment was stale). 22/22 perf legs green
+after every slice.

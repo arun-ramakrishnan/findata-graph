@@ -76,6 +76,7 @@ from helpers.core.frontmatter import (  # noqa: E402
     render_frontmatter,
     split_frontmatter,
     stringify_dates,
+    yaml_safe_load,
 )
 from helpers.pdf.pdf_conv_md import (  # noqa: E402
     _PUBLISHER_BY_SERIES,
@@ -123,7 +124,7 @@ def _parse_fm(text: str) -> dict | None:
     if not opener:
         return None
     try:
-        fm = yaml.safe_load(fm_text)
+        fm = yaml_safe_load(fm_text)
     except yaml.YAMLError:
         return None
     return fm if isinstance(fm, dict) else None

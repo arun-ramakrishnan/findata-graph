@@ -23,7 +23,6 @@ from io import StringIO
 from pathlib import Path
 
 import pytest
-import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -34,6 +33,7 @@ from helpers.core.frontmatter import (  # noqa: E402
     render_frontmatter,
     split_frontmatter,
     stringify_dates,
+    yaml_safe_load,
 )
 
 pytestmark = [pytest.mark.integration]
@@ -190,14 +190,14 @@ class _Project:
 
     def note_fm(self) -> dict:
         _, fm_text, _ = split_frontmatter(self.note_text())
-        return yaml.safe_load(fm_text)
+        return yaml_safe_load(fm_text)
 
     def pin_fresh_okf_state(self) -> None:
         """Simulate the post-render OKF state the gate trusts: a fresh
         generated.at plus a dated sources[] entry (the tmp tree has no git,
         so the splice itself can't produce last_modified)."""
         opener, fm_text, body = split_frontmatter(self.note_text())
-        fm = yaml.safe_load(fm_text)
+        fm = yaml_safe_load(fm_text)
         gen = fm.setdefault("generated", {})
         gen["by"] = di._OKF_ACTOR
         gen["at"] = "2026-08-16T00:00:00Z"

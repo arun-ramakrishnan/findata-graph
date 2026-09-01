@@ -64,7 +64,7 @@ from helpers.core.edition_index import (  # noqa: E402
     resolve_edition_string,
     source_note_index,
 )
-from helpers.core.frontmatter import split_frontmatter  # noqa: E402
+from helpers.core.frontmatter import split_frontmatter, yaml_safe_load  # noqa: E402
 from helpers.graph._edge_writer import apply_typed_edges  # noqa: E402
 
 DERIVED_TREES = ("Companies", "Sectors", "Super_Sectors")
@@ -154,7 +154,7 @@ def _note_frontmatter(p: Path) -> dict:
     if not opener:
         return {}
     try:
-        fm = yaml.safe_load(fm_text)
+        fm = yaml_safe_load(fm_text)
     except yaml.YAMLError:
         return {}
     return fm if isinstance(fm, dict) else {}

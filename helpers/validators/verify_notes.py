@@ -29,14 +29,6 @@ from pathlib import Path
 
 import yaml
 
-# Prefer the C-accelerated loader when available (5-10x faster than the
-# pure-Python safe_load on the 1102-note corpus; the YAML parse was the
-# single biggest verify_notes hot path at ~2.8s before this swap).
-try:
-    from yaml import CSafeLoader as _SafeLoader
-except ImportError:  # pragma: no cover - PyYAML built without libyaml
-    from yaml import SafeLoader as _SafeLoader
-
 # Make `helpers.*` importable when this script is invoked directly via the
 # Makefile (`python3 helpers/validators/verify_notes.py`), not just under
 # pytest (where conftest.py already inserts the repo root). Mirrors the shim in
@@ -45,6 +37,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core.frontmatter import yaml_safe_load  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_SECTORS
 
 # Lowercased canonical sector names for case-insensitive scalar matching.
@@ -335,7 +328,7 @@ class NotesVerifier:
 
         yaml_content = "\n".join(lines[yaml_start + 1 : yaml_end])
         try:
-            data = yaml.load(yaml_content, Loader=_SafeLoader)
+            data = yaml_safe_load(yaml_content)
             if data is None:
                 data = {}
         except yaml.YAMLError as e:

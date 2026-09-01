@@ -164,10 +164,10 @@ class TestOkfKeys:
     def test_yaml_timestamp_verified_at_normalizes(self):
         # Hand-written `at: 2026-08-18T12:00:00` (no Z) parses as a datetime
         # object; _normalize_nested must stringify it before the pattern check.
-        import yaml as _yaml
+        from helpers.core.frontmatter import yaml_safe_load
 
         block = "---\ntitle: T\nverified:\n- by: human:user\n  at: 2026-08-18T12:00:00\n---\n"
-        raw = _yaml.safe_load(block.split("\n---\n")[0][4:])
+        raw = yaml_safe_load(block.split("\n---\n")[0][4:])
         assert isinstance(raw["verified"][0]["at"], _dt.datetime)
         fm = dict(GOOD_COMPANY, verified=raw["verified"])
         assert FMS.validate_frontmatter(fm, "company") == []

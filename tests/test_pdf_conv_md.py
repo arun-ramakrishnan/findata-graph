@@ -112,7 +112,7 @@ def test_to_wikilinks_no_imgs():
 # ---------------------------------------------------------------------------
 # OKF v0.2 provenance frontmatter (okf_adoption.md §2.2)
 # ---------------------------------------------------------------------------
-from helpers.core.frontmatter import moddate_to_iso_date  # noqa: E402
+from helpers.core.frontmatter import moddate_to_iso_date, yaml_safe_load  # noqa: E402
 from helpers.pdf.pdf_conv_md import (  # noqa: E402
     _pdf_metadata,
     build_okf_frontmatter,
@@ -163,9 +163,7 @@ class TestBuildOkfFrontmatter:
             _PAGES, pdf, "PP-StructureV3", "the_chatter", now="2026-08-18T09:00:00Z"
         )
         assert fm.startswith("---\n")
-        import yaml
-
-        data = yaml.safe_load(fm.split("\n---\n")[0][4:])
+        data = yaml_safe_load(fm.split("\n---\n")[0][4:])
         assert data["type"] == "newsletter"
         assert data["title"] == "The Chatter: Bosch Edition"  # first heading
         assert data["generated"] == {
@@ -197,9 +195,7 @@ class TestBuildOkfFrontmatter:
         fm = build_okf_frontmatter(
             [], pdf, "PP-StructureV3", "bosch_amara_zydus", now="2026-08-18T09:00:00Z"
         )
-        import yaml
-
-        data = yaml.safe_load(fm.split("\n---\n")[0][4:])
+        data = yaml_safe_load(fm.split("\n---\n")[0][4:])
         assert data["sources"] == [
             {
                 "id": "bosch_amara_zydus",
@@ -213,34 +209,26 @@ class TestBuildOkfFrontmatter:
     def test_title_falls_back_to_stem_without_headings(self, tmp_path):
         pdf = tmp_path / "x.pdf"
         fm = build_okf_frontmatter([{"markdown": {"text": "no headings"}}], pdf, "M", "my_edition")
-        import yaml
-
-        data = yaml.safe_load(fm.split("\n---\n")[0][4:])
+        data = yaml_safe_load(fm.split("\n---\n")[0][4:])
         assert data["title"] == "my_edition"
 
     def test_tags_series_and_publisher_for_known_dir(self, tmp_path):
         pdf = tmp_path / "x.pdf"
         fm = build_okf_frontmatter([], pdf, "M", "ed", out_dir="/vault/findata/The_PlotLines")
-        import yaml
-
-        data = yaml.safe_load(fm.split("\n---\n")[0][4:])
+        data = yaml_safe_load(fm.split("\n---\n")[0][4:])
         assert data["tags"] == ["series/the_plotlines", "publisher/zerodha"]
 
     def test_tags_series_only_for_unknown_dir(self, tmp_path):
         # Accepted Q1: publisher omitted when the series is not in the map.
         pdf = tmp_path / "x.pdf"
         fm = build_okf_frontmatter([], pdf, "M", "ed", out_dir=tmp_path / "Future_Series")
-        import yaml
-
-        data = yaml.safe_load(fm.split("\n---\n")[0][4:])
+        data = yaml_safe_load(fm.split("\n---\n")[0][4:])
         assert data["tags"] == ["series/future_series"]
 
     def test_no_tags_without_out_dir(self, tmp_path):
         pdf = tmp_path / "x.pdf"
         fm = build_okf_frontmatter([], pdf, "M", "ed")
-        import yaml
-
-        data = yaml.safe_load(fm.split("\n---\n")[0][4:])
+        data = yaml_safe_load(fm.split("\n---\n")[0][4:])
         assert "tags" not in data
 
     def test_pdf_metadata_tooling(self, tmp_path):

@@ -25,7 +25,6 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -878,7 +877,7 @@ def _splice_vault(tmp_path, monkeypatch, *, stems=("My_Edition",)):
 
 
 def _fm_sources(text):
-    return {s["id"]: s for s in yaml.safe_load(text.split("---")[1]).get("sources", [])}
+    return {s["id"]: s for s in yaml_safe_load(text.split("---")[1]).get("sources", [])}
 
 
 class TestSpliceSources:
@@ -901,7 +900,7 @@ class TestSpliceSources:
         assert srcs["My_Edition"]["resource"] == ("/findata/The_Chatter/My_Edition.md")
         # Frontmatter survives the YAML round-trip; body is byte-identical.
         assert new_text.endswith(body)
-        fm = yaml.safe_load(new_text.split("---")[1])
+        fm = yaml_safe_load(new_text.split("---")[1])
         assert fm["title"] == "Marico"
         assert fm["generated"]["by"] == "derive_insights.py/v1"
 
@@ -1730,7 +1729,7 @@ def test_edition_title_from_stem():
 # --------------------------------------------------------------------------- #
 # OKF v0.2 generated/stale_after bump (okf_adoption.md §2.3)                    #
 # --------------------------------------------------------------------------- #
-from helpers.core.frontmatter import bump_generated  # noqa: E402
+from helpers.core.frontmatter import bump_generated, yaml_safe_load  # noqa: E402
 
 _OKF_NOTE = """---
 title: Marico
@@ -1752,14 +1751,14 @@ Marico body.
 class TestOkfBumpGenerated:
     def test_generated_and_stale_after_set(self):
         out = bump_generated(_OKF_NOTE, "derive_insights.py/v1", now="2026-08-18T09:00:00Z")
-        fm = yaml.safe_load(out.split("\n---\n")[0][4:])
+        fm = yaml_safe_load(out.split("\n---\n")[0][4:])
         assert fm["generated"] == {"by": "derive_insights.py/v1", "at": "2026-08-18T09:00:00Z"}
         # no sources -> base = derive date + 180d
         assert fm["stale_after"] == "2027-02-14"
 
     def test_verified_survives_bump_byte_exact(self):
         out = bump_generated(_OKF_NOTE, "derive_insights.py/v1", now="2026-08-18T09:00:00Z")
-        fm = yaml.safe_load(out.split("\n---\n")[0][4:])
+        fm = yaml_safe_load(out.split("\n---\n")[0][4:])
         assert fm["verified"] == [{"by": "human:user", "at": "2026-08-18T12:00:00Z"}]
 
     def test_stale_after_uses_max_source_last_modified(self):
@@ -1771,7 +1770,7 @@ class TestOkfBumpGenerated:
             "  last_modified: 2026-08-13\ntags:",
         )
         out = bump_generated(note, "x", now="2026-08-18T09:00:00Z")
-        fm = yaml.safe_load(out.split("\n---\n")[0][4:])
+        fm = yaml_safe_load(out.split("\n---\n")[0][4:])
         assert fm["stale_after"] == "2027-02-09"  # 2026-08-13 + 180
 
     def test_body_preserved_byte_exact(self):
@@ -1780,7 +1779,7 @@ class TestOkfBumpGenerated:
 
     def test_key_order_preserved(self):
         out = bump_generated(_OKF_NOTE, "x", now="2026-08-18T09:00:00Z")
-        keys = list(yaml.safe_load(out.split("\n---\n")[0][4:]))
+        keys = list(yaml_safe_load(out.split("\n---\n")[0][4:]))
         assert keys[:3] == ["title", "type", "sector"]
 
     def test_no_frontmatter_unchanged(self):
@@ -1799,7 +1798,7 @@ class TestOkfBumpGenerated:
         from helpers.validators.frontmatter_schema import validate_frontmatter
 
         out = bump_generated(_OKF_NOTE, "derive_insights.py/v1", now="2026-08-18T09:00:00Z")
-        fm = yaml.safe_load(out.split("\n---\n")[0][4:])
+        fm = yaml_safe_load(out.split("\n---\n")[0][4:])
         fm.update(
             normalized_name="Marico",
             permalink="/companies/fmcg/marico",
@@ -1845,7 +1844,7 @@ class TestRenderNotesBumpsFrontmatter:
                 conn=conn,
             )
             assert written == 1
-            fm = yaml.safe_load(note.read_text().split("\n---\n")[0][4:])
+            fm = yaml_safe_load(note.read_text().split("\n---\n")[0][4:])
             assert fm["generated"]["by"] == di._OKF_ACTOR
             assert fm["verified"] == [{"by": "human:user", "at": "2026-08-18T12:00:00Z"}]
             assert "BEGIN auto chatter block" in note.read_text()

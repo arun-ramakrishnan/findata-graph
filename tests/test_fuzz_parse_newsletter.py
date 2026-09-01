@@ -10,7 +10,7 @@ invariants:
                             member of the supplied `sector_dirs` set.
 3. render_stub            - never raises; with well-formed entity inputs the
                             emitted frontmatter is valid YAML (round-trips
-                            through yaml.safe_load and keeps type: company).
+                            through yaml_safe_load and keeps type: company).
 
 Runs in `make fuzz` and `make qa`. No DB / network required.
 """
@@ -21,12 +21,12 @@ import sys
 from pathlib import Path
 
 import pytest
-import yaml
 from hypothesis import given, settings, strategies as st, HealthCheck
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
+from core.frontmatter import yaml_safe_load  # noqa: E402
 from core.parse_newsletter import (  # noqa: E402
     extract_companies,
     guess_sector_for,
@@ -156,7 +156,7 @@ def test_render_stub_valid_yaml(name, normalized_name, sector, ticker):
     # frontmatter sits between the first and second '---' delimiters
     fm = doc.split("---", 2)[1]
     try:
-        data = yaml.safe_load(fm)
+        data = yaml_safe_load(fm)
     except Exception as e:
         pytest.fail(f"render_stub produced invalid YAML: {e}\n--- frontmatter ---\n{fm}")
     assert isinstance(data, dict)

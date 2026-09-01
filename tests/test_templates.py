@@ -198,12 +198,14 @@ def test_yaml_template_keys_subset_of_schema():
     prose, not YAML)."""
     import yaml
 
+    from helpers.core.frontmatter import yaml_safe_load
+
     for note_type, (schema_rel, template_rel) in PAIRINGS.items():
         schema = json.loads((REPO_ROOT / schema_rel).read_text(encoding="utf-8"))
         text = (REPO_ROOT / template_rel).read_text(encoding="utf-8")
         if template_rel.endswith(".md"):
             assert text.startswith("---"), f"{template_rel} lost its FM block"
-            data = yaml.safe_load(text[4 : text.find("\n---", 3)])
+            data = yaml_safe_load(text[4 : text.find("\n---", 3)])
         else:
             docs = [d for d in yaml.safe_load_all(text) if d is not None]
             assert len(docs) == 1, f"{template_rel} is not a single frontmatter block"

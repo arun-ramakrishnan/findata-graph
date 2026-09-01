@@ -341,12 +341,15 @@ def _parse_as_of_or_400():
 
 def parse_yaml_frontmatter(content):
     """Parse YAML frontmatter from markdown content"""
+    # libyaml C loader via the shared frontmatter helper (perf S3, 2026-09-01).
+    from helpers.core.frontmatter import yaml_safe_load
+
     if content.startswith("---\n"):
         try:
             end_index = content.find("\n---\n", 4)
             if end_index != -1:
                 yaml_content = content[4:end_index]
-                return yaml.safe_load(yaml_content), content[end_index + 5 :]
+                return yaml_safe_load(yaml_content), content[end_index + 5 :]
         except yaml.YAMLError as e:
             # Malformed frontmatter — log and fall through to raw content rather
             # than masking every exception (the prior bare `except:` would also

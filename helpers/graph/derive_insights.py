@@ -121,6 +121,7 @@ from helpers.core.frontmatter import (  # noqa: E402
     render_frontmatter,
     split_frontmatter,
     stringify_dates,
+    yaml_safe_load,
 )
 
 # --------------------------------------------------------------------------- #
@@ -181,7 +182,7 @@ def _stale_only_skip(text: str, scanned_stems: frozenset[str] = frozenset()) -> 
     if not opener:
         return None
     try:
-        fm = yaml.safe_load(fm_text)
+        fm = yaml_safe_load(fm_text)
     except yaml.YAMLError:
         return None
     if not isinstance(fm, dict):
@@ -251,7 +252,7 @@ def _splice_sources(
     if not opener:
         return (text, False)
     try:
-        fm = yaml.safe_load(fm_text)
+        fm = yaml_safe_load(fm_text)
     except yaml.YAMLError:
         return (text, False)
     if not isinstance(fm, dict):
