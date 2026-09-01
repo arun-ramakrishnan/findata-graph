@@ -211,7 +211,7 @@ differentiated and sustainable products to $38 \%$ this year versus $35 \%$ last
 > "If you look at our peers, most companies were flat to down on revenue. Some were dow double digits... We believe we'll continue to outperform the industry."
 > — Mike Frank, CEO [^chatter-Management_in_Motion]
 
-- **UPL spun off its specialty chemicals business into a standalone entity, Superform v a clear ambition to serve industries beyond agriculture **…
+- **UPL spun off its specialty chemicals business into a standalone entity, Superform v a clear ambition to serve industries beyond agriculture…**
 
 > "We want to quickly scale-up our speciality chemicals business, so that we can unlock th shareholders' value... Our speciality chemicals business grew 24\%... We have entered int. six agreements with top-end potential of $₹ 2,000$ crores annually."
 

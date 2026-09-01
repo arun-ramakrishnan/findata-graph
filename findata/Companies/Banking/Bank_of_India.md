@@ -88,7 +88,7 @@ Bank of India is a leading public sector bank established in 1906 with over 115 
 > "Regarding gold loans, we have a book of approximately 57,000 crores as on June 30 wit yield of more than 9%, around 9.10%. Regarding asset quality, the NPA is less than 100 crores. Our gold loan book is performing nicely and growing at around 25% on a year-on year basis."
 > — Rajneesh Karnatak, MD and CEO [^chatter-IDFC_Tata_Consumer]
 
-- **Management is intentionally slowing down growth in risky, low-ticket personal loa to avoid industry-wide credit issues. By focusing only on **…
+- **Management is intentionally slowing down growth in risky, low-ticket personal loa to avoid industry-wide credit issues. By focusing only on…**
 
 > "We have put guardrails on personal loans. Low-ticket personal loans and non-salaried segments were showing risk in the industry. We are concentrating more on the service se where salaries come into Bank of India accounts with nudge mandates. This has led to some de-escalation …"
 > — Rajneesh Karnatak, MD and CEO [^chatter-IDFC_Tata_Consumer]

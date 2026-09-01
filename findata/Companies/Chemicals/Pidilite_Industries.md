@@ -86,7 +86,7 @@ Pidilite is India's leading manufacturer of adhesives and sealants, dominated by
 strictly only, I…"
 > — Sudhanshu Vats, Managing Director [^chatter-Reliance_PayTM_Nykaa]
 
-- **The business is largely insulated from housing market slowdowns because nearly three-quarters of revenue comes from repairs rather than new **…
+- **The business is largely insulated from housing market slowdowns because nearly three-quarters of revenue comes from repairs rather than new…**
 
 > "Our portfolio is not only new construction dependent. Our portfolio has new construct renovation and repair. And renovation and repair account for maybe 70% plus, I would 70% to 75%, and new construction is more like 25%, maybe a little higher, so depending the cycle."
 > — Sudhanshu Vats, Managing Director [^chatter-Reliance_PayTM_Nykaa]
@@ -96,7 +96,7 @@ strictly only, I…"
 > "As of now, I can confirm to you that we haven't seen any slowdown whatsoever even in residential. And by the way, within the industry, we keep talking to each other who are i the allied businesses. And as of now, we do not see any slowdown in any part of the construction segment."
 > — Kavinder Singh, Joint Managing Director [^chatter-Reliance_PayTM_Nykaa]
 
-- **The company is intentionally prioritizing top-line growth and brand investment ov maximizing immediate profits. This balanced approach aims **…
+- **The company is intentionally prioritizing top-line growth and brand investment ov maximizing immediate profits. This balanced approach aims…**
 
 > "We are also very conscious that we should have right profitability, at the same time, focus on building capabilities, building brands. And all of that is leading to improved in reven growth, as you pointed out. So the question is, from where we stand, from our vantage point, t…"
 > — Sudhanshu Vats, Managing Director [^chatter-Reliance_PayTM_Nykaa]

@@ -83,7 +83,7 @@ Premier Explosives is a major Indian manufacturer of high-energy materials speci
 > "We are adding more products... countermeasures, we are the number 1 in the country. The third one is the mines... anti-personnel mines, we are already delivering. Then the next s comes is the ammunition."
 > — T. V. Chowdary, Managing Director [^chatter-Patience_and_payoff]
 
-- **Premier is the sole source for propellants in the QRSAM missile program, though official orders are still pending. This positioning ensures **…
+- **Premier is the sole source for propellants in the QRSAM missile program, though official orders are still pending. This positioning ensures…**
 
 > "The QRSAM order is yet to be received. If any order comes, we are the supplier. The propellant is to be supplied by only Premier... somewhere around 10% to 15% is the percentage contribution of propellants."
 > — T. V. Chowdary, Managing Director [^chatter-Patience_and_payoff]

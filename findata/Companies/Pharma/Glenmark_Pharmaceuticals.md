@@ -92,7 +92,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "This very much is in alignment with all our peers, who are like global companies, okay? So like our inventory is about 83 days and peer is about 75 to 80 days. Working our - debt receivable is about 92. Peers are about 85 to 95. So I think all in all, I think these are the lev…"
 > — V.S. Mani, Executive Director and Global CFO [^chatter-The_Mood_in_the_Room]
 
-- **Aggressive FY'26 guidance of 10-12\% revenue growth and 19-20\% EBITDA margins despite India diabetes weakness and U.S. challenges, heavily **…
+- **Aggressive FY'26 guidance of 10-12\% revenue growth and 19-20\% EBITDA margins despite India diabetes weakness and U.S. challenges, heavily…**
 
 > "ROW corrected for currency grew 10-plus percent in this year - in FY '25. And we expect it to accelerate even further in this coming year with some big launches. And particularly RYALTRIS also contributing in markets, the 10, 12 markets where we haven't launched yet. So I thin…"
 > — Glenn Saldanha, Chairman and Managing Director [^chatter-The_Mood_in_the_Room]

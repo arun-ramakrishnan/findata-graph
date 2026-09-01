@@ -138,7 +138,7 @@ Muthoot Finance Limited is India's largest gold financing company, providing gol
 > "To wrap up, we believe that the regulatory changes implemented from April 2026 in the gold loan industry are structural positives. They strbengthen transparency and drive formalization, which favors established, trusted players like Muthoot Finance Ltd."
 > — George Alexander Muthoot, Managing Director [^chatter-Indian_Oil_Muthoot_Maruti]
 
-- **The company experienced a sharp decline in its interest yields compared to the previous quarter. This drop reflects a strategic decision to **…
+- **The company experienced a sharp decline in its interest yields compared to the previous quarter. This drop reflects a strategic decision to…**
 
 > "The yield in Q4 was 20.76%, and this quarter it is 17.93%. I agree that there is a drop in the yield. This is due to a variety of reasons. We have probably also reduced our interest rates in this quarter. The yield has declined because we are giving loans at lower rates as wel…"
 
@@ -158,7 +158,7 @@ Muthoot Finance Limited is India's largest gold financing company, providing gol
 > "We have achieved the highest-ever consolidated gold loan AUM for Muthoot Finance its subsidiaries at 1,65,000 crores. This is historic growth, representing an increase of 57 crores or 54% over the last year. The consolidated AUM stands at 1,65,000 crores."
 > — George Alexander Muthoot, Managing Director [^chatter-Titan_Dixon_Cipla]
 
-- **RBI's suggested reduction in gold imports will not impact Muthoot Finance, as the company finances household ornaments, not gold purchases, **…
+- **RBI's suggested reduction in gold imports will not impact Muthoot Finance, as the company finances household ornaments, not gold purchases,…**
 
 > "Because we do not finance gold purchases, bullion, or bars, this does not affect Muthoc We only finance household ornaments. There are reportedly about 25,000 to 30,000 ton gold held by the Indian public. We believe there are good prospects for this business goir forward, rega…"
 

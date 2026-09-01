@@ -645,7 +645,7 @@ Non-fossil capacity by 2035-36 70% of India's total power mix (CEA, Mar 2026)
 
 India data centre capacity by 2030 up from 1.4 GW today
 
-#2
+\#2
 
 786 GW
 

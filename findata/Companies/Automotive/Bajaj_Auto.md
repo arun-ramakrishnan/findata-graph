@@ -85,12 +85,12 @@ Bajaj Auto is a leading Indian multinational automotive company and one of the w
 > "Nigeria's weight in our portfolio is now half of what it was last year, indicating that the portfolio without Nigeria is at an all-time high performance."
 > — Rakesh Sharma, Executive Director [^chatter-Patience_and_payoff]
 
-- **Lower tax rates have sparked a significant and sustained increase in domestic motorcycle demand. Investors can expect healthy volume growth **…
+- **Lower tax rates have sparked a significant and sustained increase in domestic motorcycle demand. Investors can expect healthy volume growth…**
 
 > "Post-GST rationalization, Q3 has grown by about 15% in the industry, and our understanding is that January is sustaining at a similar level. We expect the growth momentum in the motorcycle industry to continue at 12-15%."
 > — Rakesh Sharma, Executive Director [^chatter-Patience_and_payoff]
 
-- **Management is planning a high number of product refreshes and new launches to regain market share. A modernized product lineup is essential **…
+- **Management is planning a high number of product refreshes and new launches to regain market share. A modernized product lineup is essential…**
 
 > "The wave of these interventions will be unrelenting hereafter, with over eight more such interventions planned for the next four months. By the end of this period, the entire Puls portfolio spanning the OG Pulsar, the N Series, and the NS Series would be a complete potent port…"
 > — Rakesh Sharma, Executive Director [^chatter-Patience_and_payoff]
@@ -100,7 +100,7 @@ Bajaj Auto is a leading Indian multinational automotive company and one of the w
 > "The electric segment continued to drive the three-wheeler industry, growing at 50%+. We expect these growth rates to sustain as driver adoption is responding to healthy improvements in earnings and payback for both ICE and electric."
 > — Rakesh Sharma, Executive Director [^chatter-Patience_and_payoff]
 
-- **The electric vehicle division is now generating healthy profit margins rather than being a drag on the company's finances. This proves that **…
+- **The electric vehicle division is now generating healthy profit margins rather than being a drag on the company's finances. This proves that…**
 
 > "The EV business now delivers double-digit EBITDA margins while improving unit economics."
 > — Rakesh Sharma, Executive Director [^chatter-Patience_and_payoff]
@@ -151,7 +151,7 @@ Bajaj Auto is a leading Indian multinational automotive company and one of the w
 > "In totality, our two-wheeler and three-wheeler electric business is actually now the large in the auto industry, accounting for almost 20%+ of our domestic revenues and contribute double-digit EBITDA percentage."
 > — Rakesh Sharma, Joint Managing Director [^chatter-Meesho_Marico_Bajaj]
 
-- **Management anticipates a sharp deceleration in domestic motorcycle growth due multiple external headwinds affecting consumer sentiment. The **…
+- **Management anticipates a sharp deceleration in domestic motorcycle growth due multiple external headwinds affecting consumer sentiment. The…**
 
 > "The demand environment has softened in April due to general inflation, increased price of our vehicles, LPG shortages, manpower migration, and the LPG shortage-led effect on the consumer sentiment. This is bound to slow down the motorcycle category from its rocking 20% growth …"
 > — Rakesh Sharma, Joint Managing Director [^chatter-Meesho_Marico_Bajaj]
@@ -186,7 +186,7 @@ Bajaj Auto is a leading Indian multinational automotive company and one of the w
 > "Business operations, including production, have commenced at KTM Austria. This has also unlocked the export of KTM motorcycles from India to KTM's overseas markets. [These used to constitute about 5\% to 6\% of our total exports and had now dropped to $n$ Given this performanc…"
 > — Dinesh Thapar, CFO [^chatter-Making_It_Work]
 
-- **A crucial milestone confirming that electric three-wheeler profitability has already overtaken its ICE counterpart, validating the economic **…
+- **A crucial milestone confirming that electric three-wheeler profitability has already overtaken its ICE counterpart, validating the economic…**
 
 > "This was powered by the highly successful introduction of the 7012 variant, a wide-bod three-wheeler with best-in-class range, specifically tailored for the large ticketing segmei in semi-urban and rural areas. [This has lifted both the ASPs and profitability of the EV segment…"
 > — Dinesh Thapar, CFO [^chatter-Making_It_Work]

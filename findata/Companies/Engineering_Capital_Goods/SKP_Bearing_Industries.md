@@ -48,7 +48,7 @@ SKP Bearing Industries is a specialized manufacturer of high-precision needle ro
 > "We have started expansion in the roller plant itself. Some capacity has been added and utilization has started. Further addition is on the way, which is in line with our targets of 200 tons per month."
 > — Shrikda Patil, CFO [^chatter-Patience_and_payoff]
 
-- **The company is actively diversifying its customer base to avoid being overly dependent on any single industrial sector. This strategy helps **…
+- **The company is actively diversifying its customer base to avoid being overly dependent on any single industrial sector. This strategy helps…**
 
 > "We underwent an initiative to balance our portfolios to reduce the weightage of any or industry. That balancing strategy is working well, and we are seeing our portfolio diversi
 

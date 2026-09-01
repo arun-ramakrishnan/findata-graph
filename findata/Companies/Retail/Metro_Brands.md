@@ -76,7 +76,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "And as far as new stores go, you know, it's not about the number of new stores we open, Gaurav, as is shown by the financial discipline we have. You know, we didn't add as mar stores as we would have liked, but we were more than okay with that because we didn't $j$ that the co…"
 > — Rafiq Malik, Chairman [^chatter-Decoding_the_Dialogue]
 
-- **E-com contribution at $10.6 \%$ (up from previously $\sim 8-9 \%$ ), expected to grow by anoth $1-2 \%$ in FY25. Strong focus on profitable **…
+- **E-com contribution at $10.6 \%$ (up from previously $\sim 8-9 \%$ ), expected to grow by anoth $1-2 \%$ in FY25. Strong focus on profitable…**
 
 > "To be very frank, you know, we are growing across all the channels that are available fo to sort of tap. And obviously our focus, as we have discussed multiple times, is on growir our omni-channel business, which is predominantly full-price, products getting deliverc from our …"
 > — Kaushal Parikh, CFO [^chatter-Decoding_the_Dialogue]

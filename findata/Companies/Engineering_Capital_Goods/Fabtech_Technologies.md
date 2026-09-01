@@ -53,7 +53,7 @@ Fabtech Technologies Cleanrooms specializes in manufacturing pre-engineered modu
 
 > "This is a reference-creating year... The real explosion happens post-2027 where the investment flowing into semicons starts resulting in cleanroom business."
 
-- **-- Management [Analyst Take: So how is the financial year '26 so far and what company management is expecting it to be financial year '26?] **…
+- **-- Management [Analyst Take: So how is the financial year '26 so far and what company management is expecting it to be financial year '26?]…**
 
 > "Tomorrow, in order to establish large references [in semicons], if we have to take a fall « the margin, we'll do that."
 

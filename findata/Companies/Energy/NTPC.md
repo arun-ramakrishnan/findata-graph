@@ -142,7 +142,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "In alignment with India's net-zero commitment by 2070 and the national target of 100 GW nuclear capacity by 2047, NTPC has set an ambitious goal to develop 30 GW of nuclear power. We have incorporated NTPC Parmanu Urja Nigam Limited in January 2025 as our wholly owned subsidia…"
 > — Jaikumar Srinivasan, Director (Finance) [^chatter-Inflection_Watch]
 
-- **Captive coal production acceleration with $29 \%$ growth to 45.82 MMT provides fuel security hedge and margin expansion opportunity through **…
+- **Captive coal production acceleration with $29 \%$ growth to 45.82 MMT provides fuel security hedge and margin expansion opportunity through…**
 
 > "I am further pleased to inform that our achievement in captive coal production has bec steep with a $29 \%$ year on year growth from 35.64 MMT in FY24 to 45.82 MMT in FY2. We have invested $₹ 12,380$ crore in developing our coal mines on standalone basis, contributing to Regul…"
 > — Jaikumar Srinivasan, Director (Finance) [^chatter-Inflection_Watch]

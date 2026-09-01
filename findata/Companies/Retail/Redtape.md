@@ -64,7 +64,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Apparel is the category that widens our addressable market and lifts basket size. We are investing meaningfully behind women's apparel as well and will push this further in FY21 Accessories gave us a revenue of 75 crores throughout the year, small in absolute terms today, but …"
 > — Arvind Verma, Whole Time Director [^chatter-ONGC_Divis_LG]
 
-- **The company's long-term supply contracts protect it from sudden increases in raw material costs. This allows them to maintain stable prices **…
+- **The company's long-term supply contracts protect it from sudden increases in raw material costs. This allows them to maintain stable prices…**
 
 > "Although there is some pressure in the market, we work on a system where there is a 6month design-to-production ratio. When the POs are released almost 6 months in advance and once we have opened an LC, the vendor cannot come back and say there is a shift in the price range. T…"
 > — Arvind Verma, Whole Time Director [^chatter-ONGC_Divis_LG]

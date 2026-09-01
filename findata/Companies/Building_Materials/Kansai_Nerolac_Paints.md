@@ -83,7 +83,7 @@ Kansai Nerolac Paints (KNPL) is a leading Indian paint company offering decorati
 > "Another supporting factor is that automotive companies in India are investing heavily capacity expansion. In fact, based on our projections, they are expected to double their production capacity by 2030."
 > — Pravin Chaudhari, CEO [^chatter-Threads_in_the_data]
 
-- **The rising popularity of larger vehicles like SUVs will increase paintable surface ar per vehicle, potentially leading to higher automotive **…
+- **The rising popularity of larger vehicles like SUVs will increase paintable surface ar per vehicle, potentially leading to higher automotive…**
 
 > "Today, however, SUVs and larger vehicles, including five- and seven-seaters, are increasingly popular. As a result, the share of larger vehicles in our customers' sales mix increasing, which means there is a larger paintable surface area per vehicle. Therefore, I would not be …"
 > — Pravin Chaudhari, CEO [^chatter-Threads_in_the_data]
@@ -108,7 +108,7 @@ Kansai Nerolac Paints (KNPL) is a leading Indian paint company offering decorati
 > "As far as industrial margin is concerned, that was the story in the past. While we cannot disclose segment information because of the nature of the business, I think it is quite healthy now. And as we move forward, I think you will see the real picture emerging, ma over some t…"
 > — Pravin Chaudhari, CEO [^chatter-Threads_in_the_data]
 
-- **The current localized, town-level decorative strategy is a temporary 2-3 year approa after which the company plans to revert to a pan-India **…
+- **The current localized, town-level decorative strategy is a temporary 2-3 year approa after which the company plans to revert to a pan-India…**
 
 > "I would say this is probably a 2-3 year strategy. I don't think we will take this approach beyond that. Once competition settles, I think it will again become pan-India, similar to what we were doing a couple of years back."
 > — Pravin Chaudhari, CEO [^chatter-Threads_in_the_data]

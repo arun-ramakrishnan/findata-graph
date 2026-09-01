@@ -77,12 +77,9 @@ Candour operates a tightly controlled, low-wastage value chain from imported raw
 
 | Raw Material | ➢ Sourcing: 50% of chemicals are imported, with TPU film sourced 100% from China and key adhesives from Germany. |
 | --- | --- |
-| Inspection & Pre-Treatment | ➢ Grey Checking: Materials are thoroughly inspected using a grey checking report to ensure defect-free fabric before coating or lamination.
-➢ Process: Precise chemical mixing and automated/manual coating applications. |
-| Coating & Lamination Process | ➢ Specialized Processing: Fabrics undergo multiple treatments in 8 chambers (heating, cooling, and treatment).
-➢ Low Wastage: Only 0.5% wastage for lamination, 2% overall, significantly lower than the 5-10% seen by competitors. |
-| Order Execution & Logistics | ➢ Rapid Turnaround: Candour executes 1,000–5,000-meter orders within 1 week, covering coating, testing, and dispatch.
-➢ Fast Processing: Current processing time is just 3 days; can extend to 10-11 days as utilization increases. |
+| Inspection & Pre-Treatment | ➢ Grey Checking: Materials are thoroughly inspected using a grey checking report to ensure defect-free fabric before coating or lamination.<br>➢ Process: Precise chemical mixing and automated/manual coating applications. |
+| Coating & Lamination Process | ➢ Specialized Processing: Fabrics undergo multiple treatments in 8 chambers (heating, cooling, and treatment).<br>➢ Low Wastage: Only 0.5% wastage for lamination, 2% overall, significantly lower than the 5-10% seen by competitors. |
+| Order Execution & Logistics | ➢ Rapid Turnaround: Candour executes 1,000–5,000-meter orders within 1 week, covering coating, testing, and dispatch.<br>➢ Fast Processing: Current processing time is just 3 days; can extend to 10-11 days as utilization increases. |
 | Dispatch | ➢ Efficient Logistics: Products are promptly dispatched to customers with efficient logistics coordination. |
 
 ## Global Industry Outlook

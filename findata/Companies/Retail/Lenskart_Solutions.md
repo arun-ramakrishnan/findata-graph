@@ -352,7 +352,7 @@ _Source: yfinance | Refreshed: 2026-08-11_
 > "International is tracking way ahead of where India was at the same stage. The margin acceleration comes from structurally higher product margins of 75.7% internationally ve 63.5% in India."
 > — Peyush Bansal, Co-Founder and Chief Executive Officer [^chatter-Threads_in_the_data]
 
-- **Lenskart is entering the wearable technology space with its own brand of smart glasses later this year. This move signals a transition from **…
+- **Lenskart is entering the wearable technology space with its own brand of smart glasses later this year. This move signals a transition from…**
 
 > "B by Lenskart, our smart glasses, will have its soft launch in Q4 this year. We believe th future of consumer technology is in wearable intelligence. This shift from looking down screen to looking up into the world is bound to happen."
 > — Peyush Bansal, Co-Founder and Chief Executive Officer [^chatter-Threads_in_the_data]
@@ -369,12 +369,12 @@ so, we worked on that and that allowed more people to buy Progressive from us."
 > "We are uniquely positioned to distribute smart eyewear at scale, whether it is our own or someone else... Meta doesn't have 3,000 stores where you can try, fit, get surveys, get a prescription."
 > — Peyush Bansal, Co-Founder and Chief Executive Officer [^chatter-Threads_in_the_data]
 
-- **The company is using AI for high-level executive hiring to ensure talent quality wh controlling employee costs. Scaling corporate functions **…
+- **The company is using AI for high-level executive hiring to ensure talent quality wh controlling employee costs. Scaling corporate functions…**
 
 > "Every person we are hiring in the corporate today, the interviews are taken by AI, even CXO level. That has really improved the quality of hire. That's your only large talent is going to be your biggest, largest expense."
 > — Peyush Bansal, Co-Founder and Chief Executive Officer [^chatter-Threads_in_the_data]
 
-- **Customers are buying eyewear more frequently, treating it as a fashion accessory rather than a utility. Increasing purchase frequency leads **…
+- **Customers are buying eyewear more frequently, treating it as a fashion accessory rather than a utility. Increasing purchase frequency leads…**
 
 > "Our own frequency has been growing year-on-year. We disclosed in DRHP our frequen over 2 years is 3.6 units of eyewear. And we only see this growing quarter-on-quarter."
 > — Peyush Bansal, Co-Founder and Chief Executive Officer [^chatter-Threads_in_the_data]

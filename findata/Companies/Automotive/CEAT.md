@@ -111,7 +111,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "The Indian tire market delivered an upbeat finish to the calendar year 2025, supported by GST revision, which has improved affordability and overall consumer sentiment. Reform have also led to broader participation across urban as well as rural markets, both for OE as well as …"
 
-- **########## 1/23/26, 8:51 PM The Chatter: Weights and Measures - The Chatter by Zerodha - Arnab Banerjee (MD &amp; CEO) Post-GST replacement **…
+- **########## 1/23/26, 8:51 PM The Chatter: Weights and Measures - The Chatter by Zerodha - Arnab Banerjee (MD &amp; CEO) Post-GST replacement…**
 
 > "There was some channel filling because the channel destocked in September, but the growth is more than just channel filling. There is a genuine improvement in sentiment, especially for farm and two-wheelers, but also in passenger and truck-bus radials."
 

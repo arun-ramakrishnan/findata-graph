@@ -62,7 +62,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "So, one is, you have seen a reduction in overall inventory from December to March. Th has been a significant reduction. This is a combination of both finished good and raw material. We have built infrastructure to be able to hold higher finished good material. S that is someth…"
 > — Parag Chheda, Joint Managing Director [^chatter-Contours_of_Change]
 
-- **Management sees significant growth potential in CPVC (Chlorinated Polyvinyl Chloride) due to increased supply and affordability, benefiting **…
+- **Management sees significant growth potential in CPVC (Chlorinated Polyvinyl Chloride) due to increased supply and affordability, benefiting…**
 
 > "Yeah, I think it's an important question. I think CPVC till now in India, we have been deficient in terms of supply. I believe CPVC industry is on a very interesting cusp of gro The kind of capacities that are being put up, whether it's by MNCs or by local players, ti is very …"
 > — Parag Chheda, Joint Managing Director [^chatter-Contours_of_Change]

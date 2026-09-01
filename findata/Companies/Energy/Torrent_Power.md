@@ -211,7 +211,7 @@ As identified in recent market analysis, Torrent Power continues to expand its r
 > "The PPA life is 25 years, which is fully contracted with the Punjab state discom. Out of these 25 years, the first 12 years are already over, and there are 13 years remaining. The plant was manufactured using reliable technology and is technically very sound."
 > — Jagdish Mehta, Whole-time Director of Generation [^chatter-Swiggy_Hyundai_Shree_Cement]
 
-- **The acquired site has enough space and infrastructure to support a significant brownfield expansion. Adding capacity at an existing site is **…
+- **The acquired site has enough space and infrastructure to support a significant brownfield expansion. Adding capacity at an existing site is…**
 
 > "One additional module of 700 MW is possible at this site. Land is available. Once we t over the plant, we will evaluate how we can expand by adding that one module."
 > — Jagdish Mehta, Whole-time Director of Generation [^chatter-Swiggy_Hyundai_Shree_Cement]

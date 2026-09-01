@@ -1066,13 +1066,13 @@ Growth Drivers : Innovation portfolio, new brand launches, price increases, high
 
 IPM RANK
 
-#9
+\#9
 
 FTM
 
 Dec'25
 
-#10
+\#10
 
 MQT & MAT
 
@@ -1080,7 +1080,7 @@ Dec'25
 
 THERAPY LEADERHIP*
 
-#1 #2
+\#1 #2
 
 STOMATOLOGICALS VACCINES
 

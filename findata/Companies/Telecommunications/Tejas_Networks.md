@@ -317,7 +317,7 @@ Enhanced with comprehensive telecommunications sector analysis, telecom equipmen
 > "And 18,000 sites add-on sites and got delayed a bit plus a few other customer shipmenı got a bit delayed because of inventory and clearances. So, so in a way, yes, this is a one-1 quarter where things got pushed out more than anything else and we should be able to se the resul…"
 > — Sumit Dhingra, CFO [^chatter-In_the_Middle_of_Things]
 
-- **Receivables are largely tied to the recently completed BSNL 4G project. These will collected over time based on project milestones, and the **…
+- **Receivables are largely tied to the recently completed BSNL 4G project. These will collected over time based on project milestones, and the…**
 
 > "Yeah see receivables I think uh there are two points to sort of highlight here. I think uh what you see as reported vis receivables are to a large extent or significantly of account the BSNL 4G project that got executed over the past few quarters. In fact the last quarte was t…"
 > — Sumit Dhingra, CFO [^chatter-In_the_Middle_of_Things]

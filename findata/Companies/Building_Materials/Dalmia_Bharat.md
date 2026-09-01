@@ -212,7 +212,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Q3 saw softening of prices beyond GST cuts, especially in our key operating regions of east and south. Though Q4 has started with some improvement, we will see how prices put in the coming months."
 > — Puneet Dalmia, Managing Director and CEO [^chatter-Weights_and_Measures]
 
-- **East India, a region with low per capita cement consumption, is expected to deliver strong demand growth of 7-8% due to government focus on **…
+- **East India, a region with low per capita cement consumption, is expected to deliver strong demand growth of 7-8% due to government focus on…**
 
 > "Our view is that the east is one of the lowest per capita consumption regions in the country and the headroom for growth here is quite high...I think 7-8% growth in the east should be quite easily possible."
 > — Puneet Dalmia, Managing Director and CEO [^chatter-Weights_and_Measures]

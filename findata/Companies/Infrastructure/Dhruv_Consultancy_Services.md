@@ -72,7 +72,7 @@ Dhruv Consultancy Services — small-cap civil engineering consultancy (roads, h
 > "Broadly, our main client is NHAI, so 70% of our revenue is from NHAI plus MoRTH. MoRTH handles two-lane and four-lane highways, whereas NHAI handles six-lane highways, expressways, and iconic projects."
 > — Pandurang Dandawate, Chairman [^chatter-Infosys_Adani_Tata_Motors]
 
-- **Dhruv is targeting the government's ambitious plan to build hundreds of regional airports. Securing these contracts would allow the company **…
+- **Dhruv is targeting the government's ambitious plan to build hundreds of regional airports. Securing these contracts would allow the company…**
 
 > "I should mention that in this third phase of the NDA government, they have decided to develop 250 plus airports in tier 3 and tier 4 cities across India. We are eyeing significar business starting with DPRs for these small airports and airstrips."
 > — Pandurang Dandawate, Chairman [^chatter-Infosys_Adani_Tata_Motors]

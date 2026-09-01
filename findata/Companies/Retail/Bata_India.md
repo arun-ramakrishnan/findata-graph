@@ -100,7 +100,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Within the last 4 months since December, we have had 700-plus stores fulfilling online orders, thereby leveraging the same inventory for a better sales turnover. What that does put pressure on ensuring we can replenish stores much faster."
 > — Gunjan Shah, Managing Director and CEO [^chatter-Asian_Paints_NMDC_IndiGo]
 
-- **Bata has significantly cut down its inventory levels over the last two years to improve efficiency. Surprisingly, they have managed to keep **…
+- **Bata has significantly cut down its inventory levels over the last two years to improve efficiency. Surprisingly, they have managed to keep…**
 
 > "Inventory continues to reduce. It is now 28% down over 2 years consecutively year-on-year and 13% down over last year. This is despite the fact that availability has gone up by almost 1,000 basis points."
 > — Gunjan Shah, Managing Director and CEO [^chatter-Asian_Paints_NMDC_IndiGo]
@@ -146,7 +146,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "However, within that, what we see is that our ability to do 2, 3 things, right? One is provide the right kind of portfolio to consumers, which we are looking for, and many of them are what we see very clearly are looking for some kind of a relief from the overall inflation tha…"
 > — Gunjan Shah, MD \& CEO [^chatter-The_Mood_in_the_Room]
 
-- **Aggressive inventory optimization delivers $16 \%$ reduction over 5 consecutive quarters with aged inventory down $30-35 \%$, demonstrating **…
+- **Aggressive inventory optimization delivers $16 \%$ reduction over 5 consecutive quarters with aged inventory down $30-35 \%$, demonstrating…**
 
 > "The inventory is a significant drop at $16 \%$. This is over a continuing drop over the last almost now 5 quarters that we have managed to do... We still see some more meat going forward on this entire piece, not only in total quantity, but also on the quality of inventory, wh…"
 

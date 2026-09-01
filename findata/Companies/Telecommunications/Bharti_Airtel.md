@@ -77,7 +77,7 @@ Bharti Airtel Limited is India's leading telecommunications company, providing m
 > "On 5G SA, at the right point in time, we will go for it. As I have mentioned to you befo on the mobile side, it is very important that we offload the 4G traffic to 5G networks bej we are in a position to refarm the spectrum and move to SA. I think experience matters more to us…"
 > — Gopal Vittal, Vice Chairman \& Managing Director [^chatter-Between_Seasons]
 
-- **Management demands "complete flexibility" on cash deployment, rejecting rigid capital allocation frameworks while emphasizing opportunistic **…
+- **Management demands "complete flexibility" on cash deployment, rejecting rigid capital allocation frameworks while emphasizing opportunistic…**
 
 > "So the reason I am giving you a slightly longer answer is we want complete flexibility o. the use of cash. It will always be in the best interest of the company and as you know, bo the promoter group and the management has shown solid leadership in managing diffict years of fi…"
 > — Gopal Vittal, Vice Chairman \& Managing Director [^chatter-Between_Seasons]
@@ -108,12 +108,12 @@ Bharti Airtel Limited is India's leading telecommunications company, providing m
 > "Our digital portfolio delivered robust revenue growth and grew 39% over last year. We continue to make strategic investments in our digital portfolio spanning across Cloud, Cyber Security, Financial Services, IoT and CPaaS."
 > — Shashwat Sharma, Managing Director & CEO (Airtel India) [^chatter-Threads_in_the_data]
 
-- **Airtel is moving beyond just testing artificial intelligence and is now using it across the entire business. This shift aims to improve how **…
+- **Airtel is moving beyond just testing artificial intelligence and is now using it across the entire business. This shift aims to improve how…**
 
 > "We are now embedding AI at the center of everything we do, marking a clear shift from experimentation to scaled up and business wise deployment."
 > — Shashwat Sharma, Managing Director & CEO (Airtel India) [^chatter-Threads_in_the_data]
 
-- **Airtel plans to become a major player in the data center market by significantly increasing its power capacity. This is a strategic move to **…
+- **Airtel plans to become a major player in the data center market by significantly increasing its power capacity. This is a strategic move to…**
 
 > "Our sense is that, in the next three to four years, we will have about a gigawatt capacity which will give us about 25% share, so we are committed to stepping up investments in I Centers."
 > — Gopal Vittal, Executive Vice Chairman [^chatter-Threads_in_the_data]

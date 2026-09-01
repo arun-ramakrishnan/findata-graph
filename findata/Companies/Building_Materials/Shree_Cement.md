@@ -89,7 +89,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "since October '24, I had been maintaining that we will be concentrating on value over volumes. That was with a purpose... we have narrowed the gap [with competitors] from about INR30 a bag to about INR15 a bag."
 > — Ashok Bhandari, Senior Advisor [^chatter-Swiggy_Hyundai_Shree_Cement]
 
-- **The company is focusing on the Ready Mix Concrete (RMC) business to improve pl usage and lower transport costs. This move helps the company **…
+- **The company is focusing on the Ready Mix Concrete (RMC) business to improve pl usage and lower transport costs. This move helps the company…**
 
 > "the capacity utilization will further be augmented by concentrating more and more on RMC plants, which shall give me a better geographical reach, a more logistical cost optimization and increase the volumes as well."
 > — Ashok Bhandari, Senior Advisor [^chatter-Swiggy_Hyundai_Shree_Cement]

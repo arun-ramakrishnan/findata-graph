@@ -72,7 +72,7 @@ Ashok Leyland is the flagship company of the Hinduja Group, specializing in manu
 > "In the 2nd Quarter, Ashok Leyland also took a milestone decision to foray into the battery manufacturing business, giving shape to its long-term strategic plans."
 > — Shenu Agarwal, Managing Director and Chief Executive Officer [^chatter-The_Pivot_Quarter_output]
 
-- **The company’s market share gain in the domestic MHCV segment, excluding defer and EVs, indicates strong competitive performance in its core **…
+- **The company’s market share gain in the domestic MHCV segment, excluding defer and EVs, indicates strong competitive performance in its core…**
 
 > "Our domestic MHCV market share was at 31%, with a gain of 50 basis points over H1 last year. This is without defense and EVs."
 > — Shenu Agarwal, Managing Director and Chief Executive Officer [^chatter-The_Pivot_Quarter_output]
@@ -87,7 +87,7 @@ Ashok Leyland is the flagship company of the Hinduja Group, specializing in manu
 > "Break - even volume when considered in terms of the units we have to sell for MHCV trucks. It used to be about 6,000 - 7,000 units a month. And now it has dropped to, I won't say, more or less closer to 1,000 - 1,200 units a month."
 > — Shenu Agarwal, Managing Director and Chief Executive Officer [^chatter-The_Pivot_Quarter_output]
 
-- **Plans to increase LCV capacity by 30-50% to 110,000-120,000 units with minimal investment signal confidence in the LCV segment’s growth and **…
+- **Plans to increase LCV capacity by 30-50% to 110,000-120,000 units with minimal investment signal confidence in the LCV segment’s growth and…**
 
 > "Our current capacity is close to 80,000 units on the light commercial vehicles. But we have already laid out a plan to increase this capacity to 110,000 - 120,000 units without much an investment."
 > — Shenu Agarwal, Managing Director and Chief Executive Officer [^chatter-The_Pivot_Quarter_output]
@@ -140,7 +140,7 @@ Ashok Leyland is the flagship company of the Hinduja Group, specializing in manu
 > "In May, we are not seeing any significant slowdown on either the MHCV or LCV side. However, there is a kind of sentiment attached to the diesel oil prices that is there in the market, which is affecting current logistics operations in many routes and areas. Howeve think the re…"
 > — Shenu Agarwal, Managing Director and CEO [^chatter-ONGC_Divis_LG]
 
-- **Ashok Leyland approaches the new fiscal year with cautious optimism, acknowledg positive CV demand drivers but also potential macroeconomic **…
+- **Ashok Leyland approaches the new fiscal year with cautious optimism, acknowledg positive CV demand drivers but also potential macroeconomic…**
 
 > "Looking forward, we are entering the new fiscal year with cautious optimism. Demand drivers for commercial vehicles remain positive overall. However, we are mindful of macroeconomic headwinds such as global economic uncertainty, commodity price volatility, and diesel price inc…"
 > — Shenu Agarwal, Managing Director and CEO [^chatter-ONGC_Divis_LG]

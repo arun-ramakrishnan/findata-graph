@@ -68,7 +68,7 @@ Glottis provides end-to-end logistics solutions with multimodal capabilities inc
 > "From volume perspective, container throughput during the quarter was 20,710 TEUs less than the earlier periods. This trend is broadly aligned with industry patterns where global container movement has remained soft due to slower ordering cycle, ongoing supply chain adjustment …"
 > — K Manikandan, Managing Director [^chatter-Patience_and_payoff]
 
-- **Sea exports showed a gradual improvement in revenue share, indicating successful engagement with export-oriented customers and expansion in **…
+- **Sea exports showed a gradual improvement in revenue share, indicating successful engagement with export-oriented customers and expansion in…**
 
 > "Sea exports show gradual improvement in share, increasing about 14.5% of revenue as compared to 12.2% in the previous quarter. This shift reflects better transition with export oriented customers in select sectors and trade routes where we are expanding our engagement."
 > — K Manikandan, Managing Director [^chatter-Patience_and_payoff]
@@ -83,12 +83,12 @@ Glottis provides end-to-end logistics solutions with multimodal capabilities inc
 > "And second the freight levels also dropped close to 28% to 30% which has brought down the average per TEU basis quarter-on-quarter it was very it was like lower. For an example in Q2 FY26 the average per TEU cost was around 79,000 and for this quarter Q3 FY26 close to 67,000 o…"
 > — Ramkumar Senthilvel, Managing Director [^chatter-Patience_and_payoff]
 
-- **Renewable sector volumes were negatively impacted in Q3 FY26 due to policy fluctuations, particularly from the US, causing manufacturers to **…
+- **Renewable sector volumes were negatively impacted in Q3 FY26 due to policy fluctuations, particularly from the US, causing manufacturers to…**
 
 > "renewable due to some policies, one of Trump's policies of exports is now picking up but there was no light in Q3 FY26, there was no visibility in Q3 FY26... So, due to this policy kind of fluctuations especially from the US, every manufacturer was very cautious about piling u…"
 > — Ramkumar Senthilvel, Managing Director [^chatter-Patience_and_payoff]
 
-- **Government policies like ALMM and "Make in India" are driving a shift towards domestic module assembly and manufacturing, reducing finished **…
+- **Government policies like ALMM and "Make in India" are driving a shift towards domestic module assembly and manufacturing, reducing finished…**
 
 > "Once this ALMM came into place and government of India's Make in India drive is in fact pushing all these module importers to do module assembly or module manufacturin India. In which the volume compared with module imports or the raw material compare with raw material imports…"
 > — Ramkumar Senthilvel, Managing Director [^chatter-Patience_and_payoff]

@@ -92,7 +92,7 @@ _Source: yfinance | Refreshed: 2026-08-11_
 > "So today the company there is undoubtedly the fact that cane prices have increased, an ethanol blend prices have remained the same. That has affected the margin compared to previous year, that is for sure. However, margins remain in the positive territory."
 > — Samir Somaiya, Chairman and Managing Director [^chatter-Patience_and_payoff]
 
-- **The industry is actively lobbying the government for higher ethanol prices from B-heavy molasses and sugarcane juice to reflect rising cane **…
+- **The industry is actively lobbying the government for higher ethanol prices from B-heavy molasses and sugarcane juice to reflect rising cane…**
 
 > "The industry has been requesting the government for an increase in the price for ethanol from B-heavy molasses or from sugarcane juice commensurate with the increase in cane price that has happened over the last two to three years for which there is no correspond increase in e…"
 > — Samir Somaiya, Chairman and Managing Director [^chatter-Patience_and_payoff]

@@ -71,7 +71,7 @@ WeWork India is the country's largest branded flexible workspace provider, offer
 > "Rework India today serves over 100,000 members across 73 centers in 8 cities... For the last 12 months, we have added 20,000 desks, a 20% year-over-year increase in capacity. More importantly, those occupied desks grew nearly 30% year-over-year. While portfolio occupancy reach…"
 > — Karan Virwani, Managing Director and CEO [^chatter-Anchor_and_Ambitions]
 
-- **A significant portion of future capacity expansion is already secured, outlining a clear growth trajectory to 171,000 seats by FY27 through **…
+- **A significant portion of future capacity expansion is already secured, outlining a clear growth trajectory to 171,000 seats by FY27 through…**
 
 > "Nearly 40% of the incremental growth is already locked in through signed leases and LC This takes our total planned capacity up to about 11.4 million square feet and roughly 171,000 seats over time, with a phased ramp-up to 8.7 million square feet by March of the financial yea…"
 > — Karan Virwani, Managing Director and CEO [^chatter-Anchor_and_Ambitions]

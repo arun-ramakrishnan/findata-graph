@@ -68,7 +68,7 @@ Juniper Hotels is a major luxury hotel developer and owner in India operating la
 > "In Bengaluru, phase I 235 keys should commence operations in first quarter of financial year '27. And phase II of 270 keys additional approvals is now being processed... the property will comprise of 508 big box hotels."
 > — Arun Saraf, Chairman and Managing Director [^chatter-Half_a_century_in]
 
-- **Management is exploring ways to unlock the value of valuable unused land next to flagship Mumbai property. Successful monetization of these **…
+- **Management is exploring ways to unlock the value of valuable unused land next to flagship Mumbai property. Successful monetization of these…**
 
 > "We also hold 2 prime land parcels adjacent to Grand Hyatt Mumbai. We are carefully evaluating the optimal development strategy for this site to ensure effective monetization and long-term value creation."
 > — Arun Saraf, Chairman and Managing Director [^chatter-Half_a_century_in]

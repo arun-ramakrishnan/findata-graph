@@ -92,7 +92,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 distribution."
 > — Neeraj Kanwar, Managing Director and Vice Chairman [^chatter-Reading_the_terrain]
 
-- **Existing factories are running near their maximum capacity due to strong market demand. This utilization level signals that new investments **…
+- **Existing factories are running near their maximum capacity due to strong market demand. This utilization level signals that new investments…**
 
 > "Our current capacity utilisation level in India are in the high 80s, and given our growth expectations for the near future, as seen by the current demand momentum, we would still hitting capacity limitations soon."
 > — Gaurav Kumar, Chief Financial Officer [^chatter-Reading_the_terrain]

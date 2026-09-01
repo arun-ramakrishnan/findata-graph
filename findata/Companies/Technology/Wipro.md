@@ -106,7 +106,7 @@ While AI signifi…"
 > "We are also looking at how to restructure the pyramid in the context of AI and how ma projects we can run through agents or agentify. These are all the levers we are looking at and we will stay focused on that."
 > — Srini Pali, Chief Executive Officer and Managing Director [^chatter-Jio_Financial_Wipro_Polycab]
 
-- **Budget cuts and regulatory pressures in the US healthcare market are hurting rever in that business segment. This industry-wide slowdown is **…
+- **Budget cuts and regulatory pressures in the US healthcare market are hurting rever in that business segment. This industry-wide slowdown is…**
 
 > "The impact we experienced is because of the US healthcare ecosystem, which is facing sustained pressure from both structural and demographic forces. Because of the pressure they face from the government, their budgets have been flattish or even showing negative growth. There i…"
 > — Srini Pali, Chief Executive Officer and Managing Director [^chatter-Jio_Financial_Wipro_Polycab]

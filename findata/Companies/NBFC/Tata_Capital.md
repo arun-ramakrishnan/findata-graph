@@ -321,7 +321,7 @@ Tata Capital represents a compelling digital transformation opportunity with:
 > "The AUM stood at INR25,390 crores, a sequential decline of 4% reflecting our fitness approach. Even though positive growth in AUM is lagging by about a quarter, underlyin momentum is improving. Disbursements grew 32% sequentially in quarter 4 and we expect this to build as bus…"
 > — Rajiv Sabharwal, Managing Director and Chief Executive Officer [^chatter-Reliance_Infosys_VBL]
 
-- **Current global conflicts in West Asia have not yet caused major supply chain disruptions for the company's business clients. Most borrowers **…
+- **Current global conflicts in West Asia have not yet caused major supply chain disruptions for the company's business clients. Most borrowers…**
 
 > "When we talk to clients who are there in the SME or the large corporate side, they have stocks of raw materials and which is helping them tide over this situation. Similarly, they are saying that raw material is available and they are able to produce. There is been some impact…"
 > — Rajiv Sabharwal, Managing Director and Chief Executive Officer [^chatter-Reliance_Infosys_VBL]

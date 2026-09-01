@@ -102,7 +102,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Key milestone this period was a successful acquisition of Fintellix, a Bangalore-based RegTech and risk solutions company. This acquisition significantly expands our risk technology portfolio and strengthens our position as a preferred partner for risk and investment analytics."
 > — Ramnath Krishnan, Managing Director and Group Chief Executive Officer [^chatter-A_Quarter_That_Refuses_To_Behave]
 
-- **ICRA ESG ratings are experiencing rapid growth, with 7 ratings issued in H1 FY26 exceeding the prior year's total, indicating strong market **…
+- **ICRA ESG ratings are experiencing rapid growth, with 7 ratings issued in H1 FY26 exceeding the prior year's total, indicating strong market…**
 
 > "ICRA ESG continues to gain strong traction. In just the first half of this year, we public 7 ratings, already surpassing the total number of ratings issued in the previous year. This rapid growth underscores our commitment to supporting clients and investors with credi and ind…"
 > — Ramnath Krishnan, Managing Director and Group Chief Executive Officer [^chatter-A_Quarter_That_Refuses_To_Behave]

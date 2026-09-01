@@ -141,7 +141,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 today we are no…"
 > — Manoj Jain, Chairman & Managing Director [^chatter-Reading_the_terrain]
 
-- **BEL is actively indigenizing critical semiconductor chips, including developing its own designs and engaging early with new Indian fabs, to **…
+- **BEL is actively indigenizing critical semiconductor chips, including developing its own designs and engaging early with new Indian fabs, to…**
 
 > "So, we are coming out with that type of a plan of indigenizing those chips. So, firstly we want to start with some critical chips. We have already done some investment for microwave-related important chips. So, we have designed our own chips to avoid this type of shortages and…"
 > — Manoj Jain, Chairman & Managing Director [^chatter-Reading_the_terrain]
@@ -234,7 +234,7 @@ Manoj Jain…"
 > "Our goal for the next 5 years is zero imports at the module and sub-module levels. Barr semiconductor components, we aim to indigenize all subsystems we currently import, su as RF, microwave, or compute modules. We have set a target to complete this indigenization, including v…"
 > — Manoj Jain, Chairman and Managing Director [^chatter-BEL_HUL_Tata_Capital]
 
-- **International buyers are showing strong interest in the company's communication radar systems that are already proven in Indian operations. **…
+- **International buyers are showing strong interest in the company's communication radar systems that are already proven in Indian operations.…**
 
 > "Almost all products we deliver to Indian customers have demand internationally. The main interest is in radios, software-defined radios, and D4 solutions. We are seeing lead for communication and weapon-locating radar (WLR) systems."
 > — Manoj Jain, Chairman and Managing Director [^chatter-BEL_HUL_Tata_Capital]
@@ -267,7 +267,7 @@ of 100+ crores in the last 2 years, and at least around 100-200 crores worth of 
 > "Semiconductors per se represent around 17-19% of our material cost or value of production. Therefore, a semiconductor cost increase—if it happens—only affects that portion. Overall, it may not affect our margins that much."
 > — Manoj Jain, Chairman and Managing Director [^chatter-Tata_Steel_LIC]
 
-- **BEL is positioned to secure a majority share of the electronics work for India's upcoming large-scale submarine manufacturing project. This **…
+- **BEL is positioned to secure a majority share of the electronics work for India's upcoming large-scale submarine manufacturing project. This…**
 
 > "In this P-75I program, there will be a foreign component because the foreign partner is working with MDL and, indirectly, with us... I can tell you that more than 50-60% of the electronics in this program will be from BEL. We are in a very advanced stage of discuss with MDL an…"
 > — Manoj Jain, Chairman and Managing Director [^chatter-Tata_Steel_LIC]
@@ -277,7 +277,7 @@ of 100+ crores in the last 2 years, and at least around 100-200 crores worth of 
 > "I cannot give an exact figure, but typically around 25-30% comes from the electronics portion. In this particular case, because there is a foreign element and it is not totally homegrown, the ratio may vary by about 5% on either side."
 > — Manoj Jain, Chairman and Managing Director [^chatter-Tata_Steel_LIC]
 
-- **BEL's growth strategy relies on a mix of steady base orders and periodic massive contracts. This recurring cycle of big-ticket items allows **…
+- **BEL's growth strategy relies on a mix of steady base orders and periodic massive contracts. This recurring cycle of big-ticket items allows…**
 
 > "We mentioned last year that we receive a fixed set of regular orders every year, and the every 3-4 years we receive big-ticket projects. Those big-ticket projects maintain our healthy order book and growth rate. This year we expect the QRSAM order."
 > — Manoj Jain, Chairman and Managing Director [^chatter-Tata_Steel_LIC]

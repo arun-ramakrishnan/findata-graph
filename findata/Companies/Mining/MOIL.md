@@ -115,7 +115,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "last year, that is '24-25 our cost of production was around... INR 5,500 per ton and this year would be around 53 something so there will be reduction in the cost of production.. This is the Q1 kind of the cost of production. It is very competitive."
 > — Rakesh Tumane, Director, Finance [^chatter-Swiggy_Hyundai_Shree_Cement]
 
-- **MOIL is actively pursuing mechanization and experimenting with changing its mining methods to the more productive long-hole stoping, aiming **…
+- **MOIL is actively pursuing mechanization and experimenting with changing its mining methods to the more productive long-hole stoping, aiming…**
 
 > "In addition to that, we are going for mechanization also... We are deploying some LHL SDL machines in underground and we are also thinking of changing our method of mining from conventional cut and fill to long hole stoping method also that experiments are also going on."
 > — M.M. Abdulla, Director, Prod. & Plng. [^chatter-Swiggy_Hyundai_Shree_Cement]

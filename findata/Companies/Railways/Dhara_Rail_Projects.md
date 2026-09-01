@@ -60,7 +60,7 @@ Dhara Rail Projects — small-cap railway infrastructure services (track laying,
 > "The prevalence of Vande Bharat trains, which require high-technology intensity in their coaches, will also help Dhara. While we have a deep presence pan-India, we are increase our footprint in zones where we previously had lower presence."
 > — Shashank Velaya, Management [^chatter-Reliance_Vedanta_Gillette]
 
-- **Almost the entire current order book is composed of direct contracts rather than su contracts. Investors should expect better profitability **…
+- **Almost the entire current order book is composed of direct contracts rather than su contracts. Investors should expect better profitability…**
 
 > "Out of the 184 crore order book, 95% consists of direct contracts; only about 5% is thro other OEMs. Direct bidding definitely offers better margins because we have direct acce to the customer. When we quote through an OEM, the margin is split, so we receive less.
 

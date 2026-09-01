@@ -150,7 +150,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "We are still confident that demand conditions should continue giving us closer to high single-digit volume growth in the band of about 8-10%."
 > — Amit Syngle, Managing Director & CEO [^chatter-Asian_Paints_NMDC_IndiGo]
 
-- **Management revealed that raw material inflation and currency depreciation have created much higher cost pressures than what has been passed **…
+- **Management revealed that raw material inflation and currency depreciation have created much higher cost pressures than what has been passed…**
 
 > "We feel that the impact is much higher, maybe closer to about 20% or so. We have pass on around 11%."
 

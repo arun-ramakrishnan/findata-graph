@@ -37,7 +37,7 @@ The fleet is heavily skewed toward the renewable sector, which now accounts for 
 | --- | --- | --- | --- | --- |
 | Wind Energy (40 GW) | 15,000 turbines (2.5-3 MW), Hub: 90-135m, Nacelle: 75-106 tons | 600-800T Crawler Cranes, 1-2 per turbine | 15,000-30,000 | ₹8,000-12,000 Crore |
 | Solar Energy (45 GW) | ~150 solar parks, 100 MW - 5 GW each | 50-260T Mobile Cranes, intermittent use | 3,000-5,000 | ₹2,500-4,000 Crore |
-| BESS + Hybrid (5 GW) | ~100 installations (500 MWh+), 40-ft containers, 20-30 tons each | 50-500T Mobile Cranes, 1,000-2,000 | ₹800-1,500 Crore |
+| BESS + Hybrid (5 GW) | ~100 installations (500 MWh+), 40-ft containers, 20-30 tons each | 50-500T Mobile Cranes | 1,000-2,000 | ₹800-1,500 Crore |
 
 ### Major Corporate Commitments (2024-2030)
 India's top energy players committed ₹6.95 lakh crore (~$83 billion) toward renewable capacity additions through 2030, representing ~120 GW of committed capacity.

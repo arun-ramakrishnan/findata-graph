@@ -212,7 +212,7 @@ Ajanta Pharma operates in broader Healthcare sector:
 > "The new therapy of Gynecology is taking good shape and is expected to contribute meaningfully to revenue in the coming year."
 > — Rajesh Agrawal, Joint Managing Director [^chatter-Reading_the_terrain]
 
-- **The company is rapidly gaining market share in the Indian dermatology segment and climbing up the industry rankings. Outgrowing the broader **…
+- **The company is rapidly gaining market share in the Indian dermatology segment and climbing up the industry rankings. Outgrowing the broader…**
 
 > "In Dermatology, we have gained two ranks and outperformed the market by nearly 2 tim the growth rate."
 > — Rajesh Agrawal, Joint Managing Director [^chatter-Reading_the_terrain]
@@ -227,7 +227,7 @@ Ajanta Pharma operates in broader Healthcare sector:
 > "We believe India will have aggressive competition, perhaps 15 to 20 plus companies. In other markets, we believe it will not be as aggressive, staying around 4 to 6 companies depending on who gets approval. Competition intensity in emerging markets will not be high as in India."
 > — Rajesh Agrawal, Joint Managing Director [^chatter-Reading_the_terrain]
 
-- **Ajanta Pharma firmly clarified its commitment to remaining solely in the pharmaceutical business, dismissing rumors of diversification into **…
+- **Ajanta Pharma firmly clarified its commitment to remaining solely in the pharmaceutical business, dismissing rumors of diversification into…**
 
 > "Absolutely, we are very clear about this. A clarification was issued that it was by one of promoter's family offices, not by Ajanta Pharma. Ajanta Pharma remains only in the pharma business and will continue to do so."
 > — Rajesh Agrawal, Joint Managing Director [^chatter-Reading_the_terrain]

@@ -131,7 +131,7 @@ The combined companies currently hold a 9-10% market share i…"
 > "The cement market is expanding by 6-7% year-on-year, driven by the government's focus on the infrastructure sector."
 > — Vikas Kumar, Chief Financial Officer [^chatter-Swiggy_Hyundai_Shree_Cement]
 
-- **The company is actively negotiating with third parties, including Reliance, to potentially handle 1-1.5 million tons of commercial cargo at **…
+- **The company is actively negotiating with third parties, including Reliance, to potentially handle 1-1.5 million tons of commercial cargo at…**
 
 > "We are under discussion with third-party administrators (TPAs) as well as Reliance, as there is an opportunity to handle commercial cargo. In the past, we handled one or two shipments. We are still in discussions regarding larger volumes of about 1 to 1.5 million tons."
 > — Vikas Kumar, Chief Financial Officer [^chatter-Swiggy_Hyundai_Shree_Cement]
@@ -161,7 +161,7 @@ The combined companies currently hold a 9-10% market share i…"
 > "Yes, definitely. The cost of production for Highbond is relatively low because they have captive power that fulfills 80% of their consumption. The plant also uses new technology leading to lower power and fuel consumption. There will definitely be an earning contribution from …"
 > — Vikas Kumar, Chief Financial Officer [^chatter-Swiggy_Hyundai_Shree_Cement]
 
-- **After two challenging years, the company anticipates an upward price trend and improved demand and pricing in Q1 FY27, forecasting a strong **…
+- **After two challenging years, the company anticipates an upward price trend and improved demand and pricing in Q1 FY27, forecasting a strong…**
 
 > "The last 2 years were not easy for the industry, but prices started increasing in Q4. We expect the price trend to remain upward in Q1 FY27. Demand and pricing should both improve because current pricing is at a multi-year low. Cement is a cyclical business, and after two slug…"
 > — Vikas Kumar, Chief Financial Officer [^chatter-Swiggy_Hyundai_Shree_Cement]

@@ -169,7 +169,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Despite a smoother process of the Mother Sanction released by the Government of India key states took longer to release the state mandatory funds and the state top-up funds. This led to a pile-up of receivables for the industry in FY26, which significantly increased over the F…"
 > — Ramesh Ramachandran, Managing Director [^chatter-HDFC_Groww_Havells]
 
-- **Management is responding to raw material price volatility by adjusting their produ mix and timing inventory purchases more carefully. These **…
+- **Management is responding to raw material price volatility by adjusting their produ mix and timing inventory purchases more carefully. These…**
 
 > "We definitely see volatility in raw material prices as one of the risks for FY27. There are ways we are looking to mitigate the risk by way of our company strategy. This includes focusing on specific products within our mix, selectively looking at price increases in cer market…"
 > — Ramesh Ramachandran, Managing Director [^chatter-HDFC_Groww_Havells]

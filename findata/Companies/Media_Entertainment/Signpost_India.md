@@ -63,7 +63,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "When we pitch for projects, our cautious call is to take up responsibility for projects that have a longevity of 7+ years. When we see an opportunity, it is mostly in a transit medium or a data-led medium centered around digital."
 > — Shripad Ashtekar, Managing Director [^chatter-Asian_Paints_NMDC_IndiGo]
 
-- **The firm has achieved a rapid national expansion, scaling its geographic presence eightfold since its public listing. This massive increase **…
+- **The firm has achieved a rapid national expansion, scaling its geographic presence eightfold since its public listing. This massive increase…**
 
 > "Our footprint has grown from 4 cities at the time of our 2024 listing to 32 cities. We ad approximately 866,000 square feet this year across metro, transit, and digital assets, including a significant expansion of the Bangalore Metro network."
 > — Shripad Ashtekar, Managing Director [^chatter-Asian_Paints_NMDC_IndiGo]

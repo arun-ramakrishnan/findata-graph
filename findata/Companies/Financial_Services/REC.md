@@ -139,7 +139,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "With regard to your renewable PPA (Power Purchase Agreement) not getting signed... $f$ far as REC is concerned, we are taking up only those projects for funding which have already signed PPA. So PPA not signed is not a risk to REC. But yes, there are issues in terms of signing…"
 > — Vijay Kumar Singh, Director, Projects [^chatter-Management_in_Motion]
 
-- **This insight clarifies that a significant portion of the prepayment "problem" is actu a design feature of the large RBPF (Reforms-Based and **…
+- **This insight clarifies that a significant portion of the prepayment "problem" is actu a design feature of the large RBPF (Reforms-Based and…**
 
 > "...this year, we have received the prepayments of around INR34,000 crores, of which around INR22,000 crores were from the RBPF, in which the scheme itself states that any having the surplus of the money can repay the amount and that, again, they can take the disbursement. So t…"
 > — Vijay Kumar Singh, Director [^chatter-Management_in_Motion]

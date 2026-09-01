@@ -139,7 +139,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 https://thechatter.zerodha.com/p/the-chatter-playing-the-long-game?publication_id=4898760&amp;po…"
 > — Maulik Mehta, Executive Director &amp; CEO [^chatter-Playing_the_Long_Game]
 
-- **The company expects increased traction and material movement for agrochemical intermediates in H2 FY26, with volumes projected to be higher **…
+- **The company expects increased traction and material movement for agrochemical intermediates in H2 FY26, with volumes projected to be higher…**
 
 > "So what we are seeing definitely is that moving forward, the number is no doubt higher than the 0 that it was in Q2. We are not aware of what it will grow to or plateau up to. Even right now, what we have in clarity is that material movement is to begin from, I think, the mont…"
 > — Maulik Mehta, Executive Director &amp; CEO [^chatter-Playing_the_Long_Game]

@@ -218,7 +218,7 @@ Finolex Cables Limited represents a compelling opportunity in India's electrical
 > "Big new entrant for us during the quarter was Solar Cables, we are currently hitting clo to 80%-85% of our capacity that we built up last year so thats good news again."
 > — Mahesh Viswanathan, Deputy CEO and CFO [^chatter-Half_a_century_in]
 
-- **Global fiber prices are recovering sharply due to increased demand from defense ar data center sectors. Rising realizations are expected to **…
+- **Global fiber prices are recovering sharply due to increased demand from defense ar data center sectors. Rising realizations are expected to…**
 
 > "Fiber prices are hardening... from an average of about slightly under $3, which was prevailing during quarter 3, the prices currently as on date, are closer to $5 a month so that's the extent of the demand pull that has happened over the last few months."
 > — Mahesh Viswanathan, Deputy CEO and CFO [^chatter-Half_a_century_in]

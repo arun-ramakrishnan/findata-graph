@@ -191,7 +191,7 @@ Australia is still at the discussion stage because the customer conducted certai
 
 > "The EU market's contribution to overall sales mix increased to 36\% in Q4 FY25... our long-term vision aims to restrict even our number one market to $50 \%$ or lesser than $50 \%$."
 
-- **—Chri Karuturi, Managing Director Apex expects imminent EU approval for its premium Ready-To-Eat (RTE) shrimp, unlocking higher margins and **…
+- **—Chri Karuturi, Managing Director Apex expects imminent EU approval for its premium Ready-To-Eat (RTE) shrimp, unlocking higher margins and…**
 
 > "We are just awaiting [approval] anytime soon... this will allow us to grow our ready-to-eat business in the EU with at least 10-15\% better realization."
 > — Chri Karuturi, Managing Director [^chatter-The_Mood_in_the_Room]
@@ -269,7 +269,7 @@ see a good potential."
 
 > "The EU market's contribution to overall sales mix increased to 36\% in Q4 FY25... our long-term vision aims to restrict even our number one market to $50 \%$ or lesser than $50 \%$."
 
-- **—Chri Karuturi, Managing Director Apex expects imminent EU approval for its premium Ready-To-Eat (RTE) shrimp, unlocking higher margins and **…
+- **—Chri Karuturi, Managing Director Apex expects imminent EU approval for its premium Ready-To-Eat (RTE) shrimp, unlocking higher margins and…**
 
 > "We are just awaiting [approval] anytime soon... this will allow us to grow our ready-to-eat business in the EU with at least 10-15\% better realization."
 > — Chri Karuturi, Managing Director [^chatter-The_Mood_in_the_Room]

@@ -123,7 +123,7 @@ Petronet LNG operates within the [[Energy]] sector, specifically in the LNG / na
 > "Given the softening of LNG prices, India itself is having ready-made demand of 25 million tons from power. Apart from multiple refineries and petrochemical plants are under expansion and India's capacity buildup of petrochemical itself is likely to double. Considering gas pric…"
 > — Gyanendra Kumar Sharma, Group General Manager and President, Marketing [^chatter-Bets and blueprints]
 
-- **The company anticipates global LNG prices to become more affordable in the comi years due to new liquefaction facilities, which is expected **…
+- **The company anticipates global LNG prices to become more affordable in the comi years due to new liquefaction facilities, which is expected…**
 
 > "So with favorable gas prices, which we are expecting in the coming years because of a low liquefaction facilities coming up in Middle East, U.S., Mozambique. So there will be affordable LNG in the market and it will definitely increase the gas consumption in the country."
 > — Saurav Mitra, Director, Finance & Chief Financial Officer [^chatter-Bets and blueprints]

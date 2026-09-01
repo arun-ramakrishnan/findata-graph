@@ -252,14 +252,14 @@ Dabur India Limited operates as a fast moving consumer goods company worldwide, 
 > "The Herbal segment grew 530 basis points ahead of non-herbal segment, highlighting a strong and sustained consumer shift towards the natural and herbal oral care products. Capitalizing on this trend, our portfolio outperformed overall category growth, driving g in market shares."
 > — Mohit Malhotra, Chief Executive Officer [^chatter-Reliance_PayTM_Nykaa]
 
-- **High-end juice and health-focused beverage products are growing significantly fast than basic offerings. This shift toward premium products **…
+- **High-end juice and health-focused beverage products are growing significantly fast than basic offerings. This shift toward premium products…**
 
 > "In Juices and Nectars, the premium portfolio, comprising 'Real Activ' 100% juices and coconut water, continued to scale up, delivering a robust growth of 38% and 52% respectively. The Nectar portfolio remained muted on account of an unfavorable season
 
 — Mohit Malhotra, Chief …"
 > — Mohit Malhotra, Chief Executive Officer [^chatter-Reliance_PayTM_Nykaa]
 
-- **Rivalry in the toothpaste market remains intense, particularly in large supermarket and online platforms. While the pressure eased slightly **…
+- **Rivalry in the toothpaste market remains intense, particularly in large supermarket and online platforms. While the pressure eased slightly…**
 
 > "So, I think competitive intensity in oral care has been inching up, especially in the mod trade side, with the main market leader being very aggressive on the modern trade. And late, a bit of abatement was seen in the previous quarter, but not so much so that I can s that it i…"
 > — Mohit Malhotra, Chief Executive Officer [^chatter-Reliance_PayTM_Nykaa]
@@ -269,7 +269,7 @@ Dabur India Limited operates as a fast moving consumer goods company worldwide, 
 > "Gur has done exceedingly well for us. Ratnaprash has done well for us. So, all the newer variants that we have added in Chyawanprash have done. Sugar-free is doing exceedingly well. We have almost doubled our distribution in sugar-free also."
 > — Mohit Malhotra, Chief Executive Officer [^chatter-Reliance_PayTM_Nykaa]
 
-- **Management is optimistic that the worst of the demand slowdown and inflation is over. They expect a steady increase in sales performance as **…
+- **Management is optimistic that the worst of the demand slowdown and inflation is over. They expect a steady increase in sales performance as…**
 
 > "The next year growth is going to be more volume-driven growth and not so much price-driven or value-driven growth. So, that is a little remark. And volume-driven growth is a little harder to get as compared to a combination of a value and a volume."
 > — Mohit Malhotra, Chief Executive Officer [^chatter-Reliance_PayTM_Nykaa]

@@ -133,7 +133,7 @@ pockets which are yet to fully unfold or we are yet to fully exploit the opportu
 > "Our solar products business was a standout performer, delivering two-fold year-on-year growth and emerging as the largest category within the FMEG portfolio."
 > — Shashank Jagani, Head of Strategy and Investor Relations [^chatter-Meesho_Marico_Bajaj]
 
-- **Polycab is currently using about three-quarters of its available manufacturing sp while simultaneously building more. This strategy ensures **…
+- **Polycab is currently using about three-quarters of its available manufacturing sp while simultaneously building more. This strategy ensures…**
 
 > "In terms of capacity utilization, on a full-year basis, we were at mid-70s, around 75%. There is room for growth there, plus we are adding capacity. Looking at our capex guida we have already pumped 1,500 crore in this financial year, which will add to our capaci
 

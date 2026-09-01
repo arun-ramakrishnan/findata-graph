@@ -78,7 +78,7 @@ _Source: yfinance | Refreshed: 2026-08-11_
 > "In spices, I would like to reiterate the fact that we've had two straight years of deflation This unprecedented price movement of over 30% was led by chili... Early indicators are suggesting that there will be an inflationary trend in spices in the coming year."
 > — Sanjay Sharma, Managing Director and CEO [^chatter-Half_a_century_in]
 
-- **Strong demand for the company's spice products is currently masked by lower price due to commodity deflation. Investors should focus on the **…
+- **Strong demand for the company's spice products is currently masked by lower price due to commodity deflation. Investors should focus on the…**
 
 > "Our spices portfolio continues to deliver a fantastic volume growth of 10.1%. However, revenue growth remains modest because of deflation in key raw materials."
 > — Sanjay Sharma, Managing Director and CEO [^chatter-Half_a_century_in]
@@ -103,7 +103,7 @@ _Source: yfinance | Refreshed: 2026-08-11_
 > "In UAE, Eastern is now the number one Indian spice brand in household reach across a households... Arabic range now contributes to one-third of brand Eastern's household penetration in Saudi Arabia."
 > — Sanjay Sharma, Managing Director and CEO [^chatter-Half_a_century_in]
 
-- **The company is actively seeking acquisitions to expand its business footprint beyond current regional strongholds. Successful mergers could **…
+- **The company is actively seeking acquisitions to expand its business footprint beyond current regional strongholds. Successful mergers could…**
 
 > "As far as M&A is concerned... I can assure you that that has now become a major prior for us and we are working quite aggressively with a few opportunities that we are looking at."
 > — Sanjay Sharma, Managing Director and CEO [^chatter-Half_a_century_in]

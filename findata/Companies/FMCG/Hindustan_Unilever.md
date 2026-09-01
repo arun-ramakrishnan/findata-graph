@@ -234,7 +234,7 @@ Hindustan Unilever Limited (HUL) is India's leading consumer goods company, oper
 > "To capture fully this opportunity and lead the channel shift, we have established a dedicated quick commerce organisation. In this structure, the quick commerce lead direct reports into the HUL sales head, enabling faster decisions, sharper execution and higher focus on this h…"
 > — Priya Nair, Chief Executive Officer & Managing Director [^chatter-Bets and blueprints]
 
-- **Masstige and D2C are key strategic priorities, with HUL rapidly expanding its presence through organic and inorganic growth, leveraging its **…
+- **Masstige and D2C are key strategic priorities, with HUL rapidly expanding its presence through organic and inorganic growth, leveraging its…**
 
 > "Masstige and within that D2C is a critical part of our fewer, bigger bets agenda, and we are scaling our presence in this segment with speed and intent. We have been expanding presence, both through organic and inorganic routes, leveraging HUL scale to accelerate growth by bui…"
 > — Priya Nair, Chief Executive Officer & Managing Director [^chatter-Bets and blueprints]

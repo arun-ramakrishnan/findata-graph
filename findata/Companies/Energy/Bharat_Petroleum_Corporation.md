@@ -103,7 +103,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Our long-term projection is that debt-to-equity will not exceed 1:1 at the group level even with all planned capex. Once projects are completed, new cash flows will come in, and t debt-to-equity should return to a normal level in a couple of years. We ensure debt-to-equity doe…"
 > — V.R.K. Gupta, Director Finance [^chatter-Tata_Steel_LIC]
 
-- **The company is justifying investments in low-yield renewable projects by integrating them directly into refinery operations to lower energy **…
+- **The company is justifying investments in low-yield renewable projects by integrating them directly into refinery operations to lower energy…**
 
 > "For renewables, returns may only be around 8-9% but we have net-zero objectives. Wh returns are mathematically lower, using this renewable power within our refineries make the returns much higher than purchasing power externally. It meets both net-zero and profitability goals."
 > — V.R.K. Gupta, Director Finance [^chatter-Tata_Steel_LIC]

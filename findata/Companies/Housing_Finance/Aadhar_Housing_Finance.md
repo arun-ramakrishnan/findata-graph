@@ -317,12 +317,12 @@ Aadhar Housing Finance is a leading player in low-income housing finance in Indi
 > "As mentioned earlier, we are very positive on the recent GST 2.0 reforms and are expec to significantly accelerate growth in the low and middle-income housing segment. The reduction in GST on inputs such as cement, marble, granite and bricks is lowering the cc of construction …"
 > — Rishi Anand, Managing Director and Chief Executive Officer [^chatter-A_Quarter_That_Refuses_To_Behave]
 
-- **Aadhar Housing Finance maintains strong asset-liability management with 73\% floating borrowings and $75 \%$ floating assets, ensuring good **…
+- **Aadhar Housing Finance maintains strong asset-liability management with 73\% floating borrowings and $75 \%$ floating assets, ensuring good…**
 
 > "In terms of fixed and floating nature of our book, $73 \%$ of our borrowing is floating and $75 \%$ of our assets are floating. So there is a great degree of matching in these."
 > — Rajesh Viswanathan, Chief Financial Officer [^chatter-A_Quarter_That_Refuses_To_Behave]
 
-- **Flattish home loan disbursements were primarily due to extended monsoons impacting self-construction in the North and a cautionary approach **…
+- **Flattish home loan disbursements were primarily due to extended monsoons impacting self-construction in the North and a cautionary approach…**
 
 > "Primary reason is extended monsoons. When there are extended monsoons and good chunk of our AUM incremental portfolio happens to be self-construction. For example,
 

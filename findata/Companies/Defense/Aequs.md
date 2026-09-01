@@ -51,12 +51,12 @@ Aequs is an Indian aerospace manufacturing and processing company operating aero
 > "In February 2026, we signed an MOU with the government of Tamil Nadu to invest 1,9 crores over 10 years for new vertically integrated aerospace manufacturing ecosystem within a new aerospace and defense park at Hosur across 250 acres in the SIPCOT Shoolagiri Industrial Park. T…"
 > — Arvind Melligeri, Executive Chairman and CEO [^chatter-ONGC_Divis_LG]
 
-- **Aequs is shifting its product mix toward more sophisticated aviation components t require specialized technical skills. These complex parts **…
+- **Aequs is shifting its product mix toward more sophisticated aviation components t require specialized technical skills. These complex parts…**
 
 > "We are also actively moving up the value chain into landing gear and engine componer where our integrated forging, machining and surface treatment capabilities deliver significant competitive advantage. These are higher complexity, higher value parts that command better margin…"
 > — Rajiv Kaul, Co-founder and Managing Director [^chatter-ONGC_Divis_LG]
 
-- **To counter the loss of Hasbro, the company has secured a long-term deal with Matt to fill its production capacity. Management believes this **…
+- **To counter the loss of Hasbro, the company has secured a long-term deal with Matt to fill its production capacity. Management believes this…**
 
 > "Yes, we have signed a long-term agreement with Mattel and both sides are fully benefic to scaling volumes. We also expect Mattel volumes to absorb the capacity impact from Hasbro. More broadly, we continue to engage with large strategic customers across the consumer segment an…"
 > — Rajiv Kaul, Co-founder and Managing Director [^chatter-ONGC_Divis_LG]

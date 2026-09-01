@@ -63,7 +63,7 @@ ITC is a diversified conglomerate operating in FMCG, Paperboards, Agri Business,
 > "Access to capital is no longer a problem in India if you have a great idea, capital is available. So there are newer entrepreneurs coming into legacy systems, and many more people entering new-age systems like D2C, alongside a lot of local, regional, national, and MNC players …"
 > — Sanjiv Puri, Chairman & Managing Director, ITC [^chatter-Patience_and_payoff]
 
-- **ITC's portfolio strategy reflects a deliberate balance between nurturing its core and actively building the brands of tomorrow through both **…
+- **ITC's portfolio strategy reflects a deliberate balance between nurturing its core and actively building the brands of tomorrow through both…**
 
 > "We've been doing this at ITC both organically by scaling our core brands and seeding vectors for future growth, and also inorganically, particularly when seeding those future growth vectors. We've acquired several new-age brands like Yoga Bar, 24 Mantra, Prasu Mother Sparsh, a…"
 > — Sanjiv Puri, Chairman & Managing Director, ITC [^chatter-Patience_and_payoff]
@@ -73,7 +73,7 @@ ITC is a diversified conglomerate operating in FMCG, Paperboards, Agri Business,
 > "Talent is critical — entrepreneurial talent. At ITC, we call it 'proneurial' talent. You need people with a high degree of learning agility, and you need processes designed to empower fast decision-making. These are the real ingredients required for enterprises to reimagine th…"
 > — Sanjiv Puri, Chairman & Managing Director, ITC [^chatter-Patience_and_payoff]
 
-- **India's talent story is not just about what is available domestically it is also about the growing pull of returning diaspora professionals **…
+- **India's talent story is not just about what is available domestically it is also about the growing pull of returning diaspora professionals…**
 
 > "The key is to blend people with deep domain expertise with strong market insights. There is also a tremendous pool of experienced talent overseas people with great wisdom who actually want to come back to India because of the excitement here. So you blend talent that has grown…"
 > — Sanjiv Puri, Chairman & Managing Director, ITC [^chatter-Patience_and_payoff]
@@ -98,7 +98,7 @@ ITC is a diversified conglomerate operating in FMCG, Paperboards, Agri Business,
 > "Quick commerce is a large segment. It is estimated to be around one trillion rupees today and some data suggests it could be six trillion by 2030. We are seeing growth close to 409 It is not about taking your standard general trade portfolio and trying to sell it in every chan…"
 > — Sanjiv Puri, Chairman & Managing Director, ITC [^chatter-Patience_and_payoff]
 
-- **One of the less-discussed advantages of quick commerce is its ability to surface and scale niche products that physical retail simply could **…
+- **One of the less-discussed advantages of quick commerce is its ability to surface and scale niche products that physical retail simply could…**
 
 > "One of the advantages of e-commerce and quick commerce is that you can bring on boa a lot more variety and niches, which you cannot do in a physical store due to space constraints. Consumers in India always wanted certain specialised products but found it difficult to get them…"
 > — Sanjiv Puri, Chairman & Managing Director, ITC [^chatter-Patience_and_payoff]
@@ -118,7 +118,7 @@ ITC is a diversified conglomerate operating in FMCG, Paperboards, Agri Business,
 > "Premiumisation is very natural to a growing economy it is a reflection of economic progress. Some time back, you had just the Ambassador or the Fiat or the Standard in the car market. Look at the variety we have today. Premiumisation is a sign of economic progress, and it is g…"
 > — Sanjiv Puri, Chairman & Managing Director, ITC [^chatter-Patience_and_payoff]
 
-- **The assumption that premium consumption is an urban story is increasingly being challenged by what ITC is seeing on the ground across rural **…
+- **The assumption that premium consumption is an urban story is increasingly being challenged by what ITC is seeing on the ground across rural…**
 
 > "You'll be surprised at how widely premium products are sold across the country. With rural India now owning smartphones and becoming far more aware than before, aspirat are rising there too. We are surprised not just that they are selling in rural India, but at t depth to whic…"
 > — Sanjiv Puri, Chairman & Managing Director, ITC [^chatter-Patience_and_payoff]
@@ -145,7 +145,7 @@ Gen Alpha — 300 million strong — who will influence the next wave of consump
 > "Geopolitics, climate change, technology-driven disruption, evolving consumer preferen and demographic shifts these are all par for the course now. We can no longer be surprised by unanticipated developments in the world. We have to stay invested and learn to navigate these sit…"
 > — Sanjiv Puri, Chairman & Managing Director, ITC [^chatter-Patience_and_payoff]
 
-- **On the question of food regulation, the conversation cannot stop at rules and guardrails — consumer awareness and individual accountability **…
+- **On the question of food regulation, the conversation cannot stop at rules and guardrails — consumer awareness and individual accountability…**
 
 > "There are regulations in India that were made a long time back, and the world and India have both changed. We need to contemporise them. At the end of the day, each one of us has to take responsibility for our health. It may be perfectly fine to have one samosa, but whether it…"
 > — Sanjiv Puri, Chairman & Managing Director, ITC [^chatter-Patience_and_payoff]

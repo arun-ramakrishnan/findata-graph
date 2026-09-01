@@ -188,7 +188,7 @@ The interplay of seasonal factors means that dairy companies, like Dodla, can ac
 > "To put the squeeze in context, the spread between our milk realization of 59.4 and the procurement cost of 41.3 narrowed to 18.1 per liter from 19.8 a year ago, which largely explains the margin decline from 8.2% to 5.4%. In addition to that, we witnessed some increase in our …"
 > — BVK Reddy, CEO [^chatter-IDFC_Tata_Consumer]
 
-- **The investment in Sitfarm serves as a low-cost research laboratory to understand emerging D2C trends and consumer habits. This conservative **…
+- **The investment in Sitfarm serves as a low-cost research laboratory to understand emerging D2C trends and consumer habits. This conservative…**
 
 > "Regarding the capital allocation to Sitfarm, it is basically for us a way to learn and keep closer watch on how the modern high-value D2C products behave. For example, we believe that for a consumption pattern to become a habit from a fad, it will take a significantly long tim…"
 > — Dodla Sunil Reddy, Managing Director [^chatter-IDFC_Tata_Consumer]

@@ -266,7 +266,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Internet ticketing continued to be our most profitable segment and the core strength of company. Revenue stood at INR401 crores, up 13.2% year-on-year. Nearly 89% of the reserved railway tickets in India are now booked through our online platform, underscore our leadership in …"
 > — Sudhir Kumar, Director, Finance and Chief Financial Officer [^chatter-Bets and blueprints]
 
-- **The catering business saw significant revenue growth, including INR70 crores from Vande Bharat trains, primarily driven by the introduction **…
+- **The catering business saw significant revenue growth, including INR70 crores from Vande Bharat trains, primarily driven by the introduction…**
 
 > "We have seen that our revenue from Vande Bharat train this time, the billing has increased by INR70 crores and so be the license fee. So the main reason for factoring business revenue enhancement is introduction of additional 40 trains during the period."
 > — Sanjay Kumar Jain, Chairman and Managing Director [^chatter-Bets and blueprints]

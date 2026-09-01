@@ -175,7 +175,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "We closed the year with our highest ever deal wins in the last many years.Notably, we secured two mega deals over consecutive quarters aimed at accelerating innovation, strengthening digital resilience, and delivering AI-led operational efficiencies."
 > — Mohit Joshi, CEO and Managing Director [^chatter-HDFC_Groww_Havells]
 
-- **Despite modest revenue growth, the company delivered strong margin expansion through disciplined execution, signalling improved operational **…
+- **Despite modest revenue growth, the company delivered strong margin expansion through disciplined execution, signalling improved operational…**
 
 > "Full year revenues for Tech Mahindra stand at $6.385 billion, up 1.9% on a reported ba and 0.6% in constant currency. During the year, our focus remained on disciplined execution, staying close to clients, and progressing our solution-led approach. Operating profit is $797 mil…"
 > — Mohit Joshi, CEO and Managing Director [^chatter-HDFC_Groww_Havells]

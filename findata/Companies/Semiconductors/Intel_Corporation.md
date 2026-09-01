@@ -101,7 +101,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "I mean shortage is pretty much across our business, I would say. We are definitely tight Intel 10 and 7. Obviously we're not looking to build more capacity there. And so as we g more demand, we're constrained. In some ways we're living off of inventory. We're also trying to ki…"
 > — David Zindner, CFO [^chatter-Known_Unknowns]
 
-- **Intel prioritizing debt repayment with improved cash position; CEO demanding disciplined capex approach requiring firm customer commitments **…
+- **Intel prioritizing debt repayment with improved cash position; CEO demanding disciplined capex approach requiring firm customer commitments…**
 
 > "Obviously we're in a great position. I'd say as we think about this cash our first focus is delever. I mean, that's one of the things we really wanted to, when Lip came in, he really was upset about the balance sheet. And so, we've done a lot to work on that and improv
 

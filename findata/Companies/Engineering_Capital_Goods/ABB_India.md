@@ -170,7 +170,7 @@ held back the decisions. And we do believe those projects are still in the pipel
 > "The India-Europe Free Trade Agreement (FTA) has been signed. While it may take about 6 months to be ratified and for the benefits to show, it is a net positive for India. It creates two-way street of confidence, allowing us to deploy more portfolio and integrate our supply cha…"
 > — Sanjeev Sharma, Managing Director [^chatter-Patience_and_payoff]
 
-- **The company pre-purchased imported materials to navigate new quality control regulations in India. This move secures supply but will result **…
+- **The company pre-purchased imported materials to navigate new quality control regulations in India. This move secures supply but will result…**
 
 > "Regarding QCO, we strategically stocked imported material in 2025, which will be consumed over the next two quarters, keeping material costs slightly higher."
 

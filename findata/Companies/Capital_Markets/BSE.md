@@ -132,7 +132,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "For FY26, co-location revenues increased to 171 crores compared to 74 crores in FY25 reflecting strong growth, healthy utilization levels in the country, and the benefit of the revised throttle charges framework introduced in July 2025. Co-location remains a strategically impo…"
 > — Sundararaman Ramamurthy, MD and CEO, BSE Limited [^chatter-Meesho_Marico_Bajaj]
 
-- **BSE is moving beyond equity trading by launching a National Pension Sys platform to capture a wider range of retail financial savings. This **…
+- **BSE is moving beyond equity trading by launching a National Pension Sys platform to capture a wider range of retail financial savings. This…**
 
 > "We are evolving from being India's senior mutual fund distributor into the country's definitive super gateway for long-term wealth. With STAR NPS, we now capture the entire financial life cycle of the Indian investor from their first SIP to their final pension."
 > — Sundararaman Ramamurthy, MD and CEO, BSE Limited [^chatter-Meesho_Marico_Bajaj]

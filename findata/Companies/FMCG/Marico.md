@@ -235,7 +235,7 @@ Marico is rapidly expanding its premium personal care portfolio across internati
 > "At a consolidated level, we will aim to deliver double-digit revenue growth to cross 15,000 crores in revenue and high-teen EBITDA growth, subject to stable macros. Over the medium term, our strategy remains anchored in driving profitable growth through expansion of the total …"
 > — Saugata Gupta, MD and CEO [^chatter-Meesho_Marico_Bajaj]
 
-- **The company's recent acquisitions are already contributing healthy profits rather t burning cash. This immediate financial benefit supports **…
+- **The company's recent acquisitions are already contributing healthy profits rather t burning cash. This immediate financial benefit supports…**
 
 > "Two of the three acquisitions—Cosmiq and Skinetics—are profitable. Skinetics is in th mid-20s and Cosmiq is in the high teens. Additionally, Plix, a large part of our digital business, is experiencing an upward trajectory in operating margins."
 > — Saugata Gupta, MD and CEO [^chatter-Meesho_Marico_Bajaj]

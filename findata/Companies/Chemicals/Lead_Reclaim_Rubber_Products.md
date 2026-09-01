@@ -32,9 +32,9 @@ Lead Reclaim And Rubber Products Limited is a manufacturer of premium quality re
 
 | **Whole Tyre Reclaim Rubbers** | **Butyl Tube Reclaim Rubber** | **Natural Tube Reclaim Rubber** |
 | --- | --- | --- |
-| **Grades**: LEAD WTRHT | LEAD WTRHR | LEAD WTRSF | LEAD WTR FINE | **Grades**: LEAD BTR | LEAD BTRHT | **Grades**: LEAD NR | LEAD NR HT |
+| **Grades**: LEAD WTRHT, LEAD WTRHR, LEAD WTRSF, LEAD WTR FINE | **Grades**: LEAD BTR, LEAD BTRHT | **Grades**: LEAD NR, LEAD NR HT |
 | **Properties**<br>• Reduce power consumption<br>• High rate of curing<br>• Short & Fast Mixing<br>• Low heat buildup<br>• Low thermo plasticity<br>• Excellent Ageing<br>• Cost Reduction | **Preparations**<br>• Excellent impermeability to gases<br>• High temperature resistance<br>• Flexible & eco-friendly<br>• Economical alternative to virgin rubber | **Preparations**<br>• Sustainability<br>• Environment-Friendly<br>• Performance<br>• Versatile |
-| **Featured Uses**<br>• Automobiles component<br>• Footwear<br>• Tires, Tread Rubber<br>• Conveyor belts<br>• Cycle Tyres | **Featured Uses**<br>• Tire Inner Liner<br>• Adhesives<br>• Cables<br>• Industrial Pipes<br>• Rubber Products<br>• Butyl Inner Tube |
+| **Featured Uses**<br>• Automobiles component<br>• Footwear<br>• Tires, Tread Rubber<br>• Conveyor belts<br>• Cycle Tyres | **Featured Uses**<br>• Tire Inner Liner<br>• Adhesives<br>• Cables<br>• Industrial Pipes<br>• Rubber Products<br>• Butyl Inner Tube | — |
 
 ## Applications
 

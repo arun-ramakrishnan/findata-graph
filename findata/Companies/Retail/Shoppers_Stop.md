@@ -93,12 +93,12 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "The departmental store business crossed 5,000 crores revenue for the first time, which is big milestone for us. At the start of the year, we had given a guidance of mid-single digit LFL and I am very happy to share that we ended the year with 4.7%, which is our highest ever LF…"
 > — Kavindra Mishra, Managing Director and CEO [^chatter-Meesho_Marico_Bajaj]
 
-- **The company's top-tier loyalty program is seeing record high enrollment extremely high retention rates among its wealthiest customers. This **…
+- **The company's top-tier loyalty program is seeing record high enrollment extremely high retention rates among its wealthiest customers. This…**
 
 > "The premium end of our loyalty, which is our black card program, has reported the high ever 67,000 new recruitments and highest ever renewals of 66,000, with the renewal rate being an impressive 74%. Demonstrating deep value proposition from a customer perspective besides pers…"
 > — Kavindra Mishra, Managing Director and CEO [^chatter-Meesho_Marico_Bajaj]
 
-- **The beauty distribution segment is growing at an exceptional pace and has become dominant player in the Indian market. This diversification **…
+- **The beauty distribution segment is growing at an exceptional pace and has become dominant player in the Indian market. This diversification…**
 
 > "Our beauty distribution business continued its strong growth trajectory, generating revenue of 426 crores, which is equivalent to 650 crores of GMV, with a stellar 81% growth year-over-year and delivering a three-year CAGR of 90%. This would make us the largest beadistributor …"
 > — Kavindra Mishra, Managing Director and CEO [^chatter-Meesho_Marico_Bajaj]

@@ -132,17 +132,17 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Mankind's chronic share increased by 120 basis points year-on-year to approximately 4 during the quarter and 190 basis points to approximately 39% for the full year FY26. We expect this growth momentum to continue. We witnessed a 1.1x outperformance of the in cardiac and a 2.1…"
 > — Rajeev Juneja, Vice Chairman and Managing Director [^chatter-Tata_Steel_LIC]
 
-- **The company achieved its highest organic growth rate in the domestic market since acquiring Bharat Serums and Vaccines. This indicates that **…
+- **The company achieved its highest organic growth rate in the domestic market since acquiring Bharat Serums and Vaccines. This indicates that…**
 
 > "In Q4 FY26, our domestic revenue grew 13.4% year-on-year to 2,886 crores. More importantly, our organic growth excluding OTC stood at 10.1% ,the highest level since the BSV acquisition. This growth was broad-based, driven by improving execution across therapies, sustained mome…"
 > — Sheetal Arora, Chief Executive Officer and Whole-time Director [^chatter-Tata_Steel_LIC]
 
-- **The company is ramping up capital investment to build a state-of-the-art biotechnology manufacturing plant. This move signals a significant **…
+- **The company is ramping up capital investment to build a state-of-the-art biotechnology manufacturing plant. This move signals a significant…**
 
 > "As highlighted by Rajeev, in line with our enhanced focus on R&D and specialized products, we are setting up a new biotech facility in Vadodara. Accordingly, our capex guidance for FY27 is expected to be in the range of 6% to 7% of FY27 revenue."
 > — Ashutosh Dhawan, Global Chief Financial Officer [^chatter-Tata_Steel_LIC]
 
-- **Despite minor quarterly variations, management insists that the long-term potential for chronic care in India remains massive and untapped. **…
+- **Despite minor quarterly variations, management insists that the long-term potential for chronic care in India remains massive and untapped.…**
 
 > "There is no pressure on chronic therapy because it is a long-term growth story. We believe the chronic growth trajectory remains sustainable over the long term. India continues to remain significantly under-penetrated in therapies like diabetes, obesity, cardio-care, and respi…"
 

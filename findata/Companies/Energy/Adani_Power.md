@@ -109,7 +109,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "As we begin this new financial year, one thing is increasingly clear: in times of geopolit uncertainties and extreme weather events, a nation needs abundant, reliable and domestically available energy. As India's economy continues to advance, the importance reliable baseload p…"
 > — S.B. Khyalia, Chief Executive Officer [^chatter-Infosys_Adani_Power]
 
-- **Management outlined Adani Power's strategic direction beyond thermal power, confirming its intent to diversify into hydro and nuclear while **…
+- **Management outlined Adani Power's strategic direction beyond thermal power, confirming its intent to diversify into hydro and nuclear while…**
 
 > "Looking beyond the horizon, we are entering new and exciting territories as we expand thermal base. We are also diversifying into international hydropower projects and prepa
 
@@ -131,7 +131,7 @@ ourselves for new opportunities in the nuclear power field. We are strongly comm
 > "Furthermore, we have ensured revenue visibility for our current operations with 95% of operating capacity now tied up under long-term and medium-term PPA. This strategy provides stability and derisks our business from short-term market volatility."
 > — S. B. Khyalia, Chief Executive Officer [^chatter-Meesho_Marico_Bajaj]
 
-- **Adani Power is expanding its focus internationally into thermal, hydro transmission sectors, including a new 570 MW hydropower plant SPV in **…
+- **Adani Power is expanding its focus internationally into thermal, hydro transmission sectors, including a new 570 MW hydropower plant SPV in…**
 
 > "We are expanding our area of focus beyond the Indian territory. We will evaluate inter projects in thermal, hydro, and transmission sectors and invest in attractive opportunities that qualify. We have recently incorporated an SPV in Bhutan setting up a 570-megawatt hydro power…"
 

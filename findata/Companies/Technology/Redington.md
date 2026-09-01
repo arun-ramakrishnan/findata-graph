@@ -65,7 +65,7 @@ Redington — mid-cap IT distribution & services (Apple, HP, Lenovo, Cisco distr
 
 > "The first is the consumption models moving from perpetual licenses to flexible, outcom based subscriptions. The customer's choice to subscribe for a service rather than owning license is a major shift. The second part is about platform-led distribution."
 
-- **— Sayantan, Global Head of SSG Management is targeting $5 billion in revenue for the software segment with health margins. If they can sell **…
+- **— Sayantan, Global Head of SSG Management is targeting $5 billion in revenue for the software segment with health margins. If they can sell…**
 
 > "Overall, in the next 3 years, we expect to achieve a revenue of about $5 billion with a g margin range between 5.5% and 6%. If the professional services mix improves, this can definitely be better than 6%."
 > — S.V. Krishnan, Director - Finance [^chatter-Reliance_Vedanta_Gillette]

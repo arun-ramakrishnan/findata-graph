@@ -86,7 +86,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Aramco stands to benefit from the OPEC+ production increases which started in April with the announcement of an additional 0.2 million barrels per day by May, generating potential annual addition of $\$ 1.9$ billion of operating cash flow at $\$ 60$ per barrel Brent using our …"
 
-- **Aramco identifies tight supply conditions despite recent price weakness, with inventories at 5-year lows and only 40 days of coverage. This **…
+- **Aramco identifies tight supply conditions despite recent price weakness, with inventories at 5-year lows and only 40 days of coverage. This…**
 
 > "Tending to the macro environmental outlook, despite current market volatility, oil mar fundamentals remain sound. In Q1 2025, demand reached a record 104.3 million barrel per day, 1.7 million barrels per day higher than in Q1 2024, and similarly refining in Q1 was also at reco…"
 

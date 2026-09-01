@@ -553,7 +553,7 @@ Highlighting balance sheet strength with net debt broadly flat and CAPEX of $\si
 
 ---
 
-# JSW Energy I_ Mid Cap I_ Energy 
+# JSW Energy | Mid Cap | Energy 
 
 JSW Energy is a diversified power generation company, operating thermal, hydro, a renewable energy assets. It focuses on integrating renewable sources, offering dispatchable energy solutions, and expanding across the energy value chain, includ transmission, trading, mining, energy storage, and green hydrogen.
 

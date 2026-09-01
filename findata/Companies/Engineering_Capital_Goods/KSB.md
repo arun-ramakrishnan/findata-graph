@@ -96,7 +96,7 @@ especially in the foundries where there is restriction of the LPG and the gas su
 > "The other is of course our supplies, our exports to Middle East region. That is also we are trying to mitigate and try to find another way. But that is also under review and discussi So, our exports to Middle East may get hampered temporarily because of shipments."
 > — Rajeev Jain, Managing Director [^chatter-Swiggy_Hyundai_Shree_Cement]
 
-- **KSB's solar business achieved exceptional order intake growth of 112% CAGR, supported by new in-house manufacturing of solar controllers to **…
+- **KSB's solar business achieved exceptional order intake growth of 112% CAGR, supported by new in-house manufacturing of solar controllers to…**
 
 > "So talking about solar business, 112% order intake CAGR. Some of the major highlight we have started in-house manufacturing of solar controller making ourselves more competitive and technical leader."
 > — Mahesh Bhave, Chief Financial Officer [^chatter-Swiggy_Hyundai_Shree_Cement]

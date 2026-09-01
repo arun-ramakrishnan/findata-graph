@@ -105,7 +105,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Our volume growth of 6.3% for the quarter beat IPM volume growth, which is at 1.2%."
 > — Kirti Ganorkar, Managing Director [^chatter-Patience_and_payoff]
 
-- **The company is prepared to capture the massive obesity and diabetes market in Ind immediately upon patent expiry. Early regulatory approval **…
+- **The company is prepared to capture the massive obesity and diabetes market in Ind immediately upon patent expiry. Early regulatory approval…**
 
 > "Sun's plan is to be in the market on day one of a generic launch [of Semaglutide]... We I already received the regulator's approval for both the indication of chronic weight management as well as treatment of type 2 diabetes."
 > — Kirti Ganorkar, Managing Director [^chatter-Patience_and_payoff]
@@ -135,7 +135,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "For emerging markets, we are looking at tuck-ins or smaller acquisitions which we can at integrating with our existing business to get scale ... We have also indicated that for an acquisition, if necessary, we are comfortable raising debt."
 > — Dilip Shanghvi, Chairman [^chatter-Patience_and_payoff]
 
-- **The company is reconsidering its entry into the biosimilar market due to evolving regulations and market dynamics. A formal entry into this **…
+- **The company is reconsidering its entry into the biosimilar market due to evolving regulations and market dynamics. A formal entry into this…**
 
 > "On biosimilars, we are evaluating and re-looking at it because we have to look at it comprehensively, including manufacturing investment, overall cost of development, and time for the investment to produce a meaningful return."
 > — Dilip Shanghvi, Chairman [^chatter-Patience_and_payoff]

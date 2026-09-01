@@ -322,7 +322,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "We will be stopping guidance for now. Given the current macro environment, we believ is prudent to utilize FY26 to build strength, predictability and stability across our portfolio."
 > — Sukamal Banerjee, CEO [^chatter-Sharp_Takes]
 
-- **This highlights Cyient's sharp focus on India-based Global Capability Centers (GCCs), a fast-growing, margin-sensitive segment and reflects **…
+- **This highlights Cyient's sharp focus on India-based Global Capability Centers (GCCs), a fast-growing, margin-sensitive segment and reflects…**
 
 > "We have now created a GCC-focused business unit... We will ensure EBIT is not dilute. from this business."
 

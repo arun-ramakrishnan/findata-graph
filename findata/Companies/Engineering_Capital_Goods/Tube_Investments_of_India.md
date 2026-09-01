@@ -139,12 +139,12 @@ The company has deliberately avoided retrofitting ICE vehicles for EV conversion
 > "After that we see a really uptick in demand, but which can be coupled with the festival season also. October as well as November, both seems to be very very strong months like earlier festival months used to be but this time it is much better."
 > — Mukesh Ahuja, Managing Director [^chatter-The_Pivot_Quarter_output]
 
-- **The GST cut on ICE vehicles has a minimal impact on e-tractors and small commercial vehicles but significantly impacts the three-wheeler EV **…
+- **The GST cut on ICE vehicles has a minimal impact on e-tractors and small commercial vehicles but significantly impacts the three-wheeler EV…**
 
 > "So, for example, in the e - trac tor business and the small commercial vehicle business, the impact is minimal and is recoverable in two months to three months from a total cost of ownership perspective. In case of three - wheeler business, where we see the impact is the highe…"
 > — Jalaj Gupta, Managing Director, TI Clean Mobility [^chatter-The_Pivot_Quarter_output]
 
-- **The company has deliberately avoided retrofitting ICE vehicles for EV conversion, believing that purpose-built EVs are a superior approach. **…
+- **The company has deliberately avoided retrofitting ICE vehicles for EV conversion, believing that purpose-built EVs are a superior approach.…**
 
 > "So, we have carefully and we have purposely chosen not to go this route, because we are convinced that grounds up EV is any day a better bet as compared to a retrofit on any of vehicles. That is our understanding and our take on this."
 > — Jalaj Gupta, Managing Director, TI Clean Mobility [^chatter-The_Pivot_Quarter_output]

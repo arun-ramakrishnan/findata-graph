@@ -87,7 +87,7 @@ of these AI investments."
 > "The top five customers wouldn't be routine course of business. It's something that we've intentionally made a call to look at our concentration risk and de-risk that a little bit."
 > — Vijay NP, Chief Financial Officer [^chatter-Half_a_century_in]
 
-- **The company claims a unique competitive advantage by bridging the gap between broadcast hardware and new streaming formats on one platform. **…
+- **The company claims a unique competitive advantage by bridging the gap between broadcast hardware and new streaming formats on one platform.…**
 
 > "Amagi is the only platform in the world today to provide a unified capability across the existing traditional operating environments moving to the cloud and eventually enabling them to stream to the new world."
 > — Baskar Subramanian, Managing Director and CEO [^chatter-Half_a_century_in]

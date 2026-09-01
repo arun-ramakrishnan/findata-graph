@@ -133,7 +133,7 @@ tags:
 > "If you see from the volume perspective, what has surprised us is the traction we are gett now in refrigerators, which is more than AC in some ways. We expect very, very shortly $j$ refrigerators to stabilize at 55,000-60,000 units a month. So, in refrigerators, we really s ver…"
 > — Bikram Nag, Chairman [^chatter-Inflection_Watch]
 
-- **Beyond the A\&M; project for material cost, IFB is focusing on increasing sales volumes, raising Market Operating Price (MOP), and reducing **…
+- **Beyond the A\&M; project for material cost, IFB is focusing on increasing sales volumes, raising Market Operating Price (MOP), and reducing…**
 
 > "His question is: what are you doing to increase GP? To increase gross margin, we are working on three fronts.
 

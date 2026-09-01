@@ -116,7 +116,7 @@ Eicher Motors Limited is a leading Indian automotive company operating through t
 > "So for 450cc and 650cc, there is a capacity which is built, which is good enough because currently, the utilization is slightly lower. With the debottlenecking and a bit of automations, we can cater to the coming year's growth. And 350cc, obviously, because during the festive …"
 > — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
 
-- **A new trade deal could significantly reduce tariffs on U.S. exports to 18%, down fro 41-42% (including steel/aluminum tariffs), potentially **…
+- **A new trade deal could significantly reduce tariffs on U.S. exports to 18%, down fro 41-42% (including steel/aluminum tariffs), potentially…**
 
 > "With the latest trade deal, which has been done, the rate is 18%. However, there is a steep and aluminum tariff, that, there is no clarity as of now. We are waiting for a bit more clear on that. With that, the weighted average tariff is almost about 41% to 42% currently. If it…"
 > — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
@@ -136,7 +136,7 @@ Eicher Motors Limited is a leading Indian automotive company operating through t
 > "Our focus has always been the middleweight 250cc to 750cc. Currently, we are at about 350cc, 450cc and 650cc. You will see the adjacencies which are there, but the demand as now is 350cc. So here and now, the task in hand is how do I fulfill that demand and the capacity built …"
 > — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
 
-- **Royal Enfield is cautiously approaching the electric mobility market with its "Flyin Flea" brand, preparing to launch the Classic-styled C6 **…
+- **Royal Enfield is cautiously approaching the electric mobility market with its "Flyin Flea" brand, preparing to launch the Classic-styled C6…**
 
 > "So Flying Flea is our endorsed brand of Royal Enfield for the city, city plus electric mobility. We have 2 products, which we unveiled, one is called C6, which is a Classic sty one, another one is an S6, which is a Scrambler version. C6 is almost ready for production You will …"
 > — B. Govindarajan, Managing Director-Eicher Motors Limited & Chief Executive Officer-Royal Enfield [^chatter-Bets and blueprints]
@@ -162,7 +162,7 @@ Eicher Motors Limited is a leading Indian automotive company operating through t
 > "We have ramped up the capacity to almost about 1.3 to 1.35 million motorcycles. But looking at the demand, looking at the inquiry and the interest and what we have done is between we also kick started additional module capacity, which will also start picking ir from the first …"
 > — B. Govind Rajan, MD Eicher Motors and CEO Royal Enfield [^chatter-The_Blind_Spots]
 
-- **Inquiry-to-booking conversion improved 10 percentage points from 20-21\% to 25\% post-GST cuts, indicating strong demand momentum and sales **…
+- **Inquiry-to-booking conversion improved 10 percentage points from 20-21\% to 25\% post-GST cuts, indicating strong demand momentum and sales…**
 
 > "Our working conversion has gone up. Our conversion has gone up. Our online conversi. have gone up. So the E2B, we normally say Inquiry to Booking conversion, has actually s a 10 percentage point growth during this point of time. It used to be almost about 20-21 it has gone alm…"
 > — B. Govind Rajan, MD Eicher Motors and CEO Royal Enfield [^chatter-The_Blind_Spots]

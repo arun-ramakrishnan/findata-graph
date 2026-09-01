@@ -247,7 +247,7 @@ Operational resilience ensured high utilization even during extreme supply-side 
 > "The proposed listing of Jio will demonstrate to the world that India can build technology companies of global scale, global capability, and global value."
 > — Mukesh Ambani, Chairman & Managing Director, Reliance Industries [^chatter-Reliance_Vedanta_Gillette]
 
-- **One of the strongest long-term financial outlook statements from Mukesh Ambani. He drew parallels with the doubling of EBITDA achieved over **…
+- **One of the strongest long-term financial outlook statements from Mukesh Ambani. He drew parallels with the doubling of EBITDA achieved over…**
 
 > "We doubled our EBITDA in the last five years. And as I look to the future, I am absolu confident in our ability to double, indeed more than double, our consolidated EBITDA the next five years."
 > — Mukesh Ambani, Chairman & Managing Director, Reliance Industries [^chatter-Reliance_Vedanta_Gillette]

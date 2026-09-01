@@ -104,7 +104,7 @@ Found in: Management_in_Motion.md
 > "We improved structural margins by about 300bps... Productivity is more than cost cutti It is a more efficient way of operating - in service to consumers and customers - ever; day."
 > — Ms. Srividya Srinivasan, Chief Financial Officer [^chatter-Management_in_Motion]
 
-- **Gillette is leveraging data and AI to gain clear visibility into its supply chain, helpi them excel in both online and in-store sales. This **…
+- **Gillette is leveraging data and AI to gain clear visibility into its supply chain, helpi them excel in both online and in-store sales. This…**
 
 > "We are combining a wealth of point-of-sale data with retail shelf images to recommend optimized shelf design... We've expanded coverage by a million stores in the last 3 years.
 

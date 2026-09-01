@@ -103,7 +103,7 @@ Tata Elxsi Limited, founded in 1989, is a global leader in providing design and 
 
 > "Today, looking at the global situation, we might be looking at a single-digit to higher single-digit growth for the financial year. We may not reach double-digit growth. This change in the next three to six months based on deal momentum."
 
-- **Management is being cautious about taking on too many fixed-price contracts which carry higher risk if projects go over budget. They want a **…
+- **Management is being cautious about taking on too many fixed-price contracts which carry higher risk if projects go over budget. They want a…**
 
 > "It is not necessarily advisable to shift more of the business to fixed-price. It requires a careful transition because we need the right subject matter experts and architects to exec and deliver margins. It is a double-edged sword. It is not our objective to move to 70% or 80%…"
 

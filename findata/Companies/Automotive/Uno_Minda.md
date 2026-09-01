@@ -351,12 +351,12 @@ and EU are ex…"
 > "With the new FTA framework, tariffs are expected to revert to 0%, restoring competitiveness for Indian exporters. Overall, while the agreement increases openness in certain vehicle categories, we believe the net outcome for Indian auto and auto compon players will be positive."
 > — Sunil Bohra, Group Chief Financial Officer [^chatter-Swiggy_Hyundai_Shree_Cement]
 
-- **The company is gaining market share by winning contracts with manufacturers wh they previously had a smaller presence. This diversification **…
+- **The company is gaining market share by winning contracts with manufacturers wh they previously had a smaller presence. This diversification…**
 
 > "The 2-wheeler switch business continued to strive to increase its domestic market share supported by new order wins from OEMs where our historical share of business had been relatively lower."
 > — Sunil Bohra, Group Chief Financial Officer [^chatter-Swiggy_Hyundai_Shree_Cement]
 
-- **Vehicle manufacturers are rapidly switching from traditional bulbs to more expens LED lighting systems. This transition allows Uno Minda to **…
+- **Vehicle manufacturers are rapidly switching from traditional bulbs to more expens LED lighting systems. This transition allows Uno Minda to…**
 
 > "A key structural lever driver remains the industry-wide transition towards LED-based lighting, coupled with rising consumer preference for advanced design-led and aesthetic differentiated lighting solutions. These trends have contributed to a meaningful increase kit value per …"
 > — Sunil Bohra, Group Chief Financial Officer [^chatter-Swiggy_Hyundai_Shree_Cement]

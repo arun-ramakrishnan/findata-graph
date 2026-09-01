@@ -214,7 +214,7 @@ engineered …"
 > "We are very actively looking at opportunities, but these will be necessarily in India. We not looking at the European or American market for these type of opportunities and we actively looking in the Indian market where there is growth in the automotive as well as non-automoti…"
 > — Karan Shah, Whole-Time Director, Business Development [^chatter-Half_a_century_in]
 
-- **PCL is focusing on India for M&A due to observed degrowth and financial distress international markets, preferring the growth, control, and **…
+- **PCL is focusing on India for M&A due to observed degrowth and financial distress international markets, preferring the growth, control, and…**
 
 > "I think the examples have been very clear in the last few years where the international markets are actually not growing at all.In fact there is degrowth in these markets.
 

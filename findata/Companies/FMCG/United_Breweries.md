@@ -86,7 +86,7 @@ And this dropped significantly for the category if you go to Tier 2, Tier 3 town
 
 > "Let me be very honest with all of you. Because of this capacity and election things, thel were 3 states, we lost double-digit market share and for only reason, we could not supply those states or manufacture in the States."
 
-- **So we lost almost 10 points of market share in Telangana because we did not get the thi shift approval during election code of conduct. And **…
+- **So we lost almost 10 points of market share in Telangana because we did not get the thi shift approval during election code of conduct. And…**
 
 > "... because we are a national business and a national brand, usually, we actually move almost $15 \%$ of our volumes from 1 state to another. So there was a significant reduction that because the states did not issue export permits because of election code of conduct guideline…"
 > — Vivek Gupta, MD \& CEO

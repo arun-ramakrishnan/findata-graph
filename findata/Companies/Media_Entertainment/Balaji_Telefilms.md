@@ -124,7 +124,7 @@ Balaji Telefilms operates within the [[Media_Entertainment]] sector:
 > "ALT now has over 2 million active subscribers... this quarter we sold a record 3. lakh subscriptions including 1.73 lakh renewals."
 > — Sanjay Dwivedi, Group CEO \& CFO [^chatter-Moving_Pieces]
 
-- **The company isn't just relying on one or two hits, it has a strong pipeline of upcom films, ensuring steady visibility and revenue over the **…
+- **The company isn't just relying on one or two hits, it has a strong pipeline of upcom films, ensuring steady visibility and revenue over the…**
 
 > "We've built a very robust movie slate... 8 projects are in various stages - 3 will release FY26, 5 more in FY27."
 > — Sanjay Dwivedi, Group CEO \& CFO [^chatter-Moving_Pieces]

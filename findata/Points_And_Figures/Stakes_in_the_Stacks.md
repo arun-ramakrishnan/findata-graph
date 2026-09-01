@@ -248,7 +248,7 @@ The Global Availability of EV batteries for recycling is expected to increase  $
 
 The global supply of EV batteries for recycling is steadily increasing, driven primarily by production scrap before 2030 &amp; end-of-life batteries after 2030*
 ![[images/Stakes_in_the_Stacks_p8_img21.jpeg]]
-** Source: McKinsey Battery Insights, * - Assuming mechanical pre-treatment and hydrometallurgical recycling)
+** Source: McKinsey Battery Insights, \* - Assuming mechanical pre-treatment and hydrometallurgical recycling)
 
 ![[images/Stakes_in_the_Stacks_p8_img22.jpeg]]
 Total  $\mathrm{CO}_{2}\mathrm{e}$  battery cell production emissions from a nickel-based lithium-ion battery with virgin versus recycled materials,  $\mathrm{kgCO}_{2}\mathrm{e}$  per kWh\*
@@ -1492,7 +1492,7 @@ Global Music Label Revenues
 
 ## India is the fastest growing market by volume and provides significant opportunity for monetization of demand
 
-*Source: IFPI Global Music Report 2024; Luminate Year- End Music Report 2023; EY-FICC M&amp;E Report 2025 *Note: Exchange rate used is Average USD/INR of CY2023
+*Source: IFPI Global Music Report 2024; Luminate Year- End Music Report 2023; EY-FICC M&amp;E Report 2025 \*Note: Exchange rate used is Average USD/INR of CY2023
 
 https://thechatter.zerodha.com/p/points-and-figures-stakes-in-the?publication_id=4898760&amp;post_id=185178559&amp;isFreemail=true&amp;triedRedi...
 

@@ -105,7 +105,7 @@ sole player of those products. Our focus, our strategy is completely different f
 competitors, …"
 > — Manish Dhanuka, Managing Director [^chatter-Borosil_Orchid_Welspun]
 
-- **Orchid intends to supply the raw 7-ACA to domestic competitors rather than competing with them in the finished sterile product market. This **…
+- **Orchid intends to supply the raw 7-ACA to domestic competitors rather than competing with them in the finished sterile product market. This…**
 
 > "Yes, absolutely. I would not say our sterile can completely consume our 7-ACA capacity
 

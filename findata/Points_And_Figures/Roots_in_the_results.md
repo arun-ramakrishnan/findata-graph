@@ -1297,7 +1297,7 @@ Customer Stickiness (Q3 - YoY)
 
 Fino Pay PIN
 
-#Towards Small Finance Bank
+\#Towards Small Finance Bank
 
 Achieving a 1.7% cost of funds at record deposit levels provides a formidable competitive edge in liability gathering. This low-cost funding base is a critical strategic pillar for the bank's intended Small Finance Bank transition.
 

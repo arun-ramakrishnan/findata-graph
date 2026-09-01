@@ -117,7 +117,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "-Risk products have to be sold on the basis of disclosure, and the fact that, in general insurance especially, that you are able to produce or help a person at the time of claim, because that's the only way that that person will renew the policy again, will stay with you etc, …"
 > — Sarbvir Singh, Joint Group CEO [^chatter-Reliance_PayTM_Nykaa]
 
-- **The introduction of Managing General Agents (MGAs) could revolutionize the sect by allowing distributors to manage underwriting and claims. **…
+- **The introduction of Managing General Agents (MGAs) could revolutionize the sect by allowing distributors to manage underwriting and claims.…**
 
 > "Now, on an MGA side, I believe, MGA is the single most transformational move that can happen in the Insurance industry. And I believe that at not just a Policybazaar level, but a strategic level. And why do I say that? See, when the distributor, who's in touch with the consume…"
 > — Yashish Dahiya, Chairman & Group CEO [^chatter-Reliance_PayTM_Nykaa]

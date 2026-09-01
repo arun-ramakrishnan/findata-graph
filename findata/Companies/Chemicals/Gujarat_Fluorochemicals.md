@@ -90,7 +90,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 approvals and audits in place and INR400 crores for GFL, largely earmarked for Fluoropolymers and refri…"
 > — Dr. Bir Kapoor, Deputy Managing Director \& CEO [^chatter-Inflection_Watch]
 
-- **Battery materials business approaching commercial inflection with LFP plant commissioning next month and revenue expected in H2 FY'26 after **…
+- **Battery materials business approaching commercial inflection with LFP plant commissioning next month and revenue expected in H2 FY'26 after…**
 
 > "Our LFP plant have achieved mechanical completion with commissioning and trial production set to begin next month. We expect the revenue from EV business to trickle i towards the second half of this financial year. Our electrolyte and binder plants are also advanced stage of c…"
 > — Dr. Bir Kapoor, Deputy Managing Director \& CEO [^chatter-Inflection_Watch]
@@ -104,7 +104,7 @@ approvals and audits in place and INR400 crores for GFL, largely earmarked for F
 
 > "Yes, we are. I mean Fluoropolymer, what we are seeing the traction right now, we expes see almost $25 \%$ growth in Fluoropolymers from where we are today. So we will see a gral growth in Fluoropolymer as we go along."
 
-- **- Dr. Bir Kapoor, Deputy Managing Director \& CEO Working capital build-up based on "long-term projected demands" rather than firn purchase **…
+- **- Dr. Bir Kapoor, Deputy Managing Director \& CEO Working capital build-up based on "long-term projected demands" rather than firn purchase…**
 
 > "In case of Fluoropolymers, we, of course, have our order book, and that's the reason we have increased our supplies and trying to fill up the pipelines. Similarly, in EV battery material as well, we have long-term projected demands given to us by our customers. An that anticip…"
 > — Dr. Bir Kapoor, Deputy Managing Director \& CEO [^chatter-Inflection_Watch]

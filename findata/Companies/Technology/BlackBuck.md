@@ -99,7 +99,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "So, in trucking business what we've understood over the years is that building a business with negative contribution creates a lot of negative behaviour and sentiment amongst the market participants because the nature is at the end of the day it's a B2B relationship right So, …"
 > — Rajesh Kumar Naidu Yabaji, Chairman, Managing Director and CEO [^chatter-Tata_Steel_LIC]
 
-- **Blackbuck explains that profit percentage is a complex outcome of core business profitability (X) minus fluctuating growth investments (Y), **…
+- **Blackbuck explains that profit percentage is a complex outcome of core business profitability (X) minus fluctuating growth investments (Y),…**
 
 > "profit percentage is actually again a much more further outcome because we generate X core, we invest Y. Now we see rapid growth, we increase Y, right? X largely follows the secular trend which I was mentioning, follows the operating leverage construct, follows the growth cons…"
 > — Rajesh Kumar Naidu Yabaji, Chairman, Managing Director and CEO [^chatter-Tata_Steel_LIC]

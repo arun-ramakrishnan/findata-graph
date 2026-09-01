@@ -116,11 +116,11 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "We will maintain a balanced approach regarding pricing. Will commodity and currency fluctuations have an impact? Definitely, yes. However, the exact quantum and timing of passing this on is a dynamic decision."
 
-- **Dealers currently hold about a month and a half of stock, which management expect to sell off as summer begins. Low inventory levels in the **…
+- **Dealers currently hold about a month and a half of stock, which management expect to sell off as summer begins. Low inventory levels in the…**
 
 > "Regarding channel inventory, we believe there is approximately 5-6 weeks of inventory. is just a matter of time. By mid-March, we expect that inventory to be cleared as the summer season picks up."
 
-- **New energy norms are making the production of high-end five-star air conditioners much more expensive. This cost pressure will likely force **…
+- **New energy norms are making the production of high-end five-star air conditioners much more expensive. This cost pressure will likely force…**
 
 > "The table change impact is different for the three-star and five-star models. Three-star lesser, but the five-star increase is significant. The overall number will be a summation of the table change, copper, and currency impacts."
 

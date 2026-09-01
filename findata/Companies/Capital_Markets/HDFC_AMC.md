@@ -147,12 +147,12 @@ drawdown because of the market correction in the Q4,right."
 > "We have committed significant capital to seeding our Fund of Funds... We are also launching the HDFC AMC Credit Opportunities Fund and will invest from our balance sheet there too."
 > — Navneet Munot, MD \& CEO [^chatter-Management_in_Motion]
 
-- **HDFC AMC has quietly launched global fund offerings from GIFT City (Gujarat International Finance Tec-City, India's international financial **…
+- **HDFC AMC has quietly launched global fund offerings from GIFT City (Gujarat International Finance Tec-City, India's international financial…**
 
 > "We have launched three funds under HDFC AMC International (IFSC) Limited... positioned to enable global investors to tap into India and Indian investors to access glo opportunities."
 > — Navneet Munot, MD \& CEO [^chatter-Management_in_Motion]
 
-- **HDFC AMC is avoiding direct online sales and instead quietly expanding its truste network of financial advisors and branches. This strategy **…
+- **HDFC AMC is avoiding direct online sales and instead quietly expanding its truste network of financial advisors and branches. This strategy…**
 
 > "We strengthened our B2B platform with over 9,000 unique IFAs onboarded and over 100,000 partners engaged overall... 20\% of our branches are now in emerging markets."
 > — Navneet Munot, MD \& CEO [^chatter-Management_in_Motion]

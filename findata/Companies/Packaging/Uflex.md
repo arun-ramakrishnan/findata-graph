@@ -116,7 +116,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Prices are quite stable as of now, and we do not see any major correction in prices. However, these are global situations that evolve every day. As long as crude remains high and this crisis continues in West Asia, we see prices remaining in the vicinity of their current level…"
 > — Arun Kumar Sharma, President - Finance and Accounts & CFO [^chatter-Yes_Bank_Colgate_Allcargo]
 
-- **Despite aggressive duty-free Indonesian imports hurting Indian volumes, Uflex expects demand growth and higher-value products to revive the **…
+- **Despite aggressive duty-free Indonesian imports hurting Indian volumes, Uflex expects demand growth and higher-value products to revive the…**
 
 > "From Q3 onwards, you will see aseptic coming back on track. It was somewhat slow thi quarter in terms of volume, but not in terms of price. It will pick up next quarter. The packaging industry is more closely linked to consumer growth and FMCG growth in Ind which we are seeing…"
 > — Arun Kumar Sharma, President - Finance and Accounts & CFO [^chatter-Yes_Bank_Colgate_Allcargo]

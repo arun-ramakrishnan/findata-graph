@@ -76,7 +76,7 @@ Aurobindo Pharma Limited is a leading Indian pharmaceutical company focused on g
 > "So, we plan to start our supplies from the 2nd Quarter... Once we iron out our supply chain and stabilize our manufacturing and supplies, I expect the meaningful contributions from the biosimilars business to flow in from the next fiscal year. We expect it to be a doubledigit …"
 > — Dr. Satakarni Makkapati, CEO Biosimilars [^chatter-The_Mood_in_the_Room]
 
-- **Despite claiming "no major impact," management deferred guidance clarity until July 2025 tariff announcements, suggesting material concerns **…
+- **Despite claiming "no major impact," management deferred guidance clarity until July 2025 tariff announcements, suggesting material concerns…**
 
 > "But having said that, I want to make it clear that we need to wait for the impact on account of the tariff announcement, which is likely to happen in the month of July '25, even though we don't feel there will be a major impact, etc. Nevertheless, we should wait for the announ…"
 

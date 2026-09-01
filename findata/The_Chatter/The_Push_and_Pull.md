@@ -421,7 +421,7 @@ Reveals an important but often overlooked demand driver for consumer durables in
 
 # Engineering \& Capital Goods 
 
-## Waaree Energies Ltd I_ Mid Cap I_Engineering. Capital Goods
+## Waaree Energies Ltd | Mid Cap | Engineering. Capital Goods
 
 Waaree Energies is the largest manufacturer of solar Photo-voltaic (PV) modules in India. They offer a portfolio of solar energy products including multicrystalline modules, monocrystalline modules, and Tunnel Oxide Passivated Contact (TopCon modules such as flexible modules, bifacial modules, and building integrated photo voltaic (BIPV) modules.
 

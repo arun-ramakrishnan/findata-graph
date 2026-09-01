@@ -309,7 +309,7 @@ However, the interest currently is largely global, as many countries already hav
 
 > "The growth for this portfolio is driven by structural tailwinds. First, a strong regulatory push. We are seeing a clear roadmap for enhanced vehicle safety in India with mandate airbags, ABS, ESP, and the adoption of the Bharat New Car Assessment Program. This continued tighte…"
 
-- **Integrating the chassis business will significantly increase Bosch's total revenue overall operating profit margins. This demonstrates that **…
+- **Integrating the chassis business will significantly increase Bosch's total revenue overall operating profit margins. This demonstrates that…**
 
 > "Bosch Limited's consolidated revenue from operations will increase by 22% from 18,000 crores to 22,000 crores on a pro forma basis for FY 2025. Looking at the historical trend a comparable pro forma basis, the revenue from operations CAGR would have been 11.2 compared with 10.…"
 
@@ -351,7 +351,7 @@ However, the interest currently is largely global, as many countries already hav
 > "We have done quite a few things consistently over the last several years, at least over the last 2 years, which have led to a sustained improvement in our margins. The first thing is continuous improvement in our operational excellence, which has led to a sustained change. We …"
 > — Guruprasad Mudlapur, MD & CEO [^chatter-Bosch_Amara_Zydus]
 
-- **The company is leveraging the global scale of the Bosch Group's procurement network to mitigate risks from turbulent sourcing markets. This **…
+- **The company is leveraging the global scale of the Bosch Group's procurement network to mitigate risks from turbulent sourcing markets. This…**
 
 > "I think we also benefit from the worldwide purchasing organization. As you are all awa the sourcing market is still quite turbulent. We are supported by a worldwide purchasing organization, which helps us maneuver through this very volatile situation and maintain our margins a…"
 > — Tillman Rocke, CFO [^chatter-Bosch_Amara_Zydus]

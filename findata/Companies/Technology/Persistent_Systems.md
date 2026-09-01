@@ -191,7 +191,7 @@ market for ne…"
 > "This engagement fully leverages multiple accelerators within our agentic data platform iAURA spanning across assessment, platform development, governance, observability and the migration itself. The result is a stronger data outcome while fully addressing regulator governance …"
 > — Jaideep Dhok, Chief Operating Officer [^chatter-Reading_the_terrain]
 
-- **Securing a massive $100 million contract from a top-tier US bank demonstrates the company's ability to win large, complex enterprise deals. **…
+- **Securing a massive $100 million contract from a top-tier US bank demonstrates the company's ability to win large, complex enterprise deals.…**
 
 > "A Tier-I bank in the US selected Persistent to support their transformation program in cybersecurity organization... we won a total of $100 million TCV deal this quarter, which included 25% new TCV component."
 > — Saurabh Dwivedi, Corporate Vice President, Finance and Strategy [^chatter-Reading_the_terrain]

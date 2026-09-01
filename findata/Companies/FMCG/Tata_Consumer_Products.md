@@ -97,7 +97,7 @@ _Source: yfinance | Refreshed: 2026-08-11_
 
 > "We decided to get into cold-pressed oils because we saw a consumer trust deficit regard whether oils were refined or cold-pressed. Putting the Tata brand name on it worked we and we figured we could drive growth with margins. In the base edible oil segment, our current hypothe…"
 
-- **## — Sunil D'Souza, Managing Director and CEO Input costs for tea are rising, particularly at the lower end of the market. Investors should **…
+- **## — Sunil D'Souza, Managing Director and CEO Input costs for tea are rising, particularly at the lower end of the market. Investors should…**
 
 > "Overall, we are seeing about 7-10% inflation for now, but the peak cropping season has just started. Right now, the crop seems quite good in Assam. We saw inflation more at the bottom end of the portfolio. We are not yet through a significant portion of our buying."
 
@@ -128,7 +128,7 @@ _Source: yfinance | Refreshed: 2026-08-11_
 
 > "Growth businesses crossed the 4,000 crore mark, growing 24% in this year. For the quar growth has come back to where it should be with 33%. Sampann grew 69% in Q4 and 46 for the full year."
 
-- **— Sunil D'Souza, Managing Director and CEO Management believes their brand strength allows them to raise prices if raw material costs rise. **…
+- **— Sunil D'Souza, Managing Director and CEO Management believes their brand strength allows them to raise prices if raw material costs rise.…**
 
 > "Regarding our portfolio, I think we have a fairly balanced mix of slightly stronger commodities and a piece of highly processed food. So far, we have not seen a big impact the margins per se. We have enough in our equity across all the categories to take price increases to mit…"
 

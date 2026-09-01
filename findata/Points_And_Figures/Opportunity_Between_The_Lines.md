@@ -817,7 +817,7 @@ Vodafone Idea holds the highest spectrum per subscriber (excl. mmWave), giving a
 ![[images/Opportunity_Between_The_Lines_p47_img44.jpeg]]
 
 |   | All spectrum which can be
-utilised towards 4G* |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | All spectrum except
+utilised towards 4G\* |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | All spectrum except
 26 GHz* |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  |  | 
 
 ---

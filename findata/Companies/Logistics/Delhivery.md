@@ -63,7 +63,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Delhivery has always been more than $100 \%$ of the profit pool of this industry. That position has only been strengthened over the last financial year. As we mentioned before the pricing that currently prevails in the market, Delhivery is the only profitable player $i$. this …"
 > — Sahil Barua, MD \& Chief Executive Officer [^chatter-Contours_of_Change]
 
-- **Indicates earlier-than-expected customer volume migration post-Ecom Express acquisition. Unusual seasonal upside hints at growing trust and **…
+- **Indicates earlier-than-expected customer volume migration post-Ecom Express acquisition. Unusual seasonal upside hints at growing trust and…**
 
 > "In terms of volumes and retained volumes, our assumptions on retained volumes were fairly conservative to begin with. Our assumption was that we would retain close to abo $30 \%$ of the volumes of the Ecom Express standalone network. From the time that the de was under conside…"
 > — Sahil Barua, MD \& Chief Executive Officer [^chatter-Contours_of_Change]

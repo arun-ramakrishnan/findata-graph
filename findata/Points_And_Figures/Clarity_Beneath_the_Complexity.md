@@ -80,7 +80,7 @@ In this edition, we have covered 17 companies across 7 industries
 
 # Financial Services 
 
-## Billionbrains Garage Ventures Limited (Growy I_ Mid Cap I_Financial Services
+## Billionbrains Garage Ventures Limited (Growy | Mid Cap | Financial Services
 
 Groww, founded in 2017 in Bengaluru, is India's leading digital investment platform offering stocks, mutual funds, ETFs, F\&O, IPOs, and credit services. With a userfriendly app and strong technology, it enables millions to invest and build wealth easily.
 

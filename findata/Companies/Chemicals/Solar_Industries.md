@@ -66,7 +66,7 @@ Solar Industries is a manufacturer of industrial and defense explosives, supplyi
 > "So, if you look at the current geopolitical situation, these things are obviously bound to happen. And we always read all these articles from the media. So, based on that information and the interactions we have, we feel that the defence program will be on a track now."
 > — Manish Nuwal, MD \& CEO [^chatter-Contours_of_Change]
 
-- **Highlights a dual R\&D; strategy involving both in-house development and collaboration with DRDO, crucial for continuous product innovation **…
+- **Highlights a dual R\&D; strategy involving both in-house development and collaboration with DRDO, crucial for continuous product innovation…**
 
 > "So, if you look at the history of Solar, in the last 10 years or 20 years, we have always be working on developing a variety of products. And those developments were in associatio with DRDO. At the same time, we were developing many of the products on our own. Sc will continue…"
 > — Manish Nuwal, MD \& CEO [^chatter-Contours_of_Change]

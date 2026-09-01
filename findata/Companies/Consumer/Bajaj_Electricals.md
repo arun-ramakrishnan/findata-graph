@@ -71,7 +71,7 @@ In 2022, Bajaj Electricals **demerged its power transmission & distribution (T&D
 > "EPR for this year is about nine and a half crores. And last year also was similar. Going forward next year, it will be a charge of about 18 crores."
 > — EC Prasad, CFO [^chatter-Discovering_Hidden_Signals]
 
-- **While domestic inflation has eased, providing RBI policy flexibility, global headwir (US tariffs, policy uncertainty) pose risks to growth, **…
+- **While domestic inflation has eased, providing RBI policy flexibility, global headwir (US tariffs, policy uncertainty) pose risks to growth,…**
 
 > "On the macro front, headline inflation eased to 3.6\% in February 2025, driven by a sha decline in food prices. Further, as per RBI bulletin, recent tariff announcements by US administration have heightened policy uncertainty, posing new headwinds for global gro and inflation.…"
 > — Shekhar Bajaj, Chairman [^chatter-Discovering_Hidden_Signals]

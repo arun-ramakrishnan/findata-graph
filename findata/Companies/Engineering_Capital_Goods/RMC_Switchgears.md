@@ -83,7 +83,7 @@ RMC Switchgears — small-cap manufacturer of transformers, switchgears and EPC 
 
 > "The Indian government is focusing on how we can digitalize the infrastructure of electricity in India."
 
-- **"That is where our PulseBox sits." — Ankit Agarwal, Whole-Time Director & CEO This is the macro thesis underpinning the company's long-term **…
+- **"That is where our PulseBox sits." — Ankit Agarwal, Whole-Time Director & CEO This is the macro thesis underpinning the company's long-term…**
 
 > "Till 2047, power is one sector that we believe will grow multi-fold in the next, I think, 1 years."
 > — Ankit Agarwal, Whole-Time Director & CEO [^chatter-Reliance_Vedanta_Gillette]

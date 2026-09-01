@@ -136,7 +136,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Clearly, urban has more things going their way with income tax coming in and the benefit of income tax coming in and that started growing. We've seen that moving a little faster than the rural, though in rural, we saw in the festives, them peaking the peak."
 > — Ashutosh Varma, India Business Unit, Chief Business Officer [^chatter-Reading_the_terrain]
 
-- **Rising material costs and currency fluctuations are putting pressure on profit marg The company will likely need to continue managing costs **…
+- **Rising material costs and currency fluctuations are putting pressure on profit marg The company will likely need to continue managing costs…**
 
 > "We've seen the prices of aluminum, precious metals going up starting last quarter. We've also seen some forex impact again starting last quarter... the impact coming from the commodity in the previous quarter was approximately 40 to 50 basis points."
 > — Vivek Anand, Chief Financial Officer [^chatter-Reading_the_terrain]

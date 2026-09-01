@@ -269,7 +269,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "We had more than 1500 retailers coming over for the trade show, and we've gotten a ve good order book... A lot of other brands are pulling out of [the winter category]. That giv us leverage with bigger players like Reliance, Myntra, or Amazon to negotiate better margins."
 > — Rishab Oswal, Executive Director [^chatter-Sharp_Takes]
 
-- **Management is not just optimistic, they have a strong track record of delivering on what they predict. Their FY26 guidance shows confidence **…
+- **Management is not just optimistic, they have a strong track record of delivering on what they predict. Their FY26 guidance shows confidence…**
 
 > "We are very confident of achieving a double-digit growth going forward... and improvir our EBITDA from this level also. Last year we guided flat growth and margin improvem - and we delivered."
 > — Rishab Oswal, Executive Director [^chatter-Sharp_Takes]

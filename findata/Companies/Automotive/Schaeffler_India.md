@@ -123,7 +123,7 @@ Capex will increase in 2026 compared to the current year, but a significant pick
 > "A hallmark of Q4 was the GST 2.0 reform, which provided a big boost for the automob industry by simplifying compliance and lowering cascading costs. This increased vehicle affordability for consumers."
 > — Harsha Kadam, Managing Director and Chief Executive Officer [^chatter-Patience_and_payoff]
 
-- **The transition to BS-VI emission standards is creating a growing market for high-quality replacement parts in the aftermarket segment. This **…
+- **The transition to BS-VI emission standards is creating a growing market for high-quality replacement parts in the aftermarket segment. This…**
 
 > "We continued adding products as more BS-VI vehicles required repairs. In bearings and industrial solutions, we had significant wins in ball bearings, needle roller bearings for the wheelers."
 

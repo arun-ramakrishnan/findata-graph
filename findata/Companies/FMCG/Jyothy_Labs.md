@@ -64,7 +64,7 @@ company's portfolio since 2005-2006 and is now being scaled up with renewed focu
 > "As far as inorganic growth opportunities are concerned, Manoj, as you are aware, the company has been looking at various opportunities simply because Pril and Fa have departed, wouldn't put us in a situation where we will take any rash decision. So, our fundamental approach to…"
 > — Pawan Agarwal, Chief Financial Officer [^chatter-Infosys_Adani_Tata_Motors]
 
-- **The legal dispute involves more than just money; it covers the transfer of assets and how the transition is managed. Investors should watch **…
+- **The legal dispute involves more than just money; it covers the transfer of assets and how the transition is managed. Investors should watch…**
 
 > "The core issue is the proper treatment of end-of-term consequences under the license agreement framework, including the business transfer of Pril and Fa brand valuation consideration, associated transition matters, etcetera. So, it 's a combination of a few issues."
 > — Pawan Agarwal, Chief Financial Officer [^chatter-Infosys_Adani_Tata_Motors]

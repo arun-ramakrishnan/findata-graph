@@ -160,7 +160,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "The present solar glass capacity in the country is 2,300 tons per day, which is about 15 gigawatts. Another 15 gigawatts of capacity, including 12 gigawatts for captive by a new producer, is getting commissioned by the end of calendar year 2025. With the phenomer rise in deman…"
 
-- **- P.K. Kheruka, Executive Chairman German operations (GMB) faced severe demand issues leading to furnace shutdown and significant inventory **…
+- **- P.K. Kheruka, Executive Chairman German operations (GMB) faced severe demand issues leading to furnace shutdown and significant inventory…**
 
 > "The drop in revenue for the German subsidiary arose from a sharp decline in sales due suspension of manufacturing by Germany's leading photovoltaic module manufacturers. This decline was so sharp that it was no longer viable to continue operating the hot end, the glass melting…"
 > — P.K. Kheruka, Executive Chairman [^chatter-Discovering_Hidden_Signals]

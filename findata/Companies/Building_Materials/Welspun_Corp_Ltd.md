@@ -209,7 +209,7 @@ Source: The Chatter Newsletter - Edition #39 "The Pivot Quarter"
 > "The Indian market, the water sector in the Indian market has been slightly depressed on the last few quarters because of the fund crunch which we have been noticing. It appears that this fund crunch is now going to get over. We feel that starting next year or maybe to early pa…"
 > — Vipul Mathur, Managing Director and Chief Executive Officer [^chatter-The_Pivot_Quarter_output]
 
-- **The anticipated decline in global natural gas prices is expected to significantly boost demand for LNG and gas pipeline network development **…
+- **The anticipated decline in global natural gas prices is expected to significantly boost demand for LNG and gas pipeline network development…**
 
 > "We are very confident that once those prices come into a very, very attractive range, which could just be a matter of time, there will be a huge demand for LNG, for the gas pipeline
 

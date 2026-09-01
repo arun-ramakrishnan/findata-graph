@@ -104,7 +104,7 @@ LG Electronics India is a leading manufacturer of home appliances and consumer e
 > "Construction is progressing smoothly and we plan to begin production of combined heating and cooling air conditioners in the fourth quarter of this year, followed by compressor production in the next phase."
 > — Soonjoo Seo, Investor Relations Officer [^chatter-Threads_in_the_data]
 
-- **The company is diversifying its revenue streams by expanding into services and corporate sales. These high-margin business segments provide **…
+- **The company is diversifying its revenue streams by expanding into services and corporate sales. These high-margin business segments provide…**
 
 > "Beyond our core B2C products, we are actively exploring new growth opportunities, including non-hardware regular maintenance services like the AMC business, as well as B2B opportunities in information displays and commercial air conditioners."
 > — Soonjoo Seo, Investor Relations Officer [^chatter-Threads_in_the_data]
@@ -114,7 +114,7 @@ LG Electronics India is a leading manufacturer of home appliances and consumer e
 > "The GST rate rationalization announced earlier in September continued to provide a strong tailwind, particularly in the Television category."
 > — Atul Khanna, Chief Accounting Officer [^chatter-Threads_in_the_data]
 
-- **The company will use its own cash profits to pay for its massive 5,000 crore INR expansion project. This self-funding model avoids the need **…
+- **The company will use its own cash profits to pay for its massive 5,000 crore INR expansion project. This self-funding model avoids the need…**
 
 > "Importantly, the capex will be funded entirely through internal accruals, deployed in a phased manner over the next 4 to 5 years."
 > — Atul Khanna, Chief Accounting Officer [^chatter-Threads_in_the_data]

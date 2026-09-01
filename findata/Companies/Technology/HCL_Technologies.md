@@ -192,7 +192,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "And our guidance, the lower end, we believe the environment will deteriorate from whe we are. And that's what the $2 \%$ represents... the midpoint also we assume that the environment will deteriorate, but it assumes that a couple of large deals, which were in $t$ pipeline, we…"
 > — C. Vijayakumar, CEO \& Managing Director [^chatter-Between_Seasons]
 
-- **AI Force platform achieves 57 deployments across 22 clients with quantified productivity gains of $20-25 \%$ in software development and up **…
+- **AI Force platform achieves 57 deployments across 22 clients with quantified productivity gains of $20-25 \%$ in software development and up…**
 
 > "AI Force has gained significant traction with 57 deployments among 22 clients in this financial year. These service transformations have created a significant business impact our clients, such as a billion-dollar impact for a large insurance company by acceleratin their policy…"
 > — C. Vijayakumar, CEO \& Managing Director [^chatter-Between_Seasons]

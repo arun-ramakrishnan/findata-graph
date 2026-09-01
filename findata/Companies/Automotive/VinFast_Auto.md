@@ -196,7 +196,7 @@ VinFast Auto Limited is a Vietnamese automobile company that designs and manufac
 
 > "Since 2022, EV friendly incentive including lower special consumption tax for EVs, registration fee exemption until 2027 and 0\% import duty on green auto parts have beer implemented. In second quarter 2025, Hanoi and Ho Chi Minh City have announced pi to phase out gasoline mo…"
 
-- **# - Madame Tui (Chairwoman) VinFast inaugurated Tamil Nadu facility in August with 13 dealer partnerships, expecting modest initial volumes **…
+- **# - Madame Tui (Chairwoman) VinFast inaugurated Tamil Nadu facility in August with 13 dealer partnerships, expecting modest initial volumes…**
 
 > "We open for pre-booking of our VF6 and VF7 in mid July followed by the inauguratior our CKD manufacturing facility in Tamil Nadu this August marking a significant miles in our entry into Indian market. VinFast India has signed strategic agreements with 13 dealership groups to …"
 > — Madame Tui, Chairwoman [^chatter-Moves_and_Motives]

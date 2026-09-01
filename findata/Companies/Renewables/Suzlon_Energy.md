@@ -243,7 +243,7 @@ Management indicated that industry pricing remains healthy despite increasing co
 > "My entire OMS system is going to get digitized. So therefore the our predictive maintenance, preventive maintenance and everything can be tracked... it actually impro our up-time because of this data."
 > — J.P. Chalasani, Group Chief Executive Officer [^chatter-Swiggy_Hyundai_Shree_Cement]
 
-- **While Suzlon's 5 MW turbine is in prototype, the company is successfully selling 3. MW units and has introduced a 3.3 MW turbine offering a **…
+- **While Suzlon's 5 MW turbine is in prototype, the company is successfully selling 3. MW units and has introduced a 3.3 MW turbine offering a…**
 
 > "Our 5 megawatt turbine is now getting into the proto stage and that will come a appropriate time. But the thing let me tell you is that the in spite of the fact ther a 5 megawatt turbine launched, our 3.15 megawatt is going significantly. And no we have also introduced started…"
 > — J.P. Chalasani, Group Chief Executive Officer [^chatter-Swiggy_Hyundai_Shree_Cement]

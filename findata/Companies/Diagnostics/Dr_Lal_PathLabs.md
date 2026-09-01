@@ -219,7 +219,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "The rural outreach program is not driven by Swasthfit. It is a different, more affordable rural package. The objective there is to serve the rural population, identify what kind of non-communicable diseases are prevalent there, and help that population get the benefi quality t…"
 > — Shankho Banerjee, CEO [^chatter-IDFC_Tata_Consumer]
 
-- **Operations in Western India are recovering and approaching double-digit growth following a period of integration. Investors should see this **…
+- **Operations in Western India are recovering and approaching double-digit growth following a period of integration. Investors should see this…**
 
 > "The Suburban business, which is the main driver of our West portfolio right now, is real turning around and is moving very close to double digits in terms of growth. Last quarter we started investing into new radiology centers and a collection network through the Suburban brand."
 > — Shankho Banerjee, CEO [^chatter-IDFC_Tata_Consumer]

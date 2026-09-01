@@ -130,7 +130,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "For the growth drivers, first from the corporate side, you have seen in our release the increase that we have done over the previous year. We do see this sustaining, as there has been demand. Of course, we will have to temper it given the fallout of what we see in the geopolit…"
 
-- **While wholesale deposits spiked at the end of the year, the bank is keeping its focus steady retail money. Maintaining a high percentage of **…
+- **While wholesale deposits spiked at the end of the year, the bank is keeping its focus steady retail money. Maintaining a high percentage of…**
 
 > "If you look at the composition between retail and wholesale, there is some level of wholesale deposits that come in the March quarter naturally because of relationships as well as how the corporates manage their balance sheets towards the end of their financial year. You'll se…"
 
@@ -182,7 +182,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Our regulatory inspection is also complete. And whatever required according to the regulatory requirement, there was about 5 billion or so thereabouts, which have been taken In the overall context of our book and our results, if you see, they have been absorbed with that, and …"
 > — Srinivasan Vaidyanathan, Chief Financial Officer [^chatter-Anchor_and_Ambitions]
 
-- **The INR 8 billion labor code impact is currently a high estimate based on actuarial assumptions, and its ongoing impact cannot be predicted **…
+- **The INR 8 billion labor code impact is currently a high estimate based on actuarial assumptions, and its ongoing impact cannot be predicted…**
 
 > "At this time, I would just ask you to take it as a higher estimate based on best available information and through a scientific actuarial process that has come. And as and when rulemaking evolves, as and when more information is available, this will be evolved. And again, I ca…"
 > — Srinivasan Vaidyanathan, Chief Financial Officer [^chatter-Anchor_and_Ambitions]

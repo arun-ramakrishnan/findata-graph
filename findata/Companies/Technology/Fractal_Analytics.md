@@ -107,7 +107,7 @@ _Source: yfinance | Refreshed: 2026-08-11_
 > "On R&D, we expect to continue and potentially expand these investments. In a field th changes weekly, R&D signals our capability to clients. We view this as a cycle: as we exp revenue and gross margins, we plow some of that margin back into AI R&D to build the company for the …"
 > — Srikanth Velamakanni, Co-Founder and Group CEO [^chatter-Threads_in_the_data]
 
-- **To address enterprise AI's need for high accuracy beyond consumer-level tolerance errors, Fractal implements "human-in-the-loop" systems to **…
+- **To address enterprise AI's need for high accuracy beyond consumer-level tolerance errors, Fractal implements "human-in-the-loop" systems to…**
 
 > "Regarding errors and drift, this is exactly why enterprise AI adoption is still early. While 40% hallucination might be okay for consumers, enterprises require accuracy that exceed human performance. We build "human-in-the-loop" systems rather than 100% autonomous to handle dr…"
 > — Srikanth Velamakanni, Co-Founder and Group CEO [^chatter-Threads_in_the_data]
