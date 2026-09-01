@@ -53,6 +53,8 @@ commit, referenced by nothing). Entry numbers point at
 - [`market_data_resolution.md`](pipeline/market_data_resolution.md) — Proposal: Combined market-data resolution (FinnHub search → yfinance bulk → GF fallback; ticker-first doctrine, KNN peers, terminal classifications) — completed.md #152
 - [`google_finance_ticker_fallback.md`](pipeline/google_finance_ticker_fallback.md) — Proposal: Google-Finance-assisted ticker resolution & data fallback (F1–F4; absorbed into market_data_resolution.md) — completed.md #152
 - [`relation_enrichment_sources.md`](pipeline/relation_enrichment_sources.md) — Proposal: Relationship Enrichment from External Sources — Relations 2.0 (E1 prose v2, E2 yfinance KNN 3425, E3 7776 semantic_peer, E4 478 coinfer, E5 715 invested_in, E6 API/UI) — completed.md #153
+- [`local_pdf_conversion_fallback.md`](pipeline/local_pdf_conversion_fallback.md) — Proposal: Local PDF conversion fallback (pymupdf4llm primary → Paddle OCR) — completed.md #156
+- [`liteparse_pdf_engine.md`](pipeline/liteparse_pdf_engine.md) — Proposal: LiteParse PDF engine promotion — non-OCR default, gap-fill before cutover (Slices 0–2: lite no-ocr 0.10s bbox sidecar, lite OCR Tesseract 0.16–0.30s, pix2text formula opt-in, image sidecar, per-page verify, MPLBACKEND fix, 23 tests) — completed.md #186
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 

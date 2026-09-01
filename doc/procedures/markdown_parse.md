@@ -101,7 +101,7 @@ sectors   = re.findall(r'#(?:Banking|Healthcare|Technology)', content)
 
 ## PDF → Markdown
 
-When the input is a source PDF (rather than an existing newsletter markdown), convert it first. `helpers/pdf/pdf_conv_md.py` is **local-first** (2026-08-26): by default (`--engine auto`) it parses the PDF locally with pymupdf4llm — no OCR, no API key, ~3s per PDF — and falls back to the Paddle AI Studio PP-StructureV3 job API only when the local engine refuses the PDF (no usable text layer, i.e. a true scan). Either engine writes a The_Chatter-style `.md` **plus** the figures already downloaded/copied and embedded — so a PDF input skips the [Image Capture](#image-capture) step entirely. The note frontmatter records which engine ran (`generated.by: pdf_conv_md.py/pymupdf4llm-X.Y.Z` vs `.../PP-StructureV3`).
+When the input is a source PDF (rather than an existing newsletter markdown), convert it first. `helpers/pdf/pdf_conv_md.py` is **local-first** (2026-08-26, lite-OCR fallback 2026-09-01): by default (`--engine auto`) it parses the PDF locally with `pymupdf4llm` (~2s, born-digital), and falls back to `liteparse` OCR (`Tesseract 5.5.0` `eng 4.0M`, `0.16–0.30s`, `TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata`) for scanned PDFs (`MIN_CHARS_PER_PAGE 100` refusal), then `pix2text` `mfd-1.5` formula opt-in (`2–7s` LaTeX `MPLBACKEND=agg`) when the OCR is sparse or formula-heavy, and finally the Paddle AI Studio `PP-StructureV3` job API (`PADDLE_API_KEY`) only when all local engines refuse. The fast `liteparse no-ocr` (`0.10s`, `20.5×`, `bbox` per token) is available as `helpers/pdf/liteparse_engine.py` sidecar for RAG grounding (`--engine lite`) but **not** used for markdown primary — `pdf_local` stays primary for born-digital (Slice 1 gap `96.04%` accepted). Any engine writes a The_Chatter-style `.md` **plus** the figures already downloaded/copied and embedded — so a PDF input skips the [Image Capture](#image-capture) step entirely. The note frontmatter records which engine ran (`generated.by: pdf_conv_md.py/pymupdf4llm-X.Y.Z` vs `.../liteparse-2.0.0-ocr-eng` vs `.../pix2text-mfd-1.5` vs `.../PP-StructureV3`).
 
 **Destination directory — always ask the user.** The `<output_dir>` argument is explicit and required; there is no safe way to infer it. Ask the user which directory to write into (a newsletter dir like `findata/The_Chatter/`, or any other path they choose) before running the converter, and use exactly that.
 
@@ -109,11 +109,15 @@ When the input is a source PDF (rather than an existing newsletter markdown), co
 # Convert a PDF into <output_dir> (local engine by default; no API key needed).
 python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir>
 
-# Force an engine: local (error out on scanned PDFs) or paddle (OCR; needs PADDLE_API_KEY).
+# Force an engine: local (born-digital only) / lite (fast no-OCR sidecar 0.10s) / lite-ocr (Tesseract scanned) / pix2text (formula LaTeX) / paddle (PP-StructureV3, needs PADDLE_API_KEY).
 python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine local
+python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine lite
+python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine lite-ocr
+python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine pix2text
 python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine paddle
 
-# Paddle-only flags: --model <name> --token <key> --timeout <sec>; --no-images works for both.
+# Engine flags: --model <name> --token <key> --timeout <sec> (Paddle only); --no-images works for all.
+# Lite OCR needs TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata (eng.traineddata 4.0M); pix2text needs MPLBACKEND=agg (auto-forced).
 ```
 
 After every conversion the script **self-verifies** (skip with `--no-verify`): per-page coverage of the `.json` vs the PDF text layer, document coverage of the `.md`, md↔json page consistency, a ≥3-digit number audit, and wikilink integrity. The verdict prints with the summary (WARN passes — it flags e.g. a lost number-range dash; FAIL exits 1) and the full manifest lands beside the note as `<stem>.verify.json` (sha256 of source + md, engine, per-page metrics).

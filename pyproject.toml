@@ -38,9 +38,14 @@ dependencies = [
     # PDF pipeline (helpers/pdf/pdf_conv_md.py + helpers/pdf/pdf_local.py):
     # requests for the Paddle API engine; pymupdf4llm for the local no-OCR
     # engine (default, local-first per operator decision 2026-08-26).
+    # liteparse (Tesseract 5.5.0 eng) is the default OCR fallback for scanned
+    # (0.3s, above Paddle) per liteparse_pdf_engine proposal Slice 2.
+    # pix2text (mfd-1.5) disabled 2026-09-02 — excluded from pipelines to
+    # avoid large nvidia/CUDA deps; file kept for reference only.
     "requests",
     "pymupdf4llm",
     "pymupdf",  # imported directly (Pixmap/text-layer guard), not just transitively
+    "liteparse",
     # sqlite-vec vector index for note_search hybrid ranking (A1,
     # helpers/core/vec_search.py). Loaded per-connection exactly like
     # sqlite-spellfix above; KNN degrades to a Python cosine fallback when
@@ -60,6 +65,8 @@ dependencies = [
     # Mojo regex bridge (Mojo/bench/mojo_regex_*.py + Mojo/src via Python
     # `regex` interop) — active Mojo code uses `import regex`, so runtime.
     "regex",
+    # OCR Dependency
+    "matplotlib",
 ]
 
 [project.optional-dependencies]
@@ -115,6 +122,7 @@ ignore = ["E501"]
 "helpers/core/parse_newsletter.py" = ["E402"]
 "helpers/graph/embeddings.py" = ["E402"]
 "helpers/validators/verify_notes.py" = ["E402"]
+"helpers/pdf/pdf_conv_md.py" = ["E402"]
 
 [tool.deptry]
 # Treat the local package as first-party so it isn't flagged as an undeclared dep.
@@ -135,4 +143,9 @@ optional_dependencies_dev_groups = ["dev", "mojo"]
 # findata-knowledge-graph is the `all` meta-extra's self-reference to the project
 # itself; with [tool.uv] package = false it is never installed, so it can never be
 # imported either.
-per_rule_ignores = "DEP002=gunicorn|Werkzeug|finnhub-python"
+# pix2text (mfd-1.5) is deliberately NOT in [project].dependencies since
+# 2026-09-02 (excluded from pipelines — large nvidia/CUDA deps); the file
+# helpers/pdf/pix2text_markdown.py is kept for reference only and imports
+# pix2text inside a function. Silence DEP001 for it so `make deptry` does
+# not fail on the intentionally-missing dep.
+per_rule_ignores = "DEP001=pix2text,DEP002=gunicorn|Werkzeug|finnhub-python"

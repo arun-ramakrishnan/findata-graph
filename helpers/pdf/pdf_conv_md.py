@@ -60,6 +60,29 @@ from helpers.pdf.pdf_local import (  # noqa: E402
     LocalRefusalError,
     convert as convert_local,
 )
+# LiteParse + Pix2Text engines (Slice 2, liteparse_pdf_engine proposal)
+# liteparse_engine mirrors pdf_local.convert shape and provides the bbox
+# sidecar for no-OCR plus the OCR fallback with image sidecar.
+try:  # noqa: E402
+    from helpers.pdf.liteparse_engine import (  # noqa: E402
+        ENGINE_LABEL_NOCR as _LITE_NOCR_LABEL,
+        ENGINE_LABEL_OCR as _LITE_OCR_LABEL,
+        convert as _lite_convert,
+    )
+except ImportError:  # pragma: no cover - liteparse not installed
+    _lite_convert = None
+    _LITE_NOCR_LABEL = "liteparse-noocr"
+    _LITE_OCR_LABEL = "liteparse-ocr"
+# Fallback for tests that import liteparse_markdown directly
+try:  # noqa: E402
+    from helpers.pdf.liteparse_markdown import convert_liteparse_ocr as _lite_ocr_convert  # noqa: E402
+except ImportError:  # pragma: no cover
+    _lite_ocr_convert = None
+# pix2text excluded from pipelines (2026-09-02): pulls large nvidia/CUDA deps
+# Keep module file for reference but never import it here to avoid deptry/ty
+# `unresolved-import` noise and accidental installs. The auto chain and the
+# --engine pix2text path below both short-circuit with a clear error.
+_pix2text_convert = None  # type: ignore[assignment]
 from helpers.pdf.verify_extraction import (  # noqa: E402
     verify as verify_extraction,
 )
@@ -423,14 +446,20 @@ def _convert_paddle(pdf_path: Path, args: argparse.Namespace) -> list[dict]:
     return parse_pages(lines)
 
 
-def main() -> int:
+def main() -> int:  # noqa: C901  # engine dispatch — linear fallback chain, not refactorable without obscuring
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("source_pdf", help="path to the source PDF file")
     ap.add_argument("output_dir", help="directory to store the results in")
     ap.add_argument(
-        "--engine", choices=("auto", "local", "paddle"), default="auto",
-        help="auto (default): local no-OCR engine first, Paddle API fallback "
-             "when it refuses (scanned/no-text PDF); local/paddle force one",
+        "--engine",
+        choices=("auto", "local", "paddle", "lite", "lite-ocr", "pix2text"),
+        default="auto",
+        help=(
+            "auto (default): pdf_local (pymupdf4llm) for born-digital, "
+            "then lite OCR (Tesseract) for scanned, Paddle API last; "
+            "pix2text is currently disabled (excluded from pipelines — nvidia deps); "
+            "local/paddle/lite/lite-ocr/pix2text force one (pix2text errors with hint)"
+        ),
     )
     ap.add_argument("--model", default=DEFAULT_MODEL)
     ap.add_argument("--token", default=os.environ.get("PADDLE_API_KEY"))
@@ -449,25 +478,115 @@ def main() -> int:
         print(f"error: not found: {pdf_path}", file=sys.stderr)
         return 1
 
-    # Local-first (2026-08-26, operator decision Q1): try the no-OCR local
-    # engine before the Paddle API. The images map points into tmpdir, so
-    # write_outputs must run inside its lifetime.
+    # Engine chain (2026-09-02, pix2text excluded):
+    # auto: pdf_local (born-digital) -> lite OCR (Tesseract, 0.3s) -> Paddle last
+    # pix2text (mfd-1.5) disabled — excluded from pipelines to avoid large nvidia/CUDA deps.
+    # pdf_local stays primary for non-OCR per review; lite is OCR fallback, not markdown replacement.
     pages: list[dict] | None = None
     engine_label = ""
     tmpdir: tempfile.TemporaryDirectory[str] | None = None
+    # Helper to wrap lite/pix2text markdown (plain text) into the pdf_conv_md pages shape
+    def _wrap_markdown_as_pages(md_text: str, label: str) -> list[dict]:
+        # Minimal pages shape: single page with text, no images (images via pymupdf sidecar if needed)
+        # Downstream parse_newsletter handles "## " headings added by lite/pix2text markdown
+        return [
+            {
+                "prunedResult": None,
+                "markdown": {"text": md_text, "images": {}},
+                "outputImages": [],
+                "inputImage": None,
+            }
+        ]
+
+    def _wrap_markdown_per_page(page_texts: list[str], label: str) -> list[dict]:
+        # Per-page wrapper so `verify_extraction` per-page coverage works on
+        # multi-page PDFs (e.g. SBI 28p via lite OCR). Each entry mirrors the
+        # pdf_local shape with its own markdown text.
+        return [
+            {
+                "prunedResult": None,
+                "markdown": {"text": pt, "images": {}},
+                "outputImages": [],
+                "inputImage": None,
+            }
+            for pt in page_texts
+        ]
+
     try:
+        # 1. pdf_local (pymupdf4llm) for born-digital
         if args.engine in ("auto", "local"):
             tmpdir = tempfile.TemporaryDirectory(prefix="pdf_local_")
             try:
                 pages = convert_local(
-                    pdf_path, Path(tmpdir.name) / "imgs", layout=args.layout)
+                    pdf_path, Path(tmpdir.name) / "imgs", layout=args.layout
+                )
                 engine_label = LOCAL_ENGINE_LABEL
                 print(f"parsed locally with {engine_label}")
             except LocalRefusalError as e:
                 if args.engine == "local":
                     print(f"error: local engine refused: {e}", file=sys.stderr)
                     return 1
-                print(f"  local engine refused ({e}) — falling back to Paddle")
+                print(f"  local engine refused ({e}) — trying lite OCR fallback")
+        # 2. lite / lite-ocr for scanned and bbox sidecar
+        # `lite` is the fast no-OCR path (bbox sidecar, 0.10s) — refuses scanned.
+        # `lite-ocr` / `auto` fallback is Tesseract OCR (0.3s) for scanned.
+        if pages is None and args.engine in ("auto", "lite", "lite-ocr"):
+            # Prefer the engine that handles images + per-page shape
+            if _lite_convert is not None:
+                try:
+                    import os as _os
+
+                    _os.environ.setdefault("TESSDATA_PREFIX", "/usr/share/tesseract-ocr/5/tessdata")
+                    # Determine ocr flag: `lite` -> no-ocr, `lite-ocr` -> ocr, `auto` -> ocr (scanned)
+                    want_ocr = args.engine == "lite-ocr" or args.engine == "auto"
+                    # For `auto` we try OCR directly (scanned); lite no-ocr would refuse anyway
+                    if args.engine == "lite":
+                        want_ocr = False
+                    # tmp dir for lite image sidecar (reuse pdf_local tmpdir if present)
+                    if tmpdir is None:
+                        tmpdir = tempfile.TemporaryDirectory(prefix="lite_")
+                    lite_img_dir = Path(tmpdir.name) / "imgs"
+                    lite_img_dir.mkdir(parents=True, exist_ok=True)
+                    pages = _lite_convert(pdf_path, lite_img_dir, ocr=want_ocr)
+                    engine_label = _LITE_OCR_LABEL if want_ocr else _LITE_NOCR_LABEL
+                    total_chars = sum(len(p["markdown"]["text"]) for p in pages)
+                    print(f"parsed via {engine_label} ({total_chars} chars, {len(pages)}p)")
+                    if args.engine in ("lite", "lite-ocr"):
+                        pass
+                except LocalRefusalError as e:
+                    print(f"  lite {args.engine} refused ({e}) — trying next fallback", file=sys.stderr)
+                    pages = None
+                except Exception as e:
+                    print(f"  lite failed ({e}) — trying next fallback", file=sys.stderr)
+                    pages = None
+            elif _lite_ocr_convert is not None:
+                # Fallback to old liteparse_markdown path (no image sidecar)
+                try:
+                    import os as _os
+
+                    _os.environ.setdefault("TESSDATA_PREFIX", "/usr/share/tesseract-ocr/5/tessdata")
+                    md, meta = _lite_ocr_convert(pdf_path)
+                    pts = meta.get("page_texts")
+                    if isinstance(pts, list) and len(pts) == meta.get("pages", len(pts)):
+                        pages = _wrap_markdown_per_page(pts, meta.get("engine", "liteparse-ocr"))
+                    else:
+                        pages = _wrap_markdown_as_pages(md, meta.get("engine", "liteparse-ocr"))
+                    engine_label = meta.get("engine", "liteparse-ocr-eng")
+                    print(f"parsed via lite OCR {engine_label} ({meta.get('chars', len(md))} chars, {meta.get('pages', 1)}p)")
+                except Exception as e:
+                    print(f"  lite OCR failed ({e}) — trying next fallback", file=sys.stderr)
+                    pages = None
+            else:
+                print("  lite not available (liteparse not installed)", file=sys.stderr)
+        # 3. pix2text — DISABLED (excluded from pipelines 2026-09-02, nvidia deps)
+        if args.engine == "pix2text":
+            print(
+                "error: --engine pix2text is currently disabled (excluded from pipelines "
+                "to avoid large nvidia/CUDA dependencies). Use --engine auto/lite-ocr "
+                "(Tesseract) or --engine paddle instead.",
+                file=sys.stderr,
+            )
+            return 1
         if pages is None:
             engine_label = args.model
             pages = _convert_paddle(pdf_path, args)
