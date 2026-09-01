@@ -4519,3 +4519,26 @@ reprint-recovery arc rebuilds them. Traps worth remembering: cli2
 `overrides[]` key on `filter` (not `globs`) and silently no-op when
 misspelled; markdownlint-cli silently runs defaults on the cli2 config
 envelope; bulk markdown fixers REQUIRE a `git diff -w` audit afterward.
+
+## 192
+
+**Date:** 2026-09-01 · **Type:** tooling (markdown lint perf) ·
+**Proposal:** `doc/improvements/archive/tooling/md_lint_cache.md` ·
+**Status:** EXECUTED 2026-09-01 (same day)
+
+Stale-scan cache for `make md-lint`: per-file lint verdicts recorded in
+the gitignored sidecar `memory/md_lint_cache.db`, keyed by content
+hash + config hash + pinned cli2 version — unchanged files answer from
+the record, changed/new files re-scan, deleted files prune, any
+config/rule/version edit flushes. Subset scans run in a scratch
+symlink mirror that reproduces repo-relative paths (cli2 CLI globs are
+ADDITIVE to config globs — arguments cannot scope a run; the mirror
+keeps the findata Tier-1 override and the P&F quarantine matching
+identically). Guard: cli2 exit ≥ 2 records nothing (a failed scan must
+not cache "clean" verdicts). `--full` bypasses the cache. Warm run
+16.8 s → 0.24 s (1,314 files); a one-file edit scans exactly that
+file. Rejected shortcut: using search-fresh's stale set as the lint
+target — wrong epoch (the search diff is drained by APPLY/maint-full,
+leaving a green-gate hole); only the content-hash mechanism is shared,
+never the epoch. 15 tests (9 original + 6 cache) with an autouse
+tmp-cache fixture; live red-path + Tier-1 verified.

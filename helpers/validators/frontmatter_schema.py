@@ -511,7 +511,10 @@ def emit_key_doc() -> str:
             desc = (prop.get("description") or "").replace("|", "/").replace("\n", " ")
             lines.append(f"| `{key}` | {'yes' if key in req else 'no'} | {typ} | {cons} | {desc} |")
         lines.append("")
-    return "\n".join(lines) + "\n"
+    # Exactly one trailing newline, no trailing blank line: MD012 flags the
+    # blank, hand-stripping it broke the checked-in-freshness pin (loop seen
+    # twice 2026-09-01) — emit md-lint-clean by construction instead.
+    return "\n".join(lines).rstrip("\n") + "\n"
 
 
 def main(argv: list[str] | None = None) -> int:
