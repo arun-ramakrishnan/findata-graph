@@ -58,6 +58,7 @@ commit, referenced by nothing). Entry numbers point at
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
 - [`corpus_uniformity.md`](tooling/corpus_uniformity.md) — Proposal: Corpus uniformity — doc/ five-class taxonomy (okf/ + design/), template seeds + PAIRINGS guards, kind='ts' script_search footprint, proposal frontmatter contract (36-file backfill), prettier + ruff-format gates — completed.md #190
+- [`markdown_lint_adoption.md`](tooling/markdown_lint_adoption.md) — Proposal: Adopt markdownlint-cli2 — markdown lint gate for doc/ prose + findata Tier-1 defects (MD037 truncation writer + EOF-newline guards fixed at source, permission-gated 524-note backfill, 7 reprint editions quarantined for the reprint-recovery arc), promoted into the qa gate — completed.md #191
 
 - [`mcp_tool_eval.txt`](tooling/mcp_tool_eval.txt) — mcp_tool_eval.txt — codebase-memory-mcp hygiene audit (Aug 2026)
 - [`doc_search_embeddings.md`](tooling/doc_search_embeddings.md) — Content-Addressable Doc Search — FTS5 + hybrid embeddings over doc/ — completed.md #148

@@ -147,7 +147,7 @@ Mechanically complete:
 Post-S1 layout (contracts and seeds adjacent, paired by the §2.1
 registry — not merged, because §2's boundary is the point):
 
-```
+```text
 doc/
   design/               ← what the system IS and WHY
     architecture.md  findata.md  graph_design.txt  db_schema.md

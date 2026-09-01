@@ -274,3 +274,14 @@ def test_advisory_gate_includes_search_freshness_checks():
     assert "doc-search-check" in labels
     assert "script-search-check" in labels
     assert "note-search-check" in labels
+
+
+def test_qa_gate_includes_markdown_lint():
+    # 2026-09-01 (markdown_lint_adoption S5): the markdown gate was
+    # PROMOTED from advisory into the blocking qa steps once the corpus
+    # went green (S1–S4). It must stay in qa so markdown linting can
+    # never silently drop out of the blocking surface again.
+    step = [s for s in rgr.GATES["qa"].steps if s.label == "md-lint"][0]
+    assert "md-lint" in step.args  # ("make", "md-lint"); make is which()-resolved
+    assert not step.nonblocking  # a blocking lint, like ruff's "lint" row
+    assert "md-lint" not in [s.label for s in rgr.GATES["advisory"].steps]  # qa owns it now

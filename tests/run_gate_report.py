@@ -120,6 +120,10 @@ GATES: dict[str, Gate] = {
     "qa": Gate(
         steps=(
             Step("lint", (_RUFF, "check", ".")),
+            # markdown_lint_adoption S5 promotion: markdown joins ruff as a
+            # gating linter (S1–S4 took the corpus green; the helper SKIPs
+            # rc-0 on node-less boxes so the gate stays safe there).
+            Step("md-lint", (_MAKE, "md-lint")),
             Step("types", (_TY, "check", "helpers", "app.py")),
             Step("deptry", (_DEPTRY, ".")),
             Step("static_checks", (_PY, "helpers/validators/static_checks.py")),
@@ -168,6 +172,9 @@ GATES: dict[str, Gate] = {
             # Tests asserting real-cache semantics carry `real_graph_cache`.
             Step("live-invariants", (_PY, "-m", "pytest", "-m", "live", "-n", "auto")),
             Step("frontend-check", (_MAKE, "frontend-check")),
+            # md-lint was promoted to the qa gate at S5 (markdown_lint_
+            # adoption) — like frontend-check it stays Node-gated via its
+            # helper, but unlike frontend-check it is now blocking.
             Step("graph-algos", (_MAKE, "graph-algos")),
             Step("analytics", (_MAKE, "analytics")),
             Step("suggest-relations", (_MAKE, "suggest-relations")),

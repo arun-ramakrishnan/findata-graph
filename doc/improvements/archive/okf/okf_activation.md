@@ -193,7 +193,7 @@ dataclass; reads the parquet snapshot via DuckDB — established A3 pattern).
 `derive_insights.py` gains `--stale-only` (default off = today's
 behavior). Decision at render time, per company note:
 
-```
+```text
 skip  iff  generated.by == the derive writer          # a prior real render
        and sources[] non-empty                        # evidence to key on
        and max(sources[].last_modified) <= generated.at

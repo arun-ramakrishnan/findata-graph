@@ -109,6 +109,7 @@ for all 1,065 rows even when the vector is byte-identical (warm cache).
 Changes:
 
 1. Replace with a guarded upsert that never touches unchanged rows:
+
    ```sql
    INSERT INTO company_embeddings (company_name, embedding, model, created_at)
    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
@@ -119,6 +120,7 @@ Changes:
    WHERE company_embeddings.embedding IS NOT excluded.embedding
       OR company_embeddings.model    IS NOT excluded.model
    ```
+
    (`IS NOT` for NULL-safe compare; requires SQLite ≥ 3.35 — verify at
    implementation, fall back to read-compare-skip if not.) A changed
    vector correctly restamps its row; an identical one writes nothing.
@@ -280,7 +282,7 @@ cycles are clean.
 - **R4 (F4 — deterministic exports)** — implemented as
   `COPY (SELECT * FROM {t} ORDER BY ALL)` for every materialised DuckDB
   table (snapshot_db.py) rather than the proposed per-table id map —
-  the e_* tables have no id column (their name-labeled columns hold
+  the e_*tables have no id column (their name-labeled columns hold
   v_node ids), and ORDER BY ALL covers the v_* projections too with
   zero manifest maintenance. Verify path is row-count based, so this is
   round-trip neutral. New double-export determinism test in
@@ -298,7 +300,7 @@ cycles are clean.
   variable tripped ty — renamed `existing_rows`.
 - **R6 (close-out verification, 2026-08-22 21:19–21:34)** — four live
   `make maint-full` cycles on the unchanged corpus:
-  cycle 1 absorbed the one-time canonicalisations (all 13 e_* + 3 v_*
+  cycle 1 absorbed the one-time canonicalisations (all 13 e_*+ 3 v_*
   blobs reordered by ORDER BY ALL; louvain relabelled); cycle 2 exposed
   the R5 bug (db_meta/_build_meta/graph_analytics churn); cycle 3
   absorbed the seeded-partition state + diagnostic drift (gen now

@@ -18,7 +18,7 @@ area: helpers/maintenance/snapshot_db.py
 **Date:** 2026-08-29 · **Status:** EXECUTED 2026-08-29 (completed.md #175) ·
 **Area:** `helpers/maintenance/snapshot_db.py` + `db_maint.py` +
 `rebuild_doc_search.py` / `rebuild_script_search.py` (sidecar backups)
-
+>
 > Closes the "Parallel per-table Parquet export" row deferred in
 > `../archive/tooling/parallel_cold_embed.md` §7 — at per-DB granularity
 > per the user's "keep it simple: one thread per db for starters";

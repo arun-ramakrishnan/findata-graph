@@ -73,6 +73,10 @@ DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 # in this file across sessions; only the SQLite ATTACH is re-established
 # per connect.
 DUCKDB_PATH = PROJECT_ROOT / "memory" / "graph.duckdb"
+# xdist workers park the production path here while DUCKDB_PATH points at the
+# per-worker copy (tests/conftest.py pytest_configure); `real_graph_cache`
+# tests restore from it. Declared so static assignment resolves.
+_REAL_DUCKDB_PATH: Path
 
 # P1.2: INSTALL is machine-local + idempotent but still hits disk; only INSTALL
 # once per process, thereafter just LOAD (per-connection state).

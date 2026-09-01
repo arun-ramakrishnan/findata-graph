@@ -1,14 +1,15 @@
 ---
 title: LiteParse PDF engine promotion — non-OCR default, gap-fill before cutover
-status: proposed
+status: executed
 filed: '2026-09-01'
-updated: '2026-09-01'  # Slice 1 done + Slice 2 done 2026-09-01 — liteparse_engine + cutover + docs + 23 tests
+executed: '2026-09-01'
+completed_md: '186'
 area: helpers/pdf/
 ---
 
 # LiteParse PDF engine promotion — non-OCR default, gap-fill before cutover
 
-**Status:** PROPOSED (2026-09-01, updated 2026-09-01 — Slice 1+2 done, 11-doc pool + engine sidecar + pix2text opt-in, easyocr removed)
+**Status:** EXECUTED 2026-09-01 (same day — Slices 0–2: 11-doc pool + liteparse_engine + image/bbox sidecars + pix2text opt-in, easyocr removed; completed.md #186)
 **Scope:** `helpers/pdf/`, `pyproject.toml`, `doc/local/perf_skills.md:9.1`, `doc/local/local_pdf_engine_trial.md`
 **Follows:** `archive/pipeline/local_pdf_conversion_fallback.md` (#156), `doc/local/perf_skills.md:9.1` trial
 
@@ -16,7 +17,7 @@ area: helpers/pdf/
 
 `helpers/pdf/pdf_local.py` (`pymupdf4llm 1.28.2`, `2.01s` avg on `7` `Reports/*.pdf` `5P+2G`) is correct but `21× slower` than `liteparse 2.0.0` `no-ocr` (`0.098s` avg) on same born-digital newsletters, near-parity chars (`~48–55K`) and `+ bbox` per token (`x/y/w/h`) for RAG grounding. Expanded to **11-doc pool** `7 born-digital + 4 scanned` (`tests/data/ocr_samples/` `handwritten_formula`, `printed_math`, `mixed_table_formula`, `scanned_benchmark` `0-char` text layer, `pdf_local` `REFUSED ✓`).
 
-`pdf_local` stays **primary for non-OCR** per review (keep unchanged) — `liteparse` is **OCR fallback**, not markdown replacement (plain `res.text` `719` items, no `## `/`imgs/` without reconstructor, `liteparse_post.py` port hurt `98.26%→91.33%` cov).
+`pdf_local` stays **primary for non-OCR** per review (keep unchanged) — `liteparse` is **OCR fallback**, not markdown replacement (plain `res.text` `719` items, no `##`/`imgs/` without reconstructor, `liteparse_post.py` port hurt `98.26%→91.33%` cov).
 
 No `Anthropic` subscription: `pdf` skill (`pypdf/pdfplumber`) is local `pip` and was **removed** (`~/.agents/skills/pdf` `14` now), `liteparse` `Apache-2.0` local (`Rust` + `Tesseract 5.5.0` `eng 4.0M` `TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata`), `markitdown`/`easyocr` removed (`easyocr 1.7.2` `5–6s` middle ground not needed).
 
@@ -56,7 +57,7 @@ Keep `helpers/pdf/pdf_conv_md.py` pages shape unchanged (`[{markdown:{text,image
 
 1. **`pdf_local` `pymupdf4llm`** — primary for born-digital (keep unchanged).
 2. **`liteparse no-ocr`** (`LiteParse(quiet=True, ocr_enabled=False)`) — fast `0.10s` bbox sidecar for RAG grounding (plain text, not markdown primary).
-3. **`lite OCR` `Tesseract`** (`LiteParse ocr=True, tessdata_path=/usr/share/tesseract-ocr/5/tessdata`, `helpers/pdf/liteparse_markdown.py` `→ ## `) — **default OCR fallback** for scanned `MIN_CHARS_PER_PAGE 100` refusal (`0.2–0.3s`, tables/numbers exact, local cheap vs `Paddle`).
+3. **`lite OCR` `Tesseract`** (`LiteParse ocr=True, tessdata_path=/usr/share/tesseract-ocr/5/tessdata`, `helpers/pdf/liteparse_markdown.py` `→ ##`) — **default OCR fallback** for scanned `MIN_CHARS_PER_PAGE 100` refusal (`0.2–0.3s`, tables/numbers exact, local cheap vs `Paddle`).
 4. **`pix2text` `mfd-1.5`** (`helpers/pdf/pix2text_markdown.py`, `MPLBACKEND=agg`) — **opt-in formula branch** when `∫ Σ √` detected or page is formula-heavy (`2–7s`, LaTeX `$\int$` `^2` `_` kept where `Tesseract` mangles). Trigger via `--engine pix2text` or auto-detect.
 5. **`Paddle PP-StructureV3`** (`PADDLE_API_KEY` `300s` POST `600s` poll) — last fallback, not first.
 6. **`pymupdf4llm` legacy** — behind `--engine pymupdf` for one release.
@@ -67,7 +68,7 @@ Keep `helpers/pdf/pdf_conv_md.py` pages shape unchanged (`[{markdown:{text,image
 
 `liteparse` returns no `write_images` — keep `pymupdf` image extraction sidecar (`page.get_images → pixmap`) when lite is primary, so `plan_images`/`to_wikilinks` still emit `<slug>_p{page}_img{N}.jpeg`. Full parity is Slice 2, not blocking text gate.
 
-## OCR Datasets — tiny samples (<100MB per category) from https://github.com/xinke-wang/OCRDatasets
+## OCR Datasets — tiny samples (<100MB per category) from <https://github.com/xinke-wang/OCRDatasets>
 
 **Repo:** `xinke-wang/OCRDatasets` — 6 categories (`Natural Scene Text`, `Document Text`, `Handwritten Text`, `Historical Document Text`, `Video Text`, `Synthetic Text`), `104` datasets. Full table in `OCRDatasets/README.md`.
 

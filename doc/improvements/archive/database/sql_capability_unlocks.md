@@ -242,7 +242,7 @@ multi-second-to-minute bomb, and `max_hops=10` would hang the worker.
 2. **Replace the single-statement CTE with a BFS loop** (≤ max_hops
    iterations, each one set-based DISTINCT step):
 
-   ```
+   ```text
    frontier = {src}; visited = {src}; parent = {}
    repeat max_hops times:
        next = SELECT DISTINCT b FROM e_all_und

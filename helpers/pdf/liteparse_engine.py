@@ -28,6 +28,7 @@ Slice handling:
    fallback chain (`pdf_local` -> `lite OCR` -> `Paddle`; `pix2text`
    disabled 2026-09-02 — excluded from pipelines, nvidia deps).
 """
+
 from __future__ import annotations
 
 import os
@@ -197,15 +198,25 @@ def convert(
         from liteparse import LiteParse
 
         try:
-            parser = LiteParse(
-                quiet=True, ocr_enabled=True, ocr_language=language, dpi=dpi, tessdata_path=tessdata_path
-            ) if tessdata_path else LiteParse(quiet=True, ocr_enabled=True, ocr_language=language, dpi=dpi)
+            parser = (
+                LiteParse(
+                    quiet=True,
+                    ocr_enabled=True,
+                    ocr_language=language,
+                    dpi=dpi,
+                    tessdata_path=tessdata_path,
+                )
+                if tessdata_path
+                else LiteParse(quiet=True, ocr_enabled=True, ocr_language=language, dpi=dpi)
+            )
             res = parser.parse(str(pdf_path))
         except TypeError:
             # Older binding without tessdata_path kwarg
             from liteparse import LiteParse as LP2
 
-            res = LP2(quiet=True, ocr_enabled=True, ocr_language=language, dpi=dpi).parse(str(pdf_path))
+            res = LP2(quiet=True, ocr_enabled=True, ocr_language=language, dpi=dpi).parse(
+                str(pdf_path)
+            )
     else:
         from liteparse import LiteParse
 
@@ -238,6 +249,11 @@ def get_bbox_sidecar(pdf_path: Path, *, dpi: int = 150) -> list[dict]:
             for t in getattr(pg, "text_items", [])
         ]
         out.append(
-            {"page_num": getattr(pg, "page_num", len(out) + 1), "width": pg.width, "height": pg.height, "items": items}
+            {
+                "page_num": getattr(pg, "page_num", len(out) + 1),
+                "width": pg.width,
+                "height": pg.height,
+                "items": items,
+            }
         )
     return out

@@ -205,7 +205,6 @@ Full `make qa` + `pytest tests/test_frontmatter_schema.py` as the gate.
    generated notes emit `okf_version: 0.2` so consumers know the vocabulary
    version? (Both optional; cheap future-proofing.)
 
-
 ## 5. Definition of Done (acceptance criteria)
 
 This proposal is complete when:

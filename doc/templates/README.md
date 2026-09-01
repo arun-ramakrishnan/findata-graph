@@ -37,7 +37,7 @@ inventing a new gate pattern (corpus_uniformity proposal §7).
 | Mojo | mojo_module.mojo | mojo format copy-diff | compiler | mojo doc → kind='mojo' | qa |
 | TypeScript | ts_module.ts | prettier --check (frontend-check) | tsc --noEmit | extract_ts_docs.mjs → kind='ts' | advisory |
 | JavaScript | none — no first-party JS (rule, not omission) | prettier ignores static/ | — | — | — |
-| Markdown notes | YAML seeds above | — | frontmatter validators | doc_search | static-checks |
+| Markdown notes | YAML seeds above | — (deliberate: formatters reflow prose — markdown_lint_adoption §2) | markdownlint-cli2 (make md-lint, qa) + frontmatter validators | doc_search | qa |
 
 ## Notes on the seeds
 

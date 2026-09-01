@@ -79,9 +79,9 @@
 | `sync_sector_wikilinks.py` | 54% | 42 | 36 | 6 | +insertion/title fallback |
 | `derive_events.py` | 77% | 47 | 44 | 10 | +date/dedup tests |
 | `_edge_writer.py` | 95% | 1 | 1 | 0 | sys.path guard (skip) |
-| `maint.py` | 97% | 1 | 1 | 0 | __main__ guard (skip) |
+| `maint.py` | 97% | 1 | 1 | 0 | `__main__` guard (skip) |
 
-**Total**: 102 new tests across 15 files. Biggest wins: `db.py` (+35 lines), 
+**Total**: 102 new tests across 15 files. Biggest wins: `db.py` (+35 lines),
 `frontmatter.py` (+13), `build_sector_hierarchy.py` (+13), `algorithms.py` (+7).
 Full coverage impact will be visible on next `make cover` run.
 
@@ -96,7 +96,7 @@ Full coverage impact will be visible on next `make cover` run.
 | `move_sector.py` | 19% | 122 | 17 | **NEW file** — all YAML helpers tested |
 | `rename_entity.py` | 17% | 76 | 6 | **NEW file** — replace_field pure function |
 | `enrich_from_yfinance.py` | 49% | 189 | 34 | **NEW file** — format/convert/extract/render/frontmatter |
-| `static_checks.py` | 47% | 192 | 24 | +parse_frontmatter, _check_tags/permalink/date, iter_findata |
+| `static_checks.py` | 47% | 192 | 24 | +parse_frontmatter,_check_tags/permalink/date, iter_findata |
 | `derive_insights.py` | 77% | 149 | 34 | +canonicalize, parse_attribution, label/classify/unit |
 | `get_tickers.py` | 60% | 139 | 16 | +fmt_number/pct, print sections smoke tests |
 | `parse_newsletter.py` | 58% | 99 | 17 | +normalize_name, render_stub, extract_companies |
@@ -115,8 +115,8 @@ Combined with quick wins: **284 new tests across 24 files**.
 | File | Old Cov% | Old Miss | Tests Added | Notes |
 |------|---------|---------|-------------|-------|
 | `database_integrity_check.py` | 52% | 348 | +51 | All check_* methods + pure helpers + connection lifecycle |
-| `query.py` | 72% | 172 | +29 | NEW file: _lit, _normalise_as_of, _as_of_predicate, cache ops, EDGE_REGISTRY |
-| `db_maint.py` | 51% | 187 | +21 | NEW file: _fmt_bytes, _pragma_ident, DBMaintainer.settings/metrics/index_report, _print_report |
+| `query.py` | 72% | 172 | +29 | NEW file: _lit,_normalise_as_of, _as_of_predicate, cache ops, EDGE_REGISTRY |
+| `db_maint.py` | 51% | 187 | +21 | NEW file: _fmt_bytes, _pragma_ident, DBMaintainer.settings/metrics/index_report,_print_report |
 
 ### Subtotal (Batches 1-3): 385 new tests across 27 files
 
@@ -177,12 +177,12 @@ Combined with quick wins: **284 new tests across 24 files**.
 | File | Old Miss | Tests Added | Notes |
 |------|---------|-------------|-------|
 | `verify_notes.py` | 122 | 64 | **NEW file** — NotesVerifier: filename, name_sync, YAML structure, sector/super_sector/company consistency, content quality, heading duplicates, near-dup detection, redundant YAML, report generation, process_directory |
-| `embeddings.py` | 72 | 30 | **NEW file** — _pseudo_embedding (determinism, L2 norm, range), _ensure_schema (dim mismatch, idempotent), _get_company_text (file read + YAML strip), clear, stats, populate_dry_run, _get_openai_client import error |
+| `embeddings.py` | 72 | 30 | **NEW file** — _pseudo_embedding (determinism, L2 norm, range), _ensure_schema (dim mismatch, idempotent), _get_company_text (file read + YAML strip), clear, stats, populate_dry_run,_get_openai_client import error |
 
 **Bug found during testing**: `check_heading_duplicates` returns early when no H3 headings
 exist, so the redundant-YAML-block check (which comes after the heading analysis) is silently
-skipped for files with no ### headings. The test works around this by including at least one
-### heading.
+skipped for files with no `###` headings. The test works around this by including at least one
+`### heading.` line
 
 ### Updated Grand Total
 

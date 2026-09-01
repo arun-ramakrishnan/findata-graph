@@ -107,4 +107,3 @@ Source: [`frontmatter.proposal.v1.json`](frontmatter.proposal.v1.json)
 | `filed` | yes | string | pattern `^\d{4}-\d{2}-\d{2}$` | ISO calendar date (YYYY-MM-DD). NOTE: unquoted YAML dates are auto-parsed into date objects by PyYAML; the validator normalizes these to ISO strings before checking. |
 | `status` | yes | string | one of `proposed`, `executed` | 'proposed' while in proposals/; 'executed' once archived (directory agreement enforced by static_checks). |
 | `title` | yes | string | min length 1 | From the # heading; imperative, names the mechanism. |
-

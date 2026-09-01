@@ -1,4 +1,5 @@
 """Tests for helpers/pdf/pix2text_markdown.py — Slice 1 pix2text branch."""
+
 from __future__ import annotations
 import os
 import sys
@@ -6,6 +7,7 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
+
 
 # MPLBACKEND must be agg before matplotlib import — the module forces it
 def test_mplbackend_is_agg():
@@ -16,9 +18,11 @@ def test_mplbackend_is_agg():
     # If matplotlib is already imported, its backend should be Agg
     try:
         import matplotlib
+
         assert "Agg" in matplotlib.get_backend() or matplotlib.get_backend() == "agg"
     except ImportError:
         pass
+
 
 def test_mplbackend_inline_forced_to_agg(monkeypatch):
     # Simulate the inline backend being set before import — reload should fix it
@@ -30,6 +34,7 @@ def test_mplbackend_inline_forced_to_agg(monkeypatch):
     if val and val.startswith("module://matplotlib_inline"):
         monkeypatch.setenv("MPLBACKEND", "agg")
     assert os.environ.get("MPLBACKEND") == "agg"
+
 
 def test_convert_pix2text_meta_shape(tmp_path):
     # Lightweight: create a 1-page PDF and run pix2text (slow but 1 page ~3s)
@@ -47,6 +52,7 @@ def test_convert_pix2text_meta_shape(tmp_path):
         _pytest.skip("pix2text model not cached")
 
     import pymupdf
+
     pdf = tmp_path / "formula.pdf"
     doc = pymupdf.open()
     page = doc.new_page()
@@ -55,6 +61,7 @@ def test_convert_pix2text_meta_shape(tmp_path):
     doc.close()
 
     from helpers.pdf.pix2text_markdown import convert_pix2text
+
     md, meta = convert_pix2text(pdf)
     assert meta["engine"] == "pix2text-mfd-1.5"
     assert meta["pages"] == 1
@@ -62,6 +69,7 @@ def test_convert_pix2text_meta_shape(tmp_path):
     assert "page_texts" in meta
     assert len(meta["page_texts"]) == 1
     assert isinstance(md, str)
+
 
 def test_convert_pix2text_scanned_benchmark():
     pdf = Path("tests/data/ocr_samples/scanned_benchmark.pdf")
@@ -77,11 +85,13 @@ def test_convert_pix2text_scanned_benchmark():
     if not pdf.exists() or not model_dir.exists():
         _pytest2.skip("missing fixture or model")
     from helpers.pdf.pix2text_markdown import convert_pix2text
+
     md, meta = convert_pix2text(pdf)
     assert meta["pages"] == 1
     assert "pix2text" in meta["engine"]
     assert len(md) > 20
     assert "page_texts" in meta
+
 
 def test_convert_pix2text_mixed_table_contains_numbers():
     pdf = Path("tests/data/ocr_samples/mixed_table_formula.pdf")
@@ -97,6 +107,7 @@ def test_convert_pix2text_mixed_table_contains_numbers():
     if not pdf.exists() or not model_dir.exists():
         _pytest3.skip("missing fixture or model")
     from helpers.pdf.pix2text_markdown import convert_pix2text
+
     md, meta = convert_pix2text(pdf)
     # Table numbers should be preserved at least partially
     assert "12" in md and "14" in md

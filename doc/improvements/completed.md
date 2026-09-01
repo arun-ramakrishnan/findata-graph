@@ -1,3 +1,4 @@
+<!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-08-09
 **Total completed**: 128 items
@@ -218,7 +219,6 @@ Full analysis and before/after timings: `doc/improvements/archive/tooling/perf_i
   second pass (1.19M → 918K function calls). 1.7s → 1.5s median (12% improvement).
   Perf gate: `test_derive_insights_under_4s`.
 
-
 ## parse_newsletter Performance Optimization (2026-08-10)
 
 ### Root cause: broken import in get_tickers.py (correctness + perf bug)
@@ -277,7 +277,6 @@ NEVER resolved a single ticker correctly.
 - **P6** — `helpers/core/get_tickers.py` — Added `timeout=5` to `yf.Search()` call so
   network hangs can't stall the pipeline indefinitely.
 
-
 ## DuckDB VSS Integration (2026-08-09)
 
 ### N5 — vss (vector similarity search) **[ADOPTED — 2026-08-09]**
@@ -303,7 +302,6 @@ similarity search over company embeddings, integrated into the FinData knowledge
 - ~~Add embedding column to `note_search` FTS5 table in `rebuild_note_search.py` for hybrid ranking~~ — **DONE 2026-08-15** (see #105b)
 - ~~Add `/api/graph/semantic/<name>` endpoint in `app.py`~~ — **DONE 2026-08-15** (see #105)
 - Re-evaluate HNSW index macros via quarterly `make update-extensions` (section 18.5)
-
 
 ## yfinance Data Enrichment (2026-08-10)
 
@@ -405,7 +403,7 @@ Export all materialised DuckDB tables (20 tables) and SQLite data tables
 
 ### Output structure (produced by default via `make snapshot`)
 
-```
+```text
 db-backup/parquet/
   duckdb/   (20 files, ~134KB)
     v_node.parquet, v_company.parquet, v_sector.parquet, ...
@@ -519,7 +517,7 @@ Key improvements (unit-test-only numbers; full impact visible on `make cover`):
 - `frontmatter.py`: 64% → ~100% (+13 lines — new test file with 14 tests)
 - `fuzzy_match.py`: 95% → 100% (+3 lines — word_overlap_match success path,
   spellfix1 exception/no-result paths)
-- `build_sector_hierarchy.py`: 73% → 80% (+13 lines — _normalize, _note_path,
+- `build_sector_hierarchy.py`: 73% → 80% (+13 lines — _normalize,_note_path,
   _super_sector_note, _inject_uplink)
 - `algorithms.py`: 82% → 86% (+7 lines — _format_value, _print_result for
   wcc/louvain/ranked paths)
@@ -536,14 +534,14 @@ Four new test files created (`test_move_sector.py`, `test_rename_entity.py`,
 Key new tests:
 - `enrich_from_yfinance.py`: 34 tests (NEW file) — format/convert_value,
   extract_metrics with USD conversion, extract_profile, render_profile_block,
-  _update_frontmatter, _insert_profile_section, write_metrics, write_competitor_edges,
+  _update_frontmatter,_insert_profile_section, write_metrics, write_competitor_edges,
   get_stale_companies, get_enriched_companies
 - `static_checks.py`: +24 tests — _parse_frontmatter (valid/absent/bad-yaml),
-  _check_tags_one (5 paths), _check_permalink_one (4 paths), _check_date_one (5 paths),
+  _check_tags_one (5 paths),_check_permalink_one (4 paths), _check_date_one (5 paths),
   _iter_findata_md, _has_node, check_dependency_pinning
-- `derive_insights.py`: +34 tests — _canonicalize (5), _parse_attribution (7),
-  _label_from_window (5), _classify_metric (3), _parse_value_num (4), _unit_of (9)
-- `extract_relations.py`: +24 tests — _tokens, _looks_like_speaker, _parse_yaml_field,
+- `derive_insights.py`: +34 tests — _canonicalize (5),_parse_attribution (7),
+  _label_from_window (5), _classify_metric (3), _parse_value_num (4),_unit_of (9)
+- `extract_relations.py`: +24 tests — _tokens,_looks_like_speaker, _parse_yaml_field,
   _detect_doc_type, _make_properties, _split_sections
 - `parse_newsletter.py`: +17 tests — normalize_name (9), render_stub (3), extract_companies (5)
 - `get_tickers.py`: +16 tests — _fmt_number/_fmt_pct, _print_header/basic/valuation/history
@@ -639,28 +637,28 @@ Targeted the two largest remaining coverage gaps:
 77. **Fuzz tests for frontmatter.py — 13 hypothesis property tests** (2026-08-12)
 78. **P1 Integration Tests: parse_newsletter E2E pipeline** (2026-08-12)
 79. **P5 Integration Tests: graph-algorithm compute→persist→read round-trip** (2026-08-12)
-   - New file: `tests/test_integration_graph_algorithms.py` — 34 tests, 7 classes
-   - Coverage: compute→write→read round-trip for 5 NetworkX metrics (parametrized),
+- New file: `tests/test_integration_graph_algorithms.py` — 34 tests, 7 classes
+- Coverage: compute→write→read round-trip for 5 NetworkX metrics (parametrized),
      value sanity (degree ordering, betweenness bridge, closeness range, eigenvector ≥0,
-     louvain int labels), write_analytics UPSERT idempotency, _wrap_for_analytics shape
+     louvain int labels), write_analytics UPSERT idempotency,_wrap_for_analytics shape
      (scalar/label/modularity), graph mutation→recompute→delta (3 tests), API
      /api/graph/metrics endpoint (8 tests: scalar ranked, top param, entity filter,
      label groups, error 400s, empty metric), _format_value (3)
-   - Synthetic 6-node graph with two sectors, monkeypatched algorithms.connect
-   - All 34 tests pass in 0.6s; full suite: 1253 passed (254 deselected)
+- Synthetic 6-node graph with two sectors, monkeypatched algorithms.connect
+- All 34 tests pass in 0.6s; full suite: 1253 passed (254 deselected)
 
-   - New file: `tests/test_integration_parse_newsletter.py` — 36 tests, 9 classes
-   - Coverage: entity creation (7), note files (6), graph edges (4), idempotency (3),
+- New file: `tests/test_integration_parse_newsletter.py` — 36 tests, 9 classes
+- Coverage: entity creation (7), note files (6), graph edges (4), idempotency (3),
      dry-run mode (3), worklist JSON (3), sector guessing (4), existing-entity
      classification (3), non-company heading filtering (3) ... wait, wrong total.
-   - Coverage: entity creation (7), note files (6), graph edges (4), idempotency (3),
+- Coverage: entity creation (7), note files (6), graph edges (4), idempotency (3),
      dry-run mode (3), worklist content (3), sector guessing (4), existing-entity
      classification (3), non-company headings (3)
-   - Synthetic newsletter → full pipeline → verify entities, notes, edges, worklist
-   - Mocked: search_ticker, capture_images, run_validation, run_graph_analytics
-   - Registered new `integration` pytest marker in `pytest.ini`
-   - Fixed pre-existing `test_fuzz_frontmatter.py` whitespace-tag failure
-   - All 36 tests pass in 1.3s; full suite: 1183 passed (290 deselected)
+- Synthetic newsletter → full pipeline → verify entities, notes, edges, worklist
+- Mocked: search_ticker, capture_images, run_validation, run_graph_analytics
+- Registered new `integration` pytest marker in `pytest.ini`
+- Fixed pre-existing `test_fuzz_frontmatter.py` whitespace-tag failure
+- All 36 tests pass in 1.3s; full suite: 1183 passed (290 deselected)
 
 After analyzing all 12 coverage-campaign modules for fuzz/perf gaps, found exactly one:
 `frontmatter.py` (4 pure text-parsing functions) had no fuzz coverage despite being the
@@ -1379,7 +1377,6 @@ ruff/ty green. Test-file header updated (still referenced removed
 
 Related doc edits: `completed.md` N5 "Next steps" line marked DONE.
 
-
 ## 105. `/api/graph/semantic/<name>` endpoint — VSS neighbours over HTTP (closes deferred N5 item)
 
 **Date:** 2026-08-15
@@ -1418,7 +1415,6 @@ Honest limitation (shared with #103): with dry-run hash-based pseudo-embeddings
 the neighbours are low-similarity (max ~0.18) and only loosely topical; the
 endpoint is fully wired and tested, and becomes genuinely useful once real
 (OpenAI/`--api`) embeddings are populated.
-
 
 ## 105b. `note_search` embedding column + hybrid ranking (closes deferred N5 item)
 
@@ -1473,7 +1469,6 @@ pseudo-vectors rarely align semantically). The plumbing — column, migration,
 embed_fn injection, RRF fusion, HTTP param — is complete and testable, and
 becomes genuinely semantic once real (`--api`) embeddings are populated on both
 the rebuild and (via the matching embed_fn) the query side.
-
 
 ## 106. Hot-path caching — `graph_metrics` + `/api/sectors` (perf sweep)
 
@@ -1812,7 +1807,6 @@ Verification: frontend type-check (strict) ✓, ruff ✓, 95 graph+contract test
 pass ✓, Playwright end-to-end (cloud load, part_of filter → 42 components,
 highlight on tap, ego network) ✓.
 
-
 ## 113. Parquet-first DB shipping: `snapshots/` tracked, `--restore` rebuilds `memory/`
 
 **Date:** 2026-08-15
@@ -1867,7 +1861,6 @@ Docs: README (layout table + Quickstart), architecture.md §2/§3, schema.md
 now point at `snapshots/` as the tracked artifact and `make
 snapshot-restore` as the clone-side path. Fixed the long-stale
 "db-backup/ (git-tracked)" claim in architecture.md.
-
 
 ## 114. Paddle parse_pages hardening + slugify consolidation + pdf_conv_md fuzz tests
 
@@ -2052,7 +2045,6 @@ Removed `tests/test_git_secret_scan.py` which contained sensitive keys in
 test assertions. `make secret-scan` continues to run via the Makefile target
 directly; no loss of CI coverage.
 
-
 ## 124. A1: sqlite-vec KNN for note_search hybrid ranking
 
 Added `helpers/core/vec_search.py`: a `note_search_vec` vec0 virtual-table
@@ -2086,7 +2078,6 @@ future real embeddings and KNN-as-candidate-generation beyond the BM25
 page. (3) RRF tie behavior documented in tests: a doc pair that merely
 swaps BM25/cosine ranks contributes identical RRF sums (stable sort keeps
 BM25 order) — test fixtures must break rank symmetry to observe reorders.
-
 
 ## 125. B1: frontmatter JSON-Schema contract (doc/schema/ + static check)
 
@@ -2129,7 +2120,6 @@ in the YAML Front Matter section with the four drift rules, schema check
 added to Validation commands + checklist, and the schema-evolution path
 documented (update schema → --emit-doc → re-run; never weaken to pass).
 
-
 ## 126. A1 regression fix: vec0 table moved to sidecar DB (graph layer healed)
 
 While building C1, the graph layer turned out broken since A1 landed: the
@@ -2157,7 +2147,6 @@ to the qualified name (test_vec_search 2 sites, TestVecMirror 2 +
 sidecar-attach in its raw-conn helper). Gates: ruff, lint-audit, make types,
 78 tests across the six touched suites — all green.
 
-
 ## 127. C1: GraphRAG-lite context packs
 
 New ``helpers/graph/context_pack.py``: ``build_context_pack(con, name, hops=1,
@@ -2182,7 +2171,7 @@ ego pack (seed-touching edges only); ``hops=N>1`` adds N-1 structured-edge
 expansion rounds (comention excluded from expansion — it would swallow the
 graph). Entity resolution: exact -> case-insensitive -> ticker. CLI with
 the standard sys.path bootstrap (subprocess-safe from any cwd). Depends on
-#126: packs on the live graph now include real semantic neighbors again.
+\# 126: packs on the live graph now include real semantic neighbors again.
 Tests: tests/test_context_pack.py (12 — synthetic star-schema fixture
 covering every edge type, budget/priority trimming, hops semantics, rollup,
 determinism, footer contract, + one live-graph test). Gates: ruff,
@@ -2198,7 +2187,6 @@ internal statistics. The function is a no-op if the connection is already
 closed. New code should prefer `close_connection()` over bare
 `conn.close()`. Existing callsites are not bulk-migrated (opt-in
 adoption). Tests: 76 across touched suites + 19 perf benchmarks — green.
-
 
 ## 129. C2 link-prediction suggestions + A3 Parquet analytics
 
@@ -2255,7 +2243,6 @@ pristine clone (module-level skips when memory/research.db is absent).
 Wired FIRST in advisory's ``-k`` chain — as a real target, not a recipe
 line, so a live failure surfaces in the final ``-k`` status without
 suppressing the rest of the sweep.
-
 
 ## 130. OKF v0.2 provenance vocabulary adopted (writers + schema gate)
 
@@ -2315,7 +2302,6 @@ schema gate. All proposal decisions accepted as recommended.
   across the five touched suites. Gradual rollout: existing notes gain
   keys on their next derive; new conversions carry provenance from day
   one (accepted Q5 — no backfill).
-
 
 ## 131. OKF conformance sweep (--okf mode + make qa wiring)
 
@@ -2516,7 +2502,7 @@ edge set). All four workstreams shipped the same day:
 ## 136. as_of_edition normalized to edition stems at the derive write boundary
 
 **Date**: 2026-08-19. The deferral-revisit item shipped standalone ("take
-#2 now, one hour, permanent"); the N1/N3 read-side bundle lives in
+# 2 now, one hour, permanent"); the N1/N3 read-side bundle lives in
 `proposals/okf_readside.md`, N4 (C3 temporal) in pending.md. Now archived: `archive/okf/okf_readside.md`.
 
 - **Why**: okf_activation F0 made the note STEM the canonical edition key
@@ -2644,7 +2630,6 @@ changes).
   tests) green; py_compile over touched modules; ruff + make types +
   static-checks green. Comment-only code changes (no behavior).
 
-
 ## 141. Local bge-small-en-v1.5 embeddings — all four vector surfaces
 
 - Replaced the SHA-256 pseudo-embeddings with real local bge-small-en-v1.5
@@ -2755,7 +2740,7 @@ changes).
   write-side derive CLI, the maint/maint-full chain, and the snapshot
   create→verify→restore cycle now have end-to-end coverage on tmp data;
   the sentinel machinery, query predicates, shortest_path, derive_events
-  extractors, note_search clean/carry, and the _ALIASES table each have
+  extractors, note_search clean/carry, and the_ALIASES table each have
   Hypothesis properties.
 - Integration: `test_integration_derive_insights_apply` (the flagship —
   `--apply`/`--no-notes`/`--stale-only` through the real `_cli`,
@@ -2777,11 +2762,11 @@ changes).
   `_lit` total + round-trip properties; shortest_path vs a Python BFS
   oracle over a seeded Erdős–Rényi graph (label/as_of filters, symmetry,
   determinism, CTE equivalence); derive_events extractors;
-  rebuild_note_search clean/carry; _ALIASES invariants + first-token
+  rebuild_note_search clean/carry; `_ALIASES` invariants + first-token
   fallback. Repairs: the 0-byte `test_fuzz_edge_writer.py` filled
   (idempotence, CHECK guard, no-swap-dedup characterisation) and the
-  assert-nothing try/except wrappers in test_fuzz_{events,insights,
-  images} replaced with real invariants.
+  assert-nothing try/except wrappers in `test_fuzz_{events,insights,
+  images}` replaced with real invariants.
 - **Fuzz-found production fix:** an all-whitespace edition (`\x85` NEL)
   made the chatter heading regex capture the empty edition, so
   `_replace_or_insert_block` re-inserted a fresh block on every apply
@@ -2799,7 +2784,6 @@ changes).
   inherent-cost modules — cold DuckDB builds, gzip/parquet verify
   passes, CTE-oracle enumeration). Gates: `make qa` + `make integration`
   (431 passed, 1 xfailed) + `make fuzz` (148 passed) all green.
-
 
 ## 145. UI redesign S1+S2 — new graph endpoints + frontend foundation slice
 
@@ -3120,8 +3104,6 @@ Tests: test_report_contents now asserts passing plain steps DO log;
 `make live-invariants` through `run_step` + `write_report` (216 live
 tests, 50.6s, tail captured). ruff + `make types` clean.
 
-
-
 ## 152. Market-data resolution pipeline — ticker fallback, terminal classes, resolution-pass hardening
 
 **Date**: 2026-08-25
@@ -3201,7 +3183,7 @@ across all sections after merge cleanup.
 
 ### What landed
 
-- **Builder** `helpers/maintenance/rebuild_script_search.py`: one FTS5 row per helpers/** script, tests/** module, root app.py, and Makefile target in own gitignored sidecar `memory/script_search.db` (never research.db; doc_search locality doctrine). Row composition: purpose (docstring first para) + capped details, regex add_argument/add_parser CLI surface, top-level defs, Makefile wiring (bidirectional recipe substring map), tested_by via AST IMPORTS ONLY (no grep-mention). Modes: full (convergence + zero-churn stat + db-backup recovery), --incremental (always re-extracts — cross-file inputs — writes row-keyed diffs only), --check (unit-level hash-exact drift, exit 1, pre-warms embed cache). Machinery imported from rebuild_doc_search; stored_embed_dims duplicated (~15 lines, rds hardcodes doc_search table).
+- **Builder** `helpers/maintenance/rebuild_script_search.py`: one FTS5 row per helpers/**script, tests/** module, root app.py, and Makefile target in own gitignored sidecar `memory/script_search.db` (never research.db; doc_search locality doctrine). Row composition: purpose (docstring first para) + capped details, regex add_argument/add_parser CLI surface, top-level defs, Makefile wiring (bidirectional recipe substring map), tested_by via AST IMPORTS ONLY (no grep-mention). Modes: full (convergence + zero-churn stat + db-backup recovery), --incremental (always re-extracts — cross-file inputs — writes row-keyed diffs only), --check (unit-level hash-exact drift, exit 1, pre-warms embed cache). Machinery imported from rebuild_doc_search; stored_embed_dims duplicated (~15 lines, rds hardcodes doc_search table).
 - **Query CLI** `helpers/misc/script_query.py`: hybrid BM25+cosine, --kind script|test|make + --area filters, --json/--bm25; doc_query contract (stale warns + answers, missing exit 1).
 - **Wiring**: perf pair `rebuild_script_search --check` + `script_query` (perf-only, NOT qa — code edits redden qa); `make script-search-rebuild`; AGENTS.md query-before-guessing-filenames rule; `doc/procedures/script-search.md` + architecture.md §6 row.
 - **Rode along**: `make types-tests` (expanded ty-over-tests argv moved from run_gate_report advisory step into the target; single source of truth); lint-audit clean via C901 extraction (rebuild/script_index_stale/search_scripts split — the split caught a real fresh<->stale polarity bug); pdf_conv_md submit timeout 60s→300s (cold-upload stalls).
@@ -3796,7 +3778,7 @@ full rebuilds wrote fixture content into the real doc_search_backup.db.zst
 — both fixtures now redirect BACKUP_DIR. Real doc backup verified
 uncontaminated (587 rows/2 stamps = genuine 11:13 full rebuild; live
 +10 rows via by-design incremental drift, closed at next maint-full).
-rebuild_schema's help line renamed *.gz → *.zst.
+rebuild_schema's help line renamed *.gz →*.zst.
 
 **#176 addendum 3 (post-maint-full restore verification + report fix)**:
 after the user's maint-full, all 8 db-backup/ .zst artifacts were
@@ -3833,7 +3815,9 @@ fix had to keep that path untouched.
 
 New `PRE_FULL_STEPS` block in `maint.py`, composed only under `--full`:
 
-    steps = PRE_FULL_STEPS + [TIER1 − TIER1_FULL_SKIP] + TIER2
+```text
+steps = PRE_FULL_STEPS + [TIER1 − TIER1_FULL_SKIP] + TIER2
+```
 
 - `sync-tags` + `rebuild-note-search` moved OUT of TIER2 into PRE_FULL.
   Rationale: both are full rebuilds of derived indexes — a corrupt
@@ -4327,7 +4311,7 @@ invocation can't express: every `git ls-files '*.py'` file is passed to ruff
 EXPLICITLY (explicit paths bypass ruff's gitignore/built-in exclusions, so a
 tracked file that fell into an excluded dir would fail — pins shut the same
 exclusion-blind-spot class as the doc/local search-index surprise,
-#184/#185). The Mojo harness Python (`Mojo/bench/*.py`) is in that tracked
+# 184/#185). The Mojo harness Python (`Mojo/bench/*.py`) is in that tracked
 set, so it is linted like everything else.
 
 **Mojo footprint lint = `mojo format` copy-check.** This toolchain's
@@ -4399,7 +4383,7 @@ never sweep the live Mojo tree); live `script_query "canonical parity
 metric" --kind mojo` ranks the probe modules; "Stopwords comptime alias"
 surfaces alias values in snippets; search-fresh green after APPLY.
 
-## 189
+## 189b
 
 **Date:** 2026-08-30 · **Type:** tooling (docs/search quality) ·
 **Files:** 13 × `Mojo/src/**/*.mojo` + `Mojo/tests/*.mojo` (module
@@ -4436,7 +4420,6 @@ across the mojo corpus are full prose. Remaining known limit: queries
 whose answer genuinely isn't in Mojo code (e.g. community detection —
 that lives in the Onager extension / Python fixture) still surface
 nearest-neighbors, not answers.
-
 
 ## 189
 
@@ -4496,7 +4479,7 @@ ships no JS API. Proposals got the option-2 FULL frontmatter contract
 the Proposal-lifecycle static check) with a 36-file backfill whose
 numbers were audited against completed.md — two headers had pointed at
 wrong entries all along (zero_churn #143→147, local_embeddings
-#115→141; fixed in both FM and bold header). Format gates: prettier
+# 115→141; fixed in both FM and bold header). Format gates: prettier
 (tabWidth 4 after a churn probe: 8 files/1,309 lines vs ~7k at
 defaults; bundles rebuilt — esbuild keeps comments) in advisory
 frontend-check; `ruff format --check` as a 4th test_lint_gates gate +
@@ -4509,3 +4492,30 @@ documented per-file-ignore instead); deptry `exclude` REPLACES its
 defaults (.venv got scanned) — use `extend_exclude`; `format` sorts
 BEFORE `frontend` (o < r). Proposal bold headers have four spellings —
 match both colon placements.
+## 191
+
+**Date:** 2026-09-01 · **Type:** tooling (markdown lint gate) ·
+**Proposal:** `doc/improvements/archive/tooling/markdown_lint_adoption.md` ·
+**Status:** EXECUTED 2026-09-01 (all slices S1–S5 same day)
+
+Markdown joined the gated languages: `make md-lint` (pinned
+markdownlint-cli2@0.23.2 via a Node-gated helper, zero-arg — globs live
+in the repo-root `.markdownlint-cli2.jsonc`) was promoted at S5 INTO the
+blocking qa gate next to ruff's lint row. doc/ lints the tuned prose
+base; findata lints a Tier-1 defect override (MD018/MD037/MD047/MD056 —
+the rules that catch real damage: broken tables, broken emphasis,
+missing EOF newlines). The corpus went green the same day: S2 remediated
+doc/ (after a full `--fix` trial was REVERTED — the fixers corrupt
+wrap-heavy prose: they renumbered completed.md entry numbers, flipped
+list markers, and ate `__dunder__` identifiers; MD004/MD022/MD029/MD032
+stay OFF by measurement), S3 fixed the two live writers
+(`derive_insights` truncated-bullet emphasis + EOF-newline guards in
+derive_insights/pdf_conv_md), and S4 was the permission-gated lint-only
+backfill across 524 notes. Two quarantines are deliberate and recorded
+in the config: completed.md carries a scoped MD041 disable (bold
+metadata head), and 7 substack-reprint P&F editions with structurally
+mangled tables hold a Tier-1-minus-MD056 override until the
+reprint-recovery arc rebuilds them. Traps worth remembering: cli2
+`overrides[]` key on `filter` (not `globs`) and silently no-op when
+misspelled; markdownlint-cli silently runs defaults on the cli2 config
+envelope; bulk markdown fixers REQUIRE a `git diff -w` audit afterward.

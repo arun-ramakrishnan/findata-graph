@@ -13,7 +13,7 @@ OCR'd into markdown (OCR is external to this repo).
 
 ## 2. The operational path
 
-```
+```text
 Reports/*.pdf (gitignored)
   │  external OCR (upload pipeline removed 2026-08-02)
   ▼
@@ -36,7 +36,7 @@ verify_notes ✓  database_integrity_check ✓  db_maint ✓  snapshot ✓
 
 ## 3. Repository layout
 
-```
+```text
 app.py                Flask: findata viewer + graph API (lazy-imports helpers.core.db,
                       helpers.graph.query, helpers.graph.algorithms)
 memory/               research.db (SQLite, WAL) + graph.duckdb (cache) + embed_store.db (pooled vec/cache store) — gitignored

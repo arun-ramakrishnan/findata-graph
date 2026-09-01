@@ -12,6 +12,7 @@ Design: text-only markdown, images via pymupdf sidecar (same as proposal).
 No heading-normalization over-filtering — raw liteparse text is indented plain
 text, so we only add `## ` where a line looks like a company heading.
 """
+
 from __future__ import annotations
 
 import os
@@ -23,6 +24,7 @@ if __package__ in (None, ""):  # noqa: E402  # run as script: python helpers/pdf
 from helpers.pdf.liteparse_post import CAP_TAIL_RE, SECTOR_PREFIXES  # noqa: E402
 
 TESSDATA_DEFAULT = "/usr/share/tesseract-ocr/5/tessdata"
+
 
 def _looks_like_company_heading(line: str) -> bool:
     """Heuristic for OCR path: line with pipe + cap token, or sector+company glue."""
@@ -38,6 +40,7 @@ def _looks_like_company_heading(line: str) -> bool:
             if pre.startswith(sector) and len(pre) > len(sector) + 2:
                 return True
     return False
+
 
 def _to_markdown_lines(text: str) -> str:
     """Convert liteparse plain text to minimal markdown.
@@ -59,13 +62,16 @@ def _to_markdown_lines(text: str) -> str:
             continue
         if _looks_like_company_heading(line):
             # Clean wrappers if any (unlikely from OCR but harmless)
-            clean = line.replace("**","").replace("<u>","").replace("</u>","").strip()
+            clean = line.replace("**", "").replace("<u>", "").replace("</u>", "").strip()
             out.append(f"## {clean}")
         else:
             out.append(line)
     return "\n".join(out)
 
-def convert_liteparse_ocr(pdf_path: Path, *, dpi: int = 150, language: str = "eng", tessdata_path: str = TESSDATA_DEFAULT) -> tuple[str, dict]:
+
+def convert_liteparse_ocr(
+    pdf_path: Path, *, dpi: int = 150, language: str = "eng", tessdata_path: str = TESSDATA_DEFAULT
+) -> tuple[str, dict]:
     """Run liteparse OCR and return (markdown_text, meta).
 
     `meta` contains `engine`, `tessdata`, `items`, `pages` for provenance.
@@ -76,13 +82,24 @@ def convert_liteparse_ocr(pdf_path: Path, *, dpi: int = 150, language: str = "en
         os.environ["TESSDATA_PREFIX"] = tessdata_path
     from liteparse import LiteParse
 
-    parser = LiteParse(quiet=True, ocr_enabled=True, ocr_language=language, dpi=dpi, tessdata_path=tessdata_path) if tessdata_path else LiteParse(quiet=True, ocr_enabled=True, ocr_language=language, dpi=dpi)
+    parser = (
+        LiteParse(
+            quiet=True,
+            ocr_enabled=True,
+            ocr_language=language,
+            dpi=dpi,
+            tessdata_path=tessdata_path,
+        )
+        if tessdata_path
+        else LiteParse(quiet=True, ocr_enabled=True, ocr_language=language, dpi=dpi)
+    )
     # liteparse API: tessdata_path kwarg is available as `tessdata_path` in newer bindings; fallback to env
     try:
         res = parser.parse(str(pdf_path))
     except TypeError:
         # older binding without tessdata_path kwarg
         from liteparse import LiteParse as LP2
+
         res = LP2(quiet=True, ocr_enabled=True, ocr_language=language, dpi=dpi).parse(str(pdf_path))
 
     # Build per-page markdown (for pdf_conv_md per-page verify) and
@@ -127,8 +144,10 @@ def convert_liteparse_ocr(pdf_path: Path, *, dpi: int = 150, language: str = "en
     }
     return md, meta
 
+
 if __name__ == "__main__":
     import sys
+
     pdf = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("Reports/SBI_Delhivery_Titan.pdf")
     md, meta = convert_liteparse_ocr(pdf)
     print(meta)

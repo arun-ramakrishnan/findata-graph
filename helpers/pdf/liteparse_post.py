@@ -9,6 +9,7 @@ This closes the 1.7% recall gap (96.04% -> ~97.7%) measured in
 No image logic here — images are handled as a sidecar via `pymupdf`
 (see proposal `liteparse_pdf_engine.md` Slice 1).
 """
+
 from __future__ import annotations
 
 import re
@@ -76,8 +77,10 @@ SECTOR_PREFIXES = (
 )
 _LEGAL_SUFFIX_ONLY = {"ltd", "ltd.", "limited", "pvt", "private", "inc", "co", "corp"}
 
+
 def _strip_picture_text(text: str) -> str:
     return PIC_BLOCK_RE.sub("", text)
+
 
 def _filter_running_headers(text: str, title: str | None) -> tuple[str, str | None]:
     kept: list[str] = []
@@ -105,10 +108,12 @@ def _filter_running_headers(text: str, title: str | None) -> tuple[str, str | No
         kept.append(line)
     return "\n".join(kept), title
 
+
 def _strip_wrappers(s: str) -> str:
     for junk in ("**", "<u>", "</u>"):
         s = s.replace(junk, "")
     return s.strip()
+
 
 def _split_sector_glue(body: str) -> tuple[str, str] | None:
     if "|" not in body:
@@ -117,10 +122,11 @@ def _split_sector_glue(body: str) -> tuple[str, str] | None:
     low = pre.lower().strip()
     for sector in sorted(SECTOR_PREFIXES, key=len, reverse=True):
         if low.startswith(sector):
-            rest = pre.strip()[len(sector):].strip()
+            rest = pre.strip()[len(sector) :].strip()
             if rest and rest.lower() not in _LEGAL_SUFFIX_ONLY:
                 return pre.strip()[: len(sector)].strip(), f"{rest} | {tail.strip()}"
     return None
+
 
 def _fix_heading_line(line: str) -> str | None:
     stripped = line.strip()
@@ -140,12 +146,14 @@ def _fix_heading_line(line: str) -> str | None:
             return f"## {body}"
     return None
 
+
 def _normalize_headings(text: str) -> str:
     out: list[str] = []
     for line in text.splitlines():
         fixed = _fix_heading_line(line)
         out.append(fixed if fixed is not None else line)
     return "\n".join(out)
+
 
 def normalize(text: str, title: str | None = None) -> str:
     """Apply pdf_local normalizations to liteparse text.
@@ -160,7 +168,7 @@ def normalize(text: str, title: str | None = None) -> str:
     text = _normalize_headings(text)
     return text
 
+
 # For per-doc convenience: normalize page-joined liteparse output in one call
 def normalize_doc(text: str) -> str:
     return normalize(text)
-

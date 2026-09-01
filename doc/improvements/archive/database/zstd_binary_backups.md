@@ -19,7 +19,7 @@ area: helpers/maintenance/snapshot_db.py` (binary branch)
 **Date:** 2026-08-29 · **Status:** EXECUTED 2026-08-29 (completed.md #176) ·
 **Area:** `helpers/maintenance/snapshot_db.py` (binary branch) + restore/verify
 paths
-
+>
 > Companion to `../archive/database/maint_full_single_snapshot.md` (#174),
 > which moved the SQLite *parquet* codec to zstd (container-transparent,
 > landed) but deliberately deferred the *binary backup* switch: unlike

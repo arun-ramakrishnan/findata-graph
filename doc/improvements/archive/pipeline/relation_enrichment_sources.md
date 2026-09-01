@@ -239,7 +239,7 @@ shared report format, no cross-source write races.
 
 Common pass skeleton (mirrors existing metrics flow):
 
-```
+```text
 fetch/generate candidates (network or local)
   → resolve endpoints ticker-first (§6.0)
   → classify Tier A/B/C
@@ -286,7 +286,7 @@ explicit). Optional `--check-only` mode runs hygiene alone.
 
 ## 7. CLI / make integration
 
-```
+```bash
 make relations-enrich ARGS="--source prose --dry-run"
 make relations-enrich ARGS="--source yfinance --workers 2"
 make relations-enrich ARGS="--source embeddings --k 10"

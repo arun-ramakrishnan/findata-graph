@@ -219,7 +219,7 @@ index or query time, ever.
 embeddings are not refreshed by maint-full — was closed the same day by
 `company_embeddings_maint.md` (cached populate + GC + a never-auto-
 upgrading `--maint` step; now archived alongside this file, completed.md
-#142).
+\# 142).
 
 ## 10. Implementation Log (2026-08-20)
 
@@ -292,10 +292,12 @@ quality cost — swap = constants + re-pin in `local_embedder`.
 
 One-time setup (already done on this box, listed for other machines):
 
-    uv pip install llama-cpp-python   # builds from sdist, needs gcc+cmake
-    mkdir -p models && curl -L -o models/bge-small-en-v1.5-q8_0.gguf \
-      "https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/bge-small-en-v1.5-q8_0.gguf"
-    .venv/bin/python helpers/core/local_embedder.py   # self-check
+```bash
+uv pip install llama-cpp-python   # builds from sdist, needs gcc+cmake
+mkdir -p models && curl -L -o models/bge-small-en-v1.5-q8_0.gguf \
+  "https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/bge-small-en-v1.5-q8_0.gguf"
+.venv/bin/python helpers/core/local_embedder.py   # self-check
+```
 
 Apply (user runs; agent holds at dry-run):
 
@@ -348,4 +350,3 @@ Two eval-design findings worth keeping:
    zeroes the whole BM25 page — hybrid inherits the empty page. Phrase
    queries accordingly ("inverter batteries", not "inverter battery
    maker").
-

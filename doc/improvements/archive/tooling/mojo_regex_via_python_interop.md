@@ -38,7 +38,8 @@ def main() raises:
 
 Install once into the Python env Mojo uses (the repo `.venv`, python
 3.14.4):
-```
+
+```bash
 uv pip install regex
 ```
 
@@ -134,15 +135,19 @@ The verification artifacts live in the Mojo tree:
   expected, then times 100k identical case calls on both sides.
 
 Setup (one-time; `regex` is already in the .venv):
-```
+
+```bash
 uv pip install regex          # into the .venv Mojo uses
 ```
+
 Standing runs (from the repo root):
-```
+
+```bash
 make mojo-bench MOJO_BENCH_ARGS='--leg regex-bridge'          # full leg
 .venv/bin/python3 -c "import sys; sys.path.insert(0, 'Mojo/bench'); \
   import mojo_regex_battery as b; print(b.run())"             # native only
 ```
+
 Expected: **51/51 direct-vs-python checks passed**; pure-python
 ~99k calls/s, mojo-bridge ~97k calls/s (100,000 case calls each side).
 

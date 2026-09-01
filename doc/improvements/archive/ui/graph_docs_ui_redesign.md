@@ -172,7 +172,7 @@ graph (edges carry `valid_from/valid_to`; editions are dated).
 
 ### 3.5 Layouts
 
-```
+```text
 GRAPH — "The Lens"                        DOCS — "The Reading Room"
 ┌──────┬───────────────────────┬───────┐  ┌──────────┬────────────┐
 │ LENS │ canvas                │INSPECT│  │COLLECTION│ READER     │

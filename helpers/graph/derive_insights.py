@@ -1116,7 +1116,11 @@ def render_chatter_block(
     lines.append("")
     for q in quotes:
         if q.paraphrase:
-            lines.append(f"- **{q.paraphrase[:140]}**" + ("…" if len(q.paraphrase) > 140 else ""))
+            # Ellipsis INSIDE the emphasis: the [:140] cut can land on a
+            # space, and `text **…` detaches the closing marker (broken
+            # emphasis, md-lint MD037); `text…**` always closes cleanly.
+            p_text = q.paraphrase[:140].rstrip()
+            lines.append(f"- **{p_text}…**" if len(q.paraphrase) > 140 else f"- **{p_text}**")
             lines.append("")
         # Quote block (Obsidian blockquote).
         quote_display = q.quote_text if len(q.quote_text) <= 280 else (q.quote_text[:277] + "…")
@@ -1410,6 +1414,8 @@ def render_notes(  # noqa: C901  # noqa anchor moved to the statement's diagnost
                 # spliced sources; preserves verified + all other keys; no-op
                 # when the note has no frontmatter).
                 text = bump_generated(text, _OKF_ACTOR)
+                if not text.endswith("\n"):
+                    text += "\n"  # notes terminate with a newline (md-lint MD047)
                 p.write_text(text, encoding="utf-8")
                 written += 1
     finally:
@@ -1579,6 +1585,43 @@ def _replace_or_insert_kf(text: str, new_block: str) -> tuple[str, bool]:
     return (new_text, True)
 
 
+def _render_metric_note(
+    p: Path,
+    ms: list,
+    *,
+    dry_run: bool,
+    stale_only: bool,
+    index: dict,
+    vault: Path,
+    stem_memo: dict[str, str | None],
+    res_memo: dict[str, Path | None],
+) -> str:
+    """Render one entity's key-figures block + sources splice.
+
+    Returns ``"written"`` (written or would-write), ``"gated"`` (stale_only
+    evidence gate) or ``"skip"`` (no change / unbalanced rewrite).
+    """
+    text = p.read_text(encoding="utf-8", errors="replace")
+    stems = _scanned_stems({m.as_of_edition for m in ms}, index, stem_memo)
+    if stale_only and _stale_only_skip(text, stems) is True:
+        return "gated"
+    original_text = text
+    new_block = render_key_figures_block(ms)
+    text, changed = _replace_or_insert_kf(text, new_block)
+    text, sources_changed = _splice_sources(text, index, vault, extra_stems=stems, memo=res_memo)
+    if not (changed or sources_changed) or not _balanced_or_skipped(original_text, text, p.name):
+        return "skip"
+    if dry_run:
+        return "written"
+    # OKF: same bump as the chatter block (single generated key per note —
+    # last writer wins, which is the freshest derive).
+    text = bump_generated(text, _OKF_ACTOR)
+    if not text.endswith("\n"):
+        text += "\n"  # notes terminate with a newline (md-lint MD047)
+    p.write_text(text, encoding="utf-8")
+    return "written"
+
+
 def render_metrics_notes(
     metrics_by_entity: dict,
     *,
@@ -1616,28 +1659,19 @@ def render_metrics_notes(
             p = PROJECT_ROOT / file_path if file_path else None
             if not ms or p is None or not p.exists():
                 continue
-            text = p.read_text(encoding="utf-8", errors="replace")
-            stems = _scanned_stems({m.as_of_edition for m in ms}, index, stem_memo)
-            if stale_only and _stale_only_skip(text, stems) is True:
-                gated += 1
-                continue
-            original_text = text
-            new_block = render_key_figures_block(ms)
-            text, changed = _replace_or_insert_kf(text, new_block)
-            text, sources_changed = _splice_sources(
-                text, index, vault, extra_stems=stems, memo=res_memo
+            outcome = _render_metric_note(
+                p,
+                ms,
+                dry_run=dry_run,
+                stale_only=stale_only,
+                index=index,
+                vault=vault,
+                stem_memo=stem_memo,
+                res_memo=res_memo,
             )
-            if not (changed or sources_changed) or not _balanced_or_skipped(
-                original_text, text, p.name
-            ):
-                continue
-            if dry_run:
-                written += 1
-            else:
-                # OKF: same bump as the chatter block (single generated key
-                # per note — last writer wins, which is the freshest derive).
-                text = bump_generated(text, _OKF_ACTOR)
-                p.write_text(text, encoding="utf-8")
+            if outcome == "gated":
+                gated += 1
+            elif outcome == "written":
                 written += 1
     finally:
         if own_conn:

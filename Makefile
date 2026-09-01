@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check format maint maint-full metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -56,6 +56,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live, xdist -n auto; skip-safe on pristine clone)"
 > @echo "  maint                    Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)"
 > @echo "  maint-full               Post-ingest re-derivation: PRE_FULL index refresh (sync-tags, note-search) + maint + TIER2_STEPS (sector gates, company-embeddings, doc-search, analytics, insights, events, re-snapshot)"
+> @echo "  md-lint                  Markdown lint via pinned markdownlint-cli2 — doc/ prose base + findata Tier-1 defect rules (qa-gated; needs Node, SKIP without; proposal: markdown_lint_adoption)"
 > @echo "  metrics-rebuild          Refresh company financials + note industry sections from yfinance (~1 min, 931 tickers)"
 > @echo "  mojo-bench               Run perf-gated Mojo bench legs (cosine-knn, analyzer, pool-4x, regex-bridge, yaml-corpus, regex-corpus, db-access, db-integrity, graph-algos) — measured-time gate per leg, report: Mojo/bench/bench_report.txt"
 > @echo "  mojo-build               Compile Mojo/ sources to native binaries in Mojo/bin/ (incremental; machinery in Makefile.mojo)"
@@ -63,7 +64,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt"
-> @echo "  qa                       Run lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)"
+> @echo "  qa                       Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
 > @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
@@ -84,7 +85,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 static-checks:  ## Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)
 > python3 helpers/validators/static_checks.py
 
-qa:             ## Run lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)
+qa:             ## Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)
 > python3 tests/run_gate_report.py qa
 > @echo "✓ QA passed (lint + types + deptry + static + pytest + notes + integrity + snapshot; appended to qa_report.txt)"
 
@@ -333,6 +334,12 @@ types-tests:    ## Run EXPANDED ty checks over tests/ (advisory-grade, warnings 
 
 lint-audit:     ## Run ruff S/UP/C901 audits (security + modernization + complexity) — Bandit/Refurb/Radon equivs
 > ruff check --select S,UP,C901 .
+
+# markdown_lint_adoption S1: the helper owns node detection (SKIP without
+# Node) + the version pin + digest output; LINT-ONLY — no --fix surface
+# (findata is co-owned by generators; proposal §5).
+md-lint:        ## Markdown lint via pinned markdownlint-cli2 — doc/ prose base + findata Tier-1 defect rules (qa-gated; needs Node, SKIP without; proposal: markdown_lint_adoption)
+> python3 helpers/misc/markdown_lint.py
 
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .

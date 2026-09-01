@@ -185,7 +185,7 @@ On execution this proposal follows its own house checklist
 (`proposals/README.md`): Status → EXECUTED; archive move to
 `../archive/tooling/`; completed.md entry (**next free number #166 is taken
 by the embed-store execution — use #167**); proposals-README live pointer
-reset to _(none)_ in the same change.
+reset to *(none)* in the same change.
 
 ### Explicitly deferred (unchanged by review)
 

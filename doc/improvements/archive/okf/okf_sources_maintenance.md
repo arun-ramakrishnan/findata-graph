@@ -93,11 +93,11 @@ skips the note before any render would splice):
 and **before** `bump_generated` (which then re-bases `stale_after` from
 the merged list automatically — no change to `frontmatter.py`):
 
-```
-index = source_note_index(vault)          # once per run (108 notes)
+```python
+index = source_note_index(vault)  # once per run (108 notes)
 entries = merged_sources(fm, rendered_text, index, vault)
-if entries != fm.get("sources"):          # splice only on change
-    fm["sources"] = entries               # (re-render via render_frontmatter)
+if entries != fm.get("sources"):  # splice only on change
+    fm["sources"] = entries  # (re-render via render_frontmatter)
 new_text = bump_generated(new_text, _OKF_ACTOR)
 ```
 

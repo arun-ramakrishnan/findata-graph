@@ -255,6 +255,7 @@ class TestApplyRendersNotes:
         assert di._BEGIN in text and di._END in text
         assert f"## The Chatter — {p.edition}" in text
         assert di._markers_balanced(text)
+        assert text.endswith("\n"), "writers must terminate notes with a newline (MD047)"
         assert "1 notes wrote" in err
 
     def test_key_figures_region_rendered(self, insights_project):

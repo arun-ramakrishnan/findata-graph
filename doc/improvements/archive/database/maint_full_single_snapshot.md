@@ -17,7 +17,7 @@ area: helpers/maintenance/maint.py
 > `make snapshot` 16.6–20.3 s → **7.7–8.0 s** (zstd parquet + embed-gz
 > reuse on the 2nd run); `make snapshot-check` 1.1 s green end-to-end.
 > §7 deferred row in parallel_cold_embed.md closed by this proposal.
-
+>
 > Closes the "Incremental 2nd snapshot in maint-full" row deferred in
 > `doc/improvements/archive/tooling/parallel_cold_embed.md` §7
 > (recorded estimate: saves ~19 s of the 66 s maint-full budget).

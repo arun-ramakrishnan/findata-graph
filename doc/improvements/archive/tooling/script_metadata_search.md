@@ -70,12 +70,12 @@ mirroring doc_search's section model so the same hybrid ranking applies:
 
 - **script row** (one per helpers/**/*.py, plus root `app.py`): title =
   relative path; section_title = "(module)"; content = composed block:
-    - purpose: first paragraph of the module docstring
-    - details: remaining docstring paragraphs (capped)
-    - cli: `--flag` tokens extracted from add_argument calls +
+  - purpose: first paragraph of the module docstring
+  - details: remaining docstring paragraphs (capped)
+  - cli: `--flag` tokens extracted from add_argument calls +
       subcommand names
-    - make: targets whose recipe invokes this script
-    - tested_by: test module paths importing/grep-naming it
+  - make: targets whose recipe invokes this script
+  - tested_by: test module paths importing/grep-naming it
 - **test row** (one per tests/**/*.py, conftest kept — it carries
   fixtures worth finding): purpose = docstring first para; content
   includes the names of helpers modules it imports.
@@ -89,7 +89,7 @@ warm (shared sha256-keyed embed cache makes re-embeds free).
 
 ### 4.2 Builder: `helpers/maintenance/rebuild_script_search.py`
 
-- Walk `helpers/**` and `tests/**` (*.py, skip __pycache__/conftest? keep
+- Walk `helpers/**` and `tests/**` (*.py, skip `__pycache__`/conftest? keep
   conftest — it carries fixtures worth finding).
 - AST-parse each file: module docstring; top-level defs/classes with
   one-line summaries (row enrichment only, NOT a symbol index).

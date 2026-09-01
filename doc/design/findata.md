@@ -9,7 +9,7 @@ new ones.**
 
 ## Filesystem Layout
 
-```
+```text
 findata/
 ├── Companies/{Sector}/{Normalized_Name}.md   # company notes (filename == normalized_name)
 ├── Sectors/{Sector_Name}.md                  # 42 canonical sector notes
@@ -32,6 +32,7 @@ Super_Sectors (9). Newsletter editions (The_Chatter, Points_And_Figures,
 The_PlotLines) intentionally carry no frontmatter.
 
 ### Company (example — see generated reference for the full contract)
+
 ```yaml
 ---
 title: "Aarti Drugs"
@@ -48,6 +49,7 @@ created: '2025-11-16'
 last_modified: '2026-07-07'
 ---
 ```
+
 Body sections: Overview → Financial Profile (Yahoo Finance, dated) →
 Product Portfolio / Segments → Management → Key Insights (newsletter, with
 edition citation).

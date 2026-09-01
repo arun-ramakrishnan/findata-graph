@@ -65,7 +65,7 @@ coverage.
 
 **Join path for table 1/2** (the piece #136 unlocked):
 
-```
+```text
 quotes.as_of_edition  ──(stem == normalized_name?)──  entities
      WHERE entities.entity_type = 'edition'
 ```

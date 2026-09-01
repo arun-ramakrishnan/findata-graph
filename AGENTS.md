@@ -1,70 +1,61 @@
 # Instructions for LLM/agent sessions
 
-## Query the doc/ knowledge index — don't scan the docs
+Query, don't scan — the doc corpus and the code surface are both
+content-addressable. Grep and wholesale reads are the fallback.
 
-This repo's design corpus (`doc/` — architecture, ~30 archived proposals,
-the completed.md run log, procedures, local assessments; ~380 indexed
-sections) is **content-addressable**. Before reading doc files wholesale
-to answer a design/decision/history question, query the index and jump
-straight to the ranked section:
+## doc_query — the `doc/` knowledge index
+
+Design/decision/history questions are answered by the index (~380
+sections: architecture, archived proposals, completed.md run log,
+procedures, local notes). Query, then `Read` only the linked section:
 
 ```bash
 .venv/bin/python3 helpers/misc/doc_query.py "why did we not adopt langgraph" --limit 5
-.venv/bin/python3 helpers/misc/doc_query.py "embed cache" --json      # machine-readable
 ```
 
-- Output lines are `path:line [section] snippet` — paths are REPO-ROOTED
-  (`doc/procedures/embeddings.md`), so the `path:line` is a direct
-  `Read(offset=line)` / editor-jump target from the repo root.
-- Punctuation and full-sentence questions are safe (tokens are OR-joined).
-- HTTP equivalent (if the app is running on :5200):
-  `GET /api/docs/search?q=...` → `mode: hybrid|bm25|scan`.
+- Hits are `path:line [section] snippet`, repo-rooted → direct
+  `Read(offset=line)` target. Full sentences are safe (`--json` for
+  machine output). Covers ALL of `doc/` incl. gitignored `doc/local/`.
+- Operator doc: `doc/procedures/doc-search.md`.
 
-Rules of the road:
+## script_query — the script/test/make/Mojo index
 
-- **Index stale or missing?** The CLI warns on stderr and still answers;
-  refresh with `.venv/bin/python3 helpers/maintenance/rebuild_doc_search.py`
-  (warm ≈ instant — content-hash embed cache). The endpoint degrades to a
-  filesystem scan automatically.
-- **Don't** `cat` 40 KB proposals to find one decision — query first, then
-  read only the linked section. The 166 KB `doc/improvements/completed.md`
-  especially: query it, never read it whole.
-- The index covers ALL of `doc/` including gitignored `doc/local/` — it is
-  machine-local (sidecar DB under gitignored `memory/`), so local-only
-  knowledge is queryable but never published.
-- Full operator doc: `doc/procedures/doc-search.md`; design + eval:
-  `doc/improvements/archive/tooling/doc_search_embeddings.md`.
-
-## Query the script index before guessing filenames — and before writing a new script
-
-The code surface is content-addressable too: every `helpers/**` script,
-`tests/**` module, root `app.py`, Makefile target, and Mojo source/test
-module (`Mojo/src`, `Mojo/tests` — `mojo doc` API signatures + header
-prose) is indexed with its purpose (docstring), CLI flags, make wiring, and
-tests. Before grepping for "the script that does X" — and **before writing
-any new helper/test** (it may already exist) — query it:
+Every `helpers/**` script, `tests/**` module, root `app.py`, Makefile
+target, and Mojo module is indexed by purpose, CLI flags, make wiring,
+and tests. Query BEFORE grepping — and BEFORE writing any new
+helper/test (it may already exist):
 
 ```bash
-.venv/bin/python3 helpers/misc/script_query.py "audit relation diffs"
-.venv/bin/python3 helpers/misc/script_query.py "yfinance" --kind test
-.venv/bin/python3 helpers/misc/script_query.py "what does make qa run" --kind make
-.venv/bin/python3 helpers/misc/script_query.py "canonical parity" --kind mojo
+.venv/bin/python3 helpers/misc/script_query.py "audit relation diffs" --kind script
 ```
 
-- Output lines are `path [kind/area] score` + the purpose line; filters:
-  `--kind script|test|make`, `--area <helpers subdir|app|test|make>`,
-  `--json`, `--bm25`.
-- Division of labor: this answers INTENT (what is it for, what runs it,
-  what tests it); codebase-memory-mcp answers STRUCTURE (symbols,
-  callers/callees). Use both, not grep.
-- **Index stale or missing?** Same contract as doc_query (warn + answer /
-  exit 1 with the build command). Refresh:
-  `.venv/bin/python3 helpers/maintenance/rebuild_script_search.py`
-  (warm ≈ instant — shared content-hash embed cache). Freshness flags:
-  `make search-fresh` checks all three indexes (doc/script/note) — every
-  check runs even when one fails, exit 1 on any drift, and
-  `make search-fresh APPLY=1` refreshes them. `make advisory` runs the
-  same three `--check`s as report rows — STALE shows as FAILED with the
-  refresh command in the tail. Never qa-gated
-  (edits legitimately redden these between rebuilds).
+- Filters: `--kind script|test|make|mojo`, `--area`, `--json`.
 - Operator doc: `doc/procedures/script-search.md`.
+
+## Rules
+
+- **Stale index?** The CLI warns and still answers (script_query may
+  exit 1 with the build command). Rebuild via
+  `helpers/maintenance/rebuild_{doc,script}_search.py` (warm ≈ instant;
+  content-hash embed cache).
+- Never read `doc/improvements/completed.md` (166 KB) or 40 KB archived
+  proposals wholesale — query first.
+- Division of labor: these two answer INTENT; STRUCTURE (symbols,
+  callers) is codebase-memory-mcp + `rg`; Mojo language/API questions go
+  to the **Mojo docs MCP, never web fetchers**.
+
+## Gates & hygiene
+
+- Blocking: `make qa` — ruff, **md-lint** (markdownlint-cli2; Node-gated,
+  skips without Node), types, deptry, static_checks, pytest,
+  verify_notes, integrity, snapshot. Non-blocking sweep: `make advisory`.
+- Markdown is lint-only: NEVER run markdownlint `--fix` over
+  `findata/**` (writer-owned vault, sentinel machinery). `doc/` is the
+  remediable surface.
+- After editing `doc/**`, the `Makefile`, or helper docstrings:
+  `make search-fresh APPLY=1` converges all three indexes (doc, script,
+  note). Index checks are advisory, never qa-gated.
+- Full gates ONCE per arc, at the end, with the user's go. The user
+  stages and commits — leave the tree dirty.
+- Use `.venv/bin/python3` explicitly in non-interactive shells (examples
+  above do).

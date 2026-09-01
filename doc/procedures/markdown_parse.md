@@ -147,9 +147,11 @@ Prior newsletters already follow this pattern (e.g. `findata/Points_And_Figures/
   - `N`   = global 1-based image counter in document order — **the canonical link key**.
   - `page` = 1-based OCR crop-group: a new page begins whenever the crop counter in the URL (`crop_<n>_<ts>`) returns to 1 (contiguous `1..K`). These are *OCR crop-group* pages, which may differ from physical PDF page numbers; `N` is what matters for linking.
 - **Source rewrite:** replace each remote block in the newsletter `.md` IN PLACE with an Obsidian embed at the same position, leaving **0** remote URLs:
-  ```
+
+  ```markdown
   ![[images/{slug}_p{page}_img{N}.jpeg]]
   ```
+
 - **Company notes:** when adding insights from a newsletter, embed the figure(s) sitting under that company's section using the same `![[images/...]]` syntax (e.g. `JSW_Steel.md` embeds `![[Context_beyond_the_charts_p32_img28.jpeg]]`). The rewritten source is the image→section map.
 
 ### How to capture
@@ -170,6 +172,7 @@ The helper:
 5. With `--rewrite`: replaces each remote block with `![[images/<file>]]`; idempotent (no re-download).
 
 ### Detecting which notes still need capture
+
 ```bash
 # Count remaining remote URLs per newsletter (0 = already converted)
 for f in findata/Points_And_Figures/*.md findata/The_Chatter/*.md findata/The_PlotLines/*.md; do
@@ -215,7 +218,7 @@ These rules apply to every file under `findata/Companies/` and `findata/Sectors/
 
 The categories below apply to the DERIVED notes (Companies/Sectors/Super_Sectors) and are mirrored into the `entity_tags` table by `sync_tags.py`. The SOURCE newsletter notes (The_Chatter/The_PlotLines/Points_And_Figures) use their own namespaced vocabulary (same `^[a-z0-9_]+/[a-z0-9_]+$` grammar, validated by `doc/okf/frontmatter.newsletter.v1.json` and mirrored into the `note_tags` table):
 
-```
+```text
 series/          the_chatter | points_and_figures | the_plotlines (from the note's tree)
 publisher/       zerodha (per-series map; omitted when unknown)
 company/         <entity-slug> coverage (deferred slice, S5)
@@ -253,7 +256,7 @@ reports misses instead of guessing. The activation targets built on this:
 
 Categories for derived notes (apply relevant ones; abbreviate to save tokens):
 
-```
+```text
 entity_type/     company | sector
 sector/          one of the 42 canonical sectors (see below)
 market_cap/      large_cap | mid_cap | small_cap
@@ -265,7 +268,7 @@ risk_investment/ dividend | high_growth | medium_risk
 ### Canonical sector list (42)
 Always classify into one of these. **Never create ad-hoc sector dirs** — if a company doesn't fit, use `Diversified` or propose a new sector explicitly. Carve-outs (in **bold**) must be checked before their parent catch-all during classification.
 
-```
+```text
 Agriculture · Automotive · Aviation · Banking · Building_Materials ·
 Capital_Markets · Chemicals · Consumer · Defense · **Diagnostics** ·
 Diversified · **EMS_Manufacturing** · Education_Training · Electronics ·
@@ -460,6 +463,7 @@ Rules:
 ```sql
 SELECT file_path FROM entities WHERE name = ?;   -- exact entity name
 ```
+
 If multiple rows (legacy dupes), pick the one whose `file_path` resolves. If no row, the company is NEW — go to [Adding an Entity](#adding-an-entity) instead.
 
 ### Sector-level expert commentary
@@ -636,6 +640,7 @@ def validate_bidirectional_sync():
 - [ ] `frontmatter_schema` exits 0 (no rogue keys, no `"N/A"`/wrong-typed values, ISO dates, underscore permalinks)
 
 ### Search examples
+
 ```sql
 -- tags now live in the normalized entity_tags table (run sync_tags first):
 SELECT e.name FROM entities e JOIN entity_tags t ON t.entity_name = e.name

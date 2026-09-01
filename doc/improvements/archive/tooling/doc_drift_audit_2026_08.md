@@ -27,7 +27,7 @@ except append-only backfills where a commit subject references a missing
 entry.
 **Window extension (2026-08-29, same day)**: the audit originally closed at
 the 08-28 commit boundary. The uncommitted 08-29 session (zstd backup arc
-#174–#177: single-snapshot, parallel per-DB snapshot, all-zstd backups,
+\# 174–#177: single-snapshot, parallel per-DB snapshot, all-zstd backups,
 PRE_FULL block) postdates every commit and introduces its own drift —
 §2b covers it so this proposal stays the single remediation list.
 
@@ -37,7 +37,7 @@ PRE_FULL block) postdates every commit and introduces its own drift —
 
 The window covered ~20 arcs; nearly all shipped their own proposal/archived
 doc in the same commit, and the 2026-08-27 consistency pass (`a6d77ca9`,
-#167) had already reconciled README/procedures/schema against ground truth.
+\# 167) had already reconciled README/procedures/schema against ground truth.
 The gaps that remain are concentrated where that pass's scope or the window
 boundary left seams:
 
@@ -197,7 +197,7 @@ unaffected and still required).
 
 ### F7 — gzip/`.gz` branding + one broken restore instruction (HIGH)
 
-#175/#176 renamed every `db-backup/` artifact to `.zst` (stdlib
+\# 175/#176 renamed every `db-backup/` artifact to `.zst` (stdlib
 `compression.zstd`, no explicit level — the level policy is §2 of the
 archived `zstd_binary_backups.md`). Evergreen docs still describe the
 gzip world; one reference is a **broken restore instruction**, not just
@@ -224,7 +224,7 @@ README quickstart line is the one that must be functionally correct
 
 ### F8 — maint-full recomposition + new procedure doc unindexed (MEDIUM)
 
-#177 moved `sync-tags` + `rebuild-note-search` into a new PRE_FULL block
+\# 177 moved `sync-tags` + `rebuild-note-search` into a new PRE_FULL block
 (they now run BEFORE the recovery backup) and added
 `doc/procedures/maintenance.md` (composition doctrine, backup-vs-snapshot
 semantics, placement invariant). `doc/architecture.md` was updated

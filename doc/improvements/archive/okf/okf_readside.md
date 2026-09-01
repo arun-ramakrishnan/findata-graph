@@ -51,7 +51,7 @@ Render each quote attribution in auto chatter blocks as
 `— Name, Title [^chatter-<stem>]` and append a footnotes section inside the
 sentinel block:
 
-```
+```markdown
 [^chatter-<stem>]: <Edition title> — [[<stem>]]
 ```
 
@@ -72,7 +72,7 @@ blocks; needs round-trip tests asserting hand-written blocks untouched.
 
 Tiny CLI (`helpers/misc/okf_verify.py`):
 
-```
+```bash
 python3 -m helpers.misc.okf_verify <note>... [--by human:user]
 ```
 

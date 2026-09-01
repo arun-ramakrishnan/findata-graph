@@ -1,4 +1,5 @@
 """Tests for helpers/pdf/liteparse_engine.py — Slice 2 engine parity."""
+
 from __future__ import annotations
 
 import sys
@@ -101,7 +102,9 @@ def test_convert_nocr_image_sidecar(tmp_path):
 
 
 def test_get_bbox_sidecar(tmp_path):
-    pdf = _mini_pdf(tmp_path / "bbox.pdf", ["Bbox test line 12,400 Lorem ipsum dolor sit amet " * 5])
+    pdf = _mini_pdf(
+        tmp_path / "bbox.pdf", ["Bbox test line 12,400 Lorem ipsum dolor sit amet " * 5]
+    )
     sidecar = get_bbox_sidecar(pdf)
     assert len(sidecar) == 1
     assert "items" in sidecar[0]

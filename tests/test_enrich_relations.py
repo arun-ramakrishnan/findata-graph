@@ -13,6 +13,7 @@ import sqlite3
 from pathlib import Path
 
 import pytest
+from typing import Any
 
 from helpers.maintenance.enrich_relations import (  # noqa: E402
     ENTITY_GF_MAP_DDL,
@@ -415,7 +416,7 @@ class TestLoadGfTargets:
 
 class TestResolveGfTarget:
     # cache_dir is opaque to the fake fetch; delay=0 keeps tests sleep-free.
-    KW = {"cache_dir": Path("/nonexistent"), "delay": 0}
+    KW: dict[str, Any] = {"cache_dir": Path("/nonexistent"), "delay": 0}
 
     def test_tier1_verified_hit_gf_only(self):
         out = resolve_gf_target(
@@ -424,7 +425,7 @@ class TestResolveGfTarget:
             curated=None,
             fetch_fn=_gf_fetch({"AJAXENGG:NSE": _AJAX_PAGE}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         # Same stem as the failing Yahoo symbol -> GF-only, no writeback.
         assert out.outcome == "resolved gf-only"
         assert out.slug == "AJAXENGG:NSE"
@@ -443,7 +444,7 @@ class TestResolveGfTarget:
             curated=None,
             fetch_fn=_gf_fetch({"ACLGATI:NSE": _AJAX_PAGE}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "resolved gf-only"
         assert out.slug == "ACLGATI:NSE"
 
@@ -456,7 +457,7 @@ class TestResolveGfTarget:
             curated=None,
             fetch_fn=_gf_fetch({"SRIGEE:NSE": _AJAX_PAGE, "SRIGEE:BOM": _SRIGEE_PAGE}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "resolved gf-only"
         assert out.slug == "SRIGEE:NSE"
 
@@ -467,7 +468,7 @@ class TestResolveGfTarget:
             curated=None,
             fetch_fn=_gf_fetch({"X:NSE": _AJAX_PAGE}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "unverified"
         assert out.parsed_name == "AJAX Engineering Ltd"
         assert out.score is not None
@@ -476,20 +477,20 @@ class TestResolveGfTarget:
     def test_all_shell_pages_still_dead(self):
         out = resolve_gf_target(
             "Srigee DLM", "SRIGEE.NS", curated=None, fetch_fn=_gf_fetch({}), **self.KW
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "still-dead"
         assert out.slug is None
 
     def test_bare_foreign_ticker_no_candidates(self):
         out = resolve_gf_target(
             "Hanesbrands", "HBI", curated=None, fetch_fn=_gf_fetch({}), **self.KW
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "no-candidates"
 
     def test_unlisted_entity_no_candidates_without_curation(self):
         out = resolve_gf_target(
             "Veeda Clinical Research", None, curated=None, fetch_fn=_gf_fetch({}), **self.KW
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "no-candidates"  # tier 2 (F3) is their hope
 
     def test_curated_hit_trusted_and_serves_unlisted_too(self):
@@ -501,7 +502,7 @@ class TestResolveGfTarget:
             curated=("AJAXENGG:NSE", "gf_only"),
             fetch_fn=_gf_fetch({"AJAXENGG:NSE": _AJAX_PAGE}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "curated (gf_only)"
         assert out.slug == "AJAXENGG:NSE"
         assert out.stats  # sample data still parsed for the report
@@ -515,7 +516,7 @@ class TestResolveGfTarget:
             curated=("BOGUS:NSE", "gf_only"),
             fetch_fn=_gf_fetch({"AJAXENGG:NSE": _AJAX_PAGE}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "curated-broken"
         assert out.slug == "BOGUS:NSE"
 
@@ -526,14 +527,14 @@ class TestResolveGfTarget:
             curated=("GATI:NSE", "yahoo_mapped_back"),
             fetch_fn=_gf_fetch({"GATI:NSE": _AJAX_PAGE}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "curated (yahoo_mapped_back)"
 
 
 class TestResolveTier2:
     """F3: BSE name-search candidates behind the tier2 flag."""
 
-    KW = {"cache_dir": Path("/nonexistent"), "delay": 0}
+    KW: dict[str, Any] = {"cache_dir": Path("/nonexistent"), "delay": 0}
 
     @staticmethod
     def _search(matches):
@@ -553,7 +554,7 @@ class TestResolveTier2:
             search_fn=self._search([BseMatch("544399", "SRIGEE", "SRIGEE DLM LTD")]),
             fetch_fn=_gf_fetch({"544399:BOM": _SRIGEE_PAGE}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "resolved yahoo-candidate"  # stem 544399 != SRIGEE
         assert out.slug == "544399:BOM"
         assert out.source_tier == 2
@@ -577,7 +578,7 @@ class TestResolveTier2:
             search_fn=self._search([BseMatch("544356", "AJAXENGG", "AJAX ENGINEERING LTD")]),
             fetch_fn=recording_fetch,
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         # Tier 1: BOGUS:NSE/BOM both tried; search adds 544356:BOM (hit)
         # and AJAXENGG:NSE — already tried, must not appear twice.
         assert out.slug == "544356:BOM" or out.slug == "AJAXENGG:NSE"
@@ -596,7 +597,7 @@ class TestResolveTier2:
             ),
             fetch_fn=_gf_fetch({"500219:BOM": _AJAX_PAGE}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "unverified"
         assert out.source_tier == 2
         assert out.parsed_name == "AJAX Engineering Ltd"
@@ -612,7 +613,7 @@ class TestResolveTier2:
             search_fn=self._search([BseMatch("544356", "AJAXENGG", "AJAX ENGINEERING LTD")]),
             fetch_fn=_gf_fetch({"AJAXENGG:NSE": _AJAX_PAGE}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "resolved yahoo-candidate"
         assert out.source_tier == 2
 
@@ -627,7 +628,7 @@ class TestResolveTier2:
             search_fn=exploding_search,
             fetch_fn=_gf_fetch({}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "still-dead"
 
     def test_tier1_unverified_evidence_survives_tier2_still_dead(self):
@@ -641,7 +642,7 @@ class TestResolveTier2:
             search_fn=self._search([BseMatch("999999", "ZZZ", "SOMEONE ELSE LTD")]),
             fetch_fn=_gf_fetch({"X:NSE": _AJAX_PAGE}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "unverified"
         assert out.source_tier == 1
         assert out.slug == "X:NSE"
@@ -658,7 +659,7 @@ class TestResolveTier2:
             search_fn=failing_search,
             fetch_fn=_gf_fetch({}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "still-dead"
 
     def test_search_no_rows_reports_no_candidates(self):
@@ -671,7 +672,7 @@ class TestResolveTier2:
             search_fn=self._search([]),
             fetch_fn=_gf_fetch({}),
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert out.outcome == "no-candidates"
 
 
@@ -878,7 +879,7 @@ class TestGfApply:
 # FinnHub stage-1 pass (market_data_resolution.md S1/S2)                      #
 # --------------------------------------------------------------------------- #
 class TestFinnhubPass:
-    KW = {"cache_dir": Path("/nonexistent"), "delay": 0}
+    KW: dict[str, Any] = {"cache_dir": Path("/nonexistent"), "delay": 0}
 
     @staticmethod
     def _lookup(matches):
@@ -926,7 +927,7 @@ class TestFinnhubPass:
             verify_fn=verify,
             fetch_cache=None,
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert rc == 0
         # dry-run writes nothing
         assert (
@@ -952,7 +953,7 @@ class TestFinnhubPass:
             verify_fn=self._verify({}),  # empty: any fetch attempt would
             fetch_cache=None,
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]  # prove the guard leaked
+        )  # prove the guard leaked
         assert rc == 0
         assert "Akzo Nobel India | no-candidates" in rp.read_text("utf-8")
 
@@ -967,7 +968,7 @@ class TestFinnhubPass:
             verify_fn=self._verify({}),
             fetch_cache=None,
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert rc == 0
         assert "Srigee DLM | no-candidates" in rp.read_text("utf-8")
 
@@ -982,7 +983,7 @@ class TestFinnhubPass:
             verify_fn=self._verify({"SRIGEE.BO": None}),
             fetch_cache=None,
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert rc == 0
         assert "Srigee DLM | still-dead" in rp.read_text("utf-8")
 
@@ -998,7 +999,7 @@ class TestFinnhubPass:
             verify_fn=self._verify({"500219.BO": {"longName": "Jain Irrigation Systems Ltd"}}),
             fetch_cache=None,
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert rc == 0
         assert "Gati | unverified" in rp.read_text("utf-8")
 
@@ -1010,7 +1011,7 @@ class TestFinnhubPass:
             verify_fn=self._verify({}),
             fetch_cache=None,
             **self.KW,
-        )  # ty: ignore[invalid-argument-type]
+        )
         assert rc == 2
 
     def test_apply_writes_ticker_frontmatter_and_cache(self, db, tmp_path):

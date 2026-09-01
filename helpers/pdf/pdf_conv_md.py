@@ -416,6 +416,9 @@ def write_outputs(
     md_path = out_dir / f"{stem}.md"
     body = "\n\n".join(md_parts)
     md_path.write_text((frontmatter + "\n" + body) if frontmatter else body, encoding="utf-8")
+    if not body.endswith("\n"):
+        body += "\n"  # editions terminate with a newline (md-lint MD047)
+    md_path.write_text((frontmatter + "\n" + body) if frontmatter else body, encoding="utf-8")
     print(f"wrote {md_path} ({md_path.stat().st_size} bytes)")
 
     if fetch_images:

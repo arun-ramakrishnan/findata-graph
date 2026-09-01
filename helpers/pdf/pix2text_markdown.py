@@ -11,6 +11,7 @@ is formula-heavy (detect `∫ Σ √` or handwritten confidence <0.6) or via
 Requires: `pix2text==1.1` + `MPLBACKEND=agg`, models auto-fetched from
 Hugging Face (`~/.pix2text/1.1/mfd-1.5-onnx/`). No `TESSDATA_PREFIX` needed.
 """
+
 from __future__ import annotations
 
 import os
@@ -39,6 +40,7 @@ try:
 except Exception:  # noqa: S110  # intentional no-log — matplotlib missing is expected in headless env
     pass  # matplotlib not installed or backend switch failed — Pix2Text will handle
 
+
 def convert_pix2text(pdf_path: Path | str, *, dpi: int = 150) -> tuple[str, dict]:
     """Run Pix2Text on PDF (via PNG rendering) and return (markdown, meta).
 
@@ -54,11 +56,12 @@ def convert_pix2text(pdf_path: Path | str, *, dpi: int = 150) -> tuple[str, dict
     doc = pymupdf.open(str(pdf_path))
     import pathlib
     import tempfile
+
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="pix2text_"))
     pngs = []
     for i, page in enumerate(doc):  # ty: ignore[invalid-argument-type]  # pymupdf stubs lack __iter__
         pix = page.get_pixmap(dpi=dpi)
-        p = tmp / f"page_{i+1}.png"
+        p = tmp / f"page_{i + 1}.png"
         pix.save(str(p))
         pngs.append(p)
     doc.close()
@@ -85,9 +88,15 @@ def convert_pix2text(pdf_path: Path | str, *, dpi: int = 150) -> tuple[str, dict
     }
     return md, meta
 
+
 if __name__ == "__main__":
     import sys
-    pdf = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("tests/data/ocr_samples/handwritten_formula.pdf")
+
+    pdf = (
+        Path(sys.argv[1])
+        if len(sys.argv) > 1
+        else Path("tests/data/ocr_samples/handwritten_formula.pdf")
+    )
     md, meta = convert_pix2text(pdf)
     print(meta)
     print(md[:2000])

@@ -418,6 +418,26 @@ class TestCurationSafety:
         assert "Hand-written bullet" in new_text
         assert di._BEGIN not in new_text
 
+    def test_truncated_paraphrase_closes_emphasis_cleanly(self):
+        """The [:140] paraphrase cut must never detach the closing `**` — the
+        ellipsis belongs INSIDE the emphasis (`text…**`), else `text **…`
+        renders broken emphasis (md-lint MD037; the ` **…` artifact class)."""
+        long_paraphrase = "word " * 60  # [:140] cut lands exactly after a space
+        q = di.Quote(
+            entity="Marico",
+            quote_text="quote text",
+            paraphrase=long_paraphrase,
+            speaker_name="Saugata Gupta",
+            speaker_title="MD & CEO",
+            as_of_edition="Marico DLF BSE",
+        )
+        block = di.render_chatter_block("Marico DLF BSE", [q])
+        bullets = [ln for ln in block.splitlines() if ln.startswith("- **")]
+        assert bullets, "expected a paraphrase bullet in the block"
+        for b in bullets:
+            assert " **…" not in b
+            assert b.rstrip().endswith("…**")
+
     def test_sentinel_wrapped_auto_block_is_refreshed(self):
         """A previously-auto-generated block (sentinel-wrapped) IS replaced on
         re-run — that's the refresh contract."""

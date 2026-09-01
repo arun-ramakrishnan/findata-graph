@@ -1,0 +1,75 @@
+// .markdownlint-cli2.jsonc — markdownlint-cli2 v0.23.2 (markdownlint v0.41.1)
+// Proposal: doc/improvements/archive/tooling/markdown_lint_adoption.md (§4.1).
+// NEVER share this file with markdownlint-cli (v1): its flat config format
+// silently runs defaults on this cli2 envelope (proposal §2, measured).
+// NOTE: override objects key on "filter" (not "globs") — a wrong key
+// silently no-ops the override (measured 2026-09-01).
+{
+  "globs": [
+    "doc/**/*.md",
+    "findata/**/*.md"
+  ],
+  "noBanner": true,
+  "noProgress": true,
+  "config": {
+    // doc/ + corpus prose base — tuned 2026-09-01 (492-issue baseline).
+    // S2 fixer trial (measured): MD004/MD022/MD029/MD032 fixers CORRUPT
+    // this corpus — they treat wrapped-prose continuations starting with
+    // +/-/#/digit as lists/headings (markers flipped both directions,
+    // completed.md entry numbers 72.->1. renumbered, false headings
+    // manufactured) — so the rules are OFF and their findings stay.
+    "default": true,
+    "MD004": false,                        // ul-style: flags wrap continuations; fixer unsafe here
+    "MD013": false,                        // line-length: prose/tables run long by design
+    "MD022": false,                        // blanks-around-headings: same wrap-continuation class
+    "MD029": false,                        // ol-prefix: renumbered real entry numbers in the S2 trial
+    "MD032": false,                        // blanks-around-lists: same wrap-continuation class
+    "MD050": "asterisk",                   // strong-style: **x** not __x__ (dunders pre-backticked, S2)
+    "MD055": "leading_and_trailing",       // table-pipe-style: | a | b |
+    "MD060": false,                        // table-column-style: cosmetic
+    "MD036": false,                        // emphasis-as-heading: generator house style
+    "MD033": false,                        // inline HTML: reprints/citations
+    "MD024": { "siblings_only": true },    // repeated headings across sibling sections OK
+    "MD025": { "front_matter_title": "" }  // YAML title is not an H1
+  },
+  "overrides": [
+    {
+      // S4 quarantine: 7 substack-reprint editions whose tables were
+      // structurally mangled by the PDF conversion (multi-line cells,
+      // flattened merges) — mechanical fixes would fabricate cell
+      // boundaries. Table repair rides the reprint-recovery arc, which
+      // removes this override. Tier-1 minus MD056 stays active.
+      "filter": [
+        "findata/Points_And_Figures/image_map.md",
+        "findata/Points_And_Figures/Stakes_in_the_Stacks.md",
+        "findata/Points_And_Figures/The_Note_in_the_Noise.md",
+        "findata/Points_And_Figures/The_Hint_in_the_Haze_output.md",
+        "findata/Points_And_Figures/The_Truth_Behind_the_Trendlines.md",
+        "findata/Points_And_Figures/Weight_in_the_Whispers.md",
+        "findata/Points_And_Figures/What_the_Slides_Dont_Say.md"
+      ],
+      "combine": "replace",
+      "config": {
+        "default": false,
+        "MD018": true,
+        "MD037": true,
+        "MD047": true
+      }
+    },
+    {
+      "filter": ["findata/**/*.md"],
+      "combine": "replace",
+      "config": {
+        // Tier-1 defect rules only — LINT-ONLY over findata, never --fix
+        "default": false,
+        "MD018": true,   // heading missing space after # (reprint artifacts)
+        "MD037": true,   // spaces inside emphasis markers (single-writer bug)
+        "MD047": true,   // file must end with a newline (parser writer)
+        "MD056": true    // table column-count mismatch (silently loses data)
+      }
+    }
+  ],
+  "ignores": [
+    "findata/_pending_triage_report.md"  // run artifact, not corpus
+  ]
+}

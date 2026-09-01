@@ -91,7 +91,7 @@ gspread 6.2.1, finnhub-python 2.4.29.
 
 Per sweep, in order — each stage only sees the previous stage's residue:
 
-```
+```text
 0. yfinance BULK sweep (existing pass, cache-first)
      ├─ OK (~883) → done; fetch cache persisted
      └─ failures (33) + opt-in unlisted (≤147) ↓
@@ -166,7 +166,7 @@ remain the path for scrip-only listings yfinance can never serve.
 - **Sheets quota/drift**: 2 calls/sweep is negligible; formula
   attribute set is documented surface; eval lag handled by one retry.
 - **Token hygiene**: keys live only in gitignored `memory/`; never in
-  code, reports, or commits; `.env`-style loaders strip `export `.
+  code, reports, or commits; `.env`-style loaders strip `export`.
 
 ## 6. Success criteria
 
