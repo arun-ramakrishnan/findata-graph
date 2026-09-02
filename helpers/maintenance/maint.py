@@ -372,7 +372,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     logger = logging.getLogger("maint")
 
-    # S1b: pre-warm Corpus cache once so PRE_FULL/TIER2 --corpus steps hit pickle (0.02s vs 0.37s walk)
+    # S1b: pre-warm Corpus cache once so PRE_FULL/TIER2 --corpus steps hit corpus.db (0.02s vs 0.37s walk)
     if args.full and _HAS_CORPUS and Corpus is not None:
         try:
             assert Corpus is not None  # noqa: S101  # ty narrow

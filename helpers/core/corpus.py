@@ -37,7 +37,6 @@ from __future__ import annotations
 
 import os
 import hashlib
-import pickle
 from collections.abc import Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -60,12 +59,12 @@ except ImportError:  # pragma: no cover - fallback for isolated import
     iter_tree_files = None  # type: ignore[assignment]
 
 # S1b shared cache — consolidated in helpers/core/corpus.py (one place, not duped per-module).
-# Was /tmp/findata_corpus.pkl pickle ephemeral (0.16s load, full rebuild if any file newer);
-# now memory/corpus.db (gitignored, like doc_search.db) with per-file mtime incremental
-# (0.02s load + 1 file yaml when 1 of 1243 changed, not 0.37s full). Pickle path kept as
-# fallback for /tmp-only boxes, but DB is primary (persistent across reboots, snapshot
-# does not bloat research.db — corpus.db is sidecar like embed_store.db).
-_CACHE_PATH = Path("/tmp/findata_corpus.pkl")  # noqa: S108 - legacy fallback, still honoured
+# Was a /tmp pickle ephemeral (0.16s load, full rebuild if any file newer, and its findata-root
+# branch returned unfiltered content — a stale synthetic pickle silently poisoned production
+# loads, hit 2026-09-02); dropped 2026-09-02. Now memory/corpus.db (gitignored, like
+# doc_search.db) with per-file mtime incremental (0.02s load + 1 file yaml when 1 of 1243
+# changed, not 0.37s full). Persistent across reboots; snapshot does not bloat research.db —
+# corpus.db is sidecar like embed_store.db.
 _CACHE_DB = Path(__file__).resolve().parents[2] / "memory" / "corpus.db"
 _CACHE_DB_RETAIN = 1  # keep DB even when findata max_mtime == cache, for incremental
 
@@ -123,7 +122,7 @@ class Corpus:
     ) -> "Corpus":
         """One walk+parse. `use_cache=True` hits `memory/corpus.db` per-file mtime
         incremental (`0.02s` load + `1` yaml when `1/1243` changed) not `0.37s` full.
-        Falls back to `/tmp` pickle then full walk. `maint --full` pre-warms once;
+        Falls back to the full walk. `maint --full` pre-warms once;
         subsequent `sync_tags --corpus` etc. hit DB cache.
         """
         root = Path(root)
@@ -241,20 +240,7 @@ class Corpus:
                     notes.sort(key=lambda n: n.path.as_posix())
                     return cls(root=root, notes=notes)
             except Exception:  # noqa: S110
-                pass  # fall through to pickle / walk
-        # Legacy pickle fallback
-        if use_cache and _CACHE_PATH.exists():
-            try:
-                max_src = max((pp.stat().st_mtime for pp in iter_findata_files(root)), default=0)
-                cache_mtime = _CACHE_PATH.stat().st_mtime
-                if cache_mtime >= max_src:
-                    with _CACHE_PATH.open("rb") as f:
-                        notes = pickle.load(f)  # noqa: S301 - trusted local cache
-                    if Path(root).resolve() != Path("findata").resolve():
-                        notes = [n for n in notes if str(n.path).startswith(str(root))]
-                    return cls(root=root, notes=notes)
-            except Exception:  # noqa: S110
-                pass
+                pass  # fall through to the full walk
         files = iter_findata_files(root)
         if not files:
             return cls(root=root, notes=[])
@@ -267,11 +253,7 @@ class Corpus:
             notes.sort(key=lambda n: n.path.as_posix())
         if use_cache:
             try:
-                # Write DB cache (primary) and legacy pickle (fallback)
                 _init_db_cache(notes)
-                _CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-                with _CACHE_PATH.open("wb") as f:
-                    pickle.dump(notes, f, protocol=pickle.HIGHEST_PROTOCOL)
             except Exception:  # noqa: S110
                 pass
         return cls(root=root, notes=notes)
@@ -409,7 +391,6 @@ class Corpus:
     @classmethod
     def clear_cache(cls) -> None:
         try:
-            _CACHE_PATH.unlink(missing_ok=True)
             _CACHE_DB.unlink(missing_ok=True)
         except OSError:
             pass
