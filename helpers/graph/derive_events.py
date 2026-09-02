@@ -42,6 +42,15 @@ Usage:
 """
 
 from __future__ import annotations
+# ruff: noqa: C901, S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
+
+try:
+    from helpers.core.corpus import Corpus  # S1b shared walk
+
+    _HAS_CORPUS = True
+except ImportError:  # pragma: no cover
+    Corpus = None  # type: ignore[assignment]
+    _HAS_CORPUS = False
 
 import argparse
 import json
@@ -582,7 +591,7 @@ def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> int:
 # --------------------------------------------------------------------------- #
 # CLI                                                                         #
 # --------------------------------------------------------------------------- #
-def _cli(argv: list[str] | None = None) -> int:
+def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(
         description="Derive the events timeline table (acquisition/jv/guidance/"
         "management_change) from graph_edges + company-note prose.",
@@ -598,10 +607,34 @@ def _cli(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Print every event in addition to the summary.",
     )
+    p.add_argument(
+        "--stale-only",
+        action="store_true",
+        help="S1c: skip when no source newer than last derived.",
+    )
     args = p.parse_args(argv)
 
     conn = connect()
     try:
+        # S1c --stale-only: skip when no Company note newer than last event
+        if args.stale_only:
+            try:
+                db_max = conn.execute("SELECT MAX(created_at) FROM events").fetchone()[0]
+                if db_max:
+                    import datetime as _dt
+
+                    db_dt = _dt.datetime.fromisoformat(db_max.replace(" ", "T"))
+                    max_mtime = max(
+                        (pp.stat().st_mtime for pp in (COMPANIES_DIR).rglob("*.md")), default=0
+                    )
+                    if max_mtime and _dt.datetime.fromtimestamp(max_mtime) <= db_dt:
+                        print(
+                            f"events stale-only: no Company note newer than last derived {db_max} — skipping 0 events (dry-run)",
+                            file=sys.stderr,
+                        )
+                        return 0
+            except Exception:  # noqa: S110
+                pass
         # Arm 1: promote from edges (no path map needed — edges already carry
         # resolved entity names).
         promoted = promote_from_edges(conn)

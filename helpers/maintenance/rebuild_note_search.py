@@ -475,6 +475,32 @@ def _migrate_schema(conn) -> bool:
     return True
 
 
+def _refresh_embed_matrix(conn) -> int | None:  # type: ignore[no-untyped-def]
+    """S2d (corpus_embeddings_scaling): best-effort refresh of the aligned
+    f32 matrix (memory/embed_matrix.f32) after note_search embeddings move.
+    Same derived-state class as the vec0 mirror — rebuilt here, never
+    load-bearing; any failure is silent (the search-side staleness gate
+    falls back to the Python cosine, not to stale matrix results)."""
+    try:
+        import json as _json
+
+        import numpy as _np
+
+        from helpers.core.embed_matrix import EmbedMatrixStore
+
+        rows = conn.execute(
+            "SELECT file_path, embedding FROM note_search"
+            " WHERE embedding IS NOT NULL ORDER BY file_path"
+        ).fetchall()
+        if not rows:
+            return None
+        ids = [r[0] for r in rows]
+        emb = _np.array([_json.loads(r[1]) for r in rows], dtype=_np.float32)
+        return EmbedMatrixStore().refresh(ids, emb)["rewritten"]
+    except Exception:  # noqa: S110  # matrix refresh is best-effort, never gate the rebuild
+        return None
+
+
 def _stamp_note_model(conn, model_label: str) -> None:
     """Record the note_search embedding model in db_meta (A1, apply path only).
 
@@ -710,6 +736,8 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
             # (after the FTS commit — sync is idempotent and best-effort; the
             # JSON column stays the source of truth).
             stats["vec_rows"] = sync_vec_table(conn, embed_dims, full=True)
+            # S2d: keep the aligned f32 matrix in step (hash-gated row rewrites)
+            stats["matrix_rows"] = _refresh_embed_matrix(conn)
             # B4 (sql_capability_unlocks): note_search is invisible to the
             # entities/graph_edges generation triggers (FTS5 can't carry
             # them), so the apply path bumps manually — a warm DuckDB whose
@@ -788,6 +816,10 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
                 upsert_rows=[(r[1], r[5]) for r, _m, _c in to_upsert],
                 delete_paths=to_delete,
             )
+            # S2d: same delta through the aligned matrix (full refresh is
+            # hash-gated — unchanged rows are no-ops; a delete changes the
+            # id set and forces one clean rebuild).
+            stats["matrix_rows"] = _refresh_embed_matrix(conn)
             # B4: same writer-side bump as the full branch, but only when the
             # incremental pass actually changed rows — an empty delta leaves
             # the generation (and the warm DuckDB) untouched.

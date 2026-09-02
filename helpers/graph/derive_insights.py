@@ -107,6 +107,14 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+try:
+    from helpers.core.corpus import Corpus  # S1b shared walk
+
+    _HAS_CORPUS = True
+except ImportError:  # pragma: no cover
+    Corpus = None  # type: ignore[assignment]
+    _HAS_CORPUS = False
+
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.stable_write import stable_prefix_replace  # noqa: E402
 from helpers.core.edition_index import (  # noqa: E402
@@ -1698,29 +1706,126 @@ def _expand_paths(target: str) -> list[Path]:
 _NEWSLETTER_CHROME_NAMES = {"image_map", "images"}
 
 
-def scan(target: str, conn) -> tuple[list[Quote], list[Metric]]:
-    """Scan one or more newsletter files; return ``(quotes, metrics)``."""
+def _build_resolver_map(conn) -> dict[str, str]:
+    """One DB round-trip: company name + normalized_name -> canonical db name (lowercased keys)."""
+    rows = conn.execute(
+        "SELECT name, normalized_name FROM entities WHERE entity_type='company'"
+    ).fetchall()
+    m: dict[str, str] = {}
+    for r in rows:
+        name = r["name"]
+        norm = r["normalized_name"]
+        if name:
+            m[name.lower()] = name
+        if norm and norm.lower() not in m:
+            m[norm.lower()] = name
+            m[norm.replace("_", " ").lower()] = name
+            m[norm.replace(" ", "_").lower()] = name
+    return m
+
+
+def _scan_one_file(md: Path, resolver_map: dict[str, str]) -> tuple[list[Quote], list[Metric]]:
+    """Scan a single newsletter file (thread-safe; no DB)."""
+    if md.name == "image_map.md" or md.parent.name in _NEWSLETTER_CHROME_NAMES:
+        return [], []
+    content = md.read_text(encoding="utf-8", errors="replace")
+    stem = md.stem
+    edition = _edition_title(stem, content)
+    sections = list(iter_company_sections(content))
+    if not sections:
+        return [], []
+    resolved: dict[str, str] = {}
+    for s in sections:
+        lower = s.canonical_name.lower()
+        if lower in resolver_map:
+            resolved[s.canonical_name] = resolver_map[lower]
     quotes: list[Quote] = []
     metrics: list[Metric] = []
-    for md in _expand_paths(target):
-        if md.name == "image_map.md" or md.parent.name in _NEWSLETTER_CHROME_NAMES:
+    for section in sections:
+        entity_name = resolved.get(section.canonical_name)
+        if not entity_name:
             continue
-        content = md.read_text(encoding="utf-8", errors="replace")
-        stem = md.stem
-        edition = _edition_title(stem, content)
-        sections = list(iter_company_sections(content))
-        if not sections:
-            continue
-        resolved = _resolve_entities(conn, sections)
-        for section in sections:
-            entity_name = resolved.get(section.canonical_name)
-            if not entity_name:
-                continue  # unknown company — extract_relations handles sidecar
-            # Re-key the section's canonical_name to the resolved DB name so
-            # downstream rows reference the actual entity.
-            section.canonical_name = entity_name
-            quotes.extend(extract_quotes(section, edition, stem))
-            metrics.extend(extract_metrics(section, edition, stem))
+        section.canonical_name = entity_name
+        quotes.extend(extract_quotes(section, edition, stem))
+        metrics.extend(extract_metrics(section, edition, stem))
+    return quotes, metrics
+
+
+def scan(target: str, conn, corpus: Corpus | None = None) -> tuple[list[Quote], list[Metric]]:
+    """Scan one or more newsletter files; return ``(quotes, metrics)``."""
+    # S1a single-DB-query: was N queries (one per file via _resolve_entities), now 1.
+    # S1b corpus: when corpus is given (maint --full --corpus), iterate over pre-parsed notes instead of re-walking.
+    resolver_map = _build_resolver_map(conn)
+    if corpus is not None:
+        # Filter corpus notes to target newsletter trees (findata/The_Chatter etc.)
+        target_paths = set(_expand_paths(target))
+        # If target is a directory like findata, include all newsletters; else filter to target set
+        if len(target_paths) == 1 and target_paths.pop().as_posix() == "findata":
+            paths = [
+                Path(n.path)
+                for n in corpus.notes
+                if n.path.parent.name not in _NEWSLETTER_CHROME_NAMES
+                and n.path.name != "image_map.md"
+                and "The_Chatter" in n.path.as_posix()
+                or "Points_And_Figures" in n.path.as_posix()
+                or "The_PlotLines" in n.path.as_posix()
+            ]
+            # Simpler: filter to newsletter trees explicitly
+            paths = [
+                Path(n.path)
+                for n in corpus.notes
+                if any(
+                    t in n.path.as_posix()
+                    for t in ("The_Chatter", "Points_And_Figures", "The_PlotLines")
+                )
+            ]
+        else:
+            target_set = {Path(t).as_posix() for t in _expand_paths(target)}
+            paths = [Path(n.path) for n in corpus.notes if n.path.as_posix() in target_set]
+        # Use corpus fast path: text already loaded, avoid re-reading file
+        quotes: list[Quote] = []
+        metrics: list[Metric] = []
+        by_path_text = {n.path.as_posix(): n.text for n in corpus.notes}
+        for md in paths:
+            # _scan_one_file reads file again; use corpus text if available
+            text = by_path_text.get(md.as_posix())
+            if text is not None:
+                # Inline _scan_one_file with corpus text to avoid re-read
+                stem = md.stem
+                edition = _edition_title(stem, text)
+                sections = list(iter_company_sections(text))
+                if not sections:
+                    continue
+                resolved = {
+                    s.canonical_name: resolver_map[s.canonical_name.lower()]
+                    for s in sections
+                    if s.canonical_name.lower() in resolver_map
+                }
+                for section in sections:
+                    en = resolved.get(section.canonical_name)
+                    if not en:
+                        continue
+                    section.canonical_name = en
+                    quotes.extend(extract_quotes(section, edition, stem))
+                    metrics.extend(extract_metrics(section, edition, stem))
+                continue
+            q_batch, m_batch = _scan_one_file(md, resolver_map)
+            quotes.extend(q_batch)
+            metrics.extend(m_batch)
+        return quotes, metrics
+    paths = [
+        p
+        for p in _expand_paths(target)
+        if p.name != "image_map.md" and p.parent.name not in _NEWSLETTER_CHROME_NAMES
+    ]
+    if not paths:
+        return [], []
+    quotes: list[Quote] = []
+    metrics: list[Metric] = []
+    for md in paths:
+        q_batch, m_batch = _scan_one_file(md, resolver_map)
+        quotes.extend(q_batch)
+        metrics.extend(m_batch)
     return quotes, metrics
 
 
@@ -1764,11 +1869,25 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "sources[]. The first run after an OKF backfill re-renders "
         "all sourced notes (backfill stamps are not render stamps).",
     )
+    p.add_argument(
+        "--corpus",
+        action="store_true",
+        help="S1b: use helpers.core.corpus shared walk (maint --full) — one walk for all derivations.",
+    )
     args = p.parse_args(argv)
 
     conn = connect()
     try:
-        quotes, metrics = scan(args.target, conn)
+        # S1b: when --corpus, share one walk across maint --full
+        if args.corpus and _HAS_CORPUS:
+            try:
+                # For Corpus, target is findata newsletters; load full findata and filter in scan via corpus param
+                _corpus = Corpus.load("findata", workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
+                quotes, metrics = scan(args.target, conn, corpus=_corpus)
+            except Exception:
+                quotes, metrics = scan(args.target, conn)
+        else:
+            quotes, metrics = scan(args.target, conn)
 
         # Summary.
         by_speaker: dict[str, int] = {}

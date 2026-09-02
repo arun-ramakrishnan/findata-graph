@@ -35,6 +35,11 @@ dependencies = [
     "pyarrow",
     # DataFrame exports (helpers/maintenance/snapshot_db.py).
     "pandas",
+    # Numeric kernels for the aligned f32 embedding matrix (S2b,
+    # helpers/core/embed_matrix.py — corpus_embeddings_scaling proposal
+    # 2026-09-02). Was transitively available (max/pandas) but is now
+    # imported directly by production code, so it is declared.
+    "numpy",
     # PDF pipeline (helpers/pdf/pdf_conv_md.py + helpers/pdf/pdf_local.py):
     # requests for the Paddle API engine; pymupdf4llm for the local no-OCR
     # engine (default, local-first per operator decision 2026-08-26).
@@ -136,14 +141,15 @@ ignore = ["E501"]
 known_first_party = ["helpers", "app", "core", "mojo_regex_battery"]
 # doc/templates seeds import their toolchain (pytest, helpers) to TEACH it —
 # they are not shipped code; exclude them from dependency analysis.
-extend_exclude = ["doc/templates"]
+# Mojo/bench is the same class: bench/scale tooling (max_real_matmul,
+# flat_knn) that legitimately imports the dev-group `max` toolchain and
+# numpy directly — measured, not shipped (corpus_embeddings_scaling S2c).
+extend_exclude = ["doc/templates", "Mojo/bench"]
 # The `dev` and `mojo` optional-dependencies groups hold command-line tooling
 # (pytest, hypothesis, ruff, ty, deptry; the mojo + max compiler toolchain)
 # that is never imported from the codebase, so deptry cannot observe it as
 # "used". Marking the groups as dev suppresses the spurious DEP002
-# (declared-but-unused) for their packages. `regex` was moved to
-# [project].dependencies (2026-08-30) because active Mojo bench code
-# (Mojo/bench/mojo_regex_*.py) imports it — it is not dev-only.
+# (declared-but-unused) for their packages.
 optional_dependencies_dev_groups = ["dev", "mojo"]
 # gunicorn (prod WSGI server, invoked by nixpacks.toml `cmd = "gunicorn app:app"`)
 # and werkzeug (WSGI/serving, pulled in transitively by Flask) are runtime deps that
@@ -157,4 +163,8 @@ optional_dependencies_dev_groups = ["dev", "mojo"]
 # helpers/pdf/pix2text_markdown.py is kept for reference only and imports
 # pix2text inside a function. Silence DEP001 for it so `make deptry` does
 # not fail on the intentionally-missing dep.
-per_rule_ignores = "DEP001=pix2text,DEP002=gunicorn|Werkzeug|finnhub-python"
+# regex: imported only by Mojo/bench tooling (mojo_regex_battery.py,
+# mojo_regex_corpus.py), which extend_exclude removes from scanning — it
+# stays a direct dependency for the same reason it was promoted 2026-08-30
+# (bench code is code, it just isn't shipped).
+per_rule_ignores = "DEP001=pix2text,DEP002=gunicorn|Werkzeug|finnhub-python|regex"

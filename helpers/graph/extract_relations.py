@@ -67,6 +67,14 @@ See `doc/design/graph_design.txt` §4 for the symmetric-edge convention.
 
 from __future__ import annotations
 
+try:
+    from helpers.core.corpus import Corpus  # S1b shared walk
+
+    _HAS_CORPUS = True
+except ImportError:  # pragma: no cover
+    Corpus = None  # type: ignore[assignment]
+    _HAS_CORPUS = False
+
 import argparse
 import json
 import os
@@ -2324,9 +2332,16 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
 
         workers = min(4, os.cpu_count() or 1)
         chunks = [([str(p) for p in nl_paths[i::workers]], names) for i in range(workers)]
+        # S1b fix: use `helpers.graph._extract_worker` (always importable) so
+        # pickle is `helpers.graph._extract_worker._extract_batch_arg` not
+        # `__main__._extract_batch_arg` (fails when file is run as `__main__`,
+        # the normal `python3 helpers/...py` + `cProfile` path). The worker
+        # delegates to `extract_relations._extract_batch` at call time.
+        from helpers.graph._extract_worker import _extract_batch_arg as _worker_arg
+
         try:
             with ProcessPoolExecutor(max_workers=workers) as ex:
-                batch_results = list(ex.map(_extract_batch_arg, chunks))
+                batch_results = list(ex.map(_worker_arg, chunks))
         except BrokenProcessPool:
             # Fallback to serial processing if child processes crash
             # (e.g., under memory pressure or OOM killer).

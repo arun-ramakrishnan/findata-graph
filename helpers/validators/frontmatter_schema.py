@@ -40,6 +40,14 @@ from pathlib import Path
 
 import yaml
 
+try:
+    from helpers.core.corpus import Corpus  # S1b shared walk
+
+    _HAS_CORPUS = True
+except ImportError:  # pragma: no cover
+    Corpus = None  # type: ignore[assignment]
+    _HAS_CORPUS = False
+
 # Bootstrap so bare-script invocation (`python3 helpers/validators/...`)
 # resolves `helpers.*`; the -m form and the static_checks wrappers already
 # have the repo root on sys.path. Mirrors the shim in verify_notes.py.

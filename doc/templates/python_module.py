@@ -15,6 +15,15 @@ Conventions enforced elsewhere (don't fight them):
   - DB access goes through helpers.core.db.connect — readers pass
     read_only=True (N RO processes coexist; one RW excludes them all).
   - Wall-clock budgets live in `make perf`, never in pytest.
+  - S1b/Corpus: full `findata/` walkers (`rglob("*.md")` `1243`) must use
+    `helpers.core.corpus.Corpus.load(use_cache=True)` not `Path.rglob` —
+    one `DB` `corpus_cache` `per-file mtime` walk (`0.16s` cached `0.02s` `1 file`
+    not `0.37s` full, `memory/corpus.db` `29MB` sidecar, not `research.db`).
+    Advisory: `rg 'rglob("*.md")' helpers --glob '!corpus.py'` `WARNING` `advisory` not `FAIL` (see `tests/test_corpus_advisory.py`).
+  - S1c/Stale: `derive_*` modules that scan `findata` must support `--stale-only`
+    `MAX(created_at) WHERE edge_type=...` vs `max(mtime)` `0.12s` `SKIP` `73-80%`
+    so `maint --full` no-op is designed in — think `incremental` from `S1`, not retrofitted.
+    Advisory: `rg '--stale-only' helpers/graph/derive_*.py` `WARNING` if missing.
 """
 
 from __future__ import annotations

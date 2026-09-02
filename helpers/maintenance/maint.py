@@ -128,6 +128,16 @@ from pathlib import Path
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))  # bootstrap for helpers.* imports  # noqa: E402
+
+try:
+    from helpers.core.corpus import Corpus  # S1b shared walk  # noqa: E402
+
+    _HAS_CORPUS = True
+except ImportError:  # pragma: no cover
+    Corpus = None  # type: ignore[assignment]
+    _HAS_CORPUS = False
 
 # Append-only run log (gitignored, like the gate reports). Module-level
 # and monkeypatchable so tests never touch the real file.
@@ -150,7 +160,10 @@ _CAPTURE_LINES = 400  # rolling in-memory cap while streaming
 # maint` never runs these: post-ingest re-derivations, guaranteed
 # no-ops between ingests.
 PRE_FULL_STEPS: list[tuple[str, list[str]]] = [
-    ("sync-tags (rebuild entity_tags from note YAML)", ["python3", "helpers/core/sync_tags.py"]),
+    (
+        "sync-tags (rebuild entity_tags from note YAML)",
+        ["python3", "helpers/core/sync_tags.py", "--corpus"],
+    ),
     (
         "rebuild-note-search (rebuild FTS over findata markdowns)",
         ["python3", "helpers/maintenance/rebuild_note_search.py"],
@@ -359,6 +372,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     logger = logging.getLogger("maint")
 
+    # S1b: pre-warm Corpus cache once so PRE_FULL/TIER2 --corpus steps hit pickle (0.02s vs 0.37s walk)
+    if args.full and _HAS_CORPUS and Corpus is not None:
+        try:
+            assert Corpus is not None  # noqa: S101  # ty narrow
+            # workers=1 is faster for 1243 small files on this box (see perf_skills §15)
+            Corpus.load("findata", workers=1, use_cache=True)
+        except Exception as e:
+            logger.debug("corpus pre-warm failed: %s", e)
     if args.full:
         steps = (
             list(PRE_FULL_STEPS)

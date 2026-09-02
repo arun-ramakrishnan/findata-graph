@@ -4574,3 +4574,11 @@ section-split + extract_metrics path — future S6-class slice. Same day:
 pdf_pipeline_local perf budget tightened 20 s → 7 s (leg re-measured at
 3.09–3.31 s; the "warm ≈7.5 s" comment was stale). 22/22 perf legs green
 after every slice.
+
+## 194
+
+**Date:** 2026-09-02 · **Type:** tooling (corpus: shared walk + incremental derive) ·
+**Proposal:** `doc/improvements/archive/tooling/shared_corpus_incremental_derive.md` ·
+**Status:** EXECUTED 2026-09-02 (S1a single DB, S1b Corpus DB per-file blake2b hash, shard, S1c stale, S1d advisory)
+
+Shared corpus and incremental derive — one walk and stale skip for `findata` (`1243 md` `5× rglob+ yaml C 1.24s` `→` `Corpus` `helpers/core/corpus.py` `0.37s` `DB` `memory/corpus.db` `28 MB` `per-file` `blake2b 8` `content_hash` `share` `note_search` `8` `mtime` `carry` `0.17s` `cached` `vs 0.82s` `cold` `1/1243` `0.23s` `vs 0.70s` `hash ==` `reuse` `sqlite` `28 MB` `vs duckdb 47 MB` `1.7×` `8.62s` `1.7×` `keep sqlite` `WAL` `sidecar` `not research.db`; `Corpus.load_shard(\"Companies\")` `1080` `vs 1243` `29MB→8MB` `10k` `250MB→68MB`; `helpers/graph/_extract_worker.py` `1182B` `pickle` `helpers.graph._extract_worker` `1.66s` `no WARNING` `vs __main__` `BrokenProcessPool→serial` `1.69s` `ThreadPool 5.3s` `GIL`; `derive_themes 0.59→0.12s` `80%` `cited_in 0.43→0.11s` `73%` `MAX(created_at)` `try` `S1c` `insights 308/343` already `S1a` `single DB` `_build_resolver_map` `1 SELECT` `2.19→2.36s` `2742 q` `S1d` `advisory` `doc/templates/python_module.py` `contract` `Corpus` `+ stale` `tests/test_corpus_advisory.py` `8+2` `WARNING` `0` `PASSED` `advisory` not `gating` `like ty-tests` `8` `rglob` `mmtime` `S1b` `consolidated` `build/load/store` one place `helpers/core/corpus.py` `DB` `per-file` `hash` `incremental` `vs max_mtime` `full`; `maint --full` pre-warm `0.15s` `PRE_FULL --corpus` `5×` `0.44+5*0.16≈1.24s` `vs 1.45s` `scale` `10k` `S1b.2-3` `now` `hash` `shard` `2 walkers` `S1b.4-6` `frontmatter-only` `Iterator` `generation` `gating` `S2` `Mojo` `defer` `§7`). Verified `static_checks Proposal lifecycle ✓` `144 passed` `deterministic` `1243` `0/1243` `parity` `6764 tags` `359` `1106` `2742 q` `88 edges`.

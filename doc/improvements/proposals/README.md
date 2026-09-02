@@ -28,4 +28,6 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+- `corpus_embeddings_scaling.md` — scalability to 100M embedding
+  elements: lazy Corpus, aligned f32 matrix store, flat exact KNN
+  (filed 2026-09-02).

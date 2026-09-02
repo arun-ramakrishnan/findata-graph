@@ -472,6 +472,29 @@ def api_entities():
     )
 
 
+def _flat_knn_map(q_vec, page_paths, store=None):  # type: ignore[no-untyped-def]
+    """S2d (corpus_embeddings_scaling): whole-corpus cosine map from the
+    aligned f32 matrix — the fallback of the fallback, used only when vec0
+    is unavailable. Same ``{file_path: similarity}`` contract as
+    ``knn_similarities`` (global-rank semantics, accepted 2026-08-17).
+
+    Staleness gate: the matrix ids must cover the whole candidate page —
+    any page doc missing from the matrix means note_search moved ahead of
+    the last rebuild refresh, so return None and let the page-local Python
+    cosine loop run (hybrid must degrade, never 500 — never raise).
+    """
+    try:
+        from helpers.core.embed_matrix import EmbedMatrixStore
+
+        em = (store or EmbedMatrixStore()).load()
+        id_set = set(em.ids)
+        if not all(p in id_set for p in page_paths):
+            return None
+        return {fp: sim for fp, sim in em.top_k(q_vec, len(em.ids))}
+    except Exception:  # noqa: S110  # matrix absent/stale/corrupt -> Python cosine
+        return None
+
+
 def _scored_rows(rows, q_vec, knn: dict[str, float] | None) -> list[tuple[int, Any, float]]:
     """Per-row cosine similarity, from the A1 KNN map when available.
 
@@ -586,7 +609,7 @@ def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> l
         q_vec = None
 
     # A1: whole-corpus KNN first (k=None -> exact per-doc similarities);
-    # None result = unavailable -> Python cosine loop below.
+    # None result = unavailable -> S2d flat-matrix leg -> Python cosine loop.
     knn: dict[str, float] | None = None
     if q_vec is not None:
         try:
@@ -595,6 +618,8 @@ def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> l
             knn = knn_similarities(conn, q_vec, None, len(q_vec))
         except Exception:  # noqa: S110  # KNN unavailable -> Python cosine below
             knn = None
+        if knn is None:
+            knn = _flat_knn_map(q_vec, [r[1] for r in rows])
 
     scored = _scored_rows(rows, q_vec, knn)
     cos_pos = _cosine_positions(rows, knn, scored)

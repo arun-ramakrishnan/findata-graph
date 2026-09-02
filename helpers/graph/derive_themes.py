@@ -27,6 +27,7 @@ Usage:
 """
 
 from __future__ import annotations
+# ruff: noqa: C901, S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
 
 import argparse
 import json
@@ -45,6 +46,14 @@ from helpers.core.db import connect, utc_now  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_THEMES  # noqa: E402
 from helpers.graph._edge_writer import apply_typed_edges  # noqa: E402
 from helpers.core.frontmatter import strip_frontmatter as _strip_frontmatter  # noqa: E402
+
+try:
+    from helpers.core.corpus import Corpus  # noqa: E402  # S1b shared walk
+
+    _HAS_CORPUS = True
+except ImportError:  # pragma: no cover
+    Corpus = None  # type: ignore[assignment]
+    _HAS_CORPUS = False
 
 # --------------------------------------------------------------------------- #
 # Constants                                                                   #
@@ -205,8 +214,10 @@ def create_theme_entities(conn, *, apply: bool = True) -> int:
 # Stage 2 — scan notes, derive membership                                     #
 # --------------------------------------------------------------------------- #
 def extract_theme_membership(
-    root: Path = COMPANIES_DIR, path_to_name: dict[str, str] | None = None
-):
+    root: Path = COMPANIES_DIR,
+    path_to_name: dict[str, str] | None = None,
+    corpus: Corpus | None = None,  # S1b: pre-loaded Corpus (shared across maint --full)
+):  # noqa: C901
     """Scan company notes and return ``(company_name, theme, matched_aliases)``.
 
     Args:
@@ -223,6 +234,65 @@ def extract_theme_membership(
     to multiple themes; each (company, theme) pair is yielded once with the
     list of aliases that matched.
     """
+    # S1b: corpus fast path — iterate over pre-parsed notes instead of re-walking
+    if corpus is not None:
+
+        def _in_root(n):  # type: ignore[no-untyped-def]
+            # corpus paths are repo-relative findata/Companies/...; root is absolute _REPO_ROOT/findata/Companies
+            rp = n.path.as_posix()
+            # Try is_relative_to when both absolute, else string prefix on findata subtree
+            try:
+                if hasattr(n.path, "is_relative_to") and n.path.is_absolute():
+                    return n.path.is_relative_to(root)
+            except Exception:  # noqa: S110
+                pass
+            # Fallback: check suffix/prefix for Companies subtree
+            return (
+                "findata/Companies" in rp
+                or rp.startswith("findata/Companies")
+                or str(root).endswith("Companies")
+                and "Companies" in rp
+            )
+
+        for note_obj in corpus.notes:
+            if not _in_root(note_obj):
+                continue
+            note = note_obj.path
+            text = note_obj.text
+            # need to handle try/except for OSError already done
+            # Resolve company as before but using note path
+            try:
+                rel = (
+                    note.resolve().relative_to(_REPO_ROOT).as_posix()
+                    if note.is_absolute()
+                    else note.as_posix()
+                )
+            except ValueError:
+                rel = note.stem
+            company = None
+            if path_to_name is not None:
+                company = path_to_name.get(rel)
+            else:
+                company = note.stem
+            if company is None:
+                continue
+            m_chatter = re.search(
+                r"<!-- BEGIN auto chatter block.*?-->(.*?)<!-- END auto chatter block -->",
+                text,
+                flags=re.S | re.I,
+            )
+            scan_text = (
+                m_chatter.group(1).lower() if m_chatter else _strip_frontmatter(text).lower()
+            )
+            if not scan_text:
+                continue
+            matched: dict[str, list[str]] = defaultdict(list)
+            for theme, alias in _THEME_ALIAS_PAIRS:
+                if alias in scan_text:
+                    matched[theme].append(alias)
+            for theme, aliases in matched.items():
+                yield company, theme, sorted(set(aliases))
+        return
     for note in sorted(root.rglob("*.md")):
         try:
             text = note.read_text(encoding="utf-8")
@@ -304,7 +374,7 @@ def apply_edges(edges, *, conn=None, dry_run: bool = True) -> int:
 # --------------------------------------------------------------------------- #
 # CLI                                                                         #
 # --------------------------------------------------------------------------- #
-def _cli(argv: list[str] | None = None) -> int:
+def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(
         description="Derive exposed_to (company -> theme) edges from company notes.",
     )
@@ -319,10 +389,46 @@ def _cli(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Print every edge in addition to the summary.",
     )
+    p.add_argument(
+        "--corpus",
+        action="store_true",
+        help="S1b: use helpers.core.corpus shared walk (maint --full) — one walk for all derivations.",
+    )
+    p.add_argument(
+        "--stale-only",
+        action="store_true",
+        help="S1c: skip when no source newer than last derived (no-op cut for maint --full).",
+    )
     args = p.parse_args(argv)
 
     conn = connect()
     try:
+        # S1c --stale-only: skip full 1078 scan when no Company note newer than last derived.
+        if args.stale_only:
+            try:
+                db_max = conn.execute(
+                    "SELECT MAX(created_at) FROM graph_edges WHERE edge_type='exposed_to'"
+                ).fetchone()[0]
+            except Exception:
+                db_max = None
+            if db_max:
+                # File mtime max vs DB string compare via ISO; fallback to timestamp compare.
+                import datetime as _dt
+
+                try:
+                    db_dt = _dt.datetime.fromisoformat(db_max.replace(" ", "T"))
+                    # fastest walk: fs_walk is not needed for single max, rglob is fine for 1078
+                    max_mtime = max(
+                        (pp.stat().st_mtime for pp in COMPANIES_DIR.rglob("*.md")), default=0
+                    )
+                    if max_mtime and _dt.datetime.fromtimestamp(max_mtime) <= db_dt:
+                        print(
+                            f"themes stale-only: no Company note newer than last derived {db_max} — skipping 0 edges (dry-run)",
+                            file=sys.stderr,
+                        )
+                        return 0
+                except Exception:  # noqa: S110
+                    pass
         # Build file_path -> display-name map (the sync_tags join contract) so
         # notes resolve to the entity display name (spaces, e.g. "ABB India"),
         # not the underscore stem. Only companies with a file_path are scannable.
@@ -333,7 +439,17 @@ def _cli(argv: list[str] | None = None) -> int:
                 "WHERE entity_type = 'company' AND file_path IS NOT NULL"
             ).fetchall()
         }
-        membership = list(extract_theme_membership(COMPANIES_DIR, path_to_name))
+        corpus = None
+        if args.corpus and _HAS_CORPUS:
+            try:
+                # S2a shard: themes are company-scoped — load only the Companies
+                # subtree (1078/1243 notes, ~8 MB vs ~29 MB resident; the shared
+                # corpus cache eviction is root-scoped, so the other shards' rows
+                # survive a shard load — see corpus.py S2a fix).
+                corpus = Corpus.load_shard("Companies", workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
+            except Exception:  # noqa: S110
+                corpus = None
+        membership = list(extract_theme_membership(COMPANIES_DIR, path_to_name, corpus=corpus))
         edges = derive_edges(membership)
 
         # Per-theme breakdown.

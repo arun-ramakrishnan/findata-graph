@@ -42,6 +42,7 @@ Usage:
 """
 
 from __future__ import annotations
+# ruff: noqa: C901, S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
 
 import argparse
 import collections
@@ -66,6 +67,14 @@ from helpers.core.edition_index import (  # noqa: E402
 )
 from helpers.core.frontmatter import split_frontmatter, yaml_safe_load  # noqa: E402
 from helpers.graph._edge_writer import apply_typed_edges  # noqa: E402
+
+try:
+    from helpers.core.corpus import Corpus  # noqa: E402  # S1b shared walk
+
+    _HAS_CORPUS = True
+except ImportError:  # pragma: no cover
+    Corpus = None  # type: ignore[assignment]
+    _HAS_CORPUS = False
 
 DERIVED_TREES = ("Companies", "Sectors", "Super_Sectors")
 SOURCE_TREES = ("The_Chatter", "The_PlotLines", "Points_And_Figures")
@@ -161,7 +170,10 @@ def _note_frontmatter(p: Path) -> dict:
 
 
 def extract_citations(
-    vault: Path, path_to_name: dict[str, str], edition_stems: set[str]
+    vault: Path,
+    path_to_name: dict[str, str],
+    edition_stems: set[str],
+    corpus: Corpus | None = None,  # S1b shared walk
 ) -> tuple[list[tuple[str, str, str]], dict]:
     """Collect ``(note_entity, edition_stem, resource)`` from derived notes.
 
@@ -173,6 +185,43 @@ def extract_citations(
     """
     citations: list[tuple[str, str, str]] = []
     stats = {"skipped_pdf": 0, "unknown_id": 0}
+    # S1b corpus fast path — iterate over pre-parsed frontmatter instead of re-reading
+    if corpus is not None:
+        # Build vault-relative lookup: findata/Companies/... -> entity
+        for note in corpus.notes:
+            # Filter to derived trees
+            rel = note.path.as_posix()
+            # note.path may be findata/Companies/... relative
+            tree = rel.split("/")[1] if "/" in rel else ""
+            if tree not in DERIVED_TREES:
+                continue
+            fm = note.frontmatter or {}
+            sources = fm.get("sources")
+            if not isinstance(sources, list):  # noqa: C901
+                continue
+            # Reconstruct vault-relative key as extract_citations expects: f"{vault.name}/{p.relative_to(vault)}"
+            # note.path is findata/...; vault is .../findata, so vault.name is findata
+            vault_rel = (
+                f"{vault.name}/{Path(rel).relative_to(vault.name).as_posix()}"
+                if rel.startswith(vault.name + "/")
+                else f"{vault.name}/{rel}"
+            )
+            # Fallback try both
+            entity = path_to_name.get(vault_rel) or path_to_name.get(rel)
+            if entity is None:
+                continue
+            for s in sources:
+                if not isinstance(s, dict) or not s.get("id"):
+                    continue
+                resource = s.get("resource", "")
+                if resource.startswith("/Reports/"):
+                    stats["skipped_pdf"] += 1
+                    continue
+                if s["id"] not in edition_stems:
+                    stats["unknown_id"] += 1
+                    continue
+                citations.append((entity, s["id"], resource))
+        return citations, stats
     for tree in DERIVED_TREES:
         for p in sorted((vault / tree).rglob("*.md")):
             fm = _note_frontmatter(p)
@@ -235,7 +284,7 @@ def apply_edges(edges, *, conn=None, dry_run: bool = True) -> int:
     )
 
 
-def _cli(argv: list[str] | None = None) -> int:
+def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(
         description="Derive cited_in (note -> edition) edges from OKF sources[].",
     )
@@ -244,6 +293,16 @@ def _cli(argv: list[str] | None = None) -> int:
     )
     p.add_argument(
         "--verbose", "-v", action="store_true", help="Print every edge in addition to the summary."
+    )
+    p.add_argument(
+        "--corpus",
+        action="store_true",
+        help="S1b: use helpers.core.corpus shared walk (maint --full) — one walk for all derivations.",
+    )
+    p.add_argument(
+        "--stale-only",
+        action="store_true",
+        help="S1c: skip when no derived note newer than last derived (no-op cut for maint --full).",
     )
     p.add_argument(
         "--vault",
@@ -255,6 +314,38 @@ def _cli(argv: list[str] | None = None) -> int:
     vault = Path(args.vault).resolve()
     conn = connect()
     try:
+        # S1c --stale-only: skip when no derived note newer than last cited_in.
+        if args.stale_only:
+            try:
+                db_max = conn.execute(
+                    "SELECT MAX(created_at) FROM graph_edges WHERE edge_type='cited_in'"
+                ).fetchone()[0]
+            except Exception:
+                db_max = None
+            if db_max:
+                import datetime as _dt
+
+                try:
+                    db_dt = _dt.datetime.fromisoformat(db_max.replace(" ", "T"))
+                    max_mtime = 0
+                    for tree in DERIVED_TREES:
+                        d = vault / tree
+                        if d.is_dir():
+                            for pp in d.rglob("*.md"):
+                                try:
+                                    mt = pp.stat().st_mtime
+                                    if mt > max_mtime:
+                                        max_mtime = mt
+                                except OSError:
+                                    continue
+                    if max_mtime and _dt.datetime.fromtimestamp(max_mtime) <= db_dt:
+                        print(
+                            f"cited_in stale-only: no derived note newer than last derived {db_max} — skipping 0 edges (dry-run)",
+                            file=sys.stderr,
+                        )
+                        return 0
+                except Exception:  # noqa: S110
+                    pass
         editions = edition_notes(vault)
         stems = {e["stem"] for e in editions}
         path_to_name = {
@@ -265,7 +356,13 @@ def _cli(argv: list[str] | None = None) -> int:
                 "AND file_path IS NOT NULL"
             ).fetchall()
         }
-        citations, stats = extract_citations(vault, path_to_name, stems)
+        corpus = None
+        if args.corpus and _HAS_CORPUS:
+            try:
+                corpus = Corpus.load(vault, workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
+            except Exception:  # noqa: S110
+                corpus = None
+        citations, stats = extract_citations(vault, path_to_name, stems, corpus=corpus)
         nq = quote_counts(conn, source_note_index(vault))
         edges = derive_edges(citations, nq)
 

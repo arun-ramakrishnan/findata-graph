@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: C901, S101, S110, UP037
 """
 Sync note tags into the SQLite `entity_tags` table (normalized, searchable).
 
@@ -48,6 +49,14 @@ if str(_REPO_ROOT) not in sys.path:
 from helpers.core.db import connect  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402
 from helpers.core.frontmatter import extract_tags as split_front_matter  # noqa: E402
+
+try:
+    from helpers.core.corpus import Corpus  # noqa: E402  # S1b shared walk
+
+    _HAS_CORPUS = True
+except ImportError:  # pragma: no cover
+    Corpus = None  # type: ignore[assignment]
+    _HAS_CORPUS = False
 
 # Only these tag categories are mirrored into the DB.
 # HISTORY: originally entity_type/sector/market_cap/subsector, plus
@@ -146,6 +155,63 @@ def rebuild_note_tags(conn, root: Path | None = None) -> tuple[int, int]:
     return len({n for n, _ in bulk}), len(bulk)
 
 
+def _sync_from_corpus(
+    corpus, conn
+) -> tuple[
+    list[tuple[str, str]],
+    list[str],
+    list[tuple[str, str]],
+    list[tuple[str, str]],
+    list[tuple[str, str]],
+]:
+    """S1b fast path: bulk + sector_updates from a pre-loaded Corpus (no re-walk)."""
+    by_path = corpus.by_path()
+    rows = conn.execute(
+        "SELECT name, file_path, entity_type FROM entities ORDER BY name"
+    ).fetchall()
+    bulk: list[tuple[str, str]] = []
+    no_tags: list[str] = []
+    missing_files: list[tuple[str, str]] = []
+    unknown_sectors: list[tuple[str, str]] = []
+    sector_updates: list[tuple[str, str]] = []
+    for name, file_path, entity_type in rows:
+        if not file_path:
+            if entity_type not in FILELESS_ENTITY_TYPES:
+                missing_files.append((name, "(empty path)"))
+            continue
+        # Corpus may be relative (findata/...) or absolute; DB is repo-relative, try both + suffix fallback
+        note = by_path.get(Path(file_path)) or by_path.get(_REPO_ROOT / file_path)
+        if note is None:
+            # suffix fallback for cache with opposite root form
+            for kk, vv in by_path.items():  # noqa: C901
+                if kk.as_posix().endswith(file_path) or Path(file_path).as_posix() == kk.as_posix():
+                    note = vv
+                    break
+            if note is None:
+                missing_files.append((name, file_path))
+                continue
+        tags = allowed_tags(split_front_matter(note.text))
+        seen = set()
+        uniq = [t for t in tags if not (t in seen or seen.add(t))]  # type: ignore[arg-type,func-returns-value]
+        if not uniq:
+            if entity_type != "edition":
+                no_tags.append(name)
+            continue
+        for t in uniq:
+            bulk.append((name, t))
+        # sector_classification E5a same as walk path
+        for t in uniq:
+            if t.startswith("sector/"):
+                slug = t.split("/", 1)[1]
+                canon = _SECTOR_SLUG_TO_CANONICAL.get(slug)
+                if canon:
+                    sector_updates.append((canon, name))
+                else:
+                    unknown_sectors.append((name, t))
+                break
+    return bulk, no_tags, missing_files, sector_updates, unknown_sectors
+
+
 def main():  # noqa: C901
     ap = argparse.ArgumentParser(description="Sync note tags -> entity_tags table.")
     ap.add_argument(
@@ -155,6 +221,11 @@ def main():  # noqa: C901
     )
     ap.add_argument(
         "--report", action="store_true", help="Print per-category breakdown after sync."
+    )
+    ap.add_argument(
+        "--corpus",
+        action="store_true",
+        help="S1b: use helpers.core.corpus one walk+pool cache (shared across maint --full) instead of per-entity re-read.",
     )
     args = ap.parse_args()
 
@@ -188,64 +259,75 @@ def main():  # noqa: C901
             """
         )
 
-        rows = conn.execute(
-            "SELECT name, file_path, entity_type FROM entities ORDER BY name"
-        ).fetchall()
+        # S1b corpus fast path — one walk+pool shared across maint --full
+        if args.corpus and _HAS_CORPUS:
+            assert Corpus is not None  # ty: narrow  # noqa: S101  # ty narrow for Corpus | None
+            corpus = Corpus.load(_REPO_ROOT / "findata", workers=4)
+            bulk, no_tags, missing_files, sector_updates, unknown_sectors = _sync_from_corpus(
+                corpus, conn
+            )
+            # _sync_from_corpus counts bulk directly; seen_entities is len of bulk distinct handled there
+            seen_entities = len({e for e, _ in bulk})
+            # rebuild_note_tags still needs its own walk (newsletter trees) — keep existing call below
+        else:
+            rows = conn.execute(
+                "SELECT name, file_path, entity_type FROM entities ORDER BY name"
+            ).fetchall()
 
-        missing_files = []
-        no_tags = []
-        unknown_sectors = []
-        bulk = []
-        sector_updates = []  # (canonical_pascalcase, name) for E5a
-        seen_entities = 0
-        for name, file_path, entity_type in rows:
-            if not file_path:
-                if entity_type not in FILELESS_ENTITY_TYPES:
-                    missing_files.append((name, "(empty path)"))
-                continue
-            fp = _REPO_ROOT / file_path
-            if not fp.exists():
-                missing_files.append((name, file_path))
-                continue
-            try:
-                text = fp.read_text(encoding="utf-8")
-            except Exception as e:
-                missing_files.append((name, f"{file_path} (read error: {e})"))
-                continue
-            tags = allowed_tags(split_front_matter(text))
-            # dedupe while preserving order
-            seen = set()
-            uniq = []
-            for t in tags:
-                if t not in seen:
-                    seen.add(t)
-                    uniq.append(t)
-            if not uniq:
-                # Edition notes carry only series/publisher/company tags,
-                # which rebuild_note_tags mirrors into note_tags — zero
-                # entity_tags rows is expected for them.
-                if entity_type != "edition":
-                    no_tags.append(name)
-                continue
-            seen_entities += 1
-            for t in uniq:
-                bulk.append((name, t))
+            missing_files = []
+            no_tags = []
+            unknown_sectors = []
+            bulk = []
+            sector_updates = []  # (canonical_pascalcase, name) for E5a
+            seen_entities = 0
+            for name, file_path, entity_type in rows:
+                if not file_path:
+                    if entity_type not in FILELESS_ENTITY_TYPES:
+                        missing_files.append((name, "(empty path)"))
+                    continue
+                fp = _REPO_ROOT / file_path
+                if not fp.exists():
+                    missing_files.append((name, file_path))
+                    continue
+                try:
+                    text = fp.read_text(encoding="utf-8")
+                except Exception as e:
+                    missing_files.append((name, f"{file_path} (read error: {e})"))
+                    continue
+                tags = allowed_tags(split_front_matter(text))
+                # dedupe while preserving order
+                seen = set()
+                uniq = []
+                for t in tags:
+                    if t not in seen:
+                        seen.add(t)
+                        uniq.append(t)
+                if not uniq:
+                    # Edition notes carry only series/publisher/company tags,
+                    # which rebuild_note_tags mirrors into note_tags — zero
+                    # entity_tags rows is expected for them.
+                    if entity_type != "edition":
+                        no_tags.append(name)
+                    continue
+                seen_entities += 1
+                for t in uniq:
+                    bulk.append((name, t))
 
-            # Derive sector_classification from the note's sector/* tag (E5a).
-            # Notes are the single source of truth; the column becomes fully
-            # derived from the tag, eliminating drift between the two stores.
-            # Only applies to companies — sector_classification classifies
-            # companies into sectors, so a sector entity tagging itself
-            # (sector/automotive on the Automotive sector note) is ignored.
-            if entity_type == "company":
-                sector_tag = next((t for t in uniq if t.startswith("sector/")), None)
-                if sector_tag:
-                    slug = sector_tag.split("/", 1)[1]
-                    canonical = _SECTOR_SLUG_TO_CANONICAL.get(slug)
-                    if canonical:
-                        sector_updates.append((canonical, name))
-                    else:
-                        unknown_sectors.append((name, sector_tag))
+                # Derive sector_classification from the note's sector/* tag (E5a).
+                # Notes are the single source of truth; the column becomes fully
+                # derived from the tag, eliminating drift between the two stores.
+                # Only applies to companies — sector_classification classifies
+                # companies into sectors, so a sector entity tagging itself
+                # (sector/automotive on the Automotive sector note) is ignored.
+                if entity_type == "company":
+                    sector_tag = next((t for t in uniq if t.startswith("sector/")), None)
+                    if sector_tag:
+                        slug = sector_tag.split("/", 1)[1]
+                        canonical = _SECTOR_SLUG_TO_CANONICAL.get(slug)
+                        if canonical:
+                            sector_updates.append((canonical, name))
+                        else:
+                            unknown_sectors.append((name, sector_tag))
 
         # Full rebuild inside a transaction.
         with conn:
@@ -271,7 +353,7 @@ def main():  # noqa: C901
                 sector_changed = cur.rowcount or 0
 
         inserted = conn.execute("SELECT COUNT(*) FROM entity_tags").fetchone()[0]
-        total_entities = len(rows)
+        total_entities = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
 
         # Source newsletter trees -> note_tags (S4; separate mirror from
         # entity_tags — editions have no entity rows).

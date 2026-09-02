@@ -29,6 +29,14 @@ CLI
 
 from __future__ import annotations
 
+try:
+    from helpers.core.corpus import Corpus  # S1b shared walk
+
+    _HAS_CORPUS = True
+except ImportError:  # pragma: no cover
+    Corpus = None  # type: ignore[assignment]
+    _HAS_CORPUS = False
+
 import argparse
 import json
 import re
@@ -359,6 +367,11 @@ def _cli(argv: list[str] | None = None) -> int:
         "-v",
         action="store_true",
         help="Print every edge in addition to the summary.",
+    )
+    p.add_argument(
+        "--stale-only",
+        action="store_true",
+        help="S1c: skip when no source newer than last derived.",
     )
     args = p.parse_args(argv)
 

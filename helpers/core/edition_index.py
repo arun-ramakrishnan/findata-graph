@@ -17,6 +17,14 @@ None (the caller reports them).
 
 from __future__ import annotations
 
+try:
+    from helpers.core.corpus import Corpus  # S1b shared walk
+
+    _HAS_CORPUS = True
+except ImportError:  # pragma: no cover
+    Corpus = None  # type: ignore[assignment]
+    _HAS_CORPUS = False
+
 import re
 import shutil
 import subprocess
