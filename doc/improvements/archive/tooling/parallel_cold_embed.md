@@ -164,8 +164,8 @@ From the 2026-08-29 repo-wide "where does the time go" review
 
 | Item | Today | Trigger to revisit |
 |---|---|---|
-| Mojo KNN escape-hatch shared lib | sqlite-vec 11.8 ms @ 1.2k docs | sqlite-vec ABI/packaging pain, or corpus ~100× |
-| Mojo GPU KNN kernels | crossover 17–67 MB resident | ≥50 MB resident vectors (~34k docs) |
+| Mojo KNN escape-hatch shared lib | sqlite-vec 11.8 ms @ 1.2k docs | sqlite-vec ABI/packaging pain, or corpus ~100× — if fired, engine choice is pre-measured (2026-09-02, `doc/local/mojo/mojo_pilot.md` § "Linalg CPU kernels"): single query → numpy gemv (what `FlatKNN`/`embed_matrix` already ship, measured optimal at every scale incl. K=768); batched queries → one MAX GEMM n≈8–16, 2–2.5× over numpy, matrices already 64B-aligned; n≥64 → numpy sgemm wins |
+| Mojo GPU KNN kernels | crossover 17–67 MB resident | ≥50 MB resident vectors (~34k docs) — note 2026-09-02: batched CPU GEMM (MAX engine, n≈8–16) is now a measured intermediate rung before any GPU work (`doc/local/mojo/mojo_pilot.md` § "Linalg CPU kernels"); GPU crossover itself unchanged |
 | Mojo fused derive-sweep kernel | derive_* ≈ 5–6 s per maint-full (~17% of post-#174 32.3 s maint-full) | regex precondition RESOLVED 2026-08-29 via the Python `regex` bridge (`tooling/mojo_regex_via_python_interop.md` in this archive, EXECUTED as #180 — moots the community port); scale trigger still unmet (derive_* at minutes scale) |
 | ~~Incremental 2nd snapshot in maint-full~~ | CLOSED 2026-08-29 by #174 — maint-full takes ONE tail snapshot (66 s → 32.3 s); see `doc/improvements/archive/database/maint_full_single_snapshot.md` | — |
 | recompute-graph metric fan-out | saves ~4–5 s | maint-full budget pressure |
