@@ -14,7 +14,9 @@ Usage:
     python3 helpers/maintenance/enrich_from_yfinance.py [OPTIONS]
 
 Options:
-    --dry-run          Fetch and display, don't write to DB or notes
+    --apply            Fetch AND write to DB + notes (default: dry-run report;
+                       formerly the flag polarity was inverted via --dry-run —
+                       guard unification, shared_routines_cli_guards W2)
     --workers N        ThreadPool parallelism (default: 2)
     --company NAME     Enrich only one company (by name or ticker)
     --max-age-days N   Skip companies refreshed within N days (default: 0 = all)
@@ -521,7 +523,9 @@ def write_report(
 def main(argv: list[str] | None = None) -> int:  # noqa: C901
     parser = argparse.ArgumentParser(description="Enrich company data from yfinance.")
     parser.add_argument(
-        "--dry-run", action="store_true", help="Fetch and display without writing to DB or notes"
+        "--apply",
+        action="store_true",
+        help="Write fetched metrics/industries to DB and notes (default: dry-run report)",
     )
     parser.add_argument(
         "--workers", type=int, default=2, help="ThreadPool parallelism (default: 8)"
@@ -599,11 +603,11 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
 
     todo = [(r[0], r[1], r[2]) for r in rows if r[0] not in skip_set]
     log.info(
-        "enriching %d/%d companies (workers=%d, dry_run=%s)",
+        "enriching %d/%d companies (workers=%d, apply=%s)",
         len(todo),
         len(rows),
         args.workers,
-        args.dry_run,
+        args.apply,
     )
 
     # Fetch in parallel
@@ -643,7 +647,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             "failed tickers (%d): %s", len(failures), ", ".join(f"{n}({t})" for n, t, _ in failures)
         )
 
-    if args.dry_run:
+    if not args.apply:
         # Display sample results
         for name, ticker, _, info in results[:5]:
             metrics = extract_metrics(name, info)

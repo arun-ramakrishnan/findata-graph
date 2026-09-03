@@ -149,7 +149,7 @@ def sync_mirror(research_db: Path, dims: int | None = None) -> int:
         conn.close()
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     default_store = _REPO_ROOT / "memory" / "embed_store.db"
     parser.add_argument("--store", type=Path, default=default_store)
@@ -165,7 +165,7 @@ def main() -> int:
         help="also rebuild note_search_vec from live research.db",
     )
     parser.add_argument("--research-db", type=Path, default=_REPO_ROOT / "memory" / "research.db")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     report = migrate(args.store, args.memory_dir, rename=not args.no_rename)
     print(f"store: {args.store}")

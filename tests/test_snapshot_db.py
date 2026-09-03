@@ -34,7 +34,11 @@ _log = logging.getLogger("test_snapshot")
 def test_compute_root_is_path():
     root = _compute_root()
     assert isinstance(root, Path)
-    assert root.name == "pdf-ocr-obsidian"
+    # Worktree-agnostic (2026-09-03): "the root of THIS checkout", not the
+    # main checkout's directory name — stax worktrees are named after their
+    # branch (the old `== "pdf-ocr-obsidian"` pin failed in every worktree).
+    assert root == Path(__file__).resolve().parents[1]
+    assert (root / ".git").exists()  # a git work tree (file in worktrees)
 
 
 # ---------------------------------------------------------------------------

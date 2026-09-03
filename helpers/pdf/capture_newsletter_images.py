@@ -20,11 +20,13 @@ What it does
 
 Usage
 -----
-    python3 helpers/pdf/capture_newsletter_images.py <path/to/newsletter.md> [--workers N] [--rewrite]
+    python3 helpers/pdf/capture_newsletter_images.py <path/to/newsletter.md> [--workers N] [--apply]
 
-`--rewrite` additionally rewrites the newsletter .md IN PLACE, replacing each
+`--apply` additionally rewrites the newsletter .md IN PLACE, replacing each
 remote `<div ...><img src='https://...ufileos...'></div>` block with a local
 Obsidian embed `![[images/<slug>_p{page}_img{N}.jpeg]]` at the same position.
+(formerly `--rewrite`; renamed to the house `--apply` guard —
+shared_routines_cli_guards W1)
 """
 
 from __future__ import annotations
@@ -111,12 +113,16 @@ def fetch(url: str, dest: Path, retries: int = 3):
     return last or "unknown"
 
 
-def main():  # noqa: C901
+def main(argv: list[str] | None = None):  # noqa: C901
     ap = argparse.ArgumentParser()
     ap.add_argument("md_path")
     ap.add_argument("--workers", type=int, default=8)
-    ap.add_argument("--rewrite", action="store_true")
-    args = ap.parse_args()
+    ap.add_argument(
+        "--apply",
+        action="store_true",
+        help="rewrite the newsletter .md in place (default: fetch only)",
+    )
+    args = ap.parse_args(argv)
 
     md_path = Path(args.md_path)
     if not md_path.exists():
@@ -207,7 +213,7 @@ def main():  # noqa: C901
     man_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"[{md_path.name}] manifest -> {man_path}")
 
-    if args.rewrite and not failures:
+    if args.apply and not failures:
 
         def rewrite(t):
             out, pos, i = [], 0, 0
@@ -229,4 +235,4 @@ def main():  # noqa: C901
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

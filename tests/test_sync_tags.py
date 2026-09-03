@@ -65,15 +65,50 @@ def _seed_db(db_path: Path, rows: list[tuple]) -> None:
     conn.close()
 
 
-def _run_sync(db_path: Path) -> int:
-    """Invoke sync_tags.main() with --db pointing at db_path (main() uses
-    argparse on sys.argv, so we patch argv)."""
-    old_argv = sys.argv
-    sys.argv = ["sync_tags.py", "--db", str(db_path)]
-    try:
-        return sync_tags.main()
-    finally:
-        sys.argv = old_argv
+def _run_sync(db_path: Path, *extra: str) -> int:
+    """Invoke sync_tags.main() with --db pointing at db_path."""
+    return sync_tags.main(["--db", str(db_path), *extra])
+
+
+def test_sync_tags_dry_run_default_writes_nothing(tmp_path, monkeypatch):
+    """Guard unification (shared_routines_cli_guards W2): sync_tags mutates
+    entity_tags/sector_classification, so the default is a dry-run report —
+    writes require --apply."""
+    monkeypatch.setattr(sync_tags, "_REPO_ROOT", tmp_path)
+
+    note_dir = tmp_path / "findata" / "Companies" / "Banking"
+    note_dir.mkdir(parents=True)
+    (note_dir / "Dry_Co.md").write_text(_note_with_sector("sector/banking", "Dry Co"))
+
+    db_path = tmp_path / "test.db"
+    _seed_db(
+        db_path,
+        [("Dry Co", "company", "findata/Companies/Banking/Dry_Co.md", "StaleValue")],
+    )
+
+    rc = _run_sync(db_path)  # bare: the dry-run default under test
+    assert rc == 0
+
+    conn = sqlite3.connect(db_path)
+    val = conn.execute(
+        "SELECT sector_classification FROM entities WHERE name = ?", ("Dry Co",)
+    ).fetchone()[0]
+    tags = conn.execute("SELECT COUNT(*) FROM entity_tags").fetchone()[0]
+    conn.close()
+    assert val == "StaleValue", "dry-run must not touch sector_classification"
+    assert tags == 0, "dry-run must not populate entity_tags"
+
+    # ...and --apply performs the write.
+    rc = _run_sync(db_path, "--apply")
+    assert rc == 0
+    conn = sqlite3.connect(db_path)
+    val = conn.execute(
+        "SELECT sector_classification FROM entities WHERE name = ?", ("Dry Co",)
+    ).fetchone()[0]
+    tags = conn.execute("SELECT COUNT(*) FROM entity_tags").fetchone()[0]
+    conn.close()
+    assert val == "Banking"
+    assert tags > 0
 
 
 def test_sync_tags_updates_sector_classification_from_note_tag(tmp_path, monkeypatch):
@@ -93,7 +128,7 @@ def test_sync_tags_updates_sector_classification_from_note_tag(tmp_path, monkeyp
         [("Stale Co", "company", "findata/Companies/Banking/Stale_Co.md", "StaleValue")],
     )
 
-    rc = _run_sync(db_path)
+    rc = _run_sync(db_path, "--apply")
     assert rc == 0
 
     conn = sqlite3.connect(db_path)
@@ -119,7 +154,7 @@ def test_sync_tags_skips_unchanged_sectors(tmp_path, monkeypatch):
         [("Good Co", "company", "findata/Companies/Banking/Good_Co.md", "Banking")],
     )
 
-    rc = _run_sync(db_path)
+    rc = _run_sync(db_path, "--apply")
     assert rc == 0
 
     # Value unchanged.
@@ -159,7 +194,7 @@ def test_sync_tags_maps_all_canonical_sectors(canonical, tmp_path, monkeypatch):
         ],
     )
 
-    rc = _run_sync(db_path)
+    rc = _run_sync(db_path, "--apply")
     assert rc == 0
 
     conn = sqlite3.connect(db_path)
@@ -180,7 +215,7 @@ def test_sync_tags_leaves_entities_without_notes_unchanged(tmp_path, monkeypatch
     # A sector-entity with no file_path and a pre-existing column value.
     _seed_db(db_path, [("Banking", "sector", None, None)])
 
-    rc = _run_sync(db_path)
+    rc = _run_sync(db_path, "--apply")
     assert rc == 0
 
     conn = sqlite3.connect(db_path)
@@ -224,7 +259,7 @@ def test_sync_tags_skips_sector_entities_with_self_referential_tag(tmp_path, mon
         [("Automotive", "sector", "findata/Sectors/Automotive.md", None)],
     )
 
-    rc = _run_sync(db_path)
+    rc = _run_sync(db_path, "--apply")
     assert rc == 0
 
     conn = sqlite3.connect(db_path)
@@ -285,7 +320,7 @@ def test_sync_tags_admits_previously_dropped_namespaces(tmp_path, monkeypatch):
         [("Tagged Co", "company", "findata/Companies/Renewables/Tagged_Co.md", None)],
     )
 
-    rc = _run_sync(db_path)
+    rc = _run_sync(db_path, "--apply")
     assert rc == 0
 
     conn = sqlite3.connect(db_path)
@@ -370,7 +405,7 @@ class TestNoteTags:
 
         db_path = tmp_path / "test.db"
         _seed_db(db_path, [])
-        assert _run_sync(db_path) == 0
+        assert _run_sync(db_path, "--apply") == 0
 
         rows = sqlite3.connect(db_path).execute("SELECT tag FROM note_tags ORDER BY tag").fetchall()
         assert rows == [("company/x_co",), ("publisher/zerodha",), ("series/the_chatter",)]
@@ -386,7 +421,7 @@ class TestNoteTags:
         )
         db_path = tmp_path / "test.db"
         _seed_db(db_path, [])
-        _run_sync(db_path)
+        _run_sync(db_path, "--apply")
         rows = sqlite3.connect(db_path).execute("SELECT tag FROM note_tags").fetchall()
         assert rows == [("series/the_chatter",)]
 
@@ -398,9 +433,9 @@ class TestNoteTags:
         note.write_text(_newsletter_note(["series/the_chatter"]))
         db_path = tmp_path / "test.db"
         _seed_db(db_path, [])
-        _run_sync(db_path)
+        _run_sync(db_path, "--apply")
         # Tag removed from the note -> next sync must drop the row.
         note.write_text(_newsletter_note(["publisher/zerodha"]))
-        _run_sync(db_path)
+        _run_sync(db_path, "--apply")
         rows = sqlite3.connect(db_path).execute("SELECT tag FROM note_tags").fetchall()
         assert rows == [("publisher/zerodha",)]

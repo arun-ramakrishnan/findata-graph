@@ -67,6 +67,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.corpus import notes_stale_since  # noqa: E402  # S1c shared stale gate
 from helpers.core.stable_write import stable_prefix_replace  # noqa: E402
 
 # Reuse the proven date parser + regexes from extract_relations rather than
@@ -620,21 +621,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         if args.stale_only:
             try:
                 db_max = conn.execute("SELECT MAX(created_at) FROM events").fetchone()[0]
-                if db_max:
-                    import datetime as _dt
-
-                    db_dt = _dt.datetime.fromisoformat(db_max.replace(" ", "T"))
-                    max_mtime = max(
-                        (pp.stat().st_mtime for pp in (COMPANIES_DIR).rglob("*.md")), default=0
-                    )
-                    if max_mtime and _dt.datetime.fromtimestamp(max_mtime) <= db_dt:
-                        print(
-                            f"events stale-only: no Company note newer than last derived {db_max} — skipping 0 events (dry-run)",
-                            file=sys.stderr,
-                        )
-                        return 0
-            except Exception:  # noqa: S110
-                pass
+            except Exception:  # noqa: BLE001 — best-effort gate; fall through to full derive
+                db_max = None
+            if notes_stale_since(db_max, (COMPANIES_DIR,)):
+                print(
+                    f"events stale-only: no Company note newer than last derived {db_max} — skipping 0 events (dry-run)",
+                    file=sys.stderr,
+                )
+                return 0
         # Arm 1: promote from edges (no path map needed — edges already carry
         # resolved entity names).
         promoted = promote_from_edges(conn)

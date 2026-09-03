@@ -680,7 +680,7 @@ def _compute_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def main() -> int:  # noqa: C901
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
     parser = argparse.ArgumentParser(
         description="SQLite DB maintenance for memory/research.db (+ optional DuckDB cache)."
     )
@@ -727,7 +727,7 @@ def main() -> int:  # noqa: C901
         action="store_true",
         help="One-time migration: set PRAGMA auto_vacuum=INCREMENTAL and VACUUM to convert file (P2.5). File will be rewritten once.",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     log_level = getattr(logging, args.log.upper(), logging.INFO)
     logging.basicConfig(level=log_level, format=LOG_FORMAT)

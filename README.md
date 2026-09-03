@@ -99,7 +99,7 @@ make snapshot-restore          # rebuilds memory/*.db from snapshots/parquet/
 # (byte-exact local alternative, if db-backup/ has fresh zstd copies:
 #  for f in db-backup/*_backup.*.zst; do zstd -dc "$f" > "memory/$(basename "${f%.zst}")"; done)
 # …or start from an empty canonical schema:
-# uv run python3 helpers/maintenance/rebuild_schema.py
+# uv run python3 helpers/maintenance/rebuild_schema.py --apply
 
 make graph-rebuild            # (re)build the DuckDB cache from SQLite
 make qa                       # full gate: lint + types + deptry + static + tests + validators

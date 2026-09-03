@@ -43,6 +43,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect, utc_now  # noqa: E402
+from helpers.core.corpus import notes_stale_since  # noqa: E402  # S1c shared stale gate
 from helpers.validators.static_checks import CANONICAL_THEMES  # noqa: E402
 from helpers.graph._edge_writer import apply_typed_edges  # noqa: E402
 from helpers.core.frontmatter import strip_frontmatter as _strip_frontmatter  # noqa: E402
@@ -409,26 +410,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 db_max = conn.execute(
                     "SELECT MAX(created_at) FROM graph_edges WHERE edge_type='exposed_to'"
                 ).fetchone()[0]
-            except Exception:
+            except Exception:  # noqa: BLE001 — best-effort gate; fall through to full derive
                 db_max = None
-            if db_max:
-                # File mtime max vs DB string compare via ISO; fallback to timestamp compare.
-                import datetime as _dt
-
-                try:
-                    db_dt = _dt.datetime.fromisoformat(db_max.replace(" ", "T"))
-                    # fastest walk: fs_walk is not needed for single max, rglob is fine for 1078
-                    max_mtime = max(
-                        (pp.stat().st_mtime for pp in COMPANIES_DIR.rglob("*.md")), default=0
-                    )
-                    if max_mtime and _dt.datetime.fromtimestamp(max_mtime) <= db_dt:
-                        print(
-                            f"themes stale-only: no Company note newer than last derived {db_max} — skipping 0 edges (dry-run)",
-                            file=sys.stderr,
-                        )
-                        return 0
-                except Exception:  # noqa: S110
-                    pass
+            if notes_stale_since(db_max, (COMPANIES_DIR,)):
+                print(
+                    f"themes stale-only: no Company note newer than last derived {db_max} — skipping 0 edges (dry-run)",
+                    file=sys.stderr,
+                )
+                return 0
         # Build file_path -> display-name map (the sync_tags join contract) so
         # notes resolve to the entity display name (spaces, e.g. "ABB India"),
         # not the underscore stem. Only companies with a file_path are scannable.

@@ -379,3 +379,23 @@ def test_rebuild_raises_on_missing_db(tmp_path):
 
     with pytest.raises(FileNotFoundError, match="Database not found"):
         rs.rebuild(str(tmp_path / "nonexistent.db"))
+
+
+# ---------------------------------------------------------------------------
+# CLI guard polarity (shared_routines_cli_guards W2)
+# ---------------------------------------------------------------------------
+def test_cli_dry_run_default_apply_writes(tmp_db, capsys):
+    """Bare main() must NOT rebuild (dry-run report); --apply performs the
+    destructive rebuild. Formerly the polarity was inverted (--dry-run opted
+    out of a default-write). Runs against a tmp backup of the live DB —
+    same pattern as the rebuild data-preservation tests."""
+    # Bare invocation: report only, DB untouched (mtime-independent proof:
+    # stats say dry-run and no rebuild side effects).
+    assert rs.main(["--db", str(tmp_db), "--no-duckdb-refresh"]) == 0
+    out = capsys.readouterr().out
+    assert "dry-run" in out
+
+    # --apply: rebuild runs.
+    assert rs.main(["--db", str(tmp_db), "--apply", "--no-duckdb-refresh"]) == 0
+    out = capsys.readouterr().out
+    assert "dry-run" not in out

@@ -367,7 +367,13 @@ def main(argv: list[str] | None = None) -> int:
     if not args.duckdb.exists():
         print(f"error: {args.duckdb} not found (run make graph-rebuild first)", file=sys.stderr)
         return 2
-    con = duckdb.connect(str(args.duckdb), read_only=True)
+    # Shared reader contract (not raw duckdb.connect): loads the vss scalars
+    # the semantic_neighbors leg needs, never triggers a build (see
+    # query.connect_read_only). The raw open previously relied on DuckDB
+    # extension autoload — explicit LOAD is the query.py house contract.
+    from helpers.graph.query import connect_read_only
+
+    con = connect_read_only(args.duckdb)
     try:
         print(
             build_context_pack(

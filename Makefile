@@ -134,7 +134,7 @@ maint-full:     ## Post-ingest re-derivation: PRE_FULL index refresh + maint + T
 > @echo "✓ Full maintenance complete"
 
 metrics-rebuild: ## Refresh company financials + notes from yfinance (~1 min, 931 tickers)
-> python3 helpers/maintenance/enrich_from_yfinance.py
+> python3 helpers/maintenance/enrich_from_yfinance.py --apply
 > @echo "✓ yfinance enrichment complete (competes_with moved to relations-enrich; run 'make graph-rebuild' to refresh DuckDB edges)"
 
 # Mojo machinery (rule definitions, wildcard discovery, test runner) lives
@@ -163,11 +163,11 @@ relations-enrich ARGS="--source yfinance --dry-run":
 > @echo "✓ relations enrichment done (run 'make graph-rebuild' to refresh DuckDB edges)"
 
 sync-tags:      ## Rebuild entity_tags from note YAML (mirrors entity_type/sector/market_cap/subsector)
-> python3 helpers/core/sync_tags.py
+> python3 helpers/core/sync_tags.py --apply
 > @echo "✓ entity_tags synced from notes"
 
 sync-sector-links: ## WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)
-> python3 helpers/maintenance/sync_sector_wikilinks.py
+> python3 helpers/maintenance/sync_sector_wikilinks.py --apply
 > @echo "✓ sector wikilinks synced from DB"
 
 install-dev:    ## Install dev dependencies (uv sync; prunes undeclared packages)
@@ -190,7 +190,7 @@ suggest-relations: ## Print link-prediction relation suggestions (C2; append wit
 
 triage-relations: ## Triage the _pending_relations queue: report + bucketed decisions file (pending_relations_triage)
 > python3 helpers/graph/triage_pending_relations.py
-> @echo "✓ triage report + decisions file written (annotate decisions, then --apply-decisions --write)"
+> @echo "✓ triage report + decisions file written (annotate decisions, then --apply-decisions)"
 
 graph-algos:    ## Smoke test the Onager algorithm layer (all 14 metrics, no writes)
 > python3 helpers/graph/algorithms.py --all --no-apply

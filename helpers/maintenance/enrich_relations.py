@@ -2548,9 +2548,11 @@ def _run_classify(args) -> int:
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Relations-enrichment driver (Relations 2.0).",
+        formatter_class=argparse.RawDescriptionHelpFormatter,  # keep epilog newlines
         epilog=(
             "Examples:\n"
             "  %(prog)s --source yfinance --dry-run\n"
+            "  %(prog)s --source yfinance --apply\n"
             "  %(prog)s --source yfinance --topology clique --k 8\n"
             "  %(prog)s --source yfinance --check-only   # hygiene only\n"
             '  %(prog)s --classify "Akzo Nobel India" amalgamated '

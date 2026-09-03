@@ -136,11 +136,12 @@ class TestCliFlow:
             "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
         )
 
-        # dry-run first: nothing written
-        assert tpr.main(["--apply-decisions"]) == 0
+        # --apply-decisions writes (the --write co-flag was folded in); the
+        # validate-only pass lives on tpr.apply_decisions(..., write=False).
+        assert tpr.apply_decisions(tpr.DECISIONS, False, tpr.load_entity_names()) == 0
         assert not tpr.ALIAS_FILE.exists()
 
-        assert tpr.main(["--apply-decisions", "--write"]) == 0
+        assert tpr.main(["--apply-decisions"]) == 0
         aliases = json.loads(tpr.ALIAS_FILE.read_text())
         assert aliases == {"kubota corporation": "Colgate Palmolive India"}
         remaining = [
@@ -163,7 +164,7 @@ class TestCliFlow:
         tpr.DECISIONS.write_text(
             "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
         )
-        assert tpr.main(["--apply-decisions", "--write"]) == 1
+        assert tpr.main(["--apply-decisions"]) == 1
         assert not tpr.ALIAS_FILE.exists()
 
     def test_apply_rejects_unknown_decision(self, paths):
@@ -174,7 +175,7 @@ class TestCliFlow:
         tpr.DECISIONS.write_text(
             "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
         )
-        assert tpr.main(["--apply-decisions", "--write"]) == 1
+        assert tpr.main(["--apply-decisions"]) == 1
 
     def test_clear(self, paths):
         self._seed(paths)
@@ -287,7 +288,7 @@ class TestAcceptDecisions:
             "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
         )
 
-        assert tpr.main(["--apply-decisions", "--write"]) == 0
+        assert tpr.main(["--apply-decisions"]) == 0
         rows = self._rows(edge_db)
         assert len(rows) == 1
         src, tgt, etype, props, sref, sym = rows[0]
@@ -335,8 +336,8 @@ class TestAcceptDecisions:
         tpr.DECISIONS.write_text(
             "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
         )
-        assert tpr.main(["--apply-decisions", "--write"]) == 0
-        assert tpr.main(["--apply-decisions", "--write"]) == 0
+        assert tpr.main(["--apply-decisions"]) == 0
+        assert tpr.main(["--apply-decisions"]) == 0
         assert len(self._rows(edge_db)) == 1
 
     def test_accept_explicit_target_for_mangled_mention(self, paths, edge_db):
@@ -350,7 +351,7 @@ class TestAcceptDecisions:
         tpr.DECISIONS.write_text(
             "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
         )
-        assert tpr.main(["--apply-decisions", "--write"]) == 0
+        assert tpr.main(["--apply-decisions"]) == 0
         rows = self._rows(edge_db)
         assert [(r[0], r[1], r[2], r[5]) for r in rows] == [
             ("Acme Corp", "Colgate Palmolive India", "acquired", 0)
@@ -385,7 +386,7 @@ class TestAcceptDecisions:
         tpr.DECISIONS.write_text(
             "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
         )
-        assert tpr.main(["--apply-decisions", "--write"]) == 1
+        assert tpr.main(["--apply-decisions"]) == 1
         assert not self._rows(edge_db)
         # Nothing consumed from the suggestions file either.
         assert tpr.SUGGESTIONS.read_text().strip()
@@ -416,7 +417,7 @@ class TestAcceptDecisions:
         tpr.DECISIONS.write_text(
             "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
         )
-        assert tpr.main(["--apply-decisions", "--write"]) == 1
+        assert tpr.main(["--apply-decisions"]) == 1
         assert not self._rows(edge_db)
 
     def test_discard_drops_suggestion_without_writing_edge(self, paths, edge_db):
@@ -445,6 +446,6 @@ class TestAcceptDecisions:
         tpr.DECISIONS.write_text(
             "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
         )
-        assert tpr.main(["--apply-decisions", "--write"]) == 0
+        assert tpr.main(["--apply-decisions"]) == 0
         assert not self._rows(edge_db)
         assert not tpr.SUGGESTIONS.read_text().strip()

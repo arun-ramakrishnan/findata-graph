@@ -20,8 +20,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-# Repo root: helpers/core/env.py -> parents[2].
-MEMORY_ENV = Path(__file__).resolve().parents[2] / "memory" / ".env"
+# Repo root: helpers/core/env.py -> parents[2]. Canonical export — library
+# modules re-deriving `Path(__file__).resolve().parents[2]` should import this
+# instead (shared_routines_cli_guards W8). Script ENTRY POINTS are the
+# exception: their sys.path bootstrap needs the raw derivation before
+# `helpers` is importable, so they keep `parents[2]` (chicken-and-egg).
+REPO_ROOT = Path(__file__).resolve().parents[2]
+MEMORY_ENV = REPO_ROOT / "memory" / ".env"
 
 
 def load_memory_env(

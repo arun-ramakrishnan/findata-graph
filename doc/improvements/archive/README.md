@@ -77,3 +77,4 @@ commit, referenced by nothing). Entry numbers point at
 - [`gate_xdist_phase2.md`](tooling/gate_xdist_phase2.md) — Proposal: gate parallelism phase 2 — live-invariants xdist safety (per-worker DuckDB caches, worker-pid key), live suite 72.5→57.4s serial, advisory ~94→76–87s — completed.md #189
 - [`doc_drift_audit_2026_08.md`](tooling/doc_drift_audit_2026_08.md) — Proposal: Documentation drift remediation — 7-day audit (2026-08-22 → 08-28 window + 08-29 session): F1–F10 incl. Mojo backfill, _build_meta keys, #170/#172 run-log backfills, gzip→zstd sweep, note-search --check doc — completed.md #178
 - [`pending_improvs.txt`](tooling/pending_improvs.txt) — Pending Improvements — HISTORICAL (Bundles A–F closed)
+- [`shared_routines_cli_guards.md`](tooling/shared_routines_cli_guards.md) — Shared routines pass 2 — stale-gate helper, graph-conn adoption, `--apply` CLI guard unification (dry-run defaults ×4, `--rewrite` retired, census advisory) — completed.md #196

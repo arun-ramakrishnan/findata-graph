@@ -70,7 +70,12 @@ class TestComputeRoot:
     def test_returns_path(self):
         root = _compute_root()
         assert isinstance(root, Path)
-        assert root.name == "pdf-ocr-obsidian"
+        # Worktree-agnostic (2026-09-03): the contract is "the root of THIS
+        # checkout", not the main checkout's directory name — stax worktrees
+        # are named after their branch (the old `== "pdf-ocr-obsidian"` pin
+        # failed in every worktree).
+        assert root == Path(__file__).resolve().parents[1]
+        assert (root / ".git").exists()  # a git work tree (file in worktrees)
 
 
 # ---------------------------------------------------------------------------

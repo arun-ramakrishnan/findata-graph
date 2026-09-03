@@ -12,8 +12,8 @@ triage in a month motivated encapsulating the whole workflow here:
   --report (default)  dedupe + split populations + bucket prose rows,
                       emit the eyeball report and an annotated-ready
                       decisions file. NON-destructive.
-  --apply-decisions   validate + act on annotated decisions; with --write:
-                      alias rows persist to findata/relation_aliases.json
+  --apply-decisions   validate + act on annotated decisions: alias rows
+                      persist to findata/relation_aliases.json
                       (runtime-loaded by extract_relations), accept rows
                       write their edge straight into graph_edges
                       (suggested_relations_accept, S4), discard/skip rows
@@ -31,7 +31,6 @@ mangled-mention prose rows whose true target already exists.
 Usage:
     python3 helpers/graph/triage_pending_relations.py                 # report
     python3 helpers/graph/triage_pending_relations.py --apply-decisions
-    python3 helpers/graph/triage_pending_relations.py --apply-decisions --write
     python3 helpers/graph/triage_pending_relations.py --clear
 
 Exit codes: 0 ok, 1 bad decisions / validation failure.
@@ -647,7 +646,11 @@ def _move_suggestions(suggested: list[dict]) -> None:
 
 
 def apply_decisions(decisions_path: Path, write: bool, entity_names: set[str]) -> int:
-    """Validate + act on annotated decisions. Returns 0 ok, 1 failure."""
+    """Validate + act on annotated decisions. Returns 0 ok, 1 failure.
+
+    The CLI always passes ``write=True`` (--apply-decisions implies write);
+    library callers can pass False for a validate-only pass.
+    """
     rows = _read_decisions(decisions_path)
     plan = _validate_decisions(rows, entity_names)
     if plan is None:
@@ -685,16 +688,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--apply-decisions",
         action="store_true",
-        help="act on annotated decisions in the decisions file",
+        help="act on annotated decisions and write the results "
+        "(sidecar rewrite, alias file, suggestions file, accepted edges)",
     )
     p.add_argument(
         "--decisions", default=str(DECISIONS), help=f"decisions jsonl path (default: {DECISIONS})"
-    )
-    p.add_argument(
-        "--write",
-        action="store_true",
-        help="with --apply-decisions: actually write files "
-        "(sidecar rewrite, alias file, suggestions file)",
     )
     p.add_argument(
         "--clear", action="store_true", help="truncate the sidecar to 0 (post-triage endgame)"
@@ -706,7 +704,10 @@ def main(argv: list[str] | None = None) -> int:
         print(f"cleared {SIDECAR}")
         return 0
     if args.apply_decisions:
-        return apply_decisions(Path(args.decisions), args.write, load_entity_names())
+        # --apply-decisions writes (the --write co-flag was folded in —
+        # shared_routines_cli_guards W1); apply_decisions keeps the write
+        # parameter for library callers wanting a validate-only pass.
+        return apply_decisions(Path(args.decisions), True, load_entity_names())
 
     names = load_entity_names()
     triage = build_triage(

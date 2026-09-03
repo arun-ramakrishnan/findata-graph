@@ -159,7 +159,7 @@ class _WritersProject:
         saved: dict = {}
         self._patch(saved)
         try:
-            sys.argv = ["sync_sector_wikilinks.py"] + ([] if apply else ["--check"])
+            sys.argv = ["sync_sector_wikilinks.py"] + (["--apply"] if apply else ["--check"])
             return ssw.main() or 0
         finally:
             self._unpatch(saved)

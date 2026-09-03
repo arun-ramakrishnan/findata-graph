@@ -24,7 +24,10 @@ REPORT = REPO_ROOT / "perf_report.txt"
 BENCHMARKS: list[tuple[str, list[str], float]] = [
     ("integrity_check", ["helpers/misc/database_integrity_check.py"], 2.0),
     ("verify_notes", ["helpers/validators/verify_notes.py"], 3.0),
-    ("sync_tags", ["helpers/core/sync_tags.py"], 2.0),
+    # --apply (2026-09-03): guard unification made the bare run a dry-run
+    # report; the leg times the write path it has always timed (and the 2.0s
+    # budget was calibrated on).
+    ("sync_tags", ["helpers/core/sync_tags.py", "--apply"], 2.0),
     # 8.0s since 2026-08-19: the B1 corpus check gained the 108 newsletter
     # notes (frontmatter.newsletter.v1.json), ~+2s of jsonschema validation.
     ("static_checks", ["helpers/validators/static_checks.py"], 8.0),
@@ -90,7 +93,9 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     ),
     (
         "enrich_yfinance",
-        ["helpers/maintenance/enrich_from_yfinance.py", "--company", "Infosys", "--dry-run"],
+        # bare = dry-run report since guard unification (2026-09-03); the old
+        # --dry-run flag is gone (unrecognized → argparse rc 2).
+        ["helpers/maintenance/enrich_from_yfinance.py", "--company", "Infosys"],
         5.0,
     ),
 ]

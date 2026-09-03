@@ -239,7 +239,7 @@ def summarize(manifest: dict) -> str:
     return line
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Verify converted markdown vs source PDF")
     ap.add_argument("source_pdf")
     ap.add_argument("output_dir")
@@ -247,7 +247,7 @@ def main() -> int:
     ap.add_argument("--warn-below", type=float, default=WARN_BELOW)
     ap.add_argument("--fail-below", type=float, default=FAIL_BELOW)
     ap.add_argument("--quiet", action="store_true")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
     pdf_path = Path(args.source_pdf)
     out_dir = Path(args.output_dir)
     if not pdf_path.is_file() or not out_dir.is_dir():

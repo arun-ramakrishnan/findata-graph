@@ -78,3 +78,18 @@ DuckDB rebuild and stays a standalone `make` target (e.g.
 
 Run history appends to `maint_report.txt` (summary table always;
 failed-step output tails on abort).
+
+## CLI conventions (guard unification 2026-09-03)
+
+- **Mutation guard:** scripts that write notes or research.db are
+  dry-run/report by default and take `--apply` to write
+  (`sync_tags`, `sync_sector_wikilinks`, `enrich_from_yfinance`,
+  `rebuild_schema`, the derive family, `extract_relations`,
+  `triage_pending_relations`, `capture_newsletter_images`). `--rewrite`
+  is retired; the two-key `--apply-decisions --write` collapsed to
+  `--apply-decisions`. Planned deviations: `db_maint` / `maint` keep
+  `--dry-run` (plan mode; make is their only caller), `enrich_relations`
+  keeps `--dry-run`/`--check-only` as mode selectors.
+- **Row-cap spellings:** `-k` = neighbors per node (kNN-style
+  subcommands of `query.py`), `--limit` = cap on rows/cycles returned.
+  Not interchangeable.

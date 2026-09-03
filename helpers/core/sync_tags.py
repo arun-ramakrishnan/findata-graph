@@ -212,12 +212,50 @@ def _sync_from_corpus(
     return bulk, no_tags, missing_files, sector_updates, unknown_sectors
 
 
-def main():  # noqa: C901
+def _print_warnings(
+    missing_files: list[tuple[str, str]],
+    no_tags: list[str],
+    unknown_sectors: list[tuple[str, str]],
+) -> None:
+    """Shared scan-quality warnings — printed in both dry-run and apply modes."""
+    if missing_files:
+        print(
+            f"  [warn] {len(missing_files)} entities with unresolvable file_path:",
+            file=sys.stderr,
+        )
+        for n, fp in missing_files[:20]:
+            print(f"    - {n}: {fp}", file=sys.stderr)
+        if len(missing_files) > 20:
+            print(f"    ... ({len(missing_files) - 20} more)", file=sys.stderr)
+    if no_tags:
+        print(
+            f"  [warn] {len(no_tags)} entities with no matching tags:",
+            file=sys.stderr,
+        )
+        for n in no_tags[:20]:
+            print(f"    - {n}", file=sys.stderr)
+        if len(no_tags) > 20:
+            print(f"    ... ({len(no_tags) - 20} more)", file=sys.stderr)
+    if unknown_sectors:
+        print(
+            f"  [warn] {len(unknown_sectors)} entities with non-canonical sector tags:",
+            file=sys.stderr,
+        )
+        for n, tag in unknown_sectors[:20]:
+            print(f"    - {n}: {tag}", file=sys.stderr)
+
+
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
     ap = argparse.ArgumentParser(description="Sync note tags -> entity_tags table.")
     ap.add_argument(
         "--db",
         default=str(_REPO_ROOT / "memory" / "research.db"),
         help="Path to research.db (default: memory/research.db).",
+    )
+    ap.add_argument(
+        "--apply",
+        action="store_true",
+        help="write entity_tags/note_tags + sector_classification (default: dry-run report)",
     )
     ap.add_argument(
         "--report", action="store_true", help="Print per-category breakdown after sync."
@@ -227,7 +265,7 @@ def main():  # noqa: C901
         action="store_true",
         help="S1b: use helpers.core.corpus one walk+pool cache (shared across maint --full) instead of per-entity re-read.",
     )
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     db_path = Path(args.db)
     if not db_path.is_absolute():
@@ -329,71 +367,70 @@ def main():  # noqa: C901
                         else:
                             unknown_sectors.append((name, sector_tag))
 
-        # Full rebuild inside a transaction.
-        with conn:
-            conn.execute("DELETE FROM entity_tags")
-            if bulk:
-                conn.executemany(
-                    "INSERT OR IGNORE INTO entity_tags (entity_name, tag) VALUES (?, ?)",
-                    bulk,
+        if args.apply:
+            # Full rebuild inside a transaction.
+            with conn:
+                conn.execute("DELETE FROM entity_tags")
+                if bulk:
+                    conn.executemany(
+                        "INSERT OR IGNORE INTO entity_tags (entity_name, tag) VALUES (?, ?)",
+                        bulk,
+                    )
+                # E5a: derive sector_classification from the note's sector/* tag so
+                # the column and the tag table stay in sync. IS NOT (not !=) handles
+                # NULL correctly AND skips rows where the value already matches — a
+                # no-op sync writes nothing. Entities without a sector tag keep their
+                # existing value (non-destructive).
+                sector_changed = 0
+                if sector_updates:
+                    cur = conn.cursor()
+                    cur.executemany(
+                        "UPDATE entities SET sector_classification = ? "
+                        "WHERE name = ? AND sector_classification IS NOT ?",
+                        [(canonical, name, canonical) for canonical, name in sector_updates],
+                    )
+                    sector_changed = cur.rowcount or 0
+
+            inserted = conn.execute("SELECT COUNT(*) FROM entity_tags").fetchone()[0]
+            total_entities = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
+
+            # Source newsletter trees -> note_tags (S4; separate mirror from
+            # entity_tags — editions have no entity rows).
+            nt_notes, nt_tags = rebuild_note_tags(conn)
+
+            print(
+                f"sync_tags: {inserted} tags across {seen_entities} entities "
+                f"(of {total_entities} total)."
+            )
+            print(f"note_tags: {nt_tags} tags across {nt_notes} source notes.")
+            if sector_changed:
+                print(
+                    f"  sector_classification: {sector_changed} row(s) updated from note sector/* tags."
                 )
-            # E5a: derive sector_classification from the note's sector/* tag so
-            # the column and the tag table stay in sync. IS NOT (not !=) handles
-            # NULL correctly AND skips rows where the value already matches — a
-            # no-op sync writes nothing. Entities without a sector tag keep their
-            # existing value (non-destructive).
-            sector_changed = 0
-            if sector_updates:
-                cur = conn.cursor()
-                cur.executemany(
-                    "UPDATE entities SET sector_classification = ? "
-                    "WHERE name = ? AND sector_classification IS NOT ?",
-                    [(canonical, name, canonical) for canonical, name in sector_updates],
-                )
-                sector_changed = cur.rowcount or 0
-
-        inserted = conn.execute("SELECT COUNT(*) FROM entity_tags").fetchone()[0]
-        total_entities = conn.execute("SELECT COUNT(*) FROM entities").fetchone()[0]
-
-        # Source newsletter trees -> note_tags (S4; separate mirror from
-        # entity_tags — editions have no entity rows).
-        nt_notes, nt_tags = rebuild_note_tags(conn)
-
-        print(
-            f"sync_tags: {inserted} tags across {seen_entities} entities "
-            f"(of {total_entities} total)."
-        )
-        print(f"note_tags: {nt_tags} tags across {nt_notes} source notes.")
-        if sector_changed:
+        else:
             print(
-                f"  sector_classification: {sector_changed} row(s) updated from note sector/* tags."
+                f"DRY-RUN: would rebuild entity_tags with {len(bulk)} rows across "
+                f"{seen_entities} entities; sector_classification updates: "
+                f"{len(sector_updates)}; note_tags rebuild deferred. Pass --apply to write."
             )
+            if args.report:
+                print("\n=== per-category breakdown (projected) ===")
+                cats: dict[str, int] = {}
+                sectors: dict[str, int] = {}
+                for _, t in bulk:
+                    cat = t.split("/", 1)[0] if "/" in t else ""
+                    cats[cat] = cats.get(cat, 0) + 1
+                    if t.startswith("sector/"):
+                        sectors[t] = sectors.get(t, 0) + 1
+                for cat, cnt in sorted(cats.items(), key=lambda kv: -kv[1]):
+                    print(f"  {cat:14s} {cnt:5d}")
+                print("\n=== top sectors (projected) ===")
+                for tag, cnt in sorted(sectors.items(), key=lambda kv: -kv[1])[:12]:
+                    print(f"  {cnt:4d}  {tag}")
+            _print_warnings(missing_files, no_tags, unknown_sectors)
+            return 0
 
-        if missing_files:
-            print(
-                f"  [warn] {len(missing_files)} entities with unresolvable file_path:",
-                file=sys.stderr,
-            )
-            for n, fp in missing_files[:20]:
-                print(f"    - {n}: {fp}", file=sys.stderr)
-            if len(missing_files) > 20:
-                print(f"    ... ({len(missing_files) - 20} more)", file=sys.stderr)
-        if no_tags:
-            print(
-                f"  [warn] {len(no_tags)} entities with no matching tags:",
-                file=sys.stderr,
-            )
-            for n in no_tags[:20]:
-                print(f"    - {n}", file=sys.stderr)
-            if len(no_tags) > 20:
-                print(f"    ... ({len(no_tags) - 20} more)", file=sys.stderr)
-        if unknown_sectors:
-            print(
-                f"  [warn] {len(unknown_sectors)} entities with non-canonical sector tags:",
-                file=sys.stderr,
-            )
-            for n, tag in unknown_sectors[:20]:
-                print(f"    - {n}: {tag}", file=sys.stderr)
+        _print_warnings(missing_files, no_tags, unknown_sectors)
 
         if args.report:
             print("\n=== per-category breakdown ===")

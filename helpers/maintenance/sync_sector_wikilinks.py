@@ -185,9 +185,14 @@ def sync_sector(
     return changed, len(companies)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Sync an auto-generated company index into every sector note."
+    )
+    parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="write the updated company index into sector notes (default: dry-run report)",
     )
     parser.add_argument(
         "--check",
@@ -199,7 +204,7 @@ def main() -> int:
         default=None,
         help="Sync only this sector (by filename stem, e.g. Banking).",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if not SECTORS_DIR.exists():
         print(f"ERROR: sectors dir not found: {SECTORS_DIR}", file=sys.stderr)
@@ -221,10 +226,17 @@ def main() -> int:
             # The sector_classification stored on company rows is the
             # PascalCase sector name, which equals the sector file's stem
             # (verified: 0 mismatches in the corpus audit).
-            changed, n = sync_sector(conn, sp, sp.stem, dry_run=args.check)
+            # Default is a dry-run report; --apply writes. --check keeps its
+            # advisory-gate contract (dry-run + rc 1 on stale) for maint.
+            dry_run = not args.apply
+            changed, n = sync_sector(conn, sp, sp.stem, dry_run=dry_run)
             total_companies += n
             sectors_processed += 1
-            marker = "STALE" if (changed and args.check) else ("updated" if changed else "ok")
+            marker = (
+                "STALE"
+                if (changed and args.check)
+                else ("would update (dry-run)" if changed else "ok")
+            )
             if changed and args.check:
                 stale += 1
             print(f"  {sp.stem:<32} {n:>3} companies  [{marker}]")
@@ -232,9 +244,11 @@ def main() -> int:
         conn.close()
 
     print(f"\n{sectors_processed} sector(s) processed, {total_companies} company links total.")
+    if not args.apply:
+        print("DRY-RUN: no sector notes written. Pass --apply to write.")
     if args.check:
         if stale:
-            print(f"{stale} sector(s) are stale. Re-run without --check to update.")
+            print(f"{stale} sector(s) are stale. Re-run with --apply to update.")
             return 1
         print("All sectors up to date.")
     return 0

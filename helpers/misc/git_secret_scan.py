@@ -195,7 +195,7 @@ def scan_blobs(
     return hits, binary
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument(
         "--full",
@@ -203,7 +203,7 @@ def main() -> int:
         help="rescan every reachable blob (default: incremental from state)",
     )
     ap.add_argument("--out", default=None, help="also write hits to this file")
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     t0 = time.time()
     state = load_state()

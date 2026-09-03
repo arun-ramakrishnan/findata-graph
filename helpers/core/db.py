@@ -42,9 +42,10 @@ import sqlite3
 from datetime import datetime, UTC
 from pathlib import Path
 
-# Lazy default: derive from this file's location so the helper works from
+from helpers.core.env import REPO_ROOT as _REPO_ROOT
+
+# Lazy default: derived from the canonical REPO_ROOT so the helper works from
 # anywhere (helpers/core/, app.py at repo root, tests/, etc.).
-_REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DB_PATH = _REPO_ROOT / "memory" / "research.db"
 
 # P0: canonical schema version (mirrors helpers.graph.query._SCHEMA_VERSION).

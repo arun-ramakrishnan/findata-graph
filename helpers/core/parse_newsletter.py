@@ -10,7 +10,7 @@ newsletter, so the only step a human/agent still does interactively is Stage 4
 
 WHAT IT DOES
 ------------
-Stage 0  Capture expiring OCR-crop images  (delegates to capture_newsletter_images.py --rewrite)
+Stage 0  Capture expiring OCR-crop images  (delegates to capture_newsletter_images.py --apply)
 Stage 1  Extract candidate companies       (regex over the rewritten source)
 Stage 2  Classify new vs existing          (SQLite lookup by name/normalized_name)
 Stage 3  Create NEW entities               (SQLite row + markdown stub + bidirectional
@@ -199,11 +199,11 @@ def get_sector_entities(conn) -> set:
 # ===========================================================================
 def capture_images(md_path: Path, apply: bool) -> bool:
     """Returns True if images were captured/already-present, False on failure."""
-    log("0", f"capturing images -> {CAPTURE_SCRIPT.name} --rewrite")
+    log("0", f"capturing images -> {CAPTURE_SCRIPT.name} --apply")
     if not apply:
-        log("0", "DRY-RUN: would run capture with --rewrite")
+        log("0", "DRY-RUN: would run capture with --apply")
         return True
-    cmd = ["python3", str(CAPTURE_SCRIPT), str(md_path), "--rewrite"]
+    cmd = ["python3", str(CAPTURE_SCRIPT), str(md_path), "--apply"]
     try:
         subprocess.run(cmd, check=True, cwd=str(PROJECT_ROOT))  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
         return True
@@ -768,7 +768,7 @@ def cross_check_new(new_names, min_sim=0.55):
 # ===========================================================================
 # main
 # ===========================================================================
-def main():  # noqa: C901
+def main(argv: list[str] | None = None):  # noqa: C901
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("newsletter", help="Path to the newsletter .md")
     ap.add_argument(
@@ -792,7 +792,7 @@ def main():  # noqa: C901
         "refresh graph_analytics (degree/pagerank/betweenness/louvain/wcc/"
         "clustering). Ignored without --apply. Adds ~2-5s on a 950-entity graph.",
     )
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     if args.with_analytics and not args.apply:
         sys.exit("--with-analytics requires --apply")
@@ -912,4 +912,4 @@ def main():  # noqa: C901
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

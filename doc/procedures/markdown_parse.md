@@ -69,7 +69,7 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
    **Triage loop (`make triage-relations`, proposal `pending_relations_triage`):** the queue is handled mechanically now —
    1. `make triage-relations` (or `python3 helpers/graph/triage_pending_relations.py`) — dedupes, splits `suggested` rows (link-prediction candidates, `_pending_suggestions.txt`) from true extraction misses, buckets prose rows (`discard` noise / `alias_candidate` / `stub_candidate` / `manual`), and writes the eyeball report + an annotated-ready `findata/_pending_triage_decisions.jsonl`.
    2. Annotate `decision` per row in the decisions file: `discard` | `alias:<Existing Entity Name>` | `stub` | `skip` (foreign/out-of-corpus parents).
-   3. `python3 helpers/graph/triage_pending_relations.py --apply-decisions --write` — persists alias entries to git-tracked `findata/relation_aliases.json` (loaded by the extractor at run time — triage cycles need no code edits), drops applied rows, moves suggestions out, keeps unresolved rows deduped, and prints the follow-up chain (re-run extract → roster sync if stubs → `make graph-rebuild` → snapshot). Stub creation itself stays explicit (collision-check discipline); the script prints a stub plan.
+   3. `python3 helpers/graph/triage_pending_relations.py --apply-decisions` — persists alias entries to git-tracked `findata/relation_aliases.json` (loaded by the extractor at run time — triage cycles need no code edits), drops applied rows, moves suggestions out, keeps unresolved rows deduped, and prints the follow-up chain (re-run extract → roster sync if stubs → `make graph-rebuild` → snapshot). Stub creation itself stays explicit (collision-check discipline); the script prints a stub plan.
    4. `--clear` truncates the queue once everything is resolved.
    Countries/generic-phrase/mangled-fragment targets never enter the queue anymore (write-time noise gate in the extractor).
 
@@ -161,7 +161,7 @@ The helper writes in-place: figures go into the markdown's own `images/` dir and
 ```bash
 # Download + verify + rewrite the source .md in place. Idempotent & resumable
 # (skips already-valid files, retries failures). Works for any newsletter path.
-python3 helpers/pdf/capture_newsletter_images.py <newsletter.md> --rewrite
+python3 helpers/pdf/capture_newsletter_images.py <newsletter.md> --apply
 ```
 
 The helper:
@@ -169,7 +169,7 @@ The helper:
 2. Derives `{slug, page, imgN}` per the rules above.
 3. Downloads concurrently into `<newsletter_dir>/images/` with retries; verifies each file is a non-empty JPEG/PNG; re-fetches failures.
 4. Writes an audit manifest `<slug>_image_manifest.json` (`{imgN, page, line, file, url, bytes, ok}` per image).
-5. With `--rewrite`: replaces each remote block with `![[images/<file>]]`; idempotent (no re-download).
+5. With `--apply` (formerly `--rewrite`): replaces each remote block with `![[images/<file>]]`; idempotent (no re-download).
 
 ### Detecting which notes still need capture
 
@@ -563,10 +563,10 @@ python3 helpers/graph/derive_insights.py findata --verbose
 After **all** companies are processed, run from the project root. Both exit `0` on success; `database_integrity_check.py` exits `1` below 95% validation rate:
 
 ```bash
-python3 helpers/maintenance/sync_sector_wikilinks.py  # refresh the 42 sector-note auto rosters (run after creating entities; the orchestrator's --apply runs it as the first step of its stage 5 — orchestrator numbering: stage 5 = validate, distinct from this doc's manual-enhancement "Stage 5")
+python3 helpers/maintenance/sync_sector_wikilinks.py --apply  # refresh the 42 sector-note auto rosters (run after creating entities; bare run is a dry-run report — guard unification 2026-09-03)
 python3 helpers/validators/verify_notes.py          # YAML validity, required fields, content completeness, duplicates
 python3 helpers/misc/database_integrity_check.py    # every file_path resolves, normalized_name sync, orphans
-python3 helpers/core/sync_tags.py                   # rebuild entity_tags from note YAML (run after creating/editing entities)
+python3 helpers/core/sync_tags.py --apply           # rebuild entity_tags from note YAML (run after creating/editing entities; bare run is a dry-run report)
 python3 -m helpers.validators.frontmatter_schema    # B1: JSON-Schema contract (also part of `make static-checks`)
 ```
 
@@ -632,7 +632,7 @@ def validate_bidirectional_sync():
 - [ ] Bidirectional `part_of`/`has_company` relations created
 - [ ] Enhanced tags populated
 - [ ] **Existing entities enhanced** — every existing company with a concall/management section in the newsletter has a `## The Chatter — <edition>` block appended (see [Enhancing Existing Entities](#enhancing-existing-entities))
-- [ ] **Sector-note auto rosters refreshed** (`sync_sector_wikilinks`) — mandatory after any entity creation; stale rosters pass every other validator (user catch 2026-08-25; now the first step of the orchestrator's stage 5)
+- [ ] **Sector-note auto rosters refreshed** (`sync_sector_wikilinks`) — mandatory after any entity creation; stale rosters pass every other validator (user catch 2026-08-25; `make sync-sector-links` — bare script run is a dry-run report)
 - [ ] Short, token-efficient names (no `Ltd`/`Company` suffixes)
 - [ ] **(Newsletter inputs)** Relevant figures embedded in company notes via `![[images/<slug>_p{p}_img{N}.jpeg]]`
 - [ ] `verify_notes.py` exits 0

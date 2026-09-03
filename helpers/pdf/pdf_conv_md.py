@@ -445,7 +445,7 @@ def _convert_paddle(pdf_path: Path, args: argparse.Namespace) -> list[dict]:
     return parse_pages(lines)
 
 
-def main() -> int:  # noqa: C901  # engine dispatch — linear fallback chain, not refactorable without obscuring
+def main(argv: list[str] | None = None) -> int:  # noqa: C901  # engine dispatch — linear fallback chain, not refactorable without obscuring
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[1])
     ap.add_argument("source_pdf", help="path to the source PDF file")
     ap.add_argument("output_dir", help="directory to store the results in")
@@ -472,7 +472,7 @@ def main() -> int:  # noqa: C901  # engine dispatch — linear fallback chain, n
         "(default off since 2026-08-26: ~3x faster without "
         "it and better word coverage on the Reports corpus)",
     )
-    args = ap.parse_args()
+    args = ap.parse_args(argv)
 
     pdf_path = Path(args.source_pdf)
     if not pdf_path.is_file():

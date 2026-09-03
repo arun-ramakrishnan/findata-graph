@@ -2238,15 +2238,15 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         epilog=(
             "Examples:\n"
             "  # Single file (dry-run):\n"
-            "  python3 helpers/graph/extract_relations.py findata/The_Chatter/Foo.md\n"
+            "  %(prog)s findata/The_Chatter/Foo.md\n"
             "  # Apply:\n"
-            "  python3 helpers/graph/extract_relations.py findata/The_Chatter/Foo.md --apply\n"
+            "  %(prog)s findata/The_Chatter/Foo.md --apply\n"
             "  # Shell-expanded glob:\n"
-            "  python3 helpers/graph/extract_relations.py findata/The_Chatter/*.md --apply\n"
+            "  %(prog)s findata/The_Chatter/*.md --apply\n"
             "  # Recursive directory scan (all newsletters):\n"
-            "  python3 helpers/graph/extract_relations.py findata/The_Chatter findata/Points_And_Figures --apply\n"
+            "  %(prog)s findata/The_Chatter findata/Points_And_Figures --apply\n"
             "  # Everything:\n"
-            "  python3 helpers/graph/extract_relations.py findata --apply\n"
+            "  %(prog)s findata --apply\n"
         ),
     )
     p.add_argument(

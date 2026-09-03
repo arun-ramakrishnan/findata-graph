@@ -620,7 +620,7 @@ def _inject_uplink(content: str, super_name: str) -> str:
     return content
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     g = p.add_mutually_exclusive_group()
     g.add_argument(
@@ -633,7 +633,7 @@ def main() -> int:
         action="store_true",
         help="Write entities, edges, and super-sector notes.",
     )
-    args = p.parse_args()
+    args = p.parse_args(argv)
     write = args.apply or (not args.check)
     # Default (no flag) is --check for safety; require explicit --apply.
     if not args.apply and not args.check:

@@ -162,7 +162,7 @@ _CAPTURE_LINES = 400  # rolling in-memory cap while streaming
 PRE_FULL_STEPS: list[tuple[str, list[str]]] = [
     (
         "sync-tags (rebuild entity_tags from note YAML)",
-        ["python3", "helpers/core/sync_tags.py", "--corpus"],
+        ["python3", "helpers/core/sync_tags.py", "--corpus", "--apply"],
     ),
     (
         "rebuild-note-search (rebuild FTS over findata markdowns)",

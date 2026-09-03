@@ -407,14 +407,14 @@ def sync_vec_table(
     return written
 
 
-def main() -> int:  # pragma: no cover - manual diagnostic
+def main(argv: list[str] | None = None) -> int:  # pragma: no cover - manual diagnostic
     """CLI: report vec-table health for a research.db path (default memory/)."""
     import argparse
 
     p = argparse.ArgumentParser(description="sqlite-vec note_search index status")
     p.add_argument("db", nargs="?", default=str(Path("memory") / "research.db"))
     p.add_argument("--dims", type=int, default=64)
-    args = p.parse_args()
+    args = p.parse_args(argv)
     from helpers.core.db import connect
 
     conn = connect(args.db)

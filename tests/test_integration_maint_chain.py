@@ -204,7 +204,7 @@ class _MaintProject:
         try:
             sys.argv = ["build_sector_hierarchy.py", "--apply"]
             assert bsh.main() == 0
-            sys.argv = ["sync_sector_wikilinks.py"]
+            sys.argv = ["sync_sector_wikilinks.py", "--apply"]
             rc = ssw.main()
             assert (rc or 0) == 0
         finally:
@@ -283,7 +283,13 @@ def _shim_graph_rebuild(p, mp, args):
 
 def _shim_sync_tags(p, mp, args):
     mp.setattr(st, "_REPO_ROOT", p.root)
-    mp.setattr(sys, "argv", ["sync_tags.py", "--db", str(p.db)])
+    # Forward the step's flags (notably --apply since guard unification —
+    # dropping them made the chain exercise a dry-run where production
+    # writes), but keep dropping --corpus: the shared corpus cache
+    # (memory/corpus.db) is repo-global and must not be polluted from the
+    # tmp project; the plain walk covers the chain behavior under test.
+    forwarded = [a for a in args if a != "--corpus"]
+    mp.setattr(sys, "argv", ["sync_tags.py", "--db", str(p.db), *forwarded])
     return _rc(st.main())
 
 

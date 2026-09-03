@@ -747,12 +747,18 @@ def main(symbols=None, detailed=False):
             spellfix_conn.close()
 
 
-if __name__ == "__main__":
+def cli(argv: list[str] | None = None) -> int:
+    """CLI entry — house idiom (parser takes *argv*) so tests can drive flags.
+
+    RawDescriptionHelpFormatter keeps the multi-line epilog from collapsing
+    (only extract_relations set it before — shared_routines_cli_guards W3).
+    """
     parser = argparse.ArgumentParser(
         description="Look up company tickers via Yahoo Finance and display company data.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
-  get_tickers.py TCS.NS RELIANCE.NS INFY.NS
-  get_tickers.py --detailed HDFCBANK.NS NYKAA.NS
+  %(prog)s TCS.NS RELIANCE.NS INFY.NS
+  %(prog)s --detailed HDFCBANK.NS NYKAA.NS
 """,
     )
     parser.add_argument(
@@ -768,5 +774,10 @@ if __name__ == "__main__":
         help="Fetch comprehensive data (financials, holders, recommendations)",
     )
 
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     main(symbols=args.symbols, detailed=args.detailed)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(cli())

@@ -1169,7 +1169,7 @@ def _create_parquet_snapshot(
     return ok
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
             "Versioned snapshot of the research DB + DuckDB graph cache: "
@@ -1233,7 +1233,7 @@ def main() -> int:
         help="With --restore: overwrite existing live DB files.",
     )
     parser.add_argument("--log", default="INFO", help="Logging level.")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     log_level = getattr(logging, args.log.upper(), logging.INFO)
     logging.basicConfig(level=log_level, format=LOG_FORMAT)

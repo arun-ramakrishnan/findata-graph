@@ -35,9 +35,9 @@ SAFETY
 
 USAGE
 -----
-    python3 helpers/maintenance/rebuild_schema.py           # rebuild live DB
-    python3 helpers/maintenance/rebuild_schema.py --dry-run  # report only, no writes
-    python3 helpers/maintenance/rebuild_schema.py --db PATH  # rebuild a copy
+    python3 helpers/maintenance/rebuild_schema.py           # dry-run report (no writes)
+    python3 helpers/maintenance/rebuild_schema.py --apply    # rebuild live DB
+    python3 helpers/maintenance/rebuild_schema.py --db PATH --apply  # rebuild a copy
 
 Post-rebuild: run ``make snapshot`` to refresh the committed artifacts, and
 ``make graph-rebuild`` (or the script's built-in call) to refresh the DuckDB
@@ -308,7 +308,7 @@ def _refresh_duckdb_cache() -> None:
         )
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="One-shot rebuild of entities/graph_edges/graph_analytics "
         "from canonical DDL (Bundle P)."
@@ -319,9 +319,11 @@ def main() -> int:
         help="SQLite DB path (default: memory/research.db).",
     )
     parser.add_argument(
-        "--dry-run",
+        "--apply",
         action="store_true",
-        help="Report what would be rebuilt without writing.",
+        help="Drop and rebuild the tables (default: report only, no writes; "
+        "formerly the flag polarity was inverted via --dry-run — guard "
+        "unification, shared_routines_cli_guards W2).",
     )
     parser.add_argument(
         "--no-duckdb-refresh",
@@ -330,16 +332,16 @@ def main() -> int:
         help="Skip the DuckDB cache refresh (it will rebuild on next connect).",
     )
     parser.set_defaults(refresh_duckdb=True)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
-    stats = rebuild(args.db, dry_run=args.dry_run)
+    stats = rebuild(args.db, dry_run=not args.apply)
 
     print("== Bundle P schema rebuild ==")
     for k, v in stats.items():
         print(f"  {k:25} {v}")
 
-    if args.dry_run:
-        print("  (dry-run — no changes made)")
+    if not args.apply:
+        print("  (dry-run — no changes made; pass --apply to rebuild)")
         return 0
 
     if args.refresh_duckdb:

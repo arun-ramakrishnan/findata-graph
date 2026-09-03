@@ -14,8 +14,9 @@ Design:
     + `yaml_safe_load` (C when `CSafeLoader` available) + `strip_frontmatter`.
     Returns `list[Note]` with `path`, `text`, `frontmatter dict`, `body`.
     `workers=1` is the serial fallback for tests.
-  * No `stale` digest here — `S1c` adds it per-derivation (`themes/cited_in`
-    gain `--stale-only` like `insights`). This is the raw cache.
+  * `notes_stale_since(db_max, trees)` — the shared S1c `--stale-only` gate
+    (mtime max vs `MAX(created_at)`); derive_events/themes/cited_in call it
+    instead of carrying three copy-pasted blocks.
 
 Usage:
     from helpers.core.corpus import Corpus
@@ -35,9 +36,10 @@ Performance (S0 baseline `2.19-2.42s` YAML hot, `THR=": _build_resolver_map`):
 from __future__ import annotations
 # ruff: noqa: C901, S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
 
+import datetime
 import os
 import hashlib
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -85,6 +87,50 @@ def iter_findata_files(root: Path) -> list[Path]:
         files = [p for p in Path(root).rglob("*.md") if p.is_file()]
     files.sort()
     return files
+
+
+def notes_stale_since(
+    db_max: str | None,
+    trees: Sequence[Path],
+    *,
+    pattern: str = "*.md",
+) -> bool:
+    """S1c shared stale gate — True when no note under *trees* is newer than *db_max*.
+
+    *db_max* is the SQL ``MAX(created_at)`` string ("YYYY-MM-DD HH:MM:SS" shape)
+    from the derivation's target table. Any doubt derives: falsy *db_max*
+    (nothing derived yet), an unparseable timestamp, or an empty tree all
+    return False — the caller falls through to the full run, which is the
+    safe direction for a skip gate.
+
+    rglob (not ``fs_walk``) is deliberate: one max-mtime pass over ~1k files
+    with no per-file work — a symlink-safe walk buys nothing here (the
+    comment that used to be copy-pasted in derive_themes). OSError on a
+    single stat (mid-walk deletion race) skips that file rather than
+    aborting the gate — the derive_cited_in semantics, now uniform.
+    """
+    if not db_max:
+        return False
+    try:
+        db_dt = datetime.datetime.fromisoformat(str(db_max).replace(" ", "T"))
+    except TypeError, ValueError:
+        return False
+    max_mtime = 0.0
+    for tree in trees:
+        d = Path(tree)
+        if not d.is_dir():
+            continue
+        for pp in d.rglob(pattern):
+            try:
+                mt = pp.stat().st_mtime
+            except OSError:
+                continue
+            if mt > max_mtime:
+                max_mtime = mt
+    try:
+        return bool(max_mtime) and datetime.datetime.fromtimestamp(max_mtime) <= db_dt
+    except OverflowError, OSError, ValueError:  # clock out-of-range etc.
+        return False
 
 
 def _load_one(path: Path) -> Note | None:

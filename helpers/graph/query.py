@@ -396,6 +396,28 @@ def _attach_sqlite(con: duckdb.DuckDBPyConnection, db_path: Path) -> None:
             pass
 
 
+def connect_read_only(
+    duckdb_path: Path | str,
+    *,
+    attach_db: Path | str | None = None,
+) -> duckdb.DuckDBPyConnection:
+    """Open a warm graph cache read-only with the shared prep, no build path.
+
+    For pure-reader CLIs (context_pack) that run on a pre-materialised cache
+    and must never trigger the warm/cold build machinery — unlike
+    :func:`connect` (``read_only=True`` there still falls back to a build on
+    a cold/stale cache). Loads the sqlite+vss extensions (the vss scalars
+    back :func:`semantic_neighbors`) and, when *attach_db* is given,
+    ATTACHes that SQLite file as ``fin``. Raises duckdb.IOException when the
+    cache file is missing/cold — the caller owns the error message.
+    """
+    con = duckdb.connect(str(duckdb_path), read_only=True)
+    _prep_graph_connection(con)
+    if attach_db is not None:
+        _attach_sqlite(con, Path(attach_db))
+    return con
+
+
 def connect(  # noqa: C901
     db_path: Path | str = DB_PATH,
     duckdb_path: Path | str | None = None,
@@ -3100,16 +3122,16 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     sp.add_argument(
         "file_path", help="Reference note path (e.g. findata/Companies/Agriculture/Avanti_Feeds.md)"
     )
-    sp.add_argument("-k", "--k", type=int, default=10)
+    sp.add_argument("-k", "--k", type=int, default=10, help="Number of neighbors (default 10)")
     sp.add_argument("--doc-type", default=None, help="Restrict candidates to one doc_type")
 
     sp = sub.add_parser("notes-like", help="Newsletters semantically closest to an entity's note")
     sp.add_argument("entity")
-    sp.add_argument("-k", "--k", type=int, default=10)
+    sp.add_argument("-k", "--k", type=int, default=10, help="Number of neighbors (default 10)")
 
     sp = sub.add_parser("edition-companies", help="Companies most similar to an edition note")
     sp.add_argument("edition", help="Edition title or file stem")
-    sp.add_argument("-k", "--k", type=int, default=10)
+    sp.add_argument("-k", "--k", type=int, default=10, help="Number of neighbors (default 10)")
 
     sp = sub.add_parser(
         "near-duplicates", help="Near-duplicate note pairs above a cosine threshold (QA tripwire)"

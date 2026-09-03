@@ -228,6 +228,24 @@ def test_sync_sector_check_mode_does_not_write(tmp_sector_db):
     conn.close()
 
 
+def test_main_dry_run_default_writes_only_with_apply(tmp_sector_db, monkeypatch):
+    """Guard unification (shared_routines_cli_guards W2): bare main() is a
+    dry-run report; writes require --apply. --check keeps its advisory-gate
+    contract (dry-run + rc 1 on stale)."""
+    import maintenance.sync_sector_wikilinks as m
+
+    db_path, sector_file = tmp_sector_db
+    monkeypatch.setattr(m, "DB_PATH", db_path)
+    monkeypatch.setattr(m, "SECTORS_DIR", sector_file.parent)
+    original = sector_file.read_text(encoding="utf-8")
+
+    assert m.main([]) == 0  # bare: dry-run default
+    assert sector_file.read_text(encoding="utf-8") == original
+
+    assert m.main(["--apply"]) == 0
+    assert "[[Acme_Corp|Acme Corp]]" in sector_file.read_text(encoding="utf-8")
+
+
 def test_sync_sector_link_targets_are_filename_stems(tmp_sector_db):
     """Every link TARGET (the part before ``|``, or the whole link if no pipe)
     must equal a real .md filename stem on disk — that's what Obsidian

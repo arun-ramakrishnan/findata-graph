@@ -59,6 +59,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect, utc_now  # noqa: E402
+from helpers.core.corpus import notes_stale_since  # noqa: E402  # S1c shared stale gate
 from helpers.core.edition_index import (  # noqa: E402
     CHROME_FILES,
     note_title,
@@ -320,32 +321,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 db_max = conn.execute(
                     "SELECT MAX(created_at) FROM graph_edges WHERE edge_type='cited_in'"
                 ).fetchone()[0]
-            except Exception:
+            except Exception:  # noqa: BLE001 — best-effort gate; fall through to full derive
                 db_max = None
-            if db_max:
-                import datetime as _dt
-
-                try:
-                    db_dt = _dt.datetime.fromisoformat(db_max.replace(" ", "T"))
-                    max_mtime = 0
-                    for tree in DERIVED_TREES:
-                        d = vault / tree
-                        if d.is_dir():
-                            for pp in d.rglob("*.md"):
-                                try:
-                                    mt = pp.stat().st_mtime
-                                    if mt > max_mtime:
-                                        max_mtime = mt
-                                except OSError:
-                                    continue
-                    if max_mtime and _dt.datetime.fromtimestamp(max_mtime) <= db_dt:
-                        print(
-                            f"cited_in stale-only: no derived note newer than last derived {db_max} — skipping 0 edges (dry-run)",
-                            file=sys.stderr,
-                        )
-                        return 0
-                except Exception:  # noqa: S110
-                    pass
+            if notes_stale_since(db_max, [vault / tree for tree in DERIVED_TREES]):
+                print(
+                    f"cited_in stale-only: no derived note newer than last derived {db_max} — skipping 0 edges (dry-run)",
+                    file=sys.stderr,
+                )
+                return 0
         editions = edition_notes(vault)
         stems = {e["stem"] for e in editions}
         path_to_name = {
