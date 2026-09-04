@@ -15,7 +15,7 @@ tags:
 - risk_investment/medium_risk
 - sector/agriculture
 created: '2025-11-16'
-last_modified: '2026-06-24'
+last_modified: '2026-09-04'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-20T05:41:43Z'
@@ -172,3 +172,15 @@ Currently, spot prices are 145 per kg for fishmeal."
 - Fishmeal costs surged to ₹117/kg in Q3 FY26 (from ₹98 in Q2); spot prices now ₹145/kg — pressuring feed margins
 - US import duty reversal removed (25% → 5% on certain products) — major regulatory tailwind for processing exports
 - UK trade deal expected in April; EU deal expected by fiscal year-end/early next year — enabling geographic diversification beyond the US
+
+## The Chatter — Milky Mist, Bluestone, Leap India, Avanti & More
+**Feed cost shock:** Fish meal consumption cost jumped ₹93/kg (Q1 FY26) → ₹153/kg (Q1 FY27), with spot now ₹225/kg; soybean meal ₹40 → ₹58/kg — the steepest input inflation the industry has seen, not fully passable to farmers.
+**Input-indexed pricing eyed:** A state-government committee (with a Big-4 consultant) is working on a mechanism to reflect fish meal/soybean meal/wheat flour movements in feed prices; exports of critical feed ingredients are under policy scrutiny as a domestic-shortness driver.
+**Processing PBT surge:** Avanti Frozen Foods PBT ₹45 cr in Q1 FY27 vs ₹25 cr a year ago on better ASP realizations, favorable FX and higher other income, despite lower volumes.
+**Export mix shift:** US volumes −17.9% YoY while China +24%, EU +36%, Japan +5% — diversification away from the US; reciprocal-tariff refund entries are declared but unprocessed by CBP until the ADD/CVD review suspension lifts.
+**Farm side healthy:** Culture conditions are favorable and farm-gate prices are supportive; feed cost is the only concern.
+
+> "The sector has never been so strong in terms of production and exports. However, the economics at different stages of shrimp value chain are becoming increasingly fragile."
+> — C. Ramachandra Rao, Joint Managing Director & Company Secretary
+
+*Source: The Chatter — Milky Mist, Bluestone, Leap India, Avanti & More*

@@ -155,7 +155,7 @@ def test_run_graph_analytics_invokes_algorithms_script(monkeypatch):
     ok = pn.run_graph_analytics()
     assert ok is True
     assert captured["argv"] is not None
-    assert captured["argv"][:2] == ["python3", str(pn.ALGORITHMS)]
+    assert captured["argv"][:2] == [sys.executable, str(pn.ALGORITHMS)]
     assert captured["argv"][2:] == ["--all", "--apply"]
     assert captured["cwd"] == str(pn.PROJECT_ROOT)
 

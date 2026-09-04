@@ -15,7 +15,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-04'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-28T15:01:27Z'
@@ -250,3 +250,15 @@ Companies that are available for sale are under tremendous financial distress an
 **Export ramp:** Continued diversification away from any single OEM/customer with new program wins in Europe.
 
 *Source: The Chatter — Bajaj, Mahindra, Persistent, Indian Hotels & More*
+
+## The Chatter — Milky Mist, Bluestone, Leap India, Avanti & More
+**Order book:** Cumulative ~₹1,500 cr over and above existing business from existing and new customers, spread over 4–5 years (not annualized); newer opportunities still being worked.
+**Program ramp:** New programs with Mahindra, Tata Motors and Maruti Suzuki moved from development/validation into commercial production this quarter — incremental volumes scale with OEM output.
+**EMOSS deterioration:** The Netherlands e-mobility subsidiary's Q1 revenue fell to ₹13.8 cr from ₹29 cr in Q4; EU e-trucks were only 4.8% of new registrations in H1 2026, with subsidies withdrawn and OEM restructuring slowing decisions. Wind-down not ruled out — the immediate goal is making EMOSS self-sustaining.
+**India-first allocation:** Continuing to invest in capacity, automation and technology for the standalone Indian business; actively evaluating acquisitions within India (new products and markets beyond camshafts); will "not pursue growth for the sake of growth."
+**EHCV progress:** The India-developed electric heavy commercial vehicle platform has been delivered to the customer and is in field trials.
+
+> "A cumulative order book of approximately INR1,500 crores is what we have over and above the existing businesses from existing as well as new customers. And this is of course not an annualized order book. This will be spread over four to five years."
+> — Karan Shah, Whole-Time Director – Business Development
+
+*Source: The Chatter — Milky Mist, Bluestone, Leap India, Avanti & More*

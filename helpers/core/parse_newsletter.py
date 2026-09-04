@@ -203,7 +203,7 @@ def capture_images(md_path: Path, apply: bool) -> bool:
     if not apply:
         log("0", "DRY-RUN: would run capture with --apply")
         return True
-    cmd = ["python3", str(CAPTURE_SCRIPT), str(md_path), "--apply"]
+    cmd = [sys.executable, str(CAPTURE_SCRIPT), str(md_path), "--apply"]
     try:
         subprocess.run(cmd, check=True, cwd=str(PROJECT_ROOT))  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
         return True
@@ -689,7 +689,10 @@ def run_validation(apply):
         if not apply:
             log("5", "DRY-RUN: would run " + script.name)
             continue
-        r = subprocess.run(["python3", str(script)], cwd=str(PROJECT_ROOT))  # noqa: S603,S607  # list-form call; shell=False (default); args are constants/controlled paths; PATH-resolved interpreter/binary (python3/node/grep) by design
+        # sys.executable, not a PATH-resolved "python3": the parse must run
+        # its validators under the same interpreter (venv or not) that is
+        # running the orchestrator itself.
+        r = subprocess.run([sys.executable, str(script)], cwd=str(PROJECT_ROOT))  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
         if r.returncode != 0:
             log("5", f"{label} FAILED (exit {r.returncode})")
             return False
@@ -709,7 +712,7 @@ def run_graph_analytics():
     """
     log("6", f"{ALGORITHMS.name} --all --apply")
     r = subprocess.run(  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
-        ["python3", str(ALGORITHMS), "--all", "--apply"],  # noqa: S607  # PATH-resolved interpreter/binary (python3/node/grep) by design
+        [sys.executable, str(ALGORITHMS), "--all", "--apply"],
         cwd=str(PROJECT_ROOT),
     )
     if r.returncode != 0:

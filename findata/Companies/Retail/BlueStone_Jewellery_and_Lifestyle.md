@@ -15,7 +15,7 @@ tags:
 - risk_investment/cyclical
 - sector/retail
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-04'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-20T05:41:43Z'
@@ -70,3 +70,15 @@ BlueStone is a leading omni-channel jewellery brand in India with stores across 
 - Classified as a small-cap retail/jewelry name with a cyclical risk profile.
 - Nationwide footprint supports scale and brand visibility.
 - Covered alongside peer jewellery names such as RBZ Jewellers and Jos Alukkas.
+
+## The Chatter — Milky Mist, Bluestone, Leap India, Avanti & More
+**Doubling the network:** Closed FY26 with ~340 stores across 110+ cities; plan to reach 700–800 stores across 300+ cities over the next four years, underwritten by strong same-store sales growth.
+**Data-driven assortment:** ~11,000-design catalogue, but each store stocks a locally tuned 1,200–1,300 designs based on catchment browsing data — design unavailability is highest in Tier-2/3 cities, where BlueStone stores perform well.
+**Tier-2/3 economics:** Lower ticket sizes there reflect store age (first-time buyers dominate young stores), not geography — repeat purchase lifts frequency and value as stores mature.
+**Gold-price adaptation:** Budget-constrained buyers shift to lower weight/caratage; this is not margin-dilutive since pricing and input costs fall together. The 22K→18K migration took 15–20 years; 18K→14K is now on the same acceptance curve (9-carat untested by BlueStone).
+**Studded secular shift:** The plain-gold → studded migration is aspiration- and design-led, predating the gold rally; demand is deferred rather than destroyed through volatile price patches.
+
+> "What is very encouraging is the very strong same-store sales growth that we are observing year over year, and that gives us the confidence that it is possible to open 700 to 800 stores across, let's say, 300-plus cities in the country."
+> — Gaurav Singh Kushwaha, CEO, BlueStone
+
+*Source: The Chatter — Milky Mist, Bluestone, Leap India, Avanti & More*
