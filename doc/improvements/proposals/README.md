@@ -27,7 +27,11 @@ entry number and stale DONE pointers):
    `proposed` (corpus_uniformity S3).
 
 ## Current live proposals
-_(none)_ — the last live proposal (maint_runtime_hardening.md) was
-archived as completed.md #206 on 2026-09-04; the five-slice execution
-record (interpreter doctrine, PRE_FULL convergers, converter title fix)
-lives in `../archive/tooling/maint_runtime_hardening.md`.
+_(none)_ — the last live proposal (archify_diagram_pipeline.md) was
+archived as completed.md #207 on 2026-09-05; the seven-diagram
+execution record (pipeline doctrine, census, constraints) lives in
+`../archive/tooling/archify_diagram_pipeline.md`.
+
+_(Previously: maint_runtime_hardening.md, archived as completed.md
+entry #206 on 2026-09-04 — the five-slice execution record lives in
+`../archive/tooling/maint_runtime_hardening.md`.)_

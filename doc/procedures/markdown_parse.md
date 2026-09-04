@@ -2,6 +2,8 @@
 
 Parse documents to extract entities (companies, sectors), create synchronized SQLite records + markdown files with enhanced tags, then validate.
 
+> **Diagram:** `../design/diagrams/markdown_parse.{json,html}` — evidence-carded dataflow of this pipeline (archify; the JSON IR is the committed source, the HTML is regenerable). Re-render when this procedure's stage graph changes (see `../improvements/archive/tooling/archify_diagram_pipeline.md`).
+
 **Inputs are either (a) an existing markdown newsletter or (b) a source PDF.** For a PDF, first convert it to markdown with `helpers/pdf/pdf_conv_md.py` (see [PDF → Markdown](#pdf--markdown)) — that step also downloads + embeds the figures, so no separate image capture is needed. For an existing markdown, **capture its remote OCR-crop images FIRST (see [Image Capture](#image-capture)), before any parsing** — the signed URLs expire and the inline embeds are later used to attach figures to company notes.
 
 > **Output destination — ask the user; never assume.** There is no safe way to infer the destination from the input. For a **PDF**, ask the user which directory to store the converted `.md` in before running `pdf_conv_md.py`. For an **existing markdown**, capture is in-place (the source `.md` is rewritten and figures land in its own `images/` dir), so confirm the markdown's location with the user rather than relocating it.
@@ -67,6 +69,11 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
    Idempotent via the `UNIQUE(source, target, edge_type)` constraint; safe to re-run after every newsletter batch. Re-run **after** the human reviewer has triaged `_pending_relations.txt` and added any new stub entities.
 
    **Triage loop (`make triage-relations`, proposal `pending_relations_triage`):** the queue is handled mechanically now —
+   >
+   > **Diagram:** `../design/diagrams/relations_pipeline.{json,html}` —
+   > extract → sidecar → triage → decisions → apply, with the loop
+   > closure (archify; JSON IR is the committed source). Re-render when
+   > the triage contract changes.
    1. `make triage-relations` (or `python3 helpers/graph/triage_pending_relations.py`) — dedupes, splits `suggested` rows (link-prediction candidates, `_pending_suggestions.txt`) from true extraction misses, buckets prose rows (`discard` noise / `alias_candidate` / `stub_candidate` / `manual`), and writes the eyeball report + an annotated-ready `findata/_pending_triage_decisions.jsonl`.
    2. Annotate `decision` per row in the decisions file: `discard` | `alias:<Existing Entity Name>` | `stub` | `skip` (foreign/out-of-corpus parents).
    3. `python3 helpers/graph/triage_pending_relations.py --apply-decisions` — persists alias entries to git-tracked `findata/relation_aliases.json` (loaded by the extractor at run time — triage cycles need no code edits), drops applied rows, moves suggestions out, keeps unresolved rows deduped, and prints the follow-up chain (re-run extract → roster sync if stubs → `make graph-rebuild` → snapshot). Stub creation itself stays explicit (collision-check discipline); the script prints a stub plan.

@@ -6,6 +6,12 @@ re-applied after a model or corpus change. Companion procedure to
 log). All commands assume the repo venv (`make` prepends `.venv/bin`; for
 direct shell runs use `.venv/bin/python3`).
 
+> **Diagram:** `../design/diagrams/embeddings_stack.{json,html}` — the
+> one-embedder/four-surfaces topology with the pooled cache and query
+> seam, evidence-marked (archify; JSON IR is the committed source, HTML
+> regenerable). Re-render when the index surfaces or query paths change
+> (see `../improvements/archive/tooling/archify_diagram_pipeline.md`).
+
 ## The two parts (one embedder, two indexers)
 
 | | `helpers/graph/embeddings.py` | `helpers/maintenance/rebuild_note_search.py` |

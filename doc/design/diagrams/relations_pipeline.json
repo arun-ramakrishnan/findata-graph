@@ -1,0 +1,187 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Relations pipeline — extract, triage, resolve",
+    "quality_profile": "showcase",
+    "locale": "en"
+  },
+  "lanes": [
+    {
+      "id": "auto",
+      "label": "Automated"
+    },
+    {
+      "id": "human",
+      "label": "Human triage"
+    }
+  ],
+  "phases": [
+    {
+      "id": "p1",
+      "label": "Extract",
+      "fromCol": 0,
+      "toCol": 0
+    },
+    {
+      "id": "p2",
+      "label": "Triage",
+      "fromCol": 1,
+      "toCol": 3
+    },
+    {
+      "id": "p3",
+      "label": "Resolve & rebuild",
+      "fromCol": 4,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "extract",
+    "graph_edges"
+  ],
+  "nodes": [
+    {
+      "id": "extract",
+      "lane": "auto",
+      "col": 0,
+      "type": "backend",
+      "label": "extract_relations --apply",
+      "tag": "walk · prose → edges",
+      "width": 165
+    },
+    {
+      "id": "graph_edges",
+      "lane": "auto",
+      "col": 2,
+      "type": "database",
+      "label": "graph_edges",
+      "tag": "UNIQUE dedupe",
+      "width": 150
+    },
+    {
+      "id": "followup",
+      "lane": "auto",
+      "col": 5,
+      "type": "backend",
+      "label": "follow-up chain",
+      "tag": "re-extract → rebuild",
+      "width": 160
+    },
+    {
+      "id": "sidecar",
+      "lane": "human",
+      "col": 1,
+      "type": "database",
+      "label": "_pending_relations.txt",
+      "tag": "append-on-miss queue",
+      "width": 175
+    },
+    {
+      "id": "triage",
+      "lane": "human",
+      "col": 2,
+      "type": "backend",
+      "label": "make triage-relations",
+      "tag": "4 buckets",
+      "width": 165
+    },
+    {
+      "id": "annotate",
+      "lane": "human",
+      "col": 3,
+      "type": "external",
+      "label": "decide per row",
+      "tag": "discard · alias · stub · skip",
+      "width": 175
+    },
+    {
+      "id": "apply",
+      "lane": "human",
+      "col": 4,
+      "type": "backend",
+      "label": "--apply-decisions",
+      "tag": "aliases → json",
+      "width": 160
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-known",
+      "from": "extract",
+      "to": "graph_edges",
+      "role": "main",
+      "label": "known targets"
+    },
+    {
+      "id": "e-miss",
+      "from": "extract",
+      "to": "sidecar",
+      "role": "branch",
+      "label": "unknown targets"
+    },
+    {
+      "id": "e-triage",
+      "from": "sidecar",
+      "to": "triage",
+      "role": "main",
+      "label": "dedupe · split suggestions"
+    },
+    {
+      "id": "e-annotate",
+      "from": "triage",
+      "to": "annotate",
+      "role": "main"
+    },
+    {
+      "id": "e-apply",
+      "from": "annotate",
+      "to": "apply",
+      "role": "main",
+      "label": "annotated jsonl"
+    },
+    {
+      "id": "e-followup",
+      "from": "apply",
+      "to": "followup",
+      "role": "main",
+      "label": "when stubs/aliases applied"
+    },
+    {
+      "id": "e-loop",
+      "from": "followup",
+      "to": "graph_edges",
+      "role": "return",
+      "label": "re-extract resolves stubs"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Sidecar contract",
+      "items": [
+        "dry-run writes the sidecar and zero edges",
+        "queue is append-on-miss, deduped; --clear truncates once resolved",
+        "link-prediction suggestions go to _pending_suggestions.txt, never auto-applied"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Decision buckets",
+      "items": [
+        "discard — noise rows (countries, mangled fragments never enter)",
+        "alias:<Entity> — persists to relation_aliases.json, no code edits",
+        "stub — explicit creation, collision-checked; skip — foreign/out-of-corpus"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Loop closure",
+      "items": [
+        "after stubs/aliases: re-run extract → roster sync → graph-rebuild → snapshot",
+        "temporal extraction stamps valid_from + properties.year on acquired edges",
+        "double-counting impossible: UNIQUE(source, target, edge_type)"
+      ]
+    }
+  ]
+}

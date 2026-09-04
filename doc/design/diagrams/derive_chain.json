@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "derive_* chain — prose to derived state",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "viewBox": [
+      1500,
+      673
+    ]
+  },
+  "stages": [
+    {
+      "label": "Corpus"
+    },
+    {
+      "label": "Extract"
+    },
+    {
+      "label": "Derive"
+    },
+    {
+      "label": "State"
+    },
+    {
+      "label": "Serve"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "newsletters",
+      "type": "database",
+      "label": "Newsletters",
+      "tag": "The_Chatter · P&F · Plotlines",
+      "stage": 0,
+      "row": 0,
+      "width": 150
+    },
+    {
+      "id": "company_notes",
+      "type": "database",
+      "label": "Company notes",
+      "tag": "## [Concall] bodies",
+      "stage": 0,
+      "row": 1,
+      "width": 150
+    },
+    {
+      "id": "extract",
+      "type": "backend",
+      "label": "extract_relations",
+      "tag": "prose → edges",
+      "stage": 1,
+      "row": 0,
+      "width": 150
+    },
+    {
+      "id": "insights",
+      "type": "backend",
+      "label": "derive_insights",
+      "tag": "quotes · metrics",
+      "stage": 2,
+      "row": 1,
+      "width": 160
+    },
+    {
+      "id": "graph_edges",
+      "type": "database",
+      "label": "graph_edges",
+      "tag": "UNIQUE dedupe",
+      "stage": 3,
+      "row": 0,
+      "width": 160
+    },
+    {
+      "id": "events_tbl",
+      "type": "database",
+      "label": "events",
+      "tag": "derived + manual",
+      "stage": 3,
+      "row": 1,
+      "width": 160
+    },
+    {
+      "id": "quotes_tbl",
+      "type": "database",
+      "label": "quotes · metrics",
+      "tag": "verbatim + magnitudes",
+      "stage": 3,
+      "row": 2,
+      "width": 160
+    },
+    {
+      "id": "reader",
+      "type": "frontend",
+      "label": "Reader",
+      "tag": "timeline · search",
+      "stage": 4,
+      "row": 1,
+      "width": 150
+    }
+  ],
+  "flows": [
+    {
+      "id": "f1",
+      "from": "newsletters",
+      "to": "extract",
+      "label": "edition prose",
+      "route": "straight",
+      "labelAt": [
+        252,
+        200
+      ]
+    },
+    {
+      "id": "f2",
+      "from": "company_notes",
+      "to": "extract",
+      "label": "note bodies",
+      "labelDy": 53
+    },
+    {
+      "id": "f3",
+      "from": "company_notes",
+      "to": "insights",
+      "label": "concall sections",
+      "labelDy": 53,
+      "route": "straight"
+    },
+    {
+      "id": "f5",
+      "from": "extract",
+      "to": "graph_edges",
+      "label": "verified edges",
+      "variant": "emphasis"
+    },
+    {
+      "id": "f6",
+      "from": "insights",
+      "to": "quotes_tbl",
+      "label": "quotes + magnitudes"
+    },
+    {
+      "id": "f7",
+      "from": "graph_edges",
+      "to": "events_tbl",
+      "label": "promotion",
+      "route": "straight",
+      "labelAt": [
+        770,
+        205
+      ]
+    },
+    {
+      "id": "f8",
+      "from": "graph_edges",
+      "to": "reader",
+      "label": "graph queries"
+    },
+    {
+      "id": "f9",
+      "from": "events_tbl",
+      "to": "reader",
+      "label": "timeline",
+      "labelAt": [
+        765,
+        314
+      ]
+    },
+    {
+      "id": "f10",
+      "from": "quotes_tbl",
+      "to": "reader",
+      "label": "quotes API",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Idempotence (P3 suite)",
+      "items": [
+        "extract_relations.py → derive_events.py → derive_insights.py → derive_cited_in.py",
+        "edges dedupe on UNIQUE(source, target, edge_type)",
+        "derive rows are DELETE-then-INSERT on source_ref LIKE 'derive:%'",
+        "cited_in is INSERT OR IGNORE — no-op between ingests"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Curation safety",
+      "items": [
+        "auto chatter blocks are sentinel-wrapped; hand-written blocks never clobbered",
+        "sidecar _pending_relations.txt catches unknown targets for triage",
+        "maint-full runs derive_insights --no-notes: notes mutate only on explicit --apply",
+        "derive_insights also reads edition text, not just concall sections"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Ordering",
+      "items": [
+        "PRE_FULL runs derive_cited-in ahead of graph-rebuild",
+        "derive_events promotes edges AFTER extract re-runs",
+        "executable spec: tests/test_integration_derive_chain.py"
+      ]
+    }
+  ]
+}

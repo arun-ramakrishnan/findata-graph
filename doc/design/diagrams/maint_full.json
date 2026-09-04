@@ -1,0 +1,176 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "make maint-full — the 14-step chain",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "viewBox": [
+      1440,
+      430
+    ]
+  },
+  "lanes": [
+    {
+      "id": "chain",
+      "label": "maint-full (--full)"
+    }
+  ],
+  "phases": [
+    {
+      "id": "pre",
+      "label": "PRE_FULL",
+      "fromCol": 0,
+      "toCol": 0
+    },
+    {
+      "id": "tier1",
+      "label": "TIER1",
+      "fromCol": 1,
+      "toCol": 2
+    },
+    {
+      "id": "tier2",
+      "label": "TIER2",
+      "fromCol": 3,
+      "toCol": 5
+    }
+  ],
+  "mainPath": [
+    "pre_full",
+    "db_maint",
+    "graph_rebuild",
+    "gates",
+    "derived",
+    "snapshot"
+  ],
+  "nodes": [
+    {
+      "id": "pre_full",
+      "lane": "chain",
+      "col": 0,
+      "type": "backend",
+      "label": "PRE_FULL convergers",
+      "tag": "4 steps",
+      "width": 150
+    },
+    {
+      "id": "db_maint",
+      "lane": "chain",
+      "col": 1,
+      "type": "backend",
+      "label": "db_maint",
+      "tag": "recovery backup",
+      "width": 150
+    },
+    {
+      "id": "graph_rebuild",
+      "lane": "chain",
+      "col": 2,
+      "type": "backend",
+      "label": "graph-rebuild",
+      "tag": "DuckDB cache",
+      "width": 150
+    },
+    {
+      "id": "gates",
+      "lane": "chain",
+      "col": 3,
+      "type": "backend",
+      "label": "sector gates",
+      "tag": "2 × --check",
+      "width": 150
+    },
+    {
+      "id": "derived",
+      "lane": "chain",
+      "col": 4,
+      "type": "backend",
+      "label": "derived refresh",
+      "tag": "5 steps",
+      "width": 150
+    },
+    {
+      "id": "snapshot",
+      "lane": "chain",
+      "col": 5,
+      "type": "backend",
+      "label": "tail snapshot",
+      "tag": "the only snapshot",
+      "width": 150
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "from": "pre_full",
+      "to": "db_maint",
+      "role": "main",
+      "label": "stamped state converged"
+    },
+    {
+      "id": "e2",
+      "from": "db_maint",
+      "to": "graph_rebuild",
+      "role": "main",
+      "label": "backup taken"
+    },
+    {
+      "id": "e3",
+      "from": "graph_rebuild",
+      "to": "gates",
+      "role": "main",
+      "label": "cache fresh"
+    },
+    {
+      "id": "e4",
+      "from": "gates",
+      "to": "derived",
+      "role": "main",
+      "label": "checks pass"
+    },
+    {
+      "id": "e5",
+      "from": "derived",
+      "to": "snapshot",
+      "role": "main",
+      "label": "analytics + events recomputed"
+    },
+    {
+      "id": "e6",
+      "from": "db_maint",
+      "to": "pre_full",
+      "role": "return",
+      "label": "recovery backup restores here"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "PRE_FULL — helpers/maintenance/maint.py",
+      "items": [
+        "sync-tags --corpus --apply -> okf-backfill --apply -> rebuild-note-search -> derive-cited-in --apply",
+        "deterministic projections of already-stamped state; no-ops between ingests",
+        "the ONE sanctioned note mutation: machine-owned provenance keys only"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Fail-closed",
+      "items": [
+        "TIER2 --check gates abort the run on drift — fix, then re-run",
+        "db_maint's recovery backup is the rollback point for everything after it",
+        "plain `make maint` = 3 TIER1 steps, never PRE_FULL"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Single snapshot (D1)",
+      "items": [
+        "--full elides the mid-run TIER1 snapshot",
+        "exactly one snapshot runs at the tail, capturing recomputed analytics + events",
+        "derived refresh = embeddings · doc-search · recompute-graph · derive-insights --no-notes · derive-events"
+      ]
+    }
+  ]
+}

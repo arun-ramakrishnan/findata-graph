@@ -7,6 +7,13 @@ on **Onager** + plain SQL. NetworkX was retired the same day. This revision
 compresses the historical record (see the archive proposal + git history)
 and adds the full algorithm catalog (§5).
 
+**Diagram:** `diagrams/derive_chain.{json,html}` — the derive_* chain
+(extract → edges → event promotion → insights/quotes) as a staged
+dataflow (archify; JSON IR is the committed source, HTML regenerable).
+Executable spec: tests/test_integration_derive_chain.py. Re-render when
+the chain changes (see
+`improvements/archive/tooling/archify_diagram_pipeline.md`).
+
 ## 1. Problem & Scope
 
 The knowledge graph stores 1,317 entities in SQLite (`memory/research.db`) —

@@ -131,6 +131,12 @@ and proposals — gated by `tests/test_templates.py`) ·
 `improvements/` (`pending.md`, `completed.md` numbered log, `archive/`
 closed proposals — was `proposals/`).
 
+Diagrams: `diagrams/system_overview.{json,html}` — evidence-marked
+storage-topology map compiled from the JSON IR by the archify pipeline
+(see `improvements/archive/tooling/archify_diagram_pipeline.md`); the HTML is
+regenerable, the JSON IR is the committed source. Re-render when an arc
+changes the depicted chain.
+
 ## 9. Code & markdown search — codebase-memory-mcp
 
 This repo is indexed by **codebase-memory-mcp** (project id is derived

@@ -1,0 +1,340 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "markdown_parse pipeline — newsletter to knowledge graph",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "viewBox": [
+      1440,
+      640
+    ]
+  },
+  "stages": [
+    {
+      "label": "Sources"
+    },
+    {
+      "label": "Convert / Capture"
+    },
+    {
+      "label": "Parse & Curate"
+    },
+    {
+      "label": "Maintain"
+    },
+    {
+      "label": "Serve"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "pdf",
+      "type": "external",
+      "label": "Reports/ PDFs",
+      "stage": 0,
+      "row": 0,
+      "tag": "input",
+      "width": 150
+    },
+    {
+      "id": "md_in",
+      "type": "external",
+      "label": "Existing newsletter .md",
+      "stage": 0,
+      "row": 2,
+      "tag": "input",
+      "width": 150
+    },
+    {
+      "id": "conv",
+      "type": "backend",
+      "label": "pdf_conv_md.py",
+      "tag": "local-first",
+      "stage": 1,
+      "row": 0,
+      "width": 150
+    },
+    {
+      "id": "capture",
+      "type": "backend",
+      "label": "capture_newsletter_images.py",
+      "tag": "md inputs only",
+      "stage": 1,
+      "row": 2,
+      "width": 190
+    },
+    {
+      "id": "orch",
+      "type": "backend",
+      "label": "parse_newsletter.py",
+      "tag": "one entry point",
+      "stage": 2,
+      "row": 0,
+      "width": 165
+    },
+    {
+      "id": "vault",
+      "type": "database",
+      "label": "findata/ vault",
+      "tag": "writer-owned",
+      "stage": 2,
+      "row": 1,
+      "width": 155
+    },
+    {
+      "id": "agent",
+      "type": "external",
+      "label": "Stage 5 curation",
+      "tag": "only manual step",
+      "stage": 2,
+      "row": 2,
+      "width": 155
+    },
+    {
+      "id": "maint",
+      "type": "backend",
+      "label": "make maint-full",
+      "tag": "14 steps",
+      "stage": 3,
+      "row": 1,
+      "width": 170
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "SQLite research.db",
+      "tag": "source of truth",
+      "stage": 4,
+      "row": 0,
+      "width": 170
+    },
+    {
+      "id": "duckdb",
+      "type": "database",
+      "label": "DuckDB graph cache",
+      "stage": 4,
+      "row": 1,
+      "width": 150
+    },
+    {
+      "id": "idx",
+      "type": "database",
+      "label": "FTS + embeddings",
+      "tag": "rebuildable",
+      "stage": 4,
+      "row": 2,
+      "width": 150
+    },
+    {
+      "id": "frontend",
+      "type": "frontend",
+      "label": "Reader frontend",
+      "stage": 4,
+      "row": 3,
+      "width": 150
+    }
+  ],
+  "flows": [
+    {
+      "id": "pdf-conv",
+      "from": "pdf",
+      "to": "conv",
+      "label": "convert (engine chain)",
+      "variant": "emphasis",
+      "labelAt": [
+        210.0,
+        199.9
+      ]
+    },
+    {
+      "id": "conv-vault",
+      "from": "conv",
+      "to": "vault",
+      "label": "edition note",
+      "labelAt": [
+        475.1,
+        232.1
+      ]
+    },
+    {
+      "id": "md-capture",
+      "from": "md_in",
+      "to": "capture",
+      "label": "capture signed-URL figures",
+      "labelDy": 53.0
+    },
+    {
+      "id": "capture-vault",
+      "from": "capture",
+      "to": "vault",
+      "label": "in-place rewrite",
+      "labelAt": [
+        431.0,
+        428.0
+      ]
+    },
+    {
+      "id": "vault-orch",
+      "from": "vault",
+      "to": "orch",
+      "label": "parse edition",
+      "fromSide": "left",
+      "toSide": "left",
+      "route": "auto",
+      "via": [
+        [
+          400.0,
+          271.0
+        ],
+        [
+          400.0,
+          157.0
+        ]
+      ],
+      "labelDx": -30.0
+    },
+    {
+      "id": "orch-vault",
+      "from": "orch",
+      "to": "vault",
+      "label": "new entities + relations",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "auto",
+      "via": [
+        [
+          530.0,
+          214.1
+        ]
+      ]
+    },
+    {
+      "id": "agent-vault",
+      "from": "agent",
+      "to": "vault",
+      "label": "edition blocks + splice"
+    },
+    {
+      "id": "vault-maint",
+      "from": "vault",
+      "to": "maint",
+      "label": "converge + re-derive",
+      "variant": "emphasis",
+      "labelDy": 53.0
+    },
+    {
+      "id": "maint-sqlite",
+      "from": "maint",
+      "to": "sqlite",
+      "label": "backup · sync · derive",
+      "labelAt": [
+        856.0,
+        217.9
+      ]
+    },
+    {
+      "id": "maint-duckdb",
+      "from": "maint",
+      "to": "duckdb",
+      "label": "graph-rebuild",
+      "route": "straight",
+      "labelAt": [
+        810.0,
+        314.0
+      ]
+    },
+    {
+      "id": "maint-idx",
+      "from": "maint",
+      "to": "idx",
+      "label": "FTS + embed rebuild",
+      "labelAt": [
+        858.0,
+        428.0
+      ]
+    },
+    {
+      "id": "sqlite-frontend",
+      "from": "sqlite",
+      "to": "frontend",
+      "label": "entities · events · quotes",
+      "fromSide": "right",
+      "toSide": "right",
+      "via": [
+        [
+          1140.0,
+          157.0
+        ],
+        [
+          1140.0,
+          499.0
+        ]
+      ],
+      "labelAt": [
+        1140.0,
+        225.0
+      ]
+    },
+    {
+      "id": "duckdb-frontend",
+      "from": "duckdb",
+      "to": "frontend",
+      "label": "graph views",
+      "fromSide": "right",
+      "toSide": "top",
+      "via": [
+        [
+          1165.0,
+          271.0
+        ],
+        [
+          1165.0,
+          440.0
+        ],
+        [
+          960.0,
+          440.0
+        ]
+      ],
+      "labelDx": 35.0
+    },
+    {
+      "id": "idx-frontend",
+      "from": "idx",
+      "to": "frontend",
+      "label": "note search",
+      "variant": "dashed",
+      "labelDy": 53.0,
+      "labelDx": -45.0
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Engine chain",
+      "items": [
+        "pdf_conv_md.py: pymupdf4llm primary, OCR fallbacks, Paddle last",
+        "writes <slug>.md + images/ + OKF frontmatter + verify manifest"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Curation safety",
+      "items": [
+        "Stage 5 is the only manual step (worklist-driven)",
+        "auto chatter blocks are sentinel-wrapped, never clobber hand ones",
+        "sources[] spliced via backfill_okf_provenance / PRE_FULL"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Idempotence & sync",
+      "items": [
+        "relations dedupe on UNIQUE(source, target, edge_type)",
+        "derive rows DELETE-then-INSERT on source_ref LIKE 'derive:%'",
+        "capture resumable; okf converger no-op once converged"
+      ]
+    }
+  ]
+}

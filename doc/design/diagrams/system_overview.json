@@ -1,0 +1,280 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "FinData storage topology",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/arun-ramakrishnan/findata-graph",
+      "revision": "b057071c4209e91341bd6f949b1b6c7f8520ee2b"
+    }
+  },
+  "layout": {
+    "mode": "grid",
+    "cols": 4,
+    "gapX": 60,
+    "gapY": 48
+  },
+  "components": [
+    {
+      "id": "ingest",
+      "type": "backend",
+      "label": "Ingest helpers",
+      "sublabel": "pdf_conv_md · parse_newsletter",
+      "row": 0,
+      "col": 0,
+      "sources": [
+        {
+          "path": "helpers/pdf/pdf_conv_md.py",
+          "line": 311,
+          "label": "build_okf_frontmatter"
+        },
+        {
+          "path": "helpers/core/parse_newsletter.py",
+          "line": 774,
+          "label": "main"
+        }
+      ]
+    },
+    {
+      "id": "maintenance",
+      "type": "backend",
+      "label": "Maintenance chains",
+      "sublabel": "make maint / maint-full",
+      "tag": "14 steps",
+      "row": 0,
+      "col": 1,
+      "sources": [
+        {
+          "path": "helpers/maintenance/maint.py",
+          "line": 203,
+          "end_line": 240,
+          "label": "PRE_FULL_STEPS"
+        }
+      ]
+    },
+    {
+      "id": "vault",
+      "type": "database",
+      "label": "findata/ vault",
+      "sublabel": "OKF markdown notes",
+      "tag": "writer-owned",
+      "row": 1,
+      "col": 0
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "SQLite research.db",
+      "sublabel": "source of truth",
+      "tag": "entities · edges · events",
+      "row": 1,
+      "col": 1
+    },
+    {
+      "id": "duckdb",
+      "type": "database",
+      "label": "DuckDB graph cache",
+      "sublabel": "graph.duckdb",
+      "tag": "views + analytics",
+      "row": 1,
+      "col": 2,
+      "sources": [
+        {
+          "path": "helpers/graph/query.py",
+          "line": 893,
+          "label": "rebuild()"
+        }
+      ]
+    },
+    {
+      "id": "frontend",
+      "type": "frontend",
+      "label": "Reader frontend",
+      "sublabel": "Flask + static TS",
+      "row": 1,
+      "col": 3,
+      "sources": [
+        {
+          "path": "app.py",
+          "line": 22,
+          "label": "Flask app"
+        },
+        {
+          "path": "frontend/src/core/reader.ts",
+          "line": 1,
+          "label": "reader core"
+        }
+      ]
+    },
+    {
+      "id": "derived",
+      "type": "database",
+      "label": "Derived caches",
+      "sublabel": "corpus.db · embeds · doc-search",
+      "row": 2,
+      "col": 0,
+      "sources": [
+        {
+          "path": "helpers/core/corpus.py",
+          "line": 74,
+          "label": "CORPUS_DB"
+        }
+      ]
+    },
+    {
+      "id": "backups",
+      "type": "database",
+      "label": "db-backup twins",
+      "sublabel": "zstd sidecars",
+      "row": 2,
+      "col": 2
+    },
+    {
+      "id": "snapshots",
+      "type": "database",
+      "label": "Snapshot parquets",
+      "sublabel": "duckdb/ + sqlite/",
+      "row": 2,
+      "col": 1
+    },
+    {
+      "id": "algos",
+      "type": "backend",
+      "label": "Graph algorithms",
+      "sublabel": "Python + Mojo bridge",
+      "row": 2,
+      "col": 3,
+      "sources": [
+        {
+          "path": "helpers/graph/algorithms.py",
+          "line": 720,
+          "label": "_cli"
+        },
+        {
+          "path": "helpers/graph/derive_insights.py",
+          "line": 1768,
+          "label": "scan()"
+        }
+      ]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "Repo-local storage",
+      "wraps": [
+        "vault",
+        "sqlite",
+        "duckdb",
+        "derived",
+        "backups",
+        "snapshots"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "ingest-vault",
+      "from": "ingest",
+      "to": "vault",
+      "label": "writes OKF notes",
+      "labelDy": 24
+    },
+    {
+      "id": "ingest-sqlite",
+      "from": "ingest",
+      "to": "sqlite",
+      "label": "entities · events"
+    },
+    {
+      "id": "vault-sqlite",
+      "from": "vault",
+      "to": "sqlite",
+      "label": "sync_tags rebuild",
+      "labelDy": 47
+    },
+    {
+      "id": "sqlite-duckdb",
+      "from": "sqlite",
+      "to": "duckdb",
+      "label": "materializes",
+      "labelDy": 61,
+      "labelDx": 55
+    },
+    {
+      "id": "duckdb-frontend",
+      "from": "duckdb",
+      "to": "frontend",
+      "label": "serves graph reads",
+      "labelDy": 61,
+      "labelDx": 55
+    },
+    {
+      "id": "maintenance-sqlite",
+      "from": "maintenance",
+      "to": "sqlite",
+      "label": "VACUUM · integrity",
+      "labelDy": 24,
+      "labelDx": 24
+    },
+    {
+      "id": "sqlite-snapshots",
+      "from": "sqlite",
+      "to": "snapshots",
+      "variant": "dashed",
+      "labelDy": 24
+    },
+    {
+      "id": "duckdb-snapshots",
+      "from": "duckdb",
+      "to": "snapshots",
+      "variant": "dashed"
+    },
+    {
+      "id": "duckdb-algos",
+      "from": "duckdb",
+      "to": "algos",
+      "label": "reads"
+    },
+    {
+      "id": "vault-derived",
+      "from": "vault",
+      "to": "derived",
+      "label": "corpus walk",
+      "variant": "dashed",
+      "labelDy": 24
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Source of truth",
+      "items": [
+        "SQLite research.db owns entities, edges, events, quotes",
+        "findata/ vault is the writer-owned note corpus",
+        "Reader serves entities/events from SQLite, graph from DuckDB"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Derived",
+      "items": [
+        "DuckDB cache re-materialized by graph-rebuild",
+        "Parquet snapshots export both stores",
+        "corpus.db, embed matrix and doc-search are rebuildable indexes",
+        "Mojo-bridge algorithms write graph_analytics back to SQLite"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Operator path",
+      "items": [
+        "maint-full runs 14 steps: PRE_FULL convergers, backup, rebuilds",
+        "db_maint takes the recovery backup + zstd twins before mutation",
+        "Note mutation carve-out: machine-owned provenance keys only"
+      ]
+    }
+  ]
+}

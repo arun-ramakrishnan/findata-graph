@@ -8,6 +8,18 @@ module docstring; this doc explains the doctrine for humans.
 
 ## The three blocks
 
+> **Diagram:** `../design/diagrams/maint_full.{json,html}` — the 14-step
+> chain as a phase-banded workflow (archify; JSON IR is the committed
+> source, HTML regenerable). Re-render when the step composition changes
+> (see `../improvements/archive/tooling/archify_diagram_pipeline.md`).
+>
+> **Diagram (snapshot lifecycle):** `../design/diagrams/snapshot_lifecycle.{json,html}`
+> — create → verify → restore as a state machine with the drift and
+> restore paths (archify; JSON IR committed, HTML regenerable; suite:
+> `tests/test_integration_snapshot_cycle.py`). Needs a broad/tall
+> viewport (~2100px-wide class, or zoom out) — the four-band canvas
+> overflows 1440×900 by design trade-off.
+
 `make maint-full` composes **PRE_FULL + TIER1(− snapshot) + TIER2**, in
 that order. Plain `make maint` runs **TIER1 only**.
 

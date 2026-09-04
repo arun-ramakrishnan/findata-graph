@@ -1,0 +1,323 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Search & embeddings stack",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "repository": {
+      "url": "https://github.com/arun-ramakrishnan/findata-graph",
+      "revision": "b057071c4209e91341bd6f949b1b6c7f8520ee2b"
+    }
+  },
+  "layout": {
+    "mode": "grid",
+    "cols": 4,
+    "gapX": 120,
+    "gapY": 64
+  },
+  "components": [
+    {
+      "id": "vault",
+      "type": "database",
+      "label": "findata/ vault",
+      "tag": "1,227 docs",
+      "row": 0,
+      "col": 0,
+      "size": [
+        150,
+        58
+      ]
+    },
+    {
+      "id": "entities",
+      "type": "database",
+      "label": "entities rows",
+      "tag": "~1,075 companies",
+      "row": 0,
+      "col": 1,
+      "size": [
+        165,
+        58
+      ]
+    },
+    {
+      "id": "doc_corpus",
+      "type": "database",
+      "label": "doc/ corpus",
+      "tag": "51 files",
+      "row": 0,
+      "col": 2,
+      "size": [
+        140,
+        58
+      ]
+    },
+    {
+      "id": "script_cohort",
+      "type": "database",
+      "label": "helpers · tests",
+      "tag": "script cohort",
+      "row": 0,
+      "col": 3,
+      "size": [
+        150,
+        58
+      ]
+    },
+    {
+      "id": "embedder",
+      "type": "backend",
+      "label": "local_embedder.py",
+      "tag": "bge-small · 384-dim",
+      "row": 1,
+      "col": 1,
+      "sources": [
+        {
+          "path": "helpers/core/local_embedder.py",
+          "line": 63,
+          "label": "BGE prefix rule"
+        },
+        {
+          "path": "helpers/core/local_embedder.py",
+          "line": 248,
+          "label": "pinned pool"
+        }
+      ],
+      "size": [
+        165,
+        58
+      ]
+    },
+    {
+      "id": "store",
+      "type": "database",
+      "label": "memory/embed_store.db",
+      "tag": "sha256-keyed cache",
+      "row": 1,
+      "col": 3,
+      "size": [
+        175,
+        58
+      ]
+    },
+    {
+      "id": "note_search",
+      "type": "database",
+      "label": "note_search",
+      "tag": "FTS5 + vec0",
+      "row": 2,
+      "col": 0,
+      "sources": [
+        {
+          "path": "helpers/maintenance/rebuild_note_search.py",
+          "line": 1
+        }
+      ],
+      "size": [
+        150,
+        58
+      ]
+    },
+    {
+      "id": "company_emb",
+      "type": "database",
+      "label": "company_embeddings",
+      "tag": "entity vectors",
+      "row": 2,
+      "col": 1,
+      "sources": [
+        {
+          "path": "helpers/graph/embeddings.py",
+          "line": 182,
+          "label": "purity guard"
+        },
+        {
+          "path": "helpers/core/get_tickers.py",
+          "line": 282,
+          "label": "vss_match"
+        }
+      ],
+      "size": [
+        165,
+        58
+      ]
+    },
+    {
+      "id": "doc_search",
+      "type": "database",
+      "label": "doc_search",
+      "tag": "FTS5 + embeds",
+      "row": 2,
+      "col": 2,
+      "sources": [
+        {
+          "path": "helpers/maintenance/rebuild_doc_search.py",
+          "line": 1
+        }
+      ],
+      "size": [
+        140,
+        58
+      ]
+    },
+    {
+      "id": "script_search",
+      "type": "database",
+      "label": "script_search",
+      "tag": "FTS5 + embeds",
+      "row": 2,
+      "col": 3,
+      "sources": [
+        {
+          "path": "helpers/maintenance/rebuild_script_search.py",
+          "line": 1
+        }
+      ],
+      "size": [
+        150,
+        58
+      ]
+    },
+    {
+      "id": "seam",
+      "type": "backend",
+      "label": "hybrid query seam",
+      "tag": "vec0 → FlatKNN → cosine",
+      "row": 3,
+      "col": 1,
+      "sources": [
+        {
+          "path": "helpers/core/embed_matrix.py",
+          "line": 25,
+          "label": "FlatKNN"
+        }
+      ],
+      "size": [
+        165,
+        58
+      ]
+    },
+    {
+      "id": "consumers",
+      "type": "frontend",
+      "label": "search UI · tickers",
+      "tag": "/api/search",
+      "row": 3,
+      "col": 2,
+      "sources": [
+        {
+          "path": "app.py",
+          "line": 650,
+          "label": "api_search"
+        }
+      ],
+      "size": [
+        160,
+        58
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "vault-embedder",
+      "from": "vault",
+      "to": "embedder"
+    },
+    {
+      "id": "entities-embedder",
+      "from": "entities",
+      "to": "embedder"
+    },
+    {
+      "id": "doc-embedder",
+      "from": "doc_corpus",
+      "to": "embedder"
+    },
+    {
+      "id": "scripts-embedder",
+      "from": "script_cohort",
+      "to": "embedder"
+    },
+    {
+      "id": "embedder-store",
+      "from": "embedder",
+      "to": "store",
+      "label": "pooled cache · vec0 mirror",
+      "variant": "emphasis",
+      "labelDy": 45
+    },
+    {
+      "id": "embedder-note",
+      "from": "embedder",
+      "to": "note_search",
+      "label": "rebuild_note_search"
+    },
+    {
+      "id": "embedder-company",
+      "from": "embedder",
+      "to": "company_emb",
+      "label": "--maint / populate",
+      "labelDy": 53
+    },
+    {
+      "id": "embedder-doc",
+      "from": "embedder",
+      "to": "doc_search",
+      "label": "rebuild_doc_search"
+    },
+    {
+      "id": "embedder-script",
+      "from": "embedder",
+      "to": "script_search",
+      "label": "rebuild_script_search"
+    },
+    {
+      "id": "note-seam",
+      "from": "note_search",
+      "to": "seam",
+      "label": "hybrid RRF"
+    },
+    {
+      "id": "company-seam",
+      "from": "company_emb",
+      "to": "seam"
+    },
+    {
+      "id": "seam-consumers",
+      "from": "seam",
+      "to": "consumers",
+      "label": "answers"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "One embedder",
+      "items": [
+        "bge-small-en-v1.5, 384-dim, llama.cpp, fully offline",
+        "BGE prefix rule lives only in local_embedder.py",
+        "4-worker pinned pool (unpinned collapses ~24x)"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Pooled cache economics",
+      "items": [
+        "embed_store.db keyed (sha256, model, source)",
+        "warm refresh: ~0.8 s notes, ≈0 embeds companies",
+        "cache excluded from snapshots; zstd twins recover"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Query paths",
+      "items": [
+        "/api/search hybrid = BM25 + cosine, fused RRF",
+        "vss_match switches on the table's model label",
+        "purity guard: no mixed-model writes, ever",
+        "doc/script search answer their own CLIs"
+      ]
+    }
+  ]
+}
