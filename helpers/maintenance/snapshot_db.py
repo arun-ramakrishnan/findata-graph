@@ -1035,6 +1035,65 @@ def _cmd_create(
     return 0 if ok else 1
 
 
+def _snapshot_embed_store(db_path: Path, out_path: Path, logger: logging.Logger) -> None:
+    """Embed store sidecar: the vec0 mirror + pooled content-hash cache
+    live in ONE consolidated SQLite database
+    (helpers.core.vec_search.EMBED_DB_PATH) since the embed_store
+    consolidation; pre-consolidation clones (and tests seeding tmp
+    dbs) may still carry a per-db <db>_vec.db sibling. All derived
+    state — but the cache is content-addressed and expensive to
+    re-fill cold (~minutes of re-embedding). Copy-only (no
+    verify_snapshot: that helper is hardcoded to
+    entities/relations); the sqlite online-backup API already
+    gives WAL consistency."""
+    vec_src = db_path.with_name(db_path.name + "_vec.db")
+    if vec_src.exists():
+        vec_out = out_path.parent / out_path.name.replace(".db.zst", ".db_vec.db.zst")
+        create_snapshot(vec_src, vec_out, logger)
+        return
+    from helpers.core.vec_search import EMBED_DB_PATH
+
+    store = Path(EMBED_DB_PATH)
+    if store.exists():
+        store_out = out_path.parent / f"{store.stem}.snapshot.db.zst"
+        # Skip re-compress when the store is unchanged since the
+        # last backup (maint_full_single_snapshot.md D3): mtime is
+        # the fingerprint — db_maint never writes the store and
+        # steady-state embed writes are guarded upserts (no byte
+        # change ⇒ no write), so ~36 MB of compression per snapshot
+        # run is pure waste in the steady state. A missing/older
+        # archive always re-compresses. (mtime-only: the zstd
+        # stdlib does not record frame content size, so the old
+        # gzip-ISIZE size cross-check has no equivalent —
+        # zstd_binary_backups.md D2.)
+        if store_out.exists() and store.stat().st_mtime <= store_out.stat().st_mtime:
+            logger.info("Embed store unchanged since last backup — reusing %s", store_out)
+        else:
+            create_snapshot(store, store_out, logger)
+    else:
+        logger.info("Embed store absent — backup skipped (%s)", store)
+
+
+def _snapshot_corpus(out_path: Path, logger: logging.Logger) -> None:
+    """Corpus cache sidecar (S1b): memory/corpus.db holds frontmatter +
+    FULL NOTE BODIES for every vault note — the private-content class
+    the git-side parquet snapshot deliberately excludes, so this zst
+    is its only byte-exact copy (operator decision 2026-09-04).
+    Copy-only + mtime-skip, same rationale as the embed store
+    (D3): the cache changes only when the corpus rebuilds."""
+    from helpers.core.corpus import CORPUS_DB
+
+    cache = Path(CORPUS_DB)
+    if cache.exists():
+        cache_out = out_path.parent / f"{cache.stem}.snapshot.db.zst"
+        if cache_out.exists() and cache.stat().st_mtime <= cache_out.stat().st_mtime:
+            logger.info("Corpus cache unchanged since last backup — reusing %s", cache_out)
+        else:
+            create_snapshot(cache, cache_out, logger)
+    else:
+        logger.info("Corpus cache absent — backup skipped (%s)", cache)
+
+
 def _create_binary_snapshot(
     db_path: Path,
     out_path: Path,
@@ -1044,50 +1103,12 @@ def _create_binary_snapshot(
     logger: logging.Logger,
 ) -> bool:
     """Binary-format branch of ``_cmd_create``: research + embed store +
-    (optional) DuckDB, one thread per database. Returns the verify match."""
+    corpus cache + (optional) DuckDB, one thread per database. Returns
+    the verify match."""
     from concurrent.futures import ThreadPoolExecutor
 
     # --- Binary (zstd) snapshot: one worker per database ---
     ok = True
-
-    def _embed_store_worker() -> None:
-        # Embed store: the vec0 mirror + pooled content-hash cache live
-        # in ONE consolidated SQLite database
-        # (helpers/core.vec_search.EMBED_DB_PATH) since the embed_store
-        # consolidation; pre-consolidation clones (and tests seeding tmp
-        # dbs) may still carry a per-db <db>_vec.db sibling. All derived
-        # state — but the cache is content-addressed and expensive to
-        # re-fill cold (~minutes of re-embedding). Copy-only (no
-        # verify_snapshot: that helper is hardcoded to
-        # entities/relations); the sqlite online-backup API already
-        # gives WAL consistency.
-        vec_src = db_path.with_name(db_path.name + "_vec.db")
-        if vec_src.exists():
-            vec_out = out_path.parent / out_path.name.replace(".db.zst", ".db_vec.db.zst")
-            create_snapshot(vec_src, vec_out, logger)
-            return
-        from helpers.core.vec_search import EMBED_DB_PATH
-
-        store = Path(EMBED_DB_PATH)
-        if store.exists():
-            store_out = out_path.parent / f"{store.stem}.snapshot.db.zst"
-            # Skip re-compress when the store is unchanged since the
-            # last backup (maint_full_single_snapshot.md D3): mtime is
-            # the fingerprint — db_maint never writes the store and
-            # steady-state embed writes are guarded upserts (no byte
-            # change ⇒ no write), so ~36 MB of compression per snapshot
-            # run is pure waste in the steady state. A missing/older
-            # archive always re-compresses. (mtime-only: the zstd
-            # stdlib does not record frame content size, so the old
-            # gzip-ISIZE size cross-check has no equivalent —
-            # zstd_binary_backups.md D2.)
-            zst = store_out
-            if zst.exists() and store.stat().st_mtime <= zst.stat().st_mtime:
-                logger.info("Embed store unchanged since last backup — reusing %s", zst)
-            else:
-                create_snapshot(store, store_out, logger)
-        else:
-            logger.info("Embed store absent — backup skipped (%s)", store)
 
     def _duckdb_binary_worker() -> bool:
         # Narrow the format-optional paths (S101-clean explicit raise;
@@ -1098,19 +1119,20 @@ def _create_binary_snapshot(
         create_duckdb_snapshot(duckdb_path, duckdb_out, logger)
         return verify_duckdb_snapshot(duckdb_out, duckdb_path, logger)["match"]
 
-    with ThreadPoolExecutor(max_workers=3) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         research = pool.submit(
             lambda: (
                 create_snapshot(db_path, out_path, logger),
                 verify_snapshot(out_path, db_path, logger)["match"],
             )[1]
         )
-        embed = pool.submit(_embed_store_worker)
-        futures = [research, embed]
+        embed = pool.submit(_snapshot_embed_store, db_path, out_path, logger)
+        corpus = pool.submit(_snapshot_corpus, out_path, logger)
+        futures = [research, embed, corpus]
         if with_duckdb:
             futures.append(pool.submit(_duckdb_binary_worker))
-        # .result() re-raises worker exceptions; embed is copy-only
-        # (returns None) — its failure surfaces as the exception.
+        # .result() re-raises worker exceptions; the sidecar workers are
+        # copy-only (return None) — their failure surfaces as the exception.
         ok = ok and bool(research.result())
         for f in futures[1:]:
             f.result()

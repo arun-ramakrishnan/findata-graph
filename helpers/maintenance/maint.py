@@ -35,7 +35,10 @@ Chains the maintenance steps in the right order, in THREE blocks:
                              flows into the recovery copy.
     2. ``snapshot_db.py``  — refresh ``db-backup/research.snapshot.db.zst`` +
                              ``db-backup/graph.snapshot.duckdb.zst`` (the
-                             git-tracked versioned snapshots, post-mutation).
+                             git-tracked versioned snapshots, post-mutation) +
+                             the corpus-cache twin ``corpus.snapshot.db.zst``
+                             (private note bodies — snapshot-excluded, so
+                             db-backup is its only copy).
     3. ``query.py rebuild`` — rebuild the DuckDB cache from the just-
                              snapshotted SQLite so the cache matches.
 

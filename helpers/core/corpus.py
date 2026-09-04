@@ -68,6 +68,10 @@ except ImportError:  # pragma: no cover - fallback for isolated import
 # changed, not 0.37s full). Persistent across reboots; snapshot does not bloat research.db —
 # corpus.db is sidecar like embed_store.db.
 _CACHE_DB = Path(__file__).resolve().parents[2] / "memory" / "corpus.db"
+# Public seam for the backup machinery (db_maint._backup_corpus /
+# snapshot_db._corpus_worker) — mirrors vec_search.EMBED_DB_PATH. Import
+# at CALL time so tests' conftest tmp-redirect of this module is honored.
+CORPUS_DB = _CACHE_DB
 _CACHE_DB_RETAIN = 1  # keep DB even when findata max_mtime == cache, for incremental
 
 

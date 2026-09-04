@@ -489,6 +489,23 @@ def _embed_matrix_to_tmp(tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def _corpus_db_to_tmp(tmp_path):
+    """Redirect the S1b corpus cache (corpus._CACHE_DB/CORPUS_DB) into the
+    per-test tmp dir — same class as _embed_store_to_tmp above. Since
+    2026-09-04 db_maint and snapshot_db back the corpus cache up by
+    default (private note bodies — its only copy lives in db-backup);
+    their call-time imports honor this redirect, keeping backup tests
+    hermetic instead of compressing the real ~30 MB cache per test."""
+    from helpers.core import corpus as corpus_mod
+
+    orig = (corpus_mod._CACHE_DB, corpus_mod.CORPUS_DB)
+    corpus_mod._CACHE_DB = tmp_path / "memory" / "corpus.db"
+    corpus_mod.CORPUS_DB = corpus_mod._CACHE_DB
+    yield
+    corpus_mod._CACHE_DB, corpus_mod.CORPUS_DB = orig
+
+
+@pytest.fixture(autouse=True)
 def _clear_graph_query_cache():
     """Isolation: the process-global query result cache must not leak
     between tests.

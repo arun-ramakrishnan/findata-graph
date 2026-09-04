@@ -19,7 +19,9 @@ Produces zstd-compressed PRE-MUTATION recovery points (snapshot_parallel_and_com
 D2; stdlib compression.zstd, library-default level):
 ``db-backup/research_backup.db.zst`` (+ the embed-store twin
 ``embed_store_backup.db.zst``, or the legacy ``<db>_vec.db.zst`` when it
-exists) and ``db-backup/graph_backup.duckdb.zst`` (DuckDB cache). These
+exists; + the corpus-cache twin ``corpus_backup.db.zst`` — full note
+bodies, the private-content class the git snapshot excludes, so db-backup
+is its only copy — added 2026-09-04) and ``db-backup/graph_backup.duckdb.zst`` (DuckDB cache). These
 are deliberately kept distinct from ``snapshot_db.py``'s
 ``db-backup/research.snapshot.db.zst`` and ``db-backup/graph.snapshot.duckdb.zst``
 (which are POST-mutation, gzipped, and git-tracked). Distinct purposes:
@@ -354,6 +356,47 @@ class DBMaintainer:
         finally:
             tmp_path.unlink(missing_ok=True)
 
+    def _backup_corpus(self) -> int:
+        """Paired recovery copy of the S1b corpus cache (memory/corpus.db).
+
+        corpus_cache holds path/mtime/content_hash/frontmatter/body/text
+        for every vault note — the private-content class the git snapshot
+        deliberately excludes, so this is its only recovery copy
+        (operator decision 2026-09-04). Rebuildable (one findata walk),
+        but a lost cache also loses the mtime-incremental baseline.
+        Resolution + WAL-consistent sqlite online-backup + zstd exactly
+        as _backup_embed_store; absent state just skips."""
+        from helpers.core.corpus import CORPUS_DB
+
+        src = Path(CORPUS_DB)
+        if not src.exists():
+            self._log(logging.INFO, f"Corpus cache absent — backup skipped ({src})")
+            return 0
+        dst = self.backup_path.parent / "corpus_backup.db"
+        from helpers.core.zstd_io import compress_file, zst_path
+
+        zst_dst = zst_path(dst)
+        with tempfile.NamedTemporaryFile(
+            suffix=".db", dir=self.backup_path.parent, delete=False
+        ) as tf:
+            tmp_path = Path(tf.name)
+        try:
+            sconn = sqlite3.connect(str(src))
+            bconn = sqlite3.connect(str(tmp_path))
+            try:
+                with bconn:
+                    sconn.backup(bconn)
+            finally:
+                bconn.close()
+                sconn.close()
+            if zst_dst.exists():
+                zst_dst.unlink()
+            size = compress_file(tmp_path, zst_dst)
+            self._log(logging.INFO, f"Corpus cache backed up to {zst_dst}")
+            return size
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
     def _backup_duckdb(self) -> int:
         """Pre-mutation recovery copy of the DuckDB cache file,
         stored zstd-compressed (``<duckdb_backup_path>.zst``).
@@ -444,6 +487,7 @@ class DBMaintainer:
             self._log(logging.INFO, f"Backing up to {self.backup_path}")
             backup_size = self._backup(conn)
             self._backup_embed_store()
+            self._backup_corpus()
 
             # P2.5: incremental vacuum when auto_vacuum==INCREMENTAL and freelist exists.
             # Full VACUUM rewrites 31 MB file (~0.6s); incremental_vacuum reclaims only freelist pages (~0.1s).
