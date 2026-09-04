@@ -27,19 +27,6 @@ entry number and stale DONE pointers):
    `proposed` (corpus_uniformity S3).
 
 ## Current live proposals
-- `consolidate_frontend_reader.md` — shared `core/reader.ts` for the
-  duplicated `entity.ts` / `views/docs.ts` paper-register stack
-  (wikilinks, frontmatter, masthead/chips, index), a Jinja `<head>`
-  partial, and merged `.modal-content` CSS (filed 2026-09-03).
-- `consolidate_mojo_bench_common.md` — extract duplicated Mojo kernels
-  (`row_cosine`, `load_f32`, `scan_serial`) + bridge helpers +
-  Python-bench fixtures into shared `common/` / `bench/` modules (filed
-  2026-09-03).
-- `consolidate_helpers_shared_helpers.md` — adopt `env.REPO_ROOT`,
-  `db.connect(read_only=True)`, new `db.utc_today_iso()`, and
-  `frontmatter.iso_now_utc()` at the library-style sites; folds
-  `_compute_root`/`_connect_ro`/`_now_utc` (filed 2026-09-03).
-- `consolidate_tests_fixtures.md` — centralize ~20-file schema DDL,
-  copy-production-DB, Flask test_client, seed data, and sys.path
-  boilerplate into shared `tests/helpers.py` + `tests/schema.py` (filed
-  2026-09-03).
+_(none)_ — the last live proposal (vault_scaling.md) was archived as
+completed.md #204 on 2026-09-04; its trigger-gated Phases A–C remain
+recorded in `../archive/graph/vault_scaling.md`.

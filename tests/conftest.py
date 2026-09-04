@@ -465,6 +465,30 @@ def _embed_store_to_tmp(tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def _embed_matrix_to_tmp(tmp_path):
+    """Redirect the aligned f32 matrix (embed_matrix._MATRIX_PATH/_META_PATH)
+    into the per-test tmp dir — same class as _embed_store_to_tmp above.
+
+    rebuild_note_search._refresh_embed_matrix constructs EmbedMatrixStore()
+    with the DEFAULT paths, so any in-process rebuild against a seeded DB
+    (test_rebuild_note_search rebuilds, the maint-chain _shim_note_search)
+    would clobber the real derived memory/embed_matrix.* — a 13×64
+    pseudo-embedder stub landed there during qa 2026-09-04 (refresh()
+    falls to a full build() on id mismatch, so a stub REPLACES a real
+    matrix). Plain save/restore, not monkeypatch, for the same leak-
+    ordering reason; EmbedMatrixStore's default_factory resolves the
+    module globals at construction, so the assignment covers every
+    store instantiated during the test."""
+    from helpers.core import embed_matrix as emm
+
+    orig = (emm._MATRIX_PATH, emm._META_PATH)
+    emm._MATRIX_PATH = tmp_path / "memory" / "embed_matrix.f32"
+    emm._META_PATH = tmp_path / "memory" / "embed_matrix.json"
+    yield
+    emm._MATRIX_PATH, emm._META_PATH = orig
+
+
+@pytest.fixture(autouse=True)
 def _clear_graph_query_cache():
     """Isolation: the process-global query result cache must not leak
     between tests.

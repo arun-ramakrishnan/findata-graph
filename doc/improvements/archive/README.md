@@ -16,6 +16,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`hierarchy_design_roadmap.txt`](graph/hierarchy_design_roadmap.txt) — Hierarchy Design Roadmap — enriching the notes ↔ DB ↔ graph knowledge model
 - [`pending_relations_triage.md`](graph/pending_relations_triage.md) — Proposal: Pending-relations triage (`triage_pending_relations`) — enclose the recurring queue workflow — completed.md #155
 - [`suggested_relations_accept.md`](graph/suggested_relations_accept.md) — Proposal: Accept path for pending relations — `accept:<edge_type>[:<target>]` writes suggested + known-target rows to graph_edges — completed.md #169
+- [`vault_scaling.md`](graph/vault_scaling.md) — Proposal: Vault scaling to 100M doubled rows — tiered trigger ladder (T1 CSR / T2 rebuild+Mojo BFS / T3 validation), Phase A corpus, Phase C similarity; Phase 0 executed (tier tripwire advisory + in-repo BFS scale ladder), Phases A–C trigger-gated with the tripwire watching — completed.md #204
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 

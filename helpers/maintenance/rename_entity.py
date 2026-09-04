@@ -39,7 +39,7 @@ from helpers.core.db import connect, utc_now  # noqa: E402  (T1: utc_now for las
 # Both functions must agree on the filename contract (PascalCase, single
 # underscores, leading letter); consolidating eliminates the divergence bug
 # surfaced by test_fuzz_normalizers.py.
-from core.parse_newsletter import normalize_name as _normalize_name  # noqa: E402
+from helpers.core.parse_newsletter import normalize_name as _normalize_name  # noqa: E402
 from helpers.core.frontmatter import split_frontmatter as split_fm  # noqa: E402
 
 

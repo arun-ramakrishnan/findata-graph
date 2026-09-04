@@ -1806,6 +1806,10 @@ def _corpus_paths(corpus: Corpus, target: str) -> list[Path]:
     Whole-vault target (``findata``) means the three newsletter trees;
     anything else is an exact path set.
     """
+    # The module-level Corpus alias is Optional (optional dep); scan()
+    # narrows before dispatch — a None reaching here is a caller bug.
+    if corpus is None:
+        raise ValueError("_corpus_paths requires a loaded Corpus")
     target_paths = set(_expand_paths(target))
     if len(target_paths) == 1 and target_paths.pop().as_posix() == "findata":
         return [
@@ -1821,6 +1825,8 @@ def _scan_corpus(
     corpus: Corpus, target: str, resolver_map: dict[str, str]
 ) -> tuple[list[Quote], list[Metric]]:
     """Corpus fast path (S1b): scan pre-parsed notes, no file re-reads."""
+    if corpus is None:  # Optional module alias — scan() narrows first
+        raise ValueError("_scan_corpus requires a loaded Corpus")
     paths = _corpus_paths(corpus, target)
     by_path_text = {n.path.as_posix(): n.text for n in corpus.notes}
     quotes: list[Quote] = []

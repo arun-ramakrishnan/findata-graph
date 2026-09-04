@@ -868,8 +868,15 @@ def _rebuild_via_swap(db_path: Path | str = DB_PATH, *, fresh: bool) -> None:
     duckdb_path = _resolve_duckdb_path(Path(db_path))
     tmp = duckdb_path.with_name(f"{duckdb_path.name}.rebuild-{os.getpid()}.tmp")
     tmp_wal = tmp.with_name(tmp.name + ".wal")
+    # connect() sidecar lock for the TEMP path — pid-tagged, so this
+    # process is its only ever user; unlink it or every swap-rebuild
+    # leaves a `<db>.rebuild-<pid>.tmp.build.lock` orphan (nine sprayed
+    # in memory/ by the Sep 3–4 gate runs). The MAIN `<db>.build.lock`
+    # must persist (flock mutual exclusion depends on the inode).
+    tmp_lock = tmp.with_name(tmp.name + ".build.lock")
     tmp.unlink(missing_ok=True)
     tmp_wal.unlink(missing_ok=True)
+    tmp_lock.unlink(missing_ok=True)
     try:
         c = connect(db_path=db_path, duckdb_path=tmp, rebuild=True, fresh=fresh)
         c.close()
@@ -880,6 +887,7 @@ def _rebuild_via_swap(db_path: Path | str = DB_PATH, *, fresh: bool) -> None:
     finally:
         tmp.unlink(missing_ok=True)
         tmp_wal.unlink(missing_ok=True)
+        tmp_lock.unlink(missing_ok=True)
 
 
 def rebuild(db_path: Path | str = DB_PATH) -> None:

@@ -146,8 +146,8 @@ def bench_once(
         t0 = time.perf_counter()
         ref = mat @ qry
         numpy_ms = min(numpy_ms, (time.perf_counter() - t0) * 1000)
-    top1_numpy = np.argmax(ref, axis=0)
-    top1_max = np.argmax(best_out, axis=0)
+    top1_numpy = np.asarray(ref).argmax(axis=0)
+    top1_max = np.asarray(best_out).argmax(axis=0)
     bytes_moved = (rows * dims + dims * n + rows * n) * 4
     flops = 2.0 * rows * dims * n
     return {
