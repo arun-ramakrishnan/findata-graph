@@ -9,6 +9,8 @@
       row is consumed on the Mojo side (repr checksum) — that row
       marshaling cost is what "access the DB from Mojo" actually costs
    3. compare     — checksum parity + per-case time ratio
+ Parity is GATED: any checksum mismatch exits 1 — the bench leg goes
+ red (2026-09-03, matching the graph-algos gating).
  Run from the repo root (the bench harness sets cwd).
 """
 
@@ -32,6 +34,7 @@ def main() raises:
 
     # --- direct side: every case called from Mojo, rows consumed here ---
     var npass = 0
+    var nfail = 0
     for i in range(n):
         var name = String(cases[i][0].__str__())
         var case_fn = cases[i][1]
@@ -67,7 +70,18 @@ def main() raises:
                 dt / py_dt,
             )
         else:
+            nfail += 1
             print(
                 "FAIL ", name, ": mojo checksum=", checksum, " python=", py_ck
             )
     print("---", npass, "/", n, "db access cases checksum-parity passed")
+    if nfail > 0:
+        print("DB-ACCESS PARITY FAIL: ", nfail, " case(s) mismatched")
+        sys_exit(1)
+
+
+def sys_exit(code: Int) raises:
+    # sys.exit raises SystemExit, which the bridge surfaces as an
+    # unhandled error — os._exit terminates cleanly (integrity pattern)
+    if code != 0:
+        Python.evaluate("__import__('os')._exit(" + String(code) + ")")

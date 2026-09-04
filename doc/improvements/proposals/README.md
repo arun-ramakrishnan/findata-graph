@@ -28,6 +28,6 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `corpus_embeddings_scaling.md` — scalability to 100M embedding
-  elements: lazy Corpus, aligned f32 matrix store, flat exact KNN
-  (filed 2026-09-02).
+_(none)_ — the utc_now unification disposition was archived to
+`../archive/tooling/utc_now_unification.md` (completed.md #199) on
+2026-09-03; see the consolidate_patterns patch for the next batch.

@@ -934,7 +934,8 @@ CHECKS = [
 ]
 
 
-def main() -> int:  # noqa: C901
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
+    # Test seam: flag-less tool — argv accepted and ignored.
     print("🔍 Static checks...")
     total_failures = 0
     total_advisory = 0

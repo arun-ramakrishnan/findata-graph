@@ -84,7 +84,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from helpers.core.db import connect  # noqa: E402
+from helpers.core.db import connect, utc_now  # noqa: E402  (W8: utc_now for audit stamps)
 from helpers.maintenance.enrich_from_yfinance import (  # noqa: E402
     DB_PATH,
     PROJECT_ROOT,
@@ -1984,7 +1984,7 @@ def _persist_gf_resolutions(
     """
     resolved = [o for o in outcomes if o.outcome.startswith("resolved")]
     gf_only = [o for o in resolved if o.outcome != "resolved yahoo-candidate"]
-    now = datetime.now(UTC).isoformat(timespec="seconds")
+    now = utc_now()
     with conn:
         for o in resolved:
             kind = "yahoo_mapped_back" if o.outcome == "resolved yahoo-candidate" else "gf_only"
@@ -2525,7 +2525,7 @@ def _run_classify(args) -> int:
                 " ".join(parts),
             )
             return 2
-        now = datetime.now(UTC).isoformat(timespec="seconds")
+        now = utc_now()
         with conn:
             conn.execute(
                 "INSERT OR REPLACE INTO entity_ticker_status "

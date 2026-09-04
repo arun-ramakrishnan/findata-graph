@@ -247,8 +247,10 @@ def run_neighbors() -> None:
         print(f"  MISS {co}: {why}")
 
 
-def main() -> int:
-    mode = sys.argv[1] if len(sys.argv) > 1 else "all"
+def main(argv: list[str] | None = None) -> int:
+    # Test seam: argv = post-script-name args; default stays the real argv.
+    raw = sys.argv[1:] if argv is None else argv
+    mode = raw[0] if raw else "all"
     if mode in ("all", "search"):
         print("== search: hybrid vs bm25 (recall@5, any-of expect) ==")
         run_search()

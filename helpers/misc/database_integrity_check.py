@@ -2083,8 +2083,10 @@ class DatabaseIntegrityChecker:
         print("=" * 80)
 
 
-def main():
-    """Main function to run database integrity check"""
+def main(argv: list[str] | None = None):
+    """Main function to run database integrity check.
+
+    Test seam: flag-less tool — argv accepted and ignored."""
     try:
         checker = DatabaseIntegrityChecker()
         results = checker.check_integrity()

@@ -1,9 +1,9 @@
 ---
 title: "Scale corpus + embeddings to 100M elements — lazy Corpus, aligned f32 matrix, flat KNN"
-status: proposed
+status: executed
 filed: "2026-09-02"
-executed: null
-completed_md: null
+executed: "2026-09-02"
+completed_md: "195"
 area: "helpers/core (corpus.py lazy/shard, new embedding-matrix store), note_search fallback leg"
 ---
 
@@ -30,7 +30,7 @@ doc/improvements/archive/ for real examples). Rules:
   until then the bold-line header below is the canonical status field.
 -->
 
-**Date:** 2026-09-02 · **Status:** PROPOSED ·
+**Date:** 2026-09-02 · **Status:** EXECUTED (same day; code rode the #194-titled commit) ·
 **Area:** `helpers/core/corpus.py` (lazy + shard close-out) · `helpers/core/embed_matrix.py` (new) · `helpers/core/vec_search.py` (flat-KNN leg) · follows `doc/improvements/archive/tooling/shared_corpus_incremental_derive.md` (S1, #194)
 
 ## 1. Motivation

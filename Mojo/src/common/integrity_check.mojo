@@ -26,7 +26,9 @@
    note_tags                          (native reads + VENDORED mojo-yaml)
    cache_consistency                  (duckdb vs sqlite reconcile)
  Run from the repo root. Exit semantics match the original main():
- validation_rate < 95 or any error-severity check nonzero -> exit 1.
+ validation_rate < 95 or any error-severity check nonzero -> exit 1;
+ in parity mode any golden-parity mismatch also exits 1 — the bench
+ leg goes red (2026-09-03, matching the graph-algos gating).
 """
 
 
@@ -1727,6 +1729,7 @@ def main() raises:
     rf.close()
     print("report written to ", report_path)
 
+    var parity_fails = 0
     # ------------------------------------------------------ parity
     if parity_mode:
         var fx = Python.import_module("mojo_db_integrity")
@@ -1771,16 +1774,21 @@ def main() raises:
             print("GOLDEN PARITY FAIL: ", len(mism), " mismatches:")
             for i in range(len(mism)):
                 print("  ", mism[i])
+        parity_fails = len(mism)
 
     var exit_code = 0
     if err_total > 0:
         exit_code = 1
     if Float64(valid) / Float64(n) * 100.0 < 95.0:
         exit_code = 1
-    if parity_mode and err_total == 0:
-        pass  # parity failures don't change exit; bench reads the printout
+    if parity_fails > 0:
+        exit_code = 1
     if exit_code != 0:
-        print("EXIT ", exit_code, " (error-severity regressions or coverage)")
+        print(
+            "EXIT ",
+            exit_code,
+            " (error-severity regressions, coverage, or parity)",
+        )
     sys_exit(exit_code)
 
 

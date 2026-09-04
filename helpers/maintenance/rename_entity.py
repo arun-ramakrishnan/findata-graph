@@ -54,16 +54,19 @@ def replace_field(yaml: str, field: str, value: str) -> str:
     return yaml + f"{field}: {value}\n"
 
 
-def main() -> int:  # noqa: C901
-    if len(sys.argv) < 3:
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
+    # Test seam: argv = post-script-name args (house parse_args(argv)
+    # convention); default stays the real process argv.
+    raw = sys.argv[1:] if argv is None else argv
+    if len(raw) < 2:
         print(__doc__)
         return 2
-    old_name = sys.argv[1]
-    new_name = sys.argv[2]
+    old_name = raw[0]
+    new_name = raw[1]
 
     sector_override = None
     ticker_override = None
-    args = sys.argv[3:]
+    args = raw[2:]
     i = 0
     while i < len(args):
         if args[i] == "--sector" and i + 1 < len(args):

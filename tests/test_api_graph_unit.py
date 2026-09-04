@@ -959,6 +959,33 @@ class TestGraphConnectionThreadSafety:
         assert all(r is results[0] for r in results), "all threads must share the single connection"
 
 
+# ----- query.connect seam late binding ------------------------------------- #
+
+
+class TestGraphQuerySeamLateBinding:
+    """algorithms/suggest_relations must resolve helpers.graph.query.connect
+    at CALL time. seeded_graph_sqlite_db (tests/conftest.py) patches
+    q.connect hermetically while the /api routes run; a route that FIRST
+    imports algorithms mid-fixture used to capture the patched mock via
+    early `from ... import connect` binding — teardown restored q.connect
+    but the stale reference raised FileNotFoundError out of graph_metrics()
+    for every later consumer (the 2026-08-30 test_graph_stats interference).
+    """
+
+    def test_algorithms_duckdb_connect_follows_module_patch(self, monkeypatch):
+        import helpers.graph.algorithms as alg
+        import helpers.graph.query as q
+
+        monkeypatch.setattr(q, "connect", lambda *a, **kw: "PATCHED-CONN")
+        assert alg.duckdb_connect(read_only=True) == "PATCHED-CONN"
+
+    def test_suggest_relations_reaches_connect_through_module(self):
+        import helpers.graph.query as q
+        import helpers.graph.suggest_relations as sr
+
+        assert sr._graph_query is q
+
+
 # ----- /api/graph/cloud (whole-graph force cloud) --------------------------- #
 
 

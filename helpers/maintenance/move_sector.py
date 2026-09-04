@@ -234,8 +234,9 @@ def move_entity(
     return True
 
 
-def main() -> int:
-    args = sys.argv[1:]
+def main(argv: list[str] | None = None) -> int:
+    # Test seam: argv = post-script-name args; default stays the real argv.
+    args = sys.argv[1:] if argv is None else argv
     if not args:
         print(__doc__)
         return 2

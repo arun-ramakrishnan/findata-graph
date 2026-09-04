@@ -204,7 +204,8 @@ def _leg_db_access() -> tuple[float, bool, str]:
     """DB access from Mojo through the Python drivers (sqlite3 + duckdb
     via the bridge): FTS5 search, relational slices, DuckDB scans —
     every row consumed on the Mojo side (repr checksum) vs the identical
-    native loop. 6/6 checksum parity expected."""
+    native loop. 6/6 checksum parity expected — GATED: any mismatch
+    exits 1 (2026-09-03 retrofit, matching graph-algos)."""
     return _run("db-access", [str(BIN / "db_access_probe")], 120.0)
 
 
@@ -214,7 +215,8 @@ def _leg_db_integrity() -> tuple[float, bool, str]:
     (source: Mojo/src/common/integrity_check.mojo). Data via the Python
     drivers through the bridge; check logic in Mojo. MOJO_INTEGRITY_PARITY=1
     makes the tool run the ORIGINAL checker live (fixture) and diff all 89
-    canonical keys — GOLDEN PARITY required. ~3 s."""
+    canonical keys — GOLDEN PARITY required and GATED: any mismatch exits
+    1 (2026-09-03 retrofit, matching graph-algos). ~3 s."""
     return _run(
         "db-integrity", [str(BIN / "integrity_check")], 120.0, env={"MOJO_INTEGRITY_PARITY": "1"}
     )

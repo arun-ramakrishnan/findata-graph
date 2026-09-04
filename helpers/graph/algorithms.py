@@ -70,10 +70,22 @@ from helpers.graph.query import (  # noqa: E402
     _query_cache_get,
     _query_cache_set,
     clustering_coefficient as _graph_clustering,
-    connect as duckdb_connect,
     pagerank as _graph_pagerank,
     weakly_connected_components as _graph_wcc,
 )
+from helpers.graph import query as _graph_query  # noqa: E402
+
+
+def duckdb_connect(*args: Any, **kwargs: Any) -> Any:
+    """query.connect resolved at CALL time, not import time: seams that
+    patch helpers.graph.query.connect (tests/conftest.py
+    seeded_graph_sqlite_db patches it hermetically) must stay effective
+    even for modules first imported inside the patch window — an
+    early-bound `from ... import connect` captured the fixture mock
+    permanently and broke every later consumer (2026-08-30
+    test_graph_stats interference)."""
+    return _graph_query.connect(*args, **kwargs)
+
 
 # Onager-backed metrics (replaces the NetworkX bridge):
 from helpers.graph.onager import (  # noqa: E402

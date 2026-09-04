@@ -216,12 +216,16 @@ def test_deleted_file_is_pruned(monkeypatch, tmp_path):
     calls: list = []
     _fake_cli2(monkeypatch, calls)
     assert ml.main([]) == 0
-    rows = {r[0] for r in ml._cache_open().execute("SELECT path FROM verdicts")}
+    conn = ml._cache_open()
+    assert conn is not None
+    rows = {r[0] for r in conn.execute("SELECT path FROM verdicts")}
     assert rows == {str(a), str(b)}
 
     corpus[:] = [a]  # b vanished from the walk
     assert ml.main([]) == 0
-    rows = {r[0] for r in ml._cache_open().execute("SELECT path FROM verdicts")}
+    conn = ml._cache_open()
+    assert conn is not None
+    rows = {r[0] for r in conn.execute("SELECT path FROM verdicts")}
     assert rows == {str(a)}
 
 

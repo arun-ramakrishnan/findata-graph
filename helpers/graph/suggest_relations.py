@@ -52,7 +52,7 @@ if str(_REPO_ROOT) not in sys.path:
 import duckdb  # noqa: E402  # after sys.path bootstrap
 
 from helpers.graph.algorithms import link_prediction  # noqa: E402
-from helpers.graph.query import connect as duckdb_connect  # noqa: E402
+from helpers.graph import query as _graph_query  # noqa: E402
 
 DEFAULT_DUCKDB = _REPO_ROOT / "memory" / "graph.duckdb"
 ORIGIN = "link_prediction"
@@ -177,7 +177,7 @@ def suggest_relations(
         # House connection (query.connect): attaches research.db as `fin`
         # and materialises the e_* cache — exactly what onager_link_prediction's
         # DB path expects (same pattern as algorithms.link_prediction).
-        con = duckdb_connect(read_only=True)
+        con = _graph_query.connect(read_only=True)
         own = True
     try:
         companies = _company_names(con)
