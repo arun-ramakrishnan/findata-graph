@@ -27,7 +27,19 @@ entry number and stale DONE pointers):
    `proposed` (corpus_uniformity S3).
 
 ## Current live proposals
-
-_(none)_ — the utc_now unification disposition was archived to
-`../archive/tooling/utc_now_unification.md` (completed.md #199) on
-2026-09-03; see the consolidate_patterns patch for the next batch.
+- `consolidate_frontend_reader.md` — shared `core/reader.ts` for the
+  duplicated `entity.ts` / `views/docs.ts` paper-register stack
+  (wikilinks, frontmatter, masthead/chips, index), a Jinja `<head>`
+  partial, and merged `.modal-content` CSS (filed 2026-09-03).
+- `consolidate_mojo_bench_common.md` — extract duplicated Mojo kernels
+  (`row_cosine`, `load_f32`, `scan_serial`) + bridge helpers +
+  Python-bench fixtures into shared `common/` / `bench/` modules (filed
+  2026-09-03).
+- `consolidate_helpers_shared_helpers.md` — adopt `env.REPO_ROOT`,
+  `db.connect(read_only=True)`, new `db.utc_today_iso()`, and
+  `frontmatter.iso_now_utc()` at the library-style sites; folds
+  `_compute_root`/`_connect_ro`/`_now_utc` (filed 2026-09-03).
+- `consolidate_tests_fixtures.md` — centralize ~20-file schema DDL,
+  copy-production-DB, Flask test_client, seed data, and sys.path
+  boilerplate into shared `tests/helpers.py` + `tests/schema.py` (filed
+  2026-09-03).

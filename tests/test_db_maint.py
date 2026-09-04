@@ -10,11 +10,11 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from helpers.core.env import REPO_ROOT  # noqa: E402
 from helpers.core.zstd_io import decompress_file  # noqa: E402
 from helpers.maintenance.db_maint import (  # noqa: E402
     _fmt_bytes,
     _pragma_ident,
-    _compute_root,
     _print_report,
     DBMaintainer,
 )
@@ -64,11 +64,11 @@ class TestPragmaIdent:
 
 
 # ---------------------------------------------------------------------------
-# _compute_root
+# REPO_ROOT (folds the old db_maint._compute_root — helpers de-dup)
 # ---------------------------------------------------------------------------
-class TestComputeRoot:
+class TestRepoRoot:
     def test_returns_path(self):
-        root = _compute_root()
+        root = REPO_ROOT
         assert isinstance(root, Path)
         # Worktree-agnostic (2026-09-03): the contract is "the root of THIS
         # checkout", not the main checkout's directory name — stax worktrees

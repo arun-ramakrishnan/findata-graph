@@ -20,31 +20,13 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.graph._edge_writer import apply_typed_edges  # noqa: E402
+from tests.schema import EDGES_MINIMAL, ENTITIES_MINIMAL  # noqa: E402
 
 
 def _build_db(tmp_path: Path) -> Path:
     db_path = tmp_path / "test.db"
     conn = sqlite3.connect(db_path)
-    conn.executescript(
-        """
-        CREATE TABLE entities(
-            name TEXT PRIMARY KEY,
-            entity_type TEXT,
-            normalized_name TEXT,
-            file_path TEXT,
-            last_updated TEXT
-        );
-        CREATE TABLE graph_edges(
-            source TEXT NOT NULL,
-            target TEXT NOT NULL,
-            edge_type TEXT NOT NULL,
-            properties TEXT NOT NULL DEFAULT '{}',
-            source_ref TEXT NOT NULL,
-            symmetric INTEGER NOT NULL DEFAULT 0,
-            UNIQUE(source, target, edge_type)
-        );
-        """
-    )
+    conn.executescript("".join([ENTITIES_MINIMAL, EDGES_MINIMAL]))
     conn.executemany(
         "INSERT INTO entities (name, entity_type) VALUES (?, ?)",
         [("A", "company"), ("B", "company"), ("C", "company")],

@@ -14,12 +14,20 @@ import type {
     EntitiesResponse,
     EntityDetailResponse,
     EventsResponse,
-    NoteFrontmatter,
     SemanticResponse,
     SimilarNotesResponse,
 } from "../types/api";
 import { getEl, escapeHtml } from "./core/dom";
 import { fetchJson } from "./core/api";
+import {
+    buildWikilinkIndex,
+    chipSpans,
+    editionBits,
+    fmString,
+    linkifyWikilinks,
+    readerTitle,
+    seriesLabel,
+} from "./core/reader";
 import {
     processRichContent,
     wireRichInteractions,
@@ -27,19 +35,6 @@ import {
     setLightboxOpener,
 } from "./core/markdown";
 import { showToast } from "./core/toast";
-
-/** Newsletter series directory → masthead publication label (S5 parity). */
-const SERIES_LABELS: Record<string, string> = {
-    The_Chatter: "The Chatter",
-    Points_And_Figures: "Points & Figures",
-    The_PlotLines: "The Plotlines",
-};
-
-/** [[target]] / [[target|label]] (heading-anchor suffix tolerated + dropped). */
-const WIKILINK_RE = /\[\[([^\[\]|]+?)(?:#[^\[\]|]*)?(?:\|([^\[\]]+?))?\]\]/g;
-
-/** Frontmatter scalars surfaced as chips / facts. */
-const CHIP_KEYS = ["ticker", "sector", "industry", "market_cap", "created", "last_modified"];
 
 class EntityPage {
     private readonly entityPath: string;
@@ -125,8 +120,7 @@ class EntityPage {
         const entity = this.entity;
         if (!entity) return;
         const fm = entity.frontmatter;
-        const isEdition =
-            entity.entity_type === "edition" || this.fmString(fm, "type") === "newsletter";
+        const isEdition = entity.entity_type === "edition" || fmString(fm, "type") === "newsletter";
 
         document.title = `${entity.name} — FinData Knowledge Graph`;
         getEl("page-title").textContent = entity.name;
@@ -153,7 +147,10 @@ class EntityPage {
 
         // Async rail intel + wikilink resolution (quiet on failure).
         void this.ensureWikilinkIndex().then((index) => {
-            if (index) this.linkifyWikilinks(contentEl);
+            if (index)
+                linkifyWikilinks(contentEl, index, (href) => ({
+                    href: `/entity/${encodeURIComponent(href)}`,
+                }));
         });
         void this.loadEvents(entity.name);
         void this.loadSemanticPeers(entity.name);
@@ -162,18 +159,11 @@ class EntityPage {
 
     /** Title block: chips (companies/sectors) or masthead (editions). */
     private renderHeader(entity: EntityDetailResponse, isEdition: boolean): void {
-        const fm = entity.frontmatter;
         const mount = getEl("entity-metadata");
         if (isEdition) {
-            const series = SERIES_LABELS[(entity.file_path || "").split("/")[1]];
-            const title = this.fmString(fm, "title") ?? entity.name.replace(/_/g, " ");
-            const bits: string[] = [];
-            const publisher = this.fmPublisher(fm);
-            if (publisher) bits.push(escapeHtml(publisher));
-            const generated = this.fmGeneratedAt(fm);
-            if (generated) bits.push(`generated ${escapeHtml(generated)}`);
-            const stale = this.fmString(fm, "stale_after");
-            if (stale) bits.push(`fresh through ${escapeHtml(stale.slice(0, 10))}`);
+            const series = seriesLabel(entity.file_path);
+            const title = readerTitle(entity);
+            const bits = editionBits(entity);
             mount.innerHTML = `
                 <header class="edition-masthead">
                     <div class="masthead-pub">${escapeHtml(series || "Newsletter")}</div>
@@ -183,17 +173,6 @@ class EntityPage {
             `;
             return;
         }
-        const chips: string[] = [
-            `<span class="fm-chip fm-type">${escapeHtml(entity.entity_type.replace(/_/g, " "))}</span>`,
-        ];
-        for (const key of CHIP_KEYS) {
-            const value = this.fmScalar(fm, key);
-            if (value) {
-                chips.push(
-                    `<span class="fm-chip"><b>${escapeHtml(key.replace(/_/g, " "))}</b>${escapeHtml(value)}</span>`,
-                );
-            }
-        }
         const tags = entity.enhanced_tags.length
             ? `<div class="entity-tags">${entity.enhanced_tags
                   .map((t) => `<span class="entity-tag">${escapeHtml(t)}</span>`)
@@ -201,8 +180,8 @@ class EntityPage {
             : "";
         mount.innerHTML = `
             <header class="entity-head">
-                <h1>${escapeHtml(this.fmString(fm, "title") ?? entity.name.replace(/_/g, " "))}</h1>
-                <div class="fm-chips">${chips.join("")}</div>
+                <h1>${escapeHtml(readerTitle(entity))}</h1>
+                <div class="fm-chips">${chipSpans(entity)}</div>
                 ${tags}
             </header>
         `;
@@ -214,9 +193,9 @@ class EntityPage {
         const facts: [string, string][] = [];
         if (entity.sector_classification) facts.push(["sector", entity.sector_classification]);
         if (entity.market_cap) facts.push(["market cap", entity.market_cap]);
-        const normalized = this.fmString(fm, "normalized_name");
+        const normalized = fmString(fm, "normalized_name");
         if (normalized) facts.push(["normalized", normalized]);
-        const permalink = this.fmString(fm, "permalink");
+        const permalink = fmString(fm, "permalink");
         if (permalink) facts.push(["permalink", permalink]);
         if (entity.file_path) facts.push(["file", entity.file_path]);
         if (!facts.length) {
@@ -331,79 +310,11 @@ class EntityPage {
         if (this.wikilinks) return this.wikilinks;
         try {
             const data = await fetchJson<EntitiesResponse>("/api/entities?limit=5000");
-            const index = new Map<string, string>();
-            for (const entity of data.entities) {
-                if (!entity.file_path) continue;
-                const stem = (entity.file_path.split("/").pop() || "").replace(/\.md$/i, "");
-                if (stem && !index.has(stem)) index.set(stem, entity.file_path);
-                if (entity.name && !index.has(entity.name))
-                    index.set(entity.name, entity.file_path);
-            }
+            const index = buildWikilinkIndex(data.entities);
             this.wikilinks = index;
             return index;
         } catch {
             return null;
-        }
-    }
-
-    /** Same DOM-level rewrite as the Reading Room (code/pre/a untouched). */
-    private linkifyWikilinks(root: HTMLElement): void {
-        const index = this.wikilinks;
-        if (!index) return;
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-            acceptNode(node: Node): number {
-                let parent: Node | null = node.parentElement;
-                while (parent && parent !== root) {
-                    const tag = parent.nodeName;
-                    if (tag === "CODE" || tag === "PRE" || tag === "A" || tag === "SCRIPT") {
-                        return NodeFilter.FILTER_REJECT;
-                    }
-                    parent = parent.parentElement;
-                }
-                return node.nodeValue && node.nodeValue.includes("[[")
-                    ? NodeFilter.FILTER_ACCEPT
-                    : NodeFilter.FILTER_SKIP;
-            },
-        });
-        const targets: Text[] = [];
-        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-            targets.push(n as Text);
-        }
-        for (const textNode of targets) {
-            const text = textNode.nodeValue || "";
-            WIKILINK_RE.lastIndex = 0;
-            if (!WIKILINK_RE.test(text)) continue;
-            const fragment = document.createDocumentFragment();
-            let cursor = 0;
-            let match: RegExpExecArray | null;
-            WIKILINK_RE.lastIndex = 0;
-            while ((match = WIKILINK_RE.exec(text)) !== null) {
-                if (match.index > cursor) {
-                    fragment.appendChild(document.createTextNode(text.slice(cursor, match.index)));
-                }
-                const target = (match[1] || "").trim();
-                const label = (match[2] || "").trim() || target;
-                const href = index.get(target);
-                if (href) {
-                    const anchor = document.createElement("a");
-                    anchor.className = "wikilink";
-                    anchor.href = `/entity/${encodeURIComponent(href)}`;
-                    anchor.title = href;
-                    anchor.textContent = label;
-                    fragment.appendChild(anchor);
-                } else {
-                    const miss = document.createElement("span");
-                    miss.className = "wikilink wikilink-miss";
-                    miss.title = "unresolved note";
-                    miss.textContent = label;
-                    fragment.appendChild(miss);
-                }
-                cursor = match.index + match[0].length;
-            }
-            if (cursor < text.length) {
-                fragment.appendChild(document.createTextNode(text.slice(cursor)));
-            }
-            textNode.replaceWith(fragment);
         }
     }
 
@@ -487,40 +398,6 @@ class EntityPage {
         errorState.style.display = "flex";
         const paragraph = errorState.querySelector("p");
         if (paragraph) paragraph.textContent = message;
-    }
-
-    // --- frontmatter helpers --------------------------------------------------------- //
-
-    private fmString(fm: NoteFrontmatter, key: string): string | null {
-        const v = fm[key];
-        return typeof v === "string" && v.trim() ? v : null;
-    }
-
-    private fmScalar(fm: NoteFrontmatter, key: string): string | null {
-        const v = this.fmString(fm, key);
-        if (v === null) return null;
-        return /^\d{4}-\d{2}-\d{2}T/.test(v) ? v.slice(0, 10) : v;
-    }
-
-    private fmGeneratedAt(fm: NoteFrontmatter): string | null {
-        const g = fm.generated;
-        if (g && typeof g === "object" && "at" in g) {
-            const at = (g as { at?: unknown }).at;
-            if (typeof at === "string" && at) return at.slice(0, 10);
-        }
-        return null;
-    }
-
-    private fmPublisher(fm: NoteFrontmatter): string | null {
-        const tags = Array.isArray(fm.tags)
-            ? fm.tags.filter((t): t is string => typeof t === "string")
-            : [];
-        for (const tag of tags) {
-            if (tag.startsWith("publisher/")) {
-                return tag.slice("publisher/".length).replace(/\b\w/g, (c) => c.toUpperCase());
-            }
-        }
-        return null;
     }
 
     private eventDateLabel(date: string | null, precision: string | null): string {

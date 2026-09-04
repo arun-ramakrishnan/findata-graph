@@ -11,8 +11,8 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from helpers.core.env import REPO_ROOT  # noqa: E402
 from helpers.maintenance.snapshot_db import (  # noqa: E402
-    _compute_root,
     _list_sqlite_tables,
     _list_duckdb_tables,
     create_snapshot,
@@ -29,10 +29,10 @@ _log = logging.getLogger("test_snapshot")
 
 
 # ---------------------------------------------------------------------------
-# _compute_root
+# REPO_ROOT (folds the old snapshot_db._compute_root — helpers de-dup)
 # ---------------------------------------------------------------------------
-def test_compute_root_is_path():
-    root = _compute_root()
+def test_repo_root_is_path():
+    root = REPO_ROOT
     assert isinstance(root, Path)
     # Worktree-agnostic (2026-09-03): "the root of THIS checkout", not the
     # main checkout's directory name — stax worktrees are named after their

@@ -28,15 +28,13 @@ from helpers.graph import derive_cited_in as dc  # noqa: E402
 pytestmark = [pytest.mark.integration]
 
 
+from tests.schema import ENTITIES_MINIMAL  # noqa: E402
+
+
 def _schema_sql():
-    return """
-    CREATE TABLE entities(
-        name TEXT PRIMARY KEY,
-        entity_type TEXT,
-        normalized_name TEXT,
-        file_path TEXT,
-        last_updated TEXT
-    );
+    return (
+        ENTITIES_MINIMAL
+        + """
     CREATE TABLE graph_edges(
         source TEXT NOT NULL,
         target TEXT NOT NULL,
@@ -51,6 +49,7 @@ def _schema_sql():
         as_of_edition TEXT
     );
     """
+    )
 
 
 def _make_vault(tmp_path: Path) -> Path:

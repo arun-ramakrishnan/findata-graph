@@ -144,6 +144,8 @@ class TestApiTsParses:
 # Shared fixture: seeded Flask test_client with all needed tables
 # --------------------------------------------------------------------------- #
 
+from tests.schema import GRAPH_ANALYTICS, NOTE_SEARCH_FTS  # noqa: E402
+
 _SCHEMA = """
 CREATE TABLE entities (
     name                  TEXT PRIMARY KEY NOT NULL,
@@ -175,13 +177,7 @@ CREATE TABLE graph_edges (
     UNIQUE(source, target, edge_type),
     CHECK (source != target)
 );
-CREATE TABLE graph_analytics (
-    entity_name TEXT NOT NULL,
-    metric      TEXT NOT NULL,
-    value       TEXT NOT NULL,
-    computed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (metric, entity_name)
-);
+""" + GRAPH_ANALYTICS + """
 CREATE TABLE events (
     id            INTEGER PRIMARY KEY,
     entity        TEXT NOT NULL,
@@ -194,11 +190,7 @@ CREATE TABLE events (
     source_quote  TEXT,
     as_of_edition TEXT
 );
-CREATE VIRTUAL TABLE note_search USING fts5(
-    doc_type, file_path UNINDEXED, title, sector, content,
-    tokenize = 'porter unicode61'
-);
-"""
+""" + NOTE_SEARCH_FTS
 
 # Note file content — must exist on disk for /api/entity to return frontmatter
 GOOD_NOTE = """---
@@ -300,18 +292,7 @@ def contract_client(tmp_path):
     # so app.py can read it directly. No fixture file needed.
 
     # Wire app.get_db_connection to our DB
-    _open_conns: list[sqlite3.Connection] = []
-
-    def _open():
-        c = sqlite3.connect(str(db_path))
-        c.row_factory = sqlite3.Row
-        _open_conns.append(c)
-        return c
-
-    # Note: app.py resolves note files relative to project root. We don't want
-    # to write into the real repo, so we monkeypatch the path resolution.
-    saved_gdb = A.get_db_connection
-    A.get_db_connection = _open  # ty: ignore[invalid-assignment]
+    from tests.helpers import flask_test_client  # noqa: E402
 
     # Monkeypatch get_graph_connection to raise so DuckDB endpoints aren't hit
     saved_ggc = A.get_graph_connection
@@ -320,15 +301,10 @@ def contract_client(tmp_path):
     )
 
     try:
-        yield A.app.test_client()
+        with flask_test_client(db_path, track_conns=True) as client:
+            yield client
     finally:
-        A.get_db_connection = saved_gdb
         A.get_graph_connection = saved_ggc
-        for c in _open_conns:
-            try:
-                c.close()
-            except sqlite3.Error:
-                pass
 
 
 # --------------------------------------------------------------------------- #

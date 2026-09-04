@@ -42,45 +42,10 @@ pytestmark = [pytest.mark.integration]
 # Schema: entities + graph_edges + events + quotes + company_metrics
 # --------------------------------------------------------------------------- #
 
-_SCHEMA = """
-CREATE TABLE entities (
-    name TEXT PRIMARY KEY NOT NULL,
-    entity_type TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    file_path TEXT,
-    last_updated DATETIME,
-    normalized_name TEXT,
-    sector_classification TEXT,
-    ticker TEXT
-);
-CREATE TABLE graph_edges (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source TEXT NOT NULL,
-    target TEXT NOT NULL,
-    edge_type TEXT NOT NULL,
-    weight REAL NOT NULL DEFAULT 1.0,
-    properties TEXT NOT NULL DEFAULT '{}',
-    valid_from DATE,
-    valid_to DATE,
-    source_ref TEXT NOT NULL,
-    symmetric INTEGER NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(source, target, edge_type)
-);
-CREATE TABLE events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    entity TEXT NOT NULL,
-    event_type TEXT,
-    event_date TEXT,
-    period TEXT,
-    date_precision TEXT,
-    magnitude TEXT,
-    counterparty TEXT,
-    source_quote TEXT,
-    as_of_edition TEXT,
-    source_ref TEXT,
-    properties TEXT
-);
+from tests.schema import EDGES_12COL, ENTITIES_8COL, EVENTS  # noqa: E402
+
+# Local extras: quotes + company_metrics (derive-chain-only tables).
+_EXTRA_DDL = """
 CREATE TABLE quotes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     entity TEXT NOT NULL,
@@ -106,6 +71,8 @@ CREATE TABLE company_metrics (
     properties TEXT
 );
 """
+
+_SCHEMA = "".join([ENTITIES_8COL, EDGES_12COL, EVENTS, _EXTRA_DDL])
 
 
 @pytest.fixture

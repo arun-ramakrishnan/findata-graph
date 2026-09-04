@@ -4,57 +4,15 @@
 # (max/kernels/src/linalg/matmul/cpu/impl.mojo sync_parallelize, Mojo/src/common/taskgroup_fanout.mojo 2.89×)
 # Run: mojo run Mojo/src/bench/bench_cosine_max_parallel.mojo <matrix.f32> <query.f32> <rows> <dims> <reps>
 
-from std.io.file import open
 from std.memory.alloc import alloc, Layout
 from std.sys import argv, simd_width_of
-from std.algorithm.functional import vectorize
 from std.time import perf_counter_ns
 from std.math import sqrt
 from std.runtime.asyncrt import TaskGroup
 
+from cosine import load_f32, row_cosine, scan_serial
+
 comptime width = simd_width_of[DType.float32]()
-
-
-def row_cosine(
-    row: Pointer[Float32, MutUntrackedOrigin],
-    query: Pointer[Float32, MutUntrackedOrigin],
-    query_norm: Float64,
-    dims: Int,
-) -> Float64:
-    var dot: Float64 = 0.0
-    var row_sq: Float64 = 0.0
-
-    def chunk[width: Int](i: Int) {mut dot, mut row_sq, imm row, imm query}:
-        var v = row.unsafe_load[width=width](i)
-        var w = query.unsafe_load[width=width](i)
-        dot += Float64((v * w).reduce_add())
-        row_sq += Float64((v * v).reduce_add())
-
-    vectorize[width](dims, chunk)
-    var row_norm = sqrt(row_sq)
-    if row_norm == 0 or query_norm == 0:
-        return 0.0
-    return dot / (query_norm * row_norm)
-
-
-def load_f32(
-    path: String, count: Int
-) raises -> Pointer[Float32, MutUntrackedOrigin]:
-    var p = alloc(Layout[Float32](count=count)).unsafe_leak()
-    var f = open(path, "r")
-    var nbytes = f.read(Span(unsafe_ptr=p, length=count))
-    f.close()
-    if nbytes != count * 4:
-        p.unsafe_free()
-        raise Error(
-            "expected "
-            + String(count * 4)
-            + " bytes from "
-            + path
-            + ", got "
-            + String(nbytes)
-        )
-    return p
 
 
 async def worker(
@@ -127,25 +85,6 @@ def scan_parallel(
             best_idx = idx
     res_idx.unsafe_free()
     res_score.unsafe_free()
-    return (best_idx, best_score)
-
-
-def scan_serial(
-    matrix: Pointer[Float32, MutUntrackedOrigin],
-    query: Pointer[Float32, MutUntrackedOrigin],
-    query_norm: Float64,
-    rows: Int,
-    dims: Int,
-) -> Tuple[Int, Float64]:
-    var best_idx: Int = -1
-    var best_score: Float64 = -2.0
-    for r in range(rows):
-        var score = row_cosine(
-            matrix.unsafe_offset(r * dims), query, query_norm, dims
-        )
-        if score > best_score:
-            best_score = score
-            best_idx = r
     return (best_idx, best_score)
 
 

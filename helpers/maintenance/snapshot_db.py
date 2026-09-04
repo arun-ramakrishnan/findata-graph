@@ -77,6 +77,9 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from helpers.core.db import connect  # noqa: E402  (post-bootstrap: entry point, lazy-import convention)
+from helpers.core.env import REPO_ROOT  # noqa: E402  (folds _compute_root)
+
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(message)s"
 DEFAULT_DB = "memory/research.db"
 DEFAULT_OUT = "db-backup/research.snapshot.db.zst"
@@ -84,26 +87,6 @@ DEFAULT_DUCKDB = "memory/graph.duckdb"
 DEFAULT_DUCKDB_OUT = "db-backup/graph.snapshot.duckdb.zst"
 # Git-tracked, restoreable Parquet snapshot (see module docstring).
 DEFAULT_PARQUET = "snapshots/parquet"
-
-
-def _compute_root() -> Path:
-    # helpers/maintenance/snapshot_db.py -> repo root is two parents up
-    return Path(__file__).resolve().parents[2]
-
-
-def _connect_ro(db_path: Path) -> sqlite3.Connection:
-    """Read-only connection for live-source reads.
-
-    The backup source, the snapshot verifier's source counts, and the
-    parquet exporter/verifier only ever SELECT from the live DBs — but a
-    plain ``sqlite3.connect`` opens read-write, which dirties the file
-    mtime via WAL bookkeeping (and would silently CREATE the file on a
-    bad path). mode=ro keeps every snapshot step byte-inert on its
-    sources. Callers must not issue writes on the returned connection
-    (they raise ``sqlite3.OperationalError: attempt to write a readonly
-    database``).
-    """
-    return sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
 
 
 def create_snapshot(db_path: Path, out_path: Path, logger: logging.Logger) -> dict:
@@ -115,8 +98,12 @@ def create_snapshot(db_path: Path, out_path: Path, logger: logging.Logger) -> di
     with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tf:
         tmp_path = Path(tf.name)
     try:
-        src = _connect_ro(db_path)
-        dest = sqlite3.connect(str(tmp_path))
+        src = connect(db_path, read_only=True)
+        # wal=False: PRAGMA journal_mode=WAL on the fresh empty dest breaks
+        # the sqlite online-backup API into it ("attempt to write a readonly
+        # database" — verified 2026-09-03). All other connect() pragmas are
+        # backup-safe; WAL is set nowhere downstream of this temp file.
+        dest = connect(tmp_path, wal=False)
         try:
             with dest:
                 src.backup(dest)
@@ -151,7 +138,7 @@ def verify_snapshot(snapshot_path: Path, source_db: Path | None, logger: logging
 
         decompress_file(snapshot_path, tmp_path)
 
-        conn = sqlite3.connect(str(tmp_path))
+        conn = connect(tmp_path)
         try:
             cur = conn.cursor()
             cur.execute("PRAGMA integrity_check")
@@ -172,7 +159,7 @@ def verify_snapshot(snapshot_path: Path, source_db: Path | None, logger: logging
     }
 
     if source_db and source_db.exists():
-        sconn = _connect_ro(source_db)
+        sconn = connect(source_db, read_only=True)
         try:
             scur = sconn.cursor()
             scur.execute("SELECT COUNT(*) FROM entities")
@@ -680,7 +667,7 @@ def export_parquet_sqlite(sqlite_path: Path, out_dir: Path, logger: logging.Logg
     import pyarrow.parquet as pq
 
     out_dir.mkdir(parents=True, exist_ok=True)
-    con = _connect_ro(sqlite_path)
+    con = connect(sqlite_path, read_only=True)
     try:
         tables = _list_sqlite_tables(con)
     except Exception:
@@ -772,7 +759,7 @@ def _verify_parquet_sqlite_side(
     if sqlite_path and sqlite_path.exists():
         sqlite_pq_dir = parquet_dir / "sqlite"
         if sqlite_pq_dir.exists():
-            scon = _connect_ro(sqlite_path)
+            scon = connect(sqlite_path, read_only=True)
             try:
                 pq_files = sorted(sqlite_pq_dir.glob("*.parquet"))
                 for pf in pq_files:
@@ -853,7 +840,7 @@ def restore_sqlite_from_parquet(parquet_dir: Path, target: Path, logger: logging
     tmp = target.with_name(target.name + ".restore-tmp")
     tmp.unlink(missing_ok=True)
 
-    con = sqlite3.connect(str(tmp))
+    con = connect(tmp)
     restored: dict[str, int] = {}
     try:
         con.executescript(schema_path.read_text())
@@ -1239,7 +1226,7 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=log_level, format=LOG_FORMAT)
     logger = logging.getLogger("snapshot_db")
 
-    root = _compute_root()
+    root = REPO_ROOT
     db_path = Path(args.db)
     db_path = db_path if db_path.is_absolute() else root / db_path
     out_path = Path(args.out)

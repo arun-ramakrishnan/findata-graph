@@ -11,15 +11,13 @@ from contextlib import contextmanager
 
 import pytest
 
-import app as A
 
-_SCHEMA = """
-CREATE TABLE entities (
-    name TEXT PRIMARY KEY,
-    entity_type TEXT,
-    sector_classification TEXT,
-    file_path TEXT
-);
+from tests.schema import ENTITIES_4COL, RELATIONS  # noqa: E402
+from tests.helpers import flask_test_client, response_count, response_names  # noqa: E402
+
+_SCHEMA = (
+    ENTITIES_4COL
+    + """
 CREATE TABLE entity_tags (
     entity_name TEXT NOT NULL,
     tag         TEXT NOT NULL,
@@ -27,18 +25,9 @@ CREATE TABLE entity_tags (
     FOREIGN KEY (entity_name) REFERENCES entities(name)
         ON DELETE CASCADE ON UPDATE CASCADE
 );
-CREATE TABLE relations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source TEXT NOT NULL,
-    target TEXT NOT NULL,
-    relation_type TEXT NOT NULL,
-    UNIQUE(source, target, relation_type),
-    FOREIGN KEY (source) REFERENCES entities(name)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (target) REFERENCES entities(name)
-        ON DELETE CASCADE ON UPDATE CASCADE
-);
 """
+    + RELATIONS
+)
 
 # name, type, sector_classification, file_path, tags[]
 # Bundle C2: market_cap dropped from the entities column; the market_cap/*
@@ -98,12 +87,12 @@ def _seeded_db(tmp_path):
     conn.commit()
     conn.close()
 
-    saved = A.get_db_connection
-    A.get_db_connection = lambda: sqlite3.connect(str(db_path))  # ty: ignore[invalid-assignment]
-    try:
-        yield A.app.test_client()
-    finally:
-        A.get_db_connection = saved
+    # Row-less opener preserved explicitly: centralizing this site to the
+    # Row default would be a semantic change (see tests/helpers.py).
+    with flask_test_client(
+        db_path, connect_fn=lambda: sqlite3.connect(str(db_path))
+    ) as client:
+        yield client
 
 
 @pytest.fixture
@@ -112,39 +101,31 @@ def client(tmp_path):
         yield c
 
 
-def _names(resp):
-    return sorted(e["name"] for e in resp.get_json()["entities"])
-
-
-def _count(resp):
-    return resp.get_json()["total_count"]
-
-
 def test_sector_filter_uses_tags(client):
     # PascalCase sector value, as the frontend dropdown sends it
     r = client.get("/api/entities?type=company&sector=Banking")
-    assert _names(r) == ["HDFC Bank", "Small Co-op Bank"]
-    assert _count(r) == 2
+    assert response_names(r, "entities", "name") == ["HDFC Bank", "Small Co-op Bank"]
+    assert response_count(r) == 2
 
 
 def test_marketcap_filter_uses_tags(client):
     r = client.get("/api/entities?type=company&marketcap=large_cap")
-    assert _names(r) == ["HDFC Bank", "Infosys"]
+    assert response_names(r, "entities", "name") == ["HDFC Bank", "Infosys"]
 
 
 def test_tag_intersection(client):
     r = client.get("/api/entities?type=company&sector=Technology&marketcap=small_cap")
-    assert _names(r) == ["TinyTech"]
+    assert response_names(r, "entities", "name") == ["TinyTech"]
 
 
 def test_search_by_sector_name(client):
     r = client.get("/api/entities?type=company&search=banking")
-    assert _names(r) == ["HDFC Bank", "Small Co-op Bank"]
+    assert response_names(r, "entities", "name") == ["HDFC Bank", "Small Co-op Bank"]
 
 
 def test_search_by_company_name(client):
     r = client.get("/api/entities?type=company&search=Infosys")
-    assert _names(r) == ["Infosys"]
+    assert response_names(r, "entities", "name") == ["Infosys"]
 
 
 def test_response_includes_tags(client):
@@ -156,4 +137,4 @@ def test_response_includes_tags(client):
 
 def test_no_filter_returns_all_companies(client):
     r = client.get("/api/entities?type=company")
-    assert _count(r) == 4  # 4 companies (excludes the Banking sector entity)
+    assert response_count(r) == 4  # 4 companies (excludes the Banking sector entity)

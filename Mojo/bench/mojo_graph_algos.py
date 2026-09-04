@@ -22,14 +22,17 @@ tables are CREATE OR REPLACE TEMP — session-local, idempotent.
 
 from __future__ import annotations
 
-import pathlib
 import sqlite3
-import sys
 import time
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-if str(REPO) not in sys.path:
-    sys.path.insert(0, str(REPO))
+from bridge_utils import (  # Mojo/bench is on sys.path for every importer
+    REPO,
+    connect_sqlite_ro,
+    ensure_repo_on_path,
+    sum_rows,
+)
+
+ensure_repo_on_path()
 
 RESEARCH_DB = REPO / "memory" / "research.db"
 DOC_DB = REPO / "memory" / "doc_search.db"
@@ -56,20 +59,10 @@ def graph_con():
     return _gcon
 
 
-def _connect_ro(db: pathlib.Path) -> sqlite3.Connection:
-    """Read-only connection via the shared helper (P0 static check).
-    row_factory=None keeps raw tuples: sum_rows hashes repr(row) and the
-    Mojo side mirrors Python's tuple repr byte-for-byte — the sqlite3.Row
-    default would change every checksum and break parity."""
-    from helpers.core.db import connect
-
-    return connect(db, read_only=True, row_factory=None)
-
-
 def research_con() -> sqlite3.Connection:
     global _sq
     if _sq is None:
-        _sq = _connect_ro(RESEARCH_DB)
+        _sq = connect_sqlite_ro(RESEARCH_DB)
     return _sq
 
 
@@ -78,7 +71,7 @@ def doc_con() -> sqlite3.Connection:
     if _doc is None:
         if not DOC_DB.exists():
             raise FileNotFoundError("memory/doc_search.db missing — run rebuild_doc_search")
-        _doc = _connect_ro(DOC_DB)
+        _doc = connect_sqlite_ro(DOC_DB)
     return _doc
 
 
@@ -87,7 +80,7 @@ def script_con() -> sqlite3.Connection:
     if _scr is None:
         if not SCRIPT_DB.exists():
             raise FileNotFoundError("memory/script_search.db missing — run rebuild_script_search")
-        _scr = _connect_ro(SCRIPT_DB)
+        _scr = connect_sqlite_ro(SCRIPT_DB)
     return _scr
 
 
@@ -464,13 +457,8 @@ def ncases() -> int:
 # --------------------------------------------------------------------------- #
 # Native SQL baseline (checksum parity oracle). Cases run IN LIST ORDER —
 # materialisation state must build up exactly as it will for the Mojo run.
+# (sum_rows lives in bridge_utils — shared checksum oracle.)
 # --------------------------------------------------------------------------- #
-def sum_rows(rows) -> int:
-    """Deterministic row checksum, computable identically on both sides:
-    UTF-8 BYTES of repr(row) — the Mojo side measures byte_length()."""
-    return sum(len(repr(r).encode("utf-8")) for r in rows)
-
-
 _NATIVE_SQL: dict[str, tuple] = {}
 
 

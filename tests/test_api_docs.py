@@ -32,10 +32,9 @@ pytestmark = [pytest.mark.integration]
 
 
 @pytest.fixture
-def client():
+def client(bare_client):
     """Bare Flask test_client (docs endpoints never touch the research DB)."""
-    with A.app.test_client() as c:
-        yield c
+    yield bare_client
 
 
 def _catalog(client, q=None):

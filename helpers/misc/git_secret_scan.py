@@ -26,7 +26,6 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import UTC, datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -60,7 +59,17 @@ PATTERNS: list[tuple[str, re.Pattern[bytes]]] = [
 
 
 def _now_utc() -> str:
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    """Delegate to helpers.core.frontmatter.iso_now_utc (single source of truth).
+
+    Imported lazily: this script runs standalone (``make secret-scan``) with
+    no sys.path bootstrap, and frontmatter pulls yaml — import time stays
+    stdlib-only.
+    """
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+    from helpers.core.frontmatter import iso_now_utc
+
+    return iso_now_utc()
 
 
 def load_state() -> dict:

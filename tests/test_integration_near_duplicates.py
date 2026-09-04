@@ -25,6 +25,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.graph import query  # noqa: E402
 from helpers.graph.query import DB_PATH  # noqa: E402
+from tests.helpers import copy_production_db  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 
@@ -50,23 +51,8 @@ _VECS = {
 def _make_db(db_path: Path) -> None:
     """Production-schema DB with 5 company note_search rows whose embedding
     vectors are the controlled set above."""
-    src = sqlite3.connect(str(DB_PATH))
+    copy_production_db(DB_PATH, db_path)
     dst = sqlite3.connect(str(db_path))
-    src.backup(dst)
-    src.close()
-    for t in (
-        "graph_edges",
-        "entity_tags",
-        "graph_analytics",
-        "events",
-        "quotes",
-        "company_metrics",
-        "company_embeddings",
-        "note_search",
-        "note_search_meta",
-    ):
-        dst.execute(f"DELETE FROM {t}")  # noqa: S608  # schema-constant identifiers
-    dst.execute("DELETE FROM entities")
     for stem in "ABCDE":
         dst.execute(
             "INSERT INTO entities (name, entity_type, file_path) VALUES (?, 'company', ?)",

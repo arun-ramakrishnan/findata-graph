@@ -40,6 +40,142 @@
     return await response.json();
   }
 
+  // src/core/reader.ts
+  var SERIES_LABELS = {
+    The_Chatter: "The Chatter",
+    Points_And_Figures: "Points & Figures",
+    The_PlotLines: "The Plotlines"
+  };
+  var WIKILINK_RE = /\[\[([^\[\]|]+?)(?:#[^\[\]|]*)?(?:\|([^\[\]]+?))?\]\]/g;
+  var CHIP_KEYS = ["ticker", "sector", "industry", "market_cap", "created", "last_modified"];
+  function seriesLabel(filePath) {
+    return filePath ? SERIES_LABELS[filePath.split("/")[1]] : void 0;
+  }
+  function readerTitle(entity) {
+    return fmString(entity.frontmatter, "title") ?? entity.name.replace(/_/g, " ");
+  }
+  function editionBits(entity) {
+    const fm = entity.frontmatter;
+    const bits = [];
+    const publisher = fmPublisher(fm);
+    if (publisher) bits.push(escapeHtml(publisher));
+    const generated = fmGeneratedAt(fm);
+    if (generated) bits.push(`generated ${escapeHtml(generated)}`);
+    const stale = fmScalar(fm, "stale_after");
+    if (stale) bits.push(`fresh through ${escapeHtml(stale)}`);
+    return bits;
+  }
+  function chipSpans(entity) {
+    const fm = entity.frontmatter;
+    const chips = [
+      `<span class="fm-chip fm-type">${escapeHtml(entity.entity_type.replace(/_/g, " "))}</span>`
+    ];
+    for (const key of CHIP_KEYS) {
+      const value = fmScalar(fm, key);
+      if (value) {
+        chips.push(
+          `<span class="fm-chip"><b>${escapeHtml(key.replace(/_/g, " "))}</b>${escapeHtml(value)}</span>`
+        );
+      }
+    }
+    return chips.join("");
+  }
+  function buildWikilinkIndex(entities) {
+    const index = /* @__PURE__ */ new Map();
+    for (const entity of entities) {
+      if (!entity.file_path) continue;
+      const stem = (entity.file_path.split("/").pop() || "").replace(/\.md$/i, "");
+      if (stem && !index.has(stem)) index.set(stem, entity.file_path);
+      if (entity.name && !index.has(entity.name)) index.set(entity.name, entity.file_path);
+    }
+    return index;
+  }
+  function linkifyWikilinks(root, index, hrefFor) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        let parent = node.parentElement;
+        while (parent && parent !== root) {
+          const tag = parent.nodeName;
+          if (tag === "CODE" || tag === "PRE" || tag === "A" || tag === "SCRIPT") {
+            return NodeFilter.FILTER_REJECT;
+          }
+          parent = parent.parentElement;
+        }
+        return node.nodeValue && node.nodeValue.includes("[[") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      }
+    });
+    const targets = [];
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      targets.push(n);
+    }
+    for (const textNode of targets) {
+      const text = textNode.nodeValue || "";
+      WIKILINK_RE.lastIndex = 0;
+      if (!WIKILINK_RE.test(text)) continue;
+      const fragment = document.createDocumentFragment();
+      let cursor = 0;
+      let match;
+      WIKILINK_RE.lastIndex = 0;
+      while ((match = WIKILINK_RE.exec(text)) !== null) {
+        if (match.index > cursor) {
+          fragment.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+        }
+        const target = (match[1] || "").trim();
+        const label = (match[2] || "").trim() || target;
+        const href = index.get(target);
+        if (href) {
+          const resolved = hrefFor(href);
+          const anchor = document.createElement("a");
+          anchor.className = "wikilink";
+          anchor.href = resolved.href;
+          if (resolved.datasetHref !== void 0) {
+            anchor.dataset.href = resolved.datasetHref;
+          }
+          anchor.title = href;
+          anchor.textContent = label;
+          fragment.appendChild(anchor);
+        } else {
+          const miss = document.createElement("span");
+          miss.className = "wikilink wikilink-miss";
+          miss.title = "unresolved note";
+          miss.textContent = label;
+          fragment.appendChild(miss);
+        }
+        cursor = match.index + match[0].length;
+      }
+      if (cursor < text.length) {
+        fragment.appendChild(document.createTextNode(text.slice(cursor)));
+      }
+      textNode.replaceWith(fragment);
+    }
+  }
+  function fmString(fm, key) {
+    const v = fm[key];
+    return typeof v === "string" && v.trim() ? v : null;
+  }
+  function fmScalar(fm, key) {
+    const v = fmString(fm, key);
+    if (v === null) return null;
+    return /^\d{4}-\d{2}-\d{2}T/.test(v) ? v.slice(0, 10) : v;
+  }
+  function fmGeneratedAt(fm) {
+    const g = fm.generated;
+    if (g && typeof g === "object" && "at" in g) {
+      const at = g.at;
+      if (typeof at === "string" && at) return at.slice(0, 10);
+    }
+    return null;
+  }
+  function fmPublisher(fm) {
+    const tags = Array.isArray(fm.tags) ? fm.tags.filter((t) => typeof t === "string") : [];
+    for (const tag of tags) {
+      if (tag.startsWith("publisher/")) {
+        return tag.slice("publisher/".length).replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+    }
+    return null;
+  }
+
   // src/core/toast.ts
   function showToast(message, kind) {
     const toast = document.createElement("div");
@@ -186,13 +322,6 @@
   }
 
   // src/entity.ts
-  var SERIES_LABELS = {
-    The_Chatter: "The Chatter",
-    Points_And_Figures: "Points & Figures",
-    The_PlotLines: "The Plotlines"
-  };
-  var WIKILINK_RE = /\[\[([^\[\]|]+?)(?:#[^\[\]|]*)?(?:\|([^\[\]]+?))?\]\]/g;
-  var CHIP_KEYS = ["ticker", "sector", "industry", "market_cap", "created", "last_modified"];
   var EntityPage = class {
     constructor() {
       this.entity = null;
@@ -262,7 +391,7 @@
       const entity = this.entity;
       if (!entity) return;
       const fm = entity.frontmatter;
-      const isEdition = entity.entity_type === "edition" || this.fmString(fm, "type") === "newsletter";
+      const isEdition = entity.entity_type === "edition" || fmString(fm, "type") === "newsletter";
       document.title = `${entity.name} \u2014 FinData Knowledge Graph`;
       getEl("page-title").textContent = entity.name;
       getEl("breadcrumb-current").textContent = `${entity.entity_type.replace(/_/g, " ")}: ${entity.name}`;
@@ -281,7 +410,10 @@
       getEl("loading-state").style.display = "none";
       getEl("main-content").style.display = "grid";
       void this.ensureWikilinkIndex().then((index) => {
-        if (index) this.linkifyWikilinks(contentEl);
+        if (index)
+          linkifyWikilinks(contentEl, index, (href) => ({
+            href: `/entity/${encodeURIComponent(href)}`
+          }));
       });
       void this.loadEvents(entity.name);
       void this.loadSemanticPeers(entity.name);
@@ -289,18 +421,11 @@
     }
     /** Title block: chips (companies/sectors) or masthead (editions). */
     renderHeader(entity, isEdition) {
-      const fm = entity.frontmatter;
       const mount = getEl("entity-metadata");
       if (isEdition) {
-        const series = SERIES_LABELS[(entity.file_path || "").split("/")[1]];
-        const title = this.fmString(fm, "title") ?? entity.name.replace(/_/g, " ");
-        const bits = [];
-        const publisher = this.fmPublisher(fm);
-        if (publisher) bits.push(escapeHtml(publisher));
-        const generated = this.fmGeneratedAt(fm);
-        if (generated) bits.push(`generated ${escapeHtml(generated)}`);
-        const stale = this.fmString(fm, "stale_after");
-        if (stale) bits.push(`fresh through ${escapeHtml(stale.slice(0, 10))}`);
+        const series = seriesLabel(entity.file_path);
+        const title = readerTitle(entity);
+        const bits = editionBits(entity);
         mount.innerHTML = `
                 <header class="edition-masthead">
                     <div class="masthead-pub">${escapeHtml(series || "Newsletter")}</div>
@@ -310,22 +435,11 @@
             `;
         return;
       }
-      const chips = [
-        `<span class="fm-chip fm-type">${escapeHtml(entity.entity_type.replace(/_/g, " "))}</span>`
-      ];
-      for (const key of CHIP_KEYS) {
-        const value = this.fmScalar(fm, key);
-        if (value) {
-          chips.push(
-            `<span class="fm-chip"><b>${escapeHtml(key.replace(/_/g, " "))}</b>${escapeHtml(value)}</span>`
-          );
-        }
-      }
       const tags = entity.enhanced_tags.length ? `<div class="entity-tags">${entity.enhanced_tags.map((t) => `<span class="entity-tag">${escapeHtml(t)}</span>`).join("")}</div>` : "";
       mount.innerHTML = `
             <header class="entity-head">
-                <h1>${escapeHtml(this.fmString(fm, "title") ?? entity.name.replace(/_/g, " "))}</h1>
-                <div class="fm-chips">${chips.join("")}</div>
+                <h1>${escapeHtml(readerTitle(entity))}</h1>
+                <div class="fm-chips">${chipSpans(entity)}</div>
                 ${tags}
             </header>
         `;
@@ -336,9 +450,9 @@
       const facts = [];
       if (entity.sector_classification) facts.push(["sector", entity.sector_classification]);
       if (entity.market_cap) facts.push(["market cap", entity.market_cap]);
-      const normalized = this.fmString(fm, "normalized_name");
+      const normalized = fmString(fm, "normalized_name");
       if (normalized) facts.push(["normalized", normalized]);
-      const permalink = this.fmString(fm, "permalink");
+      const permalink = fmString(fm, "permalink");
       if (permalink) facts.push(["permalink", permalink]);
       if (entity.file_path) facts.push(["file", entity.file_path]);
       if (!facts.length) {
@@ -424,76 +538,11 @@
       if (this.wikilinks) return this.wikilinks;
       try {
         const data = await fetchJson("/api/entities?limit=5000");
-        const index = /* @__PURE__ */ new Map();
-        for (const entity of data.entities) {
-          if (!entity.file_path) continue;
-          const stem = (entity.file_path.split("/").pop() || "").replace(/\.md$/i, "");
-          if (stem && !index.has(stem)) index.set(stem, entity.file_path);
-          if (entity.name && !index.has(entity.name))
-            index.set(entity.name, entity.file_path);
-        }
+        const index = buildWikilinkIndex(data.entities);
         this.wikilinks = index;
         return index;
       } catch {
         return null;
-      }
-    }
-    /** Same DOM-level rewrite as the Reading Room (code/pre/a untouched). */
-    linkifyWikilinks(root) {
-      const index = this.wikilinks;
-      if (!index) return;
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-        acceptNode(node) {
-          let parent = node.parentElement;
-          while (parent && parent !== root) {
-            const tag = parent.nodeName;
-            if (tag === "CODE" || tag === "PRE" || tag === "A" || tag === "SCRIPT") {
-              return NodeFilter.FILTER_REJECT;
-            }
-            parent = parent.parentElement;
-          }
-          return node.nodeValue && node.nodeValue.includes("[[") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
-        }
-      });
-      const targets = [];
-      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-        targets.push(n);
-      }
-      for (const textNode of targets) {
-        const text = textNode.nodeValue || "";
-        WIKILINK_RE.lastIndex = 0;
-        if (!WIKILINK_RE.test(text)) continue;
-        const fragment = document.createDocumentFragment();
-        let cursor = 0;
-        let match;
-        WIKILINK_RE.lastIndex = 0;
-        while ((match = WIKILINK_RE.exec(text)) !== null) {
-          if (match.index > cursor) {
-            fragment.appendChild(document.createTextNode(text.slice(cursor, match.index)));
-          }
-          const target = (match[1] || "").trim();
-          const label = (match[2] || "").trim() || target;
-          const href = index.get(target);
-          if (href) {
-            const anchor = document.createElement("a");
-            anchor.className = "wikilink";
-            anchor.href = `/entity/${encodeURIComponent(href)}`;
-            anchor.title = href;
-            anchor.textContent = label;
-            fragment.appendChild(anchor);
-          } else {
-            const miss = document.createElement("span");
-            miss.className = "wikilink wikilink-miss";
-            miss.title = "unresolved note";
-            miss.textContent = label;
-            fragment.appendChild(miss);
-          }
-          cursor = match.index + match[0].length;
-        }
-        if (cursor < text.length) {
-          fragment.appendChild(document.createTextNode(text.slice(cursor)));
-        }
-        textNode.replaceWith(fragment);
       }
     }
     // --- page chrome -------------------------------------------------------------- //
@@ -573,33 +622,6 @@ ${entity.content || ""}`;
       errorState.style.display = "flex";
       const paragraph = errorState.querySelector("p");
       if (paragraph) paragraph.textContent = message;
-    }
-    // --- frontmatter helpers --------------------------------------------------------- //
-    fmString(fm, key) {
-      const v = fm[key];
-      return typeof v === "string" && v.trim() ? v : null;
-    }
-    fmScalar(fm, key) {
-      const v = this.fmString(fm, key);
-      if (v === null) return null;
-      return /^\d{4}-\d{2}-\d{2}T/.test(v) ? v.slice(0, 10) : v;
-    }
-    fmGeneratedAt(fm) {
-      const g = fm.generated;
-      if (g && typeof g === "object" && "at" in g) {
-        const at = g.at;
-        if (typeof at === "string" && at) return at.slice(0, 10);
-      }
-      return null;
-    }
-    fmPublisher(fm) {
-      const tags = Array.isArray(fm.tags) ? fm.tags.filter((t) => typeof t === "string") : [];
-      for (const tag of tags) {
-        if (tag.startsWith("publisher/")) {
-          return tag.slice("publisher/".length).replace(/\b\w/g, (c) => c.toUpperCase());
-        }
-      }
-      return null;
     }
     eventDateLabel(date, precision) {
       if (!date) return "\u2014";

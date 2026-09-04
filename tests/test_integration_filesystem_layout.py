@@ -24,40 +24,12 @@ import pytest
 pytestmark = [pytest.mark.integration]
 
 # --------------------------------------------------------------------------- #
-# Schema: entities + entity_tags + graph_edges
+# Schema: entities + entity_tags + graph_edges (shared tests/schema.py)
 # --------------------------------------------------------------------------- #
 
-_SCHEMA = """
-CREATE TABLE entities (
-    name TEXT PRIMARY KEY NOT NULL,
-    entity_type TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    file_path TEXT,
-    last_updated DATETIME,
-    normalized_name TEXT,
-    sector_classification TEXT,
-    ticker TEXT
-);
-CREATE TABLE entity_tags (
-    entity_name TEXT NOT NULL,
-    tag TEXT NOT NULL,
-    PRIMARY KEY (entity_name, tag)
-);
-CREATE TABLE graph_edges (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source TEXT NOT NULL,
-    target TEXT NOT NULL,
-    edge_type TEXT NOT NULL,
-    weight REAL NOT NULL DEFAULT 1.0,
-    properties TEXT NOT NULL DEFAULT '{}',
-    valid_from DATE,
-    valid_to DATE,
-    source_ref TEXT NOT NULL,
-    symmetric INTEGER NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(source, target, edge_type)
-);
-"""
+from tests.schema import EDGES_12COL, ENTITIES_8COL, ENTITY_TAGS  # noqa: E402
+
+_SCHEMA = "".join([ENTITIES_8COL, ENTITY_TAGS, EDGES_12COL])
 
 # --------------------------------------------------------------------------- #
 # Seed data: companies and sectors

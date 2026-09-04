@@ -35,6 +35,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.embed_matrix import EmbedMatrix  # noqa: E402  # post-bootstrap (mirrors helpers/graph/*.py)
+from aligned_array import aligned_array  # noqa: E402  # shared 64B-alignment helper (same dir)
 
 
 class FlatKNN:
@@ -58,10 +59,7 @@ class FlatKNN:
         # Resident 64B-aligned copy — do NOT hand MAX the mmap view and hope
         # its DLPack import stays zero-copy (see module docstring). At 100M
         # scale this buffer IS the serving working set (381 MB @ 260k×384).
-        itemsize, alignment = 4, 64
-        buf = np.empty(rows * dims + alignment // itemsize, dtype=np.float32)
-        off = (-buf.ctypes.data) % alignment
-        resident = buf[off // itemsize : off // itemsize + rows * dims].reshape(rows, dims)
+        resident, buf = aligned_array((rows, dims))
         resident[:] = em.matrix
         self._resident, self._keepalive = resident, buf
         device = DeviceRef.CPU()
@@ -80,10 +78,7 @@ class FlatKNN:
             return []
         # 64B-aligned query buffer — the vmovaps contract (bench-proven 8/8
         # segfault on 16-mod-32 inputs).
-        itemsize, alignment = 4, 64
-        buf = np.empty(self._dims + alignment // itemsize, dtype=np.float32)
-        off = (-buf.ctypes.data) % alignment
-        qbuf = buf[off // itemsize : off // itemsize + self._dims]
+        qbuf, _qkeep = aligned_array((self._dims,))
         qbuf[:] = q / n
         scores = self._model.execute(self._resident, qbuf.reshape(-1, 1))[0].to_numpy().ravel()
         k = min(k, len(scores))

@@ -19,7 +19,6 @@ import type {
     DocsResponse,
     EntitiesResponse,
     EntityDetailResponse,
-    NoteFrontmatter,
     SearchResponse,
     SimilarNeighbor,
     SimilarNotesResponse,
@@ -34,6 +33,16 @@ import {
     processRichContent,
     wireRichInteractions,
 } from "../core/markdown";
+import {
+    SERIES_LABELS,
+    buildWikilinkIndex,
+    chipSpans,
+    editionBits,
+    fmString,
+    linkifyWikilinks,
+    readerTitle,
+    seriesLabel,
+} from "../core/reader";
 
 /** Which sidebar collection is active. */
 type Collection = "docs" | "vault";
@@ -51,13 +60,6 @@ interface ListGroup {
     }[];
 }
 
-/** Newsletter series directory → masthead publication label. */
-const SERIES_LABELS: Record<string, string> = {
-    The_Chatter: "The Chatter",
-    Points_And_Figures: "Points & Figures",
-    The_PlotLines: "The Plotlines",
-};
-
 /** doc_type (note_search) → short sidebar chip label. */
 const DOCTYPE_LABELS: Record<string, string> = {
     company: "company",
@@ -67,12 +69,6 @@ const DOCTYPE_LABELS: Record<string, string> = {
     points_and_figures: "P&F",
     plotlines: "plotlines",
 };
-
-/** [[target]] / [[target|label]] (heading-anchor suffix tolerated + dropped). */
-const WIKILINK_RE = /\[\[([^\[\]|]+?)(?:#[^\[\]|]*)?(?:\|([^\[\]]+?))?\]\]/g;
-
-/** Frontmatter scalar keys surfaced as chips on non-edition notes. */
-const CHIP_KEYS = ["ticker", "sector", "industry", "market_cap", "created", "last_modified"];
 
 /** localStorage keys for the persisted reader preferences. */
 const READSIZE_KEY = "findata.docs.readsize";
@@ -270,15 +266,8 @@ export class DocsView {
         if (this.vaultEntities) return this.vaultEntities;
         const data = await fetchJson<EntitiesResponse>("/api/entities?limit=5000");
         const withNotes = data.entities.filter((e) => e.file_path);
-        const index = new Map<string, string>();
-        for (const entity of withNotes) {
-            const fp = entity.file_path as string;
-            const stem = (fp.split("/").pop() || "").replace(/\.md$/i, "");
-            if (stem && !index.has(stem)) index.set(stem, fp);
-            if (entity.name && !index.has(entity.name)) index.set(entity.name, fp);
-        }
         this.vaultEntities = withNotes;
-        this.wikilinks = index;
+        this.wikilinks = buildWikilinkIndex(withNotes);
         return withNotes;
     }
 
@@ -544,7 +533,7 @@ export class DocsView {
             const entity = await fetchJson<EntityDetailResponse>(url);
             const fm = entity.frontmatter;
             const isEdition =
-                entity.entity_type === "edition" || this.fmString(fm, "type") === "newsletter";
+                entity.entity_type === "edition" || fmString(fm, "type") === "newsletter";
             const { html, headings } = processRichContent(entity.content);
             getEl("docs-content-empty").style.display = "none";
             const pane = getEl("docs-content-pane");
@@ -562,7 +551,12 @@ export class DocsView {
                 </div>
             `;
             wireRichInteractions(pane);
-            this.linkifyWikilinks(pane);
+            if (this.wikilinks) {
+                linkifyWikilinks(pane, this.wikilinks, (href) => ({
+                    href: "#",
+                    datasetHref: href,
+                }));
+            }
             void this.loadRelatedRail(entity, isEdition);
         } catch (error) {
             console.error("Error opening note:", error);
@@ -579,16 +573,9 @@ export class DocsView {
 
     /** Edition masthead: publication / issue / provenance between double rules. */
     private renderMasthead(entity: EntityDetailResponse): string {
-        const fm = entity.frontmatter;
-        const series = SERIES_LABELS[(entity.file_path || "").split("/")[1]];
-        const title = this.fmString(fm, "title") ?? entity.name.replace(/_/g, " ");
-        const bits: string[] = [];
-        const publisher = this.fmPublisher(fm);
-        if (publisher) bits.push(escapeHtml(publisher));
-        const generated = this.fmGeneratedAt(fm);
-        if (generated) bits.push(`generated ${escapeHtml(generated)}`);
-        const stale = this.fmScalar(fm, "stale_after");
-        if (stale) bits.push(`fresh through ${escapeHtml(stale)}`);
+        const series = seriesLabel(entity.file_path);
+        const title = readerTitle(entity);
+        const bits = editionBits(entity);
         return `
             <header class="edition-masthead">
                 <div class="masthead-pub">${escapeHtml(series || "Newsletter")}</div>
@@ -600,96 +587,16 @@ export class DocsView {
 
     /** Non-edition header: title + frontmatter chips in the mono data voice. */
     private renderChips(entity: EntityDetailResponse): string {
-        const fm = entity.frontmatter;
-        const chips: string[] = [
-            `<span class="fm-chip fm-type">${escapeHtml(entity.entity_type.replace(/_/g, " "))}</span>`,
-        ];
-        for (const key of CHIP_KEYS) {
-            const value = this.fmScalar(fm, key);
-            if (value) {
-                chips.push(
-                    `<span class="fm-chip"><b>${escapeHtml(key.replace(/_/g, " "))}</b>${escapeHtml(value)}</span>`,
-                );
-            }
-        }
-        const title = this.fmString(fm, "title") ?? entity.name.replace(/_/g, " ");
+        const title = readerTitle(entity);
         return `
             <header class="docs-article-header">
                 <h3>${escapeHtml(title)}</h3>
-                <div class="fm-chips">${chips.join("")}</div>
+                <div class="fm-chips">${chipSpans(entity)}</div>
                 <div class="docs-article-meta">
                     <span>${escapeHtml(entity.file_path || entity.name)}</span>
                 </div>
             </header>
         `;
-    }
-
-    // --- wikilinks ------------------------------------------------------------ //
-
-    /**
-     * Rewrite [[target]] / [[target|label]] text into in-place nav links.
-     * DOM-level pass so code blocks, existing links and tags are never
-     * touched; unresolved targets render as muted non-links.
-     */
-    private linkifyWikilinks(root: HTMLElement): void {
-        const index = this.wikilinks;
-        if (!index) return;
-        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-            acceptNode(node: Node): number {
-                let parent: Node | null = node.parentElement;
-                while (parent && parent !== root) {
-                    const tag = parent.nodeName;
-                    if (tag === "CODE" || tag === "PRE" || tag === "A" || tag === "SCRIPT") {
-                        return NodeFilter.FILTER_REJECT;
-                    }
-                    parent = parent.parentElement;
-                }
-                return node.nodeValue && node.nodeValue.includes("[[")
-                    ? NodeFilter.FILTER_ACCEPT
-                    : NodeFilter.FILTER_SKIP;
-            },
-        });
-        const targets: Text[] = [];
-        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-            targets.push(n as Text);
-        }
-        for (const textNode of targets) {
-            const text = textNode.nodeValue || "";
-            WIKILINK_RE.lastIndex = 0;
-            if (!WIKILINK_RE.test(text)) continue;
-            const fragment = document.createDocumentFragment();
-            let cursor = 0;
-            let match: RegExpExecArray | null;
-            WIKILINK_RE.lastIndex = 0;
-            while ((match = WIKILINK_RE.exec(text)) !== null) {
-                if (match.index > cursor) {
-                    fragment.appendChild(document.createTextNode(text.slice(cursor, match.index)));
-                }
-                const target = (match[1] || "").trim();
-                const label = (match[2] || "").trim() || target;
-                const href = index.get(target);
-                if (href) {
-                    const anchor = document.createElement("a");
-                    anchor.className = "wikilink";
-                    anchor.href = "#";
-                    anchor.dataset.href = href;
-                    anchor.title = href;
-                    anchor.textContent = label;
-                    fragment.appendChild(anchor);
-                } else {
-                    const miss = document.createElement("span");
-                    miss.className = "wikilink wikilink-miss";
-                    miss.title = "unresolved note";
-                    miss.textContent = label;
-                    fragment.appendChild(miss);
-                }
-                cursor = match.index + match[0].length;
-            }
-            if (cursor < text.length) {
-                fragment.appendChild(document.createTextNode(text.slice(cursor)));
-            }
-            textNode.replaceWith(fragment);
-        }
     }
 
     // --- related rail ---------------------------------------------------------- //
@@ -772,40 +679,5 @@ export class DocsView {
             <p class="hint">Browse the doc/ and vault collections, or search —
                flip on hybrid for semantic rerank.</p>
         `;
-    }
-
-    private fmString(fm: NoteFrontmatter, key: string): string | null {
-        const v = fm[key];
-        return typeof v === "string" && v.trim() ? v : null;
-    }
-
-    /** Scalar frontmatter value, dates sliced to YYYY-MM-DD. */
-    private fmScalar(fm: NoteFrontmatter, key: string): string | null {
-        const v = this.fmString(fm, key);
-        if (v === null) return null;
-        return /^\d{4}-\d{2}-\d{2}T/.test(v) ? v.slice(0, 10) : v;
-    }
-
-    /** generated.at from the nested frontmatter block. */
-    private fmGeneratedAt(fm: NoteFrontmatter): string | null {
-        const g = fm.generated;
-        if (g && typeof g === "object" && "at" in g) {
-            const at = (g as { at?: unknown }).at;
-            if (typeof at === "string" && at) return at.slice(0, 10);
-        }
-        return null;
-    }
-
-    /** publisher/<name> tag → capitalized label. */
-    private fmPublisher(fm: NoteFrontmatter): string | null {
-        const tags = Array.isArray(fm.tags)
-            ? fm.tags.filter((t): t is string => typeof t === "string")
-            : [];
-        for (const tag of tags) {
-            if (tag.startsWith("publisher/")) {
-                return tag.slice("publisher/".length).replace(/\b\w/g, (c) => c.toUpperCase());
-            }
-        }
-        return null;
     }
 }

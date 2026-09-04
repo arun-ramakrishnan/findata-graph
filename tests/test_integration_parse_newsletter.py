@@ -200,9 +200,9 @@ def _run_dry(project, monkeypatch):
 
 def _open_db(project):
     """Open a fresh connection to the test DB for assertions."""
-    conn = sqlite3.connect(str(project["db_path"]))
-    conn.row_factory = sqlite3.Row
-    return conn
+    from tests.helpers import open_conn  # noqa: E402
+
+    return open_conn(project["db_path"])
 
 
 # --------------------------------------------------------------------------- #

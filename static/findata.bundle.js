@@ -34866,6 +34866,17 @@
     return await fetchJson(url, { method: "POST" });
   }
 
+  // src/core/loadActive.ts
+  async function loadActive(opts) {
+    try {
+      const data = await opts.fetch();
+      opts.onFetched?.(data);
+      if (opts.isActive()) opts.display(data);
+    } catch (error) {
+      opts.onError(error);
+    }
+  }
+
   // src/views/companies.ts
   var CompaniesView = class {
     constructor(isActive) {
@@ -34946,24 +34957,33 @@
       }
       showLoading(true);
       try {
-        const params = new URLSearchParams({
-          limit: String(this.pageSize),
-          offset: String(this.currentPage * this.pageSize),
-          ...this.filters
+        await loadActive({
+          fetch: async () => {
+            const params = new URLSearchParams({
+              limit: String(this.pageSize),
+              offset: String(this.currentPage * this.pageSize),
+              ...this.filters
+            });
+            if (this.isActive() && !params.has("type")) {
+              params.set("type", "company");
+            }
+            return fetchJson(`/api/entities?${params}`);
+          },
+          // totalCount tracks the query even when this view is hidden.
+          onFetched: (data) => {
+            this.totalCount = data.total_count;
+          },
+          display: (data) => {
+            this.displayEntities(data.entities);
+            this.updatePagination();
+            this.updateCount();
+          },
+          isActive: this.isActive,
+          onError: (error) => {
+            console.error("Error loading entities:", error);
+            showError("Failed to load entities");
+          }
         });
-        if (this.isActive() && !params.has("type")) {
-          params.set("type", "company");
-        }
-        const data = await fetchJson(`/api/entities?${params}`);
-        this.totalCount = data.total_count;
-        if (this.isActive()) {
-          this.displayEntities(data.entities);
-          this.updatePagination();
-          this.updateCount();
-        }
-      } catch (error) {
-        console.error("Error loading entities:", error);
-        showError("Failed to load entities");
       } finally {
         showLoading(false);
       }
@@ -35185,21 +35205,24 @@
       this.onSectorPicked = onSectorPicked;
     }
     async load() {
-      try {
-        const data = await fetchJson("/api/sectors");
-        const sectorFilter = getEl("sector-filter");
-        data.classifications.forEach((sector) => {
-          const option = document.createElement("option");
-          option.value = sector;
-          option.textContent = sector;
-          sectorFilter.appendChild(option);
-        });
-        if (this.isActive()) {
-          this.displaySectors(data);
-        }
-      } catch (error) {
-        console.error("Error loading sectors:", error);
-      }
+      await loadActive({
+        fetch: () => fetchJson("/api/sectors"),
+        // Unguarded: the sector-filter dropdown lives in the companies
+        // view but is populated from here — must run even when this
+        // view is not visible.
+        onFetched: (data) => {
+          const sectorFilter = getEl("sector-filter");
+          data.classifications.forEach((sector) => {
+            const option = document.createElement("option");
+            option.value = sector;
+            option.textContent = sector;
+            sectorFilter.appendChild(option);
+          });
+        },
+        display: (data) => this.displaySectors(data),
+        isActive: this.isActive,
+        onError: (error) => console.error("Error loading sectors:", error)
+      });
     }
     displaySectors(data) {
       const container = getEl("sectors-container");
@@ -35264,23 +35287,21 @@
       this.isActive = isActive;
     }
     async load() {
-      try {
-        const data = await fetchJson("/api/stats");
-        if (this.isActive()) {
-          this.displayStats(data);
+      await loadActive({
+        fetch: () => fetchJson("/api/stats"),
+        display: (data) => this.displayStats(data),
+        isActive: this.isActive,
+        onError: (error) => console.error("Error loading stats:", error)
+      });
+      await loadActive({
+        fetch: () => fetchJson("/api/graph/stats"),
+        display: (data) => this.displayGraphStats(data),
+        isActive: this.isActive,
+        onError: (error) => {
+          console.error("Error loading graph stats:", error);
+          this.displayGraphStatsError();
         }
-      } catch (error) {
-        console.error("Error loading stats:", error);
-      }
-      try {
-        const data = await fetchJson("/api/graph/stats");
-        if (this.isActive()) {
-          this.displayGraphStats(data);
-        }
-      } catch (error) {
-        console.error("Error loading graph stats:", error);
-        this.displayGraphStatsError();
-      }
+      });
     }
     displayStats(data) {
       const container = getEl("stats-container");
@@ -35462,12 +35483,143 @@
     }
   };
 
-  // src/views/docs.ts
+  // src/core/reader.ts
   var SERIES_LABELS = {
     The_Chatter: "The Chatter",
     Points_And_Figures: "Points & Figures",
     The_PlotLines: "The Plotlines"
   };
+  var WIKILINK_RE = /\[\[([^\[\]|]+?)(?:#[^\[\]|]*)?(?:\|([^\[\]]+?))?\]\]/g;
+  var CHIP_KEYS = ["ticker", "sector", "industry", "market_cap", "created", "last_modified"];
+  function seriesLabel(filePath) {
+    return filePath ? SERIES_LABELS[filePath.split("/")[1]] : void 0;
+  }
+  function readerTitle(entity) {
+    return fmString(entity.frontmatter, "title") ?? entity.name.replace(/_/g, " ");
+  }
+  function editionBits(entity) {
+    const fm = entity.frontmatter;
+    const bits = [];
+    const publisher = fmPublisher(fm);
+    if (publisher) bits.push(escapeHtml(publisher));
+    const generated = fmGeneratedAt(fm);
+    if (generated) bits.push(`generated ${escapeHtml(generated)}`);
+    const stale = fmScalar(fm, "stale_after");
+    if (stale) bits.push(`fresh through ${escapeHtml(stale)}`);
+    return bits;
+  }
+  function chipSpans(entity) {
+    const fm = entity.frontmatter;
+    const chips = [
+      `<span class="fm-chip fm-type">${escapeHtml(entity.entity_type.replace(/_/g, " "))}</span>`
+    ];
+    for (const key of CHIP_KEYS) {
+      const value = fmScalar(fm, key);
+      if (value) {
+        chips.push(
+          `<span class="fm-chip"><b>${escapeHtml(key.replace(/_/g, " "))}</b>${escapeHtml(value)}</span>`
+        );
+      }
+    }
+    return chips.join("");
+  }
+  function buildWikilinkIndex(entities) {
+    const index = /* @__PURE__ */ new Map();
+    for (const entity of entities) {
+      if (!entity.file_path) continue;
+      const stem = (entity.file_path.split("/").pop() || "").replace(/\.md$/i, "");
+      if (stem && !index.has(stem)) index.set(stem, entity.file_path);
+      if (entity.name && !index.has(entity.name)) index.set(entity.name, entity.file_path);
+    }
+    return index;
+  }
+  function linkifyWikilinks(root, index, hrefFor) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        let parent = node.parentElement;
+        while (parent && parent !== root) {
+          const tag = parent.nodeName;
+          if (tag === "CODE" || tag === "PRE" || tag === "A" || tag === "SCRIPT") {
+            return NodeFilter.FILTER_REJECT;
+          }
+          parent = parent.parentElement;
+        }
+        return node.nodeValue && node.nodeValue.includes("[[") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      }
+    });
+    const targets = [];
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      targets.push(n);
+    }
+    for (const textNode of targets) {
+      const text = textNode.nodeValue || "";
+      WIKILINK_RE.lastIndex = 0;
+      if (!WIKILINK_RE.test(text)) continue;
+      const fragment = document.createDocumentFragment();
+      let cursor = 0;
+      let match;
+      WIKILINK_RE.lastIndex = 0;
+      while ((match = WIKILINK_RE.exec(text)) !== null) {
+        if (match.index > cursor) {
+          fragment.appendChild(document.createTextNode(text.slice(cursor, match.index)));
+        }
+        const target = (match[1] || "").trim();
+        const label = (match[2] || "").trim() || target;
+        const href = index.get(target);
+        if (href) {
+          const resolved = hrefFor(href);
+          const anchor = document.createElement("a");
+          anchor.className = "wikilink";
+          anchor.href = resolved.href;
+          if (resolved.datasetHref !== void 0) {
+            anchor.dataset.href = resolved.datasetHref;
+          }
+          anchor.title = href;
+          anchor.textContent = label;
+          fragment.appendChild(anchor);
+        } else {
+          const miss = document.createElement("span");
+          miss.className = "wikilink wikilink-miss";
+          miss.title = "unresolved note";
+          miss.textContent = label;
+          fragment.appendChild(miss);
+        }
+        cursor = match.index + match[0].length;
+      }
+      if (cursor < text.length) {
+        fragment.appendChild(document.createTextNode(text.slice(cursor)));
+      }
+      textNode.replaceWith(fragment);
+    }
+  }
+  function fmString(fm, key) {
+    const v = fm[key];
+    return typeof v === "string" && v.trim() ? v : null;
+  }
+  function fmScalar(fm, key) {
+    const v = fmString(fm, key);
+    if (v === null) return null;
+    return /^\d{4}-\d{2}-\d{2}T/.test(v) ? v.slice(0, 10) : v;
+  }
+  function fmGeneratedAt(fm) {
+    const g = fm.generated;
+    if (g && typeof g === "object" && "at" in g) {
+      const at = g.at;
+      if (typeof at === "string" && at) return at.slice(0, 10);
+    }
+    return null;
+  }
+  function fmPublisher(fm) {
+    const tags = Array.isArray(fm.tags) ? fm.tags.filter((t) => typeof t === "string") : [];
+    for (const tag of tags) {
+      if (tag.startsWith("publisher/")) {
+        return tag.slice("publisher/".length).replace(/\b\w/g, (c) => c.toUpperCase());
+      }
+    }
+    return null;
+  }
+
+  // src/views/docs.ts
   var DOCTYPE_LABELS = {
     company: "company",
     sector: "sector",
@@ -35476,8 +35628,6 @@
     points_and_figures: "P&F",
     plotlines: "plotlines"
   };
-  var WIKILINK_RE = /\[\[([^\[\]|]+?)(?:#[^\[\]|]*)?(?:\|([^\[\]]+?))?\]\]/g;
-  var CHIP_KEYS = ["ticker", "sector", "industry", "market_cap", "created", "last_modified"];
   var READSIZE_KEY = "findata.docs.readsize";
   var FOCUS_KEY = "findata.docs.focus";
   var DocsView = class {
@@ -35636,15 +35786,8 @@
       if (this.vaultEntities) return this.vaultEntities;
       const data = await fetchJson("/api/entities?limit=5000");
       const withNotes = data.entities.filter((e) => e.file_path);
-      const index = /* @__PURE__ */ new Map();
-      for (const entity of withNotes) {
-        const fp = entity.file_path;
-        const stem = (fp.split("/").pop() || "").replace(/\.md$/i, "");
-        if (stem && !index.has(stem)) index.set(stem, fp);
-        if (entity.name && !index.has(entity.name)) index.set(entity.name, fp);
-      }
       this.vaultEntities = withNotes;
-      this.wikilinks = index;
+      this.wikilinks = buildWikilinkIndex(withNotes);
       return withNotes;
     }
     /** Grouped vault listing: supers → sectors → editions by series → companies by sector. */
@@ -35868,7 +36011,7 @@
         const url = `/api/entity/${encodeURIComponent(filePath)}`;
         const entity = await fetchJson(url);
         const fm = entity.frontmatter;
-        const isEdition = entity.entity_type === "edition" || this.fmString(fm, "type") === "newsletter";
+        const isEdition = entity.entity_type === "edition" || fmString(fm, "type") === "newsletter";
         const { html, headings } = processRichContent(entity.content);
         getEl("docs-content-empty").style.display = "none";
         const pane = getEl("docs-content-pane");
@@ -35886,7 +36029,12 @@
                 </div>
             `;
         wireRichInteractions(pane);
-        this.linkifyWikilinks(pane);
+        if (this.wikilinks) {
+          linkifyWikilinks(pane, this.wikilinks, (href) => ({
+            href: "#",
+            datasetHref: href
+          }));
+        }
         void this.loadRelatedRail(entity, isEdition);
       } catch (error) {
         console.error("Error opening note:", error);
@@ -35900,16 +36048,9 @@
     }
     /** Edition masthead: publication / issue / provenance between double rules. */
     renderMasthead(entity) {
-      const fm = entity.frontmatter;
-      const series = SERIES_LABELS[(entity.file_path || "").split("/")[1]];
-      const title = this.fmString(fm, "title") ?? entity.name.replace(/_/g, " ");
-      const bits = [];
-      const publisher = this.fmPublisher(fm);
-      if (publisher) bits.push(escapeHtml(publisher));
-      const generated = this.fmGeneratedAt(fm);
-      if (generated) bits.push(`generated ${escapeHtml(generated)}`);
-      const stale = this.fmScalar(fm, "stale_after");
-      if (stale) bits.push(`fresh through ${escapeHtml(stale)}`);
+      const series = seriesLabel(entity.file_path);
+      const title = readerTitle(entity);
+      const bits = editionBits(entity);
       return `
             <header class="edition-masthead">
                 <div class="masthead-pub">${escapeHtml(series || "Newsletter")}</div>
@@ -35920,92 +36061,16 @@
     }
     /** Non-edition header: title + frontmatter chips in the mono data voice. */
     renderChips(entity) {
-      const fm = entity.frontmatter;
-      const chips = [
-        `<span class="fm-chip fm-type">${escapeHtml(entity.entity_type.replace(/_/g, " "))}</span>`
-      ];
-      for (const key of CHIP_KEYS) {
-        const value = this.fmScalar(fm, key);
-        if (value) {
-          chips.push(
-            `<span class="fm-chip"><b>${escapeHtml(key.replace(/_/g, " "))}</b>${escapeHtml(value)}</span>`
-          );
-        }
-      }
-      const title = this.fmString(fm, "title") ?? entity.name.replace(/_/g, " ");
+      const title = readerTitle(entity);
       return `
             <header class="docs-article-header">
                 <h3>${escapeHtml(title)}</h3>
-                <div class="fm-chips">${chips.join("")}</div>
+                <div class="fm-chips">${chipSpans(entity)}</div>
                 <div class="docs-article-meta">
                     <span>${escapeHtml(entity.file_path || entity.name)}</span>
                 </div>
             </header>
         `;
-    }
-    // --- wikilinks ------------------------------------------------------------ //
-    /**
-     * Rewrite [[target]] / [[target|label]] text into in-place nav links.
-     * DOM-level pass so code blocks, existing links and tags are never
-     * touched; unresolved targets render as muted non-links.
-     */
-    linkifyWikilinks(root) {
-      const index = this.wikilinks;
-      if (!index) return;
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-        acceptNode(node) {
-          let parent = node.parentElement;
-          while (parent && parent !== root) {
-            const tag = parent.nodeName;
-            if (tag === "CODE" || tag === "PRE" || tag === "A" || tag === "SCRIPT") {
-              return NodeFilter.FILTER_REJECT;
-            }
-            parent = parent.parentElement;
-          }
-          return node.nodeValue && node.nodeValue.includes("[[") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
-        }
-      });
-      const targets = [];
-      for (let n = walker.nextNode(); n; n = walker.nextNode()) {
-        targets.push(n);
-      }
-      for (const textNode of targets) {
-        const text = textNode.nodeValue || "";
-        WIKILINK_RE.lastIndex = 0;
-        if (!WIKILINK_RE.test(text)) continue;
-        const fragment = document.createDocumentFragment();
-        let cursor = 0;
-        let match;
-        WIKILINK_RE.lastIndex = 0;
-        while ((match = WIKILINK_RE.exec(text)) !== null) {
-          if (match.index > cursor) {
-            fragment.appendChild(document.createTextNode(text.slice(cursor, match.index)));
-          }
-          const target = (match[1] || "").trim();
-          const label = (match[2] || "").trim() || target;
-          const href = index.get(target);
-          if (href) {
-            const anchor = document.createElement("a");
-            anchor.className = "wikilink";
-            anchor.href = "#";
-            anchor.dataset.href = href;
-            anchor.title = href;
-            anchor.textContent = label;
-            fragment.appendChild(anchor);
-          } else {
-            const miss = document.createElement("span");
-            miss.className = "wikilink wikilink-miss";
-            miss.title = "unresolved note";
-            miss.textContent = label;
-            fragment.appendChild(miss);
-          }
-          cursor = match.index + match[0].length;
-        }
-        if (cursor < text.length) {
-          fragment.appendChild(document.createTextNode(text.slice(cursor)));
-        }
-        textNode.replaceWith(fragment);
-      }
     }
     // --- related rail ---------------------------------------------------------- //
     /** Similar-notes + (editions) featured-companies rail content. */
@@ -36077,35 +36142,6 @@
             <p class="hint">Browse the doc/ and vault collections, or search \u2014
                flip on hybrid for semantic rerank.</p>
         `;
-    }
-    fmString(fm, key) {
-      const v = fm[key];
-      return typeof v === "string" && v.trim() ? v : null;
-    }
-    /** Scalar frontmatter value, dates sliced to YYYY-MM-DD. */
-    fmScalar(fm, key) {
-      const v = this.fmString(fm, key);
-      if (v === null) return null;
-      return /^\d{4}-\d{2}-\d{2}T/.test(v) ? v.slice(0, 10) : v;
-    }
-    /** generated.at from the nested frontmatter block. */
-    fmGeneratedAt(fm) {
-      const g = fm.generated;
-      if (g && typeof g === "object" && "at" in g) {
-        const at = g.at;
-        if (typeof at === "string" && at) return at.slice(0, 10);
-      }
-      return null;
-    }
-    /** publisher/<name> tag → capitalized label. */
-    fmPublisher(fm) {
-      const tags = Array.isArray(fm.tags) ? fm.tags.filter((t) => typeof t === "string") : [];
-      for (const tag of tags) {
-        if (tag.startsWith("publisher/")) {
-          return tag.slice("publisher/".length).replace(/\b\w/g, (c) => c.toUpperCase());
-        }
-      }
-      return null;
     }
   };
 

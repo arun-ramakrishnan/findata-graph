@@ -32,15 +32,13 @@ from helpers.graph import derive_events as de  # noqa: E402
 # --------------------------------------------------------------------------- #
 # Minimal schema for the DB-backed tests (entities + graph_edges + events).
 # --------------------------------------------------------------------------- #
+from tests.schema import ENTITIES_MINIMAL  # noqa: E402
+
+
 def _schema_sql():
-    return """
-    CREATE TABLE entities(
-        name TEXT PRIMARY KEY,
-        entity_type TEXT,
-        normalized_name TEXT,
-        file_path TEXT,
-        last_updated TEXT
-    );
+    return (
+        ENTITIES_MINIMAL
+        + """
     CREATE TABLE graph_edges(
         source TEXT NOT NULL,
         target TEXT NOT NULL,
@@ -67,6 +65,7 @@ def _schema_sql():
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
     """
+    )
 
 
 def _connect(tmp_path: Path) -> sqlite3.Connection:

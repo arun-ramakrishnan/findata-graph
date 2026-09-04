@@ -836,13 +836,12 @@ def check_sqlite_helper_usage() -> list[str]:  # noqa: C901
 
     The allowlist covers legitimate ephemeral/temp DBs and the helper itself:
       - helpers/core/db.py  (the definition)
-      - helpers/maintenance/snapshot_db.py  (temp-file backup/verify — 4 sites)
-      - helpers/maintenance/db_maint.py     (backup + VACUUM isolation_level=None — 2 sites)
+      - helpers/maintenance/db_maint.py     (backup pairs + VACUUM/checkpoint
+        isolation_level=None — 5 sites: 293, 339, 340, 435, 746)
     Any other sqlite3.connect is a violation (should use helpers.core.db.connect).
     """
     allowlist_prefixes = (
         "helpers/core/db.py",
-        "helpers/maintenance/snapshot_db.py",
         "helpers/maintenance/db_maint.py",
     )
     failures: list[str] = []
@@ -859,8 +858,8 @@ def check_sqlite_helper_usage() -> list[str]:  # noqa: C901
         if rel == "helpers/validators/static_checks.py":
             continue  # this file's own string literal scanner would self-flag
         if any(rel == pref or rel.startswith(pref) for pref in allowlist_prefixes):
-            # Still report if snapshot/db_maint adds unexpected extra sites outside known lines
-            # For now, allow any use inside those two files (they are maintenance-only ephemeral)
+            # Still report if db_maint adds unexpected extra sites outside known lines
+            # For now, allow any use inside that file (maintenance-only ephemeral)
             continue
         try:
             text = py.read_text(encoding="utf-8")
@@ -883,10 +882,10 @@ def check_db_meta_generation() -> list[str]:
         return []
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
-    from helpers.core.db import EXPECTED_USER_VERSION
+    from helpers.core.db import EXPECTED_USER_VERSION, connect
 
     try:
-        conn = sqlite3.connect(str(db))
+        conn = connect(db, read_only=True)
         try:
             has = conn.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='db_meta'"

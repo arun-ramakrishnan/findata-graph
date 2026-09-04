@@ -73,6 +73,17 @@ def utc_now() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
 
+def utc_today_iso() -> str:
+    """Current UTC date as ``YYYY-MM-DD`` (date-only label).
+
+    Sibling of :func:`utc_now` for path-identity / date-label contexts
+    (report ``source_ref`` stamps, ``coinfer/`` edition dirs) that want the
+    shared shape, not a full datetime. Zero-output-change swap for the
+    ``datetime.now(UTC).date().isoformat()`` copies.
+    """
+    return datetime.now(UTC).date().isoformat()
+
+
 def market_cap_sql(column_alias: str = "market_cap") -> str:
     """SQL fragment that derives a company's market_cap from ``entity_tags``.
 

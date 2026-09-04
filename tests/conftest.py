@@ -493,6 +493,16 @@ def unit_client(tmp_path):
         yield c
 
 
+@pytest.fixture
+def bare_client():
+    """Bare Flask test_client (no DB patching — for endpoints that never
+    touch the research DB)."""
+    import app as A  # lazy: avoid Flask-app startup at collection time
+
+    with A.app.test_client() as c:
+        yield c
+
+
 # --------------------------------------------------------------------------- #
 # xdist: per-worker graph cache (gate_xdist_phase2 Slice A, 2026-08-31)        #
 # --------------------------------------------------------------------------- #

@@ -29,11 +29,13 @@ from helpers.graph.query import (  # noqa: E402
     connect,
     semantic_neighbors,
 )
+from tests.schema import ENTITY_TAGS  # noqa: E402
 
 # --------------------------------------------------------------------------- #
 # Synthetic SQLite fixture                                                    #
 # --------------------------------------------------------------------------- #
-_SYNTH_DDL = """
+_SYNTH_DDL = (
+    """
 CREATE TABLE entities (
     name TEXT PRIMARY KEY,
     entity_type TEXT NOT NULL,
@@ -44,11 +46,9 @@ CREATE TABLE entities (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_updated DATETIME
 );
-CREATE TABLE entity_tags (
-    entity_name TEXT NOT NULL,
-    tag TEXT NOT NULL,
-    PRIMARY KEY (entity_name, tag)
-);
+"""
+    + ENTITY_TAGS
+    + """
 CREATE TABLE graph_edges (
     id INTEGER PRIMARY KEY,
     source TEXT NOT NULL,
@@ -65,6 +65,7 @@ CREATE TABLE graph_edges (
     CHECK (source != target)
 );
 """
+)
 
 # (name, entity_type, sector_classification, ticker, file_path, normalized_name)
 _SYNTH_ENTITIES = [

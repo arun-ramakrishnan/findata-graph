@@ -25,6 +25,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 from helpers.core.db import connect as db_connect  # noqa: E402
 from helpers.graph import derive_events as de  # noqa: E402
 from helpers.graph.query import DB_PATH  # noqa: E402
+from tests.helpers import copy_production_db  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 
@@ -62,23 +63,8 @@ class _EventsProject:
         self.db = root / "research.db"
         self.companies = root / "findata" / "Companies" / "Banking"
         self.companies.mkdir(parents=True)
-        src = sqlite3.connect(str(DB_PATH))
+        copy_production_db(DB_PATH, self.db)
         dst = sqlite3.connect(str(self.db))
-        src.backup(dst)
-        src.close()
-        for t in (
-            "graph_edges",
-            "entity_tags",
-            "graph_analytics",
-            "events",
-            "quotes",
-            "company_metrics",
-            "company_embeddings",
-            "note_search",
-            "note_search_meta",
-        ):
-            dst.execute(f"DELETE FROM {t}")  # noqa: S608  # schema-constant identifiers
-        dst.execute("DELETE FROM entities")
         dst.executemany(
             "INSERT INTO entities (name, entity_type, file_path) VALUES (?, 'company', ?)",
             [

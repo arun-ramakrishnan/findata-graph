@@ -3,19 +3,21 @@
 POLICY (2026-08-29): native Mojo DB drivers are immature — this fixture
 IS the data layer (Python sqlite3/duckdb drivers, called from Mojo via
 the bridge); the CHECK LOGIC lives in the Mojo port
-(Mojo/src/bench/integrity_check.mojo). python_baseline() runs the
+(Mojo/src/common/integrity_check.mojo). python_baseline() runs the
 ORIGINAL checker in-process for the perf comparison and golden counts.
 """
 
 from __future__ import annotations
 
-import pathlib
 import sqlite3
 import time
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-SQLITE_RO = f"file:{REPO / 'memory' / 'research.db'}?mode=ro"
-DUCKDB_RO = str(REPO / "memory" / "graph.duckdb")
+from bridge_utils import (  # Mojo/bench is on sys.path for every importer
+    REPO,
+    RESEARCH_DB,
+    connect_duckdb_ro,
+    connect_sqlite_ro,
+)
 
 _conn: sqlite3.Connection | None = None
 
@@ -23,14 +25,9 @@ _conn: sqlite3.Connection | None = None
 def _sq() -> sqlite3.Connection:
     global _conn
     if _conn is None:
-        import sys
-
-        if str(REPO) not in sys.path:
-            sys.path.insert(0, str(REPO))
-        from helpers.core.db import connect as _helpers_connect  # noqa: E402
-
-        _conn = _helpers_connect(REPO / "memory" / "research.db", read_only=True)
-        _conn.execute("PRAGMA query_only=ON")
+        _conn = connect_sqlite_ro(
+            RESEARCH_DB, row_factory=sqlite3.Row, query_only=True
+        )
     return _conn
 
 
@@ -89,9 +86,7 @@ def relations_counts():
 
 def cache_reconcile_rows():
     """DuckDB vs SQLite row counts for the materialized cache tables."""
-    import duckdb  # lazy, same policy as the original checker
-
-    con = duckdb.connect(DUCKDB_RO, read_only=True)
+    con = connect_duckdb_ro()
     try:
         duck_counts = {}
         for (t,) in con.execute("SHOW TABLES").fetchall():

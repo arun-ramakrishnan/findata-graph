@@ -18,36 +18,11 @@ import pytest
 
 pytestmark = [pytest.mark.integration]
 
-_SCHEMA = """
-CREATE TABLE entities (
-    name TEXT PRIMARY KEY NOT NULL,
-    entity_type TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    file_path TEXT,
-    last_updated DATETIME,
-    normalized_name TEXT,
-    sector_classification TEXT,
-    ticker TEXT
-);
-CREATE TABLE entity_tags (
-    entity_name TEXT NOT NULL,
-    tag TEXT NOT NULL,
-    PRIMARY KEY (entity_name, tag)
-);
-CREATE TABLE graph_edges (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source TEXT NOT NULL,
-    target TEXT NOT NULL,
-    edge_type TEXT NOT NULL,
-    weight REAL NOT NULL DEFAULT 1.0,
-    properties TEXT NOT NULL DEFAULT '{}',
-    valid_from DATE,
-    valid_to DATE,
-    source_ref TEXT NOT NULL,
-    symmetric INTEGER NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(source, target, edge_type)
-);
+from tests.schema import EDGES_12COL, ENTITIES_8COL, ENTITY_TAGS, EVENTS  # noqa: E402
+
+# Local deviation: FK-guarded graph_analytics (differs from the shared
+# tests/schema.py GRAPH_ANALYTICS) — kept local, not silently unified.
+_GRAPH_ANALYTICS = """
 CREATE TABLE graph_analytics (
     metric TEXT NOT NULL,
     entity_name TEXT NOT NULL,
@@ -55,21 +30,9 @@ CREATE TABLE graph_analytics (
     PRIMARY KEY (metric, entity_name),
     FOREIGN KEY (entity_name) REFERENCES entities(name) ON DELETE CASCADE
 );
-CREATE TABLE events (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    entity TEXT NOT NULL,
-    event_type TEXT,
-    event_date TEXT,
-    period TEXT,
-    date_precision TEXT,
-    magnitude TEXT,
-    counterparty TEXT,
-    source_quote TEXT,
-    as_of_edition TEXT,
-    source_ref TEXT,
-    properties TEXT
-);
 """
+
+_SCHEMA = "".join([ENTITIES_8COL, ENTITY_TAGS, EDGES_12COL, _GRAPH_ANALYTICS, EVENTS])
 
 
 def _seed_sqlite(conn, companies, sectors, edges):

@@ -30,9 +30,8 @@ ENTITY_JS = PROJECT_ROOT / "static" / "entity.bundle.js"
 
 
 @pytest.fixture
-def client():
-    with A.app.test_client() as c:
-        yield c
+def client(bare_client):
+    yield bare_client
 
 
 class TestSec1DebugEntityRemoved:

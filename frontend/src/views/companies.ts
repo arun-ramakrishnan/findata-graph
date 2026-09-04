@@ -9,6 +9,7 @@
 import type { EntitiesResponse, EntityListItem, SearchResponse } from "../../types/api";
 import { getEl, escapeHtml } from "../core/dom";
 import { fetchJson } from "../core/api";
+import { loadActive } from "../core/loadActive";
 import { showLoading, showError } from "../core/toast";
 import { highlightSnippet } from "../core/markdown";
 
@@ -121,30 +122,37 @@ export class CompaniesView {
         showLoading(true);
 
         try {
-            // Build params, ensuring type filter for companies view.
-            const params = new URLSearchParams({
-                limit: String(this.pageSize),
-                offset: String(this.currentPage * this.pageSize),
-                ...this.filters,
+            await loadActive({
+                fetch: async () => {
+                    // Build params, ensuring type filter for companies view.
+                    const params = new URLSearchParams({
+                        limit: String(this.pageSize),
+                        offset: String(this.currentPage * this.pageSize),
+                        ...this.filters,
+                    });
+
+                    // Ensure we only show companies in companies view.
+                    if (this.isActive() && !params.has("type")) {
+                        params.set("type", "company");
+                    }
+
+                    return fetchJson<EntitiesResponse>(`/api/entities?${params}`);
+                },
+                // totalCount tracks the query even when this view is hidden.
+                onFetched: (data) => {
+                    this.totalCount = data.total_count;
+                },
+                display: (data) => {
+                    this.displayEntities(data.entities);
+                    this.updatePagination();
+                    this.updateCount();
+                },
+                isActive: this.isActive,
+                onError: (error) => {
+                    console.error("Error loading entities:", error);
+                    showError("Failed to load entities");
+                },
             });
-
-            // Ensure we only show companies in companies view.
-            if (this.isActive() && !params.has("type")) {
-                params.set("type", "company");
-            }
-
-            const data = await fetchJson<EntitiesResponse>(`/api/entities?${params}`);
-
-            this.totalCount = data.total_count;
-
-            if (this.isActive()) {
-                this.displayEntities(data.entities);
-                this.updatePagination();
-                this.updateCount();
-            }
-        } catch (error) {
-            console.error("Error loading entities:", error);
-            showError("Failed to load entities");
         } finally {
             showLoading(false);
         }

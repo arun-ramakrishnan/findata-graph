@@ -20,30 +20,14 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.graph import derive_themes as dt  # noqa: E402
+from tests.schema import EDGES_MINIMAL, ENTITIES_MINIMAL  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
 # Minimal schema for the DB-backed tests (matches graph_edges + entities).
 # --------------------------------------------------------------------------- #
 def _schema_sql():
-    return """
-    CREATE TABLE entities(
-        name TEXT PRIMARY KEY,
-        entity_type TEXT,
-        normalized_name TEXT,
-        file_path TEXT,
-        last_updated TEXT
-    );
-    CREATE TABLE graph_edges(
-        source TEXT NOT NULL,
-        target TEXT NOT NULL,
-        edge_type TEXT NOT NULL,
-        properties TEXT NOT NULL DEFAULT '{}',
-        source_ref TEXT NOT NULL,
-        symmetric INTEGER NOT NULL DEFAULT 0,
-        UNIQUE(source, target, edge_type)
-    );
-    """
+    return "".join([ENTITIES_MINIMAL, EDGES_MINIMAL])
 
 
 def _write_note(tmp_path: Path, stem: str, body: str) -> Path:

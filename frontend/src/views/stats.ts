@@ -4,6 +4,7 @@
 import type { GraphStatsResponse, StatsResponse } from "../../types/api";
 import { getEl, escapeHtml } from "../core/dom";
 import { fetchJson } from "../core/api";
+import { loadActive } from "../core/loadActive";
 
 export class StatsView {
     /** Whether this view is the visible one (deferred-render check). */
@@ -14,25 +15,23 @@ export class StatsView {
     }
 
     async load(): Promise<void> {
-        try {
-            const data = await fetchJson<StatsResponse>("/api/stats");
-            if (this.isActive()) {
-                this.displayStats(data);
-            }
-        } catch (error) {
-            console.error("Error loading stats:", error);
-        }
+        await loadActive({
+            fetch: () => fetchJson<StatsResponse>("/api/stats"),
+            display: (data) => this.displayStats(data),
+            isActive: this.isActive,
+            onError: (error) => console.error("Error loading stats:", error),
+        });
         // Graph statistics block (edge types, structure, hygiene, staleness).
         // Fetched independently so a failure here doesn't hide /api/stats.
-        try {
-            const data = await fetchJson<GraphStatsResponse>("/api/graph/stats");
-            if (this.isActive()) {
-                this.displayGraphStats(data);
-            }
-        } catch (error) {
-            console.error("Error loading graph stats:", error);
-            this.displayGraphStatsError();
-        }
+        await loadActive({
+            fetch: () => fetchJson<GraphStatsResponse>("/api/graph/stats"),
+            display: (data) => this.displayGraphStats(data),
+            isActive: this.isActive,
+            onError: (error) => {
+                console.error("Error loading graph stats:", error);
+                this.displayGraphStatsError();
+            },
+        });
     }
 
     displayStats(data: StatsResponse): void {

@@ -31,69 +31,13 @@
 from std.python import Python, PythonObject
 from std.time import perf_counter_ns
 
+from bridge import join_list, py_str, sys_exit, to_i
+from list_utils import merge_sort_strs
+
 
 # ---------------------------------------------------------------- helpers
-# (same patterns as integrity_check.mojo — each probe stays self-contained)
-
-
-def contains(lst: List[String], s: String) -> Bool:
-    for i in range(len(lst)):
-        if lst[i] == s:
-            return True
-    return False
-
-
-def _merge_sorted(a: List[String], b: List[String]) -> List[String]:
-    var out = List[String]()
-    var i = 0
-    var j = 0
-    while i < len(a) and j < len(b):
-        if a[i] <= b[j]:
-            out.append(a[i])
-            i += 1
-        else:
-            out.append(b[j])
-            j += 1
-    while i < len(a):
-        out.append(a[i])
-        i += 1
-    while j < len(b):
-        out.append(b[j])
-        j += 1
-    return out^
-
-
-def merge_sort_strs(lst: List[String]) -> List[String]:
-    """O(n log n) sort for the big lists (link-predict ~20k pairs);
-    sort_strs' insertion sort is for the <= ~1.5k key lists."""
-    if len(lst) <= 1:
-        return lst.copy()
-    var mid = len(lst) // 2
-    var left = List[String]()
-    var right = List[String]()
-    for i in range(len(lst)):
-        if i < mid:
-            left.append(lst[i])
-        else:
-            right.append(lst[i])
-    return _merge_sorted(merge_sort_strs(left), merge_sort_strs(right))
-
-
-def join_list(lst: List[String], sep: String) -> String:
-    var out = String("")
-    for i in range(len(lst)):
-        if i > 0:
-            out += sep
-        out += lst[i]
-    return out
-
-
-def py_str(o: PythonObject) raises -> String:
-    return String(o.__str__())
-
-
-def to_i(o: PythonObject) raises -> Int:
-    return Int(String(o.__str__()))
+# (shared patterns live in common/bridge.mojo + common/list_utils.mojo —
+# this probe imports them; only probe-local helpers stay here)
 
 
 def head_bytes(s: String, n: Int) -> String:
@@ -395,10 +339,3 @@ def main() raises:
         print("GRAPH-ALGOS PARITY FAIL: ", fails, " failure(s)")
         sys_exit(1)
     print("GRAPH-ALGOS PARITY OK (sql + metrics + cli all match)")
-
-
-def sys_exit(code: Int) raises:
-    # sys.exit raises SystemExit, which the bridge surfaces as an
-    # unhandled error — os._exit terminates cleanly (integrity pattern)
-    if code != 0:
-        Python.evaluate("__import__('os')._exit(" + String(code) + ")")

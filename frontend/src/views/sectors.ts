@@ -5,6 +5,7 @@
 import type { SectorsResponse } from "../../types/api";
 import { getEl, escapeHtml, truncateText } from "../core/dom";
 import { fetchJson } from "../core/api";
+import { loadActive } from "../core/loadActive";
 
 export class SectorsView {
     /** Whether this view is the visible one (deferred-render check). */
@@ -19,23 +20,24 @@ export class SectorsView {
     }
 
     async load(): Promise<void> {
-        try {
-            const data = await fetchJson<SectorsResponse>("/api/sectors");
-
-            const sectorFilter = getEl("sector-filter") as HTMLSelectElement;
-            data.classifications.forEach((sector) => {
-                const option = document.createElement("option");
-                option.value = sector;
-                option.textContent = sector;
-                sectorFilter.appendChild(option);
-            });
-
-            if (this.isActive()) {
-                this.displaySectors(data);
-            }
-        } catch (error) {
-            console.error("Error loading sectors:", error);
-        }
+        await loadActive({
+            fetch: () => fetchJson<SectorsResponse>("/api/sectors"),
+            // Unguarded: the sector-filter dropdown lives in the companies
+            // view but is populated from here — must run even when this
+            // view is not visible.
+            onFetched: (data) => {
+                const sectorFilter = getEl("sector-filter") as HTMLSelectElement;
+                data.classifications.forEach((sector) => {
+                    const option = document.createElement("option");
+                    option.value = sector;
+                    option.textContent = sector;
+                    sectorFilter.appendChild(option);
+                });
+            },
+            display: (data) => this.displaySectors(data),
+            isActive: this.isActive,
+            onError: (error) => console.error("Error loading sectors:", error),
+        });
     }
 
     displaySectors(data: SectorsResponse): void {

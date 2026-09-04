@@ -18,6 +18,8 @@
 from std.python import Python
 from std.time import perf_counter_ns
 
+from bridge import sys_exit
+
 
 def main() raises:
     Python.evaluate("__import__('sys').path.insert(0, 'Mojo/bench')")
@@ -78,10 +80,3 @@ def main() raises:
     if nfail > 0:
         print("DB-ACCESS PARITY FAIL: ", nfail, " case(s) mismatched")
         sys_exit(1)
-
-
-def sys_exit(code: Int) raises:
-    # sys.exit raises SystemExit, which the bridge surfaces as an
-    # unhandled error — os._exit terminates cleanly (integrity pattern)
-    if code != 0:
-        Python.evaluate("__import__('os')._exit(" + String(code) + ")")

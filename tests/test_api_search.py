@@ -17,19 +17,17 @@ from contextlib import contextmanager
 
 import pytest
 
-import app as A
+
+from tests.schema import ENTITIES_4COL  # noqa: E402
+from tests.helpers import response_count  # noqa: E402
 
 # Minimal schema: the entities table (for FK-free isolation we don't actually
 # FK-link, but keep the column for realism) + the note_search FTS5 table. The
 # embedding column (UNINDEXED) is present so hybrid=true is exercised; a second
 # schema (below) drops it to pin the graceful-degradation path.
-_SCHEMA = """
-CREATE TABLE entities (
-    name TEXT PRIMARY KEY,
-    entity_type TEXT,
-    sector_classification TEXT,
-    file_path TEXT
-);
+_SCHEMA = (
+    ENTITIES_4COL
+    + """
 CREATE VIRTUAL TABLE note_search USING fts5(
     doc_type,
     file_path UNINDEXED,
@@ -40,15 +38,12 @@ CREATE VIRTUAL TABLE note_search USING fts5(
     tokenize = 'porter unicode61'
 );
 """
+)
 
 # Pre-embedding schema: no embedding column (hybrid must degrade gracefully).
-_SCHEMA_NO_EMBEDDING = """
-CREATE TABLE entities (
-    name TEXT PRIMARY KEY,
-    entity_type TEXT,
-    sector_classification TEXT,
-    file_path TEXT
-);
+_SCHEMA_NO_EMBEDDING = (
+    ENTITIES_4COL
+    + """
 CREATE VIRTUAL TABLE note_search USING fts5(
     doc_type,
     file_path UNINDEXED,
@@ -58,6 +53,7 @@ CREATE VIRTUAL TABLE note_search USING fts5(
     tokenize = 'porter unicode61'
 );
 """
+)
 
 # (doc_type, file_path, title, sector, content, embedding_json)
 # Embeddings: real-ish 3-dim vectors. The two "feed" companies get near-identical
@@ -128,17 +124,10 @@ def _seeded_db(tmp_path, *, schema=None, with_embeddings=True):
     conn.commit()
     conn.close()
 
-    def _open():
-        c = sqlite3.connect(str(db_path))
-        c.row_factory = sqlite3.Row  # match production connect()
-        return c
+    from tests.helpers import flask_test_client  # noqa: E402
 
-    saved = A.get_db_connection
-    A.get_db_connection = _open  # ty: ignore[invalid-assignment]
-    try:
-        yield A.app.test_client()
-    finally:
-        A.get_db_connection = saved
+    with flask_test_client(db_path) as client:
+        yield client
 
 
 @pytest.fixture
@@ -168,10 +157,6 @@ def _results(resp):
     return resp.get_json()["results"]
 
 
-def _count(resp):
-    return resp.get_json()["total_count"]
-
-
 # --- tests ------------------------------------------------------------------
 
 
@@ -198,26 +183,26 @@ class TestSearch:
         # type=company narrows to the 2 company docs mentioning shrimp.
         r = client.get("/api/search?q=shrimp&type=company")
         assert r.status_code == 200
-        assert _count(r) == 2
+        assert response_count(r) == 2
         assert all(h["doc_type"] == "company" for h in _results(r))
 
     def test_search_filter_by_newsletter_type(self, client):
         # type=chatter narrows to the 1 newsletter doc.
         r = client.get("/api/search?q=shrimp&type=chatter")
         assert r.status_code == 200
-        assert _count(r) == 1
+        assert response_count(r) == 1
         assert _results(r)[0]["doc_type"] == "chatter"
 
     def test_search_pagination(self, client):
         full = client.get("/api/search?q=feed&limit=50")
-        total = _count(full)
+        total = response_count(full)
         # page through 1 at a time; the union of titles must equal the full set
         # with no dupes and no missing rows.
         seen = []
         offset = 0
         while offset < total:
             page = client.get(f"/api/search?q=feed&limit=1&offset={offset}")
-            assert _count(page) == total  # total is independent of pagination
+            assert response_count(page) == total  # total is independent of pagination
             seen.extend(h["title"] for h in _results(page))
             offset += 1
         assert len(seen) == total
@@ -231,20 +216,12 @@ class TestSearch:
         conn.commit()
         conn.close()
 
-        def _open():
-            c = sqlite3.connect(str(db_path))
-            c.row_factory = sqlite3.Row
-            return c
+        from tests.helpers import flask_test_client  # noqa: E402
 
-        saved = A.get_db_connection
-        A.get_db_connection = _open  # ty: ignore[invalid-assignment]
-        try:
-            client = A.app.test_client()
+        with flask_test_client(db_path) as client:
             r = client.get("/api/search?q=anything")
             assert r.status_code == 503
             assert "not built" in r.get_json()["error"]
-        finally:
-            A.get_db_connection = saved
 
     def test_search_malformed_query_returns_400(self, client):
         # FTS5 MATCH raises on stray boolean operators; endpoint must 400.

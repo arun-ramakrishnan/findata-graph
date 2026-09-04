@@ -13,6 +13,7 @@ import app as A
 from tests.conftest import (  # noqa: E402
     _UNIT_SCHEMA,
 )
+from tests.helpers import open_conn  # noqa: E402
 
 
 # --------------------------------------------------------------------------- #
@@ -70,12 +71,7 @@ class TestSectorBundleMarketCapInvariant:
         self._seed_unit_db(db_path)
 
         # Monkeypatch the SQLite connection.
-        def _open():
-            c = sqlite3.connect(str(db_path))
-            c.row_factory = sqlite3.Row
-            return c
-
-        monkeypatch.setattr(A, "get_db_connection", _open)
+        monkeypatch.setattr(A, "get_db_connection", lambda: open_conn(db_path))
 
         # Bundle K2: monkeypatch the new helper (returns (name, cap) pairs).
         import helpers.graph.query as gq
@@ -106,12 +102,7 @@ class TestSectorBundleMarketCapInvariant:
         db_path = tmp_path / "invariant2.db"
         self._seed_unit_db(db_path)
 
-        def _open():
-            c = sqlite3.connect(str(db_path))
-            c.row_factory = sqlite3.Row
-            return c
-
-        monkeypatch.setattr(A, "get_db_connection", _open)
+        monkeypatch.setattr(A, "get_db_connection", lambda: open_conn(db_path))
 
         import helpers.graph.query as gq
 
@@ -150,12 +141,7 @@ class TestThemeNeighborsBundle:
         conn.commit()
         conn.close()
 
-        def _open():
-            c = sqlite3.connect(str(db_path))
-            c.row_factory = sqlite3.Row
-            return c
-
-        monkeypatch.setattr(A, "get_db_connection", _open)
+        monkeypatch.setattr(A, "get_db_connection", lambda: open_conn(db_path))
         # theme_members hits DuckDB; monkeypatch to avoid a live graph conn.
         import helpers.graph.query as gq
 
@@ -255,12 +241,7 @@ class TestEventsEndpoint:
         db_path = tmp_path / "events_unit.db"
         self._seed(db_path)
 
-        def _open():
-            c = sqlite3.connect(str(db_path))
-            c.row_factory = sqlite3.Row
-            return c
-
-        monkeypatch.setattr(A, "get_db_connection", _open)
+        monkeypatch.setattr(A, "get_db_connection", lambda: open_conn(db_path))
 
         with A.app.test_client() as c:
             r = c.get("/api/events/Test Co")
@@ -279,12 +260,7 @@ class TestEventsEndpoint:
         db_path = tmp_path / "events_unit.db"
         self._seed(db_path)
 
-        def _open():
-            c = sqlite3.connect(str(db_path))
-            c.row_factory = sqlite3.Row
-            return c
-
-        monkeypatch.setattr(A, "get_db_connection", _open)
+        monkeypatch.setattr(A, "get_db_connection", lambda: open_conn(db_path))
 
         with A.app.test_client() as c:
             r = c.get("/api/events/Nonexistent Co")
@@ -294,12 +270,7 @@ class TestEventsEndpoint:
         db_path = tmp_path / "events_unit.db"
         self._seed(db_path)
 
-        def _open():
-            c = sqlite3.connect(str(db_path))
-            c.row_factory = sqlite3.Row
-            return c
-
-        monkeypatch.setattr(A, "get_db_connection", _open)
+        monkeypatch.setattr(A, "get_db_connection", lambda: open_conn(db_path))
 
         with A.app.test_client() as c:
             r = c.get("/api/events/Test Co?event_type=guidance")
@@ -312,12 +283,7 @@ class TestEventsEndpoint:
         db_path = tmp_path / "events_unit.db"
         self._seed(db_path)
 
-        def _open():
-            c = sqlite3.connect(str(db_path))
-            c.row_factory = sqlite3.Row
-            return c
-
-        monkeypatch.setattr(A, "get_db_connection", _open)
+        monkeypatch.setattr(A, "get_db_connection", lambda: open_conn(db_path))
 
         with A.app.test_client() as c:
             r = c.get("/api/events/test co")

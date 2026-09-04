@@ -24,8 +24,11 @@ sys.path.insert(0, str(REPO_ROOT / "helpers"))
 from core.db import connect  # noqa: E402
 from datetime import UTC
 
+from tests.schema import RELATIONS  # noqa: E402
 
-PRODUCTION_SCHEMA = """
+
+PRODUCTION_SCHEMA = (
+    """
 CREATE TABLE entities (
     name TEXT PRIMARY KEY NOT NULL,
     entity_type TEXT NOT NULL,
@@ -34,17 +37,9 @@ CREATE TABLE entities (
     sector_classification TEXT,
     ticker TEXT
 );
-CREATE TABLE relations (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    source TEXT NOT NULL,
-    target TEXT NOT NULL,
-    relation_type TEXT NOT NULL,
-    UNIQUE(source, target, relation_type),
-    FOREIGN KEY (source) REFERENCES entities(name)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (target) REFERENCES entities(name)
-        ON DELETE CASCADE ON UPDATE CASCADE
-);
+"""
+    + RELATIONS
+    + """
 CREATE TABLE entity_tags (
     entity_name TEXT NOT NULL,
     tag TEXT NOT NULL,
@@ -53,6 +48,7 @@ CREATE TABLE entity_tags (
         ON DELETE CASCADE ON UPDATE CASCADE
 );
 """
+)
 
 
 @pytest.fixture

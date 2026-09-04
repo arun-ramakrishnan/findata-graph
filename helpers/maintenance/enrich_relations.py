@@ -84,7 +84,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from helpers.core.db import connect, utc_now  # noqa: E402  (W8: utc_now for audit stamps)
+from helpers.core.db import connect, utc_now, utc_today_iso  # noqa: E402  (W8: utc_now for audit stamps)
 from helpers.maintenance.enrich_from_yfinance import (  # noqa: E402
     DB_PATH,
     PROJECT_ROOT,
@@ -390,7 +390,7 @@ def build_candidate_edges(
         if industry:
             by_industry[industry].append(name)
 
-    today = datetime.now(UTC).date().isoformat()
+    today = utc_today_iso()
     source_ref = f"{SOURCE_REF_PREFIX}:industry:{today}"
     edges: list[tuple[str, str, float, str, dict]] = []
     for industry, members in by_industry.items():
@@ -701,7 +701,7 @@ def build_semantic_peer_edges(  # noqa
         log.info("company_embeddings: %d rows, models=%s", n, models)
     except Exception as e:
         log.debug("failed to fetch embedding models: %s", e)
-    today = datetime.now(UTC).date().isoformat()
+    today = utc_today_iso()
     source_ref = f"{EMBEDDINGS_SOURCE_REF_PREFIX}:{today}"
     try:
         import helpers.graph.query as gq
@@ -803,7 +803,7 @@ def run_embeddings_pass(
     )
     # Append a small report section to the shared relations_report.txt
     try:
-        today = datetime.now(UTC).date().isoformat()
+        today = utc_today_iso()
         lines = [
             "",
             f"[semantic_peer]  # E3 embeddings:bge-small:v1 (k={k}, threshold={threshold})",
@@ -1369,7 +1369,7 @@ def build_holders_edges(  # noqa
     (institution_name, company_name, weight, source_ref, properties, valid_from)
     and institution_normalized_map is holder_name -> normalized_name (for entity insert).
     """
-    today = datetime.now(UTC).date().isoformat()
+    today = utc_today_iso()
     ref = source_ref or f"{HOLDERS_SOURCE_REF_PREFIX}:{today}"
     edges: list[tuple[str, str, float, str, dict, str | None]] = []
     inst_norm: dict[str, str] = {}
@@ -1496,7 +1496,7 @@ def run_holders_pass(
         log.info("apply: inserted %d invested_in edges, %d institutions", n_inserted, n_new_insts)
     # Report appendix
     try:
-        today = datetime.now(UTC).date().isoformat()
+        today = utc_today_iso()
         lines = [
             "",
             f"[invested_in]  # E5 {HOLDERS_SOURCE_REF_PREFIX} (yfinance institutional holders)",

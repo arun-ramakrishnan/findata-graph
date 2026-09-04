@@ -67,23 +67,11 @@ def _seeded_db(tmp_path: Path, name: str = "src.db") -> Path:
     VACUUM compacts the freed production pages away — the file is then
     ~100KB instead of tens of MB, which the snapshot paths care
     about (they copy the whole file)."""
+    from tests.helpers import DERIVED_TABLES_NO_FTS_META, copy_production_db  # noqa: E402
+
     db = tmp_path / name
-    src = sqlite3.connect(str(DB_PATH))
+    copy_production_db(DB_PATH, db, tables=DERIVED_TABLES_NO_FTS_META)
     dst = sqlite3.connect(str(db))
-    src.backup(dst)
-    src.close()
-    for t in (
-        "graph_edges",
-        "entity_tags",
-        "graph_analytics",
-        "events",
-        "quotes",
-        "company_metrics",
-        "company_embeddings",
-        "note_search",
-    ):
-        dst.execute(f"DELETE FROM {t}")  # noqa: S608  # schema-constant identifiers
-    dst.execute("DELETE FROM entities")
     dst.executemany(
         "INSERT INTO entities (name, entity_type, sector_classification) VALUES (?,?,?)", _ENTITIES
     )

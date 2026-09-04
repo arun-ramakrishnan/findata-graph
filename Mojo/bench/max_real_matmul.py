@@ -55,23 +55,9 @@ from max.engine import InferenceSession
 from max.graph import DeviceRef, Graph, ops
 from max.graph.type import TensorType
 
+from aligned_array import aligned_array  # shared 64B-alignment helper (same dir)
+
 CHUNK_ROWS = 131072  # 128K rows: caps the float64 fill intermediate (~128 MB at dims=128)
-
-
-def aligned_array(shape, dtype=np.float32, alignment=64):
-    """numpy array whose data pointer is exactly `alignment`-byte aligned.
-
-    The MAX CPU kernels issue vmovaps (32B-required) loads directly off the
-    host input, so a 16-mod-32 numpy buffer segfaults on execute. We
-    over-allocate and slice to a 64B boundary, keeping the base alive so the
-    view stays valid for the zero-copy handoff.
-    """
-    itemsize = np.dtype(dtype).itemsize
-    n = int(np.prod(shape))
-    buf = np.empty(n + alignment // itemsize, dtype=dtype)
-    off = (-buf.ctypes.data) % alignment
-    view = buf[off // itemsize : off // itemsize + n].reshape(shape)
-    return view, buf
 
 
 def fill_random(mat, qry, rows, dims):

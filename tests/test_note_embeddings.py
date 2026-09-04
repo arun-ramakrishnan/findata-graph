@@ -30,10 +30,12 @@ from helpers.graph.query import (  # noqa: E402
     similar_notes,
     _is_warm,
 )
+from tests.schema import ENTITY_TAGS  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 
-_SCHEMA = """
+_SCHEMA = (
+    """
 CREATE TABLE entities (
     name TEXT PRIMARY KEY NOT NULL,
     entity_type TEXT NOT NULL,
@@ -42,11 +44,9 @@ CREATE TABLE entities (
     sector_classification TEXT,
     ticker TEXT
 );
-CREATE TABLE entity_tags (
-    entity_name TEXT NOT NULL,
-    tag TEXT NOT NULL,
-    PRIMARY KEY (entity_name, tag)
-);
+"""
+    + ENTITY_TAGS
+    + """
 CREATE TABLE graph_edges (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source TEXT NOT NULL,
@@ -62,6 +62,7 @@ CREATE TABLE graph_edges (
     CHECK (source != target)
 );
 """
+)
 
 _DIM = 4
 

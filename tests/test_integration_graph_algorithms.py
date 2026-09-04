@@ -50,6 +50,8 @@ from helpers.graph.algorithms import (  # noqa: E402
 # Schema
 # --------------------------------------------------------------------------- #
 
+from tests.schema import GRAPH_ANALYTICS  # noqa: E402
+
 _SCHEMA = """
 CREATE TABLE entities (
     name                  TEXT PRIMARY KEY NOT NULL,
@@ -83,15 +85,7 @@ CREATE TABLE entity_tags (
     tag         TEXT NOT NULL,
     PRIMARY KEY (entity_name, tag)
 );
-
-CREATE TABLE graph_analytics (
-    entity_name TEXT NOT NULL,
-    metric      TEXT NOT NULL,
-    value       TEXT NOT NULL,
-    computed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (metric, entity_name)
-);
-"""
+""" + GRAPH_ANALYTICS
 
 
 # --------------------------------------------------------------------------- #
@@ -470,7 +464,6 @@ class TestAPIGraphMetrics:
     @pytest.fixture
     def seeded_client(self, tmp_path):
         """Build a Flask test_client with graph_analytics pre-seeded."""
-        import app as A
 
         db_path = tmp_path / "api_test.db"
         conn = sqlite3.connect(str(db_path))
@@ -492,25 +485,10 @@ class TestAPIGraphMetrics:
         conn.commit()
         conn.close()
 
-        _open_conns: list[sqlite3.Connection] = []
+        from tests.helpers import flask_test_client  # noqa: E402
 
-        def _open():
-            c = sqlite3.connect(str(db_path))
-            c.row_factory = sqlite3.Row
-            _open_conns.append(c)
-            return c
-
-        saved = A.get_db_connection
-        A.get_db_connection = _open  # ty: ignore[invalid-assignment]
-        try:
-            yield A.app.test_client()
-        finally:
-            A.get_db_connection = saved
-            for c in _open_conns:
-                try:
-                    c.close()
-                except sqlite3.Error:
-                    pass
+        with flask_test_client(db_path, track_conns=True) as client:
+            yield client
 
     def test_scalar_metric_returns_ranked(self, seeded_client):
         """GET /api/graph/metrics/pagerank returns ranked list."""

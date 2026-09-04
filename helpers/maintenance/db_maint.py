@@ -86,6 +86,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core.env import REPO_ROOT  # noqa: E402  (folds _compute_root)
+
 
 class DBMaintainer:
     """Encapsulates maintenance steps for a SQLite database (+ optional DuckDB cache)."""
@@ -675,11 +677,6 @@ def _run_sync_check(root: Path) -> dict:
     return out
 
 
-def _compute_root() -> Path:
-    # helpers/maintenance/db_maint.py -> repo root is two parents up
-    return Path(__file__).resolve().parents[2]
-
-
 def main(argv: list[str] | None = None) -> int:  # noqa: C901
     parser = argparse.ArgumentParser(
         description="SQLite DB maintenance for memory/research.db (+ optional DuckDB cache)."
@@ -736,7 +733,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     if args.migrate_incremental:
         import sqlite3 as _sqlite3
 
-        root_m = _compute_root()
+        root_m = REPO_ROOT
         dbp = Path(args.db)
         if not dbp.is_absolute():
             dbp = root_m / dbp
@@ -760,7 +757,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             mcon.close()
         return 0
 
-    root = _compute_root()
+    root = REPO_ROOT
     db_path = Path(args.db)
     if not db_path.is_absolute():
         db_path = root / db_path

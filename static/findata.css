@@ -673,55 +673,8 @@ main {
     font-weight: 500;
 }
 
-/* Modal */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.7);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    padding: 1rem;
-}
-
-.modal-content {
-    background: white;
-    border-radius: 12px;
-    max-width: 1200px;
-    max-height: 90vh;
-    width: 95%;
-    overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid #e9ecef;
-    background: #f8f9fa;
-    position: relative;
-}
-
-.modal-header h3 {
-    color: #2c3e50;
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin: 0;
-    flex: 1;
-}
-
-.modal-actions {
-    display: flex;
-    gap: 0.5rem;
-    margin-right: 1rem;
-}
-
+/* (Dead modal styles removed 2026-09-03 — no template/TS references;
+   see consolidate_frontend_reader.md. Live .btn-secondary kept below.) */
 .btn-secondary {
     background: var(--ink-2);
     color: var(--text-mid);
@@ -745,27 +698,6 @@ main {
     color: var(--accent);
     border-color: var(--accent);
     background: var(--accent-dim);
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    color: #6c757d;
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 50%;
-    transition: all 0.3s ease;
-}
-
-.modal-close:hover {
-    background: #e9ecef;
-    color: #495057;
-}
-
-.modal-layout {
-    display: flex;
-    height: calc(90vh - 80px);
 }
 
 .toc-sidebar {
@@ -846,65 +778,6 @@ main {
 .toc-level-3 {
     font-weight: 400;
     font-size: 0.85rem;
-}
-
-.modal-main {
-    flex: 1;
-    overflow-y: auto;
-    transition: margin-left 0.3s ease;
-}
-
-.modal-body {
-    padding: 0;
-    max-height: none;
-    overflow: visible;
-}
-
-.modal-content {
-    background: white;
-    border-radius: 12px;
-    max-width: 800px;
-    max-height: 90vh;
-    width: 100%;
-    overflow: hidden;
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid #e9ecef;
-    background: #f8f9fa;
-}
-
-.modal-header h3 {
-    color: #2c3e50;
-    font-size: 1.5rem;
-    font-weight: 600;
-}
-
-.modal-close {
-    background: none;
-    border: none;
-    font-size: 1.5rem;
-    color: #6c757d;
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 50%;
-    transition: all 0.3s ease;
-}
-
-.modal-close:hover {
-    background: #e9ecef;
-    color: #495057;
-}
-
-.modal-body {
-    padding: 1.5rem;
-    max-height: calc(90vh - 120px);
-    overflow-y: auto;
 }
 
 .entity-metadata {
@@ -1326,32 +1199,11 @@ footer {
 
 /* Responsive Design */
 @media (max-width: 1024px) {
-    .modal-content {
-        max-width: 95vw;
-        flex-direction: column;
-    }
-    
-    .modal-layout {
-        flex-direction: column;
-        height: auto;
-    }
-    
     .toc-sidebar {
         width: 100%;
         max-height: 200px;
         border-right: none;
         border-bottom: 1px solid #e9ecef;
-    }
-    
-    .modal-main {
-        margin-left: 0;
-        margin-top: 1rem;
-    }
-    
-    .modal-actions {
-        flex-wrap: wrap;
-        margin-right: 0;
-        margin-top: 0.5rem;
     }
 }
 
@@ -1422,24 +1274,8 @@ footer {
         text-align: center;
     }
     
-    .modal-content {
-        margin: 1rem;
-        max-height: calc(100vh - 2rem);
-        max-width: 95vw;
-    }
-    
     .metadata-grid {
         grid-template-columns: 1fr;
-    }
-    
-    .modal-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 1rem;
-    }
-    
-    .modal-header h3 {
-        width: 100%;
     }
     
     .lightbox-content {
@@ -1476,19 +1312,6 @@ footer {
     
     .entity-card {
         padding: 1rem;
-    }
-    
-    .modal-content {
-        margin: 0.5rem;
-        max-height: calc(100vh - 1rem);
-    }
-    
-    .modal-header {
-        padding: 1rem;
-    }
-    
-    .modal-header h3 {
-        font-size: 1.25rem;
     }
     
     .btn-secondary {
@@ -1533,10 +1356,6 @@ footer {
     }
     
     .entity-card {
-        padding: 1rem;
-    }
-    
-    .modal-body {
         padding: 1rem;
     }
 }
@@ -1618,7 +1437,7 @@ footer {
         border-bottom: 2px solid #e9ecef;
     }
     
-    .nav-link, .view-btn, .btn-primary, .modal-close, .modal-actions {
+    .nav-link, .view-btn, .btn-primary {
         display: none;
     }
     
@@ -1632,16 +1451,8 @@ footer {
         border: 1px solid #e9ecef;
     }
     
-    .modal-layout {
-        display: block;
-    }
-    
     .toc-sidebar {
         display: none;
-    }
-    
-    .modal-main {
-        margin-left: 0;
     }
     
     .rich-image {

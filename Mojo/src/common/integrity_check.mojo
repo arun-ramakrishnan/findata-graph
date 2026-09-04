@@ -37,8 +37,13 @@ from std.time import perf_counter_ns
 
 from yaml import parse
 
+from bridge import contains, join_list, py_str, sys_exit, to_i
+from list_utils import sort_strs
+
 
 # ---------------------------------------------------------------- helpers
+# (shared patterns live in bridge.mojo + list_utils.mojo — imported above;
+# only checker-local helpers stay here)
 
 
 def file_exists(path: String) raises -> Bool:
@@ -50,26 +55,6 @@ def file_exists(path: String) raises -> Bool:
         return False
 
 
-def contains(lst: List[String], s: String) -> Bool:
-    for i in range(len(lst)):
-        if lst[i] == s:
-            return True
-    return False
-
-
-def sort_strs(lst: List[String]) -> List[String]:
-    """Insertion sort (lists here are <= ~1.5k entries)."""
-    var out = lst.copy()
-    for i in range(1, len(out)):
-        var key = out[i]
-        var j = i - 1
-        while j >= 0 and out[j] > key:
-            out[j + 1] = out[j]
-            j -= 1
-        out[j + 1] = key
-    return out^
-
-
 def uniq_sorted(lst: List[String]) -> List[String]:
     var s = sort_strs(lst)
     var out = List[String]()
@@ -79,28 +64,11 @@ def uniq_sorted(lst: List[String]) -> List[String]:
     return out^
 
 
-def join_list(lst: List[String], sep: String) -> String:
-    var out = String("")
-    for i in range(len(lst)):
-        if i > 0:
-            out += sep
-        out += lst[i]
-    return out
-
-
 def subset(a: List[String], b: List[String]) -> Bool:
     for i in range(len(a)):
         if not contains(b, a[i]):
             return False
     return True
-
-
-def to_i(o: PythonObject) raises -> Int:
-    return Int(String(o.__str__()))
-
-
-def py_str(o: PythonObject) raises -> String:
-    return String(o.__str__())
 
 
 def norm_underscore(s: String) -> String:
@@ -1790,10 +1758,3 @@ def main() raises:
             " (error-severity regressions, coverage, or parity)",
         )
     sys_exit(exit_code)
-
-
-def sys_exit(code: Int) raises:
-    # sys.exit raises SystemExit, which the bridge surfaces as an
-    # unhandled error — os._exit terminates cleanly
-    if code != 0:
-        Python.evaluate("__import__('os')._exit(" + String(code) + ")")

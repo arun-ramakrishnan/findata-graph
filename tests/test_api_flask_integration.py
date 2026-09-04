@@ -14,7 +14,6 @@ import pytest
 
 from helpers.core.db import connect
 
-import app as A
 
 pytestmark = [pytest.mark.integration]
 
@@ -23,17 +22,11 @@ pytestmark = [pytest.mark.integration]
 # Schema + seed data shared across all P2 tests
 # --------------------------------------------------------------------------- #
 
-_SCHEMA = """
-CREATE TABLE entities (
-    name TEXT PRIMARY KEY NOT NULL,
-    entity_type TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    file_path TEXT,
-    last_updated DATETIME,
-    normalized_name TEXT,
-    sector_classification TEXT,
-    ticker TEXT
-);
+from tests.schema import ENTITIES_8COL, NOTE_SEARCH_FTS  # noqa: E402
+
+_SCHEMA = (
+    ENTITIES_8COL
+    + """
 CREATE TABLE entity_tags (
     entity_name TEXT NOT NULL,
     tag TEXT NOT NULL,
@@ -67,11 +60,9 @@ CREATE TABLE events (
     source_quote TEXT,
     as_of_edition TEXT
 );
-CREATE VIRTUAL TABLE note_search USING fts5(
-    doc_type, file_path UNINDEXED, title, sector, content,
-    tokenize = 'porter unicode61'
-);
 """
+    + NOTE_SEARCH_FTS
+)
 
 _SEED = [
     # (name, type, sector, file_path, ticker, tags)
@@ -153,14 +144,12 @@ def p2_client(tmp_path):
         pass  # note_search may not be needed for all tests
 
     # Monkeypatch app.get_db_connection to use our test DB
-    # connect() from helpers.core.db sets row_factory=sqlite3.Row + pragmas
-    saved_gdb = A.get_db_connection
-    A.get_db_connection = lambda: connect(db_path)  # ty: ignore[invalid-assignment]
+    # (helpers.core.db connect() sets Row + pragmas — same as the default
+    # opener in tests.helpers.flask_test_client)
+    from tests.helpers import flask_test_client  # noqa: E402
 
-    try:
-        yield A.app.test_client()
-    finally:
-        A.get_db_connection = saved_gdb
+    with flask_test_client(db_path) as client:
+        yield client
 
 
 # --------------------------------------------------------------------------- #

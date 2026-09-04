@@ -10,15 +10,17 @@ Connections are read-only and module-lazy.
 
 from __future__ import annotations
 
-import pathlib
 import sqlite3
 import time
 
 import duckdb
 
-REPO = pathlib.Path(__file__).resolve().parents[2]
-SQLITE_RO = f"file:{REPO / 'memory' / 'research.db'}?mode=ro"
-DUCKDB_RO = str(REPO / "memory" / "graph.duckdb")
+from bridge_utils import (  # Mojo/bench is on sys.path for every importer
+    RESEARCH_DB,
+    connect_duckdb_ro,
+    connect_sqlite_ro,
+    sum_rows,
+)
 
 _sq: sqlite3.Connection | None = None
 _dk: duckdb.DuckDBPyConnection | None = None
@@ -27,21 +29,16 @@ _dk: duckdb.DuckDBPyConnection | None = None
 def _sqlite() -> sqlite3.Connection:
     global _sq
     if _sq is None:
-        import sys
-
-        if str(REPO) not in sys.path:
-            sys.path.insert(0, str(REPO))
-        from helpers.core.db import connect as _helpers_connect  # noqa: E402
-
-        _sq = _helpers_connect(REPO / "memory" / "research.db", read_only=True)
-        _sq.execute("PRAGMA query_only=ON")
+        _sq = connect_sqlite_ro(
+            RESEARCH_DB, row_factory=sqlite3.Row, query_only=True
+        )
     return _sq
 
 
 def _duck() -> duckdb.DuckDBPyConnection:
     global _dk
     if _dk is None:
-        _dk = duckdb.connect(DUCKDB_RO, read_only=True)
+        _dk = connect_duckdb_ro()
     return _dk
 
 
@@ -126,15 +123,6 @@ def cases():
 
 def ncases():
     return len(cases())
-
-
-def sum_rows(rows) -> int:
-    """Deterministic row checksum, computable identically on both sides.
-
-    UTF-8 BYTES of repr(row) — the Mojo side measures byte_length() of
-    the same repr string, and codepoint counts would differ on non-ASCII
-    quote text (one multi-byte char = +1 byte vs +1 char)."""
-    return sum(len(repr(r).encode("utf-8")) for r in rows)
 
 
 def bench_native(reps=50):

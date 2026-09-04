@@ -10,7 +10,6 @@ import sqlite3
 from contextlib import contextmanager
 
 
-import app as A
 from tests.conftest import (  # noqa: E402
     _UNIT_SCHEMA,
     _UNIT_ENTITIES,
@@ -95,17 +94,10 @@ def _seeded_sqlite_db_with_analytics(tmp_path):
     conn.commit()
     conn.close()
 
-    def _open():
-        c = sqlite3.connect(str(db_path))
-        c.row_factory = sqlite3.Row
-        return c
+    from tests.helpers import flask_test_client  # noqa: E402
 
-    saved = A.get_db_connection
-    A.get_db_connection = _open  # ty: ignore[invalid-assignment]
-    try:
-        yield A.app.test_client()
-    finally:
-        A.get_db_connection = saved
+    with flask_test_client(db_path) as client:
+        yield client
 
 
 class TestGraphMetricsEndpoint:
