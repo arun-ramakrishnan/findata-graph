@@ -3,7 +3,7 @@ title: "Consolidate the duplicated paper-register reader — entity.ts / docs.ts
 status: executed
 filed: "2026-09-03"
 executed: "2026-09-04"
-completed_md: 200
+completed_md: "200"
 area: "frontend/src (entity.ts, views/docs.ts, core/), templates (findata.html, entity_detail.html), static (findata.css)"
 ---
 

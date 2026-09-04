@@ -1705,6 +1705,9 @@ def _expand_paths(target: str) -> list[Path]:
 # Newsletter chrome to skip (non-content). Mirrors the parse_newsletter skip set.
 _NEWSLETTER_CHROME_NAMES = {"image_map", "images"}
 
+# Content trees scanned when the target is the whole vault (findata).
+_NEWSLETTER_TREES = ("The_Chatter", "Points_And_Figures", "The_PlotLines")
+
 
 def _build_resolver_map(conn) -> dict[str, str]:
     """One DB round-trip: company name + normalized_name -> canonical db name (lowercased keys)."""
@@ -1724,21 +1727,19 @@ def _build_resolver_map(conn) -> dict[str, str]:
     return m
 
 
-def _scan_one_file(md: Path, resolver_map: dict[str, str]) -> tuple[list[Quote], list[Metric]]:
-    """Scan a single newsletter file (thread-safe; no DB)."""
-    if md.name == "image_map.md" or md.parent.name in _NEWSLETTER_CHROME_NAMES:
-        return [], []
-    content = md.read_text(encoding="utf-8", errors="replace")
-    stem = md.stem
-    edition = _edition_title(stem, content)
-    sections = list(iter_company_sections(content))
-    if not sections:
-        return [], []
-    resolved: dict[str, str] = {}
-    for s in sections:
-        lower = s.canonical_name.lower()
-        if lower in resolver_map:
-            resolved[s.canonical_name] = resolver_map[lower]
+def _extract_sections(
+    sections: list[CompanySection], edition: str, stem: str, resolver_map: dict[str, str]
+) -> tuple[list[Quote], list[Metric]]:
+    """Resolve section names against the map, then extract quotes + metrics.
+
+    Shared core of every scan path (file read, corpus text, pool worker);
+    rewrites ``section.canonical_name`` in place to the resolved db name.
+    """
+    resolved = {
+        s.canonical_name: resolver_map[s.canonical_name.lower()]
+        for s in sections
+        if s.canonical_name.lower() in resolver_map
+    }
     quotes: list[Quote] = []
     metrics: list[Metric] = []
     for section in sections:
@@ -1751,68 +1752,39 @@ def _scan_one_file(md: Path, resolver_map: dict[str, str]) -> tuple[list[Quote],
     return quotes, metrics
 
 
-def scan(target: str, conn, corpus: Corpus | None = None) -> tuple[list[Quote], list[Metric]]:
-    """Scan one or more newsletter files; return ``(quotes, metrics)``."""
+def _scan_one_file(md: Path, resolver_map: dict[str, str]) -> tuple[list[Quote], list[Metric]]:
+    """Scan a single newsletter file (thread-safe; no DB)."""
+    if md.name == "image_map.md" or md.parent.name in _NEWSLETTER_CHROME_NAMES:
+        return [], []
+    content = md.read_text(encoding="utf-8", errors="replace")
+    stem = md.stem
+    edition = _edition_title(stem, content)
+    sections = list(iter_company_sections(content))
+    if not sections:
+        return [], []
+    return _extract_sections(sections, edition, stem, resolver_map)
+
+
+def scan(
+    target: str,
+    conn,
+    corpus: Corpus | None = None,
+    workers: int | None = None,
+) -> tuple[list[Quote], list[Metric]]:
+    """Scan one or more newsletter files; return ``(quotes, metrics)``.
+
+    ``workers``: process fan-out for the per-file scan (default: auto =
+    min(4, cpu_count); 1 or below forces the serial loop). Pool shards
+    only the file-reading + regex phase — ``_scan_one_file`` is pure
+    (docstring: thread-safe, no DB) and ``ex.map`` preserves input order,
+    so aggregation is deterministic. Small targets (< 8 files) always run
+    serial: fork startup exceeds the win.
+    """
     # S1a single-DB-query: was N queries (one per file via _resolve_entities), now 1.
     # S1b corpus: when corpus is given (maint --full --corpus), iterate over pre-parsed notes instead of re-walking.
     resolver_map = _build_resolver_map(conn)
     if corpus is not None:
-        # Filter corpus notes to target newsletter trees (findata/The_Chatter etc.)
-        target_paths = set(_expand_paths(target))
-        # If target is a directory like findata, include all newsletters; else filter to target set
-        if len(target_paths) == 1 and target_paths.pop().as_posix() == "findata":
-            paths = [
-                Path(n.path)
-                for n in corpus.notes
-                if n.path.parent.name not in _NEWSLETTER_CHROME_NAMES
-                and n.path.name != "image_map.md"
-                and "The_Chatter" in n.path.as_posix()
-                or "Points_And_Figures" in n.path.as_posix()
-                or "The_PlotLines" in n.path.as_posix()
-            ]
-            # Simpler: filter to newsletter trees explicitly
-            paths = [
-                Path(n.path)
-                for n in corpus.notes
-                if any(
-                    t in n.path.as_posix()
-                    for t in ("The_Chatter", "Points_And_Figures", "The_PlotLines")
-                )
-            ]
-        else:
-            target_set = {Path(t).as_posix() for t in _expand_paths(target)}
-            paths = [Path(n.path) for n in corpus.notes if n.path.as_posix() in target_set]
-        # Use corpus fast path: text already loaded, avoid re-reading file
-        quotes: list[Quote] = []
-        metrics: list[Metric] = []
-        by_path_text = {n.path.as_posix(): n.text for n in corpus.notes}
-        for md in paths:
-            # _scan_one_file reads file again; use corpus text if available
-            text = by_path_text.get(md.as_posix())
-            if text is not None:
-                # Inline _scan_one_file with corpus text to avoid re-read
-                stem = md.stem
-                edition = _edition_title(stem, text)
-                sections = list(iter_company_sections(text))
-                if not sections:
-                    continue
-                resolved = {
-                    s.canonical_name: resolver_map[s.canonical_name.lower()]
-                    for s in sections
-                    if s.canonical_name.lower() in resolver_map
-                }
-                for section in sections:
-                    en = resolved.get(section.canonical_name)
-                    if not en:
-                        continue
-                    section.canonical_name = en
-                    quotes.extend(extract_quotes(section, edition, stem))
-                    metrics.extend(extract_metrics(section, edition, stem))
-                continue
-            q_batch, m_batch = _scan_one_file(md, resolver_map)
-            quotes.extend(q_batch)
-            metrics.extend(m_batch)
-        return quotes, metrics
+        return _scan_corpus(corpus, target, resolver_map)
     paths = [
         p
         for p in _expand_paths(target)
@@ -1820,6 +1792,95 @@ def scan(target: str, conn, corpus: Corpus | None = None) -> tuple[list[Quote], 
     ]
     if not paths:
         return [], []
+    import os as _os
+
+    n_workers = min(4, _os.cpu_count() or 1) if workers is None else workers
+    if n_workers <= 1 or len(paths) < 8:
+        return _scan_serial(paths, resolver_map)
+    return _scan_parallel(paths, resolver_map, n_workers)
+
+
+def _corpus_paths(corpus: Corpus, target: str) -> list[Path]:
+    """Select corpus notes for ``target`` (S1b path selection).
+
+    Whole-vault target (``findata``) means the three newsletter trees;
+    anything else is an exact path set.
+    """
+    target_paths = set(_expand_paths(target))
+    if len(target_paths) == 1 and target_paths.pop().as_posix() == "findata":
+        return [
+            Path(n.path)
+            for n in corpus.notes
+            if any(t in n.path.as_posix() for t in _NEWSLETTER_TREES)
+        ]
+    target_set = {Path(t).as_posix() for t in _expand_paths(target)}
+    return [Path(n.path) for n in corpus.notes if n.path.as_posix() in target_set]
+
+
+def _scan_corpus(
+    corpus: Corpus, target: str, resolver_map: dict[str, str]
+) -> tuple[list[Quote], list[Metric]]:
+    """Corpus fast path (S1b): scan pre-parsed notes, no file re-reads."""
+    paths = _corpus_paths(corpus, target)
+    by_path_text = {n.path.as_posix(): n.text for n in corpus.notes}
+    quotes: list[Quote] = []
+    metrics: list[Metric] = []
+    for md in paths:
+        text = by_path_text.get(md.as_posix())
+        if text is None:  # not in the corpus parse — fall back to a file read
+            q_batch, m_batch = _scan_one_file(md, resolver_map)
+            quotes.extend(q_batch)
+            metrics.extend(m_batch)
+            continue
+        stem = md.stem
+        sections = list(iter_company_sections(text))
+        if not sections:
+            continue
+        q_batch, m_batch = _extract_sections(
+            sections, _edition_title(stem, text), stem, resolver_map
+        )
+        quotes.extend(q_batch)
+        metrics.extend(m_batch)
+    return quotes, metrics
+
+
+def _scan_parallel(
+    paths: list[Path], resolver_map: dict[str, str], n_workers: int
+) -> tuple[list[Quote], list[Metric]]:
+    """Parallel map phase (S3b): stride-shard files across workers so the
+    resolver map pickles once per worker, not once per file. S1b rule:
+    target `helpers.graph._insights_worker` (always importable), never a
+    `__main__` attribute, or ForkServer children fail AttributeError."""
+    from concurrent.futures import ProcessPoolExecutor
+    from concurrent.futures.process import BrokenProcessPool
+
+    from helpers.graph._insights_worker import _scan_chunk_arg as _worker_arg
+
+    chunks = [([str(p) for p in paths[i::n_workers]], resolver_map) for i in range(n_workers)]
+    try:
+        with ProcessPoolExecutor(max_workers=n_workers) as ex:
+            # Re-interleave stride chunks into path order: identical to
+            # serial down to row order (render + apply stay deterministic).
+            by_path: dict[str, tuple[list[dict], list[dict]]] = {}
+            for chunk_out in ex.map(_worker_arg, chunks):
+                for fp, q_dicts, m_dicts in chunk_out:
+                    by_path[fp] = (q_dicts, m_dicts)
+            quotes: list[Quote] = []
+            metrics: list[Metric] = []
+            for md in paths:
+                q_dicts, m_dicts = by_path[str(md)]
+                quotes.extend(Quote(**d) for d in q_dicts)
+                metrics.extend(Metric(**d) for d in m_dicts)
+            return quotes, metrics
+    except BrokenProcessPool:
+        print("WARNING: ProcessPoolExecutor crashed, falling back to serial", file=sys.stderr)
+        return _scan_serial(paths, resolver_map)
+
+
+def _scan_serial(
+    paths: list[Path], resolver_map: dict[str, str]
+) -> tuple[list[Quote], list[Metric]]:
+    """Serial per-file scan (pool fallback + small-target fast path)."""
     quotes: list[Quote] = []
     metrics: list[Metric] = []
     for md in paths:
@@ -1874,6 +1935,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         action="store_true",
         help="S1b: use helpers.core.corpus shared walk (maint --full) — one walk for all derivations.",
     )
+    p.add_argument(
+        "--workers",
+        type=int,
+        default=None,
+        help="Process fan-out for the per-file scan (default: auto = min(4, "
+        "cpus); 1 or below forces serial). Small targets (< 8 files) run "
+        "serial regardless.",
+    )
     args = p.parse_args(argv)
 
     conn = connect()
@@ -1883,11 +1952,11 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             try:
                 # For Corpus, target is findata newsletters; load full findata and filter in scan via corpus param
                 _corpus = Corpus.load("findata", workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
-                quotes, metrics = scan(args.target, conn, corpus=_corpus)
+                quotes, metrics = scan(args.target, conn, corpus=_corpus, workers=args.workers)
             except Exception:
-                quotes, metrics = scan(args.target, conn)
+                quotes, metrics = scan(args.target, conn, workers=args.workers)
         else:
-            quotes, metrics = scan(args.target, conn)
+            quotes, metrics = scan(args.target, conn, workers=args.workers)
 
         # Summary.
         by_speaker: dict[str, int] = {}

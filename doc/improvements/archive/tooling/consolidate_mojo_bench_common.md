@@ -3,7 +3,7 @@ title: "Consolidate duplicated Mojo bench/common kernels — cosine SIMD, f32 lo
 status: executed
 filed: "2026-09-03"
 executed: "2026-09-04"
-completed_md: 202
+completed_md: "202"
 area: "Mojo/src/bench (bench_cosine*, bench_scale, bench_pool), Mojo/src/common (integrity_check.mojo), Mojo/bench (mojo_graph_algos.py, mojo_db_access.py, mojo_db_integrity.py, max_real_matmul.py, flat_knn.py)"
 ---
 

@@ -3,7 +3,7 @@ title: "tests/ fixture & scaffolding consolidation — shared schema, production
 status: executed
 filed: "2026-09-03"
 executed: "2026-09-04"
-completed_md: 203
+completed_md: "203"
 area: "tests/ (conftest.py + 44 schema-copy files, ~6 copy-production-DB files, 14 Flask test_client sites, ~86 sys.path-boilerplate files)"
 ---
 
@@ -162,10 +162,27 @@ inspection: it shares only 5 near-identical tuples with canonical
 (canonical minus `No Ticker Co`), and its tags are a TAXONOMY diff, not a
 value diff — every entity carries `entity_type/*` + `sector/*` tags (10
 rows) that canonical `_UNIT_TAGS` (market_cap-only by design, post-C2)
-does not contain, and the `enhanced_tags` assertions (e.g.
-`test_api_flask_integration.py:245`) consume them. An adapter would re-supply the entire load-bearing tag set locally,
-so consolidation value ≈ zero with nonzero fixture-drift risk. All other
-files excluded with evidence.
+does not contain; the consumers are the `enhanced_tags`/`market_cap`
+assertions (`test_api_flask_integration.py:245/:252`).
+
+**Correction (post-archival review, 2026-09-04):** the consumer methods
+(`entity_detail_has_enhanced_tags`, `entity_detail_market_cap_from_tag`,
+plus 7 siblings across the route classes) lack the `test_` prefix
+`pytest.ini` (`python_functions = test_*`) requires, so they were NOT
+collected — the tag assertions were dead as written. An override run
+(`-o python_functions` adding the bare names) passes 21/21 including all
+9, so the contract is real and green; prefixing the methods restores
+consumption — APPLIED same day (9 renames `test_*`; 21/21 green under
+normal collection, ruff clean; suite-wide AST scan: NO other dead-test
+clusters — remaining unprefixed self-methods are called helpers, pytest
+fixtures/hooks, or non-`Test` fake-class members). LEFT LOCAL stands
+either way: with consumers live, an
+adapter would re-supply the entire load-bearing tag set locally
+(consolidation value ≈ zero with nonzero fixture-drift risk), and the
+tuple-membership + column drift force an adapter regardless —
+consolidating on the premise that the consumers are dead would
+institutionalize the collection bug. All other files excluded with
+evidence.
 
 ### 2.5 sys.path boilerplate → rely on conftest
 
@@ -350,8 +367,12 @@ executed.
   reseed sets). The last candidate, `test_api_flask_integration`, was
   closed LEFT LOCAL 2026-09-04: its tags are a taxonomy diff
   (`entity_type/*` + `sector/*` ×10 rows that canonical `_UNIT_TAGS`,
-  market_cap-only by design, does not contain — consumed by
-  `test_entity_detail_market_cap_from_tag`), so an adapter would carry
-  the load-bearing part anyway. Seed work is DONE — nothing deferred.
+  market_cap-only by design, does not contain — intended consumer
+  `entity_detail_market_cap_from_tag`, uncollected at review time, see
+  the §2.4 correction), so an adapter would carry the load-bearing part
+  anyway. Seed work is DONE — nothing deferred. (Post-archival
+  2026-09-04: the file's 9 unprefixed methods were a test-liveness bug
+  outside seed scope — prefix fix applied same day, 21/21 green; the
+  suite-wide scan found no other clusters.)
 - **Open for revisit:** sys.path strip
   (~86 files, bulk), `make_company_note`, full `make qa`.

@@ -164,7 +164,7 @@ class TestRootRoute:
         r = p2_client.get("/")
         assert r.status_code == 200
 
-    def root_returns_html(self, p2_client):
+    def test_root_returns_html(self, p2_client):
         r = p2_client.get("/")
         assert "text/html" in r.headers.get("Content-Type", "")
 
@@ -176,7 +176,7 @@ class TestFindataViewerRoute:
         r = p2_client.get("/findata")
         assert r.status_code == 200
 
-    def findata_returns_html(self, p2_client):
+    def test_findata_returns_html(self, p2_client):
         r = p2_client.get("/findata")
         assert "text/html" in r.headers.get("Content-Type", "")
 
@@ -188,18 +188,18 @@ class TestApiSectorsRoute:
         r = p2_client.get("/api/sectors")
         assert r.status_code == 200
 
-    def sectors_returns_json(self, p2_client):
+    def test_sectors_returns_json(self, p2_client):
         r = p2_client.get("/api/sectors")
         assert r.is_json
 
-    def sectors_have_classifications(self, p2_client):
+    def test_sectors_have_classifications(self, p2_client):
         r = p2_client.get("/api/sectors")
         data = r.get_json()
         classifications = data.get("classifications", [])
         # Should contain Banking and/or Technology from our seed data
         assert len(classifications) > 0
 
-    def sectors_have_sector_entities(self, p2_client):
+    def test_sectors_have_sector_entities(self, p2_client):
         r = p2_client.get("/api/sectors")
         data = r.get_json()
         se = data.get("sector_entities", [])
@@ -208,7 +208,7 @@ class TestApiSectorsRoute:
             assert "name" in ent
             assert "file_path" in ent
 
-    def sectors_have_super_sectors(self, p2_client):
+    def test_sectors_have_super_sectors(self, p2_client):
         r = p2_client.get("/api/sectors")
         data = r.get_json()
         ss = data.get("super_sectors", [])
@@ -229,7 +229,7 @@ class TestApiEntityDetailRoute:
         r = p2_client.get("/api/entity/Does%20Not%20Exist")
         assert r.status_code == 404
 
-    def entity_detail_has_required_keys(self, p2_client):
+    def test_entity_detail_has_required_keys(self, p2_client):
         r = p2_client.get("/api/entity/HDFC%20Bank")
         data = r.get_json()
         # EntityDetail = EntityListItem + frontmatter + content + raw_content
@@ -237,14 +237,14 @@ class TestApiEntityDetailRoute:
         for key in required:
             assert key in data, f"Missing required key '{key}' in entity detail response"
 
-    def entity_detail_has_enhanced_tags(self, p2_client):
+    def test_entity_detail_has_enhanced_tags(self, p2_client):
         r = p2_client.get("/api/entity/HDFC%20Bank")
         data = r.get_json()
         assert "enhanced_tags" in data
         # Should have tags from the seeded DB
         assert len(data["enhanced_tags"]) > 0
 
-    def entity_detail_market_cap_from_tag(self, p2_client):
+    def test_entity_detail_market_cap_from_tag(self, p2_client):
         r = p2_client.get("/api/entity/HDFC%20Bank")
         data = r.get_json()
         assert "market_cap" in data
