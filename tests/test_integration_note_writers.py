@@ -24,8 +24,6 @@ from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.core.db import connect as db_connect  # noqa: E402
 from helpers.core.frontmatter import yaml_safe_load  # noqa: E402

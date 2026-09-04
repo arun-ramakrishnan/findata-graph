@@ -1,9 +1,9 @@
 ---
 title: "helpers/ de-dup — env.REPO_ROOT + db.connect adoption, utc_today_iso, fold _compute_root/_connect_ro/_now_utc"
-status: proposed
+status: executed
 filed: "2026-09-03"
-executed: null
-completed_md: null
+executed: "2026-09-04"
+completed_md: 201
 area: "helpers/core (env.py, db.py), helpers/maintenance (snapshot_db, db_maint, enrich_relations, enrich_from_yfinance, maint), helpers/misc (git_secret_scan), helpers/validators (static_checks), helpers/graph (query, stats, embeddings, algorithms)"
 ---
 

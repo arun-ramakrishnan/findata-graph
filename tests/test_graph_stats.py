@@ -5,15 +5,11 @@ from __future__ import annotations
 
 import contextlib
 import io
-import sys
-from pathlib import Path
 
 import pytest
 
 pytestmark = pytest.mark.live
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.graph.stats import print_stats  # noqa: E402
 from helpers.graph import stats  # noqa: E402

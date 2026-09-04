@@ -12,14 +12,10 @@ both /api/docs/search and doc_query. Neither had properties.
 from __future__ import annotations
 
 import sqlite3
-import sys
-from pathlib import Path
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 

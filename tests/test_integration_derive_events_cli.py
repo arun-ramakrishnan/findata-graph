@@ -12,15 +12,12 @@ and the FK-safety contract (every event's entity must exist).
 from __future__ import annotations
 
 import sqlite3
-import sys
 from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.core.db import connect as db_connect  # noqa: E402
 from helpers.graph import derive_events as de  # noqa: E402

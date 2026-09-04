@@ -10,14 +10,11 @@ incremental no-op cycles (P2.2). None had properties.
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.maintenance import rebuild_note_search as rns  # noqa: E402
 

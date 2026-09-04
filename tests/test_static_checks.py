@@ -8,13 +8,11 @@ the check under test flags the intended defect and passes when clean.
 from __future__ import annotations
 
 import sqlite3
-import sys
 from pathlib import Path
 
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
 from validators import static_checks as sc  # noqa: E402
 

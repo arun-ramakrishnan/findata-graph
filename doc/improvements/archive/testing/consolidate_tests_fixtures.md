@@ -1,9 +1,9 @@
 ---
 title: "tests/ fixture & scaffolding consolidation — shared schema, production-DB copy, Flask client, seed data"
-status: proposed
+status: executed
 filed: "2026-09-03"
-executed: null
-completed_md: null
+executed: "2026-09-04"
+completed_md: 203
 area: "tests/ (conftest.py + 44 schema-copy files, ~6 copy-production-DB files, 14 Flask test_client sites, ~86 sys.path-boilerplate files)"
 ---
 
@@ -80,6 +80,34 @@ Files: `test_integration_extract_relations_cli.py:52-74`,
 `test_integration_note_writers.py:73-95` (keep-list variant),
 `test_integration_maint_chain.py:113-146` (keep-list variant).
 
+**Census extension (found 2026-09-04 during implementation review):** five
+MORE files carry the same `src = sqlite3.connect(str(DB_PATH)); dst =
+sqlite3.connect(…); src.backup(dst)` copy. Re-surveyed line-by-line the
+same day — only TWO are true copy-only (`test_query_plans.py:31`,
+`test_rebuild_schema.py:28`, both `tmp_db` fixtures →
+`copy_production_db(keep_all=True)`); `test_graph.py:73` and
+`test_fuzz_shortest_path.py:106` are nuke variants (8-table and 9-table
+wipes respectively — covered by `tables=`); `test_graph_disk.py:80` is a
+bespoke downsample (keep-table + LIMIT sampling) that stays local. The
+original "6 files" count was a nuke-pattern census; the end-state gate
+(`rg -l 'sqlite3\.connect\(str\(DB_PATH\)\)' tests/` → only
+`tests/helpers.py`) is correspondingly narrowed: the bespoke sites
+(graph_disk downsample, near_duplicates:144 FTS-only prune, the
+note_writers/maint_chain keep-list pair) stay local by decision, so the
+gate exempts them.
+
+**Execution state (2026-09-04, completed):** all convertible sites route
+through the helper — the original 3 (`extract_relations_cli`,
+`derive_events_cli`, `snapshot_cycle`) plus `near_duplicates` site 1,
+`test_graph` (`tables=DERIVED_TABLES_NO_FTS_META`), `test_fuzz_shortest_path`
+(default 9-table nuke), `test_query_plans` + `test_rebuild_schema`
+(`keep_all=True`, new flag). Verified: query_plans+rebuild_schema 30
+passed, fuzz 5 passed, graph `_minimal_db` consumers 2 passed, ruff
+clean. Staying local by decision: keep-list pair (temp-keep-table prunes
+with per-table scoping + FTS DROP + VACUUM — not parameterizable without
+turning the helper into a mess), graph_disk downsample, near_duplicates
+site 2 (the FTS-only delete IS the empty-index test setup).
+
 **Disposition:** `tests/helpers.py::copy_production_db(db_path, *, keep=(), keep_all=False, include_note_search_meta=True, vacuum=False, drop_fts=False)`
 centralizes backup + prune; the subset and keep-list variants are
 parameterized, not re-litigated per file.
@@ -128,9 +156,16 @@ member/tag/edge-type adapters; files import rather than redefine. A bare
 constant import with no adapter is out of scope where values conflict.
 
 **Outcome (surveyed 2026-09-03 — mostly EXCLUDED, see §8):** the seeds
-are contract-pinning fixtures, not copies. Only `test_api_flask_integration`
-is viable-for-future (same 5 members as canonical, tag-only diffs, no
-exact-count assertions); all others excluded with evidence.
+are contract-pinning fixtures, not copies. The last candidate,
+`test_api_flask_integration`, was closed LEFT LOCAL 2026-09-04 on closer
+inspection: it shares only 5 near-identical tuples with canonical
+(canonical minus `No Ticker Co`), and its tags are a TAXONOMY diff, not a
+value diff — every entity carries `entity_type/*` + `sector/*` tags (10
+rows) that canonical `_UNIT_TAGS` (market_cap-only by design, post-C2)
+does not contain, and the `enhanced_tags` assertions (e.g.
+`test_api_flask_integration.py:245`) consume them. An adapter would re-supply the entire load-bearing tag set locally,
+so consolidation value ≈ zero with nonzero fixture-drift risk. All other
+files excluded with evidence.
 
 ### 2.5 sys.path boilerplate → rely on conftest
 
@@ -138,12 +173,42 @@ exact-count assertions); all others excluded with evidence.
 `sys.path.insert(...)`, already performed once by `conftest.py:21-23` before
 any module is collected.
 
-**Disposition:** delete the redundant `sys.path.insert` from test files
-(conftest already runs first). Keep the `PROJECT_ROOT`/`REPO_ROOT` constant
-*only* where a file uses it for path construction (not just import) — it is
-load-bearing in at least `ts_contract:35` (`frontend/types/api.ts`) and
-`maint_chain` (subprocess cwd) — and have those import from
-`conftest.REPO_ROOT`.
+**Disposition:** delete the redundant `sys.path.insert` from test files.
+The premise is doubly true: conftest runs first, AND `tests/__init__.py`
+existing means pytest's default prepend import mode imports test modules
+as `tests.test_foo`, putting the repo root on `sys.path` by itself before
+any test module's code runs (the `sys.path.insert` presence-scanner at
+`test_static_checks.py:403` guards helpers/ entry points only — no gate
+conflict). **Classification guard — verify each insert target before
+deleting:** ~81 files insert the repo root (`str(PROJECT_ROOT)` /
+`str(REPO_ROOT)`, incl. 9 `str(p)` loop sites whose comments say "mirrors
+conftest") or `REPO_ROOT / "helpers"` — both conftest-covered, safe to
+delete. Five files insert paths conftest does NOT cover and stay pinned
+(flat imports of the module under test): `test_frontmatter.py`,
+`test_get_tickers.py`, `test_fuzzy_match.py` (`parents[1]/helpers/core`),
+`test_migrate_helpers.py` (`parents[1]/helpers/maintenance`),
+`test_database_integrity_check.py` (`parents[1]/helpers/misc`).
+`test_googlefinance.py` and `test_enrich_relations.py` carry no insert —
+they only define `tests/fixtures/googlefinance` path constants (kept as
+load-bearing path construction) and import package-qualified, which
+conftest already covers. Files that use the root for path construction
+keep their local one-line const def (deviation from the earlier
+`from tests.conftest import REPO_ROOT` sketch — same effect, smaller
+diff); it is load-bearing in at least `ts_contract:35`
+(`frontend/types/api.ts`) and `maint_chain` (subprocess cwd). Execution
+note: `tests/**/*.py` ignores E402 repo-wide, so no noqa cleanup is
+needed — ruff's F401 catches genuinely dead imports instead.
+
+**Execution state (2026-09-04, completed):** 78 files, 258 deletions,
+zero additions. Mechanical census first (every insert target classified;
+`test_static_checks.py` scanner walks `helpers/` only — no gate
+conflict), then scripted strip with per-file unused-`sys`/const followup.
+Two sweep hazards found and fixed: orphaned `if … not in sys.path:`
+guards and newly-unused `from pathlib import Path` imports (ruff clean
+after). Verified: `ruff check tests/` clean, full suite 2726 passed —
+the single failure (`test_ruff_format_footprint_clean`) is pre-existing
+drift in 5 files (incl. 2 Mojo; confirmed identical on stashed baseline),
+untouched by this sweep.
 
 **Scope guard:** the sweep targets `test_*.py` files ONLY. The non-test
 runner scripts in `tests/` (`run_perf_benchmarks.py`, `run_gate_report.py`)
@@ -275,16 +340,18 @@ executed.
   File now 6/6 green. The earlier stash-tree failure remains unexplained
   (likely environmental) — current tree is deterministically green across
   repeated runs.
-- **Seed consolidation — surveyed, left out except one viable file:**
+- **Seed consolidation — surveyed, CLOSED (all local by evidence):**
   the "same HDFC/ICICI/Infosys seed" premise is refuted by measurement —
   the seeds pin divergent contracts: ts_contract asserts `total_entities
   == 5` / `large_cap == 2` (canonical's No Ticker Co + large_cap Infosys
   break all four); api_entities is purpose-built around Small Co-op/
   TinyTech small_cap filtering; filesystem_layout/graph_algorithms/
   snapshot_cycle/rebuild are custom topologies (`belongs_to`, Alpha/Beta,
-  reseed sets). **Viable-for-future:** `test_api_flask_integration` only
-  (same 5 members, tag-only diffs, no exact-count assertions) — migrate
-  on a future pass with test verification, or leave; everything else
-  stays local by decision 2026-09-03.
+  reseed sets). The last candidate, `test_api_flask_integration`, was
+  closed LEFT LOCAL 2026-09-04: its tags are a taxonomy diff
+  (`entity_type/*` + `sector/*` ×10 rows that canonical `_UNIT_TAGS`,
+  market_cap-only by design, does not contain — consumed by
+  `test_entity_detail_market_cap_from_tag`), so an adapter would carry
+  the load-bearing part anyway. Seed work is DONE — nothing deferred.
 - **Open for revisit:** sys.path strip
   (~86 files, bulk), `make_company_note`, full `make qa`.

@@ -25,9 +25,7 @@ _conn: sqlite3.Connection | None = None
 def _sq() -> sqlite3.Connection:
     global _conn
     if _conn is None:
-        _conn = connect_sqlite_ro(
-            RESEARCH_DB, row_factory=sqlite3.Row, query_only=True
-        )
+        _conn = connect_sqlite_ro(RESEARCH_DB, row_factory=sqlite3.Row, query_only=True)
     return _conn
 
 

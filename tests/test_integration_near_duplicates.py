@@ -13,15 +13,12 @@ from __future__ import annotations
 
 import hashlib
 import sqlite3
-import sys
 from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.graph import query  # noqa: E402
 from helpers.graph.query import DB_PATH  # noqa: E402

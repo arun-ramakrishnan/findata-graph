@@ -11,16 +11,10 @@ newsletter indexing without frontmatter).
 
 import json
 import sqlite3
-import sys
-from pathlib import Path
 
 import pytest
 
 # Make the helpers importable (tests run from repo root; this mirrors conftest).
-REPO_ROOT = Path(__file__).resolve().parents[1]
-for p in (REPO_ROOT, REPO_ROOT / "helpers"):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
 
 from helpers.maintenance import rebuild_note_search as rns  # noqa: E402
 from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402

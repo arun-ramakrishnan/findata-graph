@@ -1,14 +1,12 @@
 """Unit tests for helpers/maintenance/enrich_from_yfinance.py."""
 
 from __future__ import annotations
-import sys
 import sqlite3
 from pathlib import Path
 
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.maintenance.enrich_from_yfinance import (  # noqa: E402
     _auto_region_spans,

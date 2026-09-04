@@ -14,12 +14,8 @@ Covers the curated taxonomy's integrity guarantees:
 from __future__ import annotations
 
 import sqlite3
-import sys
 from pathlib import Path
 
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.maintenance import build_sector_hierarchy as bsh  # noqa: E402
 

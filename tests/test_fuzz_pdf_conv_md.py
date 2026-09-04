@@ -19,11 +19,6 @@ Invariants pinned (see doc/improvements/archive/pipeline/pdf_conv_md_hardening_f
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from hypothesis import given, settings, strategies as st
 

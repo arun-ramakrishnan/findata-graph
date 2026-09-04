@@ -18,14 +18,10 @@ newline-terminated input. Runs in `make fuzz` and `make qa`.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 
 import pytest
 from hypothesis import given, settings, strategies as st
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
 from helpers.maintenance.rename_entity import replace_field
 from helpers.maintenance.move_sector import (

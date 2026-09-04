@@ -11,14 +11,10 @@ with --db, and assert the column is derived correctly.
 from __future__ import annotations
 
 import sqlite3
-import sys
 from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT))
-sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
 from maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402

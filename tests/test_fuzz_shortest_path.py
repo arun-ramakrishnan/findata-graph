@@ -18,7 +18,6 @@ from __future__ import annotations
 
 import random
 import sqlite3
-import sys
 from collections import deque
 from pathlib import Path
 
@@ -26,11 +25,10 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.graph import query as gq  # noqa: E402
 from helpers.graph.query import DB_PATH  # noqa: E402
+from tests.helpers import copy_production_db  # noqa: E402
 
 duckdb = pytest.importorskip("duckdb")
 
@@ -103,23 +101,8 @@ def con():
     import tempfile
 
     tmp = Path(tempfile.mkdtemp()) / "sp.db"
-    src = sqlite3.connect(str(DB_PATH))
+    copy_production_db(DB_PATH, tmp)
     dst = sqlite3.connect(str(tmp))
-    src.backup(dst)
-    src.close()
-    for t in (
-        "graph_edges",
-        "entity_tags",
-        "graph_analytics",
-        "events",
-        "quotes",
-        "company_metrics",
-        "company_embeddings",
-        "note_search",
-        "note_search_meta",
-    ):
-        dst.execute(f"DELETE FROM {t}")  # noqa: S608  # schema-constant identifiers
-    dst.execute("DELETE FROM entities")
     dst.executemany(
         "INSERT INTO entities (name, entity_type) VALUES (?, 'company')",
         [(f"n{i:02d}",) for i in range(_N)],

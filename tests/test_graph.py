@@ -50,6 +50,10 @@ from helpers.graph.query import (  # noqa: E402
     suppliers_and_customers,
     weakly_connected_components,
 )
+from tests.helpers import (  # noqa: E402
+    DERIVED_TABLES_NO_FTS_META,
+    copy_production_db,
+)
 
 
 @pytest.fixture(scope="module")
@@ -70,25 +74,8 @@ def _minimal_db(tmp_path, name):
     (~1.2s per build).
     """
     tmp_db = tmp_path / name
-    src = sqlite3.connect(str(DB_PATH))
-    dst = sqlite3.connect(str(tmp_db))
-    src.backup(dst)
-    src.close()
-    for t in (
-        "graph_edges",
-        "entity_tags",
-        "graph_analytics",
-        "events",
-        "quotes",
-        "company_metrics",
-        "company_embeddings",
-        "note_search",
-    ):
-        dst.execute(f"DELETE FROM {t}")  # noqa: S608  # parameterized; interpolated parts are schema-constant identifiers
-    dst.execute("DELETE FROM entities")
-    dst.commit()
-    dst.close()
-    return tmp_db
+    # 8-table wipe (no note_search_meta — matches the original list exactly).
+    return copy_production_db(DB_PATH, tmp_db, tables=DERIVED_TABLES_NO_FTS_META)
 
 
 # --------------------------------------------------------------------------- #

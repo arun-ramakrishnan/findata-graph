@@ -20,14 +20,11 @@ random examples per @given test; each completes in <1s.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 from hypothesis import given, settings, strategies as st, HealthCheck
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
 from validators.verify_notes import NotesVerifier  # noqa: E402
 

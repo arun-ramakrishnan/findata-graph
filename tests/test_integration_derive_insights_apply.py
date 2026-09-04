@@ -17,7 +17,6 @@ module seams the unit suite already established (``di.connect`` and
 from __future__ import annotations
 
 import sqlite3
-import sys
 from contextlib import redirect_stderr
 from io import StringIO
 from pathlib import Path
@@ -25,7 +24,6 @@ from pathlib import Path
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.graph import derive_events as de  # noqa: E402
 from helpers.graph import derive_insights as di  # noqa: E402

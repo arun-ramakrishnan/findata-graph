@@ -4623,3 +4623,35 @@ Post-#196 sweep found five bare `def main()` signatures outside the 41-parser ce
 **Status:** EXECUTED 2026-09-03 (filed 2026-09-03, landed same day)
 
 Closed the #196 W8 deferred item ("why did we not adopt `db.utc_now()` at the enrich call sites?") with a census-disposition record: every non-`utc_now` timestamp producer in `helpers/` was measured and either adopted where the `db.utc_now()` docstring contract (bare DATETIME/`last_updated` columns participating in a staleness comparison vs `CURRENT_TIMESTAMP` must carry `YYYY-MM-DD HH:MM:SS`) demands it, or pinned as a documented deviation. **Adopted (2 sites, write-only audit stamps):** `enrich_relations.py:1987` → `entity_gf_map.resolved_at` and `enrich_relations.py:2528` → `entity_ticker_status.decided_at`, both `datetime.now(UTC).isoformat(timespec="seconds")` (T-separator) → `db.utc_now()` (a `utc_now` import added to the file's `helpers.core.db` import line). **Pinned (deviation):** JSON `fetched_at` payloads, report `generated:` headers (×6), vault frontmatter `fetched_at`, date-only path-identity strings, yfinance `metrics_report.txt`, the single local-time producer (`enrich_from_yfinance.py:280` `Refreshed:`), and the git_secret_scan RFC-3339-Z format — all display/self-describing/vault-bytes rows for which adoption churns bytes with zero contract benefit. **Backfill:** the 4 pre-existing rows (2 `entity_gf_map`, 2 `entity_ticker_status`, all 2026-08-25) were converted `T`→space / `+00:00`→dropped via one-shot `REPLACE` UPDATEs — the instant is unchanged (same datetime, different text encoding), the tables are write-only, and the rewrite is idempotent, so all rows (old + new) now uniformly carry the contract shape rather than leaving a mixed-shape shard (revised from an earlier no-backfill stance). Verified: `rg 'isoformat\(timespec' helpers/` dropped 10 → 8 (exactly 2), both adopt at write-only columns with no comparison, 65 targeted pytest pass, ruff clean, DB rows all carry `2026-08-25 HH:MM:SS` with 0 T-separator values remaining.
+
+## 200
+
+**Date:** 2026-09-04 · **Type:** frontend (paper-register reader consolidation) ·
+**Proposal:** `doc/improvements/archive/ui/consolidate_frontend_reader.md` ·
+**Status:** EXECUTED 2026-09-04 (filed 2026-09-03, landed next day)
+
+Shared reader core for the duplicated paper-register views: new `frontend/src/core/reader.ts` + `core/loadActive.ts`, rewired `entity.ts`/`views/docs.ts`/`companies.ts`/`sectors.ts`/`stats.ts`; purged ~190 lines of dead modal CSS from `static/findata.css` (deleted, not merged); head-partial (`templates/_partials/head_vendor.html`) created then reverted per operator — per-page heads stay explicit, PINNED local. Verified: `tsc`/`prettier` clean, bundles rebuilt, render-verified.
+
+## 201
+
+**Date:** 2026-09-04 · **Type:** tooling (helpers/ de-dup) ·
+**Proposal:** `doc/improvements/archive/tooling/consolidate_helpers_shared_helpers.md` ·
+**Status:** EXECUTED 2026-09-04 (filed 2026-09-03, landed next day)
+
+`helpers/core/db.py:utc_today_iso()` adopted ×5 in `enrich_relations.py`; two `_compute_root()` copies folded to `env.REPO_ROOT`; `_connect_ro()` dropped for `db.connect(..., read_only=True)` (incl. `static_checks.py:889` + allowlist recount); `git_secret_scan.py:_now_utc()` lazily delegates to `frontmatter.iso_now_utc()`; `tests/test_snapshot_db.py` + `tests/test_db_maint.py` fixed. Verified: targeted pytest green, ruff clean.
+
+## 202
+
+**Date:** 2026-09-04 · **Type:** tooling (Mojo bench/common consolidation + libpython PATH fix) ·
+**Proposal:** `doc/improvements/archive/tooling/consolidate_mojo_bench_common.md` ·
+**Status:** EXECUTED 2026-09-04 (filed 2026-09-03, landed next day)
+
+New `Mojo/src/common/cosine.mojo`, `bridge.mojo`, `list_utils.mojo` (+ smoke `main()`s); new `Mojo/bench/bridge_utils.py` + `aligned_array.py`; 5 bench `.mojo` + probes + `integrity_check` + `test_cosine.mojo` rewired, 5 Python drivers rewired. Same-day operator fix: `run_bench.py:_venv_env()` prepends `.venv/bin` to PATH — the bridge resolves libpython from PATH at runtime, so bare-driver runs aborted with `symbol not found: Py_Initialize` while venv-active runs passed. Verified: `make mojo-build`, `make mojo-test`, db-access 6/6, db-integrity 89/89, graph-algos 0 fails, cosine-knn + pool-4x pass.
+
+## 203
+
+**Date:** 2026-09-04 · **Type:** testing (tests/ fixture & scaffolding consolidation) ·
+**Proposal:** `doc/improvements/archive/testing/consolidate_tests_fixtures.md` ·
+**Status:** EXECUTED 2026-09-04 (filed 2026-09-03, landed next day)
+
+Batches 1–3: new `tests/schema.py` + `tests/helpers.py`, schema migrated 17 files, copy-DB migrated to `copy_production_db()` (4 files + `test_graph` 8-table subset + fuzz 9-table nuke + `keep_all=True` flag for the 2 true copy-only fixtures), Flask client migrated 14 sites/8 files. Batch 4 (sys.path strip): 78 files, 258 deletions, 0 additions, 5 pins (`helpers/core|maintenance|misc` flat imports); load-bearing root consts keep local defs. Excluded with evidence: seed consolidation (contract-pinning fixtures — ts_contract counts, entities small_cap filter, custom topologies; flask_integration closed LEFT LOCAL, taxonomy diff), `make_company_note` (dates/no-dates semantic fork), keep-list pair + graph_disk downsample + FTS-only prune (bespoke). Also fixed pre-existing `ruff format` drift (7 files) to green the gate. Verified: full suite 2726 passed, `make qa` 9/9, `make advisory` 10/10.

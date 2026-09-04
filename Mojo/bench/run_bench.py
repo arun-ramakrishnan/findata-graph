@@ -200,13 +200,26 @@ def _leg_yaml() -> tuple[float, bool, str]:
     return _corpus_sweep("yaml", 90.0)
 
 
+def _venv_env(extra: dict | None = None) -> dict:
+    """os.environ + .venv/bin on PATH — the bridge resolves libpython from
+    the python3 on PATH at runtime; without this the db legs abort with
+    `symbol not found: Py_Initialize` when the driver is invoked without
+    the venv active (graph-algos has always self-set this; db-access and
+    db-integrity only worked because the operator ran with the venv on
+    PATH — found 2026-09-04 running the driver bare)."""
+    env = dict(os.environ, PATH=f"{REPO_ROOT / '.venv' / 'bin'}:{os.environ.get('PATH', '')}")
+    if extra:
+        env.update(extra)
+    return env
+
+
 def _leg_db_access() -> tuple[float, bool, str]:
     """DB access from Mojo through the Python drivers (sqlite3 + duckdb
     via the bridge): FTS5 search, relational slices, DuckDB scans —
     every row consumed on the Mojo side (repr checksum) vs the identical
     native loop. 6/6 checksum parity expected — GATED: any mismatch
     exits 1 (2026-09-03 retrofit, matching graph-algos)."""
-    return _run("db-access", [str(BIN / "db_access_probe")], 120.0)
+    return _run("db-access", [str(BIN / "db_access_probe")], 120.0, env=_venv_env())
 
 
 def _leg_db_integrity() -> tuple[float, bool, str]:
@@ -218,7 +231,10 @@ def _leg_db_integrity() -> tuple[float, bool, str]:
     canonical keys — GOLDEN PARITY required and GATED: any mismatch exits
     1 (2026-09-03 retrofit, matching graph-algos). ~3 s."""
     return _run(
-        "db-integrity", [str(BIN / "integrity_check")], 120.0, env={"MOJO_INTEGRITY_PARITY": "1"}
+        "db-integrity",
+        [str(BIN / "integrity_check")],
+        120.0,
+        env=_venv_env({"MOJO_INTEGRITY_PARITY": "1"}),
     )
 
 

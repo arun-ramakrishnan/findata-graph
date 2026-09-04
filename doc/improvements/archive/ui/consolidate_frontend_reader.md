@@ -1,9 +1,9 @@
 ---
 title: "Consolidate the duplicated paper-register reader — entity.ts / docs.ts shared core, head partial, modal CSS"
-status: proposed
+status: executed
 filed: "2026-09-03"
-executed: null
-completed_md: null
+executed: "2026-09-04"
+completed_md: 200
 area: "frontend/src (entity.ts, views/docs.ts, core/), templates (findata.html, entity_detail.html), static (findata.css)"
 ---
 

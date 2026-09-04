@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pymupdf
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.pdf.pdf_local import (  # noqa: E402
     MIN_IMAGE_BYTES,

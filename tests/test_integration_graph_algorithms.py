@@ -19,16 +19,10 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import sys
-from pathlib import Path
 
 import pytest
 
 pytestmark = [pytest.mark.integration]
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(PROJECT_ROOT / "helpers"))
 
 # NOTE: this module no longer depends on NetworkX. The Onager-backed
 # compute() path is exercised here against the seeded synth_db (the
@@ -52,7 +46,8 @@ from helpers.graph.algorithms import (  # noqa: E402
 
 from tests.schema import GRAPH_ANALYTICS  # noqa: E402
 
-_SCHEMA = """
+_SCHEMA = (
+    """
 CREATE TABLE entities (
     name                  TEXT PRIMARY KEY NOT NULL,
     entity_type           TEXT NOT NULL DEFAULT 'company',
@@ -85,7 +80,9 @@ CREATE TABLE entity_tags (
     tag         TEXT NOT NULL,
     PRIMARY KEY (entity_name, tag)
 );
-""" + GRAPH_ANALYTICS
+"""
+    + GRAPH_ANALYTICS
+)
 
 
 # --------------------------------------------------------------------------- #

@@ -19,15 +19,9 @@ bypasses embed_query/embed_document at a call site.
 import hashlib
 import importlib.util
 import math
-import sys
-from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-for p in (REPO_ROOT, REPO_ROOT / "helpers"):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
 
 from helpers.core import local_embedder as LE  # noqa: E402
 

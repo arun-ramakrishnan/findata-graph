@@ -13,13 +13,10 @@ exercise delete and rename flows to prove the cascades fire.
 from __future__ import annotations
 
 import sqlite3
-import sys
 from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
 from core.db import connect  # noqa: E402
 from datetime import UTC

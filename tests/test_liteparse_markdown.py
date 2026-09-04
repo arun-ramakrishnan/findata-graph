@@ -6,10 +6,6 @@ from pathlib import Path
 
 import pytest
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-import sys
-
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.pdf.liteparse_markdown import (
     _looks_like_company_heading,

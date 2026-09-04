@@ -14,14 +14,11 @@ deliberately NOT invoked — the signature probe is their whole gate.
 from __future__ import annotations
 
 import inspect
-import sys
 from pathlib import Path
 
 import pytest
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.misc import database_integrity_check, embed_eval  # noqa: E402
 from helpers.maintenance import move_sector, rename_entity  # noqa: E402

@@ -6,15 +6,9 @@ Hermetic: tmp sidecar/decisions files, monkeypatched entity names.
 
 import json
 import sqlite3
-import sys
-from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-for p in (REPO_ROOT, REPO_ROOT / "helpers"):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
 
 from helpers.graph import triage_pending_relations as tpr  # noqa: E402
 from helpers.graph import extract_relations as xr  # noqa: E402

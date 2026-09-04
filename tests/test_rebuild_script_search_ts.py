@@ -12,15 +12,10 @@ test_rebuild_script_search_mojo.py one-for-one.
 """
 
 import json
-import sys
 from pathlib import Path
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-for p in (REPO_ROOT, REPO_ROOT / "helpers"):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
 
 from helpers.maintenance import rebuild_script_search as rss  # noqa: E402
 

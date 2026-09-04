@@ -19,20 +19,14 @@ import pytest
 from helpers.graph.query import DB_PATH
 from helpers.maintenance.rebuild_schema import rebuild
 import helpers.maintenance.rebuild_schema as rs  # noqa: E402
+from tests.helpers import copy_production_db  # noqa: E402
 
 
 @pytest.fixture
 def tmp_db(tmp_path) -> Path:
     """A copy of the production SQLite DB at tmp_path/test.db."""
     out = tmp_path / "test.db"
-    src = sqlite3.connect(str(DB_PATH))
-    dst = sqlite3.connect(str(out))
-    try:
-        src.backup(dst)
-    finally:
-        dst.close()
-        src.close()
-    return out
+    return copy_production_db(DB_PATH, out, keep_all=True)
 
 
 def _ddl_for(con, table):

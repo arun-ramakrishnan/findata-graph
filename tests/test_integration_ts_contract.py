@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import re
 import sqlite3
-import sys
 from pathlib import Path
 
 import pytest
@@ -29,8 +28,6 @@ import pytest
 pytestmark = [pytest.mark.integration]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(PROJECT_ROOT / "helpers"))
 
 API_TYPES = PROJECT_ROOT / "frontend" / "types" / "api.ts"
 
@@ -146,7 +143,8 @@ class TestApiTsParses:
 
 from tests.schema import GRAPH_ANALYTICS, NOTE_SEARCH_FTS  # noqa: E402
 
-_SCHEMA = """
+_SCHEMA = (
+    """
 CREATE TABLE entities (
     name                  TEXT PRIMARY KEY NOT NULL,
     entity_type           TEXT NOT NULL,
@@ -177,7 +175,9 @@ CREATE TABLE graph_edges (
     UNIQUE(source, target, edge_type),
     CHECK (source != target)
 );
-""" + GRAPH_ANALYTICS + """
+"""
+    + GRAPH_ANALYTICS
+    + """
 CREATE TABLE events (
     id            INTEGER PRIMARY KEY,
     entity        TEXT NOT NULL,
@@ -190,7 +190,9 @@ CREATE TABLE events (
     source_quote  TEXT,
     as_of_edition TEXT
 );
-""" + NOTE_SEARCH_FTS
+"""
+    + NOTE_SEARCH_FTS
+)
 
 # Note file content — must exist on disk for /api/entity to return frontmatter
 GOOD_NOTE = """---

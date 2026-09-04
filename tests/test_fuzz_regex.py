@@ -28,13 +28,9 @@ Runs alongside regular pytest in `make qa`. Hypothesis defaults to
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 
 from hypothesis import given, settings, strategies as st
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
 from core.parse_newsletter import SECTION_RE  # noqa: E402
 from graph.derive_co_mentions import _parse_edition_number  # noqa: E402

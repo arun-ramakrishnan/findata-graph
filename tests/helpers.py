@@ -12,7 +12,8 @@ from __future__ import annotations
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Iterator
+from typing import Any
+from collections.abc import Callable, Iterator
 
 # Derived tables wiped by the copy-production-DB pattern (the 9-table
 # tuple shared verbatim, S608-suppressed at the DELETE site below).
@@ -38,6 +39,7 @@ def copy_production_db(
     *,
     tables: tuple[str, ...] = DERIVED_TABLES,
     vacuum: bool = False,
+    keep_all: bool = False,
 ) -> Path:
     """Backup the production DB, prune derived tables + entities.
 
@@ -47,6 +49,8 @@ def copy_production_db(
         tables: derived-table list to DELETE (snapshot_cycle drops
             ``note_search_meta`` — pass the 8-table subset).
         vacuum: compact freed pages (snapshot_cycle's ~100KB goal).
+        keep_all: pure copy — skip all DELETEs (query_plans,
+            rebuild_schema fixtures need the full live corpus).
     """
     dst = Path(dst_path)
     src = sqlite3.connect(str(src_db))
@@ -54,6 +58,8 @@ def copy_production_db(
     src.backup(dst_conn)
     src.close()
     try:
+        if keep_all:
+            return dst
         for t in tables:
             dst_conn.execute(f"DELETE FROM {t}")  # noqa: S608  # schema-constant identifiers
         dst_conn.execute("DELETE FROM entities")

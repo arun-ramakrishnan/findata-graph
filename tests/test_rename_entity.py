@@ -1,12 +1,10 @@
 """Unit tests for helpers/maintenance/rename_entity.py."""
 
 from __future__ import annotations
-import sys
 from pathlib import Path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.maintenance.rename_entity import replace_field  # noqa: E402
 

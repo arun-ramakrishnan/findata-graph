@@ -3,11 +3,8 @@
 from __future__ import annotations
 
 import datetime as dt
-import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 import helpers.misc.backfill_okf_provenance as bk  # noqa: E402
 from helpers.core import edition_index as ei  # noqa: E402

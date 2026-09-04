@@ -11,14 +11,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
-import sys
-from pathlib import Path
 
 import pytest
 
-_REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_REPO_ROOT))
-sys.path.insert(0, str(_REPO_ROOT / "helpers"))
 
 from helpers.maintenance.rebuild_note_search import NOTE_SEARCH_DDL  # noqa: E402
 from helpers.graph.query import (  # noqa: E402

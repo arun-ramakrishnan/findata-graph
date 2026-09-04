@@ -17,14 +17,10 @@ Runs in `make fuzz` and `make qa`. No DB / network required.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 
 import pytest
 from hypothesis import given, settings, strategies as st, HealthCheck
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
 from core.frontmatter import yaml_safe_load  # noqa: E402
 from core.parse_newsletter import (  # noqa: E402

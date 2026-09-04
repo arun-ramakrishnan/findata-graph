@@ -15,14 +15,11 @@ a chatter region).
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.core import edition_index as ei  # noqa: E402
 from helpers.core.frontmatter import yaml_safe_load  # noqa: E402

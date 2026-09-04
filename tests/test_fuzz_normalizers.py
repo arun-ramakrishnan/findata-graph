@@ -13,13 +13,9 @@ random examples per @given test; each completes in <1s.
 from __future__ import annotations
 
 import re
-import sys
-from pathlib import Path
 
 from hypothesis import given, strategies as st
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
 # Import the three functions under test.
 from core.parse_newsletter import normalize_name  # noqa: E402

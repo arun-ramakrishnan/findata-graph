@@ -31,14 +31,10 @@ Runs via `make fuzz` (matches `tests/test_fuzz_*.py`). Hypothesis defaults to
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 
 import pytest
 from hypothesis import HealthCheck, given, settings, strategies as st
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
 from graph.extract_relations import (  # noqa: E402
     PATTERNS,

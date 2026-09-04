@@ -10,14 +10,10 @@ invariants and the resolver's whole-mention-over-first-token precedence.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.graph import extract_relations as xr  # noqa: E402
 

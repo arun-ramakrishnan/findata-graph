@@ -89,9 +89,7 @@ def _seeded_db(tmp_path):
 
     # Row-less opener preserved explicitly: centralizing this site to the
     # Row default would be a semantic change (see tests/helpers.py).
-    with flask_test_client(
-        db_path, connect_fn=lambda: sqlite3.connect(str(db_path))
-    ) as client:
+    with flask_test_client(db_path, connect_fn=lambda: sqlite3.connect(str(db_path))) as client:
         yield client
 
 

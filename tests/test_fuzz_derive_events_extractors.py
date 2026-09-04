@@ -10,14 +10,10 @@ deterministic, dedup-stable behaviour over arbitrary bodies.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.graph import derive_events as de  # noqa: E402
 

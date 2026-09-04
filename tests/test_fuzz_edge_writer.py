@@ -12,7 +12,6 @@ CALLER's job — derive_co_mentions.derive_edges sorts each pair).
 from __future__ import annotations
 
 import sqlite3
-import sys
 import tempfile
 from pathlib import Path
 
@@ -20,8 +19,6 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.graph._edge_writer import apply_typed_edges  # noqa: E402
 

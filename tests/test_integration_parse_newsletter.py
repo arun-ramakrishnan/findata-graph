@@ -31,8 +31,6 @@ import pytest
 pytestmark = [pytest.mark.integration]
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
-sys.path.insert(0, str(PROJECT_ROOT / "helpers"))
 
 from helpers.core import parse_newsletter as pn  # noqa: E402
 from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402

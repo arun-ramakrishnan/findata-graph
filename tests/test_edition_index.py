@@ -6,10 +6,8 @@ including resolve_edition_string — the single-string entry point the
 coverage report (C1) will use for the quotes.as_of_edition bridge.
 """
 
-import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from helpers.core.edition_index import (  # noqa: E402
     norm_key,

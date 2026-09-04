@@ -14,17 +14,12 @@ under the autouse _no_local_embedder pin the pseudo path is exercised.
 import json
 import os
 import sqlite3
-import sys
 import time
 from pathlib import Path
 
 import pytest
 
 # Make the helpers importable (tests run from repo root; this mirrors conftest).
-REPO_ROOT = Path(__file__).resolve().parents[1]
-for p in (REPO_ROOT, REPO_ROOT / "helpers"):
-    if str(p) not in sys.path:
-        sys.path.insert(0, str(p))
 
 from helpers.core.zstd_io import decompress_file  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402

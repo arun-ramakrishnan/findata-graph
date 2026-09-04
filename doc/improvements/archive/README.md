@@ -43,6 +43,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`stateful_relational_test_plan.txt`](testing/stateful_relational_test_plan.txt) — STATEFUL / RELATIONAL TEST PLAN — FinData Knowledge Graph — completed.md #73
 - [`lint_analysis.txt`](testing/lint_analysis.txt) — LINT ANALYSIS — ruff replaces flake8 (FinData knowledge graph) — completed.md #73
 - [`coverage_extension_plan.md`](testing/coverage_extension_plan.md) — Coverage Analysis & Extension Plan (Updated)
+- [`consolidate_tests_fixtures.md`](testing/consolidate_tests_fixtures.md) — Proposal: tests/ fixture & scaffolding consolidation — shared schema, production-DB copy helper (+`keep_all`), Flask client helpers, sys.path strip (78 files/258 deletions), seed/note-template exclusions with evidence — completed.md #203
 
 ## pipeline/ — Data pipeline — parsing, PDF conversion hardening, enrichment, corpus audit
 
@@ -81,3 +82,10 @@ commit, referenced by nothing). Entry numbers point at
 - [`corpus_embeddings_scaling.md`](tooling/corpus_embeddings_scaling.md) — Scale corpus + embeddings to 100M — lazy `iter_notes`, aligned f32 `embed_matrix`, flat exact KNN (`FlatKNN` MAX opt-in), hybrid fallback vec0→flat→cosine — completed.md #195
 - [`argv_seam_tail.md`](tooling/argv_seam_tail.md) — CLI test seam for the five out-of-census bare mains (hand-rolled sys.argv ×3, flag-less ×2; no argparse conversion) — completed.md #198
 - [`utc_now_unification.md`](tooling/utc_now_unification.md) — utc_now unification — scope disposition closing the #196 W8 deferred item (adopt `db.utc_now()` at the two write-only DB audit stamps + backfill; pin every other timestamp producer as a documented deviation) — completed.md #199
+- [`consolidate_helpers_shared_helpers.md`](tooling/consolidate_helpers_shared_helpers.md) — Proposal: helpers/ de-dup — `env.REPO_ROOT` + `db.connect` adoption, `utc_today_iso`, fold `_compute_root`/`_connect_ro`/`_now_utc` — completed.md #201
+- [`consolidate_mojo_bench_common.md`](tooling/consolidate_mojo_bench_common.md) — Proposal: Mojo bench/common kernels consolidation — cosine SIMD, f32 loader, bridge helpers (+`_venv_env` libpython PATH fix) — completed.md #202
+
+## ui/ — Frontend & templates — reader, paper register, findata views
+
+- [`graph_docs_ui_redesign.md`](ui/graph_docs_ui_redesign.md) — Graph docs UI redesign
+- [`consolidate_frontend_reader.md`](ui/consolidate_frontend_reader.md) — Proposal: paper-register reader consolidation — entity.ts/docs.ts shared core (`reader.ts` + `loadActive.ts`), modal CSS purge, head partial reverted (per-page heads stay explicit) — completed.md #200

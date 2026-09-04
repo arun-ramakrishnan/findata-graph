@@ -29,9 +29,7 @@ _dk: duckdb.DuckDBPyConnection | None = None
 def _sqlite() -> sqlite3.Connection:
     global _sq
     if _sq is None:
-        _sq = connect_sqlite_ro(
-            RESEARCH_DB, row_factory=sqlite3.Row, query_only=True
-        )
+        _sq = connect_sqlite_ro(RESEARCH_DB, row_factory=sqlite3.Row, query_only=True)
     return _sq
 
 

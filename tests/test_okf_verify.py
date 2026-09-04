@@ -8,12 +8,10 @@ frontmatter schema.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from helpers.core.frontmatter import split_frontmatter, yaml_safe_load  # noqa: E402
 from helpers.misc.okf_verify import main, verify_note  # noqa: E402
 from helpers.validators.frontmatter_schema import (  # noqa: E402

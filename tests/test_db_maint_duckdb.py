@@ -13,7 +13,6 @@ backups to ``tmp_path`` for isolation.
 from __future__ import annotations
 
 import sqlite3
-import sys
 from pathlib import Path
 
 import pytest
@@ -33,7 +32,6 @@ if not SQLITE_DB.exists() or not DUCKDB_DB.exists():
         allow_module_level=True,
     )
 
-sys.path.insert(0, str(PROJECT_ROOT))
 from helpers.core.zstd_io import decompress_file
 from helpers.maintenance.db_maint import DBMaintainer  # noqa: E402
 

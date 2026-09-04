@@ -8,11 +8,9 @@ reintroduction via a schema migration or copy-paste from stale docs.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "helpers"))
 
 from core.db import connect  # noqa: E402
 

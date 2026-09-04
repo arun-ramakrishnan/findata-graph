@@ -13,15 +13,11 @@ injectable embedder — no production DB touch.
 from __future__ import annotations
 
 import re
-import sys
-from pathlib import Path
 
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.graph import query as gq  # noqa: E402
 
