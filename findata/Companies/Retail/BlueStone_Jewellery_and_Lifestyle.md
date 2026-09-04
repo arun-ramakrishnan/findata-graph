@@ -19,7 +19,7 @@ last_modified: '2026-09-04'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-20T05:41:43Z'
-stale_after: '2027-02-11'
+stale_after: '2027-03-03'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -29,6 +29,10 @@ sources:
   resource: /findata/The_Chatter/Moves_and_Motives.md
   title: 'The Chatter: Moves and Motives'
   last_modified: '2026-08-15'
+- id: Milky_Mist_Bluestone
+  resource: /findata/The_Chatter/Milky_Mist_Bluestone.md
+  title: 'The Chatter: Milky Mist, Bluestone, Leap India, Avanti & More'
+  last_modified: '2026-09-04'
 ---
 # BlueStone Jewellery and Lifestyle
 

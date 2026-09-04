@@ -43,7 +43,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Inflection_Watch
   resource: /findata/The_Chatter/Inflection_Watch.md
-  title: '''The Chatter: Inflection Watch'''
+  title: 'The Chatter: Inflection Watch'
   last_modified: '2026-08-15'
 verified:
 - by: human:user Ramakrishnan

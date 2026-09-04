@@ -29,7 +29,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Bosch_Amara_Zydus
   resource: /findata/The_Chatter/Bosch_Amara_Zydus.md
-  title: Zydus Lifesciences Ltd.|Large Cap| Pharmaceuticals
+  title: 'The Chatter: Bosch, Amara, Zydus & More'
   last_modified: '2026-08-15'
 - id: TCS_ICICI_Pru_HDB_Financials
   resource: /findata/The_Chatter/TCS_ICICI_Pru_HDB_Financials.md
@@ -41,7 +41,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Threads_in_the_data
   resource: /findata/The_Chatter/Threads_in_the_data.md
-  title: '''The Chatter: Threads in the data'''
+  title: 'The Chatter: Threads in the data'
   last_modified: '2026-08-15'
 - id: Pulse_across_the_pack
   resource: /findata/Points_And_Figures/Pulse_across_the_pack.md

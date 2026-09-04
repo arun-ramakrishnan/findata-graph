@@ -35,11 +35,11 @@ sources:
   last_modified: '2026-08-15'
 - id: Weights_and_Measures
   resource: /findata/The_Chatter/Weights_and_Measures.md
-  title: '''The Chatter: Weights and Measures'''
+  title: 'The Chatter: Weights and Measures'
   last_modified: '2026-08-15'
 - id: Contours_of_Change
   resource: /findata/The_Chatter/Contours_of_Change.md
-  title: '''The Chatter: Contours of Change'''
+  title: 'The Chatter: Contours of Change'
   last_modified: '2026-08-15'
 ---
 # Interglobe Aviation

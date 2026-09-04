@@ -30,7 +30,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Bets and blueprints
   resource: /findata/The_Chatter/Bets and blueprints.md
-  title: '''The Chatter: Bets and blueprints'''
+  title: 'The Chatter: Bets and blueprints'
   last_modified: '2026-08-15'
 ---
 

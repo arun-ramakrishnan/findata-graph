@@ -1,6 +1,6 @@
 ---
 type: newsletter
-title: Consumer Durables
+title: 'The Chatter: Borosil, Orchid, Welspun, KRN , & More'
 tags:
 - series/the_chatter
 - publisher/zerodha

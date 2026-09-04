@@ -19,7 +19,7 @@ last_modified: '2026-09-04'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-28T15:01:27Z'
-stale_after: '2027-02-11'
+stale_after: '2027-03-03'
 sources:
 - id: Bajaj_Mahindra_Persistent
   resource: /findata/The_Chatter/Bajaj_Mahindra_Persistent.md
@@ -29,6 +29,10 @@ sources:
   resource: /findata/The_Chatter/Half_a_century_in.md
   title: 'The Chatter: Half a century in'
   last_modified: '2026-08-15'
+- id: Milky_Mist_Bluestone
+  resource: /findata/The_Chatter/Milky_Mist_Bluestone.md
+  title: 'The Chatter: Milky Mist, Bluestone, Leap India, Avanti & More'
+  last_modified: '2026-09-04'
 ---
 
 # Precision Camshafts

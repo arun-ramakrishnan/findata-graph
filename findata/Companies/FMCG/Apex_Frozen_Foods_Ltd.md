@@ -35,11 +35,11 @@ sources:
   last_modified: '2026-08-15'
 - id: Patience_and_payoff
   resource: /findata/The_Chatter/Patience_and_payoff.md
-  title: '''The Chatter: Patience & payoff'''
+  title: 'The Chatter: Patience & payoff'
   last_modified: '2026-08-15'
 - id: Yes_Bank_Colgate_Allcargo
   resource: /findata/The_Chatter/Yes_Bank_Colgate_Allcargo.md
-  title: '''The Chatter: YES Bank, Colgate, Allcargo, & More'''
+  title: 'The Chatter: YES Bank, Colgate, Allcargo, & More'
   last_modified: '2026-08-25'
 ---
 # Apex Frozen Foods Limited

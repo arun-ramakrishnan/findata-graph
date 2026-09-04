@@ -32,11 +32,11 @@ sources:
   last_modified: '2026-08-15'
 - id: Anchor_and_Ambitions
   resource: /findata/The_Chatter/Anchor_and_Ambitions.md
-  title: '''The Chatter: Anchor & Ambitions'''
+  title: 'The Chatter: Anchor & Ambitions'
   last_modified: '2026-08-15'
 - id: HDFC_Groww_Havells
   resource: /findata/The_Chatter/HDFC_Groww_Havells.md
-  title: '''The Chatter: HDFC, Groww, Yes Bank, Havell & More'''
+  title: 'The Chatter: HDFC, Groww, Yes Bank, Havell & More'
   last_modified: '2026-08-15'
 ---
 # HDFC Bank

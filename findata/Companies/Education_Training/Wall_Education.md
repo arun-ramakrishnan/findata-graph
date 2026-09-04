@@ -2,6 +2,7 @@
 title: Wall Education
 type: company
 ticker: null
+listed: false
 sector: Education_Training
 industry: Lodging
 market_cap: mid_cap

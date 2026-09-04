@@ -30,7 +30,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Discovering_Hidden_Signals
   resource: /findata/The_Chatter/Discovering_Hidden_Signals.md
-  title: '''The Chatter: Discovering Hidden Signals'''
+  title: 'The Chatter: Discovering Hidden Signals'
   last_modified: '2026-08-15'
 ---
 

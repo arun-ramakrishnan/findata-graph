@@ -4,7 +4,8 @@
 Chains the maintenance steps in the right order, in THREE blocks:
 
   PRE_FULL (``--full`` only, BEFORE the recovery backup) — pure index
-  rebuilds whose output must land INSIDE the db_maint recovery copy:
+  rebuilds + provenance convergers whose output must land INSIDE the
+  db_maint recovery copy:
 
     0a. ``sync_tags.py``           — rebuild entity_tags from note YAML.
                                      Also E5a-derives entities.sector_
@@ -13,12 +14,40 @@ Chains the maintenance steps in the right order, in THREE blocks:
                                      the DuckDB cache is rebuilt from the
                                      post-sync state instead of lazily
                                      re-materialising on next connect.
-    0b. ``rebuild_note_search.py`` — rebuild FTS over findata markdowns.
+    0b. ``backfill_okf_provenance.py --apply`` — converge machine-owned
+                                     frontmatter provenance (``sources[]``
+                                     + ``stale_after``) from note bodies.
+                                     Hand-written edition blocks (the
+                                     Stage-5 curation layer) have no
+                                     writer that splices sources[] — this
+                                     converger is what keeps them
+                                     citation-fresh; idempotent no-op
+                                     once converged. Bodies/rosters/
+                                     chatter blocks are never touched
+                                     (the note-mutation carve-out covers
+                                     ONLY the machine-owned provenance
+                                     keys).
+    0c. ``rebuild_note_search.py`` — rebuild FTS over findata markdowns
+                                     (after 0b so indexes see converged
+                                     titles).
+    0d. ``derive_cited_in.py --apply`` — project OKF ``sources[]`` into
+                                     edition entities + ``cited_in``
+                                     edges (INSERT OR IGNORE / UNIQUE-
+                                     constrained: guaranteed no-op
+                                     between ingests). Reads the
+                                     sources[] converged by 0b. Writes
+                                     entities + graph_edges, so it must
+                                     precede TIER1 graph-rebuild — the
+                                     paired DuckDB rebuild the placement
+                                     rule requires happens in the same
+                                     run (before 2026-09-04 it only
+                                     existed as the never-run manual
+                                     ``make derive-cited-in-rebuild``).
 
-    Both are full rebuilds of derived indexes, so keeping them outside
-    the backup's protection costs nothing (a corrupt rebuild is fixed by
-    rerunning the step) — while the backup captures fresh indexes
-    instead of a one-step-stale FTS.
+    All four are full rebuilds / deterministic projections of already-
+    stamped state, so keeping them outside the backup's protection costs
+    nothing (a corrupt run is fixed by rerunning the step) — while the
+    backup captures fresh indexes instead of a one-step-stale FTS.
 
   TIER1 (``make maint``; always-safe housekeeping):
 
@@ -153,30 +182,53 @@ _CAPTURE_LINES = 400  # rolling in-memory cap while streaming
 # Commands use repo-root-relative paths so the cwd is explicit.
 #
 # PRE_FULL (--full only, BEFORE db_maint's recovery backup): pure index
-# rebuilds (entity_tags from note YAML, note_search FTS from the
-# markdowns) whose output should land INSIDE the backup. A corrupt
-# rebuild here is fixed by rerunning the step, so nothing is lost by
-# keeping it outside the backup's protection. sync-tags additionally
-# E5a-UPDATEs entities.sector_classification — running it before
-# graph-rebuild keeps the DuckDB cache consistent (it used to run AFTER
-# graph-rebuild and relied on lazy re-materialisation). Plain `make
-# maint` never runs these: post-ingest re-derivations, guaranteed
-# no-ops between ingests.
+# rebuilds + the provenance convergers whose output should land INSIDE
+# the backup. A corrupt run here is fixed by rerunning the step, so
+# nothing is lost by keeping it outside the backup's protection.
+# sync-tags additionally E5a-UPDATEs entities.sector_classification —
+# running it before graph-rebuild keeps the DuckDB cache consistent (it
+# used to run AFTER graph-rebuild and relied on lazy re-materialisation).
+# okf-backfill converges MACHINE-OWNED frontmatter provenance keys
+# (sources[]/stale_after) from note bodies — the one sanctioned note
+# mutation inside maint-full (housekeeping otherwise never mutates
+# notes: bodies, rosters and chatter blocks stay untouchable; without
+# this converger, every hand-written Stage-5 edition block rots its
+# citations until someone remembers the manual backfill). derive-cited-in
+# writes entities + graph_edges but is a deterministic projection of the
+# (now-converged) sources[] frontmatter (no-op between ingests), so it
+# earns the same slot — it precedes graph-rebuild, which is the paired
+# DuckDB rebuild the placement rule demands. Plain `make maint` never
+# runs these: post-ingest re-derivations, guaranteed no-ops between
+# ingests.
 PRE_FULL_STEPS: list[tuple[str, list[str]]] = [
     (
         "sync-tags (rebuild entity_tags from note YAML)",
-        ["python3", "helpers/core/sync_tags.py", "--corpus", "--apply"],
+        [sys.executable, "helpers/core/sync_tags.py", "--corpus", "--apply"],
+    ),
+    (
+        "okf-backfill (converge machine-owned sources[] provenance from note bodies)",
+        [sys.executable, "helpers/misc/backfill_okf_provenance.py", "--apply"],
     ),
     (
         "rebuild-note-search (rebuild FTS over findata markdowns)",
-        ["python3", "helpers/maintenance/rebuild_note_search.py"],
+        [sys.executable, "helpers/maintenance/rebuild_note_search.py"],
+    ),
+    (
+        "derive-cited-in (project OKF sources[] into edition entities + cited_in edges)",
+        [sys.executable, "helpers/graph/derive_cited_in.py", "--apply"],
     ),
 ]
 
 TIER1_STEPS: list[tuple[str, list[str]]] = [
-    ("db_maint (VACUUM/ANALYZE/REINDEX/integrity)", ["python3", "helpers/maintenance/db_maint.py"]),
-    ("snapshot (refresh versioned snapshots)", ["python3", "helpers/maintenance/snapshot_db.py"]),
-    ("graph-rebuild (refresh DuckDB cache)", ["python3", "helpers/graph/query.py", "rebuild"]),
+    (
+        "db_maint (VACUUM/ANALYZE/REINDEX/integrity)",
+        [sys.executable, "helpers/maintenance/db_maint.py"],
+    ),
+    (
+        "snapshot (refresh versioned snapshots)",
+        [sys.executable, "helpers/maintenance/snapshot_db.py"],
+    ),
+    ("graph-rebuild (refresh DuckDB cache)", [sys.executable, "helpers/graph/query.py", "rebuild"]),
 ]
 
 TIER2_STEPS: list[tuple[str, list[str]]] = [
@@ -186,14 +238,14 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     # maint-full with the exact remediation in the step's own output.
     (
         "sync-sector-links --check (gate: sector-note company indexes fresh)",
-        ["python3", "helpers/maintenance/sync_sector_wikilinks.py", "--check"],
+        [sys.executable, "helpers/maintenance/sync_sector_wikilinks.py", "--check"],
     ),
     # Same doctrine for the hierarchy notes: taxonomy + Child Sectors (auto)
     # regions + sector up-links are CHECKED here; the write (which also
     # writes entities/belongs_to edges) is the explicit --apply run.
     (
         "sector-hierarchy --check (gate: taxonomy + super-sector notes fresh)",
-        ["python3", "helpers/maintenance/build_sector_hierarchy.py", "--check"],
+        [sys.executable, "helpers/maintenance/build_sector_hierarchy.py", "--check"],
     ),
     # company_embeddings refresh (2026-08-21, company_embeddings_maint
     # proposal): cached populate + GC of deleted companies — both this and
@@ -210,7 +262,7 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     # flow (step 10 re-snapshots; DuckDB materialises on connect()).
     (
         "company-embeddings --maint (cached refresh of company_embeddings)",
-        ["python3", "helpers/graph/embeddings.py", "--maint"],
+        [sys.executable, "helpers/graph/embeddings.py", "--maint"],
     ),
     # rebuild-doc-search (2026-08-23, doc_search_embeddings proposal):
     # refresh the FTS5 + embeddings index over the repo's own doc/ corpus
@@ -224,11 +276,11 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     # embed-cache discipline).
     (
         "rebuild-doc-search (refresh doc/ FTS+embeddings sidecar index)",
-        ["python3", "helpers/maintenance/rebuild_doc_search.py"],
+        [sys.executable, "helpers/maintenance/rebuild_doc_search.py"],
     ),
     (
         "recompute-graph (refresh analytics in graph_analytics)",
-        ["python3", "helpers/graph/algorithms.py", "--all", "--apply"],
+        [sys.executable, "helpers/graph/algorithms.py", "--all", "--apply"],
     ),
     # D7 — refresh the events timeline (acquisition/jv/guidance/management_
     # change) from the newly-synced notes. SQLite-only (no graph-rebuild
@@ -250,15 +302,15 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     # maint-full placement invariant); order retained for stability.
     (
         "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
-        ["python3", "helpers/graph/derive_insights.py", "findata", "--apply", "--no-notes"],
+        [sys.executable, "helpers/graph/derive_insights.py", "findata", "--apply", "--no-notes"],
     ),
     (
         "derive-events (refresh events timeline from note prose + edges)",
-        ["python3", "helpers/graph/derive_events.py", "--apply"],
+        [sys.executable, "helpers/graph/derive_events.py", "--apply"],
     ),
     (
         "snapshot (re-snapshot to include recomputed analytics + events)",
-        ["python3", "helpers/maintenance/snapshot_db.py"],
+        [sys.executable, "helpers/maintenance/snapshot_db.py"],
     ),
 ]
 # NOTE: sync-sector-links used to WRITE here (regenerating the auto company

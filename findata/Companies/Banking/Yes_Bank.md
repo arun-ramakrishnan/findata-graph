@@ -31,11 +31,11 @@ sources:
   last_modified: '2026-08-15'
 - id: HDFC_Groww_Havells
   resource: /findata/The_Chatter/HDFC_Groww_Havells.md
-  title: '''The Chatter: HDFC, Groww, Yes Bank, Havell & More'''
+  title: 'The Chatter: HDFC, Groww, Yes Bank, Havell & More'
   last_modified: '2026-08-15'
 - id: Yes_Bank_Colgate_Allcargo
   resource: /findata/The_Chatter/Yes_Bank_Colgate_Allcargo.md
-  title: '''The Chatter: YES Bank, Colgate, Allcargo, & More'''
+  title: 'The Chatter: YES Bank, Colgate, Allcargo, & More'
   last_modified: '2026-08-25'
 ---
 

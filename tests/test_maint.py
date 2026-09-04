@@ -10,6 +10,7 @@ pin the orchestrator's wiring — including the qa-style run report
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -45,14 +46,18 @@ class TestPlan:
     """Pin the step labels + commands so reordering is a deliberate
     test update, not a silent regression."""
 
-    def test_pre_full_has_two_steps(self):
+    def test_pre_full_has_four_steps(self):
         # PRE_FULL (--full only, BEFORE db_maint's recovery backup): pure
-        # index rebuilds whose output should land INSIDE the backup.
-        assert len(maint.PRE_FULL_STEPS) == 2
+        # index rebuilds + the provenance convergers whose output should
+        # land INSIDE the backup. okf-backfill must precede
+        # derive-cited-in (it converges the sources[] the latter projects).
+        assert len(maint.PRE_FULL_STEPS) == 4
         labels = [label for label, _ in maint.PRE_FULL_STEPS]
         assert labels == [
             "sync-tags (rebuild entity_tags from note YAML)",
+            "okf-backfill (converge machine-owned sources[] provenance from note bodies)",
             "rebuild-note-search (rebuild FTS over findata markdowns)",
+            "derive-cited-in (project OKF sources[] into edition entities + cited_in edges)",
         ]
 
     def test_tier1_has_three_steps(self):
@@ -138,7 +143,7 @@ class TestPlan:
         full = maint.PRE_FULL_STEPS + skipped + maint.TIER2_STEPS
         assert len(maint.TIER1_FULL_SKIP) == 1
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
-        assert len(full) == 12
+        assert len(full) == 14
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [
             "snapshot (re-snapshot to include recomputed analytics + events)"
@@ -168,11 +173,13 @@ class TestPlan:
 class TestCommands:
     """The orchestrator shells out via subprocess; pin the command shape."""
 
-    def test_all_commands_use_python3(self):
-        # All commands must invoke `python3 <script>` explicitly. Using
-        # bare script paths would fail on Windows and skip the venv shim.
+    def test_all_commands_use_sys_executable(self):
+        # All commands must spawn children under sys.executable — the same
+        # interpreter running the orchestrator (venv or system). A PATH-
+        # resolved "python3" crashes with ModuleNotFoundError whenever the
+        # parent runs from a venv that isn't on PATH (dotenv et al.).
         for _, cmd in maint.PRE_FULL_STEPS + maint.TIER1_STEPS + maint.TIER2_STEPS:
-            assert cmd[0] == "python3", f"command doesn't start with python3: {cmd}"
+            assert cmd[0] == sys.executable, f"command doesn't start with sys.executable: {cmd}"
 
     def test_all_scripts_exist(self):
         # Every referenced script path must exist relative to PROJECT_ROOT.
@@ -186,7 +193,7 @@ class TestCommands:
         # Default invocation — no --sync-check (that's a separate concern),
         # no --dry-run (the orchestrator handles dry-run at its own level).
         cmd = dict(maint.TIER1_STEPS)["db_maint (VACUUM/ANALYZE/REINDEX/integrity)"]
-        assert cmd == ["python3", "helpers/maintenance/db_maint.py"]
+        assert cmd == [sys.executable, "helpers/maintenance/db_maint.py"]
 
     def test_snapshot_command_includes_duckdb_by_default(self):
         # snapshot_db.py defaults to --with-duckdb (on), so the orchestrator
@@ -195,7 +202,7 @@ class TestCommands:
         cmd = dict(maint.TIER1_STEPS)["snapshot (refresh versioned snapshots)"]
         assert "--no-duckdb" not in cmd
         # The default IS with-duckdb, so we don't need to pass it.
-        assert cmd == ["python3", "helpers/maintenance/snapshot_db.py"]
+        assert cmd == [sys.executable, "helpers/maintenance/snapshot_db.py"]
 
     def test_recompute_graph_command_uses_apply(self):
         # The whole point of maint-full is to persist analytics.
@@ -258,8 +265,8 @@ class TestDryRun:
             + [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
             + maint.TIER2_STEPS
         )
-        # 2 pre-full + 2 tier1 (snapshot elided in --full) + 8 tier2.
-        assert len(all_steps) == 12
+        # 4 pre-full + 2 tier1 (snapshot elided in --full) + 8 tier2.
+        assert len(all_steps) == 14
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
         assert "snapshot (refresh versioned snapshots)" not in output

@@ -20,8 +20,13 @@ created: '2026-06-17'
 last_modified: '2026-08-25'
 generated:
   by: process:okf_backfill
-  at: '2026-06-17T00:00:00Z'
-stale_after: '2026-12-14'
+  at: '2026-08-25T00:00:00Z'
+stale_after: '2027-02-21'
+sources:
+- id: RBI_3M_Blue_Star_KFin
+  resource: /findata/The_Chatter/RBI_3M_Blue_Star_KFin.md
+  title: '''The Chatter: RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More'''
+  last_modified: '2026-08-25'
 ---
 
 # KFin Technologies

@@ -31,11 +31,11 @@ sources:
   last_modified: '2026-08-15'
 - id: Signals_in_Silence
   resource: /findata/The_Chatter/Signals_in_Silence.md
-  title: '''The Chatter: Signals in Silence'''
+  title: 'The Chatter: Signals in Silence'
   last_modified: '2026-08-15'
 - id: Swiggy_Hyundai_Shree_Cement
   resource: /findata/The_Chatter/Swiggy_Hyundai_Shree_Cement.md
-  title: '''The Chatter: Swiggy, Hyundai, Shree Cemen & More'''
+  title: 'The Chatter: Swiggy, Hyundai, Shree Cemen & More'
   last_modified: '2026-08-15'
 ---
 # Torrent Power

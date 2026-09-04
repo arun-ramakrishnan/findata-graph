@@ -27,6 +27,7 @@ entry number and stale DONE pointers):
    `proposed` (corpus_uniformity S3).
 
 ## Current live proposals
-_(none)_ — the last live proposal (vault_scaling.md) was archived as
-completed.md #204 on 2026-09-04; its trigger-gated Phases A–C remain
-recorded in `../archive/graph/vault_scaling.md`.
+_(none)_ — the last live proposal (maint_runtime_hardening.md) was
+archived as completed.md #206 on 2026-09-04; the five-slice execution
+record (interpreter doctrine, PRE_FULL convergers, converter title fix)
+lives in `../archive/tooling/maint_runtime_hardening.md`.

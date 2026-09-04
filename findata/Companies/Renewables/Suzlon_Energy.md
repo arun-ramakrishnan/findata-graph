@@ -35,7 +35,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Sharp_Takes
   resource: /findata/The_Chatter/Sharp_Takes.md
-  title: '''The Chatter: Sharp Takes'''
+  title: 'The Chatter: Sharp Takes'
   last_modified: '2026-08-15'
 ---
 

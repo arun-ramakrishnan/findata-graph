@@ -322,6 +322,12 @@ def build_okf_frontmatter(
     - ``type: newsletter`` — self-describing; validated by
       doc/okf/frontmatter.newsletter.v1.json since the source trees came
       under the B1 gate (newsletter_notes_adoption.md S1/S2).
+    - ``title``: the PDF's own metadata Title (pdfinfo) when present —
+      the edition's real display title. Falls back to the first markdown
+      heading, then the stem. The heading heuristic alone grabs whatever
+      H1 the layout emits first (a sector header like "FMCG", or a
+      company section line) — five in-tree notes carry those degenerate
+      titles (repaired 2026-09-04).
     - ``tags``: namespaced source vocabulary — ``series/<out_dir slug>``
       always, plus ``publisher/<slug>`` when the series is in the known map
       (accepted Q1: omitted when unknown, never guessed).
@@ -338,7 +344,8 @@ def build_okf_frontmatter(
     except ValueError:
         rel = None
     fm: dict = {"type": "newsletter"}
-    fm["title"] = _first_heading_title(pages, stem)
+    meta = _pdf_metadata(pdf_path)
+    fm["title"] = meta.get("Title") or _first_heading_title(pages, stem)
     tags: list[str] = []
     if out_dir is not None:
         series = re.sub(r"[^a-z0-9]+", "_", Path(out_dir).name.lower()).strip("_")
@@ -351,7 +358,6 @@ def build_okf_frontmatter(
         fm["tags"] = tags
     fm["generated"] = {"by": f"pdf_conv_md.py/{model}", "at": now or iso_now_utc()}
     if rel is not None and rel.parts[:1] == ("Reports",):
-        meta = _pdf_metadata(pdf_path)
         src = {
             "id": stem,
             "resource": "/" + rel.as_posix(),

@@ -42,6 +42,7 @@ from helpers.graph import derive_insights as di  # noqa: E402
 from helpers.graph import embeddings as emb  # noqa: E402
 from helpers.graph import query  # noqa: E402
 from helpers.graph.query import DB_PATH  # noqa: E402
+from helpers.graph import derive_cited_in as dci  # noqa: E402
 from helpers.maintenance import build_sector_hierarchy as bsh  # noqa: E402
 from helpers.maintenance import db_maint  # noqa: E402
 from helpers.maintenance import maint  # noqa: E402
@@ -49,6 +50,7 @@ from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 from helpers.maintenance import rebuild_note_search as rns  # noqa: E402
 from helpers.maintenance import snapshot_db  # noqa: E402
 from helpers.maintenance import sync_sector_wikilinks as ssw  # noqa: E402
+from helpers.misc import backfill_okf_provenance as bf  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 
@@ -349,6 +351,20 @@ def _shim_derive_events(p, mp, args):
     return _rc(de._cli(list(args)))
 
 
+def _shim_okf_backfill(p, mp, args):
+    # Notes-only converger: redirect the vault-resolution root. The tmp
+    # project has no git, so canonical edition entries carry no
+    # last_modified (same tmp-tree behavior the splice tests document).
+    mp.setattr(bf, "_REPO_ROOT", p.root)
+    return _rc(bf._cli(list(args)))
+
+
+def _shim_derive_cited_in(p, mp, args):
+    mp.setattr(dci, "_REPO_ROOT", p.root)
+    mp.setattr(dci, "connect", lambda *a, **k: db_connect(str(p.db)))
+    return _rc(dci._cli(list(args)))
+
+
 _SHIMS = {
     "helpers/maintenance/db_maint.py": _shim_db_maint,
     "helpers/maintenance/snapshot_db.py": _shim_snapshot,
@@ -362,6 +378,8 @@ _SHIMS = {
     "helpers/graph/algorithms.py": _shim_algorithms,
     "helpers/graph/derive_insights.py": _shim_derive_insights,
     "helpers/graph/derive_events.py": _shim_derive_events,
+    "helpers/misc/backfill_okf_provenance.py": _shim_okf_backfill,
+    "helpers/graph/derive_cited_in.py": _shim_derive_cited_in,
 }
 
 
@@ -392,7 +410,7 @@ def _make_dispatcher(p, mp, record: list, overrides: dict | None = None):
         if (
             isinstance(cmd, list)
             and len(cmd) >= 2
-            and cmd[0] == "python3"
+            and cmd[0] == sys.executable
             and cmd[1].startswith("helpers/")
         ):
             shim = shims.get(cmd[1])
@@ -492,7 +510,7 @@ class TestMaintChain:
     def test_unshimmed_step_fails_loudly(self, project, monkeypatch):
         """A maint step whose script has no dispatcher shim aborts the
         chain — new steps cannot run half-executed or silently skipped."""
-        fake = ("future step", ["python3", "helpers/maintenance/future.py"])
+        fake = ("future step", [sys.executable, "helpers/maintenance/future.py"])
         monkeypatch.setattr(maint, "TIER1_STEPS", [*maint.TIER1_STEPS, fake])
         record = _make_dispatcher(project, monkeypatch, [])
         assert maint.main([]) == 1

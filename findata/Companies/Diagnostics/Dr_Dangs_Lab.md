@@ -2,6 +2,7 @@
 title: Dr. Dangs Lab
 type: company
 ticker: null
+listed: false
 sector: Diagnostics
 industry: null
 market_cap: large_cap

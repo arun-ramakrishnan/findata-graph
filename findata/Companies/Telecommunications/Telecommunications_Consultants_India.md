@@ -2,6 +2,7 @@
 title: Telecommunications Consultants India
 type: company
 ticker: null
+listed: false
 sector: Telecommunications
 industry: Communication Equipment
 market_cap: mid_cap

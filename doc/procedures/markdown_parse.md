@@ -251,8 +251,10 @@ reports misses instead of guessing. The activation targets built on this:
   sources. Opt-in; the first run after an OKF backfill re-renders every
   sourced note (backfill stamps are not render stamps).
 - Post-render chain: `derive_insights --apply [--stale-only]` →
-  `make derive-cited-in-rebuild` (new citations become edges) →
-  `make maint-full` (snapshot captures everything).
+  `make maint-full` (PRE_FULL runs derive-cited-in itself — new
+  citations become edges ahead of its graph-rebuild — then snapshot
+  captures everything). `make derive-cited-in-rebuild` standalone is
+  only for refreshing citation edges without a full maintenance pass.
 
 Categories for derived notes (apply relevant ones; abbreviate to save tokens):
 
@@ -456,6 +458,7 @@ Rules:
 - Include **1 notable verbatim quote** with speaker + title when the transcript has one; omit the quote block otherwise.
 - **Do not touch the YAML front matter** except bumping `last_modified`. Do not rewrite existing sections.
 - **Skip the edition block if the note already has one for this edition** (idempotent — check for the `## The Chatter — <edition title>` heading first).
+- **Splice the citation in the same sitting** — after appending the block, run `.venv/bin/python3 helpers/misc/backfill_okf_provenance.py --apply` (derived mode, idempotent) so the edition lands in the note's `sources[]` and `stale_after` re-derives. Hand-written blocks get no render-time splice (that path belongs to derive_insights auto blocks), so this converger is the write-time path; `make maint-full` also converges it automatically as PRE_FULL step 2 — splicing at write time just keeps citations fresh between maintenance runs.
 - If a figure from the rewritten source sits directly under the company's section, embed it inline with `![[images/<slug>_p{p}_img{N}.jpeg]]` at the relevant bullet.
 
 ### Finding the company's note
@@ -632,6 +635,7 @@ def validate_bidirectional_sync():
 - [ ] Bidirectional `part_of`/`has_company` relations created
 - [ ] Enhanced tags populated
 - [ ] **Existing entities enhanced** — every existing company with a concall/management section in the newsletter has a `## The Chatter — <edition>` block appended (see [Enhancing Existing Entities](#enhancing-existing-entities))
+- [ ] **Edition citations spliced** — every hand-written edition block's edition is in that note's `sources[]` (run `backfill_okf_provenance.py --apply` after enhancing; maint-full's PRE_FULL okf-backfill converges the same thing)
 - [ ] **Sector-note auto rosters refreshed** (`sync_sector_wikilinks`) — mandatory after any entity creation; stale rosters pass every other validator (user catch 2026-08-25; `make sync-sector-links` — bare script run is a dry-run report)
 - [ ] Short, token-efficient names (no `Ltd`/`Company` suffixes)
 - [ ] **(Newsletter inputs)** Relevant figures embedded in company notes via `![[images/<slug>_p{p}_img{N}.jpeg]]`

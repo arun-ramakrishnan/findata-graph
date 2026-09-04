@@ -27,7 +27,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Between_Seasons
   resource: /findata/The_Chatter/Between_Seasons.md
-  title: '''The Chatter: Between Seasons'''
+  title: 'The Chatter: Between Seasons'
   last_modified: '2026-08-15'
 ---
 # Bharti Airtel

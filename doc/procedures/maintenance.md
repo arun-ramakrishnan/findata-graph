@@ -16,16 +16,29 @@ that order. Plain `make maint` runs **TIER1 only**.
 | Step | Writes |
 |---|---|
 | `sync-tags` | `entity_tags` + `note_tags` from note YAML; E5a-derives `entities.sector_classification` |
+| `okf-backfill` | machine-owned note frontmatter (`sources[]`, `stale_after`) converged from note bodies — the one sanctioned note mutation in maint-full |
 | `rebuild-note-search` | `note_search` FTS over findata markdowns |
+| `derive-cited-in` | edition `entities` + `cited_in` `graph_edges` from OKF `sources[]` |
 
-Both are **full rebuilds of derived indexes**. They run before
-`db_maint` so their output lands inside the recovery backup — without
-this, the backup's FTS was one step stale by construction (the rebuild
-ran after it). Keeping them outside the backup's protection costs
-nothing: a corrupt rebuild is fixed by rerunning the step. A secondary
-win: sync-tags' E5a `entities` write now lands before `graph-rebuild`,
-so the DuckDB cache is rebuilt from the post-sync state instead of
-lazily re-materialising on next connect.
+All four are **full rebuilds / deterministic projections of
+already-stamped state**. They run before `db_maint` so their output
+lands inside the recovery backup — without this, the backup's FTS was
+one step stale by construction (the rebuild ran after it). Keeping them
+outside the backup's protection costs nothing: a corrupt rebuild is
+fixed by rerunning the step. A secondary win: sync-tags' E5a `entities`
+write — and derive-cited-in's edition entities/edges — now land before
+`graph-rebuild`, so the DuckDB cache is rebuilt from the post-sync
+state instead of lazily re-materialising on next connect (that pairing
+is the placement rule's DuckDB-rebuild requirement, satisfied in-run;
+the standalone `make derive-cited-in-rebuild` remains for edge refreshes
+without a full maintenance pass).
+
+`okf-backfill` exists because hand-written edition blocks (the Stage-5
+curation layer of `markdown_parse.md`) have no writer that splices
+`sources[]` — `derive_insights` only maintains it at render time, which
+hand-written blocks never get. Before this step (2026-09-04), every
+hand-enhanced note accumulated citation debt until someone remembered
+the manual backfill (20+ straggler notes healed on first run).
 
 Between ingests both steps are guaranteed no-ops — which is why plain
 `make maint` never runs them (post-ingest re-derivations per the
@@ -57,7 +70,11 @@ tail `snapshot` (the single snapshot of a `--full` run).
 Gates write nothing; their WRITE paths are explicit make targets
 (`make sync-sector-links`, `build_sector_hierarchy --apply`) because
 housekeeping must never mutate notes. `derive-insights` note-rendering
-is off for the same reason.
+is off for the same reason. The ONE carve-out: `okf-backfill` (PRE_FULL)
+updates **machine-owned frontmatter provenance keys only**
+(`sources[]`, `stale_after`, `process:*` stamps) — bodies, rosters, and
+chatter blocks remain untouchable; that metadata is a projection of the
+body the way `entity_tags` is of the YAML.
 
 ## Placement invariant
 
@@ -65,11 +82,20 @@ A derivation step belongs in maint-full iff it writes **only SQLite
 tables** — anything touching `entities`/`graph_edges` needs a paired
 DuckDB rebuild and stays a standalone `make` target (e.g.
 `derive-themes` = `make derive-themes` + `make graph-rebuild`).
+Exception (2026-09-04): a *deterministic projection of already-stamped
+frontmatter* that is a guaranteed no-op between ingests may join
+maint-full **ahead of `graph-rebuild`**, so the pairing happens in the
+same run — `derive-cited-in` (INSERT-OR-IGNORE projection of OKF
+`sources[]`) is the incumbent case; the never-run manual pairing had
+let edition entities/edges rot between explicit runs. Analytical
+derivations (themes, relations) keep the standalone form — their
+cadence is corpus-wide passes + human triage, not per-ingest
+bookkeeping.
 
 ## When to run what
 
 - **Routine** → `make maint` (3 steps, always safe).
-- **Post-ingest / post-surgery** → `make maint-full` (12 steps).
+- **Post-ingest / post-surgery** → `make maint-full` (14 steps).
 - **Crash mid-VACUUM** → restore from `db-backup/*_backup.*.zst`:
   `zstd -dc db-backup/research_backup.db.zst > memory/research.db`.
 - **Verify a backup** → decompress to an alt location, `PRAGMA

@@ -32,11 +32,11 @@ sources:
   last_modified: '2026-08-15'
 - id: Reading_the_terrain
   resource: /findata/The_Chatter/Reading_the_terrain.md
-  title: '''The Chatter: Reading the terrain'''
+  title: 'The Chatter: Reading the terrain'
   last_modified: '2026-08-15'
 - id: Signals_in_Silence
   resource: /findata/The_Chatter/Signals_in_Silence.md
-  title: '''The Chatter: Signals in Silence'''
+  title: 'The Chatter: Signals in Silence'
   last_modified: '2026-08-15'
 ---
 # Hero MotoCorp

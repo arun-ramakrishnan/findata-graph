@@ -1,6 +1,6 @@
 ---
 type: newsletter
-title: Subtext by Zerodha
+title: 'The Chatter: Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More'
 tags:
 - series/the_chatter
 - publisher/zerodha

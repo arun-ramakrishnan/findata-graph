@@ -169,7 +169,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 91 company note(s) in Automotive. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 90 company note(s) in Automotive. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Amara_Raja_Batteries|Amara Raja Batteries Limited]]
 - [[Apollo_Tyres|Apollo Tyres]]
@@ -249,7 +249,6 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 - [[TVS_Motor_Company|TVS Motor Company]]
 - [[Talbros_Automotive_Components|Talbros Automotive Components]]
 - [[Tata_AutoComp|Tata AutoComp]]
-- [[Tata_AutoComp_Systems|Tata AutoComp Systems]]
 - [[Tata_Elxsi|Tata Elxsi Limited]]
 - [[Tata_Motors_Passenger_Vehicles|Tata Motors Passenger Vehicles Limited]]
 - [[Tata_Technologies|Tata Technologies]]

@@ -2,6 +2,7 @@
 title: Suburban Diagnostics
 type: company
 ticker: null
+listed: false
 sector: Diagnostics
 industry: Utilities - Regulated Gas
 market_cap: mid_cap

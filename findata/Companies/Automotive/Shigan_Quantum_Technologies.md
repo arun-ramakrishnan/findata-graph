@@ -2,6 +2,7 @@
 title: Shigan Quantum Technologies
 type: company
 ticker: null
+listed: false
 sector: Automotive
 market_cap: micro_cap
 normalized_name: Shigan_Quantum_Technologies

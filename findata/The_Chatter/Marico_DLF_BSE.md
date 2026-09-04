@@ -1,6 +1,6 @@
 ---
 type: newsletter
-title: Marico_DLF_BSE
+title: 'The Chatter: Marico, DLF, BSE, Nykaa & More'
 sources:
 - id: Marico_DLF_BSE
   resource: /Reports/Marico_DLF_BSE.pdf

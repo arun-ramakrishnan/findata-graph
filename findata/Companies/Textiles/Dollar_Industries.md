@@ -36,7 +36,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Echoes_from_the_Boardroom
   resource: /findata/The_Chatter/Echoes_from_the_Boardroom.md
-  title: '''The Chatter: Echoes from the Boardroom'''
+  title: 'The Chatter: Echoes from the Boardroom'
   last_modified: '2026-08-15'
 ---
 

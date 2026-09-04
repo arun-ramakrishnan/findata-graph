@@ -2,6 +2,7 @@
 title: Kutch Copper
 type: company
 ticker: null
+listed: false
 sector: Metals
 industry: null
 market_cap: small_cap

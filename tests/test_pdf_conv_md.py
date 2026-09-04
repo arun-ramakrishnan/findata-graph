@@ -207,6 +207,25 @@ class TestBuildOkfFrontmatter:
         data = yaml_safe_load(fm.split("\n---\n")[0][4:])
         assert data["title"] == "my_edition"
 
+    def test_title_prefers_pdf_metadata_over_headings(self, tmp_path, monkeypatch):
+        # The first-H1 heuristic grabs whatever heading the layout emits
+        # first (a sector header like "FMCG"); the PDF's own Title is the
+        # edition's real display title and wins when pdfinfo has one.
+        import helpers.pdf.pdf_conv_md as PCM
+
+        monkeypatch.setattr(PCM, "_pdf_metadata", lambda p: {"Title": "The Chatter: Real Title"})
+        fm = build_okf_frontmatter(_PAGES, tmp_path / "x.pdf", "M", "stem")
+        data = yaml_safe_load(fm.split("\n---\n")[0][4:])
+        assert data["title"] == "The Chatter: Real Title"
+
+    def test_title_falls_back_to_first_heading_without_metadata(self, tmp_path, monkeypatch):
+        import helpers.pdf.pdf_conv_md as PCM
+
+        monkeypatch.setattr(PCM, "_pdf_metadata", lambda p: {})
+        fm = build_okf_frontmatter(_PAGES, tmp_path / "x.pdf", "M", "stem")
+        data = yaml_safe_load(fm.split("\n---\n")[0][4:])
+        assert data["title"] == "The Chatter: Bosch Edition"
+
     def test_tags_series_and_publisher_for_known_dir(self, tmp_path):
         pdf = tmp_path / "x.pdf"
         fm = build_okf_frontmatter([], pdf, "M", "ed", out_dir="/vault/findata/The_PlotLines")

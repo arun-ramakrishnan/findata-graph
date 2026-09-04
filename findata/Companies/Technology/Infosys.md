@@ -48,15 +48,15 @@ sources:
   last_modified: '2026-08-15'
 - id: Between_Seasons
   resource: /findata/The_Chatter/Between_Seasons.md
-  title: '''The Chatter: Between Seasons'''
+  title: 'The Chatter: Between Seasons'
   last_modified: '2026-08-15'
 - id: Patience_and_payoff
   resource: /findata/The_Chatter/Patience_and_payoff.md
-  title: '''The Chatter: Patience & payoff'''
+  title: 'The Chatter: Patience & payoff'
   last_modified: '2026-08-15'
 - id: Threads_and_Tensions
   resource: /findata/The_Chatter/Threads_and_Tensions.md
-  title: '''The Chatter: Threads and Tensions'''
+  title: 'The Chatter: Threads and Tensions'
   last_modified: '2026-08-15'
 verified:
 - by: human:user Ramakrishnan

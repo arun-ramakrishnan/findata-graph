@@ -1,6 +1,6 @@
 ---
 type: newsletter
-title: Zydus Lifesciences Ltd.|Large Cap| Pharmaceuticals
+title: 'The Chatter: Bosch, Amara, Zydus & More'
 sources:
 - id: Bosch_Amara_Zydus
   resource: /Reports/Bosch_Amara_Zydus.pdf

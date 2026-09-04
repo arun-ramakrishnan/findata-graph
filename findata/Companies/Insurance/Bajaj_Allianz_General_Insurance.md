@@ -2,6 +2,7 @@
 title: Bajaj Allianz General Insurance
 type: company
 ticker: null
+listed: false
 sector: Insurance
 industry: null
 market_cap: mid_cap
@@ -20,8 +21,8 @@ created: '2026-01-17'
 last_modified: '2026-08-25'
 generated:
   by: process:okf_backfill
-  at: '2026-01-17T00:00:00Z'
-stale_after: '2026-07-16'
+  at: '2026-08-25T00:00:00Z'
+stale_after: '2027-02-21'
 ---
 
 # Bajaj Allianz General Insurance

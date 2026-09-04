@@ -35,7 +35,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Decoding_the_Dialogue
   resource: /findata/The_Chatter/Decoding_the_Dialogue.md
-  title: '''The Chatter: Decoding the Dialogue'''
+  title: 'The Chatter: Decoding the Dialogue'
   last_modified: '2026-08-15'
 ---
 

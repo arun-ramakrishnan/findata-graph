@@ -28,7 +28,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Bosch_Amara_Zydus
   resource: /findata/The_Chatter/Bosch_Amara_Zydus.md
-  title: Zydus Lifesciences Ltd.|Large Cap| Pharmaceuticals
+  title: 'The Chatter: Bosch, Amara, Zydus & More'
   last_modified: '2026-08-15'
 ---
 

@@ -35,11 +35,11 @@ sources:
   last_modified: '2026-08-15'
 - id: Management_in_Motion
   resource: /findata/The_Chatter/Management_in_Motion.md
-  title: '''The Chatter: Management in Motion'''
+  title: 'The Chatter: Management in Motion'
   last_modified: '2026-08-15'
 - id: The_Blind_Spots
   resource: /findata/The_Chatter/The_Blind_Spots.md
-  title: '''The Chatter: The Blind Spots'''
+  title: 'The Chatter: The Blind Spots'
   last_modified: '2026-08-15'
 ---
 

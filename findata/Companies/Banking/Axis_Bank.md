@@ -36,7 +36,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Anchor_and_Ambitions
   resource: /findata/The_Chatter/Anchor_and_Ambitions.md
-  title: '''The Chatter: Anchor & Ambitions'''
+  title: 'The Chatter: Anchor & Ambitions'
   last_modified: '2026-08-15'
 ---
 

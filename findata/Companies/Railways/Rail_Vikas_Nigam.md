@@ -31,7 +31,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Swiggy_Hyundai_Shree_Cement
   resource: /findata/The_Chatter/Swiggy_Hyundai_Shree_Cement.md
-  title: '''The Chatter: Swiggy, Hyundai, Shree Cemen & More'''
+  title: 'The Chatter: Swiggy, Hyundai, Shree Cemen & More'
   last_modified: '2026-08-15'
 ---
 

@@ -35,7 +35,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Scaling_Through_Slowdowns
   resource: /findata/The_Chatter/Scaling_Through_Slowdowns.md
-  title: '''The Chatter: Scaling Through Slowdowns'''
+  title: 'The Chatter: Scaling Through Slowdowns'
   last_modified: '2026-08-15'
 ---
 

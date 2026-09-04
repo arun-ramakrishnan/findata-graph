@@ -19,7 +19,7 @@ last_modified: '2026-08-31'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-28T15:01:27Z'
-stale_after: '2027-02-11'
+stale_after: '2027-02-27'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -29,6 +29,10 @@ sources:
   resource: /findata/The_Chatter/Reliance_PayTM_Nykaa.md
   title: 'The Chatter: Reliance, PayTM, Nykaa & More'
   last_modified: '2026-08-15'
+- id: Max_Life_Tempsens_TCS
+  resource: /findata/The_Chatter/Max_Life_Tempsens_TCS.md
+  title: 'The Chatter: Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More'
+  last_modified: '2026-08-31'
 ---
 # Max Financial Services
 

@@ -19,7 +19,7 @@ last_modified: '2026-09-04'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-20T05:41:43Z'
-stale_after: '2027-02-11'
+stale_after: '2027-03-03'
 sources:
 - id: Threads_in_the_data
   resource: /findata/The_Chatter/Threads_in_the_data.md
@@ -27,8 +27,12 @@ sources:
   last_modified: '2026-08-15'
 - id: Inflection_Watch
   resource: /findata/The_Chatter/Inflection_Watch.md
-  title: '''The Chatter: Inflection Watch'''
+  title: 'The Chatter: Inflection Watch'
   last_modified: '2026-08-15'
+- id: Milky_Mist_Bluestone
+  resource: /findata/The_Chatter/Milky_Mist_Bluestone.md
+  title: 'The Chatter: Milky Mist, Bluestone, Leap India, Avanti & More'
+  last_modified: '2026-09-04'
 ---
 # Avanti Feeds
 

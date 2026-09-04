@@ -31,7 +31,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Patience_and_payoff
   resource: /findata/The_Chatter/Patience_and_payoff.md
-  title: '''The Chatter: Patience & payoff'''
+  title: 'The Chatter: Patience & payoff'
   last_modified: '2026-08-15'
 ---
 # Sun Pharmaceutical Industries

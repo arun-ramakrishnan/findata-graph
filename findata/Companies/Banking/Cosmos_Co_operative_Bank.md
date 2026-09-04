@@ -2,6 +2,7 @@
 title: Cosmos Co-operative Bank
 type: company
 ticker: null
+listed: false
 sector: Banking
 industry: Medical Distribution
 market_cap: large_cap

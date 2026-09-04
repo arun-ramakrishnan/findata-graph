@@ -31,7 +31,7 @@ sources:
   last_modified: '2026-08-15'
 - id: RBI_3M_Blue_Star_KFin
   resource: /findata/The_Chatter/RBI_3M_Blue_Star_KFin.md
-  title: '''The Chatter: RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More'''
+  title: 'The Chatter: RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More'
   last_modified: '2026-08-25'
 ---
 

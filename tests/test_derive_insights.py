@@ -902,7 +902,10 @@ class TestSpliceSources:
         assert fm["title"] == "Marico"
         assert fm["generated"]["by"] == "derive_insights.py/v1"
 
-    def test_existing_edition_is_noop(self, tmp_path, monkeypatch):
+    def test_existing_edition_converges_to_canonical(self, tmp_path, monkeypatch):
+        # A live-edition entry converges to the canonical builder output
+        # (legacy partial entries gain resource/title; titles refresh when
+        # the edition note changes). Deleted/uncited editions stay verbatim.
         vault, index = _splice_vault(tmp_path, monkeypatch)
         text = _note_with_fm(
             "derive_insights.py/v1",
@@ -911,8 +914,28 @@ class TestSpliceSources:
             body="# Marico\n\n## The Chatter — My Edition\n",
         )
         new_text, changed = di._splice_sources(text, index, vault)
+        assert changed is True
+        assert _fm_sources(new_text)["My_Edition"] == {
+            "id": "My_Edition",
+            "resource": "/findata/The_Chatter/My_Edition.md",
+            "title": "My Edition",
+            "last_modified": "2026-08-18",
+        }
+
+    def test_converged_edition_is_noop(self, tmp_path, monkeypatch):
+        # Idempotence: once the entry matches canonical output, a second
+        # splice rewrites nothing (the maint-full converger relies on this).
+        vault, index = _splice_vault(tmp_path, monkeypatch)
+        text = _note_with_fm(
+            "derive_insights.py/v1",
+            "2026-08-16T00:00:00Z",
+            [("My_Edition", "2026-08-15")],
+            body="# Marico\n\n## The Chatter — My Edition\n",
+        )
+        once, _ = di._splice_sources(text, index, vault)
+        twice, changed = di._splice_sources(once, index, vault)
         assert changed is False
-        assert new_text == text
+        assert twice == once
 
     def test_no_frontmatter_is_noop(self, tmp_path, monkeypatch):
         vault, index = _splice_vault(tmp_path, monkeypatch)

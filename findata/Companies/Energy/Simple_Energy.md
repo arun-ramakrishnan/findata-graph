@@ -2,6 +2,7 @@
 title: Simple Energy
 type: company
 ticker: null
+listed: false
 sector: Energy
 industry: null
 market_cap: large_cap

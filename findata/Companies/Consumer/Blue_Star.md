@@ -32,15 +32,15 @@ sources:
   last_modified: '2026-08-15'
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
-  title: '''The Chatter: A Quarter That Refuses To Behave'''
+  title: 'The Chatter: A Quarter That Refuses To Behave'
   last_modified: '2026-08-15'
 - id: Embracing_the_Unknown
   resource: /findata/The_Chatter/Embracing_the_Unknown.md
-  title: '''The Chatter: Embracing the Unknown'''
+  title: 'The Chatter: Embracing the Unknown'
   last_modified: '2026-08-15'
 - id: RBI_3M_Blue_Star_KFin
   resource: /findata/The_Chatter/RBI_3M_Blue_Star_KFin.md
-  title: '''The Chatter: RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More'''
+  title: 'The Chatter: RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More'
   last_modified: '2026-08-25'
 ---
 

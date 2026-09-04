@@ -23,7 +23,7 @@ stale_after: '2027-02-21'
 sources:
 - id: Yes_Bank_Colgate_Allcargo
   resource: /findata/The_Chatter/Yes_Bank_Colgate_Allcargo.md
-  title: '''The Chatter: YES Bank, Colgate, Allcargo, & More'''
+  title: 'The Chatter: YES Bank, Colgate, Allcargo, & More'
   last_modified: '2026-08-25'
 ---
 

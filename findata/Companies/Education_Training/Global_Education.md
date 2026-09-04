@@ -1,7 +1,7 @@
 ---
 title: Global_Education
 type: company
-ticker: null
+ticker: GLOBAL.NS
 sector: Education_Training
 industry: Education & Training Services
 market_cap: small_cap

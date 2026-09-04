@@ -39,7 +39,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Embracing_the_Unknown
   resource: /findata/The_Chatter/Embracing_the_Unknown.md
-  title: '''The Chatter: Embracing the Unknown'''
+  title: 'The Chatter: Embracing the Unknown'
   last_modified: '2026-08-15'
 ---
 # Canara Bank

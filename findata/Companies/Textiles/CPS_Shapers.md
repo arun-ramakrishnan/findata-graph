@@ -2,6 +2,7 @@
 title: CPS Shapers
 type: company
 ticker: null
+listed: false
 sector: Textiles
 industry: Electronic Components
 market_cap: micro_cap

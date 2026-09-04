@@ -56,10 +56,26 @@ def norm_key(s: str) -> str:
 
 
 def note_title(text: str, stem: str) -> str:
-    """Frontmatter title -> first markdown heading -> file stem."""
+    """Frontmatter title -> first markdown heading -> file stem.
+
+    The title value is parsed as a YAML scalar so quoting is stripped —
+    a raw line grab keeps the quote characters in the value, and they
+    then propagate into ``sources[].title`` entries as triple-quote soup
+    (found 2026-09-04 once merged_sources started converging live
+    editions to the canonical builder output).
+    """
     m = re.search(r"^title:\s*(.+)$", text, re.M)
     if m and m.group(1).strip():
-        return m.group(1).strip()
+        raw = m.group(1).strip()
+        try:
+            import yaml
+
+            parsed = yaml.safe_load(raw)
+        except yaml.YAMLError:
+            parsed = None
+        if isinstance(parsed, str) and parsed.strip():
+            return parsed.strip()
+        return raw
     m = re.search(r"^#\s+(.+)$", text, re.M)
     if m and m.group(1).strip():
         return m.group(1).strip()
@@ -290,9 +306,14 @@ def merged_sources(
 ) -> list[dict]:
     """Existing frontmatter sources + newly resolved edition entries, deduped.
 
-    Existing entries are kept verbatim (accepted Q2: entries for deleted
-    editions remain as historical pointers — advisories surface them, never
-    silently rewritten). No cap (Q3) — the list IS the evidence trail.
+    Entries for editions the body still references CONVERGE to the
+    canonical builder output — title/resource/last_modified refresh when
+    the edition note changes (e.g. the 2026-09-04 converter title
+    repairs; without this, a repaired edition title never propagates into
+    already-stamped notes). Entries for editions the body no longer
+    references — including deleted editions — are kept verbatim (accepted
+    Q2: historical pointers — advisories surface them, never silently
+    rewritten). No cap (Q3) — the list IS the evidence trail.
     ``memo`` (optional, caller-owned) caches edition-string resolution
     across calls.
     """
@@ -302,6 +323,8 @@ def merged_sources(
         if isinstance(fm.get("sources"), list)
         else []
     )
+    canonical = {e["id"]: e for e in entries}
+    existing = [canonical.get(e.get("id"), e) for e in existing]
     return existing + [e for e in entries if e["id"] not in {x.get("id") for x in existing}]
 
 

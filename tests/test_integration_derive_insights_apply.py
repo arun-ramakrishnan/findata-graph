@@ -192,17 +192,22 @@ class _Project:
 
     def pin_fresh_okf_state(self) -> None:
         """Simulate the post-render OKF state the gate trusts: a fresh
-        generated.at plus a dated sources[] entry (the tmp tree has no git,
-        so the splice itself can't produce last_modified)."""
+        generated.at plus sources[] CONVERGED to the canonical splice
+        shape (the tmp tree has no git, so canonical entries carry no
+        last_modified — converging through the splice itself models the
+        true fixed point)."""
+        from helpers.core import edition_index as ei
+
         opener, fm_text, body = split_frontmatter(self.note_text())
         fm = yaml_safe_load(fm_text)
         gen = fm.setdefault("generated", {})
         gen["by"] = di._OKF_ACTOR
         gen["at"] = "2026-08-16T00:00:00Z"
-        for s in fm.get("sources", []):
-            if isinstance(s, dict):
-                s["last_modified"] = "2026-08-15"
-        self.note.write_text(render_frontmatter(stringify_dates(fm)) + body, encoding="utf-8")
+        text = render_frontmatter(stringify_dates(fm)) + body
+        vault = self.root / "findata"
+        index = ei.source_note_index(vault)
+        text, _ = di._splice_sources(text, index, vault)
+        self.note.write_text(text, encoding="utf-8")
 
 
 @pytest.fixture

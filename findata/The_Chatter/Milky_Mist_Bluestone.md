@@ -1,6 +1,6 @@
 ---
 type: newsletter
-title: FMCG
+title: 'The Chatter: Milky Mist, Bluestone, Leap India, Avanti & More'
 tags:
 - series/the_chatter
 - publisher/zerodha

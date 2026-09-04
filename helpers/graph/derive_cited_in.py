@@ -11,8 +11,8 @@ metadata into entities/graph_edges — it never re-resolves editions.
 Shape:
   * Edition entities: entity_type='edition', name = note STEM (the
     canonical-key + wikilink rule), file_path vault-relative,
-    normalized_name = frontmatter title. No ticker/sector; not in the
-    belongs_to forest.
+    normalized_name = the stem too (theme-entity precedent). No
+    ticker/sector; not in the belongs_to forest.
   * Edges: one per (derived-note entity, edition) pair — edge_type
     'cited_in', symmetric=0, weight=1 (column default),
     properties={resource, n_quotes}, source_ref 'derive:cited_in'.
@@ -33,6 +33,8 @@ UNIQUE(source, target, edge_type) constraint. Re-runs only add citations
 newly stamped in frontmatter — the backfill/derive_insights own that side.
 
 Writing graph_edges requires a paired DuckDB rebuild (placement rule):
+`make maint-full` runs this script in PRE_FULL followed by graph-rebuild
+(the default path since 2026-09-04); standalone, use
 `make derive-cited-in-rebuild`, or this script + `make graph-rebuild`.
 
 Usage:

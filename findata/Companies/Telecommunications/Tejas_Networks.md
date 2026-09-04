@@ -31,7 +31,7 @@ sources:
   last_modified: '2026-08-15'
 - id: In_the_Middle_of_Things
   resource: /findata/The_Chatter/In_the_Middle_of_Things.md
-  title: '''The Chatter: In the Middle of Things'''
+  title: 'The Chatter: In the Middle of Things'
   last_modified: '2026-08-15'
 ---
 # Tejas Networks

@@ -33,7 +33,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Marico_DLF_BSE
   resource: /findata/The_Chatter/Marico_DLF_BSE.md
-  title: Marico_DLF_BSE
+  title: 'The Chatter: Marico, DLF, BSE, Nykaa & More'
   last_modified: '2026-08-15'
 - id: Swiggy_Hyundai_Shree_Cement
   resource: /findata/The_Chatter/Swiggy_Hyundai_Shree_Cement.md

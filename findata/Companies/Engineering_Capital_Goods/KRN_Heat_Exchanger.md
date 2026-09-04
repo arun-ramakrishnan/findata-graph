@@ -17,11 +17,11 @@ sources:
 - id: Borosil_Orchid_Welspun
   resource: /findata/The_Chatter/Borosil_Orchid_Welspun.md
   title: 'The Chatter: Borosil, Orchid, Welspun, KRN , & More'
-  last_modified: '2026-08-26'
+  last_modified: '2026-08-28'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-28T15:04:16Z'
-stale_after: '2027-02-22'
+stale_after: '2027-02-24'
 ---
 
 # KRN Heat Exchanger

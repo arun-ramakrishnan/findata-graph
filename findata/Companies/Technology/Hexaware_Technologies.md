@@ -18,7 +18,7 @@ created: '2026-07-31'
 last_modified: '2026-08-31'
 generated:
   by: process:okf_backfill
-  at: '2026-07-31T00:00:00Z'
+  at: '2026-08-31T00:00:00Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave

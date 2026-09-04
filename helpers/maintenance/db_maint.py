@@ -715,7 +715,9 @@ def _run_sync_check(root: Path) -> dict:
         if not path.exists():
             out[name] = {"exit": None, "note": f"missing: {path}"}
             continue
-        proc = subprocess.run(["python3", str(path)], capture_output=True, text=True)  # noqa: S603,S607  # list-form call; shell=False (default); args are constants/controlled paths; PATH-resolved interpreter/binary (python3/node/grep) by design
+        # sys.executable, not a PATH-resolved "python3": sync helpers must
+        # run under the same interpreter (venv or not) running db_maint.
+        proc = subprocess.run([sys.executable, str(path)], capture_output=True, text=True)  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
         tail = "\n".join((proc.stdout or "").strip().splitlines()[-3:])
         out[name] = {"exit": proc.returncode, "tail": tail}
     return out

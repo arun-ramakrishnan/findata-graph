@@ -11,6 +11,7 @@ from pathlib import Path
 
 from helpers.core.edition_index import (  # noqa: E402
     norm_key,
+    note_title,
     resolve_edition_string,
     resolve_editions,
     source_note_index,
@@ -39,6 +40,19 @@ def test_norm_key_collapses_to_fuzzy_form():
     assert norm_key("The Chatter — Note #Alpha!") == "the chatter note alpha"
     assert norm_key("  Points &   Figures ") == "points figures"
     assert norm_key("…") == ""
+
+
+def test_note_title_strips_yaml_quoting():
+    # yaml.safe_load scalars: quotes are delimiters, not content — a raw
+    # line grab used to keep them (they then landed in sources[].title
+    # as '''…''' soup once merged_sources started converging entries).
+    assert note_title("---\ntitle: 'The Chatter: Quoted'\n---\n", "stem") == "The Chatter: Quoted"
+    assert note_title('---\ntitle: "Dq Title"\n---\n', "stem") == "Dq Title"
+    # unquoted-with-colon is invalid YAML mapping syntax — raw fallback
+    assert note_title("---\ntitle: The Chatter: Raw\n---\n", "stem") == "The Chatter: Raw"
+    # heading / stem fallbacks unchanged
+    assert note_title("---\n---\n# Heading Title\n", "stem") == "Heading Title"
+    assert note_title("no frontmatter, no heading", "Stem_Fallback") == "Stem_Fallback"
 
 
 def test_source_note_index_keys_stem_title_and_colon_tail(tmp_path):

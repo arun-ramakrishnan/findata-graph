@@ -32,7 +32,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Known_Unknowns
   resource: /findata/The_Chatter/Known_Unknowns.md
-  title: '''The Chatter: Known Unknowns'''
+  title: 'The Chatter: Known Unknowns'
   last_modified: '2026-08-15'
 ---
 

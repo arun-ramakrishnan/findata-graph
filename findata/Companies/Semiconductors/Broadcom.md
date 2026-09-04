@@ -33,7 +33,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Talking_Points
   resource: /findata/The_Chatter/Talking_Points.md
-  title: '''The Chatter: Talking Points'''
+  title: 'The Chatter: Talking Points'
   last_modified: '2026-08-15'
 ---
 

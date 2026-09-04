@@ -2,6 +2,7 @@
 title: Wabco India
 type: company
 ticker: null
+listed: false
 sector: Automotive
 industry: null
 market_cap: large_cap

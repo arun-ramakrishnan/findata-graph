@@ -100,6 +100,7 @@ _KNOWN_TAG_VALUES = {
             "west_india",
             "south_asia",
             "south_korea",
+            "taiwan",
         }
     ),
     "business_model": frozenset(

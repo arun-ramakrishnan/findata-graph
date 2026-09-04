@@ -19,6 +19,11 @@ generated:
   by: parse_newsletter.py/v1
   at: '2026-09-04T17:20:26Z'
 stale_after: '2027-03-03'
+sources:
+- id: Milky_Mist_Bluestone
+  resource: /findata/The_Chatter/Milky_Mist_Bluestone.md
+  title: 'The Chatter: Milky Mist, Bluestone, Leap India, Avanti & More'
+  last_modified: '2026-09-04'
 ---
 
 # Leap India

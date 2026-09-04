@@ -33,7 +33,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Playing_the_Long_Game
   resource: /findata/The_Chatter/Playing_the_Long_Game.md
-  title: '''The Chatter: Playing the Long Game'''
+  title: 'The Chatter: Playing the Long Game'
   last_modified: '2026-08-15'
 verified:
 - by: human:user Ramakrishnan

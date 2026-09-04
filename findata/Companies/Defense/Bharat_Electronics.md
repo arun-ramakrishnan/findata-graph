@@ -35,11 +35,11 @@ sources:
   last_modified: '2026-08-15'
 - id: Inflection_Watch
   resource: /findata/The_Chatter/Inflection_Watch.md
-  title: '''The Chatter: Inflection Watch'''
+  title: 'The Chatter: Inflection Watch'
   last_modified: '2026-08-15'
 - id: Reading_the_terrain
   resource: /findata/The_Chatter/Reading_the_terrain.md
-  title: '''The Chatter: Reading the terrain'''
+  title: 'The Chatter: Reading the terrain'
   last_modified: '2026-08-15'
 ---
 # Bharat Electronics

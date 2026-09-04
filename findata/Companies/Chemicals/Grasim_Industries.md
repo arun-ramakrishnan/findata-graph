@@ -39,7 +39,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Contours_of_Change
   resource: /findata/The_Chatter/Contours_of_Change.md
-  title: '''The Chatter: Contours of Change'''
+  title: 'The Chatter: Contours of Change'
   last_modified: '2026-08-15'
 verified:
 - by: human:user Ramakrishnan

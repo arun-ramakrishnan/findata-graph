@@ -85,6 +85,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`utc_now_unification.md`](tooling/utc_now_unification.md) — utc_now unification — scope disposition closing the #196 W8 deferred item (adopt `db.utc_now()` at the two write-only DB audit stamps + backfill; pin every other timestamp producer as a documented deviation) — completed.md #199
 - [`consolidate_helpers_shared_helpers.md`](tooling/consolidate_helpers_shared_helpers.md) — Proposal: helpers/ de-dup — `env.REPO_ROOT` + `db.connect` adoption, `utc_today_iso`, fold `_compute_root`/`_connect_ro`/`_now_utc` — completed.md #201
 - [`consolidate_mojo_bench_common.md`](tooling/consolidate_mojo_bench_common.md) — Proposal: Mojo bench/common kernels consolidation — cosine SIMD, f32 loader, bridge helpers (+`_venv_env` libpython PATH fix) — completed.md #202
+- [`maint_runtime_hardening.md`](tooling/maint_runtime_hardening.md) — maint runtime hardening — sys.executable spawns (17 sites), derive-cited-in + okf-backfill sources[] converger into PRE_FULL (14-step maint-full, machine-owned-provenance carve-out), pdf_conv_md title from pdfinfo, merged_sources/note_title converger semantics — completed.md #206
 
 ## ui/ — Frontend & templates — reader, paper register, findata views
 

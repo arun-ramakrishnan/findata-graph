@@ -33,7 +33,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Half_a_century_in
   resource: /findata/The_Chatter/Half_a_century_in.md
-  title: '''The Chatter: Half a century in'''
+  title: 'The Chatter: Half a century in'
   last_modified: '2026-08-15'
 ---
 

@@ -39,7 +39,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Management_in_Motion
   resource: /findata/The_Chatter/Management_in_Motion.md
-  title: '''The Chatter: Management in Motion'''
+  title: 'The Chatter: Management in Motion'
   last_modified: '2026-08-15'
 ---
 
