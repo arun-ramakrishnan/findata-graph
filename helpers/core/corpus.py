@@ -69,7 +69,7 @@ except ImportError:  # pragma: no cover - fallback for isolated import
 # corpus.db is sidecar like embed_store.db.
 _CACHE_DB = Path(__file__).resolve().parents[2] / "memory" / "corpus.db"
 # Public seam for the backup machinery (db_maint._backup_corpus /
-# snapshot_db._corpus_worker) — mirrors vec_search.EMBED_DB_PATH. Import
+# snapshot_db._snapshot_corpus) — mirrors vec_search.EMBED_DB_PATH. Import
 # at CALL time so tests' conftest tmp-redirect of this module is honored.
 CORPUS_DB = _CACHE_DB
 _CACHE_DB_RETAIN = 1  # keep DB even when findata max_mtime == cache, for incremental
@@ -91,6 +91,23 @@ def iter_findata_files(root: Path) -> list[Path]:
         files = [p for p in Path(root).rglob("*.md") if p.is_file()]
     files.sort()
     return files
+
+
+def _cache_key(pp: Path, root: Path) -> str:
+    """Canonical corpus_cache key — invariant to how the caller spelled
+    the root. Relative walks keep their natural ``findata/...`` keys
+    (shard loads share that namespace via their own relative roots);
+    an ABSOLUTE root (e.g. sync_tags' ``REPO_ROOT / "findata"``) is
+    rewritten to the same root-relative form so one shared cache serves
+    both spellings. Found 2026-09-04: mixed spellings duplicated every
+    note under ``/abs`` keys (1,243 -> 3,731 rows, 29.5 -> 88.8 MB) and
+    the root-scoped eviction never crossed spellings to clean them."""
+    if not pp.is_absolute():
+        return pp.as_posix()
+    try:
+        return (Path(root.name) / pp.relative_to(root)).as_posix()
+    except ValueError:
+        return pp.as_posix()
 
 
 def notes_stale_since(
@@ -201,7 +218,7 @@ class Corpus:
                 notes: list[Note] = []
                 to_upsert: list[tuple] = []
                 for pp in files:
-                    key = pp.as_posix()
+                    key = _cache_key(pp, root)
                     mtime = mtimes[pp]
                     rec = cached.get(key)
                     # S1b.2: content-hash verdict (blake2b 8) like note_search P2.1, mtime is carry hint
@@ -268,7 +285,10 @@ class Corpus:
                 # this table is shared across roots (synthetic trees,
                 # load_shard("Companies")); the old table-global eviction
                 # deleted every OTHER root's rows on a shard/synthetic load.
-                root_key = root.as_posix().rstrip("/")
+                # root_key is CANONICAL (spelling-invariant via _cache_key)
+                # so an absolute-root load evicts under the same prefix the
+                # relative spellings wrote.
+                root_key = _cache_key(root, root.parent)
                 under_root = [k for k in cached if k.startswith(root_key + "/")]
                 if len(under_root) != len(files):
                     conn = (
@@ -277,7 +297,7 @@ class Corpus:
                         else __import__("sqlite3").connect(str(_CACHE_DB))
                     )
                     try:
-                        keep = {pp.as_posix() for pp in files}
+                        keep = {_cache_key(pp, root) for pp in files}
                         to_del = [k for k in under_root if k not in keep]
                         if to_del:
                             conn.executemany(
@@ -303,7 +323,7 @@ class Corpus:
             notes.sort(key=lambda n: n.path.as_posix())
         if use_cache:
             try:
-                _init_db_cache(notes)
+                _init_db_cache(notes, root)
             except Exception:  # noqa: S110
                 pass
         return cls(root=root, notes=notes)
@@ -357,7 +377,7 @@ class Corpus:
                 mtime_fixups: list[tuple] = []
                 try:
                     for pp in files:
-                        key = pp.as_posix()
+                        key = _cache_key(pp, root)
                         mtime = mtimes[pp]
                         rec = cached.get(key)
                         if rec:
@@ -446,8 +466,11 @@ class Corpus:
             pass
 
 
-def _init_db_cache(notes: list[Note]) -> None:
-    """Create or refresh memory/corpus.db from a full notes list (S1b consolidated)."""
+def _init_db_cache(notes: list[Note], root: Path | None = None) -> None:
+    """Create or refresh memory/corpus.db from a full notes list (S1b consolidated).
+
+    ``root`` canonicalizes the row keys (see _cache_key) — the fallback
+    full walk may have run from an absolute-root caller."""
     try:
         import json as _json
 
@@ -471,7 +494,14 @@ def _init_db_cache(notes: list[Note]) -> None:
                     n.text.encode("utf-8", errors="replace"), digest_size=8
                 ).hexdigest()
                 rows.append(
-                    (n.path.as_posix(), mtime, ch, _json.dumps(n.frontmatter), n.body, n.text)
+                    (
+                        _cache_key(n.path, root) if root is not None else n.path.as_posix(),
+                        mtime,
+                        ch,
+                        _json.dumps(n.frontmatter),
+                        n.body,
+                        n.text,
+                    )
                 )
             conn.executemany(
                 "INSERT OR REPLACE INTO corpus_cache(path, mtime, content_hash, frontmatter_json, body, text) VALUES (?,?,?,?,?,?)",
