@@ -100,6 +100,12 @@ export interface SearchResult {
     file_path: string;
     title: string | null;
     sector: string | null;
+    /**
+     * H2 heading of the best-matching section row ("" = preamble), when the
+     * index is sectioned (one row per note section); null on a pre-sectioning
+     * index still awaiting the sectioned rebuild.
+     */
+    section_title: string | null;
     /** FTS5 snippet with literal `<mark>...</mark>` around matches. */
     snippet: string;
     /**

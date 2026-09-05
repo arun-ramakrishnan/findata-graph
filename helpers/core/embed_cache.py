@@ -27,7 +27,30 @@ degrade to uncached embedding (correct, just slower).
 
 import hashlib
 import json
+import sys
+import time
 from collections.abc import Callable
+
+# Greppable surface tag for every long-running progress line — filter a
+# mixed rebuild log with e.g. `grep '\[notes\]'`. Source-cohort names map
+# to tags ('note' -> '[notes]', 'doc' -> '[docs]', 'script' -> '[scripts]',
+# 'company' -> '[companies]'); unknown sources pass through bracketed raw.
+_SURFACE_TAGS = {
+    "note": "notes",
+    "doc": "docs",
+    "script": "scripts",
+    "company": "companies",
+}
+
+
+def _tag(source: str, model_label: str = "") -> str:
+    return f"[{_SURFACE_TAGS.get(source, source or model_label or 'embed')}]"
+
+
+def _progress(msg: str) -> None:
+    """Unbuffered stderr progress line (survives redirected logs)."""
+    print(msg, file=sys.stderr, flush=True)
+
 
 # Qualified name inside the attached ``vecdb`` schema used at runtime.
 EMBED_CACHE_TABLE = "vecdb.embed_cache"
@@ -101,6 +124,19 @@ class CachedEmbed:
                     return json.loads(row[0])
             except Exception:  # noqa: S110  # cache read fails -> embed
                 pass
+        # Live progress every 128 misses (the "long jobs read as stuck"
+        # lesson, 2026-09-05): stderr + flush survive block-buffered log
+        # redirection; hits are cheap so only miss-misses tick the meter.
+        self._miss_total = getattr(self, "_miss_total", 0) + 1
+        if self._miss_total % 128 == 0:
+            t0 = getattr(self, "_t0", None)
+            if t0 is None:
+                self._t0 = time.perf_counter()
+            else:
+                rate = self._miss_total / (time.perf_counter() - t0)
+                _progress(
+                    f"{_tag(self._source, self._model)} miss #{self._miss_total} ({rate:.1f}/s)"
+                )
         vec = self._fn(text)
         self.misses += 1
         if self._ok and h is not None:
@@ -170,13 +206,27 @@ def cached_embed_batch(
     miss_idx = [i for i, v in enumerate(vecs) if v is None]
     stats["misses"] = len(miss_idx)
     if miss_idx:
-        new_vecs = embed_missing([texts[i] for i in miss_idx])
-        if len(new_vecs) != len(miss_idx):
-            # A short/long reply would silently shift vectors onto the wrong
-            # companies below — fail loudly instead.
-            raise ValueError(
-                f"batch embedder returned {len(new_vecs)} vectors for {len(miss_idx)} texts"
-            )
+        miss_texts = [texts[i] for i in miss_idx]
+        # Chunked ONLY for live progress (the "long jobs read as stuck"
+        # lesson, 2026-09-05) — embed_missing loops per-text inside each
+        # chunk (S1 shape), so chunking never reintroduces batch decodes.
+        # stderr + flush survive block-buffered log redirection.
+        chunk = 512
+        new_vecs: list[list[float]] = []
+        t0 = time.perf_counter()
+        for off in range(0, len(miss_texts), chunk):
+            part = embed_missing(miss_texts[off : off + chunk])
+            if len(part) != len(miss_texts[off : off + chunk]):
+                # A short/long reply would silently shift vectors onto the
+                # wrong texts below — fail loudly instead.
+                raise ValueError(
+                    f"batch embedder returned {len(part)} vectors for "
+                    f"{len(miss_texts[off : off + chunk])} texts"
+                )
+            new_vecs.extend(part)
+            done = min(off + chunk, len(miss_texts))
+            rate = done / (time.perf_counter() - t0)
+            _progress(f"{_tag(source, model_label)} {done}/{len(miss_texts)} ({rate:.1f}/s)")
         for i, vec in zip(miss_idx, new_vecs):
             vecs[i] = vec
         try:

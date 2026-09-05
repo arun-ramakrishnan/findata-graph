@@ -453,7 +453,7 @@ class TestLastGoodIndexBackup:
             dims = con.execute(
                 "SELECT value FROM doc_search_info WHERE key = 'embed_dims'"
             ).fetchone()[0]
-            assert model == "bge-small-en-v1.5"
+            assert model == fake_local.MODEL_ID
             assert dims == "8"
             row = con.execute(
                 "SELECT embedding FROM doc_search WHERE embedding != '' LIMIT 1"

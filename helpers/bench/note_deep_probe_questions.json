@@ -1,0 +1,151 @@
+{
+  "_comment": [
+    "Deep-content probe questions for the note_search surface (note sectioning",
+    "proposal, S3). Each query is answerable ONLY by text that lives beyond",
+    "token 512 of the pre-sectioning whole-note embedding base",
+    "(title\\nsector\\ncontent[:8000], bge 512-token cap) \u2014 verified by the",
+    "deep-region census of 2026-09-06. Queries deliberately AVOID the company/",
+    "newsletter name so the FTS title leg cannot carry the note into the page;",
+    "retrieval must come from deep body text. 'expect' lists every note that",
+    "genuinely contains the fact. Categories: 'semantic' = no rare tokens",
+    "(the vector leg must do the work); 'anchored' = rare number/token present",
+    "(BM25 control). Mix: 10 company + 5 chatter notes."
+  ],
+  "questions": [
+    {
+      "id": "deep-tariff-ladder",
+      "category": "anchored",
+      "query": "shrimp export tariff comparison Ecuador India Indonesia Vietnam",
+      "expect": [
+        "findata/Companies/Agriculture/Avanti_Feeds.md",
+        "findata/The_Chatter/Inflection_Watch.md"
+      ]
+    },
+    {
+      "id": "deep-phosphate-jordan",
+      "category": "semantic",
+      "query": "rock phosphate long term supply contract Jordan",
+      "expect": [
+        "findata/Companies/Agriculture/Madhya_Bharat_Agro_Products.md",
+        "findata/Sectors/Agriculture.md",
+        "findata/Sectors/Fertilizer.md"
+      ]
+    },
+    {
+      "id": "deep-bess-entry",
+      "category": "semantic",
+      "query": "battery energy storage systems plant gigawatt hour capex approved",
+      "expect": [
+        "findata/Companies/Automotive/Amara_Raja_Batteries.md",
+        "findata/The_Chatter/Tailwinds_building.md"
+      ]
+    },
+    {
+      "id": "deep-mhcv-breakeven",
+      "category": "semantic",
+      "query": "truck breakeven volume per month reduced sharply de risking profitability",
+      "expect": [
+        "findata/Companies/Automotive/Ashok_Leyland.md",
+        "findata/The_Chatter/The_Pivot_Quarter_output.md"
+      ]
+    },
+    {
+      "id": "deep-navy-unmanned",
+      "category": "semantic",
+      "query": "unmanned marine underwater systems order for the Navy",
+      "expect": [
+        "findata/Companies/Automotive/Bharat_Forge.md",
+        "findata/The_Chatter/The_Pivot_Quarter_output.md"
+      ]
+    },
+    {
+      "id": "deep-labour-code",
+      "category": "semantic",
+      "query": "labour code gratuity leave encashment provision tyre maker",
+      "expect": [
+        "findata/Companies/Automotive/CEAT.md",
+        "findata/The_Chatter/Weights_and_Measures.md"
+      ]
+    },
+    {
+      "id": "deep-flying-flea",
+      "category": "anchored",
+      "query": "Flying Flea electric motorcycle showcase EICMA",
+      "expect": [
+        "findata/Companies/Automotive/Eicher_Motors.md",
+        "findata/The_Chatter/Management_in_Motion.md"
+      ]
+    },
+    {
+      "id": "deep-ai-revenue",
+      "category": "anchored",
+      "query": "artificial intelligence revenue impact \"4,100 crores\"",
+      "expect": [
+        "findata/Companies/Automotive/Mahindra_Mahindra.md",
+        "findata/The_Chatter/Meesho_Marico_Bajaj.md"
+      ]
+    },
+    {
+      "id": "deep-baas-buyback",
+      "category": "semantic",
+      "query": "battery as a service assured buyback electric SUV warranty",
+      "expect": [
+        "findata/Companies/Automotive/Maruti_Suzuki_India.md",
+        "findata/Points_And_Figures/Mapping_the_momentum.md"
+      ]
+    },
+    {
+      "id": "deep-post-ipo-deleverage",
+      "category": "semantic",
+      "query": "repaid debt after listing deleveraging interest burden unlocked capital",
+      "expect": [
+        "findata/Companies/Automotive/Belrise_Industries.md",
+        "findata/The_Chatter/Management_in_Motion.md"
+      ]
+    },
+    {
+      "id": "deep-damp-lease",
+      "category": "anchored",
+      "query": "damp lease widebody aircraft Norse Atlantic long haul Europe routes",
+      "expect": [
+        "findata/The_Chatter/Contours_of_Change.md",
+        "findata/The_Chatter/Making_It_Work.md"
+      ]
+    },
+    {
+      "id": "deep-sovereign-dc",
+      "category": "semantic",
+      "query": "sovereign data center gigawatt hyperscalers data stays in India",
+      "expect": [
+        "findata/Companies/Technology/Tata_Consultancy_Services.md",
+        "findata/The_Chatter/Doubling_Down.md"
+      ]
+    },
+    {
+      "id": "deep-sgf-provision",
+      "category": "semantic",
+      "query": "settlement guarantee fund provision reversal clearing corporation",
+      "expect": [
+        "findata/Companies/Capital_Markets/BSE.md",
+        "findata/The_Chatter/Discovering_Hidden_Signals.md"
+      ]
+    },
+    {
+      "id": "deep-ikea-cookware",
+      "category": "anchored",
+      "query": "IKEA partnership cookware supply cast iron foundry",
+      "expect": [
+        "findata/The_Chatter/Decoding_the_Dialogue.md"
+      ]
+    },
+    {
+      "id": "deep-quick-commerce",
+      "category": "semantic",
+      "query": "quick commerce dedicated organisation direct reporting sales head",
+      "expect": [
+        "findata/Companies/FMCG/Hindustan_Unilever.md",
+        "findata/The_Chatter/Bets_and_blueprints.md"
+      ]
+    }
+  ]
+}

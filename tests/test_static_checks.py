@@ -259,6 +259,19 @@ _SQLITE3_CONNECT_ALLOWLIST = {
     "helpers/misc/database_integrity_check.py",
     # Read-only SELECT in a validator. FK enforcement irrelevant for SELECT.
     "helpers/validators/static_checks.py",
+    # Read-only diagnostics bench tools (mode=ro URI connections to the
+    # note_search/doc_search sidecars for measurement SELECTs; FK
+    # enforcement irrelevant — no writes ever). Sandbox copies (A/B
+    # drivers) open throwaway files the house connect() would bootstrap
+    # production schema into.
+    "helpers/bench/embed_model_trial.py",
+    "helpers/bench/embed_runtime_bench.py",
+    "helpers/bench/embed_token_cap.py",
+    "helpers/bench/embed_pool_probe.py",
+    "helpers/bench/note_deep_probe.py",
+    "helpers/bench/note_deep_probe_candidates.py",
+    "helpers/bench/note_ab_granite.py",
+    "helpers/bench/company_neighbors_base_probe.py",
     # One-shot sidecar migration: opens LEGACY files read-only by URI and the
     # store file DIRECTLY (unqualified bare tables — a house connect() would
     # bootstrap production schema into the new file). Never runs on

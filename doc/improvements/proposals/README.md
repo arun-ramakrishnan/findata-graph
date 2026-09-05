@@ -27,14 +27,11 @@ entry number and stale DONE pointers):
    `proposed` (corpus_uniformity S3).
 
 ## Current live proposals
-_(none)_ — the last live proposal (derive_insights_perf.md) was
-archived as completed.md #208 on 2026-09-05; the regex-hoisting +
-decode-once execution record lives in
-`../archive/graph/derive_insights_perf.md`.
 
-_(Previously: archify_diagram_pipeline.md, archived as completed.md
-entry #207 on 2026-09-05 — the seven-diagram execution record lives in
-`../archive/tooling/archify_diagram_pipeline.md`. Before that:
-maint_runtime_hardening.md, archived as completed.md entry #206 on
-2026-09-04 — the five-slice execution record lives in
-`../archive/tooling/maint_runtime_hardening.md`.)_
+_(none)_
+
+_(Previously: embed_full_reembed.md, archived as completed.md #210 on
+2026-09-06 — the granite swap execution record lives in
+`../archive/database/embed_full_reembed.md`; note_section_search.md
+(#209, 2026-09-06) in `../archive/tooling/`; derive_insights_perf.md
+(#208, 2026-09-05) in `../archive/graph/`.)_

@@ -374,7 +374,7 @@ class TestPopulateLocal:
         n = populate_local(conn)
         assert n == 1  # companies only, not sectors
         row = conn.execute("SELECT model, embedding FROM company_embeddings").fetchone()
-        assert row[0] == "bge-small-en-v1.5"
+        assert row[0] == LE.MODEL_ID
         assert len(ast.literal_eval(row[1])) == LE.DIM
 
     def test_unavailable_exits_with_setup_hint(self, tmp_path):

@@ -58,11 +58,21 @@ class TestConstantsContract:
         # 384 is what makes the swap schema-transparent with company_embeddings.
         assert LE.DIM == 384
 
-    def test_query_prefix_nonempty(self):
-        assert isinstance(LE.QUERY_PREFIX, str) and LE.QUERY_PREFIX.strip()
+    def test_query_prefix_matches_model_symmetry(self):
+        # The prefix must match the resident model's contract: bge-small is
+        # asymmetric (queries carry the instruction prefix — the missing-
+        # prefix recall trap); granite-embedding is symmetric (empty prefix
+        # either side — the 2026-09-06 swap, embed_full_reembed S6).
+        if "granite" in LE.MODEL_ID:
+            assert LE.QUERY_PREFIX == ""
+        else:
+            assert isinstance(LE.QUERY_PREFIX, str) and LE.QUERY_PREFIX.strip()
 
     def test_model_id_label(self):
-        assert LE.MODEL_ID == "bge-small-en-v1.5"
+        # Sanctioned residents of models/ only: granite (production) and
+        # bge-small (the rollback — constants in local_embedder's rollback
+        # comment). Anything else is an unpinned model swap.
+        assert LE.MODEL_ID in {"granite-embedding-97m-r2", "bge-small-en-v1.5"}
 
     def test_model_file_pinned_by_sha(self):
         # The artifact is gitignored; the pin is its provenance record.
@@ -121,9 +131,15 @@ class TestRealModel:
         assert LE.embed_document("same text") == LE.embed_document("same text")
 
     def test_query_document_asymmetry_canary(self, real_backend):
-        # THE BGE trap: queries carry the instruction prefix, documents don't.
-        # If this fails, a call site (or this module) collapsed the two.
-        assert LE.embed_query("shrimp feed") != LE.embed_document("shrimp feed")
+        # Model-contract canary: asymmetric models (bge) must keep the two
+        # call shapes distinct — queries carry the prefix, documents don't;
+        # collapse = the recall trap. Symmetric models (granite) must be
+        # EXACTLY equal — inequality would mean a stray prefix crept into
+        # one side (the 2026-09-06 swap flipped this canary's direction).
+        if "granite" in LE.MODEL_ID:
+            assert LE.embed_query("shrimp feed") == LE.embed_document("shrimp feed")
+        else:
+            assert LE.embed_query("shrimp feed") != LE.embed_document("shrimp feed")
 
     def test_prefix_is_the_only_query_difference(self, real_backend):
         # embed_query(x) == embed_document(prefix + x): proves the prefix is

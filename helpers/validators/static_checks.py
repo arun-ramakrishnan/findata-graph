@@ -843,6 +843,10 @@ def check_sqlite_helper_usage() -> list[str]:  # noqa: C901
     allowlist_prefixes = (
         "helpers/core/db.py",
         "helpers/maintenance/db_maint.py",
+        # Bench probes: mode=ro URI connections for measurement SELECTs plus
+        # throwaway sandbox copies — diagnostics that must never take the
+        # writer path (FK enforcement irrelevant, no production writes).
+        "helpers/bench/",
     )
     failures: list[str] = []
     for py in REPO_ROOT.rglob("*.py"):

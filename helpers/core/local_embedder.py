@@ -44,30 +44,40 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # --- Artifact pin -----------------------------------------------------------
-# CompendiumLabs is the GGUF conversion of BAAI/bge-small-en-v1.5 (MIT).
-# The proposal's original citation (ggml-org/...-Q8_0-GGUF) does not exist;
-# verified via the HF API 2026-08-20.
-MODEL_ID = "bge-small-en-v1.5"
-MODEL_FILE = "bge-small-en-v1.5-q8_0.gguf"
+# granite-embedding-97m-r2 SWAP (embed_full_reembed S6, user decision
+# 2026-09-06): mykor Q8_0 GGUF of IBM granite-embedding-97m-multilingual-r2.
+# Won the sectioned deep-content probe 14/15 vs bge's 11/15 at identical
+# endpoint latency (27/27 search held; p50 121ms both) — full program in
+# doc/improvements/archive/database/embed_full_reembed.md. Accepted costs:
+# docs 15/18 (bge 18/18), neighbors 3/10 (bge 5/10).
+# ROLLBACK = bge-small: restore the previous constants (CompendiumLabs
+# bge-small-en-v1.5-q8_0.gguf, sha ec38e8da…c2f514, QUERY_PREFIX
+# "Represent this sentence for searching relevant passages: ", _N_CTX
+# 512) + rebuild — every bge vector remains in the (text, model)-keyed
+# shared cache, so rollback re-embeds nothing.
+MODEL_ID = "granite-embedding-97m-r2"
+MODEL_FILE = "granite-embedding-97M-multilingual-r2-Q8_0.gguf"
 MODEL_PATH = _REPO_ROOT / "models" / MODEL_FILE
-MODEL_SHA256 = "ec38e8da142596baa913124ae50550de284b6916bf59577ef2f0cb9660c2f514"
+MODEL_SHA256 = "25155b89638e501ac33495fa278d551d7545e1e2f62722a499bba1f064c080f2"
 MODEL_URL = (
-    f"https://huggingface.co/CompendiumLabs/bge-small-en-v1.5-gguf/resolve/main/{MODEL_FILE}"
+    "https://huggingface.co/mykor/granite-embedding-97m-multilingual-r2-GGUF/"
+    f"resolve/main/{MODEL_FILE}"
 )
 
-# bge-small-en-v1.5: 384 dims — same as the live company_embeddings table,
-# so the swap is schema-transparent (SQLite CHECK, DuckDB FLOAT[] cast, and
-# the snapshot parquet shape are all unchanged).
+# granite-embedding-97m-r2: 384 dims — same as bge-small and the live
+# company_embeddings table, so the swap is schema-transparent (SQLite
+# CHECK, DuckDB FLOAT[] cast, and the snapshot parquet shape unchanged).
 DIM = 384
 
-# BGE v1.5 retrieval instruction: queries are embedded with this prefix,
-# documents without it. Official recipe from the BAAI model card.
-QUERY_PREFIX = "Represent this sentence for searching relevant passages: "
+# granite-embedding is SYMMETRIC: no instruction prefix on either side
+# (empty string = raw text, the tested shape throughout the A/B program).
+QUERY_PREFIX = ""
 
-# bge-small max sequence length is 512 wordpiece tokens; inputs longer than
-# this are truncated by llama.cpp (by design — the embedding of a truncated
-# long document still ranks fine against short queries).
-_N_CTX = 512
+# granite n_ctx_train = 32768; we run 2048 — the tested shape, covering
+# ~90%+ of section bases whole (with the rebuild's 8000-char cap). 32k
+# stays a non-goal: quadratic encoder attention on CPU and mean-pooling
+# over huge windows lose to more sections (measured, proposal §3.3).
+_N_CTX = 2048
 
 # Parallel cold-embed pool (parallel_cold_embed proposal, 2026-08-29).
 # Measured on this 4C/4T box: llama.cpp per-doc forwards gain nothing from
@@ -189,14 +199,24 @@ def embed_query(text: str) -> list[float]:
 
 
 def embed_documents(texts: list[str]) -> list[list[float]]:
-    """Batch embed_document (one llama.cpp call; index-side bulk refresh)."""
+    """Batch embed_document (index-side bulk refresh).
+
+    PER-TEXT calls (embed_full_reembed S1, 2026-09-06): llama.cpp's
+    multi-input create_embedding accumulates every text into ONE decode,
+    so heterogeneous section lengths pay near-worst-case compute per
+    text — measured 2.74/s batch vs 12.31/s per-text on section texts
+    (4.5x). Order and contract unchanged; vectors differ from the old
+    batch call by <=1.3e-3 per component (decode-shape numerics — the
+    same scale the Q8<->F16 probe settled as ~2 orders below eval
+    resolution, so cached batch-era and fresh per-text vectors mix
+    fine). The pool path's workers were already per-text.
+    """
     if not texts:
         return []
     model = _get_model()
-    data = model.create_embedding(input=list(texts))["data"]
     out = []
-    for d in data:
-        vec = d["embedding"]
+    for text in texts:
+        vec = model.create_embedding(input=[text])["data"][0]["embedding"]
         out.append(_normalize(vec) if any(vec) else vec)
     return out
 

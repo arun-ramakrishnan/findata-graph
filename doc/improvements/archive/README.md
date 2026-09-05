@@ -29,6 +29,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`maint_full_zero_churn.md`](database/maint_full_zero_churn.md) — Proposal: Zero-Churn maint-full — stable event/embedding writes, seeded+canonical louvain, `ORDER BY ALL` parquet exports, guarded B4 bumps — completed.md #147
 - [`embed_store_consolidation.md`](database/embed_store_consolidation.md) — Proposal: Single embed store — consolidate the vector sidecars (pooled content-hash cache + note_search vec0 mirror in one SQLite file; backup streams collapse to two artifacts) — completed.md #166
 - [`maint_full_single_snapshot.md`](database/maint_full_single_snapshot.md) — Proposal: maint-full single snapshot + zstd parquet codec — elide the TIER1 snapshot in --full (artifacts always overwritten by the TIER2 tail), gzip→zstd SQLite parquet export, embed-store gz reuse — completed.md #174
+- [`embed_full_reembed.md`](database/embed_full_reembed.md) — Proposal: Full re-embed readiness → the granite swap — per-text call shape (~4.5×), llama.cpp runtime A/B (rejected at parity), whole-note bake-off + sectioned granite WIN (deep 14/15 vs bge 11/15), endpoint A/B, S6 swap executed (all four surfaces + rollback cohort), S7 companies overview base (neighbors 6/10), 10-item deferred doctrine — completed.md #210
 
 ## okf/ — OKF v0.2 — provenance vocabulary, activation, sources maintenance, read-side
 
@@ -68,6 +69,7 @@ commit, referenced by nothing). Entry numbers point at
 
 - [`mcp_tool_eval.txt`](tooling/mcp_tool_eval.txt) — mcp_tool_eval.txt — codebase-memory-mcp hygiene audit (Aug 2026)
 - [`doc_search_embeddings.md`](tooling/doc_search_embeddings.md) — Content-Addressable Doc Search — FTS5 + hybrid embeddings over doc/ — completed.md #148
+- [`note_section_search.md`](tooling/note_section_search.md) — Proposal: Note section search — per-H2-section vectors for note_search (14,500 section rows, note-level BM25 dedup + note-best cosine fusion, AND-first/OR-fill candidates, deep-content probe past the 512 cap) — completed.md #209
 - [`doc_browser.txt`](tooling/doc_browser.txt) — Doc Browser & Search — web UI for the doc/ corpus
 - [`perf_improvs.txt`](tooling/perf_improvs.txt) — Performance review — project-wide hotspots
 - [`perf_optimization.md`](tooling/perf_optimization.md) — Perf optimization plan — `make perf` hotspots: link-prediction, extract_relations, pdf layout-off — completed.md #163

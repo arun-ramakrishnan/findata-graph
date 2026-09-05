@@ -2,6 +2,7 @@ import logging
 import os
 import threading
 import time
+import typing
 from pathlib import Path
 from typing import Any
 
@@ -495,16 +496,27 @@ def _flat_knn_map(q_vec, page_paths, store=None):  # type: ignore[no-untyped-def
         return None
 
 
+def _vec_row_key(row) -> str:
+    """KNN key for a note_search result row. Sectioned rows (note
+    sectioning, 2026-09-06) key as "{file_path}#{anchor}" — the vec0/matrix
+    key rebuild_note_search.vec_row_key writes. Rows fetched from a
+    pre-sectioning table carry NULL anchors and key by bare file_path —
+    the shape their mirror was built with, still served between code deploy
+    and the sectioned rebuild."""
+    return f"{row[1]}#{row[8]}" if len(row) > 8 and row[8] is not None else row[1]
+
+
 def _scored_rows(rows, q_vec, knn: dict[str, float] | None) -> list[tuple[int, Any, float]]:
-    """Per-row cosine similarity, from the A1 KNN map when available.
+    """Per-row cosine similarity, from the whole-corpus map when available.
 
     scored: list of (orig_index, row, similarity) — tuples keep the Row type
     through the re-rank (a dict would widen the row slot to the union of all
     value types). orig_index = BM25 position (rows arrive rank-sorted).
 
-    A1 path: similarity straight off the whole-corpus KNN map; docs without
-    a vec row (missing/invalid embedding) get 0.0, same contract as the
-    Python path below.
+    Map path: similarity is the NOTE's best-section cosine (the map arrives
+    pre-collapsed to file_path keys — see _hybrid_search_results); notes
+    without a vec row (missing/invalid embedding) get 0.0, same contract as
+    the Python path below.
     """
     import json
     import math
@@ -539,10 +551,11 @@ def _cosine_positions(
 ) -> dict[int, int]:
     """Cosine-leg position per page index: 0 = most similar.
 
-    A1 path (knn is not None): position = the doc's GLOBAL KNN rank. Page
-    docs not in the map (only missing-embedding docs, since k covers the
-    whole corpus) rank after every KNN hit; orig_index keeps their relative
-    order deterministic. Their BM25 leg is unaffected.
+    Map path (knn is not None): position = the NOTE's global cosine rank
+    (best-section similarity, file_path-keyed). Page notes not in the map
+    (only missing-embedding notes, since the map covers the whole corpus)
+    rank after every hit; orig_index keeps their relative order
+    deterministic. Their BM25 leg is unaffected.
 
     Fallback path: position within the page-local Python cosine ranking.
     """
@@ -553,6 +566,107 @@ def _cosine_positions(
         return {idx: knn_rank.get(row[1], worst + idx) for idx, row in enumerate(rows)}
     cosine_order = sorted(scored, key=lambda t: t[2], reverse=True)
     return {idx: i for i, (idx, _r, _s) in enumerate(cosine_order)}
+
+
+def _resolve_query_vec(conn, query: str) -> list[float] | None:
+    """Embed the query on the INDEX's side of the asymmetry; None = degrade
+    to BM25-only (embedder unavailable, or index/query vector spaces differ —
+    mismatched dims would compute zip-truncated garbage cosine)."""
+    try:
+        from helpers.maintenance.rebuild_note_search import (
+            query_embedder,
+            stored_embed_dims,
+        )
+
+        embed_q, _dims = query_embedder()
+        q_vec = embed_q(query)
+        idx_dims = stored_embed_dims(conn)
+        if idx_dims is not None and idx_dims != len(q_vec):
+            return None  # index/query vector spaces differ -> BM25 only
+        return q_vec
+    except Exception:  # noqa: S110  # embedding unavailable -> fall back to BM25
+        return None
+
+
+def _note_best(knn: dict[str, float]) -> dict[str, float]:
+    """Collapse a section-keyed KNN map to NOTE level (best-scoring section
+    per file_path) — the cosine leg must rank a note by its BEST section, not
+    by whatever section BM25 happened to surface on the page."""
+    best: dict[str, float] = {}
+    for key, sim in knn.items():
+        fp = key.rsplit("#", 1)[0] if "#" in key else key
+        if sim > best.get(fp, -2.0):
+            best[fp] = sim
+    return best
+
+
+def _hit_dict(row, similarity: float | None) -> dict:
+    """Render one search hit from the shared FTS row contract
+    (doc_type, file_path, title, sector, [embedding], rank/snippet,
+    section_title, anchor)."""
+    return {
+        "doc_type": row[0],
+        "file_path": row[1],
+        "title": row[2],
+        "sector": row[3],
+        "section_title": row[7],
+        "snippet": row[6],
+        "similarity": None if similarity is None else round(similarity, 6),
+    }
+
+
+def _search_schema(cursor) -> tuple[bool, bool] | None:
+    """Probe note_search's capabilities; None = table absent (caller 503s).
+
+    Returns (has_embedding, has_sections): a pre-embedding schema lacks
+    ``embedding`` (hybrid degrades to plain FTS rather than 500-ing on the
+    column reference); a pre-sectioning schema lacks section_title/anchor
+    and is served one-row-per-doc with NULL-filled section slots."""
+    if not cursor.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='note_search'"
+    ).fetchone():
+        return None
+    has_embedding = bool(
+        cursor.execute(
+            "SELECT 1 FROM pragma_table_info('note_search') WHERE name = 'embedding'"
+        ).fetchone()
+    )
+    has_sections = bool(
+        cursor.execute(
+            "SELECT 1 FROM pragma_table_info('note_search') WHERE name = 'section_title'"
+        ).fetchone()
+    )
+    return has_embedding, has_sections
+
+
+def _search_params() -> tuple[tuple[str, str, bool, int, int] | None, tuple | None]:
+    """Parse /api/search's query params; on error returns (None, response)
+    so the route can return the 400 directly."""
+    q = request.args.get("q", "").strip()
+    doc_type = request.args.get("type", "").strip()
+    hybrid = request.args.get("hybrid", "").strip().lower() in ("1", "true", "yes", "on")
+    try:
+        limit = int(request.args.get("limit", 20))
+        offset = int(request.args.get("offset", 0))
+    except ValueError:
+        return None, (jsonify({"error": "limit/offset must be integers"}), 400)
+    if not q:
+        return None, (jsonify({"error": "missing required param 'q'"}), 400)
+    return (q, doc_type, hybrid, limit, offset), None
+
+
+def _merge_fill(rows: list, fetch, and_expr: str, or_expr: str, window: int) -> None:
+    """AND page first; the OR expression fills the remainder, deduped by
+    file_path (both legs paginate notes) — the candidate-generation
+    AND-first/OR-fill policy (deep-probe lesson, 2026-09-06)."""
+    if and_expr:
+        rows.extend(fetch(and_expr))
+    if len(rows) < window and or_expr != and_expr:
+        seen = {r[1] for r in rows}
+        for r in fetch(or_expr):
+            if r[1] not in seen:
+                rows.append(r)
+                seen.add(r[1])
 
 
 def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> list[dict]:
@@ -594,22 +708,15 @@ def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> l
     via the stored dims and DEGRADES to BM25-only rather than computing
     zip-truncated garbage cosine over mismatched dimensions.
     """
-    try:
-        from helpers.maintenance.rebuild_note_search import (
-            query_embedder,
-            stored_embed_dims,
-        )
+    q_vec = _resolve_query_vec(conn, query)
 
-        embed_q, _dims = query_embedder()
-        q_vec = embed_q(query)
-        idx_dims = stored_embed_dims(conn)
-        if idx_dims is not None and idx_dims != len(q_vec):
-            q_vec = None  # index/query vector spaces differ -> BM25 only
-    except Exception:  # noqa: S110  # embedding unavailable -> fall back to BM25
-        q_vec = None
-
-    # A1: whole-corpus KNN first (k=None -> exact per-doc similarities);
-    # None result = unavailable -> S2d flat-matrix leg -> Python cosine loop.
+    # A1: whole-corpus KNN first (k=None -> exact per-section similarities);
+    # None result = unavailable (or beyond vec0's k cap at 14.5k section
+    # rows) -> S2d flat-matrix leg -> Python cosine loop. Whatever map wins,
+    # collapse it to NOTE level first: the cosine leg must rank a note by
+    # its BEST-scoring section — the page row carries the BM25-best section,
+    # whose cosine can be mediocre even when another section of the same
+    # note is the corpus's best semantic match.
     knn: dict[str, float] | None = None
     if q_vec is not None:
         try:
@@ -619,7 +726,9 @@ def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> l
         except Exception:  # noqa: S110  # KNN unavailable -> Python cosine below
             knn = None
         if knn is None:
-            knn = _flat_knn_map(q_vec, [r[1] for r in rows])
+            knn = _flat_knn_map(q_vec, [_vec_row_key(r) for r in rows])
+        if knn is not None:
+            knn = _note_best(knn)
 
     scored = _scored_rows(rows, q_vec, knn)
     cos_pos = _cosine_positions(rows, knn, scored)
@@ -631,18 +740,22 @@ def _hybrid_search_results(conn, rows, query: str, limit: int, offset: int) -> l
         fused.append((rrf, row, sim))
     fused.sort(key=lambda t: t[0], reverse=True)
 
-    results = []
-    for _rrf, row, sim in fused[offset : offset + limit]:
-        results.append(
-            {
-                "doc_type": row[0],
-                "file_path": row[1],
-                "title": row[2],
-                "sector": row[3],
-                "snippet": row[6],
-                "similarity": round(sim, 6),
-            }
-        )
+    # Note sectioning: rows are SECTIONS; collapse to note level (best fused
+    # score per file_path) BEFORE pagination — one note's many sections must
+    # not crowd the result page, and offset/limit count notes.
+    results: list[dict] = []
+    seen_paths: set[str] = set()
+    skipped = 0
+    for _rrf, row, sim in fused:
+        if row[1] in seen_paths:
+            continue
+        seen_paths.add(row[1])
+        if skipped < offset:
+            skipped += 1
+            continue
+        results.append(_hit_dict(row, sim))
+        if len(results) >= limit:
+            break
     return results
 
 
@@ -675,81 +788,129 @@ def api_search():
 
     Errors: 400 on empty/ malformed q; 503 if the FTS index hasn't been built.
     """
-    q = request.args.get("q", "").strip()
-    doc_type = request.args.get("type", "").strip()
-    hybrid = request.args.get("hybrid", "").strip().lower() in ("1", "true", "yes", "on")
-    try:
-        limit = int(request.args.get("limit", 20))
-        offset = int(request.args.get("offset", 0))
-    except ValueError:
-        return jsonify({"error": "limit/offset must be integers"}), 400
-
-    if not q:
-        return jsonify({"error": "missing required param 'q'"}), 400
+    parsed, err = _search_params()
+    if err:
+        return err
+    # _search_params invariant: err is None <=> parsed set
+    q, doc_type, hybrid, limit, offset = typing.cast(tuple, parsed)
 
     conn = get_db_connection()
     cursor = conn.cursor()
     try:
-        # Guard: the note_search table may not exist yet (DB predates the FTS
-        # feature, or rebuild hasn't run). Surface a 503 rather than a 500.
-        exists = cursor.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='note_search'"
-        ).fetchone()
-        if not exists:
+        # Guard + capability probes: table absent -> 503; pre-embedding and
+        # pre-sectioning schemas degrade instead of 500-ing on the column
+        # references (see _search_schema).
+        caps = _search_schema(cursor)
+        if caps is None:
             return jsonify(
                 {
                     "error": "search index not built; run "
                     "helpers/maintenance/rebuild_note_search.py",
                 }
             ), 503
+        has_embedding, has_sections = caps
+        if hybrid and not has_embedding:
+            app.logger.info(
+                "search hybrid requested but note_search lacks embedding "
+                "column; degrading to FTS-only"
+            )
+            hybrid = False
 
-        if hybrid:
-            # Hybrid needs the embedding column. A pre-embedding schema (old
-            # rebuild, or a DB built before this feature) lacks it — downgrade
-            # to plain FTS ranking rather than 500 on the column reference.
-            has_embedding = cursor.execute(
-                "SELECT 1 FROM pragma_table_info('note_search') WHERE name = 'embedding'"
-            ).fetchone()
-            if not has_embedding:
-                app.logger.info(
-                    "search hybrid requested but note_search lacks embedding "
-                    "column; degrading to FTS-only"
-                )
-                hybrid = False
+        # Candidate generation: AND-first, OR-fill (deep-probe lesson,
+        # 2026-09-06). Note sectioning made FTS5's implicit AND
+        # section-scoped — a multi-term query now needs ONE section holding
+        # every token where pre-sectioning one NOTE sufficed, starving
+        # question-shaped queries to empty pages. The AND page (today's
+        # precision behavior, quoted tokens via the doc-surface
+        # fts_match_expr) is served first; only when it can't cover
+        # limit+offset NOTES does the OR expression fill the remainder
+        # (idf-weighted BM25 keeps rare tokens on top). Quoting also makes
+        # user punctuation unparseable as FTS5 syntax (no more column-filter
+        # misparses on hyphenated words). total_count always counts the OR
+        # space — the full recall the endpoint can serve.
+        from helpers.maintenance.rebuild_doc_search import fts_match_expr
 
-        # Build the WHERE. FTS5 MATCH against the whole-table index; an optional
-        # SQL-level AND on doc_type narrows to one corpus (simpler + as fast as
-        # the column-filter MATCH syntax, and avoids quoting pitfalls).
-        where = ["note_search MATCH ?"]
-        params: list = [q]
-        if doc_type:
-            where.append("doc_type = ?")
-            params.append(doc_type)
-        where_clause = " AND ".join(where)
+        or_expr = fts_match_expr(q)
+        # Same quoted tokens juxtaposed = implicit AND (tokens never contain
+        # whitespace, so the joiner is the only " OR " in the string).
+        and_expr = or_expr.replace(" OR ", " ") if or_expr else ""
 
-        # FTS5 MATCH raises on malformed queries (stray AND/OR, unbalanced
-        # quotes). Catch and return a 400 so a bad query never 500s.
+        def _where(expr: str) -> tuple[list[str], list]:
+            w = ["note_search MATCH ?"]
+            p: list = [expr]
+            if doc_type:
+                w.append("doc_type = ?")
+                p.append(doc_type)
+            return w, p
+
+        # Belt for future tokenizer changes: a MATCH expression SQLite still
+        # rejects must 400, never 500.
         try:
-            # Hybrid mode pulls the embedding column + FTS rank so we can
-            # RRF-fuse cosine with BM25 in Python. Plain mode stays a single
-            # SQL round-trip (unchanged behaviour).
-            select_cols = (
-                "doc_type, file_path, title, sector, embedding, rank, "
-                "snippet(note_search, 4, '<mark>', '</mark>', '…', 12)"
-                if hybrid
-                else "doc_type, file_path, title, sector, "
-                "snippet(note_search, 4, '<mark>', '</mark>', '…', 12)"
-            )
+            window = limit + offset  # both legs paginate notes in Python
+
+            def _fetch(expr: str) -> list:
+                where_parts, params = _where(expr)
+                where_clause = " AND ".join(where_parts)
+                if has_sections:
+                    # Rows are SECTIONS; name-typed queries match every
+                    # section row of a note (title prefixes each row), which
+                    # would crowd the page down to a couple of notes. Dedup
+                    # to NOTE level — best (lowest-rank) section per
+                    # file_path. The inner LIMIT 1024 caps window input:
+                    # FTS5 streams top-N in rank order (the window function
+                    # would otherwise materialize the FULL OR match set —
+                    # hundreds of ms on broad queries at 14.5k rows);
+                    # 1024 ranked sections covers a 50-note page even at the
+                    # corpus max of 148 sections/note. Nesting is forced by
+                    # SQLite rules — snippet() only evaluates against the
+                    # MATCH'ing subquery, and a window function can't appear
+                    # in WHERE directly (the ROW_NUMBER alias is selected one
+                    # level down).
+                    cursor.execute(
+                        "SELECT doc_type, file_path, title, sector, embedding, "  # noqa: S608  # parameterized; interpolated part is a `?`-clause list
+                        "rank, snip, section_title, anchor FROM ("
+                        "  SELECT doc_type, file_path, title, sector, embedding, "
+                        "  rank, snip, section_title, anchor, "
+                        "  ROW_NUMBER() OVER ("
+                        "    PARTITION BY file_path ORDER BY rank"
+                        "  ) AS rn"
+                        "  FROM ("
+                        "    SELECT doc_type, file_path, title, sector, "
+                        "    embedding, rank, "
+                        "    snippet(note_search, 4, '<mark>', '</mark>', '…', 12) AS snip, "
+                        "    section_title, anchor"
+                        f"    FROM note_search WHERE {where_clause}"  # noqa: S608  # parameterized; interpolated part is a `?`-clause list
+                        "    ORDER BY rank LIMIT 1024"
+                        "  )"
+                        ") WHERE rn = 1 ORDER BY rank LIMIT ?",
+                        params + [window],
+                    )
+                else:
+                    # Pre-sectioning shape: one row per doc. Same column
+                    # contract as the sectioned branch (embedding + rank for
+                    # the fusion, both section columns NULL-filled; a table
+                    # without embeddings NULLs that slot too).
+                    emb_col = "embedding" if has_embedding else "NULL AS embedding"
+                    cursor.execute(
+                        "SELECT doc_type, file_path, title, sector, "  # noqa: S608  # parameterized; schema-conditional constant + `?`-clause list
+                        f"{emb_col}, rank, "
+                        "snippet(note_search, 4, '<mark>', '</mark>', '…', 12), "
+                        "NULL AS section_title, NULL AS anchor "
+                        f"FROM note_search WHERE {where_clause} "  # noqa: S608  # parameterized; interpolated part is a `?`-clause list / schema-conditional constant
+                        "ORDER BY rank LIMIT ?",
+                        params + [window],
+                    )
+                return cursor.fetchall()
+
+            rows: list = []
+            _merge_fill(rows, _fetch, and_expr, or_expr, window)
+            or_where, or_params = _where(or_expr)
             cursor.execute(
-                f"SELECT {select_cols} "  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-                f"FROM note_search WHERE {where_clause} "
-                f"ORDER BY rank LIMIT ? OFFSET ?",
-                params + ([limit + offset, 0] if hybrid else [limit, offset]),
-            )
-            rows = cursor.fetchall()
-            cursor.execute(
-                f"SELECT COUNT(*) FROM note_search WHERE {where_clause}",  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-                params,
+                (
+                    "SELECT COUNT(DISTINCT file_path) FROM note_search "  # noqa: S608  # parameterized; interpolated part is a `?`-clause list
+                    f"WHERE {' AND '.join(or_where)}"
+                ),
+                or_params,
             )
             total_count = cursor.fetchone()[0]
         except Exception as exc:  # sqlite3.OperationalError on bad MATCH syntax
@@ -763,17 +924,7 @@ def api_search():
         if hybrid and rows:
             results = _hybrid_search_results(conn, rows, q, limit, offset)
         else:
-            results = [
-                {
-                    "doc_type": row[0],
-                    "file_path": row[1],
-                    "title": row[2],
-                    "sector": row[3],
-                    "snippet": row[4],
-                    "similarity": None,
-                }
-                for row in rows
-            ]
+            results = [_hit_dict(row, None) for row in rows[offset : offset + limit]]
         return jsonify(
             {
                 "results": results,

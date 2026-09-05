@@ -35,6 +35,27 @@ CREATE VIRTUAL TABLE note_search USING fts5(
     sector,
     content,
     embedding UNINDEXED,
+    section_title,
+    anchor UNINDEXED,
+    tokenize = 'porter unicode61'
+);
+"""
+)
+
+# Pre-sectioning schema WITH embeddings (note sectioning, 2026-09-06): the
+# live-DB window between a code deploy and the sectioned rebuild — the
+# endpoint must serve it with the old one-row-per-doc SQL (bare-path KNN
+# keys), never 500 on the section columns.
+_SCHEMA_PRE_SECTIONING = (
+    ENTITIES_4COL
+    + """
+CREATE VIRTUAL TABLE note_search USING fts5(
+    doc_type,
+    file_path UNINDEXED,
+    title,
+    sector,
+    content,
+    embedding UNINDEXED,
     tokenize = 'porter unicode61'
 );
 """
@@ -55,7 +76,11 @@ CREATE VIRTUAL TABLE note_search USING fts5(
 """
 )
 
-# (doc_type, file_path, title, sector, content, embedding_json)
+# (doc_type, file_path, title, sector, content, embedding_json,
+#  section_title, anchor) — note sectioning shape: one row per H2 section
+# (anchor '1' = preamble). The Chatter note carries a second section so the
+# note-level dedup is exercised: "shrimp" matches BOTH its rows but the note
+# must appear exactly once.
 # Embeddings: real-ish 3-dim vectors. The two "feed" companies get near-identical
 # vectors so cosine similarity meaningfully boosts them over the newsletters.
 _SEED = [
@@ -66,6 +91,8 @@ _SEED = [
         "Agriculture",
         "Leading shrimp feed and fish feed manufacturer. Aquaculture focus.",
         "[1.0, 0.0, 0.0]",
+        "",
+        "1",
     ),
     (
         "company",
@@ -74,6 +101,8 @@ _SEED = [
         "Agriculture",
         "Shrimp hatchery operations and cattle feed production.",
         "[0.99, 0.1, 0.0]",
+        "",
+        "1",
     ),
     (
         "sector",
@@ -82,6 +111,8 @@ _SEED = [
         "",
         "Covers crops, livestock, and aquaculture including shrimp farming.",
         "[0.5, 0.5, 0.5]",
+        "",
+        "1",
     ),
     (
         "chatter",
@@ -90,6 +121,18 @@ _SEED = [
         "",
         "Shrimp feed revenues grew 20 percent in Q3. Strong demand for fish feed.",
         "[0.0, 1.0, 0.0]",
+        "",
+        "1",
+    ),
+    (
+        "chatter",
+        "findata/The_Chatter/Aquaculture_Edition.md",
+        "The Chatter: Aquaculture Edition",
+        "",
+        "The team reflects on shrimp this quarter.",
+        "[0.0, 1.0, 0.0]",
+        "Editorial",
+        "2",
     ),
     (
         "points_and_figures",
@@ -98,28 +141,45 @@ _SEED = [
         "",
         "Agri-input companies benefit from shrimp-feed export growth.",
         "[0.0, 0.5, 0.9]",
+        "",
+        "1",
     ),
 ]
+
+
+# One row per NOTE (first 6 fields; skips the Chatter second section) for the
+# two legacy schemas — pre-sectioning tables are one-row-per-doc by definition.
+_SEED_LEGACY = [r[:6] for r in (_SEED[0], _SEED[1], _SEED[2], _SEED[3], _SEED[5])]
 
 
 @contextmanager
 def _seeded_db(tmp_path, *, schema=None, with_embeddings=True):
     db_path = tmp_path / "test.db"
     conn = sqlite3.connect(str(db_path))
-    conn.executescript(schema or (_SCHEMA if with_embeddings else _SCHEMA_NO_EMBEDDING))
-    if with_embeddings:
+    if schema is _SCHEMA_PRE_SECTIONING:
+        conn.executescript(_SCHEMA_PRE_SECTIONING)
         conn.executemany(
             "INSERT INTO note_search "
             "(doc_type, file_path, title, sector, content, embedding) "
             "VALUES (?, ?, ?, ?, ?, ?)",
+            _SEED_LEGACY,
+        )
+    elif with_embeddings:
+        conn.executescript(_SCHEMA)
+        conn.executemany(
+            "INSERT INTO note_search "
+            "(doc_type, file_path, title, sector, content, embedding, "
+            "section_title, anchor) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             _SEED,
         )
     else:
+        conn.executescript(_SCHEMA_NO_EMBEDDING)
         conn.executemany(
             "INSERT INTO note_search "
             "(doc_type, file_path, title, sector, content) "
             "VALUES (?, ?, ?, ?, ?)",
-            [r[:5] for r in _SEED],
+            [r[:5] for r in _SEED_LEGACY],
         )
     conn.commit()
     conn.close()
@@ -208,6 +268,20 @@ class TestSearch:
         assert len(seen) == total
         assert len(set(seen)) == total  # no dupes
 
+    def test_search_dedups_note_sections(self, client):
+        # Note sectioning: "shrimp" matches BOTH Chatter section rows; the
+        # response must carry the note once (best-rank section) and
+        # total_count counts NOTES, not sections.
+        r = client.get("/api/search?q=shrimp&limit=20")
+        assert r.status_code == 200
+        hits = _results(r)
+        chatter = "findata/The_Chatter/Aquaculture_Edition.md"
+        chatter_hits = [h for h in hits if h["file_path"] == chatter]
+        assert len(chatter_hits) == 1
+        assert chatter_hits[0]["section_title"] in ("", "Editorial")
+        assert len(hits) == 5
+        assert response_count(r) == 5
+
     def test_search_missing_index_returns_503(self, tmp_path):
         # A DB with NO note_search table -> 503, not 500.
         db_path = tmp_path / "empty.db"
@@ -223,11 +297,22 @@ class TestSearch:
             assert r.status_code == 503
             assert "not built" in r.get_json()["error"]
 
-    def test_search_malformed_query_returns_400(self, client):
-        # FTS5 MATCH raises on stray boolean operators; endpoint must 400.
+    def test_search_stray_operators_quoted_not_400(self, client):
+        # Tokens are double-quoted + OR-joined (doc-surface pattern): "AND
+        # OR" is no longer FTS5 syntax — it searches the literal words and
+        # must 200, never 500.
         r = client.get("/api/search?q=AND%20OR")
-        assert r.status_code == 400
-        assert "invalid query syntax" in r.get_json()["error"]
+        assert r.status_code == 200
+        assert "results" in r.get_json()
+
+    def test_search_symbol_only_query_returns_200_empty(self, client):
+        # Symbol-only tokens quote into legal-but-matchless FTS5 phrases —
+        # the doc-surface behavior: graceful empty page, never a 400/500.
+        r = client.get("/api/search?q=%3F%21%2A")
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body["results"] == []
+        assert body["total_count"] == 0
 
     def test_search_empty_q_returns_400(self, client):
         r = client.get("/api/search?q=")
@@ -248,6 +333,8 @@ class TestHybridSearch:
         r = client.get("/api/search?q=shrimp&hybrid=true&limit=20")
         assert r.status_code == 200
         body = r.get_json()
+        # 6 seeded rows, 5 NOTES ("shrimp" hits both Chatter sections; the
+        # note appears once via note-level dedup).
         assert body["total_count"] == 5
         assert body["limit"] == 20
         for hit in body["results"]:
@@ -256,6 +343,7 @@ class TestHybridSearch:
                 "file_path",
                 "title",
                 "sector",
+                "section_title",
                 "snippet",
                 "similarity",
             }
@@ -301,6 +389,33 @@ class TestHybridSearch:
                 assert hit["similarity"] is None
                 assert "snippet" in hit
 
+    def test_hybrid_serves_pre_sectioning_schema(self, tmp_path, monkeypatch):
+        """Live-DB window between code deploy and the sectioned rebuild
+        (note sectioning, 2026-09-06): the table is one-row-per-doc WITH
+        embeddings. Hybrid must serve the old SQL and key the KNN map by
+        BARE file_path (the legacy mirror's shape) — never 500 on the
+        section columns."""
+        from helpers.core import vec_search as VS
+
+        def fake_knn(conn, q_vec, k, dims):
+            return {
+                "findata/The_Chatter/Aquaculture_Edition.md": 0.9,
+                "findata/Points_And_Figures/Roots.md": 0.5,
+            }
+
+        monkeypatch.setattr(VS, "knn_similarities", fake_knn)
+        with _seeded_db(tmp_path, schema=_SCHEMA_PRE_SECTIONING) as client:
+            r = client.get("/api/search?q=shrimp&hybrid=true&limit=20")
+            assert r.status_code == 200
+            body = r.get_json()
+            assert body["total_count"] == 5  # legacy COUNT(*) over doc rows
+            by_fp = {h["file_path"]: h for h in body["results"]}
+            # Bare-path KNN keys pass through verbatim — the endpoint keyed
+            # lookups by file_path, not by a composite section key.
+            assert by_fp["findata/The_Chatter/Aquaculture_Edition.md"]["similarity"] == 0.9
+            assert by_fp["findata/Points_And_Figures/Roots.md"]["similarity"] == 0.5
+            assert all(h["section_title"] is None for h in body["results"])
+
 
 # --------------------------------------------------------------------------- #
 # A1: the sqlite-vec KNN path (global re-rank) vs the Python-cosine fallback  #
@@ -325,9 +440,12 @@ class TestHybridKnnPath:
         def fake_knn(conn, q_vec, k, dims):
             calls.append((k, dims))
             # Fixture BM25 page for q=feed is [Avanti, Chatter, Sharat,
-            # Roots]. Craft: Chatter (BM25 idx 1) globally most-similar and
-            # Avanti (BM25 idx 0) deliberately UNRANKED = worst cosine leg.
-            return {chatter_fp: 0.9, roots_fp: 0.5}
+            # Roots] (only Chatter's first section matches "feed"; its row
+            # carries anchor '1' — KNN keys are composite since note
+            # sectioning). Craft: Chatter (BM25 idx 1) globally most-similar
+            # and Avanti (BM25 idx 0) deliberately UNRANKED = worst cosine
+            # leg.
+            return {f"{chatter_fp}#1": 0.9, f"{roots_fp}#1": 0.5}
 
         monkeypatch.setattr(VS, "knn_similarities", fake_knn)
         r = client.get("/api/search?q=feed&hybrid=true&limit=20")
@@ -378,9 +496,9 @@ class TestHybridKnnPath:
         # identical RRF sums, and the stable sort then keeps BM25 order —
         # so a plain "agreeing" map can still tie the fallback's winner.
         neutral = {
-            "findata/The_Chatter/Aquaculture_Edition.md": 0.8,
-            "findata/Companies/Agriculture/Sharat_Industries.md": 0.5,
-            "findata/Companies/Agriculture/Avanti_Feeds.md": 0.3,
+            "findata/The_Chatter/Aquaculture_Edition.md#1": 0.8,
+            "findata/Companies/Agriculture/Sharat_Industries.md#1": 0.5,
+            "findata/Companies/Agriculture/Avanti_Feeds.md#1": 0.3,
         }
         monkeypatch.setattr(VS, "knn_similarities", lambda *a, **k: dict(neutral))
         with_knn = _titles()

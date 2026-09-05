@@ -131,9 +131,9 @@ def _count(con, match):
 class TestRebuild:
     def test_rebuild_creates_table_and_indexes_docs(self, seeded_tree):
         stats = rns.rebuild(seeded_tree, write=True)
-        # 1 company + 1 sector + 1 newsletter.
-        assert stats["total_docs"] == 3
-        assert stats["indexed"] == 3
+        # 4 section rows: company 1 + sector 1 + newsletter 2 (preamble + H2).
+        assert stats["total_docs"] == 4
+        assert stats["indexed"] == 4
 
         con = sqlite3.connect(str(seeded_tree))
         try:
@@ -155,7 +155,7 @@ class TestRebuild:
         rns.rebuild(seeded_tree, write=True)
         s1 = rns.rebuild(seeded_tree, write=True)
         # A second rebuild must not duplicate rows (DELETE + reinsert).
-        assert s1["indexed"] == 3
+        assert s1["indexed"] == 4
         con = sqlite3.connect(str(seeded_tree))
         try:
             # "shrimp" appears in 3 docs: company body, sector body, and the
@@ -185,7 +185,8 @@ class TestRebuild:
             rows = con.execute(
                 "SELECT title, doc_type FROM note_search WHERE doc_type = 'chatter'"
             ).fetchall()
-            assert len(rows) == 1
+            # 2 section rows: preamble + the H2 section.
+            assert len(rows) == 2
             # H1 was "# The Chatter: Aquaculture Edition".
             assert "Aquaculture Edition" in rows[0][0]
             # Its body (shrimp feed commentary) is searchable. Use a SQL AND
@@ -218,12 +219,12 @@ class TestEmbeddingColumn:
 
     def test_all_rows_get_pseudo_embedding(self, seeded_tree):
         stats = rns.rebuild(seeded_tree, write=True)
-        assert stats["embedded"] == 3  # 1 company + 1 sector + 1 newsletter
+        assert stats["embedded"] == 4  # 4 section rows (see TestRebuild)
 
         con = sqlite3.connect(str(seeded_tree))
         try:
             rows = con.execute("SELECT embedding FROM note_search ORDER BY file_path").fetchall()
-            assert len(rows) == 3
+            assert len(rows) == 4
             for (emb,) in rows:
                 assert emb is not None
                 vec = json.loads(emb)
@@ -236,7 +237,7 @@ class TestEmbeddingColumn:
             return [1.0, 0.0] if "Acme" in text else [0.0, 1.0]
 
         stats = rns.rebuild(seeded_tree, write=True, embed_fn=tiny_embed)
-        assert stats["embedded"] == 3
+        assert stats["embedded"] == 4
 
         con = sqlite3.connect(str(seeded_tree))
         try:
@@ -253,7 +254,7 @@ class TestEmbeddingColumn:
 
         stats = rns.rebuild(seeded_tree, write=True, embed_fn=broken_embed)
         # No crash; rows still indexed, just without embeddings.
-        assert stats["indexed"] == 3
+        assert stats["indexed"] == 4
         assert stats["embedded"] == 0
         con = sqlite3.connect(str(seeded_tree))
         try:
@@ -286,7 +287,7 @@ class TestEmbeddingColumn:
 
         stats = rns.rebuild(seeded_tree, write=True)
         assert stats["migrated"] is True
-        assert stats["indexed"] == 3
+        assert stats["indexed"] == 4
 
         con = sqlite3.connect(str(seeded_tree))
         try:
@@ -296,7 +297,7 @@ class TestEmbeddingColumn:
             assert "embedding" in sql
             # Old row gone (rebuilt from files).
             n = con.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
-            assert n == 3
+            assert n == 4
         finally:
             con.close()
 
@@ -304,10 +305,10 @@ class TestEmbeddingColumn:
         rns.rebuild(seeded_tree, write=True)
         s2 = rns.rebuild(seeded_tree, write=True)
         assert s2["migrated"] is False
-        assert s2["indexed"] == 3
+        assert s2["indexed"] == 4
         con = sqlite3.connect(str(seeded_tree))
         try:
-            assert con.execute("SELECT COUNT(*) FROM note_search").fetchone()[0] == 3
+            assert con.execute("SELECT COUNT(*) FROM note_search").fetchone()[0] == 4
         finally:
             con.close()
 
@@ -354,7 +355,7 @@ class TestLocalEmbedderWiring:
         fn, dims, label = rns.resolve_embedder()
         assert fn is fake_local.embed_document
         assert dims == 384
-        assert label == "bge-small-en-v1.5"
+        assert label == fake_local.MODEL_ID
 
     def test_resolve_embedder_falls_back_with_warning(self, seeded_tree, capsys, monkeypatch):
         # conftest autouse pin has available()->False here; the pseudo
@@ -372,11 +373,11 @@ class TestLocalEmbedderWiring:
 
     def test_rebuild_uses_local_dims_and_label(self, seeded_tree, fake_local):
         stats = rns.rebuild(seeded_tree, write=True)
-        assert stats["embed_model"] == "bge-small-en-v1.5"
+        assert stats["embed_model"] == fake_local.MODEL_ID
         con = sqlite3.connect(str(seeded_tree))
         try:
             rows = con.execute("SELECT embedding FROM note_search").fetchall()
-            assert len(rows) == 3
+            assert len(rows) == 4
             for (emb,) in rows:
                 assert len(json.loads(emb)) == 384
         finally:
@@ -407,7 +408,7 @@ class TestLocalEmbedderWiring:
             n384 = c.execute(f"SELECT COUNT(*) FROM {VS.qualified()}").fetchone()[0]  # noqa: S608
         finally:
             c.close()
-        assert n384 == 3
+        assert n384 == 4
 
         # Model gone -> pseudo rebuild at 64.
         monkeypatch.setattr(fake_local, "available", lambda: False)
@@ -420,7 +421,7 @@ class TestLocalEmbedderWiring:
             n64 = c.execute(f"SELECT COUNT(*) FROM {VS.qualified()}").fetchone()[0]  # noqa: S608
         finally:
             c.close()
-        assert n64 == 3
+        assert n64 == 4
 
     def test_stored_embed_dims_gate_helper(self, seeded_tree):
         rns.rebuild(seeded_tree, write=True)
@@ -436,7 +437,7 @@ class TestLocalEmbedderWiring:
         re-embeds exactly itself. Vectors are identical across runs (the
         cache round-trips JSON faithfully)."""
         s1 = rns.rebuild(seeded_tree, write=True)
-        assert s1["embed_cache_misses"] == 3
+        assert s1["embed_cache_misses"] == 4
         assert s1["embed_cache_hits"] == 0
 
         con = sqlite3.connect(str(seeded_tree))
@@ -448,7 +449,7 @@ class TestLocalEmbedderWiring:
             con.close()
 
         s2 = rns.rebuild(seeded_tree, write=True)
-        assert s2["embed_cache_hits"] == 3
+        assert s2["embed_cache_hits"] == 4
         assert s2["embed_cache_misses"] == 0
 
         con = sqlite3.connect(str(seeded_tree))
@@ -482,10 +483,10 @@ class TestLocalEmbedderWiring:
             n = con.execute("SELECT COUNT(*) FROM vecdb.embed_cache").fetchone()[0]
         finally:
             con.close()
-        assert n == 3
+        assert n == 4
         # The applying rebuild then hits every entry.
         s = rns.rebuild(seeded_tree, write=True)
-        assert s["embed_cache_hits"] == 3
+        assert s["embed_cache_hits"] == 4
         assert s["embed_cache_misses"] == 0
 
     def test_embed_cache_keyed_by_model_label(self, seeded_tree, fake_local, monkeypatch):
@@ -494,10 +495,11 @@ class TestLocalEmbedderWiring:
         model's vectors."""
         from helpers.core import vec_search as VS
 
-        rns.rebuild(seeded_tree, write=True)  # cache under the bge label
-        monkeypatch.setattr(fake_local, "MODEL_ID", "bge-small-en-v1.5-tmp")
+        first_label = fake_local.MODEL_ID
+        rns.rebuild(seeded_tree, write=True)  # cache under the current label
+        monkeypatch.setattr(fake_local, "MODEL_ID", first_label + "-tmp")
         s2 = rns.rebuild(seeded_tree, write=True)
-        assert s2["embed_cache_misses"] == 3  # label changed -> no hits
+        assert s2["embed_cache_misses"] == 4  # label changed -> no hits
         assert s2["embed_cache_hits"] == 0
 
         con = sqlite3.connect(str(seeded_tree))
@@ -510,7 +512,7 @@ class TestLocalEmbedderWiring:
             )
         finally:
             con.close()
-        assert groups == {"bge-small-en-v1.5": 3, "bge-small-en-v1.5-tmp": 3}
+        assert groups == {first_label: 4, first_label + "-tmp": 4}
 
     def test_generation_bump_apply_only(self, seeded_tree, fake_local):
         """B4 (sql_capability_unlocks): note_search is an FTS5 virtual
@@ -568,7 +570,7 @@ class TestVecMirror:
         import helpers.maintenance.rebuild_note_search as R
 
         stats = R.rebuild(R.DEFAULT_DB)
-        assert stats["vec_rows"] == 3  # 1 company + 1 sector + 1 newsletter
+        assert stats["vec_rows"] == 4  # 4 section rows
         conn = self._vec_conn(R.DEFAULT_DB)
         try:
             from helpers.core.vec_search import qualified
@@ -578,7 +580,7 @@ class TestVecMirror:
             ).fetchone()[0]
         finally:
             conn.close()
-        assert n == 3
+        assert n == 4
 
     def test_incremental_rebuild_updates_vec_rows(self, seeded_tree):
         import helpers.maintenance.rebuild_note_search as R
@@ -669,18 +671,18 @@ class TestVecMirror:
         conn = self._vec_conn(R.DEFAULT_DB)
         try:
             rows = conn.execute(
-                "SELECT file_path, embedding FROM note_search WHERE embedding IS NOT NULL"
+                "SELECT file_path, anchor, embedding FROM note_search WHERE embedding IS NOT NULL"
             ).fetchall()
             q = R._default_embed("Acme Feeds shrimp feed")
             got = knn_similarities(conn, q, k=len(rows), dims=R._PSEUDO_DIMS)
             assert got is not None
-            for fp, emb in rows:
+            for fp, anchor, emb in rows:
                 vec = _json.loads(emb)
                 dot = sum(x * y for x, y in zip(q, vec))
                 nq = math.sqrt(sum(x * x for x in q))
                 nv = math.sqrt(sum(x * x for x in vec))
                 expect = dot / (nq * nv)
-                assert got[fp] == pytest.approx(expect, abs=1e-6)
+                assert got[f"{fp}#{anchor}"] == pytest.approx(expect, abs=1e-6)
         finally:
             conn.close()
 
@@ -816,16 +818,17 @@ class TestBatchEmbedPath:
 
     def test_batch_attaches_vectors_and_seeds_cache(self, seeded_tree, fake_local):
         stats = rns.rebuild(seeded_tree, write=True)
-        # Cold: every doc a miss, every row embedded.
-        assert stats["total_docs"] == 3
-        assert stats["embedded"] == 3
-        assert stats["embed_cache_misses"] == 3
+        # Cold: every section row a miss, every row embedded (4 rows —
+        # the newsletter splits into preamble + H2 section).
+        assert stats["total_docs"] == 4
+        assert stats["embedded"] == 4
+        assert stats["embed_cache_misses"] == 4
         assert stats["embed_cache_hits"] == 0
 
         con = sqlite3.connect(str(seeded_tree))
         try:
             rows = con.execute("SELECT file_path, embedding FROM note_search").fetchall()
-            assert len(rows) == 3
+            assert len(rows) == 4
             first = {fp: emb for fp, emb in rows}
         finally:
             con.close()
@@ -833,9 +836,9 @@ class TestBatchEmbedPath:
         # Second run: warm — all cache hits, identical vectors (fakes are
         # deterministic; the parallel seam must not disturb either).
         stats2 = rns.rebuild(seeded_tree, write=True)
-        assert stats2["embed_cache_hits"] == 3
+        assert stats2["embed_cache_hits"] == 4
         assert stats2["embed_cache_misses"] == 0
-        assert stats2["embedded"] == 3
+        assert stats2["embedded"] == 4
         con = sqlite3.connect(str(seeded_tree))
         try:
             second = dict(con.execute("SELECT file_path, embedding FROM note_search").fetchall())
@@ -851,9 +854,9 @@ class TestBatchEmbedPath:
 
         monkeypatch.setattr(LE, "embed_documents_parallel", boom)
         stats = rns.rebuild(seeded_tree, write=True)  # must not raise
-        assert stats["total_docs"] == 3
+        assert stats["total_docs"] == 4
         assert stats["embedded"] == 0
-        assert stats["embed_cache_misses"] == 3
+        assert stats["embed_cache_misses"] == 4
         assert "batch embed failed" in capsys.readouterr().err
         con = sqlite3.connect(str(seeded_tree))
         try:
@@ -865,6 +868,6 @@ class TestBatchEmbedPath:
             nulls = con.execute(
                 "SELECT COUNT(*) FROM note_search WHERE embedding IS NULL"
             ).fetchone()[0]
-            assert nulls == 3
+            assert nulls == 4
         finally:
             con.close()

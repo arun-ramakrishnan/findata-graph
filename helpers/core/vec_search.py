@@ -214,6 +214,11 @@ def stored_dims(conn: sqlite3.Connection) -> int | None:
 def backfill_from_fts(conn: sqlite3.Connection, dims: int) -> int:
     """Populate the vec table from note_search's JSON embedding column.
 
+    Keys are COMPOSITE section row keys "{file_path}#{anchor}" (note
+    sectioning, 2026-09-06) — the vec0 PK column keeps its historical
+    ``file_path`` name but holds row keys since sections multiplied rows
+    per file.
+
     Returns the number of rows written (0 when nothing to do or on failure).
     Used both by the rebuild write path and lazily on first hybrid search
     after a snapshot restore (the vec table is snapshot-excluded by design).
@@ -221,8 +226,15 @@ def backfill_from_fts(conn: sqlite3.Connection, dims: int) -> int:
     if not _attach_ok(conn):
         return 0
     try:
+        # Pre-sectioning tables (the deploy gap before the sectioned
+        # rebuild runs) have no anchor column — key those by bare
+        # file_path, the shape their mirror was always built with.
+        has_anchor = conn.execute(
+            "SELECT 1 FROM pragma_table_info('note_search') WHERE name = 'anchor'"
+        ).fetchone()
+        key_sql = "file_path || '#' || anchor" if has_anchor else "file_path"
         rows = conn.execute(
-            "SELECT file_path, embedding FROM note_search "
+            f"SELECT {key_sql}, embedding FROM note_search "  # noqa: S608  # key_sql is a schema-conditional constant
             "WHERE embedding IS NOT NULL AND embedding != ''"
         ).fetchall()
     except sqlite3.Error:
@@ -268,6 +280,13 @@ def vec_available(conn: sqlite3.Connection, dims: int, *, lazy_backfill: bool = 
     return n > 0
 
 
+# sqlite-vec hard caps a single vec0 KNN query at k=4096 ("k value in knn
+# query too large") — discovered at 14.5k section rows (note sectioning,
+# 2026-09-06): the whole-corpus k=None query errored on every hybrid search
+# and silently rode the flat-matrix fallback.
+VEC0_KNN_MAX = 4096
+
+
 def knn_similarities(
     conn: sqlite3.Connection,
     q_vec: Sequence[float],
@@ -279,16 +298,19 @@ def knn_similarities(
     Returns ``{file_path: similarity}`` (similarity = 1 - cosine distance,
     the raw cosine — negative for anti-correlated docs, matching the Python
     path's contract), best first, or ``None`` when the KNN path is
-    unavailable — the caller
-    then falls back to the Python cosine loop.
+    unavailable — the caller then falls back to the flat-matrix map and
+    finally the Python cosine loop.
 
     ``k=None`` (the hybrid-search usage) sizes KNN to the table so EVERY
     indexed doc carries its exact similarity: the re-ranked BM25 page is a
     subset of the corpus, and a bounded k would zero out page docs that
-    fall outside the global top-k, silently changing their scores. At
-    corpus scale (~1k docs) the full scan is still a sub-millisecond C
-    loop. An explicit int k is clamped to at least 1; asking for more rows
-    than exist returns all of them (vec0 semantics).
+    fall outside the global top-k, silently changing their scores.
+    vec0 cannot serve k beyond ``VEC0_KNN_MAX``, so a whole-corpus request
+    on a larger table returns ``None`` (never a silently-truncated map) and
+    the caller's whole-corpus matrix fallback takes over. At corpus scale
+    (~1k docs) the full scan is still a sub-millisecond C loop. An explicit
+    int k is clamped to at least 1 and to the vec0 cap; asking for more
+    rows than exist returns all of them (vec0 semantics).
     """
     if len(q_vec) != dims:
         return None
@@ -296,6 +318,10 @@ def knn_similarities(
         return None
     if k is None:
         k = conn.execute(f"SELECT COUNT(*) FROM {qualified()}").fetchone()[0]  # noqa: S608  # qualified() constant
+        if k > VEC0_KNN_MAX:
+            return None
+    else:
+        k = min(k, VEC0_KNN_MAX)
     if k < 1:
         return None
     try:
@@ -351,16 +377,23 @@ def sync_vec_table(
     *,
     upsert_rows: Iterable[tuple[str, str | None]] = (),
     delete_paths: Iterable[str] = (),
+    delete_files: Iterable[str] = (),
     full: bool = False,
 ) -> int:
     """Write path for rebuild_note_search: keep the vec table in sync.
 
+    Keys are composite section row keys "{file_path}#{anchor}" (note
+    sectioning, 2026-09-06).
+
     - ``full=True``      — drop everything and re-mirror the FTS embedding
       column (used by the non-incremental rebuild).
-    - ``upsert_rows``    — (file_path, embedding_json) pairs whose FTS row
+    - ``upsert_rows``    — (row_key, embedding_json) pairs whose FTS row
       changed; a None/invalid embedding removes the vec row (mirrors the
       "searchable but unembeddable" FTS behaviour).
-    - ``delete_paths``   — files that disappeared from disk.
+    - ``delete_paths``   — exact row keys that disappeared.
+    - ``delete_files``   — FILE paths whose every section row must go
+      (prefix delete on "{file}#"; used when a changed file may have
+      dropped sections).
 
     Returns the number of vec rows written. Best-effort: any extension or
     schema failure returns 0 without raising — the JSON column path in
@@ -392,6 +425,14 @@ def sync_vec_table(
                 conn.execute(
                     f"DELETE FROM {qualified()} WHERE file_path = ?",  # noqa: S608  # qualified() constant
                     (file_path,),
+                )
+            for fp in delete_files:
+                # Prefix delete via substr — LIKE would treat '_' in paths
+                # as a wildcard.
+                conn.execute(
+                    f"DELETE FROM {qualified()} "  # noqa: S608  # qualified() constant
+                    "WHERE substr(file_path, 1, ?) = ?",
+                    (len(fp) + 1, f"{fp}#"),
                 )
             written += _upsert_vec_rows(conn, dims, upsert_rows)
     except sqlite3.Error:

@@ -90,21 +90,44 @@ FINDATA = _REPO_ROOT / "findata"
 # embedding is UNINDEXED too — stored per row for hybrid cosine ranking but
 # never tokenized (hybrid ranking, N5 item). FTS5 doesn't support ALTER TABLE
 # ADD COLUMN, so a schema change requires DROP + recreate (see _migrate_schema).
+# Note-sectioning (note_section_search proposal, 2026-09-06): one row per
+# H2 SECTION (plus the preamble), mirroring the doc_search pattern — the
+# 512-token bge cap truncated 79% of whole-note vectors to note heads
+# (39% token mass); per-section rows fit the window. Row identity is
+# (file_path, anchor); title/sector stay note-level in every row.
 NOTE_SEARCH_DDL = (
     "CREATE VIRTUAL TABLE IF NOT EXISTS note_search USING fts5("
     "doc_type, "  # 0
     "file_path UNINDEXED, "  # 1
     "title, "  # 2
     "sector, "  # 3
-    "content, "  # 4
+    "content, "  # 4 — section body (preamble chunk for heading-less docs)
     "embedding UNINDEXED, "  # 5
+    "section_title, "  # 6 — '' for the preamble chunk
+    "anchor UNINDEXED, "  # 7 — line number of the section H2 ('1' preamble)
     "tokenize = 'porter unicode61'"
     ")"
 )
 
 # Columns we expect in note_search. Used by _migrate_schema to detect a stale
-# (pre-embedding) table and drop it so the new DDL takes effect.
-_NOTE_SEARCH_COLUMNS = {"doc_type", "file_path", "title", "sector", "content", "embedding"}
+# (pre-sectioning / pre-embedding) table and drop it so the new DDL applies.
+_NOTE_SEARCH_COLUMNS = {
+    "doc_type",
+    "file_path",
+    "title",
+    "sector",
+    "content",
+    "embedding",
+    "section_title",
+    "anchor",
+}
+
+# Section body cap for the embedding text base (mirrors doc_search's
+# _EMBED_BODY_CAP). 8000 chars ≈ 2k tokens = granite's ctx window
+# (embed_full_reembed S6, 2026-09-06): the 1,450 long sections keep their
+# tails visible instead of truncating at bge's 512-token/4000-char shape.
+# H2 section composition itself is unchanged — only the window grew.
+_SECTION_EMBED_CAP = 8000
 
 # Path prefix (under findata/) -> doc_type. Order matters: longer prefixes
 # first so 'Super_Sectors' isn't shadowed by a hypothetical 'S' rule. The
@@ -266,22 +289,22 @@ def _default_embed(text: str) -> list[float]:
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
 
 
-def _embedding_text(title: str, sector: str, content: str) -> str:
-    """Embedding text basis — MUST stay identical across the per-doc and
-    batch paths or the pooled cache keys diverge. Mirrors
-    _get_company_text in embeddings.py: title + sector + body (capped)."""
-    return f"{title}\n{sector}\n{content[:8000]}"
+def _embedding_text(title: str, sector: str, section_title: str, content: str) -> str:
+    """Section-level embedding text basis — MUST stay identical across the
+    per-doc and batch paths or the pooled cache keys diverge. Mirrors
+    rebuild_doc_search: title + sector + section heading + capped section
+    body, so the vector is dominated by the headings (heading-typed
+    queries) while the section body finally fits the 512-token window."""
+    return f"{title}\n{sector}\n{section_title}\n{content[:_SECTION_EMBED_CAP]}"
 
 
-def _embedding_json(embed_fn, title: str, sector: str, content: str) -> str | None:
-    """Embed one doc and serialize to a JSON string, or None on failure.
-
-    Text basis mirrors _get_company_text in embeddings.py: title + sector +
-    body. A short deterministic prefix on the body keeps the vector dominated
-    by the title/sector for name-typed queries while still capturing the body.
-    """
+def _embedding_json(
+    embed_fn, title: str, sector: str, section_title: str, content: str
+) -> str | None:
+    """Embed one section row and serialize to a JSON string, or None on
+    failure."""
     try:
-        vec = embed_fn(_embedding_text(title, sector, content))
+        vec = embed_fn(_embedding_text(title, sector, section_title, content))
     except Exception:  # noqa: S110  # best-effort; missing/empty rows stay searchable
         return None
     if not vec:
@@ -326,27 +349,77 @@ def _emit_row(
     rel_posix: str,
     title: str,
     sector: str,
+    section_title: str,
+    anchor: str,
     body: str,
     embed_fn,
 ) -> None:
-    """Append one FTS row — single emission point for both modes.
+    """Append one SECTION row — single emission point for both modes.
 
     Two-phase mode (``deferred`` is a list): row gets a None embedding and
     (row_index, text) lands in the caller's deferred list for the batch
     embed pass. Per-doc mode: embedding computed inline via embed_fn."""
     if deferred is not None:
-        rows.append((dtype, rel_posix, title, sector, body, None))
-        deferred.append((len(rows) - 1, _embedding_text(title, sector, body)))
+        rows.append((dtype, rel_posix, title, sector, body, None, section_title, anchor))
+        deferred.append((len(rows) - 1, _embedding_text(title, sector, section_title, body)))
     else:
         rows.append(
-            (dtype, rel_posix, title, sector, body, _embedding_json(embed_fn, title, sector, body))
+            (
+                dtype,
+                rel_posix,
+                title,
+                sector,
+                body,
+                _embedding_json(embed_fn, title, sector, section_title, body),
+                section_title,
+                anchor,
+            )
         )
+
+
+def _note_sections(text: str, entity_doc: bool) -> list[tuple[str, int, str]]:
+    """Split a note into (section_title, anchor_line, body) chunks on H2
+    headers — the exact rebuild_doc_search._split_sections semantics
+    (deeper headings belong to the parent; the preamble is its own chunk).
+    Newsletters split BEFORE _clean_body (its whitespace collapse would
+    break the '^## ' prefix match applied afterwards)."""
+    from helpers.maintenance.rebuild_doc_search import _split_sections
+
+    if entity_doc:
+        return _split_sections(text)
+    return [(sec, anchor, _clean_body(body)) for sec, anchor, body in _split_sections(text)]
+
+
+def _try_carry(
+    rel_posix: str,
+    abs_path,
+    dtype: str,
+    reuse: dict[str, tuple[float, list[tuple]]],
+    ent_by_path: dict[str, tuple[str, str | None]],
+    carried: set[str] | None,
+) -> bool:
+    """P2.2 verbatim-carry attempt: the stored rows carry over when the
+    file's mtime is untouched AND every row's entity title/sector still
+    match (a DB-side rename/reclassify must never carry stale even when
+    the file's mtime is)."""
+    try:
+        mtime = abs_path.stat().st_mtime
+    except OSError:
+        return False
+    if mtime != reuse[rel_posix][0]:
+        return False
+    doc_rows = reuse[rel_posix][1]
+    if not all(_carry_row(row, dtype, rel_posix, ent_by_path) for row in doc_rows):
+        return False
+    if carried is not None:
+        carried.add(rel_posix)
+    return True
 
 
 def _collect_rows(
     conn,
     embed_fn=None,
-    reuse: dict[str, tuple[float, tuple]] | None = None,
+    reuse: dict[str, tuple[float, list[tuple]]] | None = None,
     carried: set[str] | None = None,
     deferred: list[tuple[int, str]] | None = None,
 ) -> list[tuple]:
@@ -395,21 +468,14 @@ def _collect_rows(
     for dtype, abs_path, rel in _iter_findata_docs():
         rel_posix = f"findata/{rel.as_posix()}"
         if reuse is not None and rel_posix in reuse:
-            try:
-                mtime = abs_path.stat().st_mtime
-            except OSError:
-                mtime = None
-            if mtime is not None and mtime == reuse[rel_posix][0]:
-                row = reuse[rel_posix][1]
-                if _carry_row(row, dtype, rel_posix, ent_by_path):
-                    rows.append(row)
-                    if carried is not None:
-                        carried.add(rel_posix)
-                    continue
+            if _try_carry(rel_posix, abs_path, dtype, reuse, ent_by_path, carried):
+                rows.extend(reuse[rel_posix][1])
+                continue
         try:
             text = abs_path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
+        sector = ""
         if dtype in ("company", "sector", "super_sector"):
             fm_title, body = _strip_frontmatter(text)
             norm_name, sector = ent_by_path.get(rel_posix, ("", None))
@@ -417,12 +483,24 @@ def _collect_rows(
             # the YAML title if the entity isn't in the DB (shouldn't happen
             # for entity docs, but be defensive).
             title = norm_name or fm_title or ""
-            _emit_row(rows, deferred, dtype, rel_posix, title, sector or "", body.strip(), embed_fn)
+            chunks = _note_sections(body, entity_doc=True)
         else:
             # Newsletter: no frontmatter, no entity row. Title = H1.
             title = _newsletter_title(text) or abs_path.stem
-            body = _clean_body(text)
-            _emit_row(rows, deferred, dtype, rel_posix, title, "", body, embed_fn)
+            chunks = _note_sections(text, entity_doc=False)
+        for section_title, anchor, sec_body in chunks:
+            _emit_row(
+                rows,
+                deferred,
+                dtype,
+                rel_posix,
+                title,
+                sector or "",
+                section_title,
+                str(anchor),
+                sec_body.strip(),
+                embed_fn,
+            )
     return rows
 
 
@@ -436,6 +514,22 @@ NOTE_SEARCH_META_DDL = (
     " content_hash TEXT NOT NULL"
     ")"
 )
+
+
+def _rows_by_path(rows: list[tuple]) -> dict[str, list[tuple]]:
+    """Group section rows by file_path — the FILE stays the diff/fingerprint
+    unit (note_search_meta stays file-keyed); only rows multiply."""
+    grouped: dict[str, list[tuple]] = {}
+    for r in rows:
+        grouped.setdefault(r[1], []).append(r)
+    return grouped
+
+
+def vec_row_key(row: tuple) -> str:
+    """Composite vec0/matrix key for a section row: "{file_path}#{anchor}".
+    The FILE must not contain '#' (findata paths don't) — one separator,
+    unambiguous split."""
+    return f"{row[1]}#{row[7]}"
 
 
 def _file_fingerprint(abs_path: Path, title: str, sector: str, content: str) -> tuple[float, str]:
@@ -455,10 +549,9 @@ def _file_fingerprint(abs_path: Path, title: str, sector: str, content: str) -> 
 
 
 def _migrate_schema(conn) -> bool:
-    """Drop a stale (pre-embedding) note_search so the new DDL applies.
-
-    FTS5 virtual tables can't ALTER TABLE ADD COLUMN, so adding the
-    `embedding` column requires DROP + recreate. Since the rebuild fully
+    """Drop a stale (pre-sectioning or pre-embedding) note_search so the new
+    DDL applies. FTS5 virtual tables can't ALTER TABLE ADD COLUMN, so the
+    sectioning columns require DROP + recreate. Since the rebuild fully
     repopulates the table every run (DELETE + reinsert), dropping is safe —
     the shadow tables are recreated by CREATE VIRTUAL TABLE.
 
@@ -469,7 +562,7 @@ def _migrate_schema(conn) -> bool:
     ).fetchone()
     if not sql:
         return False  # no table yet — fresh create will have the new schema
-    if "embedding" in sql[0]:
+    if "section_title" in sql[0] and "embedding" in sql[0]:
         return False  # already current
     conn.execute("DROP TABLE note_search")
     return True
@@ -488,9 +581,15 @@ def _refresh_embed_matrix(conn) -> int | None:  # type: ignore[no-untyped-def]
 
         from helpers.core.embed_matrix import EmbedMatrixStore
 
+        # Pre-sectioning tables (the deploy gap before the sectioned rebuild
+        # runs) have no anchor column — key those by bare file_path.
+        has_anchor = conn.execute(
+            "SELECT 1 FROM pragma_table_info('note_search') WHERE name = 'anchor'"
+        ).fetchone()
+        key_sql = "file_path || '#' || anchor" if has_anchor else "file_path"
         rows = conn.execute(
-            "SELECT file_path, embedding FROM note_search"
-            " WHERE embedding IS NOT NULL ORDER BY file_path"
+            f"SELECT {key_sql}, embedding FROM note_search"  # noqa: S608  # key_sql is a schema-conditional constant
+            " WHERE embedding IS NOT NULL ORDER BY file_path" + (", anchor" if has_anchor else "")
         ).fetchall()
         if not rows:
             return None
@@ -555,20 +654,24 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
         # the existing rows so _collect_rows can carry over mtime-unchanged
         # files without reading/cleaning/embedding them.
         existing: dict[str, tuple[float, str]] = {}
-        reuse: dict[str, tuple[float, tuple]] | None = None
+        reuse: dict[str, tuple[float, list[tuple]]] | None = None
         carried: set[str] | None = None
         if incremental:
             existing = {
                 r[0]: (r[1], r[2])
                 for r in conn.execute("SELECT file_path, mtime, content_hash FROM note_search_meta")
             }
-            reuse = {}
+            # Section rows: reuse maps file_path -> (mtime, [section rows]) —
+            # a file carries over only when ALL its rows' entity title/sector
+            # still match (_carry_row per row).
+            reuse: dict[str, tuple[float, list[tuple]]] = {}
             for r in conn.execute(
-                "SELECT doc_type, file_path, title, sector, content, embedding FROM note_search"
+                "SELECT doc_type, file_path, title, sector, content, embedding, "
+                "section_title, anchor FROM note_search"
             ):
                 prev = existing.get(r[1])
                 if prev is not None:
-                    reuse[r[1]] = (prev[0], tuple(r))
+                    reuse.setdefault(r[1], (prev[0], []))[1].append(tuple(r))
             carried = set()
         # Two-phase batch mode (parallel_cold_embed proposal, 2026-08-29):
         # with the real model + cache, rows are collected WITHOUT
@@ -578,8 +681,15 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
         # the pool never spawns). Injected embed_fn (tests) and the pseudo
         # fallback keep the per-doc path.
         deferred: list[tuple[int, str]] | None = [] if cache is not None else None
+        print("[notes] phase: walking findata + collecting rows...", file=sys.stderr, flush=True)
         rows = _collect_rows(
             conn, embed_fn=embed_fn, reuse=reuse, carried=carried, deferred=deferred
+        )
+        print(
+            f"[notes] phase: collected {len(rows)} rows"
+            + (f", {len(deferred or [])} to embed" if deferred is not None else ""),
+            file=sys.stderr,
+            flush=True,
         )
         if deferred is None:
             if cache is not None:
@@ -604,6 +714,11 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
             texts = [text for _i, text in deferred if text.strip()]
             if model_label is None:  # unreachable: batch mode implies resolve
                 raise RuntimeError("batch embed without a model label")
+            print(
+                f"[notes] phase: embedding {len(texts)} section bases (serial per-text)...",
+                file=sys.stderr,
+                flush=True,
+            )
             try:
                 vec_list, cstats = cached_embed_batch(
                     conn,
@@ -614,7 +729,7 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
                 )
                 by_idx = dict(zip(idxs, vec_list))
                 rows = [
-                    r if i not in by_idx else r[:5] + (json.dumps(by_idx[i]),)
+                    r if i not in by_idx else r[:5] + (json.dumps(by_idx[i]),) + r[6:]
                     for i, r in enumerate(rows)
                 ]
                 stats["embed_cache_hits"] = cstats["hits"]
@@ -651,15 +766,16 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
             r[0]: (r[1], r[2])
             for r in conn.execute("SELECT file_path, mtime, content_hash FROM note_search_meta")
         }
-        row_by_path = {r[1]: r for r in rows}
+        rows_by_path = _rows_by_path(rows)
         current_meta: dict[str, tuple[float, str]] = {}
         for _dtype, abs_path, rel in _iter_findata_docs():
             rel_posix = f"findata/{rel.as_posix()}"
-            row = row_by_path.get(rel_posix)
-            if row is None:
+            doc_rows = rows_by_path.get(rel_posix)
+            if not doc_rows:
                 continue
-            _, _, title, sector, content, _emb = row
-            current_meta[rel_posix] = _file_fingerprint(abs_path, title, sector, content)
+            title, sector = doc_rows[0][2], doc_rows[0][3]
+            joined = "\x00".join(r[4] for r in doc_rows)
+            current_meta[rel_posix] = _file_fingerprint(abs_path, title, sector, joined)
         on_disk = set(current_meta)
         stale_new = sorted(fp for fp in on_disk if fp not in stored_meta)
         stale_deleted = sorted(fp for fp in stored_meta if fp not in on_disk)
@@ -693,7 +809,8 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
             existing_rows = [
                 tuple(r)
                 for r in conn.execute(
-                    "SELECT doc_type, file_path, title, sector, content, embedding FROM note_search"
+                    "SELECT doc_type, file_path, title, sector, content, embedding, "
+                    "section_title, anchor FROM note_search"
                 )
             ]
             content_changed = _Counter(existing_rows) != _Counter(rows)
@@ -703,25 +820,21 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
                 if rows:
                     conn.executemany(
                         "INSERT INTO note_search "
-                        "(doc_type, file_path, title, sector, content, embedding) "
-                        "VALUES (?, ?, ?, ?, ?, ?)",
+                        "(doc_type, file_path, title, sector, content, embedding, "
+                        "section_title, anchor) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
                         rows,
                     )
                 # Refresh meta for incremental next run
                 conn.execute("DELETE FROM note_search_meta")
-                # P2 perf: build a dict for O(1) lookup instead of O(N²) inner
-                # scan, and avoid re-iterating _iter_findata_docs (already
-                # iterated in _collect_rows).  We do need abs_path per file for
-                # the fingerprint, so build a path map once.
-                rows_by_path = {r[1]: r for r in rows}
                 meta_rows = []
                 for dtype, abs_path, rel in _iter_findata_docs():
                     rel_posix = f"findata/{rel.as_posix()}"
-                    r = rows_by_path.get(rel_posix)
-                    if r is None:
+                    doc_rows = rows_by_path.get(rel_posix)
+                    if not doc_rows:
                         continue
-                    _, _, title, sector, content, _emb = r
-                    mtime, chash = _file_fingerprint(abs_path, title, sector, content)
+                    title, sector = doc_rows[0][2], doc_rows[0][3]
+                    joined = "\x00".join(r[4] for r in doc_rows)
+                    mtime, chash = _file_fingerprint(abs_path, title, sector, joined)
                     meta_rows.append((rel_posix, mtime, chash))
                 if meta_rows:
                     conn.executemany(
@@ -735,8 +848,10 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
             # A1: mirror the embedding column into the sqlite-vec vec0 table
             # (after the FTS commit — sync is idempotent and best-effort; the
             # JSON column stays the source of truth).
+            print("[notes] phase: syncing vec0 mirror...", file=sys.stderr, flush=True)
             stats["vec_rows"] = sync_vec_table(conn, embed_dims, full=True)
             # S2d: keep the aligned f32 matrix in step (hash-gated row rewrites)
+            print("[notes] phase: refreshing f32 matrix...", file=sys.stderr, flush=True)
             stats["matrix_rows"] = _refresh_embed_matrix(conn)
             # B4 (sql_capability_unlocks): note_search is invisible to the
             # entities/graph_edges generation triggers (FTS5 can't carry
@@ -754,11 +869,12 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
         else:
             # P2.1 incremental: diff against meta, only touch changed/deleted files
             # (existing / reuse / carried were preloaded above for the fast path)
-            # Build map file_path -> (dtype, abs_path, row_tuple)
-            rows_by_path = {r[1]: r for r in rows}
-            # Track which file_paths we saw on disk
+            # Section rows: the FILE stays the diff unit — to_upsert carries a
+            # file's full section-row list (a changed file re-emits all its
+            # sections; unchanged section texts hit the content-hash embed
+            # cache, so only genuinely changed sections cost CPU).
             seen_on_disk = set(rows_by_path.keys())
-            to_upsert: list[tuple] = []
+            to_upsert: list[tuple[list[tuple], float, str]] = []
             to_delete: list[str] = []
             # Also handle deleted files (in meta but not on disk)
             for fp in list(existing.keys()):
@@ -767,37 +883,41 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
             # Re-iterate with abs_path to compute fingerprint and diff
             for dtype, abs_path, rel in _iter_findata_docs():
                 rel_posix = f"findata/{rel.as_posix()}"
-                row = rows_by_path.get(rel_posix)
-                if row is None:
+                doc_rows = rows_by_path.get(rel_posix)
+                if not doc_rows:
                     continue
                 prev = existing.get(rel_posix)
                 if prev is not None and carried is not None and rel_posix in carried:
-                    # DB-carried row whose mtime still matches: the content
+                    # DB-carried rows whose mtime still matches: the content
                     # is by construction the stored one — skip the re-hash.
                     try:
                         if abs_path.stat().st_mtime == prev[0]:
                             continue
                     except OSError:
                         pass
-                _, _, title, sector, content, _emb = row
-                mtime, chash = _file_fingerprint(abs_path, title, sector, content)
+                title, sector = doc_rows[0][2], doc_rows[0][3]
+                joined = "\x00".join(r[4] for r in doc_rows)
+                mtime, chash = _file_fingerprint(abs_path, title, sector, joined)
                 if prev is None or prev[1] != chash:
                     # Hash-only guard: an mtime drift with identical content
                     # (worktree/checkout skew) must NOT re-upsert — it would
                     # bump the DB generation and cool the warm DuckDB cache
                     # for no content change.
-                    to_upsert.append((row, mtime, chash))
+                    to_upsert.append((doc_rows, mtime, chash))
             # Apply delta in one transaction
             with conn:
                 for fp in to_delete:
                     conn.execute("DELETE FROM note_search WHERE file_path = ?", (fp,))
                     conn.execute("DELETE FROM note_search_meta WHERE file_path = ?", (fp,))
-                for row, mtime, chash in to_upsert:
-                    dtype, fpath, title, sector, content, _emb = row
+                for doc_rows, mtime, chash in to_upsert:
+                    fpath = doc_rows[0][1]
+                    # Whole-file replace: removed sections must not survive.
                     conn.execute("DELETE FROM note_search WHERE file_path = ?", (fpath,))
-                    conn.execute(
-                        "INSERT INTO note_search (doc_type, file_path, title, sector, content, embedding) VALUES (?, ?, ?, ?, ?, ?)",
-                        row,
+                    conn.executemany(
+                        "INSERT INTO note_search (doc_type, file_path, title, sector, "
+                        "content, embedding, section_title, anchor) "
+                        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        doc_rows,
                     )
                     conn.execute(
                         "INSERT OR REPLACE INTO note_search_meta (file_path, mtime, content_hash) VALUES (?, ?, ?)",
@@ -808,13 +928,20 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
             stats["mode"] = "incremental"
             stats["upserts"] = len(to_upsert)
             stats["deletes"] = len(to_delete)
-            # A1: mirror the same delta into the vec0 table (file_path ->
-            # embedding JSON; None embedding removes the vec row).
+            # A1: mirror the same delta into the vec0 table. Keys are
+            # composite "{file_path}#{anchor}" row keys; every upserted file
+            # is prefix-deleted first so dropped sections leave no stale
+            # vectors behind.
             stats["vec_rows"] = sync_vec_table(
                 conn,
                 embed_dims,
-                upsert_rows=[(r[1], r[5]) for r, _m, _c in to_upsert],
-                delete_paths=to_delete,
+                upsert_rows=[
+                    (vec_row_key(r), r[5]) for doc_rows, _m, _c in to_upsert for r in doc_rows
+                ],
+                # prefix delete per changed/deleted FILE (dropped sections
+                # must not survive); exact delete_paths stays for callers
+                # that know true row keys.
+                delete_files=[doc_rows[0][1] for doc_rows, _m, _c in to_upsert] + to_delete,
             )
             # S2d: same delta through the aligned matrix (full refresh is
             # hash-gated — unchanged rows are no-ops; a delete changes the

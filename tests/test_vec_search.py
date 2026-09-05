@@ -42,18 +42,26 @@ def fts_conn():
     conn.execute(
         "CREATE VIRTUAL TABLE note_search USING fts5("
         "doc_type, file_path UNINDEXED, title, sector, content, "
-        "embedding UNINDEXED, tokenize='porter unicode61')"
+        "embedding UNINDEXED, section_title, anchor UNINDEXED, "
+        "tokenize='porter unicode61')"
     )
     return conn
 
 
+def k(fp: str) -> str:
+    """Composite row key for a seeded doc (anchor '1')."""
+    return f"{fp}#1"
+
+
 def _seed_fts(conn, docs):
-    """docs: list of (file_path, vector | None)."""
+    """docs: list of (file_path, vector | None) — one section row each
+    (anchor '1'), so vec keys are the composite {file_path}#1."""
     for fp, vec in docs:
         emb = json.dumps(vec) if vec is not None else None
         conn.execute(
             "INSERT INTO note_search (doc_type, file_path, title, sector, "
-            "content, embedding) VALUES ('company', ?, ?, 'S', 'body text', ?)",
+            "content, embedding, section_title, anchor) "
+            "VALUES ('company', ?, ?, 'S', 'body text', ?, '', '1')",
             (fp, fp, emb),
         )
     conn.commit()
@@ -96,10 +104,10 @@ class TestKnnSimilarities:
         # Similarity values agree with Python cosine to 6 decimals (float32
         # quantization is <1e-7 at these magnitudes).
         for fp, vec in VECS.items():
-            assert got[fp] == pytest.approx(_cos(q, vec), abs=1e-6)
+            assert got[k(fp)] == pytest.approx(_cos(q, vec), abs=1e-6)
         # Ordering: a.md (near-parallel) > b.md > c.md (orthogonal).
         order = sorted(got, key=lambda fp: got[fp], reverse=True)
-        assert order[:2] == ["a.md", "b.md"]
+        assert order[:2] == [k("a.md"), k("b.md")]
 
     def test_k_larger_than_rows_returns_all(self, fts_conn):
         _seed_fts(fts_conn, list(VECS.items()))
@@ -135,22 +143,22 @@ class TestSyncVecTable:
         written = VS.sync_vec_table(
             fts_conn,
             DIMS,
-            upsert_rows=[("a.md", json.dumps(new_a))],
-            delete_paths=["c.md"],
+            upsert_rows=[(k("a.md"), json.dumps(new_a))],
+            delete_paths=[k("c.md")],
         )
         assert written == 1
         got = VS.knn_similarities(fts_conn, [0.0, 1.0, 0.0, 0.0], k=5, dims=DIMS)
         assert got is not None
-        assert set(got) == {"a.md", "b.md"}
-        assert got["a.md"] == pytest.approx(1.0, abs=1e-6)  # new vector serves
+        assert set(got) == {k("a.md"), k("b.md")}
+        assert got[k("a.md")] == pytest.approx(1.0, abs=1e-6)  # new vector serves
 
     def test_none_embedding_drops_vec_row(self, fts_conn):
         _seed_fts(fts_conn, list(VECS.items()))
         VS.sync_vec_table(fts_conn, DIMS, full=True)
-        VS.sync_vec_table(fts_conn, DIMS, upsert_rows=[("b.md", None)])
+        VS.sync_vec_table(fts_conn, DIMS, upsert_rows=[(k("b.md"), None)])
         got = VS.knn_similarities(fts_conn, [1.0, 0, 0, 0], k=5, dims=DIMS)
         assert got is not None
-        assert "b.md" not in got
+        assert k("b.md") not in got
 
     def test_malformed_json_skipped_not_raised(self, fts_conn):
         _seed_fts(fts_conn, list(VECS.items()))
@@ -161,7 +169,7 @@ class TestSyncVecTable:
         written = VS.sync_vec_table(fts_conn, DIMS, full=True)
         assert written == 2  # b.md + c.md; a.md skipped
         got = VS.knn_similarities(fts_conn, [1.0, 0, 0, 0], k=5, dims=DIMS)
-        assert got is not None and "a.md" not in got
+        assert got is not None and k("a.md") not in got
 
     def test_wrong_length_vector_not_mirrored(self, fts_conn):
         _seed_fts(fts_conn, [("short.md", [1.0, 2.0])])  # 2 dims, not 4

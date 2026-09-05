@@ -63,6 +63,7 @@ import argparse
 import hashlib
 import json
 import math
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -145,12 +146,36 @@ def _pseudo_embedding(text: str, dims: int, seed: int = 42) -> list[float]:
     return vec
 
 
+_H2_RE = re.compile(r"^##\s", re.M)
+_H_RE = re.compile(r"^#{1,6}\s", re.M)
+
+
+def _overview_body(content: str, cap: int = 1500) -> str:
+    """First ``##`` section body (the Company Overview prose), falling back
+    to the opening ``cap`` chars when the note has no ``##`` section.
+
+    S7 base experiment (embed_full_reembed, 2026-09-06): the overview
+    carries the sector-coherent signal for semantic neighbors — the full
+    note's long tail dilutes it (granite 17/30 vs 13/30 same-sector
+    >=3/5 on the 30-seed probe, matching bge's 17/30). The H1 title and
+    ticker/sector/metadata line before the first ``##`` are skipped:
+    name and sector travel in the base prefix already."""
+    m = _H2_RE.search(content)
+    if m:
+        rest = content[m.end() :]
+        nxt = _H_RE.search(rest)
+        body = rest[: nxt.start()] if nxt else rest
+        return body.strip()[:cap]
+    return content[:cap].strip()
+
+
 def _get_company_text(conn: sqlite3.Connection, company_name: str) -> str:
     """Extract the text content of a company's markdown note for embedding.
 
     Reads the markdown file referenced by the entity's file_path, strips
-    YAML frontmatter, and returns the concatenated title + body text.
-    Falls back to the company name + sector if the file is missing.
+    YAML frontmatter, and returns name + sector + the overview body
+    (see _overview_body). Falls back to the company name + sector if the
+    file is missing.
     """
     r = conn.execute(
         "SELECT file_path, sector_classification FROM entities WHERE name = ?", (company_name,)
@@ -172,7 +197,7 @@ def _get_company_text(conn: sqlite3.Connection, company_name: str) -> str:
                 parts = content.split("---", 2)
                 if len(parts) >= 3:
                     content = parts[2]
-            return f"{company_name}. {sector or ''}. {content[:5000]}"
+            return f"{company_name}. {sector or ''}. {_overview_body(content)}"
         except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
             pass
 
