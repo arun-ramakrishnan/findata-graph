@@ -129,7 +129,7 @@ def _alias_overrides() -> dict[str, str]:
 
 
 def _lookup_alias(lower_key: str) -> str | None:
-    """_ALIASES first, then the runtime alias file (file wins on overlap)."""
+    """_ALIASES wins for its own keys; the runtime alias file covers the rest."""
     return _ALIASES.get(lower_key) or _alias_overrides().get(lower_key)
 
 
@@ -491,6 +491,9 @@ class Unresolved:
     """A pattern match whose target entity couldn't be resolved.
 
     Written to the sidecar `findata/_pending_relations.txt` for human review.
+    `direction` carries the pattern's forward/reverse flag so a later
+    `accept:` triage decision can write the edge in the same orientation the
+    extractor would have (reverse captures make the MENTION the source).
     """
 
     edge_type: str
@@ -498,6 +501,7 @@ class Unresolved:
     target_mention: str
     quote: str
     edition: str
+    direction: str = "forward"
 
 
 # Relation patterns. Each pattern has:
@@ -1764,6 +1768,7 @@ def extract_relations(  # noqa: C901
                             target_mention=target_mention,
                             quote=_extract_quote_around(body, m.start()),
                             edition=edition_title,
+                            direction=direction,
                         )
                     )
                     continue
@@ -2060,7 +2065,9 @@ def write_sidecar(unresolved: list[Unresolved], path: Path = SIDECAR_PATH) -> in
     """Append unresolved matches to the sidecar file for human triage.
 
     Format: one JSON-lines entry per match, with `edge_type`, `source`,
-    `target_mention`, `quote`, `edition`. The file is append-only and
+    `target_mention`, `quote`, `edition`, `direction` ('forward' |
+    'reverse' — the orientation the edge would take once the mention
+    resolves). The file is append-only and
     re-running this script will append duplicates; users are expected to
     clear it before each batch run.
     """

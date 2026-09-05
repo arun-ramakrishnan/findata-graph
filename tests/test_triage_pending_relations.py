@@ -354,6 +354,28 @@ class TestAcceptDecisions:
         # The applied prose row left the sidecar too.
         assert not paths.read_text().strip()
 
+    def test_accept_reverse_direction_swaps_source_target(self, paths, edge_db):
+        # 2026-09-05: sidecar rows carry the pattern's forward/reverse flag.
+        # A reverse capture ("parent company of X") must write X -> section
+        # company — not the inverted edge the bare row shape implied.
+        row = json.loads(_row("subsidiary_of", "Acme Corp", "Dixon Technologies"))
+        row["direction"] = "reverse"
+        paths.write_text(json.dumps(row) + "\n", encoding="utf-8")
+        assert tpr.main([]) == 0  # regenerate decisions skeleton
+        decisions = [json.loads(line) for line in tpr.DECISIONS.read_text().splitlines()]
+        assert decisions[0]["direction"] == "reverse"  # flag surfaces in decisions
+        report = tpr.REPORT.read_text()
+        assert "captured reversed" in report  # eyeball marker for the annotator
+        decisions[0]["decision"] = "accept:subsidiary_of"
+        tpr.DECISIONS.write_text(
+            "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
+        )
+        assert tpr.main(["--apply-decisions"]) == 0
+        rows = self._rows(edge_db)
+        assert [(r[0], r[1], r[2]) for r in rows] == [
+            ("Dixon Technologies", "Acme Corp", "subsidiary_of")
+        ]
+
     def test_accept_rejects_bad_edge_type(self, paths, edge_db):
         tpr.SUGGESTIONS.write_text(
             json.dumps(

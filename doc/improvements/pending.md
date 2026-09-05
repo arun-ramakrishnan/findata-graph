@@ -1,10 +1,16 @@
 # Pending improvements
 
+Full annotated triage map with live-verified trigger status:
+`doc/local/future_items.txt` (2026-09-05). Open items below keep their
+revisit triggers inline; executed work is compressed to records.
+
 - **Re-evaluate HNSW index macros** (deferred N5 item 5). `hnsw_index_scan`,
   `vss_match`, and `pragma_hnsw_index_info` emit empty-signature binder errors
-  on the vss build (re-verified on DuckDB 1.5.5 + Onager 49ad15b). Brute-force
-  VSS works (~3ms @ 1k) so nothing is broken today; revisit via quarterly
-  `make update-extensions` and re-test the macros (graph_design.txt §18.5/§5.4).
+  on the vss build (re-verified on DuckDB 1.5.5 + Onager 49ad15b; extension
+  binaries unchanged since 2026-08-14/09 — nothing new upstream to test).
+  Brute-force VSS works (~3ms @ 1k) so nothing is broken today; revisit via
+  quarterly `make update-extensions` (~Nov 2026) and re-test the macros
+  (graph_design.txt §18.5/§5.4).
 
 - **Wrap `onager_ctr_personalized_pagerank`** (deferred N5 item 6). Onager bug:
   personalisation column ignored, restart node hardcoded to `node_id 1`, and it
@@ -15,7 +21,9 @@
 - **`listed_on_index` membership edge** (deferred N5 item 7). The
   `index_membership` column was dropped 2026-07-28; the edge was never built.
   Requires a re-ingest pass extracting `index_membership:` from company YAML
-  frontmatter before it can be materialised. Deferred by design.
+  frontmatter before it can be materialised. Live 2026-09-05: only 9/1,079
+  company notes carry the key — not worth the pass until coverage grows.
+  Deferred by design.
 
 - **Security Phase 4 (deploy-time; app confirmed NOT deployed 2026-08-17)**
   (private security review under doc/local, untracked;
@@ -26,59 +34,45 @@
   publicly: dev-default `FLASK_HOST=127.0.0.1`; auth/shared-secret in
   front of `POST /api/graph/refresh`; `uv lock`.
 
-- **Technology avenues EXECUTED & ARCHIVED** (archived proposal:
-  `doc/improvements/archive/tooling/tech_avenues.txt`, 2026-08-17→18): every
-  shortlist item done — A1 sqlite-vec KNN (#124; ~7ms accepted; vec0
-  sidecar regression fixed en route #126), B1 JSON-Schema contract
-  (#125), C1 context packs (#127), C2 link-prediction suggestions +
-  A3 parquet analytics (#129; advisory/live-invariants Makefile overhaul
-  same entry), A4 PRAGMA optimize micro-win (#128). Optional leftovers
-  if ever wanted: B2 relation sidecars (C3 temporal analytics since
-  executed standalone — completed.md #150). Dropped:
-  Obsidian-UI (not an active use case). Parked: D MCP server (seam
-  sketch preserved in the archived proposal). Blocked: C4 Kùzu (upstream
-  archived 2025-10-10). Anti-recs on record: LanceDB/third vector store,
-  Turso, pgvector, YAML anchors.
-
-- **C3 temporal analytics — DONE 2026-08-25** (completed.md #150; proposal
-  archived at `archive/tooling/temporal_analytics.md`): `make analytics
-  REPORT=temporal` now exists — four tables (chatter/quarter, per-edition
-  coverage with thin flags, sector staleness p50/p90, D7 events timeline).
-  Known-shape notes: concall-sourced `as_of_edition` values never join
-  editions (by design, #136); 292/349 events undated → `?` bucket.
+- **B2 relation sidecars** — optional tech-avenues leftover
+  (`archive/tooling/tech_avenues.txt` §3): per-relation YAML sidecars with
+  provenance (edge_type, counterparties, as_of, confidence, source permalink).
+  The only unblocked medium item anywhere in the backlog — but the driver is
+  weak while `findata/_pending_relations.txt` stays near-empty (see
+  `doc/local/future_items.txt` §D for the queue run book).
 
 - **OpenViking context-server pilot DEFERRED** (2026-08-20; proposal with
   full fact-check at `doc/local/openviking_pilot_proposal.md`). The gap
-  it targeted — real semantic embeddings — is pursued in-house first:
-  `doc/improvements/archive/database/local_embeddings.md` (local bge-small-en,
-  no new service). Revive only for the context-server differentiators
-  (L0/L1 hierarchy, automatic memory extraction, retrieval traces); the
-  labeled eval set built for the in-house proposal transfers verbatim.
-  Known-if-revived: default embedder is Chinese-tuned with a one-model
-  registry (swap needs `model_path` + explicit `dimension` + full
-  rebuild — upstream issue #1523); `vlm` key is `api_base`; OKF-RFC
-  claim unverified; ZCode already has cross-session memory (agent
-  premise corrected from `opencode-go`).
+  it targeted — real semantic embeddings — closed in-house (#141, bge-small-en).
+  Revive only for the context-server differentiators (L0/L1 hierarchy,
+  automatic memory extraction, retrieval traces); the labeled eval set
+  transfers verbatim. Known-if-revived: default embedder is Chinese-tuned
+  with a one-model registry (swap needs `model_path` + explicit `dimension` +
+  full rebuild — upstream issue #1523); `vlm` key is `api_base`.
 
-- **OKF read-side live propagation — DONE 2026-08-25** (operator-held
-  since 2026-08-19; user confirms both applies run). N1 footnote
-  propagation is verifiable in-tree: 318 notes carry `[^chatter-*]`
-  footnotes (commit 4da573b, 2026-08-20; 314 written + existing hand
-  blocks). N3: first `okf_verify.py` `verified[]` stamps recorded as
-  done by the operator. No further work; entry kept as the record.
+- **P2.2 incremental DuckDB materialization** (archive/graph/graph_pending.txt)
+  — row trigger FIRED 2026-09-05 (17,323 graph_edges > 10k) but the deferred
+  reason (rebuild cost) is not binding: full rebuild measures 3.0 s against
+  vault_scaling's 5 s DuckDB budget. Scale strategy is owned by
+  `archive/graph/vault_scaling.md` (#204); re-evaluate when its T1 fires
+  (~1M doubled rows; currently 34K) or measured rebuild > 5 s.
 
-- **Parallel cold embed — DONE 2026-08-29 (#173; proposal archived to
-  `archive/tooling/parallel_cold_embed.md`)** — measured: cold note_search
-  16m13s → 6m01s (2.70×); cold company ~11–15 min → 4m46s; warm unchanged.
-  Originally filed as `proposals/parallel_cold_embed.md`:
-  The two cold-ingest walls (note_search 16m13s / 1,227 docs; company
-  populate ~11–15 min / 1,068) are batch-1 llama.cpp forwards; measured:
-  threads flat, sequence-packing dead, **4 spawned workers pinned to
-  distinct cores = 3.7×** (unpinned pools collapse 24× — cause recorded,
-  pinning mandatory). Design: `embed_documents_parallel` +
-  `cached_embed_batch` miss path + three caller switches; vectors
-  byte-identical, warm paths untouched. The proposal also carries the
-  deferred-scale record (Mojo escape hatch / GPU / derive-sweep kernel /
-  metric fan-out / yfinance pool / q4_k_m — each with its revisit trigger)
-  so those don't get re-litigated. The "incremental snapshot" item is now
-  CLOSED by #174 (maint-full single snapshot + zstd parquet, 66 s → 32.3 s).
+## Executed — records only (kept for audit; details in completed.md / archive)
+
+- **Technology avenues** — EXECUTED & ARCHIVED 2026-08-17→18
+  (`archive/tooling/tech_avenues.txt`): A1 sqlite-vec KNN #124, B1 JSON-Schema
+  contract #125, C1 context packs #127, C2 link-prediction + A3 parquet
+  analytics #129, A4 PRAGMA-optimize #128. Parked: D MCP server (§5 seam
+  sketch; re-open on operator request). Blocked: C4 Kùzu (upstream archived).
+  Dropped: Obsidian-UI. Anti-recs standing: LanceDB/third vector store,
+  Turso, pgvector, YAML anchors.
+- **C3 temporal analytics** — DONE 2026-08-25 (#150;
+  `archive/tooling/temporal_analytics.md`): `make analytics REPORT=temporal`.
+- **OKF read-side live propagation** — DONE 2026-08-25. N1: 318 notes carry
+  `[^chatter-*]` footnotes (commit 4da573b). N3: first `okf_verify.py`
+  `verified[]` stamps operator-recorded. No further work.
+- **Parallel cold embed** — DONE 2026-08-29 (#173;
+  `archive/tooling/parallel_cold_embed.md`): cold note_search 16m13s → 6m01s
+  (2.70×); company ~11–15 min → 4m46s. Its §7 deferred-at-scale record holds
+  the remaining deferred levers with revisit triggers (all unmet as of
+  2026-09-05). Incremental-snapshot item closed by #174.

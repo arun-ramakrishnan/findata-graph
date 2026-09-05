@@ -9,6 +9,12 @@
 - Plan: incremental_refresh() — LEFT JOIN fin.entities vs v_node for new/deleted/updated vertices (MAX(id)+1), per-e_* diff via edge_type, INSERT/DELETE not DROP. Falls back to full rebuild if delta >10% or schema_version bump. Depends on P0 gen + P1 cache (done).
 - Effort: ~2d
 - Status: DEFERRED — 4k edges, full rebuild OK.
+- Reviewed 2026-09-05: row trigger FIRED (17,323 graph_edges > 10k; 69,292
+  materialized across 17 e_*), but the deferred reason (rebuild cost) is not
+  binding — full materialization measures 3.0 s vs vault_scaling's 5 s DuckDB
+  rebuild budget. Scale strategy owned by archive/graph/vault_scaling.md
+  (#204): re-evaluate incremental refresh when T1 fires (~1M doubled rows;
+  currently 34K) or measured rebuild > 5 s. Do not build before that.
 
 ## P3.2 — Covering indexes (deferred)
 - Current: EXPLAIN already SEARCH via existing indexes; index_report 0 redundant.

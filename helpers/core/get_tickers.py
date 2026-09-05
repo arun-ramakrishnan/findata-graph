@@ -297,7 +297,9 @@ _VSS_DECODE_CACHE_MAX = 8
 def _decoded_vss_table(rows):
     """[(name, vec|None)] with one literal_eval pass per table content."""
     # usedforsecurity=False: content fingerprint for a cache key, not security.
-    digest = hashlib.sha1("|".join((r[1] or "") for r in rows).encode(), usedforsecurity=False).hexdigest()
+    digest = hashlib.sha1(
+        "|".join((r[1] or "") for r in rows).encode(), usedforsecurity=False
+    ).hexdigest()
     hit = _VSS_DECODE_CACHE.get(digest)
     if hit is not None:
         return hit

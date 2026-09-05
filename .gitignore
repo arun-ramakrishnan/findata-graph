@@ -25,6 +25,9 @@ Reports/
 Telegram/
 findata/**/images
 findata/**/*.json
+# Exception: triage alias overrides are pipeline state (loaded by
+# extract_relations at runtime) and must survive fresh clones.
+!findata/relation_aliases.json
 findata/_pending_relations.txt
 
 # AI Config folders

@@ -241,7 +241,7 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
 
     Returns {"suggested": [...], "prose": [...], "unparseable": [...],
     "dupes": n} where each row dict carries id/edge_type/source/
-    target_mention/quote/edition/bucket/detail."""
+    target_mention/quote/edition/direction/bucket/detail."""
     suggested, prose, unparseable = [], [], []
     seen: set[str] = set()
     dupes = 0
@@ -266,6 +266,8 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
             "target_mention": d.get("target_mention", ""),
             "quote": (d.get("quote") or "")[:160],
             "edition": d.get("edition", ""),
+            # Pre-2026-09-05 rows lack the flag; legacy rows are forward.
+            "direction": d.get("direction", "forward"),
         }
         if row["edge_type"] == "suggested":
             suggested.append(row)
@@ -324,7 +326,13 @@ def write_report(triage: dict, names_count: int) -> None:
         for r in rows:
             lines.append(
                 f"- `{r['id']}` **{r['edge_type']}** {r['source']} -> "
-                f"**{r['target_mention']}**" + (f" _({r['detail']})_" if r["detail"] else "")
+                f"**{r['target_mention']}**"
+                + (
+                    " _[captured reversed: the mention is the edge SOURCE]_"
+                    if r.get("direction") == "reverse"
+                    else ""
+                )
+                + (f" _({r['detail']})_" if r["detail"] else "")
             )
             lines.append(f"  > {r['quote']}")
         lines.append("")
@@ -348,6 +356,7 @@ def write_report(triage: dict, names_count: int) -> None:
                         "edge_type": r["edge_type"],
                         "source": r["source"],
                         "target_mention": r["target_mention"],
+                        "direction": r["direction"],
                         "bucket": r["bucket"],
                         "decision": None,
                         "note": None,
@@ -452,8 +461,15 @@ def _parse_accept(d: dict, decision: str, entity_names: set[str]) -> dict | None
         properties["score"] = d["score"]
     if d.get("method"):
         properties["method"] = d["method"]
+    # Direction-aware (2026-09-05): reverse captures ("parent company of X",
+    # "acquired by X", "sources from X") make the MENTION the edge source;
+    # swap so `accept:` writes the edge in the orientation the extractor
+    # would have. Symmetric types canonicalise downstream (no-op there).
+    source, target = d["source"], target
+    if d.get("direction", "forward") == "reverse":
+        source, target = target, source
     return {
-        "source": d["source"],
+        "source": source,
         "target": target,
         "edge_type": edge_type,
         "symmetric": edge_type in _SYMMETRIC_ACCEPT_TYPES,
@@ -507,6 +523,7 @@ def _apply_write(plan: dict) -> None:
                     "target_mention": r["target_mention"],
                     "quote": r["quote"],
                     "edition": r["edition"],
+                    "direction": r.get("direction", "forward"),
                 },
                 ensure_ascii=False,
             )
