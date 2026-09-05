@@ -12,6 +12,7 @@ import os
 import sys
 import argparse
 import ast
+import hashlib
 from datetime import datetime
 from pathlib import Path
 
@@ -266,17 +267,54 @@ def _pick_embedder(rows, embed_fn):
 def _best_vss_match(qvec, rows, dims, entity_set):
     """Scan stored embeddings, return (best_name, best_score) via cosine
     (both vectors L2-normalized, so cosine == dot product)."""
+    table = _decoded_vss_table(rows)
     best_name, best_score = None, 0.0
-    for name, emb_str, _model in rows:
+    for name, vec in table:
         if entity_set is not None and name not in entity_set:
             continue
-        vec = _candidate_vec(emb_str, dims)
-        if vec is None:
+        if vec is None or len(vec) != dims:
             continue
         dot = sum(a * b for a, b in zip(qvec, vec))
         if dot > best_score:
             best_score, best_name = dot, name
     return best_name, best_score
+
+
+# derive_insights_perf Slice 2 (2026-09-05): the company_embeddings table
+# is re-decoded from its stored strings on EVERY vss_match call (one call
+# per ticker query per run — literal_eval dominates the scan at ~83ms per
+# 1500×384 vs 0.04ms for the dots). Decode once per table CONTENT and
+# share across calls. Key is a sha1 over the raw embedding strings (not
+# COUNT/rowid — those miss in-place rewrites, and tests reuse table
+# shapes), so any mutation is a different key by construction. Dims
+# filtering stays at scan time (identical skip semantics to the old
+# per-row _candidate_vec). Bounded (evict-oldest) so long newsletter runs
+# with rotating conns can't grow it.
+_VSS_DECODE_CACHE: dict[str, list] = {}
+_VSS_DECODE_CACHE_MAX = 8
+
+
+def _decoded_vss_table(rows):
+    """[(name, vec|None)] with one literal_eval pass per table content."""
+    # usedforsecurity=False: content fingerprint for a cache key, not security.
+    digest = hashlib.sha1("|".join((r[1] or "") for r in rows).encode(), usedforsecurity=False).hexdigest()
+    hit = _VSS_DECODE_CACHE.get(digest)
+    if hit is not None:
+        return hit
+    table = [(r[0], _raw_vec(r[1])) for r in rows]
+    _VSS_DECODE_CACHE[digest] = table
+    while len(_VSS_DECODE_CACHE) > _VSS_DECODE_CACHE_MAX:
+        _VSS_DECODE_CACHE.pop(next(iter(_VSS_DECODE_CACHE)))
+    return table
+
+
+def _raw_vec(emb_str):
+    """Parse a stored embedding string; None if unparsable (no dims check —
+    the caller filters by dims, matching _candidate_vec skip semantics)."""
+    try:
+        return ast.literal_eval(emb_str)
+    except ValueError, SyntaxError, TypeError:
+        return None
 
 
 def vss_match(

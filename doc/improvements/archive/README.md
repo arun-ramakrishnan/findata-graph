@@ -17,6 +17,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`pending_relations_triage.md`](graph/pending_relations_triage.md) — Proposal: Pending-relations triage (`triage_pending_relations`) — enclose the recurring queue workflow — completed.md #155
 - [`suggested_relations_accept.md`](graph/suggested_relations_accept.md) — Proposal: Accept path for pending relations — `accept:<edge_type>[:<target>]` writes suggested + known-target rows to graph_edges — completed.md #169
 - [`vault_scaling.md`](graph/vault_scaling.md) — Proposal: Vault scaling to 100M doubled rows — tiered trigger ladder (T1 CSR / T2 rebuild+Mojo BFS / T3 validation), Phase A corpus, Phase C similarity; Phase 0 executed (tier tripwire advisory + in-repo BFS scale ladder), Phases A–C trigger-gated with the tripwire watching — completed.md #204
+- [`derive_insights_perf.md`](graph/derive_insights_perf.md) — Proposal: derive_insights regex hoisting + get_tickers decode-once company_embeddings (numba evaluated and rejected) — both slices executed — completed.md #208
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 
@@ -85,8 +86,8 @@ commit, referenced by nothing). Entry numbers point at
 - [`utc_now_unification.md`](tooling/utc_now_unification.md) — utc_now unification — scope disposition closing the #196 W8 deferred item (adopt `db.utc_now()` at the two write-only DB audit stamps + backfill; pin every other timestamp producer as a documented deviation) — completed.md #199
 - [`consolidate_helpers_shared_helpers.md`](tooling/consolidate_helpers_shared_helpers.md) — Proposal: helpers/ de-dup — `env.REPO_ROOT` + `db.connect` adoption, `utc_today_iso`, fold `_compute_root`/`_connect_ro`/`_now_utc` — completed.md #201
 - [`consolidate_mojo_bench_common.md`](tooling/consolidate_mojo_bench_common.md) — Proposal: Mojo bench/common kernels consolidation — cosine SIMD, f32 loader, bridge helpers (+`_venv_env` libpython PATH fix) — completed.md #202
-- [`archify_diagram_pipeline.md`](tooling/archify_diagram_pipeline.md) — Proposal: Archify diagram pipeline — evidence-marked diagrams as per-section companions (7 landed: topology, ingest, maint-full, embeddings, relations, derive chain, snapshot lifecycle), origin/main SRC pins, census-gated selection, viewport caveat on the lifecycle — completed.md #207
 - [`maint_runtime_hardening.md`](tooling/maint_runtime_hardening.md) — maint runtime hardening — sys.executable spawns (17 sites), derive-cited-in + okf-backfill sources[] converger into PRE_FULL (14-step maint-full, machine-owned-provenance carve-out), pdf_conv_md title from pdfinfo, merged_sources/note_title converger semantics — completed.md #206
+- [`archify_diagram_pipeline.md`](tooling/archify_diagram_pipeline.md) — Proposal: Archify diagram pipeline — evidence-marked diagrams as per-section companions (7 landed: topology, ingest, maint-full, embeddings, relations, derive chain, snapshot lifecycle), origin/main SRC pins, census-gated selection, viewport caveat on the lifecycle — completed.md #207
 
 ## ui/ — Frontend & templates — reader, paper register, findata views
 

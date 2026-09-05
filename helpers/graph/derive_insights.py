@@ -326,6 +326,26 @@ _WS_CANON_RE = re.compile(r"\s+")
 _SUFFIX2_RE = re.compile(r"\s+(Limited|Ltd\.?|Private|Pvt\.?)$", re.I)
 # H1 title extraction in _edition_title (was inline re.match per newsletter).
 _H1_TITLE_RE = re.compile(r"^#\s+(.+?)\s*$", re.MULTILINE)
+# derive_insights_perf proposal (2026-09-05): hoisted per-file compiles
+# (were inline string patterns / re.compile per file — ~6500 _compile
+# calls per stale-only run). Semantics unchanged: compiled patterns
+# behave identically to the string forms in re module functions.
+_NUM_RE = re.compile(r"[\d,]+(?:\.\d+)?")
+_INSERT_HEADING_RE = re.compile(
+    r"^## (The Chatter|Key Insights|Management Insights|Newsletter synthesis)",
+    re.MULTILINE,
+)
+_AUTO_BLOCK_RE = re.compile(re.escape(_BEGIN) + r".*?" + re.escape(_END) + r"\n?", re.DOTALL)
+# _kf_insertion_point heading priority: loop order is semantic (Financial
+# first even if Company Overview sorts earlier), so keep the tuple order —
+# just precompiled.
+_KF_SECTION_RES = (
+    re.compile(r"^## Financial", re.MULTILINE),
+    re.compile(r"^## Key Metrics", re.MULTILINE),
+    re.compile(r"^## Company Overview", re.MULTILINE),
+)
+_H2_RE = re.compile(r"^## ", re.MULTILINE)
+_CHATTER_H2_RE = re.compile(r"^## The Chatter", re.MULTILINE)
 
 
 @dataclass
@@ -781,7 +801,7 @@ def _classify_metric(sentence: str, value_raw: str, figure_pos: int) -> str | No
 
 def _parse_value_num(value_raw: str, unit: str | None) -> float | None:
     """Extract a comparable numeric from a magnitude string (range lower bound)."""
-    nums = re.findall(r"[\d,]+(?:\.\d+)?", value_raw.replace("–", "-"))
+    nums = _NUM_RE.findall(value_raw.replace("–", "-"))
     if not nums:
         return None
     try:
@@ -1191,11 +1211,7 @@ def _find_insertion_point(text: str) -> int:
     The position is bumped OUT of any auto region — a heading match inside
     a sibling region must not split it.
     """
-    m = re.search(
-        r"^## (The Chatter|Key Insights|Management Insights|Newsletter synthesis)",
-        text,
-        re.MULTILINE,
-    )
+    m = _INSERT_HEADING_RE.search(text)
     if m:
         return _outside_auto_regions(text, m.start())
     return len(text)
@@ -1208,8 +1224,7 @@ def _existing_hand_block_for_edition(text: str, edition: str) -> bool:
     we skip the auto block entirely (never clobber human work).
     """
     # Strip sentinel-wrapped auto blocks first, then look for the heading.
-    auto_pattern = re.compile(re.escape(_BEGIN) + r".*?" + re.escape(_END) + r"\n?", re.DOTALL)
-    stripped = auto_pattern.sub("", text)
+    stripped = _AUTO_BLOCK_RE.sub("", text)
     m = _CHATTER_HEADING_RE.search(stripped)
     if not m:
         return False
@@ -1231,7 +1246,7 @@ def _replace_or_insert_block(text: str, edition: str, new_block: str) -> tuple[s
         return (text, False)
     # Replace any existing sentinel-wrapped block whose heading matches this
     # edition (refresh on re-run). The DOTALL match spans the whole block.
-    pattern = re.compile(re.escape(_BEGIN) + r".*?" + re.escape(_END) + r"\n?", re.DOTALL)
+    pattern = _AUTO_BLOCK_RE
 
     # If there's exactly one auto block, replace it only if it's for a
     # DIFFERENT edition (we'd otherwise stack duplicates). Simplest correct
@@ -1552,13 +1567,13 @@ def _kf_insertion_point(text: str) -> int:
     original cause of the KF-nested-inside-chatter layouts (inserting
     "before the first ## The Chatter" landed inside the chatter region,
     between its BEGIN and its heading)."""
-    for heading in (r"^## Financial", r"^## Key Metrics", r"^## Company Overview"):
-        m = re.search(heading, text, re.MULTILINE)
+    for rx in _KF_SECTION_RES:
+        m = rx.search(text)
         if m:
             # Insert right AFTER this heading's section — find the next heading.
-            nxt = re.search(r"^## ", text[m.end() :], re.MULTILINE)
+            nxt = _H2_RE.search(text[m.end() :])
             return _outside_auto_regions(text, m.end() + (nxt.start() if nxt else 0))
-    m = re.search(r"^## The Chatter", text, re.MULTILINE)
+    m = _CHATTER_H2_RE.search(text)
     if m:
         return _outside_auto_regions(text, m.start())
     return len(text)
