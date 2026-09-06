@@ -28,14 +28,17 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+- [quote_capture_coverage.md](quote_capture_coverage.md) — close every
+  markdown-to-notes quote drop (funnel audit 2026-09-07: 34% captured;
+  bracket-marker skip-list bug, resolver drops, sector pool, catch-all
+  Quotes note; 99% coverage target). Filed 2026-09-07.
 
 _(Previously: get_ticker_fixes.md, archived as completed.md #212 on
 2026-09-07 — execution record in
 `../archive/graph/get_ticker_fixes.md`.)
 
-_(Previously: scan_render_vss_microperf.md, archived as completed.md
-#211 on 2026-09-07 — execution record in
+_(Previously: scan_render_vss_microperf.md, archived as completed.md #211
+on 2026-09-07 — execution record in
 `../archive/graph/scan_render_vss_microperf.md`.)
 
 _(Previously: embed_full_reembed.md, archived as completed.md #210 on

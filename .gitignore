@@ -28,6 +28,15 @@ findata/**/*.json
 # Exception: triage alias overrides are pipeline state (loaded by
 # extract_relations at runtime) and must survive fresh clones.
 !findata/relation_aliases.json
+# Exception: quote-capture watchlist is the S0 tripwire lifecycle state
+# (quote_coverage_audit.py) — gitignored triage state is lost on fresh
+# clones (proposal S2/S0 amendment doctrine).
+!findata/quote_coverage_watchlist.json
+# Exception: S2 resolver worklist (unresolved canonicals + fuzzy
+# suggestions) and user-approved quote aliases (read by
+# derive_insights._resolve_ladder) — same survive-fresh-clones doctrine.
+!findata/quote_entity_worklist.json
+!findata/quote_aliases.json
 findata/_pending_relations.txt
 
 # AI Config folders

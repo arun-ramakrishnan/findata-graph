@@ -2205,3 +2205,237 @@ class TestSharedFrontmatterParse:
             assert di._splice_sources(text, index, vault, fm=fm) == di._splice_sources(
                 text, index, vault
             )
+
+
+class TestS1HeadingFamily:
+    """S1 (quote_capture_coverage): marker/speaker/prose family rules.
+
+    Predicates are the single source of truth shared by
+    iter_company_sections, extract_quotes, and the S0 audit.
+    """
+
+    # ---- predicate unit tests (trial-validated shapes) -------------------
+    def test_marker_bracket_family(self):
+        for h in ("[Transcript]", "[Concall]", "[Presentation]", "[Reference]",
+                  "[Interview]", "[Recording]", "[Call recording]",
+                  "[Exchange Filing]", "[Coverage]", "[Earnings Call]",
+                  "[Presenstation]", "[Transcript \& Interview]",
+                  "[earnings call]"):
+            assert di._is_marker_heading(h), h
+
+    def test_marker_bare_words(self):
+        for h in ("Concall", ".Concall", "Recording", "Interview",
+                  "Transcript", "Earnings call", "Interview]"):
+            assert di._is_marker_heading(h), h
+
+    def test_marker_rejects_sector_and_company(self):
+        for h in ("FMCG", "Software Services", "Acme Ltd | Large Cap | Software",
+                  "Transcripts of the meeting", "Recording artist revenue"):
+            assert not di._is_marker_heading(h), h
+
+    def test_speaker_heading_shapes(self):
+        for h in ("Philipp Schindler, SVP and CBO, Google",
+                  "Mary Abraham, General Manager of The New India Assurance",
+                  "Manabu Chikumoto, President & CEO",
+                  "Matthew Prince, Chief Executive Officer",
+                  "P. Ramakrishnan, Chief Financial Officer",
+                  "Dr. Sharvil Patel, Managing Director"):
+            assert di._is_speaker_heading(h), h
+
+    def test_speaker_rejects_no_role_tail_and_pipes(self):
+        # F8 trial: no-role-tail shapes must stay structural (they are
+        # pipe-artifact company headings); pipe headings never reach the rule.
+        for h in ("Virgin Galactic Holdings, Inc. I International",
+                  "Short Range Outlook, Oct'24:",
+                  "Product Lines, Target Markets & Applications",
+                  "Anya Polytech & Fertilizers | Nano Cap | Fertilizers"):
+            assert not di._is_speaker_heading(h), h
+
+    def test_prose_heading_shapes(self):
+        for h in ("On European Revival Despite Weak Earnings",
+                  "Despite Industry Pressures, Sagility Continues to Execute",
+                  "the UK and UAE.",
+                  "Introducing the new lineup"):
+            assert di._is_prose_heading(h), h
+
+    def test_prose_rejects_noun_led_sector(self):
+        # Figma-style descriptor headings stay STRUCTURAL (S2's problem).
+        for h in ("Design & Product Development Platform", "FMCG",
+                  "Engineering & Capital Goods", "Retail"):
+            assert not di._is_prose_heading(h), h
+
+    # ---- section extension: markers/speakers/prose stop being boundaries --
+    NOTE = (
+        "# The Chatter: Test\n"
+        "\n"
+        "## Software\n"
+        "blurb\n"
+        "\n"
+        "## Acme Ltd | Large Cap | Software\n"
+        "descriptor\n"
+        "## [Transcript]\n"
+        "\"Transcript quote one is definitely long enough to count here.\"\n"
+        "## Jane Smith, Chief Financial Officer\n"
+        "\"Speaker-region quote definitely long enough to count as one.\"\n"
+        "## On European Revival Despite Weak Earnings\n"
+        "\"Prose-region quote definitely long enough to count as one.\"\n"
+        "## Concall\n"
+        "\"Bare-marker quote definitely long enough to count as one.\"\n"
+        "## Zenith Chemicals | Mid Cap | Chemicals\n"
+        "\"Zenith quote definitely long enough to count as one here.\"\n"
+    )
+
+    def test_sections_extend_through_family(self):
+        sections = list(di.iter_company_sections(self.NOTE))
+        # Exactly two company sections; Acme's body runs THROUGH the
+        # transcript/speaker/prose/bare-marker headings up to Zenith.
+        assert [s.canonical_name for s in sections] == ["Acme", "Zenith Chemicals"]
+        acme = sections[0]
+        assert "[Transcript]" in acme.body
+        assert "Jane Smith" in acme.body
+        assert "On European Revival" in acme.body
+        assert "## Concall" in acme.body
+        assert "Zenith" not in acme.body
+
+    def test_extract_quotes_cuts_at_first_marker(self):
+        sections = list(di.iter_company_sections(self.NOTE))
+        quotes = di.extract_quotes(sections[0], "ed", "stem")
+        assert len(quotes) == 4  # transcript, speaker, prose, bare-marker
+        # Paraphrase cut: the first quote's paraphrase must NOT contain the
+        # pre-marker descriptor (first-marker-wins cut).
+        assert all("descriptor" not in (q.paraphrase or "") for q in quotes)
+
+    def test_extract_quotes_legacy_concall_cut_unchanged(self):
+        note = (
+            "## Marico Ltd | Large Cap | FMCG\n"
+            "descriptor text\n"
+            "## [Concall]\n"
+            "\"The concall quote that is definitely long enough to count.\"\n"
+            "- Saugata Gupta, MD & CEO\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        quotes = di.extract_quotes(sections[0], "ed", "stem")
+        assert len(quotes) == 1
+        assert quotes[0].paraphrase is None  # cut at the marker
+
+    # ---- edition-pinned tripwires (real corpus, archify-lesson pattern) ---
+    def test_tripwire_nvidia_newest_format(self):
+        p = PROJECT_ROOT / "findata/The_Chatter/Nvidia_Samsung_Cloudflare.md"
+        if not p.exists():
+            pytest.skip("corpus file not present")
+        sections = list(di.iter_company_sections(p.read_text(encoding="utf-8", errors="replace")))
+        # Trial-validated: 9 company sections, all transcript bodies absorbed.
+        assert len(sections) == 9
+        cloudflare = next(s for s in sections if s.canonical_name.startswith("Cloudflare"))
+        assert "[Transcript]" in cloudflare.body
+        assert "Matthew Prince" in cloudflare.body
+        assert len(cloudflare.body.splitlines()) > 100
+
+    def test_tripwire_on_record_bare_markers(self):
+        p = PROJECT_ROOT / "findata/The_Chatter/On_Record.md"
+        if not p.exists():
+            pytest.skip("corpus file not present")
+        sections = list(di.iter_company_sections(p.read_text(encoding="utf-8", errors="replace")))
+        # Bare-marker edition: sections must now extend through ## Concall /
+        # ## Recording bodies (pre-S1 this edition yielded stub sections).
+        assert len(sections) >= 10
+        assert any("Concall" in s.body for s in sections)
+
+
+class TestS3WalkerTolerance:
+    """S3 (quote_capture_coverage): walker tolerance — bullet/blockquote
+    strips, sub-40-with-attribution, attribution-anchored splice close.
+    New shape tests landed BEFORE the walker change (proposal doctrine);
+    the 180-test suite + per-note count guard is the regression gate."""
+
+    def test_bullet_prefixed_quote_captured(self):
+        note = (
+            "## Acme Ltd | Large Cap | FMCG\n"
+            "- \"A bullet-prefixed quote line that is long enough to open.\"\n"
+            "- Jane Smith, Chief Financial Officer\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        quotes = di.extract_quotes(sections[0], "ed", "stem")
+        assert len(quotes) == 1
+        assert quotes[0].quote_text.startswith("A bullet-prefixed")
+        assert quotes[0].speaker_name == "Jane Smith"
+
+    def test_blockquote_prefixed_quote_captured(self):
+        note = (
+            "## Acme Ltd | Large Cap | FMCG\n"
+            "> \"A blockquote-prefixed quote line long enough to open.\"\n"
+            "— Jane Smith, CFO\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        quotes = di.extract_quotes(sections[0], "ed", "stem")
+        assert len(quotes) == 1
+
+    def test_paraphrase_accumulator_stripped(self):
+        note = (
+            "## Acme Ltd | Large Cap | FMCG\n"
+            "- Management flagged margin expansion across divisions.\n"
+            "\"A quote following a bullet paraphrase is long enough here.\"\n"
+            "- Jane Smith, CFO\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        quotes = di.extract_quotes(sections[0], "ed", "stem")
+        assert len(quotes) == 1
+        assert quotes[0].paraphrase is not None
+        # S3: the bullet marker is stripped from accumulated paraphrase.
+        assert "Management flagged margin expansion across divisions." in quotes[0].paraphrase
+        assert not quotes[0].paraphrase.startswith("-")
+
+    def test_splice_close_at_attribution_line(self):
+        # The Cloudflare merged-quote case: a lost mid-line closer made the
+        # walker swallow the NEXT quote. The attribution line must terminate
+        # the run and the next opening must start its own quote.
+        note = (
+            "## Cloudflare, Inc. | Mid Cap | Software\n"
+            "\"One is microtransactions for requests agents make and here\n"
+            "is more accumulated text that keeps going and going on.\"\n"
+            "- Matthew Prince, Chief Executive Officer\n"
+            "\"Unlike hyperscalers we can run inference much cheaper.\"\n"
+            "- Matthew Prince, Chief Executive Officer\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        quotes = di.extract_quotes(sections[0], "ed", "stem")
+        assert len(quotes) == 2
+        assert all(q.speaker_name == "Matthew Prince" for q in quotes)
+        # The first quote must NOT contain the swallowed second opening.
+        assert "Unlike hyperscalers" not in quotes[0].quote_text
+
+    def test_mid_line_close_with_remainder_attribution(self):
+        note = (
+            "## Samsung Electronics | Mega Cap | Electronics\n"
+            "\"Our blended ASP rose by a low-90% range QoQ for DRAM chips.\" Jaejune Kim, EVP\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        quotes = di.extract_quotes(sections[0], "ed", "stem")
+        assert len(quotes) == 1
+        assert quotes[0].speaker_name == "Jaejune Kim"
+
+    def test_sub40_admitted_only_with_attribution(self):
+        base = "## Acme Ltd | Large Cap | FMCG\n"
+        with_attr = base + "\"Quarterly revenue grew nicely.\"\nJane Smith, CFO\n"
+        sections = list(di.iter_company_sections(with_attr))
+        assert len(di.extract_quotes(sections[0], "ed", "stem")) == 1
+        without = base + "\"Quarterly revenue grew nicely.\"\nplain prose line here\n"
+        sections2 = list(di.iter_company_sections(without))
+        assert len(di.extract_quotes(sections2[0], "ed", "stem")) == 0
+
+    def test_legacy_guards_unchanged(self):
+        # Quoted-inner-terms lines and sub-30 no-attr quotes keep legacy shape.
+        note = (
+            "## Acme Ltd | Large Cap | FMCG\n"
+            "\"He called it \"the platform\" and moved on to describe the roadmap.\"\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        quotes = di.extract_quotes(sections[0], "ed", "stem")
+        assert len(quotes) == 1  # single line, unchanged
+        note2 = (
+            "## Acme Ltd | Large Cap | FMCG\n"
+            "\"Tiny.\"\n"
+            "plain prose\n"
+        )
+        sections2 = list(di.iter_company_sections(note2))
+        assert len(di.extract_quotes(sections2[0], "ed", "stem")) == 0

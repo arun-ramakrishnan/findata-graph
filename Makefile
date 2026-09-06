@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -261,6 +261,9 @@ derive-events: ## Promote relation edges + extract guidance/management events in
 # maint-full runs derive_insights with --apply --no-notes (DB-only) so
 # housekeeping never mutates notes.
 derive-insights: ## DRY-RUN stale-only preview of quotes/company_metrics + auto `## The Chatter` blocks (writes nothing; apply yourself — see comment above)
+
+quote-coverage:  ## S0 quote capture coverage audit (advisory, read-only; per-note 95% tripwire + watchlist + salvage measurement)
+> .venv/bin/python3 helpers/validators/quote_coverage_audit.py $$(QUOTECOV_ARGS)
 > python3 helpers/graph/derive_insights.py findata --stale-only
 > @echo "✓ dry-run only (nothing written) — apply: python3 helpers/graph/derive_insights.py findata --apply --stale-only"
 

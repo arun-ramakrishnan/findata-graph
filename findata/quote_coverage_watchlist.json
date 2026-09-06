@@ -1,0 +1,1140 @@
+{
+ "entries": {
+  "Points_And_Figures/Roots_in_the_results": {
+   "buckets": {
+    "G4_sector": 1
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 1,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "Points_And_Figures/Weight_in_the_Whispers": {
+   "buckets": {
+    "G4_sector": 1
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 1,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "Points_And_Figures/What_margins_reveal": {
+   "buckets": {
+    "G4_sector": 1
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 1,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "Points_And_Figures/Where_Data_meets_Direction": {
+   "buckets": {
+    "G4_sector": 1
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 1,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/A_Quarter_That_Refuses_To_Behave": {
+   "buckets": {
+    "G2": 32
+   },
+   "closed_by": null,
+   "coverage": 0.6322,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 87,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/A_Strange_Quarter_With_Very_Real_Cracks": {
+   "buckets": {
+    "G3": 8
+   },
+   "closed_by": "recovered (coverage 98%)",
+   "coverage": 0.9487,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 156,
+   "runs_seen": 7,
+   "status": "closed"
+  },
+  "The_Chatter/Anchor_and_Ambitions": {
+   "buckets": {
+    "G2": 13
+   },
+   "closed_by": null,
+   "coverage": 0.8898,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 118,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Asian_Paints_NMDC_IndiGo": {
+   "buckets": {
+    "G3": 3,
+    "G4_sector": 40
+   },
+   "closed_by": "recovered (coverage 97%)",
+   "coverage": 0.9741,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 193,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/BEL_HUL_Tata_Capital": {
+   "buckets": {
+    "G4_sector": 21
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 70,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Bajaj_Mahindra_Persistent": {
+   "buckets": {
+    "G2": 17,
+    "G3": 1
+   },
+   "closed_by": null,
+   "coverage": 0.8218,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 101,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Bets and blueprints": {
+   "buckets": {
+    "G2": 24
+   },
+   "closed_by": null,
+   "coverage": 0.8703,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 185,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Between_Headwinds_and_Tailwinds": {
+   "buckets": {
+    "G2": 12
+   },
+   "closed_by": null,
+   "coverage": 0.8154,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 65,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Between_Seasons": {
+   "buckets": {
+    "G2": 5,
+    "G3": 1
+   },
+   "closed_by": null,
+   "coverage": 0.9388,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 98,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Between_the_Numbers": {
+   "buckets": {
+    "G2": 3,
+    "G3": 2
+   },
+   "closed_by": null,
+   "coverage": 0.9324,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 74,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Borosil_Orchid_Welspun": {
+   "buckets": {
+    "G3": 2,
+    "G5": 1
+   },
+   "closed_by": "recovered (coverage 98%)",
+   "coverage": 0.9434,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 53,
+   "runs_seen": 7,
+   "status": "closed"
+  },
+  "The_Chatter/Bosch_Amara_Zydus": {
+   "buckets": {
+    "G2": 14
+   },
+   "closed_by": null,
+   "coverage": 0.7358,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 53,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Bottlenecks__Breakouts": {
+   "buckets": {
+    "G4_sector": 12
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 117,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Closing_the_Year_Without_Closure": {
+   "buckets": {
+    "G2": 39
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 0.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 39,
+   "runs_seen": 5,
+   "status": "closed"
+  },
+  "The_Chatter/Contours_of_Change": {
+   "buckets": {
+    "G2": 10,
+    "G3": 1
+   },
+   "closed_by": null,
+   "coverage": 0.8981,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 108,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Decoding_Capex_Capacity_and_Consumer_Trends": {
+   "buckets": {
+    "G2": 24,
+    "G3": 2
+   },
+   "closed_by": null,
+   "coverage": 0.7759,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 116,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Decoding_the_Dialogue": {
+   "buckets": {
+    "G2": 20,
+    "G3": 1
+   },
+   "closed_by": null,
+   "coverage": 0.7162,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 74,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Discovering_Hidden_Signals": {
+   "buckets": {
+    "G2": 38,
+    "G3": 3
+   },
+   "closed_by": null,
+   "coverage": 0.6496,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 117,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Dixon_Motherson_Biocon": {
+   "buckets": {
+    "G4_sector": 8
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 47,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Doubling_Down": {
+   "buckets": {
+    "G2": 114,
+    "G4_sector": 6
+   },
+   "closed_by": "recovered (coverage 95%)",
+   "coverage": 0.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 120,
+   "runs_seen": 5,
+   "status": "closed"
+  },
+  "The_Chatter/Echoes_from_the_Boardroom": {
+   "buckets": {
+    "G2": 22,
+    "G3": 1
+   },
+   "closed_by": null,
+   "coverage": 0.6849,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 73,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Embracing_the_Unknown": {
+   "buckets": {
+    "G2": 49,
+    "G3": 2
+   },
+   "closed_by": null,
+   "coverage": 0.5785,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 121,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Frameworks_&_Forecasts": {
+   "buckets": {
+    "G2": 13,
+    "G3": 1
+   },
+   "closed_by": null,
+   "coverage": 0.8511,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 94,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/HDFC_Groww_Havells": {
+   "buckets": {
+    "G2": 9,
+    "G4_sector": 1
+   },
+   "closed_by": null,
+   "coverage": 0.9145,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 117,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Half_a_century_in": {
+   "buckets": {
+    "G4_sector": 5
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 93,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Havells_Ambuja_Cipla": {
+   "buckets": {
+    "G2": 21
+   },
+   "closed_by": null,
+   "coverage": 0.7941,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 102,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/IDFC_Tata_Consumer": {
+   "buckets": {
+    "G3": 3
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 0.9302,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 43,
+   "runs_seen": 7,
+   "status": "closed"
+  },
+  "The_Chatter/In_the_Middle_of_Things": {
+   "buckets": {
+    "G2": 32
+   },
+   "closed_by": null,
+   "coverage": 0.6768,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 99,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Indian_Oil_Muthoot_Maruti": {
+   "buckets": {
+    "G3": 1,
+    "G4_sector": 24
+   },
+   "closed_by": "recovered (coverage 99%)",
+   "coverage": 0.9865,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 74,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Inflection_Watch": {
+   "buckets": {
+    "G2": 5
+   },
+   "closed_by": null,
+   "coverage": 0.9333,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 75,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Infosys_Adani_Power": {
+   "buckets": {
+    "G2": 103
+   },
+   "closed_by": "recovered (coverage 95%)",
+   "coverage": 0.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 103,
+   "runs_seen": 4,
+   "status": "closed"
+  },
+  "The_Chatter/Infosys_Adani_Tata_Motors": {
+   "buckets": {
+    "G2": 4,
+    "G3": 1
+   },
+   "closed_by": "recovered (coverage 96%)",
+   "coverage": 0.9462,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 93,
+   "runs_seen": 7,
+   "status": "closed"
+  },
+  "The_Chatter/Jio_Financial_Wipro_Polycab": {
+   "buckets": {
+    "G3": 2,
+    "G4_sector": 7
+   },
+   "closed_by": "recovered (coverage 97%)",
+   "coverage": 0.9747,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 79,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Known_Unknowns": {
+   "buckets": {
+    "G2": 142
+   },
+   "closed_by": "recovered (coverage 99%)",
+   "coverage": 0.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 142,
+   "runs_seen": 5,
+   "status": "closed"
+  },
+  "The_Chatter/LTM_HCL_ICICI_Prudential": {
+   "buckets": {
+    "G4_sector": 7
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 72,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Making_It_Work": {
+   "buckets": {
+    "G2": 64,
+    "G3": 3
+   },
+   "closed_by": null,
+   "coverage": 0.518,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 139,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Management_in_Motion": {
+   "buckets": {
+    "G2": 19,
+    "G3": 1
+   },
+   "closed_by": null,
+   "coverage": 0.7959,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 98,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Marico_DLF_BSE": {
+   "buckets": {
+    "G3": 4
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 0.9149,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 47,
+   "runs_seen": 7,
+   "status": "closed"
+  },
+  "The_Chatter/Max_Life_Tempsens_TCS": {
+   "buckets": {
+    "G2": 9,
+    "G3": 2
+   },
+   "closed_by": null,
+   "coverage": 0.7843,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 51,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Meesho_Marico_Bajaj": {
+   "buckets": {
+    "G4_sector": 8
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 129,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Micron_SpaceX_Palantir": {
+   "buckets": {
+    "G2": 34
+   },
+   "closed_by": null,
+   "coverage": 0.5342,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 73,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Milky_Mist_Bluestone": {
+   "buckets": {
+    "G2": 13
+   },
+   "closed_by": null,
+   "coverage": 0.7451,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 51,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Moves_and_Motives": {
+   "buckets": {
+    "G2": 3,
+    "G4_sector": 2
+   },
+   "closed_by": "recovered (coverage 97%)",
+   "coverage": 0.967,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 91,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Moving_Pieces": {
+   "buckets": {
+    "G2": 41,
+    "G3": 1,
+    "G4_sector": 1
+   },
+   "closed_by": null,
+   "coverage": 0.4691,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 81,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Nvidia_Samsung_Cloudflare": {
+   "buckets": {
+    "G3": 6,
+    "G4_sector": 45
+   },
+   "closed_by": "recovered (coverage 96%)",
+   "coverage": 0.9593,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 221,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/ONGC_Divis_LG": {
+   "buckets": {
+    "G2": 10,
+    "G3": 2
+   },
+   "closed_by": null,
+   "coverage": 0.8776,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 98,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/On_Record": {
+   "buckets": {
+    "G2": 31,
+    "G4_sector": 1
+   },
+   "closed_by": null,
+   "coverage": 0.6923,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 104,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Patience_and_payoff": {
+   "buckets": {
+    "G3": 7,
+    "G4_sector": 4
+   },
+   "closed_by": "recovered (coverage 95%)",
+   "coverage": 0.922,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 141,
+   "runs_seen": 7,
+   "status": "closed"
+  },
+  "The_Chatter/Playing_the_Long_Game": {
+   "buckets": {
+    "G3": 1,
+    "G4_sector": 7
+   },
+   "closed_by": "recovered (coverage 98%)",
+   "coverage": 0.9841,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 63,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Pressure_Points": {
+   "buckets": {
+    "G2": 16
+   },
+   "closed_by": null,
+   "coverage": 0.7612,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 67,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/RBI_3M_Blue_Star_KFin": {
+   "buckets": {
+    "G2": 2,
+    "G4_sector": 8
+   },
+   "closed_by": "recovered (coverage 96%)",
+   "coverage": 0.9608,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 51,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/RBI_Canara_Bank_IRCTC": {
+   "buckets": {
+    "G3": 2,
+    "G4_sector": 1
+   },
+   "closed_by": null,
+   "coverage": 0.9388,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 49,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/RBI_Tata_Steel": {
+   "buckets": {
+    "G3": 2,
+    "G4_sector": 10
+   },
+   "closed_by": "recovered (coverage 95%)",
+   "coverage": 0.95,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 40,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Reading_the_terrain": {
+   "buckets": {
+    "G3": 1,
+    "G4_sector": 11
+   },
+   "closed_by": "recovered (coverage 99%)",
+   "coverage": 0.9929,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 141,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Reliance_Axis_Bank_UltraTech": {
+   "buckets": {
+    "G3": 8
+   },
+   "closed_by": "recovered (coverage 99%)",
+   "coverage": 0.92,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 100,
+   "runs_seen": 7,
+   "status": "closed"
+  },
+  "The_Chatter/Reliance_Infosys_VBL": {
+   "buckets": {
+    "G2": 18
+   },
+   "closed_by": null,
+   "coverage": 0.8022,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 91,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Reliance_PayTM_Nykaa": {
+   "buckets": {
+    "G2": 19,
+    "G3": 2,
+    "G4_sector": 1
+   },
+   "closed_by": null,
+   "coverage": 0.812,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 117,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Reliance_Vedanta_Gillette": {
+   "buckets": {
+    "G2": 4,
+    "G3": 5
+   },
+   "closed_by": "recovered (coverage 97%)",
+   "coverage": 0.9388,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 147,
+   "runs_seen": 7,
+   "status": "closed"
+  },
+  "The_Chatter/Risks_Rewards_and_Revelations": {
+   "buckets": {
+    "G4_sector": 55
+   },
+   "closed_by": "recovered (coverage 98%)",
+   "coverage": 0.9818,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 55,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/SBI_Delhivery_Titan": {
+   "buckets": {
+    "G2": 21
+   },
+   "closed_by": null,
+   "coverage": 0.6182,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 55,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Sailing_the_Tide": {
+   "buckets": {
+    "G2": 49
+   },
+   "closed_by": null,
+   "coverage": 0.608,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 125,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Scaling_Through_Slowdowns": {
+   "buckets": {
+    "G2": 17,
+    "G3": 3
+   },
+   "closed_by": null,
+   "coverage": 0.8942,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 189,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Sharp_Takes": {
+   "buckets": {
+    "G2": 19
+   },
+   "closed_by": null,
+   "coverage": 0.7164,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 67,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Short-Term_Pain_Long-Term_Gain": {
+   "buckets": {
+    "G2": 40,
+    "G3": 5
+   },
+   "closed_by": null,
+   "coverage": 0.4944,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 89,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Signals_in_Silence": {
+   "buckets": {
+    "G2": 39,
+    "G3": 3
+   },
+   "closed_by": null,
+   "coverage": 0.6794,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 131,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Still_in_Play": {
+   "buckets": {
+    "G2": 17,
+    "G3": 1
+   },
+   "closed_by": null,
+   "coverage": 0.7568,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 74,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Storm_clouds_and_sunny_skies": {
+   "buckets": {
+    "G4_sector": 5
+   },
+   "closed_by": null,
+   "coverage": 0.881,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 42,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Swiggy_Hyundai_Shree_Cement": {
+   "buckets": {
+    "G2": 15
+   },
+   "closed_by": null,
+   "coverage": 0.9026,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 154,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/TCS_ICICI_Pru_HDB_Financials": {
+   "buckets": {
+    "G2": 37
+   },
+   "closed_by": null,
+   "coverage": 0.7658,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 158,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/TCS_IFB_Gulf_Oil": {
+   "buckets": {
+    "G2": 161
+   },
+   "closed_by": "recovered (coverage 96%)",
+   "coverage": 0.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 161,
+   "runs_seen": 5,
+   "status": "closed"
+  },
+  "The_Chatter/TCS_Indian_Bank_Amagi": {
+   "buckets": {
+    "G2": 19
+   },
+   "closed_by": null,
+   "coverage": 0.8208,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 106,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Tailwinds_building": {
+   "buckets": {
+    "G2": 17
+   },
+   "closed_by": null,
+   "coverage": 0.8522,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 115,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Talking_Points": {
+   "buckets": {
+    "G4_sector": 5
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 23,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Tariffs__Tailwinds.": {
+   "buckets": {
+    "G2": 14,
+    "G3": 1
+   },
+   "closed_by": null,
+   "coverage": 0.7727,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 66,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Tata_Steel_LIC": {
+   "buckets": {
+    "G2": 17,
+    "G3": 1
+   },
+   "closed_by": null,
+   "coverage": 0.85,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 120,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/The_Blind_Spots": {
+   "buckets": {
+    "G2": 18
+   },
+   "closed_by": null,
+   "coverage": 0.8776,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 147,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/The_Known_Unknowns": {
+   "buckets": {
+    "G2": 49
+   },
+   "closed_by": null,
+   "coverage": 0.5812,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 117,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/The_Mood_in_the_Room": {
+   "buckets": {
+    "G2": 17
+   },
+   "closed_by": null,
+   "coverage": 0.7792,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 77,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/The_Pivot_Quarter_output": {
+   "buckets": {
+    "G2": 6
+   },
+   "closed_by": null,
+   "coverage": 0.9062,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 64,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/The_Push_and_Pull": {
+   "buckets": {
+    "G2": 27,
+    "G3": 3
+   },
+   "closed_by": null,
+   "coverage": 0.5522,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 67,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Threads_and_Tensions": {
+   "buckets": {
+    "G2": 12
+   },
+   "closed_by": null,
+   "coverage": 0.6667,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 36,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Threads_in_the_data": {
+   "buckets": {
+    "G2": 6,
+    "G4_sector": 8
+   },
+   "closed_by": "recovered (coverage 95%)",
+   "coverage": 0.9508,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 122,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Titan_Dixon_Cipla": {
+   "buckets": {
+    "G4_sector": 8
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 89,
+   "runs_seen": 9,
+   "status": "closed"
+  },
+  "The_Chatter/Underneath_the_Noise": {
+   "buckets": {
+    "G2": 31
+   },
+   "closed_by": null,
+   "coverage": 0.4833,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 60,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Weights_and_Measures": {
+   "buckets": {
+    "G2": 4
+   },
+   "closed_by": null,
+   "coverage": 0.9167,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 48,
+   "runs_seen": 10,
+   "status": "open"
+  },
+  "The_Chatter/Yes_Bank_Colgate_Allcargo": {
+   "buckets": {
+    "G2": 60
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 0.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 60,
+   "runs_seen": 5,
+   "status": "closed"
+  },
+  "The_PlotLines/Beyond_Results_Into_the_Plot": {
+   "buckets": {
+    "G4_sector": 26
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-07",
+   "last_seen": "2026-09-07",
+   "openings": 26,
+   "runs_seen": 9,
+   "status": "closed"
+  }
+ },
+ "threshold": 0.95
+}

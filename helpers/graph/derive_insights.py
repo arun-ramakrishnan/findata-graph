@@ -93,6 +93,7 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import json
+import html
 import re
 import sys
 from dataclasses import dataclass, field
@@ -428,41 +429,89 @@ def _canonicalize(raw: str) -> str:
     return canonical
 
 
-def iter_company_sections(content: str):  # noqa: C901
-    """Yield ``CompanySection`` for each company heading in a newsletter.
+# --- S1 heading family (quote_capture_coverage proposal, 2026-09-07) --------
+# Shared predicates: ONE source of truth for iter_company_sections,
+# extract_quotes (paraphrase cut), and the S0 coverage audit (which imports
+# these instead of keeping drift-prone copies).
+_BARE_MARKER_WORDS = {
+    "concall", "transcript", "presentation", "presenstation", "presentaton",
+    "presntation", "interview", "recording", "call recording", "earnings call",
+    "exchange filing", "reference", "coverage", "call transcript", "remarks",
+    "q&a", "transcripts",
+}
+# Speaker headings: `Name, Title` with a role-word in the tail
+# ("Philipp Schindler, SVP and CBO, Google"; "Mary Abraham, General Manager
+# of ..."). Trial-validated: bare name-comma-title WITHOUT a role tail is
+# NOT a speaker heading (it swallows pipe-artifact company headings like
+# "Virgin Galactic Holdings, Inc. I International").
+_SPEAKER_NCT_RE = re.compile(r"^[A-Z][\w.'\-]+(?: [A-Z][\w.'\-]+)+, (.+)$")
+_SPEAKER_ROLE_RE = re.compile(
+    r"\b(ceo|cfo|coo|cto|svp|evp|vp|president|chief|chairman|chairperson|"
+    r"director|founder|head|analyst|economist|strategist|officer|partner|"
+    r"manager|managing|md)\b",
+    re.I,
+)
+# Prose sub-headings: preposition/article-led or lowercase-led
+# ("On European Revival Despite Weak Earnings"; "the UK and UAE.").
+_PROSE_START = {
+    "on", "in", "despite", "while", "with", "for", "the", "a", "as", "amid",
+    "from", "why", "how", "what", "when", "across", "after", "before", "over",
+    "under", "between", "inside", "during", "introducing",
+}
 
-    Slices each section's body from its heading line to the next COMPANY or
-    SECTOR heading — NOT every heading. A concall body is full of internal
-    sub-headings (``## [Concall]``, ``## — Attribution``, ``## Management``)
-    that must stay inside the slice; only structural boundaries (the next
-    company `## Foo | Cap | Sector` or sector `## FMCG`) terminate it.
+
+def _is_marker_heading(raw: str) -> bool:
+    """True for the converter's marker headings: fully bracket-wrapped
+    (``[Transcript]``, ``[Transcript & Interview]`` with escape variants,
+    converter typos) or a
+    bare marker word (``Concall``, ``.Concall``, ``Recording``). Case- and
+    punctuation-tolerant (mangled trailing ``]``)."""
+    r = raw.strip()
+    if r.startswith("[") and r.endswith("]") and len(r) >= 2:
+        return True
+    bare = re.sub(r"^[.\-\u2013\u2014\[\s]+", "", r)
+    bare = re.sub(r"[\]\s]+$", "", bare).lower()
+    return bare in _BARE_MARKER_WORDS
+
+
+def _is_speaker_heading(raw: str) -> bool:
+    """True for no-dash speaker-name headings: `Name, <role-tail>`."""
+    m = _SPEAKER_NCT_RE.match(raw.strip())
+    return bool(m and _SPEAKER_ROLE_RE.search(m.group(1)))
+
+
+def _is_prose_heading(raw: str) -> bool:
+    """True for prose sub-headings (preposition/article-led or lowercase-led)."""
+    r = raw.strip()
+    words = r.split()
+    if not words:
+        return False
+    return words[0].lower() in _PROSE_START or (r[:1].islower() and not r[:1].isdigit())
+
+
+def _structural_boundaries(content: str) -> list[tuple[int, int, str | None, str]]:
+    """Classify headings into STRUCTURAL boundaries (S4 refactor: shared by
+    the company and sector iterators — one classifier, zero drift).
+
+    Returns ``(start, idx, canonical | None, raw)`` in document order.
+    A structural heading either carries a cap token/pipe (company) or is a
+    bare sector word (FMCG, Real Estate, …). The S1 non-structural family
+    (markers, `## — Attribution`, `## Management`, speaker headings, prose
+    sub-headings) and newsletter chrome never appear here. P3 perf: the
+    first pass caches classification so the walk pass doesn't recompute.
     """
-    # Line numbers via C-speed str.count per yielded section
-    # (scan_render_vss_microperf S1, 2026-09-06): the old nl_offsets
-    # precompute ran a pure-Python char loop over the whole file
-    # (~0.9ms/file, ~70% of serial scan). Bisect identity: _HEADING_RE
-    # match starts point at '#', never '\n', so
-    # bisect_right(offsets, pos)+1 == count("\n", 0, pos)+1 exactly;
-    # sections are few per file, so per-section prefix re-scans at C
-    # memchr speed are irrelevant (5ms/400 files measured).
-
     matches = list(_HEADING_RE.finditer(content))
-    # Classify each heading: is it a STRUCTURAL boundary (company or sector)?
-    # A structural heading either carries a cap token/pipe (company) or is a
-    # bare sector word (FMCG, Real Estate, etc.). Sub-headings inside a concall
-    # block (## [Concall], ## — Name, Title, ## Management) are NOT structural.
-    # P3 perf: cache classification in the first pass so the second pass
-    # doesn't recompute lower/has_cap/has_pipe/canonical per heading.
-    structural: list[tuple[int, int, str | None]] = []
-    #                  ^start, ^idx, ^canonical (None = sector heading)
+    structural: list[tuple[int, int, str | None, str]] = []
     for idx, m in enumerate(matches):
         raw = m.group(2).strip()
         lower = raw.lower()
         has_cap = any(tok in lower for tok in _CAP_TOKENS)
         has_pipe = "|" in raw
-        # Sub-headings inside a concall block: ## [Concall], ## — Attribution,
-        # ## Management... These are NOT structural boundaries.
-        if lower.startswith("[concall]"):
+        # Sub-headings inside a concall block: ## [Concall] and the whole
+        # marker family (## [Transcript], bare ## Concall, ## — Attribution,
+        # ## Management, ## Name, Title speaker headings, prose sub-headings).
+        # These are NOT structural boundaries (S1, quote_capture_coverage).
+        if _is_marker_heading(raw) or _is_speaker_heading(raw) or _is_prose_heading(raw):
             continue
         if _ATTR_DASH_RE.match(raw) or _ATTR_DASH_CAP_RE.match(raw):
             # An attribution heading like "## — Saugata Gupta, MD & CEO".
@@ -477,25 +526,179 @@ def iter_company_sections(content: str):  # noqa: C901
             continue
         if not (has_cap or has_pipe):
             # Sector heading (FMCG) — structural boundary.
-            structural.append((m.start(), idx, None))
+            structural.append((m.start(), idx, None, raw))
             continue
         canonical = _canonicalize(raw)
         if not canonical or len(canonical) < 3:
             continue
-        structural.append((m.start(), idx, canonical))
+        if canonical.lower() in _JUNK_CANONICALS:  # "Initiatives" class (S2)
+            continue
+        structural.append((m.start(), idx, canonical, raw))
+    return structural
 
-    # Now walk the structural headings; each company's body runs to the next
-    # structural heading (company or sector).
-    for si, (start, idx, canonical) in enumerate(structural):
+
+def iter_company_sections(content: str):
+    """Yield ``CompanySection`` for each company heading in a newsletter.
+
+    Slices each section's body from its heading line to the next COMPANY or
+    SECTOR heading — NOT every heading (see :func:`_structural_boundaries`).
+    """
+    structural = _structural_boundaries(content)
+    # Walk the structural headings; each company's body runs to the next
+    # structural heading (company or sector), or EOF.
+    for si, (start, _idx, canonical, _raw) in enumerate(structural):
         if canonical is None:
             continue  # this structural heading is a sector, not a company
-        # Body runs to the next structural heading, or EOF.
         end = structural[si + 1][0] if si + 1 < len(structural) else len(content)
         yield CompanySection(
             canonical_name=canonical,
             heading_line=content.count("\n", 0, start) + 1,
             body=content[start:end],
         )
+
+
+# --- S4 sector capture (quote_capture_coverage, 2026-09-07) ------------------
+# Frozen mirror of helpers/validators/static_checks.py::CANONICAL_SECTORS
+# (drift-pinned by tests/test_quote_capture_s4.py) — a lazy import here would
+# couple the hot scan path to the validator module.
+_CANONICAL_SECTORS = {
+    "Agriculture", "Automotive", "Aviation", "Banking", "Building_Materials",
+    "Capital_Markets", "Chemicals", "Consumer", "Defense", "Diagnostics",
+    "Diversified", "Education_Training", "Electronics", "EMS_Manufacturing",
+    "Energy", "Engineering_Capital_Goods", "Fertilizer", "Financial_Services",
+    "Fintech_Payments", "FMCG", "Healthcare", "Hospitals", "Housing_Finance",
+    "Infrastructure", "Insurance", "International", "Logistics",
+    "Media_Entertainment", "Metals", "Mining", "NBFC", "Packaging", "Pharma",
+    "Railways", "Real_Estate", "Renewables", "Retail", "Semiconductors",
+    "Technology", "Telecommunications", "Textiles", "Travel",
+}
+_SECTOR_BY_LOWER = {s.lower(): s for s in _CANONICAL_SECTORS}
+# Synonym map (S4 tier 2): seeded from the S0/S4 unmatched-sector lists;
+# the audit re-emits unmatched sector headings every run so the map cannot
+# silently rot. Keys are normalized (lower, single-spaced, unescaped).
+_SECTOR_SYNONYMS = {
+    "software": "Technology",
+    "it": "Technology",
+    "ai computing": "Technology",
+    "technology conglomerate": "Technology",
+    "cloud services & cybersecurity": "Technology",
+    "electronics & semiconductors": "Electronics",
+    "electronics and semiconductors": "Electronics",
+    "e-commerce": "Retail",
+    "e commerce": "Retail",
+    "consumer packaged goods": "FMCG",
+    "chemical & material conglomerate": "Chemicals",
+    "tourism & hospitality": "Travel",
+    "tourism and hospitality": "Travel",
+    "media & entertainment": "Media_Entertainment",
+    "engineering & capital goods": "Engineering_Capital_Goods",
+    "capital goods": "Engineering_Capital_Goods",
+    "telecom": "Telecommunications",
+    "real estate": "Real_Estate",
+    "housing": "Housing_Finance",
+    "global": "International",
+    "oil & gas": "Energy",
+    "auto components": "Automotive",
+    "automobile": "Automotive",
+    "cement": "Building_Materials",
+    "banks": "Banking",
+    "diversified conglomerate": "Diversified",
+    "consumer discretionary": "Consumer",
+    "consumer staples": "Consumer",
+    "aviation & travel": "Travel",
+}
+_CATCH_ALL_ENTITY = "Quotes"  # 43rd "sector" — probe-gated at apply time (S5)
+
+
+def _resolve_sector(raw: str) -> tuple[str, str]:
+    """Route a sector heading: canonical exact -> synonym -> catch-all.
+
+    Returns ``(entity, kind)`` with kind ∈ {sector_commentary, catch_all}.
+    No force-fit: unmatched headings land in the Quotes catch-all with the
+    raw heading preserved in properties for triage.
+    """
+    key = re.sub(r"\s+", " ", html.unescape(raw).strip()).lower()
+    if key in _SECTOR_BY_LOWER:
+        return _SECTOR_BY_LOWER[key], "sector_commentary"
+    syn = _SECTOR_SYNONYMS.get(key)
+    if syn is not None:
+        return syn, "sector_commentary"
+    return _CATCH_ALL_ENTITY, "catch_all"
+
+
+def iter_sector_sections(content: str):
+    """Yield ``(CompanySection, raw_heading, kind)`` for sector regions (S4).
+
+    Boundary rule (pinned): a sector body runs from its heading to the next
+    company OR sector heading. The S1 marker family never splits regions
+    (markers are non-structural). The section's canonical_name is the routed
+    entity (canonical sector, synonym target, or the Quotes catch-all); the
+    raw heading travels to the caller for ``properties.heading``.
+    """
+    structural = _structural_boundaries(content)
+    for si, (start, _idx, canonical, raw) in enumerate(structural):
+        if canonical is not None:
+            continue
+        end = structural[si + 1][0] if si + 1 < len(structural) else len(content)
+        entity, kind = _resolve_sector(raw)
+        # Provenance heading is unescaped for humans (&amp; -> &); the
+        # classification copy above stays byte-faithful for parity.
+        yield (
+            CompanySection(
+                canonical_name=entity,
+                heading_line=content.count("\n", 0, start) + 1,
+                body=content[start:end],
+            ),
+            html.unescape(raw).strip(),
+            kind,
+        )
+
+
+def ensure_quotes_catchall(conn) -> dict:
+    """Create the Quotes catch-all entity + root-level note (S4/S5).
+
+    Probe outcome (2026-09-07, recorded in the proposal): root-level
+    ``findata/Quotes.md`` with ``entity_type='sector'`` — sync_sector_wikilinks
+    claims a Sectors/-level file (fallback trigger), while
+    build_sector_hierarchy, static_checks and database_integrity_check all
+    pass with this shape (integrity 100% in sandbox). Idempotent.
+    """
+    row = conn.execute(
+        "SELECT name FROM entities WHERE name = ?", (_CATCH_ALL_ENTITY,)
+    ).fetchone()
+    created = {"entity": False, "note": False}
+    if row is None:
+        conn.execute(
+            "INSERT INTO entities (name, entity_type, file_path) VALUES (?, 'sector', ?)",
+            (_CATCH_ALL_ENTITY, "findata/Quotes.md"),
+        )
+        created["entity"] = True
+    note = PROJECT_ROOT / "findata" / "Quotes.md"
+    if not note.exists():
+        note.parent.mkdir(parents=True, exist_ok=True)
+        note.write_text(
+            "# Quotes\n\n"
+            "Catch-all capture surface (quote_capture_coverage S4): sector-context "
+            "commentary that routes to no canonical sector lands here as sentinel auto "
+            "blocks with full provenance (edition + raw heading) — triage = read, "
+            "decide the real home, stub/alias, re-run.\n\n"
+            "## Newsletter synthesis — Quotes (multi-edition)\n"
+        )
+        created["note"] = True
+    return created
+
+
+def iter_edition_note_section(content: str, stem: str):
+    """Yield the preamble (pre-first-heading) region as an edition-note
+    section (S4/G5): masthead commentary routes to the edition entity,
+    table-only (no render). Yields nothing when the preamble has no
+    quote-shaped openings' worth of content (empty check left to caller).
+    """
+    bounds = _structural_boundaries(content)
+    first = bounds[0][0] if bounds else len(content)
+    if first == 0:
+        return
+    yield CompanySection(stem, 1, content[:first])
 
 
 # --- quote/attribution extraction ------------------------------------------
@@ -603,6 +806,17 @@ def _find_attribution(lines: list[str], start: int) -> tuple[int, tuple | None]:
     return (-1, None)
 
 
+def _attrish_line(s: str) -> bool:
+    """S3: does this line terminate a runaway quote as an attribution?"""
+    if not s or len(s) > 100:
+        return False
+    if _ATTR_DASH_RE.match(s) or _ATTR_DASH_CAP_RE.match(s):
+        return True
+    return _parse_attribution(s) is not None
+
+
+_LEADING_MARKER_RE = re.compile(r"^(?:[-*>]\s*)+")
+
 # Local-engine (pdf_conv_md.py/pymupdf4llm) editions italicize every
 # physical line, so a quote arrives as `_"first line_` … `_closing line."_`
 # with the attribution as `_— Speaker, Title_`, and they use typographic
@@ -627,11 +841,13 @@ def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagno
     is found via ``_find_attribution`` immediately after the closing quote.
     """
     quotes: list[Quote] = []
-    # Restrict to the [Concall] block if present (skip the business descriptor).
+    # Restrict to the marker block if present (skip the business descriptor):
+    # first family marker wins ([Concall], [Transcript], bare `## Concall`, …).
     body = section.body
-    concall_m = _CONCALL_HEADING_RE.search(body)
-    if concall_m:
-        body = body[concall_m.end() :]
+    for hm in _HEADING_RE.finditer(body):
+        if _is_marker_heading(hm.group(2).strip()):
+            body = body[hm.end() :]
+            break
 
     lines = body.splitlines()
     # Unwrap per-line emphasis and normalize typographic quotes (see
@@ -650,22 +866,55 @@ def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagno
     while i < len(lines):
         line = lines[i]
         stripped = line.strip()
-        # A verbatim quote opens with a `"` and is long enough to be a quote
-        # (not a stray quoted phrase). It may close on the same line or span
-        # multiple lines.
-        if stripped.startswith('"') and len(stripped) > 40:
-            # Accumulate the quote until the line that closes it (ends with `"`).
-            quote_lines = [stripped]
+        # S3 (quote_capture_coverage): strip leading list/quote markers
+        # before the quote test — pinned order strip -> quote-test ->
+        # attribution-test, so `- "quoted…"` bullets open and
+        # `- Name, Title` attributions are never misread as quotes.
+        open_line = _LEADING_MARKER_RE.sub("", stripped)
+        is_open = open_line.startswith('"') and len(open_line) > 40
+        # Sub-40 openings are admitted ONLY with an attribution in the
+        # 3-line window (precision rule; `"Yes"` + name still cannot capture).
+        short_with_attr = False
+        if not is_open and open_line.startswith('"') and len(open_line) > 20:
+            _, attr_probe = _find_attribution(lines, i + 1)
+            short_with_attr = attr_probe is not None
+        if is_open or short_with_attr:
+            quote_lines = [open_line]
             j = i
-            # Same-line close?
-            if stripped.endswith('"') and len(stripped) > 1:
-                pass  # single-line quote
-            else:
-                j += 1
+            closed = False
+            close_attr: tuple | None = None
+            # Same-line close (legacy shape, exactly 2 quotes)?
+            if stripped.endswith('"') and len(stripped) > 1 and stripped.count('"') == 2:
+                closed = True  # single-line quote
+            elif open_line.count('"') >= 2:
+                # S3 splice: close at the last `"` when the remainder parses
+                # as an attribution (`…for NAND." Jaejune Kim, EVP`) — the
+                # guarded form; a naive anchor here LOST rows in the trial.
+                p = open_line.rfind('"')
+                rest = open_line[p + 1 :].strip()
+                if not rest or _attrish_line(rest):
+                    quote_lines = [open_line[: p + 1]]
+                    closed = True
+                    if rest:
+                        close_attr = _parse_attribution(
+                            rest.lstrip("-–—").strip()
+                        ) or _parse_attribution(rest)
+            if not closed:
+                j = i + 1
                 while j < len(lines):
                     nxt = lines[j].rstrip()
+                    if _attrish_line(nxt.strip()):
+                        # S3 splice: an attribution-shaped line terminates a
+                        # runaway run (lost mid-line closer upstream) instead
+                        # of swallowing the next quote as quote text.
+                        closed = True
+                        close_attr = _parse_attribution(
+                            nxt.strip().lstrip("-–—").strip()
+                        ) or _parse_attribution(nxt.strip())
+                        break
                     quote_lines.append(nxt)
                     if nxt.endswith('"'):
+                        closed = True
                         break
                     j += 1
             quote_text = "\n".join(quote_lines).strip().strip('"').strip()
@@ -673,14 +922,19 @@ def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagno
             # Collapse whitespace in the paraphrase for cleaner storage.
             if paraphrase:
                 paraphrase = _PARAPHRASE_WS_RE.sub(" ", paraphrase)
-            # Find the attribution after the closing quote.
-            attr_idx, attr = _find_attribution(lines, j + 1)
+            # Attribution: from the splice remainder, else after the close.
+            if close_attr is not None:
+                attr = close_attr
+                attr_idx = j
+            else:
+                attr_idx, attr = _find_attribution(lines, j + 1)
             if attr is not None:
                 speaker_name, speaker_title = attr
             else:
                 speaker_name, speaker_title = None, None
-            # Skip attribution-only / empty quotes.
-            if len(quote_text) < 30:
+            # Skip attribution-only / empty quotes; sub-40 admissions carry
+            # their attribution (the <30 floor holds only for anonymous).
+            if len(quote_text) < 30 and speaker_name is None and speaker_title is None:
                 paraphrase_lines = []
                 i = j + 1
                 continue
@@ -702,13 +956,16 @@ def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagno
         else:
             # Accumulate paraphrase (skip blank headings, OCR garble, image
             # embeds, and stray horizontal rules that leak in from the source).
+            # S3: leading list/quote markers are stripped from accumulated
+            # paraphrase text as well.
             # NOTE: every branch here MUST fall through to `i += 1` at the
             # bottom — an early `continue` without advancing i is an infinite
             # loop (the line that triggered it is re-read forever).
-            if stripped and not stripped.startswith(("!", "<", "http", "www.")):
-                if stripped not in ("---", "***", "___"):
-                    if not _CONCALL_SUBHEADING_RE.match(stripped):
-                        paraphrase_lines.append(stripped)
+            acc = _LEADING_MARKER_RE.sub("", stripped) or stripped
+            if acc and not acc.startswith(("!", "<", "http", "www.")):
+                if acc not in ("---", "***", "___"):
+                    if not _CONCALL_SUBHEADING_RE.match(acc):
+                        paraphrase_lines.append(acc)
             i += 1
     return quotes
 
@@ -1173,6 +1430,12 @@ def render_chatter_block(
     )
     lines.append("")
     for q in quotes:
+        # S4 provenance: sector/catch-all rows carry their raw source
+        # heading so triage = read the note, decide the real home.
+        sec_heading = q.properties.get("heading") if q.properties else None
+        if sec_heading:
+            lines.append(f"- *[{sec_heading}]*")
+            lines.append("")
         if q.paraphrase:
             # Ellipsis INSIDE the emphasis: the [:140] cut can land on a
             # space, and `text **…` detaches the closing marker (broken
@@ -1776,8 +2039,165 @@ def _build_resolver_map(conn) -> dict[str, str]:
         if norm and norm.lower() not in m:
             m[norm.lower()] = name
             m[norm.replace("_", " ").lower()] = name
-            m[norm.replace(" ", "_").lower()] = name
     return m
+
+
+# --- S2 resolver ladder (quote_capture_coverage, 2026-09-07) -----------------
+# Deterministic tiers over the section canonical; fuzzy NEVER auto-applies —
+# misses surface as ranked suggestions for the tracked worklist instead.
+_MD_ESCAPE_RE = re.compile(r"\\([!\"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~])")
+_JUNK_CANONICALS = {"initiatives"}
+_QUALIFIER_TOKENS = {
+    "corporation", "group", "company", "ventures", "limited", "ltd", "india",
+    "international", "enterprise", "enterprises", "holdings", "co", "corp",
+    "inc", "plc", "ag",
+}
+# Vetted abbreviations (proposal S2 tier: aliases validated against the
+# entities table by tests/test_quote_capture_s2.py — the relations-domain
+# alias file is NOT reused: `premier`/`micron` collisions live there).
+_QUOTE_ALIASES = {
+    "sail": "Steel Authority of India",
+    "tcs": "Tata Consultancy Services",
+    "paytm": "One 97 Communications PayTM",
+    "nykaa": "FSN E-Commerce",
+    "amazon.com": "Amazon",
+    "iex": "Indian Energy Exchange",
+    "hudco": "Housing and Urban Development Corporation",
+}
+_QUOTES_ALIASES_PATH = PROJECT_ROOT / "findata" / "quote_aliases.json"
+
+
+def _md_unescape(s: str) -> str:
+    """CommonMark ASCII-punctuation backslash escapes -> literal chars."""
+    return _MD_ESCAPE_RE.sub(r"\1", s)
+
+
+def _ascii_fold(s: str) -> str:
+    """Deterministic diacritic fold (Nestlé -> Nestle, L'Oréal -> L'Oreal)."""
+    import unicodedata
+
+    return "".join(
+        c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c)
+    )
+
+
+def _candidate_keys(name: str) -> tuple[str, list[str], list[str]]:
+    """Deterministic normalizations of one canonical, grouped by tier.
+
+    Returns ``(exact_key, unescape_keys, strip_keys)`` — the ladder tries
+    groups in order so a strip hit is never mislabeled an unescape hit.
+    """
+    exact = _ascii_fold(name).lower().strip()
+    base = _md_unescape(name)
+    base = base.replace("\u2019", "'").replace("\u2018", "'")  # curly apostrophes
+    base = html.unescape(base)  # &amp; -> & (heading-level entities)
+    seen = {exact}
+    t2: list[str] = []
+    t3: list[str] = []
+
+    def add(lst: list[str], k: str) -> None:
+        k = _ascii_fold(k).lower().strip()
+        if k and k not in seen:
+            seen.add(k)
+            lst.append(k)
+
+    add(t2, base)
+    add(t2, base.replace("'", ""))  # Divi's -> Divis
+    stripped = re.sub(r"[\s,;]+$", "", base)  # trailing separator artifact
+    add(t3, stripped)
+    pipe_i = re.sub(r"\s+I$", "", base)  # converter pipe-artifact: `Voltas I`
+    add(t3, pipe_i)
+    paren = re.sub(r"\s*\([^)]*\)\s*", " ", base).strip()  # `(India)`-style
+    add(t3, paren)
+    return exact, t2, t3
+
+
+def _qualifier_variants(key: str, resolver_map: dict[str, str]) -> list[str]:
+    """Query-side trailing-qualifier strips (Titan Company -> titan),
+    then entity-side qualifier extensions (Mitsubishi Chemical ->
+    Mitsubishi Chemical Group; unique hit only, ambiguity -> no resolve)."""
+    words = key.split()
+    out = []
+    for _ in range(2):  # up to two successive strips (… Company Ltd)
+        if len(words) > 1 and words[-1] in _QUALIFIER_TOKENS:
+            words = words[:-1]
+            out.append(" ".join(words))
+        else:
+            break
+    # entity-side: `query <qualifier>` keys (unique hit enforced by caller)
+    for ent_key in resolver_map:
+        if ent_key.startswith(key + " ") and ent_key[len(key) + 1 :] in _QUALIFIER_TOKENS:
+            out.append(ent_key)
+    return out
+
+
+def _symbol_variants(key: str) -> list[str]:
+    """`&` <-> `and` fold, both directions (post-unescape)."""
+    out = []
+    if "&" in key:
+        out.append(re.sub(r"\s*&\s*", " and ", key))
+    if " and " in key:
+        out.append(re.sub(r"\s+and\s+", " & ", key))
+    return out
+
+
+def _resolve_ladder(
+    name: str, resolver_map: dict[str, str]
+) -> tuple[str | None, str, list[str]]:
+    """Resolve a section canonical via the S2 tier ladder.
+
+    Returns ``(entity, tier, suggestions)``. ``tier`` names the winning tier
+    (exact/unescape/strip/qualifier/symbol/alias) or ``miss``. Suggestions
+    are ranked fuzzy candidates for the worklist — never auto-applied.
+    """
+    exact, t2_keys, t3_keys = _candidate_keys(name)
+    # T1 exact.
+    if exact in resolver_map:
+        return resolver_map[exact], "exact", []
+    # T2 unescape/fold (candidate-only: raw missed first).
+    for k in t2_keys:
+        if k in resolver_map:
+            return resolver_map[k], "unescape", []
+    # T3 structural strips (trailing-sep, pipe-I, parenthetical).
+    for k in t3_keys:
+        if k in resolver_map:
+            return resolver_map[k], "strip", []
+    # T4 qualifier strips (query-side) + entity-side extensions — the latter
+    # only on a UNIQUE hit (multi-hit = ambiguity, never guessed).
+    for k in (exact, *t2_keys, *t3_keys):
+        q_hits = [v for v in _qualifier_variants(k, resolver_map)[:2] if v in resolver_map]
+        if len(q_hits) == 1:
+            return resolver_map[q_hits[0]], "qualifier", []
+        e_hits = [v for v in _qualifier_variants(k, resolver_map)[2:] if v in resolver_map]
+        if len(e_hits) == 1:
+            return resolver_map[e_hits[0]], "qualifier", []
+        if len(e_hits) > 1:
+            return None, "miss", sorted({resolver_map[v] for v in e_hits})
+    # T5 symbol fold (& <-> and), both directions.
+    for k in (exact, *t2_keys, *t3_keys):
+        for v in _symbol_variants(k):
+            if v in resolver_map:
+                return resolver_map[v], "symbol", []
+    # T6 vetted aliases (exact long-form/abbrev mappings).
+    for k in (exact, *t2_keys, *t3_keys):
+        if k in _QUOTE_ALIASES and _QUOTE_ALIASES[k].lower() in resolver_map:
+            return resolver_map[_QUOTE_ALIASES[k].lower()], "alias", []
+    # Miss -> ranked fuzzy suggestions (token-set jaccard), never applied.
+    qwords = set(exact.replace("&", " ").split())
+    scored = []
+    for ent_key, ent in resolver_map.items():
+        ewords = set(ent_key.replace("&", " ").split())
+        if not qwords or not ewords:
+            continue
+        jac = len(qwords & ewords) / len(qwords | ewords)
+        if jac >= 0.5:
+            scored.append((jac, ent))
+    scored.sort(reverse=True)
+    suggestions = []
+    for _, ent in scored[:3]:
+        if ent not in suggestions:
+            suggestions.append(ent)
+    return None, "miss", suggestions
 
 
 def _extract_sections(
@@ -1788,17 +2208,12 @@ def _extract_sections(
     Shared core of every scan path (file read, corpus text, pool worker);
     rewrites ``section.canonical_name`` in place to the resolved db name.
     """
-    resolved = {
-        s.canonical_name: resolver_map[s.canonical_name.lower()]
-        for s in sections
-        if s.canonical_name.lower() in resolver_map
-    }
     quotes: list[Quote] = []
     metrics: list[Metric] = []
     for section in sections:
-        entity_name = resolved.get(section.canonical_name)
+        entity_name, _tier, _sugg = _resolve_ladder(section.canonical_name, resolver_map)
         if not entity_name:
-            continue
+            continue  # S2 terminus: worklist/audit visibility, never silent capture
         section.canonical_name = entity_name
         quotes.extend(extract_quotes(section, edition, stem))
         metrics.extend(extract_metrics(section, edition, stem))
@@ -1812,10 +2227,36 @@ def _scan_one_file(md: Path, resolver_map: dict[str, str]) -> tuple[list[Quote],
     content = md.read_text(encoding="utf-8", errors="replace")
     stem = md.stem
     edition = _edition_title(stem, content)
+    return _scan_content(content, stem, edition, resolver_map)
+
+
+def _scan_content(
+    content: str, stem: str, edition: str, resolver_map: dict[str, str]
+) -> tuple[list[Quote], list[Metric]]:
+    """Company + sector + edition-note extraction for one note's text.
+
+    S4: sector regions route through `_resolve_sector` (canonical/synonym/
+    catch-all) with ``properties.kind`` ∈ {sector_commentary, catch_all};
+    masthead commentary routes to the edition entity as ``edition_note``
+    (table-only, never rendered). Company rows carry no kind (the reports'
+    join keys on entities.entity_type; no mass backfill churn)."""
+    quotes: list[Quote] = []
+    metrics: list[Metric] = []
     sections = list(iter_company_sections(content))
-    if not sections:
-        return [], []
-    return _extract_sections(sections, edition, stem, resolver_map)
+    if sections:
+        q_batch, m_batch = _extract_sections(sections, edition, stem, resolver_map)
+        quotes.extend(q_batch)
+        metrics.extend(m_batch)
+    for sec, raw, kind in iter_sector_sections(content):
+        for q in extract_quotes(sec, edition, stem):
+            q.properties["kind"] = kind
+            q.properties["heading"] = raw
+            quotes.append(q)
+    for sec in iter_edition_note_section(content, stem):
+        for q in extract_quotes(sec, edition, stem):
+            q.properties["kind"] = "edition_note"
+            quotes.append(q)
+    return quotes, metrics
 
 
 def scan(
@@ -1892,11 +2333,8 @@ def _scan_corpus(
             metrics.extend(m_batch)
             continue
         stem = md.stem
-        sections = list(iter_company_sections(text))
-        if not sections:
-            continue
-        q_batch, m_batch = _extract_sections(
-            sections, _edition_title(stem, text), stem, resolver_map
+        q_batch, m_batch = _scan_content(
+            text, stem, _edition_title(stem, text), resolver_map
         )
         quotes.extend(q_batch)
         metrics.extend(m_batch)
@@ -2059,6 +2497,10 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         if not args.no_notes:
             by_entity_edition: dict[tuple[str, str | None], list[Quote]] = {}
             for q in quotes:
+                # S4: edition_note rows are table-only (masthead commentary
+                # already lives in the edition note upstream) — never rendered.
+                if q.properties.get("kind") == "edition_note":
+                    continue
                 key = (q.entity, q.as_of_edition)
                 bucket = by_entity_edition.get(key)
                 if bucket is None:
