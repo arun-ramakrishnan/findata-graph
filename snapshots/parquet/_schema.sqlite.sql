@@ -1,6 +1,6 @@
 PRAGMA foreign_keys=OFF;
 
-CREATE VIRTUAL TABLE note_search USING fts5(doc_type, file_path UNINDEXED, title, sector, content, embedding UNINDEXED, tokenize = 'porter unicode61');
+CREATE VIRTUAL TABLE note_search USING fts5(doc_type, file_path UNINDEXED, title, sector, content, embedding UNINDEXED, section_title, anchor UNINDEXED, tokenize = 'porter unicode61');
 
 CREATE TABLE entity_tags (
                     entity_name TEXT NOT NULL,
@@ -131,14 +131,6 @@ CREATE TABLE note_tags (
                 PRIMARY KEY (note_path, tag)
             );
 
-CREATE TABLE company_embeddings (
-            company_name TEXT PRIMARY KEY,
-            embedding    FLOAT[384],
-            model        TEXT NOT NULL,
-            created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
-            CHECK (json_array_length(embedding) = 384)
-        );
-
 CREATE TABLE entity_gf_map (
     entity_name TEXT PRIMARY KEY,
     gf_slug TEXT NOT NULL,
@@ -153,6 +145,14 @@ CREATE TABLE entity_ticker_status (
     successor TEXT,
     decided_at TEXT NOT NULL
 );
+
+CREATE TABLE company_embeddings (
+            company_name TEXT PRIMARY KEY,
+            embedding    FLOAT[384],
+            model        TEXT NOT NULL,
+            created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
+            CHECK (json_array_length(embedding) = 384)
+        );
 
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 

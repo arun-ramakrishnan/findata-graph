@@ -1,0 +1,10 @@
+# Parquet snapshots are binary blobs (zstd pages, FLOAT[] columns).
+# Mark binary (no line merge / no raw text diff) and route display diffs
+# through the duckdb textconv (helpers/misc/parquet_textconv.py; wired by
+# repo-local `git config diff.parquet.textconv`). Without this, git
+# line-diffs the binary garbage and multi-MB diffs hang stg show/pagers.
+*.parquet binary diff=parquet
+
+# SQLite files: reuse the global diff.sqlite3.textconv (sqlite3 .dump).
+*.sqlite3 diff=sqlite3
+*.db diff=sqlite3
