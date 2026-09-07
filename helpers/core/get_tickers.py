@@ -8,6 +8,7 @@ Usage:
 """
 
 import yfinance as yf
+import logging
 import os
 import sys
 import argparse
@@ -28,6 +29,15 @@ from helpers.core.fuzzy_match import fuzzy_match, build_spellfix_table, word_ove
 from helpers.core.db import connect
 
 _FUZZY_AVAILABLE = True
+
+# yfinance logs every swallowed HTTP error (404 data absence included) to
+# its own 'yfinance' logger at ERROR (scrapers/quote.py _fetch) — raw
+# one-liners with no property context. Our _yf() guard already reports
+# real failures with property + symbol; empties are normal (skipped
+# silently by the display layer). Keep the library logger quiet so
+# --detailed stderr carries signal, not Yahoo's data gaps. stdlib-only,
+# safe under test monkeypatching (no yf import involved).
+logging.getLogger("yfinance").setLevel(logging.CRITICAL)
 
 
 # ---------------------------------------------------------------------------
@@ -116,81 +126,136 @@ def get_basic_info(symbol):
         return None
 
 
+def _yf(ticker_obj, name, default=None, *args, **kwargs):
+    """One guarded yfinance property/method read (get_ticker_fixes S1).
+
+    Returns ``default`` on any failure — 404 data absence, removed
+    endpoint, empty-payload raise — plus one stderr line naming the
+    property + symbol, so a single dead module degrades instead of
+    killing all fifteen sections. Methods are called with args/kwargs;
+    plain attributes are returned as-is. Empty frames/Series are NOT
+    failures (no-payout symbols are normal) — they pass through for
+    the display layer to skip silently.
+    """
+    symbol = getattr(ticker_obj, "ticker", None) or getattr(ticker_obj, "symbol", "?")
+    try:
+        val = getattr(ticker_obj, name, None)
+        if val is None:
+            return default
+        if callable(val):
+            val = val(*args, **kwargs)
+        return val
+    except Exception as e:
+        print(f"WARNING: yfinance {name} unavailable for {symbol}: {e}", file=sys.stderr)
+        return default
+
+
+_NET_INCOME_LABELS = ("Net Income", "NetIncome", "Net income")
+
+
+def _net_income_series(ticker_obj, quarterly=False):
+    """Net Income row from the income statement (get_ticker_fixes S2).
+
+    Replaces the dead ``Ticker.earnings`` (yfinance 1.7.0 warns and
+    returns None unconditionally) with the exact replacement the
+    deprecation message names. None when the statements themselves are
+    unavailable — absence still yields None, never a crash.
+    """
+    stmt = _yf(ticker_obj, "quarterly_income_stmt" if quarterly else "income_stmt")
+    if stmt is None:
+        return None
+    try:
+        for label in _NET_INCOME_LABELS:
+            if label in stmt.index:
+                return stmt.loc[label]
+    except Exception:
+        return None
+    return None
+
+
+def _fund_holders_frame(ticker_obj):
+    """Mutual-fund holders across yfinance versions (get_ticker_fixes S2).
+
+    1.7.0 renamed the property to ``mutualfund_holders`` — the old
+    ``fund_holders`` getattr resolved to None on every run. New name
+    first, old name as fallback, None last.
+    """
+    frame = _yf(ticker_obj, "mutualfund_holders")
+    if frame is None:
+        frame = _yf(ticker_obj, "fund_holders")
+    return frame
+
+
 def get_comprehensive_company_data(ticker):
-    """Get comprehensive company data using yfinance"""
+    """Get comprehensive company data using yfinance.
+
+    Per-property guarded (get_ticker_fixes S1): each module degrades to
+    None independently — a 404 on one never kills the other fourteen.
+    Only a failure to construct the Ticker itself is total (as before).
+    """
     try:
         ticker_obj = yf.Ticker(ticker)
+    except Exception as e:
+        print(f"Error getting comprehensive data for {ticker}: {str(e)}")
+        return None
 
-        # Get basic info
-        info = ticker_obj.info
-
+    try:
         # Get historical market data (last 10 days)
-        hist = ticker_obj.history(period="10d")
+        hist = _yf(ticker_obj, "history", period="10d")
 
         # Get financials
         financials = {
-            "income_stmt": ticker_obj.income_stmt,
-            "quarterly_income_stmt": ticker_obj.quarterly_income_stmt,
-            "balance_sheet": ticker_obj.balance_sheet,
-            "quarterly_balance_sheet": ticker_obj.quarterly_balance_sheet,
-            "cashflow": ticker_obj.cashflow,
-            "quarterly_cashflow": ticker_obj.quarterly_cashflow,
+            "income_stmt": _yf(ticker_obj, "income_stmt"),
+            "quarterly_income_stmt": _yf(ticker_obj, "quarterly_income_stmt"),
+            "balance_sheet": _yf(ticker_obj, "balance_sheet"),
+            "quarterly_balance_sheet": _yf(ticker_obj, "quarterly_balance_sheet"),
+            "cashflow": _yf(ticker_obj, "cashflow"),
+            "quarterly_cashflow": _yf(ticker_obj, "quarterly_cashflow"),
         }
 
         # Get recommendations
-        recommendations = ticker_obj.recommendations
+        recommendations = _yf(ticker_obj, "recommendations")
 
         # Get institutional holders
-        institutional_holders = ticker_obj.institutional_holders
+        institutional_holders = _yf(ticker_obj, "institutional_holders")
 
         # Get major holders
-        major_holders = ticker_obj.major_holders
+        major_holders = _yf(ticker_obj, "major_holders")
 
         # Get company sustainability info
-        sustainability = ticker_obj.sustainability
+        sustainability = _yf(ticker_obj, "sustainability")
 
-        # Get company earnings
-        try:
-            earnings = ticker_obj.earnings
-        except Exception:
-            earnings = None  # Some stocks don't have earnings data
-
-        # Get company quarterly earnings
-        try:
-            quarterly_earnings = ticker_obj.quarterly_earnings
-        except Exception:
-            quarterly_earnings = None  # Some stocks don't have quarterly earnings data
+        # Annual + quarterly net income, derived from the statements
+        # (get_ticker_fixes S2): Ticker.earnings is dead in yfinance
+        # 1.7.0 AND quarterly_earnings funnels through the same dead
+        # property (base.get_earnings reads _fundamentals.earnings, which
+        # warns and returns None) — both are derived, never called.
+        earnings = _net_income_series(ticker_obj)
+        quarterly_earnings = _net_income_series(ticker_obj, quarterly=True)
 
         # Get analysts recommendations
-        try:
-            recommendations_summary = ticker_obj.recommendations_summary
-        except Exception:
-            recommendations_summary = None  # Some stocks don't have recommendations summary
+        recommendations_summary = _yf(ticker_obj, "recommendations_summary")
 
         # Get company calendar
-        try:
-            calendar = ticker_obj.calendar
-        except Exception:
-            calendar = None  # Some stocks don't have calendar data
+        calendar = _yf(ticker_obj, "calendar")
 
         # Get company ISIN
-        try:
-            isin = ticker_obj.isin
-        except Exception:
-            isin = "N/A"  # Some stocks don't have ISIN data
+        isin = _yf(ticker_obj, "isin", default="N/A")
 
         # Get company options
-        try:
-            options = ticker_obj.options
-        except Exception:
-            options = None  # Some stocks don't have options data
+        options = _yf(ticker_obj, "options")
 
-        # Get mutual fund holdings (yfinance Ticker lacks a static type for
-        # fund_holders; getattr is safe across yfinance versions).
-        fund_holders = getattr(ticker_obj, "fund_holders", None)
+        # Corporate actions (get_ticker_fixes S3): dividends + splits only.
+        # `actions` is a strict superset (same history cache plus
+        # fund-only columns) — no dup fetch.
+        dividends = _yf(ticker_obj, "dividends")
+        splits = _yf(ticker_obj, "splits")
+
+        # Get mutual fund holdings (property renamed in yfinance 1.7.0).
+        fund_holders = _fund_holders_frame(ticker_obj)
 
         return {
-            "info": info,
+            "info": _yf(ticker_obj, "info"),
             "history": hist,
             "financials": financials,
             "recommendations": recommendations,
@@ -203,6 +268,8 @@ def get_comprehensive_company_data(ticker):
             "calendar": calendar,
             "isin": isin,
             "options": options,
+            "dividends": dividends,
+            "splits": splits,
             "fund_holders": fund_holders,
         }
     except Exception as e:
@@ -792,6 +859,30 @@ def _print_calendar_section(calendar):
         print(calendar.to_string())
 
 
+def _print_dividends_splits_section(dividends, splits):
+    """Print recent payouts + splits, detailed mode only (get_ticker_fixes S3).
+
+    Empty/missing Series are skipped silently — a no-payout symbol is
+    normal, not a warning (the S1 guard already warns on real failures).
+    """
+    for label, series in (("Dividends", dividends), ("Stock Splits", splits)):
+        if series is None:
+            continue
+        try:
+            if hasattr(series, "empty") and series.empty:
+                continue
+            recent = series.tail(5)
+            if hasattr(recent, "empty") and recent.empty:
+                continue
+        except Exception:  # noqa: S112  # exotic frame shape — skip section, data below still renders
+            continue
+        print(f"\n--- Recent {label} ---")
+        try:
+            print(recent.to_string())
+        except Exception:
+            print(f"  {recent}")
+
+
 def display_ticker(symbol, detailed=False, entities=None, spellfix_conn=None, index=None):
     """Look up a ticker and print formatted info to stdout.
 
@@ -840,6 +931,7 @@ def display_ticker(symbol, detailed=False, entities=None, spellfix_conn=None, in
         )
         _print_sustainability_section(comp.get("sustainability"))
         _print_calendar_section(comp.get("calendar"))
+        _print_dividends_splits_section(comp.get("dividends"), comp.get("splits"))
 
         if comp.get("options"):
             print("\n--- Options Expiry Dates ---")

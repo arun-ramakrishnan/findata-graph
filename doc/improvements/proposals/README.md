@@ -28,9 +28,11 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- [get_ticker_fixes.md](get_ticker_fixes.md) — per-property Yahoo
-  guards, deprecated endpoint replacements (Net Income derivation,
-  mutualfund_holders), dividends + splits capture (filed 2026-09-06).
+_(none)_
+
+_(Previously: get_ticker_fixes.md, archived as completed.md #212 on
+2026-09-07 — execution record in
+`../archive/graph/get_ticker_fixes.md`.)
 
 _(Previously: scan_render_vss_microperf.md, archived as completed.md
 #211 on 2026-09-07 — execution record in

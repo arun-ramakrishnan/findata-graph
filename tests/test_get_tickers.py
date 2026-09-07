@@ -725,3 +725,146 @@ class TestVssRunIndex:
     def test_builder_tolerates_missing_table(self, tmp_path):
         assert gt.build_vss_run_index(db_path=tmp_path / "nope.db") is None
         assert gt.check_vss_run_index(None) is True
+
+
+class _StubTicker:
+    """Configurable yfinance stand-in for get_ticker_fixes acceptance.
+
+    `props` maps property name -> value or exception instance (raised on
+    access). `history` stays a real method (takes period kwarg).
+    """
+
+    def __init__(self, symbol, props):
+        self.symbol = symbol
+        self._props = props
+
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        try:
+            val = self._props[name]  # unconfigured names: AttributeError, like real objects
+        except KeyError:
+            raise AttributeError(name) from None
+        if isinstance(val, Exception):
+            raise val
+        return val
+
+    def history(self, period="10d"):
+        val = self._props.get("history")
+        if isinstance(val, Exception):
+            raise val
+        return val
+
+
+def _stubbed_run(monkeypatch, symbol, props):
+    """Point gt.yf at a _StubTicker; return get_comprehensive_company_data()."""
+    import types as _types
+
+    fake_mod = _types.SimpleNamespace(Ticker=lambda sym: _StubTicker(sym, props))
+    monkeypatch.setattr(gt, "yf", fake_mod)
+    return gt.get_comprehensive_company_data(symbol)
+
+
+def _full_props(**overrides):
+    import pandas as pd
+
+    base = {
+        "info": {"longName": "Stub Ltd"},
+        "history": pd.DataFrame({"Close": [1.0, 2.0]}),
+        "income_stmt": pd.DataFrame({"2024": [10.0]}, index=["Net Income"]),
+        "quarterly_income_stmt": pd.DataFrame({"Q1": [3.0]}, index=["Net Income"]),
+        "balance_sheet": pd.DataFrame({"2024": [5.0]}),
+        "quarterly_balance_sheet": pd.DataFrame({"Q1": [5.0]}),
+        "cashflow": pd.DataFrame({"2024": [4.0]}),
+        "quarterly_cashflow": pd.DataFrame({"Q1": [4.0]}),
+        "recommendations": pd.DataFrame({"To": ["x"]}),
+        "institutional_holders": pd.DataFrame({"Holder": ["h"]}),
+        "major_holders": pd.DataFrame({"A": [1]}),
+        "sustainability": pd.DataFrame({"E": [1]}),
+        "recommendations_summary": pd.DataFrame({"S": [1]}),
+        "calendar": {"Earnings Date": "2026-01-01"},
+        "isin": "INE000A01001",
+        "options": ("2026-01-01",),
+        "mutualfund_holders": pd.DataFrame({"H": [1]}),
+        "dividends": pd.Series([1.5, 2.0]),
+        "splits": pd.Series([2.0]),
+    }
+    base.update(overrides)
+    return base
+
+
+class TestPerPropertyGuards:
+    """get_ticker_fixes S1: one dead module degrades, never kills all."""
+
+    def test_single_404_renders_rest(self, monkeypatch, capsys):
+        from urllib.error import HTTPError
+
+        err = HTTPError("http://x", 404, "Not Found", {}, None)
+        comp = _stubbed_run(monkeypatch, "STUB.NS", _full_props(balance_sheet=err))
+        assert comp is not None
+        assert comp["financials"]["balance_sheet"] is None
+        assert comp["financials"]["income_stmt"] is not None
+        assert comp["history"] is not None
+        captured = capsys.readouterr()
+        assert "balance_sheet" in captured.err and "STUB.NS" in captured.err
+
+    def test_total_construction_failure_still_none(self, monkeypatch, capsys):
+        import types as _types
+
+        def _boom(sym):
+            raise ConnectionError("dns down")
+
+        monkeypatch.setattr(gt, "yf", _types.SimpleNamespace(Ticker=_boom))
+        assert gt.get_comprehensive_company_data("STUB.NS") is None
+        assert "STUB.NS" in capsys.readouterr().out
+
+
+class TestEndpointReplacements:
+    """get_ticker_fixes S2: dead endpoints replaced, warnings gone."""
+
+    def test_earnings_derived_from_net_income(self, monkeypatch):
+        comp = _stubbed_run(monkeypatch, "STUB.NS", _full_props())
+        assert comp is not None
+        assert list(comp["earnings"]) == [10.0]
+        # quarterly_earnings is ALSO dead (funnels through the same
+        # deprecated property) — derived from quarterly_income_stmt.
+        assert list(comp["quarterly_earnings"]) == [3.0]
+
+    def test_earnings_none_without_statements(self, monkeypatch, capsys):
+        comp = _stubbed_run(
+            monkeypatch,
+            "STUB.NS",
+            _full_props(income_stmt=None, quarterly_income_stmt=None),
+        )
+        assert comp is not None and comp["earnings"] is None
+        assert "income_stmt" not in capsys.readouterr().err  # None is absence, not failure
+
+    def test_fund_holders_prefers_new_name(self, monkeypatch):
+        comp = _stubbed_run(monkeypatch, "STUB.NS", _full_props())
+        assert comp is not None and comp["fund_holders"] is not None
+
+    def test_no_deprecation_warnings(self, monkeypatch):
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            comp = _stubbed_run(monkeypatch, "STUB.NS", _full_props())
+        assert comp is not None
+
+
+class TestDividendsSplitsSection:
+    """get_ticker_fixes S3: detailed-only, silent on empty."""
+
+    def test_renders_recent_rows(self, capsys):
+        import pandas as pd
+
+        gt._print_dividends_splits_section(pd.Series([1.0, 2.0, 3.0]), pd.Series([2.0]))
+        out = capsys.readouterr().out
+        assert "Recent Dividends" in out and "Recent Stock Splits" in out
+
+    def test_empty_skipped_silently(self, capsys):
+        import pandas as pd
+
+        gt._print_dividends_splits_section(pd.Series([], dtype=float), None)
+        captured = capsys.readouterr()
+        assert captured.out == "" and captured.err == ""
