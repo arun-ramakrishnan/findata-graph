@@ -23,6 +23,8 @@ These tests pin the resolution contract:
 import sys
 from pathlib import Path
 
+import pytest
+
 
 HELPERS = Path(__file__).resolve().parents[1] / "helpers" / "core"
 sys.path.insert(0, str(HELPERS))
@@ -436,7 +438,7 @@ class TestVssMatch:
         """fuzzy_match misses, VSS catches — method is 'vss'."""
         db, vec_fn = _embed_db(tmp_path, ["Tata Consultancy Services", "Wipro"])
         monkeypatch.setattr(
-            gt, "vss_match", lambda q, e, conn=None: ("Tata Consultancy Services", 0.98)
+            gt, "vss_match", lambda q, e, conn=None, index=None: ("Tata Consultancy Services", 0.98)
         )
         # "TataC Ltd" shares no distinctive token with the entity names
         # ("tatac" vs "tata consultancy services" — zero overlap), so no
@@ -449,7 +451,7 @@ class TestVssMatch:
     def test_resolve_entity_heuristic_wins_before_vss(self, tmp_path, monkeypatch):
         """fuzzy_match's exact/word-overlap stage beats the VSS fallback."""
         db, vec_fn = _embed_db(tmp_path, ["Tata Consultancy Services", "Wipro"])
-        monkeypatch.setattr(gt, "vss_match", lambda q, e, conn=None: ("Wipro", 1.0))
+        monkeypatch.setattr(gt, "vss_match", lambda q, e, conn=None, index=None: ("Wipro", 1.0))
         info = _FakeInfo(longName="Tata Consultancy Services")
         match, method = gt.resolve_entity("TCS.NS", info, ["Tata Consultancy Services"])
         assert match == "Tata Consultancy Services"
@@ -652,3 +654,74 @@ class TestPickEmbedderLocalModel:
         )
         assert match == "Avanti Feeds"
         assert score > 0.99
+
+
+class TestVssRunIndex:
+    """S3 (scan_render_vss_microperf): the fetch-once run index must agree
+    with the per-call path, and the tripwire must fire only on change."""
+
+    def _parity(self, db, vec_fn, queries, entities):
+        embed = _test_embed_fn(vec_fn)
+        index = gt.build_vss_run_index(db_path=db, embed_fn=embed)
+        assert index is not None
+        for q in queries:
+            per_call = gt.vss_match(q, entities, db_path=db, embed_fn=embed)
+            via_index = gt.vss_match(q, entities, db_path=db, embed_fn=embed, index=index)
+            assert via_index[0] == per_call[0]
+            assert abs(via_index[1] - per_call[1]) < 1e-9
+
+    def test_parity_fixture_table(self, tmp_path):
+        db, vec_fn = _embed_db(tmp_path, ["Alpha", "Beta", "Gamma", "Delta"])
+        self._parity(
+            db,
+            vec_fn,
+            ["Alpha", "Gamma", "Zebra"],
+            ["Alpha", "Beta", "Gamma", "Delta"],
+        )
+        # allowlist + None-entities variants
+        self._parity(db, vec_fn, ["Alpha"], ["Alpha", "Beta"])
+        self._parity(db, vec_fn, ["Alpha"], None)
+
+    def test_parity_live_table_readonly(self):
+        live = HELPERS.parents[1] / "memory" / "research.db"
+        if not live.exists():
+            pytest.skip("no live research.db")
+        import hashlib
+
+        def vec_fn(name, dims=384):
+            h = hashlib.sha256(name.encode()).digest()
+            v = []
+            for i in range(dims):
+                b = h[(i * 4) % len(h) : (i * 4) % len(h) + 4].ljust(4, b"\0")
+                v.append(int.from_bytes(b, byteorder="little", signed=True) / 2**31)
+            norm = (sum(x * x for x in v)) ** 0.5
+            return [x / norm for x in v]
+
+        ents = gt.load_entities()
+        assert len(ents) > 100
+        before = live.stat().st_mtime_ns
+        self._parity(live, vec_fn, ["Tata Motors Limited", "ZZZ No Such Company"], ents)
+        assert live.stat().st_mtime_ns == before  # read-only
+
+    def test_tripwire_fires_on_midrun_write(self, tmp_path, capsys):
+        db, vec_fn = _embed_db(tmp_path, ["Alpha", "Beta"])
+        index = gt.build_vss_run_index(db_path=db, embed_fn=_test_embed_fn(vec_fn))
+        assert index is not None
+        assert gt.check_vss_run_index(index) is True
+        assert "changed mid-run" not in capsys.readouterr().err
+        # simulate a maint writer committing mid-run
+        import sqlite3
+
+        con = sqlite3.connect(db)
+        con.execute(
+            "INSERT INTO company_embeddings VALUES (?, ?, ?)",
+            ("Gamma", "[0.1, 0.2]", "test-v16"),
+        )
+        con.commit()
+        con.close()
+        assert gt.check_vss_run_index(index) is False
+        assert "changed mid-run" in capsys.readouterr().err
+
+    def test_builder_tolerates_missing_table(self, tmp_path):
+        assert gt.build_vss_run_index(db_path=tmp_path / "nope.db") is None
+        assert gt.check_vss_run_index(None) is True

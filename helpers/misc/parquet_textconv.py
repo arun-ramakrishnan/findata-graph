@@ -51,13 +51,14 @@ def main(path: str) -> int:
     limit = _rows_limit()
     cell = _cell_limit()
     con = duckdb.connect(database=":memory:")
-    n = con.execute("SELECT count(*) FROM read_parquet(?)", [path]).fetchone()[0]
+    _count_row = con.execute("SELECT count(*) FROM read_parquet(?)", [path]).fetchone()
+    if _count_row is None:  # COUNT(*) always returns exactly one row
+        raise RuntimeError(f"count query returned no rows for {path}")
+    n = _count_row[0]
     print(f"# parquet: {os.path.basename(path)}")
     print(f"# rows: {n}")
     print("# schema:")
-    for col in con.execute(
-        "DESCRIBE SELECT * FROM read_parquet(?)", [path]
-    ).fetchall():
+    for col in con.execute("DESCRIBE SELECT * FROM read_parquet(?)", [path]).fetchall():
         print(f"#   {col[0]} {col[1]}")
     # Plain LIMIT, no ORDER BY: the maint-full exports are already written
     # in canonical ORDER BY ALL order (#147), so unordered sampling is

@@ -319,6 +319,156 @@ def _raw_vec(emb_str):
         return None
 
 
+# ---------------------------------------------------------------------------
+# Run-scoped VSS index (scan_render_vss_microperf S3, 2026-09-06): the
+# company_embeddings table is static within a Yahoo run (only writers are
+# the embeddings.py maint commands — separate CLI runs, never concurrent;
+# concurrent-writer audit in the proposal §2), so fetch + decode it ONCE
+# per run instead of per VSS fire (14.6ms fetch of 9.2 MB + 24.2ms digest
+# per call). The per-call path below stays as-is for embed_eval/tests;
+# the digest's rewrite defense is bypassed only on this explicit path,
+# guarded by a COUNT/MAX(rowid) tripwire re-checked at run end.
+# ---------------------------------------------------------------------------
+
+
+class _VssRunIndex:
+    """One fetchall + one decode, stacked as a float64 matrix.
+
+    float64 (not float32) so the matvec matches the python sum() loop it
+    replaces (~1e-15; parity-pinned by test). ``fingerprint`` is
+    (COUNT(*), MAX(rowid)) at build time for the end-of-run tripwire.
+    """
+
+    def __init__(self, names, matrix, embed_fn, dims, fingerprint, db_path):
+        self.names = names
+        self.matrix = matrix
+        self.embed_fn = embed_fn
+        self.dims = dims
+        self.fingerprint = fingerprint
+        self.db_path = db_path
+
+
+def _index_fingerprint(conn):
+    """(COUNT(*), MAX(rowid)) of company_embeddings; None when unreadable."""
+    try:
+        return conn.execute("SELECT COUNT(*), MAX(rowid) FROM company_embeddings").fetchone()
+    except Exception:
+        return None
+
+
+def build_vss_run_index(db_path=None, embed_fn=None):
+    """Fetch + decode company_embeddings once; None when unusable.
+
+    None (→ today's per-call behavior) on: absent/empty table, no
+    embedder for the stored model, unparsable rows only, or numpy
+    missing (lazy import — CLI startup and the no-DuckDB standalone
+    constraint are untouched). Dims filtering happens here, matching
+    the per-call skip semantics; the entity-set filter stays per call
+    (it varies by query) via a names mask.
+    """
+    try:
+        import numpy as np
+    except ImportError:
+        return None
+    conn = None
+    owns = False
+    try:
+        # connect(None) resolves to memory/research.db (the default) —
+        # stored as-is on the index so the tripwire re-check hits the
+        # same database.
+        conn = connect(db_path, row_factory=None)
+        owns = True
+        try:
+            rows = conn.execute(
+                "SELECT company_name, embedding, model FROM company_embeddings"
+            ).fetchall()
+        except Exception:
+            return None
+        if not rows:
+            return None
+        try:
+            picked_fn, dims = _pick_embedder(rows, embed_fn)
+        except Exception:
+            return None
+        if picked_fn is None:
+            return None
+        fingerprint = _index_fingerprint(conn)
+        names, vecs = [], []
+        for name, emb_str, _model in rows:
+            vec = _raw_vec(emb_str)
+            if vec is None or len(vec) != dims:
+                continue
+            names.append(name)
+            vecs.append(vec)
+        if not names:
+            return None
+        return _VssRunIndex(
+            names, np.asarray(vecs, dtype=np.float64), picked_fn, dims, fingerprint, db_path
+        )
+    finally:
+        if owns and conn is not None:
+            conn.close()
+
+
+def check_vss_run_index(index):
+    """End-of-run tripwire: True when the table is unchanged since build.
+
+    Warns loudly on mismatch (a maint writer committed mid-run — the
+    run's VSS results served the pre-write snapshot) so the operator
+    re-runs for fresh vectors. ~1ms: one aggregate query.
+    """
+    if index is None:
+        return True
+    conn = None
+    try:
+        conn = connect(index.db_path, row_factory=None)
+        now = _index_fingerprint(conn)
+    except Exception:
+        return True
+    finally:
+        if conn is not None:
+            conn.close()
+    if now is None or tuple(now) != tuple(index.fingerprint):
+        print(
+            "WARNING: company_embeddings changed mid-run — VSS matches "
+            "served the pre-write snapshot; re-run for fresh vectors.",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
+def _index_best_match(index, qvec, entity_set, threshold):
+    """Argmax over the run-index matrix with per-call entity filtering.
+
+    Same contract as _best_vss_match: (best_name, best_score) with
+    strict->first tie behavior (argmax returns the first maximum, like
+    the loop's strict >), no-match below threshold.
+    """
+    import numpy as np
+
+    scores = index.matrix @ np.asarray(qvec, dtype=np.float64)
+    if entity_set is not None:
+        mask = np.array([n in entity_set for n in index.names])
+        if not mask.any():
+            return None, 0.0
+        scores = np.where(mask, scores, -np.inf)
+    best_i = int(np.argmax(scores))
+    best_score = float(scores[best_i])
+    if best_score >= threshold:
+        return index.names[best_i], best_score
+    return None, 0.0
+
+
+def _vss_match_with_index(index, query, entity_set, threshold):
+    """Run-index path of vss_match (S3): one matvec, no SELECT/digest/dots."""
+    try:
+        qvec = index.embed_fn(query, index.dims)
+    except Exception:  # noqa: S110  # no-match, don't kill a whole run on one bad query
+        return None, 0.0
+    return _index_best_match(index, qvec, entity_set, threshold)
+
+
 def vss_match(
     query,
     entities,
@@ -326,6 +476,7 @@ def vss_match(
     db_path=None,
     threshold=0.5,
     embed_fn=None,
+    index=None,
 ):
     """Best-effort vector-similarity fallback for entity resolution.
 
@@ -346,7 +497,13 @@ def vss_match(
     ``db_path`` (default ``memory/research.db``) and closed before returning.
     ``embed_fn(query, dims) -> list[float]``: overrides the default
     pseudo-embedder (used by tests for deterministic control).
+    ``index``: optional _VssRunIndex from build_vss_run_index (S3) — skips
+    the per-call SELECT/digest/dots for one matvec; the per-call path
+    below is unchanged for embed_eval/tests.
     """
+    entity_set = set(entities) if entities is not None else None
+    if index is not None:
+        return _vss_match_with_index(index, query, entity_set, threshold)
     owns = False
     try:
         if conn is None:
@@ -376,7 +533,6 @@ def vss_match(
 
     qvec = embed_fn(query, dims)
 
-    entity_set = set(entities) if entities is not None else None
     best_name, best_score = _best_vss_match(qvec, rows, dims, entity_set)
 
     if best_name and best_score >= threshold:
@@ -384,7 +540,7 @@ def vss_match(
     return None, 0.0
 
 
-def resolve_entity(ticker, info, entities, spellfix_conn=None, vss_conn=None):
+def resolve_entity(ticker, info, entities, spellfix_conn=None, vss_conn=None, index=None):
     """Match a Yahoo Finance result to a known entity via fuzzy_match, with a
     vector-similarity fallback (deferred N5 item — VSS stage)."""
     if not _FUZZY_AVAILABLE or not entities:
@@ -406,7 +562,7 @@ def resolve_entity(ticker, info, entities, spellfix_conn=None, vss_conn=None):
     for candidate in (long_name, short_name):
         if not candidate:
             continue
-        match, score = vss_match(candidate, entities, conn=vss_conn)
+        match, score = vss_match(candidate, entities, conn=vss_conn, index=index)
         if match:
             return match, "vss"
     return None, None
@@ -636,7 +792,7 @@ def _print_calendar_section(calendar):
         print(calendar.to_string())
 
 
-def display_ticker(symbol, detailed=False, entities=None, spellfix_conn=None):
+def display_ticker(symbol, detailed=False, entities=None, spellfix_conn=None, index=None):
     """Look up a ticker and print formatted info to stdout.
 
     With detailed=True, fetches comprehensive data (financials, holders,
@@ -648,7 +804,7 @@ def display_ticker(symbol, detailed=False, entities=None, spellfix_conn=None):
         return None
 
     # Resolve to known entity in our knowledge graph
-    entity_name, match_method = resolve_entity(symbol, info, entities, spellfix_conn)
+    entity_name, match_method = resolve_entity(symbol, info, entities, spellfix_conn, index=index)
 
     if not detailed:
         # Concise mode: one line
@@ -775,13 +931,20 @@ def main(symbols=None, detailed=False):
             except Exception:
                 spellfix_conn = None
 
+        # S3: fetch + decode company_embeddings once for the whole run
+        # (static within a run — writers are separate maint CLI runs).
+        # None → per-call behavior inside resolve_entity; the tripwire
+        # re-check after the loop warns if a writer committed mid-run.
+        vss_index = build_vss_run_index()
         for sym in symbols:
             display_ticker(
                 sym.upper().strip(),
                 detailed=detailed,
                 entities=entities,
                 spellfix_conn=spellfix_conn,
+                index=vss_index,
             )
+        check_vss_run_index(vss_index)
 
         if spellfix_conn:
             spellfix_conn.close()

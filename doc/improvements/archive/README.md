@@ -18,6 +18,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`suggested_relations_accept.md`](graph/suggested_relations_accept.md) — Proposal: Accept path for pending relations — `accept:<edge_type>[:<target>]` writes suggested + known-target rows to graph_edges — completed.md #169
 - [`vault_scaling.md`](graph/vault_scaling.md) — Proposal: Vault scaling to 100M doubled rows — tiered trigger ladder (T1 CSR / T2 rebuild+Mojo BFS / T3 validation), Phase A corpus, Phase C similarity; Phase 0 executed (tier tripwire advisory + in-repo BFS scale ladder), Phases A–C trigger-gated with the tripwire watching — completed.md #204
 - [`derive_insights_perf.md`](graph/derive_insights_perf.md) — Proposal: derive_insights regex hoisting + get_tickers decode-once company_embeddings (numba evaluated and rejected) — both slices executed — completed.md #208
+- [`scan_render_vss_microperf.md`](graph/scan_render_vss_microperf.md) — Proposal: scan/render/VSS micro-perf — C-count line numbers, one frontmatter parse per note, fetch-once VSS run index — all three slices executed — completed.md #211
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 

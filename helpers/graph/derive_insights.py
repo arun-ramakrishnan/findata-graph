@@ -91,7 +91,6 @@ USAGE
 from __future__ import annotations
 
 import argparse
-import bisect
 import datetime as _dt
 import json
 import re
@@ -167,7 +166,37 @@ def _iso_date(value) -> _dt.date | None:
         return None
 
 
-def _stale_only_skip(text: str, scanned_stems: frozenset[str] = frozenset()) -> bool | None:
+# Sentinel for the shared frontmatter parse (S2, scan_render_vss_microperf):
+# _UNSET = "not supplied — parse yourself"; None = "parsed, no usable
+# frontmatter" (a meaningful outcome — no opener, bad YAML, non-dict).
+_UNSET: object = object()
+
+
+def _load_frontmatter(text: str) -> dict | None:
+    """Split + yaml-parse a note's frontmatter once; None when unusable.
+
+    Shared by the --stale-only gate and the sources splice so each note
+    pays one parse per render block instead of two. INVARIANT: the block
+    replace/insert ops between gate and splice never write into the
+    frontmatter region (pinned by
+    test_block_ops_preserve_frontmatter_bytes), so a dict parsed before
+    them is still current at splice time. _splice_sources takes
+    ownership of a supplied dict (it assigns fm["sources"]) — the gate
+    always runs first, so sharing is safe in both render paths.
+    """
+    opener, fm_text, _ = split_frontmatter(text)
+    if not opener:
+        return None
+    try:
+        fm = yaml_safe_load(fm_text)
+    except yaml.YAMLError:
+        return None
+    return fm if isinstance(fm, dict) else None
+
+
+def _stale_only_skip(
+    text: str, scanned_stems: frozenset[str] = frozenset(), *, fm: dict | None | object = _UNSET
+) -> bool | None:
     """``--stale-only`` gate (okf_activation I). True=skip, False=render,
     None=no evidence (render anyway — safe default, accepted Q3).
 
@@ -185,14 +214,12 @@ def _stale_only_skip(text: str, scanned_stems: frozenset[str] = frozenset()) -> 
     note. Any stem absent from sources[] forces a render — the splice that
     would add it only runs at render time, so skipping here would lock the
     note out forever while its evidence keeps moving.
+
+    ``fm``: shared parse from _load_frontmatter (S2) — _UNSET parses
+    internally (all other callers + tests keep today's behavior).
     """
-    opener, fm_text, _ = split_frontmatter(text)
-    if not opener:
-        return None
-    try:
-        fm = yaml_safe_load(fm_text)
-    except yaml.YAMLError:
-        return None
+    if fm is _UNSET:
+        fm = _load_frontmatter(text)
     if not isinstance(fm, dict):
         return None
     gen = fm.get("generated")
@@ -244,6 +271,8 @@ def _splice_sources(
     vault: Path,
     extra_stems: frozenset[str] = frozenset(),
     memo: dict | None = None,
+    *,
+    fm: dict | None | object = _UNSET,
 ) -> tuple[str, bool]:
     """Merge edition entries into frontmatter ``sources[]`` (§3.2a).
 
@@ -255,14 +284,11 @@ def _splice_sources(
     frontmatter and never touches a note with nothing to add. Returns
     ``(new_text, changed)``. ``memo`` caches edition-string resolution
     across calls (one edition key recurs across dozens of notes).
+    ``fm``: shared parse from _load_frontmatter (S2) — takes ownership
+    (assigns fm["sources"]); _UNSET parses internally.
     """
-    opener, fm_text, _ = split_frontmatter(text)
-    if not opener:
-        return (text, False)
-    try:
-        fm = yaml_safe_load(fm_text)
-    except yaml.YAMLError:
-        return (text, False)
+    if fm is _UNSET:
+        fm = _load_frontmatter(text)
     if not isinstance(fm, dict):
         return (text, False)
     merged = merged_sources(fm, text, index, vault, memo)
@@ -411,11 +437,14 @@ def iter_company_sections(content: str):  # noqa: C901
     that must stay inside the slice; only structural boundaries (the next
     company `## Foo | Cap | Sector` or sector `## FMCG`) terminate it.
     """
-    # Precompute newline offsets for O(log n) line-number lookup.
-    nl_offsets = [i for i, c in enumerate(content) if c == "\n"]
-
-    def line_of(pos: int) -> int:
-        return bisect.bisect_right(nl_offsets, pos) + 1
+    # Line numbers via C-speed str.count per yielded section
+    # (scan_render_vss_microperf S1, 2026-09-06): the old nl_offsets
+    # precompute ran a pure-Python char loop over the whole file
+    # (~0.9ms/file, ~70% of serial scan). Bisect identity: _HEADING_RE
+    # match starts point at '#', never '\n', so
+    # bisect_right(offsets, pos)+1 == count("\n", 0, pos)+1 exactly;
+    # sections are few per file, so per-section prefix re-scans at C
+    # memchr speed are irrelevant (5ms/400 files measured).
 
     matches = list(_HEADING_RE.finditer(content))
     # Classify each heading: is it a STRUCTURAL boundary (company or sector)?
@@ -464,7 +493,7 @@ def iter_company_sections(content: str):  # noqa: C901
         end = structural[si + 1][0] if si + 1 < len(structural) else len(content)
         yield CompanySection(
             canonical_name=canonical,
-            heading_line=line_of(start),
+            heading_line=content.count("\n", 0, start) + 1,
             body=content[start:end],
         )
 
@@ -1388,6 +1417,9 @@ def render_notes(  # noqa: C901  # noqa anchor moved to the statement's diagnost
                 continue
             text = p.read_text(encoding="utf-8", errors="replace")
             original_text = text
+            # S2: one frontmatter parse per note, shared by gate + splice
+            # (invariant: block ops below never touch the FM region).
+            fm_once = _load_frontmatter(text)
             # --stale-only gate: one decision per NOTE (covers all its
             # edition blocks — the evidence basis is note-level sources[]).
             # A scanned edition missing from sources[] forces the render
@@ -1398,7 +1430,8 @@ def render_notes(  # noqa: C901  # noqa anchor moved to the statement's diagnost
             # the note is current, so the gate's "no churn" property holds.
             gated_candidate = (
                 stale_only
-                and _stale_only_skip(text, _scanned_stems(edict, index, stem_memo)) is True
+                and _stale_only_skip(text, _scanned_stems(edict, index, stem_memo), fm=fm_once)
+                is True
             )
             # Render ALL editions that have quotes (one auto block per
             # edition scanned, so a note accumulates its edition history).
@@ -1422,7 +1455,8 @@ def render_notes(  # noqa: C901  # noqa anchor moved to the statement's diagnost
                     skipped += 1
             # Splice sources[] even when no block changed (convergence: a
             # gated-clean note with new evidence absorbs it here, once).
-            text, sources_changed = _splice_sources(text, index, vault, memo=res_memo)
+            # fm_once (S2) is still current: block ops never touch FM.
+            text, sources_changed = _splice_sources(text, index, vault, memo=res_memo, fm=fm_once)
             if not (text_changed or sources_changed):
                 if gated_candidate:
                     gated += 1
@@ -1627,12 +1661,16 @@ def _render_metric_note(
     """
     text = p.read_text(encoding="utf-8", errors="replace")
     stems = _scanned_stems({m.as_of_edition for m in ms}, index, stem_memo)
-    if stale_only and _stale_only_skip(text, stems) is True:
+    # S2: one frontmatter parse per note, shared by gate + splice.
+    fm_once = _load_frontmatter(text)
+    if stale_only and _stale_only_skip(text, stems, fm=fm_once) is True:
         return "gated"
     original_text = text
     new_block = render_key_figures_block(ms)
     text, changed = _replace_or_insert_kf(text, new_block)
-    text, sources_changed = _splice_sources(text, index, vault, extra_stems=stems, memo=res_memo)
+    text, sources_changed = _splice_sources(
+        text, index, vault, extra_stems=stems, memo=res_memo, fm=fm_once
+    )
     if not (changed or sources_changed) or not _balanced_or_skipped(original_text, text, p.name):
         return "skip"
     if dry_run:

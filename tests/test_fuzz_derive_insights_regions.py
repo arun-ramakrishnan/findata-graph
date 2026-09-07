@@ -300,3 +300,18 @@ def test_splice_sources_idempotent_and_preserving(body, existing_ids):
 
     out_nofm, ch_nofm = di._splice_sources(body, index, vault)
     assert out_nofm == body and ch_nofm is False  # never invents FM
+
+
+@_SETTINGS
+@given(_NOTES, _EDITION)
+def test_block_ops_preserve_frontmatter_bytes(body, edition):
+    """S2 invariant (scan_render_vss_microperf): the block replace/insert
+    ops between the stale-gate parse and the splice never write into the
+    frontmatter region — split_frontmatter(text)[1] is byte-identical
+    before and after, so a shared parse stays current."""
+    text = _with_fm(body, ["Alpha"])
+    _, fm_before, _ = di.split_frontmatter(text)
+    out_block, _ = di._replace_or_insert_block(text, edition, "auto body\n")
+    assert di.split_frontmatter(out_block)[1] == fm_before
+    out_kf, _ = di._replace_or_insert_kf(text, "kf body\n")
+    assert di.split_frontmatter(out_kf)[1] == fm_before

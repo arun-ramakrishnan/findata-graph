@@ -2108,3 +2108,100 @@ def _APPLY_QUOTES():
             source_ref="derive:quotes:Marico_DLF_BSE:45",
         ),
     ]
+
+
+class TestSectionLineNumbers:
+    """S1 (scan_render_vss_microperf): heading_line must equal the old
+    bisect-over-newline-offsets computation on every heading shape —
+    the bisect oracle is kept here, not in production code."""
+
+    @staticmethod
+    def _oracle_lines(content):
+        import bisect as _bisect
+
+        nl = [i for i, ch in enumerate(content) if ch == "\n"]
+        return {
+            m.start(): _bisect.bisect_right(nl, m.start()) + 1
+            for m in di._HEADING_RE.finditer(content)
+        }
+
+    @staticmethod
+    def _company_starts(content):
+        oracle = TestSectionLineNumbers._oracle_lines(content)
+        out = {}
+        for sec in di.iter_company_sections(content):
+            # sections are unique per canonical name in these fixtures
+            out[sec.canonical_name] = sec.heading_line
+        return out, oracle
+
+    def _assert_agrees(self, content):
+        secs, oracle = self._company_starts(content)
+        assert secs, "fixture produced no company sections"
+        # each yielded section's line must match the oracle at the
+        # heading position that canonicalizes to its name
+        for m in di._HEADING_RE.finditer(content):
+            canon = di._canonicalize(m.group(2).strip())
+            if canon in secs:
+                assert secs[canon] == oracle[m.start()]
+
+    def test_heading_at_pos_zero(self):
+        self._assert_agrees("## Marico Ltd | Large Cap\nbody line\n")
+
+    def test_consecutive_headings(self):
+        self._assert_agrees(
+            "## Marico Ltd | Large Cap\n"
+            "## Infosys Ltd | Large Cap\n"
+            "body\n"
+            "## FMCG\n"
+            "## Titan Company | Mid Cap\ntail\n"
+        )
+
+    def test_concall_subheadings_stay_inside(self):
+        content = (
+            "## Marico Ltd | Large Cap\n"
+            "## [Concall] Q3\n"
+            "## — Saugata Gupta, MD & CEO\n"
+            "## Management\n" + "prose\n" * 40 + "## Infosys Ltd | Large Cap\nmore\n"
+        )
+        self._assert_agrees(content)
+
+    def test_many_sections_long_body(self):
+        parts = []
+        for i in range(30):
+            parts.append(f"## Company{i:02d} Pvt Ltd | Small Cap\n")
+            parts.append(f"line one {i}\nline two {i}\nline three {i}\n")
+        self._assert_agrees("".join(parts))
+
+    def test_crlf_content(self):
+        self._assert_agrees(
+            "## Marico Ltd | Large Cap\r\nbody\r\n## FMCG\r\n## Titan Co | Mid Cap\r\n"
+        )
+
+
+class TestSharedFrontmatterParse:
+    """S2 (scan_render_vss_microperf): threading an explicit fm parse must
+    behave identically to the internal parse on every shape."""
+
+    _SHAPES = [
+        "---\ntitle: T\ntype: company\ngenerated:\n  by: derive_insights\n  at: 2026-09-01\nsources:\n- id: E1\n  last_modified: 2026-08-01\n---\n# Marico\n",
+        "# Marico\nno frontmatter\n",
+        "---\ntitle: [unclosed\n---\n# Marico\n",
+        "---\n- just\n- a\n- list\n---\n# Marico\n",
+        "---\ntitle: T\n---\n# Marico\n",
+    ]
+
+    def test_gate_shared_parse_matches(self):
+        for text in self._SHAPES:
+            for stems in (frozenset(), frozenset({"E1", "Missing_Stem"})):
+                assert di._stale_only_skip(
+                    text, stems, fm=di._load_frontmatter(text)
+                ) == di._stale_only_skip(text, stems)
+
+    def test_splice_shared_parse_matches(self):
+        index = {}
+        vault = PROJECT_ROOT / "findata"
+        for text in self._SHAPES:
+            fm = di._load_frontmatter(text)
+            assert di._splice_sources(text, index, vault, fm=fm) == di._splice_sources(
+                text, index, vault
+            )
