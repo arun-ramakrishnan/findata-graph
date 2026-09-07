@@ -31,21 +31,25 @@
    "suggestions": []
   },
   "5 Paisa": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:5paisa Capital",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Moving_Pieces"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "5paisa": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:5paisa Capital",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/In_the_Middle_of_Things"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "5paisa Capital"
    ]
@@ -103,12 +107,13 @@
    "suggestions": []
   },
   "AWL Agri Business": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/In_the_Middle_of_Things"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Aadhar Housing Finance": {
@@ -123,21 +128,24 @@
    "suggestions": []
   },
   "Aarti Industries": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Aarti Pharma": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Aarti Pharmalabs",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Signals_in_Silence"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Aarti Pharmalabs": {
@@ -192,12 +200,14 @@
    "suggestions": []
   },
   "Adani Cement": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Ambuja Cement",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Short-Term_Pain_Long-Term_Gain"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Adani Enterprises": {
@@ -223,12 +233,14 @@
    "suggestions": []
   },
   "Adani Ports and Special Economic Zone": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Adani Ports and SEZ",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Inflection_Watch"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Adani Power": {
@@ -253,13 +265,15 @@
    "suggestions": []
   },
   "Aditya Birla Fashion": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Aditya Birla Fashion and Retail",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Pressure_Points",
     "The_Chatter/The_Push_and_Pull"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Aditya Birla Fashion and Retail"
    ]
@@ -325,12 +339,13 @@
    "suggestions": []
   },
   "Ahluwalia Contracts": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Underneath_the_Noise"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Airbnb": {
@@ -394,12 +409,14 @@
    "suggestions": []
   },
   "Allcargo Group": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Allcargo Global",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Still_in_Play"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Allcargo Logistics": {
@@ -456,6 +473,8 @@
    "suggestions": []
   },
   "Amara Raja Energy": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Amara Raja Batteries",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
@@ -463,27 +482,31 @@
     "The_Chatter/Tailwinds_building",
     "The_Chatter/The_Blind_Spots"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Amara Raja Batteries"
    ]
   },
   "Amara Raja Energy & Mobility": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Amara Raja Batteries",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/ONGC_Divis_LG"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Amara Raja Energy \\& Mobility": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Amara Raja Batteries",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Mood_in_the_Room"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Amazon.com,": {
@@ -517,21 +540,25 @@
    "suggestions": []
   },
   "Ambuja Cements": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Ambuja Cement",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Havells_Ambuja_Cipla"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Anand Rathi Share & Stock Brokers Ltd. M Cap": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Anand Rathi Share and Stock Brokers",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/TCS_ICICI_Pru_HDB_Financials"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Anand Rathi Share and Stock Brokers"
    ]
@@ -561,21 +588,24 @@
    "suggestions": []
   },
   "Anheuser-Busch Inbev SA": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Anheuser-Busch Inbev",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Antony Waste Handling Cell": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Frameworks_&_Forecasts"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Anupam Rasayan India": {
@@ -589,12 +619,13 @@
    "suggestions": []
   },
   "Apcotex Industries": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Apex Frozen Foods": {
@@ -654,21 +685,24 @@
    "suggestions": []
   },
   "Apple": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Making_It_Work"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Aptus Value Housing": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Aptus Value Housing Finance",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/A_Quarter_That_Refuses_To_Behave"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Aptus Value Housing Finance"
    ]
@@ -684,12 +718,13 @@
    "suggestions": []
   },
   "Arisinfra Solutions": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/In_the_Middle_of_Things"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Arman Financial Services": {
@@ -759,12 +794,14 @@
    "suggestions": []
   },
   "Astra Microwave Prod": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Astra Microwave Products",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Underneath_the_Noise"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Astra Microwave Products"
    ]
@@ -780,13 +817,15 @@
    "suggestions": []
   },
   "Astral": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Astral Pipes",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Bajaj_Mahindra_Persistent",
     "The_Chatter/Threads_in_the_data"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Astral Pipes"
    ]
@@ -847,12 +886,13 @@
    "suggestions": []
   },
   "Awfis Space Solutions": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Decoding_the_Dialogue"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Axis Bank": {
@@ -889,12 +929,13 @@
    "suggestions": []
   },
   "BMW": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Signals_in_Silence"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "BSE": {
@@ -909,12 +950,13 @@
    "suggestions": []
   },
   "Baba Jewellers": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/TCS_ICICI_Pru_HDB_Financials"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Baidu": {
@@ -1047,12 +1089,14 @@
    "suggestions": []
   },
   "Bank of America Corporation": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Bank of America",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Threads_and_Tensions"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Bank of Baroda": {
@@ -1087,12 +1131,13 @@
    "suggestions": []
   },
   "Bansal Wire Industries": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/In_the_Middle_of_Things"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Barbeque-Nation Hospitality": {
@@ -1117,12 +1162,14 @@
    "suggestions": []
   },
   "Bayer AG": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Bayer",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Discovering_Hidden_Signals"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Belrise Industries": {
@@ -1193,12 +1240,14 @@
    "suggestions": []
   },
   "Bharati Airtel": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Bharti Airtel",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Making_It_Work"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Bharti Airtel": {
@@ -1224,22 +1273,26 @@
    "suggestions": []
   },
   "Bikaji Foods": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Bikaji Foods International",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Echoes_from_the_Boardroom",
     "The_Chatter/Short-Term_Pain_Long-Term_Gain"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Billionbrains Garage Ventures Ltd. (Groww)": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Groww",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/HDFC_Groww_Havells"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Biocon": {
@@ -1255,12 +1308,13 @@
    "suggestions": []
   },
   "Birla Corporation": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Discovering_Hidden_Signals"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "BlackBuck": {
@@ -1298,12 +1352,14 @@
    "suggestions": []
   },
   "Bluestone Jewellery": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:BlueStone Jewellery and Lifestyle",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Milky_Mist_Bluestone"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "BlueStone Jewellery and Lifestyle"
    ]
@@ -1353,6 +1409,7 @@
    "suggestions": []
   },
   "Brad Setser": {
+   "decision": "discard",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
@@ -1427,12 +1484,14 @@
    "suggestions": []
   },
   "CG Power \\& Industrial Solutions": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:CG Power",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Push_and_Pull"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "CIE Automotive India": {
@@ -1513,12 +1572,13 @@
    "suggestions": []
   },
   "Cantabil Retail India": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Echoes_from_the_Boardroom"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "CarTrade Tech": {
@@ -1542,12 +1602,13 @@
    "suggestions": []
   },
   "Ceigall India": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Short-Term_Pain_Long-Term_Gain"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Cello World": {
@@ -1602,23 +1663,27 @@
    "suggestions": []
   },
   "Chambal Fertilizers and Chemicals": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Chambal Fertilisers and Chemicals",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Chambal Fertilisers and Chemicals"
    ]
   },
   "Cholamandalam Finance I": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Cholamandalam Investment and Finance Company",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Discovering_Hidden_Signals"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Cholamandalam Investment and Finance": {
@@ -1686,12 +1751,13 @@
    "suggestions": []
   },
   "Coinbase": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Colgate-Palmolive (India)": {
@@ -1822,6 +1888,7 @@
    "suggestions": []
   },
   "D.B.": {
+   "decision": "discard",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
@@ -1831,21 +1898,25 @@
    "suggestions": []
   },
   "DB Corp": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:D B Corp",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Tariffs__Tailwinds."
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "DBS Group Holdings": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:DBS Group",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Push_and_Pull"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "DCM Shriram": {
@@ -1871,12 +1942,14 @@
    "suggestions": []
   },
   "DOMS": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:DOMS Industries",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/A_Quarter_That_Refuses_To_Behave"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "DOMS Industries"
    ]
@@ -1903,12 +1976,14 @@
    "suggestions": []
   },
   "Daimler (Mercedes-Benz Group)": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Mercedes-Benz Group",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Decoding_the_Dialogue"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Dalmia Bharat": {
@@ -1978,13 +2053,14 @@
    "suggestions": []
   },
   "Delta Air Lines": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Tariffs__Tailwinds.",
     "The_Chatter/Threads_and_Tensions"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Dev Information Technology": {
@@ -2028,21 +2104,23 @@
    "suggestions": []
   },
   "Digitide Solutions": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Moving_Pieces"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Dilip Buildcon": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Divi's Laboratories": {
@@ -2107,13 +2185,15 @@
    "suggestions": []
   },
   "Dr Reddy's": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Dr Reddys Laboratories",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Discovering_Hidden_Signals",
     "The_Chatter/The_Known_Unknowns"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Dr Reddys Laboratories": {
@@ -2148,6 +2228,7 @@
    "suggestions": []
   },
   "Dr. Rohit Chandra": {
+   "decision": "discard",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
@@ -2264,12 +2345,13 @@
    "suggestions": []
   },
   "Emami": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Making_It_Work"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Embassy Office Parks": {
@@ -2283,12 +2365,14 @@
    "suggestions": []
   },
   "Embassy REIT": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Embassy Office Parks",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Underneath_the_Noise"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Emcure Pharmaceuticals": {
@@ -2332,12 +2416,14 @@
    "suggestions": []
   },
   "Entertainment Network (India)_": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Entertainment Network (India)",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Contours_of_Change"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Entertainment Network (India)"
    ]
@@ -2406,12 +2492,14 @@
    "suggestions": []
   },
   "Exide": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Exide Industries",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Signals_in_Silence"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Exide Industries"
    ]
@@ -2447,12 +2535,14 @@
    "suggestions": []
   },
   "FSN E-Commerce Ventures Ltd I_": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:FSN E-Commerce",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Push_and_Pull"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Fabtech Technologies": {
@@ -2476,30 +2566,34 @@
    "suggestions": []
   },
   "Felix Industry I": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Felix Industries",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Short-Term_Pain_Long-Term_Gain"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Ferrari": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Fine Organic Industries": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Discovering_Hidden_Signals"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Finolex Cables": {
@@ -2526,12 +2620,14 @@
    "suggestions": []
   },
   "Flair": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Flair Writing Industries",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sharp_Takes"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Fortis Healthcare": {
@@ -2565,12 +2661,13 @@
    "suggestions": []
   },
   "Freightos": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Decoding_the_Dialogue"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Fujiyama Power Systems": {
@@ -2645,12 +2742,14 @@
    "suggestions": []
   },
   "GTPL Hathaway": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:GTPL Hathway",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/In_the_Middle_of_Things"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Gabriel India": {
@@ -2674,12 +2773,14 @@
    "suggestions": []
   },
   "Garden Reach Ship": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Garden Reach Shipbuilders & Engineers",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Underneath_the_Noise"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Garware Hi-Tech Films": {
@@ -2694,12 +2795,14 @@
    "suggestions": []
   },
   "General Insurance Corporation of India": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:General Insurance Corp",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sharp_Takes"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Life Insurance Corporation of India (LIC)",
     "Transport Corporation of India"
@@ -2716,12 +2819,13 @@
    "suggestions": []
   },
   "Genpact": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Short-Term_Pain_Long-Term_Gain"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Gensol Engineering": {
@@ -2785,12 +2889,14 @@
    "suggestions": []
   },
   "Glenmark Pharma": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Glenmark Pharmaceuticals",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Underneath_the_Noise"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Glenmark Pharmaceuticals": {
@@ -2807,12 +2913,14 @@
    "suggestions": []
   },
   "Globus Spirits": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Globus Agronics",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Contours_of_Change"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Glottis": {
@@ -2866,21 +2974,24 @@
    "suggestions": []
   },
   "Godrej Industries": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/On_Record"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Godrej Properties I": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Godrej Properties",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Making_It_Work"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Gokaldas Exports": {
@@ -2949,12 +3060,13 @@
    "suggestions": []
   },
   "Gujarat Gas": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Havells_Ambuja_Cipla"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Gulf Oil Lubricants India": {
@@ -2968,12 +3080,14 @@
    "suggestions": []
   },
   "HAL": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Hindustan Aeronautics",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Echoes_from_the_Boardroom"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "HCL Technologies": {
@@ -3013,13 +3127,15 @@
    "suggestions": []
   },
   "HDFC Asset Management Company": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:HDFC AMC",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Still_in_Play",
     "The_Chatter/Swiggy_Hyundai_Shree_Cement"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "UTI Asset Management Company",
     "ICICI Prudential Asset Management Company"
@@ -3040,24 +3156,28 @@
    "suggestions": []
   },
   "HDFC Life Insurance": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:HDFC Life",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/In_the_Middle_of_Things",
     "The_Chatter/Threads_and_Tensions"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "HDFC Life"
    ]
   },
   "HDFC Life Insurance Company": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:HDFC Life",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Tariffs__Tailwinds."
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "SBI Life Insurance Company",
     "HDFC Life"
@@ -3135,12 +3255,14 @@
    "suggestions": []
   },
   "Hatsun Agro Product": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Hatsun Agro Products",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Underneath_the_Noise"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Hatsun Agro Products"
    ]
@@ -3179,12 +3301,14 @@
    "suggestions": []
   },
   "Heidelberg Cement": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:HeidelbergCement India",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sharp_Takes"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Heineken Holding": {
@@ -3242,12 +3366,13 @@
    "suggestions": []
   },
   "Hester Biosciences": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Hexaware Technologies": {
@@ -3262,12 +3387,14 @@
    "suggestions": []
   },
   "Hind Zinc": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Hindustan Zinc",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Reliance_Infosys_VBL"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Hindalco": {
@@ -3281,12 +3408,14 @@
    "suggestions": []
   },
   "Hindalco Industries": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Hindalco",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Tata_Steel_LIC"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Hindalco"
    ]
@@ -3322,12 +3451,14 @@
    "suggestions": []
   },
   "Hindustan Oil Exploration Company I": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Hindustan Oil Exploration Company",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Push_and_Pull"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Hindustan Unilever": {
@@ -3416,12 +3547,13 @@
    "suggestions": []
   },
   "Hugo Boss": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Signals_in_Silence"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Hyundai Motor India": {
@@ -3460,12 +3592,14 @@
    "suggestions": []
   },
   "ICICI Lombard General Insurance Compa": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:ICICI Lombard General Insurance",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/TCS_ICICI_Pru_HDB_Financials"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "ICICI Lombard General Insurance"
    ]
@@ -3501,12 +3635,14 @@
    "suggestions": []
   },
   "ICICI Prudential Life Insurance Compa": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:ICICI Prudential Life Insurance",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/TCS_ICICI_Pru_HDB_Financials"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "ICICI Prudential Life Insurance"
    ]
@@ -3667,12 +3803,14 @@
    "suggestions": []
   },
   "Indian Railway Catering and Tourism Corporation \\": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:IRCTC",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sharp_Takes"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Indian Railway Finance Corporation": {
@@ -3697,12 +3835,14 @@
    "suggestions": []
   },
   "Indigrid": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:IndiGrid",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Moving_Pieces"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Indiqube Spaces": {
@@ -3746,12 +3886,14 @@
    "suggestions": []
   },
   "InfoEdge (Naukri)]": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Info Edge",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Decoding_Capex_Capacity_and_Consumer_Trends"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Infobeans Technologies": {
@@ -3835,32 +3977,38 @@
    "suggestions": []
   },
   "Ixigo": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Le Travenues Technology",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Known_Unknowns"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "J.B. Chemicals and Pharmaceuticals": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:J B Chemicals & Pharmaceuticals",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Weights_and_Measures"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "J B Chemicals & Pharmaceuticals"
    ]
   },
   "J.P. Morgan": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:JPMorgan Chase",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Decoding_Capex_Capacity_and_Consumer_Trends"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "JBM Auto": {
@@ -3884,21 +4032,25 @@
    "suggestions": []
   },
   "JK Cements": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:JK Cement",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Making_It_Work"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "JPMorgan Chase": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:JPMorgan Chase",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Tariffs__Tailwinds."
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "JSW ENERGY": {
@@ -3922,12 +4074,13 @@
    "suggestions": []
   },
   "JSW Infrastructure": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Moving_Pieces"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "JSW Steel": {
@@ -3963,12 +4116,13 @@
    "suggestions": []
   },
   "Jindal Saw": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Mood_in_the_Room"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Jindal Stainless": {
@@ -4004,12 +4158,14 @@
    "suggestions": []
   },
   "Jio Financials": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Jio Financial Services",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Management_in_Motion"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "John Cockerill India": {
@@ -4023,12 +4179,14 @@
    "suggestions": []
   },
   "Johnson \\& Johnson": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Johnson & Johnson",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Tariffs__Tailwinds."
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Jos Alukkas": {
@@ -4053,12 +4211,14 @@
    "suggestions": []
   },
   "Jubilant Foodworks \\": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Jubilant FoodWorks",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/A_Quarter_That_Refuses_To_Behave"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Jubilant FoodWorks"
    ]
@@ -4137,12 +4297,14 @@
    "suggestions": []
   },
   "KEI industries I_": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:KEI Industries",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Moves_and_Motives"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "KEI Industries"
    ]
@@ -4229,12 +4391,13 @@
    "suggestions": []
   },
   "Kanpur Plastipack": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Push_and_Pull"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Kansai Nerolac Paints": {
@@ -4268,22 +4431,26 @@
    "suggestions": []
   },
   "Kaynes Technology": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Kaynes Technologies",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Signals_in_Silence"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Kaynes Technology India": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Kaynes Technologies",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/TCS_Indian_Bank_Amagi",
     "The_Chatter/The_Pivot_Quarter_output"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Kellton Tech Solutions": {
@@ -4298,12 +4465,14 @@
    "suggestions": []
   },
   "Khadim India \\": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Khadim India",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Push_and_Pull"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Khazanchi Jewellers": {
@@ -4317,12 +4486,13 @@
    "suggestions": []
   },
   "Kilburn Engineering": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Push_and_Pull"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Kirloskar Pneumatic Company": {
@@ -4418,12 +4588,13 @@
    "suggestions": []
   },
   "LT Foods": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Known_Unknowns"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "LTM": {
@@ -4449,21 +4620,25 @@
    "suggestions": []
   },
   "L\\&T Mindtree": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:LTM",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Still_in_Play"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "L\\&T Technology_Services": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:L&T Technology Services",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Scaling_Through_Slowdowns"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Larsen & Toubro": {
@@ -4488,12 +4663,14 @@
    "suggestions": []
   },
   "Larsen \\& Toubro.(L\\&T)": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Larsen and Toubro",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sailing_the_Tide"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Laurus Labs": {
@@ -4507,12 +4684,14 @@
    "suggestions": []
   },
   "Laxmi Organic Inds.": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Laxmi Organic",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Pressure_Points"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Laxmi Organic"
    ]
@@ -4539,12 +4718,14 @@
    "suggestions": []
   },
   "Lenskart": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Lenskart Solutions",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/A_Quarter_That_Refuses_To_Behave"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Lenskart Solutions"
    ]
@@ -4560,13 +4741,15 @@
    "suggestions": []
   },
   "Life Insurance Corporation of India": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Life Insurance Corporation of India (LIC)",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sharp_Takes",
     "The_Chatter/Tata_Steel_LIC"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Life Insurance Corporation of India (LIC)",
     "Transport Corporation of India"
@@ -4593,12 +4776,14 @@
    "suggestions": []
   },
   "Lodha": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Macrotech Developers",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Making_It_Work"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Lumax Auto Technologies": {
@@ -4652,12 +4837,14 @@
    "suggestions": []
   },
   "M\\&B Engineering Ltd. I": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:M&B Engineering",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Underneath_the_Noise"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Madhya Bharat Agro Products": {
@@ -4671,12 +4858,13 @@
    "suggestions": []
   },
   "Maersk": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Mahanagar Gas": {
@@ -4810,12 +4998,13 @@
    "suggestions": []
   },
   "Marriott International": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Decoding_Capex_Capacity_and_Consumer_Trends"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Maruti Suzuki": {
@@ -4884,32 +5073,38 @@
    "suggestions": []
   },
   "Max Health": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Max Healthcare Institute",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Contours_of_Change"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Max Healthcare": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Max Healthcare Institute",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/A_Quarter_That_Refuses_To_Behave"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Max Healthcare Institute"
    ]
   },
   "MedPlus": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Medplus Health Services",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sharp_Takes"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "MedPlus Health Services": {
@@ -4934,12 +5129,13 @@
    "suggestions": []
   },
   "Meta": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Known_Unknowns"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Metro Brands": {
@@ -4993,23 +5189,27 @@
    "suggestions": []
   },
   "Mindspace Business": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Mindspace Business Parks REIT",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Reliance_Infosys_VBL"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Mindspace Business Parks REIT"
    ]
   },
   "Mishra Dhatu Nigam": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Mishra Dhatu Nigam (MIDHANI)",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Between_Headwinds_and_Tailwinds"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Mishra Dhatu Nigam (MIDHANI)"
    ]
@@ -5025,21 +5225,25 @@
    "suggestions": []
   },
   "Mold-Tek Packaging": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Mold Tek Packaging",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Echoes_from_the_Boardroom"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Mold-Tek Packaging_": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Mold Tek Packaging",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sailing_the_Tide"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Monte Carlo Fashions": {
@@ -5063,12 +5267,14 @@
    "suggestions": []
   },
   "Mothersonsumi Wiring": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Motherson Sumi Wiring India",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/On_Record"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Motilal Oswal Financial Services": {
@@ -5093,12 +5299,14 @@
    "suggestions": []
   },
   "Mrs. Bectors Food Specialities": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Bectors Food Specialities",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Between_Headwinds_and_Tailwinds"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Bectors Food Specialities"
    ]
@@ -5114,34 +5322,40 @@
    "suggestions": []
   },
   "Multi Commodity Exchange of India": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Multi Commodity Exchange of India (MCX)",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Discovering_Hidden_Signals"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Multi Commodity Exchange of India (MCX)"
    ]
   },
   "Multi Commodity Exchange of India \\": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Multi Commodity Exchange of India (MCX)",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Underneath_the_Noise"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Multi Commodity Exchange of India (MCX)"
    ]
   },
   "Multi Commodity Exchange(MCX)": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Multi Commodity Exchange of India (MCX)",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Anchor_and_Ambitions"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Muthoot Capital Services": {
@@ -5190,30 +5404,35 @@
    "suggestions": []
   },
   "NETGEAR,": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Netgear",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sailing_the_Tide"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "NIIT Learning Systems": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Moving_Pieces"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "NIKE,": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Nike",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Short-Term_Pain_Long-Term_Gain"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "NOCIL": {
@@ -5253,13 +5472,15 @@
    "suggestions": []
   },
   "Narayana Hrudayalay": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Narayana Hrudayalaya",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/A_Quarter_That_Refuses_To_Behave",
     "The_Chatter/Bets and blueprints"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "National Aluminium (NALCO)": {
@@ -5293,13 +5514,14 @@
    "suggestions": []
   },
   "Netflix": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/On_Record",
     "The_Chatter/The_Known_Unknowns"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Netweb Technologies India": {
@@ -5313,12 +5535,14 @@
    "suggestions": []
   },
   "Nike": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Nike",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/On_Record"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Nippon Life AMC": {
@@ -5332,21 +5556,24 @@
    "suggestions": []
   },
   "Nippon Life India Asset Management": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Nippon Life AMC",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Reliance_PayTM_Nykaa"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Novo Nordisk": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Nuvama Wealth": {
@@ -5370,13 +5597,14 @@
    "suggestions": []
   },
   "ONGC": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Management_in_Motion",
     "The_Chatter/Tailwinds_building"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Oberoi Realty": {
@@ -5424,13 +5652,15 @@
    "suggestions": []
   },
   "One 97 Communications (PayTM)": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:One 97 Communications PayTM",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Discovering_Hidden_Signals",
     "The_Chatter/Reliance_PayTM_Nykaa"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "One 97 Communications PayTM"
    ]
@@ -5488,23 +5718,27 @@
    "suggestions": []
   },
   "Organic Recycling": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Organic Recycling Systems",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Mood_in_the_Room"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Organic Recycling Systems"
    ]
   },
   "Orient Green Energy": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Orient Green Power",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Push_and_Pull"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Solarium Green Energy",
     "Saatvik Green Energy",
@@ -5552,12 +5786,14 @@
    "suggestions": []
   },
   "PB Fintech \\": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:PB Fintech",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sailing_the_Tide"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "PB Fintech"
    ]
@@ -5615,12 +5851,14 @@
    "suggestions": []
   },
   "PVR": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:PVR INOX",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Tailwinds_building"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "PVR INOX"
    ]
@@ -5647,12 +5885,14 @@
    "suggestions": []
   },
   "P\\&G Health": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:P&G Hygiene and Healthcare",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Management_in_Motion"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Pace Digitek": {
@@ -5686,12 +5926,14 @@
    "suggestions": []
   },
   "Palantir": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Palantir Technologies",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Micron_SpaceX_Palantir"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Palantir Technologies"
    ]
@@ -5707,12 +5949,13 @@
    "suggestions": []
   },
   "Parag Milk Foods": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Discovering_Hidden_Signals"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Patanjali Foods": {
@@ -5780,12 +6023,14 @@
    "suggestions": []
   },
   "Piaggio Group": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Piaggio Group",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Discovering_Hidden_Signals"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Pidilite Industries": {
@@ -5866,21 +6111,25 @@
    "suggestions": []
   },
   "Poonawala Poonawalla Fincorp": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Magma Fincorp",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Between_Headwinds_and_Tailwinds"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Poonawalla Fincorp": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Magma Fincorp",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Mood_in_the_Room"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Power Finance": {
@@ -5894,12 +6143,14 @@
    "suggestions": []
   },
   "Power Grid Corporation": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Power Grid Corporation of India",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Swiggy_Hyundai_Shree_Cement"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Power Grid Corporation of India",
     "Power Finance Corporation"
@@ -5931,22 +6182,25 @@
    "suggestions": []
   },
   "Premier Energies": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Anchor_and_Ambitions",
     "The_Chatter/Echoes_from_the_Boardroom"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Premier Energies I": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Premier Energies",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sailing_the_Tide"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Premier Explosives": {
@@ -5961,23 +6215,27 @@
    "suggestions": []
   },
   "Prestige Estates": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Prestige Estates Projects",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Reliance_Vedanta_Gillette"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Prestige Estates Projects"
    ]
   },
   "Prestige Estates Project": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Prestige Estates Projects",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Making_It_Work"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Prestige Estates Projects"
    ]
@@ -6023,12 +6281,14 @@
    "suggestions": []
   },
   "Punjab National Bank": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Punjab National Bank (PNB)",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Making_It_Work"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Punjab National Bank (PNB)",
     "Punjab Sind Bank"
@@ -6069,6 +6329,7 @@
    "suggestions": []
   },
   "RBI Deputy Governor": {
+   "decision": "discard",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
@@ -6108,12 +6369,13 @@
    "suggestions": []
   },
   "RIR Power Electronics": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Underneath_the_Noise"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "RITES": {
@@ -6318,12 +6580,14 @@
    "suggestions": []
   },
   "Rural Electrification Corporation (REC)": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:REC",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sailing_the_Tide"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "SAIL": {
@@ -6338,22 +6602,26 @@
    "suggestions": []
   },
   "SBI": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:State Bank of India",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Pressure_Points",
     "The_Chatter/SBI_Delhivery_Titan"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "SBI Cards": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:SBI Cards and Payment Services",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Frameworks_&_Forecasts"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "SBI Life Insurance Company": {
@@ -6367,13 +6635,14 @@
    "suggestions": []
   },
   "SG Finserve": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown",
     "The_Chatter/Tariffs__Tailwinds."
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "SKF India": {
@@ -6489,12 +6758,14 @@
    "suggestions": []
   },
   "SanDisk Corporation": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Sandisk",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Blind_Spots"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Sanathan Textiles": {
@@ -6549,21 +6820,23 @@
    "suggestions": []
   },
   "Sarveshwar Foods": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Underneath_the_Noise"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Satin Creditcare": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Signals_in_Silence"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Saudi Aramco": {
@@ -6599,12 +6872,13 @@
    "suggestions": []
   },
   "Scoda Tubes": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/On_Record"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Senco Gold": {
@@ -6649,12 +6923,14 @@
    "suggestions": []
   },
   "Shell plc": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Shell",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sailing_the_Tide"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Shilchar Technologies": {
@@ -6668,12 +6944,13 @@
    "suggestions": []
   },
   "Shopify": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Shoppers Stop": {
@@ -6707,12 +6984,14 @@
    "suggestions": []
   },
   "Shree Pushkar Chemicals \\& Fertilisers I": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Shree Pushkar Chemicals Fertilisers",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Echoes_from_the_Boardroom"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Shree Pushkar Chemicals Fertilisers"
    ]
@@ -6749,21 +7028,24 @@
    "suggestions": []
   },
   "Siemens Energy AG": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Siemens Energy",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Signature Global": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Moving_Pieces"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Signpost India": {
@@ -6788,12 +7070,14 @@
    "suggestions": []
   },
   "Sodexo SA": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Sodexo",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Micron_SpaceX_Palantir"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Sodexo"
    ]
@@ -6830,32 +7114,38 @@
    "suggestions": []
   },
   "Sona BLW Precision": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Sona BLW Precision Forgings",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Pivot_Quarter_output"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Sona BLW Precision Forgings"
    ]
   },
   "Sony": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Sony Group",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Decoding_the_Dialogue"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Sony Group Corporation": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Sony Group",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Push_and_Pull"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "South Indian Bank": {
@@ -6899,21 +7189,25 @@
    "suggestions": []
   },
   "Spotify I": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Spotify",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Known_Unknowns"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Sri Lotus Developers \\& Realty": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Sri Lotus Developers Realty",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Moves_and_Motives"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Sri Lotus Developers Realty"
    ]
@@ -6929,12 +7223,14 @@
    "suggestions": []
   },
   "Starbucks Corporation": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Starbucks",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Sailing_the_Tide"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "State Bank of India": {
@@ -6959,12 +7255,14 @@
    "suggestions": []
   },
   "Stove Kraft": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Stovekraft",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Decoding_the_Dialogue"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Studds Accessories": {
@@ -6979,21 +7277,25 @@
    "suggestions": []
   },
   "Style Bazaar": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Baazar Style Retail",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Moving_Pieces"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Styrenix Performance": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Styrenix Performance Materials",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Push_and_Pull"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Sula Vineyards": {
@@ -7007,12 +7309,14 @@
    "suggestions": []
   },
   "Sun Pharma": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Sun Pharmaceutical Industries",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Management_in_Motion"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Sun Pharmaceutical Industries": {
@@ -7027,12 +7331,14 @@
    "suggestions": []
   },
   "Sunteck": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Sunteck Realty",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Discovering_Hidden_Signals"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Suprajit Engineering": {
@@ -7080,12 +7386,13 @@
    "suggestions": []
   },
   "Symphony": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "TATA Consultancy Services": {
@@ -7203,6 +7510,7 @@
    "suggestions": []
   },
   "Tamal Bandyopadhyay": {
+   "decision": "discard",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
@@ -7290,6 +7598,8 @@
    "suggestions": []
   },
   "Tata Motors": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Tata Motors Passenger Vehicles",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
@@ -7297,7 +7607,7 @@
     "The_Chatter/Infosys_Adani_Tata_Motors",
     "The_Chatter/Management_in_Motion"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Tata Motors Passenger Vehicles"
    ]
@@ -7407,12 +7717,13 @@
    "suggestions": []
   },
   "Tencent": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Signals_in_Silence"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Tenneco Clean Air India": {
@@ -7427,12 +7738,13 @@
    "suggestions": []
   },
   "Tesla": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Making_It_Work"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Texmaco Rail \\& Engineering": {
@@ -7456,13 +7768,15 @@
    "suggestions": []
   },
   "Thomas Cook": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Thomas Cook (India)",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Decoding_the_Dialogue",
     "The_Chatter/Moving_Pieces"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Thomas Scott": {
@@ -7486,12 +7800,14 @@
    "suggestions": []
   },
   "Tilaknagar Inds": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Tilaknagar Industries",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/The_Blind_Spots"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Tilaknagar Industries": {
@@ -7526,12 +7842,14 @@
    "suggestions": []
   },
   "Tips Industries": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Tips Music",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Scaling_Through_Slowdowns"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Titagarh Rail Systems": {
@@ -7546,12 +7864,14 @@
    "suggestions": []
   },
   "Titagarh Railsystems \\": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Titagarh Rail Systems",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Between_the_Numbers"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Titan Company": {
@@ -7568,12 +7888,14 @@
    "suggestions": []
   },
   "Torrent Pharma": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Torrent Pharmaceuticals",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Bets and blueprints"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Torrent Power": {
@@ -7640,12 +7962,14 @@
    "suggestions": []
   },
   "Uber Technologies": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Uber",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Decoding_Capex_Capacity_and_Consumer_Trends"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Uflex": {
@@ -7701,12 +8025,14 @@
    "suggestions": []
   },
   "Union Bank": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Union Bank of India",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Threads_and_Tensions"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "City Union Bank",
     "Union Bank of India"
@@ -8031,12 +8357,14 @@
    "suggestions": []
   },
   "WeWork India": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:WeWork India Management",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Short-Term_Pain_Long-Term_Gain"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "WeWork India Management"
    ]
@@ -8060,7 +8388,11 @@
     "The_Chatter/Borosil_Orchid_Welspun"
    ],
    "status": "resolved",
-   "suggestions": []
+   "suggestions": [
+    "Welspun Living",
+    "Welspun Enterprises",
+    "Welspun Corp"
+   ]
   },
   "Welspun Corp": {
    "closed_by": "canonical resolves on a later run",
@@ -8073,30 +8405,35 @@
    "suggestions": []
   },
   "Welspun Enterprises": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Signals_in_Silence"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Western Carrier": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Western Carriers (India)",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Underneath_the_Noise"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Westlife": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Westlife Foodworld",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Signals_in_Silence"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": [
     "Westlife Foodworld"
    ]
@@ -8126,21 +8463,24 @@
    "suggestions": []
   },
   "Wonderla Holidays": {
+   "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Xerox Holdings Corporation": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Xerox",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Pressure_Points"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "YES Bank": {
@@ -8187,12 +8527,14 @@
    "suggestions": []
   },
   "ZEE Entertainment": {
+   "closed_by": "canonical resolves on a later run",
+   "decision": "alias:Zee Entertainment Enterprises",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Embracing_the_Unknown"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Zen Technologies": {

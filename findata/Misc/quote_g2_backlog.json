@@ -1,0 +1,249 @@
+{
+ "purpose": "G2 residue after quote-capture pass 2 (2026-09-07): unresolved-entity openings with file/line provenance. Companion to quote_entity_worklist.json (which carries the 53 open canonicals). Next round: triage-annotations like pass 1.",
+ "created": "2026-09-07",
+ "openings": 40,
+ "rows": [
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 668,
+   "text": "\"For most of the period after 2014, through the COVID crisis, the bulk of the flow into t US was not a net flow into the equity market. Think much more Asian insurance compa Taiwanese insurance companies, Japanese insura",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 670,
+   "text": "\"Over the past year there have been quite significant flows two, three percentage point of GDP, on net, into the US equity market, obviously chasing the run-up in the price of tech platforms.\"",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 676,
+   "text": "\"If the bubble bursts, there'll be a big fall-off in new equity inflows, and you'll have a bur of existing investors possibly hedging their existing exposure, which creates additional downward pressure on the dollar.\"",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 678,
+   "text": "\"We're still at levels of the dollar, on a broad basis, that were last seen in the dot-com era historically strong dollar levels against the yen, against the yuan on an inflation-adjusted basis, against the Taiwan dollar",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 684,
+   "text": "\"China's running a $1.2 trillion trade surplus. Korea and Taiwan are going to run a surp of 400 to 500 billion. These are big, big numbers.\"",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 686,
+   "text": "\"There are a lot more dollars in these manufacturing exporters DRAM dollars, chip dollars, Chinese-unwillingness-to-let-your-currency-go-up dollars than there are petrodollars.\"",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 692,
+   "text": "\"The second risk, which right now in the US is viewed as an opportunity, is the extent to which the big US technology companies have gone from being net savers to being net borrowers to fund their enormous investments in",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 698,
+   "text": "\"Periods of strong investment have been periods of less reliance on exports. The current period of much weaker investment, driven by property, has been associated with more reliance on exports.\"",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 700,
+   "text": "\"What's unique now is the extent to which China is back to relying on exports how it different when an economy as big as China is relying on exports.\"",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 706,
+   "text": "\"Xi took the tariff punch, absorbed it better than expected. China was ready. Chinese firms were ready. They knew how to set up assembly operations in Vietnam, and China's global trade didn't suffer.\"",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 708,
+   "text": "\"The US discovered it was really dependent on China for some critical minerals. China's supply controls have been effective. So the US is negotiating from a position of weakness",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 714,
+   "text": "\"China's managed to be competitive at both. That's partially because China's used a lot technology and automation in some of the low-end manufacturing sectors, so they're no longer as low-end.\"",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Bajaj_Mahindra_Persistent.md",
+   "line": 720,
+   "text": "\"Taiwan has roughly 200% of its GDP invested abroad. Two-thirds of the assets that Taiwan has for the retirement of Taiwanese workers are invested in foreign bonds. That crazy-high number. And now TSMC is just accumulati",
+   "canonical": "Brad Setser"
+  },
+  {
+   "file": "The_Chatter/Max_Life_Tempsens_TCS.md",
+   "line": 128,
+   "text": "\"I remember talking to someone who retired from Coal India who said, we never though",
+   "canonical": "Dr. Rohit Chandra"
+  },
+  {
+   "file": "The_Chatter/Max_Life_Tempsens_TCS.md",
+   "line": 161,
+   "text": "\"So about a year ago, I was having a question, a conversation with S.K. Soonee, who reti",
+   "canonical": "Dr. Rohit Chandra"
+  },
+  {
+   "file": "The_Chatter/Max_Life_Tempsens_TCS.md",
+   "line": 194,
+   "text": "\"There were a lot of motivations behind coal nationalisation, but the minister who",
+   "canonical": "Dr. Rohit Chandra"
+  },
+  {
+   "file": "The_Chatter/Max_Life_Tempsens_TCS.md",
+   "line": 231,
+   "text": "\"Part of the focus of my PhD was trying to figure out which of the PSUs are able to surv",
+   "canonical": "Dr. Rohit Chandra"
+  },
+  {
+   "file": "The_Chatter/Max_Life_Tempsens_TCS.md",
+   "line": 266,
+   "text": "\"The problem was not power demand. There’s always power demand, but it was at what",
+   "canonical": "Dr. Rohit Chandra"
+  },
+  {
+   "file": "The_Chatter/Max_Life_Tempsens_TCS.md",
+   "line": 304,
+   "text": "\"Coal India is a publicly listed company. It cares about its bottom line. And so it has wh",
+   "canonical": "Dr. Rohit Chandra"
+  },
+  {
+   "file": "The_Chatter/Max_Life_Tempsens_TCS.md",
+   "line": 333,
+   "text": "\"The advantage of renewable energy, especially solar and wind, is its decentralisation,",
+   "canonical": "Dr. Rohit Chandra"
+  },
+  {
+   "file": "The_Chatter/Max_Life_Tempsens_TCS.md",
+   "line": 369,
+   "text": "\"A lot of this green job stuff is highly oversold, partly because we’ve only started",
+   "canonical": "Dr. Rohit Chandra"
+  },
+  {
+   "file": "The_Chatter/Max_Life_Tempsens_TCS.md",
+   "line": 398,
+   "text": "\"This is something the Ministry of Power is starting to wake up to in a big way as well,",
+   "canonical": "Dr. Rohit Chandra"
+  },
+  {
+   "file": "The_Chatter/RBI_3M_Blue_Star_KFin.md",
+   "line": 74,
+   "text": "\"India's banking system today is well capitalised, with a capital-to-risk-weighted-assets ratio of 17.7 per cent. It is profitable, with profit after tax exceeding 4 lakh crore. And healthy, with gross non-performing ass",
+   "canonical": "RBI Deputy Governor"
+  },
+  {
+   "file": "The_Chatter/RBI_3M_Blue_Star_KFin.md",
+   "line": 80,
+   "text": "\"In 2022-23, 52 per cent of fresh businesses entered the formal credit system. By 2025-20 that figure had fallen to 42 per cent even as outstanding commercial credit grew by fourteen per cent over the year. This did not ",
+   "canonical": "RBI Deputy Governor"
+  },
+  {
+   "file": "The_Chatter/TCS_Indian_Bank_Amagi.md",
+   "line": 754,
+   "text": "\"This is to save the microfinance entity. Look, you guys got into trouble. Now I am allow you to have more and more secured loan to balance it out.\"",
+   "canonical": "Tamal Bandyopadhyay"
+  },
+  {
+   "file": "The_Chatter/TCS_Indian_Bank_Amagi.md",
+   "line": 760,
+   "text": "\"Even if I'm able to pay, I'll say I'll not pay because the state government is there to help out.\"",
+   "canonical": "Tamal Bandyopadhyay"
+  },
+  {
+   "file": "The_Chatter/TCS_Indian_Bank_Amagi.md",
+   "line": 762,
+   "text": "\"One person defaulting because they can't is a credit event. A whole village refusing to p because they think they won't have to is a broken culture.\"",
+   "canonical": "Tamal Bandyopadhyay"
+  },
+  {
+   "file": "The_Chatter/TCS_Indian_Bank_Amagi.md",
+   "line": 768,
+   "text": "\"Every four or five years, I'll not get any money for two years or three years. So when I'n getting money, they will not compromise on their return.\"",
+   "canonical": "Tamal Bandyopadhyay"
+  },
+  {
+   "file": "The_Chatter/TCS_Indian_Bank_Amagi.md",
+   "line": 774,
+   "text": "\"I did say it was a red letter day for the industry because Reserve Bank of India gave the freedom which they are asking for. I'm sure industry would hate me for this. It is been misused.\"",
+   "canonical": "Tamal Bandyopadhyay"
+  },
+  {
+   "file": "The_Chatter/TCS_Indian_Bank_Amagi.md",
+   "line": 776,
+   "text": "\"This is actually made by probably the entire industry, barring exceptions.\"",
+   "canonical": "Tamal Bandyopadhyay"
+  },
+  {
+   "file": "The_Chatter/TCS_Indian_Bank_Amagi.md",
+   "line": 782,
+   "text": "\"You give the borrowers more money, push down their throat, which they are not able to back. It was a completely supply-side problem. You can't blame the borrowers.\"",
+   "canonical": "Tamal Bandyopadhyay"
+  },
+  {
+   "file": "The_Chatter/TCS_Indian_Bank_Amagi.md",
+   "line": 784,
+   "text": "\"It was sort of harakiri — because they thought that good times will last.\"",
+   "canonical": "Tamal Bandyopadhyay"
+  },
+  {
+   "file": "The_Chatter/TCS_Indian_Bank_Amagi.md",
+   "line": 790,
+   "text": "\"Bankers were doing belly dancing. And Raghuram Rajan forced them to do striptease. S essentially, they were stark naked.\"",
+   "canonical": "Tamal Bandyopadhyay"
+  },
+  {
+   "file": "The_Chatter/TCS_Indian_Bank_Amagi.md",
+   "line": 792,
+   "text": "\"Two banks turned out to be carrying 30%-plus bad loans. Today the system's net NPA s below 1%. They changed their underwriting.\"",
+   "canonical": "Tamal Bandyopadhyay"
+  },
+  {
+   "file": "The_Chatter/TCS_Indian_Bank_Amagi.md",
+   "line": 798,
+   "text": "\"Many of the smaller, medium-sized MFIs are turning into BCs, business correspondent It is high time they need to reinvent themselves. It can't go on.\"",
+   "canonical": "Tamal Bandyopadhyay"
+  },
+  {
+   "file": "The_Chatter/The_Known_Unknowns.md",
+   "line": 425,
+   "text": "\"While the reported advertising revenue showed a year-on-year dip due to a high electic driven base, excluding election billing, we registered a decent single-digit growth... The government took a dip by almost $40 \\%$. ",
+   "canonical": "D.B."
+  },
+  {
+   "file": "The_Chatter/The_Known_Unknowns.md",
+   "line": 432,
+   "text": "\"Our only focus is to provide the real content, the factual content, the ground content tc our consumers. And for that, we are expanding our editorial team on the ground... Now when we will be able to monetize it $100 \\%",
+   "canonical": "D.B."
+  },
+  {
+   "file": "The_Chatter/The_Known_Unknowns.md",
+   "line": 437,
+   "text": "\"The government last year contributed almost $27 \\%$ in this quarter... It has come down tc almost $17 \\%, 16 \\%$ now... Generally, in an overall normal environment, the government st. in the range of $12 \\%$ to $14 \\%$.",
+   "canonical": "D.B."
+  },
+  {
+   "file": "The_Chatter/The_Known_Unknowns.md",
+   "line": 450,
+   "text": "\"We are not planning to get into English in the metropolitan cities ... No acquisition targeted as of now... We have been following a policy of giving out a dividend, which is c large percentage of our payout every year.",
+   "canonical": "D.B."
+  },
+  {
+   "file": "The_Chatter/The_Known_Unknowns.md",
+   "line": 455,
+   "text": "\"We expect the newsprint price environment to remain stable in the coming quarters sul to currency fluctuations... Quarter 2 is very much under control... Quarter 3 we have to and watch.\"",
+   "canonical": "D.B."
+  }
+ ],
+ "note": "Final state after S3b/S4b (2026-09-07): 40 openings, all on the 5 discarded persons/role (Brad Setser, Dr. Rohit Chandra, Tamal Bandyopadhyay, RBI Deputy Governor, D.B.) — accepted loss by user call; quotes stay in the catch-all.",
+ "final": true
+}

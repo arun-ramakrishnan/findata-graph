@@ -27,6 +27,10 @@ DB_PATH = PROJECT_ROOT / "memory" / "research.db"
 if not DB_PATH.exists():
     pytest.skip(f"skipping graph tests — {DB_PATH} not present", allow_module_level=True)
 
+from helpers.maintenance.build_sector_hierarchy import (  # noqa: E402
+    SUB_CATEGORIES,
+    SUPER_SECTORS,
+)
 from helpers.graph.query import (  # noqa: E402
     acquisitions,
     clustering_coefficient,
@@ -261,9 +265,16 @@ class TestSectorHierarchy:
         assert n == 120  # 42 sector->super + 78 sub->sector (merged Level 3)
 
     def test_vertex_projections_populated(self, con):
-        # The 4 entity kinds must all materialise as vertices.
-        assert con.execute("SELECT COUNT(*) FROM v_super_sector").fetchone()[0] == 9
-        assert con.execute("SELECT COUNT(*) FROM v_sub_sector").fetchone()[0] == 78
+        # The 4 entity kinds must all materialise as vertices. The live DB
+        # materialises the whole curated taxonomy, so derive the expected
+        # super count from it (10 as of the 2026-09-07 Quotes catch-all
+        # super) instead of a number that rots on every taxonomy edit.
+        assert con.execute("SELECT COUNT(*) FROM v_super_sector").fetchone()[0] == len(
+            SUPER_SECTORS
+        )
+        assert con.execute("SELECT COUNT(*) FROM v_sub_sector").fetchone()[0] == sum(
+            len(_subs) for _subs in SUB_CATEGORIES.values()
+        )
 
 
 class TestNeighbors:

@@ -20,7 +20,7 @@ instrument-first, land in order.
 `findata/Sectors/*` + `findata/Sectors/Quotes.md` (new writer surface) ·
 procedure + schema docs.
 
-**Review 2026-09-07 : ** code + DB check against the live tree.
+**Review 2026-09-07 (Muse Spark):** code + DB check against the live tree.
 Corrects the S1 marker regex (was a char-class list, missed `\`-escapes),
 the F2 missing-entity list (`Titan`, `Steel Authority of India`, `Divis
 Laboratories` already exist — resolver gaps, not missing rows), the sweep
@@ -447,7 +447,7 @@ copy is byte-faithful and parity-gated per file — the class is now
 structurally impossible. DB rows keyed by `source_ref` stem
 (`derive:quotes:<stem>:<line>`), immune to edition-title drift.
 Tripwire live: 91 notes flagged (pre-slice debt, expected), watchlist
-seeded at `findata/quote_coverage_watchlist.json` (tracked), salvage
+seeded at `findata/Misc/quote_coverage_watchlist.json` (tracked; moved to `findata/Misc/` post-apply), salvage
 potential measured at 2,871 rows corpus-wide, rule candidates already
 surfacing (`unclosed/splice` 30 openings / 22 notes — the S3 root
 cause, independently rediscovered by the recurrence counter).
@@ -473,7 +473,7 @@ fresh gap surface). Four parts, all inside the audit, all advisory:
    Salvage rows carry `properties.salvage = true` and are itemized in
    the report — visible, reviewable, never silent. No fuzzy auto-apply
    (D4 holds inside salvage too).
-3. **Watchlist lifecycle (tracked file).** `quote_coverage_watchlist.json`
+3. **Watchlist lifecycle (tracked file).** `findata/Misc/quote_coverage_watchlist.json`
    — tracked, same no-gitignored-triage-state discipline as the S2
    worklist. Entries `{stem, coverage, bucket_counts, first_seen,
    last_seen, status}`; auto-open on tripwire fire, auto-close on
@@ -571,7 +571,7 @@ terminus — never a bare `continue`:
    (only applied when the stripped form resolves and the raw form does
    not). Token-addition shapes (`Lenskart Solutions` vs `Lenskart`) are
    out of scope for auto-apply — worklist only;
-4. **alias tier — vetted subset only.** `findata/relation_aliases.json` +
+4. **alias tier — vetted subset only.** `findata/Misc/relation_aliases.json` +
    `parse_newsletter._ALIASES` were curated for relations, not quotes:
    `premier → Premier Explosives` collides with `Premier Energies`,
    `micron → Micron Technology` is the 20-Microns misfire class. S2 vets
@@ -597,10 +597,10 @@ ambiguity returns the hit list as suggestions, never a guess] → `&`↔`and`
 fold → vetted aliases) with `_JUNK_CANONICALS` ("Initiatives" class,
 mirrored in the audit). Aliases: pinned `_QUOTE_ALIASES` (SAIL/TCS/Paytm/
 Nykaa/Amazon.com/IEX/HUDCO — every target vetted against entities by
-test) + user-approved `findata/quote_aliases.json` (gitignore-negated,
-relation_aliases precedent; ladder reads it — the proposed
+test) + user-approved `findata/Misc/quote_aliases.json` (gitignore-negated,
+relation_aliases precedent (now also at `findata/Misc/`); ladder reads it — the proposed
 `--apply-worklist` CLI is superseded by this file-driven flow, deviation
-noted per §7). Worklist: `findata/quote_entity_worklist.json` (tracked,
+noted per §7). Worklist: `findata/Misc/quote_entity_worklist.json` (tracked,
 emitted by the audit; entries auto-close when the canonical resolves).
 Fuzzy never auto-applies (D4).
 
@@ -615,7 +615,32 @@ junk-rule mirror missing in the audit copy — fixed same-session).
 
 Remaining G2=1,141 openings sit on 198 open worklist canonicals (fuzzy
 suggestions where they exist — `Aditya Birla Fashion → Aditya Birla
-Fashion and Retail`; empty = genuinely missing → user stub flow). `Titan` / `SAIL` / `Divi's` are NOT stubbed (rows
+Fashion and Retail`; empty = genuinely missing → user stub flow).
+
+**Worklist resolution procedure (S2 follow-through — revisit anytime):**
+the 198 open canonicals in `findata/Misc/quote_entity_worklist.json`
+resolve through three paths, ALL ending in auto-close on the next
+`derive-insights --apply` (entries flip to `"resolved"`):
+
+1. **ALIAS** — the suggestion exists and is correct: add
+   `"<canonical>": "<Entity>"` to
+   `findata/Misc/quote_aliases.json` (create if absent; the ladder
+   reads it on every run). ~50 entries are alias-ready; the fuzzy
+   suggestions are CANDIDATES, not gospel — verified misfires to
+   reject: `HDFC Asset Management Company → UTI…`, `HDFC Life Insurance
+   Company → SBI Life…`, `General Insurance Corporation of India →
+   LIC`, `Union Bank → City Union Bank`, `Orient Green Energy →
+   Solarium` (D4: fuzzy never auto-applies).
+2. **STUB** — the entity is genuinely missing (`Premier Energies`,
+   `Ambuja Cements`, `Kaynes Technology`, `HAL`, `ONGC`, international
+   names): create it via the user-held flow, re-run.
+3. **LEAVE** — OCR-garbled shapes (`InfoEdge (Naukri)]`, `NETGEAR,`)
+   and people headings in interview-format notes (`Brad Setser`,
+   `Tamal Bandyopadhyay` — correctly catch-all): stays open as visible
+   residual; candidate for future cleanup tiers.
+
+Once `S7 triage-quotes` lands, steps 1–2 are decision-file-annotated
+instead of hand-edited (same flow as `triage-relations`). `Titan` / `SAIL` / `Divi's` are NOT stubbed (rows
 exist — see F2). Junk canonicals ("Initiatives") get a pinned
 heading-shape rule (requires cap token or pipe AND len ≥ 3 AND not on a
 junk list) plus worklist visibility rather than suppression.
@@ -716,8 +741,18 @@ Execution-time probe (expanded): verify `build_sector_hierarchy` and
 no hierarchy uplink) AND `static_checks`, `database_integrity_check`,
 `query.py` sector paths, and the DuckDB edge registry accept the 43rd
 row; if any warns/fails, fall back to a root-level
-`findata/Quotes.md` with a pinned non-sector type — the probe decides, and the
+`findata/Misc/Quotes.md` with a pinned non-sector type — the probe decides, and the
 choice is recorded here.
+
+**Resolution (2026-09-07 supersession):** the probe initially settled on the
+Misc fallback; later the same day the design was upgraded — `Quotes` is now
+the **10th super-sector** (`SUPER_SECTORS["Quotes"] = []`, childless) with the
+note at `findata/Super_Sectors/Quotes.md`, the entity re-typed
+`sector -> super_sector`, and the S4 catch-all synthesis rendering there. No
+tool-side exceptions remain: taxonomy coverage, directory-structure,
+note-schema and hierarchy-orphan checks all accept it as ordinary taxonomy
+data (the orphan rule reads the curated member list, so childless-by-curation
+is data, not a name carve-out).
 
 **Sector/super-sector quote rows:** same `quotes` table, `entity` = the
 sector/super-sector name; `properties.kind` ∈
@@ -772,7 +807,7 @@ automatically; S5 validates the metrics diff alongside quotes.
   rows carrying `properties.heading`. Edition_note rows are table-only
   (filtered from render). Sector-marker balance gate inherited.
 - **Probe outcome (execution-time, recorded per the slice):** fallback
-  FIRES → root-level `findata/Quotes.md`, `entity_type='sector'`.
+  FIRES → `findata/Quotes.md`, `entity_type='sector'` (moved to `findata/Misc/Quotes.md` post-apply).
   Evidence: sync_sector_wikilinks --check claims a Sectors/-level
   Quotes.md as a 43rd sector and marks it stale (not a no-op);
   build_sector_hierarchy --check no-ops cleanly (taxonomy stays 42);
@@ -789,6 +824,37 @@ automatically; S5 validates the metrics diff alongside quotes.
 both **100%**. Zero per-note regressions (51 improved).
 
 ### S5 — Apply, converge, verify
+
+**S5 EXECUTED (2026-09-07, user go for the bulk update).**
+
+- Dry-run preview: 10,462 quotes / 3,606 metrics / 525 notes.
+- **`--apply`: 7,000 quotes written** (2,777 → 7,000: +6,289 company,
+  +574 catch_all, +134 sector_commentary, +3 edition_note — D2's
+  `properties.kind` discriminator live), 3,606 metrics, **526 notes
+  rendered** (69 hand-written edition blocks preserved — curation-safety),
+  312 key-figures notes, Quotes catch-all entity + root note created
+  (probe-decided shape), 5 missing edition entities created
+  (pipeline-mechanical).
+- **Two live bugs caught and fixed during apply** (the meter working as
+  designed): (1) 57 duplicate (entity, text, edition) triples — an
+  edition repeating a quote across two catch-all regions — fixed by
+  dedup-keep-first in `apply_quotes`, pinned by test; (2) a **scan-scope
+  feedback loop** — file-mode `scan()` did not exclude Companies/Sectors
+  notes, so S3's blockquote tolerance re-extracted rendered blocks as
+  new quotes (10,401 → 17,759 self-feeding growth); fixed by mirroring
+  `_corpus_paths`' three-tree restriction, DB self-healed by the prefix
+  sweep (7,000 clean rows, walker==db).
+
+1. (continued) `verify_notes` ✓ · integrity **99.61%** ✓ · md-lint ✓
+   (incl. the pre-broken proposal header line and an MD037 guard for
+   `*`-bearing catch-all paraphrase) · `graph-rebuild` ✓ · snapshot ✓
+   (quotes.parquet 7,000 rows, 1.58 MB; 13 tables, 58.3 MB).
+- S0 audit re-run on the post-apply DB: **walker == db** (7,000 vs
+  6,969 tree-attributed + edition rows), parity divergences 0, corpus
+  coverage **85.0%**, watchlist 53 open / 38 closed, rule candidates
+  narrowed to the OCR tail (`unclosed/splice` 11/9, `other` 34/20).
+
+### S5 — Apply, converge, verify (original plan)
 
 1. Full dry-run + diff preview (mass note rewrites → **explicit user
    checkpoint**, house rule) — expected blast radius: most company notes
@@ -811,7 +877,184 @@ both **100%**. Zero per-note regressions (51 improved).
 
 `make advisory` rider for the audit (non-blocking, threshold-echoing,
 tripwire flags + watchlist status in the advisory line);
+
+### S7 — `triage-quotes`: decisions-file worklist triage (EXECUTED 2026-09-07; modeled on triage-relations)
+
+The worklist resolution procedure above is hand-editing; S7 encapsulates
+it the way `triage_pending_relations.py` did for `_pending_relations`
+(same three-mode shape, same decisions-jsonl discipline, same
+gitignore split: queue-side files ignored, decision OUTPUTS tracked):
+
+- **Queue:** `findata/Misc/quote_entity_worklist.json` (exists — 198
+  open canonicals: 50 alias-ready with suggestions, 148 stub/garbage).
+- **`triage_quote_worklist.py --report`** (default, non-destructive):
+  re-emit the worklist from the live corpus, bucket entries
+  (`alias_candidate` / `stub_candidate` / `garbage_shape`), write
+  `findata/Misc/quote_triage_decisions.jsonl` pre-annotated with
+  suggestions + example notes, and print the eyeball report.
+- **Decision actions:** `alias:<Entity>` | `stub` | `discard` — fuzzy
+  suggestions are pre-filled as `alias_candidate` but NEVER auto-applied
+  (D4; verified misfires listed in the resolution procedure).
+- **`--apply-decisions`:** validate + act — alias rows persist to
+  `findata/Misc/quote_aliases.json` (merged, sorted, every target
+  validated against entities); `stub` rows emit a stub list for the
+  user-held entity flow (entity creation is never automated); `discard`
+  marks suppressed-with-note. Then the user re-runs
+  `derive-insights --apply` → quotes re-home → worklist entries
+  auto-close (existing S2 lifecycle).
+- **`make triage-quotes`** target mirroring `triage-relations`; decisions
+  jsonl + report gitignored, `quote_aliases.json` stays tracked via the
+  existing negation.
+- **Exit:** the 50 alias-ready + obvious stubs resolved → G2 residual
+  ≈ garbage only; coverage re-measured by the S0 audit.
+
+**Status: EXECUTED (2026-09-07, same-day).**
+`helpers/graph/triage_pending_quotes.py` (+ `tests/test_quote_capture_s7.py`,
+7 tests) + `make triage-quotes`. First live report: 198 open canonicals →
+50 alias_candidate / 22 garbage_shape / 126 stub_candidate; decisions
+file + report at `findata/Misc/quote_triage_{decisions.jsonl,report.md}`
+(gitignored run artifacts). Two production gaps closed en route: the
+ladder now actually LOADS `Misc/quote_aliases.json`
+(`_merged_quote_aliases()` — the S2 path constant existed without a
+loader), and the audit auto-closes `decided` entries when canonicals
+resolve. `findata/Misc/relation_aliases.json` +
+`findata/Misc/quote_aliases.json` are the two tracked decision outputs
+(both gitignore-negated).
+
+**VSS adaptation (both triage scripts, 2026-09-07):** per the user's
+suggestion, `get_tickers.vss_match` (cosine over `company_embeddings`,
+same local embedder) now hints BOTH triage scripts' report mode for
+unresolved rows without a jaccard suggestion: `triage_pending_quotes`
+(alias/garbage/stub buckets) and `triage_pending_relations` (prose rows'
+`target_mention` → `vss_hint` field + report line). The iteration
+validated the pattern and its limit: VSS finds true identities
+(`Mothersonsumi Wiring → Motherson Sumi Wiring India` 0.86,
+`Multi Commodity Exchange(MCX) → …(MCX)` 0.94, `REC` 0.91, `Titagarh`
+0.91) but equally often lands on semantically adjacent COMPETITORS
+(`Tesla → Tata Elxsi` 0.89, `Netflix → Amagi` 0.83, `Sony → Samsung`
+0.87) — so hints are eyeball-only, never pre-filled decisions (D4),
+and the identity guard (token containment between canonical and match)
+is what separates the two classes. `rebuild_note_search` note: Misc/
+mapped as doc_type `misc` (Quotes.md searchable; the triage report
+artifact skip-listed).
 `make search-fresh` after doc edits; script/doc indexes refreshed.
+
+**Pass 1 executed (2026-09-07, user-adjudicated in-session):** all 178
+open canonicals dispositioned. 86 `alias:` decisions applied (every
+target verified against the live `entities` table; user corrections:
+`Allcargo Group → Allcargo Global`, both Poonawalla canonicals →
+`Magma Fincorp` per "Magma is the correct name"), 5 `discard` (persons/
+role/ambiguous: `D.B.`, `Brad Setser`, `Dr. Rohit Chandra`, `Tamal
+Bandyopadhyay`, `RBI Deputy Governor`), and 83 creations PARKED to
+`findata/Misc/quote_stub_backlog.json` (49 India / 34 global, house
+stub spec per entry: sector, market_cap, geography, business_model,
+plus 34 canonicals that alias onto each once created — includes the
+user-confirmed `Baba Jewellers`, `SG Finserve`, `Digitide Solutions`).
+After `--apply-decisions` + `derive-insights --apply`: quotes
+7,116 → 7,681 (+565 re-homed), metrics 3,612 → 3,859, **corpus
+coverage 86.4% → 93.3%** (The_Chatter 93.3%, G2 1,023 → 452, G3 84,
+G4sec 16; walker==db 7,650), watchlist 28 open / 63 closed. The
+remaining lever to 99% is exactly the parked backlog — the 452 G2
+openings sit on it almost entirely (plus the 84-opening G3 OCR tail).
+Next pass = stub creation from the backlog JSON + one more
+derive/audit cycle; snapshot refreshed to match (7,681).
+
+**Pass 2 — the 83 stubs (2026-09-07, executed):** all 83 entities +
+house stub notes created from `findata/Misc/quote_stub_backlog.json`
+(Allianz shape: `ticker: null`, `listed: false`, sector/market_cap/
+geography/business_model tags, one-line overview,
+`generated.by: process:quote_triage_stubs`, `stale_after: 2027-03-07`;
+`&`→`and`, parens stripped in stems). Their 34 parked canonicals
+aliased via `--apply-decisions`. One process correction recorded: the
+first creation pass tuple-unpacked the backlog dict (keys became
+placeholder values → notes in `Companies/sector/`), caught on the
+first spot-check, fully reverted (83 rows + 83 notes + stray dir) and
+re-run correctly before any downstream consumer saw it — the running
+derive was killed and re-run. After derive: quotes 7,681 → **8,077**
+(+396), metrics 3,944, 685 entities with quotes, 83 stub notes
+rendered with chatter blocks, key-figures notes 22. **Corpus coverage
+93.3% → 98.1%** (The_Chatter 8,021/8,178; G2 452 → 48, G3 93, G4sec
+16; walker==db 8,046; watchlist 9 open / 82 closed; companies
+1,079 → 1,162). Remaining tail to 99%: 48 G2 openings over 53 fresh
+low-frequency canonicals (next triage round, ~1 opening each),
+93 G3 OCR-garble openings, 16 G4sec.
+
+**Tail disposition (2026-09-07, user call):** the three residual
+slices are stored/decided, each with file/line/text provenance
+extracted through the audit's own scan (`assert_parity` +
+`opening_lines` + ladder, exact funnel parity 48/93/16):
+`Misc/quote_g2_backlog.json` (48 openings — next triage round's
+queue; canonicals already live in the tracked worklist),
+`Misc/quote_g4sec_backlog.md` (16 catch-all sector openings —
+decide real sector homes, then alias/re-route), and
+`Misc/quote_g3_discards.jsonl` (93 openings marked
+`accepted_loss` — OCR garble / shapes S3 tolerance cannot recover;
+81 'other', 12 'unclosed/splice'). Addressable denominator
+excluding accepted losses: 8,021/8,085 = **99.2% of addressable
+openings** (raw corpus stays 98.1%). All four Misc artifacts
+(incl. the spent stub backlog) gitignore-negated for tracking.
+
+**g4sec close-out — S3b/S4b (2026-09-07, user-approved):** the 16
+stored G4sec openings resolved to 48→48 tail via three fixes.
+(1) **S3b walker** (`extract_quotes`): inline-attribution tails with a
+lost closing quote (`…profit — Jensen Huang, President & CEO` with no
+terminal `"`) now close on their own line with the tail stripped and
+parsed as speaker; a runaway run terminates UNCLOSED at the next quote
+opening or hard rule (`---`) and resumes AT that line — the walker
+never absorbs or skips a subsequent quote opening (this also fixed 86
+of the 93 G3 rows: quotes 8,085 → 8,186, 300 notes re-rendered).
+(2) **Class B synonyms**: `Software Services → Technology`,
+`Regulator → Banking` (RBI is bank-regulator commentary, user call).
+(3) **S4b bare known-headings**: a bare heading with no cap token/pipe
+that EXACTLY names a company or vetted alias (`# Google`, `# SBI`,
+`# Shoppers Stop`, `# Bharat Petroleum Corporation`, `## Apple`) routes
+as a company region — `known_bare` set (resolver_map keys + merged
+aliases) threaded through `_structural_boundaries` and all three
+iterators, mirrored in the audit's `classify_boundaries` + walker
+(one parity bug caught: the classify branch missed its parity record —
+0 divergences after fix). Tests: `TestS3bG4secTolerance`,
+`TestS4bBareKnownHeadings`, `TestG4secSynonyms` (+hermeticity fix for
+the Welspun ambiguity test now that `welspun` is a user alias).
+**Final funnel: corpus 98.2% → 99.4%** (8,130/8,178; walker==db 8,155;
+watchlist 3 open/88 closed). Remaining 48 = 40 discarded-person G2 +
+7 OCR-garble G3 + 1 deliberate G4sec keep (Labour Ministry
+policymaker commentary; no Policy sector in the taxonomy) —
+**100.0% of addressable openings**. Artifacts updated to final state
+(g3 discards 7, g4sec backlog 1 keep, g2 backlog 40 persons).
+
+**Audit denominator wiring (2026-09-07, same day):** the audit now
+consumes the accepted-loss decisions natively — no more hand math.
+`findata/Misc/quote_accepted_losses.jsonl` (48 rows: 40 G2 discarded
+persons + 7 G3 OCR garble + 1 G4sec policymaker keep, each with
+file/line/text/reason; gitignore-negated) is loaded by
+`load_accepted_losses()` and keyed `(rel_path, line)`. An opening that
+would bucket into an uncovered gap AND matches the set counts as
+`accepted` — covered openings are never consumed (a later capture
+improvement still reports). The per-note tripwire and corpus metric
+now divide by `openings − accepted` (addressable); funnels carry an
+`accepted=` column; `--json` adds `accepted_losses` +
+`corpus_addressable_coverage`. First wired run: **corpus 99.4%
+(accepted 48; addressable 100.0%)**, all G-buckets 0, flagged 0,
+watchlist 0 open / 91 closed — the last three person-opening notes
+unflagged on the addressable denominator and auto-closed. Tests:
+`TestAcceptedLosses` (exclusion, covered-not-consumed, loader
+prefix-strip).
+
+**Welspun close-out (2026-09-07):** the stored G2 backlog proved the
+48 openings sit on just 6 canonicals — 5 already-discarded
+persons/role plus bare `Welspun`. The 8 Welspun openings are
+unambiguous Welspun Corp (Permian-to-Gulf-Coast gas-pipeline
+transport orders), so `welspun → Welspun Corp` went straight into
+`Misc/quote_aliases.json` (its worklist entry auto-closed on the
+next audit; note: `Welspun Corp` is a hand-written note with no
+auto chatter block — the DB is the capture surface, 13 rows).
+Quotes 8,077 → 8,085. **Corpus 98.2%** (8,029/8,178; walker==db
+8,054; watchlist 8 open/83 closed; worklist 790 resolved/5 open —
+the 5 persons). G2 backlog re-extracted at 40 openings, all
+accepted-loss (persons). Final denominator view: strict raw
+98.2%; excluding the 93 accepted G3 losses → 99.2% of addressable;
+excluding also the 40 discarded-person openings → **99.8% of
+addressable openings**.
 
 ## 5. Design decisions
 
@@ -905,6 +1148,76 @@ The synthetic `Quotes.md` entity is a single cascade-delete for rows;
 note blocks still need the regex strip (not atomic).
 
 ---
+
+## Execution Results (2026-09-07, S0–S5 same-day arc)
+
+| gate | S0 baseline | post-S5 |
+|---|---|---|
+| corpus coverage (openings → quotes rows) | 33.6% | **85.0%** |
+| quotes table rows | 2,777 | **7,000** |
+| G1 marker-orphaned | 3,090 | 0 |
+| G2 resolver | 878 | 1,141* |
+| G3 walker shape | 118 | 75 |
+| G4 sector pool | 1,927 | **16** |
+| G5 masthead | 3 | 0 |
+| parity divergences | 1 (Push_and_Pull copy drift) | **0** |
+| notes ≥95% (watchlist closed) | 0 | **38** |
+
+*G2 grew by exposure: S1 moved marker-orphaned openings into company
+sections where the resolver can see them; 1,141 openings sit on 198
+open worklist canonicals (fuzzy suggestions where they exist, empty =
+genuinely missing → user stub flow). The residual to 99% is worklist
+triage (user decisions) + the OCR tail (75 G3 + 16 G4sec + 34 `other`),
+all itemized in `make quote-coverage` output.
+
+**Follow-ups (post-arc):** worklist triage pass (user) → re-run
+`derive-insights --apply` (auto-closes worklist entries) → coverage
+re-check; the OCR-tail shapes stay rule-candidates until recurrence
+thresholds fire.
+
+## Cleanup — findata root declutter (2026-09-07, DONE)
+
+Pipeline state and catch-all notes moved out of the `findata/` root into
+`findata/Misc/` (the vault root was accruing non-corpus files — bad
+design: a corpus directory should contain corpus):
+
+| file | old | new | tracked? |
+|---|---|---|---|
+| Quotes.md (catch-all note) | `findata/Quotes.md` | `findata/Super_Sectors/Quotes.md` (2026-09-07 supersession; was `Misc/`) | no (derived render) |
+| quote_coverage_watchlist.json | `findata/` | `findata/Misc/` | yes (negation) |
+| quote_entity_worklist.json | `findata/` | `findata/Misc/` | yes (negation) |
+| quote_aliases.json | `findata/` (created at `Misc/`) | `findata/Misc/` | yes (negation) |
+| _pending_relations.txt | `findata/` | `findata/Misc/` | no (queue) |
+| _pending_suggestions.txt | `findata/` | `findata/Misc/` | no (queue) |
+| _pending_triage_report.md | `findata/` | `findata/Misc/` | no (report) |
+| _pending_triage_decisions.jsonl | `findata/` | `findata/Misc/` | no (decisions) |
+| relation_aliases.json | `findata/` | `findata/Misc/` | **yes** (negation; runtime-loaded by extract_relations) |
+
+Consumers updated in the same change: `.gitignore` (5 patterns),
+`extract_relations.py` (SIDECAR_PATH, ALIAS_OVERRIDES_PATH),
+`suggest_relations.py` (SUGGESTIONS_PATH), `triage_pending_relations.py`
+(all 5 path constants + docstrings), `enrich_relations.py`
+(COINFER_SIDECAR_PATH), `doc/procedures/markdown_parse.md`,
+`doc/design/findata.md` (layout map gains `Misc/`). Verified: 126
+scoped tests green, `triage-relations` smoke writes the report to
+`findata/Misc/`, integrity check sandbox-clean, git sees the tracked
+alias rename. `frontmatter_schema._OKF_SKIP_FILES` needed no change
+(basename match). Historical references in `doc/improvements/archive/`
+are left as-is (archive = record).
+
+**Coverage follow-up (same day):** two search/check surfaces did not
+cover `findata/Misc/` and were fixed:
+- `rebuild_note_search.py` — `Misc/` was an unmapped prefix (silently
+  skipped). Now mapped as doc_type `misc`, with `_pending_triage_report.md`
+  added to `_SKIP_NAMES` (state artifact, not prose). Quotes.md (4.9 MB,
+  `## The Chatter` sectioned) is now free-text searchable — the triage
+  surface is queryable; near-duplicate overlap with company notes is the
+  known trade (report exists).
+- `static_checks.check_yaml_frontmatter` walks ALL `findata/**/*.md` —
+  the frontmatter-less Quotes.md scaffold was a LATENT `make
+  static-checks` failure. Fixed: `ensure_quotes_catchall` scaffolds
+  minimal frontmatter (title/type/normalized_name) and the live file was
+  prepended. static_checks green (advisories 1 → 0).
 
 ## Appendix A — funnel audit methodology + raw numbers (2026-09-07)
 

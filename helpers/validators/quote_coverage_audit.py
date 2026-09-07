@@ -37,14 +37,42 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from helpers.graph import derive_insights as di  # noqa: E402
 
 DB_PATH = di.DB_PATH
-WATCHLIST_DEFAULT = di.PROJECT_ROOT / "findata" / "quote_coverage_watchlist.json"
+WATCHLIST_DEFAULT = di.PROJECT_ROOT / "findata" / "Misc" / "quote_coverage_watchlist.json"
+ACCEPTED_LOSSES_DEFAULT = di.PROJECT_ROOT / "findata" / "Misc" / "quote_accepted_losses.jsonl"
 TREES = di._NEWSLETTER_TREES
 CHROME_FILES = di._NEWSLETTER_CHROME_NAMES
+
+
+def load_accepted_losses(path: Path | None = None) -> dict[tuple[str, int], str]:
+    """Accepted-loss decisions keyed ``(rel_path, line) -> bucket``.
+
+    Rows (jsonl): ``{"bucket": "G2"|"G3"|"G4sec", "file": "The_Chatter/X.md",
+    "line": 42, "text": ..., "reason": ...}`` — the merged tail-decision
+    record (discarded persons, OCR garble, deliberate sector keeps). An
+    opening that would bucket into an uncovered gap and matches this set
+    counts as ACCEPTED instead: excluded from the tripwire denominator and
+    reported as ``addressable`` coverage. Absent file = raw-only audit.
+    """
+    p = path or ACCEPTED_LOSSES_DEFAULT
+    out: dict[tuple[str, int], str] = {}
+    if not p.exists():
+        return out
+    for line in p.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        row = json.loads(line)
+        f = str(row.get("file") or "")
+        ln = row.get("line") or 0
+        if f and ln:
+            out[(f.removeprefix("findata/"), int(ln))] = str(row.get("bucket") or "?")
+    return out
+
 
 # Marker/speaker/prose predicates: IMPORTED from derive_insights (S1) —
 # one source of truth; the audit keeps no drift-prone copies. (The S0-era
@@ -68,7 +96,9 @@ class Region:
     canonical: str | None = None
 
 
-def classify_boundaries(content: str) -> tuple[list[Region], list[dict]]:
+def classify_boundaries(  # noqa: C901
+    content: str, known_bare: set[str] | None = None
+) -> tuple[list[Region], list[dict]]:
     """Mirror `iter_company_sections` classification, keeping ALL regions.
 
     Returns (regions, parity_records) where parity_records describe each
@@ -94,11 +124,27 @@ def classify_boundaries(content: str) -> tuple[list[Region], list[dict]]:
             continue
         if di._ROLE_HEADING_RE.match(lower):
             continue
-        if lower.startswith(("comment", "discussion", "don't", "share this", "subscribe", "about ", "welcome")):
+        if lower.startswith(
+            ("comment", "discussion", "don't", "share this", "subscribe", "about ", "welcome")
+        ):
             continue
         has_cap = any(tok in lower for tok in di._CAP_TOKENS)
         has_pipe = "|" in raw
         if not (has_cap or has_pipe):
+            # Mirror of production S4b: resolver-confirmed bare headings.
+            if known_bare:
+                bare = di._canonicalize(raw)
+                if (
+                    bare
+                    and len(bare) >= 3
+                    and bare.lower() in known_bare
+                    and bare.lower() not in di._JUNK_CANONICALS
+                ):
+                    structural.append((m.start(), idx, bare, raw))
+                    parity.append(
+                        {"canonical": bare, "heading_line": content.count("\n", 0, m.start()) + 1}
+                    )
+                    continue
             structural.append((m.start(), idx, None, raw))
             continue
         canonical = di._canonicalize(raw)
@@ -140,14 +186,17 @@ def classify_boundaries(content: str) -> tuple[list[Region], list[dict]]:
     return regions, parity
 
 
-def assert_parity(content: str, resolver_map: dict[str, str]) -> tuple[list[Region], list[str]]:
+def assert_parity(content: str, resolver_map: dict[str, str]) -> tuple[list[Region], list[dict]]:
     """Run the parity gate; rewrite region kinds with resolution results."""
-    regions, parity = classify_boundaries(content)
+    # Mirror of production known-name set (g4sec Class C) — same source
+    # (resolver_map + vetted aliases), so classification matches the walk.
+    known_bare = set(resolver_map) | set(di._merged_quote_aliases())
+    regions, parity = classify_boundaries(content, known_bare)
     production = [
         {"canonical": s.canonical_name, "heading_line": s.heading_line}
-        for s in di.iter_company_sections(content)
+        for s in di.iter_company_sections(content, known_bare)
     ]
-    divergences: list[str] = []
+    divergences: list[dict] = []
     if parity != production:
         p_set, o_set = {tuple(p.items()) for p in parity}, {tuple(p.items()) for p in production}
         for d in sorted(p_set ^ o_set):
@@ -227,6 +276,7 @@ class NoteResult:
     stem: str
     path: str
     openings: int = 0
+    accepted: int = 0
     buckets: dict = field(default_factory=dict)
     db_rows: int = 0
     covered: int = 0
@@ -240,9 +290,12 @@ class NoteResult:
     residual_shapes: dict = field(default_factory=dict)
 
 
-def audit_note(
-    path: Path, resolver_map: dict[str, str], db_rows_by_edition: dict[str, list[tuple[str, str]]],
+def audit_note(  # noqa: C901
+    path: Path,
+    resolver_map: dict[str, str],
+    db_rows_by_edition: dict[str, list[tuple[str, str]]],
     threshold: float = 0.95,
+    accepted_map: dict[tuple[str, int], str] | None = None,
 ) -> NoteResult:
     content = path.read_text(encoding="utf-8", errors="replace")
     stem = path.stem
@@ -278,14 +331,15 @@ def audit_note(
             body="\n".join(lines[r.start_line - 1 : r.end_line - 1]),
         )
         for r in regions
-        if r.kind == "company_resolved"
+        if r.kind == "company_resolved" and r.canonical is not None
     ]
+    known_bare = set(resolver_map) | set(di._merged_quote_aliases())
     walker_rows: list[tuple[str, str]] = []
     for s in resolved_sections:
         walker_rows.extend((q.quote_text, q.entity) for q in di.extract_quotes(s, edition, stem))
-    for sec, _raw, _kind in di.iter_sector_sections(content):
+    for sec, _raw, _kind in di.iter_sector_sections(content, known_bare):
         walker_rows.extend((q.quote_text, q.entity) for q in di.extract_quotes(sec, edition, stem))
-    for sec in di.iter_edition_note_section(content, stem):
+    for sec in di.iter_edition_note_section(content, stem, known_bare):
         walker_rows.extend((q.quote_text, q.entity) for q in di.extract_quotes(sec, edition, stem))
     res.walker_rows = len(walker_rows)
     catch_all = di._CATCH_ALL_ENTITY
@@ -300,9 +354,12 @@ def audit_note(
     for r in regions:
         region_by_line.extend([r] * (r.end_line - r.start_line))
 
+    rel_key = rel.removeprefix("findata/")
     for ln in opens:
         region = region_by_line[ln - 1] if ln - 1 < len(region_by_line) else regions[-1]
         line = lines[ln - 1]
+        _accepted = bool(accepted_map) and (rel_key, ln) in accepted_map
+
         def _matched(line: str) -> tuple[bool, bool]:
             k = _cn(line)
             for kk, resolved in (*walker_keys, *keys_total):
@@ -315,6 +372,8 @@ def audit_note(
             if covered:
                 res.covered += 1
                 res.resolved_covered += int(resolved)
+            elif _accepted:
+                res.accepted += 1
             else:
                 res.buckets["G3"] = res.buckets.get("G3", 0) + 1
                 sh = _shape_of(line)
@@ -322,7 +381,10 @@ def audit_note(
                 if len(res.unmatched_examples) < 5:
                     res.unmatched_examples.append(line.strip()[:100])
         elif region.kind == "company_unresolved":
-            res.buckets["G2"] = res.buckets.get("G2", 0) + 1
+            if _accepted:
+                res.accepted += 1
+            else:
+                res.buckets["G2"] = res.buckets.get("G2", 0) + 1
             if region.canonical and region.canonical not in res.unresolved_canonicals:
                 res.unresolved_canonicals.append(region.canonical)
                 res.suggestions[region.canonical] = canon_sugg.get(region.canonical, [])
@@ -333,14 +395,17 @@ def audit_note(
             if covered:
                 res.covered += 1
                 res.resolved_covered += int(resolved)
+            elif _accepted:
+                res.accepted += 1
             else:
                 key = "G4_sector" if region.kind == "g4_sector" else "G5"
                 res.buckets[key] = res.buckets.get(key, 0) + 1
         else:  # g1_marker / g4_speaker / g4_prose — dead post-S1, kept safe
             res.buckets["G1"] = res.buckets.get("G1", 0) + 1
 
-    total_cov = (res.covered / res.openings) if res.openings else 1.0
-    res.flagged = bool(res.openings) and total_cov < threshold
+    denom = res.openings - res.accepted
+    total_cov = (res.covered / denom) if denom else 1.0
+    res.flagged = bool(denom) and total_cov < threshold
     return res
 
 
@@ -355,9 +420,10 @@ def load_watchlist(path: Path) -> dict:
 
 def update_watchlist(wl: dict, results: list[NoteResult], today: str) -> dict:
     for r in results:
-        cov = (r.covered / r.openings) if r.openings else 1.0
+        denom = r.openings - r.accepted
+        cov = (r.covered / denom) if denom else 1.0
         key = f"{r.tree}/{r.stem}"
-        e = wl["entries"].get(key)
+        e: dict[str, Any] | None = wl["entries"].get(key)
         if r.flagged:
             if e is None:
                 e = {"first_seen": today, "runs_seen": 0, "status": "open", "closed_by": None}
@@ -367,8 +433,9 @@ def update_watchlist(wl: dict, results: list[NoteResult], today: str) -> dict:
                     "last_seen": today,
                     "coverage": round(cov, 4),
                     "openings": r.openings,
+                    "accepted": r.accepted,
                     "buckets": r.buckets,
-                    "runs_seen": e.get("runs_seen", 0) + 1,
+                    "runs_seen": int(e.get("runs_seen") or 0) + 1,
                     "status": "open",
                 }
             )
@@ -395,20 +462,20 @@ def rule_candidates(wl: dict, results: list[NoteResult]) -> list[dict]:
             if e:
                 a["runs"] = max(a["runs"], e.get("runs_seen", 0))
     return [
-        {"shape": s, **a} for s, a in sorted(agg.items())
-        if a["runs"] >= 3 or a["openings"] >= 10
+        {"shape": s, **a} for s, a in sorted(agg.items()) if a["runs"] >= 3 or a["openings"] >= 10
     ]
 
 
 # --------------------------------------------------------------------------- #
 # Report + CLI                                                                #
 # --------------------------------------------------------------------------- #
-def run_audit(
+def run_audit(  # noqa: C901
     target: str = "findata",
     threshold: float = 0.95,
     watchlist_path: Path | None = WATCHLIST_DEFAULT,
     limit: int | None = None,
     verbose: bool = False,
+    accepted_map: dict[tuple[str, int], str] | None = None,
 ) -> dict:
     # Project store access goes through helpers.core.db (house rule,
     # static_checks-enforced). The audit never writes.
@@ -420,30 +487,35 @@ def run_audit(
     # exact provenance pointer, immune to edition-title drift (the
     # 2026-09-07 trial caveat: as_of_edition carries titles that moved).
     db_rows_by_edition: dict[str, list[tuple[str, str]]] = {}
-    for t, ent, ref in conn.execute(
-        "SELECT quote_text, entity, source_ref FROM quotes"
-    ).fetchall():
+    for t, ent, ref in conn.execute("SELECT quote_text, entity, source_ref FROM quotes").fetchall():
         stem_key = ref.split(":")[2] if ref and ref.startswith(di.QUOTES_PREFIX) else None
         key = stem_key or ent or ""
         db_rows_by_edition.setdefault(key, []).append((t, ent or ""))
 
     root = di.PROJECT_ROOT / target if target != "findata" else di.PROJECT_ROOT / "findata"
     files = [
-        p for p in sorted(root.rglob("*.md"))
-        if p.name != "image_map.md" and p.parent.name not in CHROME_FILES
+        p
+        for p in sorted(root.rglob("*.md"))
+        if p.name != "image_map.md"
+        and p.parent.name not in CHROME_FILES
         and any(t in p.parts for t in TREES)
     ]
     if limit:
         files = files[:limit]
 
+    accepted = accepted_map if accepted_map is not None else load_accepted_losses()
     results: list[NoteResult] = []
     t0 = time.time()
     for i, p in enumerate(files, 1):
         if verbose or i % 10 == 0 or i == len(files):
             print(f"[quotes] {i}/{len(files)} files ({time.time() - t0:.1f}s)", file=sys.stderr)
-        results.append(audit_note(p, resolver_map, db_rows_by_edition, threshold))
+        results.append(audit_note(p, resolver_map, db_rows_by_edition, threshold, accepted))
 
-    wl = load_watchlist(watchlist_path) if watchlist_path else {"threshold": threshold, "entries": {}}
+    wl = (
+        load_watchlist(watchlist_path)
+        if watchlist_path
+        else {"threshold": threshold, "entries": {}}
+    )
     wl["threshold"] = threshold
     today = time.strftime("%Y-%m-%d")
     wl = update_watchlist(wl, results, today)
@@ -456,7 +528,7 @@ def run_audit(
     # by the ladder); missing entity -> stub via the user-held flow; both
     # auto-close here when the canonical resolves on a later run.
     today2 = today
-    wl_path = di.PROJECT_ROOT / "findata" / "quote_entity_worklist.json"
+    wl_path = di.PROJECT_ROOT / "findata" / "Misc" / "quote_entity_worklist.json"
     try:
         entity_worklist = json.loads(wl_path.read_text()) if wl_path.exists() else {"entries": {}}
     except Exception:
@@ -476,7 +548,7 @@ def run_audit(
         if r_notes := [f"{x.tree}/{x.stem}" for x in results if c in x.suggestions]:
             e["notes"] = sorted(set(e.get("notes", [])) | set(r_notes))[:8]
     for c, e in list(entity_worklist["entries"].items()):
-        if c not in seen_now and e.get("status") == "open":
+        if c not in seen_now and e.get("status") in ("open", "decided"):
             e["status"] = "resolved"
             e["closed_by"] = "canonical resolves on a later run"
     wl_path.write_text(json.dumps(entity_worklist, indent=1, sort_keys=True) + "\n")
@@ -492,12 +564,15 @@ def run_audit(
         funnels[tree] = {
             "files": len(tr),
             "openings": op,
+            "accepted": sum(r.accepted for r in tr),
             "covered": sum(r.covered for r in tr),
             "walker_rows": sum(r.walker_rows for r in tr),
             "db_rows": sum(r.db_rows for r in tr),
             "flagged": sum(1 for r in tr if r.flagged),
-            **{b: sum(r.buckets.get(b, 0) for r in tr)
-               for b in ("G1", "G2", "G3", "G4_sector", "G4_speaker", "G4_prose", "G5")},
+            **{
+                b: sum(r.buckets.get(b, 0) for r in tr)
+                for b in ("G1", "G2", "G3", "G4_sector", "G4_speaker", "G4_prose", "G5")
+            },
         }
     parity_failures = [r for r in results if r.divergence]
     report = {
@@ -508,15 +583,29 @@ def run_audit(
         "funnels": funnels,
         "corpus_coverage": (
             sum(r.covered for r in results) / tot_op
-            if (tot_op := sum(r.openings for r in results)) else 1.0
+            if (tot_op := sum(r.openings for r in results))
+            else 1.0
+        ),
+        "accepted_losses": sum(r.accepted for r in results),
+        "corpus_addressable_coverage": (
+            sum(r.covered for r in results) / (tot_op - tot_acc)
+            if (tot_acc := sum(r.accepted for r in results)) and tot_op > tot_acc
+            else (sum(r.covered for r in results) / tot_op if tot_op else 1.0)
         ),
         "flagged_notes": [
             {
-                "note": f"{r.tree}/{r.stem}", "coverage": round(r.covered / r.openings, 4) if r.openings else 1.0,
-                "openings": r.openings, "buckets": r.buckets,
-                "unresolved": r.unresolved_canonicals, "examples": r.unmatched_examples,
+                "note": f"{r.tree}/{r.stem}",
+                "coverage": round(r.covered / (r.openings - r.accepted), 4)
+                if (r.openings - r.accepted)
+                else 1.0,
+                "openings": r.openings,
+                "accepted": r.accepted,
+                "buckets": r.buckets,
+                "unresolved": r.unresolved_canonicals,
+                "examples": r.unmatched_examples,
             }
-            for r in results if r.flagged
+            for r in results
+            if r.flagged
         ],
         "watchlist_open": sum(1 for e in wl["entries"].values() if e.get("status") == "open"),
         "watchlist_closed": sum(1 for e in wl["entries"].values() if e.get("status") == "closed"),
@@ -528,11 +617,20 @@ def run_audit(
 
 def print_report(rep: dict) -> None:
     print(f"quote coverage audit — {rep['generated']} (threshold {rep['threshold']:.0%})")
-    print(f"files: {rep['files']}  corpus coverage: {rep['corpus_coverage']:.1%}")
+    acc_n = rep.get("accepted_losses", 0)
+    if acc_n:
+        print(
+            f"files: {rep['files']}  corpus coverage: {rep['corpus_coverage']:.1%}"
+            f"  (accepted losses {acc_n}; addressable {rep['corpus_addressable_coverage']:.1%})"
+        )
+    else:
+        print(f"files: {rep['files']}  corpus coverage: {rep['corpus_coverage']:.1%}")
     for tree, f in rep["funnels"].items():
         cov = f["covered"] / f["openings"] if f["openings"] else 1.0
+        acc = f.get("accepted", 0)
+        acc_s = f" accepted={acc:>3}" if acc else ""
         print(
-            f"  {tree:<20} files={f['files']:>3} openings={f['openings']:>5} "
+            f"  {tree:<20} files={f['files']:>3} openings={f['openings']:>5}{acc_s} "
             f"covered={f['covered']:>5} ({cov:.1%}) walker={f['walker_rows']:>5} "
             f"db={f['db_rows']:>5} flagged={f['flagged']:>3} "
             f"G1={f.get('G1', 0):>4} G2={f.get('G2', 0):>4} G3={f.get('G3', 0):>4} "
@@ -556,7 +654,9 @@ def print_report(rep: dict) -> None:
     if rep["rule_candidates"]:
         print("rule candidates (recurring shapes):")
         for c in rep["rule_candidates"]:
-            print(f"  {c['shape']:<28} openings={c['openings']:>4} notes={c['notes']:>3} runs={c['runs']}")
+            print(
+                f"  {c['shape']:<28} openings={c['openings']:>4} notes={c['notes']:>3} runs={c['runs']}"
+            )
 
 
 def main(argv=None) -> int:

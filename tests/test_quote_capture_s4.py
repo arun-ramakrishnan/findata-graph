@@ -24,15 +24,15 @@ NOTE = (
     "title: Test Edition\n"
     "---\n"
     "# The Chatter: Test\n"
-    "\"Masthead quote line that is definitely long enough to count.\"\n"
+    '"Masthead quote line that is definitely long enough to count."\n'
     "## Software\n"
-    "\"Software-sector quote line that is long enough to count now.\"\n"
+    '"Software-sector quote line that is long enough to count now."\n'
     "## Acme Ltd | Large Cap | Software\n"
-    "\"Company quote line that is definitely long enough to count.\"\n"
+    '"Company quote line that is definitely long enough to count."\n'
     "## Tourism &amp; Hospitality\n"
-    "\"Tourism-sector quote line that is long enough to count here.\"\n"
+    '"Tourism-sector quote line that is long enough to count here."\n'
     "## Design & Product Development Platform\n"
-    "\"Catch-all quote line that is definitely long enough to count.\"\n"
+    '"Catch-all quote line that is definitely long enough to count."\n'
 )
 
 
@@ -122,12 +122,8 @@ class TestSectorRender:
         db_path = tmp_path / "test.db"
         init = sqlite3.connect(db_path)
         init.row_factory = sqlite3.Row
-        init.execute(
-            "CREATE TABLE entities (name TEXT, entity_type TEXT, file_path TEXT)"
-        )
-        init.execute(
-            "INSERT INTO entities VALUES ('Travel','sector','findata/Sectors/Travel.md')"
-        )
+        init.execute("CREATE TABLE entities (name TEXT, entity_type TEXT, file_path TEXT)")
+        init.execute("INSERT INTO entities VALUES ('Travel','sector','findata/Sectors/Travel.md')")
         init.commit()
         init.close()
 
@@ -174,3 +170,14 @@ class TestSectorRender:
         conn.close()
         # Curation-safety: the hand block survives untouched.
         assert "Hand-written." in sector_note.read_text()
+
+
+class TestG4secSynonyms:
+    """g4sec Class B (2026-09-07): `Software Services` -> Technology,
+    `Regulator` -> Banking (RBI is bank-regulator commentary)."""
+
+    def test_software_services_routes_technology(self):
+        assert di._resolve_sector("Software Services") == ("Technology", "sector_commentary")
+
+    def test_regulator_routes_banking(self):
+        assert di._resolve_sector("Regulator") == ("Banking", "sector_commentary")

@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -65,6 +65,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt"
 > @echo "  qa                       Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)"
+> @echo "  quote-coverage           S0 quote capture coverage audit (advisory, read-only; per-note 95% tripwire + watchlist + salvage measurement)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
 > @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
@@ -77,6 +78,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
 > @echo "  sync-tags                Rebuild entity_tags from note YAML (mirrors entity_type/sector/market_cap/subsector)"
 > @echo "  test                     pytest unit tests only (no live DB, no slow benchmarks)"
+> @echo "  triage-quotes            Triage the quote entity worklist: report + bucketed decisions file (triage_pending_quotes)"
 > @echo "  triage-relations         Triage the _pending_relations queue: report + bucketed decisions file (pending_relations_triage)"
 > @echo "  types                    Run ty type checker on helpers + app.py (Astral uv+ruff stack)"
 > @echo "  types-tests              Run EXPANDED ty checks over tests/ (advisory-grade, warnings non-blocking; TYPES_TESTS_FMT=concise for one-line-per-diagnostic logs — the make advisory ty-tests step uses that)"
@@ -191,6 +193,10 @@ suggest-relations: ## Print link-prediction relation suggestions (C2; append wit
 triage-relations: ## Triage the _pending_relations queue: report + bucketed decisions file (pending_relations_triage)
 > python3 helpers/graph/triage_pending_relations.py
 > @echo "✓ triage report + decisions file written (annotate decisions, then --apply-decisions)"
+
+triage-quotes: ## Triage the quote entity worklist: report + bucketed decisions file (triage_pending_quotes)
+> python3 helpers/graph/triage_pending_quotes.py
+> @echo "✓ quote triage report + decisions file written (annotate decisions, then --apply-decisions)"
 
 graph-algos:    ## Smoke test the Onager algorithm layer (all 14 metrics, no writes)
 > python3 helpers/graph/algorithms.py --all --no-apply

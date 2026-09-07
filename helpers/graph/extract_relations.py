@@ -31,7 +31,7 @@ DESIGN PRINCIPLES
 1. **Two-anchor matches.** Every emitted edge requires BOTH a relation keyword
    AND a successfully resolved target entity (exact or fuzzy match against
    `entities.name`). Anything we cannot resolve is written to the sidecar
-   `findata/_pending_relations.txt` for human review.
+   `findata/Misc/_pending_relations.txt` for human review.
 2. **Speaker-aware speaker filter.** Newsletter concall blocks are
    `"<verbatim quote>"\n## — Hitesh Sethia, ...`. Quotes contain the most
    relation signal but also "we acquired a customer" — fluff. We DON'T filter
@@ -107,11 +107,11 @@ NEWSLETTER_DIRS = {
     "Points_And_Figures": _REPO_ROOT / "findata" / "Points_And_Figures",
     "The_PlotLines": _REPO_ROOT / "findata" / "The_PlotLines",
 }
-SIDECAR_PATH = _REPO_ROOT / "findata" / "_pending_relations.txt"
+SIDECAR_PATH = _REPO_ROOT / "findata" / "Misc" / "_pending_relations.txt"
 # Runtime-loaded curated aliases (written by triage_pending_relations
 # --apply-decisions): {"<lowercased mention>": "<existing entity name>"}.
 # Git-tracked data, NOT code — triage cycles must not require code edits.
-ALIAS_OVERRIDES_PATH = _REPO_ROOT / "findata" / "relation_aliases.json"
+ALIAS_OVERRIDES_PATH = _REPO_ROOT / "findata" / "Misc" / "relation_aliases.json"
 
 
 @cache
@@ -490,7 +490,7 @@ _EDGE_TYPES_WITH_PROSE_YEAR_EXTRACTION: frozenset[str] = frozenset({"acquired"})
 class Unresolved:
     """A pattern match whose target entity couldn't be resolved.
 
-    Written to the sidecar `findata/_pending_relations.txt` for human review.
+    Written to the sidecar `findata/Misc/_pending_relations.txt` for human review.
     `direction` carries the pattern's forward/reverse flag so a later
     `accept:` triage decision can write the edge in the same orientation the
     extractor would have (reverse captures make the MENTION the source).
@@ -2274,7 +2274,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "--write-sidecar",
         action="store_true",
         default=True,
-        help="Append unresolved matches to findata/_pending_relations.txt "
+        help="Append unresolved matches to findata/Misc/_pending_relations.txt "
         "(default: on). Pass --no-write-sidecar to disable.",
     )
     p.add_argument(

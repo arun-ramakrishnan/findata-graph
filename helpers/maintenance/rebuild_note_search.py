@@ -139,13 +139,14 @@ _DOC_TYPE_BY_PREFIX = [
     ("The_Chatter/", "chatter"),
     ("Points_And_Figures/", "points_and_figures"),
     ("The_PlotLines/", "plotlines"),
+    ("Misc/", "misc"),
 ]
 
 # Files / dirs to skip. images/ holds OCR artefacts; image_map.md is an image
 # manifest, not prose. Both would inject noise (base64-ish alt text, paths)
 # into the index.
 _SKIP_PARTS = {"images"}
-_SKIP_NAMES = {"image_map.md"}
+_SKIP_NAMES = {"image_map.md", "_pending_triage_report.md"}
 
 # Regexes for stripping non-prose noise from newsletter bodies (which lack
 # frontmatter and wrap content in HTML divs / OCR image embeds).

@@ -27,17 +27,26 @@ findata/**/images
 findata/**/*.json
 # Exception: triage alias overrides are pipeline state (loaded by
 # extract_relations at runtime) and must survive fresh clones.
-!findata/relation_aliases.json
+!findata/Misc/relation_aliases.json
 # Exception: quote-capture watchlist is the S0 tripwire lifecycle state
 # (quote_coverage_audit.py) — gitignored triage state is lost on fresh
-# clones (proposal S2/S0 amendment doctrine).
-!findata/quote_coverage_watchlist.json
+# clones (proposal S2/S0 amendment doctrine). Home: findata/Misc/ (S4
+# follow-up — catch-all note + its state files live together).
+!findata/Misc/quote_coverage_watchlist.json
 # Exception: S2 resolver worklist (unresolved canonicals + fuzzy
 # suggestions) and user-approved quote aliases (read by
 # derive_insights._resolve_ladder) — same survive-fresh-clones doctrine.
-!findata/quote_entity_worklist.json
-!findata/quote_aliases.json
-findata/_pending_relations.txt
+!findata/Misc/quote_entity_worklist.json
+!findata/Misc/quote_aliases.json
+!findata/Misc/quote_stub_backlog.json
+!findata/Misc/quote_g2_backlog.json
+!findata/Misc/quote_g4sec_backlog.md
+!findata/Misc/quote_g3_discards.jsonl
+!findata/Misc/quote_accepted_losses.jsonl
+# triage_pending_quotes run artifacts (regenerated each report run)
+findata/Misc/quote_triage_report.md
+findata/Misc/quote_triage_decisions.jsonl
+findata/Misc/_pending_relations.txt
 
 # AI Config folders
 .llxprt/
@@ -107,6 +116,6 @@ advisory_report.txt
 maint_report.txt
 # Visual QA screenshots (web-gui-tester evidence)
 gui-test-screenshots/
-findata/_pending_suggestions.txt
-findata/_pending_triage_report.md
-findata/_pending_triage_decisions.jsonl
+findata/Misc/_pending_suggestions.txt
+findata/Misc/_pending_triage_report.md
+findata/Misc/_pending_triage_decisions.jsonl

@@ -29,7 +29,7 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
 6. **Create relationships** — bidirectional `part_of` / `has_company` between company and sector.
 7. **Validate** — run the two post-processing scripts (see [Validation](#validation)).
 8. **Refresh graph analytics** *(opt-in, `--with-analytics`)* — recompute PageRank / clustering / community detection across the updated graph and persist to `graph_analytics`. Use when you intend to consume graph metrics next; adds ~2–5s on the current ~1,500-entity graph.
-9. **Re-derive structured relations** *(opt-in, separate command)* — re-scan newsletter prose AND synced company notes for `jv_with` / `acquired` / `subsidiary_of` / `same_group` / `supplier_to` / `customer_of` edges and write verified matches to `graph_edges`. Anything that names an unknown entity goes to `findata/_pending_relations.txt` for human triage.
+9. **Re-derive structured relations** *(opt-in, separate command)* — re-scan newsletter prose AND synced company notes for `jv_with` / `acquired` / `subsidiary_of` / `same_group` / `supplier_to` / `customer_of` edges and write verified matches to `graph_edges`. Anything that names an unknown entity goes to `findata/Misc/_pending_relations.txt` for human triage.
 
    ```bash
    # Dry-run summary across all sources (recursive directory scan):
@@ -76,7 +76,7 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
    > the triage contract changes.
    1. `make triage-relations` (or `python3 helpers/graph/triage_pending_relations.py`) — dedupes, splits `suggested` rows (link-prediction candidates, `_pending_suggestions.txt`) from true extraction misses, buckets prose rows (`discard` noise / `alias_candidate` / `stub_candidate` / `manual`), and writes the eyeball report + an annotated-ready `findata/_pending_triage_decisions.jsonl`.
    2. Annotate `decision` per row in the decisions file: `discard` | `alias:<Existing Entity Name>` | `stub` | `skip` (foreign/out-of-corpus parents).
-   3. `python3 helpers/graph/triage_pending_relations.py --apply-decisions` — persists alias entries to git-tracked `findata/relation_aliases.json` (loaded by the extractor at run time — triage cycles need no code edits), drops applied rows, moves suggestions out, keeps unresolved rows deduped, and prints the follow-up chain (re-run extract → roster sync if stubs → `make graph-rebuild` → snapshot). Stub creation itself stays explicit (collision-check discipline); the script prints a stub plan.
+   3. `python3 helpers/graph/triage_pending_relations.py --apply-decisions` — persists alias entries to git-tracked `findata/Misc/relation_aliases.json` (loaded by the extractor at run time — triage cycles need no code edits), drops applied rows, moves suggestions out, keeps unresolved rows deduped, and prints the follow-up chain (re-run extract → roster sync if stubs → `make graph-rebuild` → snapshot). Stub creation itself stays explicit (collision-check discipline); the script prints a stub plan.
    4. `--clear` truncates the queue once everything is resolved.
    Countries/generic-phrase/mangled-fragment targets never enter the queue anymore (write-time noise gate in the extractor).
 

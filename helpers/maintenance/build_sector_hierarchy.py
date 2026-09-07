@@ -9,7 +9,7 @@ or "what sub-categories exist within Metals?".
 
 This script introduces two new entity types and a dedicated edge type:
 
-  - ``super_sector``  — 9 GICS-style top-level groups (Financials,
+  - ``super_sector``  — 10 top-level groups: 9 GICS-style (Financials,
     Healthcare, Industrials, Materials, Energy, Consumer Discretionary,
     Consumer Staples, Information Technology, Communication Services).
   - ``sub_sector``    — the intra-sector facets authored in 5 sector notes
@@ -66,7 +66,7 @@ SUPER_SECTORS_DIR = VAULT_ROOT / "Super_Sectors"
 # --------------------------------------------------------------------------- #
 # The curated taxonomy — the single source of truth for the hierarchy.        #
 # --------------------------------------------------------------------------- #
-# 9 GICS-style super-sectors. Each maps to a list of the 42 existing `sector`
+# 10 super-sectors: 9 GICS-style, each mapping to a list of the 42 existing `sector`
 # entities. Coverage is validated at runtime: every live sector must appear in
 # exactly one super-sector (no orphans, no collisions).
 #
@@ -131,6 +131,11 @@ SUPER_SECTORS: dict[str, list[str]] = {
     "Consumer Staples": ["FMCG", "Agriculture"],
     "Information Technology": ["Technology", "Semiconductors", "Electronics"],
     "Communication Services": ["Media_Entertainment", "Telecommunications"],
+    # 10th super-sector (user decision 2026-09-07): the quote-capture
+    # catch-all "Quotes" rides the super-sector level so every tool treats
+    # it with zero special cases — empty member list by design (it owns no
+    # sectors; it holds the S4 catch-all synthesis at Super_Sectors/Quotes.md).
+    "Quotes": [],
 }
 
 # Sub-categories (Level 3): MERGED from two disjoint corpus sources.
@@ -376,7 +381,7 @@ def build(*, write: bool) -> int:  # noqa: C901
     entity_rows: list[tuple] = []
     edge_rows: list[tuple] = []
 
-    # 9 super_sector entities.
+    # 10 super_sector entities (9 GICS-style + the childless Quotes catch-all).
     for ss, members in SUPER_SECTORS.items():
         stem = _normalize(ss)
         entity_rows.append(

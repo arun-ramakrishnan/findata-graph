@@ -84,9 +84,9 @@ class TestClassifyBoundaries:
         # region kinds are gone by design; the funnel delta is the metric).
         regions, _ = qca.classify_boundaries(content)
         kinds = {r.kind for r in regions}
-        assert "g5_masthead" in kinds          # preamble
-        assert "g4_sector" in kinds            # ## Software
-        assert "company_unresolved" in kinds   # resolution applied by caller
+        assert "g5_masthead" in kinds  # preamble
+        assert "g4_sector" in kinds  # ## Software
+        assert "company_unresolved" in kinds  # resolution applied by caller
         assert "g1_marker" not in kinds
         assert "g4_speaker" not in kinds
         assert "g4_prose" not in kinds
@@ -127,15 +127,17 @@ class TestOpeningsAndCoverage:
         assert opens == [1, 3]
 
     def test_opening_covered_prefix_containment(self):
-        keys = qca.coverage_keys(["Total revenue reached a new record high of KRW 134 trillion, up"])
+        keys = qca.coverage_keys(
+            ["Total revenue reached a new record high of KRW 134 trillion, up"]
+        )
         assert qca.opening_covered(
             '"Total revenue reached a new record high of KRW 134 trillion, up by 43%."', keys
         )
         assert not qca.opening_covered('"Something else entirely different text here."', keys)
 
     def test_shape_of(self):
-        assert qca._shape_of("- \"bullet quote\"") == "bullet/blockquote"
-        assert qca._shape_of("> \"blockquote quote\"") == "bullet/blockquote"
+        assert qca._shape_of('- "bullet quote"') == "bullet/blockquote"
+        assert qca._shape_of('> "blockquote quote"') == "bullet/blockquote"
         assert qca._shape_of('"short one"') == "sub-40-with-attribution"
         assert qca._shape_of('"Odd quote count line that is quite long indeed') == "unclosed/splice"
         assert qca._shape_of('"Normal shape quote line long enough here."') == "other"
@@ -144,8 +146,12 @@ class TestOpeningsAndCoverage:
 class TestWatchlist:
     def _res(self, stem="Note", covered=0, openings=100, flagged=True, shapes=None):
         r = qca.NoteResult(
-            tree="The_Chatter", stem=stem, path=f"findata/The_Chatter/{stem}.md",
-            openings=openings, covered=covered, flagged=flagged,
+            tree="The_Chatter",
+            stem=stem,
+            path=f"findata/The_Chatter/{stem}.md",
+            openings=openings,
+            covered=covered,
+            flagged=flagged,
             residual_shapes=shapes or {},
         )
         return r
@@ -191,7 +197,45 @@ class TestAuditNoteBuckets:
         assert res.openings == 6
         assert res.covered == 5
         assert res.walker_rows == 5
-        assert b.get("G2", 0) == 1          # Zenith unresolved
+        assert b.get("G2", 0) == 1  # Zenith unresolved
         assert b.get("G1", 0) == 0 and b.get("G4_speaker", 0) == 0
         assert res.unresolved_canonicals == ["Zenith Chemicals"]
         assert res.flagged
+
+
+class TestAcceptedLosses:
+    """g4sec denominator wiring (2026-09-07): accepted-loss rows move
+    matching UNCOVERED openings out of the buckets and out of the tripwire
+    denominator; covered openings are never consumed."""
+
+    def test_accepted_opening_excluded_from_tripwire(self, tmp_path):
+        resolver = {"acme": "Acme"}
+        p = tmp_path / "Note.md"
+        p.parent.mkdir(exist_ok=True)
+        p.write_text(NOTE)
+        zl = next(i for i, ln_ in enumerate(NOTE.splitlines(), 1) if ln_.startswith('"Zenith'))
+        res = qca.audit_note(p, resolver, {}, threshold=0.95, accepted_map={(str(p), zl): "G2"})
+        assert res.accepted == 1
+        assert res.buckets.get("G2", 0) == 0
+        assert res.covered == 5 and res.openings == 6
+        assert not res.flagged  # addressable 5/5
+
+    def test_covered_opening_not_consumed_by_accepted(self, tmp_path):
+        resolver = {"acme": "Acme"}
+        p = tmp_path / "Note.md"
+        p.parent.mkdir(exist_ok=True)
+        p.write_text(NOTE)
+        al = next(i for i, ln_ in enumerate(NOTE.splitlines(), 1) if ln_.startswith('"Bare-marker'))
+        res = qca.audit_note(p, resolver, {}, threshold=0.95, accepted_map={(str(p), al): "G3"})
+        assert res.accepted == 0
+        assert res.covered == 5 and res.buckets.get("G3", 0) == 0
+
+    def test_loader_absent_file_and_prefix_strip(self, tmp_path):
+        import json as _json
+
+        assert qca.load_accepted_losses(tmp_path / "nope.jsonl") == {}
+        f = tmp_path / "al.jsonl"
+        f.write_text(
+            _json.dumps({"bucket": "G2", "file": "findata/The_Chatter/X.md", "line": 7}) + "\n"
+        )
+        assert qca.load_accepted_losses(f) == {("The_Chatter/X.md", 7): "G2"}

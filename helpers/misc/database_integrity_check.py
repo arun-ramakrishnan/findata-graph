@@ -681,12 +681,19 @@ class DatabaseIntegrityChecker:
             "JOIN entities t ON t.name=r.target AND t.entity_type='super_sector' "
             "WHERE r.relation_type='belongs_to' AND r.source=e.name)"
         )
-        # super_sector with no incoming belongs_to.
-        ss_orphans = one(
-            "SELECT COUNT(*) FROM entities e WHERE e.entity_type='super_sector' "
+        # super_sector with no incoming belongs_to. A super whose curated
+        # SUPER_SECTORS member list is EMPTY is childless by curation (the
+        # "Quotes" quote-catch-all super, 2026-09-07) — not broken wiring —
+        # so it is excluded here by taxonomy data, not by name.
+        from helpers.maintenance.build_sector_hierarchy import SUPER_SECTORS
+
+        childless_ok = {_n for _n, _m in SUPER_SECTORS.items() if not _m}
+        _ss_rows = cur.execute(
+            "SELECT e.name FROM entities e WHERE e.entity_type='super_sector' "
             "AND NOT EXISTS (SELECT 1 FROM relations r "
             "WHERE r.relation_type='belongs_to' AND r.target=e.name)"
-        )
+        ).fetchall()
+        ss_orphans = sum(1 for (_nm,) in _ss_rows if _nm not in childless_ok)
 
         # Multi-parent: a sector/sub_sector linked to >1 distinct parent.
         # The UNIQUE(source,target,edge_type) constraint does NOT prevent a

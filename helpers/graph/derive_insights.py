@@ -434,10 +434,23 @@ def _canonicalize(raw: str) -> str:
 # extract_quotes (paraphrase cut), and the S0 coverage audit (which imports
 # these instead of keeping drift-prone copies).
 _BARE_MARKER_WORDS = {
-    "concall", "transcript", "presentation", "presenstation", "presentaton",
-    "presntation", "interview", "recording", "call recording", "earnings call",
-    "exchange filing", "reference", "coverage", "call transcript", "remarks",
-    "q&a", "transcripts",
+    "concall",
+    "transcript",
+    "presentation",
+    "presenstation",
+    "presentaton",
+    "presntation",
+    "interview",
+    "recording",
+    "call recording",
+    "earnings call",
+    "exchange filing",
+    "reference",
+    "coverage",
+    "call transcript",
+    "remarks",
+    "q&a",
+    "transcripts",
 }
 # Speaker headings: `Name, Title` with a role-word in the tail
 # ("Philipp Schindler, SVP and CBO, Google"; "Mary Abraham, General Manager
@@ -454,9 +467,30 @@ _SPEAKER_ROLE_RE = re.compile(
 # Prose sub-headings: preposition/article-led or lowercase-led
 # ("On European Revival Despite Weak Earnings"; "the UK and UAE.").
 _PROSE_START = {
-    "on", "in", "despite", "while", "with", "for", "the", "a", "as", "amid",
-    "from", "why", "how", "what", "when", "across", "after", "before", "over",
-    "under", "between", "inside", "during", "introducing",
+    "on",
+    "in",
+    "despite",
+    "while",
+    "with",
+    "for",
+    "the",
+    "a",
+    "as",
+    "amid",
+    "from",
+    "why",
+    "how",
+    "what",
+    "when",
+    "across",
+    "after",
+    "before",
+    "over",
+    "under",
+    "between",
+    "inside",
+    "during",
+    "introducing",
 }
 
 
@@ -469,6 +503,11 @@ def _is_marker_heading(raw: str) -> bool:
     r = raw.strip()
     if r.startswith("[") and r.endswith("]") and len(r) >= 2:
         return True
+    # Fast path (perf: called once per heading per boundary walk; the two
+    # regex subs below dominated the scan profile). Plain headings with no
+    # lead/trail marker punctuation skip straight to the set probe.
+    if r[0] not in ".-\u2013\u2014[ \t" and r[-1] not in "] \t":
+        return r.lower() in _BARE_MARKER_WORDS
     bare = re.sub(r"^[.\-\u2013\u2014\[\s]+", "", r)
     bare = re.sub(r"[\]\s]+$", "", bare).lower()
     return bare in _BARE_MARKER_WORDS
@@ -489,9 +528,18 @@ def _is_prose_heading(raw: str) -> bool:
     return words[0].lower() in _PROSE_START or (r[:1].islower() and not r[:1].isdigit())
 
 
-def _structural_boundaries(content: str) -> list[tuple[int, int, str | None, str]]:
+def _structural_boundaries(  # noqa: C901
+    content: str, known_bare: set[str] | None = None
+) -> list[tuple[int, int, str | None, str]]:
     """Classify headings into STRUCTURAL boundaries (S4 refactor: shared by
     the company and sector iterators — one classifier, zero drift).
+
+    ``known_bare`` (g4sec Class C, 2026-09-07): lowercased company names +
+    vetted alias keys. When set, a bare heading with no cap token/pipe that
+    EXACTLY matches a known name (`# Google`, `# SBI`) routes as a company
+    region instead of falling to the sector bucket. Exact-name routing only
+    — fuzzy never applies. Callers that walk regions (company, sector,
+    edition-note iterators) MUST pass the same set so boundaries agree.
 
     Returns ``(start, idx, canonical | None, raw)`` in document order.
     A structural heading either carries a cap token/pipe (company) or is a
@@ -525,6 +573,18 @@ def _structural_boundaries(content: str) -> list[tuple[int, int, str | None, str
         ):
             continue
         if not (has_cap or has_pipe):
+            # g4sec Class C: bare heading that exactly names a known
+            # company/alias routes as a company region (`# Google`, `# SBI`).
+            if known_bare:
+                bare = _canonicalize(raw)
+                if (
+                    bare
+                    and len(bare) >= 3
+                    and bare.lower() in known_bare
+                    and bare.lower() not in _JUNK_CANONICALS
+                ):
+                    structural.append((m.start(), idx, bare, raw))
+                    continue
             # Sector heading (FMCG) — structural boundary.
             structural.append((m.start(), idx, None, raw))
             continue
@@ -537,13 +597,17 @@ def _structural_boundaries(content: str) -> list[tuple[int, int, str | None, str
     return structural
 
 
-def iter_company_sections(content: str):
+def iter_company_sections(
+    content: str, known_bare: set[str] | None = None, boundaries: list | None = None
+):
     """Yield ``CompanySection`` for each company heading in a newsletter.
 
     Slices each section's body from its heading line to the next COMPANY or
     SECTOR heading — NOT every heading (see :func:`_structural_boundaries`).
     """
-    structural = _structural_boundaries(content)
+    structural = (
+        boundaries if boundaries is not None else _structural_boundaries(content, known_bare)
+    )
     # Walk the structural headings; each company's body runs to the next
     # structural heading (company or sector), or EOF.
     for si, (start, _idx, canonical, _raw) in enumerate(structural):
@@ -562,15 +626,48 @@ def iter_company_sections(content: str):
 # (drift-pinned by tests/test_quote_capture_s4.py) — a lazy import here would
 # couple the hot scan path to the validator module.
 _CANONICAL_SECTORS = {
-    "Agriculture", "Automotive", "Aviation", "Banking", "Building_Materials",
-    "Capital_Markets", "Chemicals", "Consumer", "Defense", "Diagnostics",
-    "Diversified", "Education_Training", "Electronics", "EMS_Manufacturing",
-    "Energy", "Engineering_Capital_Goods", "Fertilizer", "Financial_Services",
-    "Fintech_Payments", "FMCG", "Healthcare", "Hospitals", "Housing_Finance",
-    "Infrastructure", "Insurance", "International", "Logistics",
-    "Media_Entertainment", "Metals", "Mining", "NBFC", "Packaging", "Pharma",
-    "Railways", "Real_Estate", "Renewables", "Retail", "Semiconductors",
-    "Technology", "Telecommunications", "Textiles", "Travel",
+    "Agriculture",
+    "Automotive",
+    "Aviation",
+    "Banking",
+    "Building_Materials",
+    "Capital_Markets",
+    "Chemicals",
+    "Consumer",
+    "Defense",
+    "Diagnostics",
+    "Diversified",
+    "Education_Training",
+    "Electronics",
+    "EMS_Manufacturing",
+    "Energy",
+    "Engineering_Capital_Goods",
+    "Fertilizer",
+    "Financial_Services",
+    "Fintech_Payments",
+    "FMCG",
+    "Healthcare",
+    "Hospitals",
+    "Housing_Finance",
+    "Infrastructure",
+    "Insurance",
+    "International",
+    "Logistics",
+    "Media_Entertainment",
+    "Metals",
+    "Mining",
+    "NBFC",
+    "Packaging",
+    "Pharma",
+    "Railways",
+    "Real_Estate",
+    "Renewables",
+    "Retail",
+    "Semiconductors",
+    "Technology",
+    "Telecommunications",
+    "Textiles",
+    "Travel",
 }
 _SECTOR_BY_LOWER = {s.lower(): s for s in _CANONICAL_SECTORS}
 # Synonym map (S4 tier 2): seeded from the S0/S4 unmatched-sector lists;
@@ -578,6 +675,7 @@ _SECTOR_BY_LOWER = {s.lower(): s for s in _CANONICAL_SECTORS}
 # silently rot. Keys are normalized (lower, single-spaced, unescaped).
 _SECTOR_SYNONYMS = {
     "software": "Technology",
+    "software services": "Technology",
     "it": "Technology",
     "ai computing": "Technology",
     "technology conglomerate": "Technology",
@@ -602,12 +700,13 @@ _SECTOR_SYNONYMS = {
     "automobile": "Automotive",
     "cement": "Building_Materials",
     "banks": "Banking",
+    "regulator": "Banking",
     "diversified conglomerate": "Diversified",
     "consumer discretionary": "Consumer",
     "consumer staples": "Consumer",
     "aviation & travel": "Travel",
 }
-_CATCH_ALL_ENTITY = "Quotes"  # 43rd "sector" — probe-gated at apply time (S5)
+_CATCH_ALL_ENTITY = "Quotes"  # 10th super-sector (2026-09-07): quote catch-all
 
 
 def _resolve_sector(raw: str) -> tuple[str, str]:
@@ -626,8 +725,14 @@ def _resolve_sector(raw: str) -> tuple[str, str]:
     return _CATCH_ALL_ENTITY, "catch_all"
 
 
-def iter_sector_sections(content: str):
+def iter_sector_sections(
+    content: str, known_bare: set[str] | None = None, boundaries: list | None = None
+):
     """Yield ``(CompanySection, raw_heading, kind)`` for sector regions (S4).
+
+    ``known_bare`` MUST match the set passed to :func:`iter_company_sections`
+    (both slice from the same boundary list — a bare company heading routed
+    company-side must not also open a sector region).
 
     Boundary rule (pinned): a sector body runs from its heading to the next
     company OR sector heading. The S1 marker family never splits regions
@@ -635,7 +740,9 @@ def iter_sector_sections(content: str):
     entity (canonical sector, synonym target, or the Quotes catch-all); the
     raw heading travels to the caller for ``properties.heading``.
     """
-    structural = _structural_boundaries(content)
+    structural = (
+        boundaries if boundaries is not None else _structural_boundaries(content, known_bare)
+    )
     for si, (start, _idx, canonical, raw) in enumerate(structural):
         if canonical is not None:
             continue
@@ -655,28 +762,47 @@ def iter_sector_sections(content: str):
 
 
 def ensure_quotes_catchall(conn) -> dict:
-    """Create the Quotes catch-all entity + root-level note (S4/S5).
+    """Create the Quotes catch-all entity + super-sector note (S4/S5).
 
-    Probe outcome (2026-09-07, recorded in the proposal): root-level
-    ``findata/Quotes.md`` with ``entity_type='sector'`` — sync_sector_wikilinks
-    claims a Sectors/-level file (fallback trigger), while
-    build_sector_hierarchy, static_checks and database_integrity_check all
-    pass with this shape (integrity 100% in sandbox). Idempotent.
+    Super-sector home (user decision 2026-09-07): the entity rides the
+    super_sector level — findata/Super_Sectors/Quotes.md — so taxonomy,
+    directory-structure and note-schema checks all treat it with zero
+    special cases. Empty member list in build_sector_hierarchy's
+    SUPER_SECTORS. Idempotent; re-types a legacy 'sector' row in place.
     """
-    row = conn.execute(
-        "SELECT name FROM entities WHERE name = ?", (_CATCH_ALL_ENTITY,)
-    ).fetchone()
+    row = conn.execute("SELECT name FROM entities WHERE name = ?", (_CATCH_ALL_ENTITY,)).fetchone()
     created = {"entity": False, "note": False}
+    note_rel = "findata/Super_Sectors/Quotes.md"
     if row is None:
         conn.execute(
-            "INSERT INTO entities (name, entity_type, file_path) VALUES (?, 'sector', ?)",
-            (_CATCH_ALL_ENTITY, "findata/Quotes.md"),
+            "INSERT INTO entities (name, entity_type, file_path) VALUES (?, 'super_sector', ?)",
+            (_CATCH_ALL_ENTITY, note_rel),
         )
         created["entity"] = True
-    note = PROJECT_ROOT / "findata" / "Quotes.md"
+    else:
+        # Legacy rows (pre-2026-09-07) were entity_type='sector' at
+        # findata/Misc/Quotes.md — re-type + re-home in place.
+        conn.execute(
+            "UPDATE entities SET entity_type='super_sector', file_path=? WHERE name=?",
+            (note_rel, _CATCH_ALL_ENTITY),
+        )
+    today = _dt.date.today().isoformat()
+    note = PROJECT_ROOT / "findata" / "Super_Sectors" / "Quotes.md"
     if not note.exists():
         note.parent.mkdir(parents=True, exist_ok=True)
         note.write_text(
+            "---\n"
+            "title: Quotes\n"
+            "type: super_sector\n"
+            "normalized_name: Quotes\n"
+            f"file_path: {note_rel}\n"
+            "permalink: /super_sectors/quotes\n"
+            "tags:\n"
+            "- entity_type/super_sector\n"
+            "- super_sector/quotes\n"
+            f"created: '{today}'\n"
+            f"last_modified: '{today}'\n"
+            "---\n"
             "# Quotes\n\n"
             "Catch-all capture surface (quote_capture_coverage S4): sector-context "
             "commentary that routes to no canonical sector lands here as sentinel auto "
@@ -688,13 +814,15 @@ def ensure_quotes_catchall(conn) -> dict:
     return created
 
 
-def iter_edition_note_section(content: str, stem: str):
+def iter_edition_note_section(
+    content: str, stem: str, known_bare: set[str] | None = None, boundaries: list | None = None
+):
     """Yield the preamble (pre-first-heading) region as an edition-note
     section (S4/G5): masthead commentary routes to the edition entity,
     table-only (no render). Yields nothing when the preamble has no
     quote-shaped openings' worth of content (empty check left to caller).
     """
-    bounds = _structural_boundaries(content)
+    bounds = boundaries if boundaries is not None else _structural_boundaries(content, known_bare)
     first = bounds[0][0] if bounds else len(content)
     if first == 0:
         return
@@ -882,6 +1010,7 @@ def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagno
             quote_lines = [open_line]
             j = i
             closed = False
+            resume_at: int | None = None
             close_attr: tuple | None = None
             # Same-line close (legacy shape, exactly 2 quotes)?
             if stripped.endswith('"') and len(stripped) > 1 and stripped.count('"') == 2:
@@ -900,17 +1029,39 @@ def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagno
                             rest.lstrip("-–—").strip()
                         ) or _parse_attribution(rest)
             if not closed:
+                # S3b (g4sec Class A): inline attribution tail with a lost
+                # closing quote — `"…text — Name, Title` (no terminal `"`).
+                # Strip the tail when it parses as an attribution; the quote
+                # closes on its own line and the run never starts.
+                if close_attr is None:
+                    dash = max(open_line.rfind("—"), open_line.rfind("–"), open_line.rfind(" - "))
+                    if dash > 40:
+                        tail = open_line[dash:].strip().lstrip("-–— ").rstrip('"').strip()
+                        if tail and len(tail) <= 60:
+                            parsed = _parse_attribution(tail)
+                            if parsed is not None:
+                                quote_lines = [open_line[:dash].rstrip(" -–—").rstrip('"')]
+                                closed = True
+                                close_attr = parsed
+            if not closed:
                 j = i + 1
                 while j < len(lines):
                     nxt = lines[j].rstrip()
-                    if _attrish_line(nxt.strip()):
+                    ns = nxt.strip()
+                    if _attrish_line(ns):
                         # S3 splice: an attribution-shaped line terminates a
                         # runaway run (lost mid-line closer upstream) instead
                         # of swallowing the next quote as quote text.
                         closed = True
                         close_attr = _parse_attribution(
-                            nxt.strip().lstrip("-–—").strip()
-                        ) or _parse_attribution(nxt.strip())
+                            ns.lstrip("-–—").strip()
+                        ) or _parse_attribution(ns)
+                        break
+                    # S3b (g4sec Class A): a new quote opening or a hard
+                    # rule terminates the run UNCLOSED — emit what we have
+                    # and resume AT the line (never absorb or skip a quote).
+                    if (ns.startswith('"') and len(ns) > 20) or ns in ("---", "***", "___"):
+                        resume_at = j
                         break
                     quote_lines.append(nxt)
                     if nxt.endswith('"'):
@@ -926,6 +1077,10 @@ def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagno
             if close_attr is not None:
                 attr = close_attr
                 attr_idx = j
+            elif resume_at is not None:
+                # Stopped at a new quote opening / hard rule: do NOT search
+                # forward across it (that skipped unprocessed quotes).
+                attr_idx, attr = -1, None
             else:
                 attr_idx, attr = _find_attribution(lines, j + 1)
             if attr is not None:
@@ -950,8 +1105,13 @@ def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagno
                 )
             )
             # Reset paraphrase accumulator; resume after the attribution (if any)
-            # or after the closing quote.
-            i = (attr_idx + 1) if attr_idx >= 0 else (j + 1)
+            # or after the closing quote. A resume_at boundary (new quote
+            # opening / hard rule) resumes AT that line so it is processed next.
+            i = (
+                resume_at
+                if resume_at is not None
+                else ((attr_idx + 1) if attr_idx >= 0 else (j + 1))
+            )
             paraphrase_lines = []
         else:
             # Accumulate paraphrase (skip blank headings, OCR garble, image
@@ -1329,6 +1489,18 @@ def apply_quotes(
     if own_conn:
         conn = connect()
     stem_memo: dict[str, str] = {}
+    # S4 dedup: an edition may repeat a quote across regions (summary +
+    # transcript, two catch-all headings) — the table's UNIQUE(entity,
+    # quote_text, as_of_edition) is the arbiter; keep the first occurrence.
+    seen: set[tuple[str, str, str | None]] = set()
+    uniq: list[Quote] = []
+    for q in quotes:
+        key = (q.entity, q.quote_text, q.as_of_edition)
+        if key in seen:
+            continue
+        seen.add(key)
+        uniq.append(q)
+    quotes = uniq
     try:
         if dry_run:
             return len(quotes)
@@ -1434,13 +1606,17 @@ def render_chatter_block(
         # heading so triage = read the note, decide the real home.
         sec_heading = q.properties.get("heading") if q.properties else None
         if sec_heading:
-            lines.append(f"- *[{sec_heading}]*")
+            # MD037 guard: literal asterisks in heading text would pair with
+            # the emphasis wrap (catch-all key-figure lines carry `Label:**`).
+            safe_heading = sec_heading.replace("*", "")
+            lines.append(f"- *[{safe_heading}]*")
             lines.append("")
         if q.paraphrase:
             # Ellipsis INSIDE the emphasis: the [:140] cut can land on a
             # space, and `text **…` detaches the closing marker (broken
             # emphasis, md-lint MD037); `text…**` always closes cleanly.
             p_text = q.paraphrase[:140].rstrip()
+            p_text = p_text.replace("*", "\\*")  # inner `**` breaks the wrap
             lines.append(f"- **{p_text}…**" if len(q.paraphrase) > 140 else f"- **{p_text}**")
             lines.append("")
         # Quote block (Obsidian blockquote).
@@ -2048,9 +2224,22 @@ def _build_resolver_map(conn) -> dict[str, str]:
 _MD_ESCAPE_RE = re.compile(r"\\([!\"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~])")
 _JUNK_CANONICALS = {"initiatives"}
 _QUALIFIER_TOKENS = {
-    "corporation", "group", "company", "ventures", "limited", "ltd", "india",
-    "international", "enterprise", "enterprises", "holdings", "co", "corp",
-    "inc", "plc", "ag",
+    "corporation",
+    "group",
+    "company",
+    "ventures",
+    "limited",
+    "ltd",
+    "india",
+    "international",
+    "enterprise",
+    "enterprises",
+    "holdings",
+    "co",
+    "corp",
+    "inc",
+    "plc",
+    "ag",
 }
 # Vetted abbreviations (proposal S2 tier: aliases validated against the
 # entities table by tests/test_quote_capture_s2.py — the relations-domain
@@ -2064,7 +2253,7 @@ _QUOTE_ALIASES = {
     "iex": "Indian Energy Exchange",
     "hudco": "Housing and Urban Development Corporation",
 }
-_QUOTES_ALIASES_PATH = PROJECT_ROOT / "findata" / "quote_aliases.json"
+_QUOTES_ALIASES_PATH = PROJECT_ROOT / "findata" / "Misc" / "quote_aliases.json"
 
 
 def _md_unescape(s: str) -> str:
@@ -2076,9 +2265,7 @@ def _ascii_fold(s: str) -> str:
     """Deterministic diacritic fold (Nestlé -> Nestle, L'Oréal -> L'Oreal)."""
     import unicodedata
 
-    return "".join(
-        c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c)
-    )
+    return "".join(c for c in unicodedata.normalize("NFKD", s) if not unicodedata.combining(c))
 
 
 def _candidate_keys(name: str) -> tuple[str, list[str], list[str]]:
@@ -2141,7 +2328,34 @@ def _symbol_variants(key: str) -> list[str]:
     return out
 
 
-def _resolve_ladder(
+_MERGED_ALIASES_CACHE: dict[tuple[str, int, int], dict[str, str]] = {}
+"""mtime/size-keyed cache for :func:`_merged_quote_aliases` (perf: it is
+read once per note scan and once per T6 ladder miss — thousands of times
+per derive run). Re-reads whenever the file changes; a different
+(monkeypatched) ``_QUOTES_ALIASES_PATH`` is a different cache key."""
+
+
+def _merged_quote_aliases() -> dict[str, str]:
+    """Pinned aliases + user-approved `Misc/quote_aliases.json` (S7 flow:
+    triage_pending_quotes.py writes it from annotated decisions)."""
+    try:
+        st = _QUOTES_ALIASES_PATH.stat()
+        key = (str(_QUOTES_ALIASES_PATH), st.st_mtime_ns, st.st_size)
+        cached = _MERGED_ALIASES_CACHE.get(key)
+        if cached is not None:
+            return dict(cached)
+        user = json.loads(_QUOTES_ALIASES_PATH.read_text())
+    except FileNotFoundError, json.JSONDecodeError:
+        return dict(_QUOTE_ALIASES)
+    merged = dict(_QUOTE_ALIASES)
+    for k, v in user.items():
+        merged[str(k).lower()] = str(v)
+    _MERGED_ALIASES_CACHE.clear()  # single-entry policy: newest file state
+    _MERGED_ALIASES_CACHE[key] = merged
+    return dict(merged)
+
+
+def _resolve_ladder(  # noqa: C901
     name: str, resolver_map: dict[str, str]
 ) -> tuple[str | None, str, list[str]]:
     """Resolve a section canonical via the S2 tier ladder.
@@ -2178,10 +2392,12 @@ def _resolve_ladder(
         for v in _symbol_variants(k):
             if v in resolver_map:
                 return resolver_map[v], "symbol", []
-    # T6 vetted aliases (exact long-form/abbrev mappings).
+    # T6 vetted aliases (exact long-form/abbrev mappings) + user-approved
+    # file aliases (triage_pending_quotes output).
+    alias_map = _merged_quote_aliases()
     for k in (exact, *t2_keys, *t3_keys):
-        if k in _QUOTE_ALIASES and _QUOTE_ALIASES[k].lower() in resolver_map:
-            return resolver_map[_QUOTE_ALIASES[k].lower()], "alias", []
+        if k in alias_map and alias_map[k].lower() in resolver_map:
+            return resolver_map[alias_map[k].lower()], "alias", []
     # Miss -> ranked fuzzy suggestions (token-set jaccard), never applied.
     qwords = set(exact.replace("&", " ").split())
     scored = []
@@ -2242,17 +2458,25 @@ def _scan_content(
     join keys on entities.entity_type; no mass backfill churn)."""
     quotes: list[Quote] = []
     metrics: list[Metric] = []
-    sections = list(iter_company_sections(content))
+    # g4sec Class C: one known-name set (company names + vetted aliases,
+    # lowercased) shared by every iterator — boundaries must agree.
+    alias_map = _merged_quote_aliases()
+    known_bare = set(resolver_map) | set(alias_map)
+    # One boundary walk per note, shared by all three iterators (perf: the
+    # walk is O(content) and identical for each iterator's purposes — the
+    # g4sec contract is that every iterator sees the SAME boundary set).
+    bounds = _structural_boundaries(content, known_bare)
+    sections = list(iter_company_sections(content, known_bare, bounds))
     if sections:
         q_batch, m_batch = _extract_sections(sections, edition, stem, resolver_map)
         quotes.extend(q_batch)
         metrics.extend(m_batch)
-    for sec, raw, kind in iter_sector_sections(content):
+    for sec, raw, kind in iter_sector_sections(content, known_bare, bounds):
         for q in extract_quotes(sec, edition, stem):
             q.properties["kind"] = kind
             q.properties["heading"] = raw
             quotes.append(q)
-    for sec in iter_edition_note_section(content, stem):
+    for sec in iter_edition_note_section(content, stem, known_bare, bounds):
         for q in extract_quotes(sec, edition, stem):
             q.properties["kind"] = "edition_note"
             quotes.append(q)
@@ -2284,6 +2508,12 @@ def scan(
         for p in _expand_paths(target)
         if p.name != "image_map.md" and p.parent.name not in _NEWSLETTER_CHROME_NAMES
     ]
+    if target == "findata":
+        # Whole-vault target scans the three NEWSLETTER trees only (mirror of
+        # _corpus_paths): Companies/Sectors/Quotes notes are render surfaces,
+        # not sources — scanning them re-extracts rendered blocks as new
+        # quotes (S3 blockquote tolerance made that a live feedback loop).
+        paths = [p for p in paths if any(t in p.parts for t in _NEWSLETTER_TREES)]
     if not paths:
         return [], []
     import os as _os
@@ -2333,9 +2563,7 @@ def _scan_corpus(
             metrics.extend(m_batch)
             continue
         stem = md.stem
-        q_batch, m_batch = _scan_content(
-            text, stem, _edition_title(stem, text), resolver_map
-        )
+        q_batch, m_batch = _scan_content(text, stem, _edition_title(stem, text), resolver_map)
         quotes.extend(q_batch)
         metrics.extend(m_batch)
     return quotes, metrics
@@ -2487,6 +2715,33 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         # One edition index for the whole run: normalizes as_of_edition to
         # stems at the write boundary + the render-side splice machinery.
         index = source_note_index(PROJECT_ROOT / "findata")
+        if args.apply:
+            # S4: the Quotes catch-all entity must exist before catch-all
+            # quote rows insert (quotes.entity FKs to entities).
+            created = ensure_quotes_catchall(conn)
+            if any(created.values()):
+                print(f"catch-all: created {created}.", file=sys.stderr)
+            # S4/G5: edition entities for edition_note rows are
+            # pipeline-mechanical (parse_newsletter creates them at ingest);
+            # a missing one is an ingest gap — create it so masthead rows
+            # are captured, not dropped.
+            known = {r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
+            for q in quotes:
+                if q.properties.get("kind") != "edition_note" or q.entity in known:
+                    continue
+                note_path = None
+                for tree in _NEWSLETTER_TREES:
+                    cand = PROJECT_ROOT / "findata" / tree / f"{q.entity}.md"
+                    if cand.exists():
+                        note_path = f"findata/{tree}/{q.entity}.md"
+                        break
+                conn.execute(
+                    "INSERT INTO entities (name, entity_type, file_path) VALUES (?, 'edition', ?)",
+                    (q.entity, note_path),
+                )
+                known.add(q.entity)
+                print(f"edition entity created: {q.entity} ({note_path})", file=sys.stderr)
+            conn.commit()
         q_written = apply_quotes(quotes, conn=conn, dry_run=not args.apply, index=index)
         m_written = apply_metrics(metrics, conn=conn, dry_run=not args.apply, index=index)
         action = "written" if args.apply else "would write"

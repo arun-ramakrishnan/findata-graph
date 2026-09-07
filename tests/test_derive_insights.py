@@ -2216,52 +2216,84 @@ class TestS1HeadingFamily:
 
     # ---- predicate unit tests (trial-validated shapes) -------------------
     def test_marker_bracket_family(self):
-        for h in ("[Transcript]", "[Concall]", "[Presentation]", "[Reference]",
-                  "[Interview]", "[Recording]", "[Call recording]",
-                  "[Exchange Filing]", "[Coverage]", "[Earnings Call]",
-                  "[Presenstation]", "[Transcript \& Interview]",
-                  "[earnings call]"):
+        for h in (
+            "[Transcript]",
+            "[Concall]",
+            "[Presentation]",
+            "[Reference]",
+            "[Interview]",
+            "[Recording]",
+            "[Call recording]",
+            "[Exchange Filing]",
+            "[Coverage]",
+            "[Earnings Call]",
+            "[Presenstation]",
+            "[Transcript \\& Interview]",
+            "[earnings call]",
+        ):
             assert di._is_marker_heading(h), h
 
     def test_marker_bare_words(self):
-        for h in ("Concall", ".Concall", "Recording", "Interview",
-                  "Transcript", "Earnings call", "Interview]"):
+        for h in (
+            "Concall",
+            ".Concall",
+            "Recording",
+            "Interview",
+            "Transcript",
+            "Earnings call",
+            "Interview]",
+        ):
             assert di._is_marker_heading(h), h
 
     def test_marker_rejects_sector_and_company(self):
-        for h in ("FMCG", "Software Services", "Acme Ltd | Large Cap | Software",
-                  "Transcripts of the meeting", "Recording artist revenue"):
+        for h in (
+            "FMCG",
+            "Software Services",
+            "Acme Ltd | Large Cap | Software",
+            "Transcripts of the meeting",
+            "Recording artist revenue",
+        ):
             assert not di._is_marker_heading(h), h
 
     def test_speaker_heading_shapes(self):
-        for h in ("Philipp Schindler, SVP and CBO, Google",
-                  "Mary Abraham, General Manager of The New India Assurance",
-                  "Manabu Chikumoto, President & CEO",
-                  "Matthew Prince, Chief Executive Officer",
-                  "P. Ramakrishnan, Chief Financial Officer",
-                  "Dr. Sharvil Patel, Managing Director"):
+        for h in (
+            "Philipp Schindler, SVP and CBO, Google",
+            "Mary Abraham, General Manager of The New India Assurance",
+            "Manabu Chikumoto, President & CEO",
+            "Matthew Prince, Chief Executive Officer",
+            "P. Ramakrishnan, Chief Financial Officer",
+            "Dr. Sharvil Patel, Managing Director",
+        ):
             assert di._is_speaker_heading(h), h
 
     def test_speaker_rejects_no_role_tail_and_pipes(self):
         # F8 trial: no-role-tail shapes must stay structural (they are
         # pipe-artifact company headings); pipe headings never reach the rule.
-        for h in ("Virgin Galactic Holdings, Inc. I International",
-                  "Short Range Outlook, Oct'24:",
-                  "Product Lines, Target Markets & Applications",
-                  "Anya Polytech & Fertilizers | Nano Cap | Fertilizers"):
+        for h in (
+            "Virgin Galactic Holdings, Inc. I International",
+            "Short Range Outlook, Oct'24:",
+            "Product Lines, Target Markets & Applications",
+            "Anya Polytech & Fertilizers | Nano Cap | Fertilizers",
+        ):
             assert not di._is_speaker_heading(h), h
 
     def test_prose_heading_shapes(self):
-        for h in ("On European Revival Despite Weak Earnings",
-                  "Despite Industry Pressures, Sagility Continues to Execute",
-                  "the UK and UAE.",
-                  "Introducing the new lineup"):
+        for h in (
+            "On European Revival Despite Weak Earnings",
+            "Despite Industry Pressures, Sagility Continues to Execute",
+            "the UK and UAE.",
+            "Introducing the new lineup",
+        ):
             assert di._is_prose_heading(h), h
 
     def test_prose_rejects_noun_led_sector(self):
         # Figma-style descriptor headings stay STRUCTURAL (S2's problem).
-        for h in ("Design & Product Development Platform", "FMCG",
-                  "Engineering & Capital Goods", "Retail"):
+        for h in (
+            "Design & Product Development Platform",
+            "FMCG",
+            "Engineering & Capital Goods",
+            "Retail",
+        ):
             assert not di._is_prose_heading(h), h
 
     # ---- section extension: markers/speakers/prose stop being boundaries --
@@ -2274,15 +2306,15 @@ class TestS1HeadingFamily:
         "## Acme Ltd | Large Cap | Software\n"
         "descriptor\n"
         "## [Transcript]\n"
-        "\"Transcript quote one is definitely long enough to count here.\"\n"
+        '"Transcript quote one is definitely long enough to count here."\n'
         "## Jane Smith, Chief Financial Officer\n"
-        "\"Speaker-region quote definitely long enough to count as one.\"\n"
+        '"Speaker-region quote definitely long enough to count as one."\n'
         "## On European Revival Despite Weak Earnings\n"
-        "\"Prose-region quote definitely long enough to count as one.\"\n"
+        '"Prose-region quote definitely long enough to count as one."\n'
         "## Concall\n"
-        "\"Bare-marker quote definitely long enough to count as one.\"\n"
+        '"Bare-marker quote definitely long enough to count as one."\n'
         "## Zenith Chemicals | Mid Cap | Chemicals\n"
-        "\"Zenith quote definitely long enough to count as one here.\"\n"
+        '"Zenith quote definitely long enough to count as one here."\n'
     )
 
     def test_sections_extend_through_family(self):
@@ -2310,7 +2342,7 @@ class TestS1HeadingFamily:
             "## Marico Ltd | Large Cap | FMCG\n"
             "descriptor text\n"
             "## [Concall]\n"
-            "\"The concall quote that is definitely long enough to count.\"\n"
+            '"The concall quote that is definitely long enough to count."\n'
             "- Saugata Gupta, MD & CEO\n"
         )
         sections = list(di.iter_company_sections(note))
@@ -2351,7 +2383,7 @@ class TestS3WalkerTolerance:
     def test_bullet_prefixed_quote_captured(self):
         note = (
             "## Acme Ltd | Large Cap | FMCG\n"
-            "- \"A bullet-prefixed quote line that is long enough to open.\"\n"
+            '- "A bullet-prefixed quote line that is long enough to open."\n'
             "- Jane Smith, Chief Financial Officer\n"
         )
         sections = list(di.iter_company_sections(note))
@@ -2363,7 +2395,7 @@ class TestS3WalkerTolerance:
     def test_blockquote_prefixed_quote_captured(self):
         note = (
             "## Acme Ltd | Large Cap | FMCG\n"
-            "> \"A blockquote-prefixed quote line long enough to open.\"\n"
+            '> "A blockquote-prefixed quote line long enough to open."\n'
             "— Jane Smith, CFO\n"
         )
         sections = list(di.iter_company_sections(note))
@@ -2374,7 +2406,7 @@ class TestS3WalkerTolerance:
         note = (
             "## Acme Ltd | Large Cap | FMCG\n"
             "- Management flagged margin expansion across divisions.\n"
-            "\"A quote following a bullet paraphrase is long enough here.\"\n"
+            '"A quote following a bullet paraphrase is long enough here."\n'
             "- Jane Smith, CFO\n"
         )
         sections = list(di.iter_company_sections(note))
@@ -2391,10 +2423,10 @@ class TestS3WalkerTolerance:
         # the run and the next opening must start its own quote.
         note = (
             "## Cloudflare, Inc. | Mid Cap | Software\n"
-            "\"One is microtransactions for requests agents make and here\n"
-            "is more accumulated text that keeps going and going on.\"\n"
+            '"One is microtransactions for requests agents make and here\n'
+            'is more accumulated text that keeps going and going on."\n'
             "- Matthew Prince, Chief Executive Officer\n"
-            "\"Unlike hyperscalers we can run inference much cheaper.\"\n"
+            '"Unlike hyperscalers we can run inference much cheaper."\n'
             "- Matthew Prince, Chief Executive Officer\n"
         )
         sections = list(di.iter_company_sections(note))
@@ -2407,7 +2439,7 @@ class TestS3WalkerTolerance:
     def test_mid_line_close_with_remainder_attribution(self):
         note = (
             "## Samsung Electronics | Mega Cap | Electronics\n"
-            "\"Our blended ASP rose by a low-90% range QoQ for DRAM chips.\" Jaejune Kim, EVP\n"
+            '"Our blended ASP rose by a low-90% range QoQ for DRAM chips." Jaejune Kim, EVP\n'
         )
         sections = list(di.iter_company_sections(note))
         quotes = di.extract_quotes(sections[0], "ed", "stem")
@@ -2416,10 +2448,10 @@ class TestS3WalkerTolerance:
 
     def test_sub40_admitted_only_with_attribution(self):
         base = "## Acme Ltd | Large Cap | FMCG\n"
-        with_attr = base + "\"Quarterly revenue grew nicely.\"\nJane Smith, CFO\n"
+        with_attr = base + '"Quarterly revenue grew nicely."\nJane Smith, CFO\n'
         sections = list(di.iter_company_sections(with_attr))
         assert len(di.extract_quotes(sections[0], "ed", "stem")) == 1
-        without = base + "\"Quarterly revenue grew nicely.\"\nplain prose line here\n"
+        without = base + '"Quarterly revenue grew nicely."\nplain prose line here\n'
         sections2 = list(di.iter_company_sections(without))
         assert len(di.extract_quotes(sections2[0], "ed", "stem")) == 0
 
@@ -2427,15 +2459,124 @@ class TestS3WalkerTolerance:
         # Quoted-inner-terms lines and sub-30 no-attr quotes keep legacy shape.
         note = (
             "## Acme Ltd | Large Cap | FMCG\n"
-            "\"He called it \"the platform\" and moved on to describe the roadmap.\"\n"
+            '"He called it "the platform" and moved on to describe the roadmap."\n'
         )
         sections = list(di.iter_company_sections(note))
         quotes = di.extract_quotes(sections[0], "ed", "stem")
         assert len(quotes) == 1  # single line, unchanged
-        note2 = (
-            "## Acme Ltd | Large Cap | FMCG\n"
-            "\"Tiny.\"\n"
-            "plain prose\n"
-        )
+        note2 = '## Acme Ltd | Large Cap | FMCG\n"Tiny."\nplain prose\n'
         sections2 = list(di.iter_company_sections(note2))
         assert len(di.extract_quotes(sections2[0], "ed", "stem")) == 0
+
+
+class TestS3bG4secTolerance:
+    """S3b (g4sec Class A, 2026-09-07): inline-attribution tails with a lost
+    closing quote close on their own line; a new quote opening or a hard
+    rule terminates a runaway run UNCLOSED and resumes AT that line — the
+    walker never absorbs or skips a subsequent quote opening."""
+
+    def test_inline_attribution_tail_lost_closer(self):
+        note = (
+            "## NVIDIA Corp | Large Cap | Technology\n"
+            '"The CapEx is at $1 trillion and it keeps growing every single quarter — Jensen Huang, President & CEO\n'
+            "\n"
+            "Prose between the quotes that must never join either row.\n"
+            "\n"
+            '"This was an extraordinary quarter. Demand has gone parabolic."\n'
+            "\n"
+            "— Jensen Huang, President & CEO\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        quotes = di.extract_quotes(sections[0], "ed", "stem")
+        assert len(quotes) == 2
+        first, second = quotes
+        assert first.speaker_name == "Jensen Huang"
+        assert "Jensen Huang" not in first.quote_text
+        assert first.quote_text.startswith("The CapEx is at")
+        assert second.quote_text.startswith("This was an extraordinary")
+
+    def test_consecutive_quote_paragraphs_not_merged(self):
+        note = (
+            "## Raymond Ltd | Mid Cap | Retail\n"
+            '"On the US tariff front we benefit from a substantial differential on garments\n'
+            '"Yes, I think very clearly about this FTA we have waited a long time for it"\n'
+            "\n"
+            "---\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        quotes = di.extract_quotes(sections[0], "ed", "stem")
+        assert len(quotes) == 2
+        assert quotes[0].quote_text.startswith("On the US tariff front")
+        assert quotes[1].quote_text.startswith("Yes, I think very clearly")
+
+    def test_hrule_terminates_runaway_run(self):
+        note = (
+            "## Acme Ltd | Mid Cap | FMCG\n"
+            '"A runaway quote with no closing mark rambles on and on across the line\n'
+            "---\n"
+            "Prose after the rule.\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        quotes = di.extract_quotes(sections[0], "ed", "stem")
+        assert len(quotes) == 1
+        assert quotes[0].quote_text.startswith("A runaway quote")
+        assert "Prose after the rule" not in quotes[0].quote_text
+
+
+class TestS4bBareKnownHeadings:
+    """S4b (g4sec Class C, 2026-09-07): a bare heading with no cap token/pipe
+    that EXACTLY names a known company/alias routes as a company region
+    (resolver-confirmed bare headings); sector/edition iterators agree."""
+
+    def test_bare_known_heading_routes_company(self):
+        note = '# Google\n"A quote long enough to open on its own right here."\n'
+        assert list(di.iter_company_sections(note)) == []
+        sections = list(di.iter_company_sections(note, {"google"}))
+        assert len(sections) == 1 and sections[0].canonical_name == "Google"
+
+    def test_sector_iterator_agrees_with_known_set(self):
+        note = (
+            '# Google\n"A quote long enough to open on its own right here."\n'
+            '\n## Retail\n"Another quote that is long enough to open here too."\n'
+        )
+        sectors_bare = [raw for _s, raw, _k in di.iter_sector_sections(note)]
+        assert sectors_bare == ["Google", "Retail"]
+        sectors_known = [raw for _s, raw, _k in di.iter_sector_sections(note, {"google"})]
+        assert sectors_known == ["Retail"]
+        companies = [s.canonical_name for s in di.iter_company_sections(note, {"google"})]
+        assert companies == ["Google"]
+
+
+class TestApplyQuotesDedup:
+    def test_duplicate_triples_deduped_keep_first(self, tmp_path, monkeypatch):
+        import sqlite3 as _sq
+
+        db = tmp_path / "t.db"
+        c = _sq.connect(db)
+        c.row_factory = _sq.Row
+        c.executescript(
+            "CREATE TABLE quotes (id INTEGER PRIMARY KEY, entity TEXT, quote_text TEXT,"
+            " paraphrase TEXT, speaker_name TEXT, speaker_title TEXT, as_of_edition TEXT,"
+            " source_ref TEXT, properties TEXT, created_at TEXT,"
+            " UNIQUE(entity, quote_text, as_of_edition));"
+        )
+        c.commit()
+        monkeypatch.setattr(di, "PROJECT_ROOT", tmp_path)
+        q1 = di.Quote(
+            "Quotes",
+            "Same text repeated across two regions.",
+            "ed",
+            source_ref="derive:quotes:S:53",
+        )
+        q2 = di.Quote(
+            "Quotes",
+            "Same text repeated across two regions.",
+            "ed",
+            source_ref="derive:quotes:S:190",
+        )
+        n = di.apply_quotes([q1, q2], conn=c, dry_run=False)
+        c.commit()
+        rows = c.execute("SELECT entity, quote_text, source_ref FROM quotes").fetchall()
+        assert n == 1 and len(rows) == 1
+        assert rows[0][2] == "derive:quotes:S:53"  # first occurrence kept
+        c.close()

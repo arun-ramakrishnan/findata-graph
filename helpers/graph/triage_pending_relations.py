@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Triage the `findata/_pending_relations.txt` review queue (pending_relations_triage).
+Triage the `findata/Misc/_pending_relations.txt` review queue (pending_relations_triage).
 
 The sidecar is where extract_relations parks pattern matches whose target
 entity couldn't be resolved, and where suggest_relations --append dumps its
@@ -13,7 +13,7 @@ triage in a month motivated encapsulating the whole workflow here:
                       emit the eyeball report and an annotated-ready
                       decisions file. NON-destructive.
   --apply-decisions   validate + act on annotated decisions: alias rows
-                      persist to findata/relation_aliases.json
+                      persist to findata/Misc/relation_aliases.json
                       (runtime-loaded by extract_relations), accept rows
                       write their edge straight into graph_edges
                       (suggested_relations_accept, S4), discard/skip rows
@@ -53,11 +53,11 @@ if str(_REPO_ROOT) not in sys.path:
 from helpers.core.fuzzy_match import fuzzy_match  # noqa: E402
 
 # Monkeypatchable paths (the VAULT_ROOT lesson — tests retarget all of them).
-SIDECAR = _REPO_ROOT / "findata" / "_pending_relations.txt"
-SUGGESTIONS = _REPO_ROOT / "findata" / "_pending_suggestions.txt"
-ALIAS_FILE = _REPO_ROOT / "findata" / "relation_aliases.json"
-REPORT = _REPO_ROOT / "findata" / "_pending_triage_report.md"
-DECISIONS = _REPO_ROOT / "findata" / "_pending_triage_decisions.jsonl"
+SIDECAR = _REPO_ROOT / "findata" / "Misc" / "_pending_relations.txt"
+SUGGESTIONS = _REPO_ROOT / "findata" / "Misc" / "_pending_suggestions.txt"
+ALIAS_FILE = _REPO_ROOT / "findata" / "Misc" / "relation_aliases.json"
+REPORT = _REPO_ROOT / "findata" / "Misc" / "_pending_triage_report.md"
+DECISIONS = _REPO_ROOT / "findata" / "Misc" / "_pending_triage_decisions.jsonl"
 # graph_edges write target for `accept:` decisions. None = connect()'s
 # default (memory/research.db); tests point it at a tmp schema file.
 EDGE_DB_PATH: Path | None = None
@@ -281,7 +281,9 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
     return {"suggested": suggested, "prose": prose, "unparseable": unparseable, "dupes": dupes}
 
 
-def write_report(triage: dict, names_count: int) -> None:
+def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
+    """``names`` is the full canonical-name set (VSS hints need it; the
+    count in the report header is len(names))."""
     """Emit the eyeball report + the decisions file (non-destructive).
 
     NOTE: the decisions file is REGENERATED here — annotate only after the
@@ -289,13 +291,31 @@ def write_report(triage: dict, names_count: int) -> None:
     lines = [
         "# Pending-relations triage report",
         "",
-        f"- entities in DB: {names_count}",
+        f"- entities in DB: {len(names)}",
         f"- suggested rows (link-prediction dump): {len(triage['suggested'])}",
         f"- prose rows (true queue): {len(triage['prose'])}",
         f"- duplicate lines absorbed: {triage['dupes']}",
         f"- unparseable lines (kept verbatim on rewrite): {len(triage['unparseable'])}",
         "",
     ]
+
+    # S7 follow-up: VSS hints for unresolved prose targets (eyeball-only).
+    # Semantic neighbors are frequently competitors (the embedding matches
+    # the domain, not the identity), so hints are NEVER pre-filled as
+    # decisions — D4 holds here exactly as in triage_pending_quotes.
+    vss_cache: dict[str, str] = {}
+    try:
+        from helpers.core.get_tickers import vss_match as _vss_match
+
+        names_sorted = sorted(names)
+        for r in triage["prose"]:
+            tm = r.get("target_mention", "")
+            if tm and tm not in vss_cache:
+                match, score = _vss_match(tm, names_sorted)
+                if match:
+                    vss_cache[tm] = f"{match} ({score:.2f})"
+    except Exception as exc:  # best-effort hint — never blocks the report
+        print(f"WARNING: VSS hints unavailable ({exc})", file=sys.stderr)
     sug_rows = _read_suggestions_rows()
     if sug_rows:
         top = sorted(sug_rows, key=lambda r: float(r.get("score") or 0), reverse=True)
@@ -358,6 +378,7 @@ def write_report(triage: dict, names_count: int) -> None:
                         "target_mention": r["target_mention"],
                         "direction": r["direction"],
                         "bucket": r["bucket"],
+                        "vss_hint": vss_cache.get(r.get("target_mention", ""), ""),
                         "decision": None,
                         "note": None,
                     },
@@ -731,7 +752,7 @@ def main(argv: list[str] | None = None) -> int:
         Path(SIDECAR).read_text(encoding="utf-8").splitlines() if Path(SIDECAR).exists() else [],
         names,
     )
-    write_report(triage, len(names))
+    write_report(triage, names)
     print(f"report -> {REPORT}")
     print(f"decisions -> {DECISIONS}")
     print(

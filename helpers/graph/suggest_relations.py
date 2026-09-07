@@ -7,7 +7,7 @@ Closed-loop "suggested relations" with zero new UI:
     (shared co-mention / JV / competes / same-group neighbours)  ->
     this module filters (score floor, company-only endpoints, no existing
     typed edge of ANY kind, no prior identical suggestion)  ->
-    JSONL entries appended to findata/_pending_suggestions.txt  ->
+    JSONL entries appended to findata/Misc/_pending_suggestions.txt  ->
     a human accepts them through the H4 review workflow.
 
 Population split (pending_relations_triage, 2026-08-25): suggestions live
@@ -60,7 +60,7 @@ SUGGESTED_EDGE_TYPE = "suggested"
 # Own file since pending_relations_triage (2026-08-25): review candidates
 # must not share the extraction-miss queue. Was extract_relations.
 # SIDECAR_PATH (findata/_pending_relations.txt).
-SUGGESTIONS_PATH = _REPO_ROOT / "findata" / "_pending_suggestions.txt"
+SUGGESTIONS_PATH = _REPO_ROOT / "findata" / "Misc" / "_pending_suggestions.txt"
 SIDECAR_PATH = SUGGESTIONS_PATH  # back-compat name for callers/tests
 
 
@@ -260,13 +260,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--append",
         action="store_true",
-        help="append to findata/_pending_relations.txt (default: dry-run)",
+        help="append to findata/Misc/_pending_relations.txt (default: dry-run)",
     )
     p.add_argument(
         "--out",
         type=Path,
         default=SIDECAR_PATH,
-        help="sidecar path (default: findata/_pending_relations.txt)",
+        help="sidecar path (default: findata/Misc/_pending_relations.txt)",
     )
     args = p.parse_args(argv)
     if not DEFAULT_DUCKDB.exists():

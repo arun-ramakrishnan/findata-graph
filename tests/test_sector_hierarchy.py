@@ -186,7 +186,7 @@ class TestBuild:
         n_sub = con.execute(
             "SELECT COUNT(*) FROM entities WHERE entity_type='sub_sector'"
         ).fetchone()[0]
-        assert n_ss == 9
+        assert n_ss == 10
         assert n_sub == 78
         # 42 sector->super + 78 sub->sector = 120 belongs_to edges
         n_bt = con.execute(
@@ -237,7 +237,7 @@ class TestBuild:
 # --------------------------------------------------------------------------- #
 class TestTaxonomyShape:
     def test_nine_super_sectors(self):
-        assert len(bsh.SUPER_SECTORS) == 9
+        assert len(bsh.SUPER_SECTORS) == 10
 
     def test_no_super_sector_name_collides_with_child(self):
         # The _Super rename resolved Healthcare/Energy; guard against

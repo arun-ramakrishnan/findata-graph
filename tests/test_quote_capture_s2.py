@@ -79,7 +79,11 @@ class TestResolveLadder:
         ent, tier, sugg = di._resolve_ladder("Totally Unknown Things", MAP)
         assert ent is None and tier == "miss"
 
-    def test_entity_side_ambiguity_does_not_guess(self):
+    def test_entity_side_ambiguity_does_not_guess(self, monkeypatch):
+        # Hermetic: the user alias file (S7) may legitimately resolve
+        # `Welspun` by decision (it did, 2026-09-07); pin the merged map to
+        # the shipped `_QUOTE_ALIASES` so this tests the ladder tiers only.
+        monkeypatch.setattr(di, "_merged_quote_aliases", lambda: dict(di._QUOTE_ALIASES))
         m = dict(MAP)
         m["welspun corp"] = "Welspun Corp"
         m["welspun india"] = "Welspun India"
@@ -113,7 +117,7 @@ class TestJunkCanonicals:
     def test_extract_sections_integration_escape(self):
         note = (
             "## L\\&T Finance | Large Cap | Financials\n"
-            "\"The finance quote is definitely long enough to count here.\"\n"
+            '"The finance quote is definitely long enough to count here."\n'
             "- Jane Smith, CFO\n"
         )
         sections = list(di.iter_company_sections(note))

@@ -849,7 +849,7 @@ try:
 
     COINFER_SIDECAR_PATH = _COINFER_SIDECAR
 except Exception:  # pragma: no cover
-    COINFER_SIDECAR_PATH = PROJECT_ROOT / "findata" / "_pending_relations.txt"
+    COINFER_SIDECAR_PATH = PROJECT_ROOT / "findata" / "Misc" / "_pending_relations.txt"
 
 
 def coinfer_sector_map(conn: sqlite3.Connection) -> dict[str, str | None]:

@@ -1,0 +1,653 @@
+{
+ "purpose": "Parked stub creations from quote triage (S7 pass 1, 2026-09-07). Next pass: create entity + house stub note, then alias the listed canonicals.",
+ "created": "2026-09-07",
+ "note_format": "findata/Companies/<Sector>/<Name>.md, ticker null, listed false, generated.by process:quote_triage_stubs",
+ "creations": {
+  "AWL Agri Business": {
+   "sector": "FMCG",
+   "market_cap": "large_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Aarti Industries": {
+   "sector": "Chemicals",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Ahluwalia Contracts": {
+   "sector": "Infrastructure",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Anheuser-Busch Inbev": {
+   "sector": "FMCG",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Anheuser-Busch Inbev SA"
+   ]
+  },
+  "Antony Waste Handling Cell": {
+   "sector": "Logistics",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Apcotex Industries": {
+   "sector": "Chemicals",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Apple": {
+   "sector": "Technology",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Arisinfra Solutions": {
+   "sector": "Building_Materials",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Awfis Space Solutions": {
+   "sector": "Real_Estate",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "BMW": {
+   "sector": "Automotive",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Baba Jewellers": {
+   "sector": "Retail",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Bank of America": {
+   "sector": "Banking",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Bank of America Corporation"
+   ]
+  },
+  "Bansal Wire Industries": {
+   "sector": "Metals",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Bayer": {
+   "sector": "Chemicals",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Bayer AG"
+   ]
+  },
+  "Bikaji Foods International": {
+   "sector": "FMCG",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": [
+    "Bikaji Foods"
+   ]
+  },
+  "Birla Corporation": {
+   "sector": "Building_Materials",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Cantabil Retail India": {
+   "sector": "Retail",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Ceigall India": {
+   "sector": "Infrastructure",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Coinbase": {
+   "sector": "Fintech_Payments",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "DBS Group": {
+   "sector": "Banking",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "DBS Group Holdings"
+   ]
+  },
+  "Delta Air Lines": {
+   "sector": "Aviation",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Digitide Solutions": {
+   "sector": "Technology",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Dilip Buildcon": {
+   "sector": "Infrastructure",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Emami": {
+   "sector": "FMCG",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Ferrari": {
+   "sector": "Automotive",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Fine Organic Industries": {
+   "sector": "Chemicals",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Freightos": {
+   "sector": "Logistics",
+   "market_cap": "small_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Genpact": {
+   "sector": "Technology",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Godrej Industries": {
+   "sector": "Diversified",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Godrej Properties": {
+   "sector": "Real_Estate",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Godrej Properties I"
+   ]
+  },
+  "Gujarat Gas": {
+   "sector": "Energy",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Hester Biosciences": {
+   "sector": "Pharma",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Hindustan Oil Exploration Company": {
+   "sector": "Energy",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Hindustan Oil Exploration Company I"
+   ]
+  },
+  "Hugo Boss": {
+   "sector": "Textiles",
+   "market_cap": "mid_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "IndiGrid": {
+   "sector": "Energy",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Indigrid"
+   ]
+  },
+  "JPMorgan Chase": {
+   "sector": "Banking",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "J.P. Morgan",
+    "JPMorgan Chase"
+   ]
+  },
+  "JSW Infrastructure": {
+   "sector": "Logistics",
+   "market_cap": "large_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Jindal Saw": {
+   "sector": "Metals",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Johnson & Johnson": {
+   "sector": "Healthcare",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": [
+    "Johnson \\& Johnson"
+   ]
+  },
+  "Kanpur Plastipack": {
+   "sector": "Packaging",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Khadim India": {
+   "sector": "Consumer",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": [
+    "Khadim India \\"
+   ]
+  },
+  "Kilburn Engineering": {
+   "sector": "Engineering_Capital_Goods",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "LT Foods": {
+   "sector": "FMCG",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "M&B Engineering": {
+   "sector": "Engineering_Capital_Goods",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "M\\&B Engineering Ltd. I"
+   ]
+  },
+  "Maersk": {
+   "sector": "Logistics",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Marriott International": {
+   "sector": "Travel",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Mercedes-Benz Group": {
+   "sector": "Automotive",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Daimler (Mercedes-Benz Group)"
+   ]
+  },
+  "Meta": {
+   "sector": "Technology",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "NIIT Learning Systems": {
+   "sector": "Education_Training",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Netflix": {
+   "sector": "Media_Entertainment",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Netgear": {
+   "sector": "Technology",
+   "market_cap": "mid_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "NETGEAR,"
+   ]
+  },
+  "Nike": {
+   "sector": "Consumer",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": [
+    "NIKE,",
+    "Nike"
+   ]
+  },
+  "Novo Nordisk": {
+   "sector": "Pharma",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "ONGC": {
+   "sector": "Energy",
+   "market_cap": "large_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Orient Green Power": {
+   "sector": "Renewables",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Orient Green Energy"
+   ]
+  },
+  "Parag Milk Foods": {
+   "sector": "FMCG",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Piaggio Group": {
+   "sector": "Automotive",
+   "market_cap": "mid_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Piaggio Group"
+   ]
+  },
+  "Premier Energies": {
+   "sector": "Renewables",
+   "market_cap": "large_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Premier Energies I"
+   ]
+  },
+  "RIR Power Electronics": {
+   "sector": "Electronics",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "SG Finserve": {
+   "sector": "NBFC",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Sandisk": {
+   "sector": "Technology",
+   "market_cap": "mid_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "SanDisk Corporation"
+   ]
+  },
+  "Sarveshwar Foods": {
+   "sector": "Agriculture",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Satin Creditcare": {
+   "sector": "NBFC",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Scoda Tubes": {
+   "sector": "Metals",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Shell": {
+   "sector": "Energy",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Shell plc"
+   ]
+  },
+  "Shopify": {
+   "sector": "Technology",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Siemens Energy": {
+   "sector": "Energy",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Siemens Energy AG"
+   ]
+  },
+  "Signature Global": {
+   "sector": "Real_Estate",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Sony Group": {
+   "sector": "Electronics",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": [
+    "Sony",
+    "Sony Group Corporation"
+   ]
+  },
+  "Spotify": {
+   "sector": "Media_Entertainment",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": [
+    "Spotify I"
+   ]
+  },
+  "Starbucks": {
+   "sector": "FMCG",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": [
+    "Starbucks Corporation"
+   ]
+  },
+  "Styrenix Performance Materials": {
+   "sector": "Chemicals",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Styrenix Performance"
+   ]
+  },
+  "Sunteck Realty": {
+   "sector": "Real_Estate",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Sunteck"
+   ]
+  },
+  "Symphony": {
+   "sector": "Consumer",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Tencent": {
+   "sector": "Technology",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Tesla": {
+   "sector": "Automotive",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Thomas Cook (India)": {
+   "sector": "Travel",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Thomas Cook"
+   ]
+  },
+  "Uber": {
+   "sector": "Technology",
+   "market_cap": "large_cap",
+   "geography": "global",
+   "business_model": "b2c",
+   "alias_canonicals": [
+    "Uber Technologies"
+   ]
+  },
+  "Welspun Enterprises": {
+   "sector": "Infrastructure",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": []
+  },
+  "Western Carriers (India)": {
+   "sector": "Logistics",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Western Carrier"
+   ]
+  },
+  "Wonderla Holidays": {
+   "sector": "Travel",
+   "market_cap": "small_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": []
+  },
+  "Xerox": {
+   "sector": "Technology",
+   "market_cap": "mid_cap",
+   "geography": "global",
+   "business_model": "b2b",
+   "alias_canonicals": [
+    "Xerox Holdings Corporation"
+   ]
+  },
+  "Zee Entertainment Enterprises": {
+   "sector": "Media_Entertainment",
+   "market_cap": "mid_cap",
+   "geography": "india",
+   "business_model": "b2c",
+   "alias_canonicals": [
+    "ZEE Entertainment"
+   ]
+  }
+ }
+}
