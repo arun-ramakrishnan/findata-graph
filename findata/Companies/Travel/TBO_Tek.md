@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-07-07'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:44Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -80,11 +80,11 @@ _Source: yfinance | Refreshed: 2026-08-11_
 > "From the gross profit perspective, $84 \%$ of our gross profit is now generated from the hot business and only $13 \%$ from airlines."
 > — Gaurav Bhatnagar, Co-Founder and Joint MD [^chatter-Sharp_Takes]
 
-- **TBO's new platinum program shows that its platform can actually influence which hotels travel agents choose.This helps TBO earn higher commi**…
+- **TBO's new platinum program shows that its platform can actually influence which hotels travel agents choose.This helps TBO earn higher commi…**
 
 > "In March... a 22\% improvement in the share of wallet of the platinum hotels... April wa even better with almost 30\% improvement."
 
-- **- Gaurav Bhatnagar, Co-Founder and Joint MD TBO's strategy to focus on premium outbound markets gives access to customers $w$ higher average**…
+- **Gaurav Bhatnagar, Co-Founder and Joint MD TBO's strategy to focus on premium outbound markets gives access to customers $w$ higher average b…**
 
 > "Europe is the largest market for us... not only the largest, but also the fastest growing."
 > — Gaurav Bhatnagar, Co-Founder and Joint MD [^chatter-Sharp_Takes]

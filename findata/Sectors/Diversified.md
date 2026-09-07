@@ -88,12 +88,13 @@ Diversified companies operate across multiple business sectors and markets, redu
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 9 company note(s) in Diversified. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 10 company note(s) in Diversified. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Three_M_India|3M India]]
 - [[Adani_Enterprises|Adani Enterprises]]
 - [[DCM_Shriram|DCM Shriram]]
 - [[Forbes_and_Company|Forbes and Company]]
+- [[Godrej_Industries|Godrej Industries]]
 - [[Piramal_Enterprises|Piramal Enterprises]]
 - [[RPG_Enterprises|RPG Enterprises]]
 - [[Sakam_Trading|Sakam Trading]]

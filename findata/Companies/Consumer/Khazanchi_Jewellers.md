@@ -20,7 +20,7 @@ sources:
   last_modified: '2026-08-28'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:04:16Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-24'
 ---
 
@@ -62,7 +62,7 @@ the next 3-4 years across geographies. These stores will be a combination of our
 stores and p…"
 > — Rajesh Mehta, Chairman & JMD [^chatter-Borosil_Orchid_Welspun]
 
-- **The company is moving forward with its plan to transfer its stock listing from the SME exchange to the main boards of the BSE and NSE. Manag**…
+- **The company is moving forward with its plan to transfer its stock listing from the SME exchange to the main boards of the BSE and NSE. Manag…**
 
 > "We are in the process of submitting the application and all the documentation, and we
 
@@ -70,7 +70,7 @@ going to submit the documents very shortly. We believe that the migration proces
 
 completed in another 2 months."
 
-- **The new flagship retail store is currently generating between 30 and 35 crores in sa every month. Management says the store is currently hit**…
+- **The new flagship retail store is currently generating between 30 and 35 crores in sa every month. Management says the store is currently hit…**
 
 > "We are matching the target. We had already defined that this showroom would generat
 
@@ -80,7 +80,7 @@ approximately 80%-85% of that. If you are asking for the approximate monthly fig
 
 around 30-35 crores."
 
-- **8/28/26, 1:38 PM The Chatter: Borosil, Orchid, Welspun, KRN, & More — Management A new digital management system is helping the company trac**…
+- **8/28/26, 1:38 PM The Chatter: Borosil, Orchid, Welspun, KRN, & More — Management A new digital management system is helping the company trac…**
 
 > "We have had a great experience with regard to the ERP implementation in our new
 
@@ -90,7 +90,7 @@ customer demand is. Based on that demand, we are modifying our product requireme
 
 reordering levels, and ev…"
 
-- **More customers are trading in their old jewelry for new pieces, which now account for up to 20% of total sales. Management is also seeing st**…
+- **More customers are trading in their old jewelry for new pieces, which now account for up to 20% of total sales. Management is also seeing st…**
 
 > "Old gold exchange accounts for approximately 15%-20% of total sales. It has increased
 
@@ -100,7 +100,7 @@ last year it was lower. It increased after Mr. Modi’s statement. As the season
 
 which we…"
 
-- **To increase profits in its wholesale division, the company is introducing more expensive items like diamond and high-end traditional jewelry**…
+- **To increase profits in its wholesale division, the company is introducing more expensive items like diamond and high-end traditional jewelry…**
 
 > "We have been improving the B2B segment as well. We are expanding our higher-margin
 
@@ -109,7 +109,7 @@ products. We have added Kundan Jadau jewelry and diamond jewelry for our B2B seg
 
 https://thechatter.zerodha.com/p/the-chatter-borosil-orchid-welspun?publication_id=4898760&post_id=212834505&…"
 
-- **Bridal jewelry is the main driver of the company’s business, making up about 60% o total sales. Their inventory is heavily focused on specia**…
+- **Bridal jewelry is the main driver of the company’s business, making up about 60% o total sales. Their inventory is heavily focused on specia…**
 
 > "We do not maintain that exact split. However, on a broader basis, approximately 60% o
 

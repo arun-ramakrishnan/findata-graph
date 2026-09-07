@@ -20,7 +20,7 @@ created: '2026-06-29'
 last_modified: '2026-06-29'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:01:27Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -66,29 +66,29 @@ HDB Financial Services Ltd., a subsidiary of HDFC Bank, is India's 7th largest r
 > "In Q4, over 50% of our customers who needed a nudge were assigned a bot, which result in improved collection efficiency of about 25 basis points in the early buckets. As I said, is still an early stage and we have seen a lot of improvement going forward."
 > — Ramesh Ganesan, Managing Director and CEO [^chatter-TCS_ICICI_Pru_HDB_Financials]
 
-- **Management has set a target for loan book growth that significantly outperfo India's nominal GDP. This target suggests high management confi**…
+- **Management has set a target for loan book growth that significantly outperfo India's nominal GDP. This target suggests high management confi…**
 
 > "We have always stated that in the medium term, we look at a nominal plus 6-7% growth We are very focused on making sure we deliver on that."
 
-- **Despite market fluctuations, the company has successfully maintained its lend rates to protect profitability. This disciplined approach ensu**…
+- **Despite market fluctuations, the company has successfully maintained its lend rates to protect profitability. This disciplined approach ensu…**
 
 > "One of the biggest things we pride ourselves on is holding our rates over the last three quarters. That continued this quarter; across every single product, we have made sure we held our rates to ensure good risk-adjusted returns."
 > — Jaykumar Shah, Chief Financial Officer [^chatter-TCS_ICICI_Pru_HDB_Financials]
 
-- **HDB's shift toward paperless, point-of-sale credit delivery is reducing the compa reliance on physical branch infrastructure. This fundament**…
+- **HDB's shift toward paperless, point-of-sale credit delivery is reducing the compa reliance on physical branch infrastructure. This fundament…**
 
 > "The digitalization of processes has changed everything. Sales officers no longer carry funds to branches; credit is delivered at the point of sale. We don't need a physical office in immediate proximity to the salesperson anymore."
 
-- **The company is targeting a major shift toward financing used vehicles to increase presence in a high-yield market segment. This strategic pi**…
+- **The company is targeting a major shift toward financing used vehicles to increase presence in a high-yield market segment. This strategic pi…**
 
 > "In asset finance, we are aiming for a 50/50 mix between new and used over a 4-year period. We want to grow our used business significantly, as we are much smaller than established players."
 
-- **HDB is successfully pivoting toward digital-first lending, which has already led more than doubling of disbursements via its self-service pl**…
+- **HDB is successfully pivoting toward digital-first lending, which has already led more than doubling of disbursements via its self-service pl…**
 
 > "Focus on digital sourcing channels through our DIY (Do It Yourself) platform helped us multiply our disbursements by about 2.2 times in FY26, and we expect this momentum to continue. We have made significant investments in our technology capabilities including AI, which has st…"
 > — Ramesh Ganesan, Managing Director and CEO [^chatter-TCS_ICICI_Pru_HDB_Financials]
 
-- **Management highlighted that Q4 saw the highest-ever quarterly disburseme supported by improving demand across segments. This is a key leadin**…
+- **Management highlighted that Q4 saw the highest-ever quarterly disburseme supported by improving demand across segments. This is a key leadin…**
 
 > "Disbursements for the quarter ended March 31,2026,were 19,922 crores... an all-time high for HDB."
 > — Jaykumar Shah, Chief Financial Officer [^chatter-TCS_ICICI_Pru_HDB_Financials]
@@ -133,7 +133,7 @@ HDB Financial Services Ltd., a subsidiary of HDFC Bank, is India's 7th largest r
 
 > "On consumer finance which is the third business line that we talk about, growth was moderate in Q2 due to demand deferment on expected GST reductions which have actu now come through specifically in some product categories like two wheelers and consum durables and auto. This s…"
 
-- **Extreme monsoon events in North and East India (including 5-day Assam closure) created sector-wide recovery challenges for vehicle financier**…
+- **Extreme monsoon events in North and East India (including 5-day Assam closure) created sector-wide recovery challenges for vehicle financier…**
 
 > "Monsoon accentuated matters as high precipitation in specific geographies of the coun that is north and east, impeded vehicle deployment with consequent impact on custome: cash flows. Assam was closed for 5 days for certain reasons. The northern belt had certa challenges. So s…"
 > — G. Ramesh, MD \& CEO [^chatter-Tariffs__Tailwinds.]

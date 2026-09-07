@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-06-25'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:43Z'
+  at: '2026-09-07T16:45:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -78,9 +78,8 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **Addresses challenges in the wholesale channel, outlining efforts to improve inventc and projecting a return to high single-digit growth.**
 
 > "Wholesale channel has recorded low single digit in FY25. While the consumer sales ha, grown at a higher single digit level. We are encouraged by this tertiary sales growth of hi single digit and we have continued to work hard including on cleanup of inventory management in FY2…"
-> — Shailesh Chaturvedi, Managing Director \& CEO [^chatter-Echoes_from_the_Boardroom]
 
-- **Emphasizes the success and continued focus on high-growth direct-to-consumer channels.**
+- **while direct channels will take lead in growth thereby helping AFL meet its aspirations ( 12 to $15 \%$ revenue growth." Shailesh Chaturvedi…**
 
 > "Our focus has been on pushing revenue growth through direct channels of EBO retail a online B2C. Both these channels have grown handsomely in FY25. The retail growth in each of the last three quarters has been at a healthy teen percentage and this growth is li to sustain and h…"
 > — Shailesh Chaturvedi, Managing Director \& CEO [^chatter-Echoes_from_the_Boardroom]

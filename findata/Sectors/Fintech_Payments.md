@@ -33,8 +33,9 @@ Digital-first payments, wallets, neo-brokers, and consumer credit fintechs. Dist
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 6 company note(s) in Fintech_Payments. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 7 company note(s) in Fintech_Payments. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
+- [[Coinbase]]
 - [[Fisdom]]
 - [[Groww]]
 - [[Mastercard]]

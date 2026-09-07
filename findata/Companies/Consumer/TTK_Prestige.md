@@ -18,7 +18,7 @@ created: '2026-07-29'
 last_modified: '2026-07-29'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:01:27Z'
+  at: '2026-09-07T12:07:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -58,9 +58,12 @@ TTK Prestige Limited is part of the TTK Group. Over the past six decades it has 
 
 - **Management believes demand has fundamentally improved after a strong quarter, though the current growth rate represents a temporary peak.**
 
-> "We hope this would continue, though we believe this is not a sustainable, consistent demand at this specific peak. The demand will probably settle at a slightly higher level before in our view, and I think that would augur well for us and for the industry as well.'
+> "We hope this would continue, though we believe this is not a sustainable, consistent demand at this specific peak. The demand will probably settle at a slightly higher level before in our view, and I think that would augur well for us and for the industry as well.'"
+> — Venkatesh Vijayaraghavan, Managing Director & CEO [^chatter-BEL_HUL_Tata_Capital]
 
-## — Venka…"
+- **Investors questioned whether the LPG shortage had artificially boosted one category Management clarified demand was broad-based.**
+
+> "Unlike the last quarter where there was a disproportionate growth impact because of induction, this quarter the growth has been significantly distributed across categories. Induction cooktops, small domestic appliances, air fryers, cookware, and cookers have a seen uniformly d…"
 
 - **Management dismissed concerns that distributors had merely stocked inventory ah of price hikes.**
 

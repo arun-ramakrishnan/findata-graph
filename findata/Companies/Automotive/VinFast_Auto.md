@@ -23,7 +23,7 @@ created: '2025-12-05'
 last_modified: '2025-12-28'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:42Z'
+  at: '2026-09-07T16:45:45Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -208,12 +208,7 @@ VinFast Auto Limited is a Vietnamese automobile company that designs and manufac
 
 - **India factory has 50,000 initial capacity scalable to 250,000 units, producing VF6/VF for domestic and export markets.**
 
-> "In India, our factory in Tamil Nadu with the initial capacity of 50,000 units per year a scalable to 250,000 units per year, we are producing the VF6 and VF7 for India as well
-
----
-
-export from the factory. In Indonesia the construction at Subang factory is progressing $v$ and…"
-> — Madame Tui, Chairwoman [^chatter-Moves_and_Motives]
+> "In India, our factory in Tamil Nadu with the initial capacity of 50,000 units per year a scalable to 250,000 units per year, we are producing the VF6 and VF7 for India as well"
 
 [^chatter-Moves_and_Motives]: The Chatter: Moves and Motives — [[Moves_and_Motives]]
 

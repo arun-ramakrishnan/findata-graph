@@ -18,7 +18,7 @@ created: '2026-06-26'
 last_modified: '2026-06-26'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:01:27Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: Reading_the_terrain
@@ -90,46 +90,47 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "Our network through our subsidiary, Adani Total Energies E-Mobility Limited (ATEEI has installed 4,908 charge points across 26 states and union territories... We are on track with our ambition of installing 10,000 EV charge points in the near future."
 > — Suresh P. Manglani, Executive Director and CEO [^chatter-Reading_the_terrain]
 
-- **A significant reduction in interstate taxes lowers the landing cost of gas for custom outside the company's home state. This tax reform make**…
+- **A significant reduction in interstate taxes lowers the landing cost of gas for custom outside the company's home state. This tax reform make…**
 
 > "During the quarter, the CGD industry witnessed two important regulatory development First, the transition to 2% CST from the earlier 15% VAT on natural gas transported outside Gujarat."
 > — Suresh P. Manglani, Executive Director and CEO [^chatter-Reading_the_terrain]
 
-- **The new two-zone tariff simplifies costs and benefits segments located far from gas supply sources. Unified pricing allows for more predicta**…
+- **The new two-zone tariff simplifies costs and benefits segments located far from gas supply sources. Unified pricing allows for more predicta…**
 
 > "Second, the introduction of a simplified two-zone transmission tariff structure. Entire supplies for domestic PNG and CNG transport segments are now applied a Zone 1 tarif 54 rupees irrespective of distance."
 > — Suresh P. Manglani, Executive Director and CEO [^chatter-Reading_the_terrain]
 
-- **The new tariff regime is providing a substantial cost benefit to the majority of the company's gas portfolio. This boost is particularly hel**…
+- **The new tariff regime is providing a substantial cost benefit to the majority of the company's gas portfolio. This boost is particularly hel…**
 
 > "Applying the Zone 1 tariff of 54 rupees for entire PNG and CNG volumes—which is al 70% of our volume—has benefited us significantly, especially in GAs outside Gujarat."
 > — Suresh P. Manglani, Executive Director and CEO [^chatter-Reading_the_terrain]
 
-- **ATGL is actively participating in compressed biogas (CBG) production and procurement, with current blending levels below the 2% target, indi**…
+- **ATGL is actively participating in compressed biogas (CBG) production and procurement, with current blending levels below the 2% target, indi…**
 
 > "Regarding the blending, there is currently a requirement to move toward 1% and then 2 We produce CBG through our Barsana plant and purchase from other developers under SATAT scheme. Currently, CBG volume gets pooled, becoming part of the unified base price. Our current blendin…"
 > — Suresh P. Manglani, Executive Director and CEO [^chatter-Reading_the_terrain]
 
-- **ATGL relies heavily on domestic gas sources, which are typically cheaper than imported liquefied natural gas. The stability of these domesti**…
+- **ATGL relies heavily on domestic gas sources, which are typically cheaper than imported liquefied natural gas. The stability of these domesti…**
 
-> "Domestic gas, including APM and HPHT, comprises about 65% to 70% of our portfolio with the balance being RLNG. We have not seen a significant depletion in domestic gas
-
-— Suresh P. Manglani, Executive Director and CEO
-
-Direct financial incentives are being used to lower the en…"
+> "Domestic gas, including APM and HPHT, comprises about 65% to 70% of our portfolio with the balance being RLNG. We have not seen a significant depletion in domestic gas"
 > — Suresh P. Manglani, Executive Director and CEO [^chatter-Reading_the_terrain]
 
-- **The majority of vehicle additions are coming from factory-fitted CNG models rather than aftermarket conversions. High OEM sales are a more s**…
+- **Direct financial incentives are being used to lower the entry barrier for vehicle own to switch to CNG. Targeting heavy vehicles like trucks…**
+
+> "We have launched incentives like cashbacks of 15,000 to 20,000 rupees for retrofits and to 1.5 lakh for trucks and buses to widen our consumer base."
+> — Suresh P. Manglani, Executive Director and CEO [^chatter-Reading_the_terrain]
+
+- **The majority of vehicle additions are coming from factory-fitted CNG models rather than aftermarket conversions. High OEM sales are a more s…**
 
 > "A significant portion is OEM. The current trend is leaning toward new CNG vehicles due to OEM promotions and our incentives. The split is approximately two-thirds OEM and one-third retrofit."
 > — Suresh P. Manglani, Executive Director and CEO [^chatter-Reading_the_terrain]
 
-- **The industrial segment faces competition from other fuels when their global prices drop. This highlight shows that the company's volume grow**…
+- **The industrial segment faces competition from other fuels when their global prices drop. This highlight shows that the company's volume grow…**
 
 > "Propane and LPG prices were very moderate this quarter, which put pressure on our volume."
 > — Suresh P. Manglani, Executive Director and CEO [^chatter-Reading_the_terrain]
 
-- **Adani Total Gas is proactively advocating for stricter cleaner fuel norms and incentives for MSMEs to encourage PNG adoption, aiming to boos**…
+- **Adani Total Gas is proactively advocating for stricter cleaner fuel norms and incentives for MSMEs to encourage PNG adoption, aiming to boos…**
 
 > "We are engaging with policymakers regarding compliance with cleaner fuel norms especially in NCR. We are also advocating for incentives for MSMEs to voluntarily opt.
 

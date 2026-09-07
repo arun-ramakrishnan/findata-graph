@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2025-11-16'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:42Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -103,7 +103,7 @@ So given our current order book position, we maintain that our turnover …"
 We will not be bidding under losses at all. And we will be attacking more and more verti in which we feel very, very conf…"
 > — Harimohan Gupta, CMD [^chatter-Contours_of_Change]
 
-- **First Kavach tower tender won for Rs. 194 Crores and entering other new verticals KAVACH is an advanced, indigenous safety and collision-pre**…
+- **First Kavach tower tender won for Rs. 194 Crores and entering other new verticals KAVACH is an advanced, indigenous safety and collision-pre…**
 
 > "And also, we have entered into new verticals like Kavach, the train protection warning system, the iconic technology of the country. It's really a proud moment for the company that we have received the first Kavach order for South Western Railway. It's around 253 crores. And w…"
 

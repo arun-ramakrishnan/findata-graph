@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2025-11-16'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:42Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -58,17 +58,17 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "I would like to give some breaking news here. As I mentioned in my last speech, we wer going to bid for IKEA's global tender, which is a complete non-US business, to increase market share with IKEA as a quartz sink supplier from $25 \%$ to approximately $75 \%$. [KE REMARK] Te…"
 > — Chirag Parekh, Promoter \& MD [^chatter-Contours_of_Change]
 
-- **[Analyst Take: This is a major win. The key will be successful execution and ramp-t of capacity to meet IKEA's quality standards and timelin**…
+- **[Analyst Take: This is a major win. The key will be successful execution and ramp-t of capacity to meet IKEA's quality standards and timelin…**
 
 > "I think the biggest challenge we see is to now build the capacity to from currently, whic. we are utilizing $65 \%$, and to build and to start manufacturing to 85 to $90 \%$ within 90 da of time. As you know, with the downward trend, we had shut the Plant 4, which had an addit…"
 > — Chirag Parekh, Promoter \& MD [^chatter-Contours_of_Change]
 
-- **[Analyst Take: The aggressive ramp-up timeline highlights management's confiden in sustained demand, likely driven by the new IKEA and US re**…
+- **[Analyst Take: The aggressive ramp-up timeline highlights management's confiden in sustained demand, likely driven by the new IKEA and US re…**
 
 > "And not just that, we would be investing in the first kitchen and the bathroom countert fabrication facility in Delhi and planning other two centers this year, by end of the year, making Carysil the only first organized player in the Indian market, leveraging our UK fabricatio…"
 > — Chirag Parekh, Promoter \& MD [^chatter-Contours_of_Change]
 
-- **Tariff shifts are creating a significant opportunity for Carysil's stainless steel sink division, leading to strong demand from IKEA, Kohler**…
+- **Tariff shifts are creating a significant opportunity for Carysil's stainless steel sink division, leading to strong demand from IKEA, Kohler…**
 
 > "It is thanks to the tariff war that we have started receiving overwhelming response now stainless steel sinks also, as there's a big tariff on China and Vietnam. We have always maintained high technology. We have invested in PVD new machines and we have mad, some significant b…"
 > — Chirag Parekh, Promoter \& MD [^chatter-Contours_of_Change]

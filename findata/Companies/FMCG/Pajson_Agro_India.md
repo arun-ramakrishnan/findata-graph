@@ -20,7 +20,7 @@ created: '2026-06-29'
 last_modified: '2026-06-29'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:01:27Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -68,17 +68,17 @@ Pajson Agro India Ltd. processes raw cashew nuts into kernels and dry-fruit prod
 > "We do not have pre-planned agreements because customers are always looking for delivery timelines. Until production starts, we cannot give those timelines. However, we are always short of product. More than 80% of our revenue comes from repeat customers. We are currently unabl…"
 > — Ayush Jain, Promoter, Chairman, and Managing Director [^chatter-Havells_Ambuja_Cipla]
 
-- **Pajson Agro's top institutional clients include major packers like VRO, Farmley, an Happilo, with significant wholesale presence in key nort**…
+- **Pajson Agro's top institutional clients include major packers like VRO, Farmley, an Happilo, with significant wholesale presence in key nort…**
 
 > "It is a mix of both wholesale and institutional customers. The institutional customers a some of the largest packers in the country, namely VRO, Farmley, and Happilo. Our top wholesale customers are predominantly based in Delhi, Uttar Pradesh, and Rajasthan."
 > — Ayush Jain, Promoter, Chairman, and Managing Director [^chatter-Havells_Ambuja_Cipla]
 
-- **Large customers prefer Pajson Agro due to the specialized skills, experience, and complex supply chain management required for efficient cas**…
+- **Large customers prefer Pajson Agro due to the specialized skills, experience, and complex supply chain management required for efficient cas…**
 
 > "Cashew processing is highly skilled and experience-backed. Establishing a raw material supply chain and managing the technical aspects of processing is difficult. Since these companies deal with multiple products, focusing only on a cashew plant would be tough them."
 > — Ayush Jain, Promoter, Chairman, and Managing Director [^chatter-Havells_Ambuja_Cipla]
 
-- **Middle East disturbances have not disrupted Pajson Agro's West Africa-India supply chain, though increased fuel prices have resulted in slig**…
+- **Middle East disturbances have not disrupted Pajson Agro's West Africa-India supply chain, though increased fuel prices have resulted in slig…**
 
 > "It is unfortunate that the Middle East is going through these disturbances, but our supply chain comes from West Africa to India. There is no direct impact on the shipping routes take. The supply chain has not been disrupted. However, because fuel prices have gone there is a s…"
 > — Ayush Jain, Promoter, Chairman, and Managing Director [^chatter-Havells_Ambuja_Cipla]
@@ -95,7 +95,7 @@ Pajson Agro India Ltd. processes raw cashew nuts into kernels and dry-fruit prod
 and improves the color of the kernels. Enhancing our technology and Standard Operating Procedures (SOPs)…"
 > — Ayush Jain, Promoter, Chairman, and Managing Director [^chatter-Havells_Ambuja_Cipla]
 
-- **A minimum capacity of 15,000 metric tons is essential for efficient cashew processi with larger scales offering an additional 2-3% margin ad**…
+- **A minimum capacity of 15,000 metric tons is essential for efficient cashew processi with larger scales offering an additional 2-3% margin ad…**
 
 > "A plant would need at least 15,000 metric tons to match our production efficiency. A 1,000-ton plant might only make 1% margin or even lose money; they are effectively cot industries. Moving from 18,000 tons to 50,000-55,000 tons can provide an additional 2- margin difference."
 > — Ayush Jain, Promoter, Chairman, and Managing Director [^chatter-Havells_Ambuja_Cipla]
@@ -105,11 +105,10 @@ and improves the color of the kernels. Enhancing our technology and Standard Ope
 > "Currently it is very small, but our target for the next three financial years is to reach 15 total revenue."
 > — Ayush Jain, Promoter, Chairman, and Managing Director [^chatter-Havells_Ambuja_Cipla]
 
-- **The company anticipates 30-40% revenue growth in FY27, primarily due to the new plant commencing production in late FY27, with a baseline gr**…
+- **The company anticipates 30-40% revenue growth in FY27, primarily due to the new plant commencing production in late FY27, with a baseline gr…**
 
-> "Moving forward in FY27, as the new plant comes into production in November or December, we look at growth of 30-40% for the year. Even if we encounter any unforeseen circumstances, we are looking at 10-15% growth from the current plant in terms of rever
-
--Ayush Jain, Promoter,…"
+> "Moving forward in FY27, as the new plant comes into production in November or December, we look at growth of 30-40% for the year. Even if we encounter any unforeseen circumstances, we are looking at 10-15% growth from the current plant in terms of rever"
+> — Ayush Jain, Promoter, Chairman, and Managing Director [^chatter-Havells_Ambuja_Cipla]
 
 [^chatter-Havells_Ambuja_Cipla]: Havells Ambuja Cipla — [[Havells_Ambuja_Cipla]]
 

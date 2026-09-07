@@ -18,7 +18,7 @@ created: '2026-01-17'
 last_modified: '2026-01-17'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:01:28Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -163,7 +163,7 @@ Hotel Leelaventure Limited (HLV) is primarily engaged in the business of owning,
 > "The Indian luxury hospitality sector has strong fundamentals, with a forecasted deman supply CAGR gap of $4.9 \%$ between FY25 and FY28, providing a robust tailwind for grov With a strong pipeline of over 1,500 keys, we are well-positioned to capture this opportu as we target …"
 > — Anurag Bhatnagar, Managing Director \& CEO [^chatter-Tariffs__Tailwinds.]
 
-- **Challenging consensus view that IT sector slowdown would severely hurt Bangalor luxury hotel market, showcasing resilience and demand divers**…
+- **Challenging consensus view that IT sector slowdown would severely hurt Bangalor luxury hotel market, showcasing resilience and demand divers…**
 
 > "There has been a considerable capex spent on Bangalore, and we have created a compl luxury ecosystem where rooms have been renovated, we launched Maharaja Ballroom, $n$ had ZLB, now we are launching... we have launched the entire luxury retail club, and the Sukh also club has …"
 > — Ravi Shankar, Head, Asset Management \& CFO [^chatter-Tariffs__Tailwinds.]

@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-07-29'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:43Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -74,31 +74,31 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Just to reemphasize that 5 years ago, our business was primarily from the India market. Now our business is predominantly from the global market, which is the North American and European customers. As I've mentioned in previous earnings calls, we expect our headcount to remain…"
 
-- **-- Jigar Mehta, Managing Director Discussing significant infrastructure investments to support growth.**
+- **Jigar Mehta, Managing Director Discussing significant infrastructure investments to support growth.**
 
 > "In terms of the infrastructure, the last quarter and last 6 months have been the most exciting for us. We've been upgrading our infrastructure across all our delivery centres in India. Our Bangalore and Hyderabad centres are relatively new and operating very well. while our Pu…"
 
-- **-- Jigar Mehta, Managing Director Explaining the runway for further margin expansion through automation and geographic expansion.**
+- **Jigar Mehta, Managing Director Explaining the runway for further margin expansion through automation and geographic expansion.**
 
 > "Absolutely. I continue to believe that we still have a huge runway and that's predomina driven by two points. First one is, we're still at a very early stage in terms of automation. which will improve further efficiency across the organisation. For example, our books nc close …"
 
-- **-- Jigar Mehta, Managing Director Describing unprecedented demand growth in the US market.**
+- **Jigar Mehta, Managing Director Describing unprecedented demand growth in the US market.**
 
 > "Absolutely, in U.S., the demand is growing at a speed I've never seen before. A lot of positive things are happening across the manufacturing industry. There's a tremendous $\boldsymbol{\rho}$ for companies to move towards AI. We still have to build more capability in that, an…"
 
-- **-- Jigar Mehta, Managing Director Providing outlook on European market recovery.**
+- **Jigar Mehta, Managing Director Providing outlook on European market recovery.**
 
 > "In terms of Europe, the last quarter has been slow for us, but I do believe Europe is also the verge of growth because they also will have to invest heavily in data center, cloud, ar AI. And I do believe that's going to be a runway not only for us, but also for other tech comp…"
 
-- **-- Jigar Mehta, Managing Director Describing the strategic shift from mechanical engineering to digital and AI servic**
+- **Jigar Mehta, Managing Director Describing the strategic shift from mechanical engineering to digital and AI servic**
 
 > "As you know, we started very well on the mechanical side and we continue to invest in robotics and manufacturing engineering, but that area is becoming more and more commoditized. Our second area, where we are spending our time, energy and investmen on the digital side and now…"
 
-- **-- Jigar Mehta, Managing Director Providing realistic Q3 expectations around furloughs.**
+- **Jigar Mehta, Managing Director Providing realistic Q3 expectations around furloughs.**
 
 > "Q3 is predominantly a slow quarter. There are furloughs, which sort of continues from pandemic era. It sounds like ages ago, but it still continues in some clients. Most clients have stopped, which I think is a positive sign. The strange part about furloughs is nobod knows til…"
 
-- **-- Jigar Mehta, Managing Director Providing timeline and targets for healthcare vertical maturation.**
+- **Jigar Mehta, Managing Director Providing timeline and targets for healthcare vertical maturation.**
 
 > "Healthcare has been tricky for us a bit. As I said, we won some great clients and we're building capabilities. We started winning a few more clients, but we got distracted. Now we're focusing on the main clients, and we just need to deepen in terms of mining or winning deals f…"
 

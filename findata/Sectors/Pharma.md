@@ -40,7 +40,7 @@ Spun out of [[Healthcare]] in the 2026 sector-rebalancing pass.
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 47 company note(s) in Pharma. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 49 company note(s) in Pharma. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Aarti_Drugs|Aarti Drugs]]
 - [[Aarti_Pharmalabs|Aarti Pharmalabs]]
@@ -64,6 +64,7 @@ Spun out of [[Healthcare]] in the 2026 sector-rebalancing pass.
 - [[GlaxoSmithKline_Pharmaceuticals|GlaxoSmithKline Pharmaceuticals]]
 - [[Glenmark_Pharmaceuticals|Glenmark Pharmaceuticals]]
 - [[Granules_India|Granules India]]
+- [[Hester_Biosciences|Hester Biosciences]]
 - [[Indegene]]
 - [[Indoco_Remedies|Indoco Remedies]]
 - [[Ipca_Laboratories|Ipca Laboratories Limited]]
@@ -76,6 +77,7 @@ Spun out of [[Healthcare]] in the 2026 sector-rebalancing pass.
 - [[Natco_Pharma|Natco Pharma]]
 - [[Novartis_India|Novartis India]]
 - [[Novavax]]
+- [[Novo_Nordisk|Novo Nordisk]]
 - [[OneSource_Specialty_Pharma|OneSource Specialty Pharma]]
 - [[Orchid_Pharma|Orchid Pharma]]
 - [[Pfizer]]

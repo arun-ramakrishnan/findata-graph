@@ -110,22 +110,26 @@ Logistics sector covering transportation, warehousing, and supply chain solution
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 23 company note(s) in Logistics. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 28 company note(s) in Logistics. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[ABS_Marine_Services|ABS Marine Services]]
 - [[Afcom_Holdings|Afcom Holdings]]
 - [[Allcargo_Global|Allcargo Global]]
 - [[Allcargo_Logistics|Allcargo Logistics]]
+- [[Antony_Waste_Handling_Cell|Antony Waste Handling Cell]]
 - [[Blue_Dart_Express|Blue Dart Express]]
 - [[Brace_Port_Logistics|Brace Port Logistics]]
 - [[CMS_Info_Systems|CMS Info Systems Limited]]
 - [[Container_Corporation_of_India|Container Corporation of India]]
 - [[Delhivery]]
 - [[Ecom_Express|Ecom Express]]
+- [[Freightos]]
 - [[Gateway_Distriparks|Gateway Distriparks]]
 - [[Gati]]
 - [[Glottis]]
+- [[JSW_Infrastructure|JSW Infrastructure]]
 - [[Leap_India|Leap India]]
+- [[Maersk]]
 - [[Mahindra_Logistics|Mahindra Logistics]]
 - [[Paradeep_Parivahan|Paradeep Parivahan]]
 - [[Shadowfax_Technologies|Shadowfax Technologies]]
@@ -135,6 +139,7 @@ Logistics sector covering transportation, warehousing, and supply chain solution
 - [[Texmaco_Rail_and_Engineering|Texmaco Rail & Engineering]]
 - [[Transport_Corporation_of_India|Transport Corporation of India]]
 - [[VRL_Logistics|VRL Logistics]]
+- [[Western_Carriers_India|Western Carriers (India)]]
 
 <!-- END auto company index -->
 ## Newsletter synthesis — Logistics (multi-edition)

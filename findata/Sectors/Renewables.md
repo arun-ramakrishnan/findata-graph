@@ -39,7 +39,7 @@ Diversified utilities with mixed thermal+renewable generation remain in [[Energy
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 21 company note(s) in Renewables. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 23 company note(s) in Renewables. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Acme_Solar_Holdings_Limited|Acme Solar Holdings Limited]]
 - [[Adani_Green|Adani Green]]
@@ -49,7 +49,9 @@ Diversified utilities with mixed thermal+renewable generation remain in [[Energy
 - [[Inox_Wind|Inox Wind]]
 - [[KP_Energy|KP Energy]]
 - [[KPI_Green_Energy|KPI Green Energy]]
+- [[Orient_Green_Power|Orient Green Power]]
 - [[Oswal_Pumps|Oswal Pumps]]
+- [[Premier_Energies|Premier Energies]]
 - [[Ravindra_Energy|Ravindra Energy]]
 - [[Saatvik_Green_Energy|Saatvik Green Energy]]
 - [[Shubhshree_Biofuels_Energy|Shubhshree Biofuels Energy]]

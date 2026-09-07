@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-07-07'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:42Z'
+  at: '2026-09-07T16:45:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -98,30 +98,25 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 - **CMS is actively shifting its revenue model from shorter-term annuity contracts (1-5 years) to longer-term recurring revenue contracts (7-10…**
 
-> "A more subtle shift, which we want to point out here for you, is in the nature of this revenue. We used to mostly be an annuity revenue business, wherein the contracts are of
+> "A more subtle shift, which we want to point out here for you, is in the nature of this revenue. We used to mostly be an annuity revenue business, wherein the contracts are of"
 
----
-
-to 3 years duration, with fairly high retention rates. We have been driving a change to o: recur…"
-> — Rajiv Kaul, CEO [^chatter-Decoding_the_Dialogue]
-
-- **The Vision AI platform is a key growth driver. CMS has achieved market leadership the ATM space, developed a proprietary tech stack, and is…**
+- **to 3 years duration, with fairly high retention rates. We have been driving a change to o: recurring revenue model, which are longer-term co…**
 
 > "Coming to remote monitoring, our remote monitoring business, which we now refer to , Vision Al Platform, has rapidly scaled to becoming the number one platform in India's ATM space. This year, one of the key milestones was that we completed our in-house proprietary tech stack.…"
 > — Anush Raghavan, President - Cash Management [^chatter-Decoding_the_Dialogue]
 
-- **CMS has a proactive M\&A strategy, having screened numerous companies in target sectors. The decision to drop debt collection after extensiv**…
+- **CMS has a proactive M\&A strategy, having screened numerous companies in target sectors. The decision to drop debt collection after extensiv…**
 
 > "We, in fact, screened hundreds of companies and came up with a shortlist of 65 compa with which we had meetings in these identified areas. From these companies, we are identifying and working with a set of founders to look at who can align with CMS when they present us a good …"
-> — Rajiv Kaul, CEO [^chatter-Decoding_the_Dialogue]
+
+- **profile for our future business growth. We have earlier, as you know, incubated bullion a debt collection business. After extensive work in…**
 
 > "...I think Rajiv covered the detail on Collections, which is we did extensive efforts to incubate the business and also did a fairly detailed diligence of one of the companies th. we had shortlisted.. Currently, and post that, we decided to drop it. Several concerns wit respec…"
 > — Anush Raghavan, President - Cash Management [^chatter-Decoding_the_Dialogue]
 
-- **Management explicitly articulates a niche strategy for its cards business, prioritizir high ROCE and strong EBIT margins over revenue scale.**…
+- **Management explicitly articulates a niche strategy for its cards business, prioritizir high ROCE and strong EBIT margins over revenue scale.…**
 
 > "So, great questions, especially on the card side, it's not a business which people normali ask too much about. And so I think, you know, if you go back to what we have said earli our goal as a company is to operate in sectors where we can be a clear market leader, un we, I mea…"
-> — Rajiv Kaul, CEO [^chatter-Decoding_the_Dialogue]
 
 [^chatter-Decoding_the_Dialogue]: The Chatter: Decoding the Dialogue — [[Decoding_the_Dialogue]]
 

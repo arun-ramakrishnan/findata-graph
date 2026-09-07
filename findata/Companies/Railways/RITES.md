@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2025-11-16'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:01:28Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -61,26 +61,27 @@ RITES (Rail India Technical and Economic Service) is a government-owned mid-cap 
 > "The order book currently stands at 9,400 crores. A substantial portion, more than 50% it, is very young, which is about 12-18 months old. These are the orders which will start generating revenue in this FY."
 > — Rahul Mithal, Chairman and Managing Director [^chatter-Tata_Steel_LIC]
 
-- **The company is winning more work by bidding against others instead of being dire chosen. While this shows they are competitive, it also mean**…
+- **The company is winning more work by bidding against others instead of being dire chosen. While this shows they are competitive, it also mean…**
 
 > "As these competitive orders start generating revenue—if you compare the mix of the or book at the end of the financial year on March 31, 63% is competitive. If you count the fresh order inflow, it is about 70%+. The margins across all our streams on the new order are much lower."
 > — Rahul Mithal, Chairman and Managing Director [^chatter-Tata_Steel_LIC]
 
-- **Turnkey projects make total sales look much larger, but the actual work remains ba consulting. This helps explain why overall profit percent**…
+- **Turnkey projects make total sales look much larger, but the actual work remains ba consulting. This helps explain why overall profit percent…**
 
 > "Let me be clear: we are not a construction company. We are a project management consultancy company. While the order size in a turnkey project is large—and that is why is a large portion of the order book—our scope of work remains the same."
 > — Rahul Mithal, Chairman and Managing Director [^chatter-Tata_Steel_LIC]
 
-- **RITES is starting to ship a large order of train coaches to Bangladesh after a long break in exports. This is good news because exports usua**…
+- **RITES is starting to ship a large order of train coaches to Bangladesh after a long break in exports. This is good news because exports usua…**
 
-> "With the execution of the Mozambique order, we have a 1,750 crore export order balance One of the key elements of this is the 200 coaches for Bangladesh. They are fully on trac
-
-— Rahul Mithal, Chairman and Managing Director
-
-The energy management part of the business is growi…"
+> "With the execution of the Mozambique order, we have a 1,750 crore export order balance One of the key elements of this is the 200 coaches for Bangladesh. They are fully on trac"
 > — Rahul Mithal, Chairman and Managing Director [^chatter-Tata_Steel_LIC]
 
-- **RITES is winning new work in areas like airports and shipbuilding, not just railway This variety of work makes the company's income safer be**…
+- **The energy management part of the business is growing and sending a lot of cash b to the main company. This steady income helps RITES keep p…**
+
+> "REMCL has grown by 16% and profits have grown by 19%. Total revenue was 163 crores and profit was 90 crores. It gave a substantial dividend to us of about 42 crores."
+> — Rahul Mithal, Chairman and Managing Director [^chatter-Tata_Steel_LIC]
+
+- **RITES is winning new work in areas like airports and shipbuilding, not just railway This variety of work makes the company's income safer be…**
 
 > "In the last 1.5 months, we have received fresh orders across railways, various PSUs, priv sidings, highways, ports, bridges, and airports. We received a large order for airport
 

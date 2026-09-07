@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2025-12-29'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:44Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: Scaling_Through_Slowdowns
@@ -146,7 +146,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "The macroeconomic volatility that we really firmly believe is cyclical in nature as we sc was more pronounced in quarter three. And what you do see is that particularly in the Americas for instance, you see the beer market was actually softening and I already cautioned that if…"
 
-- **- Harold van den Broek (CFO) India volumes down mid-single digit on strong monsoon but outperformed market China licensed volumes up mid-20s**…
+- **Harold van den Broek (CFO) India volumes down mid-single digit on strong monsoon but outperformed market China licensed volumes up mid-20s g…**
 
 > "In India, beer volume fell by a mid-single digit impacted by an unusually strong monso season, but we still outperformed the market. Price mix expanded by a high single digit supported by pricing in key states and portfolio mix with premium volume growing in th teens. In China…"
 

@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-06-25'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:43Z'
+  at: '2026-09-07T16:45:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -76,9 +76,8 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **# Tata Chemicals | Mid Cap | Chemicals Management was explaining the demand drivers across geographies, highlighting $t$ China's past surge…**
 
 > "Last year was a year of very strong growth in China. We don't expect similar growth to continue this year. Last year was about $18 \%$ growth, mainly solar and lithium carbonate markets. We don't expect because usually we expect about 6\% growth. So we are actually factoring i…"
-> — Arun Mukundan, Managing Director and CEO [^chatter-Embracing_the_Unknown]
 
-- **Noted that while tariffs could shift global trade flows, Tata Chemicals hasn't yet se, meaningful impacts on its operations.**
+- **glass and all other segments in India and we are at least factoring anywhere between $5 t$ $6 \%$ growth in India even in the coming years a…**
 
 > "We have not factored any of the major issues around tariff. It may lead to rebalancing , supply demand centers and as of now from the centers we manufacture we have not seer major shift in the way we need to rebalance our market portfolio."
 > — Arun Mukundan, Managing Director and CEO [^chatter-Embracing_the_Unknown]

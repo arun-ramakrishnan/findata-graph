@@ -18,7 +18,7 @@ created: '2025-12-20'
 last_modified: '2025-12-20'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:44Z'
+  at: '2026-09-07T16:45:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -152,11 +152,7 @@ The company's competitive advantage in bonded tech products stems from superior 
 
 - **Leveraging automation and AI in manufacturing, HR, and product development, hinting at long-term margin or efficiency gains.**
 
-> "We have actually started deploying automation and AI across various parts of the company. Whether it is the manufacturing systems, or whether it is the design and
-
----
-
-development systems, or whether it is the HR systems, all these places where large data s are available, whe…"
+> "We have actually started deploying automation and AI across various parts of the company. Whether it is the manufacturing systems, or whether it is the design and"
 
 [^chatter-Signals_in_Silence]: The Chatter: Signals in Silence — [[Signals_in_Silence]]
 

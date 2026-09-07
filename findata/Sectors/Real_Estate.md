@@ -102,18 +102,20 @@ Real estate development companies create residential, commercial, and mixed-use 
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 23 company note(s) in Real_Estate. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 27 company note(s) in Real_Estate. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[AGI_Infra|AGI Infra]]
 - [[Aditya_Birla_Real_Estate|Aditya Birla Real Estate]]
 - [[Anant_Raj|Anant Raj]]
 - [[Aurum_Proptech|Aurum Proptech]]
+- [[Awfis_Space_Solutions|Awfis Space Solutions]]
 - [[Bigbloc_Construction|Bigbloc Construction]]
 - [[Brigade_Enterprises|Brigade Enterprises]]
 - [[Brookfield_India_REIT|Brookfield India REIT]]
 - [[D_B_Realty|D B Realty]]
 - [[DLF_Limited|DLF Limited]]
 - [[Embassy_Office_Parks|Embassy Office Parks]]
+- [[Godrej_Properties|Godrej Properties]]
 - [[Indiqube_Spaces|Indiqube Spaces]]
 - [[Justo_Realfintech|Justo Realfintech]]
 - [[Macrotech_Developers|Macrotech Developers]]
@@ -123,9 +125,11 @@ Real estate development companies create residential, commercial, and mixed-use 
 - [[Oberoi_Realty|Oberoi Realty]]
 - [[Prestige_Estates_Projects|Prestige Estates Projects]]
 - [[Raymond_Realty|Raymond Realty]]
+- [[Signature_Global|Signature Global]]
 - [[Smartworks_Coworking_Spaces|Smartworks Coworking Spaces]]
 - [[Sobha]]
 - [[Sri_Lotus_Developers_Realty|Sri Lotus Developers Realty]]
+- [[Sunteck_Realty|Sunteck Realty]]
 - [[WeWork_India_Management|WeWork India Management]]
 
 <!-- END auto company index -->

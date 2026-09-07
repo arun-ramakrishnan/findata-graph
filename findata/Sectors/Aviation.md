@@ -105,8 +105,9 @@ Aviation companies provide air transportation services, including commercial air
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 3 company note(s) in Aviation. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 4 company note(s) in Aviation. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
+- [[Delta_Air_Lines|Delta Air Lines]]
 - [[GMR_Airports|GMR Airports]]
 - [[Interglobe_Aviation|Interglobe Aviation]]
 - [[Virgin_Galactic|Virgin Galactic]]

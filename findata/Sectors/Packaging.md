@@ -137,7 +137,7 @@ Packaging is a sub-sector of [[Materials]] that encompasses companies manufactur
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 12 company note(s) in Packaging. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 13 company note(s) in Packaging. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[All_Time_Plastics|All Time Plastics]]
 - [[Bai_Kakaji_Polymers|Bai-Kakaji Polymers]]
@@ -146,6 +146,7 @@ Packaging is a sub-sector of [[Materials]] that encompasses companies manufactur
 - [[Huhtamaki_India|Huhtamaki India]]
 - [[Huhtamaki_Oyj|Huhtamaki Oyj]]
 - [[Jindal_Poly_Films|Jindal Poly Films]]
+- [[Kanpur_Plastipack|Kanpur Plastipack]]
 - [[Manjushree_Technopack|Manjushree Technopack]]
 - [[Mod_Tek_Packaging|Mod Tek Packaging]]
 - [[Time_Technoplast|Time Technoplast]]

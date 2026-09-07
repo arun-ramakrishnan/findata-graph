@@ -87,11 +87,14 @@ The Infrastructure sector in India encompasses road construction, railways, airp
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 15 company note(s) in Infrastructure. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 19 company note(s) in Infrastructure. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Adani_Ports_and_SEZ|Adani Ports and SEZ]]
+- [[Ahluwalia_Contracts|Ahluwalia Contracts]]
 - [[Bajel_Projects|Bajel Projects]]
+- [[Ceigall_India|Ceigall India]]
 - [[Dhruv_Consultancy_Services|Dhruv Consultancy Services]]
+- [[Dilip_Buildcon|Dilip Buildcon]]
 - [[Gujarat_Maritime_Board|Gujarat Maritime Board]]
 - [[JWIL_Infra|JWIL Infra]]
 - [[K2_Infragen|K2 Infragen]]
@@ -104,6 +107,7 @@ The Infrastructure sector in India encompasses road construction, railways, airp
 - [[SPML_Infra|SPML Infra]]
 - [[Shree_Hari_Infraprojects|Shree Hari Infraprojects]]
 - [[VA_Tech_Wabag|VA Tech Wabag]]
+- [[Welspun_Enterprises|Welspun Enterprises]]
 
 <!-- END auto company index -->
 ## Newsletter synthesis — Infrastructure (multi-edition)

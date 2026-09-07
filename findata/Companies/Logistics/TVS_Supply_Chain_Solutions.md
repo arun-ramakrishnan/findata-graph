@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2025-11-16'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:01:27Z'
+  at: '2026-09-07T16:45:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -55,14 +55,9 @@ A part of the TVS Group, TVS Supply Chain Solutions provides integrated supply c
 
 - **They went from a loss last year to profit this year, proof that their turnaround strate is actually working.**
 
-> "FY25 marked a strong turnaround year. We achieved a profit before tax of ₹29 crores, I significant improvement from a loss of 210 crores in FY24. Our revenues from operation grew by 9\% year-on-year from 29,200 crores to 29,996 crores, reflecting a solid executio
+> "FY25 marked a strong turnaround year. We achieved a profit before tax of ₹29 crores, I significant improvement from a loss of 210 crores in FY24. Our revenues from operation grew by 9\% year-on-year from 29,200 crores to 29,996 crores, reflecting a solid executio"
 
----
-
-across …"
-> — Ravi Viswanathan, Managing Director [^chatter-Sharp_Takes]
-
-- **They're cutting costs now to boost profits later, expecting better margins starting li FY26.**
+- **across markets and segments. These results reaffirm the strength of our strategy and our progress towards achieving our vision of a $4 \%$ P…**
 
 > "These actions will continue through Q2 of FY26, and these initiatives will yield results from the second half of FY26. Importantly, these actions are aligned with our long-term financial objectives and will set the organization firmly on the path to achieving our committed tar…"
 > — Ravi Viswanathan, Managing Director [^chatter-Sharp_Takes]
@@ -74,12 +69,7 @@ across …"
 
 - **A major UK contract adds predictable revenue and shows TVS is competing with global logistics players.**
 
-> "I'm pleased to share that the contract has now been finalized. It's a UK-wide mandate focused on storage and distribution services - a three-year, ₹1,000 crore revenue contra with a Fortune 500 British multinational retail chain. This win underscores our position
-
----
-
-in the …"
-> — Ravi Viswanathan, Managing Director [^chatter-Sharp_Takes]
+> "I'm pleased to share that the contract has now been finalized. It's a UK-wide mandate focused on storage and distribution services - a three-year, ₹1,000 crore revenue contra with a Fortune 500 British multinational retail chain. This win underscores our position"
 
 [^chatter-Sharp_Takes]: The Chatter: Sharp Takes — [[Sharp_Takes]]
 

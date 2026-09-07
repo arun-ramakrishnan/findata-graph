@@ -19,7 +19,7 @@ created: '2026-06-20'
 last_modified: '2026-06-20'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:01:27Z'
+  at: '2026-09-07T12:07:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Bets and blueprints
@@ -117,24 +117,27 @@ EIL operates within the [[Engineering_Capital_Goods]] sector, with a specific fo
 > "Considering the above order inflow in January, the current order book stands at around INR 15,670 crores. This is the highest order book position in the history of EIL."
 > — Sanjay Jindal, Director, Finance [^chatter-Bets and blueprints]
 
-- **EIL expects India's energy demand to double by 2040, driven by government plans to expand crude refining capacity and increase natural gas's**…
+- **EIL expects India's energy demand to double by 2040, driven by government plans to expand crude refining capacity and increase natural gas's…**
 
-> "By 2040, our energy demand is going to be doubled. And fossil fuel will be part of this energy mix in the 2040 also. So government is planning to increase the crude refining capacity and increasing the share of gas -- natural gas in the energy mix from 6% to 15%
+> "By 2040, our energy demand is going to be doubled. And fossil fuel will be part of this energy mix in the 2040 also. So government is planning to increase the crude refining capacity and increasing the share of gas -- natural gas in the energy mix from 6% to 15%"
+> — Vivek Midha, Chief General Manager, Marketing and Business Development [^chatter-Bets and blueprints]
 
-- Vivek Midha…"
+- **The reversal of penalty provisions is a standard contractual risk management practic where funds set aside are released to profit if a proje…**
+
+> "Gentleman, please try and appreciate that this is a provision of the contract, okay? Whenever a contract is awarded, this is a risk provision you always make in any of the pricing you quote. So you make a provision, you keep that money aside. And when the project is executed, …"
 > — Sanjay Jindal, Director, Finance [^chatter-Bets and blueprints]
 
-- **EIL's revised LSTK business model prioritizes cost-plus Open Book Estimate contracts, ensuring fixed margins and transferring cost escalatio**…
+- **EIL's revised LSTK business model prioritizes cost-plus Open Book Estimate contracts, ensuring fixed margins and transferring cost escalatio…**
 
 > "Now we have changed the business model. As my colleague said, we are already targeting open book estimate, which is cost plus contracts only. So whatever cost is incurred, client reimbursing that. And upon the cost reimbursed, we are charging our fixed margin -- fixed markup. …"
 > — Sanjay Jindal, Director, Finance [^chatter-Bets and blueprints]
 
-- **EIL foresees substantial projects in the Indian petchem and refinery sector due to government plans for significant capacity expansion by 20**…
+- **EIL foresees substantial projects in the Indian petchem and refinery sector due to government plans for significant capacity expansion by 20…**
 
 > "Government has already indicated that they are going to increase the refining capacity well as the petchem capacity by 2030. So you have a lot of projects in pipeline. But these the cyclical projects."
 > — Vivek Midha, Chief General Manager, Marketing and Business Development [^chatter-Bets and blueprints]
 
-- **EIL focuses on specialized, high-value infrastructure projects like townships, R&D facilities, and convention centers for institutional clie**…
+- **EIL focuses on specialized, high-value infrastructure projects like townships, R&D facilities, and convention centers for institutional clie…**
 
 > "These kind of niche segments we are targeting. We don't go into the regular residential building construction. We go into the niche areas wherein the client wants to create a township, wants to create a research and development facility or wants to create a convention center."
 > — R.P. Batra, Executive Director [^chatter-Bets and blueprints]

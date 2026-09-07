@@ -19,7 +19,7 @@ created: '2026-01-25'
 last_modified: '2026-06-24'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:43Z'
+  at: '2026-09-07T16:45:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -102,23 +102,17 @@ Industry leaders: Vardhman Textiles, Welspun Corp, Arvind Fashion, Trident, Ginn
 - **US customers delaying orders by 30-45 days and reducing quantities by 20-25\%, shifting to hand-to-mouth buying due to tariff uncertainty.**
 
 > "US-based customers have been very cautious in placing their orders and their orders ar. delayed by about 30 to 45 days and also the quantity has been lower by about 20 to $25 \%$ When we look at the US customers buying pattern, one there is a delay in order flow. So somebody w…"
-> — Agria Jain, Executive Director [^chatter-Known_Unknowns]
 
-- **India expecting 3 million bales imports ( $10 \%$ of consumption) by December 31st du1 free deadline, with Vardhman aggressively securing sh**…
+- **October. So that is a delay of about 45 days. In addition the quantum which was there $l_{i}$ year that quantum has also reduced by 20 to $2…**
 
 > "We have tried to cover whatever best could have been possible because the window was 31st December arrival has to be there for cotton in India and unfortunately there are lot bottlenecks in Gaza and other countries in terms of the shipment etc. So it's not only we a country we…"
 > — Neeraj Jain, Joint Managing Director [^chatter-Known_Unknowns]
 
 - **11 million spindles ( 1,000 units) shut down with $80-90 \%$ unlikely to restart, while competing countries expand capacity.**
 
-> "The industry estimation is about 11 million spindles have got stopped and if you look a the number of units which have got stopped are almost a thousand units. Our feeling is more than 80 to $90 \%$ may not come back even if this becomes better. Today what is
+> "The industry estimation is about 11 million spindles have got stopped and if you look a the number of units which have got stopped are almost a thousand units. Our feeling is more than 80 to $90 \%$ may not come back even if this becomes better. Today what is"
 
----
-
-happening b…"
-> — Neeraj Jain, Joint Managing Director [^chatter-Known_Unknowns]
-
-- **Odisha offers $30 \%$ capital subsidy versus MP's $18-20 \%$, plus 5,000 rupees/person/mo labor subsidy for 5 years.**
+- **happening because of the disadvantage India have India is not expanding at all and wherever these opportunities are there the other countrie…**
 
 > "Odisha government is giving subsidy or capital subsidy which is a little higher in the ra: of about $30 \%$ or so compared to 18 to $20 \%$ which Madhya Pradesh government offers. A the Odisha government gives you 5,000 rupees per person per month subsidy for 5 years. all the …"
 > — Neeraj Jain, Joint Managing Director [^chatter-Known_Unknowns]

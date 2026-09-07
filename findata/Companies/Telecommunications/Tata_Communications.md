@@ -18,7 +18,7 @@ created: '2026-06-30'
 last_modified: '2026-06-30'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:01:27Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -57,7 +57,7 @@ Tata Communications (NSE: TATACOMM) is a global digital infrastructure provider 
 > "Our digital platforms are now, for the first time, contributing more than 50% of our daily revenue."
 > — Ganesh Lakshmi Narayanan, MD and CEO designate [^chatter-HDFC_Groww_Havells]
 
-- **Customer engagements reveal a shift from basic connectivity needs to a demand for advanced AI-driven solutions, such as AI agents for custom**…
+- **Customer engagements reveal a shift from basic connectivity needs to a demand for advanced AI-driven solutions, such as AI agents for custom…**
 
 > "The conversations with my customers are very encouraging because they are not just talking about connectivity. For example, I met an insurance customer, and the conversa
 
@@ -73,11 +73,11 @@ was about how we can build AI agents that can operate as relationship managers f
 
 > "Data center to data center connectivity... in India... we expect this to be at least a billio dollar opportunity by 2030... We expect a four-fold increase in data center bandwidth needs."
 
-- **The company is actively pursuing an IPO of STT GDC's Indian asset as the preferre method to monetize its stake and achieve optimal value dis**…
+- **The company is actively pursuing an IPO of STT GDC's Indian asset as the preferre method to monetize its stake and achieve optimal value dis…**
 
 > "STT GDC has already issued a press statement saying they are looking for a potential 1 for their Indian asset... if we get the right value, an IPO would provide the right value discovery for our stake. We have engaged with STT and the new buyer to secure our monetization right…"
 
-- **The company leverages its unified infrastructure strengths in security, connectivity and voice for AI solutions, aiming for ROI from its Com**…
+- **The company leverages its unified infrastructure strengths in security, connectivity and voice for AI solutions, aiming for ROI from its Com…**
 
 > "Our building blocks allow us to capitalize on the unified infrastructure required. It is not just about the agent; the agent needs security, connectivity to enterprise data, and voice infrastructure. Those are our strengths. The Commotion investment gives us an opportunity to …"
 > — Ganesh Lakshmi Narayanan, MD and CEO designate [^chatter-HDFC_Groww_Havells]
@@ -87,7 +87,7 @@ was about how we can build AI agents that can operate as relationship managers f
 > "It is a true digital fabric win which included both our network fabric and the interactio fabric... enabling GCCs with a secure, cloud-ready, globally connected environment."
 > — Ganesh Lakshminarayanan, MD & CEO [^chatter-HDFC_Groww_Havells]
 
-- **Management framed long-term growth around two large opportunities: backend digitization in emerging markets and AI-driven enterprise transfo**…
+- **Management framed long-term growth around two large opportunities: backend digitization in emerging markets and AI-driven enterprise transfo…**
 
 > "There are two big trends shaping the future... the back-end is still yet to be digitized... T second trend... is the AI-led transformation... To power enterprise AI at scale... customer will need a unified infrastructure."
 > — Ganesh Lakshminarayanan, MD & CEO [^chatter-HDFC_Groww_Havells]

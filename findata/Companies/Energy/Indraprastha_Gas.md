@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2025-11-16'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:43Z'
+  at: '2026-09-07T12:07:48Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -91,17 +91,17 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > "3.51 is APM allocation as of now and 1.38 is new well gas so total you can say that 58! so in the CNG and transport and domestic segment is through this segment and $42 \%$ is through RLNG. And if you look at the overall company-wise, you can say that around 51 50 is there. 51…"
 > — K.K. Chatiwal, Managing Director [^chatter-Inflection_Watch]
 
-- **Geographic diversification accelerating with newer areas growing at $32 \%$ while maintaining 5\% growth in mature Delhi market, reshaping I**…
+- **Geographic diversification accelerating with newer areas growing at $32 \%$ while maintaining 5\% growth in mature Delhi market, reshaping I…**
 
 > "Delhi GA after excluding DTC has grown by 5\%. NCR comprising of Gautam Budh Nc Gurugram GA has shown a 13\% and other GAs have grown by 32\%. We are quite hopefi that with the gas sourcing arrangement in place and the volume growth seen in new GAs we can plan to achieve sales…"
 > — K.K. Chatiwal, Managing Director [^chatter-Inflection_Watch]
 
-- **Proactive regulatory positioning frames CNG as "bridge fuel" aligned with EVs rat than competing fossil fuel, leveraging Supreme Court manda**…
+- **Proactive regulatory positioning frames CNG as "bridge fuel" aligned with EVs rat than competing fossil fuel, leveraging Supreme Court manda…**
 
 > "So we have given our submission to the Delhi government that gas was brought in Delh the directions of Honorable Supreme Court and the Centre was asked that CNG to repli the polluting fuels. So this is an entirely different category and it should be categorized c bridge fuel, …"
 > — K.K. Chatiwal, Managing Director [^chatter-Inflection_Watch]
 
-- **Communication strategy vulnerability acknowledged by management following pointed investor critique about chronic silence during negative ma**…
+- **Communication strategy vulnerability acknowledged by management following pointed investor critique about chronic silence during negative ma…**
 
 > "Periodically, we have seen that IGL has been affected by a negative perception that ari in the minds of some people in the investment community... In each case, sir, the respon: of IGL has been one of silence. I think, it is the duty of the company's management to st the recor…"
 > — EA Sundaram, Long-term Investor [^chatter-Inflection_Watch]

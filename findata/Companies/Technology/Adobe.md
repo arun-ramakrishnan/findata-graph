@@ -18,7 +18,7 @@ created: '2026-08-03'
 last_modified: '2026-08-03'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:43Z'
+  at: '2026-09-07T16:45:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -87,14 +87,9 @@ In September 2022, Adobe **acquired Figma** for approximately $20 billion in cas
 
 - **AI-first products including Firefly and Acrobat AI Assistant already hit \$250M ARJ target ahead of year-end.**
 
-> "Adobe AI influenced ARR surpassed $\$ 5$ billion and we expect it to continue to rise as a percent of our business. Notably, ARR from our new AI first products, including Firefly,
+> "Adobe AI influenced ARR surpassed $\$ 5$ billion and we expect it to continue to rise as a percent of our business. Notably, ARR from our new AI first products, including Firefly,"
 
----
-
-Acrobat AI Assistant, and Gen Studio for performance marketing, has already achieved end-of…"
-> — Dan Durn, CFO [^chatter-Pressure_Points]
-
-- **Direct correlation observed between AI usage and customer retention, enabling shi from seat-based to value-based pricing in enterprises.**
+- **Acrobat AI Assistant, and Gen Studio for performance marketing, has already achieved end-of-year target of over $\$ 250$ million." Dan Durn…**
 
 > "We have seen a direct correlation between increased use of AI and retention, and we $f \epsilon$ very good about that. As we're selling into enterprises, the creative teams are often the o that are bringing in these automation services. And so it lets us go from that seat-base…"
 > — David Wadhwani, President, Digital Media [^chatter-Pressure_Points]

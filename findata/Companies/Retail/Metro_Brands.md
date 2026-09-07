@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-06-25'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-20T05:41:42Z'
+  at: '2026-09-07T16:45:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -74,9 +74,8 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **Store expansion strategy is driven by profitability and commercial viability, not fixe numerical targets, ensuring disciplined growth.**
 
 > "And as far as new stores go, you know, it's not about the number of new stores we open, Gaurav, as is shown by the financial discipline we have. You know, we didn't add as mar stores as we would have liked, but we were more than okay with that because we didn't $j$ that the co…"
-> — Rafiq Malik, Chairman [^chatter-Decoding_the_Dialogue]
 
-- **E-com contribution at $10.6 \%$ (up from previously $\sim 8-9 \%$ ), expected to grow by anoth $1-2 \%$ in FY25. Strong focus on profitable…**
+- **What we're committed to doing is opening stores that are meaningful and profitable for organization, however many that adds up to, right? So…**
 
 > "To be very frank, you know, we are growing across all the channels that are available fo to sort of tap. And obviously our focus, as we have discussed multiple times, is on growir our omni-channel business, which is predominantly full-price, products getting deliverc from our …"
 > — Kaushal Parikh, CFO [^chatter-Decoding_the_Dialogue]

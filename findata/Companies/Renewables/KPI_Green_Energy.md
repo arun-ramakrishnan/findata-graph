@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-08-05'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:01:27Z'
+  at: '2026-09-07T16:45:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -217,14 +217,9 @@ KPI Green Energy operates in the Power Renewable sector, which focuses on clean 
 
 - **Clear target of 1.5 GW IPP (Independent Power Producer) capacity and shifting IPI mix to $25 \%$ indicates a strategic move towards higher,…**
 
-> "If you see this year, our total mix of revenue from IPP and CPP (Captive Power Produc was, IPP was $13 \%$ and rest all, $87 \%$ was the CPP. And the margins have, you know, sligh
+> "If you see this year, our total mix of revenue from IPP and CPP (Captive Power Produc was, IPP was $13 \%$ and rest all, $87 \%$ was the CPP. And the margins have, you know, sligh"
 
----
-
-improved compared to last year because of the. Now, as we go forward, you must have st our …"
-> — Salim Yahoo, Chief Financial Officer [^chatter-Echoes_from_the_Boardroom]
-
-- **Highlights emerging BESS opportunities driven by grid stability needs and state mandates (e.g., Rajasthan's 5\% BESS rule), positioning KPI…**
+- **improved compared to last year because of the. Now, as we go forward, you must have st our presentation also that we are going to install 1.…**
 
 > "Now they are telling that whatever extra generation, that cannot be disturbed to the gri and you can store it in terms of battery and that battery storage should give the load pat in sync with the demand of the distribution company. So that could be discharged at a particular …"
 > — Dr. Alok Das, Group CEO [^chatter-Echoes_from_the_Boardroom]

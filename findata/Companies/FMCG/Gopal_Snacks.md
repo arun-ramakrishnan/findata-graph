@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-06-25'
 generated:
   by: derive_insights.py/v1
-  at: '2026-08-28T15:01:27Z'
+  at: '2026-09-07T16:45:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -83,23 +83,20 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 - **Quantifies the severe impact of the Rajkot facility fire, explaining the Q4 FY25 performance and setting a baseline for recovery. Insurance…**
 
-> "As far as Q4 numbers are concerned, those are in line with our previous commentaries. Uh, the factory which we lost was contributing $65 \%$ of our topline and we lost 110 man-
+> "As far as Q4 numbers are concerned, those are in line with our previous commentaries. Uh, the factory which we lost was contributing $65 \%$ of our topline and we lost 110 man-"
 
----
+- **days to be very precise, between Q3 and Q4. So our per day revenue loss on weighted average was 1 crore rupees. So if we just add back those…**
 
-days to be very precise, between Q3 and Q4. So our per day revenue loss on weighted average wa…"
+> "Our gross profit for the quarter ended stood at 64 crore rupees, representating a gross $p$ margin of $20.2 \%$ as compared to $28.1 \%$ last year. Our margins during the period were impacted majorly by rising key raw material costs that rendered the pressure on the mar ${ }_{…"
 > — Regan Raithatha, CFO [^chatter-Decoding_the_Dialogue]
 
-- **Addresses investor concern about high dependence on low-margin Rs 5 SKUs (65\% sales), outlining a clear strategy shift towards higher MRP p**…
+- **Addresses investor concern about high dependence on low-margin Rs 5 SKUs (65\% sales), outlining a clear strategy shift towards higher MRP p…**
 
 > "So what steps are we taking further to reduce the dependence on 5 rupee pack? Okay. S there are two, three pillars which are going to help us in terms of reducing our dependen not only on 5 rupees MRP pack, rather on palm oil based products as well. One is, uh, o we roll out o…"
-> — Q4 FY25 Diversified Revenue Mix [^chatter-Decoding_the_Dialogue]
 
-- **Offers a cautiously optimistic view on rural demand in its key market, an important factor for volume growth, and indicates Q1 FY26 (likely)**…
+- **So we are trying to promote our 10 MRP packs in wafers category. It, it has a positive cascade effect on, you know, other categories as well…**
 
-> "Now, as far as slower demand and other factors are concerned, see, we have deep penetration in rural India, in rural Gujarat particularly, right? So rural demands are okc So as of now, as well, our current quarter's numbers are aligned to our internal projectio
-
----"
+> "Now, as far as slower demand and other factors are concerned, see, we have deep penetration in rural India, in rural Gujarat particularly, right? So rural demands are okc So as of now, as well, our current quarter's numbers are aligned to our internal projectio"
 
 [^chatter-Decoding_the_Dialogue]: The Chatter: Decoding the Dialogue — [[Decoding_the_Dialogue]]
 

@@ -130,11 +130,12 @@ Source: The Chatter Newsletter - Edition #39
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 7 company note(s) in Education_Training. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 8 company note(s) in Education_Training. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[BYJUs]]
 - [[Global_Education]]
 - [[NIIT]]
+- [[NIIT_Learning_Systems|NIIT Learning Systems]]
 - [[Physicswallah]]
 - [[Unacademy]]
 - [[Vedantu]]

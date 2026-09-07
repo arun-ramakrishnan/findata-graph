@@ -169,7 +169,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 90 company note(s) in Automotive. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 95 company note(s) in Automotive. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Amara_Raja_Batteries|Amara Raja Batteries Limited]]
 - [[Apollo_Tyres|Apollo Tyres]]
@@ -177,6 +177,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 - [[Ather_Energy|Ather Energy]]
 - [[Autoline_Industries_Ltd|Autoline Industries Limited]]
 - [[Automotive_Axles|Automotive Axles]]
+- [[BMW]]
 - [[Bajaj_Auto|Bajaj Auto]]
 - [[Balkrishna_Industries_Limited|Balkrishna Industries Limited]]
 - [[Banco_Products_India|Banco Products (India)]]
@@ -195,6 +196,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 - [[Escorts_Kubota|Escorts Kubota]]
 - [[Exide_Industries|Exide Industries]]
 - [[Federal_Mogul_Goetze_India|Federal-Mogul Goetze India]]
+- [[Ferrari]]
 - [[Fiem_Industries|Fiem Industries]]
 - [[Force_Motors|Force Motors]]
 - [[GNA_Axles|GNA Axles Limited]]
@@ -223,9 +225,11 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 - [[MRF]]
 - [[Mahindra_Mahindra|Mahindra Mahindra]]
 - [[Maruti_Suzuki_India|Maruti Suzuki India]]
+- [[Mercedes_Benz_Group|Mercedes-Benz Group]]
 - [[Motherson_Sumi_Wiring_India|Motherson Sumi Wiring India]]
 - [[NRB_Bearings|NRB Bearings]]
 - [[Ola_Electric_Mobility|Ola Electric Mobility]]
+- [[Piaggio_Group|Piaggio Group]]
 - [[Plastic_Omnium|Plastic Omnium]]
 - [[Precision_Camshafts|Precision Camshafts]]
 - [[Pritika_Auto_Industries|Pritika Auto Industries]]
@@ -253,6 +257,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 - [[Tata_Motors_Passenger_Vehicles|Tata Motors Passenger Vehicles Limited]]
 - [[Tata_Technologies|Tata Technologies]]
 - [[Tenneco_Clean_Air_India|Tenneco Clean Air India]]
+- [[Tesla]]
 - [[Timken_India|Timken India]]
 - [[Uno_Minda|Uno Minda]]
 - [[VST_Tillers_Tractors|VST Tillers Tractors]]

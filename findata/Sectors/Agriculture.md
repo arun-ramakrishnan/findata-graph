@@ -102,7 +102,7 @@ Agriculture companies are involved in crop production, livestock farming, and ag
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 12 company note(s) in Agriculture. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 13 company note(s) in Agriculture. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Avanti_Feeds|Avanti Feeds]]
 - [[Dhanuka_Agritech|Dhanuka Agritech]]
@@ -114,6 +114,7 @@ Agriculture companies are involved in crop production, livestock farming, and ag
 - [[Mahindra_EPC_Irrigation|Mahindra EPC Irrigation]]
 - [[Narmada_Agrobase|Narmada Agrobase]]
 - [[Piccadilly_Agro_Industries|Piccadilly Agro Industries Limited]]
+- [[Sarveshwar_Foods|Sarveshwar Foods]]
 - [[Shakti_Pumps|Shakti Pumps]]
 - [[UPL]]
 
