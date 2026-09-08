@@ -68,7 +68,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from helpers.core.db import connect  # noqa: E402
 from helpers.core.corpus import notes_stale_since  # noqa: E402  # S1c shared stale gate
-from helpers.core.stable_write import stable_prefix_replace  # noqa: E402
+from helpers.core.stable_write import ReplaceResult, stable_prefix_diff, stable_prefix_replace  # noqa: E402
 
 # Reuse the proven date parser + regexes from extract_relations rather than
 # duplicating FY/month/year handling. Imported for internal use (not re-exported).
@@ -543,7 +543,7 @@ _EVENT_CONTENT_COLS = (
 )
 
 
-def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> int:
+def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> ReplaceResult:
     """Persist derived events into the ``events`` table.
 
     Idempotency uses the prefix-scoped stable replace (shared with
@@ -552,18 +552,16 @@ def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> int:
     unchanged rows keep their id AND created_at, stale rows are deleted by
     id, only genuinely new rows are inserted. Hand-seeded rows (``manual:``
     / ``migration:`` source_ref) are preserved. ``dry_run=True`` (default)
-    counts what would land without writing — the derive-* convention.
+    reports the read-only diff against the table (``ReplaceResult``), so a
+    converged scan shows ``(0, N, 0)`` instead of the scan count. Returns
+    the ``ReplaceResult`` breakdown — ``result.total`` is the derived row
+    count under the prefix after the persistent replace.
     """
     own_conn = conn is None
     if own_conn:
         conn = connect()
 
     try:
-        if dry_run:
-            # Count what would land; no writes. Existing derived rows would be
-            # replaced, so the net delta isn't simply len(events); report the
-            # raw derived count (consistent with the dry-run summary).
-            return len(events)
         new_rows = [
             (
                 ev.entity,
@@ -580,6 +578,10 @@ def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> int:
             )
             for ev in events
         ]
+        if dry_run:
+            return stable_prefix_diff(
+                conn, "events", _DERIVED_PREFIX, _EVENT_CONTENT_COLS, new_rows
+            )
         with conn:
             return stable_prefix_replace(
                 conn, "events", _DERIVED_PREFIX, _EVENT_CONTENT_COLS, _INSERT_SQL, new_rows
@@ -669,10 +671,11 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             file=sys.stderr,
         )
 
-        written = apply(all_events, conn=conn, dry_run=not args.apply)
-        action = "inserted" if args.apply else "would insert"
+        res = apply(all_events, conn=conn, dry_run=not args.apply)
+        action = "persist" if args.apply else "would persist"
         print(
-            f"{written} events {action} (promoted={len(promoted)}, extracted={len(extracted)}).",
+            f"events {action}: {res.inserted} new, {res.kept} unchanged, "
+            f"{res.deleted} stale (promoted={len(promoted)}, extracted={len(extracted)}).",
             file=sys.stderr,
         )
 

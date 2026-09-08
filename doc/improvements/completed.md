@@ -4734,3 +4734,117 @@ Three residual hot spots after #208, all measured first. S1: `iter_company_secti
 **Proposal:** `doc/improvements/archive/graph/get_ticker_fixes.md`
 
 Trigger: `--detailed HDFCBANK.NS` 404'd one fundamentals module and dropped all fifteen sections. S1: `_yf()` per-property guard — each of the 15 yfinance accesses degrades to None independently with one stderr line naming property + symbol (only Ticker-construction failure is still total). S2: dead-endpoint replacements against pinned yfinance 1.7.0 — `earnings` + `quarterly_earnings` both derived from Net Income rows (`_net_income_series`; live smoke caught that quarterly_earnings funnels into the same dead property one level down), `fund_holders` → `mutualfund_holders` chain, yfinance's own ERROR logger set to CRITICAL at import (it printed every swallowed 404 raw with no context). S3: `dividends` + `splits` captured and rendered detailed-only (`actions` verified a strict superset — skipped, no dup); estimate family excluded as data-thin for Indian names. 404 verdict recorded: Yahoo data absence, not rate limiting — no retries. DuckDB/sqlite-vec for the CLI considered and rejected (0.7ms numpy already; import weight; .so fragility; vec tables can't live in research.db). Verified: 8 stubbed tests (404 injection, derivation, name chain, warnings-as-errors, S3 render/skip), live `--detailed RELIANCE.NS` renders all sections with empty stderr, qa 9/9, advisory 10/10, perf 22/22, search-fresh converged. Gate fallout in-change: S112 noqa on the series prober (house precedent).
+
+## 213
+
+**Date:** 2026-09-07 → 08 · **Type:** tooling (measured nav-tooling swap) ·
+**Scope:** `AGENTS.md`, `codebase-memory-cli` skill surface ·
+**Status:** EXECUTED 2026-09-08 (filed + head-to-head 09-07; adoption, Mojo probe, archival 09-08) ·
+**Proposal:** `doc/improvements/archive/tooling/ripwire_adoption.md`
+
+Measured swap of the structural-discovery layer, graded head-to-head
+(first-class prompt discipline, symbol-anchored on this repo) before any
+adoption: the offline `ripwire` binary (no daemon, no API key, no model)
+vs the codebase-memory-mcp service. Ripwire won the Python surface across
+the verb families its CLI owns — ranked signatures for task orientation
+(`--for=`), callers / full blast radius (`--callers=`/`--impact=`),
+literal grep with `--grep-in`/`--legend` (ALWAYS both flags), doc recall
+(`--recall=`), `--mentions=` and `--doc-drift` for doc↔code linkage.
+Adopted CLI-first: AGENTS.md rewrite to the query-don't-scan doctrine
+(map-before-read: ripwire locates, then Read what it names), ripwire kept
+above the `rg` floor, and the division of labor fixed — doc_query /
+script_query answer INTENT, ripwire answers STRUCTURE. codebase-memory-mcp
+retired from daily use (priority-order fallback + the skill doc retained).
+Mojo lane: W1–W2 gated probe executed and honestly bounded (tree-sitter
+Python over our 19 Mojo files = 773 ERROR/MISSING nodes; L1 thin map, F-B3
+Mojo-import-as-Function parse gap recorded as losses), W3–W7 deferred —
+Mojo structural discovery stays on the mojo-syntax/mojo-docs lane with the
+`rg` floor. S5 full removal stayed LAST (references, skill links, docs) and
+is the only unexecuted slice. Verified: head-to-head grades recorded in
+the proposal, ranked-recall spot-checks on this repo, AGENTS.md remap +
+archived tooling index, search-fresh converged. #213 archival recorded
+here (file had moved + frontmatter already flipped in the adoption patch).
+
+## 214
+
+**Date:** 2026-09-08 · **Type:** graph/tooling (derive render pass + VSS query core) ·
+**Scope:** `helpers/graph/derive_insights.py` (+`_insights_worker.py`), `helpers/core/vss_index.py` (new), `helpers/core/get_tickers.py`, `helpers/core/stable_write.py`, `helpers/maintenance/rebuild_{note,doc,script}_search.py`, `tests/`, `findata/` note renders ·
+**Status:** EXECUTED 2026-09-08 (filed + implemented + gated same day) ·
+**Proposal:** `doc/improvements/archive/graph/derive_render_shared_note_grouping.md`
+
+Implements the derive-render pass: group the shared-note buckets and
+drive re-renders through per-note block plans; VSS query core moves to
+its own module. Render machinery (`_ChatterPlan`/`_KfPlan`) rebuilds only
+the auto-managed slices of each note — hand-written "## The Chatter"
+edition blocks are preserved verbatim (converged dry-run worklist: 1,245
+edition blocks skipped, 687 notes gated by `--stale-only`, 496 key-figure
+notes gated) — and the Quotes catch-all home renders path-grouped
+(`## The Chatter — <entity>` sections) instead of a per-entity full-note
+regex, retiring the 4.87 MB × N regex 3× regression. Auto "Key Figures"
+blocks now come from concall magnitudes. VSS consolidation: run-scoped
+index built once per run (fingerprint-gated), single matvec per query
+instead of per-row embedding-string re-decoding; `get_tickers.py` thinned
+to a re-export (E402 per-file). --corpus parity: `_corpus_paths` whole-
+vault sentinel was dead code (`len(_expand_paths("findata")) == 1` never
+true), so `--corpus` walked the whole vault and re-extracted rendered
+chatter/key-figure blocks from Companies/Sectors notes as fresh quotes —
+the live feedback loop scan() exists to avoid (33,730 vs 8,186 quotes).
+Fixed to the three newsletter trees (mirror of the plain-path filter):
+vault==--corpus byte-identical, quotes=8186 metrics=3954, deterministic;
+the corpus scan now runs in the same process pool as `_scan_parallel`
+(stride-shared via `_insights_worker._scan_text_chunk`, re-interleaved to
+path order, `BrokenProcessPool`→serial fallback). Honest churn counters:
+`stable_write.ReplaceResult` + `stable_prefix_diff` — both derive CLIs
+emit "persist/would persist: N new, M unchanged, K stale" instead of scan
+totals (deliberate CLI delta; events tests updated to the wording +
+`ReplaceResult` shape). Search `--check` hygiene: content-hash verdicts
+no longer embed (write-gated `_noop_embed`); note_search --check
+8.08 s/810 MB → 1.06 s/131 MB, doc 1.07 s/93 MB → 0.15 s/31 MB, script
+1.80 s/75 MB → 1.14 s/39 MB. Edition-catch guard added (minted edition entities
+with `normalized_name` + non-edition stub-collision skip, mirrored from
+derive_cited_in) — fixes the integrity missing/dup drifts; 5 orphaned
+edition entities from the buggy-corpus era removed from the live DB on
+gate. Note-render output landed separately (company re-render + Quotes
+home group-by-entity, 34 notes). Perf budget corrected 4.0 → 12.0 s (the
+plain-CLI incumbent; measured 2.93 s). Verified: qa 9/9, perf 22/22,
+advisory 10/10, dry-run baselines byte-identical across runs
+(vault == --corpus).
+
+## 215
+
+**Date:** 2026-09-07 → 08 · **Type:** graph/validators (quote capture coverage) ·
+**Scope:** `helpers/graph/derive_insights.py`, `helpers/validators/quote_coverage_audit.py` (new), `helpers/graph/triage_pending_quotes.py` (new), `helpers/misc/database_integrity_check.py`, `findata/` sector + company notes ·
+**Status:** EXECUTED 2026-09-07/08 (filed + funnel audit + machinery 09-07; user-go bulk note update 09-08) ·
+**Proposal:** `doc/improvements/archive/graph/quote_capture_coverage.md`
+
+Close every markdown→notes quote drop — the funnel audit measured 34%
+captured and decomposed the residuals into six instrument-first slices
+(T0–T4 single-note trial green before any implementation). S0:
+`quote_coverage_audit.py` (NEW, READ-ONLY per-tree/per-note funnel metric
++ 95% capture tripwire). S1: bracket-marker headings are never section
+boundaries (family predicates; folds in the 163→184 harness lesson).
+S2: resolver hardening — `_resolve_ladder()` degrades loudly, zero silent
+drops. S3: walker tolerance (harmonized section scan). S4: sector capture
++ the quotes catch-all — "Quotes" becomes the 10th super-sector,
+childless by curation (`SUPER_SECTORS["Quotes"] = []`),
+`ensure_quotes_catchall` idempotently materialises entity+note and
+re-types legacy sector rows in place, and the hierarchy orphan rule now
+reads the curated member list (childless-by-curation is data, not a
+carve-out). S5: apply/converge/verify. S6: wire-in (Makefile
+`quote-coverage` advisory target + suite). S7: `triage_pending_quotes.py`
+(NEW) — decisions-file worklist triage (stub/alias/accept-loss) feeding
+`findata/Misc/` state; quote state files relocate `findata/` →
+`findata/Misc/` with matching .gitignore. Corpus side (bulk note update,
+2026-09-08): 751 note files / +121k lines — sentinel auto quote blocks
+with full provenance (exact text, speaker, edition) plus
+normalized_name/frontmatter touch-ups; ~85 new company notes from the
+global-edition sweep (Apple, Tesla, NVIDIA, AMD, Intel, TCS,
+JPMorgan_Chase, Bank_of_America, Maersk, Netflix, SpaceX, BMW, Ferrari,
+Shell, ONGC, Novo_Nordisk, …); stem renames (Mercedes-Benz_Group →
+Mercedes_Benz_Group, Anheuser-Busch_Inbev → Anheuser_Busch_Inbev,
+permalinks + normalized_name kept in sync); new
+`findata/Super_Sectors/Quotes.md` home under the quote_capture_coverage
+catch-all doctrine + the 2026-09-07 supersession amendment (Quotes as
+10th super-sector). Verified: T0–T4 trial read-only on live DB, quote
+capture post-audit (cap-trap + catch-all converge), suites + live smoke
+green, search-fresh converged; #215 archival recorded here.

@@ -312,7 +312,7 @@ class TestApplyAndIdempotency:
         conn = _connect(tmp_path)
         events = self._sample_events()
         counted = de.apply(events, conn=conn, dry_run=True)
-        assert counted == len(events)
+        assert counted.inserted == len(events)
         # Nothing written.
         n = conn.execute("SELECT COUNT(*) FROM events").fetchone()[0]
         assert n == 0

@@ -44,3 +44,28 @@ def _scan_chunk(file_paths: list[str], resolver_map: dict):  # type: ignore[no-u
 def _scan_chunk_arg(args: tuple[list[str], dict]):  # type: ignore[no-untyped-def]
     """Single-argument wrapper for ProcessPoolExecutor.map (takes a tuple)."""
     return _scan_chunk(args[0], args[1])
+
+
+def _scan_text_chunk(items: list[tuple[str, str]], resolver_map: dict):  # type: ignore[no-untyped-def]
+    """Scan pre-read corpus texts ``(path_str, text)`` — no file re-reads.
+
+    The corpus fast-path farm (no file I/O in the pool); output shape
+    mirrors ``_scan_chunk``: ``[(path_str, quote_dicts, metric_dicts)]``
+    in input order.
+    """
+    from dataclasses import asdict
+    from pathlib import Path
+
+    from helpers.graph.derive_insights import _edition_title, _scan_content
+
+    out: list[tuple[str, list[dict], list[dict]]] = []
+    for fp, text in items:
+        stem = Path(fp).stem
+        q_batch, m_batch = _scan_content(text, stem, _edition_title(stem, text), resolver_map)
+        out.append((fp, [asdict(q) for q in q_batch], [asdict(m) for m in m_batch]))
+    return out
+
+
+def _scan_text_chunk_arg(args: tuple[list[tuple[str, str]], dict]):  # type: ignore[no-untyped-def]
+    """Single-argument wrapper for the corpus-processed chunk."""
+    return _scan_text_chunk(args[0], args[1])

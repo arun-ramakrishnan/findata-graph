@@ -1,9 +1,9 @@
 ---
 title: "Quote capture coverage — close every markdown-to-notes drop (99% target)"
-status: proposed
+status: executed
 filed: "2026-09-07"
-executed: null
-completed_md: null
+executed: "2026-09-08"
+completed_md: "215"
 area: "helpers/graph/derive_insights.py, helpers/validators/ (new audit), findata sector notes"
 ---
 
@@ -13,7 +13,7 @@ area: "helpers/graph/derive_insights.py, helpers/validators/ (new audit), findat
      archival, flip status/executed/completed_md in the same change. -->
 # Quote capture coverage — close every markdown-to-notes drop
 
-**Date:** 2026-09-07 · **Status:** PROPOSED · **Mode:** six slices,
+**Date:** 2026-09-07 → 08 · **Status:** EXECUTED · **Mode:** six slices,
 instrument-first, land in order.
 **Area:** `helpers/graph/derive_insights.py` (extractor + resolver + render)
 · `helpers/validators/quote_coverage_audit.py` (NEW) · `Makefile` ·

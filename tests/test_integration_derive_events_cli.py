@@ -125,10 +125,10 @@ class TestDeriveEventsCli:
         rc, err = events_project.run(monkeypatch)  # dry-run
         assert rc == 0
         assert events_project.events() == []
-        assert "3 events would insert" in err
+        assert "events would persist: 3 new, 0 unchanged, 0 stale" in err
         rc, err = events_project.run(monkeypatch, "--apply")
         assert rc == 0
-        assert "3 events inserted" in err
+        assert "events persist: 3 new, 0 unchanged, 0 stale" in err
         assert len(events_project.events()) == 3
 
     def test_second_apply_idempotent(self, events_project, monkeypatch):

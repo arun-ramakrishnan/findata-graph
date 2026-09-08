@@ -2087,6 +2087,41 @@ class TestStableWrites:
         assert texts == {qs[0].quote_text, "Rewritten quote text."}
         conn.close()
 
+    def test_quotes_dry_run_reports_churn_not_scan(self, tmp_path):
+        """Honest counters: dry-run diffs read-only, so a converged scan
+        reports (0, N, 0) — the number of rows that would actually turn
+        over, never the scan count."""
+        conn = _connect(tmp_path)
+        first = di.apply_quotes(_APPLY_QUOTES(), conn=conn, dry_run=True)
+        assert (first.inserted, first.kept, first.deleted) == (2, 0, 0)
+        di.apply_quotes(_APPLY_QUOTES(), conn=conn, dry_run=False)
+        dry = di.apply_quotes(_APPLY_QUOTES(), conn=conn, dry_run=True)
+        assert (dry.inserted, dry.kept, dry.deleted) == (0, 2, 0)
+        applied = di.apply_quotes(_APPLY_QUOTES(), conn=conn, dry_run=False)
+        assert (applied.inserted, applied.kept, applied.deleted) == (0, 2, 0)
+        conn.close()
+
+    def test_metrics_dry_run_reports_churn_not_scan(self, tmp_path):
+        conn = _connect(tmp_path)
+        m = [
+            di.Metric(
+                entity="Marico",
+                metric_label="revenue",
+                value_raw="₹9,000 crore",
+                value_num=9000.0,
+                unit="crore",
+                period="FY26",
+                as_of_edition="Marico DLF BSE",
+                source_ref="derive:metrics:Marico_DLF_BSE:45",
+            )
+        ]
+        first = di.apply_metrics(m, conn=conn, dry_run=True)
+        assert (first.inserted, first.kept, first.deleted) == (1, 0, 0)
+        di.apply_metrics(m, conn=conn, dry_run=False)
+        dry = di.apply_metrics(m, conn=conn, dry_run=True)
+        assert (dry.inserted, dry.kept, dry.deleted) == (0, 1, 0)
+        conn.close()
+
 
 def _APPLY_QUOTES():
     """Two-quote payload mirroring TestApplyQuotes._quotes."""
@@ -2577,6 +2612,6 @@ class TestApplyQuotesDedup:
         n = di.apply_quotes([q1, q2], conn=c, dry_run=False)
         c.commit()
         rows = c.execute("SELECT entity, quote_text, source_ref FROM quotes").fetchall()
-        assert n == 1 and len(rows) == 1
+        assert n.total == 1 and len(rows) == 1
         assert rows[0][2] == "derive:quotes:S:53"  # first occurrence kept
         c.close()

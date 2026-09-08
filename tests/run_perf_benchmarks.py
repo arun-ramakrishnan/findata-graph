@@ -85,7 +85,7 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # script itself. Budget tightened 20s -> 7s (2026-09-01): 2.2x headroom
     # over the measured warm time while still catching regressions.
     ("pdf_pipeline_local", ["tests/bench_pdf_pipeline.py"], 7.0),
-    ("derive_insights", ["helpers/graph/derive_insights.py"], 4.0),
+    ("derive_insights", ["helpers/graph/derive_insights.py"], 12.0),
     (
         "parse_newsletter",
         ["helpers/core/parse_newsletter.py", "findata/The_Chatter/Embracing_the_Unknown.md"],

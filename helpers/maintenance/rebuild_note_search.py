@@ -49,9 +49,13 @@ Usage:
     python3 helpers/maintenance/rebuild_note_search.py --db PATH  # alternate DB
     python3 helpers/maintenance/rebuild_note_search.py --check    # staleness verdict, no writes
 
---check writes no research.db rows, but DOES warm the sidecar embedding
-cache (derived state, Q3) — running --check first is a legitimate way to
-pre-pay the one-off cold embed cost before the applying rebuild.
+--check writes no research.db rows AND does not embed: the freshness
+verdict is a content-hash compare (title|sector|body per file) that never
+reads the embedding column — sectioning (2026-09-06) multiplied section
+rows ~13x (~1.3k -> ~16k), so embedding every row per check was all cost
+and zero signal, and a cold embedding sidecar turned a check into a full
+minutes-long embed. The applying rebuild (the real run) still warms the
+embedding cache.
 
 --check reports the drift breakdown (changed/new/deleted file paths, same
 shape as rebuild_doc_search / rebuild_script_search) so gate output is
@@ -274,6 +278,15 @@ def _default_embed(text: str) -> list[float]:
     named function for tests and external callers."""
     fn, _dims, _label = resolve_embedder()
     return fn(text)
+
+
+def _noop_embed(_text: str) -> list[float]:
+    """--check stallion: the freshness verdict is a content-hash compare and
+    never reads embeddings — with sectioning (~16k rows) embedding every row
+    per check was all cost / zero signal, and a cold sidecar turned a check
+    into a minutes-long full embed. Returns an empty vector so
+    ``_embedding_json`` stores None. Apply path uses the real embedder."""
+    return []
 
 
 # --- Q3 vector cache (§4.4 of the local_embeddings proposal) -----------------
@@ -640,17 +653,25 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
         cache = None
         model_label = None
         if embed_fn is None:
-            embed_fn, embed_dims, model_label = resolve_embedder()
-            stats["embed_model"] = model_label
-            cache = (
-                CachedEmbed(embed_fn, model_label, conn, source="note")
-                # Pseudo embedding is a hash — caching it would only bloat
-                # the sidecar; only the real model costs CPU per doc.
-                if (model_label != f"dry-run-v{_PSEUDO_DIMS}")
-                else None
-            )
-            if cache is not None:
-                embed_fn = cache
+            if write:
+                embed_fn, embed_dims, model_label = resolve_embedder()
+                stats["embed_model"] = model_label
+                cache = (
+                    CachedEmbed(embed_fn, model_label, conn, source="note")
+                    # Pseudo embedding is a hash — caching it would only bloat
+                    # the sidecar; only the real model costs CPU per doc.
+                    if (model_label != f"dry-run-v{_PSEUDO_DIMS}")
+                    else None
+                )
+                if cache is not None:
+                    embed_fn = cache
+            else:
+                # --check: verdict only (content-hash compare). Skip model
+                # resolution, the sidecar cache and the batch embed — 2026-09-
+                # 06 sectioning multiplied rows ~13x (1.3k -> 16k), and every
+                # check re-embedded/mass-cache-looked them; a cold sidecar
+                # made a check a full ~4-5 min embed.
+                embed_fn = _noop_embed
         # P2.2 fast path: in incremental mode, preload the meta table and
         # the existing rows so _collect_rows can carry over mtime-unchanged
         # files without reading/cleaning/embedding them.

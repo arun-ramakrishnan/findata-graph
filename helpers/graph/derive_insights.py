@@ -116,7 +116,7 @@ except ImportError:  # pragma: no cover
     _HAS_CORPUS = False
 
 from helpers.core.db import connect  # noqa: E402
-from helpers.core.stable_write import stable_prefix_replace  # noqa: E402
+from helpers.core.stable_write import ReplaceResult, stable_prefix_diff, stable_prefix_replace  # noqa: E402
 from helpers.core.edition_index import (  # noqa: E402
     _body,
     edition_source_entry,
@@ -1460,20 +1460,22 @@ _METRIC_CONTENT_COLS = (
 
 def _stable_prefix_replace(
     conn, table: str, prefix: str, cols: tuple[str, ...], insert_sql: str, new_rows: list[tuple]
-) -> int:
+) -> ReplaceResult:
     """Prefix-scoped replace preserving id/created_at of unchanged rows.
 
     Thin alias of ``helpers.core.stable_write.stable_prefix_replace``
     (extracted 2026-08-22 when derive_events adopted the same contract);
     kept as a private name so the apply_quotes/apply_metrics call sites
-    and their tests are untouched.
+    and their tests are untouched. Returns the ``ReplaceResult`` breakdown
+    (inserted / kept / deleted); the dry-run counterpart is
+    ``stable_prefix_diff``.
     """
     return stable_prefix_replace(conn, table, prefix, cols, insert_sql, new_rows)
 
 
 def apply_quotes(
     quotes: list[Quote], *, conn=None, dry_run: bool = True, index: dict | None = None
-) -> int:
+) -> ReplaceResult:
     """Persist quotes — prefix-scoped stable replace of derived rows.
 
     Hand-seeded rows (``manual:`` / other prefixes) are preserved, and a
@@ -1484,6 +1486,11 @@ def apply_quotes(
     ``sources[].id``); unresolvable titles are stored verbatim (honest
     miss). The in-memory field keeps the display title — render headings
     key on it.
+
+    Returns the ``ReplaceResult`` breakdown. In ``dry_run`` the diff is
+    computed read-only against the table (same content match, no writes),
+    so a converged scan reports ``(0, N, 0)`` instead of pretending every
+    scanned row would be written.
     """
     own_conn = conn is None
     if own_conn:
@@ -1501,22 +1508,22 @@ def apply_quotes(
         seen.add(key)
         uniq.append(q)
     quotes = uniq
+    new_rows = [
+        (
+            q.entity,
+            q.quote_text,
+            q.paraphrase,
+            q.speaker_name,
+            q.speaker_title,
+            _edition_stem(q.as_of_edition, index, stem_memo),
+            q.source_ref,
+            json.dumps(q.properties, ensure_ascii=False, sort_keys=True),
+        )
+        for q in quotes
+    ]
     try:
         if dry_run:
-            return len(quotes)
-        new_rows = [
-            (
-                q.entity,
-                q.quote_text,
-                q.paraphrase,
-                q.speaker_name,
-                q.speaker_title,
-                _edition_stem(q.as_of_edition, index, stem_memo),
-                q.source_ref,
-                json.dumps(q.properties, ensure_ascii=False, sort_keys=True),
-            )
-            for q in quotes
-        ]
+            return stable_prefix_diff(conn, "quotes", QUOTES_PREFIX, _QUOTE_CONTENT_COLS, new_rows)
         with conn:
             return _stable_prefix_replace(
                 conn, "quotes", QUOTES_PREFIX, _QUOTE_CONTENT_COLS, _INSERT_QUOTE_SQL, new_rows
@@ -1528,31 +1535,33 @@ def apply_quotes(
 
 def apply_metrics(
     metrics: list[Metric], *, conn=None, dry_run: bool = True, index: dict | None = None
-) -> int:
+) -> ReplaceResult:
     """Persist company_metrics — prefix-scoped stable replace of derived
     rows (same contract as ``apply_quotes``)."""
     own_conn = conn is None
     if own_conn:
         conn = connect()
     stem_memo: dict[str, str] = {}
+    new_rows = [
+        (
+            m.entity,
+            m.metric_label,
+            m.value_raw,
+            m.value_num,
+            m.unit,
+            m.period,
+            _edition_stem(m.as_of_edition, index, stem_memo),
+            m.source_quote,
+            m.source_ref,
+            json.dumps(m.properties, ensure_ascii=False, sort_keys=True),
+        )
+        for m in metrics
+    ]
     try:
         if dry_run:
-            return len(metrics)
-        new_rows = [
-            (
-                m.entity,
-                m.metric_label,
-                m.value_raw,
-                m.value_num,
-                m.unit,
-                m.period,
-                _edition_stem(m.as_of_edition, index, stem_memo),
-                m.source_quote,
-                m.source_ref,
-                json.dumps(m.properties, ensure_ascii=False, sort_keys=True),
+            return stable_prefix_diff(
+                conn, "company_metrics", METRICS_PREFIX, _METRIC_CONTENT_COLS, new_rows
             )
-            for m in metrics
-        ]
         with conn:
             return _stable_prefix_replace(
                 conn,
@@ -1699,6 +1708,100 @@ def _existing_hand_block_for_edition(text: str, edition: str) -> bool:
     return m.group(1).strip().lower() == edition.strip().lower()
 
 
+class _ChatterPlan:
+    """Per-note chatter block plan (S2): the O(note) work runs ONCE.
+
+    Builds a span map ``edition -> (start, end)`` from a single
+    ``_AUTO_BLOCK_RE.finditer`` over the note plus a once-computed
+    hand-written-heading gate (the same
+    ``_AUTO_BLOCK_RE.sub`` + ``_CHATTER_HEADING_RE.search`` semantics as
+    ``_existing_hand_block_for_edition`` — evaluated a single time because
+    sentinel-interior mutations cannot change the stripped text). Each
+    ``apply`` then acts on the in-memory text with O(block) work — no
+    repeated whole-note regex passes.
+
+    After a mutating splice the span map is invalidated and lazily
+    rebuilt on the next apply ("moved" editions are rare).
+    """
+
+    def __init__(self, text: str):
+        self.text = text
+        self._hand_editions = self._build_hand_editions(text)
+        self._spans: dict[str, tuple[int, int]] | None = None
+        self._scan()
+
+    @staticmethod
+    def _build_hand_editions(text: str) -> frozenset[str]:
+        stripped = _AUTO_BLOCK_RE.sub("", text)
+        return frozenset(m.group(1).strip().lower() for m in _CHATTER_HEADING_RE.finditer(stripped))
+
+    def _scan(self) -> None:
+        spans: dict[str, tuple[int, int]] = {}
+        for m in _AUTO_BLOCK_RE.finditer(self.text):
+            ed = _edition_of_block(m.group(0))
+            if ed is not None:
+                spans[ed.strip().lower()] = (m.start(), m.end())
+        self._spans = spans
+
+    def _invalidate(self) -> None:
+        self._spans = None
+
+    def apply(self, edition: str, new_block: str) -> tuple[str, bool]:
+        """Apply one edition's chatter render to self.text.
+
+        Returns ``(new_text, changed)`` with the same contract as
+        ``_replace_or_insert_block`` (curation-safety first, then
+        refresh-or-insert with nested-block rescue).
+        """
+        norm = edition.strip().lower()
+        if norm in self._hand_editions:
+            return (self.text, False)
+        spans = self._spans
+        if spans is None:
+            self._scan()
+            spans = self._spans
+            if spans is None:
+                spans = {}
+        span = spans.get(norm)
+        if span is not None:
+            s, e = span
+            if self.text[s:e] == new_block:
+                # Byte-identical idempotency guard — now block-local.
+                return (self.text, False)
+            # Differing block: rescue any foreign auto-blocks nested inside.
+            rescued = _extract_nested_blocks(self.text[s:e])
+            if rescued is None:
+                return (self.text, False)  # unbalanced sentinels — never risk content
+            replacement = (
+                ("\n\n".join(b.rstrip() for b in rescued) + "\n\n" + new_block)
+                if rescued
+                else new_block
+            )
+            self.text = self.text[:s] + replacement + self.text[e:]
+            self._invalidate()
+            return (self.text, True)
+        # No auto block for this edition: insert a new one (same semantics
+        # as _replace_or_insert_block — other editions' blocks are never
+        # evicted).
+        idx = _find_insertion_point(self.text)
+        prefix = self.text[:idx]
+        if prefix and not prefix.endswith("\n\n"):
+            prefix += "\n" if prefix.endswith("\n") else "\n\n"
+        self.text = prefix + new_block + self.text[idx:]
+        self._invalidate()
+        return (self.text, True)
+
+
+def _edition_of_block(blk: str) -> str | None:
+    """The edition title of an auto-block's ``## The Chatter — <edition>`` heading.
+
+    Shared by ``_replace_or_insert_block`` and ``_ChatterPlan``. ``None``
+    when the block has no (parseable) chatter heading.
+    """
+    hm = _CHATTER_HEADING_RE.search(blk)
+    return hm.group(1).strip() if hm else None
+
+
 def _replace_or_insert_block(text: str, edition: str, new_block: str) -> tuple[str, bool]:
     """Refresh the sentinel-wrapped block for ``edition`` or insert a new one.
 
@@ -1715,14 +1818,6 @@ def _replace_or_insert_block(text: str, edition: str, new_block: str) -> tuple[s
     # Replace any existing sentinel-wrapped block whose heading matches this
     # edition (refresh on re-run). The DOTALL match spans the whole block.
     pattern = _AUTO_BLOCK_RE
-
-    # If there's exactly one auto block, replace it only if it's for a
-    # DIFFERENT edition (we'd otherwise stack duplicates). Simplest correct
-    # behavior: replace the existing auto block iff its edition == this one;
-    # if a different edition's auto block exists, append this one as new.
-    def _edition_of_block(blk: str) -> str | None:
-        hm = _CHATTER_HEADING_RE.search(blk)
-        return hm.group(1).strip() if hm else None
 
     def _swap(m) -> tuple[str, bool]:
         rescued = _extract_nested_blocks(m.group(0))
@@ -1788,6 +1883,26 @@ def _balanced_or_skipped(original: str, new: str, name: str) -> bool:
     return True
 
 
+def _by_path(
+    path_by_entity: dict[str, str],
+    items_by_entity: dict,
+) -> dict[str, list]:
+    """Regroup per-entity data by note path; preserves entity insertion order.
+
+    ``items_by_entity`` maps entity_name -> per-entity payload (dict of
+    editions for chatter, list of metrics for key-figures).  Returns
+    ``{file_path: [(entity, payload), ...]}`` with entities in iteration
+    order of ``items_by_entity``.  Entities with no ``file_path`` are
+    silently dropped (same as the old per-entity loop's ``continue``).
+    """
+    out: dict[str, list] = {}
+    for entity, payload in items_by_entity.items():
+        fp = path_by_entity.get(entity)
+        if fp:
+            out.setdefault(fp, []).append((entity, payload))
+    return out
+
+
 def _paths_by_entity(conn, entities: list[str]) -> dict[str, str]:
     """entity -> repo-relative note path (shared by both note renderers)."""
     if not entities:
@@ -1812,7 +1927,9 @@ def render_notes(  # noqa: C901  # noqa anchor moved to the statement's diagnost
     """Render auto chatter blocks into company notes.
 
     ``quotes_by_entity_edition`` maps ``(entity_name, edition)`` -> list[Quote].
-    For each entity, refreshes every edition block that has quotes, then
+    Notes are grouped by file path; shared notes (e.g. the catch-all
+    Quotes.md) are read / gated / spliced / written once.  For each
+    entity-group, refreshes every edition block that has quotes, then
     splices newly referenced editions into frontmatter ``sources[]``
     (okf_sources_maintenance §3.2a). The splice runs even when every block
     is byte-identical — a note whose only delta is new sources gets the
@@ -1842,59 +1959,63 @@ def render_notes(  # noqa: C901  # noqa anchor moved to the statement's diagnost
         stem_memo: dict[str, str | None] = {}
         res_memo: dict[str, Path | None] = {}
 
-        # Group quotes by entity, pick the latest edition per entity.
+        # Group quotes by entity, then regroup by note path.
+        # Shared notes (e.g. the catch-all Quotes.md) are read / gated /
+        # spliced / written once instead of once per entity.
         by_entity: dict[str, dict[str, list[Quote]]] = {}
         for (entity, edition), qs in quotes_by_entity_edition.items():
             by_entity.setdefault(entity, {})[edition] = qs
+        by_path = _by_path(path_by_entity, by_entity)
 
-        for entity, edict in by_entity.items():
-            file_path = path_by_entity.get(entity)
-            if not file_path:
-                continue
+        for file_path, entities in by_path.items():
             p = PROJECT_ROOT / file_path
             if not p.exists():
                 continue
             text = p.read_text(encoding="utf-8", errors="replace")
             original_text = text
-            # S2: one frontmatter parse per note, shared by gate + splice
+            # One frontmatter parse per note, shared by gate + splice
             # (invariant: block ops below never touch the FM region).
             fm_once = _load_frontmatter(text)
             # --stale-only gate: one decision per NOTE (covers all its
             # edition blocks — the evidence basis is note-level sources[]).
-            # A scanned edition missing from sources[] forces the render
-            # (§3.2b): only the render-path splice can add it. A gated note
-            # is NOT skipped outright: it falls through to the render loop
-            # so renderer drift (e.g. the #137 footnotes) still propagates
-            # — the byte-identical guard makes this a zero-write no-op when
-            # the note is current, so the gate's "no churn" property holds.
+            # Merged stems across all entities sharing this path match the
+            # apply-mode end state (§3.2b).
+            merged_stems: set[str] = set()
+            for _, edict in entities:
+                merged_stems.update(_scanned_stems(edict, index, stem_memo))
             gated_candidate = (
-                stale_only
-                and _stale_only_skip(text, _scanned_stems(edict, index, stem_memo), fm=fm_once)
-                is True
+                stale_only and _stale_only_skip(text, frozenset(merged_stems), fm=fm_once) is True
             )
             # Render ALL editions that have quotes (one auto block per
             # edition scanned, so a note accumulates its edition history).
+            # Entities apply sequentially on the same text — preserves
+            # today's last-entity-wins semantics for shared notes byte-for-byte.
+            # S2: the per-note block plan does the O(note) work ONCE
+            # (span map + hand-block gate); each edition's apply is O(block).
+            plan = _ChatterPlan(text)
             text_changed = False
-            for edition, qs in edict.items():
-                if not qs:
-                    continue
-                # Dedup identical quotes within the edition (same quote_text).
-                seen: set[str] = set()
-                unique = []
-                for q in qs:
-                    if q.quote_text in seen:
+            for _, edict in entities:
+                for edition, qs in edict.items():
+                    if not qs:
                         continue
-                    seen.add(q.quote_text)
-                    unique.append(q)
-                new_block = render_chatter_block(edition, unique, index, res_memo)
-                text, changed = _replace_or_insert_block(text, edition, new_block)
-                if changed:
-                    text_changed = True
-                else:
-                    skipped += 1
+                    # Dedup identical quotes within the edition (same quote_text).
+                    seen: set[str] = set()
+                    unique = []
+                    for q in qs:
+                        if q.quote_text in seen:
+                            continue
+                        seen.add(q.quote_text)
+                        unique.append(q)
+                    new_block = render_chatter_block(edition, unique, index, res_memo)
+                    text, changed = plan.apply(edition, new_block)
+                    if changed:
+                        text_changed = True
+                    else:
+                        skipped += 1
+            text = plan.text
             # Splice sources[] even when no block changed (convergence: a
             # gated-clean note with new evidence absorbs it here, once).
-            # fm_once (S2) is still current: block ops never touch FM.
+            # fm_once is still current: block ops never touch FM.
             text, sources_changed = _splice_sources(text, index, vault, memo=res_memo, fm=fm_once)
             if not (text_changed or sources_changed):
                 if gated_candidate:
@@ -2082,9 +2203,59 @@ def _replace_or_insert_kf(text: str, new_block: str) -> tuple[str, bool]:
     return (new_text, True)
 
 
+class _KfPlan:
+    """Per-note Key Figures block plan (S2): search once, block-local work.
+
+    The KF block is single per note; the span (or None) is computed once and
+    re-searched only after a mutating splice. Same rescue / insert semantics
+    as ``_replace_or_insert_kf``; the byte-identical guard is block-local,
+    so a shared note does not pay a whole-note compare per entity.
+    """
+
+    def __init__(self, text: str):
+        self.text = text
+        self._span: tuple[int, int] | None = None
+        self._searched = False
+        self._scan()
+
+    def _scan(self) -> None:
+        m = _KF_PATTERN.search(self.text)
+        self._span = (m.start(), m.end()) if m else None
+        self._searched = True
+
+    def apply(self, new_block: str) -> tuple[str, bool]:
+        """Apply one entity's KF render to self.text; (text, changed)."""
+        if not self._searched:
+            self._scan()
+        span = self._span
+        if span is not None:
+            s, e = span
+            if self.text[s:e] == new_block:
+                # Byte-identical idempotency guard — block-local.
+                return (self.text, False)
+            rescued = _extract_nested_blocks(self.text[s:e])
+            if rescued is None:
+                return (self.text, False)  # unbalanced sentinels — never risk content
+            replacement = (
+                ("\n\n".join(b.rstrip() for b in rescued) + "\n\n" + new_block)
+                if rescued
+                else new_block
+            )
+            self.text = self.text[:s] + replacement + self.text[e:]
+            self._searched = False
+            return (self.text, True)
+        idx = _kf_insertion_point(self.text)
+        prefix = self.text[:idx]
+        if prefix and not prefix.endswith("\n\n"):
+            prefix += "\n" if prefix.endswith("\n") else "\n\n"
+        self.text = prefix + new_block + self.text[idx:]
+        self._searched = False
+        return (self.text, True)
+
+
 def _render_metric_note(
     p: Path,
-    ms: list,
+    entities: list[tuple[str, list]],
     *,
     dry_run: bool,
     stale_only: bool,
@@ -2093,22 +2264,40 @@ def _render_metric_note(
     stem_memo: dict[str, str | None],
     res_memo: dict[str, Path | None],
 ) -> str:
-    """Render one entity's key-figures block + sources splice.
+    """Render key-figures blocks for one or more entities on a shared note.
+
+    ``entities`` is a list of ``(entity_name, list[Metric])`` in
+    insertion order (same entity order as the old per-entity loop).
+    One read, one frontmatter parse, one stale gate, one KF block per
+    entity (applied sequentially on the same text — last-entity-wins
+    KF content for shared notes byte-for-byte), one sources splice,
+    one write.
 
     Returns ``"written"`` (written or would-write), ``"gated"`` (stale_only
     evidence gate) or ``"skip"`` (no change / unbalanced rewrite).
     """
     text = p.read_text(encoding="utf-8", errors="replace")
-    stems = _scanned_stems({m.as_of_edition for m in ms}, index, stem_memo)
-    # S2: one frontmatter parse per note, shared by gate + splice.
+    # Merged stems across all entities for this path — matches the
+    # apply-mode end state.
+    merged_stems: set[str] = set()
+    for _, ms in entities:
+        merged_stems.update(_scanned_stems({m.as_of_edition for m in ms}, index, stem_memo))
     fm_once = _load_frontmatter(text)
-    if stale_only and _stale_only_skip(text, stems, fm=fm_once) is True:
+    if stale_only and _stale_only_skip(text, frozenset(merged_stems), fm=fm_once) is True:
         return "gated"
     original_text = text
-    new_block = render_key_figures_block(ms)
-    text, changed = _replace_or_insert_kf(text, new_block)
+    # S2: the KF plan searches the note once; entities apply block-locally
+    # on the same text (last-entity-wins KF content byte-for-byte).
+    plan = _KfPlan(text)
+    changed = False
+    for _, ms in entities:
+        new_block = render_key_figures_block(ms)
+        text, block_changed = plan.apply(new_block)
+        if block_changed:
+            changed = True
+    text = plan.text
     text, sources_changed = _splice_sources(
-        text, index, vault, extra_stems=stems, memo=res_memo, fm=fm_once
+        text, index, vault, extra_stems=frozenset(merged_stems), memo=res_memo, fm=fm_once
     )
     if not (changed or sources_changed) or not _balanced_or_skipped(original_text, text, p.name):
         return "skip"
@@ -2136,10 +2325,13 @@ def render_metrics_notes(
     ``metrics_by_entity`` maps ``entity_name`` -> list[Metric]. Returns
     ``(written, gated)`` — notes written/would-write (key-figures block
     and/or sources splice) and notes gated out by ``stale_only`` (same
-    note-level evidence gate as render_notes). The block itself carries no
-    edition reference, so the scanned editions reach the gate directly and
-    the splice adds them as extra stems — without that, a metrics-only
-    note could never satisfy the gate and would re-render on every run.
+    note-level evidence gate as render_notes).  Shared notes are read /
+    gated / spliced / written once; entities apply sequentially on the
+    same text (last-entity-wins KF block content for shared notes
+    byte-for-byte).  The block itself carries no edition reference, so the
+    scanned editions reach the gate directly and the splice adds them as
+    extra stems — without that, a metrics-only note could never satisfy the
+    gate and would re-render on every run.
     """
     own_conn = conn is None
     if own_conn:
@@ -2155,14 +2347,17 @@ def render_metrics_notes(
             index = source_note_index(vault)
         stem_memo: dict[str, str | None] = {}
         res_memo: dict[str, Path | None] = {}
-        for entity, ms in metrics_by_entity.items():
-            file_path = path_by_entity.get(entity)
-            p = PROJECT_ROOT / file_path if file_path else None
-            if not ms or p is None or not p.exists():
+        by_path = _by_path(path_by_entity, metrics_by_entity)
+        for file_path, entities in by_path.items():
+            p = PROJECT_ROOT / file_path
+            if not p.exists():
+                continue
+            entities = [(e, ms) for e, ms in entities if ms]
+            if not entities:
                 continue
             outcome = _render_metric_note(
                 p,
-                ms,
+                entities,
                 dry_run=dry_run,
                 stale_only=stale_only,
                 index=index,
@@ -2502,7 +2697,7 @@ def scan(
     # S1b corpus: when corpus is given (maint --full --corpus), iterate over pre-parsed notes instead of re-walking.
     resolver_map = _build_resolver_map(conn)
     if corpus is not None:
-        return _scan_corpus(corpus, target, resolver_map)
+        return _scan_corpus(corpus, target, resolver_map, workers=workers)
     paths = [
         p
         for p in _expand_paths(target)
@@ -2535,24 +2730,78 @@ def _corpus_paths(corpus: Corpus, target: str) -> list[Path]:
     if corpus is None:
         raise ValueError("_corpus_paths requires a loaded Corpus")
     target_paths = set(_expand_paths(target))
-    if len(target_paths) == 1 and target_paths.pop().as_posix() == "findata":
+    whole_vault = str(target) == "findata" or (
+        len(target_paths) == 1 and target_paths.pop().as_posix() == "findata"
+    )
+    if whole_vault:
+        # Whole-vault target: the three newsletter trees ONLY — mirror of the
+        # plain-path filter in scan(). The corpus walk returns every findata
+        # note; without this filter it would re-extract the rendered chatter
+        # (S3) / key-figures blocks from Companies/Sectors notes as fresh
+        # quotes+metrics — the exact live feedback loop scan() is built to
+        # avoid (and the reason vault arrives at 8,186 quotes while
+        # "corpus" saw 33,730).
         return [
             Path(n.path)
             for n in corpus.notes
-            if any(t in n.path.as_posix() for t in _NEWSLETTER_TREES)
+            if n.path.name != "image_map.md"
+            and n.path.parent.name not in _NEWSLETTER_CHROME_NAMES
+            and any(t in n.path.parts for t in _NEWSLETTER_TREES)
         ]
     target_set = {Path(t).as_posix() for t in _expand_paths(target)}
     return [Path(n.path) for n in corpus.notes if n.path.as_posix() in target_set]
 
 
 def _scan_corpus(
-    corpus: Corpus, target: str, resolver_map: dict[str, str]
+    corpus: Corpus, target: str, resolver_map: dict[str, str], workers: int | None = None
 ) -> tuple[list[Quote], list[Metric]]:
-    """Corpus fast path (S1b): scan pre-parsed notes, no file re-reads."""
+    """Corpus fast path (S1b): scan pre-parsed notes, no file re-reads.
+
+    Filters to the three newsletter trees for the whole-vault target
+    (mirror of the plain-path filter). For the common multi-file case it
+    farms the in-memory texts across the same process pool as
+    ``_scan_parallel`` (stride-sharded, re-interleaved to path order) so
+    the shared walk is a speedup rather than a serial regression; files
+    missing from the corpus parse fall back to ``_scan_one_file``.
+    """
     if corpus is None:  # Optional module alias — scan() narrows first
         raise ValueError("_scan_corpus requires a loaded Corpus")
     paths = _corpus_paths(corpus, target)
     by_path_text = {n.path.as_posix(): n.text for n in corpus.notes}
+    items = [
+        (p.as_posix(), by_path_text[p.as_posix()]) for p in paths if p.as_posix() in by_path_text
+    ]
+
+    import os as _os
+
+    n_workers = min(4, _os.cpu_count() or 1) if workers is None else workers
+    if n_workers > 1 and len(items) >= 8:
+        from concurrent.futures import ProcessPoolExecutor
+        from concurrent.futures.process import BrokenProcessPool
+
+        from helpers.graph._insights_worker import _scan_text_chunk_arg as _worker_arg
+
+        chunks = [items[i::n_workers] for i in range(n_workers)]
+        try:
+            with ProcessPoolExecutor(max_workers=n_workers) as ex:
+                by_path: dict[str, tuple[list[dict], list[dict]]] = {}
+                for chunk_out in ex.map(_worker_arg, [(c, resolver_map) for c in chunks]):
+                    for fp, q_dicts, m_dicts in chunk_out:
+                        by_path[fp] = (q_dicts, m_dicts)
+            quotes: list[Quote] = []
+            metrics: list[Metric] = []
+            for md in paths:
+                if md.as_posix() not in by_path:  # not in the corpus parse — file read
+                    q_batch, m_batch = _scan_one_file(md, resolver_map)
+                    quotes.extend(q_batch)
+                    metrics.extend(m_batch)
+                    continue
+                q_dicts, m_dicts = by_path[md.as_posix()]
+                quotes.extend(Quote(**d) for d in q_dicts)
+                metrics.extend(Metric(**d) for d in m_dicts)
+            return quotes, metrics
+        except BrokenProcessPool:
+            print("WARNING: ProcessPoolExecutor crashed, falling back to serial", file=sys.stderr)
     quotes: list[Quote] = []
     metrics: list[Metric] = []
     for md in paths:
@@ -2726,8 +2975,22 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
             # a missing one is an ingest gap — create it so masthead rows
             # are captured, not dropped.
             known = {r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
+            # derive_cited_in stub-collision guard by normalized_name (the
+            # quote's entity may be a real company whose *display name* differs
+            # from the stem — never mint an edition that collides with it).
+            owned = {
+                r[0]
+                for r in conn.execute(
+                    "SELECT normalized_name FROM entities "
+                    "WHERE entity_type != 'edition' AND normalized_name IS NOT NULL"
+                ).fetchall()
+            }
             for q in quotes:
-                if q.properties.get("kind") != "edition_note" or q.entity in known:
+                if (
+                    q.properties.get("kind") != "edition_note"
+                    or q.entity in known
+                    or q.entity in owned
+                ):
                     continue
                 note_path = None
                 for tree in _NEWSLETTER_TREES:
@@ -2736,17 +2999,26 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                         note_path = f"findata/{tree}/{q.entity}.md"
                         break
                 conn.execute(
-                    "INSERT INTO entities (name, entity_type, file_path) VALUES (?, 'edition', ?)",
-                    (q.entity, note_path),
+                    "INSERT INTO entities (name, entity_type, normalized_name, file_path) "
+                    "VALUES (?, 'edition', ?, ?)",
+                    (q.entity, q.entity, note_path),
                 )
                 known.add(q.entity)
                 print(f"edition entity created: {q.entity} ({note_path})", file=sys.stderr)
             conn.commit()
-        q_written = apply_quotes(quotes, conn=conn, dry_run=not args.apply, index=index)
-        m_written = apply_metrics(metrics, conn=conn, dry_run=not args.apply, index=index)
-        action = "written" if args.apply else "would write"
-        print(f"{q_written} quotes {action}.", file=sys.stderr)
-        print(f"{m_written} metrics {action}.", file=sys.stderr)
+        q_res = apply_quotes(quotes, conn=conn, dry_run=not args.apply, index=index)
+        m_res = apply_metrics(metrics, conn=conn, dry_run=not args.apply, index=index)
+        action = "persist" if args.apply else "would persist"
+        print(
+            f"quotes {action}: {q_res.inserted} new, "
+            f"{q_res.kept} unchanged, {q_res.deleted} stale.",
+            file=sys.stderr,
+        )
+        print(
+            f"metrics {action}: {m_res.inserted} new, "
+            f"{m_res.kept} unchanged, {m_res.deleted} stale.",
+            file=sys.stderr,
+        )
 
         # Note rendering: chatter blocks (quotes) + key-figures blocks (metrics).
         if not args.no_notes:

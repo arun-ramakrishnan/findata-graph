@@ -258,7 +258,7 @@ class TestDeriveEventsFromEdges:
 
         events = promote_from_edges(conn)
         inserted = apply_events(events, conn=conn, dry_run=False)
-        assert inserted >= 1
+        assert inserted.total >= 1
 
         rows = conn.execute(
             "SELECT entity, event_type, event_date, counterparty FROM events"
@@ -349,7 +349,7 @@ The bank reported net interest income of ₹45,000 crore in FY26.
             source_ref="derive:quotes:test:1",
         )
         inserted = apply_quotes([q], conn=conn, dry_run=False)
-        assert inserted == 1
+        assert inserted.inserted == 1
         rows = conn.execute("SELECT entity, quote_text, speaker_name FROM quotes").fetchall()
         assert len(rows) == 1
         assert rows[0]["entity"] == "HDFC Bank"
@@ -369,7 +369,7 @@ The bank reported net interest income of ₹45,000 crore in FY26.
             source_ref="derive:metrics:test:1",
         )
         inserted = apply_metrics([m], conn=conn, dry_run=False)
-        assert inserted == 1
+        assert inserted.inserted == 1
         rows = conn.execute(
             "SELECT entity, value_raw, unit, period FROM company_metrics"
         ).fetchall()
@@ -425,7 +425,7 @@ Tata Motors acquired JLR in 2008.
         # Stage 4: Persist events
         if events:
             inserted = apply_events(events, conn=conn, dry_run=False)
-            assert inserted >= 1
+            assert inserted.total >= 1
 
         # Verify final state
         event_rows = conn.execute("SELECT entity, event_type, counterparty FROM events").fetchall()
@@ -474,18 +474,18 @@ class TestFullChainDryRunVsApply:
 
         events = promote_from_edges(conn)
         dry = apply_events(events, conn=conn, dry_run=True)
-        assert dry == len(events)
+        assert dry.inserted == len(events)
         real = apply_events(events, conn=conn, dry_run=False)
-        assert real == len(events)
+        assert real.total == len(events)
 
     def test_quotes_dry_run_returns_count(self, p3_db):
         conn, db_path = p3_db
         quotes = [Quote(entity="X", quote_text="y" * 50)]
         dry = apply_quotes(quotes, conn=conn, dry_run=True)
-        assert dry == len(quotes)
+        assert dry.inserted == len(quotes)  # empty derived table: all new
 
     def test_metrics_dry_run_returns_count(self, p3_db):
         conn, db_path = p3_db
         metrics = [Metric(entity="X", value_raw="₹1,000 crore")]
         dry = apply_metrics(metrics, conn=conn, dry_run=True)
-        assert dry == len(metrics)
+        assert dry.inserted == len(metrics)  # empty derived table: all new

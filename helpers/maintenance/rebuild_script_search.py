@@ -47,7 +47,12 @@ incremental mode cannot skip re-reading unchanged files — it always
 re-extracts every unit (cheap: ~185 small files, well under a second) and
 re-composes all rows, but only re-EMBEDS through the shared cache (free for
 unchanged text) and only WRITES rows whose tuple actually changed
-(row-keyed diff on `title`). `--check` reports the unit-level
+(row-keyed diff on `title`). `--check` recomposes units but does NOT embed
+(the verdict is a unit-level content-hash compare that never reads the
+embedding column — mirror of rebuild_note_search / rebuild_doc_search);
+the mojo/ts decl caches are still consulted (source-derived, cheap when
+warm) and only the applying rebuild warms the embedding cache. `--check`
+reports the unit-level
 (file set + content-hash) drift — mtime is only a carry hint, never part
 of the verdict: git worktrees skew mtimes on identical content while
 the index DBs are shared (2026-08-30) — and exits 1 on drift; the house gate
@@ -1235,10 +1240,16 @@ def rebuild(
         embed_dims = rds._PSEUDO_DIMS
         model_label: str | None = None
         if embed_fn is None:
-            embed_fn, embed_dims, model_label = rds.resolve_embedder()
-            stats["embed_model"] = model_label
-            if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
-                embed_fn = CachedEmbed(embed_fn, model_label, conn, source="script")
+            if write:
+                embed_fn, embed_dims, model_label = rds.resolve_embedder()
+                stats["embed_model"] = model_label
+                if model_label != f"dry-run-v{rds._PSEUDO_DIMS}":
+                    embed_fn = CachedEmbed(embed_fn, model_label, conn, source="script")
+            else:
+                # --check: verdict is unit content-hash — skip model
+                # resolution + sidecar cache lookups (mirror of the
+                # rebuild_note_search / rebuild_doc_search change).
+                embed_fn = rds._noop_embed
 
         py_units, make_unit, units_meta = _collect_units(
             helpers_root,

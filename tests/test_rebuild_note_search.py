@@ -470,24 +470,34 @@ class TestLocalEmbedderWiring:
         # the cache is only consulted for docs that actually changed.
         assert s3["embed_cache_hits"] == 0
 
-    def test_check_mode_prewarms_cache(self, seeded_tree, fake_local):
-        """--check (write=False) must PERSIST cache rows: the documented
-        pre-warm flow depends on it. Regression: inserts used to roll back
-        on close because only the writing transaction committed them."""
+    def test_check_mode_skips_embedding(self, seeded_tree, fake_local):
+        """--check (write=False) does NOT embed: the freshness verdict is a
+        content-hash compare that never reads the embedding column, and
+        sectioning made every-check full embedding (~16k rows) all cost /
+        zero signal. The check writes NO cache rows; the applying rebuild
+        warms them. (Formerly --check pre-warmed the sidecar.)"""
         from helpers.core import vec_search as VS
 
         rns.rebuild(seeded_tree, write=False)
         con = sqlite3.connect(str(seeded_tree))
         try:
             VS._attach_vec_db(con)
-            n = con.execute("SELECT COUNT(*) FROM vecdb.embed_cache").fetchone()[0]
+            if (
+                con.execute(
+                    "SELECT COUNT(*) FROM vecdb.sqlite_master WHERE name = 'embed_cache'"
+                ).fetchone()[0]
+                == 0
+            ):
+                n = 0  # check never attached/wrote the sidecar cache
+            else:
+                n = con.execute("SELECT COUNT(*) FROM vecdb.embed_cache").fetchone()[0]
         finally:
             con.close()
-        assert n == 4
-        # The applying rebuild then hits every entry.
+        assert n == 0  # check performs no embedding, writes no cache rows
+        # The applying rebuild then embeds every doc once.
         s = rns.rebuild(seeded_tree, write=True)
-        assert s["embed_cache_hits"] == 4
-        assert s["embed_cache_misses"] == 0
+        assert s["embed_cache_misses"] == 4
+        assert s["embed_cache_hits"] == 0
 
     def test_embed_cache_keyed_by_model_label(self, seeded_tree, fake_local, monkeypatch):
         """A model swap must re-embed even unchanged docs — the cache key
@@ -518,8 +528,7 @@ class TestLocalEmbedderWiring:
         """B4 (sql_capability_unlocks): note_search is an FTS5 virtual
         table and can't carry the entities/graph_edges generation
         triggers, so the APPLY path bumps db_meta.generation after the
-        FTS commit; --check (whose only writes are sidecar cache rows)
-        never does."""
+        FTS commit; --check never does (it writes nothing)."""
         from helpers.core.db import get_generation
 
         con = sqlite3.connect(str(seeded_tree))

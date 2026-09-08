@@ -35,13 +35,15 @@ Usage:
     python3 helpers/maintenance/rebuild_doc_search.py --check    # freshness report
     python3 helpers/maintenance/rebuild_doc_search.py --incremental
 
---check writes no doc_search rows, but DOES warm the sidecar embedding
-cache — the documented pre-pay behaviour of rebuild_note_search applies
-verbatim. It also reports an exact (hash-level) freshness verdict:
+--check writes no doc_search rows AND does not embed: the freshness
+verdict is a content-hash compare (per file) that never reads the
+embedding column, and a cold sidecar would turn a check into a full
+embedding pass. It reports an exact (hash-level) freshness verdict:
 FRESH, or the changed/new/deleted breakdown plus the refresh command,
 exiting 1 on drift (the house --check gate doctrine — enforced by the
 rebuild_doc_search entry in make perf / tests/run_perf_benchmarks.py,
-which fails on drift or missing sidecar). Unlike rebuild_note_search
+which fails on drift or missing sidecar). The applying rebuild (the real
+run) warms the shared embedding cache. Unlike rebuild_note_search
 there is no "DB not found" error: the sidecar is created on first run
 (that is its job).
 
@@ -294,6 +296,15 @@ def _default_embed(text: str) -> list[float]:
     return fn(text)
 
 
+def _noop_embed(_text: str) -> list[float]:
+    """--check stallion (mirror of rebuild_note_search): the freshness
+    verdict is a content-hash compare and never reads embeddings — the
+    check must not resolve the model nor run cache-hit embeddings against
+    the sidecar for zero signal. Returns an empty vector so
+    ``_embedding_json`` stores None. Apply path uses the real embedder."""
+    return []
+
+
 def _embedding_json(embed_fn, title: str, section_title: str, content: str) -> str | None:
     """Embed one chunk and serialize to JSON, or None on failure.
 
@@ -491,10 +502,16 @@ def rebuild(  # noqa: C901
         embed_dims = _PSEUDO_DIMS
         model_label: str | None = None
         if embed_fn is None:
-            embed_fn, embed_dims, model_label = resolve_embedder()
-            stats["embed_model"] = model_label
-            if model_label != f"dry-run-v{_PSEUDO_DIMS}":
-                embed_fn = CachedEmbed(embed_fn, model_label, conn, source="doc")
+            if write:
+                embed_fn, embed_dims, model_label = resolve_embedder()
+                stats["embed_model"] = model_label
+                if model_label != f"dry-run-v{_PSEUDO_DIMS}":
+                    embed_fn = CachedEmbed(embed_fn, model_label, conn, source="doc")
+            else:
+                # --check: verdict is content-hash only — skip model
+                # resolution + sidecar cache lookups (mirror of the
+                # rebuild_note_search change).
+                embed_fn = _noop_embed
 
         # Incremental preload: meta fingerprints + stored rows (file-granular —
         # a file owns N section rows, carried verbatim on an mtime match).

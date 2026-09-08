@@ -20,6 +20,8 @@ commit, referenced by nothing). Entry numbers point at
 - [`derive_insights_perf.md`](graph/derive_insights_perf.md) — Proposal: derive_insights regex hoisting + get_tickers decode-once company_embeddings (numba evaluated and rejected) — both slices executed — completed.md #208
 - [`scan_render_vss_microperf.md`](graph/scan_render_vss_microperf.md) — Proposal: scan/render/VSS micro-perf — C-count line numbers, one frontmatter parse per note, fetch-once VSS run index — all three slices executed — completed.md #211
 - [`get_ticker_fixes.md`](graph/get_ticker_fixes.md) — Proposal: per-property Yahoo guards, deprecated endpoint replacements (Net Income derivation, mutualfund_holders), dividends + splits capture — executed — completed.md #212
+- [`derive_render_shared_note_grouping.md`](graph/derive_render_shared_note_grouping.md) — Proposal: derive render pass — group shared-note buckets + per-note block plan (Quotes catch-all 3× regression fix), VSS query-core consolidation; honest --corpus parity + churn counters folded in — completed.md #214
+- [`quote_capture_coverage.md`](graph/quote_capture_coverage.md) — Proposal: quote capture coverage — close every markdown-to-notes drop (audit 34% → 99% target): quote_coverage_audit tripwire, bracket-marker/resolver/walker fixes, Quotes catch-all super-sector, triage-quotes worklist, 751-note bulk update — completed.md #215
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 
@@ -92,6 +94,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`consolidate_mojo_bench_common.md`](tooling/consolidate_mojo_bench_common.md) — Proposal: Mojo bench/common kernels consolidation — cosine SIMD, f32 loader, bridge helpers (+`_venv_env` libpython PATH fix) — completed.md #202
 - [`maint_runtime_hardening.md`](tooling/maint_runtime_hardening.md) — maint runtime hardening — sys.executable spawns (17 sites), derive-cited-in + okf-backfill sources[] converger into PRE_FULL (14-step maint-full, machine-owned-provenance carve-out), pdf_conv_md title from pdfinfo, merged_sources/note_title converger semantics — completed.md #206
 - [`archify_diagram_pipeline.md`](tooling/archify_diagram_pipeline.md) — Proposal: Archify diagram pipeline — evidence-marked diagrams as per-section companions (7 landed: topology, ingest, maint-full, embeddings, relations, derive chain, snapshot lifecycle), origin/main SRC pins, census-gated selection, viewport caveat on the lifecycle — completed.md #207
+- [`ripwire_adoption.md`](tooling/ripwire_adoption.md) — Measured nav-tooling swap — offline `ripwire` (no daemon/API key) wins the Python structural-discovery surface vs codebase-memory-mcp; AGENTS.md query-don't-scan doctrine, ripwire ↔ rg floor ↔ doc/script_query division of labor, Mojo W1–W2 gated probe bounded (tree-sitter 773 ERROR/MISSING) — completed.md #213
 
 ## ui/ — Frontend & templates — reader, paper register, findata views
 

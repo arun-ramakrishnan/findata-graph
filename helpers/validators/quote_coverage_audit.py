@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Quote capture coverage audit — S0 of the quote-capture proposal
-(doc/improvements/proposals/quote_capture_coverage.md, 2026-09-07).
+(doc/improvements/archive/graph/quote_capture_coverage.md, 2026-09-07).
 
 Measures the markdown→notes quote funnel per tree/per note and enforces
 the capture tripwire. READ-ONLY: no DB writes, no note edits.
