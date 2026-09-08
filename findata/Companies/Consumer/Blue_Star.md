@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-08-25'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:46Z'
+  at: '2026-09-08T07:34:19Z'
 stale_after: '2027-02-21'
 sources:
 - id: Havells_Ambuja_Cipla
@@ -376,11 +376,7 @@ segments s…"
 
 - **Highlights key growth drivers for the high-margin MEP [Mechanical, Electrical, an Plumbing] business: data centers and manufacturing benefit…**
 
-> "Coming to electromechanical projects business, continuing with the trend of the previo quarters, this quarter also witnessed strong order finalizations primarily from factories a data center market segments. The commercial real estate and infrastructure market
-
----
-
-segments s…"
+> "Coming to electromechanical projects business, continuing with the trend of the previo quarters, this quarter also witnessed strong order finalizations primarily from factories a data center market segments. The commercial real estate and infrastructure market"
 
 [^chatter-RBI_3M_Blue_Star_KFin]: Blue Star — [[RBI_3M_Blue_Star_KFin]]
 

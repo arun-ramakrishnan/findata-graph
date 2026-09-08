@@ -19,7 +19,7 @@ created: '2025-11-19'
 last_modified: '2026-06-24'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:46Z'
+  at: '2026-09-08T07:35:28Z'
 stale_after: '2027-02-11'
 sources:
 - id: Beneath_the_pixels

@@ -19,7 +19,7 @@ created: '2025-12-16'
 last_modified: '2025-12-16'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:12:41Z'
+  at: '2026-09-08T07:35:28Z'
 stale_after: '2027-02-11'
 sources:
 - id: Frameworks_&_Forecasts

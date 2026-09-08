@@ -22,7 +22,7 @@ created: '2026-01-10'
 last_modified: '2026-07-29'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-08T07:35:29Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave

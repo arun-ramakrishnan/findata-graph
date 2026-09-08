@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-07-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:46Z'
+  at: '2026-09-08T07:35:28Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -142,11 +142,12 @@ And this dropped significantly for the category if you go to Tier 2, Tier 3 town
 - **So we lost almost 10 points of market share in Telangana because we did not get the thi shift approval during election code of conduct. And…**
 
 > "... because we are a national business and a national brand, usually, we actually move almost $15 \%$ of our volumes from 1 state to another. So there was a significant reduction that because the states did not issue export permits because of election code of conduct guideline…"
-> — Vivek Gupta, MD \& CEO
 
-- **The company pointed to how beer bottles are more valuable for the company's brar: equity.**
+- **days or restrictions when the election is happening in phases, you close the dispatches al days before on the election day. And when you are…**
 
 > "... bottles bring a very different value to the brand and the experience on the beer mark, So we decided that we will be consumer-focused. Where the cans are growing, where the the demand of cans, we will invest in the can lines, we'll also expand our capacity on the cans. But…"
+
+> "... But yes, there is a trend because of lack of stores that cans are easier to carry and als: easier to store. But we are also careful that we are not orchestrating that too much. Becє if we do that, there is an experience of beer in a bottle with a certain branding and certa…"
 > — Vivek Gupta, MD \& CEO
 
 *Source: The Chatter — United Breweries*

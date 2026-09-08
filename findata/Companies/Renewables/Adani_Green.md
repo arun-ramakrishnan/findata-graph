@@ -18,7 +18,7 @@ created: '2025-11-16'
 last_modified: '2026-07-07'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:46Z'
+  at: '2026-09-08T07:34:20Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -159,20 +159,17 @@ _Source: yfinance | Refreshed: 2026-08-10_
 - **Addresses transmission infrastructure readiness and monitoring, critical for timely capacity addition. (Without adequate transmission infras…**
 
 > "We are expecting another 4 gigawatts to be added by June and 7 by the end of this year think this is an area where we are keeping a very close track on what's coming in so that operational capacities can seamlessly flow from the evacuation capacities, which are be available. W…"
-> — Ashish Khanna, CEO
 
-- **Clarifies environmental challenges impacting FY25 capacity targets, confident of improved execution.**
+- **from there that the agencies who are entrusted with that work conform to the timelines which are expected from all the developers to commiss…**
 
 > "Our assumptions with respect to the environment remain there, the soil conditions ther and the effect of rains beyond the months where it was raining-I think there was some effect to it, which has now been taken care of. These environmental aspects and our preparedness for the…"
 > — Ashish Khanna, CEO
 
 - **Clarifies strategic stance regarding the ISTS (Inter-State Transmission System) wai (ISTS refers to transmission charges waived by the gover…**
 
-> "Regarding the point on the ISTS waiver, I think it's a generic question. We all know wh the Government of India is currently taking its view on. We are also closely watching thc situation. As you know, we are not the decision makers. We will follow that-the policie
+> "Regarding the point on the ISTS waiver, I think it's a generic question. We all know wh the Government of India is currently taking its view on. We are also closely watching thc situation. As you know, we are not the decision makers. We will follow that-the policie"
 
----
-
-it. C…"
+- **it. Currently, our strategy is to go with the policies and not take any risk based on assumptions with respect to the ISTS waiver. That way…**
 
 > "The ISTS waiver gives additional value to merchant capacities and is scheduled to go c from June 2025. Capacities post-June 2025 have capabilities for serving the C\&I market and pumped storage inputs."
 > — Ashish Khanna, CEO \& Raj Kumar Jain, Head of Business Development
