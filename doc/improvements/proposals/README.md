@@ -32,6 +32,10 @@ entry number and stale DONE pointers):
   markdown-to-notes quote drop (funnel audit 2026-09-07: 34% captured;
   bracket-marker skip-list bug, resolver drops, sector pool, catch-all
   Quotes note; 99% coverage target). Filed 2026-09-07.
+- [ripwire_adoption.md](ripwire_adoption.md) — measured nav-tooling swap
+  (ripwire for Python structural discovery, rg floor kept, code-memory
+  retired) + Mojo lane W1–W2 probe (filed 2026-09-07, takes completed.md
+  #213 on archival).
 
 _(Previously: get_ticker_fixes.md, archived as completed.md #212 on
 2026-09-07 — execution record in

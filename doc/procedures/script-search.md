@@ -9,7 +9,7 @@ root `app.py`, and Makefile target. Companion to `procedures/doc-search.md`
 
 ## What it answers
 
-Intent questions grep and codebase-memory don't: *which script audits
+Intent questions grep can't answer: *which script audits
 relation diffs*, *which test file covers the yfinance driver*, *what does
 `make qa` actually run*, *which targets execute `helpers/graph/query.py`*.
 Each row is one script / test / make target, composed from the module
@@ -68,8 +68,8 @@ an embed-cache hit rate near 100%; first cold build embeds ~230 rows):
 Filters post on the UNINDEXED `kind` (`script|test|make`) and `area`
 (helpers subdir name, `app`, `test`, `make`) columns. A stale index warns
 on stderr and still answers; a missing index is a hard exit 1 with the
-build command. Division of labor with codebase-memory-mcp: this index is
-INTENT (what is it for, what runs it, what tests it); codebase-memory is
+build command. Division of labor: this index is
+INTENT (what is it for, what runs it, what tests it); ripwire is
 STRUCTURE (symbols, callers/callees). No HTTP endpoint yet (proposal S4,
 deferred — the query core is endpoint-ready).
 

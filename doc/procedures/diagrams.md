@@ -40,7 +40,7 @@ subject (a multi-stage chain, a store topology, an ordered protocol).
 
 1. Pick the owning section + the one question; type via the guide's
    recipes (<https://tt-a1i.github.io/archify/guide.html>).
-2. Facts: `doc_query`/`script_query` for intent, codebase-memory-mcp
+2. Facts: `doc_query`/`script_query` for intent, ripwire
    for symbol→file:line, `rg` to verify; ≤12 primary nodes, one main
    path.
 3. Author the IR (schema + ONE example; grid/stage/col auto-layout;

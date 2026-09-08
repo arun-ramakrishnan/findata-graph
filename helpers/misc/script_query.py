@@ -9,8 +9,8 @@ yfinance driver" / "what does make qa run" and gets ranked hits with the
 purpose line, instead of guessing filenames or grepping. Wraps the same
 query core an eventual /api/scripts/search would use
 (helpers/maintenance/rebuild_script_search.search_scripts). Code STRUCTURE
-questions (symbols, callers) stay with codebase-memory-mcp — this index
-is the INTENT layer: what each script is FOR, its CLI surface, its make
+questions (symbols, callers) stay with ripwire (AGENTS.md posture) — this
+index is the INTENT layer: what each script is FOR, its CLI surface, its make
 wiring, its tests.
 
 Usage:

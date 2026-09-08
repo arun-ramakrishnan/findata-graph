@@ -32,6 +32,22 @@ helper/test (it may already exist):
 - Filters: `--kind script|test|make|mojo`, `--area`, `--json`.
 - Operator doc: `doc/procedures/script-search.md`.
 
+## ripwire — structural code discovery (map-before-read)
+
+Symbols, callers, blast radius, doc ranking: the offline `ripwire`
+binary (no daemon, no API key; adopted per
+doc/improvements/archive/tooling/ripwire_adoption.md — head-to-head
+eval, verb families, Mojo-lane scope there). Map before read: locate
+with ripwire, then Read only what it names.
+
+```bash
+ripwire . --for="<task in words>"                # orient: ranked signatures
+ripwire . --callers=SYM | --impact=SYM           # callers / full blast radius
+ripwire . --grep=STR --grep-in=any --legend=compact  # literals — ALWAYS both flags
+ripwire . --recall="<doc question>"              # doc FIND step (closing read stays manual)
+ripwire . --mentions=SYM | --doc-drift           # doc↔code links / stale doc anchors
+```
+
 ## Rules
 
 - **Stale index?** The CLI warns and still answers (script_query may
@@ -40,9 +56,9 @@ helper/test (it may already exist):
   content-hash embed cache).
 - Never read `doc/improvements/completed.md` (166 KB) or 40 KB archived
   proposals wholesale — query first.
-- Division of labor: these two answer INTENT; STRUCTURE (symbols,
-  callers) is codebase-memory-mcp + `rg`; Mojo language/API questions go
-  to the **Mojo docs MCP, never web fetchers**.
+- Division of labor: doc_query/script_query answer INTENT; STRUCTURE
+  (symbols, callers) is `ripwire` (§ above), `rg` the fallback; Mojo
+  language/API questions go to the **Mojo docs MCP, never web fetchers**.
 
 ## Gates & hygiene
 

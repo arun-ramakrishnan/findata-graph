@@ -137,49 +137,41 @@ storage-topology map compiled from the JSON IR by the archify pipeline
 regenerable, the JSON IR is the committed source. Re-render when an arc
 changes the depicted chain.
 
-## 9. Code & markdown search — codebase-memory-mcp
+## 9. Code & markdown search — ripwire
 
-This repo is indexed by **codebase-memory-mcp** (project id is derived
-from the checkout path — check your local index, auto-index on). Prefer it over
-`grep`/`find` for code/markdown/relationship search: it understands
-structure (functions, classes, routes, callers/callees, Section nodes from
-the vault — ~16.5k nodes / ~24k edges) and returns the containing
-function/class ranked by importance.
+Structural code discovery runs through **ripwire** (offline single
+binary: deterministic tree-sitter call graph + BM25/PageRank, warm
+~0.2–0.5 s; posture + standing flags in `AGENTS.md`, adoption record in
+`improvements/archive/tooling/ripwire_adoption.md`). Map before read:
+locate with ripwire, then read only what it names. It re-crawls per run
+with per-file content-hash re-parse, so answers are worktree-current —
+including uncommitted edits; a zero means "none found", never "index
+may be stale".
 
 | Task | Tool |
 |---|---|
-| architecture, clusters, hotspots | `get_architecture` |
-| find symbol by name/semantics | `search_graph` (BM25 + regex + vector) |
-| grep-style, deduped + ranked | `search_code` (~3.5× fewer tokens than raw grep) |
-| read a known symbol | `get_code_snippet` (source + complexity props) |
-| callers/callees/data-flow | `trace_path` |
-| multi-hop / aggregations | `query_graph` (raw Cypher) |
+| orient on a task | `ripwire . --for="<task in words>"` (ranked signatures) |
+| callers / transitive blast radius / read-write sites | `--callers=SYM` / `--impact=SYM` / `--uses=SYM` |
+| literal or regex, enclosing symbol | `--grep=STR --grep-in=any --legend=compact` (standing flags) |
+| a symbol's body + callee signatures | `--expand=SYM` |
+| tests reaching a changed file/symbol | `--affected=F1,F2\|SYM` |
+| docs: ranked recall, backtick mentions, stale anchors | `--recall` / `--mentions=SYM` / `--doc-drift` |
+| intent (what is it for, what runs it, what tests it) | `doc_query` / `script_query` — unchanged |
 
-**Cypher dialect (v0.9.0):** `= false`/`= true` not prefix `NOT`; no
-`NOT (()-[:EDGE]->(n))` negation (collect TESTS edges and diff in the
-caller); keep RETURN narrow + LIMIT low (resultBudget truncation). The MCP
-surface is the 8 read tools above; management tools (`list_projects`,
-`index_status`, `detect_changes`, …) are CLI-only:
-`codebase-memory-mcp cli index_status '{"project":"…"}'`.
+**Code-health note (open):** the near-twin `*_neighbors_bundle` /
+`_resolve_entity_*_or_404` helpers in `app.py` remain an unresolved
+duplication candidate (surfaced by the 2026-08 graph audit).
 
-**Recurring hygiene audit** (each one `query_graph` call):
-1. hot paths: `f.is_test = false AND f.transitive_loop_depth >= 3 ORDER BY …`
-2. fan-in hubs: `count(DISTINCT caller)` over CALLS — chokepoints; diff vs test inventory for untested load-bearing code
-3. duplication: `SIMILAR_TO` edges by jaccard + `search_graph(semantic_query=[…])`
-
-Findings resolved via this audit: `search_ticker` cyclo 46→30 after deleting
-66 lines of dead code (+18 tests); front-matter duplication consolidated
-into `helpers/core/frontmatter.py`. Still-open candidates: the near-twin
-`*_neighbors_bundle` / `_resolve_entity_*_or_404` helpers in `app.py`.
-
-**Note:** this is a read-only analysis layer over the *codebase* — distinct
-from the FinData entity graph served by DuckDB/Onager (`graph_design.txt`).
+**Note:** ripwire is a read-only analysis layer over the *codebase* —
+distinct from the FinData entity graph served by DuckDB/Onager
+(`graph_design.txt`).
 
 ---
 *Rewritten 2026-08-15 from the Jun 2026 version: §4 data model now points at
 schema.md (scale/counters refreshed to live: 1,209 entities / 4,110 edges /
 14 metrics); tooling table updated for the Onager era (duckpgq + NetworkX
 retired); FK note corrected (db.py enables the pragma); §9 doc statuses
-folded into the doc map; codebase-memory-mcp section compressed (dialect
-notes + audit patterns kept, worked examples dropped — they were
-illustrative only).*
+folded into the doc map. §9 rewritten 2026-09-08 for the ripwire
+adoption — the retired graph-index section is gone from live docs; its
+dialect notes and audit patterns live on in the archived proposals
+(ripwire_adoption.md, script_metadata_search.md).*

@@ -6,7 +6,7 @@ The repo has ~57 scripts under helpers/, ~127 test modules under tests/,
 the root app.py, 44 Makefile targets — and the Mojo footprint (15
 Mojo/src + Mojo/tests modules) plus the TS footprint (~13 first-party
 frontend/src + frontend/types modules; corpus_uniformity S6) — and grows
-weekly. codebase-memory answers STRUCTURE questions (symbols, callers);
+weekly. ripwire answers STRUCTURE questions (symbols, callers);
 it does not answer INTENT questions: which script audits relation diffs,
 which test file covers the yfinance driver, what `make qa` actually
 runs, which Mojo module owns the integrity parity checks, which view
@@ -263,7 +263,7 @@ def _split_docstring(doc: str | None) -> tuple[str, str]:
 
 def _top_level_names(tree: ast.Module | None) -> list[str]:
     """Top-level def/class names — row ENRICHMENT only, not a symbol index
-    (codebase-memory owns symbols; this just lets 'the script with
+    (ripwire owns symbols; this just lets 'the script with
     rebuild()' match without reading it)."""
     if tree is None:
         return []
