@@ -119,3 +119,8 @@ gui-test-screenshots/
 findata/Misc/_pending_suggestions.txt
 findata/Misc/_pending_triage_report.md
 findata/Misc/_pending_triage_decisions.jsonl
+
+# Large derived parquet artifacts - rebuilt locally on every db-sync; tracked
+# copies burned ~85 MB of repo history per refresh (GH warns 50 MB, blocks 100 MB)
+snapshots/parquet/sqlite/note_search_content.parquet
+snapshots/parquet/duckdb/v_note_embeddings.parquet

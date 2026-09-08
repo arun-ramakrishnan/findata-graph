@@ -17,6 +17,16 @@ Two artifact families, two roles:
    it carries the indexed text, and ``--restore`` regenerates the index
    from it via the FTS5 ``('rebuild')`` command.
 
+   Two large derived artifacts are exported but deliberately NOT
+   git-tracked (GitHub warns at 50 MB and blocks at 100 MB per file;
+   both are re-exported on every local db-sync anyway):
+   - ``sqlite/note_search_content.parquet`` mirrors the FTS-indexed
+     text of ``findata/**`` — the corpus is the source of truth; on a
+     fresh clone rebuild via ``rebuild_note_search.py`` (``make maint``
+     step 0c).
+   - ``duckdb/v_note_embeddings.parquet`` — regenerate via the embed
+     pipeline (``make search-fresh APPLY=1``).
+
 2. zstd binary — LOCAL-ONLY byte-exact copies under ``db-backup/`` (gitignored).
    The SQLite DB runs in WAL mode, so a naive ``cp research.db`` would miss
    the ``-wal`` file and yield a stale/corrupt copy. This uses SQLite's
