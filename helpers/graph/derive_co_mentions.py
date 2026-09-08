@@ -54,6 +54,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.graph import derive_cli as dcli  # noqa: E402  # S6 shared CLI scaffold
 from helpers.graph._edge_writer import apply_typed_edges  # noqa: E402
 
 # --------------------------------------------------------------------------- #
@@ -357,21 +358,11 @@ def _cli(argv: list[str] | None = None) -> int:
         choices=sorted(NEWSLETTER_TITLES),
         help="Newsletter slug (default: The_Chatter)",
     )
-    p.add_argument(
-        "--apply",
-        action="store_true",
-        help="Write edges to graph_edges (default: dry-run summary only).",
-    )
-    p.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Print every edge in addition to the summary.",
-    )
-    p.add_argument(
-        "--stale-only",
-        action="store_true",
-        help="S1c: skip when no source newer than last derived.",
+    dcli.add_derive_args(
+        p,
+        apply_help="Write edges to graph_edges (default: dry-run summary only).",
+        stale_help="S1c: skip when no source newer than last derived.",
+        corpus=False,
     )
     args = p.parse_args(argv)
 

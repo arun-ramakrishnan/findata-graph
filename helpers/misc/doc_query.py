@@ -21,8 +21,6 @@ hard exit 1 with the build command.
 Exit codes: 0 answered (possibly empty), 1 index missing, 2 usage error.
 """
 
-import argparse
-import json
 import re
 import sys
 from pathlib import Path
@@ -46,60 +44,37 @@ def _plain_snippet(snippet: str, cap: int = 240) -> str:
     return text[: cap - 1] + "…" if len(text) > cap else text
 
 
-def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(
-        description="Query the doc/ knowledge index (doc_search sidecar).",
-    )
-    p.add_argument("query", help="free-text query; punctuation is safe")
-    p.add_argument("--limit", type=int, default=5, help="max hits (default 5)")
-    p.add_argument("--db", default=None, help="sidecar path (default: module DOC_DB)")
-    p.add_argument("--bm25", action="store_true", help="lexical leg only (skip the cosine re-rank)")
-    p.add_argument(
-        "--json", action="store_true", dest="as_json", help="emit the raw result dicts as JSON"
-    )
-    args = p.parse_args(argv)
-
-    db_path = Path(args.db) if args.db else rds.DOC_DB
-    conn = rds.connect_doc_db(db_path)
-    try:
-        if not rds.doc_index_ready(conn):
-            print(
-                "doc_search index not built. Run:\n"
-                "  python3 helpers/maintenance/rebuild_doc_search.py",
-                file=sys.stderr,
-            )
-            return 1
-        if rds.doc_index_stale(conn):
-            print(
-                "WARNING: doc/ changed since the last index — results may be "
-                "outdated. Refresh: python3 helpers/maintenance/rebuild_doc_search.py",
-                file=sys.stderr,
-            )
-        out = rds.search_docs(
-            conn,
-            args.query,
-            limit=max(1, min(args.limit, 100)),
-            hybrid=not args.bm25,
-        )
-    finally:
-        conn.close()
-
-    if args.as_json:
-        print(json.dumps({"mode": out["mode"], "results": out["results"]}, indent=2))
-        return 0
-
-    if not out["results"]:
-        print(f"(no hits for {args.query!r}; mode={out['mode']})", file=sys.stderr)
-        return 0
-    print(f"# {len(out['results'])} hit(s), mode={out['mode']}", file=sys.stderr)
-    for hit in out["results"]:
+def _render_doc_hits(hits: list[dict]) -> None:
+    for hit in hits:
         where = f"{hit['path']}:{hit['anchor']}" if hit["anchor"] else hit["path"]
         label = hit["section_title"] or "(preamble)"
         print(f"{where}  [{label}]  {hit['score']}")
         snip = _plain_snippet(hit["snippet"])
         if snip:
             print(f"    {snip}")
-    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    from helpers.maintenance import rebuild_common as rbc
+
+    return rbc.run_query_cli(
+        argv,
+        description="Query the doc/ knowledge index (doc_search sidecar).",
+        default_db=lambda: rds.DOC_DB,
+        db_flag_help="sidecar path (default: module DOC_DB)",
+        connect_fn=rds.connect_doc_db,
+        ready_fn=rds.doc_index_ready,
+        not_built_msg=(
+            "doc_search index not built. Run:\n  python3 helpers/maintenance/rebuild_doc_search.py"
+        ),
+        stale_fn=rds.doc_index_stale,
+        stale_warning=(
+            "WARNING: doc/ changed since the last index — results may be "
+            "outdated. Refresh: python3 helpers/maintenance/rebuild_doc_search.py"
+        ),
+        search_fn=rds.search_docs,
+        render_hits=_render_doc_hits,
+    )
 
 
 if __name__ == "__main__":

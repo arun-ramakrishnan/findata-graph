@@ -71,6 +71,11 @@ class FlatKNN:
         self._model = InferenceSession().load(g)
 
     def top_k(self, query: np.ndarray, k: int = 10) -> list[tuple[str, float]]:
+        # Deliberate A/B vs helpers/core/embed_matrix.py top_k (S4/F7 of
+        # code_duplication_consolidation): this bench scores through the
+        # Mojo kernel (`self._model.execute`) while production scores in
+        # numpy — the surrounding normalize/argpartition/assemble scaffold
+        # reads near-identical BY DESIGN; do not "consolidate" the cores.
         em = self._em
         q = np.asarray(query, dtype=np.float32).ravel()
         n = float(np.linalg.norm(q))

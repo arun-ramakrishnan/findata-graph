@@ -30,6 +30,10 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+_(Previously: code_duplication_consolidation.md, archived as
+completed.md #216 on 2026-09-08 — execution record in
+`../archive/tooling/code_duplication_consolidation.md`.)_
+
 _(Previously: quote_capture_coverage.md, archived as completed.md #215 on
 2026-09-08 — execution record in
 `../archive/graph/quote_capture_coverage.md`.)_

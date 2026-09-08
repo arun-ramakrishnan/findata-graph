@@ -50,8 +50,12 @@ def test_command_is_version_pinned(monkeypatch):
     cmd = seen["cmd"]
     assert f"markdownlint-cli2@{ml.MARKDOWNLINT_CLI2_VERSION}" in cmd
     assert "-y" in cmd
-    # globs/config live in .markdownlint-cli2.jsonc — no path arguments
-    assert cmd[2:].count("doc") == 0 and cmd[2:].count("findata") == 0
+    # Corpus globs ride as ARGUMENTS (2026-09-08), not config globs —
+    # config-side globs union with explicit file args in cli2, making
+    # every targeted `npx markdownlint-cli2 <file>` run lint the whole
+    # corpus. The gate passes both trees explicitly.
+    assert "doc/**/*.md" in cmd
+    assert "findata/**/*.md" in cmd
 
 
 def test_digest_counts_rules_and_files():

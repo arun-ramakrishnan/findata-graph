@@ -66,6 +66,9 @@ findata/Misc/_pending_relations.txt
 .playwright-cli/
 skills-lock.json
 
+# RipWire config
+.ripwire_quality_acks
+.ripwire_quality_baseline
 
 # Python cache
 __pycache__/

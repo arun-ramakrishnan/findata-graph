@@ -407,17 +407,20 @@ class NotesVerifier:
         elif data.get("type") == "company":
             self.check_company_yaml_consistency(file_path, data, yaml_content)
 
-    def check_sector_yaml_consistency(self, file_path, data, yaml_content):
-        # permalink must start with /sectors/
+    # -- shared YAML-check primitives (code_duplication_consolidation S2) --
+    # One owner per check body; the typed methods below parameterize by
+    # data (prefix, expected fields, severity). Log messages are pinned
+    # byte-for-byte by tests/test_verify_notes.py.
+    def _check_permalink_prefix(self, file_path, data, prefix):
         pl = data.get("permalink")
-        if isinstance(pl, str) and not pl.startswith("/sectors/"):
+        if isinstance(pl, str) and not pl.startswith(prefix):
             self.log_issue(
                 "yaml_structure",
                 file_path,
-                f"Permalink must start with '/sectors/': {pl}",
+                f"Permalink must start with {prefix!r}: {pl}",
             )
 
-        # dates should be quoted in raw YAML
+    def _check_dates_quoted(self, file_path, data, yaml_content):
         for date_field in ("created", "last_modified"):
             if date_field in data and not re.search(rf"{date_field}:\s*'[^']*'", yaml_content):
                 self.log_issue(
@@ -426,16 +429,40 @@ class NotesVerifier:
                     f"{date_field} date should be quoted in YAML",
                 )
 
-        # title should NOT be quoted
+    def _check_title_unquoted(
+        self, file_path, data, yaml_content, *, severity="issue", issue_type="yaml_structure"
+    ):
         if "title" in data:
             m = re.search(r"title:\s*([^'\n]+)", yaml_content)
             if m and m.group(1).strip().startswith('"') and m.group(1).strip().endswith('"'):
-                self.log_issue(
-                    "yaml_structure",
+                log = self.log_warning if severity == "warning" else self.log_issue
+                log(
+                    issue_type,
                     file_path,
                     f"Title should not be quoted in YAML: {m.group(1).strip()}",
                 )
 
+    def _check_expected_fields(self, file_path, data, expected):
+        unexpected = set(data.keys()) - expected
+        if unexpected:
+            self.log_issue(
+                "yaml_structure",
+                file_path,
+                f"Unexpected fields in YAML header: {', '.join(unexpected)}",
+            )
+
+    def _check_field_order(self, file_path, data):
+        if list(data.keys())[:2] != ["title", "type"]:
+            self.log_warning(
+                "field_order",
+                file_path,
+                "YAML fields should start with 'title' and 'type'",
+            )
+
+    def check_sector_yaml_consistency(self, file_path, data, yaml_content):
+        self._check_permalink_prefix(file_path, data, "/sectors/")
+        self._check_dates_quoted(file_path, data, yaml_content)
+        self._check_title_unquoted(file_path, data, yaml_content)
         # only expected sector fields
         # NOTE: super_sector is the M4 up-link to the 3-level hierarchy
         # (findata/Super_Sectors); populated by build_sector_hierarchy.py.
@@ -449,21 +476,8 @@ class NotesVerifier:
             "normalized_name",
             "permalink",
         } | OKF_OPTIONAL_FIELDS
-        unexpected = set(data.keys()) - expected
-        if unexpected:
-            self.log_issue(
-                "yaml_structure",
-                file_path,
-                f"Unexpected fields in YAML header: {', '.join(unexpected)}",
-            )
-
-        # field order: title, type first (stylistic -> advisory)
-        if list(data.keys())[:2] != ["title", "type"]:
-            self.log_warning(
-                "field_order",
-                file_path,
-                "YAML fields should start with 'title' and 'type'",
-            )
+        self._check_expected_fields(file_path, data, expected)
+        self._check_field_order(file_path, data)
 
     def check_super_sector_yaml_consistency(self, file_path, data, yaml_content):
         """Super-sector-specific checks (findata/Super_Sectors/*.md).
@@ -479,35 +493,9 @@ class NotesVerifier:
           - `file_path` IS present (the generator writes it; unlike sector/
             company notes where it is absent from YAML).
         """
-        # permalink must carry the /super_sectors/ prefix with a LEADING slash.
-        pl = data.get("permalink")
-        if isinstance(pl, str):
-            if not pl.startswith("/super_sectors/"):
-                self.log_issue(
-                    "yaml_structure",
-                    file_path,
-                    f"Permalink must start with '/super_sectors/': {pl}",
-                )
-
-        # dates should be quoted in raw YAML (shared rule)
-        for date_field in ("created", "last_modified"):
-            if date_field in data and not re.search(rf"{date_field}:\s*'[^']*'", yaml_content):
-                self.log_issue(
-                    "yaml_structure",
-                    file_path,
-                    f"{date_field} date should be quoted in YAML",
-                )
-
-        # title should NOT be quoted (shared rule)
-        if "title" in data:
-            m = re.search(r"title:\s*([^'\n]+)", yaml_content)
-            if m and m.group(1).strip().startswith('"') and m.group(1).strip().endswith('"'):
-                self.log_issue(
-                    "yaml_structure",
-                    file_path,
-                    f"Title should not be quoted in YAML: {m.group(1).strip()}",
-                )
-
+        self._check_permalink_prefix(file_path, data, "/super_sectors/")
+        self._check_dates_quoted(file_path, data, yaml_content)
+        self._check_title_unquoted(file_path, data, yaml_content)
         # only expected super_sector fields. NOTE: file_path IS expected here
         # (the generator writes it), unlike sector/company notes. No
         # `super_sector` uplink field — these ARE the top of the hierarchy.
@@ -521,31 +509,12 @@ class NotesVerifier:
             "created",
             "last_modified",
         } | OKF_OPTIONAL_FIELDS
-        unexpected = set(data.keys()) - expected
-        if unexpected:
-            self.log_issue(
-                "yaml_structure",
-                file_path,
-                f"Unexpected fields in YAML header: {', '.join(unexpected)}",
-            )
+        self._check_expected_fields(file_path, data, expected)
+        self._check_field_order(file_path, data)
 
-        # field order: title, type first (stylistic -> advisory)
-        if list(data.keys())[:2] != ["title", "type"]:
-            self.log_warning(
-                "field_order",
-                file_path,
-                "YAML fields should start with 'title' and 'type'",
-            )
-
-    def check_company_yaml_consistency(self, file_path, data, yaml_content):  # noqa: C901
+    def check_company_yaml_consistency(self, file_path, data, yaml_content):
         """Company-specific checks. Field order is advisory; permalink is gate-failing."""
-        pl = data.get("permalink")
-        if isinstance(pl, str) and not pl.startswith("/companies/"):
-            self.log_issue(
-                "yaml_structure",
-                file_path,
-                f"Permalink must start with '/companies/': {pl}",
-            )
+        self._check_permalink_prefix(file_path, data, "/companies/")
 
         order = list(data.keys())
         if len(order) >= 2 and order[:2] != ["title", "type"]:
@@ -579,14 +548,10 @@ class NotesVerifier:
 
         # title should NOT be quoted (mirrors the sector check; D3 extended this
         # to company notes after a one-time unquote of 421 quoted titles).
-        if "title" in data:
-            m = re.search(r"title:\s*([^'\n]+)", yaml_content)
-            if m and m.group(1).strip().startswith('"') and m.group(1).strip().endswith('"'):
-                self.log_warning(
-                    "company_title_quoted",
-                    file_path,
-                    f"Title should not be quoted in YAML: {m.group(1).strip()}",
-                )
+        # Company-severity variant: advisory, own issue type.
+        self._check_title_unquoted(
+            file_path, data, yaml_content, severity="warning", issue_type="company_title_quoted"
+        )
 
         # unlisted marker: ticker:null is meaningful (an unlisted company), so
         # it should be explicit rather than implicit-null. Advisory (D3).

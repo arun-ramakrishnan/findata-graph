@@ -48,7 +48,6 @@ from __future__ import annotations
 
 import argparse
 import collections
-import json
 import sys
 from pathlib import Path
 
@@ -61,7 +60,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect, utc_now  # noqa: E402
-from helpers.core.corpus import notes_stale_since  # noqa: E402  # S1c shared stale gate
+from helpers.graph import derive_cli as dcli  # noqa: E402  # S6 shared CLI scaffold
 from helpers.core.edition_index import (  # noqa: E402
     CHROME_FILES,
     note_title,
@@ -291,21 +290,10 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(
         description="Derive cited_in (note -> edition) edges from OKF sources[].",
     )
-    p.add_argument(
-        "--apply", action="store_true", help="Write edition entities + edges (default: dry-run)."
-    )
-    p.add_argument(
-        "--verbose", "-v", action="store_true", help="Print every edge in addition to the summary."
-    )
-    p.add_argument(
-        "--corpus",
-        action="store_true",
-        help="S1b: use helpers.core.corpus shared walk (maint --full) — one walk for all derivations.",
-    )
-    p.add_argument(
-        "--stale-only",
-        action="store_true",
-        help="S1c: skip when no derived note newer than last derived (no-op cut for maint --full).",
+    dcli.add_derive_args(
+        p,
+        apply_help="Write edition entities + edges (default: dry-run).",
+        stale_help="S1c: skip when no derived note newer than last derived (no-op cut for maint --full).",
     )
     p.add_argument(
         "--vault",
@@ -319,13 +307,12 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     try:
         # S1c --stale-only: skip when no derived note newer than last cited_in.
         if args.stale_only:
-            try:
-                db_max = conn.execute(
-                    "SELECT MAX(created_at) FROM graph_edges WHERE edge_type='cited_in'"
-                ).fetchone()[0]
-            except Exception:  # noqa: BLE001 — best-effort gate; fall through to full derive
-                db_max = None
-            if notes_stale_since(db_max, [vault / tree for tree in DERIVED_TREES]):
+            skip, db_max = dcli.stale_gate(
+                conn,
+                max_sql="SELECT MAX(created_at) FROM graph_edges WHERE edge_type='cited_in'",
+                watch_paths=[vault / tree for tree in DERIVED_TREES],
+            )
+            if skip:
                 print(
                     f"cited_in stale-only: no derived note newer than last derived {db_max} — skipping 0 edges (dry-run)",
                     file=sys.stderr,
@@ -371,8 +358,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         print(f"{ent} edition entities {verb}; {ins} cited_in edges {verb}.", file=sys.stderr)
 
         if args.verbose:
-            for source, target, props, _ref in edges:
-                print(f"{source}\t{target}\t{json.dumps(props, ensure_ascii=False)}")
+            dcli.dump_edges_verbose(edges)
         return 0
     finally:
         conn.close()

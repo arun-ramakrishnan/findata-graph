@@ -39,6 +39,7 @@ import hashlib
 import math
 import os
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -265,6 +266,46 @@ def _pool_embed_chunk(arg: tuple[int, list[str]]) -> tuple[int, list[list[float]
     return start, out
 
 
+def run_pinned_pool(
+    chunks: list[tuple[int, list[str]]],
+    *,
+    workers: int,
+    initializer: Callable,
+    initargs: tuple,
+    chunk_fn: Callable[[tuple[int, list[str]]], tuple[int, list[list[float]]]],
+) -> list[list[float]]:
+    """Spawn-pool mechanics for pinned parallel embedding.
+
+    Shared by :func:`embed_documents_parallel` and the bench GGUF probe
+    (helpers/bench/embed_pool_probe.py — it loads an alternate model file,
+    so its INITIALIZER differs; the pool plumbing must not). Contract:
+    spawn context, core-pinning queue (one distinct core per worker,
+    claimed before model load), order-preserving gather, fail-loud
+    unfilled-slot guard. ``initializer`` is called as
+    ``initializer(core_queue, *initargs)``.
+    """
+    import multiprocessing as mp
+
+    ncpu = os.cpu_count() or 1
+    ctx = mp.get_context("spawn")
+    core_queue = ctx.Queue()
+    for core in sorted({i % ncpu for i in range(workers)}):
+        core_queue.put(core)
+    total = chunks[-1][0] + len(chunks[-1][1]) if chunks else 0
+    out: list[list[float] | None] = [None] * total
+    try:
+        with ctx.Pool(workers, initializer=initializer, initargs=(core_queue, *initargs)) as pool:
+            for start, vecs in pool.map(chunk_fn, chunks):
+                for j, vec in enumerate(vecs):
+                    out[start + j] = vec
+    finally:
+        core_queue.close()
+        core_queue.join_thread()
+    if any(v is None for v in out):
+        raise RuntimeError("parallel embed left unfilled slots — chunk bug")
+    return [v for v in out if v is not None]
+
+
 def embed_documents_parallel(texts: list[str], workers: int | None = None) -> list[list[float]]:
     """Batch embed_document via a pinned spawn pool (cold-path only).
 
@@ -281,27 +322,11 @@ def embed_documents_parallel(texts: list[str], workers: int | None = None) -> li
     if n == 0:
         return embed_documents(texts)
 
-    import multiprocessing as mp
-
-    ncpu = os.cpu_count() or 1
     bounds = [(i * len(texts) // n, (i + 1) * len(texts) // n) for i in range(n)]
     chunks = [(start, texts[start:end]) for start, end in bounds if end > start]
-    ctx = mp.get_context("spawn")
-    core_queue = ctx.Queue()
-    for core in sorted({i % ncpu for i in range(n)}):
-        core_queue.put(core)
-    out: list[list[float] | None] = [None] * len(texts)
-    try:
-        with ctx.Pool(n, initializer=_pool_init, initargs=(core_queue,)) as pool:
-            for start, vecs in pool.map(_pool_embed_chunk, chunks):
-                for j, vec in enumerate(vecs):
-                    out[start + j] = vec
-    finally:
-        core_queue.close()
-        core_queue.join_thread()
-    if any(v is None for v in out):
-        raise RuntimeError("parallel embed left unfilled slots — chunk bug")
-    return [v for v in out if v is not None]
+    return run_pinned_pool(
+        chunks, workers=n, initializer=_pool_init, initargs=(), chunk_fn=_pool_embed_chunk
+    )
 
 
 if __name__ == "__main__":

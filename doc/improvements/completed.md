@@ -4848,3 +4848,41 @@ catch-all doctrine + the 2026-09-07 supersession amendment (Quotes as
 10th super-sector). Verified: T0–T4 trial read-only on live DB, quote
 capture post-audit (cap-trap + catch-all converge), suites + live smoke
 green, search-fresh converged; #215 archival recorded here.
+
+## 216
+
+Code duplication consolidation — ripwire `--clones` map to shared
+scaffolds (proposal: `archive/tooling/code_duplication_consolidation.md`,
+filed + executed 2026-09-08). Discovery: `ripwire . --clones --limit=2000`
+post-filtered for production source (bundles/tests excluded — 131 groups
+/ ~71 clusters, dup_pct 15.0%). Seven slices, smallest-risk first:
+S1 PDF normalization single-owner (`liteparse_post.py` 175→45 lines —
+the whole AST-identical block incl. 7 regexes + 50-entry
+`SECTOR_PREFIXES` imported from `pdf_local.py`; identity-pinned by
+`tests/test_liteparse_post.py`). S2 `verify_notes` typed-YAML checks →
+five `_check_*` primitives (company check sheds its `# noqa: C901`;
+log messages byte-identical). S3 NEW
+`helpers/maintenance/rebuild_common.py` — argparse trio, post-rebuild
+report, staleness verdict, last-good backup, embedder resolution,
+`run_rebuild_cli` shared by all three `rebuild_*_search.py` mains
+(per-module `_pseudo_warned`/`BACKUP_DIR` globals stay live for test
+monkeypatching). S4 `run_pinned_pool` extracted into `local_embedder.py`;
+bench GGUF probe delegates its pool plumbing (initializer — the variable
+under test — stays); `flat_knn.top_k` documented as deliberate
+Mojo-vs-numpy A/B, not consolidated. S5 `run_query_cli` read-side
+counterpart (doc_query/script_query delegate; hit-render loops stay
+per-index). S6 NEW `helpers/graph/derive_cli.py` — `add_derive_args`,
+`stale_gate`, `dump_edges_verbose`; cited_in/themes/events/co_mentions
+migrated (each keeps its own skip-line wording). S7 `db_maint`
+`_sqlite_zstd_backup` tail + `app.py` resolver delegation; snapshot
+verify pair + api_graph envelope family inspected-and-REJECTED
+(contracts genuinely differ). Inspected-and-rejected also: F6's
+production hook (probe's bge leg already measured production — the
+clone was GGUG plumbing only). Measured: dup_pct 15.0→14.5%, production
+groups 131→119; quality-delta gating 28→0 with 49 findings acked into
+`.ripwire_quality_acks` (rationale in proposal) and 8 new-symbol param/
+verbosity rows left visible as real debt (config-dataclass follow-up
+noted). Verified: 472 tests across 22 touched suites; `make qa` 9/9 +
+`make advisory` 10/10 on the final tree (first passes caught shebangs +
+stale snapshot generation + stale script-index fingerprints + one S608
+— all fixed, re-run green); maint-full 14/14 twice (S3, S6).

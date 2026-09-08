@@ -67,7 +67,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
-from helpers.core.corpus import notes_stale_since  # noqa: E402  # S1c shared stale gate
+from helpers.graph import derive_cli as dcli  # noqa: E402  # S6 shared CLI scaffold
 from helpers.core.stable_write import ReplaceResult, stable_prefix_diff, stable_prefix_replace  # noqa: E402
 
 # Reuse the proven date parser + regexes from extract_relations rather than
@@ -599,21 +599,12 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         description="Derive the events timeline table (acquisition/jv/guidance/"
         "management_change) from graph_edges + company-note prose.",
     )
-    p.add_argument(
-        "--apply",
-        action="store_true",
-        help="Write event rows (default: dry-run summary only).",
-    )
-    p.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Print every event in addition to the summary.",
-    )
-    p.add_argument(
-        "--stale-only",
-        action="store_true",
-        help="S1c: skip when no source newer than last derived.",
+    dcli.add_derive_args(
+        p,
+        apply_help="Write event rows (default: dry-run summary only).",
+        stale_help="S1c: skip when no source newer than last derived.",
+        corpus=False,
+        verbose_help="Print every event in addition to the summary.",
     )
     args = p.parse_args(argv)
 
@@ -621,11 +612,12 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     try:
         # S1c --stale-only: skip when no Company note newer than last event
         if args.stale_only:
-            try:
-                db_max = conn.execute("SELECT MAX(created_at) FROM events").fetchone()[0]
-            except Exception:  # noqa: BLE001 — best-effort gate; fall through to full derive
-                db_max = None
-            if notes_stale_since(db_max, (COMPANIES_DIR,)):
+            skip, db_max = dcli.stale_gate(
+                conn,
+                max_sql="SELECT MAX(created_at) FROM events",
+                watch_paths=(COMPANIES_DIR,),
+            )
+            if skip:
                 print(
                     f"events stale-only: no Company note newer than last derived {db_max} — skipping 0 events (dry-run)",
                     file=sys.stderr,

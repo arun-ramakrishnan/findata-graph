@@ -63,7 +63,6 @@ land between maint cycles and would redden qa constantly.
 Exit codes: 0 success/fresh, 1 fatal error OR --check detected drift.
 """
 
-import argparse
 import ast
 import hashlib
 import json
@@ -82,8 +81,8 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from helpers.core.db import connect  # noqa: E402
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
+from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
 # Monkeypatchable (the VAULT_ROOT lesson: import-bound root constants silently
@@ -994,40 +993,13 @@ def _backup_last_good_index(db_path: Path) -> None:
     historical leak was test-fixture rebuilds writing this backup via the
     un-redirected module BACKUP_DIR — fixed at the source with an autouse
     BACKUP_DIR isolation fixture in test_rebuild_script_search."""
-    try:
-        conn = connect(db_path, read_only=True)
-        try:
-            rows = conn.execute("SELECT COUNT(*) FROM script_search").fetchone()[0]
-        finally:
-            conn.close()
-    except sqlite3.Error:
-        rows = 0
-    if not rows:
-        print(
-            f"WARNING: {db_path.name} empty ({rows} rows) — last-good "
-            "backup skipped (recovery point kept; rebuild continues)",
-            file=sys.stderr,
-        )
-        return
-    dests = [
-        (db_path, Path(BACKUP_DIR) / "script_search_backup.db"),
-    ]
-    try:
-        Path(BACKUP_DIR).mkdir(parents=True, exist_ok=True)
-    except OSError:
-        print(
-            f"WARNING: cannot create backup dir {BACKUP_DIR} "
-            "(recovery point skipped; rebuild continues)",
-            file=sys.stderr,
-        )
-        return
-    for src, dest in dests:
-        if src.exists() and not rds._backup_file(src, dest):
-            print(
-                f"WARNING: could not back up {src.name} to {dest} "
-                "(recovery point skipped; rebuild continues)",
-                file=sys.stderr,
-            )
+    rbc.backup_last_good_index(
+        db_path,
+        backup_dir=BACKUP_DIR,
+        table="script_search",
+        dest_name="script_search_backup.db",
+        copier=rds._backup_file,
+    )
 
 
 def _migrate_schema(conn: sqlite3.Connection) -> bool:
@@ -1322,28 +1294,12 @@ def rebuild(
 def _print_staleness(stats: dict) -> None:
     """--check verdict: FRESH, or the drift breakdown + remediation
     (mirrors rebuild_doc_search / sync_sector_wikilinks --check shape)."""
-    new = stats.get("stale_new", [])
-    changed = stats.get("stale_changed", [])
-    deleted = stats.get("stale_deleted", [])
-    if not (new or changed or deleted):
-        print(
-            f"index state: FRESH ({stats.get('total_units', 0)} units unchanged)", file=sys.stderr
-        )
-        return
-    print(
-        f"index state: STALE — {len(changed)} changed, {len(new)} new, {len(deleted)} deleted",
-        file=sys.stderr,
+    rbc.print_staleness(
+        stats,
+        count_key="total_units",
+        unit="units",
+        refresh_cmd="python3 helpers/maintenance/rebuild_script_search.py",
     )
-    drift = (
-        [(u, "changed") for u in changed]
-        + [(u, "new") for u in new]
-        + [(u, "deleted") for u in deleted]
-    )
-    for u, kind in drift[:10]:
-        print(f"  {kind:8s} {u}", file=sys.stderr)
-    if len(drift) > 10:
-        print(f"  … and {len(drift) - 10} more", file=sys.stderr)
-    print("refresh: python3 helpers/maintenance/rebuild_script_search.py", file=sys.stderr)
 
 
 # --- read-path gates (script_query CLI; an /api endpoint would reuse these) ---
@@ -1658,60 +1614,27 @@ def search_scripts(
     return {"mode": mode, "results": _hit_dicts(hits, sims)}
 
 
-def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument(
-        "--db",
-        default=str(SCRIPT_DB),
-        help="Path to the script_search sidecar (default: memory/script_search.db).",
-    )
-    p.add_argument(
-        "--check",
-        action="store_true",
-        help="Dry-run: count units/rows, report index freshness "
-        "(changed/new/deleted), no writes. Exits 1 when stale.",
-    )
-    p.add_argument(
-        "--incremental",
-        action="store_true",
-        help="Incremental rebuild (row-keyed diff; unchanged rows not rewritten).",
-    )
-    args = p.parse_args(argv)
-
-    try:
-        stats = rebuild(Path(args.db), write=not args.check, incremental=args.incremental)
-    except Exception as exc:  # pragma: no cover - defensive
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-    print(
+def _summary_line(stats: dict) -> str:
+    return (
         f"script_search: {stats.get('total_units', 0)} units / "
         f"{stats.get('total_rows', 0)} rows "
-        f"({stats.get('embed_model', 'n/a')})",
-        file=sys.stderr,
+        f"({stats.get('embed_model', 'n/a')})"
     )
-    if not args.check:
-        print(f"indexed {stats.get('indexed', 0)} rows", file=sys.stderr)
-        if stats.get("migrated"):
-            print("(schema migrated: script_search recreated)", file=sys.stderr)
-        emb = stats.get("embedded")
-        if emb is not None:
-            print(f"embedded {emb} rows", file=sys.stderr)
-            if "embed_cache_hits" in stats:
-                print(
-                    f"embed cache: {stats['embed_cache_hits']} hits, "
-                    f"{stats['embed_cache_misses']} misses",
-                    file=sys.stderr,
-                )
-        if stats.get("index_stale"):
-            print(
-                f"index was STALE before this rebuild: "
-                f"{len(stats.get('stale_changed', []))} changed, "
-                f"{len(stats.get('stale_new', []))} new, "
-                f"{len(stats.get('stale_deleted', []))} deleted — now fresh",
-                file=sys.stderr,
-            )
-        return 0
-    return 1 if stats.get("index_stale") else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    return rbc.run_rebuild_cli(
+        argv,
+        description=__doc__.split("\n\n")[0],
+        default_db=str(SCRIPT_DB),
+        db_help="Path to the script_search sidecar (default: memory/script_search.db).",
+        check_help="Dry-run: count units/rows, report index freshness "
+        "(changed/new/deleted), no writes. Exits 1 when stale.",
+        incremental_help="Incremental rebuild (row-keyed diff; unchanged rows not rewritten).",
+        rebuild_fn=rebuild,
+        summary=_summary_line,
+        migrated_msg="(schema migrated: script_search recreated)",
+    )
 
 
 if __name__ == "__main__":

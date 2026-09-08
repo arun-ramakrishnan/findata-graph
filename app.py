@@ -283,27 +283,6 @@ def _reset_graph_connection() -> None:
             pass
 
 
-def _resolve_entity_or_404(name: str) -> str:
-    """Case-insensitive entity-name lookup → canonical name. 404 if unknown.
-
-    All /api/graph/<name> routes go through this so URL casing doesn't matter
-    (`/api/graph/peers/ceat` resolves to `CEAT`). The canonical name is what
-    the graph wrappers need: their SQL WHERE clauses match on exact string
-    equality against the materialised names.
-    """
-    conn = get_db_connection()
-    try:
-        row = conn.execute(
-            "SELECT name FROM entities WHERE name = ? COLLATE NOCASE",
-            (name,),
-        ).fetchone()
-    finally:
-        conn.close()
-    if row is None:
-        abort(404, description=f"Entity not found: {name}")
-    return row["name"]
-
-
 def _resolve_entity_with_type_or_404(name: str) -> tuple[str, str]:
     """Same as _resolve_entity_or_404 but also returns entity_type.
 
@@ -321,6 +300,19 @@ def _resolve_entity_with_type_or_404(name: str) -> tuple[str, str]:
     if row is None:
         abort(404, description=f"Entity not found: {name}")
     return row["name"], row["entity_type"]
+
+
+def _resolve_entity_or_404(name: str) -> str:
+    """Case-insensitive entity-name lookup → canonical name. 404 if unknown.
+
+    All /api/graph/<name> routes go through this so URL casing doesn't matter
+    (`/api/graph/peers/ceat` resolves to `CEAT`). The canonical name is what
+    the graph wrappers need: their SQL WHERE clauses match on exact string
+    equality against the materialised names. Delegates to the typed variant
+    (S7, code_duplication_consolidation) — one lookup body, two shapes.
+    """
+    name_, _etype = _resolve_entity_with_type_or_404(name)
+    return name_
 
 
 def _parse_as_of_or_400():

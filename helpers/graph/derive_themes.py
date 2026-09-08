@@ -30,7 +30,6 @@ from __future__ import annotations
 # ruff: noqa: C901, S101, S110, UP037  # S1b scale: Corpus + stale advisory, complexity is domain logic not lint
 
 import argparse
-import json
 import re
 import sys
 from collections import defaultdict
@@ -43,7 +42,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.db import connect, utc_now  # noqa: E402
-from helpers.core.corpus import notes_stale_since  # noqa: E402  # S1c shared stale gate
+from helpers.graph import derive_cli as dcli  # noqa: E402  # S6 shared CLI scaffold
 from helpers.validators.static_checks import CANONICAL_THEMES  # noqa: E402
 from helpers.graph._edge_writer import apply_typed_edges  # noqa: E402
 from helpers.core.frontmatter import strip_frontmatter as _strip_frontmatter  # noqa: E402
@@ -379,26 +378,10 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(
         description="Derive exposed_to (company -> theme) edges from company notes.",
     )
-    p.add_argument(
-        "--apply",
-        action="store_true",
-        help="Write theme entities + edges (default: dry-run summary only).",
-    )
-    p.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Print every edge in addition to the summary.",
-    )
-    p.add_argument(
-        "--corpus",
-        action="store_true",
-        help="S1b: use helpers.core.corpus shared walk (maint --full) — one walk for all derivations.",
-    )
-    p.add_argument(
-        "--stale-only",
-        action="store_true",
-        help="S1c: skip when no source newer than last derived (no-op cut for maint --full).",
+    dcli.add_derive_args(
+        p,
+        apply_help="Write theme entities + edges (default: dry-run summary only).",
+        stale_help="S1c: skip when no source newer than last derived (no-op cut for maint --full).",
     )
     args = p.parse_args(argv)
 
@@ -406,13 +389,12 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     try:
         # S1c --stale-only: skip full 1078 scan when no Company note newer than last derived.
         if args.stale_only:
-            try:
-                db_max = conn.execute(
-                    "SELECT MAX(created_at) FROM graph_edges WHERE edge_type='exposed_to'"
-                ).fetchone()[0]
-            except Exception:  # noqa: BLE001 — best-effort gate; fall through to full derive
-                db_max = None
-            if notes_stale_since(db_max, (COMPANIES_DIR,)):
+            skip, db_max = dcli.stale_gate(
+                conn,
+                max_sql="SELECT MAX(created_at) FROM graph_edges WHERE edge_type='exposed_to'",
+                watch_paths=(COMPANIES_DIR,),
+            )
+            if skip:
                 print(
                     f"themes stale-only: no Company note newer than last derived {db_max} — skipping 0 edges (dry-run)",
                     file=sys.stderr,
@@ -471,8 +453,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         )
 
         if args.verbose:
-            for source, target, props, source_ref in edges:
-                print(f"{source}\t{target}\t{json.dumps(props, ensure_ascii=False)}")
+            dcli.dump_edges_verbose(edges)
         return 0
     finally:
         conn.close()

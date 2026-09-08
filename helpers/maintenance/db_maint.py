@@ -306,6 +306,35 @@ class DBMaintainer:
         finally:
             tmp_path.unlink(missing_ok=True)
 
+    def _sqlite_zstd_backup(self, src: Path, dst: Path, *, label: str) -> int:
+        """WAL-consistent sqlite online-backup → zstd. Shared tail of the
+        paired store backups (embed store, corpus cache — S7,
+        code_duplication_consolidation); the resolution logic that picks
+        ``src``/``dst`` stays with each caller."""
+        from helpers.core.zstd_io import compress_file, zst_path
+
+        zst_dst = zst_path(dst)
+        with tempfile.NamedTemporaryFile(
+            suffix=".db", dir=self.backup_path.parent, delete=False
+        ) as tf:
+            tmp_path = Path(tf.name)
+        try:
+            sconn = sqlite3.connect(str(src))
+            bconn = sqlite3.connect(str(tmp_path))
+            try:
+                with bconn:
+                    sconn.backup(bconn)
+            finally:
+                bconn.close()
+                sconn.close()
+            if zst_dst.exists():
+                zst_dst.unlink()
+            size = compress_file(tmp_path, zst_dst)
+            self._log(logging.INFO, f"{label} backed up to {zst_dst}")
+            return size
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
     def _backup_embed_store(self) -> int:
         """Paired recovery copy of the consolidated embed store.
 
@@ -332,29 +361,7 @@ class DBMaintainer:
                 self._log(logging.INFO, f"Embed store absent — backup skipped ({src})")
                 return 0
             dst = self.backup_path.parent / "embed_store_backup.db"
-        from helpers.core.zstd_io import compress_file, zst_path
-
-        zst_dst = zst_path(dst)
-        with tempfile.NamedTemporaryFile(
-            suffix=".db", dir=self.backup_path.parent, delete=False
-        ) as tf:
-            tmp_path = Path(tf.name)
-        try:
-            sconn = sqlite3.connect(str(src))
-            bconn = sqlite3.connect(str(tmp_path))
-            try:
-                with bconn:
-                    sconn.backup(bconn)
-            finally:
-                bconn.close()
-                sconn.close()
-            if zst_dst.exists():
-                zst_dst.unlink()
-            size = compress_file(tmp_path, zst_dst)
-            self._log(logging.INFO, f"Embed store backed up to {zst_dst}")
-            return size
-        finally:
-            tmp_path.unlink(missing_ok=True)
+        return self._sqlite_zstd_backup(src, dst, label="Embed store")
 
     def _backup_corpus(self) -> int:
         """Paired recovery copy of the S1b corpus cache (memory/corpus.db).
@@ -373,29 +380,7 @@ class DBMaintainer:
             self._log(logging.INFO, f"Corpus cache absent — backup skipped ({src})")
             return 0
         dst = self.backup_path.parent / "corpus_backup.db"
-        from helpers.core.zstd_io import compress_file, zst_path
-
-        zst_dst = zst_path(dst)
-        with tempfile.NamedTemporaryFile(
-            suffix=".db", dir=self.backup_path.parent, delete=False
-        ) as tf:
-            tmp_path = Path(tf.name)
-        try:
-            sconn = sqlite3.connect(str(src))
-            bconn = sqlite3.connect(str(tmp_path))
-            try:
-                with bconn:
-                    sconn.backup(bconn)
-            finally:
-                bconn.close()
-                sconn.close()
-            if zst_dst.exists():
-                zst_dst.unlink()
-            size = compress_file(tmp_path, zst_dst)
-            self._log(logging.INFO, f"Corpus cache backed up to {zst_dst}")
-            return size
-        finally:
-            tmp_path.unlink(missing_ok=True)
+        return self._sqlite_zstd_backup(src, dst, label="Corpus cache")
 
     def _backup_duckdb(self) -> int:
         """Pre-mutation recovery copy of the DuckDB cache file,

@@ -107,8 +107,6 @@ def _gguf_pool_chunk(arg: tuple[int, list[str]]) -> tuple[int, list[list[float]]
 
 
 def _run_gguf_legs(texts: list[str], gguf_path: str, n_ctx: int, worker_counts: list[int]) -> None:
-    import multiprocessing as mp
-    import os
     import time
 
     model = _gguf_model(gguf_path, n_ctx)  # floating serial shape (llama.cpp thread choice)
@@ -134,29 +132,23 @@ def _run_gguf_legs(texts: list[str], gguf_path: str, n_ctx: int, worker_counts: 
         ]
 
     def pool(workers: int):
-        ncpu = os.cpu_count() or 1
+        # Pool mechanics via production run_pinned_pool (S4): the probe's
+        # deliberate difference is the INITIALIZER (alternate gguf model
+        # file + ctx), never the plumbing — a fork here would silently
+        # stop measuring the production pool shape.
+        from helpers.core import local_embedder as _le
+
         bounds = [
             (i * len(texts) // workers, (i + 1) * len(texts) // workers) for i in range(workers)
         ]
         chunks = [(start, texts[start:end]) for start, end in bounds if end > start]
-        ctx = mp.get_context("spawn")
-        core_queue = ctx.Queue()
-        for core in sorted({i % ncpu for i in range(workers)}):
-            core_queue.put(core)
-        out: list[list[float] | None] = [None] * len(texts)
-        try:
-            with ctx.Pool(
-                workers, initializer=_gguf_pool_init, initargs=(core_queue, gguf_path, n_ctx)
-            ) as proc_pool:
-                for start, vecs in proc_pool.map(_gguf_pool_chunk, chunks):
-                    for j, vec in enumerate(vecs):
-                        out[start + j] = vec
-        finally:
-            core_queue.close()
-            core_queue.join_thread()
-        if any(v is None for v in out):
-            raise RuntimeError("parallel embed left unfilled slots — chunk bug")
-        return [v for v in out if v is not None]
+        return _le.run_pinned_pool(
+            chunks,
+            workers=workers,
+            initializer=_gguf_pool_init,
+            initargs=(gguf_path, n_ctx),
+            chunk_fn=_gguf_pool_chunk,
+        )
 
     leg("serial    ", serial)
     for workers in worker_counts:

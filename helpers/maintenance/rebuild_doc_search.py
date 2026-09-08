@@ -50,7 +50,6 @@ there is no "DB not found" error: the sidecar is created on first run
 Exit codes: 0 success/fresh, 1 fatal error OR --check detected drift.
 """
 
-import argparse
 import hashlib
 import json
 import re
@@ -67,9 +66,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from helpers.core.db import connect  # noqa: E402
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
 from helpers.core.fs_walk import iter_tree_files  # noqa: E402
+from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 
 # Module-level and monkeypatchable (the VAULT_ROOT lesson: import-bound root
 # constants silently point tests at the live vault — tests MUST retarget both).
@@ -229,25 +228,8 @@ _pseudo_warned = False
 def resolve_embedder() -> tuple[Callable[[str], list[float]], int, str]:
     """Index-side embedder: (embed_fn(text) -> list[float], dims, model_label)."""
     global _pseudo_warned
-    from helpers.core import local_embedder
-
-    if local_embedder.available():
-        return local_embedder.embed_document, local_embedder.DIM, local_embedder.MODEL_ID
-    if not _pseudo_warned:
-        print(
-            "WARNING: local bge-small embedder unavailable — using 64-dim "
-            "pseudo-embeddings (hybrid ranking stays lexical-ish). Setup: "
-            "helpers/core/local_embedder.py module docstring.",
-            file=sys.stderr,
-        )
-        _pseudo_warned = True
-
-    def _pseudo(text: str) -> list[float]:
-        from helpers.graph.embeddings import _pseudo_embedding
-
-        return _pseudo_embedding(text, _PSEUDO_DIMS)
-
-    return _pseudo, _PSEUDO_DIMS, f"dry-run-v{_PSEUDO_DIMS}"
+    fn, dims, label, _pseudo_warned = rbc.resolve_embedder(_pseudo_warned, _PSEUDO_DIMS)
+    return fn, dims, label
 
 
 def query_embedder() -> tuple[Callable[[str], list[float]], int]:
@@ -423,45 +405,13 @@ def _backup_last_good_index(db_path: Path) -> None:
     covered centrally instead (db_maint._backup_embed_store + the snapshot
     gzip stream) — never here.
     """
-    backups: list[tuple[Path, Path]] = [
-        (db_path, Path(BACKUP_DIR) / "doc_search_backup.db"),
-    ]
-    # Completeness guard (mirrors rebuild_script_search): never back up an
-    # EMPTY index.
-    try:
-        conn = connect(db_path, read_only=True)
-        try:
-            rows = conn.execute("SELECT COUNT(*) FROM doc_search").fetchone()[0]
-        finally:
-            conn.close()
-    except sqlite3.Error:
-        rows = 0
-    if not rows:
-        print(
-            f"WARNING: {db_path.name} empty ({rows} rows) — last-good "
-            "backup skipped (recovery point kept; rebuild continues)",
-            file=sys.stderr,
-        )
-        return
-    try:
-        Path(BACKUP_DIR).mkdir(parents=True, exist_ok=True)
-    except OSError:
-        print(
-            f"WARNING: cannot create backup dir {BACKUP_DIR} "
-            "(recovery point skipped; rebuild continues)",
-            file=sys.stderr,
-        )
-        return
-    for src, dest in backups:
-        if not src.exists():
-            continue
-        if _backup_file(src, dest):
-            continue
-        print(
-            f"WARNING: could not back up {src.name} to {dest} "
-            "(recovery point skipped; rebuild continues)",
-            file=sys.stderr,
-        )
+    rbc.backup_last_good_index(
+        db_path,
+        backup_dir=BACKUP_DIR,
+        table="doc_search",
+        dest_name="doc_search_backup.db",
+        copier=_backup_file,
+    )
 
 
 def _migrate_schema(conn: sqlite3.Connection) -> bool:
@@ -706,28 +656,12 @@ def _print_staleness(stats: dict) -> None:
     Mirrors the sync_sector_wikilinks --check shape: name the drift and
     the exact refresh command so gate output is actionable on its own.
     """
-    new = stats.get("stale_new", [])
-    changed = stats.get("stale_changed", [])
-    deleted = stats.get("stale_deleted", [])
-    if not (new or changed or deleted):
-        print(
-            f"index state: FRESH ({stats.get('total_files', 0)} files unchanged)", file=sys.stderr
-        )
-        return
-    print(
-        f"index state: STALE — {len(changed)} changed, {len(new)} new, {len(deleted)} deleted",
-        file=sys.stderr,
+    rbc.print_staleness(
+        stats,
+        count_key="total_files",
+        unit="files",
+        refresh_cmd="python3 helpers/maintenance/rebuild_doc_search.py",
     )
-    drift = (
-        [(fp, "changed") for fp in changed]
-        + [(fp, "new") for fp in new]
-        + [(fp, "deleted") for fp in deleted]
-    )
-    for fp, kind in drift[:10]:
-        print(f"  {kind:8s} {fp}", file=sys.stderr)
-    if len(drift) > 10:
-        print(f"  … and {len(drift) - 10} more", file=sys.stderr)
-    print("refresh: python3 helpers/maintenance/rebuild_doc_search.py", file=sys.stderr)
 
 
 def _mtime_of(root: Path | None, rel: str) -> float:
@@ -972,60 +906,27 @@ def search_docs(  # noqa: C901  # noqa anchor moved to the statement's diagnosti
     return {"mode": "hybrid" if cos_rank is not None else "bm25", "results": results}
 
 
-def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument(
-        "--db",
-        default=str(DOC_DB),
-        help="Path to the doc_search sidecar (default: memory/doc_search.db).",
-    )
-    p.add_argument(
-        "--check",
-        action="store_true",
-        help="Dry-run: count files/rows, report index freshness "
-        "(changed/new/deleted), no writes. Exits 1 when stale.",
-    )
-    p.add_argument(
-        "--incremental",
-        action="store_true",
-        help="Incremental rebuild (only re-index changed/deleted files).",
-    )
-    args = p.parse_args(argv)
-
-    try:
-        stats = rebuild(Path(args.db), write=not args.check, incremental=args.incremental)
-    except Exception as exc:  # pragma: no cover - defensive
-        print(f"ERROR: {exc}", file=sys.stderr)
-        return 1
-    print(
+def _summary_line(stats: dict) -> str:
+    return (
         f"doc_search: {stats.get('total_files', 0)} files / "
         f"{stats.get('total_rows', 0)} section rows "
-        f"({stats.get('embed_model', 'n/a')})",
-        file=sys.stderr,
+        f"({stats.get('embed_model', 'n/a')})"
     )
-    if not args.check:
-        print(f"indexed {stats.get('indexed', 0)} rows", file=sys.stderr)
-        if stats.get("migrated"):
-            print("(schema migrated: doc_search recreated)", file=sys.stderr)
-        emb = stats.get("embedded")
-        if emb is not None:
-            print(f"embedded {emb} rows", file=sys.stderr)
-            if "embed_cache_hits" in stats:
-                print(
-                    f"embed cache: {stats['embed_cache_hits']} hits, "
-                    f"{stats['embed_cache_misses']} misses",
-                    file=sys.stderr,
-                )
-        if stats.get("index_stale"):
-            print(
-                f"index was STALE before this rebuild: "
-                f"{len(stats.get('stale_changed', []))} changed, "
-                f"{len(stats.get('stale_new', []))} new, "
-                f"{len(stats.get('stale_deleted', []))} deleted — now fresh",
-                file=sys.stderr,
-            )
-        return 0
-    return 1 if stats.get("index_stale") else 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    return rbc.run_rebuild_cli(
+        argv,
+        description=__doc__.split("\n\n")[0],
+        default_db=str(DOC_DB),
+        db_help="Path to the doc_search sidecar (default: memory/doc_search.db).",
+        check_help="Dry-run: count files/rows, report index freshness "
+        "(changed/new/deleted), no writes. Exits 1 when stale.",
+        incremental_help="Incremental rebuild (only re-index changed/deleted files).",
+        rebuild_fn=rebuild,
+        summary=_summary_line,
+        migrated_msg="(schema migrated: doc_search recreated)",
+    )
 
 
 if __name__ == "__main__":

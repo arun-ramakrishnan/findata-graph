@@ -65,7 +65,6 @@ Exit codes: 0 success/fresh, 1 DB not found / fatal error OR --check
 detected drift (the house --check gate doctrine).
 """
 
-import argparse
 import hashlib
 import json
 import re
@@ -84,6 +83,7 @@ if str(_REPO_ROOT) not in sys.path:
 from helpers.core.db import connect, bump_generation  # noqa: E402
 from helpers.core.vec_search import sync_vec_table  # noqa: E402
 from helpers.core.frontmatter import split_frontmatter_with_title as _strip_frontmatter  # noqa: E402
+from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 
 DEFAULT_DB = _REPO_ROOT / "memory" / "research.db"
 FINDATA = _REPO_ROOT / "findata"
@@ -209,25 +209,8 @@ def resolve_embedder() -> tuple[Callable[[str], list[float]], int, str]:
     recorded in the stats report.
     """
     global _pseudo_warned
-    from helpers.core import local_embedder
-
-    if local_embedder.available():
-        return local_embedder.embed_document, local_embedder.DIM, local_embedder.MODEL_ID
-    if not _pseudo_warned:
-        print(
-            "WARNING: local bge-small embedder unavailable — using 64-dim "
-            "pseudo-embeddings (hybrid ranking stays lexical-ish). Setup: "
-            "helpers/core/local_embedder.py module docstring.",
-            file=sys.stderr,
-        )
-        _pseudo_warned = True
-
-    def _pseudo(text: str) -> list[float]:
-        from helpers.graph.embeddings import _pseudo_embedding
-
-        return _pseudo_embedding(text, _PSEUDO_DIMS)
-
-    return _pseudo, _PSEUDO_DIMS, f"dry-run-v{_PSEUDO_DIMS}"
+    fn, dims, label, _pseudo_warned = rbc.resolve_embedder(_pseudo_warned, _PSEUDO_DIMS)
+    return fn, dims, label
 
 
 def query_embedder() -> tuple[Callable[[str], list[float]], int]:
@@ -984,84 +967,51 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
 def _print_staleness(stats: dict) -> None:
     """--check verdict: FRESH, or the drift breakdown + remediation
     (mirrors rebuild_doc_search / rebuild_script_search --check shape)."""
-    new = stats.get("stale_new", [])
-    changed = stats.get("stale_changed", [])
-    deleted = stats.get("stale_deleted", [])
-    if not (new or changed or deleted):
-        print(f"index state: FRESH ({stats.get('total_docs', 0)} docs unchanged)", file=sys.stderr)
-        return
-    print(
-        f"index state: STALE — {len(changed)} changed, {len(new)} new, {len(deleted)} deleted",
-        file=sys.stderr,
+    rbc.print_staleness(
+        stats,
+        count_key="total_docs",
+        unit="docs",
+        refresh_cmd="python3 helpers/maintenance/rebuild_note_search.py",
     )
-    drift = (
-        [(fp, "changed") for fp in changed]
-        + [(fp, "new") for fp in new]
-        + [(fp, "deleted") for fp in deleted]
-    )
-    for fp, kind in drift[:10]:
-        print(f"  {kind:8s} {fp}", file=sys.stderr)
-    if len(drift) > 10:
-        print(f"  … and {len(drift) - 10} more", file=sys.stderr)
-    print("refresh: python3 helpers/maintenance/rebuild_note_search.py", file=sys.stderr)
 
 
-def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    p.add_argument(
-        "--db",
-        default=str(DEFAULT_DB),
-        help="Path to research.db (default: memory/research.db).",
-    )
-    p.add_argument(
-        "--check",
-        action="store_true",
-        help="Count indexable docs without writing (for CI / dry-run).",
-    )
-    p.add_argument(
-        "--incremental",
-        action="store_true",
-        help="Incremental rebuild (only re-index changed/deleted files, P2.1).",
-    )
-    args = p.parse_args(argv)
+def _summary_line(stats: dict) -> str:
+    by_type = stats.get("by_type", {})
+    breakdown = ", ".join(f"{t}={by_type[t]}" for t in sorted(by_type))
+    return f"note_search: {stats.get('total_docs', 0)} docs ({breakdown})"
 
-    db_path = Path(args.db)
+
+def _resolve_db(db_arg: str) -> Path | None:
+    """Anchor relative --db paths at the repo root; guard existence.
+
+    Returns None (after printing the ERROR) when the DB is missing —
+    run_rebuild_cli maps that to exit 1. Unlike the doc/script sidecars
+    (created on first run), note_search reads research.db, which must
+    already exist.
+    """
+    db_path = Path(db_arg)
     if not db_path.is_absolute():
         db_path = _REPO_ROOT / db_path
     if not db_path.exists():
         print(f"ERROR: database not found: {db_path}", file=sys.stderr)
-        return 1
+        return None
+    return db_path
 
-    stats = rebuild(db_path, write=not args.check, incremental=args.incremental)
-    by_type = stats.get("by_type", {})
-    breakdown = ", ".join(f"{t}={by_type[t]}" for t in sorted(by_type))
-    print(
-        f"note_search: {stats.get('total_docs', 0)} docs ({breakdown})",
-        file=sys.stderr,
+
+def main(argv: list[str] | None = None) -> int:
+    return rbc.run_rebuild_cli(
+        argv,
+        description=__doc__.split("\n\n")[0],
+        default_db=str(DEFAULT_DB),
+        db_help="Path to research.db (default: memory/research.db).",
+        check_help="Count indexable docs without writing (for CI / dry-run).",
+        incremental_help="Incremental rebuild (only re-index changed/deleted files, P2.1).",
+        rebuild_fn=rebuild,
+        summary=_summary_line,
+        migrated_msg="(schema migrated: note_search recreated with embedding column)",
+        resolve_db=_resolve_db,
+        handle_errors=False,
     )
-    if not args.check:
-        print(f"indexed {stats.get('indexed', 0)} rows", file=sys.stderr)
-        if stats.get("migrated"):
-            print("(schema migrated: note_search recreated with embedding column)", file=sys.stderr)
-        emb = stats.get("embedded")
-        if emb is not None:
-            print(f"embedded {emb} rows", file=sys.stderr)
-            if "embed_cache_hits" in stats:
-                print(
-                    f"embed cache: {stats['embed_cache_hits']} hits, "
-                    f"{stats['embed_cache_misses']} misses",
-                    file=sys.stderr,
-                )
-        if stats.get("index_stale"):
-            print(
-                f"index was STALE before this rebuild: "
-                f"{len(stats.get('stale_changed', []))} changed, "
-                f"{len(stats.get('stale_new', []))} new, "
-                f"{len(stats.get('stale_deleted', []))} deleted — now fresh",
-                file=sys.stderr,
-            )
-        return 0
-    return 1 if stats.get("index_stale") else 0
 
 
 if __name__ == "__main__":

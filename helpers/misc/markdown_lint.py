@@ -9,6 +9,12 @@ LINT-ONLY by design — there is deliberately no ``--fix`` here: the fixer
 rewrites whitespace wholesale and is forbidden over findata (proposal §5,
 the 2026-08-19 marker-collision incident).
 
+Targeted manual runs (2026-09-08 lesson): the config carries NO globs —
+they live in ``_CMD`` here — so ``npx markdownlint-cli2 <file>…`` lints
+exactly the named files (~0.5s; with a local pnpm install npx resolves
+without fetching). ``ignores`` in the config keeps
+node_modules/.venv/.cache/build trees out of every walk.
+
 Stale-scan cache (2026-09-01, ``archive/tooling/md_lint_cache.md``):
 verdicts are recorded per file in the
 gitignored sidecar ``memory/md_lint_cache.db`` keyed by content hash +
@@ -65,7 +71,20 @@ _CACHE_DB = REPO_ROOT / "memory" / "md_lint_cache.db"  # sidecar, gitignored
 # (the column is optional and the severity word is always present)
 _VIOLATION = re.compile(r"^.+?:\d+(?::\d+)?\s+(?:error|warning)\s+(MD\d+)(?:/\S+)?\s")
 _SAMPLE_LINES = 15  # raw violation lines shown under the digest when red
-_CMD = [_NPX or "npx", "-y", f"markdownlint-cli2@{MARKDOWNLINT_CLI2_VERSION}"]
+_CMD = [
+    _NPX or "npx",
+    "-y",
+    f"markdownlint-cli2@{MARKDOWNLINT_CLI2_VERSION}",
+    # Corpus globs live HERE, not in .markdownlint-cli2.jsonc (2026-09-08):
+    # cli2 unions config globs with explicit file args, so config-side
+    # globs made every targeted `npx markdownlint-cli2 <file>` run
+    # silently lint the whole corpus (~60s). Arg-side globs keep the
+    # gate's coverage identical and leave bare targeted runs exact.
+    # Zero-match arg globs are tolerated (verified: rc=0 when only one
+    # tree matches — the mirror-shard subset path depends on that).
+    "doc/**/*.md",
+    "findata/**/*.md",
+]
 
 
 def _digest_lines(lines: list[str]) -> tuple[int, int, Counter[str]]:
@@ -111,18 +130,20 @@ def _jsonc_loads(text: str) -> dict:
 
 
 def _corpus_files() -> list[Path]:
-    """Expand the config globs (``<root>/**/*.md``) minus ``ignores``.
+    """Expand the corpus globs (``<root>/**/*.md``) minus ``ignores``.
 
-    The walk must stay in sync with the config globs — a globs edit is a
-    rebuild (delete the sidecar), while rule/override edits self-flush via
-    the config-hash key.
+    The globs ride in ``_CMD`` (single source of truth with the cli2
+    invocation — see the 2026-09-08 note there); the walk derives its
+    roots from the same argv so the two can never drift. A globs edit
+    is a rebuild (delete the sidecar), while rule/override edits
+    self-flush via the config-hash key.
     """
     try:
         cfg = _jsonc_loads(_CONFIG_PATH.read_text(encoding="utf-8"))
         ignores = [str(p) for p in cfg.get("ignores", [])]
-        roots = sorted({str(g).split("/**", 1)[0] for g in cfg.get("globs", [])})
     except OSError, ValueError:
         return []
+    roots = sorted({str(a).split("/**", 1)[0] for a in _CMD if str(a).endswith("/**/*.md")})
     files: list[Path] = []
     for root in roots:
         base = REPO_ROOT / root

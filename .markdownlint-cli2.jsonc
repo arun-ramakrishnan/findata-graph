@@ -5,9 +5,22 @@
 // NOTE: override objects key on "filter" (not "globs") — a wrong key
 // silently no-ops the override (measured 2026-09-01).
 {
-  "globs": [
-    "doc/**/*.md",
-    "findata/**/*.md"
+  // NOTE (2026-09-08): NO "globs" here, deliberately. cli2 UNIONS config
+  // globs with explicit file arguments, so any targeted run
+  // (`npx markdownlint-cli2 some/file.md`) silently linted the whole
+  // corpus behind your back (~60s). The corpus globs live in the GATE
+  // wrapper's argv instead (helpers/misc/markdown_lint.py `_CMD`) —
+  // same coverage for `make md-lint`, and a bare targeted invocation
+  // now lints exactly the files you name (~0.5s, no --no-globs needed).
+  // ignores: keep heavy non-source trees out of every walk.
+  "ignores": [
+    "**/node_modules/**",
+    "**/.venv/**",
+    "**/.cache/**",
+    "**/.git/**",
+    "Mojo/bin/**",
+    "db-backup/**",
+    "snapshots/**"
   ],
   "noBanner": true,
   "noProgress": true,
