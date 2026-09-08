@@ -2523,6 +2523,136 @@ def _symbol_variants(key: str) -> list[str]:
     return out
 
 
+# --- person/role catch-all tier (2026-09-08, chairman-quotes directive) ----
+# A company-shaped heading that names a PERSON — `### SEBI Chairman | …`,
+# `Brad Setser`, `Dr. Rohit Chandra` — resolves in no company tier. The S2
+# terminus dropped those quotes to the G2 worklist; the Quotes catch-all is
+# their home instead (user directive: chairman/regulator quotes are recorded
+# on Quotes.md). Fires ONLY after every tier misses, so a name that resolves
+# anywhere is untouched; a company-shaped name misrouted here stays
+# recoverable — rows carry the raw heading and land on the same triage
+# surface as sector catch-all rows.
+_PERSON_ROLE_WORDS = frozenset(
+    w.lower()
+    for w in (
+        "Chairman",
+        "Chairperson",
+        "Vice",
+        "Deputy",
+        "Governor",
+        "Minister",
+        "Secretary",
+        "Economist",
+        "President",
+        "Director",
+        "Commissioner",
+    )
+)
+_PERSON_HONORIFICS = frozenset({"dr", "dr.", "shri", "smt", "mr", "mr.", "mrs", "ms", "ms."})
+# Tokens that mark a Titlecase name as a company/brand shape even when the
+# rest looks personal — a heading carrying any of these stays on the
+# worklist, never the catch-all.
+_COMPANYISH_TOKENS = frozenset(
+    w.lower()
+    for w in (
+        "Limited",
+        "Ltd",
+        "PLC",
+        "Private",
+        "Pvt",
+        "Company",
+        "Corporation",
+        "Corp",
+        "Industries",
+        "Industrial",
+        "Technologies",
+        "Technology",
+        "Tech",
+        "Enterprises",
+        "Holdings",
+        "Group",
+        "Solutions",
+        "Services",
+        "Systems",
+        "Labs",
+        "Laboratories",
+        "Chemicals",
+        "Pharma",
+        "Pharmaceuticals",
+        "Steel",
+        "Cement",
+        "Power",
+        "Energy",
+        "Motors",
+        "Auto",
+        "Automotive",
+        "Bank",
+        "Banking",
+        "Insurance",
+        "Finance",
+        "Financial",
+        "Capital",
+        "Markets",
+        "Retail",
+        "Hospitals",
+        "Healthcare",
+        "Foods",
+        "Ventures",
+        "Developers",
+        "Constructions",
+        "Engineering",
+        "Electronics",
+        "Electricals",
+        "Telecom",
+        "Textiles",
+        "Refinery",
+        "Aviation",
+        "Airlines",
+        "Logistics",
+        "Media",
+        "Entertainment",
+        "Realty",
+        "India",
+        "Bharat",
+        "Hindustan",
+        "Bharati",
+        "Global",
+        "International",
+        "National",
+    )
+)
+_NAME_TOKEN_RE = re.compile(r"^[A-Z][A-Za-z.'\u2019-]*$")
+
+
+def _person_role_heading(name: str) -> bool:
+    """True when a company-shaped canonical names a person, not a business.
+
+    Two shapes, either suffices: a role title (`SEBI Chairman`, `RBI Deputy
+    Governor` — any role word) or a personal-name shape (2–4 tokens, each an
+    honorific or a Capitalized name token, no company-indicative token, no
+    digits or `&`). Single-token names stay on the worklist — a lone
+    Titlecase word is more likely a brand (`Lenskart`) than a person.
+    """
+    tokens = name.split()
+    if not tokens:
+        return False
+    lowered = [t.lower() for t in tokens]
+    if any(t in _PERSON_ROLE_WORDS for t in lowered):
+        return True
+    if not 2 <= len(tokens) <= 4:
+        return False
+    saw_name = False
+    for tok, low in zip(tokens, lowered):
+        if low in _COMPANYISH_TOKENS:
+            return False
+        if low in _PERSON_HONORIFICS:
+            continue
+        if not _NAME_TOKEN_RE.match(tok):
+            return False  # digits, lowercase words, `&`, punctuation junk
+        saw_name = True
+    return saw_name
+
+
 _MERGED_ALIASES_CACHE: dict[tuple[str, int, int], dict[str, str]] = {}
 """mtime/size-keyed cache for :func:`_merged_quote_aliases` (perf: it is
 read once per note scan and once per T6 ladder miss — thousands of times
@@ -2616,15 +2746,27 @@ def _extract_sections(
 ) -> tuple[list[Quote], list[Metric]]:
     """Resolve section names against the map, then extract quotes + metrics.
 
-    Shared core of every scan path (file read, corpus text, pool worker);
+    Shared core of every scan path (file read, corpus text, pool worker),
     rewrites ``section.canonical_name`` in place to the resolved db name.
+    A company-shaped heading that names a person and resolves in no tier
+    routes to the Quotes catch-all (quotes only, no metrics — non-company
+    entities follow sector discipline) with the raw heading stamped as
+    provenance, mirroring ``iter_sector_sections`` rows.
     """
     quotes: list[Quote] = []
     metrics: list[Metric] = []
     for section in sections:
         entity_name, _tier, _sugg = _resolve_ladder(section.canonical_name, resolver_map)
         if not entity_name:
-            continue  # S2 terminus: worklist/audit visibility, never silent capture
+            if not _person_role_heading(section.canonical_name):
+                continue  # S2 terminus: worklist/audit visibility, never silent capture
+            raw_heading = re.sub(r"^\s*#+\s*", "", section.body.split("\n", 1)[0]).strip()
+            section.canonical_name = _CATCH_ALL_ENTITY
+            for q in extract_quotes(section, edition, stem):
+                q.properties["kind"] = "catch_all"
+                q.properties["heading"] = raw_heading
+                quotes.append(q)
+            continue
         section.canonical_name = entity_name
         quotes.extend(extract_quotes(section, edition, stem))
         metrics.extend(extract_metrics(section, edition, stem))

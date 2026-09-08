@@ -480,7 +480,15 @@ If multiple rows (legacy dupes), pick the one whose `file_path` resolves. If no 
 
 Newsletter editions often carry **interviews / podcasts / op-eds that are not tied to one company** but speak to a whole sector (e.g. a microfinance cycle, a regulatory shift, a commodity supercycle). Capture these on the **sector note**, not on any single company note. Same edition-block shape, but the heading uses the sector name and bullets synthesize the expert's thesis (not one company's numbers).
 
-Detection: a section listed under `## Interviews/Podcasts` (or otherwise lacking a `## <Company> | …` header) whose speaker is a journalist / advisor / regulator / consultant, and whose content ranges across multiple players or industry-wide dynamics. Map it to the closest canonical sector (see the 42-sector list); if none fits cleanly, skip — do not force-fit.
+Detection: a section listed under `## Interviews/Podcasts` (or otherwise lacking a `## <Company> | …` header) whose speaker is a journalist / advisor / regulator / consultant, and whose content ranges across multiple players or industry-wide dynamics.
+
+Routing (in order):
+
+1. **Person/regulator-anchored commentary — chairman quotes go to Quotes.md.** When the section anchors to a *person*, not a listed company (regulator addresses, chairman/executive speeches under headings like `### SEBI Chairman | …` or a `# Regulator` sector header), append the edition block to the quote catch-all note **`findata/Super_Sectors/Quotes.md`** (10th super-sector, `quote_capture_coverage` S4). Never create a person/role entity for the speaker, and do not force-fit the content onto a canonical sector note — a regulator speech about markets is not Capital_Markets commentary.
+2. **Sector-wide commentary that fits a canonical sector** (see the 42-sector list): append to that sector note (rule below).
+3. **Nothing is skipped for lack of a fit** — the Quotes note is the terminal tier, mirroring `derive_insights`, which routes unmatched sector-context headings to the same Quotes home as sentinel auto blocks. A hand-written (non-sentinel) block for an edition suppresses that edition's auto catch-all block there — same curation-safety rule as company notes.
+
+Routing provenance: `doc/improvements/archive/graph/quote_capture_coverage.md` (S4 catch-all design + the `Regulator → Banking` synonym call for RBI editions) and `doc/improvements/archive/graph/derive_render_shared_note_grouping.md` (shared-note render + hand-block curation safety).
 
 ```markdown
 ## The Chatter — <edition title>

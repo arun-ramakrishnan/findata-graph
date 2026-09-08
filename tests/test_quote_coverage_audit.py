@@ -135,6 +135,17 @@ class TestOpeningsAndCoverage:
         )
         assert not qca.opening_covered('"Something else entirely different text here."', keys)
 
+    def test_quote_space_opening_matches_stored_row(self):
+        # Regression (2026-09-08): `" $88 \%$ …` (quote + space, local-engine
+        # LaTeX era) left a leading space in _cn after the quote-strip, so
+        # both 60-char prefix comparisons failed against the stored row text
+        # and captured quotes misreported as G3 (all 7 residual G3 rows).
+        row = "$88 \\%$ of the country is not participating in the car growth story"
+        keys = qca.coverage_keys([row])
+        assert qca.opening_covered(
+            '" $88 \\%$ of the country is not participating in the car growth story"', keys
+        )
+
     def test_shape_of(self):
         assert qca._shape_of('- "bullet quote"') == "bullet/blockquote"
         assert qca._shape_of('> "blockquote quote"') == "bullet/blockquote"

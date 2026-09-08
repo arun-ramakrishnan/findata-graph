@@ -191,8 +191,7 @@ def _sync_from_corpus(
                 missing_files.append((name, file_path))
                 continue
         tags = allowed_tags(split_front_matter(note.text))
-        seen = set()
-        uniq = [t for t in tags if not (t in seen or seen.add(t))]  # type: ignore[arg-type,func-returns-value]
+        uniq = list(dict.fromkeys(tags))
         if not uniq:
             if entity_type != "edition":
                 no_tags.append(name)

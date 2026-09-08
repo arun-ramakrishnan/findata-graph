@@ -180,7 +180,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 78 company note(s) in Engineering_Capital_Goods. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 79 company note(s) in Engineering_Capital_Goods. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[AB_Volvo|AB Volvo]]
 - [[ABB_India|ABB India]]
@@ -227,6 +227,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 - [[Kirloskar_Pneumatic_Company|Kirloskar Pneumatic Company]]
 - [[Kubota_Corporation|Kubota Corporation]]
 - [[Larsen_and_Toubro|Larsen and Toubro]]
+- [[Lumino_Industries|Lumino Industries]]
 - [[MandB_Engineering|M&B Engineering]]
 - [[Nelcast]]
 - [[Orient_Electric|Orient Electric]]

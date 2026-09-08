@@ -110,15 +110,16 @@
    "status": "closed"
   },
   "The_Chatter/Bajaj_Mahindra_Persistent": {
+   "accepted": 0,
    "buckets": {
     "G2": 13
    },
    "closed_by": "recovered (coverage 100%)",
    "coverage": 1.0,
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-08",
    "openings": 101,
-   "runs_seen": 21,
+   "runs_seen": 22,
    "status": "closed"
   },
   "The_Chatter/Bets and blueprints": {
@@ -521,16 +522,30 @@
    "runs_seen": 7,
    "status": "closed"
   },
+  "The_Chatter/Maruti_Lumino_Indian_Bank": {
+   "accepted": 0,
+   "buckets": {
+    "G2": 10
+   },
+   "closed_by": "recovered (coverage 100%)",
+   "coverage": 1.0,
+   "first_seen": "2026-09-08",
+   "last_seen": "2026-09-08",
+   "openings": 46,
+   "runs_seen": 1,
+   "status": "closed"
+  },
   "The_Chatter/Max_Life_Tempsens_TCS": {
+   "accepted": 0,
    "buckets": {
     "G2": 9
    },
    "closed_by": "recovered (coverage 100%)",
    "coverage": 1.0,
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-08",
    "openings": 51,
-   "runs_seen": 21,
+   "runs_seen": 22,
    "status": "closed"
   },
   "The_Chatter/Meesho_Marico_Bajaj": {
@@ -924,15 +939,16 @@
    "status": "closed"
   },
   "The_Chatter/TCS_Indian_Bank_Amagi": {
+   "accepted": 0,
    "buckets": {
     "G2": 11
    },
    "closed_by": "recovered (coverage 100%)",
    "coverage": 1.0,
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-08",
    "openings": 106,
-   "runs_seen": 21,
+   "runs_seen": 22,
    "status": "closed"
   },
   "The_Chatter/Tailwinds_building": {

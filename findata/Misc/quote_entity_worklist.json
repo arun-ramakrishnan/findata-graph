@@ -1409,13 +1409,14 @@
    "suggestions": []
   },
   "Brad Setser": {
+   "closed_by": "canonical resolves on a later run",
    "decision": "discard",
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-08",
    "notes": [
     "The_Chatter/Bajaj_Mahindra_Persistent"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Brigade Enterprises": {
@@ -1888,13 +1889,14 @@
    "suggestions": []
   },
   "D.B.": {
+   "closed_by": "canonical resolves on a later run",
    "decision": "discard",
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-08",
    "notes": [
     "The_Chatter/The_Known_Unknowns"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "DB Corp": {
@@ -2228,13 +2230,14 @@
    "suggestions": []
   },
   "Dr. Rohit Chandra": {
+   "closed_by": "canonical resolves on a later run",
    "decision": "discard",
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-08",
    "notes": [
     "The_Chatter/Max_Life_Tempsens_TCS"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Dreamfolks Services": {
@@ -6329,13 +6332,14 @@
    "suggestions": []
   },
   "RBI Deputy Governor": {
+   "closed_by": "canonical resolves on a later run",
    "decision": "discard",
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-08",
    "notes": [
     "The_Chatter/RBI_3M_Blue_Star_KFin"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "RBM Infracon": {
@@ -6630,6 +6634,16 @@
    "last_seen": "2026-09-07",
    "notes": [
     "The_Chatter/Reliance_PayTM_Nykaa"
+   ],
+   "status": "resolved",
+   "suggestions": []
+  },
+  "SEBI Chairman": {
+   "closed_by": "canonical resolves on a later run",
+   "first_seen": "2026-09-08",
+   "last_seen": "2026-09-08",
+   "notes": [
+    "The_Chatter/Maruti_Lumino_Indian_Bank"
    ],
    "status": "resolved",
    "suggestions": []
@@ -7510,13 +7524,14 @@
    "suggestions": []
   },
   "Tamal Bandyopadhyay": {
+   "closed_by": "canonical resolves on a later run",
    "decision": "discard",
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-08",
    "notes": [
     "The_Chatter/TCS_Indian_Bank_Amagi"
    ],
-   "status": "open",
+   "status": "resolved",
    "suggestions": []
   },
   "Tata Capital": {

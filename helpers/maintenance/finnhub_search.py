@@ -128,8 +128,7 @@ def probe_queries(name: str) -> list[str]:
         out.append(" ".join(words[:2]))
     if len(words) >= 2:
         out.append(words[0])
-    seen: set[str] = set()
-    return [q for q in out if not (q in seen or seen.add(q))]
+    return list(dict.fromkeys(out))
 
 
 def fh_search_multi(

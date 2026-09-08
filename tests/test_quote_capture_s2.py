@@ -149,3 +149,72 @@ class TestBuildResolverMap:
         assert m["zenith"] == "Zenith"
         assert m["mrf"] == "MRF"
         assert len(m) == 4  # 3 names + Acme's underscore variant (MRF dedupes)
+
+
+class TestPersonRoleCatchAll:
+    """Person/role catch-all tier (2026-09-08): chairman quotes go to
+    Quotes.md — a company-shaped heading naming a person routes to the
+    catch-all entity after every company tier misses."""
+
+    # Role-titled headings.
+    @pytest.mark.parametrize(
+        "name",
+        ["SEBI Chairman", "RBI Deputy Governor", "Finance Minister", "Chief Economist"],
+    )
+    def test_role_word_routes(self, name):
+        assert di._person_role_heading(name) is True
+
+    # Personal-name shapes (incl. honorific + long Indian names).
+    @pytest.mark.parametrize("name", ["Brad Setser", "Dr. Rohit Chandra", "Tamal Bandyopadhyay"])
+    def test_name_shape_routes(self, name):
+        assert di._person_role_heading(name) is True
+
+    # Company/brand shapes stay on the worklist, never the catch-all.
+    @pytest.mark.parametrize(
+        "name",
+        [
+            "Bajaj Hindustan",  # companyish geo token
+            "Lenskart Solutions",  # companyish suffix
+            "Titan Company",  # companyish suffix
+            "Lenskart",  # single token — brand-shaped
+            "3M India",  # digit token
+            "Mahindra & Mahindra",  # `&` shape
+        ],
+    )
+    def test_company_shapes_stay_worklisted(self, name):
+        assert di._person_role_heading(name) is False
+
+    def test_ambiguous_titlecase_triple_routes_recoverably(self):
+        # `Totally Unknown Things` is a bare Titlecase triple — undecidable
+        # as person vs company by shape. The tier routes it to the catch-all
+        # (nothing on the floor) with the raw heading stamped on the row, so
+        # a misroute is recoverable via the Quotes triage surface; the ladder
+        # itself still reports miss + suggestions (test_miss_with_suggestions).
+        assert di._person_role_heading("Totally Unknown Things") is True
+
+    def test_extract_sections_routes_person_to_catch_all(self):
+        note = (
+            "### SEBI Chairman | 30 years of NSE Clearing Limited\n"
+            '"Novation and netting transformed individual promises into obligations."\n'
+            "- Shri Tuhin Kanta Pandey, Chairman, SEBI\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        assert [s.canonical_name for s in sections] == ["SEBI Chairman"]
+        quotes, metrics = di._extract_sections(sections, "ed", "stem", {})
+        assert len(quotes) == 1
+        assert quotes[0].entity == di._CATCH_ALL_ENTITY
+        assert quotes[0].properties["kind"] == "catch_all"
+        assert quotes[0].properties["heading"] == (
+            "SEBI Chairman | 30 years of NSE Clearing Limited"
+        )
+        assert metrics == []  # sector discipline: no metrics off persons
+
+    def test_extract_sections_unknown_company_still_misses(self):
+        note = (
+            "## Bajaj Hindustan | Mid Cap | FMCG\n"
+            '"A company quote that is long enough to count for the walker."'
+            "- Jane Smith, CFO\n"
+        )
+        sections = list(di.iter_company_sections(note))
+        quotes, metrics = di._extract_sections(sections, "ed", "stem", {})
+        assert quotes == [] and metrics == []  # terminus, worklist visibility

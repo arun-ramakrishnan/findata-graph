@@ -233,7 +233,11 @@ def opening_lines(text: str) -> list[int]:
 
 
 def _cn(s: str) -> str:
-    return re.sub(r"\s+", " ", s.strip().strip('"')).casefold()[:80]
+    # .strip() AFTER the quote-strip too: an opening like `" $88 \%$ …`
+    # (quote + space — local-engine LaTeX era) left a leading space that
+    # broke both 60-char prefix comparisons against the stored row text
+    # and misreported captured quotes as G3 (2026-09-08).
+    return re.sub(r"\s+", " ", s.strip().strip('"').strip()).casefold()[:80]
 
 
 def coverage_keys(rows: list[str]) -> list[str]:
@@ -316,6 +320,11 @@ def audit_note(  # noqa: C901
             ent, _tier, sugg = di._resolve_ladder(r.canonical, resolver_map)
             if ent:
                 canon_entity[r.canonical] = ent
+                r.kind = "company_resolved"
+            elif di._person_role_heading(r.canonical):
+                # Person/role heading -> Quotes catch-all (parity with
+                # _extract_sections; walker keys mark it non-resolved).
+                canon_entity[r.canonical] = di._CATCH_ALL_ENTITY
                 r.kind = "company_resolved"
             else:
                 canon_sugg[r.canonical] = sugg
