@@ -6,7 +6,9 @@ revisit triggers inline; executed work is compressed to records.
 
 - **Re-evaluate HNSW index macros** (deferred N5 item 5). `hnsw_index_scan`,
   `vss_match`, and `pragma_hnsw_index_info` emit empty-signature binder errors
-  on the vss build (re-verified on DuckDB 1.5.5 + Onager 49ad15b; extension
+  on the vss build (these are DuckDB extension macro names, not repo symbols —
+  an undefined-anchor reading here is intended; re-verified on DuckDB 1.5.5 +
+  Onager 49ad15b; extension
   binaries unchanged since 2026-08-14/09 — nothing new upstream to test).
   Brute-force VSS works (~3ms @ 1k) so nothing is broken today; revisit via
   quarterly `make update-extensions` (~Nov 2026) and re-test the macros

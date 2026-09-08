@@ -348,6 +348,13 @@ def apply_edges(
 # --------------------------------------------------------------------------- #
 # CLI                                                                         #
 # --------------------------------------------------------------------------- #
+_ARGS = dcli.DeriveArgsSpec(
+    apply_help="Write edges to graph_edges (default: dry-run summary only).",
+    stale_help="S1c: skip when no source newer than last derived.",
+    corpus=False,
+)
+
+
 def _cli(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         description="Derive co_mentioned_in edges from newsletter enhancement blocks.",
@@ -358,12 +365,7 @@ def _cli(argv: list[str] | None = None) -> int:
         choices=sorted(NEWSLETTER_TITLES),
         help="Newsletter slug (default: The_Chatter)",
     )
-    dcli.add_derive_args(
-        p,
-        apply_help="Write edges to graph_edges (default: dry-run summary only).",
-        stale_help="S1c: skip when no source newer than last derived.",
-        corpus=False,
-    )
+    dcli.add_derive_args(p, _ARGS)
     args = p.parse_args(argv)
 
     editions = extract_co_mentions(args.newsletter)

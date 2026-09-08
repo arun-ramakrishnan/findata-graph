@@ -40,6 +40,7 @@ import math
 import os
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -266,23 +267,36 @@ def _pool_embed_chunk(arg: tuple[int, list[str]]) -> tuple[int, list[list[float]
     return start, out
 
 
+@dataclass(frozen=True)
+class PinnedPoolSpec:
+    """The per-backend pool hooks for :func:`run_pinned_pool`.
+
+    One concern — how workers boot and chew chunks — bundled so the
+    pool plumbing signature stays (chunks, workers, spec). The BGE
+    production pool and the bench GGUF probe differ ONLY in these
+    three fields.
+    """
+
+    initializer: Callable
+    initargs: tuple
+    chunk_fn: Callable[[tuple[int, list[str]]], tuple[int, list[list[float]]]]
+
+
 def run_pinned_pool(
     chunks: list[tuple[int, list[str]]],
     *,
     workers: int,
-    initializer: Callable,
-    initargs: tuple,
-    chunk_fn: Callable[[tuple[int, list[str]]], tuple[int, list[list[float]]]],
+    spec: PinnedPoolSpec,
 ) -> list[list[float]]:
     """Spawn-pool mechanics for pinned parallel embedding.
 
     Shared by :func:`embed_documents_parallel` and the bench GGUF probe
     (helpers/bench/embed_pool_probe.py — it loads an alternate model file,
-    so its INITIALIZER differs; the pool plumbing must not). Contract:
+    so its spec differs; the pool plumbing must not). Contract:
     spawn context, core-pinning queue (one distinct core per worker,
     claimed before model load), order-preserving gather, fail-loud
-    unfilled-slot guard. ``initializer`` is called as
-    ``initializer(core_queue, *initargs)``.
+    unfilled-slot guard. ``spec.initializer`` is called as
+    ``initializer(core_queue, *spec.initargs)``.
     """
     import multiprocessing as mp
 
@@ -294,8 +308,10 @@ def run_pinned_pool(
     total = chunks[-1][0] + len(chunks[-1][1]) if chunks else 0
     out: list[list[float] | None] = [None] * total
     try:
-        with ctx.Pool(workers, initializer=initializer, initargs=(core_queue, *initargs)) as pool:
-            for start, vecs in pool.map(chunk_fn, chunks):
+        with ctx.Pool(
+            workers, initializer=spec.initializer, initargs=(core_queue, *spec.initargs)
+        ) as pool:
+            for start, vecs in pool.map(spec.chunk_fn, chunks):
                 for j, vec in enumerate(vecs):
                     out[start + j] = vec
     finally:
@@ -325,7 +341,9 @@ def embed_documents_parallel(texts: list[str], workers: int | None = None) -> li
     bounds = [(i * len(texts) // n, (i + 1) * len(texts) // n) for i in range(n)]
     chunks = [(start, texts[start:end]) for start, end in bounds if end > start]
     return run_pinned_pool(
-        chunks, workers=n, initializer=_pool_init, initargs=(), chunk_fn=_pool_embed_chunk
+        chunks,
+        workers=n,
+        spec=PinnedPoolSpec(initializer=_pool_init, initargs=(), chunk_fn=_pool_embed_chunk),
     )
 
 

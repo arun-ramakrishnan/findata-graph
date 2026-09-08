@@ -374,15 +374,17 @@ def apply_edges(edges, *, conn=None, dry_run: bool = True) -> int:
 # --------------------------------------------------------------------------- #
 # CLI                                                                         #
 # --------------------------------------------------------------------------- #
+_ARGS = dcli.DeriveArgsSpec(
+    apply_help="Write theme entities + edges (default: dry-run summary only).",
+    stale_help="S1c: skip when no source newer than last derived (no-op cut for maint --full).",
+)
+
+
 def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(
         description="Derive exposed_to (company -> theme) edges from company notes.",
     )
-    dcli.add_derive_args(
-        p,
-        apply_help="Write theme entities + edges (default: dry-run summary only).",
-        stale_help="S1c: skip when no source newer than last derived (no-op cut for maint --full).",
-    )
+    dcli.add_derive_args(p, _ARGS)
     args = p.parse_args(argv)
 
     conn = connect()

@@ -594,18 +594,20 @@ def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> ReplaceRes
 # --------------------------------------------------------------------------- #
 # CLI                                                                         #
 # --------------------------------------------------------------------------- #
+_ARGS = dcli.DeriveArgsSpec(
+    apply_help="Write event rows (default: dry-run summary only).",
+    stale_help="S1c: skip when no source newer than last derived.",
+    corpus=False,
+    verbose_help="Print every event in addition to the summary.",
+)
+
+
 def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(
         description="Derive the events timeline table (acquisition/jv/guidance/"
         "management_change) from graph_edges + company-note prose.",
     )
-    dcli.add_derive_args(
-        p,
-        apply_help="Write event rows (default: dry-run summary only).",
-        stale_help="S1c: skip when no source newer than last derived.",
-        corpus=False,
-        verbose_help="Print every event in addition to the summary.",
-    )
+    dcli.add_derive_args(p, _ARGS)
     args = p.parse_args(argv)
 
     conn = connect()

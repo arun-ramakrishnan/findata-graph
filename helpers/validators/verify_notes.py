@@ -429,18 +429,19 @@ class NotesVerifier:
                     f"{date_field} date should be quoted in YAML",
                 )
 
-    def _check_title_unquoted(
-        self, file_path, data, yaml_content, *, severity="issue", issue_type="yaml_structure"
-    ):
+    def _check_title_unquoted(self, file_path, data, yaml_content):
+        """Title should not be quoted. The severity variant derives from
+        the note's own type (sector/super_sector: hard issue under
+        yaml_structure; company: advisory under company_title_quoted)."""
+        company = data.get("type") == "company"
         if "title" in data:
             m = re.search(r"title:\s*([^'\n]+)", yaml_content)
-            if m and m.group(1).strip().startswith('"') and m.group(1).strip().endswith('"'):
-                log = self.log_warning if severity == "warning" else self.log_issue
-                log(
-                    issue_type,
-                    file_path,
-                    f"Title should not be quoted in YAML: {m.group(1).strip()}",
-                )
+            if m and (t := m.group(1).strip()).startswith('"') and t.endswith('"'):
+                msg = f"Title should not be quoted in YAML: {t}"
+                if company:
+                    self.log_warning("company_title_quoted", file_path, msg)
+                else:
+                    self.log_issue("yaml_structure", file_path, msg)
 
     def _check_expected_fields(self, file_path, data, expected):
         unexpected = set(data.keys()) - expected
@@ -548,10 +549,8 @@ class NotesVerifier:
 
         # title should NOT be quoted (mirrors the sector check; D3 extended this
         # to company notes after a one-time unquote of 421 quoted titles).
-        # Company-severity variant: advisory, own issue type.
-        self._check_title_unquoted(
-            file_path, data, yaml_content, severity="warning", issue_type="company_title_quoted"
-        )
+        # Company-severity variant: advisory, own issue type (derived from type).
+        self._check_title_unquoted(file_path, data, yaml_content)
 
         # unlisted marker: ticker:null is meaningful (an unlisted company), so
         # it should be explicit rather than implicit-null. Advisory (D3).

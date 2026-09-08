@@ -4886,3 +4886,81 @@ noted). Verified: 472 tests across 22 touched suites; `make qa` 9/9 +
 `make advisory` 10/10 on the final tree (first passes caught shebangs +
 stale snapshot generation + stale script-index fingerprints + one S608
 — all fixed, re-run green); maint-full 14/14 twice (S3, S6).
+
+---
+
+## 217. CLI param bundling + live doc-anchor repair + relation harvest — #216 follow-up
+
+**Date**: 2026-09-09
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/cli_param_bundling_doc_anchor_repair.md` (filed 2026-09-08, revised 2026-09-09 with a review pass)
+
+Closed the 8 params/verbosity debt rows #216 left visible, repaired the
+selected doc-drift surface, and ran the first relation harvest on the
+expanded corpus (the #215 expansion). Three slices, S1 → S2 → S3.
+
+### S1 — param bundling (the 8 rows fixed, not acked)
+
+Five frozen spec dataclasses now carry the per-index config:
+`RebuildCliSpec`, `QueryCliSpec`, `IndexBackupSpec` (rebuild_common.py),
+`DeriveArgsSpec` (derive_cli.py), `PinnedPoolSpec` (local_embedder.py).
+`run_query_cli` 14→2 params, `run_rebuild_cli` 12→2,
+`backup_last_good_index` 5→2, `add_derive_args` 5→2, `run_pinned_pool`
+5→3; 14 caller sites migrated. One symbol closed by param reduction
+past the proposal's own suggestion: `_check_title_unquoted` derives the
+severity variant from the note's `type` field (the dispatcher's
+discriminator) — 4 params, no flag at any call site. Specs holding
+monkeypatchable module globals (`backup_dir`, copier) are constructed
+inside the wrappers at call time (contract documented in
+rebuild_common's docstring); derive specs hoisted to module constants
+(static strings) so `_cli` LOC did not grow. Measured: `--quality-delta`
+regressions 0 / gating 0 / new-symbol 0 / exit 0; full lenient
+`--quality-panel` sweep (2,955 rows) — all 7 symbols and all 5 new
+specs under every absolute bar. The 15 `short-horizon-churn` rows from
+deliberately re-touching #216's symbols one day later were acked with
+that reason — the arc's only new acks.
+
+Tooling law discovered: ripwire DELETES a `.ripwire_quality_baseline`
+pinned at any sha ≠ current HEAD (self-heal before git-HEAD fallback),
+so committed debt is invisible to `--quality-delta` by design — closure
+of committed debt is proven by the absolute-bar panel sweep, never by
+delta against a reconstructed ancestor floor.
+
+### S2 — anchor repair (selected surface 0 rot)
+
+6 re-points + 1 annotation, symbol-only refs preferred where the lane
+supports them: quote_capture_coverage ×2 (`_PROSE_START` ladder,
+`iter_company_sections`), code_duplication_consolidation ×2
+(liteparse_post shrink, embed_documents_parallel), ripwire_adoption
+(rename note to `_VssRunIndex`), archive/README #201 topic line
+(`_connect_ro` folded), pending.md HNSW macros annotated
+undefined-by-intent (extension macro names, not repo symbols). Two
+drift rows discovered mid-arc and fixed in the same pass: the
+proposal's own §3 line cites (moved by S1 itself — re-worded
+symbol-only) and `doc/design/db_schema.md` `deal_value` (a
+`metric_label` enum value no extractor emits).
+
+### S3 — relation harvest (queue 0/0, +4 edges, +2 companies)
+
+Denominator captured first (dry-run): 114 files, 104 extractable edges,
+12 unresolved, 7 suppressed, 2 ambiguous. Apply +2 edges; suggest +4
+(of 25, rest deduped); triage 12 prose rows → 2 stubs (Circle,
+American Express — real companies with explicit partnership quotes,
+absent from DB; both alias-candidate hints were word-overlap false
+positives, rejected) + 10 noise discards. Stubs created via
+`parse_newsletter.create_entity` (entity + part_of/has_company edges +
+note; companies 1163→1165); re-extract landed both `jv_with` edges
+(47→49). The #169 re-entry lesson observed live: the 10 discarded noise
+rows re-entered on the very next extract and were re-discarded with
+notes. Queue 0 suggested / 0 prose; `make graph-rebuild` clean. One
+stub-teaching detail: verify_notes name_sync caught a
+normalized_name/filename mismatch in the hand-written American_Express
+stub before it could gate.
+
+### Verification
+
+`make qa` 9/9 AND `make advisory` 10/10 on the first run — zero
+gate-driven fixups (vs four at #216): pytest 2,646 passed + 3 skipped,
+live-invariants 218 passed, all search-index checks fresh, snapshot
+current. Touched-suite pre-verification during the slices (282 + 93 +
+82 + 66) predicted the first-run green.

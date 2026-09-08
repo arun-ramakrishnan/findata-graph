@@ -117,7 +117,8 @@ rationale never in-budget — recall ≠ extraction); **L5** legend tax
 
 Arm B's (recorded, not buried): **F-B1** fixed registry @ wrong commit,
 no worktree awareness; **F-B2** SILENT staleness — September symbols
-(`_net_income_series`, `VssRunIndex`) on disk in the indexed root → 0
+(`_net_income_series`, VssRunIndex — since renamed `_VssRunIndex`) on
+disk in the indexed root → 0
 hits, no warning, while old `display_ticker` still resolves (dates the
 index). Disqualifying for a map tool. **F-B3** Mojo import-as-Function
 mislabel + 2 missed importers (`index_status` shows `parse_partial`

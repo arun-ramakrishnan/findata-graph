@@ -9,7 +9,9 @@ pieces; each script keeps its own description, corpus-load strategy,
 derive body and report (S6, code_duplication_consolidation). The gate
 returns ``(skip, db_max)`` instead of printing, because each script's
 skip line carries its own label and unit wording — those strings are
-pinned by tests and by the maint-full log reader's eye.
+pinned by tests and by the maint-full log reader's eye. Per-script help
+strings are bundled into :class:`DeriveArgsSpec` (S1,
+cli_param_bundling_doc_anchor_repair, 2026-09-09).
 """
 
 from __future__ import annotations
@@ -17,29 +19,33 @@ from __future__ import annotations
 import argparse
 import json
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 
 from helpers.core.corpus import notes_stale_since  # noqa: E402  # S1c shared stale gate
 
 
-def add_derive_args(
-    p: argparse.ArgumentParser,
-    *,
-    apply_help: str,
-    stale_help: str,
-    corpus: bool = True,
-    verbose_help: str = "Print every edge in addition to the summary.",
-) -> None:
+@dataclass(frozen=True)
+class DeriveArgsSpec:
+    """Per-script argparse strings for :func:`add_derive_args`."""
+
+    apply_help: str
+    stale_help: str
+    corpus: bool = True
+    verbose_help: str = "Print every edge in addition to the summary."
+
+
+def add_derive_args(p: argparse.ArgumentParser, spec: DeriveArgsSpec) -> None:
     """The --apply/--verbose[/--corpus]/--stale-only argparse block."""
-    p.add_argument("--apply", action="store_true", help=apply_help)
-    p.add_argument("--verbose", "-v", action="store_true", help=verbose_help)
-    if corpus:
+    p.add_argument("--apply", action="store_true", help=spec.apply_help)
+    p.add_argument("--verbose", "-v", action="store_true", help=spec.verbose_help)
+    if spec.corpus:
         p.add_argument(
             "--corpus",
             action="store_true",
             help="S1b: use helpers.core.corpus shared walk (maint --full) — "
             "one walk for all derivations.",
         )
-    p.add_argument("--stale-only", action="store_true", help=stale_help)
+    p.add_argument("--stale-only", action="store_true", help=spec.stale_help)
 
 
 def stale_gate(conn, *, max_sql: str, watch_paths: Sequence) -> tuple[bool, object]:

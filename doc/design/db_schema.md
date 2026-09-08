@@ -130,7 +130,7 @@ cross-edition tracking view.
 |---|---|---|
 | `id` | INTEGER PK | |
 | `entity` | TEXT | FK cascade |
-| `metric_label` | TEXT | best-effort `revenue` \| `ebitda_margin` \| `capex` \| `aum` \| `growth` \| `deal_value` \| …; NULL if not inferable |
+| `metric_label` | TEXT | best-effort `revenue` \| `ebitda_margin` \| `capex` \| `aum` \| `growth` \| …; NULL if not inferable |
 | `value_raw` | TEXT | `₹2,75,972 crore` \| `140-150 bps` |
 | `value_num` | REAL | parsed (range lower bound) |
 | `unit` | TEXT | `crore` \| `lakh` \| `bps` \| `percent` \| `bn_usd` \| `gw` \| `mw` \| `x` |

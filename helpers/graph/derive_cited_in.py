@@ -286,15 +286,17 @@ def apply_edges(edges, *, conn=None, dry_run: bool = True) -> int:
     )
 
 
+_ARGS = dcli.DeriveArgsSpec(
+    apply_help="Write edition entities + edges (default: dry-run).",
+    stale_help="S1c: skip when no derived note newer than last derived (no-op cut for maint --full).",
+)
+
+
 def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     p = argparse.ArgumentParser(
         description="Derive cited_in (note -> edition) edges from OKF sources[].",
     )
-    dcli.add_derive_args(
-        p,
-        apply_help="Write edition entities + edges (default: dry-run).",
-        stale_help="S1c: skip when no derived note newer than last derived (no-op cut for maint --full).",
-    )
+    dcli.add_derive_args(p, _ARGS)
     p.add_argument(
         "--vault",
         default=str(_REPO_ROOT / "findata"),

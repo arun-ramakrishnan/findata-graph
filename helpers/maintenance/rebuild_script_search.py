@@ -995,10 +995,12 @@ def _backup_last_good_index(db_path: Path) -> None:
     BACKUP_DIR isolation fixture in test_rebuild_script_search."""
     rbc.backup_last_good_index(
         db_path,
-        backup_dir=BACKUP_DIR,
-        table="script_search",
-        dest_name="script_search_backup.db",
-        copier=rds._backup_file,
+        rbc.IndexBackupSpec(
+            backup_dir=BACKUP_DIR,
+            table="script_search",
+            dest_name="script_search_backup.db",
+            copier=rds._backup_file,
+        ),
     )
 
 
@@ -1625,15 +1627,17 @@ def _summary_line(stats: dict) -> str:
 def main(argv: list[str] | None = None) -> int:
     return rbc.run_rebuild_cli(
         argv,
-        description=__doc__.split("\n\n")[0],
-        default_db=str(SCRIPT_DB),
-        db_help="Path to the script_search sidecar (default: memory/script_search.db).",
-        check_help="Dry-run: count units/rows, report index freshness "
-        "(changed/new/deleted), no writes. Exits 1 when stale.",
-        incremental_help="Incremental rebuild (row-keyed diff; unchanged rows not rewritten).",
-        rebuild_fn=rebuild,
-        summary=_summary_line,
-        migrated_msg="(schema migrated: script_search recreated)",
+        rbc.RebuildCliSpec(
+            description=__doc__.split("\n\n")[0],
+            default_db=str(SCRIPT_DB),
+            db_help="Path to the script_search sidecar (default: memory/script_search.db).",
+            check_help="Dry-run: count units/rows, report index freshness "
+            "(changed/new/deleted), no writes. Exits 1 when stale.",
+            incremental_help="Incremental rebuild (row-keyed diff; unchanged rows not rewritten).",
+            rebuild_fn=rebuild,
+            summary=_summary_line,
+            migrated_msg="(schema migrated: script_search recreated)",
+        ),
     )
 
 

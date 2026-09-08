@@ -59,21 +59,23 @@ def main(argv: list[str] | None = None) -> int:
 
     return rbc.run_query_cli(
         argv,
-        description="Query the doc/ knowledge index (doc_search sidecar).",
-        default_db=lambda: rds.DOC_DB,
-        db_flag_help="sidecar path (default: module DOC_DB)",
-        connect_fn=rds.connect_doc_db,
-        ready_fn=rds.doc_index_ready,
-        not_built_msg=(
-            "doc_search index not built. Run:\n  python3 helpers/maintenance/rebuild_doc_search.py"
+        rbc.QueryCliSpec(
+            description="Query the doc/ knowledge index (doc_search sidecar).",
+            default_db=lambda: rds.DOC_DB,
+            db_flag_help="sidecar path (default: module DOC_DB)",
+            connect_fn=rds.connect_doc_db,
+            ready_fn=rds.doc_index_ready,
+            not_built_msg=(
+                "doc_search index not built. Run:\n  python3 helpers/maintenance/rebuild_doc_search.py"
+            ),
+            stale_fn=rds.doc_index_stale,
+            stale_warning=(
+                "WARNING: doc/ changed since the last index — results may be "
+                "outdated. Refresh: python3 helpers/maintenance/rebuild_doc_search.py"
+            ),
+            search_fn=rds.search_docs,
+            render_hits=_render_doc_hits,
         ),
-        stale_fn=rds.doc_index_stale,
-        stale_warning=(
-            "WARNING: doc/ changed since the last index — results may be "
-            "outdated. Refresh: python3 helpers/maintenance/rebuild_doc_search.py"
-        ),
-        search_fn=rds.search_docs,
-        render_hits=_render_doc_hits,
     )
 
 

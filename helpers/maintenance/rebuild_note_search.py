@@ -1001,16 +1001,18 @@ def _resolve_db(db_arg: str) -> Path | None:
 def main(argv: list[str] | None = None) -> int:
     return rbc.run_rebuild_cli(
         argv,
-        description=__doc__.split("\n\n")[0],
-        default_db=str(DEFAULT_DB),
-        db_help="Path to research.db (default: memory/research.db).",
-        check_help="Count indexable docs without writing (for CI / dry-run).",
-        incremental_help="Incremental rebuild (only re-index changed/deleted files, P2.1).",
-        rebuild_fn=rebuild,
-        summary=_summary_line,
-        migrated_msg="(schema migrated: note_search recreated with embedding column)",
-        resolve_db=_resolve_db,
-        handle_errors=False,
+        rbc.RebuildCliSpec(
+            description=__doc__.split("\n\n")[0],
+            default_db=str(DEFAULT_DB),
+            db_help="Path to research.db (default: memory/research.db).",
+            check_help="Count indexable docs without writing (for CI / dry-run).",
+            incremental_help="Incremental rebuild (only re-index changed/deleted files, P2.1).",
+            rebuild_fn=rebuild,
+            summary=_summary_line,
+            migrated_msg="(schema migrated: note_search recreated with embedding column)",
+            resolve_db=_resolve_db,
+            handle_errors=False,
+        ),
     )
 
 

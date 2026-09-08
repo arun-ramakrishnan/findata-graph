@@ -407,10 +407,12 @@ def _backup_last_good_index(db_path: Path) -> None:
     """
     rbc.backup_last_good_index(
         db_path,
-        backup_dir=BACKUP_DIR,
-        table="doc_search",
-        dest_name="doc_search_backup.db",
-        copier=_backup_file,
+        rbc.IndexBackupSpec(
+            backup_dir=BACKUP_DIR,
+            table="doc_search",
+            dest_name="doc_search_backup.db",
+            copier=_backup_file,
+        ),
     )
 
 
@@ -917,15 +919,17 @@ def _summary_line(stats: dict) -> str:
 def main(argv: list[str] | None = None) -> int:
     return rbc.run_rebuild_cli(
         argv,
-        description=__doc__.split("\n\n")[0],
-        default_db=str(DOC_DB),
-        db_help="Path to the doc_search sidecar (default: memory/doc_search.db).",
-        check_help="Dry-run: count files/rows, report index freshness "
-        "(changed/new/deleted), no writes. Exits 1 when stale.",
-        incremental_help="Incremental rebuild (only re-index changed/deleted files).",
-        rebuild_fn=rebuild,
-        summary=_summary_line,
-        migrated_msg="(schema migrated: doc_search recreated)",
+        rbc.RebuildCliSpec(
+            description=__doc__.split("\n\n")[0],
+            default_db=str(DOC_DB),
+            db_help="Path to the doc_search sidecar (default: memory/doc_search.db).",
+            check_help="Dry-run: count files/rows, report index freshness "
+            "(changed/new/deleted), no writes. Exits 1 when stale.",
+            incremental_help="Incremental rebuild (only re-index changed/deleted files).",
+            rebuild_fn=rebuild,
+            summary=_summary_line,
+            migrated_msg="(schema migrated: doc_search recreated)",
+        ),
     )
 
 

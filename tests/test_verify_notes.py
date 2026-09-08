@@ -423,7 +423,8 @@ class TestCompanyYamlConsistency:
         v = make_verifier()
         v.check_company_yaml_consistency(
             "/path/Test_Co.md",
-            {"title": "Test Co"},
+            # type is required: the severity variant derives from it
+            {"title": "Test Co", "type": "company"},
             'title: "Test Co"',
         )
         assert len(v.warnings["company_title_quoted"]) >= 1

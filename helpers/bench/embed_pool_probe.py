@@ -145,9 +145,11 @@ def _run_gguf_legs(texts: list[str], gguf_path: str, n_ctx: int, worker_counts: 
         return _le.run_pinned_pool(
             chunks,
             workers=workers,
-            initializer=_gguf_pool_init,
-            initargs=(gguf_path, n_ctx),
-            chunk_fn=_gguf_pool_chunk,
+            spec=_le.PinnedPoolSpec(
+                initializer=_gguf_pool_init,
+                initargs=(gguf_path, n_ctx),
+                chunk_fn=_gguf_pool_chunk,
+            ),
         )
 
     leg("serial    ", serial)

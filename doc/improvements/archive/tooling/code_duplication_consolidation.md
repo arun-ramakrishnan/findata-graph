@@ -82,10 +82,11 @@ language is the only parameter). No shared module exists today
 load-bearing in `maint --full` and the search-fresh chain.
 
 **F2 — PDF running-header filter is a documented manual-sync copy.**
-`_filter_running_headers` is 0.99-identical in `pdf_local.py:156` and
-`liteparse_post.py:85`, and the three module regexes
-(`PAGE_NUM_RE`, `DATE_RE`, `HEADING_LINE_RE`) are independently defined
-in both. `liteparse_post.py:17` says `# Copied from pdf_local.py (keep
+`_filter_running_headers` was 0.99-identical in `pdf_local.py` and the
+pre-consolidation `liteparse_post.py` (S2 below shrank it to a 47-line
+re-export), and the three module regexes
+(`PAGE_NUM_RE`, `DATE_RE`, `HEADING_LINE_RE`) were independently defined
+in both. Pre-consolidation `liteparse_post.py:17` said `# Copied from pdf_local.py (keep
 in sync)` — the drift contract is enforced by a comment. Confirmed
 byte-equivalent logic; only docstrings differ.
 
@@ -111,8 +112,8 @@ their rebuild modules (`rds` / `rss`), so a shared core has a natural
 home.
 
 **F6 — embed pool probe mirrors production (measurement-integrity
-risk).** `embed_pool_probe.py:136` (`pool`) vs
-`local_embedder.py:268` (`embed_documents_parallel`) — 0.91, 236 tok.
+risk).** `embed_pool_probe.py` (`pool`) vs
+`local_embedder.py` (`embed_documents_parallel`) — 0.91, 236 tok.
 The probe imports the module (line 170) but re-implements the pool loop
 ("Mirror local_embedder._pool_init", line 86). A probe measuring a
 mirrored implementation silently stops measuring production when

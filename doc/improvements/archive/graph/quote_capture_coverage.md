@@ -33,7 +33,7 @@ the live proposal per the house pattern.
 current tree against this proposal before the single-note trial. (i) Code
 drift: `iter_company_sections` already treats `## — Name, Title`
 attribution headings, `## Management`-class role headings, and newsletter
-chrome as non-structural (`derive_insights.py:467-477`) — F1's fix is
+chrome as non-structural (the `_PROSE_START` ladder in `derive_insights.py`) — F1's fix is
 exactly the bracket rule; nothing else moved. (ii) The trial candidate
 `Nvidia_Samsung_Cloudflare.md` measures **0 rows in `quotes` today**
 against 221 orphaned openings — a total-loss edition: all 11 company
@@ -95,7 +95,7 @@ fully sector-shaped → enters G4.
 ## 2. Findings
 
 **F1 — the skip-list gap is the dominant loss (G1).**
-`iter_company_sections` (`helpers/graph/derive_insights.py:431`) skip-lists
+`iter_company_sections` (`helpers/graph/derive_insights.py`) skip-lists
 exactly one internal marker: `[Concall]` (`:465`). The corpus carries 21
 distinct bracket markers (`[Transcript]`, `[Presentation]`, `[Reference]`,
 `[Interview]`, `[Recording]`, `[Call recording]`, `[Exchange Filing]`,

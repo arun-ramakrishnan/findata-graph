@@ -85,25 +85,27 @@ def main(argv: list[str] | None = None) -> int:
 
     return rbc.run_query_cli(
         argv,
-        description="Query the script metadata index (script_search sidecar).",
-        default_db=lambda: rss.SCRIPT_DB,
-        db_flag_help="sidecar path (default: module SCRIPT_DB)",
-        connect_fn=rss.connect_script_db,
-        ready_fn=rss.script_index_ready,
-        not_built_msg=(
-            "script_search index not built. Run:\n"
-            "  python3 helpers/maintenance/rebuild_script_search.py"
+        rbc.QueryCliSpec(
+            description="Query the script metadata index (script_search sidecar).",
+            default_db=lambda: rss.SCRIPT_DB,
+            db_flag_help="sidecar path (default: module SCRIPT_DB)",
+            connect_fn=rss.connect_script_db,
+            ready_fn=rss.script_index_ready,
+            not_built_msg=(
+                "script_search index not built. Run:\n"
+                "  python3 helpers/maintenance/rebuild_script_search.py"
+            ),
+            stale_fn=rss.script_index_stale,
+            stale_warning=(
+                "WARNING: helpers/tests/Makefile/Mojo/frontend sources changed "
+                "since the last index — results may be outdated. Refresh: "
+                "python3 helpers/maintenance/rebuild_script_search.py"
+            ),
+            search_fn=rss.search_scripts,
+            render_hits=_render_script_hits,
+            extra_args=_extra_args,
+            search_kwargs=_search_kwargs,
         ),
-        stale_fn=rss.script_index_stale,
-        stale_warning=(
-            "WARNING: helpers/tests/Makefile/Mojo/frontend sources changed "
-            "since the last index — results may be outdated. Refresh: "
-            "python3 helpers/maintenance/rebuild_script_search.py"
-        ),
-        search_fn=rss.search_scripts,
-        render_hits=_render_script_hits,
-        extra_args=_extra_args,
-        search_kwargs=_search_kwargs,
     )
 
 
