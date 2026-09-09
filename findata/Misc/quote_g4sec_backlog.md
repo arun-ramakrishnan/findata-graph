@@ -1,3 +1,13 @@
+---
+type: newsletter
+title: G4sec backlog — sector-context openings awaiting a real home
+tags:
+- series/misc
+generated:
+  by: process:okf_backfill
+  at: '2026-09-07T00:00:00Z'
+stale_after: '2027-03-06'
+---
 # G4sec backlog — sector-context openings awaiting a real home
 
 _After S3b/S4b (2026-09-07): 15 of 16 resolved (walker splice fixes + Software Services/Regulator

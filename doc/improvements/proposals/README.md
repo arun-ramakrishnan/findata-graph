@@ -28,7 +28,6 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-
 _(Previously: cli_param_bundling_doc_anchor_repair.md, archived as
 completed.md #217 on 2026-09-09 — execution record in
 `../archive/tooling/cli_param_bundling_doc_anchor_repair.md`.)_
