@@ -2,6 +2,7 @@
 
 Full annotated triage map with live-verified trigger status:
 `doc/local/future_items.txt` (2026-09-05). Open items below keep their
+- **§G2 word-overlap alias guard + §G3 discard-persistence noise gate** — executed as `doc/improvements/archive/graph/word_overlap_alias_guard.md` (completed.md #218, 2026-09-09).
 revisit triggers inline; executed work is compressed to records.
 
 - **Re-evaluate HNSW index macros** (deferred N5 item 5). `hnsw_index_scan`,
@@ -21,11 +22,19 @@ revisit triggers inline; executed work is compressed to records.
   Do not wrap until a future Onager build honours the personalisation vector.
 
 - **`listed_on_index` membership edge** (deferred N5 item 7). The
-  `index_membership` column was dropped 2026-07-28; the edge was never built.
-  Requires a re-ingest pass extracting `index_membership:` from company YAML
-  frontmatter before it can be materialised. Live 2026-09-05: only 9/1,079
-  company notes carry the key — not worth the pass until coverage grows.
-  Deferred by design.
+    `index_membership` column was dropped 2026-07-28; the edge was never built.
+    Requires a re-ingest pass extracting `index_membership:` from company YAML
+    frontmatter before it can be materialised. Live 2026-09-05: only 9/1,079
+    company notes carry the key — not worth the pass until coverage grows.
+    Deferred by design. REVIEWED 2026-09-09 and re-deferred: the key is a
+    DROPPED key, not a low-coverage one — `doc/okf/frontmatter.company.v1.json`
+    types it `"type": "null"` ("Dropped key (2026-07-28); tolerated as null on
+    legacy notes, absent on new ones"), so writing it would fail the OKF
+    conformance check, and all 9 notes that carry it have `null`. No pipeline
+    produces index-membership data; tickers (945/1,165 companies, 850
+    India-exchange) prove exchange listing, not index membership. Revisit only
+    if a real index-constituent data source appears. Detail in
+    `doc/local/future_items.txt` §G1 and `word_overlap_alias_guard.md` §7.
 
 - **Security Phase 4 (deploy-time; app confirmed NOT deployed 2026-08-17)**
   (private security review under doc/local, untracked;

@@ -4964,3 +4964,56 @@ gate-driven fixups (vs four at #216): pytest 2,646 passed + 3 skipped,
 live-invariants 218 passed, all search-index checks fresh, snapshot
 current. Touched-suite pre-verification during the slices (282 + 93 +
 82 + 66) predicted the first-run green.
+
+## 218. Triage hygiene: word-overlap alias guard + discard-persistence noise gate
+
+**Date**: 2026-09-09
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/graph/word_overlap_alias_guard.md` (filed 2026-09-09)
+
+Two hygiene pick-ups from `future_items.txt` (§G2, §G3), both
+newly unlocked by the #215/#217 arcs. No machinery behavior change.
+
+### S1 — word-overlap alias guard (G2)
+
+Added `word_overlap` flag to the alias-candidate path in
+`triage_pending_relations.py::_bucket()`. When the fuzzy match
+method is `word_overlap`/jaccard, the row renders with a
+`confirm? word-overlap alias` marker in `--report`, preventing
+operators from accidentally accepting known false positives (20
+Microns, Sailing_the_Tide, Circle, American_Express are the live
+examples). Downranked alias_candidates whose fuzzy target is an
+edition/sector note rather than a company. Tests: 25/25 triage
+tests including `test_word_overlap_alias_flag`,
+`test_non_alias_rows_not_flagged`, and
+`test_report_renders_confirm_marker`.
+
+### S2 — discard-persistence noise gate (G3)
+
+Added `_noise_overrides()` in `extract_relations.py` loading
+`findata/Misc/relation_noise.json` at process start (mirrors
+`_alias_overrides()`/`relation_aliases.json` pattern).
+`_merge_noise_file()` in `triage_pending_relations.py` persists
+`discard` decisions as normalized `(edge_type, source, target)`
+triples — keyed on the normalized mention so re-spellings still
+hit. Consultation at write time alongside the existing `noise_target()`
+gate prevents the #169/#217 re-entry lesson (10 discarded noise
+rows came straight back) from recurring. `_norm_target_lower()`
+added to `triage_pending_relations.py` to mirror
+`extract_relations._norm_target_lower` for consistent gate keys.
+Tests: 29/29 extract_relations tests including
+`test_noise_gate_drops_rejected_triple` and
+`test_noise_gate_misses_unrelated_row`.
+
+### Deferred
+
+§G1 `listed_on_index` membership edge — reviewed 2026-09-09 and
+deferred. The `index_membership` key is a dropped key (OKF conformance: `null` type),
+no pipeline produces index-membership data, and tickers prove the
+wrong thing (81.1% carry a ticker = exchange listing, not index).
+
+### Verification
+
+`make qa` 9/9, `make advisory` 10/10, `make perf` 22/22,
+`make search-fresh APPLY=1` fresh — all green on the first run.
+`make qa` pytest: 2654 passed, 3 skipped.

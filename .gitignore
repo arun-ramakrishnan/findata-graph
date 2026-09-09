@@ -28,6 +28,10 @@ findata/**/*.json
 # Exception: triage alias overrides are pipeline state (loaded by
 # extract_relations at runtime) and must survive fresh clones.
 !findata/Misc/relation_aliases.json
+# Exception: discard-persistence noise gate is pipeline state
+# (loaded by extract_relations at runtime) and must survive fresh
+# clones — same survive-fresh-clone doctrine as relation_aliases.
+!findata/Misc/relation_noise.json
 # Exception: quote-capture watchlist is the S0 tripwire lifecycle state
 # (quote_coverage_audit.py) — gitignored triage state is lost on fresh
 # clones (proposal S2/S0 amendment doctrine). Home: findata/Misc/ (S4

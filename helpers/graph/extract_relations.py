@@ -133,6 +133,37 @@ def _lookup_alias(lower_key: str) -> str | None:
     return _ALIASES.get(lower_key) or _alias_overrides().get(lower_key)
 
 
+def _norm_target_lower(t: str) -> str:
+    """Lowercased, boundary-stripped mention — the noise-gate key form."""
+    return t.strip().rstrip(".,;:").lower()
+
+
+# G3: runtime-loaded discard gate (parallel to _alias_overrides). (edge_type,
+# source, target_mention) triples the operator explicitly rejected during
+# triage — consulted at write time so plain discards do NOT re-enter the
+# sidecar on the next full-corpus extract (the #169 / #217 re-entry
+# lesson: 10 discarded noise rows came straight back). Keyed on the
+# normalized mention so re-spellings of the same noise target still hit.
+NOISE_OVERRIDES_PATH = _REPO_ROOT / "findata" / "Misc" / "relation_noise.json"
+
+
+@cache
+def _noise_overrides() -> set[tuple[str, str, str]]:
+    """Loaded once per process; absent/unreadable file degrades to empty."""
+    try:
+        raw = json.loads(NOISE_OVERRIDES_PATH.read_text(encoding="utf-8"))
+    except OSError, ValueError:
+        return set()
+    out: set[tuple[str, str, str]] = set()
+    for item in raw:
+        if not isinstance(item, (list, tuple)) or len(item) != 3:
+            continue
+        et, src, tgt = (str(x).strip() for x in item)
+        if et and src and tgt:
+            out.add((et, src, _norm_target_lower(tgt)))
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Entity resolver                                                             #
 # --------------------------------------------------------------------------- #
@@ -1759,6 +1790,16 @@ def extract_relations(  # noqa: C901
                     # mangled fragments never reach the triage queue (the
                     # measured ~35-row class of the 2026-08-25 backlog).
                     if noise_target(target_mention):
+                        continue
+                    # G3 discard gate: triples the operator explicitly
+                    # rejected during triage never re-enter the sidecar —
+                    # plain discards persist, so the queue stops re-filling
+                    # with rows already adjudicated.
+                    if (
+                        edge_type,
+                        source_entity,
+                        _norm_target_lower(target_mention),
+                    ) in _noise_overrides():
                         continue
                     # Sidecar for human review.
                     unresolved.append(

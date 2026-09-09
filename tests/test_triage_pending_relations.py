@@ -42,6 +42,7 @@ def paths(tmp_path, monkeypatch):
     monkeypatch.setattr(tpr, "ALIAS_FILE", tmp_path / "relation_aliases.json")
     monkeypatch.setattr(tpr, "REPORT", tmp_path / "report.md")
     monkeypatch.setattr(tpr, "DECISIONS", tmp_path / "decisions.jsonl")
+    monkeypatch.setattr(tpr, "NOISE_FILE", tmp_path / "relation_noise.json")
     monkeypatch.setattr(tpr, "load_entity_names", lambda: set(NAMES))
     return sidecar
 
@@ -100,6 +101,98 @@ class TestBuildTriage:
         triage = tpr.build_triage([_row("supplier_to", "Ghost Co", "Kubota Corporation")], NAMES)
         assert triage["prose"][0]["bucket"] == "bad_source"
 
+    def test_word_overlap_alias_flag(self):
+        """G2 guard: alias_candidates resolved by word_overlap carry the
+        confirm marker; non-alias rows never do.
+
+        ``Colgate-Palmolive Company`` resolves to ``Colgate Palmolive
+        India`` via word_overlap (the known false-positive family: shared
+        tokens say "same sector", not "same company" — 20 Microns,
+        Sailing_the_Tide, Circle, American_Express are the live examples).
+        """
+        triage = tpr.build_triage(
+            [_row("supplier_to", "Graphite India", "Colgate-Palmolive Company")],
+            NAMES,
+        )
+        row = triage["prose"][0]
+        assert row["bucket"] == "alias_candidate"
+        assert row["word_overlap"] is True
+
+    def test_non_alias_rows_not_flagged(self):
+        triage = tpr.build_triage(
+            [
+                _row("supplier_to", "Graphite India", "Japan"),
+                _row("jv_with", "Acme Corp", "Kubota Corporation"),
+            ],
+            NAMES,
+        )
+        for r in triage["prose"]:
+            assert r.get("word_overlap") is False
+
+    def test_report_renders_confirm_marker(self, paths, capsys):
+        paths.write_text(
+            _row("supplier_to", "Graphite India", "Colgate-Palmolive Company") + "\n",
+            encoding="utf-8",
+        )
+        assert tpr.main([]) == 0
+        report = tpr.REPORT.read_text(encoding="utf-8")
+        assert "confirm? word-overlap alias" in report
+
+
+class TestNoiseGate:
+    """G3: `discard` decisions persist as a runtime noise gate so plain
+    discards do NOT re-enter the sidecar on the next full-corpus extract
+    (the #169 / #217 re-entry lesson: 10 discarded noise rows came
+    straight back)."""
+
+    def test_discard_persists_as_noise_gate(self, paths, monkeypatch):
+        paths.write_text(
+            _row("supplier_to", "Graphite India", "Japan") + "\n",
+            encoding="utf-8",
+        )
+        assert tpr.main([]) == 0
+        decisions = [json.loads(line) for line in tpr.DECISIONS.read_text().splitlines()]
+        decisions[0]["decision"] = "discard"
+        tpr.DECISIONS.write_text(
+            "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
+        )
+        assert tpr.main(["--apply-decisions"]) == 0
+        noise = json.loads(tpr.NOISE_FILE.read_text())
+        # Normalized (lowercased, boundary-stripped) so re-spellings hit.
+        assert ["supplier_to", "Graphite India", "japan"] in noise
+
+    def test_noise_gate_is_exact_not_prefix(self, paths, monkeypatch):
+        """A gate entry for a different triple must not suppress an
+        unrelated row — the gate matches (edge_type, source, target)."""
+        paths.write_text(
+            _row("supplier_to", "Graphite India", "Japan") + "\n",
+            encoding="utf-8",
+        )
+        tpr.NOISE_FILE.write_text(
+            json.dumps([["supplier_to", "Other Source", "japan"]]) + "\n",
+            encoding="utf-8",
+        )
+        assert tpr.main([]) == 0
+        prose = [
+            r["target_mention"]
+            for r in tpr.build_triage(tpr.SIDECAR.read_text().splitlines(), set())["prose"]
+        ]
+        assert "Japan" in prose
+
+    def test_no_noise_file_when_no_discards(self, paths):
+        paths.write_text(
+            _row("supplier_to", "Graphite India", "Kubota Corporation") + "\n",
+            encoding="utf-8",
+        )
+        assert tpr.main([]) == 0
+        decisions = [json.loads(line) for line in tpr.DECISIONS.read_text().splitlines()]
+        decisions[0]["decision"] = "stub"
+        tpr.DECISIONS.write_text(
+            "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
+        )
+        assert tpr.main(["--apply-decisions"]) == 0
+        assert not tpr.NOISE_FILE.exists()
+
 
 class TestCliFlow:
     def _seed(self, sidecar):
@@ -138,6 +231,10 @@ class TestCliFlow:
         assert tpr.main(["--apply-decisions"]) == 0
         aliases = json.loads(tpr.ALIAS_FILE.read_text())
         assert aliases == {"kubota corporation": "Colgate Palmolive India"}
+        # G3: the discarded "Japan" row persists as a runtime noise gate so
+        # plain discards do NOT re-enter the sidecar on the next extract.
+        noise = json.loads(tpr.NOISE_FILE.read_text())
+        assert ["supplier_to", "Graphite India", "japan"] in noise
         remaining = [
             json.loads(line) for line in tpr.SIDECAR.read_text().splitlines() if line.strip()
         ]

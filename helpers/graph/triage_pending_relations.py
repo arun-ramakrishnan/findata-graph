@@ -56,6 +56,12 @@ from helpers.core.fuzzy_match import fuzzy_match  # noqa: E402
 SIDECAR = _REPO_ROOT / "findata" / "Misc" / "_pending_relations.txt"
 SUGGESTIONS = _REPO_ROOT / "findata" / "Misc" / "_pending_suggestions.txt"
 ALIAS_FILE = _REPO_ROOT / "findata" / "Misc" / "relation_aliases.json"
+# G3: runtime-loaded discard gate. (edge_type, source, target_mention)
+# triples the operator has explicitly rejected — consulted by
+# extract_relations at write time so plain discards do NOT re-enter
+# the sidecar on the next full-corpus extract (the #169 / #217
+# re-entry lesson: 10 discarded noise rows came straight back).
+NOISE_FILE = _REPO_ROOT / "findata" / "Misc" / "relation_noise.json"
 REPORT = _REPO_ROOT / "findata" / "Misc" / "_pending_triage_report.md"
 DECISIONS = _REPO_ROOT / "findata" / "Misc" / "_pending_triage_decisions.jsonl"
 # graph_edges write target for `accept:` decisions. None = connect()'s
@@ -205,6 +211,14 @@ def _norm_target(t: str) -> str:
     return t
 
 
+def _norm_target_lower(t: str) -> str:
+    """Lowercased, boundary-stripped mention — the noise-gate key
+    form (mirrors extract_relations._norm_target_lower so the gate
+    key matches between write-time consultation and discard
+    persistence)."""
+    return t.strip().rstrip(".,;:").lower()
+
+
 def load_entity_names() -> set[str]:
     """Distinct entity names from the live DB (monkeypatchable in tests)."""
     from helpers.core.db import connect
@@ -216,24 +230,37 @@ def load_entity_names() -> set[str]:
         conn.close()
 
 
-def _bucket(edge_type: str, target: str, names: set[str]) -> tuple[str, str]:
-    """(bucket, detail) for one prose row's target. Deterministic, advisory."""
+def _bucket(edge_type: str, target: str, names: set[str]) -> tuple[str, str, bool]:
+    """(bucket, detail, word_overlap) for one prose row's target.
+
+    Deterministic, advisory. ``word_overlap`` is True only for
+    alias_candidates whose fuzzy method is ``word_overlap`` — the known
+    false-positive family (20 Microns, Sailing_the_Tide, Circle,
+    American_Express: shared tokens say "same sector", not "same
+    company"). Such rows render with a ``_confirm?_`` marker in the
+    report so the operator never accepts one by accident; genuine
+    re-spelling aliases (spellfix / jaccard-neighbour) stay plain.
+    """
     t = _norm_target(target)
     tl = t.lower()
     if noise_target(t):
-        return "discard", "country/generic/fragment"
+        return "discard", "country/generic/fragment", False
     # Alias candidate: the fuzzy matcher resolves it to a DIFFERENT
     # existing name (exact-cased match means the extractor should already
     # have resolved it, so only report genuine re-spellings).
     match, method, score = fuzzy_match(t, sorted(names))
     if match and match.lower() != tl and method != "spellfix":
-        return "alias_candidate", f"{match} ({method}, {score:.2f})"
+        return (
+            "alias_candidate",
+            f"{match} ({method}, {score:.2f})",
+            method == "word_overlap",
+        )
     # Stub candidate: >=2 tokens, all name-shaped (capitalized or joiners).
     words = t.split()
     joiners = {"of", "the", "and", "de", "der", "van"}
     if len(words) >= 2 and all(w[0].isupper() or w.lower() in joiners for w in words if w):
-        return "stub_candidate", "name-shaped"
-    return "manual", ""
+        return "stub_candidate", "name-shaped", False
+    return "manual", "", False
 
 
 def build_triage(lines: list[str], names: set[str]) -> dict:
@@ -272,11 +299,12 @@ def build_triage(lines: list[str], names: set[str]) -> dict:
         if row["edge_type"] == "suggested":
             suggested.append(row)
         else:
-            bucket, detail = _bucket(row["edge_type"], row["target_mention"], names)
+            bucket, detail, word_overlap = _bucket(row["edge_type"], row["target_mention"], names)
             if row["source"] and row["source"] not in names:
                 bucket, detail = "bad_source", "source not an entity"
             row["bucket"] = bucket
             row["detail"] = detail
+            row["word_overlap"] = word_overlap
             prose.append(row)
     return {"suggested": suggested, "prose": prose, "unparseable": unparseable, "dupes": dupes}
 
@@ -331,10 +359,13 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
     from collections import Counter
 
     counts = Counter(r["bucket"] for r in triage["prose"])
+    wo_count = sum(1 for r in triage["prose"] if r.get("word_overlap"))
     lines.append("| bucket | rows |")
     lines.append("|---|---|")
     for b, n in counts.most_common():
         lines.append(f"| {b} | {n} |")
+    if wo_count:
+        lines.append(f"| _word-overlap alias (confirm before accepting)_ | {wo_count} |")
     lines.append("")
     order = ["discard", "alias_candidate", "stub_candidate", "manual", "bad_source"]
     for b in order:
@@ -346,7 +377,8 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
         for r in rows:
             lines.append(
                 f"- `{r['id']}` **{r['edge_type']}** {r['source']} -> "
-                f"**{r['target_mention']}**"
+                + (" _[confirm? word-overlap alias]_ " if r.get("word_overlap") else "")
+                + f"**{r['target_mention']}**"
                 + (
                     " _[captured reversed: the mention is the edge SOURCE]_"
                     if r.get("direction") == "reverse"
@@ -378,6 +410,7 @@ def write_report(triage: dict, names: set[str]) -> None:  # noqa: C901
                         "target_mention": r["target_mention"],
                         "direction": r["direction"],
                         "bucket": r["bucket"],
+                        "word_overlap": r.get("word_overlap", False),
                         "vss_hint": vss_cache.get(r.get("target_mention", ""), ""),
                         "decision": None,
                         "note": None,
@@ -418,6 +451,7 @@ def _validate_decisions(rows: list[dict], entity_names: set[str]) -> dict | None
         "accepts": [],
         "discard": 0,
         "skip": 0,
+        "rows": rows,  # raw decision dicts — _merge_noise_file reads them
     }
     for d in rows:
         key = (d["edge_type"], d["source"], d["target_mention"])
@@ -561,6 +595,13 @@ def _apply_write(plan: dict) -> None:
     # both populations exit through the same decisions workflow.
     _drop_decided_suggestions(plan["applied_keys"])
 
+    # 5. G3: persist discard decisions as the runtime noise gate so plain
+    # discards do NOT re-enter the sidecar on the next full-corpus
+    # extract (the #169 / #217 re-entry lesson: 10 discarded noise rows
+    # came straight back). Aliases / stubs / accepts are handled by their
+    # own writers above; only `discard` rows are noise-gate material.
+    _merge_noise_file(plan)
+
     print(f"sidecar rewritten: {len(kept)} prose rows remain")
     if plan["stubs"]:
         print(
@@ -607,6 +648,38 @@ def _drop_decided_suggestions(applied_keys: set) -> None:
         print(
             f"suggestions file: {len(rows) - len(kept)} decided rows dropped ({len(kept)} remain)"
         )
+
+
+def _merge_noise_file(plan: dict) -> None:
+    """G3: persist `discard` decisions into the runtime noise gate.
+
+    extract_relations consults this at write time, so plain discards do
+    NOT re-enter the sidecar on the next full-corpus extract. Aliases /
+    stubs / accepts are not noise-gate material (they resolve or create
+    real edges), so only `discard` rows land here. Merged, deduped, sorted
+    for stable diffs — same discipline as the alias file.
+    """
+    discards = {
+        (d["edge_type"], d["source"], _norm_target_lower(d["target_mention"]))
+        for d in plan["rows"]
+        if d.get("decision") == "discard"
+    }
+    if not discards:
+        return
+    existing: set[tuple[str, str, str]] = set()
+    if Path(NOISE_FILE).exists():
+        try:
+            for item in json.loads(Path(NOISE_FILE).read_text(encoding="utf-8")):
+                if isinstance(item, (list, tuple)) and len(item) == 3:
+                    existing.add((str(item[0]), str(item[1]), str(item[2])))
+        except OSError, ValueError:
+            pass
+    existing |= discards
+    Path(NOISE_FILE).write_text(
+        json.dumps(sorted(existing), indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    print(f"relation_noise.json: +{len(discards)} discard gate entries (now {len(existing)})")
 
 
 def _write_accepted_edges(accepts: list[dict]) -> None:

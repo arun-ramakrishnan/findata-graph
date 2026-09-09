@@ -152,6 +152,61 @@ class TestExtractRelations:
         assert "Damas" in u.target_mention
         assert u.edition == "Test Edition"
 
+    def test_noise_gate_drops_rejected_triple(self, resolver, monkeypatch):
+        """G3: a triple the operator explicitly rejected during triage never
+        reaches the sidecar — plain discards persist across extract runs.
+
+        Same row as test_unresolved_goes_to_sidecar, but with the noise
+        gate loaded: the (edge_type, source, target_mention) triple is
+        consulted at write time, so the #169 / #217 re-entry lesson (10
+        discarded noise rows came straight back on the next extract) stops
+        recurring. The gate is keyed on the normalized mention so
+        re-spellings of the same noise target still hit.
+        """
+        import helpers.graph.extract_relations as xr
+
+        monkeypatch.setattr(
+            xr,
+            "_noise_overrides",
+            lambda: {("acquired", "Jio Financial Services", "damas")},
+        )
+        content = (
+            "## Jio Financial Services Limited | Large Cap | Financial Services\n\n"
+            "We completed 67% stake acquisition of Damas last quarter, expanding "
+            "our footprint in luxury jewellery.\n"
+        )
+        by_type, unresolved = extract_relations(
+            content,
+            edition_title="Test Edition",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+        )
+        assert by_type == {}
+        assert unresolved == [], "noise-gated row must not reach the sidecar"
+
+    def test_noise_gate_misses_unrelated_row(self, resolver, monkeypatch):
+        """A noise-gate entry for a DIFFERENT triple does not suppress an
+        unrelated unresolved row — the gate is exact, not a prefix."""
+        import helpers.graph.extract_relations as xr
+
+        monkeypatch.setattr(
+            xr,
+            "_noise_overrides",
+            lambda: {("supplier_to", "Some Other Source", "damas")},
+        )
+        content = (
+            "## Jio Financial Services Limited | Large Cap | Financial Services\n\n"
+            "We completed 67% stake acquisition of Damas last quarter, expanding "
+            "our footprint in luxury jewellery.\n"
+        )
+        by_type, unresolved = extract_relations(
+            content,
+            edition_title="Test Edition",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+        )
+        assert len(unresolved) == 1
+
     def test_self_edge_skipped(self, resolver):
         # "JFS acquired JFS" should not produce an edge.
         content = (
