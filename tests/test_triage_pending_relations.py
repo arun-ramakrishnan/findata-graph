@@ -394,6 +394,43 @@ class TestAcceptDecisions:
         # The decided row left the suggestions file.
         assert not tpr.SUGGESTIONS.read_text().strip()
 
+    def test_accept_semantic_peer_writes_symmetric_edge(self, paths, edge_db):
+        """semantic_peer accepts are symmetric too (matches the VSS rewriter,
+        which stores all 7.7k semantic_peer rows with symmetric=1)."""
+        tpr.SUGGESTIONS.write_text(
+            json.dumps(
+                {
+                    "edge_type": "suggested",
+                    "source": "Acme Corp",
+                    "target_mention": "Dixon Technologies",
+                    "quote": "",
+                    "edition": "link-prediction/jaccard/2026-09-09",
+                    "origin": "link_prediction",
+                    "score": 0.9,
+                    "method": "jaccard",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        decisions = [
+            {
+                "id": "x2",
+                "edge_type": "suggested",
+                "source": "Acme Corp",
+                "target_mention": "Dixon Technologies",
+                "decision": "accept:semantic_peer",
+            }
+        ]
+        tpr.DECISIONS.write_text(
+            "\n".join(json.dumps(d) for d in decisions) + "\n", encoding="utf-8"
+        )
+        assert tpr.main(["--apply-decisions"]) == 0
+        rows = self._rows(edge_db)
+        assert len(rows) == 1
+        sym = rows[0][5]
+        assert sym == 1
+
     def test_accept_rerun_is_idempotent(self, paths, edge_db):
         tpr.SUGGESTIONS.write_text(
             json.dumps(

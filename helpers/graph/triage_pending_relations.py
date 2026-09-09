@@ -95,6 +95,7 @@ _SYMMETRIC_ACCEPT_TYPES = frozenset(
         "same_group",
         "competes_with",
         "co_mentioned_in",
+        "semantic_peer",
     }
 )
 _ACCEPT_SOURCE_REF = "triage:accept"
