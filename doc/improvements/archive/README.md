@@ -23,6 +23,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`derive_render_shared_note_grouping.md`](graph/derive_render_shared_note_grouping.md) — Proposal: derive render pass — group shared-note buckets + per-note block plan (Quotes catch-all 3× regression fix), VSS query-core consolidation; honest --corpus parity + churn counters folded in — completed.md #214
 - [`quote_capture_coverage.md`](graph/quote_capture_coverage.md) — Proposal: quote capture coverage — close every markdown-to-notes drop (audit 34% → 99% target): quote_coverage_audit tripwire, bracket-marker/resolver/walker fixes, Quotes catch-all super-sector, triage-quotes worklist, 751-note bulk update — completed.md #215
 - [`word_overlap_alias_guard.md`](graph/word_overlap_alias_guard.md) — Proposal: Triage hygiene: word-overlap alias guard + discard-persistence noise gate — completed.md #218
+- [`country_layer_institution_lanes.md`](graph/country_layer_institution_lanes.md) — Proposal: Country layer + institution counterparties — listed_in edges from exchange tickers, geography tag/frontmatter convergence (947-note apply, A3 whitelist activation), RBI/SEBI institution entities + rated_by/regulated_by/approved_by/penalized_by lanes — completed.md #219
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 

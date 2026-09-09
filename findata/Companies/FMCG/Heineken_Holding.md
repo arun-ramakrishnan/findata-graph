@@ -7,16 +7,17 @@ industry: Beverages - Brewers
 market_cap: mid_cap
 normalized_name: Heineken_Holding
 permalink: /companies/fmcg/heineken_holding
+geography: netherlands
 tags:
 - sector/fmcg
 - business_model/b2c
 - entity_type/company
-- geography/global
+- geography/netherlands
 - market_cap/mid_cap
 - holding_company/yes
 - risk_investment/medium_risk
 created: '2025-11-16'
-last_modified: '2025-12-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

@@ -7,6 +7,7 @@ industry: Utilities - Regulated Electric
 market_cap: large_cap
 normalized_name: Gujarat_Industries_Power
 permalink: /companies/energy/gujarat_industries_power
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/defensive
 - sector/energy
 created: '2025-11-16'
-last_modified: '2025-11-18'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-18T00:00:00Z'

@@ -7,6 +7,7 @@ industry: Building Products & Equipment
 market_cap: mid_cap
 normalized_name: Prince_Pipes_and_Fittings
 permalink: /companies/building_materials/prince_pipes_and_fittings
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/building_materials
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

@@ -7,6 +7,7 @@ industry: null
 market_cap: large_cap
 normalized_name: Allied_Blenders_and_Distillers
 permalink: /companies/fmcg/allied_blenders_and_distillers
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/cyclical
 - sector/fmcg
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

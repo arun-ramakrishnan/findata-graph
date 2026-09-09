@@ -7,6 +7,7 @@ industry: Steel
 market_cap: small_cap
 normalized_name: Maharashtra_Seamless
 permalink: /companies/metals/maharashtra_seamless
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/commodity_risk
 - sector/metals
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

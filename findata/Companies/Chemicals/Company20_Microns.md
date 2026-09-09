@@ -7,6 +7,7 @@ industry: Other Industrial Metals & Mining
 market_cap: small_cap
 normalized_name: Company20_Microns
 permalink: /companies/chemicals/company20_microns
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -19,7 +20,7 @@ tags:
 - industry/manufacturing
 - sector/chemicals
 created: '2025-12-28'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-28T15:01:27Z'

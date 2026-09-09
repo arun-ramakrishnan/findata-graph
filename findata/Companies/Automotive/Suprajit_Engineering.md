@@ -7,6 +7,7 @@ industry: Auto Parts
 market_cap: mid_cap
 normalized_name: Suprajit_Engineering
 permalink: /companies/automotive/suprajit_engineering
+geography: india
 tags:
 - entity_type/company
 - sector/automotive
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-11-16'
-last_modified: '2026-06-24'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

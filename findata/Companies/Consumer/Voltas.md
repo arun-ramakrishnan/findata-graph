@@ -9,6 +9,7 @@ normalized_name: Voltas
 file_path: findata/Companies/Consumer/Voltas.md
 permalink: /companies/consumer/voltas
 index_membership: null
+geography: india
 tags:
 - entity_type/company
 - sector/consumer
@@ -19,7 +20,7 @@ tags:
 - risk_investment/medium_risk
 - financial_tags/dividend_paying
 created: '2026-06-28'
-last_modified: '2026-06-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

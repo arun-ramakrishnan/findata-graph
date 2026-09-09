@@ -7,15 +7,16 @@ industry: Entertainment
 market_cap: mid_cap
 normalized_name: Dave_And_Busters_Entertainment
 permalink: /companies/travel/dave_and_busters_entertainment
+geography: usa
 tags:
 - entity_type/company
 - sector/travel
 - market_cap/mid_cap
-- geography/global
+- geography/usa
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2025-12-16'
-last_modified: '2026-07-10'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

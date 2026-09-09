@@ -7,11 +7,13 @@ industry: Lodging
 market_cap: mid_cap
 normalized_name: Indian_Hotels
 permalink: /companies/travel/indian_hotels
+geography: india
 tags:
 - entity_type/company
 - sector/travel
+- geography/india
 created: '2025-11-16'
-last_modified: '2026-06-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

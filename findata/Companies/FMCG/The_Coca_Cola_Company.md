@@ -7,15 +7,16 @@ industry: Beverages - Non-Alcoholic
 market_cap: mid_cap
 normalized_name: The_Coca_Cola_Company
 permalink: /companies/fmcg/the_coca_cola_company
+geography: usa
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/india
+- geography/usa
 - market_cap/mid_cap
 - risk_investment/growth
 - sector/fmcg
 created: '2025-11-16'
-last_modified: '2026-07-10'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-20T05:41:44Z'

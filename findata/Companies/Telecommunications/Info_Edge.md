@@ -7,6 +7,7 @@ industry: Internet Content & Information
 market_cap: large_cap
 normalized_name: Info_Edge
 permalink: /companies/telecommunications/info_edge
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
@@ -21,7 +22,7 @@ tags:
 - risk_investment/growth
 - sector/telecommunications
 created: '2025-01-15'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

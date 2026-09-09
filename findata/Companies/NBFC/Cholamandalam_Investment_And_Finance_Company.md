@@ -7,6 +7,7 @@ industry: Credit Services
 market_cap: large_cap
 normalized_name: Cholamandalam_Investment_And_Finance_Company
 permalink: /companies/nbfc/cholamandalam_investment_and_finance_company
+geography: india
 tags:
 - entity_type/company
 - sector/nbfc
@@ -14,7 +15,7 @@ tags:
 - geography/india
 - business_model/b2b
 created: '2025-01-15'
-last_modified: '2025-11-15'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

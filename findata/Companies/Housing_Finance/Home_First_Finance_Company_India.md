@@ -7,11 +7,13 @@ industry: Mortgage Finance
 market_cap: mid_cap
 normalized_name: Home_First_Finance_Company_India
 permalink: /companies/housing_finance/home_first_finance_company_india
+geography: india
 tags:
 - entity_type/company
 - sector/housing_finance
+- geography/india
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

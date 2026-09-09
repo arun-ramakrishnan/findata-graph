@@ -7,6 +7,7 @@ industry: Software - Infrastructure
 market_cap: mid_cap
 normalized_name: One_97_Communications_PayTM
 permalink: /companies/fintech_payments/one_97_communications_paytm
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/fintech_payments
 created: '2025-11-16'
-last_modified: '2026-06-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

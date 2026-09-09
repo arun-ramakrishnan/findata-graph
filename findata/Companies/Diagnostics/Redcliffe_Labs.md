@@ -7,6 +7,7 @@ industry: null
 market_cap: mid_cap
 normalized_name: Redcliffe_Labs
 permalink: /companies/diagnostics/redcliffe_labs
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
@@ -19,7 +20,7 @@ tags:
 - risk_investment/growth
 - sector/diagnostics
 created: '2025-12-28'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-07T00:00:00Z'

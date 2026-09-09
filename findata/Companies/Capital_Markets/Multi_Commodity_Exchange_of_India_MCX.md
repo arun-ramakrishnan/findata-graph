@@ -7,6 +7,7 @@ industry: Financial Data & Stock Exchanges
 market_cap: mid_cap
 normalized_name: Multi_Commodity_Exchange_of_India_MCX
 permalink: /companies/capital_markets/multi_commodity_exchange_of_india_mcx
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/capital_markets
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:45Z'

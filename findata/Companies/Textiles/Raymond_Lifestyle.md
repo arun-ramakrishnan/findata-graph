@@ -9,6 +9,7 @@ normalized_name: Raymond_Lifestyle
 file_path: findata/Companies/Textiles/Raymond_Lifestyle.md
 permalink: /companies/textiles/raymond_lifestyle
 exchange: NSE
+geography: india
 tags:
 - entity_type/company
 - sector/textiles
@@ -20,7 +21,7 @@ tags:
 - industry/fashion_retail
 - industry/luxury_brands
 created: '2026-01-10'
-last_modified: '2026-01-10'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

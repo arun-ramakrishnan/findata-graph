@@ -7,6 +7,7 @@ industry: Steel
 market_cap: mid_cap
 normalized_name: Surya_Roshni
 permalink: /companies/engineering_capital_goods/surya_roshni
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/dividend
 created: '2025-11-16'
-last_modified: '2026-06-24'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-24T00:00:00Z'

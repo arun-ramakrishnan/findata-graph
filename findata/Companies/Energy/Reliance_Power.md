@@ -7,12 +7,12 @@ industry: Utilities - Independent Power Producers
 market_cap: mid_cap
 normalized_name: Reliance_Power
 permalink: /companies/energy/reliance_power
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
 - entity_type/company
 - geography/india
-- geography/domestic_focused
 - market_cap/mid_cap
 - risk_investment/growth
 - risk_investment/medium_risk
@@ -23,7 +23,7 @@ tags:
 - investment_theme/renewable_energy
 - investment_theme/infrastructure
 created: '2025-11-16'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

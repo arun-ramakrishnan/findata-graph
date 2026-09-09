@@ -7,6 +7,7 @@ industry: null
 market_cap: micro_cap
 normalized_name: Excelsoft_Technologies
 permalink: /companies/technology/excelsoft_technologies
+geography: india
 tags:
 - entity_type/company
 - sector/technology
@@ -14,7 +15,7 @@ tags:
 - geography/india
 - business_model/b2b
 created: '2025-12-17'
-last_modified: '2025-12-17'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-17T00:00:00Z'

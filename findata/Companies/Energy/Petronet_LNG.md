@@ -7,6 +7,7 @@ industry: Oil & Gas Refining & Marketing
 market_cap: mid_cap
 normalized_name: Petronet_LNG
 permalink: /companies/energy/petronet_lng
+geography: india
 tags:
 - entity_type/company
 - sector/energy
@@ -18,7 +19,7 @@ tags:
 - investment_theme/energy_security
 - investment_theme/natural_gas
 created: '2026-06-20'
-last_modified: '2026-06-20'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:47Z'

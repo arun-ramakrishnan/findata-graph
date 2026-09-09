@@ -7,6 +7,7 @@ industry: null
 market_cap: micro_cap
 normalized_name: Aeron_Composite
 permalink: /companies/chemicals/aeron_composite
+geography: india
 tags:
 - entity_type/company
 - sector/chemicals
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-26'
-last_modified: '2025-11-26'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-26T00:00:00Z'

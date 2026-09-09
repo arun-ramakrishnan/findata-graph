@@ -7,6 +7,7 @@ industry: Communication Equipment
 market_cap: mid_cap
 normalized_name: Pace_Digitek
 permalink: /companies/media_entertainment/pace_digitek
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/media_entertainment
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

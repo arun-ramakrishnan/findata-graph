@@ -7,6 +7,7 @@ industry: Specialty Chemicals
 market_cap: small_cap
 normalized_name: Platinum_Industries
 permalink: /companies/chemicals/platinum_industries
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -19,7 +20,7 @@ tags:
 - risk_investment/growth
 - sector/chemicals
 created: '2025-11-26'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

@@ -7,6 +7,7 @@ industry: Building Products & Equipment
 market_cap: large_cap
 normalized_name: Somany_Ceramics
 permalink: /companies/building_materials/somany_ceramics
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
@@ -17,7 +18,7 @@ tags:
 - risk_investment/cyclical
 - sector/building_materials
 created: '2025-11-16'
-last_modified: '2026-08-05'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-08-05T00:00:00Z'

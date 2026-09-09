@@ -7,6 +7,7 @@ industry: Electrical Equipment & Parts
 market_cap: small_cap
 normalized_name: HPL_Electric_and_Power
 permalink: /companies/engineering_capital_goods/hpl_electric_and_power
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -16,7 +17,7 @@ tags:
 - business_model/b2c
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: '2025-12-04'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

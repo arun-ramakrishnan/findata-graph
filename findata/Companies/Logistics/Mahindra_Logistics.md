@@ -7,18 +7,18 @@ industry: Integrated Freight & Logistics
 market_cap: large_cap
 normalized_name: Mahindra_Logistics
 permalink: /companies/logistics/mahindra_logistics
+geography: india
 tags:
 - business_model/automotive_logistics
 - business_model/integrated_logistics
 - business_model/third_party_logistics
 - entity_type/company
 - geography/india
-- geography/south_asia
 - market_cap/large_cap
 - risk_investment/stable_growth
 - sector/logistics
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

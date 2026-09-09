@@ -7,6 +7,7 @@ industry: Building Products & Equipment
 market_cap: small_cap
 normalized_name: Murudeshwar_Ceramics
 permalink: /companies/building_materials/murudeshwar_ceramics
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/building_materials
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-29T00:00:00Z'

@@ -7,13 +7,14 @@ industry: Railroads
 market_cap: small_cap
 normalized_name: Titagarh_Rail_Systems
 permalink: /companies/railways/titagarh_rail_systems
+geography: india
 tags:
 - entity_type/company
 - sector/railways
 - market_cap/small_cap
 - geography/india
 created: '2025-11-28'
-last_modified: '2025-11-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

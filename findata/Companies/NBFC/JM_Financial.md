@@ -7,6 +7,7 @@ industry: Capital Markets
 market_cap: mid_cap
 normalized_name: JM_Financial
 permalink: /companies/nbfc/jm_financial
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/dividend
 - sector/nbfc
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

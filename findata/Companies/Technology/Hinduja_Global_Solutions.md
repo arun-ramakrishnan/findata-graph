@@ -7,6 +7,7 @@ industry: Specialty Business Services
 market_cap: small_cap
 normalized_name: Hinduja_Global_Solutions
 permalink: /companies/technology/hinduja_global_solutions
+geography: india
 tags:
 - geography/india
 - entity_type/company
@@ -14,7 +15,7 @@ tags:
 - market_cap/small_cap
 - sector/technology
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

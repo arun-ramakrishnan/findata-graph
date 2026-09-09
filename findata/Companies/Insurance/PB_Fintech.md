@@ -8,6 +8,7 @@ market_cap: large_cap
 normalized_name: PB_Fintech
 file_path: findata/Companies/Insurance/PB_Fintech.md
 permalink: /companies/insurance/pb_fintech
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -16,7 +17,7 @@ tags:
 - sector/insurance
 - market_cap/large_cap
 created: '2025-11-16'
-last_modified: '2026-08-05'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

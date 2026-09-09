@@ -7,6 +7,7 @@ industry: Specialty Chemicals
 market_cap: small_cap
 normalized_name: Neogen_Chemicals
 permalink: /companies/chemicals/neogen_chemicals
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -19,7 +20,7 @@ tags:
 - industry/manufacturing
 - sector/chemicals
 created: '2025-12-28'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

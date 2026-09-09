@@ -7,6 +7,7 @@ industry: Auto Parts
 market_cap: large_cap
 normalized_name: Jamna_Auto_Industries
 permalink: /companies/automotive/jamna_auto_industries
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/dividend
 - sector/automotive
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-25T00:00:00Z'

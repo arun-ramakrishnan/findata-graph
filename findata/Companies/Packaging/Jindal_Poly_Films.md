@@ -7,6 +7,7 @@ industry: Packaging & Containers
 market_cap: mid_cap
 normalized_name: Jindal_Poly_Films
 permalink: /companies/packaging/jindal_poly_films
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/medium_risk
 - sector/packaging
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-25T00:00:00Z'

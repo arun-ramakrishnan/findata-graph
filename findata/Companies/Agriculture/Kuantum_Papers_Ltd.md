@@ -7,6 +7,7 @@ industry: Paper & Paper Products
 market_cap: micro_cap
 normalized_name: Kuantum_Papers_Ltd
 permalink: /companies/agriculture/kuantum_papers_ltd
+geography: india
 tags:
 - entity_type/company
 - sector/agriculture
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-03'
-last_modified: '2025-12-03'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-03T00:00:00Z'

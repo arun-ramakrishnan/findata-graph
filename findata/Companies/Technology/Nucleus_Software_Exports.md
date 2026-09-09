@@ -7,6 +7,7 @@ industry: Software - Application
 market_cap: small_cap
 normalized_name: Nucleus_Software_Exports
 permalink: /companies/technology/nucleus_software_exports
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -16,7 +17,7 @@ tags:
 - sector/technology
 - risk_investment/high_growth
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-29T00:00:00Z'

@@ -8,6 +8,7 @@ market_cap: micro_cap
 normalized_name: Bai_Kakaji_Polymers
 file_path: findata/Companies/Packaging/Bai_Kakaji_Polymers.md
 permalink: /companies/packaging/bai_kakaji_polymers
+geography: india
 tags:
 - entity_type/company
 - sector/packaging
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-01-14'
-last_modified: '2026-01-14'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

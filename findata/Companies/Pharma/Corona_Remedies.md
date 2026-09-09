@@ -7,6 +7,7 @@ industry: null
 market_cap: small_cap
 normalized_name: Corona_Remedies
 permalink: /companies/pharma/corona_remedies
+geography: india
 tags:
 - entity_type/company
 - sector/pharma
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2025-01-07'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-19T16:38:56Z'

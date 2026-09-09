@@ -7,6 +7,7 @@ industry: Engineering & Construction
 market_cap: small_cap
 normalized_name: GE_Power_India
 permalink: /companies/engineering_capital_goods/ge_power_india
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -18,7 +19,7 @@ tags:
 - industry_characteristics/cyclical
 - investment_theme/power_infrastructure
 created: '2026-06-20'
-last_modified: '2026-06-20'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:47Z'

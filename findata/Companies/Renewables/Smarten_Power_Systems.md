@@ -9,6 +9,7 @@ normalized_name: Smarten_Power_Systems
 file_path: findata/Companies/Energy/Smarten_Power_Systems.md
 permalink: /companies/renewables/smarten_power_systems
 exchange: NSE
+geography: india
 tags:
 - entity_type/company
 - sector/renewables
@@ -19,7 +20,7 @@ tags:
 - industry/power_backup
 - industry/solar_energy
 created: '2026-01-10'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T07:35:29Z'

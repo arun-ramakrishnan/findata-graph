@@ -9,6 +9,7 @@ market_cap: micro_cap
 normalized_name: MMP_Industries
 file_path: findata/Companies/Metals/MMP_Industries.md
 permalink: /companies/metals/mmp_industries
+geography: india
 tags:
 - entity_type/company
 - sector/metals
@@ -18,7 +19,7 @@ tags:
 - risk_investment/growth
 - financial_tags/profitable
 created: '2026-06-17'
-last_modified: '2026-06-17'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-17T00:00:00Z'

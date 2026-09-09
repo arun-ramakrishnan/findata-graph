@@ -8,16 +8,16 @@ market_cap: large_cap
 normalized_name: NVIDIA_Corporation
 file_path: findata/Companies/Technology/NVIDIA_Corporation.md
 permalink: /companies/semiconductors/nvidia_corporation
-geography: global
+geography: usa
 tags:
 - entity_type/company
 - sector/semiconductors
 - market_cap/large_cap
-- geography/global
+- geography/usa
 - business_model/b2b
 - risk_investment/high_growth
 created: '2025-11-21'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:45Z'

@@ -7,6 +7,7 @@ industry: Farm & Heavy Construction Machinery
 market_cap: mid_cap
 normalized_name: Olectra_Greentech
 permalink: /companies/technology/olectra_greentech
+geography: india
 tags:
 - entity_type/company
 - sector/technology
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2025-11-16'
-last_modified: '2026-08-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:45Z'

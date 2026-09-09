@@ -7,15 +7,16 @@ industry: Consumer Electronics
 market_cap: mid_cap
 normalized_name: Xiaomi
 permalink: /companies/electronics/xiaomi
+geography: hong_kong
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/india
+- geography/hong_kong
 - market_cap/mid_cap
 - risk_investment/growth
 - sector/electronics
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

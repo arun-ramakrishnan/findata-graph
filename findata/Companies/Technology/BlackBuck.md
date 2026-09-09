@@ -8,6 +8,7 @@ market_cap: small_cap
 normalized_name: BlackBuck
 file_path: findata/Companies/Technology/BlackBuck.md
 permalink: /companies/technology/blackbuck
+geography: india
 tags:
 - entity_type/company
 - sector/technology
@@ -17,7 +18,7 @@ tags:
 - risk_investment/growth
 - financial_tags/profitable
 created: '2026-06-17'
-last_modified: '2026-06-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

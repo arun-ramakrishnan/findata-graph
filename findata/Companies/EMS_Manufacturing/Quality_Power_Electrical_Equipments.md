@@ -7,6 +7,7 @@ industry: Electrical Equipment & Parts
 market_cap: small_cap
 normalized_name: Quality_Power_Electrical_Equipments
 permalink: /companies/ems_manufacturing/quality_power_electrical_equipments
+geography: india
 tags:
 - entity_type/company
 - sector/ems_manufacturing
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-11-21'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

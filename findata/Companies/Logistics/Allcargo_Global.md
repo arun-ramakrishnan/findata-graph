@@ -2,6 +2,7 @@
 title: Allcargo Global
 type: company
 ticker: AGL.BO
+geography: india
 tags:
 - entity_type/company
 - sector/logistics
@@ -12,7 +13,7 @@ sector: Logistics
 market_cap: small_cap
 permalink: /companies/logistics/allcargo_global
 created: '2026-08-25'
-last_modified: '2026-08-25'
+last_modified: '2026-09-10'
 sources:
 - id: Yes_Bank_Colgate_Allcargo
   resource: /findata/The_Chatter/Yes_Bank_Colgate_Allcargo.md

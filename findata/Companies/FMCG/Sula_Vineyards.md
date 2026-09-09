@@ -7,16 +7,16 @@ industry: Beverages - Wineries & Distilleries
 market_cap: small_cap
 normalized_name: Sula_Vineyards
 permalink: /companies/fmcg/sula_vineyards
-geography: global
+geography: india
 tags:
 - entity_type/company
 - sector/fmcg
 - market_cap/small_cap
-- geography/global
+- geography/india
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2025-12-16'
-last_modified: '2025-12-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

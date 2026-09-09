@@ -7,6 +7,7 @@ industry: Electrical Equipment & Parts
 market_cap: mid_cap
 normalized_name: Precision_Wires_India
 permalink: /companies/engineering_capital_goods/precision_wires_india
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2025-11-16'
-last_modified: '2026-06-24'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-24T00:00:00Z'

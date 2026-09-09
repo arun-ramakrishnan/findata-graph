@@ -7,16 +7,16 @@ industry: Software - Infrastructure
 market_cap: large_cap
 normalized_name: Palantir_Technologies
 permalink: /companies/technology/palantir_technologies
-geography: global
+geography: usa
 tags:
 - entity_type/company
 - sector/technology
 - market_cap/large_cap
-- geography/global
+- geography/usa
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-07-05'
-last_modified: '2026-07-05'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

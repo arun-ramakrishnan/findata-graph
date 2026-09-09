@@ -7,6 +7,7 @@ industry: null
 market_cap: micro_cap
 normalized_name: Sacheerome
 permalink: /companies/chemicals/sacheerome
+geography: india
 tags:
 - entity_type/company
 - sector/chemicals
@@ -19,7 +20,7 @@ tags:
 - industry/aroma_chemicals
 - industry/manufacturing
 created: '2025-12-28'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

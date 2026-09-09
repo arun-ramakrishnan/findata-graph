@@ -8,6 +8,7 @@ market_cap: micro_cap
 normalized_name: Indian_Terrain_Fashions
 file_path: findata/Companies/Textiles/Indian_Terrain_Fashions.md
 permalink: /companies/textiles/indian_terrain_fashions
+geography: india
 tags:
 - entity_type/company
 - sector/textiles
@@ -17,7 +18,7 @@ tags:
 - risk_investment/medium_risk
 - financial_tags/loss_making
 created: '2026-06-17'
-last_modified: '2026-06-17'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-17T00:00:00Z'

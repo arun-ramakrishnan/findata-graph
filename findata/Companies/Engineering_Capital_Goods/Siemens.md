@@ -7,6 +7,7 @@ industry: Specialty Industrial Machinery
 market_cap: large_cap
 normalized_name: Siemens
 permalink: /companies/engineering_capital_goods/siemens
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -14,7 +15,7 @@ tags:
 - geography/india
 - business_model/b2b
 created: '2025-12-17'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

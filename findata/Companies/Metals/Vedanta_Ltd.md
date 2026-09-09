@@ -7,6 +7,7 @@ industry: Other Industrial Metals & Mining
 market_cap: large_cap
 normalized_name: Vedanta_Ltd
 permalink: /companies/metals/vedanta_ltd
+geography: india
 tags:
 - entity_type/company
 - sector/metals
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/dividend
 created: '2025-12-20'
-last_modified: '2026-07-10'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

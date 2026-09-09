@@ -7,6 +7,7 @@ industry: Household & Personal Products
 market_cap: large_cap
 normalized_name: Colgate_Palmolive_India_Ltd
 permalink: /companies/fmcg/colgate_palmolive_india_ltd
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/low_risk
 - sector/fmcg
 created: '2025-11-16'
-last_modified: '2026-08-25'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-08-25T00:00:00Z'

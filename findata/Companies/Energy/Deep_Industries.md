@@ -7,18 +7,18 @@ industry: Oil & Gas E&P
 market_cap: small_cap
 normalized_name: Deep_Industries
 permalink: /companies/energy/deep_industries
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/domestic_focused
-- geography/global
+- geography/india
 - market_cap/small_cap
 - sector/energy
 - risk_investment/medium_risk
 - industry_characteristics/capital_intensive
 - industry_characteristics/technology_intensive
 created: '2025-11-16'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

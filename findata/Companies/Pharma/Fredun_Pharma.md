@@ -7,6 +7,7 @@ industry: Drug Manufacturers - Specialty & Generic
 market_cap: small_cap
 normalized_name: Fredun_Pharma
 permalink: /companies/pharma/fredun_pharma
+geography: india
 tags:
 - entity_type/company
 - sector/pharma
@@ -14,7 +15,7 @@ tags:
 - geography/india
 - business_model/b2b
 created: '2025-01-15'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-29T00:00:00Z'

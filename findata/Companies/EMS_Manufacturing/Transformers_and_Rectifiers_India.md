@@ -8,6 +8,7 @@ market_cap: small_cap
 normalized_name: Transformers_and_Rectifiers_India
 file_path: findata/Companies/Engineering_Capital_Goods/Transformers_and_Rectifiers_India.md
 permalink: /companies/ems_manufacturing/transformers_and_rectifiers_india
+geography: india
 tags:
 - entity_type/company
 - sector/ems_manufacturing
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-01-14'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

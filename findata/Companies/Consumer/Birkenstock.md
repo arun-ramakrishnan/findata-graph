@@ -9,18 +9,19 @@ normalized_name: Birkenstock
 file_path: findata/Companies/Consumer/Birkenstock.md
 permalink: /companies/consumer/birkenstock
 exchange: NYSE
+geography: austria
 tags:
 - entity_type/company
 - sector/consumer
 - market_cap/large_cap
-- geography/global
+- geography/austria
 - business_model/b2c
 - risk_investment/medium_risk
 - industry/footwear
 - industry/luxury_brands
 - industry/health_wellness
 created: '2026-01-10'
-last_modified: '2026-07-12'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-19T16:38:57Z'

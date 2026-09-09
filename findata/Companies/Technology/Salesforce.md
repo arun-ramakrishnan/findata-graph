@@ -7,15 +7,16 @@ industry: Software - Application
 market_cap: large_cap
 normalized_name: Salesforce
 permalink: /companies/technology/salesforce
+geography: usa
 tags:
 - business_model/saas
 - entity_type/company
-- geography/global
+- geography/usa
 - market_cap/large_cap
 - risk_investment/growth
 - sector/technology
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

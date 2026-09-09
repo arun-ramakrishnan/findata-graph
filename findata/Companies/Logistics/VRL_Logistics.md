@@ -7,18 +7,18 @@ industry: Trucking
 market_cap: mid_cap
 normalized_name: VRL_Logistics
 permalink: /companies/logistics/vrl_logistics
+geography: india
 tags:
 - business_model/cost_optimization
 - business_model/freight_services
 - business_model/transportation
 - entity_type/company
 - geography/india
-- geography/west_india
 - market_cap/mid_cap
 - risk_investment/stable_growth
 - sector/logistics
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

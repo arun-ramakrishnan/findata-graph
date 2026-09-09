@@ -7,19 +7,19 @@ industry: Utilities - Regulated Gas
 market_cap: large_cap
 normalized_name: GAIL_India
 permalink: /companies/energy/gail_india
+geography: india
 tags:
 - entity_type/company
 - sector/energy
 - market_cap/large_cap
 - geography/india
-- geography/pan_india
 - business_model/b2b
 - business_model/b2c
 - risk_investment/dividend
 - industry_characteristics/infrastructure_intensive
 - industry_characteristics/regulated
 created: '2025-12-03'
-last_modified: '2026-06-26'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

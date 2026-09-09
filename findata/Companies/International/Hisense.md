@@ -4,16 +4,14 @@ type: company
 tags:
 - entity_type/company
 - sector/international
-- geography/global
 - business_model/b2c
 normalized_name: Hisense
 sector: International
 ticker: null
 market_cap: null
-geography: global
 listed: false
 created: '2026-08-13'
-last_modified: '2026-08-13'
+last_modified: '2026-09-10'
 permalink: /companies/international/hisense
 generated:
   by: derive_insights.py/v1

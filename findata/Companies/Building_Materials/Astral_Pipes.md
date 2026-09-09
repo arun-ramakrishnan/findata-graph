@@ -7,6 +7,7 @@ industry: Building Products & Equipment
 market_cap: mid_cap
 normalized_name: Astral_Pipes
 permalink: /companies/building_materials/astral_pipes
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/cyclical
 - sector/building_materials
 created: '2025-11-16'
-last_modified: '2026-06-24'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:16Z'

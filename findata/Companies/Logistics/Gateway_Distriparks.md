@@ -7,6 +7,7 @@ industry: Integrated Freight & Logistics
 market_cap: small_cap
 normalized_name: Gateway_Distriparks
 permalink: /companies/logistics/gateway_distriparks
+geography: india
 tags:
 - entity_type/company
 - sector/logistics
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-25T00:00:00Z'

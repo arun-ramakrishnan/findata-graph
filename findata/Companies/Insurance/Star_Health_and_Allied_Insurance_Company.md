@@ -7,6 +7,7 @@ industry: Insurance - Life
 market_cap: large_cap
 normalized_name: Star_Health_and_Allied_Insurance_Company
 permalink: /companies/insurance/star_health_and_allied_insurance_company
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/insurance
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-25T00:00:00Z'

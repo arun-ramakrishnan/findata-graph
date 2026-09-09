@@ -7,6 +7,7 @@ industry: Medical Care Facilities
 market_cap: large_cap
 normalized_name: Apollo_Hospitals
 permalink: /companies/hospitals/apollo_hospitals
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/hospitals
 created: '2025-11-16'
-last_modified: '2026-08-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

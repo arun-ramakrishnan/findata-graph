@@ -10,12 +10,11 @@ permalink: /companies/logistics/freightos
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/global
 - market_cap/small_cap
 - risk_investment/medium_risk
 - sector/logistics
 created: '2026-09-07'
-last_modified: '2026-09-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:46:30Z'

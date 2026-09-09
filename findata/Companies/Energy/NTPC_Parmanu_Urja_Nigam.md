@@ -11,7 +11,6 @@ tags:
 - business_model/b2b
 - entity_type/company
 - geography/india
-- geography/domestic_focused
 - market_cap/large_cap
 - risk_investment/sovereign
 - risk_investment/low_risk
@@ -23,7 +22,7 @@ tags:
 - investment_theme/energy_transition
 - investment_theme/government_owned
 created: '2025-11-16'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

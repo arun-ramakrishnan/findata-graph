@@ -7,6 +7,7 @@ industry: Building Materials
 market_cap: micro_cap
 normalized_name: Global_Surfaces
 permalink: /companies/building_materials/global_surfaces
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -14,7 +15,7 @@ tags:
 - geography/india
 - business_model/b2b
 created: '2025-12-17'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-29T00:00:00Z'

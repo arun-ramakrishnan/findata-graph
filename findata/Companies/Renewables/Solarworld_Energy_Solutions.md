@@ -7,6 +7,7 @@ industry: null
 market_cap: large_cap
 normalized_name: Solarworld_Energy_Solutions
 permalink: /companies/renewables/solarworld_energy_solutions
+geography: india
 tags:
 - entity_type/company
 - sector/renewables
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2025-12-10'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-07T00:00:00Z'

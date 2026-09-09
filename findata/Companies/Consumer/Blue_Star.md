@@ -7,6 +7,7 @@ industry: Building Products & Equipment
 market_cap: large_cap
 normalized_name: Blue_Star
 permalink: /companies/consumer/blue_star
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
@@ -16,7 +17,7 @@ tags:
 - risk_investment/cyclical
 - sector/consumer
 created: '2025-11-16'
-last_modified: '2026-08-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T07:34:19Z'

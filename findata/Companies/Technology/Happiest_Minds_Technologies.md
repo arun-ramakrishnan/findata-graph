@@ -7,11 +7,13 @@ industry: Information Technology Services
 market_cap: small_cap
 normalized_name: Happiest_Minds_Technologies
 permalink: /companies/technology/happiest_minds_technologies
+geography: india
 tags:
 - entity_type/company
 - sector/technology
+- geography/india
 created: '2025-11-16'
-last_modified: '2026-06-24'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-20T05:41:43Z'

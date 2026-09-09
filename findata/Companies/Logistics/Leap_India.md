@@ -2,6 +2,7 @@
 title: Leap India
 type: company
 ticker: LEAPIND.NS
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -14,7 +15,7 @@ sector: Logistics
 market_cap: small_cap
 permalink: /companies/logistics/leap_india
 created: '2026-09-04'
-last_modified: '2026-09-04'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

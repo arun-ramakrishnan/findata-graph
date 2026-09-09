@@ -126,3 +126,42 @@ class TestSurgeryShape:
         new, changes = gc.plan_note(text, "india", TODAY)
         assert new == text
         assert changes == []
+
+
+class TestStaleIndexGuard:
+    """Regression (Hisense, 2026-09-10): a geography TAG above the geography
+    KEY shifts line indices when the tag pass deletes lines — the key edit
+    must re-locate the key, not hit whatever slid into the stale slot
+    (the bug deleted `listed: false` and kept the global key)."""
+
+    def _tag_above_key_note(self):
+        return (
+            "---\n"
+            "title: Acme\n"
+            "type: company\n"
+            "tags:\n"
+            "- entity_type/company\n"
+            "- sector/technology\n"
+            "- geography/global\n"
+            "normalized_name: Acme\n"
+            "ticker: null\n"
+            "listed: false\n"
+            "geography: global\n"
+            "last_modified: '2026-01-01'\n"
+            "---\n\n# Acme\n"
+        )
+
+    def test_key_drop_hits_key_not_neighbour(self):
+        new, changes = gc.plan_note(self._tag_above_key_note(), None, TODAY)
+        assert "geography:" not in new
+        assert "- geography/" not in new
+        assert "listed: false" in new
+        assert "key_drop" in changes and "slop_drop" in changes
+
+    def test_key_fix_hits_key_not_neighbour(self):
+        new, changes = gc.plan_note(self._tag_above_key_note(), "india", TODAY)
+        assert "geography: india\n" in new
+        assert new.count("geography:") == 1
+        assert "- geography/india" in new
+        assert new.count("- geography/") == 1
+        assert "listed: false" in new

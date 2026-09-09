@@ -7,6 +7,7 @@ industry: null
 market_cap: micro_cap
 normalized_name: Canarys_Automation
 permalink: /companies/technology/canarys_automation
+geography: india
 tags:
 - entity_type/company
 - sector/technology
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2025-12-20'
-last_modified: '2025-12-20'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

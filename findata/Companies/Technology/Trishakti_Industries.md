@@ -8,6 +8,7 @@ market_cap: micro_cap
 normalized_name: Trishakti_Industries
 file_path: findata/Companies/Technology/Trishakti_Industries.md
 permalink: /companies/technology/trishakti_industries
+geography: india
 tags:
 - entity_type/company
 - sector/technology
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-01-21'
-last_modified: '2026-01-21'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

@@ -7,6 +7,7 @@ industry: Banks - Regional
 market_cap: large_cap
 normalized_name: Bank_of_India
 permalink: /companies/banking/bank_of_india
+geography: india
 tags:
 - business_model/traditional_banking
 - entity_type/company
@@ -17,7 +18,7 @@ tags:
 - business_model/b2b
 - confidence/high
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

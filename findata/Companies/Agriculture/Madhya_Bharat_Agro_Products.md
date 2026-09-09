@@ -7,6 +7,7 @@ industry: Agricultural Inputs
 market_cap: mid_cap
 normalized_name: Madhya_Bharat_Agro_Products
 permalink: /companies/agriculture/madhya_bharat_agro_products
+geography: india
 tags:
 - entity_type/company
 - sector/agriculture
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-12-28'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

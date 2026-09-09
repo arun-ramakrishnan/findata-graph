@@ -7,6 +7,7 @@ industry: Information Technology Services
 market_cap: large_cap
 normalized_name: LTM
 permalink: /companies/technology/ltm
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/technology
 created: '2025-11-16'
-last_modified: '2026-07-28'
+last_modified: '2026-09-10'
 file_path: findata/Companies/Technology/LTM.md
 generated:
   by: derive_insights.py/v1

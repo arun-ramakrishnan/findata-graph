@@ -7,6 +7,7 @@ industry: Communication Equipment
 market_cap: small_cap
 normalized_name: Astra_Microwave_Products
 permalink: /companies/ems_manufacturing/astra_microwave_products
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/defense
 - sector/ems_manufacturing
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

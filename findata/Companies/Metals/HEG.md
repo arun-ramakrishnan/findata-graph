@@ -2,6 +2,7 @@
 title: HEG
 type: company
 ticker: HEG.BO
+geography: india
 tags:
 - entity_type/company
 - sector/metals
@@ -12,7 +13,7 @@ sector: Metals
 market_cap: small_cap
 permalink: /companies/metals/heg
 created: '2026-08-25'
-last_modified: '2026-08-25'
+last_modified: '2026-09-10'
 sources:
 - id: RBI_3M_Blue_Star_KFin
   resource: /findata/The_Chatter/RBI_3M_Blue_Star_KFin.md

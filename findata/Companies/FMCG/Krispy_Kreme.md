@@ -7,16 +7,16 @@ industry: Grocery Stores
 market_cap: mid_cap
 normalized_name: Krispy_Kreme
 permalink: /companies/fmcg/krispy_kreme
+geography: usa
 tags:
 - business_model/b2c
 - entity_type/company
-- geography/global
-- geography/india
+- geography/usa
 - market_cap/mid_cap
 - risk_investment/growth
 - sector/fmcg
 created: '2025-11-16'
-last_modified: '2026-07-10'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

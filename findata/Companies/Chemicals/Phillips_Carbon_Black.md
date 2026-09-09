@@ -7,6 +7,7 @@ industry: Specialty Chemicals
 market_cap: mid_cap
 normalized_name: Phillips_Carbon_Black
 permalink: /companies/chemicals/phillips_carbon_black
+geography: india
 tags:
 - entity_type/company
 - sector/chemicals
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/cyclical
 created: '2025-12-28'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-25T00:00:00Z'

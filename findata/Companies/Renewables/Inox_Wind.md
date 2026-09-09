@@ -7,6 +7,7 @@ industry: Specialty Industrial Machinery
 market_cap: large_cap
 normalized_name: Inox_Wind
 permalink: /companies/renewables/inox_wind
+geography: india
 tags:
 - entity_type/company
 - sector/renewables
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

@@ -7,6 +7,7 @@ industry: Software - Application
 market_cap: mid_cap
 normalized_name: Tanla_Platforms
 permalink: /companies/telecommunications/tanla_platforms
+geography: india
 tags:
 - business_model/platform
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/telecommunications
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

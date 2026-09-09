@@ -7,6 +7,7 @@ industry: Auto Parts
 market_cap: large_cap
 normalized_name: Bosch
 permalink: /companies/automotive/bosch
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
@@ -17,7 +18,7 @@ tags:
 - risk_investment/stable
 - sector/automotive
 created: '2025-11-16'
-last_modified: '2026-06-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

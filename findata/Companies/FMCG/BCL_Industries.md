@@ -7,6 +7,7 @@ industry: Beverages - Wineries & Distilleries
 market_cap: micro_cap
 normalized_name: BCL_Industries
 permalink: /companies/fmcg/bcl_industries
+geography: india
 tags:
 - entity_type/company
 - sector/fmcg
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-11-19'
-last_modified: '2025-12-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-29T00:00:00Z'

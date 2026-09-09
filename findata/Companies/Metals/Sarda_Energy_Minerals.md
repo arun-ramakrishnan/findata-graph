@@ -7,12 +7,12 @@ industry: Steel
 market_cap: mid_cap
 normalized_name: Sarda_Energy_Minerals
 permalink: /companies/metals/sarda_energy_minerals
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
 - entity_type/company
 - geography/india
-- geography/domestic_focused
 - market_cap/mid_cap
 - risk_investment/growth
 - risk_investment/medium_risk
@@ -24,7 +24,7 @@ tags:
 - investment_theme/resource_optimization
 - investment_theme/sustainable_mining
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-07T00:00:00Z'

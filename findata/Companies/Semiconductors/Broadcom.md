@@ -9,11 +9,12 @@ normalized_name: Broadcom
 file_path: findata/Companies/Technology/Broadcom.md
 permalink: /companies/semiconductors/broadcom
 exchange: NASDAQ
+geography: usa
 tags:
 - entity_type/company
 - sector/semiconductors
 - market_cap/large_cap
-- geography/global
+- geography/usa
 - business_model/b2b
 - risk_investment/medium_risk
 - industry/semiconductors
@@ -21,7 +22,7 @@ tags:
 - industry/cloud_computing
 - industry/networking
 created: '2026-01-10'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T07:35:29Z'

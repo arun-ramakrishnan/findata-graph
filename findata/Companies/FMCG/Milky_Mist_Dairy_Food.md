@@ -2,6 +2,7 @@
 title: Milky Mist Dairy Food
 type: company
 ticker: MILKYMIST.NS
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -14,7 +15,7 @@ sector: FMCG
 market_cap: small_cap
 permalink: /companies/fmcg/milky_mist_dairy_food
 created: '2026-09-04'
-last_modified: '2026-09-04'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

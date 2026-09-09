@@ -7,6 +7,7 @@ industry: null
 market_cap: micro_cap
 normalized_name: De_Neers_Tools
 permalink: /companies/engineering_capital_goods/de_neers_tools
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-26'
-last_modified: '2025-11-26'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-26T00:00:00Z'

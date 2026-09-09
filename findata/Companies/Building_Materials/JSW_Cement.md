@@ -7,6 +7,7 @@ industry: null
 market_cap: small_cap
 normalized_name: JSW_Cement
 permalink: /companies/building_materials/jsw_cement
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -18,7 +19,7 @@ tags:
 - industry/building_materials
 - industry/infrastructure
 created: '2025-12-28'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

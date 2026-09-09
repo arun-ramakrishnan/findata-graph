@@ -7,6 +7,7 @@ industry: Packaged Foods
 market_cap: mid_cap
 normalized_name: Bectors_Food_Specialities
 permalink: /companies/fmcg/bectors_food_specialities
+geography: india
 tags:
 - entity_type/company
 - sector/fmcg
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/dividend
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

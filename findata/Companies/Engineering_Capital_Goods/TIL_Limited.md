@@ -7,6 +7,7 @@ industry: Farm & Heavy Construction Machinery
 market_cap: mid_cap
 normalized_name: TIL_Limited
 permalink: /companies/engineering_capital_goods/til_limited
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -18,7 +19,7 @@ tags:
 - risk_investment/cyclical
 - sector/engineering_capital_goods
 created: '2025-12-28'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

@@ -7,6 +7,7 @@ industry: Packaged Foods
 market_cap: large_cap
 normalized_name: Britannia_Industries
 permalink: /companies/fmcg/britannia_industries
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/low_risk
 - sector/fmcg
 created: '2025-11-16'
-last_modified: '2026-07-10'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

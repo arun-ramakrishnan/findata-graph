@@ -7,6 +7,7 @@ industry: null
 market_cap: small_cap
 normalized_name: Krishna_Defence_and_Allied_Industries
 permalink: /companies/defense/krishna_defence_and_allied_industries
+geography: india
 tags:
 - entity_type/company
 - sector/defense
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

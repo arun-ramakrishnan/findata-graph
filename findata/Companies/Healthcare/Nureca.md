@@ -8,6 +8,7 @@ market_cap: micro_cap
 normalized_name: Nureca
 file_path: findata/Companies/Healthcare/Nureca.md
 permalink: /companies/healthcare/nureca
+geography: india
 tags:
 - entity_type/company
 - sector/healthcare
@@ -16,7 +17,7 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2026-01-21'
-last_modified: '2026-01-21'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-19T16:38:56Z'

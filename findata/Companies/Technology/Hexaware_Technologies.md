@@ -7,6 +7,7 @@ industry: Information Technology Services
 market_cap: mid_cap
 normalized_name: Hexaware_Technologies
 permalink: /companies/technology/hexaware_technologies
+geography: india
 tags:
 - entity_type/company
 - sector/technology
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-07-31'
-last_modified: '2026-08-31'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

@@ -5,7 +5,7 @@ ticker: SCBFF
 sector: International
 industry: Banks - Diversified
 market_cap: large_cap
-geography: global
+geography: uk
 business_model: b2b
 risk_investment: medium_risk
 normalized_name: Standard_Chartered
@@ -15,11 +15,11 @@ tags:
 - entity_type/company
 - sector/international
 - market_cap/large_cap
-- geography/global
+- geography/uk
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-07-19'
-last_modified: '2026-07-19'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-19T00:00:00Z'

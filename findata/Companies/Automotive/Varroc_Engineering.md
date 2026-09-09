@@ -7,6 +7,7 @@ industry: Auto Parts
 market_cap: mid_cap
 normalized_name: Varroc_Engineering
 permalink: /companies/automotive/varroc_engineering
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/automotive
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

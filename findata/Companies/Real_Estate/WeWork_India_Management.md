@@ -7,6 +7,7 @@ industry: null
 market_cap: mid_cap
 normalized_name: WeWork_India_Management
 permalink: /companies/real_estate/wework_india_management
+geography: india
 tags:
 - entity_type/company
 - sector/real_estate
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-07-17'
-last_modified: '2026-07-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

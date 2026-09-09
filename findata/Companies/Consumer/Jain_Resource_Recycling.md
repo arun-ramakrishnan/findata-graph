@@ -7,6 +7,7 @@ industry: null
 market_cap: small_cap
 normalized_name: Jain_Resource_Recycling
 permalink: /companies/consumer/jain_resource_recycling
+geography: india
 tags:
 - entity_type/company
 - sector/consumer
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-16'
-last_modified: '2025-12-31'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

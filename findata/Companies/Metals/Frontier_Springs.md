@@ -6,6 +6,7 @@ sector: Metals
 market_cap: small_cap
 normalized_name: Frontier_Springs
 permalink: /companies/metals/frontier_springs
+geography: india
 tags:
 - entity_type/company
 - sector/metals
@@ -15,7 +16,7 @@ tags:
 - risk_investment/cyclical
 - investment_theme/railway_capex
 created: '2026-06-20'
-last_modified: '2026-06-20'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-20T00:00:00Z'

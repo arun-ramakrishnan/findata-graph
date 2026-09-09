@@ -8,6 +8,7 @@ market_cap: micro_cap
 normalized_name: Quadrant_Future_Tek
 file_path: findata/Companies/Engineering_Capital_Goods/Quadrant_Future_Tek.md
 permalink: /companies/ems_manufacturing/quadrant_future_tek
+geography: india
 tags:
 - entity_type/company
 - sector/ems_manufacturing
@@ -17,7 +18,7 @@ tags:
 - risk_investment/growth
 - financial_tags/high_growth
 created: '2026-06-17'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-07T00:00:00Z'

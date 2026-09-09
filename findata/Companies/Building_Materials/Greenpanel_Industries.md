@@ -7,6 +7,7 @@ industry: Lumber & Wood Production
 market_cap: small_cap
 normalized_name: Greenpanel_Industries
 permalink: /companies/building_materials/greenpanel_industries
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b2c
 - risk_investment/medium_risk
 created: '2026-06-30'
-last_modified: '2026-06-30'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-30T00:00:00Z'

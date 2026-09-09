@@ -7,6 +7,7 @@ industry: Utilities - Regulated Gas
 market_cap: mid_cap
 normalized_name: Indraprastha_Gas
 permalink: /companies/energy/indraprastha_gas
+geography: india
 tags:
 - geography/india
 - entity_type/company
@@ -16,7 +17,7 @@ tags:
 - confidence/high
 - risk_investment/dividend
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

@@ -7,6 +7,7 @@ industry: Luxury Goods
 market_cap: small_cap
 normalized_name: DP_Abhushan_Ltd
 permalink: /companies/retail/dp_abhushan_ltd
+geography: india
 tags:
 - entity_type/company
 - sector/retail
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2025-12-03'
-last_modified: '2025-12-03'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-03T00:00:00Z'

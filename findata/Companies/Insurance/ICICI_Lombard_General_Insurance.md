@@ -7,6 +7,7 @@ industry: Insurance - Diversified
 market_cap: large_cap
 normalized_name: ICICI_Lombard_General_Insurance
 permalink: /companies/insurance/icici_lombard_general_insurance
+geography: india
 tags:
 - entity_type/company
 - sector/insurance
@@ -15,7 +16,7 @@ tags:
 - business_model/mixed
 - risk_investment/dividend
 created: '2025-12-03'
-last_modified: '2026-07-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

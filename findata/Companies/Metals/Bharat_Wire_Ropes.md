@@ -7,6 +7,7 @@ industry: Steel
 market_cap: small_cap
 normalized_name: Bharat_Wire_Ropes
 permalink: /companies/metals/bharat_wire_ropes
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -19,7 +20,7 @@ tags:
 - industry/manufacturing
 - sector/metals
 created: '2025-12-28'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

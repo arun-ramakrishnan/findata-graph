@@ -7,6 +7,7 @@ industry: Asset Management
 market_cap: large_cap
 normalized_name: 360_ONE_WAM
 permalink: /companies/financial_services/360_one_wam
+geography: india
 tags:
 - entity_type/company
 - sector/financial_services
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-07-17'
-last_modified: '2026-07-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

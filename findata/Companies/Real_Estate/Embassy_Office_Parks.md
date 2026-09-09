@@ -7,6 +7,7 @@ industry: REIT - Office
 market_cap: micro_cap
 normalized_name: Embassy_Office_Parks
 permalink: /companies/real_estate/embassy_office_parks
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/real_estate
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

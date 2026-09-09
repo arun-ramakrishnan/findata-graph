@@ -7,6 +7,7 @@ industry: Credit Services
 market_cap: large_cap
 normalized_name: Power_Finance_Corporation
 permalink: /companies/energy/power_finance_corporation
+geography: india
 tags:
 - entity_type/company
 - sector/energy
@@ -14,7 +15,7 @@ tags:
 - geography/india
 - business_model/b2b
 created: '2025-01-15'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

@@ -28,10 +28,11 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- `country_layer_institution_lanes.md` — country entities + listed_in
-  edges from ticker suffixes, geography tag/frontmatter convergence
-  (slop cleanup + A3 whitelist activation), RBI/SEBI institution
-  entities with rated_by/regulated_by extraction lanes. Filed 2026-09-09.
+_(none)_
+
+_(Previously: country_layer_institution_lanes.md, archived as
+completed.md entry 219 on 2026-09-10 — execution record in
+`../archive/graph/country_layer_institution_lanes.md`.)_
 
 _(Previously: cli_param_bundling_doc_anchor_repair.md, archived as
 completed.md #217 on 2026-09-09 — execution record in

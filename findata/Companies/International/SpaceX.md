@@ -7,16 +7,14 @@ sector: International
 market_cap: large_cap
 normalized_name: SpaceX
 permalink: /companies/international/spacex
-geography: global
 tags:
 - entity_type/company
 - sector/international
 - market_cap/large_cap
-- geography/global
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-07-05'
-last_modified: '2026-07-05'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T07:35:03Z'

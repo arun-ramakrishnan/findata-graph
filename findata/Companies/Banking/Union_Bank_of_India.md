@@ -8,6 +8,7 @@ market_cap: large_cap
 normalized_name: Union_Bank_of_India
 file_path: findata/Companies/Banking/Union_Bank_of_India.md
 permalink: /companies/banking/union_bank_of_india
+geography: india
 tags:
 - entity_type/company
 - sector/banking
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-01-17'
-last_modified: '2026-01-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

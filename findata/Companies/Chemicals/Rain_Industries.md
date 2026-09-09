@@ -7,15 +7,16 @@ industry: Specialty Chemicals
 market_cap: small_cap
 normalized_name: Rain_Industries
 permalink: /companies/chemicals/rain_industries
+geography: india
 tags:
 - business_model/mixed
 - entity_type/company
-- geography/global
+- geography/india
 - market_cap/small_cap
 - risk_investment/growth
 - sector/chemicals
 created: '2025-11-15'
-last_modified: '2026-06-24'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

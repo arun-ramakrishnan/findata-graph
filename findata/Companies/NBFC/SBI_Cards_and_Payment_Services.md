@@ -8,6 +8,7 @@ market_cap: large_cap
 normalized_name: SBI_Cards_and_Payment_Services
 file_path: findata/Companies/NBFC/SBI_Cards_and_Payment_Services.md
 permalink: /companies/nbfc/sbi_cards_and_payment_services
+geography: india
 tags:
 - entity_type/company
 - sector/nbfc
@@ -16,7 +17,7 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2025-12-28'
-last_modified: '2026-07-12'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:16Z'

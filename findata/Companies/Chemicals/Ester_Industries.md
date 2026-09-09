@@ -7,6 +7,7 @@ industry: Specialty Chemicals
 market_cap: micro_cap
 normalized_name: Ester_Industries
 permalink: /companies/chemicals/ester_industries
+geography: india
 tags:
 - entity_type/company
 - sector/chemicals
@@ -18,7 +19,7 @@ tags:
 - industry/polyester_films
 - industry/packaging_materials
 created: '2025-12-28'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

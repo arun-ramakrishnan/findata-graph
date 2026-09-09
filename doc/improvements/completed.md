@@ -5017,3 +5017,65 @@ wrong thing (81.1% carry a ticker = exchange listing, not index).
 `make qa` 9/9, `make advisory` 10/10, `make perf` 22/22,
 `make search-fresh APPLY=1` fresh — all green on the first run.
 `make qa` pytest: 2654 passed, 3 skipped.
+
+## 219
+
+**Country layer + institution counterparties — listed_in edges and regulator/rating lanes**
+
+**Date:** 2026-09-10 · **Proposal:**
+`archive/graph/country_layer_institution_lanes.md` · **Area:** helpers/graph,
+helpers/core, findata geography surfaces
+
+Two graph-representation gaps from the 2026-09-09 representation survey,
+both sharpened by the #215 commentary refresh.
+
+**C1 — country layer.** `helpers/core/countries.py` (shared vocabulary)
++ `helpers/graph/derive_countries.py` + `make derive-countries`: 21
+country entities, 930 listed_in edges from exchange-ticker suffixes
+(850 india; 41 usa after hand-auditing the 64 plain symbols — 23
+foreign ADR/OTC overrides re-bucketed to home markets with the ticker
+trail in edge properties), 235 no-ticker companies worklisted to
+`findata/Misc/country_worklist.json` (never guessed). DuckDB `v_country`
++ `e_listed_in` out-of-registry (exposed_to precedent), schema v14.
+Triage guard: country entities excluded from alias candidates.
+
+**C2 — geography convergence.**
+`helpers/maintenance/geo_converge.py` (line-surgery, dry-run default)
+applied at the operator checkpoint: 947/1,165 company notes (815
+key_add, 150 tag_converge, 94 slop_drop, 55 key_drop, 38 key_fix),
+byte-verified against the fixed plan over HEAD — 0 mismatches. A
+stale-index bug in the key pass was found live (Hisense: the key-drop
+ate `listed: false`), fixed (key pass re-locates after the tag pass),
+regression-pinned, tree restored + re-applied. Source prevention: the
+A3 activation — sync_tags company geography whitelist
+(`company_geo_violations`), render_stub ticker-derived seeding (no more
+hardcoded geography/india), verify_notes vocabulary = country set ∪
+{global}, OKF description + frontmatter_keys.md regenerated. Sector
+coverage tags (31 india / 15 global) deliberately untouched.
+
+**I1/I2 — institution lanes.** RBI + SEBI institution entities;
+pattern-scoped resolution (`INSTITUTION_LANES` /
+`resolve_institution` — the allowlist is never in the company resolver,
+test-pinned); noise_target exact-name exemption {rbi, sebi} ahead of
+the fragment-length rule. 9 new patterns; rated_by captures restricted
+to CRISIL/ICRA (the only existing agencies; others wait for recurrence
+evidence). Harvest: 9 edges landed (regulated_by Canara Bank/ICICI
+Bank/Muthoot Finance/SBI/TeamLease → RBI; approved_by BSE → SEBI,
+ICICI Bank → RBI; rated_by Muthoot Capital Services/Muthoot Finance →
+CRISIL). Triage: 10 prose rows all discard → `relation_noise.json`
+(38 entries); re-extract verified unresolved=0 (no re-entry).
+Institutions 205 → 207. The #218 guard carve-out was assessed
+unnecessary (alias path can't reach institution targets).
+
+Gate debt en route: make-help registration, 'country' in both fileless
+exemption sets + the integrity v_node expected-count list, 4 edge types
+in `_KNOWN_EDGE_TYPES`, countries.py shebang, ty narrowing + C901 split
+in geo_converge, snapshot refresh. Transient gate failures were /tmp
+quota exhaustion (2.0G pytest dirs + 4×270M strays from interrupted
+sweeps — cleaned, not gate debt).
+
+### Verification
+
+`make qa` 9/9 (pytest 2,708 passed), `make perf` 22/22, `make
+advisory` 10/10, `make search-fresh APPLY=1` fresh; verify_notes
+1,217/1,217 clean; snapshot round-trip OK; DuckDB v_node 1649/1649.

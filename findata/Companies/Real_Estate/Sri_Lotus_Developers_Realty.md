@@ -7,15 +7,16 @@ industry: null
 market_cap: mid_cap
 normalized_name: Sri_Lotus_Developers_Realty
 permalink: /companies/real_estate/sri_lotus_developers_realty
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/global
+- geography/india
 - market_cap/mid_cap
 - risk_investment/growth
 - sector/real_estate
 created: '2025-11-16'
-last_modified: '2025-12-31'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

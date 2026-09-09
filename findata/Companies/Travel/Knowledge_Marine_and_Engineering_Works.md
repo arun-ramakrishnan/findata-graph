@@ -7,6 +7,7 @@ industry: null
 market_cap: small_cap
 normalized_name: Knowledge_Marine_and_Engineering_Works
 permalink: /companies/travel/knowledge_marine_and_engineering_works
+geography: india
 tags:
 - entity_type/company
 - sector/travel
@@ -17,7 +18,7 @@ tags:
 - investment_theme/infrastructure_development
 - investment_theme/inland_waterways
 created: '2026-06-20'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

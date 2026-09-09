@@ -8,6 +8,7 @@ market_cap: large_cap
 normalized_name: Hindustan_Zinc
 file_path: findata/Companies/Metals/Hindustan_Zinc.md
 permalink: /companies/metals/hindustan_zinc
+geography: india
 tags:
 - entity_type/company
 - sector/metals
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/dividend
 created: '2026-01-21'
-last_modified: '2026-01-21'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:16Z'

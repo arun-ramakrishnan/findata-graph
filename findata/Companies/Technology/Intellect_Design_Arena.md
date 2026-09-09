@@ -7,6 +7,7 @@ industry: Software - Application
 market_cap: large_cap
 normalized_name: Intellect_Design_Arena
 permalink: /companies/technology/intellect_design_arena
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -16,7 +17,7 @@ tags:
 - risk_investment/low_risk
 - sector/technology
 created: '2025-11-16'
-last_modified: '2026-08-05'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-08-05T00:00:00Z'

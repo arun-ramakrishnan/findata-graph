@@ -7,6 +7,7 @@ industry: Farm & Heavy Construction Machinery
 market_cap: mid_cap
 normalized_name: Ashok_Leyland
 permalink: /companies/automotive/ashok_leyland
+geography: india
 tags:
 - entity_type/company
 - sector/automotive
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-20'
-last_modified: '2026-06-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

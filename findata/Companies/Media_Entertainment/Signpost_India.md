@@ -8,6 +8,7 @@ industry: Advertising Agencies
 market_cap: small_cap
 normalized_name: Signpost_India
 permalink: /companies/media_entertainment/signpost_india
+geography: india
 tags:
 - entity_type/company
 - sector/media_entertainment
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-07-03'
-last_modified: '2026-07-03'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

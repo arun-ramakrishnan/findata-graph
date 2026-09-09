@@ -7,6 +7,7 @@ industry: Apparel Manufacturing
 market_cap: small_cap
 normalized_name: Dollar_Industries
 permalink: /companies/textiles/dollar_industries
+geography: india
 tags:
 - entity_type/company
 - sector/textiles
@@ -16,7 +17,7 @@ tags:
 - risk_investment/dividend
 - product_category/hosiery
 created: '2025-11-19'
-last_modified: '2026-06-24'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T07:35:28Z'

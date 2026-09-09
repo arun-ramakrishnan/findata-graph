@@ -7,6 +7,7 @@ industry: Restaurants
 market_cap: micro_cap
 normalized_name: Speciality_Restaurants
 permalink: /companies/fmcg/speciality_restaurants
+geography: india
 tags:
 - entity_type/company
 - sector/fmcg
@@ -14,7 +15,7 @@ tags:
 - geography/india
 - business_model/b2c
 created: '2025-11-19'
-last_modified: '2025-12-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

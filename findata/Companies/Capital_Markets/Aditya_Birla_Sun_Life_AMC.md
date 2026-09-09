@@ -7,6 +7,7 @@ industry: Asset Management
 market_cap: small_cap
 normalized_name: Aditya_Birla_Sun_Life_AMC
 permalink: /companies/capital_markets/aditya_birla_sun_life_amc
+geography: india
 tags:
 - business_model/financial_services
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/dividend
 - sector/capital_markets
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

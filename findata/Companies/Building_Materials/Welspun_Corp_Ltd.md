@@ -7,6 +7,7 @@ industry: Steel
 market_cap: small_cap
 normalized_name: Welspun_Corp_Ltd
 permalink: /companies/building_materials/welspun_corp_ltd
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-20'
-last_modified: '2026-08-28'
+last_modified: '2026-09-10'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md

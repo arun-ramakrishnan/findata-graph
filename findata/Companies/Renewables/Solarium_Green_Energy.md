@@ -7,13 +7,14 @@ industry: Solar
 market_cap: micro_cap
 normalized_name: Solarium_Green_Energy
 permalink: /companies/renewables/solarium_green_energy
+geography: india
 tags:
 - entity_type/company
 - sector/renewables
 - market_cap/micro_cap
 - geography/india
 created: '2025-11-28'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

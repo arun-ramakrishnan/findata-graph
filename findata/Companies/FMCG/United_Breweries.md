@@ -7,6 +7,7 @@ industry: Beverages - Brewers
 market_cap: mid_cap
 normalized_name: United_Breweries
 permalink: /companies/fmcg/united_breweries
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/fmcg
 created: '2025-11-16'
-last_modified: '2026-09-08'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T11:56:40Z'

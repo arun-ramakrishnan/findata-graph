@@ -7,6 +7,7 @@ industry: Building Materials
 market_cap: large_cap
 normalized_name: Ambuja_Cement
 permalink: /companies/building_materials/ambuja_cement
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -16,7 +17,7 @@ tags:
 - risk_investment/defensive
 - ownership/adani_group
 created: '2025-11-16'
-last_modified: '2026-02-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

@@ -7,16 +7,16 @@ industry: Software - Application
 market_cap: small_cap
 normalized_name: Kellton_Tech_Solutions
 permalink: /companies/technology/kellton_tech_solutions
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/global
 - geography/india
 - market_cap/small_cap
 - risk_investment/growth
 - sector/technology
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:47Z'

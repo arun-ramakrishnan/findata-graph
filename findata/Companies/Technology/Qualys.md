@@ -7,15 +7,16 @@ industry: Software - Infrastructure
 market_cap: mid_cap
 normalized_name: Qualys
 permalink: /companies/technology/qualys
+geography: usa
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/india
+- geography/usa
 - market_cap/mid_cap
 - risk_investment/growth
 - sector/technology
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

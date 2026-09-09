@@ -7,6 +7,7 @@ industry: Insurance - Life
 market_cap: small_cap
 normalized_name: Niva_Bupa_Health_Insurance_Limited
 permalink: /companies/insurance/niva_bupa_health_insurance_limited
+geography: india
 tags:
 - entity_type/company
 - sector/insurance
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/defensive
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

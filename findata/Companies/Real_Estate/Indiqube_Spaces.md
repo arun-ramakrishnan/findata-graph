@@ -7,11 +7,13 @@ industry: null
 market_cap: small_cap
 normalized_name: Indiqube_Spaces
 permalink: /companies/real_estate/indiqube_spaces
+geography: india
 tags:
 - entity_type/company
 - sector/real_estate
+- geography/india
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

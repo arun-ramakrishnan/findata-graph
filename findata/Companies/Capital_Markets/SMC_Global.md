@@ -7,15 +7,16 @@ industry: Capital Markets
 market_cap: mid_cap
 normalized_name: SMC_Global
 permalink: /companies/capital_markets/smc_global
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/global
+- geography/india
 - market_cap/mid_cap
 - risk_investment/growth
 - sector/capital_markets
 created: '2025-11-16'
-last_modified: '2025-12-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-29T00:00:00Z'

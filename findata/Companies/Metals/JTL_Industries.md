@@ -8,6 +8,7 @@ market_cap: small_cap
 normalized_name: JTL_Industries
 file_path: findata/Companies/Metals/JTL_Industries.md
 permalink: /companies/metals/jtl_industries
+geography: india
 tags:
 - entity_type/company
 - sector/metals
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-02-12'
-last_modified: '2026-02-12'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-02-12T00:00:00Z'

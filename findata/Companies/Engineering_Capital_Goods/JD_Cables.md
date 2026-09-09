@@ -7,13 +7,14 @@ industry: Electrical Equipment & Parts
 market_cap: micro_cap
 normalized_name: JD_Cables
 permalink: /companies/engineering_capital_goods/jd_cables
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
 - market_cap/micro_cap
 - geography/india
 created: '2025-11-28'
-last_modified: '2025-11-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

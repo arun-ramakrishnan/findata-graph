@@ -7,6 +7,7 @@ industry: Furnishings, Fixtures & Appliances
 market_cap: mid_cap
 normalized_name: Eureka_Forbes_Ltd
 permalink: /companies/consumer/eureka_forbes_ltd
+geography: india
 tags:
 - entity_type/company
 - sector/consumer
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

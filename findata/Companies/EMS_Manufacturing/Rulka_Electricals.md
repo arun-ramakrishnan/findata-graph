@@ -7,6 +7,7 @@ industry: null
 market_cap: micro_cap
 normalized_name: Rulka_Electricals
 permalink: /companies/ems_manufacturing/rulka_electricals
+geography: india
 tags:
 - entity_type/company
 - sector/ems_manufacturing
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-20'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

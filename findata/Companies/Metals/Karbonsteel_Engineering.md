@@ -8,6 +8,7 @@ market_cap: micro_cap
 normalized_name: Karbonsteel_Engineering
 file_path: findata/Companies/Metals/Karbonsteel_Engineering.md
 permalink: /companies/metals/karbonsteel_engineering
+geography: india
 tags:
 - entity_type/company
 - sector/metals
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-01-14'
-last_modified: '2026-01-14'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-01-14T00:00:00Z'

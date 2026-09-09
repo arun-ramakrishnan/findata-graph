@@ -7,14 +7,15 @@ industry: null
 market_cap: mid_cap
 normalized_name: Swiggy
 permalink: /companies/retail/swiggy
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/domestic_focused
+- geography/india
 - market_cap/mid_cap
 - sector/retail
 created: '2025-11-16'
-last_modified: '2026-06-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

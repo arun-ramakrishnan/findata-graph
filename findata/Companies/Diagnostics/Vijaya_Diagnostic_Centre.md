@@ -7,6 +7,7 @@ industry: Diagnostics & Research
 market_cap: mid_cap
 normalized_name: Vijaya_Diagnostic_Centre
 permalink: /companies/diagnostics/vijaya_diagnostic_centre
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -17,7 +18,7 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2025-11-16'
-last_modified: '2026-08-05'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:45Z'

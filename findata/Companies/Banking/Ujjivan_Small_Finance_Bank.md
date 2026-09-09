@@ -2,6 +2,7 @@
 title: Ujjivan Small Finance Bank
 type: company
 ticker: UJJIVANSFB.NS
+geography: india
 tags:
 - entity_type/company
 - sector/banking
@@ -15,7 +16,7 @@ industry: Banks - Regional
 market_cap: small_cap
 permalink: /companies/banking/ujjivan_small_finance_bank
 created: '2026-07-26'
-last_modified: '2026-07-26'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

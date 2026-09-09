@@ -7,6 +7,7 @@ industry: Publishing
 market_cap: small_cap
 normalized_name: D_B_Corp
 permalink: /companies/media_entertainment/d_b_corp
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
@@ -17,7 +18,7 @@ tags:
 - risk_investment/low_risk
 - sector/media_entertainment
 created: '2025-11-16'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T12:13:24Z'

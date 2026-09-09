@@ -7,6 +7,7 @@ industry: Auto Parts
 market_cap: large_cap
 normalized_name: Federal_Mogul_Goetze_India
 permalink: /companies/automotive/federal_mogul_goetze_india
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -16,7 +17,7 @@ tags:
 - risk_investment/stable
 - sector/automotive
 created: '2025-11-16'
-last_modified: '2026-08-05'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-08-05T00:00:00Z'

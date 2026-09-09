@@ -7,6 +7,7 @@ industry: Household & Personal Products
 market_cap: large_cap
 normalized_name: P_G_Hygiene_And_Healthcare
 permalink: /companies/fmcg/p_g_hygiene_and_healthcare
+geography: india
 tags:
 - entity_type/company
 - sector/fmcg
@@ -14,7 +15,7 @@ tags:
 - geography/india
 - business_model/b2c
 created: '2025-01-15'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T14:03:19Z'

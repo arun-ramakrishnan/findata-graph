@@ -7,6 +7,7 @@ industry: Luxury Goods
 market_cap: small_cap
 normalized_name: Vaibhav_Global
 permalink: /companies/retail/vaibhav_global
+geography: india
 tags:
 - entity_type/company
 - sector/retail
@@ -18,7 +19,7 @@ tags:
 - specialization/jewelry_lifestyle_products
 - international_operations/us_uk_germany_austria
 created: '2025-12-02'
-last_modified: '2025-12-02'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-02T00:00:00Z'

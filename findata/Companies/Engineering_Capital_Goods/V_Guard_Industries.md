@@ -7,15 +7,16 @@ industry: Electrical Equipment & Parts
 market_cap: mid_cap
 normalized_name: V_Guard_Industries
 permalink: /companies/engineering_capital_goods/v_guard_industries
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/global
+- geography/india
 - market_cap/mid_cap
 - risk_investment/growth
 - sector/engineering_capital_goods
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

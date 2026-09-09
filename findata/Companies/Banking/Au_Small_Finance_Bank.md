@@ -7,6 +7,7 @@ industry: Banks - Regional
 market_cap: large_cap
 normalized_name: Au_Small_Finance_Bank
 permalink: /companies/banking/au_small_finance_bank
+geography: india
 tags:
 - business_model/traditional_banking
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/dividend
 - sector/banking
 created: '2025-11-22'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

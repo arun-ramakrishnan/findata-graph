@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Country vocabulary + ticker→home-market classification (country layer).
 
 Single source for the geography vocabulary shared by derive_countries

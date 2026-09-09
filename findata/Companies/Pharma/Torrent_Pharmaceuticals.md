@@ -7,6 +7,7 @@ industry: Drug Manufacturers - Specialty & Generic
 market_cap: mid_cap
 normalized_name: Torrent_Pharmaceuticals
 permalink: /companies/pharma/torrent_pharmaceuticals
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/pharma
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

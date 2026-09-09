@@ -7,6 +7,7 @@ industry: Diagnostics & Research
 market_cap: small_cap
 normalized_name: Krsnaa_Diagnostics
 permalink: /companies/diagnostics/krsnaa_diagnostics
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -16,7 +17,7 @@ tags:
 - sector/diagnostics
 - risk_investment/medium_risk
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:47Z'

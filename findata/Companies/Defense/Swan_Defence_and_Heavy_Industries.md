@@ -9,6 +9,7 @@ normalized_name: Swan_Defence_and_Heavy_Industries
 file_path: findata/Companies/Defense/Swan_Defence_and_Heavy_Industries.md
 permalink: /companies/defense/swan_defence_and_heavy_industries
 index_membership: null
+geography: india
 tags:
 - entity_type/company
 - sector/defense
@@ -17,7 +18,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-06-28'
-last_modified: '2026-06-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

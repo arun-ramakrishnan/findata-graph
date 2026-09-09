@@ -7,6 +7,7 @@ industry: Building Materials
 market_cap: mid_cap
 normalized_name: HeidelbergCement_India
 permalink: /companies/building_materials/heidelbergcement_india
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/cyclical
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

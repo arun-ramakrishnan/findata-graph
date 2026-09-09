@@ -36,6 +36,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-cited-in          Derive cited_in (note -> edition) edges from OKF sources[] frontmatter (okf_activation P)"
 > @echo "  derive-cited-in-rebuild  derive-cited-in + graph-rebuild — the paired run cited_in requires (writes entities+edges, then rebuilds the DuckDB cache to match)"
 > @echo "  derive-co-mentions       Derive co_mentioned_in edges from newsletter enhancement blocks"
+> @echo "  derive-countries          Derive listed_in (company -> country) edges from exchange tickers (country layer C1)"
 > @echo "  derive-events            Promote relation edges + extract guidance/management events into the events timeline table"
 > @echo "  derive-insights          DRY-RUN stale-only preview of quotes/company_metrics + auto '## The Chatter' blocks (writes nothing; apply yourself — see comment above)"
 > @echo "  derive-relations         Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose"

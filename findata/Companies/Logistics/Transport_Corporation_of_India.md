@@ -7,6 +7,7 @@ industry: Integrated Freight & Logistics
 market_cap: mid_cap
 normalized_name: Transport_Corporation_of_India
 permalink: /companies/logistics/transport_corporation_of_india
+geography: india
 tags:
 - business_model/integrated_logistics
 - business_model/supply_chain
@@ -14,12 +15,11 @@ tags:
 - business_model/warehousing
 - entity_type/company
 - geography/india
-- geography/north_india
 - market_cap/mid_cap
 - risk_investment/stable_growth
 - sector/logistics
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

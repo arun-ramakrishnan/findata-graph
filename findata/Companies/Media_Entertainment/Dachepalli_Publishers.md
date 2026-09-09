@@ -8,6 +8,7 @@ market_cap: micro_cap
 normalized_name: Dachepalli_Publishers
 file_path: findata/Companies/Media_Entertainment/Dachepalli_Publishers.md
 permalink: /companies/media_entertainment/dachepalli_publishers
+geography: india
 tags:
 - entity_type/company
 - sector/media_entertainment
@@ -17,7 +18,7 @@ tags:
 - risk_investment/growth
 - financial_tags/profitable
 created: '2026-06-17'
-last_modified: '2026-06-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

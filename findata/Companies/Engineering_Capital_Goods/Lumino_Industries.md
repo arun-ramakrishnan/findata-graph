@@ -3,6 +3,7 @@ title: Lumino Industries
 type: company
 ticker: LUMINO.BO
 listed: true
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -15,7 +16,7 @@ sector: Engineering_Capital_Goods
 market_cap: small_cap
 permalink: /companies/engineering_capital_goods/lumino_industries
 created: '2026-09-08'
-last_modified: '2026-09-08'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T11:56:40Z'

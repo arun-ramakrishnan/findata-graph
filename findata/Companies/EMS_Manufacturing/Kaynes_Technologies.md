@@ -7,16 +7,16 @@ industry: Electronic Components
 market_cap: mid_cap
 normalized_name: Kaynes_Technologies
 permalink: /companies/ems_manufacturing/kaynes_technologies
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/global
 - geography/india
 - market_cap/mid_cap
 - risk_investment/growth
 - sector/ems_manufacturing
 created: '2025-11-16'
-last_modified: '2026-07-11'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

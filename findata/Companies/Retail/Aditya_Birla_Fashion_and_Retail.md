@@ -7,6 +7,7 @@ industry: Apparel Manufacturing
 market_cap: large_cap
 normalized_name: Aditya_Birla_Fashion_and_Retail
 permalink: /companies/retail/aditya_birla_fashion_and_retail
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -16,7 +17,7 @@ tags:
 - risk_investment/low_risk
 - sector/retail
 created: '2025-11-16'
-last_modified: '2026-07-10'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

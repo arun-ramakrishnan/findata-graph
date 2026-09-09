@@ -5,7 +5,6 @@ ticker: null
 sector: Banking
 listed: false
 market_cap: large_cap
-geography: global
 business_model: b2b
 risk_investment: medium_risk
 normalized_name: MUFG
@@ -14,11 +13,10 @@ tags:
 - entity_type/company
 - sector/banking
 - market_cap/large_cap
-- geography/global
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-08-11'
-last_modified: '2026-08-11'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T07:34:20Z'

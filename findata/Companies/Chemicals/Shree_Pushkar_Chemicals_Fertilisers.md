@@ -7,17 +7,17 @@ industry: Specialty Chemicals
 market_cap: large_cap
 normalized_name: Shree_Pushkar_Chemicals_Fertilisers
 permalink: /companies/chemicals/shree_pushkar_chemicals_fertilisers
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/global
 - geography/india
 - market_cap/large_cap
 - risk_investment/growth
 - risk_investment/low_risk
 - sector/chemicals
 created: '2025-11-16'
-last_modified: '2026-08-05'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

@@ -7,10 +7,11 @@ industry: Software - Application
 market_cap: large_cap
 normalized_name: Tata_Elxsi
 permalink: /companies/automotive/tata_elxsi
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/global
+- geography/india
 - industry/technology
 - industry/design_services
 - industry/engineering_services
@@ -19,7 +20,7 @@ tags:
 - risk_investment/growth
 - sector/automotive
 created: '2025-12-28'
-last_modified: '2026-07-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

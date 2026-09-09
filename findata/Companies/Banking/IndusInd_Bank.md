@@ -8,6 +8,7 @@ market_cap: mid_cap
 normalized_name: IndusInd_Bank
 file_path: findata/Companies/Banking/IndusInd_Bank.md
 permalink: /companies/banking/indusind_bank
+geography: india
 tags:
 - entity_type/company
 - sector/banking
@@ -18,7 +19,7 @@ tags:
 - risk_investment/defensive
 - investment_theme/vehicle_finance
 created: '2026-01-17'
-last_modified: '2026-01-17'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-01-17T00:00:00Z'

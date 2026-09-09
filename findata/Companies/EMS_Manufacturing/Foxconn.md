@@ -7,13 +7,14 @@ industry: Communication Equipment
 market_cap: large_cap
 normalized_name: Foxconn
 permalink: /companies/ems_manufacturing/foxconn
+geography: china
 tags:
 - entity_type/company
 - sector/ems_manufacturing
 - market_cap/large_cap
-- geography/global
+- geography/china
 created: '2025-11-28'
-last_modified: '2025-11-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

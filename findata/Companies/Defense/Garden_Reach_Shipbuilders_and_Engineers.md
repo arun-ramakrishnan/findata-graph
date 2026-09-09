@@ -7,6 +7,7 @@ industry: Aerospace & Defense
 market_cap: large_cap
 normalized_name: Garden_Reach_Shipbuilders_and_Engineers
 permalink: /companies/defense/garden_reach_shipbuilders_and_engineers
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
@@ -17,7 +18,7 @@ tags:
 - risk_investment/low_risk
 - sector/defense
 created: '2025-11-16'
-last_modified: '2025-12-04'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

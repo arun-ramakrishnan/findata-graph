@@ -7,6 +7,7 @@ industry: Capital Markets
 market_cap: small_cap
 normalized_name: 5paisa_Capital
 permalink: /companies/capital_markets/5paisa_capital
+geography: india
 tags:
 - business_model/digital_platform
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/capital_markets
 created: '2025-11-16'
-last_modified: '2026-07-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

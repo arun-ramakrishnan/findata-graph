@@ -2,6 +2,7 @@
 title: Wheels India
 type: company
 ticker: WHEELS.NS
+geography: india
 tags:
 - entity_type/company
 - sector/automotive
@@ -12,7 +13,7 @@ sector: Automotive
 market_cap: small_cap
 permalink: /companies/automotive/wheels_india
 created: '2026-08-27'
-last_modified: '2026-08-27'
+last_modified: '2026-09-10'
 generated:
   by: parse_newsletter.py/v1
   at: '2026-08-27T00:00:00Z'

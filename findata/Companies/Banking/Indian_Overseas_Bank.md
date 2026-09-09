@@ -7,6 +7,7 @@ industry: Banks - Regional
 market_cap: small_cap
 normalized_name: Indian_Overseas_Bank
 permalink: /companies/banking/indian_overseas_bank
+geography: india
 tags:
 - entity_type/company
 - sector/banking
@@ -16,7 +17,7 @@ tags:
 - risk_investment/financial_stability
 - confidence/high
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

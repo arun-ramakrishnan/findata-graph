@@ -7,13 +7,12 @@ industry: Oil & Gas Integrated
 market_cap: mid_cap
 normalized_name: Oil_India
 permalink: /companies/energy/oil_india
+geography: india
 tags:
 - entity_type/company
 - sector/energy
 - market_cap/mid_cap
 - geography/india
-- geography/domestic_focused
-- geography/international
 - business_model/b2b
 - business_model/b2g
 - risk_investment/mixed
@@ -25,7 +24,7 @@ tags:
 - investment_theme/energy_independence
 - investment_theme/government_owned
 created: '2025-11-26'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

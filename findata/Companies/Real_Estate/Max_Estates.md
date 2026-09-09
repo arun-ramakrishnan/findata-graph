@@ -7,6 +7,7 @@ industry: Real Estate - Development
 market_cap: small_cap
 normalized_name: Max_Estates
 permalink: /companies/real_estate/max_estates
+geography: india
 tags:
 - entity_type/company
 - sector/real_estate
@@ -17,7 +18,7 @@ tags:
 - industry/real_estate
 - specialization/property_development
 created: '2025-12-02'
-last_modified: '2025-12-02'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-02T00:00:00Z'

@@ -7,6 +7,7 @@ industry: Utilities - Independent Power Producers
 market_cap: large_cap
 normalized_name: JSW_Energy
 permalink: /companies/energy/jsw_energy
+geography: india
 tags:
 - entity_type/company
 - sector/energy
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2025-11-16'
-last_modified: '2026-06-26'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

@@ -7,6 +7,7 @@ industry: Medical Care Facilities
 market_cap: small_cap
 normalized_name: Indraprastha_Medical_Corporation
 permalink: /companies/hospitals/indraprastha_medical_corporation
+geography: india
 tags:
 - geography/india
 - entity_type/company
@@ -16,7 +17,7 @@ tags:
 - risk_investment/growth
 - confidence/medium
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-07T00:00:00Z'

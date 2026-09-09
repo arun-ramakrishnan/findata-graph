@@ -7,6 +7,7 @@ industry: Pharmaceutical Retailers
 market_cap: mid_cap
 normalized_name: Medplus_Health_Services
 permalink: /companies/pharma/medplus_health_services
+geography: india
 tags:
 - entity_type/company
 - sector/pharma
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/regulatory_risk
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

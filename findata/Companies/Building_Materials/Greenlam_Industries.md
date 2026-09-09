@@ -7,6 +7,7 @@ industry: Furnishings, Fixtures & Appliances
 market_cap: small_cap
 normalized_name: Greenlam_Industries
 permalink: /companies/building_materials/greenlam_industries
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-16'
-last_modified: '2025-12-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

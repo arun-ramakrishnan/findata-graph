@@ -8,16 +8,16 @@ market_cap: large_cap
 normalized_name: Micron_Technology
 file_path: findata/Companies/Technology/Micron_Technology.md
 permalink: /companies/semiconductors/micron_technology
-geography: global
+geography: usa
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/global
+- geography/usa
 - market_cap/large_cap
 - risk_investment/high_growth
 - sector/semiconductors
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

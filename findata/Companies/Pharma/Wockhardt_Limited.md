@@ -7,6 +7,7 @@ industry: Drug Manufacturers - Specialty & Generic
 market_cap: mid_cap
 normalized_name: Wockhardt_Limited
 permalink: /companies/pharma/wockhardt_limited
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/pharma
 created: '2025-11-16'
-last_modified: '2026-08-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

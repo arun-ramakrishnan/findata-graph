@@ -7,6 +7,7 @@ industry: Railroads
 market_cap: mid_cap
 normalized_name: Texmaco_Rail_and_Engineering
 permalink: /companies/logistics/texmaco_rail_and_engineering
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -17,7 +18,7 @@ tags:
 - risk_investment/low_risk
 - sector/logistics
 created: '2025-11-16'
-last_modified: '2026-08-05'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

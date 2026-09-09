@@ -7,6 +7,7 @@ industry: Aerospace & Defense
 market_cap: mid_cap
 normalized_name: Paras_Defence_and_Space_Technologies
 permalink: /companies/defense/paras_defence_and_space_technologies
+geography: india
 tags:
 - entity_type/company
 - sector/defense
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-07T00:00:00Z'

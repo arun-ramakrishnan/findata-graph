@@ -7,6 +7,7 @@ industry: Aerospace & Defense
 market_cap: small_cap
 normalized_name: Zen_Technologies
 permalink: /companies/defense/zen_technologies
+geography: india
 tags:
 - entity_type/company
 - sector/defense
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-12-03'
-last_modified: '2026-09-08'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T11:56:40Z'

@@ -7,6 +7,7 @@ industry: null
 market_cap: micro_cap
 normalized_name: Chemcart_India
 permalink: /companies/pharma/chemcart_india
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/pharma
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-19T16:38:56Z'

@@ -7,6 +7,7 @@ industry: Luxury Goods
 market_cap: mid_cap
 normalized_name: RBZ_Jewellers
 permalink: /companies/consumer/rbz_jewellers
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/consumer
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

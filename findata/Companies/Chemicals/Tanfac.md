@@ -5,7 +5,7 @@ ticker: TANFACIND.BO
 sector: Chemicals
 industry: Specialty Chemicals
 market_cap: small_cap
-geography: global
+geography: india
 business_model: b2b
 risk_investment: medium_risk
 normalized_name: Tanfac
@@ -15,11 +15,11 @@ tags:
 - entity_type/company
 - sector/chemicals
 - market_cap/small_cap
-- geography/global
+- geography/india
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-07-19'
-last_modified: '2026-07-19'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-19T00:00:00Z'

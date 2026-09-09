@@ -9,6 +9,7 @@ normalized_name: Three_M_India
 file_path: findata/Companies/Diversified/Three_M_India.md
 permalink: /companies/diversified/three_m_india
 index_membership: null
+geography: india
 tags:
 - entity_type/company
 - sector/diversified
@@ -19,7 +20,7 @@ tags:
 - risk_investment/dividend
 - financial_tags/dividend_paying
 created: '2026-06-28'
-last_modified: '2026-08-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

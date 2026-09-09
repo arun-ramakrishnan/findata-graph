@@ -7,6 +7,7 @@ industry: Mortgage Finance
 market_cap: mid_cap
 normalized_name: Repco_Home_Finance
 permalink: /companies/housing_finance/repco_home_finance
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/housing_finance
 created: '2025-11-16'
-last_modified: '2025-12-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-29T00:00:00Z'

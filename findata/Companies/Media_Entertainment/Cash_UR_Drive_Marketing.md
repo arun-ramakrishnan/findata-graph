@@ -7,6 +7,7 @@ industry: null
 market_cap: micro_cap
 normalized_name: Cash_UR_Drive_Marketing
 permalink: /companies/media_entertainment/cash_ur_drive_marketing
+geography: india
 tags:
 - entity_type/company
 - sector/media_entertainment
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-10'
-last_modified: '2025-12-10'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-10T00:00:00Z'

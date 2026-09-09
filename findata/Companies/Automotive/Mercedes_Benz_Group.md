@@ -10,12 +10,11 @@ permalink: /companies/automotive/mercedes_benz_group
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/global
 - market_cap/large_cap
 - risk_investment/medium_risk
 - sector/automotive
 created: '2026-09-07'
-last_modified: '2026-09-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

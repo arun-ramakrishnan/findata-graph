@@ -7,6 +7,7 @@ industry: Specialty Chemicals
 market_cap: mid_cap
 normalized_name: Gulf_Oil_Lubricants_India
 permalink: /companies/fmcg/gulf_oil_lubricants_india
+geography: india
 tags:
 - entity_type/company
 - sector/fmcg
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b2c
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

@@ -9,6 +9,7 @@ normalized_name: Ceinsys_Tech
 file_path: findata/Companies/Technology/Ceinsys_Tech.md
 permalink: /companies/technology/ceinsys_tech
 index_membership: null
+geography: india
 tags:
 - entity_type/company
 - sector/technology
@@ -17,7 +18,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-06-28'
-last_modified: '2026-06-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-28T00:00:00Z'

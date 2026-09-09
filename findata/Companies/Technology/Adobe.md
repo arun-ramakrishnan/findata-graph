@@ -7,6 +7,7 @@ industry: Software - Application
 market_cap: large_cap
 normalized_name: Adobe
 permalink: /companies/technology/adobe
+geography: usa
 tags:
 - entity_type/company
 - sector/technology
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2026-08-03'
-last_modified: '2026-08-03'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

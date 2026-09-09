@@ -7,6 +7,7 @@ industry: Aerospace & Defense
 market_cap: large_cap
 normalized_name: Mazagon_Dock_Shipbuilders
 permalink: /companies/defense/mazagon_dock_shipbuilders
+geography: india
 tags:
 - entity_type/company
 - sector/defense
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/government_risk
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-25T00:00:00Z'

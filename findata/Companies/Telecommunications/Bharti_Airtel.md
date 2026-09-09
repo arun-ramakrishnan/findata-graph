@@ -7,6 +7,7 @@ industry: Telecom Services
 market_cap: large_cap
 normalized_name: Bharti_Airtel
 permalink: /companies/telecommunications/bharti_airtel
+geography: india
 tags:
 - business_model/platform
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/telecommunications
 created: '2025-11-16'
-last_modified: '2026-06-24'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

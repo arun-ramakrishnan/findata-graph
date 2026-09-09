@@ -7,6 +7,7 @@ industry: Real Estate - Development
 market_cap: small_cap
 normalized_name: AGI_Infra
 permalink: /companies/real_estate/agi_infra
+geography: india
 tags:
 - entity_type/company
 - sector/real_estate
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/high_growth
 created: '2026-07-03'
-last_modified: '2026-07-03'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

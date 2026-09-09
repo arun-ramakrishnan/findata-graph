@@ -9,11 +9,12 @@ normalized_name: Mahindra_Mahindra
 file_path: findata/Companies/Automotive/Mahindra_Mahindra.md
 permalink: /companies/automotive/mahindra_mahindra
 exchange: NSE
+geography: india
 tags:
 - entity_type/company
 - sector/automotive
 - market_cap/large_cap
-- geography/global
+- geography/india
 - business_model/b2c
 - risk_investment/medium_risk
 - industry/automobiles
@@ -21,7 +22,7 @@ tags:
 - industry/electric_vehicles
 - industry/farm_equipment
 created: '2026-01-10'
-last_modified: '2026-07-31'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

@@ -7,15 +7,16 @@ industry: Software - Application
 market_cap: large_cap
 normalized_name: Zoom_Communications
 permalink: /companies/technology/zoom_communications
+geography: usa
 tags:
 - entity_type/company
 - sector/technology
 - market_cap/large_cap
-- geography/global
+- geography/usa
 - business_model/b2b2c
 - risk_investment/high_growth
 created: '2026-07-03'
-last_modified: '2026-07-03'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

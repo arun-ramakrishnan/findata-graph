@@ -7,6 +7,7 @@ industry: Furnishings, Fixtures & Appliances
 market_cap: mid_cap
 normalized_name: Bajaj_Electricals
 permalink: /companies/consumer/bajaj_electricals
+geography: india
 tags:
 - entity_type/company
 - sector/consumer
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2026-08-03'
-last_modified: '2026-08-03'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

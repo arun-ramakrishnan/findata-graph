@@ -7,6 +7,7 @@ industry: Electronic Components
 market_cap: small_cap
 normalized_name: Centum_Electronics
 permalink: /companies/ems_manufacturing/centum_electronics
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/ems_manufacturing
 created: '2025-11-16'
-last_modified: '2026-06-24'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

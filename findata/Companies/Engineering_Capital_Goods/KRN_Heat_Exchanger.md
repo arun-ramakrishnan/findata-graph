@@ -2,6 +2,7 @@
 title: KRN Heat Exchanger
 type: company
 ticker: KRN.NS
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -12,7 +13,7 @@ sector: Engineering_Capital_Goods
 market_cap: small_cap
 permalink: /companies/engineering_capital_goods/krn_heat_exchanger
 created: '2026-08-28'
-last_modified: '2026-08-28'
+last_modified: '2026-09-10'
 sources:
 - id: Borosil_Orchid_Welspun
   resource: /findata/The_Chatter/Borosil_Orchid_Welspun.md

@@ -7,6 +7,7 @@ industry: Banks - Regional
 market_cap: large_cap
 normalized_name: Canara_Bank
 permalink: /companies/banking/canara_bank
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/dividend
 - sector/banking
 created: '2025-11-16'
-last_modified: '2026-08-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

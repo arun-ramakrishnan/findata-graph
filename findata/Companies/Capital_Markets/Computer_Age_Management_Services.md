@@ -7,6 +7,7 @@ industry: Information Technology Services
 market_cap: large_cap
 normalized_name: Computer_Age_Management_Services
 permalink: /companies/capital_markets/computer_age_management_services
+geography: india
 tags:
 - entity_type/company
 - sector/capital_markets
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - business_model/b2b
 created: '2025-01-15'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-29T00:00:00Z'

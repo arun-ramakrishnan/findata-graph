@@ -8,6 +8,7 @@ market_cap: mid_cap
 normalized_name: Coforge
 file_path: findata/Companies/Technology/Coforge.md
 permalink: /companies/technology/coforge
+geography: india
 tags:
 - entity_type/company
 - sector/technology
@@ -16,7 +17,7 @@ tags:
 - risk_investment/medium_risk
 - business_model/b2b
 created: '2026-01-25'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

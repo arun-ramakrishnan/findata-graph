@@ -7,6 +7,7 @@ industry: Railroads
 market_cap: large_cap
 normalized_name: Container_Corporation_of_India
 permalink: /companies/logistics/container_corporation_of_india
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/dividend
 - sector/logistics
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

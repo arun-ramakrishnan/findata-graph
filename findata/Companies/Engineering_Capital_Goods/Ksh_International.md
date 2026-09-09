@@ -9,11 +9,12 @@ normalized_name: Ksh_International
 file_path: findata/Companies/Engineering_Capital_Goods/Ksh_International.md
 permalink: /companies/engineering_capital_goods/ksh_international
 exchange: NSE
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
 - market_cap/small_cap
-- geography/global
+- geography/india
 - business_model/b2b
 - risk_investment/high_risk
 - industry/winding_wires
@@ -21,7 +22,7 @@ tags:
 - industry/ev_components
 - industry/electrical_equipment
 created: '2026-01-10'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

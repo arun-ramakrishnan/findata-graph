@@ -7,6 +7,7 @@ industry: Real Estate Services
 market_cap: mid_cap
 normalized_name: Aditya_Birla_Real_Estate
 permalink: /companies/real_estate/aditya_birla_real_estate
+geography: india
 tags:
 - entity_type/company
 - sector/real_estate
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b2c
 - risk_investment/medium_risk
 created: '2026-06-30'
-last_modified: '2026-06-30'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

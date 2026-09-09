@@ -5,7 +5,6 @@ ticker: null
 listed: false
 sector: Automotive
 market_cap: null
-geography: global
 business_model: b2b
 risk_investment: medium_risk
 normalized_name: Lucas_Indian_Service
@@ -14,11 +13,10 @@ permalink: /companies/automotive/lucas_indian_service
 tags:
 - entity_type/company
 - sector/automotive
-- geography/global
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-07-20'
-last_modified: '2026-07-20'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-20T00:00:00Z'

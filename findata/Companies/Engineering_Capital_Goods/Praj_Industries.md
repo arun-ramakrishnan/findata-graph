@@ -7,6 +7,7 @@ industry: Engineering & Construction
 market_cap: mid_cap
 normalized_name: Praj_Industries
 permalink: /companies/engineering_capital_goods/praj_industries
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-25T00:00:00Z'

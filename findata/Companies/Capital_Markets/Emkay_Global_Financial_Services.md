@@ -7,6 +7,7 @@ industry: Capital Markets
 market_cap: micro_cap
 normalized_name: Emkay_Global_Financial_Services
 permalink: /companies/capital_markets/emkay_global_financial_services
+geography: india
 tags:
 - entity_type/company
 - sector/capital_markets
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-01-07'
-last_modified: '2026-01-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

@@ -7,6 +7,7 @@ industry: Specialty Chemicals
 market_cap: mid_cap
 normalized_name: Sirca_Paints
 permalink: /companies/chemicals/sirca_paints
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
@@ -20,7 +21,7 @@ tags:
 - risk_investment/growth
 - sector/chemicals
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-29T00:00:00Z'

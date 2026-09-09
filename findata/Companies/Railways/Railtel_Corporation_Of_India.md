@@ -9,6 +9,7 @@ normalized_name: Railtel_Corporation_Of_India
 file_path: findata/Companies/Engineering_Capital_Goods/Railtel_Corporation_Of_India.md
 permalink: /companies/railways/railtel_corporation_of_india
 index_membership: null
+geography: india
 tags:
 - entity_type/company
 - sector/railways
@@ -17,7 +18,7 @@ tags:
 - business_model/b2b
 - risk_investment/dividend
 created: '2026-06-28'
-last_modified: '2026-06-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-28T00:00:00Z'

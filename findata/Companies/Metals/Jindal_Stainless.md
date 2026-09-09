@@ -8,6 +8,7 @@ market_cap: mid_cap
 normalized_name: Jindal_Stainless
 file_path: findata/Companies/Metals/Jindal_Stainless.md
 permalink: /companies/metals/jindal_stainless
+geography: india
 tags:
 - entity_type/company
 - sector/metals
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-02-12'
-last_modified: '2026-02-12'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

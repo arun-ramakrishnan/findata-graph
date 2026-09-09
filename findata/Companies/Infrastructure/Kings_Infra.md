@@ -7,11 +7,13 @@ industry: Farm Products
 market_cap: mid_cap
 normalized_name: Kings_Infra
 permalink: /companies/infrastructure/kings_infra
+geography: india
 tags:
 - entity_type/company
 - sector/infrastructure
+- geography/india
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

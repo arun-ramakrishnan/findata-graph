@@ -7,13 +7,14 @@ industry: Consumer Electronics
 market_cap: micro_cap
 normalized_name: GoPro
 permalink: /companies/international/gopro
+geography: usa
 tags:
 - entity_type/company
 - sector/international
 - market_cap/micro_cap
-- geography/global
+- geography/usa
 created: '2025-11-28'
-last_modified: '2025-11-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-28T00:00:00Z'

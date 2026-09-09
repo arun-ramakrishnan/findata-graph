@@ -8,6 +8,7 @@ market_cap: small_cap
 normalized_name: Emmvee_Photovoltaic
 file_path: findata/Companies/Engineering_Capital_Goods/Emmvee_Photovoltaic.md
 permalink: /companies/renewables/emmvee_photovoltaic
+geography: india
 tags:
 - entity_type/company
 - sector/renewables
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2026-01-21'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

@@ -8,6 +8,7 @@ market_cap: small_cap
 normalized_name: Sobha
 file_path: findata/Companies/Real_Estate/Sobha.md
 permalink: /companies/real_estate/sobha
+geography: india
 tags:
 - entity_type/company
 - sector/real_estate
@@ -16,7 +17,7 @@ tags:
 - risk_investment/medium_risk
 - business_model/b2b
 created: '2026-01-25'
-last_modified: '2026-01-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

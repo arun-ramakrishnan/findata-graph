@@ -7,6 +7,7 @@ industry: Auto Parts
 market_cap: micro_cap
 normalized_name: Autoline_Industries_Ltd
 permalink: /companies/automotive/autoline_industries_ltd
+geography: india
 tags:
 - entity_type/company
 - sector/automotive
@@ -17,7 +18,7 @@ tags:
 - market_cap/micro_cap
 - risk_investment/growth
 created: '2025-12-03'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

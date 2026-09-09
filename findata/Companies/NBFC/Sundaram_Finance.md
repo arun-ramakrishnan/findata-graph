@@ -7,6 +7,7 @@ industry: Credit Services
 market_cap: mid_cap
 normalized_name: Sundaram_Finance
 permalink: /companies/nbfc/sundaram_finance
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/nbfc
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-29T00:00:00Z'

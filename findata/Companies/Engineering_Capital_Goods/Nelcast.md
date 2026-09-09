@@ -7,12 +7,14 @@ industry: Metal Fabrication
 market_cap: micro_cap
 normalized_name: Nelcast
 permalink: /companies/engineering_capital_goods/nelcast
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
 - market_cap/micro_cap
+- geography/india
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

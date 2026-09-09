@@ -7,6 +7,7 @@ industry: Integrated Freight & Logistics
 market_cap: small_cap
 normalized_name: Snowman_Logistics
 permalink: /companies/logistics/snowman_logistics
+geography: india
 tags:
 - business_model/cold_chain
 - business_model/food_logistics
@@ -14,12 +15,11 @@ tags:
 - business_model/temperature_controlled
 - entity_type/company
 - geography/india
-- geography/north_india
 - market_cap/small_cap
 - risk_investment/specialized_niche
 - sector/logistics
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

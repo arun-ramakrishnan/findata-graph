@@ -7,6 +7,7 @@ industry: null
 market_cap: small_cap
 normalized_name: Piccadilly_Agro_Industries
 permalink: /companies/agriculture/piccadilly_agro_industries
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
@@ -18,7 +19,7 @@ tags:
 - risk_investment/growth
 - sector/agriculture
 created: '2025-12-28'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

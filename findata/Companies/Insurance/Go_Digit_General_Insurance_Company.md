@@ -2,6 +2,7 @@
 title: Go Digit General Insurance Company
 type: company
 ticker: GODIGIT.BO
+geography: india
 tags:
 - entity_type/company
 - sector/insurance
@@ -15,7 +16,7 @@ industry: Insurance - Property & Casualty
 market_cap: mid_cap
 permalink: /companies/insurance/go_digit_general_insurance_company
 created: '2026-07-26'
-last_modified: '2026-07-26'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

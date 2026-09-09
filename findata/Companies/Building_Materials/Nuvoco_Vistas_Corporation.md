@@ -8,6 +8,7 @@ market_cap: small_cap
 normalized_name: Nuvoco_Vistas_Corporation
 file_path: findata/Companies/Building_Materials/Nuvoco_Vistas_Corporation.md
 permalink: /companies/building_materials/nuvoco_vistas_corporation
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2026-01-21'
-last_modified: '2026-01-21'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

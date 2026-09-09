@@ -2,6 +2,7 @@
 title: Spandana Sphoorty Financial
 type: company
 ticker: SPANDANA.NS
+geography: india
 tags:
 - entity_type/company
 - sector/nbfc
@@ -15,7 +16,7 @@ industry: Credit Services
 market_cap: small_cap
 permalink: /companies/nbfc/spandana_sphoorty_financial
 created: '2026-07-26'
-last_modified: '2026-07-26'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-08-28T15:01:27Z'

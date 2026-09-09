@@ -2,6 +2,7 @@
 title: Borosil
 type: company
 ticker: BOROLTD.NS
+geography: india
 tags:
 - entity_type/company
 - sector/consumer
@@ -12,7 +13,7 @@ sector: Consumer
 market_cap: small_cap
 permalink: /companies/consumer/borosil
 created: '2026-08-28'
-last_modified: '2026-08-28'
+last_modified: '2026-09-10'
 sources:
 - id: Borosil_Orchid_Welspun
   resource: /findata/The_Chatter/Borosil_Orchid_Welspun.md

@@ -7,16 +7,16 @@ industry: Information Technology Services
 market_cap: large_cap
 normalized_name: IBM
 permalink: /companies/technology/ibm
-geography: global
+geography: usa
 tags:
 - entity_type/company
 - sector/technology
 - market_cap/large_cap
-- geography/global
+- geography/usa
 - business_model/b2b
 - risk_investment/dividend
 created: '2026-07-05'
-last_modified: '2026-07-05'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-05T00:00:00Z'

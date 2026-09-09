@@ -7,6 +7,7 @@ industry: Insurance - Life
 market_cap: large_cap
 normalized_name: Life_Insurance_Corporation_of_India_LIC
 permalink: /companies/insurance/life_insurance_corporation_of_india_lic
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/dividend
 - sector/insurance
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:16Z'

@@ -7,15 +7,16 @@ industry: Apparel Manufacturing
 market_cap: small_cap
 normalized_name: Pearl_Global_Industries
 permalink: /companies/textiles/pearl_global_industries
+geography: india
 tags:
 - entity_type/company
 - sector/textiles
 - market_cap/small_cap
-- geography/global
+- geography/india
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-06-30'
-last_modified: '2026-06-30'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-30T00:00:00Z'

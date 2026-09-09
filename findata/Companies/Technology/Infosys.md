@@ -8,15 +8,16 @@ market_cap: large_cap
 normalized_name: Infosys
 file_path: findata/Companies/Technology/Infosys.md
 permalink: /companies/technology/infosys
+geography: india
 tags:
 - entity_type/company
 - sector/technology
 - market_cap/large_cap
-- geography/global
+- geography/india
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-01-17'
-last_modified: '2026-07-26'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

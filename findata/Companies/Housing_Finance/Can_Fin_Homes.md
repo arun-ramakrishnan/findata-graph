@@ -7,6 +7,7 @@ industry: Mortgage Finance
 market_cap: mid_cap
 normalized_name: Can_Fin_Homes
 permalink: /companies/housing_finance/can_fin_homes
+geography: india
 tags:
 - entity_type/company
 - sector/housing_finance
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/stable
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

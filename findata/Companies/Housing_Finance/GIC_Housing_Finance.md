@@ -7,6 +7,7 @@ industry: Mortgage Finance
 market_cap: small_cap
 normalized_name: GIC_Housing_Finance
 permalink: /companies/housing_finance/gic_housing_finance
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/low_risk
 - sector/housing_finance
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

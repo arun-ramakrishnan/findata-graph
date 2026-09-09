@@ -7,6 +7,7 @@ industry: Medical Care Facilities
 market_cap: mid_cap
 normalized_name: Healthcare_Global_Enterprises
 permalink: /companies/hospitals/healthcare_global_enterprises
+geography: india
 tags:
 - geography/india
 - entity_type/company
@@ -14,7 +15,7 @@ tags:
 - business_model/b2c
 - sector/hospitals
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-07T00:00:00Z'

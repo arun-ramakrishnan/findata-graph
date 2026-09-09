@@ -7,6 +7,7 @@ industry: Electronic Gaming & Multimedia
 market_cap: small_cap
 normalized_name: Nazara_Technologies_Ltd
 permalink: /companies/media_entertainment/nazara_technologies_ltd
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/medium_risk
 - sector/media_entertainment
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-07T00:00:00Z'

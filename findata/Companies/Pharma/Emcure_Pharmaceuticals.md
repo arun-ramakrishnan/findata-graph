@@ -7,6 +7,7 @@ industry: null
 market_cap: small_cap
 normalized_name: Emcure_Pharmaceuticals
 permalink: /companies/pharma/emcure_pharmaceuticals
+geography: india
 tags:
 - entity_type/company
 - sector/pharma
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-26'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

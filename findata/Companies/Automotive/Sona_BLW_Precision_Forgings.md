@@ -7,6 +7,7 @@ industry: Auto Parts
 market_cap: small_cap
 normalized_name: Sona_BLW_Precision_Forgings
 permalink: /companies/automotive/sona_blw_precision_forgings
+geography: india
 tags:
 - entity_type/company
 - sector/automotive
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-20'
-last_modified: '2025-12-20'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

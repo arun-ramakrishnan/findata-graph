@@ -7,14 +7,15 @@ industry: Specialty Industrial Machinery
 market_cap: small_cap
 normalized_name: Jyoti_CNC_Automation
 permalink: /companies/engineering_capital_goods/jyoti_cnc_automation
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/domestic_focused
+- geography/india
 - market_cap/small_cap
 - sector/engineering_capital_goods
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

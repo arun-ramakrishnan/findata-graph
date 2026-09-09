@@ -7,6 +7,7 @@ industry: Drug Manufacturers - Specialty & Generic
 market_cap: large_cap
 normalized_name: Glenmark_Pharmaceuticals
 permalink: /companies/pharma/glenmark_pharmaceuticals
+geography: india
 tags:
 - entity_type/company
 - sector/pharma
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: '2026-08-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

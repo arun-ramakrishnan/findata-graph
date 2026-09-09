@@ -5,7 +5,6 @@ ticker: null
 listed: false
 sector: Capital_Markets
 market_cap: large_cap
-geography: global
 business_model: b2b
 risk_investment: medium_risk
 normalized_name: NSE
@@ -15,11 +14,10 @@ tags:
 - entity_type/company
 - sector/capital_markets
 - market_cap/large_cap
-- geography/global
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-07-19'
-last_modified: '2026-07-19'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-19T00:00:00Z'

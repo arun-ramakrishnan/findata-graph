@@ -7,15 +7,16 @@ industry: Specialty Chemicals
 market_cap: large_cap
 normalized_name: Mitsubishi_Chemical_Group
 permalink: /companies/chemicals/mitsubishi_chemical_group
+geography: japan
 tags:
 - entity_type/company
 - sector/chemicals
 - market_cap/large_cap
-- geography/global
+- geography/japan
 - business_model/b2b
 - risk_investment/dividend
 created: '2026-07-03'
-last_modified: '2026-07-03'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

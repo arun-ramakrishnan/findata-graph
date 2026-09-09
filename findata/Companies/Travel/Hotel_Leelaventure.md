@@ -7,6 +7,7 @@ market_cap: micro_cap
 normalized_name: Hotel_Leelaventure
 file_path: findata/Companies/Travel/Hotel_Leelaventure.md
 permalink: /companies/travel/hotel_leelaventure
+geography: india
 tags:
 - entity_type/company
 - sector/travel
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/high_risk
 created: '2026-01-17'
-last_modified: '2026-01-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

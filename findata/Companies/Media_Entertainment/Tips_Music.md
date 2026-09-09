@@ -8,6 +8,7 @@ market_cap: small_cap
 normalized_name: Tips_Music
 file_path: findata/Companies/Media_Entertainment/Tips_Music.md
 permalink: /companies/media_entertainment/tips_music
+geography: india
 tags:
 - entity_type/company
 - sector/media_entertainment
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-01-21'
-last_modified: '2026-01-21'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

@@ -7,6 +7,7 @@ industry: Auto Manufacturers
 market_cap: large_cap
 normalized_name: Maruti_Suzuki_India
 permalink: /companies/automotive/maruti_suzuki_india
+geography: india
 tags:
 - entity_type/company
 - sector/automotive
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/dividend
 created: '2025-11-16'
-last_modified: '2026-09-08'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T11:56:40Z'

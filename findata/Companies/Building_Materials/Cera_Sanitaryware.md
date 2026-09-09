@@ -7,6 +7,7 @@ industry: Building Products & Equipment
 market_cap: large_cap
 normalized_name: Cera_Sanitaryware
 permalink: /companies/building_materials/cera_sanitaryware
+geography: india
 tags:
 - business_model/b2b
 - business_model/b2c
@@ -16,7 +17,7 @@ tags:
 - risk_investment/growth
 - sector/building_materials
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

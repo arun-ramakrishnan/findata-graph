@@ -7,13 +7,14 @@ industry: Airports & Air Services
 market_cap: large_cap
 normalized_name: GMR_Airports
 permalink: /companies/aviation/gmr_airports
+geography: india
 tags:
 - entity_type/company
 - sector/aviation
 - market_cap/large_cap
 - geography/india
 created: '2025-11-28'
-last_modified: '2026-06-24'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

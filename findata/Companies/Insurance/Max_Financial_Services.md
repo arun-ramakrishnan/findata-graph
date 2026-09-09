@@ -7,6 +7,7 @@ industry: Insurance - Life
 market_cap: mid_cap
 normalized_name: Max_Financial_Services
 permalink: /companies/insurance/max_financial_services
+geography: india
 tags:
 - business_model/financial
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/financial_risk
 - sector/insurance
 created: '2025-11-16'
-last_modified: '2026-08-31'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

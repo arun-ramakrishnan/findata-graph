@@ -7,6 +7,7 @@ industry: Building Materials
 market_cap: small_cap
 normalized_name: Lakshmi_Vilas_Bank
 permalink: /companies/banking/lakshmi_vilas_bank
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/low_risk
 - sector/banking
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

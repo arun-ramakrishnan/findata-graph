@@ -5,7 +5,6 @@ ticker: null
 listed: false
 sector: Pharma
 market_cap: mid_cap
-geography: global
 business_model: b2b
 risk_investment: medium_risk
 normalized_name: Bharat_Serums_and_Vaccines
@@ -15,11 +14,10 @@ tags:
 - entity_type/company
 - sector/pharma
 - market_cap/mid_cap
-- geography/global
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-07-20'
-last_modified: '2026-07-20'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-20T00:00:00Z'

@@ -7,6 +7,7 @@ industry: Specialty Chemicals
 market_cap: large_cap
 normalized_name: Kingfa_Science_Technology
 permalink: /companies/chemicals/kingfa_science_technology
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/medium_risk
 - sector/chemicals
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-25T00:00:00Z'

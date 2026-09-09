@@ -7,6 +7,7 @@ industry: Integrated Freight & Logistics
 market_cap: mid_cap
 normalized_name: Delhivery
 permalink: /companies/logistics/delhivery
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/logistics
 created: '2025-11-16'
-last_modified: '2026-03-01'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

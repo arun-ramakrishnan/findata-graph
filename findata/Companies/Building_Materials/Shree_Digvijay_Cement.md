@@ -9,6 +9,7 @@ normalized_name: Shree_Digvijay_Cement
 file_path: findata/Companies/Building_Materials/Shree_Digvijay_Cement.md
 permalink: /companies/building_materials/shree_digvijay_cement
 index_membership: null
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -18,7 +19,7 @@ tags:
 - risk_investment/medium_risk
 - financial_tags/dividend_paying
 created: '2026-06-28'
-last_modified: '2026-06-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

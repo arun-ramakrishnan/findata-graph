@@ -2,6 +2,7 @@
 title: Inox India
 type: company
 ticker: INOXINDIA.NS
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -12,7 +13,7 @@ sector: Engineering_Capital_Goods
 industry: Specialty Industrial Machinery
 permalink: /companies/engineering_capital_goods/inox_india
 created: '2026-08-06'
-last_modified: '2026-08-06'
+last_modified: '2026-09-10'
 file_path: findata/Companies/Engineering_Capital_Goods/Inox_India.md
 generated:
   by: derive_insights.py/v1

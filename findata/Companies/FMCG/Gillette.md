@@ -7,15 +7,16 @@ industry: Household & Personal Products
 market_cap: large_cap
 normalized_name: Gillette
 permalink: /companies/fmcg/gillette
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
-- geography/global
+- geography/india
 - market_cap/large_cap
 - risk_investment/dividend
 - sector/fmcg
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

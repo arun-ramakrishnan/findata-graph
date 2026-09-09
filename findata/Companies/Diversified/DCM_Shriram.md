@@ -7,6 +7,7 @@ industry: Confectioners
 market_cap: small_cap
 normalized_name: DCM_Shriram
 permalink: /companies/diversified/dcm_shriram
+geography: india
 tags:
 - entity_type/company
 - sector/diversified
@@ -18,7 +19,7 @@ tags:
 - risk_investment/commodity_price_volatility
 - risk_investment/weather_dependent
 created: '2025-12-16'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

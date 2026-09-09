@@ -8,6 +8,7 @@ market_cap: small_cap
 normalized_name: Lemon_Tree_Hotels
 file_path: findata/Companies/Travel/Lemon_Tree_Hotels.md
 permalink: /companies/travel/lemon_tree_hotels
+geography: india
 tags:
 - entity_type/company
 - sector/travel
@@ -16,7 +17,7 @@ tags:
 - business_model/b2c
 - risk_investment/high_growth
 created: '2026-01-17'
-last_modified: '2026-01-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

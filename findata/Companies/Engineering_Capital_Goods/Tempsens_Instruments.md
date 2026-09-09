@@ -2,6 +2,7 @@
 title: Tempsens Instruments
 type: company
 ticker: TEMPSENS.NS
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -11,7 +12,7 @@ sector: Engineering_Capital_Goods
 market_cap: null
 permalink: /companies/engineering_capital_goods/tempsens_instruments
 created: '2026-08-31'
-last_modified: '2026-08-31'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

@@ -7,17 +7,17 @@ industry: Auto Parts
 market_cap: small_cap
 normalized_name: CIE_Automotive_India
 permalink: /companies/automotive/cie_automotive_india
+geography: india
 tags:
 - entity_type/company
 - sector/automotive
 - market_cap/small_cap
 - geography/india
-- geography/global
 - business_model/b2b
 - risk_investment/cyclical
 - industry_characteristics/cyclical
 created: '2026-06-20'
-last_modified: '2026-06-20'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

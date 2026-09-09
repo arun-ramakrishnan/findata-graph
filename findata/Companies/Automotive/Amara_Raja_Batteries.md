@@ -7,6 +7,7 @@ industry: Electrical Equipment & Parts
 market_cap: small_cap
 normalized_name: Amara_Raja_Batteries
 permalink: /companies/automotive/amara_raja_batteries
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -18,7 +19,7 @@ tags:
 - industry/automotive_components
 - industry/energy_storage
 created: '2025-12-28'
-last_modified: '2026-06-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

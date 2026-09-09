@@ -7,6 +7,7 @@ industry: Information Technology Services
 market_cap: mid_cap
 normalized_name: Zensar_Technologies
 permalink: /companies/technology/zensar_technologies
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/technology
 created: '2025-11-16'
-last_modified: '2025-12-18'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-18T00:00:00Z'

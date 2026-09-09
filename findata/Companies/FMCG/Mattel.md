@@ -7,15 +7,16 @@ industry: Leisure
 market_cap: mid_cap
 normalized_name: Mattel
 permalink: /companies/fmcg/mattel
+geography: italy
 tags:
 - business_model/b2c
 - entity_type/company
-- geography/global
+- geography/italy
 - market_cap/mid_cap
 - risk_investment/brand_risk
 - sector/fmcg
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

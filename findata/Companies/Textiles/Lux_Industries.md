@@ -7,6 +7,7 @@ industry: Apparel Manufacturing
 market_cap: mid_cap
 normalized_name: Lux_Industries
 permalink: /companies/textiles/lux_industries
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/cyclical
 - sector/textiles
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-25T00:00:00Z'

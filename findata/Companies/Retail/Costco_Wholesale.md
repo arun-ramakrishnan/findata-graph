@@ -8,16 +8,16 @@ market_cap: large_cap
 normalized_name: Costco_Wholesale
 file_path: findata/Companies/Retail/Costco_Wholesale.md
 permalink: /companies/retail/costco_wholesale
-geography: global
+geography: usa
 tags:
 - entity_type/company
 - sector/retail
 - market_cap/large_cap
-- geography/global
+- geography/usa
 - business_model/b2c
 - risk_investment/dividend
 created: '2026-06-24'
-last_modified: '2026-07-12'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-12T00:00:00Z'

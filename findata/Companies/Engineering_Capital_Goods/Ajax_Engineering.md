@@ -7,11 +7,11 @@ industry: Entertainment
 market_cap: mid_cap
 normalized_name: Ajax_Engineering
 permalink: /companies/engineering_capital_goods/ajax_engineering
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
 - geography/india
-- geography/domestic_focused
 - market_cap/mid_cap
 - risk_investment/cyclical
 - risk_investment/regulatory
@@ -23,7 +23,7 @@ tags:
 - investment_theme/make_in_india
 - investment_theme/automation
 created: '2025-11-16'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

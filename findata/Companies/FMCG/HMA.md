@@ -7,6 +7,7 @@ industry: Packaged Foods
 market_cap: mid_cap
 normalized_name: HMA
 permalink: /companies/fmcg/hma
+geography: india
 tags:
 - sector/fmcg
 - business_model/b2b
@@ -14,7 +15,7 @@ tags:
 - geography/india
 - entity_type/company
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

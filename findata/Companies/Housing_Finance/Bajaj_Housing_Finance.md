@@ -7,6 +7,7 @@ industry: null
 market_cap: large_cap
 normalized_name: Bajaj_Housing_Finance
 permalink: /companies/housing_finance/bajaj_housing_finance
+geography: india
 tags:
 - entity_type/company
 - sector/housing_finance
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/dividend
 created: '2025-12-10'
-last_modified: '2025-12-10'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

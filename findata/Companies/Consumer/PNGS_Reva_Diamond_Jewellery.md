@@ -7,6 +7,7 @@ industry: null
 market_cap: small_cap
 normalized_name: PNGS_Reva_Diamond_Jewellery
 permalink: /companies/consumer/pngs_reva_diamond_jewellery
+geography: india
 tags:
 - entity_type/company
 - sector/consumer
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/high_growth
 created: '2026-06-30'
-last_modified: '2026-06-30'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

@@ -8,6 +8,7 @@ market_cap: micro_cap
 normalized_name: Tribhovandas_Bhimji_Zaveri
 file_path: findata/Companies/Retail/Tribhovandas_Bhimji_Zaveri_TBZ.md
 permalink: /companies/retail/tribhovandas_bhimji_zaveri
+geography: india
 tags:
 - entity_type/company
 - sector/retail
@@ -16,7 +17,7 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2026-02-12'
-last_modified: '2026-02-12'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-02-12T00:00:00Z'

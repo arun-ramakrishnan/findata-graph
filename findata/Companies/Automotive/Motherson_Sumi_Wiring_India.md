@@ -7,6 +7,7 @@ industry: Auto Parts
 market_cap: large_cap
 normalized_name: Motherson_Sumi_Wiring_India
 permalink: /companies/automotive/motherson_sumi_wiring_india
+geography: india
 tags:
 - entity_type/company
 - sector/automotive
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-12-28'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T14:03:20Z'

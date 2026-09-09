@@ -7,6 +7,7 @@ industry: Specialty Retail
 market_cap: small_cap
 normalized_name: Logica_Infoway
 permalink: /companies/retail/logica_infoway
+geography: india
 tags:
 - entity_type/company
 - sector/retail
@@ -15,7 +16,7 @@ tags:
 - risk_investment/medium_risk
 - market_cap/small_cap
 created: '2025-01-07'
-last_modified: '2026-08-05'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

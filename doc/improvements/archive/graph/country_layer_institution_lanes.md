@@ -1,15 +1,16 @@
 ---
 title: "Country layer + institution counterparties — listed_in edges and regulator/rating lanes"
-status: proposed
+status: executed
 filed: "2026-09-09"
-executed: null
-completed_md: null
+executed: "2026-09-10"
+completed_md: "219"
 area: "helpers/graph + findata geography surfaces"
 ---
 
 # Country layer + institution counterparties — listed_in edges and regulator/rating lanes
 
-**Date:** 2026-09-09 · **Status:** PROPOSED ·
+**Date:** 2026-09-09 · **Status:** EXECUTED 2026-09-10 ·
+completed.md entry 219 ·
 **Area:** helpers/graph (`extract_relations.py`, `triage_pending_relations.py`,
 one new producer), helpers/core (`sync_tags.py`, `parse_newsletter.py` tag
 seeding), findata geography surfaces
@@ -215,7 +216,7 @@ DuckDB: `v_country` + `e_listed_in` materialized out-of-registry (the
 exposed_to precedent), `_SCHEMA_VERSION` 13 → 14, verified live (21/930
 rows). Zero unmapped dotted suffixes.
 
-**C2 — CODE LANDED; APPLY AWAITING THE OPERATOR CHECKPOINT.**
+**C2 — LANDED (applied 2026-09-10 at the operator checkpoint).**
 `helpers/maintenance/geo_converge.py` (line-surgery editor, dry-run
 default — no YAML round-trip). Dry-run over the live vault: **947/1,165
 notes would change** (815 key_add, 150 tag_converge, 94 slop_drop, 55
@@ -254,9 +255,29 @@ locations, programs, one word-overlap alias FP) — persisted via
 `relation_noise.json` (38 entries); re-extract verified unresolved=0
 (no re-entry). Institutions 205 → 207; DuckDB rebuilt.
 
-**Remaining for arc close:** C2 apply at the checkpoint → sync-tags →
-verify_notes → search-fresh; full `make qa` + perf + advisory once, with
-the user's go; then archival.
+**C2 apply (2026-09-10).** 947 notes rewritten; idempotency re-run = 0.
+A real bug surfaced on the first apply and was fixed before anything
+shipped: the editor's key pass used a STALE line index when the tag pass
+had deleted lines above the geography key (live on Hisense: the key-drop
+ate `listed: false` and kept the global key). Fix: the key pass re-locates
+the key line after the tag pass; regression-pinned (TestStaleIndexGuard);
+the Companies tree was `git restore`d and re-applied deterministically,
+then every one of the 947 changed notes was byte-verified against the
+fixed plan over its HEAD version — 0 mismatches. Post-apply: sync-tags
+rebuilt (company geography tags = 21 country values only, zero slop;
+sector coverage rows untouched), verify_notes 1,217/1,217 clean.
+
+**Arc close (2026-09-10).** Gates: `make qa` 9/9, `make perf` 22/22,
+`make advisory` 10/10 (after index convergence). Gate debt fixed en
+route: make-help registration for derive-countries (alphabetical —
+after derive-co-mentions), 'country' added to both fileless-entity
+exemption sets and the integrity checker's v_node expected-count list,
+the 4 new edge types registered in `_KNOWN_EDGE_TYPES`, a shebang for
+helpers/core/countries.py, ty narrowing + a C901 split in geo_converge
+(`_plan_tag_pass` / `_plan_tag_worklist` / `_plan_key_pass`), and a
+snapshot refresh. One environment incident: transient gate failures were
+traced to /tmp quota exhaustion (2.0G pytest dirs + 4×270M stray tmp
+dirs from interrupted sweeps — cleaned; not gate debt).
 
 ## Appendix — raw measurement log
 

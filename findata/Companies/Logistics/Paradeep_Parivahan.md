@@ -7,13 +7,14 @@ industry: Agricultural Inputs
 market_cap: micro_cap
 normalized_name: Paradeep_Parivahan
 permalink: /companies/logistics/paradeep_parivahan
+geography: india
 tags:
 - entity_type/company
 - sector/logistics
 - market_cap/micro_cap
 - geography/india
 created: '2025-11-28'
-last_modified: '2025-11-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

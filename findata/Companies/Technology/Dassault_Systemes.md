@@ -7,14 +7,15 @@ industry: Software - Application
 market_cap: large_cap
 normalized_name: Dassault_Systemes
 permalink: /companies/technology/dassault_systemes
+geography: france
 tags:
 - entity_type/company
 - business_model/b2b
-- geography/global
+- geography/france
 - market_cap/large_cap
 - sector/technology
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

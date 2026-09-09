@@ -7,18 +7,18 @@ industry: Specialty Industrial Machinery
 market_cap: small_cap
 normalized_name: Elgi_Equipments
 permalink: /companies/engineering_capital_goods/elgi_equipments
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
 - market_cap/small_cap
 - geography/india
-- geography/global
 - business_model/b2b
 - risk_investment/cyclical
 - risk_investment/medium_risk
 - industry_characteristics/cyclical
 created: '2026-06-20'
-last_modified: '2026-06-24'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

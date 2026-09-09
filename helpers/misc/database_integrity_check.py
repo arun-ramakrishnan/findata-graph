@@ -49,6 +49,11 @@ _KNOWN_EDGE_TYPES: tuple[str, ...] = (
     "cited_in",  # okf_activation P: OKF provenance (company/sector -> edition)
     "semantic_peer",  # E3: embedding cosine neighbours (Relations 2.0)
     "invested_in",  # E5: institution -> company holders (Relations 2.0)
+    "listed_in",  # Country layer C1: company -> country (ticker-derived home market)
+    "rated_by",  # Country layer I2: company -> rating agency (company)
+    "regulated_by",  # Country layer I2: company -> institution (RBI/SEBI)
+    "approved_by",  # Country layer I2: company -> institution (RBI/SEBI)
+    "penalized_by",  # Country layer I2: company -> institution (RBI/SEBI)
 )
 
 
@@ -1394,7 +1399,7 @@ class DatabaseIntegrityChecker:
             .execute(
                 "SELECT COUNT(*) FROM entities WHERE entity_type IN "
                 "('company','sector','super_sector','sub_sector','theme','edition',"
-                "'institution')"
+                "'institution','country')"
             )
             .fetchone()[0]
         )
@@ -1515,7 +1520,15 @@ class DatabaseIntegrityChecker:
             # are likewise legitimately fileless — they have no backing note
             # (membership is via the exposed_to edge, not a markdown file). So
             # they share the sub_sector exemption.
-            if not file_path and entity_type in ("sub_sector", "theme", "institution"):
+            # Country layer C1: country entities are bare structural rows
+            # (listed_in endpoints, derived from exchange tickers) — the
+            # same fileless class.
+            if not file_path and entity_type in (
+                "sub_sector",
+                "theme",
+                "institution",
+                "country",
+            ):
                 results["valid_entities"] += 1
                 results["by_entity_type"][entity_type]["valid"] += 1
                 continue

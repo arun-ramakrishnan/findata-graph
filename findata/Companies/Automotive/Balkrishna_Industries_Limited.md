@@ -7,6 +7,7 @@ industry: Auto Parts
 market_cap: mid_cap
 normalized_name: Balkrishna_Industries_Limited
 permalink: /companies/automotive/balkrishna_industries_limited
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -18,7 +19,7 @@ tags:
 - industry/tyre_manufacturing
 - industry/specialty_tires
 created: '2025-12-28'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

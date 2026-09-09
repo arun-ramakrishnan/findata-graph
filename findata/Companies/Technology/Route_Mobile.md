@@ -7,6 +7,7 @@ industry: Telecom Services
 market_cap: small_cap
 normalized_name: Route_Mobile
 permalink: /companies/technology/route_mobile
+geography: india
 tags:
 - entity_type/company
 - sector/technology
@@ -17,7 +18,7 @@ tags:
 - industry/it_services
 - specialization/software_consulting
 created: '2025-12-02'
-last_modified: '2025-12-02'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

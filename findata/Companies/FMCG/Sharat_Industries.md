@@ -7,6 +7,7 @@ industry: Farm Products
 market_cap: micro_cap
 normalized_name: Sharat_Industries
 permalink: /companies/fmcg/sharat_industries
+geography: india
 tags:
 - entity_type/company
 - sector/fmcg
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-01-07'
-last_modified: '2026-01-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

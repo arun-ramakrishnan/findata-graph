@@ -7,6 +7,7 @@ industry: Drug Manufacturers - Specialty & Generic
 market_cap: large_cap
 normalized_name: Zydus_Lifesciences
 permalink: /companies/pharma/zydus_lifesciences
+geography: india
 tags:
 - entity_type/company
 - sector/pharma
@@ -15,7 +16,7 @@ tags:
 - business_model/mixed
 - risk_investment/dividend
 created: '2025-12-03'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

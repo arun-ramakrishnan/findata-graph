@@ -7,6 +7,7 @@ industry: REIT - Office
 market_cap: large_cap
 normalized_name: Mindspace_Business_Parks_REIT
 permalink: /companies/real_estate/mindspace_business_parks_reit
+geography: india
 tags:
 - entity_type/company
 - sector/real_estate
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/dividend
 created: '2026-06-30'
-last_modified: '2026-06-30'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:16Z'

@@ -7,6 +7,7 @@ industry: Oil & Gas Refining & Marketing
 market_cap: large_cap
 normalized_name: Indian_Oil_Corporation
 permalink: /companies/energy/indian_oil_corporation
+geography: india
 tags:
 - confidence/high
 - sector/energy
@@ -16,7 +17,7 @@ tags:
 - risk_investment/dividend
 - market_cap/large_cap
 created: '2025-11-16'
-last_modified: '2026-08-03'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

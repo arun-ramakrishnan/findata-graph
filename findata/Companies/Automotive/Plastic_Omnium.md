@@ -7,15 +7,16 @@ industry: null
 market_cap: mid_cap
 normalized_name: Plastic_Omnium
 permalink: /companies/automotive/plastic_omnium
+geography: singapore
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/india
+- geography/singapore
 - market_cap/mid_cap
 - risk_investment/growth
 - sector/automotive
 created: '2025-11-16'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-11-16T00:00:00Z'

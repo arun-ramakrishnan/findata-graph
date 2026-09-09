@@ -8,6 +8,7 @@ market_cap: micro_cap
 normalized_name: Prostarm_Info_Systems
 file_path: findata/Companies/Engineering_Capital_Goods/Prostarm_Info_Systems.md
 permalink: /companies/ems_manufacturing/prostarm_info_systems
+geography: india
 tags:
 - entity_type/company
 - sector/ems_manufacturing
@@ -17,7 +18,7 @@ tags:
 - risk_investment/growth
 - financial_tags/profitable
 created: '2026-06-17'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

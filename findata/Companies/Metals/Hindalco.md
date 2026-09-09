@@ -7,6 +7,7 @@ industry: Aluminum
 market_cap: large_cap
 normalized_name: Hindalco
 permalink: /companies/metals/hindalco
+geography: india
 tags:
 - entity_type/company
 - sector/metals
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/dividend
 created: '2025-11-26'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

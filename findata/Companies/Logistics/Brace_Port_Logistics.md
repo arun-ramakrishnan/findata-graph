@@ -7,6 +7,7 @@ industry: null
 market_cap: micro_cap
 normalized_name: Brace_Port_Logistics
 permalink: /companies/logistics/brace_port_logistics
+geography: india
 tags:
 - entity_type/company
 - sector/logistics
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-10'
-last_modified: '2025-12-10'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-10T00:00:00Z'

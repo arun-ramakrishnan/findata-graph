@@ -9,16 +9,17 @@ normalized_name: Saudi_Aramco
 file_path: findata/Companies/Energy/Saudi_Aramco.md
 permalink: /companies/energy/saudi_aramco
 index_membership: null
+geography: saudi_arabia
 tags:
 - entity_type/company
 - sector/energy
 - market_cap/large_cap
-- geography/global
+- geography/saudi_arabia
 - business_model/b2b
 - risk_investment/dividend
 - financial_tags/dividend_paying
 created: '2026-06-28'
-last_modified: '2026-06-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

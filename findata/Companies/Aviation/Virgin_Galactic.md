@@ -7,16 +7,16 @@ industry: Aerospace & Defense
 market_cap: micro_cap
 normalized_name: Virgin_Galactic
 permalink: /companies/aviation/virgin_galactic
-geography: global
+geography: usa
 tags:
 - entity_type/company
 - sector/aviation
 - market_cap/micro_cap
-- geography/global
+- geography/usa
 - business_model/b2c
 - risk_investment/high_growth
 created: '2025-12-05'
-last_modified: '2025-12-05'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

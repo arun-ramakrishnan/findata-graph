@@ -7,6 +7,7 @@ industry: Electrical Equipment & Parts
 market_cap: small_cap
 normalized_name: Apar_Industries
 permalink: /companies/engineering_capital_goods/apar_industries
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/cyclical
 - sector/engineering_capital_goods
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-29T00:00:00Z'

@@ -8,6 +8,7 @@ market_cap: large_cap
 normalized_name: UltraTech_Cement
 file_path: findata/Companies/Building_Materials/UltraTech_Cement.md
 permalink: /companies/building_materials/ultratech_cement
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2026-02-12'
-last_modified: '2026-02-12'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

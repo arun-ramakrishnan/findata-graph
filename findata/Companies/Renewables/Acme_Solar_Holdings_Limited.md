@@ -7,6 +7,7 @@ industry: Utilities - Renewable
 market_cap: small_cap
 normalized_name: Acme_Solar_Holdings_Limited
 permalink: /companies/renewables/acme_solar_holdings_limited
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/renewables
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-07T00:00:00Z'

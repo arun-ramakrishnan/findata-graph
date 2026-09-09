@@ -8,6 +8,7 @@ market_cap: mid_cap
 normalized_name: Dalmia_Bharat
 file_path: findata/Companies/Building_Materials/Dalmia_Bharat.md
 permalink: /companies/building_materials/dalmia_bharat
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2026-02-12'
-last_modified: '2026-02-12'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

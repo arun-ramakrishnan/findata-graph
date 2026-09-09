@@ -7,6 +7,7 @@ industry: Apparel Retail
 market_cap: small_cap
 normalized_name: Baazar_Style_Retail
 permalink: /companies/retail/baazar_style_retail
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/cyclical
 - sector/retail
 created: '2025-11-16'
-last_modified: '2025-12-31'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

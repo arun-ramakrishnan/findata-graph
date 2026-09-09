@@ -7,6 +7,7 @@ industry: Business Equipment & Supplies
 market_cap: small_cap
 normalized_name: Flair_Writing_Industries
 permalink: /companies/fmcg/flair_writing_industries
+geography: india
 tags:
 - entity_type/company
 - sector/fmcg
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2025-11-16'
-last_modified: '2026-06-25'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

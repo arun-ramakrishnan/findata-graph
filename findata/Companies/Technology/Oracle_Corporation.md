@@ -7,15 +7,16 @@ industry: Software - Infrastructure
 market_cap: large_cap
 normalized_name: Oracle_Corporation
 permalink: /companies/technology/oracle_corporation
+geography: usa
 tags:
 - entity_type/company
 - sector/technology
 - market_cap/large_cap
-- geography/global
+- geography/usa
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-16'
-last_modified: '2025-12-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

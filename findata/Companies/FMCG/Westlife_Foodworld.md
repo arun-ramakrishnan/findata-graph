@@ -7,6 +7,7 @@ industry: Restaurants
 market_cap: mid_cap
 normalized_name: Westlife_Foodworld
 permalink: /companies/fmcg/westlife_foodworld
+geography: india
 tags:
 - entity_type/company
 - sector/fmcg
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/growth
 created: '2025-11-26'
-last_modified: '2026-08-05'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

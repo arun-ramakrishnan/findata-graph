@@ -5,7 +5,6 @@ ticker: null
 sector: Consumer
 listed: false
 market_cap: small_cap
-geography: global
 business_model: b2c
 risk_investment: medium_risk
 normalized_name: Meller
@@ -14,11 +13,10 @@ tags:
 - entity_type/company
 - sector/consumer
 - market_cap/small_cap
-- geography/global
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2026-08-04'
-last_modified: '2026-08-04'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-08-04T00:00:00Z'

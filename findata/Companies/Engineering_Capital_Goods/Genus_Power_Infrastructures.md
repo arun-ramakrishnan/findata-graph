@@ -7,11 +7,11 @@ industry: Electrical Equipment & Parts
 market_cap: small_cap
 normalized_name: Genus_Power_Infrastructures
 permalink: /companies/engineering_capital_goods/genus_power_infrastructures
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
 - geography/india
-- geography/domestic_focused
 - market_cap/small_cap
 - risk_investment/growth
 - sector/engineering_capital_goods
@@ -20,7 +20,7 @@ tags:
 - investment_theme/infrastructure
 - investment_theme/energy_transition
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-07T00:00:00Z'

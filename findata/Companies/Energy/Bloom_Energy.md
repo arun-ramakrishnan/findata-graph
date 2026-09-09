@@ -7,6 +7,7 @@ industry: Electrical Equipment & Parts
 market_cap: mid_cap
 normalized_name: Bloom_Energy
 permalink: /companies/energy/bloom_energy
+geography: usa
 tags:
 - entity_type/company
 - sector/energy
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-08-03'
-last_modified: '2026-08-03'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-08-03T00:00:00Z'

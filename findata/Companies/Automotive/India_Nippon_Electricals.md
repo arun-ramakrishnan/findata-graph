@@ -7,6 +7,7 @@ industry: Auto Parts
 market_cap: mid_cap
 normalized_name: India_Nippon_Electricals
 permalink: /companies/automotive/india_nippon_electricals
+geography: india
 tags:
 - entity_type/company
 - sector/automotive
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/dividend
 created: '2026-06-26'
-last_modified: '2026-06-26'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-26T00:00:00Z'

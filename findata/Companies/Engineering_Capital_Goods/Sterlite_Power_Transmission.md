@@ -12,7 +12,6 @@ tags:
 - business_model/b2g
 - entity_type/company
 - geography/india
-- geography/domestic_focused
 - market_cap/mid_cap
 - risk_investment/growth
 - risk_investment/medium_risk
@@ -24,7 +23,7 @@ tags:
 - investment_theme/grid_modernization
 - investment_theme/energy_transition
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-07T00:00:00Z'

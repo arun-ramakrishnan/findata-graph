@@ -8,15 +8,16 @@ market_cap: mid_cap
 normalized_name: L_T_Technology_Services
 file_path: findata/Companies/Technology/L_T_Technology_Services.md
 permalink: /companies/technology/l_t_technology_services
+geography: india
 tags:
 - entity_type/company
 - sector/technology
 - market_cap/mid_cap
-- geography/global
+- geography/india
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-01-17'
-last_modified: '2026-01-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T14:03:20Z'

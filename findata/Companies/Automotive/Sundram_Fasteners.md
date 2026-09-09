@@ -7,6 +7,7 @@ industry: Auto Parts
 market_cap: large_cap
 normalized_name: Sundram_Fasteners
 permalink: /companies/automotive/sundram_fasteners
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -18,7 +19,7 @@ tags:
 - risk_investment/cyclical
 - sector/automotive
 created: '2025-12-28'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-28T00:00:00Z'

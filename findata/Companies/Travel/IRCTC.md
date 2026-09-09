@@ -7,6 +7,7 @@ industry: Travel Services
 market_cap: large_cap
 normalized_name: IRCTC
 permalink: /companies/travel/irctc
+geography: india
 tags:
 - entity_type/company
 - sector/travel
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/low_risk
 created: '2025-12-05'
-last_modified: '2026-08-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T15:38:15Z'

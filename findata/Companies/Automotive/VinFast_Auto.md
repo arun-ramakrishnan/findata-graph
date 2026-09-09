@@ -7,12 +7,12 @@ industry: Auto Manufacturers
 market_cap: large_cap
 normalized_name: VinFast_Auto
 permalink: /companies/automotive/vinfast_auto
-geography: global
+geography: vietnam
 tags:
 - business_model/b2b
 - business_model/b2c
 - entity_type/company
-- geography/global
+- geography/vietnam
 - industry/automotive
 - industry/electric_vehicles
 - industry/automotive_manufacturing
@@ -20,7 +20,7 @@ tags:
 - risk_investment/growth
 - sector/automotive
 created: '2025-12-05'
-last_modified: '2025-12-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:45Z'

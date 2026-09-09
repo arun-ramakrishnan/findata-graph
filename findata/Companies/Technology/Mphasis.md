@@ -8,15 +8,16 @@ market_cap: large_cap
 normalized_name: Mphasis
 file_path: findata/Companies/Technology/Mphasis.md
 permalink: /companies/technology/mphasis
+geography: india
 tags:
 - entity_type/company
 - sector/technology
 - market_cap/large_cap
-- geography/global
+- geography/india
 - business_model/b2b
 - risk_investment/growth
 created: '2026-02-12'
-last_modified: '2026-07-26'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

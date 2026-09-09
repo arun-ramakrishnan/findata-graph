@@ -7,6 +7,7 @@ industry: Chemicals
 market_cap: small_cap
 normalized_name: Shiv_Texchem
 permalink: /companies/chemicals/shiv_texchem
+geography: india
 tags:
 - entity_type/company
 - sector/chemicals
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-06-26'
-last_modified: '2026-06-26'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

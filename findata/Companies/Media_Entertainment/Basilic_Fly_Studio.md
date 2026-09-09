@@ -7,6 +7,7 @@ industry: null
 market_cap: small_cap
 normalized_name: Basilic_Fly_Studio
 permalink: /companies/media_entertainment/basilic_fly_studio
+geography: india
 tags:
 - entity_type/company
 - sector/media_entertainment
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-06-26'
-last_modified: '2026-06-26'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-26T00:00:00Z'

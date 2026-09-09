@@ -6,6 +6,7 @@ sector: Capital_Markets
 market_cap: large_cap
 normalized_name: ICICI_Prudential_Asset_Management_Company
 permalink: /companies/capital_markets/icici_prudential_asset_management_company
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -14,7 +15,7 @@ tags:
 - risk_investment/dividend
 - sector/capital_markets
 created: '2025-11-16'
-last_modified: '2026-07-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

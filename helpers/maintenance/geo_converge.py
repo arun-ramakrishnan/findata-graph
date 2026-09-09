@@ -61,6 +61,101 @@ _ANY_TAG_RE = re.compile(r"^- \S+$")
 _LAST_MOD_RE = re.compile(r"^last_modified:.*$")
 
 
+def _geo_key_val(line: str) -> str | None:
+    m = _GEO_KEY_RE.match(line)
+    return m.group(1) if m else None
+
+
+def _geo_tag_val(line: str) -> str | None:
+    m = _GEO_TAG_RE.match(line)
+    return m.group(1) if m else None
+
+
+def _plan_tag_worklist(lines: list[str], tag_idxs: list[int], tag_vals: list[str]) -> list[str]:
+    """Worklist branch of the tag pass: no ticker-derived country, so
+    slop-normalize only — regional qualifiers fold into india (or drop
+    when a real country tag already exists), vague scope values drop."""
+    changes: list[str] = []
+    regional = [v for v in tag_vals if v in REGIONAL_TO_INDIA]
+    dropped = [v for v in tag_vals if v in DROPPED_GEOGRAPHY_VALUES]
+    if regional:
+        if any(v not in REGIONAL_TO_INDIA and v not in DROPPED_GEOGRAPHY_VALUES for v in tag_vals):
+            # A real country tag already exists (e.g. india alongside
+            # domestic_focused) — just delete the slop lines.
+            for i in reversed(tag_idxs):
+                if _geo_tag_val(lines[i]) in REGIONAL_TO_INDIA:
+                    del lines[i]
+            changes.append("slop_drop")
+        else:
+            lines[tag_idxs[0]] = "- geography/india"
+            for i in reversed(tag_idxs[1:]):
+                del lines[i]
+            changes.append("regional_to_india")
+    elif dropped:
+        for i in reversed(tag_idxs):
+            del lines[i]
+        changes.append("slop_drop")
+    return changes
+
+
+def _plan_tag_pass(lines: list[str], country: str | None) -> list[str]:
+    """Mutate ``lines`` in place: converge the geography/* tag list.
+
+    Ticker-backed: exactly one geography/<country> tag. Worklisted:
+    delegate to the slop-normalizer.
+    """
+    tag_idxs = [i for i, ln in enumerate(lines) if _GEO_TAG_RE.match(ln)]
+    tag_vals = [v for v in (_geo_tag_val(lines[i]) for i in tag_idxs) if v is not None]
+
+    if country is None:
+        return _plan_tag_worklist(lines, tag_idxs, tag_vals)
+    want = f"- geography/{country}"
+    if not tag_vals:
+        # Insert into the tags block: after the last existing tag line
+        # (keeps the block contiguous); if there is no tags block at
+        # all, leave tags alone (the key still converges).
+        tag_block = [i for i, ln in enumerate(lines) if _ANY_TAG_RE.match(ln)]
+        if tag_block:
+            lines.insert(tag_block[-1] + 1, want)
+            return ["tag_converge"]
+        return []
+    if tag_vals != [country]:
+        lines[tag_idxs[0]] = want
+        for i in reversed(tag_idxs[1:]):
+            del lines[i]
+        return ["tag_converge"]
+    return []
+
+
+def _plan_key_pass(lines: list[str], country: str | None) -> list[str]:
+    """Mutate ``lines`` in place: converge the geography: key.
+
+    MUST run after the tag pass — that pass may delete lines, so the key
+    line is re-located here. The stale-index variant deleted the WRONG
+    line (found live on Hisense: a geography tag above the key made the
+    key-drop eat `listed: false`).
+    """
+    changes: list[str] = []
+    key_idx = next((i for i, ln in enumerate(lines) if _GEO_KEY_RE.match(ln)), None)
+    key_val = _geo_key_val(lines[key_idx]) if key_idx is not None else None
+    if country is not None:
+        want_key = f"geography: {country}"
+        if key_idx is None:
+            tags_hdr = next((i for i, ln in enumerate(lines) if _TAGS_HDR_RE.match(ln)), None)
+            if tags_hdr is not None:
+                lines.insert(tags_hdr, want_key)
+                changes.append("key_add")
+        elif lines[key_idx] != want_key:
+            lines[key_idx] = want_key
+            changes.append("key_fix")
+    elif key_val in DROPPED_GEOGRAPHY_VALUES and key_idx is not None:
+        # No ticker-derived home market: a vague scope key is noise — drop
+        # it. A country-valued key is human evidence and stays.
+        del lines[key_idx]
+        changes.append("key_drop")
+    return changes
+
+
 def plan_note(text: str, country: str | None, today: str):
     """Compute the converged frontmatter for one note.
 
@@ -73,68 +168,9 @@ def plan_note(text: str, country: str | None, today: str):
     if not dashes:
         return text, []
     lines = yaml_body.split("\n")
-    changes: list[str] = []
 
-    key_idx = next((i for i, ln in enumerate(lines) if _GEO_KEY_RE.match(ln)), None)
-    key_val = _GEO_KEY_RE.match(lines[key_idx]).group(1) if key_idx is not None else None
-    tag_idxs = [i for i, ln in enumerate(lines) if _GEO_TAG_RE.match(ln)]
-    tag_vals = [_GEO_TAG_RE.match(lines[i]).group(1) for i in tag_idxs]
-
-    # ---- tags -----------------------------------------------------------
-    if country is not None:
-        want = f"- geography/{country}"
-        if not tag_vals:
-            # Insert into the tags block: after the last existing tag line
-            # (keeps the block contiguous); if there is no tags block at
-            # all, leave tags alone (the key still converges).
-            tag_block = [i for i, ln in enumerate(lines) if _ANY_TAG_RE.match(ln)]
-            if tag_block:
-                lines.insert(tag_block[-1] + 1, want)
-                changes.append("tag_converge")
-        elif tag_vals != [country]:
-            lines[tag_idxs[0]] = want
-            for i in reversed(tag_idxs[1:]):
-                del lines[i]
-            changes.append("tag_converge")
-    else:
-        regional = [v for v in tag_vals if v in REGIONAL_TO_INDIA]
-        dropped = [v for v in tag_vals if v in DROPPED_GEOGRAPHY_VALUES]
-        if regional:
-            if any(
-                v not in REGIONAL_TO_INDIA and v not in DROPPED_GEOGRAPHY_VALUES for v in tag_vals
-            ):
-                # A real country tag already exists (e.g. india alongside
-                # domestic_focused) — just delete the slop lines.
-                for i in reversed(tag_idxs):
-                    if _GEO_TAG_RE.match(lines[i]).group(1) in REGIONAL_TO_INDIA:
-                        del lines[i]
-                changes.append("slop_drop")
-            else:
-                lines[tag_idxs[0]] = "- geography/india"
-                for i in reversed(tag_idxs[1:]):
-                    del lines[i]
-                changes.append("regional_to_india")
-        elif dropped:
-            for i in reversed(tag_idxs):
-                del lines[i]
-            changes.append("slop_drop")
-
-    # ---- geography key ----------------------------------------------------
-    if country is not None:
-        want_key = f"geography: {country}"
-        if key_idx is None:
-            tags_hdr = next((i for i, ln in enumerate(lines) if _TAGS_HDR_RE.match(ln)), None)
-            if tags_hdr is not None:
-                lines.insert(tags_hdr, want_key)
-                changes.append("key_add")
-        elif lines[key_idx] != want_key:
-            lines[key_idx] = want_key
-            changes.append("key_fix")
-    elif key_val in DROPPED_GEOGRAPHY_VALUES:
-        # No ticker-derived home market: a vague scope key is noise — drop
-        # it. A country-valued key is human evidence and stays.
-        del lines[key_idx]
-        changes.append("key_drop")
+    changes = _plan_tag_pass(lines, country)
+    changes += _plan_key_pass(lines, country)
 
     if not changes:
         return text, []

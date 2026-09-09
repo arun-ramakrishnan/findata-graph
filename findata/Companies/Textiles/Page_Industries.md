@@ -7,6 +7,7 @@ industry: Apparel Manufacturing
 market_cap: mid_cap
 normalized_name: Page_Industries
 permalink: /companies/textiles/page_industries
+geography: india
 tags:
 - entity_type/company
 - sector/textiles
@@ -15,7 +16,7 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2025-12-20'
-last_modified: '2025-12-20'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

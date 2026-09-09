@@ -7,6 +7,7 @@ industry: Furnishings, Fixtures & Appliances
 market_cap: small_cap
 normalized_name: TTK_Prestige
 permalink: /companies/consumer/ttk_prestige
+geography: india
 tags:
 - business_model/b2c
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/high_growth
 - sector/consumer
 created: '2026-07-29'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:47Z'

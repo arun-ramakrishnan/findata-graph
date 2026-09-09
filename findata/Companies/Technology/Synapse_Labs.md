@@ -6,15 +6,16 @@ sector: Technology
 market_cap: mid_cap
 normalized_name: Synapse_Labs
 permalink: /companies/technology/synapse_labs
+geography: south_korea
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/india
+- geography/south_korea
 - market_cap/mid_cap
 - risk_investment/growth
 - sector/technology
 created: '2025-11-16'
-last_modified: '2025-12-31'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2025-12-31T00:00:00Z'

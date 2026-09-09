@@ -7,17 +7,17 @@ industry: Drug Manufacturers - Specialty & Generic
 market_cap: mid_cap
 normalized_name: Lupin_Limited
 permalink: /companies/pharma/lupin_limited
+geography: india
 tags:
 - geography/india
 - entity_type/company
-- geography/global
 - sector/pharma
 - confidence/high
 - market_cap/mid_cap
 - risk_investment/growth
 - business_model/b2b
 created: '2025-11-16'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

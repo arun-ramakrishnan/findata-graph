@@ -8,6 +8,7 @@ market_cap: micro_cap
 normalized_name: Aztec_Fluids_Machinery
 file_path: findata/Companies/Engineering_Capital_Goods/Aztec_Fluids_Machinery.md
 permalink: /companies/engineering_capital_goods/aztec_fluids_machinery
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -16,7 +17,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-01-14'
-last_modified: '2026-01-14'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-01-14T00:00:00Z'

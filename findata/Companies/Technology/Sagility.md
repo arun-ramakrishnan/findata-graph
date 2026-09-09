@@ -9,15 +9,16 @@ normalized_name: Sagility
 file_path: findata/Companies/Technology/Sagility.md
 permalink: /companies/technology/sagility
 index_membership: null
+geography: india
 tags:
 - entity_type/company
 - sector/technology
 - market_cap/small_cap
-- geography/global
+- geography/india
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-06-28'
-last_modified: '2026-06-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

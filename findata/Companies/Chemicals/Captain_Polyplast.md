@@ -7,6 +7,7 @@ industry: Farm & Heavy Construction Machinery
 market_cap: micro_cap
 normalized_name: Captain_Polyplast
 permalink: /companies/chemicals/captain_polyplast
+geography: india
 tags:
 - entity_type/company
 - sector/chemicals
@@ -16,7 +17,7 @@ tags:
 - risk_investment/medium_risk
 - investment_theme/government_schemes
 created: '2026-06-20'
-last_modified: '2026-06-20'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-06-20T00:00:00Z'

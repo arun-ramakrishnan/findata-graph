@@ -7,6 +7,7 @@ industry: Insurance - Life
 market_cap: large_cap
 normalized_name: SBI_Life_Insurance_Company
 permalink: /companies/insurance/sbi_life_insurance_company
+geography: india
 tags:
 - business_model/b2b
 - entity_type/company
@@ -15,7 +16,7 @@ tags:
 - risk_investment/growth
 - sector/insurance
 created: '2025-11-16'
-last_modified: '2026-06-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

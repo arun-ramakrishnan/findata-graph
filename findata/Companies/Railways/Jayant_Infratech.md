@@ -7,6 +7,7 @@ industry: null
 market_cap: micro_cap
 normalized_name: Jayant_Infratech
 permalink: /companies/railways/jayant_infratech
+geography: india
 tags:
 - entity_type/company
 - sector/railways
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2025-12-17'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-07-29T00:00:00Z'

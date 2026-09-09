@@ -8,6 +8,7 @@ market_cap: large_cap
 normalized_name: Indian_Bank
 file_path: findata/Companies/Financial_Services/Indian_Bank.md
 permalink: /companies/banking/indian_bank
+geography: india
 tags:
 - entity_type/company
 - sector/banking
@@ -16,7 +17,7 @@ tags:
 - risk_investment/medium_risk
 - business_model/b2b
 created: '2026-01-25'
-last_modified: '2026-09-08'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-08T11:56:40Z'

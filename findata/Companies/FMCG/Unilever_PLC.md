@@ -7,15 +7,16 @@ industry: Household & Personal Products
 market_cap: large_cap
 normalized_name: Unilever_PLC
 permalink: /companies/fmcg/unilever_plc
+geography: uk
 tags:
 - entity_type/company
 - sector/fmcg
 - market_cap/large_cap
-- geography/global
+- geography/uk
 - business_model/b2c
 - risk_investment/dividend
 created: '2026-07-03'
-last_modified: '2026-07-03'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

@@ -7,6 +7,7 @@ industry: Packaging & Containers
 market_cap: small_cap
 normalized_name: Mold_Tek_Packaging
 permalink: /companies/chemicals/mold_tek_packaging
+geography: india
 tags:
 - entity_type/company
 - sector/chemicals
@@ -16,7 +17,7 @@ tags:
 - business_model/b2c
 - risk_investment/medium_risk
 created: '2025-01-15'
-last_modified: '2025-11-16'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

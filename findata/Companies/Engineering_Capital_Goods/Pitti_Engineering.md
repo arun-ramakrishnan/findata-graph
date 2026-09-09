@@ -8,6 +8,7 @@ market_cap: small_cap
 normalized_name: Pitti_Engineering
 file_path: findata/Companies/Engineering_Capital_Goods/Pitti_Engineering.md
 permalink: /companies/engineering_capital_goods/pitti_engineering
+geography: india
 tags:
 - entity_type/company
 - sector/engineering_capital_goods
@@ -17,7 +18,7 @@ tags:
 - risk_investment/growth
 - financial_tags/profitable
 created: '2026-06-17'
-last_modified: '2026-06-17'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:49Z'

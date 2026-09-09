@@ -5,7 +5,7 @@ ticker: HUH1V.HE
 listed: true
 sector: Packaging
 market_cap: large_cap
-geography: global
+geography: finland
 business_model: b2b
 risk_investment: medium_risk
 normalized_name: Huhtamaki_Oyj
@@ -15,11 +15,11 @@ tags:
 - entity_type/company
 - sector/packaging
 - market_cap/large_cap
-- geography/global
+- geography/finland
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-07-20'
-last_modified: '2026-08-25'
+last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
   at: '2026-08-25T00:00:00Z'

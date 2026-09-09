@@ -7,6 +7,7 @@ industry: null
 market_cap: micro_cap
 normalized_name: Frog_Innovations
 permalink: /companies/telecommunications/frog_innovations
+geography: india
 tags:
 - entity_type/company
 - sector/telecommunications
@@ -14,7 +15,7 @@ tags:
 - geography/india
 - business_model/b2b
 created: '2025-12-17'
-last_modified: '2025-12-31'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

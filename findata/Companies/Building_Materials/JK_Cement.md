@@ -7,6 +7,7 @@ industry: Building Materials
 market_cap: large_cap
 normalized_name: JK_Cement
 permalink: /companies/building_materials/jk_cement
+geography: india
 tags:
 - entity_type/company
 - sector/building_materials
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/medium_risk
 created: '2026-06-26'
-last_modified: '2026-06-26'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

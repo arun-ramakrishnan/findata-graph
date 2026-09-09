@@ -16,7 +16,7 @@ Design:
 - Entity -> note joined via entities.file_path (the sync contract, see
   doc/design/architecture.md §5). Notes whose entity has no resolvable file_path are
   skipped and reported — except the legitimately fileless types
-  (sub_sector/theme/institution, see FILELESS_ENTITY_TYPES), which are
+  (sub_sector/theme/institution/country, see FILELESS_ENTITY_TYPES), which are
   silently skipped like database_integrity_check.py does.
 - The `enhanced_tags` TEXT column on entities has been retired in favour of
   this normalized table.
@@ -89,7 +89,7 @@ ALLOWED_CATEGORIES = (
 # in exposed_to edges, not markdown (D4), and institutions come from the
 # yfinance holders pass (E5). An empty file_path on these types is by
 # design, so they are skipped without a warning.
-FILELESS_ENTITY_TYPES = ("sub_sector", "theme", "institution")
+FILELESS_ENTITY_TYPES = ("sub_sector", "theme", "institution", "country")
 
 # Reverse map: lowercase sector slug (as it appears in `sector/*` tags) -> the
 # canonical PascalCase form stored in entities.sector_classification. Tags are

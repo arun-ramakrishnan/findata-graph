@@ -7,13 +7,14 @@ industry: Integrated Freight & Logistics
 market_cap: micro_cap
 normalized_name: Allcargo_Logistics
 permalink: /companies/logistics/allcargo_logistics
+geography: india
 tags:
 - entity_type/company
 - sector/logistics
 - market_cap/micro_cap
 - geography/india
 created: '2025-11-28'
-last_modified: '2025-11-28'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'

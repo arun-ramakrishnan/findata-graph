@@ -7,6 +7,7 @@ industry: Utilities - Regulated Electric
 market_cap: small_cap
 normalized_name: Bajel_Projects
 permalink: /companies/infrastructure/bajel_projects
+geography: india
 tags:
 - entity_type/company
 - sector/infrastructure
@@ -15,7 +16,7 @@ tags:
 - business_model/b2b
 - risk_investment/high_growth
 created: '2026-07-03'
-last_modified: '2026-07-07'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'

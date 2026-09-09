@@ -7,15 +7,16 @@ industry: Semiconductors
 market_cap: large_cap
 normalized_name: Advanced_Micro_Devices
 permalink: /companies/semiconductors/advanced_micro_devices
+geography: usa
 tags:
 - business_model/b2b
 - entity_type/company
-- geography/global
+- geography/usa
 - market_cap/large_cap
 - risk_investment/growth
 - sector/semiconductors
 created: '2025-11-16'
-last_modified: '2026-07-29'
+last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:47Z'

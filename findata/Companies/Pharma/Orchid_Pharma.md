@@ -2,6 +2,7 @@
 title: Orchid Pharma
 type: company
 ticker: ORCHPHARMA.NS
+geography: india
 tags:
 - entity_type/company
 - sector/pharma
@@ -12,7 +13,7 @@ sector: Pharma
 market_cap: mid_cap
 permalink: /companies/pharma/orchid_pharma
 created: '2026-08-28'
-last_modified: '2026-08-28'
+last_modified: '2026-09-10'
 sources:
 - id: Borosil_Orchid_Welspun
   resource: /findata/The_Chatter/Borosil_Orchid_Welspun.md
