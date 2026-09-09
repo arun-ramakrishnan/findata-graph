@@ -37,6 +37,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core.countries import COUNTRY_VOCABULARY  # noqa: E402
 from helpers.core.frontmatter import yaml_safe_load  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_SECTORS
 
@@ -88,21 +89,15 @@ _KNOWN_TAG_VALUES = {
     "entity_type": frozenset({"company", "sector", "super_sector", "sub_sector", "theme"}),
     "sector": frozenset(s.lower() for s in CANONICAL_SECTORS),
     "market_cap": frozenset({"large_cap", "mid_cap", "small_cap", "micro_cap", "null"}),
-    "geography": frozenset(
-        {
-            "india",
-            "global",
-            "international",
-            "domestic_focused",
-            "usa",
-            "pan_india",
-            "north_india",
-            "west_india",
-            "south_asia",
-            "south_korea",
-            "taiwan",
-        }
-    ),
+    # Country layer C2: the vocabulary is the ticker-derived listed_in
+    # target set (helpers/core/countries.py). "global" stays for SECTOR
+    # notes, whose geography tags describe coverage (31 india / 15 global
+    # sector rows, zero slop — measured 2026-09-09); company notes
+    # converge to country values only. The former regional/scope values
+    # (domestic_focused, pan_india, north_india, west_india,
+    # south_asia, international) are deliberately REMOVED — post-
+    # convergence nothing carries them, so they now warn (drift tripwire).
+    "geography": frozenset(COUNTRY_VOCABULARY | {"global"}),
     "business_model": frozenset(
         {
             "b2b",

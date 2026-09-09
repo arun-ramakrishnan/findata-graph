@@ -198,7 +198,10 @@ def _with_generation_cache(fn):
 # longer declared — pattern queries are plain SQL JOINs over the e_* tables.
 # The bump forces every existing .duckdb cache cold so no stale fin_graph /
 # __duckpgq_internal catalog entries survive.
-_SCHEMA_VERSION = "13"  # 13: + e_invested (Relations 2.0 E5) + semantic_peer already in 12
+_SCHEMA_VERSION = "14"
+# 14: + v_country / e_listed_in (country layer C1 — company -> country,
+# derived from exchange tickers; out-of-registry like exposed_to because
+# the endpoint kinds are mixed).
 
 # Metadata table inside the .duckdb file tracking what was built + when.
 # Used to detect "is this file warm or cold" and to record provenance.
@@ -800,11 +803,13 @@ _EXTRA_MATERIALIZED = (
     "v_theme",
     "v_edition",
     "v_institution",
+    "v_country",
     "v_embeddings",
     "v_note_embeddings",
     "e_belongs_to",
     "e_exposed_to",
     "e_cited_in",
+    "e_listed_in",
     "e_all_und",
     "e_dir",
 )
@@ -1008,7 +1013,7 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
         FROM fin.entities e
         WHERE e.entity_type IN ('company', 'sector', 'super_sector',
                                 'sub_sector', 'theme', 'edition',
-                                'institution')
+                                'institution', 'country')
         """
     )
     # Filtered projections used by edge-table JOINs (resolve by name → id).
@@ -1043,6 +1048,10 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(
         "CREATE TABLE v_institution AS SELECT id, name FROM v_node WHERE kind='institution'"
     )
+    # Country layer C1: country projection — endpoint of listed_in
+    # (company -> country, ticker-derived). Out-of-registry like
+    # v_theme/v_edition for the same mixed-endpoint reason.
+    con.execute("CREATE TABLE v_country AS SELECT id, name FROM v_node WHERE kind='country'")
     # P2.5: v_embeddings — vector embeddings for semantic similarity search.
     # Sourced from fin.company_embeddings (FLOAT[emb_dim]) if it exists in the
     # SQLite DB; created as an empty table with a matching schema if not (so
@@ -1361,6 +1370,25 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
         JOIN v_node dst ON dst.name = ge.target
                       AND dst.kind = 'edition'
         WHERE ge.edge_type = 'cited_in'
+        """
+    )
+    # Country layer C1: the listed_in edge (company -> country), derived
+    # from exchange tickers (helpers/graph/derive_countries.py). Same
+    # out-of-registry reason as the two above: mixed endpoint kinds.
+    # Created unconditionally so it exists cleanly when empty.
+    con.execute(
+        """
+        CREATE TABLE e_listed_in AS
+        SELECT src.id AS company_id,
+               dst.id AS country_id,
+               ge.weight, ge.properties, ge.source_ref,
+               ge.valid_from, ge.valid_to
+        FROM _stg_edges ge
+        JOIN v_node src ON src.name = ge.source
+                      AND src.kind = 'company'
+        JOIN v_node dst ON dst.name = ge.target
+                      AND dst.kind = 'country'
+        WHERE ge.edge_type = 'listed_in'
         """
     )
     # sql_capability_unlocks B1: whole-graph adjacency substrates for the

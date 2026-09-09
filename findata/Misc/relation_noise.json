@@ -1,5 +1,25 @@
 [
   [
+    "acquired",
+    "Birkenstock",
+    "viitau near dresden"
+  ],
+  [
+    "acquired",
+    "John Cockerill India",
+    "us-based group entity targeted"
+  ],
+  [
+    "competes_with",
+    "SML Mahindra",
+    "asian manufacturing hubs to secure the high-volume contracts"
+  ],
+  [
+    "jv_with",
+    "LG Electronics India",
+    "santa fe"
+  ],
+  [
     "suggested",
     "ABB India",
     "tega industries"
@@ -138,5 +158,35 @@
     "suggested",
     "Tanla Platforms",
     "urban company"
+  ],
+  [
+    "supplier_to",
+    "Inox India",
+    "singapore and japan"
+  ],
+  [
+    "supplier_to",
+    "Mahanagar Gas",
+    "high pressure high temperature"
+  ],
+  [
+    "supplier_to",
+    "Oswal Pumps",
+    "epc contractors working on the scheme"
+  ],
+  [
+    "supplier_to",
+    "Oswal Pumps",
+    "epc players who executing the projects"
+  ],
+  [
+    "supplier_to",
+    "Tata Steel",
+    "mumbai-ahmedabad bullet train project"
+  ],
+  [
+    "supplier_to",
+    "Tejas Networks",
+    "bharatnet"
   ]
 ]

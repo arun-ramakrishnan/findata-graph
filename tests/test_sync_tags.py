@@ -435,3 +435,29 @@ class TestNoteTags:
         _run_sync(db_path, "--apply")
         rows = sqlite3.connect(db_path).execute("SELECT tag FROM note_tags").fetchall()
         assert rows == [("publisher/zerodha",)]
+
+
+# --------------------------------------------------------------------------- #
+# Country layer C2: company geography vocabulary whitelist (A3 activation)     #
+# --------------------------------------------------------------------------- #
+class TestCompanyGeoWhitelist:
+    def test_company_slop_dropped(self):
+        assert sync_tags.company_geo_violations(
+            "company", ["geography/india", "geography/global"]
+        ) == ["geography/global"]
+        assert sync_tags.company_geo_violations("company", ["geography/domestic_focused"]) == [
+            "geography/domestic_focused"
+        ]
+
+    def test_company_country_values_pass(self):
+        assert (
+            sync_tags.company_geo_violations("company", ["geography/india", "geography/uk"]) == []
+        )
+        assert (
+            sync_tags.company_geo_violations("company", ["geography/usa", "sector/banking"]) == []
+        )
+
+    def test_sector_notes_exempt(self):
+        """Sector geography tags describe coverage — global is legitimate there."""
+        assert sync_tags.company_geo_violations("sector", ["geography/global"]) == []
+        assert sync_tags.company_geo_violations("super_sector", ["geography/global"]) == []

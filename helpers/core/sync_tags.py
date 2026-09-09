@@ -46,6 +46,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
+from helpers.core.countries import COUNTRY_VOCABULARY  # noqa: E402
 from helpers.core.db import connect  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402
 from helpers.core.frontmatter import extract_tags as split_front_matter  # noqa: E402
@@ -109,6 +110,25 @@ def allowed_tags(tags):
     return out
 
 
+def company_geo_violations(entity_type: str, tags: list[str]) -> list[str]:
+    """geography/* tags a COMPANY note may not carry (A3 activation).
+
+    Company geography is the ticker-derived home-market vocabulary (the
+    listed_in target set, helpers/core/countries.py). Sector/super-sector
+    notes are EXEMPT — their geography tags describe coverage and
+    legitimately include global (31 india / 15 global rows, zero slop,
+    measured 2026-09-09). Violating tags are dropped from the mirror and
+    warned, so slop can never re-enter entity_tags through a new note.
+    """
+    if entity_type != "company":
+        return []
+    return [
+        t
+        for t in tags
+        if t.startswith("geography/") and t.split("/", 1)[1] not in COUNTRY_VOCABULARY
+    ]
+
+
 # Source-note tag namespaces mirrored into note_tags (newsletter_notes_
 # adoption.md S4). Separate whitelist from ALLOWED_CATEGORIES: these describe
 # newsletter EDITION notes (series/publisher, company/ coverage later). Since
@@ -163,6 +183,7 @@ def _sync_from_corpus(
     list[tuple[str, str]],
     list[tuple[str, str]],
     list[tuple[str, str]],
+    list[tuple[str, str]],
 ]:
     """S1b fast path: bulk + sector_updates from a pre-loaded Corpus (no re-walk)."""
     by_path = corpus.by_path()
@@ -174,6 +195,7 @@ def _sync_from_corpus(
     missing_files: list[tuple[str, str]] = []
     unknown_sectors: list[tuple[str, str]] = []
     sector_updates: list[tuple[str, str]] = []
+    geo_slop_rows: list[tuple[str, str]] = []
     for name, file_path, entity_type in rows:
         if not file_path:
             if entity_type not in FILELESS_ENTITY_TYPES:
@@ -192,6 +214,10 @@ def _sync_from_corpus(
                 continue
         tags = allowed_tags(split_front_matter(note.text))
         uniq = list(dict.fromkeys(tags))
+        slop = company_geo_violations(entity_type, uniq)
+        if slop:
+            uniq = [t for t in uniq if t not in slop]
+            geo_slop_rows.extend((name, t) for t in slop)
         if not uniq:
             if entity_type != "edition":
                 no_tags.append(name)
@@ -208,15 +234,25 @@ def _sync_from_corpus(
                 else:
                     unknown_sectors.append((name, t))
                 break
-    return bulk, no_tags, missing_files, sector_updates, unknown_sectors
+    return bulk, no_tags, missing_files, sector_updates, unknown_sectors, geo_slop_rows
 
 
 def _print_warnings(
     missing_files: list[tuple[str, str]],
     no_tags: list[str],
     unknown_sectors: list[tuple[str, str]],
+    geo_slop: list[tuple[str, str]] | None = None,
 ) -> None:
     """Shared scan-quality warnings — printed in both dry-run and apply modes."""
+    if geo_slop:
+        print(
+            f"  [warn] {len(geo_slop)} non-vocabulary company geography tags dropped:",
+            file=sys.stderr,
+        )
+        for n, tag in geo_slop[:20]:
+            print(f"    - {n}: {tag}", file=sys.stderr)
+        if len(geo_slop) > 20:
+            print(f"    ... ({len(geo_slop) - 20} more)", file=sys.stderr)
     if missing_files:
         print(
             f"  [warn] {len(missing_files)} entities with unresolvable file_path:",
@@ -300,8 +336,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         if args.corpus and _HAS_CORPUS:
             assert Corpus is not None  # ty: narrow  # noqa: S101  # ty narrow for Corpus | None
             corpus = Corpus.load(_REPO_ROOT / "findata", workers=4)
-            bulk, no_tags, missing_files, sector_updates, unknown_sectors = _sync_from_corpus(
-                corpus, conn
+            bulk, no_tags, missing_files, sector_updates, unknown_sectors, geo_slop_rows = (
+                _sync_from_corpus(corpus, conn)
             )
             # _sync_from_corpus counts bulk directly; seen_entities is len of bulk distinct handled there
             seen_entities = len({e for e, _ in bulk})
@@ -316,6 +352,7 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             unknown_sectors = []
             bulk = []
             sector_updates = []  # (canonical_pascalcase, name) for E5a
+            geo_slop_rows = []  # (name, tag) company geography outside the vocabulary
             seen_entities = 0
             for name, file_path, entity_type in rows:
                 if not file_path:
@@ -339,6 +376,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                     if t not in seen:
                         seen.add(t)
                         uniq.append(t)
+                slop = company_geo_violations(entity_type, uniq)
+                if slop:
+                    uniq = [t for t in uniq if t not in slop]
+                    geo_slop_rows.extend((name, t) for t in slop)
                 if not uniq:
                     # Edition notes carry only series/publisher/company tags,
                     # which rebuild_note_tags mirrors into note_tags — zero
@@ -426,10 +467,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                 print("\n=== top sectors (projected) ===")
                 for tag, cnt in sorted(sectors.items(), key=lambda kv: -kv[1])[:12]:
                     print(f"  {cnt:4d}  {tag}")
-            _print_warnings(missing_files, no_tags, unknown_sectors)
+            _print_warnings(missing_files, no_tags, unknown_sectors, geo_slop_rows)
             return 0
 
-        _print_warnings(missing_files, no_tags, unknown_sectors)
+        _print_warnings(missing_files, no_tags, unknown_sectors, geo_slop_rows)
 
         if args.report:
             print("\n=== per-category breakdown ===")

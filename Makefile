@@ -249,6 +249,10 @@ derive-themes: ## Derive exposed_to (company -> theme) edges from company-note p
 > python3 helpers/graph/derive_themes.py --apply
 > @echo "✓ theme entities + exposed_to edges refreshed"
 
+derive-countries: ## Derive listed_in (company -> country) edges from exchange tickers (country layer C1)
+> python3 helpers/graph/derive_countries.py --apply
+> @echo "✓ country entities + listed_in edges refreshed (no-ticker -> findata/Misc/country_worklist.json)"
+
 derive-events: ## Promote relation edges + extract guidance/management events into the events timeline table
 > python3 helpers/graph/derive_events.py --apply
 > @echo "✓ events table refreshed (acquisition/jv/guidance/management_change)"

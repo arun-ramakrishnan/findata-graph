@@ -17,7 +17,7 @@ Source: [`frontmatter.company.v1.json`](frontmatter.company.v1.json)
 | `exchange` | no | string | one of `NSE`, `NASDAQ`, `NYSE` | Optional listing exchange (observed set; extend the schema when a new one appears). |
 | `file_path` | no | string | pattern `^findata/` | Legacy vault-relative path recorded by early writers; optional. |
 | `generated` | no | object | — | OKF v0.2 §5.2 — who wrote this content and when (provenance). |
-| `geography` | no | string | pattern `^[a-z_]+$` | Optional lowercase geography tag value (india, usa, global, south_korea, ...). |
+| `geography` | no | string | pattern `^[a-z_]+$` | Optional lowercase home-market country value (india, usa, uk, south_korea, ...). Single-valued home market — the listed_in target set (helpers/core/countries.py); multi-market facts live on listed_in edges, not here. Sector notes may instead use coverage values (e.g. global). |
 | `index_membership` | no | null | — | Dropped key (2026-07-28); tolerated as null on legacy notes, absent on new ones. |
 | `industry` | no | string? | min length 1 | Optional GICS-style industry description (present on ~87% of notes). |
 | `last_modified` | yes | string | pattern `^\d{4}-\d{2}-\d{2}$` | ISO calendar date (YYYY-MM-DD). NOTE: unquoted YAML dates are auto-parsed into date objects by PyYAML; the validator normalizes these to ISO strings before checking. |

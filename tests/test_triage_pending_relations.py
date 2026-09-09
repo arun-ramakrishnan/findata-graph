@@ -599,3 +599,44 @@ class TestAcceptDecisions:
         assert tpr.main(["--apply-decisions"]) == 0
         assert not self._rows(edge_db)
         assert not tpr.SUGGESTIONS.read_text().strip()
+
+
+# --------------------------------------------------------------------------- #
+# Country-layer guard (C1): country entities never alias-target               #
+# --------------------------------------------------------------------------- #
+def test_load_entity_names_excludes_countries():
+    """Country entities are excluded from the alias-candidate name set —
+    a country named 'india' would otherwise fuzzy-match every
+    'Bank of India'-shaped mention (the substring-containment family)."""
+    from tests.schema import ENTITIES_MINIMAL
+
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(ENTITIES_MINIMAL)
+    try:
+        conn.executemany(
+            "INSERT INTO entities (name, entity_type) VALUES (?, ?)",
+            [
+                ("Bank of India", "company"),
+                ("SEBI", "institution"),
+                ("india", "country"),
+                ("usa", "country"),
+            ],
+        )
+        conn.commit()
+        names = tpr.load_entity_names(conn)
+        assert "Bank of India" in names
+        assert "SEBI" in names  # institutions stay (legitimate targets)
+        assert "india" not in names
+        assert "usa" not in names
+    finally:
+        conn.close()
+
+
+def test_noise_target_institution_short_names_exempt():
+    """RBI (3 chars) must survive the fragment-length rule so regulator
+    mentions reach the sidecar; the rest of the fragment class still dies."""
+    assert not tpr.noise_target("RBI")
+    assert not tpr.noise_target("SEBI")
+    assert tpr.noise_target("and")
+    assert tpr.noise_target("the")
+    assert tpr.noise_target("of")

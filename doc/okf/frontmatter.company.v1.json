@@ -101,7 +101,7 @@
     "geography": {
       "type": "string",
       "pattern": "^[a-z_]+$",
-      "description": "Optional lowercase geography tag value (india, usa, global, south_korea, ...)."
+      "description": "Optional lowercase home-market country value (india, usa, uk, south_korea, ...). Single-valued home market — the listed_in target set (helpers/core/countries.py); multi-market facts live on listed_in edges, not here. Sector notes may instead use coverage values (e.g. global)."
     },
     "file_path": {
       "type": "string",

@@ -263,3 +263,28 @@ def test_extract_companies_too_short_rejected():
     content = "## AB | Large Cap | X\n\nText."
     results = list(pn.extract_companies(content))
     assert len(results) == 0
+
+
+# --------------------------------------------------------------------------- #
+# Country layer C2: ticker-derived geography seeding (no hardcoded india)      #
+# --------------------------------------------------------------------------- #
+def test_render_stub_geography_from_ticker():
+    # Indian ticker -> india carriers (unchanged behaviour for the common case)
+    note = pn.render_stub("X", "X", "Technology", "X.NS", "permalink")
+    assert "- geography/india" in note
+    assert "geography: india" in note
+    # Foreign home market via the audited override map
+    note = pn.render_stub("Dia", "Dia", "Beverages", "DEO", "permalink")
+    assert "- geography/uk" in note
+    assert "geography: uk" in note
+    # US plain symbol
+    note = pn.render_stub("Wal", "Wal", "Retail", "WMT", "permalink")
+    assert "- geography/usa" in note
+
+
+def test_render_stub_no_ticker_has_no_geography():
+    """Unlisted companies carry NO geography carrier until a ticker lands —
+    the pre-C2 hardcoded geography/india default is gone."""
+    note = pn.render_stub("Unlisted Co", "Unlisted_Co", "Technology", None, "permalink")
+    assert "geography/" not in note
+    assert "geography:" not in note

@@ -65,6 +65,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../pdf-ocr-obsidian
 # connect` inside main() needs `helpers` on sys.path.
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
+from helpers.core.countries import classify_ticker  # noqa: E402  (country layer C2 seeding)
 from helpers.core.db import utc_now  # noqa: E402  (Bundle T1: UTC last_updated)
 from helpers.core.frontmatter import bump_generated  # noqa: E402  (OKF §5.2 stamp)
 
@@ -546,11 +547,18 @@ def normalize_name(name: str) -> str:
 
 
 def render_stub(name, normalized_name, sector, ticker, permalink):
+    # Ticker-derived geography (country layer C2): the tag and key come
+    # from the home-market classification, never a hardcoded default —
+    # an unlisted company carries NO geography until a ticker lands.
+    country, _via = classify_ticker(ticker)
     tags = [
         "entity_type/company",
         f"sector/{sector.lower()}",
-        "geography/india",
     ]
+    geo_line = ""
+    if country:
+        tags.append(f"geography/{country}")
+        geo_line = f"geography: {country}\n"
     tag_block = "\n".join(f"- {t}" for t in tags)
     today = date.today().isoformat()
     # Title is UNQUOTED (canonical style; verify_notes warns on quotes for both
@@ -565,7 +573,7 @@ def render_stub(name, normalized_name, sector, ticker, permalink):
 title: {name}
 type: company
 ticker: {ticker_line}{listed_line}
-tags:
+{geo_line}tags:
 {tag_block}
 normalized_name: {normalized_name}
 sector: {sector}

@@ -187,12 +187,22 @@ def noise_target(target: str) -> bool:
     tl = t.lower()
     return (
         not t
-        or len(tl) < 4
+        # Institution short-names are exempt from the fragment-length rule
+        # ("RBI" is 3 chars): regulator mentions must reach the sidecar,
+        # not die silently (country layer arc I1). Exact-name only — the
+        # rest of the fragment class is untouched.
+        or (len(tl) < 4 and tl not in _INSTITUTION_SHORT_NAMES)
         or tl in COUNTRIES
         or bool(_GENERIC_PREFIX.match(tl))
         or bool(_GENERIC_SUFFIX.search(tl))
         or bool(_FRAGMENT_JUNK.search(tl))
     )
+
+
+# Exact-normalized exemption set for noise_target's length rule. Mirrors
+# the resolver allowlist in extract_relations.INSTITUTION_MENTIONS (keys,
+# lowercased); extend both together.
+_INSTITUTION_SHORT_NAMES = frozenset({"rbi", "sebi"})
 
 
 def _row_id(edge_type: str, source: str, target: str) -> str:
@@ -220,15 +230,26 @@ def _norm_target_lower(t: str) -> str:
     return t.strip().rstrip(".,;:").lower()
 
 
-def load_entity_names() -> set[str]:
-    """Distinct entity names from the live DB (monkeypatchable in tests)."""
-    from helpers.core.db import connect
+def load_entity_names(conn=None) -> set[str]:
+    """Distinct entity names from the live DB (monkeypatchable in tests).
 
-    conn = connect()
+    Country entities are EXCLUDED: a country named "india" is a substring
+    of half the banking sector ("Bank of India"), so it must never become
+    an alias-candidate target (country layer C1 guard — the same
+    word-overlap containment family #218 flags).
+    """
+    own = conn is None
+    if own:
+        from helpers.core.db import connect
+
+        conn = connect()
     try:
-        return {r[0] for r in conn.execute("SELECT name FROM entities")}
+        return {
+            r[0] for r in conn.execute("SELECT name FROM entities WHERE entity_type != 'country'")
+        }
     finally:
-        conn.close()
+        if own:
+            conn.close()
 
 
 def _bucket(edge_type: str, target: str, names: set[str]) -> tuple[str, str, bool]:

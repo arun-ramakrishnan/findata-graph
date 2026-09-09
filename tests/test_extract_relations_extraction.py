@@ -719,3 +719,129 @@ class TestCompetesWithExtraction:
             resolver=resolver,
         )
         assert by_type2.get("competes_with", []) == []
+
+
+# --------------------------------------------------------------------------- #
+# Institution lanes + rated_by (country layer arc I1/I2)                     #
+# --------------------------------------------------------------------------- #
+from helpers.graph.extract_relations import (  # noqa: E402
+    ensure_institution_entities,
+    resolve_institution,
+)
+
+
+class TestInstitutionLanes:
+    @pytest.fixture
+    def resolver(self):
+        return EntityResolver(["ICICI Bank", "Torrent Pharma", "Shakti Pumps", "CRISIL", "ICRA"])
+
+    def _extract(self, resolver, body, heading="ICICI Bank"):
+        content = f"## {heading} | Large Cap | Financial Services\n\n{body}\n"
+        return extract_relations(
+            content,
+            edition_title="Test Edition",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+        )
+
+    def test_regulated_by_institution_first(self, resolver):
+        by_type, _ = self._extract(resolver, "RBI directed ICICI Bank to make a provision.")
+        assert by_type.get("regulated_by")
+        e = by_type["regulated_by"][0]
+        assert (e.source, e.target) == ("ICICI Bank", "RBI")
+
+    def test_regulated_by_guidelines(self, resolver):
+        by_type, _ = self._extract(resolver, "Per RBI guidelines the exposure has been completed.")
+        assert by_type.get("regulated_by")
+        assert (by_type["regulated_by"][0].target) == "RBI"
+
+    def test_regulated_by_verb_by_form(self, resolver):
+        by_type, _ = self._extract(resolver, "The bank was ordered by SEBI to restate.")
+        assert by_type.get("regulated_by")
+        assert by_type["regulated_by"][0].target == "SEBI"
+
+    def test_approved_by_sebi(self, resolver):
+        by_type, _ = self._extract(
+            resolver,
+            "We expect the SEBI approval for the merger scheme soon.",
+            heading="Torrent Pharma",
+        )
+        assert by_type.get("approved_by")
+        assert (by_type["approved_by"][0].source, by_type["approved_by"][0].target) == (
+            "Torrent Pharma",
+            "SEBI",
+        )
+
+    def test_approved_by_full_name(self, resolver):
+        by_type, _ = self._extract(
+            resolver, "The license was approved by Reserve Bank of India last quarter."
+        )
+        assert by_type.get("approved_by")
+        assert by_type["approved_by"][0].target == "RBI"
+
+    def test_penalized_by_rbi(self, resolver):
+        by_type, _ = self._extract(resolver, "ICICI was penalized by RBI for the breach.")
+        assert by_type.get("penalized_by")
+        assert by_type["penalized_by"][0].target == "RBI"
+
+    def test_pattern_scoped_regulator_not_a_company_edge(self, resolver):
+        """A regulator mention captured by a NON-institution pattern must NOT
+        resolve: 'tie-up with RBI' stays unresolved and goes to the sidecar
+        (the noise exemption admits the row; triage adjudicates)."""
+        by_type, unresolved = self._extract(
+            resolver,
+            "The company announced a tie-up with RBI.",
+            heading="Torrent Pharma",
+        )
+        assert not by_type.get("jv_with")
+        assert any(u.edge_type == "jv_with" and u.target_mention == "RBI" for u in unresolved)
+
+    def test_rated_by_crisil(self, resolver):
+        by_type, _ = self._extract(
+            resolver,
+            "We received a CRISIL rating upgrade to AA-stable this quarter.",
+            heading="Shakti Pumps",
+        )
+        assert by_type.get("rated_by")
+        assert (by_type["rated_by"][0].source, by_type["rated_by"][0].target) == (
+            "Shakti Pumps",
+            "CRISIL",
+        )
+
+    def test_rated_by_icra_by_form(self, resolver):
+        by_type, _ = self._extract(
+            resolver,
+            "The rating downgrade by ICRA reflected liquidity stress.",
+            heading="Shakti Pumps",
+        )
+        assert by_type.get("rated_by")
+        assert by_type["rated_by"][0].target == "ICRA"
+
+
+class TestInstitutionHelpers:
+    def test_resolve_institution_exact_only(self):
+        assert resolve_institution("RBI") == "RBI"
+        assert resolve_institution("rbi.") == "RBI"
+        assert resolve_institution("Reserve Bank of India") == "RBI"
+        assert resolve_institution("SEBI") == "SEBI"
+        assert resolve_institution("TRAI") is None  # not in the allowlist
+        assert resolve_institution("RBI Bank of Baroda") is None  # no fuzzy
+
+    def test_ensure_institution_entities_idempotent(self):
+        import sqlite3
+
+        from tests.schema import ENTITIES_MINIMAL
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(ENTITIES_MINIMAL)
+        try:
+            n1 = ensure_institution_entities(conn)
+            assert n1 == 2  # RBI + SEBI
+            n2 = ensure_institution_entities(conn)
+            assert n2 == 0
+            rows = conn.execute(
+                "SELECT name FROM entities WHERE entity_type='institution' ORDER BY name"
+            ).fetchall()
+            assert [r[0] for r in rows] == ["RBI", "SEBI"]
+        finally:
+            conn.close()

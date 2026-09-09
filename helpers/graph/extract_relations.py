@@ -92,7 +92,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
-from helpers.core.db import connect  # noqa: E402
+from helpers.core.db import connect, utc_now  # noqa: E402
 from helpers.core.frontmatter import (  # noqa: E402  # after the sys.path bootstrap above
     strip_frontmatter as _strip_yaml_front_matter,
     _FM_RE as _YAML_FRONT_MATTER_RE,
@@ -535,6 +535,51 @@ class Unresolved:
     direction: str = "forward"
 
 
+# --------------------------------------------------------------------------- #
+# Institution lanes (country layer arc I1/I2)                                 #
+# --------------------------------------------------------------------------- #
+# Edge types whose captures may resolve against the institution allowlist —
+# and ONLY against it. Pattern-scoped by design: institution names never
+# join the company resolver's name set, so a regulator mention captured by
+# some other pattern (a stray "JV with RBI") resolves to nothing and flows
+# to the sidecar for triage instead of silently becoming a jv_with edge.
+INSTITUTION_LANES: frozenset[str] = frozenset({"regulated_by", "approved_by", "penalized_by"})
+
+# The allowlist: exact normalized mention -> canonical entity name. Grows
+# only via triage evidence (FP containment per the filed proposal).
+INSTITUTION_MENTIONS: dict[str, str] = {
+    "rbi": "RBI",
+    "reserve bank of india": "RBI",
+    "sebi": "SEBI",
+    "securities and exchange board of india": "SEBI",
+}
+
+
+def resolve_institution(mention: str) -> str | None:
+    """Exact allowlist lookup (no fuzzy): canonical institution or None."""
+    return INSTITUTION_MENTIONS.get(mention.strip().rstrip(".,;:").lower())
+
+
+def ensure_institution_entities(conn) -> int:
+    """Insert bare institution rows for the allowlist (idempotent).
+
+    No file_path — same shape as the 205 yfinance-holder institutions.
+    Called on --apply BEFORE edges land (graph_edges FKs to entities.name).
+    Returns the number of rows inserted (0 when all already exist).
+    """
+    inserted = 0
+    with conn:
+        for name in sorted(set(INSTITUTION_MENTIONS.values())):
+            cur = conn.execute(
+                "INSERT OR IGNORE INTO entities "
+                "(name, entity_type, normalized_name, last_updated) "
+                "VALUES (?, 'institution', ?, ?)",
+                (name, name, utc_now()),
+            )
+            inserted += cur.rowcount
+    return inserted
+
+
 # Relation patterns. Each pattern has:
 #   - regex with at least one capture group: the target MENTION (free text).
 #   - edge_type, symmetric, and a "direction" key ('forward' or 'reverse').
@@ -923,6 +968,107 @@ PATTERNS: list[tuple[re.Pattern, str, bool, str]] = [
         "subsidiary_of",
         False,
         "reverse",
+    ),
+    # --- institution lanes (country layer arc I1/I2; company -> RBI/SEBI) ---
+    # PATTERN-SCOPED resolution: captures for these edge types resolve via
+    # resolve_institution() (the {RBI, SEBI} allowlist), never the company
+    # resolver — a stray regulator mention captured by some other pattern
+    # still resolves to nothing and flows to triage. Prose evidence
+    # 2026-09-09: RBI 139 + SEBI 72 mentions across The_Chatter/P&F.
+    # Alternations across the three lanes are DISJOINT so one sentence
+    # can't mint two different edge types for the same pair.
+    (
+        re.compile(
+            r"\b(?:directed|ordered|regulated|restricted|asked)\s+by\s+"
+            r"(RBI|SEBI|Reserve\s+Bank\s+of\s+India|Securities\s+and\s+Exchange\s+Board\s+of\s+India)\b",
+            re.IGNORECASE,
+        ),
+        "regulated_by",
+        False,
+        "forward",
+    ),
+    (
+        re.compile(
+            r"\b(RBI|SEBI)\s+(?:guidelines?|regulations?|norms|circulars?|directives?|"
+            r"master\s+direction|restrictions?|clampdown|crackdown|diktat|directed|ordered|asked)\b",
+            re.IGNORECASE,
+        ),
+        "regulated_by",
+        False,
+        "forward",
+    ),
+    (
+        re.compile(
+            r"\b(?:penalised|penalized|fined|raided)\s+by\s+"
+            r"(RBI|SEBI|Reserve\s+Bank\s+of\s+India|Securities\s+and\s+Exchange\s+Board\s+of\s+India)\b",
+            re.IGNORECASE,
+        ),
+        "penalized_by",
+        False,
+        "forward",
+    ),
+    (
+        re.compile(
+            r"\b(RBI|SEBI)\s+(?:penalty|penalised|penalized|fined)\b",
+            re.IGNORECASE,
+        ),
+        "penalized_by",
+        False,
+        "forward",
+    ),
+    (
+        re.compile(
+            r"\b(?:approval|approvals|nod|clearance)\s+(?:from|of|by)\s+"
+            r"(RBI|SEBI|Reserve\s+Bank\s+of\s+India|Securities\s+and\s+Exchange\s+Board\s+of\s+India)\b",
+            re.IGNORECASE,
+        ),
+        "approved_by",
+        False,
+        "forward",
+    ),
+    (
+        re.compile(
+            r"\b(?:approved|cleared)\s+by\s+"
+            r"(RBI|SEBI|Reserve\s+Bank\s+of\s+India|Securities\s+and\s+Exchange\s+Board\s+of\s+India)\b",
+            re.IGNORECASE,
+        ),
+        "approved_by",
+        False,
+        "forward",
+    ),
+    (
+        re.compile(
+            r"\b(RBI|SEBI)\s+approv(?:al|als|ed|es|ing)\b",
+            re.IGNORECASE,
+        ),
+        "approved_by",
+        False,
+        "forward",
+    ),
+    # --- rated_by (company -> rating agency; the agencies are companies) ---
+    # CRISIL + ICRA exist as company entities; CARE / India Ratings /
+    # Moody's / Fitch do NOT (probed 2026-09-09) and are deliberately
+    # excluded until recurrence evidence earns them a stub (the #217
+    # rule-candidate doctrine).
+    (
+        re.compile(
+            r"\b(CRISIL|ICRA)\s+(?:rating\s+|credit\s+rating\s+)?"
+            r"(?:upgrade[sd]?|downgrade[sd]?|affirm(?:ed|ation)?|assign(?:ed|s)?|rating)\b",
+            re.IGNORECASE,
+        ),
+        "rated_by",
+        False,
+        "forward",
+    ),
+    (
+        re.compile(
+            r"\b(?:rating|credit\s+rating)\s+(?:upgrade|downgrade|revision|affirmation)\s+"
+            r"(?:to\s+[A-Za-z+.\-]+\s+)?by\s+(CRISIL|ICRA)\b",
+            re.IGNORECASE,
+        ),
+        "rated_by",
+        False,
+        "forward",
     ),
 ]
 
@@ -1783,6 +1929,13 @@ def extract_relations(  # noqa: C901
                     # is recorded for human triage.
                     if emitted_any:
                         continue
+                elif edge_type in INSTITUTION_LANES:
+                    # Pattern-scoped institution resolution (I1): the exact
+                    # allowlist wins; anything else falls through to the
+                    # company resolver (rated_by agencies are companies).
+                    target_entity = resolve_institution(target_mention) or resolver.resolve(
+                        target_mention
+                    )
                 else:
                     target_entity = resolver.resolve(target_mention)
                 if target_entity is None:
@@ -2410,6 +2563,11 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     # hand it to every apply_edges call below — was one full graph_edges
     # scan per note (~15ms × ~110 notes of identical work).
     existing_edges = _load_existing_edges(conn) if conn is not None and not args.apply else None
+    if args.apply:
+        # I1: institution-lane targets must exist before edges land (FK).
+        n_inst = ensure_institution_entities(conn)
+        if n_inst:
+            print(f"institution entities inserted: {n_inst} (RBI/SEBI)", file=sys.stderr)
     for nl_path_str, doc_type, all_edges, unresolved, type_counts, ambiguities in file_results:
         nl_path = Path(nl_path_str)
         if doc_type == "sector":
