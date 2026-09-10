@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Aligned f32 embedding matrix — the 100M-element KNN substrate (S2b/S2c).
 
-Proposal ``doc/improvements/proposals/corpus_embeddings_scaling.md``: the
-embedding substrate (``research.db note_search`` JSON column, vec0 mirror in
+Proposal ``doc/improvements/archive/tooling/corpus_embeddings_scaling.md``
+(S2b/S2c; BLOB-native revival in bulk_data_lanes S3): the embedding
+substrate (``research.db note_search`` f32-BLOB column, vec0 mirror in
 ``memory/embed_store.db``) has no mmap-able **aligned** float32 matrix, which
 is the contract the 2026-09-02 MAX bench proved required — the JIT CPU kernel
 reads host inputs zero-copy with ``vmovaps`` loads that need 32-byte
@@ -191,8 +192,50 @@ class EmbedMatrixStore:
         return EmbedMatrix(meta=meta, mm=mm, ids=list(meta["ids"]))
 
 
+def matrix_from_rows(rows: list[tuple[str, Any]]) -> tuple[list[str], np.ndarray]:
+    """(key, embedding) rows -> (ids, [N, dims] f32 matrix).
+
+    bulk_data_lanes S3 shared builder for every matrix-fill site.
+    All-BLOB fast path (the post-#223 storage): one concat + frombuffer
+    — 0.018 s for the 16,479-row corpus vs 0.504 s per-row decode.
+    Mixed/legacy rows fall back to the tolerant ``vec_codec.load_vec``
+    (TEXT JSON from un-migrated DBs still works). Raises ValueError on
+    zero usable vectors — callers must fail loud, not build an empty
+    matrix (the silence mode that froze this lane through #223).
+    """
+    from helpers.core.vec_codec import load_vec
+
+    blobs = [v for _, v in rows if isinstance(v, (bytes, bytearray))]
+    ids = [k for k, v in rows if isinstance(v, (bytes, bytearray))]
+    if blobs and len(blobs) == len(rows):
+        dims = len(blobs[0]) // 4
+        if dims and all(len(b) == dims * 4 for b in blobs):
+            emb = np.frombuffer(b"".join(blobs), dtype=np.float32)
+            return ids, emb.reshape(len(blobs), dims)
+    vecs: list[list[float]] = []
+    out_ids: list[str] = []
+    for key, value in rows:
+        try:
+            vec = load_vec(value)
+        except TypeError, ValueError:
+            continue  # individually undecodable row (e.g. short blob)
+        if vec:
+            out_ids.append(key)
+            vecs.append(vec)
+    if not vecs:
+        raise ValueError(
+            f"matrix_from_rows: 0 usable vectors ({len(rows)} rows — embedding storage changed?)"
+        )
+    return out_ids, np.array(vecs, dtype=np.float32)
+
+
 def from_note_search(db_path: str | Path = "memory/research.db") -> tuple[list[str], np.ndarray]:
-    """Read the live embedding source — note_search (file_path, embedding JSON).
+    """Read the live embedding source — note_search (file_path, embedding BLOB).
+
+    Post-#223 the embedding column is f32 BLOB; legacy TEXT JSON is
+    tolerated via ``matrix_from_rows``'s ``load_vec`` fallback. Keys are
+    sectioned (``file_path#anchor``) when the anchor column exists —
+    the same shape ``rebuild_note_search.vec_row_key`` writes.
 
     Routes through helpers.core.db.connect (B2 guard: no direct stdlib
     connect outside the allowlist); read_only — this is a
@@ -201,11 +244,14 @@ def from_note_search(db_path: str | Path = "memory/research.db") -> tuple[list[s
 
     conn = connect(db_path, read_only=True)
     try:
+        has_anchor = conn.execute(
+            "SELECT 1 FROM pragma_table_info('note_search') WHERE name = 'anchor'"
+        ).fetchone()
+        key_sql = "file_path || '#' || anchor" if has_anchor else "file_path"
         rows = conn.execute(
-            "SELECT file_path, embedding FROM note_search WHERE embedding IS NOT NULL ORDER BY file_path"
+            f"SELECT {key_sql}, embedding FROM note_search"  # noqa: S608  # key_sql is a schema-conditional constant
+            " WHERE embedding IS NOT NULL ORDER BY file_path" + (", anchor" if has_anchor else "")
         ).fetchall()
     finally:
         conn.close()
-    ids = [r[0] for r in rows]
-    emb = np.array([json.loads(r[1]) for r in rows], dtype=np.float32)
-    return ids, emb
+    return matrix_from_rows(rows)

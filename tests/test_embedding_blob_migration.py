@@ -61,10 +61,10 @@ class TestWritersEmitBlob:
 def _make_fts_db(path, table="note_search"):
     conn = sqlite3.connect(str(path))
     conn.execute(
-        f"CREATE VIRTUAL TABLE {table} USING fts5(file_path, doc_type, title, embedding UNINDEXED)"
+        f"CREATE VIRTUAL TABLE {table} USING fts5(file_path, doc_type, title, embedding UNINDEXED)"  # noqa: S608  # table is a test-local constant
     )
     conn.executemany(
-        f"INSERT INTO {table} VALUES (?, ?, ?, ?)",
+        f"INSERT INTO {table} VALUES (?, ?, ?, ?)",  # noqa: S608  # table is a test-local constant
         [
             ("a.md", "company", "A", json.dumps(VEC)),
             ("b.md", "company", "B", json.dumps(VEC)),

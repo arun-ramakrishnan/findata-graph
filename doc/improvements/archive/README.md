@@ -32,6 +32,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`sql_query_improvements.txt`](database/sql_query_improvements.txt) — SQL QUERY IMPROVEMENTS — FinData Knowledge Graph — completed.md #73
 - [`local_embeddings.md`](database/local_embeddings.md) — In-House Semantic Embeddings via a Local bge-small-en Model — completed.md #141
 - [`embedding_blob_migration.md`](database/embedding_blob_migration.md) — Embedding storage: five-surface f32 BLOB migration + embed_cache wipe (DuckDB materialisation off the in-SQL JSON CAST) — completed.md #223
+- [`bulk_data_lanes_arrow_numpy.md`](database/bulk_data_lanes_arrow_numpy.md) — Bulk-data lanes: native PyArrow/NumPy snapshot export/restore (pandas middleman dropped, fail-loud mixed-storage guard), embed_matrix BLOB-native revival (refresh silently dead since #223), vss np.isin mask, fts_duckdb_parity bench repair + full fresh baseline — completed.md #224
 - [`snapshot_trust_country_exposure.md`](database/snapshot_trust_country_exposure.md) — Snapshot trust + country exposure — verify union, version drill, exposure views — completed.md #221
 - [`company_embeddings_maint.md`](database/company_embeddings_maint.md) — Proposal: Cached Company-Embeddings Refresh in maint-full — completed.md #142
 - [`sql_capability_unlocks.md`](database/sql_capability_unlocks.md) — Proposal: SQL Capability Unlocks — note vectors in DuckDB (`v_note_embeddings` + 4 wrappers + 2 endpoints), BFS shortest-path fix, bind-param hardening — completed.md #143

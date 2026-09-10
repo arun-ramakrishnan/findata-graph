@@ -265,7 +265,7 @@ def _index_best_match(index, qvec, entity_set, threshold):
 
     scores = index.matrix @ np.asarray(qvec, dtype=np.float64)
     if entity_set is not None:
-        mask = np.array([n in entity_set for n in index.names])
+        mask = np.isin(np.asarray(index.names), list(entity_set))  # bulk_data_lanes S5
         if not mask.any():
             return None, 0.0
         scores = np.where(mask, scores, -np.inf)

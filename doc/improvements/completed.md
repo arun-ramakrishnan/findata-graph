@@ -5247,3 +5247,55 @@ the operator at arc end.
   + pytest), a narrowing fix, 8 unused imports dropped, 2 shebangs.
 - Gates: `make qa` 9/9 (2730 passed), `make perf` 22/22, `make types` +
   `make types-tests` + `lint-audit` clean, md-lint clean.
+
+## 224. Bulk-data lanes — native PyArrow/NumPy (snapshot parquet, matrix revival, bench repair)
+
+**Proposal**: `doc/improvements/archive/database/bulk_data_lanes_arrow_numpy.md`
+(filed 2026-09-10, executed 2026-09-11).
+
+**Problem**: the SQLite-side parquet snapshot ran pandas as a pure
+middleman in both directions (export `pd.read_sql`→`from_pandas`,
+restore `astype(object).where(notna)`→`itertuples`), and the #223 BLOB
+migration left two `json.loads` readers behind:
+`rebuild_note_search._refresh_embed_matrix` died silently on every
+rebuild (UnicodeDecodeError swallowed by the best-effort except) —
+freezing `memory/embed_matrix.f32` at pre-migration content while
+app.py's id-coverage staleness gate kept serving it; and the
+foreign-harness `fts_duckdb_parity.py` bench crashed on the live
+corpus (0/16,479 sections parsed → AxisError on the empty matrix).
+
+**Landed**:
+- S1 `snapshot_db._sqlite_table_arrow`: column-wise `pa.array` export
+  with fail-loud `ParquetExportError` (+ `typeof()` diagnostic) on
+  mixed storage classes — closes the pandas NULLable-INTEGER→float64
+  promotion hazard.
+- S2 `_parquet_rows`: `pq.read_table` + column-wise `to_pylist` with an
+  explicit NaN→NULL pass on float columns; `import pandas` dropped from
+  the module.
+- S3 `embed_matrix.matrix_from_rows`: shared BLOB-native builder
+  (concat+frombuffer; tolerant `load_vec` TEXT fallback, loud on 0
+  usable vectors); refresh lane revived, warns on stderr instead of the
+  silent `return None`; `from_note_search` keys sectioned rows.
+- S5 `vss_index`: entity-set mask via `np.isin`.
+- S6 bench repair: `vec_codec.load_vec` decode, f32 parity leg, loud
+  empty guard, portable except clause, dead import + stale docstring
+  removed.
+
+**Measured (2026-09-10/11, this box)**: restore read 1.07 → 0.42 s
+(note_search_content, 16,479 rows; old-vs-new row tuples bit-equal
+across all 13 tables); export 0.31 → 0.19 s (3 biggest tables); matrix
+rebuild 0.504 → 0.018 s; live `_refresh_embed_matrix` 0.164 s,
+rewritten=0 (correct — #223 was lossless). `make snapshot` regen +
+verify 43 tables OK; one-time schema churn large_string→string
+(skip-worktree-masked until git add); note_search_content.parquet
+61.9 → 31.4 MB (first BLOB-era export through the new path). Bench
+full fresh baseline (27-query set): lexical FTS5 25/27 vs duckdb
+23/27, hybrid 27/27 both, warm 8.4 vs 32.5 ms/query — B3 verdict
+stands: keep FTS5 as the lexical engine.
+
+**Verification**: 10 new tests (snapshot NULL-int / NaN-vs-NULL /
+mixed-class roundtrips; matrix BLOB fast-path, TEXT fallback,
+loud-empty, refresh-over-BLOB; bench vector leg ×3);
+`make qa` 9/9 (2,741 passed). Riders: ruff-format footprint on 2 #223
+files, S608 noqas in test_embedding_blob_migration, ty ignores for
+pyarrow.compute dynamics.

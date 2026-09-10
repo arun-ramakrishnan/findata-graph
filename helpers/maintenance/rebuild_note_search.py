@@ -565,14 +565,18 @@ def _refresh_embed_matrix(conn) -> int | None:  # type: ignore[no-untyped-def]
     """S2d (corpus_embeddings_scaling): best-effort refresh of the aligned
     f32 matrix (memory/embed_matrix.f32) after note_search embeddings move.
     Same derived-state class as the vec0 mirror — rebuilt here, never
-    load-bearing; any failure is silent (the search-side staleness gate
-    falls back to the Python cosine, not to stale matrix results)."""
+    load-bearing; any failure downgrades to a one-line stderr warning (the
+    search-side staleness gate falls back to the Python cosine, not to
+    stale matrix results).
+
+    bulk_data_lanes S3: the row build routes through
+    ``embed_matrix.matrix_from_rows`` (BLOB-native frombuffer; TEXT
+    fallback via vec_codec.load_vec). Before this, a raw ``json.loads``
+    reader silently died on every post-#223 BLOB and returned None —
+    freezing the matrix at pre-migration content with no signal.
+    """
     try:
-        import json as _json
-
-        import numpy as _np
-
-        from helpers.core.embed_matrix import EmbedMatrixStore
+        from helpers.core.embed_matrix import EmbedMatrixStore, matrix_from_rows
 
         # Pre-sectioning tables (the deploy gap before the sectioned rebuild
         # runs) have no anchor column — key those by bare file_path.
@@ -586,10 +590,10 @@ def _refresh_embed_matrix(conn) -> int | None:  # type: ignore[no-untyped-def]
         ).fetchall()
         if not rows:
             return None
-        ids = [r[0] for r in rows]
-        emb = _np.array([_json.loads(r[1]) for r in rows], dtype=_np.float32)
+        ids, emb = matrix_from_rows(rows)
         return EmbedMatrixStore().refresh(ids, emb)["rewritten"]
-    except Exception:  # noqa: S110  # matrix refresh is best-effort, never gate the rebuild
+    except Exception as e:  # noqa: BLE001  # matrix refresh is best-effort, never gate the rebuild
+        print(f"[notes] warn: embed_matrix refresh skipped ({e})", file=sys.stderr)
         return None
 
 

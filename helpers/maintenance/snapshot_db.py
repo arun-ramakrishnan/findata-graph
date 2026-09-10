@@ -78,6 +78,14 @@ from typing import TYPE_CHECKING
 # discipline used elsewhere in this module).
 if TYPE_CHECKING:
     import duckdb
+    import pyarrow as pa
+
+
+class ParquetExportError(RuntimeError):
+    """Fail-loud parquet export error (bulk_data_lanes S1): a SQLite
+    column carries mixed storage classes that pa.array refuses to
+    silently re-type. The message carries a typeof() diagnostic."""
+
 
 # Repo root on sys.path so the lazy `from helpers.graph.query import ...`
 # inside verify_duckdb_snapshot (Bundle O2) resolves when this script is run
@@ -693,19 +701,51 @@ def export_parquet_duckdb(duckdb_path: Path, out_dir: Path, logger: logging.Logg
     return {"tables": results, "total_bytes": total_bytes, "dir": str(out_dir)}
 
 
+def _sqlite_table_arrow(con: sqlite3.Connection, table: str) -> pa.Table:
+    """Column-wise pyarrow Table straight from a sqlite cursor.
+
+    bulk_data_lanes S1: replaces pd.read_sql + Table.from_pandas (the
+    pandas middleman). Direct pa.array keeps NULLable INTEGER columns as
+    int64 + nulls (pandas would promote them to float64/NaN) and raises
+    ArrowInvalid on a mixed-storage-class column instead of silently
+    re-typing it — the fail-loud diagnostic below turns that into a
+    one-query fix.
+    """
+    import pyarrow as pa
+
+    cur = con.execute(f"SELECT * FROM [{table}]")  # noqa: S608  # table from _list_sqlite_tables / SQLITE_PARQUET_TABLES
+    names = [d[0] for d in cur.description]
+    rows = cur.fetchall()
+    cols = list(zip(*rows)) if rows else [()] * len(names)
+    fields = {}
+    for name, col in zip(names, cols):
+        try:
+            fields[name] = pa.array(col)
+        except pa.ArrowInvalid as e:
+            diag = [
+                tuple(r)
+                for r in con.execute(
+                    f"SELECT typeof([{name}]), count(*) FROM [{table}] GROUP BY 1"  # noqa: S608  # identifiers from the snapshot's own table/column names
+                )
+            ]
+            raise ParquetExportError(
+                f"mixed storage classes in [{table}].[{name}] (typeof -> {diag}): {e}"
+            ) from e
+    return pa.table(fields)
+
+
 def export_parquet_sqlite(sqlite_path: Path, out_dir: Path, logger: logging.Logger) -> dict:
     """Export SQLite data tables to individual Parquet files.
 
-    Uses ``sqlite3`` + ``pyarrow`` (via pandas) to avoid DuckDB's strict
-    timestamp parsing on some legacy rows. Columns retain their SQLite TEXT
-    types as UTF-8 strings in Parquet — the caller can cast as needed.
+    Uses ``sqlite3`` + ``pyarrow`` (column-wise, no pandas —
+    bulk_data_lanes S1) to avoid DuckDB's strict timestamp parsing on
+    some legacy rows. Columns retain their SQLite TEXT types as UTF-8
+    strings in Parquet — the caller can cast as needed.
     """
     if not sqlite_path.exists():
         logger.info(f"SQLite DB not found, skipping Parquet export: {sqlite_path}")
         return {"skipped": True}
 
-    import pandas as pd
-    import pyarrow as pa
     import pyarrow.parquet as pq
 
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -725,12 +765,13 @@ def export_parquet_sqlite(sqlite_path: Path, out_dir: Path, logger: logging.Logg
     total_bytes = 0
     for t in tables:
         try:
-            df = pd.read_sql(f"SELECT * FROM [{t}]", con)  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+            table = _sqlite_table_arrow(con, t)
+        except ParquetExportError:
+            raise
         except Exception as e:
             logger.warning(f"  Parquet SQLite: skipped {t} ({e})")
             continue
         out_path = out_dir / f"{t}.parquet"
-        table = pa.Table.from_pandas(df, preserve_index=False)
         # zstd codec (maint_full_single_snapshot.md D2): the SQLite tables
         # are TEXT/BLOB-heavy (note text, embeddings) and snappy leaves them
         # ~3x larger than needed for a git-tracked artifact; zstd matches
@@ -745,8 +786,8 @@ def export_parquet_sqlite(sqlite_path: Path, out_dir: Path, logger: logging.Logg
         pq.write_table(table, out_path, compression="zstd")
         sz = out_path.stat().st_size
         total_bytes += sz
-        results[t] = {"bytes": sz, "rows": len(df)}
-        logger.info(f"  Parquet SQLite: {t}.parquet ({sz:,} bytes, {len(df)} rows)")
+        results[t] = {"bytes": sz, "rows": table.num_rows}
+        logger.info(f"  Parquet SQLite: {t}.parquet ({sz:,} bytes, {table.num_rows} rows)")
 
     con.close()
     logger.info(
@@ -858,13 +899,35 @@ def verify_parquet_snapshot(
 
 
 def _parquet_rows(path: Path) -> tuple[list[str], list[tuple]]:
-    """Columns + row tuples from one .parquet file (NaN → NULL)."""
-    import pandas as pd
+    """Columns + row tuples from one .parquet file (NaN → NULL).
 
-    df = pd.read_parquet(path)
-    cols = list(df.columns)
-    df = df.astype(object).where(pd.notna(df), None)
-    return cols, list(df.itertuples(index=False, name=None))
+    bulk_data_lanes S2: pq.read_table + column-wise to_pylist replaces
+    pd.read_parquet + astype(object).where(notna) — parquet nulls map to
+    None natively with no full-table object copy; float columns get an
+    explicit NaN→None pass (today that laundering happened twice:
+    pandas-side, then SQLite's own NaN→NULL insert coercion — both
+    accidental; now deterministic and test-pinned).
+    """
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    table = pq.read_table(path)
+    cols: list[pa.Array] = []
+    for c in table.columns:
+        if pa.types.is_floating(c.type):
+            # is_nan(null) is null; if_else propagates it — nulls stay
+            # null, NaN becomes null, values pass through. No fill_null
+            # (that would coerce genuine NULLs to 0.0). ty: the pyarrow
+            # compute functions are dynamically generated — unresolvable.
+            c = pc.if_else(  # ty: ignore[unresolved-attribute]
+                pc.is_nan(c),  # ty: ignore[unresolved-attribute]
+                pa.scalar(None, c.type),
+                c,
+            )
+        cols.append(c)
+    names = list(table.column_names)
+    return names, list(zip(*[c.to_pylist() for c in cols]))
 
 
 def restore_sqlite_from_parquet(parquet_dir: Path, target: Path, logger: logging.Logger) -> dict:

@@ -8,8 +8,9 @@ Arms (per query, top-5 notes, ANY-OF recall@5 vs helpers/misc/embed_eval_questio
   1. FTS5 baseline  — replicates app.py AND-first/OR-fill + note-level dedup.
   2. DuckDB fts     — same OR expression via fts_main_notes.match_bm25.
   3. Hybrid each    — RRF k=60 fusion with a SHARED numpy vector leg
-                     (bge-small query_embedder vs stored 384-d JSON), so the
-                     hybrid delta isolates lexical-rank differences.
+                      (bge-small query_embedder vs stored 384-d f32
+                      BLOB, post-#223), so the hybrid delta isolates
+                      lexical-rank differences.
 
 Usage:
     .venv/bin/python3 helpers/bench/fts_duckdb_parity.py [--limit N] [--db PATH]
@@ -67,8 +68,6 @@ def export_corpus(db_path: str | Path) -> list[dict]:
 
 def fts5_search(db_path: str | Path, or_expr: str, and_expr: str) -> list[str]:
     """Replicate app.py candidate generation; return file_paths note-level, rank-ordered."""
-    from helpers.maintenance.rebuild_doc_search import fts_match_expr  # noqa: F401 (parity import)
-
     con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
         cur = con.cursor()
@@ -166,8 +165,19 @@ def duckdb_search(db_path: Path, or_expr: str) -> list[str]:
 
 
 def build_vector_leg(corpus: list[dict]):
-    """Return (matrix_ids, matrix, norms) as numpy arrays + note index."""
+    """Return (matrix_ids, matrix, norms) as numpy arrays + note index.
+
+    bulk_data_lanes S6 repair: embeddings are f32 BLOB post-#223 (raw
+    json.loads died on every section — UnicodeDecodeError is a ValueError
+    subclass, so the silent ``continue`` skipped 100% of the corpus and
+    main() crashed on the empty matrix). Decodes via the tolerant
+    ``vec_codec.load_vec`` and computes in float32, mirroring production
+    cosine. Fails LOUD on an empty leg — never hand numpy an empty
+    matrix again.
+    """
     import numpy as np
+
+    from helpers.core.vec_codec import load_vec
 
     ids: list[str] = []
     vecs: list[list[float]] = []
@@ -175,12 +185,19 @@ def build_vector_leg(corpus: list[dict]):
         if not c["embedding"]:
             continue
         try:
-            v = json.loads(c["embedding"])
+            v = load_vec(c["embedding"])
         except TypeError, ValueError:
+            continue
+        if not v:
             continue
         ids.append(c["file_path"])
         vecs.append(v)
-    m = np.asarray(vecs, dtype=np.float64)
+    if not vecs:
+        raise RuntimeError(
+            "build_vector_leg: 0 embedded sections parsed from a corpus of"
+            f" {len(corpus)} rows — embedding storage changed?"
+        )
+    m = np.asarray(vecs, dtype=np.float32)
     norms = np.linalg.norm(m, axis=1)
     norms[norms == 0] = 1.0
     return ids, m, norms
@@ -190,7 +207,7 @@ def vector_ranking(q_vec: list[float], ids: list[str], m, norms) -> dict[str, in
     """file_path -> global cosine rank (best section wins, mirrors _note_best)."""
     import numpy as np
 
-    q = np.asarray(q_vec, dtype=np.float64)
+    q = np.asarray(q_vec, dtype=np.float32)
     nq = np.linalg.norm(q) or 1.0
     sims = (m @ q) / (norms * nq)
     best: dict[str, float] = {}

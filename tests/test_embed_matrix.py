@@ -104,3 +104,75 @@ def test_stride_pads_to_64b():
     assert _stride_floats(384) == 384  # 1536B rows already 64B-aligned
     assert _stride_floats(128) == 128  # 512B
     assert _stride_floats(100) == 112  # 400B -> 448B
+
+
+# ---------------------------------------------------------------------------
+# bulk_data_lanes S3 — matrix_from_rows (BLOB-native builder, revived lane)
+# ---------------------------------------------------------------------------
+
+
+def test_matrix_from_rows_blob_fast_path():
+    """All-BLOB rows take the concat+frombuffer fast path (post-#223
+    storage) and match the per-row decode exactly."""
+    from helpers.core.embed_matrix import matrix_from_rows
+    from helpers.core.vec_codec import pack_f32
+
+    ids, emb = _synth(12, 64)
+    rows = [(i, pack_f32(v.tolist())) for i, v in zip(ids, emb)]
+    out_ids, out = matrix_from_rows(rows)
+    assert out_ids == ids
+    assert out.shape == (12, 64) and out.dtype == np.float32
+    assert np.array_equal(out, emb)
+
+
+def test_matrix_from_rows_text_fallback():
+    """Legacy TEXT JSON rows still decode (tolerant load_vec) and a mixed
+    corpus falls back per-row without losing rows."""
+    from helpers.core.embed_matrix import matrix_from_rows
+    from helpers.core.vec_codec import pack_f32
+
+    ids, emb = _synth(6, 32)
+    rows = [
+        (ids[0], json.dumps(emb[0].tolist())),  # legacy TEXT
+        (ids[1], pack_f32(emb[1].tolist())),  # BLOB
+        (ids[2], json.dumps(emb[2].tolist())),
+        (ids[3], pack_f32(emb[3].tolist())),
+        (ids[4], json.dumps(emb[4].tolist())),
+        (ids[5], pack_f32(emb[5].tolist())),
+    ]
+    out_ids, out = matrix_from_rows(rows)
+    assert out_ids == ids
+    assert np.allclose(out, emb, atol=1e-6)
+
+
+def test_matrix_from_rows_empty_fails_loud():
+    """Zero usable vectors must raise, never hand back an empty matrix —
+    the silence mode that froze this lane through the #223 migration."""
+    import pytest
+
+    from helpers.core.embed_matrix import matrix_from_rows
+
+    with pytest.raises(ValueError, match="0 usable vectors"):
+        matrix_from_rows([])
+    with pytest.raises(ValueError, match="0 usable vectors"):
+        matrix_from_rows([("k", b"\x00"), ("k2", None)])
+
+
+def test_refresh_over_blob_corpus_rewrites_changed_rows(tmp_path):
+    """End-to-end: build + hash-gated refresh over BLOB-sourced rows (the
+    revived production shape — rows come from note_search as f32 BLOBs)."""
+    from helpers.core.embed_matrix import matrix_from_rows
+    from helpers.core.vec_codec import pack_f32
+
+    store = EmbedMatrixStore(tmp_path / "m.f32", tmp_path / "m.json")
+    ids, emb = _synth(10, 64)
+    rows = [(i, pack_f32(v.tolist())) for i, v in zip(ids, emb)]
+    out_ids, out = matrix_from_rows(rows)
+    assert store.build(out_ids, out, model="synth")["count"] == 10
+
+    emb2 = emb.copy()
+    emb2[4] = -emb2[4]
+    rows2 = [(i, pack_f32(v.tolist())) for i, v in zip(ids, emb2)]
+    _, out2 = matrix_from_rows(rows2)
+    stats = store.refresh(out_ids, out2, model="synth")
+    assert stats["rebuild"] is False and stats["rewritten"] == 1

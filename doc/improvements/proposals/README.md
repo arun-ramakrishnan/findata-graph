@@ -30,6 +30,10 @@ entry number and stale DONE pointers):
 
 _(None.)_
 
+_(Previously: bulk_data_lanes_arrow_numpy.md, archived as completed.md
+entry 224 on 2026-09-11 — execution record in
+`../archive/database/bulk_data_lanes_arrow_numpy.md`.)_
+
 _(Previously: embedding_blob_migration.md, archived as completed.md
 entry 223 on 2026-09-10 — execution record in
 `../archive/database/embedding_blob_migration.md`.)_

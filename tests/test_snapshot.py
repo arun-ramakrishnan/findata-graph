@@ -288,3 +288,82 @@ def test_parquet_duckdb_export_order_deterministic(tmp_path):
         .fetchall()
     )
     assert [r[0] for r in rel] == [1, 3, 5]
+
+
+# ---------------------------------------------------------------------------
+# bulk_data_lanes S1/S2/S4 — native-arrow export/restore fidelity
+# ---------------------------------------------------------------------------
+
+
+def test_parquet_nullable_int_roundtrips_as_int64(tmp_path):
+    """A NULLable INTEGER column must survive the snapshot as int64 with
+    real nulls (pandas read_sql promoted it to float64/NaN — 1 became
+    1.0 REAL on restore) and restore back to SQLite INTEGER storage."""
+    from maintenance.snapshot_db import export_parquet_sqlite, restore_sqlite_from_parquet
+
+    db = tmp_path / "src.db"
+    out_dir = tmp_path / "parquet" / "sqlite"
+    conn = sqlite3.connect(db)
+    conn.execute("CREATE TABLE kints (id INTEGER PRIMARY KEY, k INTEGER)")
+    conn.executemany("INSERT INTO kints (id, k) VALUES (?,?)", [(1, 1), (2, None), (3, 2)])
+    conn.commit()
+    conn.close()
+
+    export_parquet_sqlite(db, out_dir, _logger())
+    schema = pq.read_schema(out_dir / "kints.parquet")
+    assert str(schema.field("k").type) == "int64"  # not float64
+    assert schema.field("k").nullable
+
+    target = tmp_path / "restored.db"
+    restore_sqlite_from_parquet(out_dir, target, _logger())
+    rconn = sqlite3.connect(target)
+    got = rconn.execute("SELECT id, typeof(k) FROM kints ORDER BY id").fetchall()
+    rconn.close()
+    assert got == [(1, "integer"), (2, "null"), (3, "integer")]
+
+
+def test_parquet_nan_and_null_double_restore_null(tmp_path):
+    """Both NULL and NaN in a REAL column restore to SQLite NULL — the S2
+    NaN guard makes the old accidental pandas-laundering + SQLite
+    NaN→NULL coercion explicit and deterministic."""
+    from maintenance.snapshot_db import export_parquet_sqlite, restore_sqlite_from_parquet
+
+    db = tmp_path / "src.db"
+    out_dir = tmp_path / "parquet" / "sqlite"
+    conn = sqlite3.connect(db)
+    conn.execute("CREATE TABLE dbls (id INTEGER PRIMARY KEY, v REAL)")
+    conn.executemany(
+        "INSERT INTO dbls (id, v) VALUES (?,?)",
+        [(1, None), (2, float("nan")), (3, 1.5)],
+    )
+    conn.commit()
+    conn.close()
+
+    export_parquet_sqlite(db, out_dir, _logger())
+    target = tmp_path / "restored.db"
+    restore_sqlite_from_parquet(out_dir, target, _logger())
+    rconn = sqlite3.connect(target)
+    got = rconn.execute("SELECT id, typeof(v), v FROM dbls ORDER BY id").fetchall()
+    rconn.close()
+    assert got[0] == (1, "null", None)
+    assert got[1] == (2, "null", None)  # NaN → NULL, deterministically
+    assert got[2] == (3, "real", 1.5)
+
+
+def test_parquet_export_mixed_storage_class_fails_loud(tmp_path):
+    """A TEXT value parked in an INTEGER column must fail the export with
+    the typeof() diagnostic (pandas silently re-typed it to object)."""
+    import pytest
+
+    from maintenance.snapshot_db import ParquetExportError, export_parquet_sqlite
+
+    db = tmp_path / "src.db"
+    out_dir = tmp_path / "parquet" / "sqlite"
+    conn = sqlite3.connect(db)
+    conn.execute("CREATE TABLE mixed (id INTEGER PRIMARY KEY, v)")
+    conn.executemany("INSERT INTO mixed (id, v) VALUES (?,?)", [(1, 5), (2, "text")])
+    conn.commit()
+    conn.close()
+
+    with pytest.raises(ParquetExportError, match=r"\[mixed\].\[v\].*typeof"):
+        export_parquet_sqlite(db, out_dir, _logger())

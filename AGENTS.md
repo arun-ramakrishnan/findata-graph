@@ -62,6 +62,10 @@ ripwire . --mentions=SYM | --doc-drift           # doc↔code links / stale doc 
 
 ## Gates & hygiene
 
+- **Keep the session todo list current** — mark items completed the
+  moment they land, add blockers/follow-ups as they emerge. A stale
+  list actively misleads the operator (2026-09-11: full arc executed
+  while the list still showed S1-only).
 - Blocking: `make qa` — ruff, **md-lint** (markdownlint-cli2; Node-gated,
   skips without Node), types, deptry, static_checks, pytest,
   verify_notes, integrity, snapshot. Non-blocking sweep: `make advisory`.
@@ -73,5 +77,10 @@ ripwire . --mentions=SYM | --doc-drift           # doc↔code links / stale doc 
   note). Index checks are advisory, never qa-gated.
 - Full gates ONCE per arc, at the end, with the user's go. The user
   stages and commits — leave the tree dirty.
+- **No patch/commit lifecycle ops.** Never `stg new`/`push`/`pop`/
+  `delete`/`squash`, never `git commit`/`amend`/`rebase` — the operator
+  owns patch structure (2026-09-11: agent-created archival patch had to
+  be manually squashed). Edit files and `stg refresh` into the CURRENT
+  top patch only (scoped pathspec when the tree holds unrelated dirt).
 - Use `.venv/bin/python3` explicitly in non-interactive shells (examples
   above do).

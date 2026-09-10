@@ -93,9 +93,7 @@ def _rewrite_sandbox(fresh_fallback) -> tuple[int, int]:
             misses += 1
         else:
             hits += 1
-        conn.execute(
-            "UPDATE note_search SET embedding = ? WHERE rowid = ?", (pack_f32(vec), rowid)
-        )
+        conn.execute("UPDATE note_search SET embedding = ? WHERE rowid = ?", (pack_f32(vec), rowid))
     conn.execute("CREATE TABLE IF NOT EXISTS db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
     conn.execute(
         "INSERT OR REPLACE INTO db_meta(key, value) VALUES ('note_embed_model', ?)",
