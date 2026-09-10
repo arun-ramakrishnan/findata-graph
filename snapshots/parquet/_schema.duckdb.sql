@@ -26,6 +26,8 @@ CREATE TABLE e_invested(institution_name BIGINT, company_name BIGINT, weight VAR
 
 CREATE TABLE e_jv(a_name BIGINT, b_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
+CREATE TABLE e_listed_in(company_id BIGINT, country_id BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
+
 CREATE TABLE e_semantic_peer(a_name BIGINT, b_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
 CREATE TABLE e_subsidiary(subsidiary_name BIGINT, parent_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
@@ -33,6 +35,8 @@ CREATE TABLE e_subsidiary(subsidiary_name BIGINT, parent_name BIGINT, weight VAR
 CREATE TABLE e_supplier(supplier_name BIGINT, customer_name BIGINT, weight VARCHAR, properties VARCHAR, source_ref VARCHAR, valid_from VARCHAR, valid_to VARCHAR);
 
 CREATE TABLE v_company(id BIGINT, "name" VARCHAR, sector_classification VARCHAR, market_cap VARCHAR, ticker VARCHAR);
+
+CREATE TABLE v_country(id BIGINT, "name" VARCHAR);
 
 CREATE TABLE v_edition(id BIGINT, "name" VARCHAR);
 
