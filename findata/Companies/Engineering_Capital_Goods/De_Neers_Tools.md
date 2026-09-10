@@ -19,8 +19,8 @@ created: '2025-11-26'
 last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
-  at: '2025-11-26T00:00:00Z'
-stale_after: '2026-05-25'
+  at: '2026-09-10T00:00:00Z'
+stale_after: '2027-03-09'
 ---
 
 # De Neers Tools Limited

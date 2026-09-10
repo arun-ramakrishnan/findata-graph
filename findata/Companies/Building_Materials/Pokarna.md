@@ -19,8 +19,8 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
-  at: '2025-11-16T00:00:00Z'
-stale_after: '2026-05-15'
+  at: '2026-09-10T00:00:00Z'
+stale_after: '2027-03-09'
 ---
 
 # Pokarna

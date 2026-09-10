@@ -20,8 +20,8 @@ created: '2026-06-24'
 last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
-  at: '2026-07-12T00:00:00Z'
-stale_after: '2027-01-08'
+  at: '2026-09-10T00:00:00Z'
+stale_after: '2027-03-09'
 ---
 
 # Costco Wholesale

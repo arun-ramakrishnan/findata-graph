@@ -19,8 +19,8 @@ created: '2025-01-07'
 last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
-  at: '2026-07-29T00:00:00Z'
-stale_after: '2027-01-25'
+  at: '2026-09-10T00:00:00Z'
+stale_after: '2027-03-09'
 ---
 
 # Vibhor Steel Tubes

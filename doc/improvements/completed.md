@@ -44,7 +44,7 @@
 
 ### V — API query consolidation
 
-- **V1** — api_graph_stats fires 9 serial queries per request
+- **V1** — api_graph_stats fires 9 serial queries per request **[DONE — C6]** — *single graph-health CTE (with mc_conflict + orphan counters), one round-trip — app.py api_graph_stats.*
 - **V2** — /api/graph/metrics json.loads per row
 - **V3** — derive_co_mentions does per-file SELECT for entity name
 
@@ -56,26 +56,26 @@
 
 ### K — Push Python-side work back into SQL
 
-- **K1** — company_neighbors_bundle re-introduces the F4 anti-pattern
-- **K2** — _sector_neighbors_bundle does a cross-DB market_cap hop
-- **K3** — neighbors() and standalone suppliers_and_customers() fire serial queries
+- **K1** — company_neighbors_bundle re-introduces the F4 anti-pattern **[DONE — 2026-08-14]** — *duckpgq retirement Phase B: single 10-arm UNION ALL over the materialised e_* tables; JSON extraction stays inside DuckDB (malformed JSON errors instead of masking, per F4) — helpers/graph/query.py company_neighbors_bundle.*
+- **K2** — _sector_neighbors_bundle does a cross-DB market_cap hop **[DONE — 2026-08-14]** — *Bundle K2: sector_members_with_market_cap = one GRAPH_TABLE; bucketize runs in Python over that single result set (E5 invariant kept) — app.py.*
+- **K3** — neighbors() and standalone suppliers_and_customers() fire serial queries **[DONE — 2026-08-14]** — *Bundle K3: neighbors() = one UNION ALL of the 4 arms over e_belongs/e_has — query.py:1661.*
 
 ### L — DuckDB-native snapshot / portability
 
-- **L2** — Promote year/since out of properties JSON into a typed column
+- **L2** — Promote year/since out of properties JSON into a typed column **[DONE — PARTIAL]** — *year is a typed column on e_acquired (Bundle L2, schema v2), consumed by company_neighbors_bundle; no typed-carrier case emerged for since.*
 
 ### N — New DuckDB 1.5.x features
 
 - **N1** — VARIANT type for graph_edges.properties **[EVALUATED — NOT ADOPTED]** — *2.6–3.1× slower; breaks json_extract_string*
-- **N3** — COPY TO Parquet for ad-hoc export
+- **N3** — COPY TO Parquet for ad-hoc export **[DONE]** — *snapshot_db.py exports every data table to snapshots/parquet/{duckdb,sqlite}/ (Bundle L1); the git-tracked restorable state.*
 - **N4** — Macros (SQL functions) for the repeated GRAPH_TABLE patterns **[EVALUATED — NOT ADOPTED]** — *DuckDB segfaults at CREATE MACRO when body contains GRAPH_TABLE*
 - **N5** — vss (vector similarity search) **[ADOPTED — 2026-08-09]**
 - **N6** — spatial / GEOMETRY **[NOT APPLICABLE]**
 
 ### O — Maintenance / observability
 
-- **O1** — duckpgq version-unlock regression test
-- **O2** — Snapshot verify checks only v_node + e_belongs
+- **O1** — duckpgq version-unlock regression test **[DONE]** — *test_onager_loads_in_extension_build INSTALLs+LOADs onager from community on the live duckdb — tests/test_onager_capabilities.py.*
+- **O2** — Snapshot verify checks only v_node + e_belongs **[DONE — 2026-07-27]** — *verify_duckdb_snapshot (Bundle O2) covers all three vertex tables and every EDGE_REGISTRY edge table — helpers/maintenance/snapshot_db.py.*
 - **O3** — read-only CHECKPOINT version assumption
 
 ## Graph Algorithm Improvements

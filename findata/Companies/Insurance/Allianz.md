@@ -17,8 +17,8 @@ created: '2026-07-17'
 last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
-  at: '2026-07-17T00:00:00Z'
-stale_after: '2027-01-13'
+  at: '2026-09-10T00:00:00Z'
+stale_after: '2027-03-09'
 ---
 
 # Allianz SE

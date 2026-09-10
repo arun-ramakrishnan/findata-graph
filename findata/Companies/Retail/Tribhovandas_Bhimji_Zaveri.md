@@ -20,8 +20,8 @@ created: '2026-02-12'
 last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
-  at: '2026-02-12T00:00:00Z'
-stale_after: '2026-08-11'
+  at: '2026-09-10T00:00:00Z'
+stale_after: '2027-03-09'
 ---
 
 # Tribhovandas Bhimji Zaveri Limited (TBZ)

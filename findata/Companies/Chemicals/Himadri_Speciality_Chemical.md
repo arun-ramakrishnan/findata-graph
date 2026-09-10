@@ -20,8 +20,8 @@ created: '2026-01-21'
 last_modified: '2026-09-10'
 generated:
   by: process:okf_backfill
-  at: '2026-01-21T00:00:00Z'
-stale_after: '2026-07-20'
+  at: '2026-09-10T00:00:00Z'
+stale_after: '2027-03-09'
 ---
 
 # Himadri Speciality Chemical | Small Cap | Chemicals
