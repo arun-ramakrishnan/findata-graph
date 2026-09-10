@@ -82,6 +82,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
+from helpers.core.vec_codec import load_vec  # noqa: E402
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
@@ -184,7 +185,7 @@ TS_DOC_DDL = (
 )
 
 # Composed-content caps: enough for BM25 + the 4K-char embed cap in
-# rds._embedding_json to stay meaningful, without storing whole modules.
+# rds._embedding_f32 to stay meaningful, without storing whole modules.
 _DETAILS_CAP = 3000
 _RECIPE_CAP = 3000
 _DEFS_CAP = 40
@@ -533,7 +534,7 @@ def _row(
         area,
         purpose,
         content,
-        rds._embedding_json(embed_fn, title, purpose, content),
+        rds._embedding_f32(embed_fn, title, purpose, content),
     )
 
 
@@ -1427,11 +1428,8 @@ def _script_stored_embed_dims(conn: sqlite3.Connection) -> int | None:
         return None
     if not row or not row[0]:
         return None
-    try:
-        vec = json.loads(row[0])
-    except TypeError, ValueError:
-        return None
-    return len(vec) if isinstance(vec, list) and vec else None
+    vec = load_vec(row[0])
+    return len(vec) if vec else None
 
 
 def _cosine_leg(

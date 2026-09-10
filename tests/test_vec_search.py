@@ -239,7 +239,8 @@ class TestEmbedStoreConsolidation:
         b.commit()
         assert ce_b._ok
         # Same hash, written by cohort A -> served to connection B.
-        assert ce_b("shared text") == vec and ce_b.hits == 1
+        # Approximation: f32 BLOB storage rounds the [0.1] test vector.
+        assert ce_b("shared text") == pytest.approx(vec, rel=1e-6) and ce_b.hits == 1
         con = sqlite3.connect(str(VS.EMBED_DB_PATH))
         try:
             # Direct connection: the pooled table is unqualified main here

@@ -11,7 +11,6 @@ is faked hermetically (fake_local, mirroring test_rebuild_note_search.py);
 under the autouse _no_local_embedder pin the pseudo path is exercised.
 """
 
-import json
 import os
 import sqlite3
 import time
@@ -21,6 +20,7 @@ import pytest
 
 # Make the helpers importable (tests run from repo root; this mirrors conftest).
 
+from helpers.core.vec_codec import load_vec  # noqa: E402
 from helpers.core.zstd_io import decompress_file  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 
@@ -215,7 +215,7 @@ class TestRebuild:
             row = con.execute(
                 "SELECT embedding FROM doc_search WHERE embedding != '' LIMIT 1"
             ).fetchone()
-            assert len(json.loads(row[0])) == 64
+            assert len(load_vec(row[0]) or ()) == 64
             # Model stamp describes content -> pseudo label recorded on apply.
             stamp = con.execute(
                 "SELECT value FROM doc_search_info WHERE key = 'embed_model'"
@@ -458,7 +458,7 @@ class TestLastGoodIndexBackup:
             row = con.execute(
                 "SELECT embedding FROM doc_search WHERE embedding != '' LIMIT 1"
             ).fetchone()
-            assert len(json.loads(row[0])) == 8
+            assert len(load_vec(row[0]) or ()) == 8
         finally:
             con.close()
 

@@ -26,10 +26,11 @@ degrade to uncached embedding (correct, just slower).
 """
 
 import hashlib
-import json
 import sys
 import time
 from collections.abc import Callable
+
+from helpers.core.vec_codec import load_vec, pack_f32
 
 # Greppable surface tag for every long-running progress line — filter a
 # mixed rebuild log with e.g. `grep '\[notes\]'`. Source-cohort names map
@@ -62,7 +63,7 @@ CACHE_DDL_BARE = (
     f"CREATE TABLE IF NOT EXISTS {CACHE_TABLE_BARE} ("
     " text_hash TEXT NOT NULL,"
     " model     TEXT NOT NULL,"
-    " embedding TEXT NOT NULL,"
+    " embedding BLOB NOT NULL,"  # f32 binary (embedding_blob_migration S2)
     " source    TEXT NOT NULL DEFAULT '',"
     " PRIMARY KEY (text_hash, model)"
     ")"
@@ -120,8 +121,10 @@ class CachedEmbed:
                     (h, self._model),
                 ).fetchone()
                 if row:
-                    self.hits += 1
-                    return json.loads(row[0])
+                    vec = load_vec(row[0])
+                    if vec:
+                        self.hits += 1
+                        return vec
             except Exception:  # noqa: S110  # cache read fails -> embed
                 pass
         # Live progress every 128 misses (the "long jobs read as stuck"
@@ -144,7 +147,7 @@ class CachedEmbed:
                 self._conn.execute(
                     f"INSERT OR REPLACE INTO {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
                     "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
-                    (h, self._model, json.dumps(vec), self._source),
+                    (h, self._model, pack_f32(vec), self._source),
                 )
                 self.dirty += 1
             except Exception:  # noqa: S110  # cache write fails -> fine
@@ -197,10 +200,8 @@ def cached_embed_batch(
     vecs: list[list[float] | None] = []
     for h in hashes:
         raw = cached.get(h)
-        try:
-            vecs.append(json.loads(raw) if raw else None)
-        except ValueError:  # corrupted cache row -> treat as a miss
-            vecs.append(None)
+        vec = load_vec(raw) if raw else None  # corrupted row -> miss
+        vecs.append(vec)
     stats["hits"] = sum(v is not None for v in vecs)
 
     miss_idx = [i for i, v in enumerate(vecs) if v is None]
@@ -233,10 +234,7 @@ def cached_embed_batch(
             conn.executemany(
                 f"INSERT OR REPLACE INTO {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
                 "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
-                [
-                    (hashes[i], model_label, json.dumps(v), source)
-                    for i, v in zip(miss_idx, new_vecs)
-                ],
+                [(hashes[i], model_label, pack_f32(v), source) for i, v in zip(miss_idx, new_vecs)],
             )
             conn.commit()  # persist NOW (pre-warm lesson; see docstring)
             stats["dirty"] = len(miss_idx)

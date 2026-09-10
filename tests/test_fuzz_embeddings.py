@@ -84,6 +84,6 @@ def test_fuzz_ensure_schema_check_matches_dims(dims: int):
         ).fetchone()
         assert r is not None
         assert f"= {dims}" in r[0] or f"={dims}" in r[0].replace(" ", "")
-        assert f"FLOAT[{dims}]" in r[0]
+        assert f"FLOAT[{dims}]" in r[0] or f"= {dims} * 4" in r[0]
     finally:
         conn.close()

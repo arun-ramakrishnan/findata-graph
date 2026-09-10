@@ -679,8 +679,6 @@ def _probe_note_embed_state(duckdb_path: Path) -> tuple[str | None, str | None]:
     first, then DB_PATH — same candidate order (and for the same
     test-isolation reason) as the generation check in _is_warm.
     """
-    import json as _json
-
     from helpers.core.db import connect as _db_connect
 
     for cand in (duckdb_path.with_suffix(".db"), DB_PATH):
@@ -696,8 +694,10 @@ def _probe_note_embed_state(duckdb_path: Path) -> tuple[str | None, str | None]:
                         "WHERE embedding IS NOT NULL AND embedding != '' LIMIT 1"
                     ).fetchone()
                     if row and row[0]:
-                        vec = _json.loads(row[0])
-                        if isinstance(vec, list) and vec:
+                        from helpers.core.vec_codec import load_vec as _load_vec
+
+                        vec = _load_vec(row[0])
+                        if vec:
                             dims = str(len(vec))
                 except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
                     pass
@@ -1071,6 +1071,78 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
     _materialise_embeddings(con)
 
 
+def _fin_sqlite_path(con: duckdb.DuckDBPyConnection) -> str | None:
+    """File path of the ``fin`` sqlite ATTACH, or None when unresolvable."""
+    try:
+        row = con.execute(
+            "SELECT path FROM duckdb_databases() WHERE database_name = 'fin'"
+        ).fetchone()
+        p = row[0] if row else None
+        return p or None
+    except Exception:  # noqa: S110  # best-effort; caller falls back
+        return None
+
+
+def _read_fin_embeddings(
+    con: duckdb.DuckDBPyConnection, table: str, key_cols: str
+) -> tuple[list[tuple], int]:
+    """Read ``(key..., embedding_blob)`` rows from the fin-attached sqlite file.
+
+    BLOB columns pass through (f32 binary); TEXT JSON rows are packed via
+    the tolerant codec (embedding_blob_migration S2/S3). Returns
+    ``(rows, dims)`` with ``dims == 0`` when nothing readable — the
+    caller falls back to the legacy CAST path or an empty typed table.
+    """
+    import sqlite3 as _sqlite3
+
+    from helpers.core.vec_codec import dims_from_blob, load_vec, pack_f32
+
+    path = _fin_sqlite_path(con)
+    if not path:
+        return [], 0
+    out: list[tuple] = []
+    dims = 0
+    try:
+        scon = _sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+        try:
+            cur = scon.execute(
+                f"SELECT {key_cols}, embedding FROM {table} "  # noqa: S608  # table/key_cols are call-site constants
+                "WHERE embedding IS NOT NULL AND embedding != ''"
+            )
+            for row in cur:
+                emb = row[-1]
+                if isinstance(emb, (bytes, bytearray)):
+                    blob, d = bytes(emb), dims_from_blob(emb)
+                else:
+                    vec = load_vec(emb)
+                    if not vec:
+                        continue
+                    blob, d = pack_f32(vec), len(vec)
+                if d == 0:
+                    continue
+                if dims == 0:
+                    dims = d
+                elif d != dims:
+                    continue
+                out.append((*row[:-1], blob))
+        finally:
+            scon.close()
+    except Exception:  # noqa: S110  # unreadable source -> caller's fallback
+        return [], 0
+    return out, dims
+
+
+def _arrow_embedding_table(rows: list[tuple], dims: int, names: list[str]):
+    """Build a pyarrow table: ``names`` columns + fixed-size f32 ``emb``."""
+    import numpy as _np
+    import pyarrow as _pa
+
+    flat = _np.frombuffer(b"".join(r[-1] for r in rows), dtype=_np.float32)
+    emb = _pa.FixedSizeListArray.from_arrays(_pa.array(flat), dims)
+    cols = {name: _pa.array([r[i] for r in rows]) for i, name in enumerate(names)}
+    return _pa.table({**cols, "emb": emb})
+
+
 def _materialise_embeddings(con: duckdb.DuckDBPyConnection) -> None:
     """Project company embeddings from SQLite into DuckDB.
 
@@ -1100,21 +1172,38 @@ def _materialise_embeddings(con: duckdb.DuckDBPyConnection) -> None:
         table_exists = False
 
     if table_exists:
-        # The SQLite bridge tries to auto-convert FLOAT[N] columns (stored as
-        # JSON text) and fails with a TypeMismatchError. Setting
-        # sqlite_all_varchar=true makes the bridge read columns as VARCHAR,
-        # then we CAST to FLOAT[] for the VSS scalar functions.
-        con.execute("SET sqlite_all_varchar=true")
-        con.execute(
-            """
-            CREATE TABLE v_embeddings AS
-            SELECT ve.company_name,
-                   v.id,
-                   CAST(ve.embedding AS FLOAT[]) AS embedding
-            FROM fin.company_embeddings ve
-            JOIN v_node v ON v.name = ve.company_name
-            """
-        )
+        # embedding_blob_migration S3: embeddings are f32 BLOBs (legacy
+        # TEXT JSON tolerated) — the in-SQL CAST path cannot parse binary,
+        # so rows are read Python-side from the fin-attached sqlite file
+        # and projected via a registered arrow table (zero-copy f32).
+        _rows, _dims = _read_fin_embeddings(con, "company_embeddings", "company_name")
+        if _rows:
+            con.register("_co_emb_src", _arrow_embedding_table(_rows, _dims, ["company_name"]))
+            con.execute(
+                """
+                CREATE TABLE v_embeddings AS
+                SELECT s.company_name,
+                       v.id,
+                       s.emb AS embedding
+                FROM _co_emb_src s
+                JOIN v_node v ON v.name = s.company_name
+                """
+            )
+            con.unregister("_co_emb_src")
+        else:
+            con.execute(
+                "SET sqlite_all_varchar=true"
+            )  # legacy TEXT fallback (unmigrated DB, unreadable attach)
+            con.execute(
+                """
+                CREATE TABLE v_embeddings AS
+                SELECT ve.company_name,
+                       v.id,
+                       CAST(ve.embedding AS FLOAT[]) AS embedding
+                FROM fin.company_embeddings ve
+                JOIN v_node v ON v.name = ve.company_name
+                """
+            )
     else:
         con.execute(
             """
@@ -1160,27 +1249,27 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
         table_exists = False
 
     dims = 0
+    rows: list[tuple[str, str | None, str | None, bytes]] = []
     if table_exists:
-        con.execute("SET sqlite_all_varchar=true")
-        try:
-            row = con.execute(
-                "SELECT json_array_length(embedding) FROM fin.note_search "
-                "WHERE embedding IS NOT NULL AND embedding != '' LIMIT 1"
-            ).fetchone()
-            dims = int(row[0]) if row and row[0] is not None else 0
-        except Exception:
-            dims = 0
+        # embedding_blob_migration S3: Python-side read of f32 BLOBs (TEXT
+        # tolerated) + arrow projection; the in-SQL CAST cannot parse
+        # binary, and this path also skips parsing 140 MB of JSON text
+        # per rebuild — the arrow table moves ~25 MB of f32 instead.
+        rows, dims = _read_fin_embeddings(con, "note_search", "file_path, doc_type, title")
 
-    if table_exists and dims > 0:
+    if rows:
+        con.register(
+            "_note_emb_src",
+            _arrow_embedding_table(rows, dims, ["file_path", "doc_type", "title"]),
+        )
         con.execute(
-            f"""
+            """
             CREATE TABLE v_note_embeddings AS
-            SELECT file_path, doc_type, title,
-                   CAST(embedding AS FLOAT[{dims}]) AS emb
-            FROM fin.note_search
-            WHERE embedding IS NOT NULL AND embedding != ''
+            SELECT file_path, doc_type, title, emb
+            FROM _note_emb_src
             """
         )
+        con.unregister("_note_emb_src")
     else:
         con.execute(
             """

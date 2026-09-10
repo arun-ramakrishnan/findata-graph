@@ -45,6 +45,7 @@ if str(REPO) not in sys.path:
 
 from helpers.bench.embed_runtime_bench import preflight_clean_state  # noqa: E402
 from helpers.bench.note_deep_probe import QUESTIONS_PATH  # noqa: E402
+from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402
 
 SANDBOX = Path("/tmp/ab_granite_research.db")  # noqa: S108  # throwaway sandbox copy, single-user box
 GRANITE_GGUF = REPO / "models/granite-embedding-97M-multilingual-r2-Q8_0.gguf"
@@ -93,7 +94,7 @@ def _rewrite_sandbox(fresh_fallback) -> tuple[int, int]:
         else:
             hits += 1
         conn.execute(
-            "UPDATE note_search SET embedding = ? WHERE rowid = ?", (json.dumps(vec), rowid)
+            "UPDATE note_search SET embedding = ? WHERE rowid = ?", (pack_f32(vec), rowid)
         )
     conn.execute("CREATE TABLE IF NOT EXISTS db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
     conn.execute(
@@ -145,7 +146,7 @@ def _build_sandbox_matrix():
     ).fetchall()
     conn.close()
     ids = [r[0] for r in rows]
-    emb = np.array([json.loads(r[1]) for r in rows], dtype=np.float32)
+    emb = np.array([load_vec(r[1]) for r in rows], dtype=np.float32)
     store = EmbedMatrixStore(
         matrix_path=Path("/tmp/ab_granite_matrix.f32"),  # noqa: S108  # throwaway sandbox artifact
         meta_path=Path("/tmp/ab_granite_matrix.json"),  # noqa: S108  # throwaway sandbox artifact

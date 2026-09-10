@@ -58,7 +58,6 @@ The DuckDB side (query.py) joins this to v_node.id via the company_name,
 materialising FLOAT[] rows for array_cosine_similarity etc.
 """
 
-import ast
 import argparse
 import hashlib
 import json
@@ -74,6 +73,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from helpers.core.db import connect as db_connect, DEFAULT_DB_PATH, bump_generation
+from helpers.core.vec_codec import pack_f32
 
 
 def _ensure_schema(conn: sqlite3.Connection, dims: int) -> None:
@@ -100,10 +100,10 @@ def _ensure_schema(conn: sqlite3.Connection, dims: int) -> None:
     conn.execute(f"""
         CREATE TABLE IF NOT EXISTS company_embeddings (
             company_name TEXT PRIMARY KEY,
-            embedding    FLOAT[{dims}],
+            embedding    BLOB NOT NULL,
             model        TEXT NOT NULL,
             created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
-            CHECK (json_array_length(embedding) = {dims})
+            CHECK (length(embedding) = {dims} * 4)
         )
     """)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_emb_company ON company_embeddings(company_name)")
@@ -276,7 +276,7 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     # pointless snapshot churn. changed counts rows actually written.
     count = 0
     for name, vec in zip(names, vecs):
-        vec_str = "[" + ", ".join(repr(v) for v in vec) + "]"
+        vec_blob = pack_f32(vec)
         cur = conn.execute(
             "INSERT INTO company_embeddings (company_name, embedding, model, created_at) "
             "VALUES (?, ?, ?, datetime('now')) "
@@ -286,7 +286,7 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
             "    created_at = excluded.created_at "
             "WHERE company_embeddings.embedding IS NOT excluded.embedding "
             "   OR company_embeddings.model     IS NOT excluded.model",
-            (name, vec_str, local_embedder.MODEL_ID),
+            (name, vec_blob, local_embedder.MODEL_ID),
         )
         count += cur.rowcount
 
@@ -390,12 +390,10 @@ def populate_dry_run(conn: sqlite3.Connection, dims: int = 64, company: str | No
     for name in names:
         text = _get_company_text(conn, name)
         vec = _pseudo_embedding(text, dims)
-        # Convert list to SQLite-compatible array literal
-        vec_str = "[" + ", ".join(repr(v) for v in vec) + "]"
         conn.execute(
             "INSERT OR REPLACE INTO company_embeddings (company_name, embedding, model) "
             "VALUES (?, ?, ?)",
-            (name, vec_str, model),
+            (name, pack_f32(vec), model),
         )
         count += 1
 
@@ -440,7 +438,9 @@ def stats(conn: sqlite3.Connection) -> dict:
     r2 = conn.execute("SELECT embedding FROM company_embeddings LIMIT 1").fetchone()
     if r2:
         try:
-            sample_dim = len(ast.literal_eval(r2[0]))
+            from helpers.core.vec_codec import load_vec
+
+            sample_dim = len(load_vec(r2[0]) or [])
         except Exception:
             sample_dim = None
     else:

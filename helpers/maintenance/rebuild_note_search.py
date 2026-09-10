@@ -66,7 +66,6 @@ detected drift (the house --check gate doctrine).
 """
 
 import hashlib
-import json
 import re
 import sys
 from collections.abc import Callable
@@ -249,11 +248,8 @@ def stored_embed_dims(conn) -> int | None:
         return None
     if not row or not row[0]:
         return None
-    try:
-        vec = json.loads(row[0])
-    except TypeError, ValueError:
-        return None
-    return len(vec) if isinstance(vec, list) and vec else None
+    vec = load_vec(row[0])
+    return len(vec) if vec else None
 
 
 def _default_embed(text: str) -> list[float]:
@@ -284,6 +280,7 @@ def _noop_embed(_text: str) -> list[float]:
 # embeddings populate became the second consumer; the sidecar table keeps
 # its note_search_emb_cache name (renaming would orphan warm caches).
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
+from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402
 
 
 def _embedding_text(title: str, sector: str, section_title: str, content: str) -> str:
@@ -295,18 +292,17 @@ def _embedding_text(title: str, sector: str, section_title: str, content: str) -
     return f"{title}\n{sector}\n{section_title}\n{content[:_SECTION_EMBED_CAP]}"
 
 
-def _embedding_json(
+def _embedding_f32(
     embed_fn, title: str, sector: str, section_title: str, content: str
-) -> str | None:
-    """Embed one section row and serialize to a JSON string, or None on
-    failure."""
+) -> bytes | None:
+    """Embed one section row and pack to an f32 BLOB, or None on failure."""
     try:
         vec = embed_fn(_embedding_text(title, sector, section_title, content))
-    except Exception:  # noqa: S110  # best-effort; missing/empty rows stay searchable
+    except Exception:  # noqa: S110  # best-effort; missing rows stay searchable
         return None
     if not vec:
         return None
-    return json.dumps(vec)
+    return pack_f32(vec)
 
 
 def _iter_findata_docs():
@@ -367,7 +363,7 @@ def _emit_row(
                 title,
                 sector,
                 body,
-                _embedding_json(embed_fn, title, sector, section_title, body),
+                _embedding_f32(embed_fn, title, sector, section_title, body),
                 section_title,
                 anchor,
             )
@@ -734,7 +730,7 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
                 )
                 by_idx = dict(zip(idxs, vec_list))
                 rows = [
-                    r if i not in by_idx else r[:5] + (json.dumps(by_idx[i]),) + r[6:]
+                    r if i not in by_idx else r[:5] + (pack_f32(by_idx[i]),) + r[6:]
                     for i, r in enumerate(rows)
                 ]
                 stats["embed_cache_hits"] = cstats["hits"]

@@ -359,7 +359,6 @@ def _add_entities(conn):
 
 class TestPopulateLocal:
     def test_inserts_model_id_rows(self, tmp_path, monkeypatch):
-        import ast
 
         from helpers.core import local_embedder as LE
 
@@ -375,7 +374,9 @@ class TestPopulateLocal:
         assert n == 1  # companies only, not sectors
         row = conn.execute("SELECT model, embedding FROM company_embeddings").fetchone()
         assert row[0] == LE.MODEL_ID
-        assert len(ast.literal_eval(row[1])) == LE.DIM
+        from helpers.core.vec_codec import unpack_f32
+
+        assert len(unpack_f32(row[1])) == LE.DIM
 
     def test_unavailable_exits_with_setup_hint(self, tmp_path):
         # conftest pins available() -> False: the CLI must fail loudly with
@@ -407,10 +408,12 @@ class TestModelPurityGuard:
 
         conn, _ = _make_embed_db(tmp_path)
         _ensure_schema(conn, 64)
+        from helpers.core.vec_codec import pack_f32
+
         conn.execute(
             "INSERT INTO company_embeddings (company_name, embedding, model) "
             "VALUES ('X', ?, 'bge-small-en-v1.5')",
-            ("[" + ", ".join("0.5" for _ in range(64)) + "]",),
+            (pack_f32([0.5] * 64),),
         )
         conn.commit()
         with pytest.raises(SystemExit, match="--clear"):
@@ -663,9 +666,11 @@ class TestMaintRefresh:
         # corrupted; the re-embed reproduces different bytes) bumps.
         conn.execute("CREATE TABLE db_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         conn.execute("INSERT INTO db_meta VALUES ('generation', '100')")
+        from helpers.core.vec_codec import pack_f32
+
         conn.execute(
             "UPDATE company_embeddings SET embedding = ? WHERE company_name = 'CoA'",
-            ("[" + ", ".join("0.0" for _ in range(LE.DIM)) + "]",),
+            (pack_f32([0.0] * LE.DIM),),
         )
         conn.commit()
         populate_local(conn)

@@ -847,6 +847,15 @@ def check_sqlite_helper_usage() -> list[str]:  # noqa: C901
         # throwaway sandbox copies — diagnostics that must never take the
         # writer path (FK enforcement irrelevant, no production writes).
         "helpers/bench/",
+        # One-shot embedding codec migration (embedding_blob_migration S4):
+        # per-surface transactions + VACUUM on production files; connect()
+        # targets research.db only and cannot reach the doc/script/vec stores.
+        "helpers/maintenance/migrate_embedding_blob.py",
+        # Read-only materialisation reads against the duckdb-attached
+        # sqlite file resolved at build time (test redirects change the
+        # target — a house connect() cannot express "the ATTACH target of
+        # this duckdb connection"). SELECTs only, no writes.
+        "helpers/graph/query.py",
     )
     failures: list[str] = []
     for py in REPO_ROOT.rglob("*.py"):

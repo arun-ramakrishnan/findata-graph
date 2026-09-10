@@ -272,11 +272,21 @@ _SQLITE3_CONNECT_ALLOWLIST = {
     "helpers/bench/note_deep_probe_candidates.py",
     "helpers/bench/note_ab_granite.py",
     "helpers/bench/company_neighbors_base_probe.py",
+    "helpers/bench/fts_duckdb_parity.py",
     # One-shot sidecar migration: opens LEGACY files read-only by URI and the
     # store file DIRECTLY (unqualified bare tables — a house connect() would
     # bootstrap production schema into the new file). Never runs on
     # research.db; completed.md #166.
     "helpers/maintenance/migrate_embed_store.py",
+    # One-shot embedding codec migration (embedding_blob_migration S4):
+    # per-surface transactions + VACUUM on production files; connect()
+    # targets research.db only and cannot reach the doc/script/vec stores.
+    "helpers/maintenance/migrate_embedding_blob.py",
+    # Read-only SELECTs against the duckdb-attached sqlite file resolved at
+    # build time (test redirects change the target — a house connect()
+    # cannot express "the ATTACH target of this duckdb connection"). FK
+    # enforcement irrelevant for SELECT.
+    "helpers/graph/query.py",
 }
 
 

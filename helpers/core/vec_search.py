@@ -38,11 +38,12 @@ a vector index is absent.
 
 from __future__ import annotations
 
-import json
 import re
 import sqlite3
 import sys
 from pathlib import Path
+
+from helpers.core.vec_codec import load_vec
 
 # Repo root: helpers/core/vec_search.py -> parents[2]. Must be on sys.path
 # BEFORE any `from helpers.core.db import ...` so the script works as a
@@ -241,11 +242,8 @@ def backfill_from_fts(conn: sqlite3.Connection, dims: int) -> int:
         return 0
     written = 0
     for file_path, embedding_json in rows:
-        try:
-            vec = json.loads(embedding_json)
-            if not isinstance(vec, list) or len(vec) != dims:
-                continue
-        except TypeError, ValueError:
+        vec = load_vec(embedding_json)
+        if not vec or len(vec) != dims:
             continue
         try:
             conn.execute(f"DELETE FROM {qualified()} WHERE file_path = ?", (file_path,))  # noqa: S608  # qualified() constant
@@ -357,11 +355,8 @@ def _upsert_vec_rows(
         )
         if not embedding_json:
             continue
-        try:
-            vec = json.loads(embedding_json)
-        except TypeError, ValueError:
-            continue
-        if not isinstance(vec, list) or len(vec) != dims:
+        vec = load_vec(embedding_json)
+        if not vec or len(vec) != dims:
             continue
         conn.execute(
             f"INSERT INTO {qualified()} (file_path, embedding) VALUES (?, ?)",  # noqa: S608  # qualified() constant

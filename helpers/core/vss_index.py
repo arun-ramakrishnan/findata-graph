@@ -16,7 +16,6 @@ serves SQL graph joins; documented as the SQL-side consumer of the same
 table) and ``company_neighbors_base_probe.py`` (bench stays self-contained).
 """
 
-import ast
 import hashlib
 import sys
 from pathlib import Path
@@ -37,8 +36,10 @@ from helpers.core.db import connect
 def _pick_embedder(rows, embed_fn):
     """Resolve the embedder for a query vector. Returns (embed_fn, dims) or
     (None, 0) when no local embedder can reconstruct the query vector."""
-    first_emb = ast.literal_eval(rows[0][1])
-    dims = len(first_emb)
+    from helpers.core.vec_codec import load_vec
+
+    first_emb = load_vec(rows[0][1])
+    dims = len(first_emb or [])
     if dims < 1:
         return None, 0
     if embed_fn is not None:
@@ -93,9 +94,11 @@ _VSS_DECODE_CACHE_MAX = 8
 def _decoded_vss_table(rows):
     """[(name, vec|None)] with one literal_eval pass per table content."""
     # usedforsecurity=False: content fingerprint for a cache key, not security.
-    digest = hashlib.sha1(
-        "|".join((r[1] or "") for r in rows).encode(), usedforsecurity=False
-    ).hexdigest()
+    # Rows may be TEXT (legacy) or BLOB (embedding_blob_migration S2) — bytes-join both.
+    parts = [
+        r[1] if isinstance(r[1], (bytes, bytearray)) else str(r[1] or "").encode() for r in rows
+    ]
+    digest = hashlib.sha1(b"|".join(parts), usedforsecurity=False).hexdigest()
     hit = _VSS_DECODE_CACHE.get(digest)
     if hit is not None:
         return hit
@@ -110,7 +113,9 @@ def _raw_vec(emb_str):
     """Parse a stored embedding string; None if unparsable (no dims check —
     the caller filters by dims, matching _candidate_vec skip semantics)."""
     try:
-        return ast.literal_eval(emb_str)
+        from helpers.core.vec_codec import load_vec
+
+        return load_vec(emb_str)
     except ValueError, SyntaxError, TypeError:
         return None
 

@@ -9,13 +9,13 @@ behaves correctly (content hits, idempotency, standalone-not-external-content,
 newsletter indexing without frontmatter).
 """
 
-import json
 import sqlite3
 
 import pytest
 
 # Make the helpers importable (tests run from repo root; this mirrors conftest).
 
+from helpers.core.vec_codec import load_vec  # noqa: E402
 from helpers.maintenance import rebuild_note_search as rns  # noqa: E402
 from helpers.maintenance.migrate_to_graph_edges import ENTITIES_DDL  # noqa: E402
 
@@ -227,8 +227,8 @@ class TestEmbeddingColumn:
             assert len(rows) == 4
             for (emb,) in rows:
                 assert emb is not None
-                vec = json.loads(emb)
-                assert len(vec) == 64
+                vec = load_vec(emb)
+                assert vec is not None and len(vec) == 64
         finally:
             con.close()
 
@@ -244,7 +244,7 @@ class TestEmbeddingColumn:
             row = con.execute(
                 "SELECT embedding FROM note_search WHERE title = 'Acme_Feeds'"
             ).fetchone()
-            assert json.loads(row[0]) == [1.0, 0.0]
+            assert load_vec(row[0]) == [1.0, 0.0]
         finally:
             con.close()
 
@@ -379,7 +379,7 @@ class TestLocalEmbedderWiring:
             rows = con.execute("SELECT embedding FROM note_search").fetchall()
             assert len(rows) == 4
             for (emb,) in rows:
-                assert len(json.loads(emb)) == 384
+                assert len(load_vec(emb) or ()) == 384
         finally:
             con.close()
 
@@ -669,8 +669,7 @@ class TestVecMirror:
 
     def test_vec_similarity_matches_python_cosine(self, seeded_tree):
         """KNN similarity over the mirrored table == float64 cosine of the
-        JSON column (the response contract must not change with A1)."""
-        import json as _json
+        embedding column (the response contract must not change with A1)."""
         import math
 
         import helpers.maintenance.rebuild_note_search as R
@@ -686,7 +685,10 @@ class TestVecMirror:
             got = knn_similarities(conn, q, k=len(rows), dims=R._PSEUDO_DIMS)
             assert got is not None
             for fp, anchor, emb in rows:
-                vec = _json.loads(emb)
+                from helpers.core.vec_codec import load_vec
+
+                vec = load_vec(emb)
+                assert vec is not None
                 dot = sum(x * y for x, y in zip(q, vec))
                 nq = math.sqrt(sum(x * x for x in q))
                 nv = math.sqrt(sum(x * x for x in vec))

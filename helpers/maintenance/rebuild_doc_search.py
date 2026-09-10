@@ -51,7 +51,6 @@ Exit codes: 0 success/fresh, 1 fatal error OR --check detected drift.
 """
 
 import hashlib
-import json
 import re
 import sqlite3
 import sys
@@ -67,6 +66,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from helpers.core.embed_cache import CachedEmbed  # noqa: E402
+from helpers.core.vec_codec import load_vec, pack_f32  # noqa: E402
 from helpers.core.fs_walk import iter_tree_files  # noqa: E402
 from helpers.maintenance import rebuild_common as rbc  # noqa: E402
 
@@ -265,11 +265,8 @@ def stored_embed_dims(conn: sqlite3.Connection) -> int | None:
         return None
     if not row or not row[0]:
         return None
-    try:
-        vec = json.loads(row[0])
-    except TypeError, ValueError:
-        return None
-    return len(vec) if isinstance(vec, list) and vec else None
+    vec = load_vec(row[0])
+    return len(vec) if vec else None
 
 
 def _default_embed(text: str) -> list[float]:
@@ -283,14 +280,14 @@ def _noop_embed(_text: str) -> list[float]:
     verdict is a content-hash compare and never reads embeddings — the
     check must not resolve the model nor run cache-hit embeddings against
     the sidecar for zero signal. Returns an empty vector so
-    ``_embedding_json`` stores None. Apply path uses the real embedder."""
+    ``_embedding_f32`` stores None (bytes; f32 BLOB codec). Apply path uses the real embedder."""
     return []
 
 
-def _embedding_json(embed_fn, title: str, section_title: str, content: str) -> str | None:
+def _embedding_f32(embed_fn, title: str, section_title: str, content: str) -> bytes | None:
     """Embed one chunk and serialize to JSON, or None on failure.
 
-    Text basis mirrors _embedding_json in rebuild_note_search: title +
+    Text basis mirrors the note_search embed helper: title +
     section + capped body, so the vector is dominated by the headings for
     heading-typed queries while still capturing the body.
     """
@@ -300,7 +297,7 @@ def _embedding_json(embed_fn, title: str, section_title: str, content: str) -> s
         return None
     if not vec:
         return None
-    return json.dumps(vec)
+    return pack_f32(vec)
 
 
 def _text_hash(abs_path: Path) -> str | None:
@@ -333,7 +330,7 @@ def _file_rows(abs_path: Path, rel: str, embed_fn) -> tuple[list[tuple], str | N
                 rel,
                 anchor,
                 body,
-                _embedding_json(embed_fn, title, section_title, body),
+                _embedding_f32(embed_fn, title, section_title, body),
             )
         )
     # Raw text IS the change key for this corpus (no DB-side inputs).
@@ -817,11 +814,8 @@ def search_docs(  # noqa: C901  # noqa anchor moved to the statement's diagnosti
             "SELECT rowid, embedding FROM doc_search "
             "WHERE embedding IS NOT NULL AND embedding != ''"
         ):
-            try:
-                vec = json.loads(emb)
-            except TypeError, ValueError:
-                continue
-            if not isinstance(vec, list) or len(vec) != len(q_vec):
+            vec = load_vec(emb)
+            if not vec or len(vec) != len(q_vec):
                 continue
             norm_v = sum(x * x for x in vec) ** 0.5 or 1.0
             sim = sum(a * b for a, b in zip(q_vec, vec)) / (norm_q * norm_v)

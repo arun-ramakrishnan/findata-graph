@@ -30,6 +30,10 @@ entry number and stale DONE pointers):
 
 _(None.)_
 
+_(Previously: embedding_blob_migration.md, archived as completed.md
+entry 223 on 2026-09-10 — execution record in
+`../archive/database/embedding_blob_migration.md`.)_
+
 _(Previously: graph_db_optimization.md, archived as completed.md entry
 222 on 2026-09-10 — execution record in
 `../archive/graph/graph_db_optimization.md` — all three issues

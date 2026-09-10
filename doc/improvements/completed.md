@@ -5203,3 +5203,47 @@ the operator at arc end.
 - Gates: `make qa` 9/9 (2719 passed), `make perf` 22/22
   (graph_closeness 1.70s vs 4.0s budget, derive_insights 2.75s vs 12.0s
   budget), `make types-tests` clean, md-lint clean.
+## 223. Embedding storage — five-surface f32 BLOB migration + cache wipe
+
+- `embedding_blob_migration.md` (archived under
+  `archive/database/`): the 2026-09-10 vector-storage audit found every
+  embedding surface holding JSON TEXT (~8.3 KB per 384-d vector) while
+  every retrieval surface computes f32 binary (~1.5 KB).
+- **S1 — `helpers/core/vec_codec.py`**: pack/unpack + tolerant reader
+  (BLOB or TEXT), the single codec choke point. Rejected riders measured
+  on this Skylake box: f16 — 0/59 neighbor flips but 3.6x CPU penalty in
+  numpy compute (no AVX512-FP16); int8 — 18/59 top-5 flips naive.
+  Both parked: f16 behind an AVX512-FP16 hardware trigger, int8 behind
+  the O(100k+) scale trigger with eval certification.
+- **S2 — BLOB-native writers + tolerant readers**: rebuild_note_search /
+  rebuild_doc_search / rebuild_script_search / embeddings.py /
+  embed_cache.py write `pack_f32`; vec_search, vss_index, get_tickers,
+  query dims probe, warm paths all read tolerant. Housekeeping along
+  the way: `_embedding_json` helpers renamed `_embedding_f32`.
+- **S3 — DuckDB materialisation off the in-SQL JSON CAST**: the
+  `SET sqlite_all_varchar=true` + `CAST(embedding AS FLOAT[])` path
+  could not parse binary, so both `v_note_embeddings` and
+  `v_embeddings` moved to a Python read of the fin-attached sqlite file
+  + zero-copy pyarrow projection (dims from `len(blob) // 4`).
+  16,479/16,479 rows materialised with sampled overlap bit-identical to
+  the sqlite BLOBs; the exported parquet budgets hold.
+- **S4 — one-shot CLI** (`helpers/maintenance/migrate_embedding_blob.py`
+  `--check/--apply`): in-place pack via registered SQL function for the
+  FTS5 surfaces; company_embeddings got the new-table swap because its
+  live DDL carried a JSON-specific `CHECK (json_array_length(...) =
+  384)` — now `CHECK (length(embedding) % 4 = 0 ...)`. embed_cache
+  WIPED per user decision (regen > trim: local embedder, runbook'd
+  full re-embed). Idempotent (`--check` clean after `--apply`).
+- **S5 — measured landing**: research.db 280.6 -> 125.4 MB;
+  embed_store.db 410.6 -> 29.1 MB; doc_search.db 18.8 -> 8.3 MB;
+  script_search.db 4.7 -> 1.8 MB; embed_matrix.f32/json + corpus.db
+  deleted per doctrine (81.7 MB). Total ~796 MB -> ~165 MB.
+  Precision: f32 pack vs stored f64 — max |dcos| 8.4e-9, 0/59 top-5
+  neighbor flips. Cache economics: wiping forces one full re-embed pass
+  at the serial ~5/s rate (~1 h worst case for note_search), compute-local.
+- Post-landing gate fixes folded in: three extra JSON-only seams
+  (vss_index digest, get_tickers, embeddings dims probe), fuzz DDL pin
+  (FLOAT[N] vs length check), sqlite-connect allowlist entries (validator
+  + pytest), a narrowing fix, 8 unused imports dropped, 2 shebangs.
+- Gates: `make qa` 9/9 (2730 passed), `make perf` 22/22, `make types` +
+  `make types-tests` + `lint-audit` clean, md-lint clean.

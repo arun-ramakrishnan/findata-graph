@@ -12,7 +12,6 @@ import logging
 import os
 import sys
 import argparse
-import ast
 from datetime import datetime
 from pathlib import Path
 
@@ -283,11 +282,10 @@ def get_comprehensive_company_data(ticker):
 
 def _candidate_vec(emb_str, dims):
     """Parse a stored embedding string; None if unparsable or wrong dims."""
-    try:
-        vec = ast.literal_eval(emb_str)
-    except ValueError, SyntaxError, TypeError:
-        return None
-    if len(vec) != dims:
+    from helpers.core.vec_codec import load_vec
+
+    vec = load_vec(emb_str)
+    if not vec or len(vec) != dims:
         return None
     return vec
 
