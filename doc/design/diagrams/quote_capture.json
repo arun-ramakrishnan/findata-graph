@@ -1,0 +1,242 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Quote capture \u2014 audit \u2192 route \u2192 triage",
+    "quality_profile": "showcase",
+    "locale": "en",
+    "viewBox": [
+      1373,
+      752
+    ]
+  },
+  "lanes": [
+    {
+      "id": "auto",
+      "label": "Automatic routing"
+    },
+    {
+      "id": "human",
+      "label": "Human triage"
+    }
+  ],
+  "phases": [
+    {
+      "id": "p1",
+      "label": "Audit",
+      "fromCol": 0,
+      "toCol": 0
+    },
+    {
+      "id": "p2",
+      "label": "Marker",
+      "fromCol": 1,
+      "toCol": 1
+    },
+    {
+      "id": "p3",
+      "label": "Resolver",
+      "fromCol": 2,
+      "toCol": 2
+    },
+    {
+      "id": "p4",
+      "label": "Sector routing",
+      "fromCol": 3,
+      "toCol": 3
+    },
+    {
+      "id": "p5",
+      "label": "Catch-all capture",
+      "fromCol": 4,
+      "toCol": 4
+    },
+    {
+      "id": "p6",
+      "label": "Triage & close",
+      "fromCol": 5,
+      "toCol": 5
+    }
+  ],
+  "nodes": [
+    {
+      "id": "audit",
+      "lane": "auto",
+      "col": 0,
+      "type": "backend",
+      "label": "coverage audit",
+      "tag": "read-only probe \u00b7 walks 3 trees",
+      "width": 150
+    },
+    {
+      "id": "marker",
+      "lane": "auto",
+      "col": 1,
+      "type": "backend",
+      "label": "S1 marker family",
+      "tag": "bracket/bare \u00b7 family-wins",
+      "width": 140
+    },
+    {
+      "id": "resolver",
+      "lane": "auto",
+      "col": 2,
+      "type": "backend",
+      "label": "S2 resolver ladder",
+      "tag": "exact\u2192fold\u2192strips \u00b7 role tiers",
+      "width": 150
+    },
+    {
+      "id": "alias_file",
+      "lane": "auto",
+      "col": 2,
+      "type": "database",
+      "label": "quote_aliases.json",
+      "tag": "ladder reads vetted aliases",
+      "yOffset": 86,
+      "width": 140
+    },
+    {
+      "id": "sector",
+      "lane": "auto",
+      "col": 3,
+      "type": "backend",
+      "label": "S4 sector ladder",
+      "tag": "canonical \u2192 synonym",
+      "width": 140
+    },
+    {
+      "id": "catchall",
+      "lane": "auto",
+      "col": 4,
+      "type": "backend",
+      "label": "Quotes catch-all",
+      "tag": "10th super-sector \u00b7 childless",
+      "width": 145
+    },
+    {
+      "id": "quotes_tbl",
+      "lane": "auto",
+      "col": 5,
+      "type": "database",
+      "label": "quotes table",
+      "tag": "provenance \u00b7 magnitudes",
+      "width": 135
+    },
+    {
+      "id": "triage",
+      "lane": "human",
+      "col": 5,
+      "type": "backend",
+      "label": "quote triage",
+      "tag": "bucket \u00b7 annotate jsonl",
+      "yOffset": 0,
+      "width": 140
+    },
+    {
+      "id": "apply",
+      "lane": "human",
+      "col": 5,
+      "type": "backend",
+      "label": "apply decisions",
+      "tag": "validate \u00b7 persist",
+      "yOffset": 86,
+      "width": 135
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-probe",
+      "from": "audit",
+      "to": "marker",
+      "label": "canonical stream"
+    },
+    {
+      "id": "e-mark",
+      "from": "marker",
+      "to": "resolver",
+      "label": "stripped lines + attributions"
+    },
+    {
+      "id": "e-alias",
+      "from": "resolver",
+      "to": "alias_file",
+      "label": "reads aliases (tier 4)"
+    },
+    {
+      "id": "e-sect",
+      "from": "resolver",
+      "to": "sector",
+      "label": "non-person heading"
+    },
+    {
+      "id": "e-catch",
+      "from": "sector",
+      "to": "catchall",
+      "label": "no match"
+    },
+    {
+      "id": "e-cap1",
+      "from": "resolver",
+      "to": "quotes_tbl",
+      "label": "attributable quotes"
+    },
+    {
+      "id": "e-cap2",
+      "from": "sector",
+      "to": "quotes_tbl",
+      "label": "sector_commentary"
+    },
+    {
+      "id": "e-cap3",
+      "from": "catchall",
+      "to": "quotes_tbl",
+      "label": "catch_all rows"
+    },
+    {
+      "id": "e-bucket",
+      "from": "triage",
+      "to": "apply",
+      "label": "decisions.jsonl"
+    },
+    {
+      "id": "e-loop",
+      "from": "apply",
+      "to": "alias_file",
+      "label": "aliases written back",
+      "variant": "dashed",
+      "role": "return"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "slate",
+      "title": "Evidence origin/main e37eb7db",
+      "items": [
+        "audit: quote_coverage_audit.py",
+        "resolver: derive_insights.py:592 _resolve_ladder \u00b7 :497",
+        "sector: derive_insights.py:712 _resolve_sector \u00b7 :709",
+        "triage: triage_pending_quotes.py:52 \u00b7 :37"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Resolver & sector tiers",
+      "items": [
+        "ladder: exact \u2192 fold \u2192 strips \u2192 alias tier",
+        "role tokens (SVP/CFO/head-of/md) drive attribution",
+        "markers never split sector regions",
+        "sector: canonical \u2192 synonym \u2192 catch-all"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "Triage accountability",
+      "items": [
+        "buckets never auto-applied; decisions live in jsonl (D4)",
+        "hand-written sector/chat blocks preserved",
+        "audit residuals feed the decisions worklist (D4)"
+      ]
+    }
+  ]
+}

@@ -2,9 +2,13 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "Relations pipeline — extract, triage, resolve",
+    "title": "Relations pipeline \u2014 extract, triage, apply",
     "quality_profile": "showcase",
-    "locale": "en"
+    "locale": "en",
+    "viewBox": [
+      1500,
+      520
+    ]
   },
   "lanes": [
     {
@@ -25,14 +29,26 @@
     },
     {
       "id": "p2",
-      "label": "Triage",
+      "label": "Queue",
       "fromCol": 1,
-      "toCol": 3
+      "toCol": 1
     },
     {
       "id": "p3",
-      "label": "Resolve & rebuild",
+      "label": "Triage",
+      "fromCol": 2,
+      "toCol": 3
+    },
+    {
+      "id": "p4",
+      "label": "Apply",
       "fromCol": 4,
+      "toCol": 4
+    },
+    {
+      "id": "p5",
+      "label": "Close the loop",
+      "fromCol": 5,
       "toCol": 5
     }
   ],
@@ -47,8 +63,8 @@
       "col": 0,
       "type": "backend",
       "label": "extract_relations --apply",
-      "tag": "walk · prose → edges",
-      "width": 165
+      "tag": "walk \u00b7 prose \u2192 edges \u00b7 noise-gated",
+      "width": 170
     },
     {
       "id": "graph_edges",
@@ -56,8 +72,8 @@
       "col": 2,
       "type": "database",
       "label": "graph_edges",
-      "tag": "UNIQUE dedupe",
-      "width": 150
+      "tag": "UNIQUE dedupe \u00b7 symmetric=1",
+      "width": 165
     },
     {
       "id": "followup",
@@ -65,8 +81,8 @@
       "col": 5,
       "type": "backend",
       "label": "follow-up chain",
-      "tag": "re-extract → rebuild",
-      "width": 160
+      "tag": "re-extract \u2192 roster sync \u2192 rebuild",
+      "width": 175
     },
     {
       "id": "sidecar",
@@ -74,7 +90,7 @@
       "col": 1,
       "type": "database",
       "label": "_pending_relations.txt",
-      "tag": "append-on-miss queue",
+      "tag": "prose misses \u00b7 suggestions split",
       "width": 175
     },
     {
@@ -83,8 +99,8 @@
       "col": 2,
       "type": "backend",
       "label": "make triage-relations",
-      "tag": "4 buckets",
-      "width": 165
+      "tag": "dedupe \u00b7 split \u00b7 bucket",
+      "width": 175
     },
     {
       "id": "annotate",
@@ -92,8 +108,8 @@
       "col": 3,
       "type": "external",
       "label": "decide per row",
-      "tag": "discard · alias · stub · skip",
-      "width": 175
+      "tag": "discard \u00b7 alias \u00b7 stub \u00b7 skip \u00b7 accept",
+      "width": 200
     },
     {
       "id": "apply",
@@ -101,8 +117,8 @@
       "col": 4,
       "type": "backend",
       "label": "--apply-decisions",
-      "tag": "aliases → json",
-      "width": 160
+      "tag": "aliases \u2192 json \u00b7 accepts \u2192 edges",
+      "width": 175
     }
   ],
   "edges": [
@@ -118,30 +134,38 @@
       "from": "extract",
       "to": "sidecar",
       "role": "branch",
-      "label": "unknown targets"
+      "label": "non-noise misses"
     },
     {
-      "id": "e-triage",
+      "id": "e-prose",
       "from": "sidecar",
       "to": "triage",
       "role": "main",
-      "label": "dedupe · split suggestions"
+      "label": "prose rows"
     },
     {
-      "id": "e-annotate",
+      "id": "e-bucket",
       "from": "triage",
       "to": "annotate",
-      "role": "main"
+      "role": "main",
+      "label": "bucketed decisions"
     },
     {
-      "id": "e-apply",
+      "id": "e-annot",
       "from": "annotate",
       "to": "apply",
       "role": "main",
       "label": "annotated jsonl"
     },
     {
-      "id": "e-followup",
+      "id": "e-accept",
+      "from": "apply",
+      "to": "graph_edges",
+      "role": "main",
+      "label": "accept:s edges"
+    },
+    {
+      "id": "e-follow",
       "from": "apply",
       "to": "followup",
       "role": "main",
@@ -157,30 +181,40 @@
   ],
   "cards": [
     {
-      "dot": "cyan",
-      "title": "Sidecar contract",
+      "dot": "slate",
+      "title": "Evidence origin/main e37eb7db",
       "items": [
-        "dry-run writes the sidecar and zero edges",
-        "queue is append-on-miss, deduped; --clear truncates once resolved",
-        "link-prediction suggestions go to _pending_suggestions.txt, never auto-applied"
+        "extract: helpers/graph/extract_relations.py:100 noise gate \u00b7 :110 sidecar",
+        "triage: helpers/graph/triage_pending_relations.py:234 bucket \u00b7 :487 accept",
+        "G3 persist: triage_pending_relations.py:599 \u00b7 suggestions: :618"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Sidecar contract + G3 noise gate",
+      "items": [
+        "dry-run writes only the sidecar, zero edges; queue is append-on-miss, deduped",
+        "noise never enters: countries/generic/fragment filtered at extract write time",
+        "G3: discards persist to relation_noise.json \u2014 extract consults it, rows do not return",
+        "triage splits link-prediction rows \u2192 _pending_suggestions.txt (never auto-applied)"
       ]
     },
     {
       "dot": "emerald",
-      "title": "Decision buckets",
+      "title": "Decision buckets (v2)",
       "items": [
-        "discard — noise rows (countries, mangled fragments never enter)",
-        "alias:<Entity> — persists to relation_aliases.json, no code edits",
-        "stub — explicit creation, collision-checked; skip — foreign/out-of-corpus"
+        "discard | skip | stub | alias:<Entity> | accept:<edge_type>[:Target]",
+        "word-overlap alias candidates carry a _confirm?_ marker (false-positive family)",
+        "accept writes (source, target, edge_type) with source_ref='triage:accept'"
       ]
     },
     {
       "dot": "rose",
       "title": "Loop closure",
       "items": [
-        "after stubs/aliases: re-run extract → roster sync → graph-rebuild → snapshot",
-        "temporal extraction stamps valid_from + properties.year on acquired edges",
-        "double-counting impossible: UNIQUE(source, target, edge_type)"
+        "symmetric=1 stored rows: jv_with \u00b7 same_group \u00b7 competes_with \u00b7 co_mentioned_in \u00b7 semantic_peer",
+        "aliases persist to relation_aliases.json (runtime-loaded \u2014 no code edits)",
+        "after stubs/aliases: re-run extract \u2192 roster sync if stubs \u2192 graph-rebuild \u2192 snapshot"
       ]
     }
   ]

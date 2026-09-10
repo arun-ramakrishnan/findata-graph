@@ -5079,3 +5079,51 @@ sweeps — cleaned, not gate debt).
 `make qa` 9/9 (pytest 2,708 passed), `make perf` 22/22, `make
 advisory` 10/10, `make search-fresh APPLY=1` fresh; verify_notes
 1,217/1,217 clean; snapshot round-trip OK; DuckDB v_node 1649/1649.
+
+## 220. Archify diagram refresh — quote_capture S9, S6/S7 re-authors, evidence cards
+
+**Date**: 2026-09-10
+**Status**: COMPLETE
+**Proposal**: `doc/improvements/archive/tooling/archify_diagram_refresh.md` (filed 2026-09-09)
+
+Executed across 2026-09-09/10 in the `archify_enhance` patch. The
+2026-09-05 pipeline's diagrams had drifted: S6/S7 described a
+pre-rework code surface, 5 of 7 IRs carried no repository evidence,
+and the executed quote_capture_coverage arc had no diagram.
+
+### Slices and deviations
+
+- **A — evidence backfill (S2/S3/S8):** landed as slate "Evidence
+  origin/main e37eb7db" cards in each IR (maint.py:203/222/234,
+  parse_newsletter.py:774, pdf_conv_md.py:454,
+  snapshot_db.py:102/139/946) rather than structured `sources` arrays
+  + `meta.repository` pins — those remain architecture-IR-only
+  (embeddings_stack, system_overview, 9 anchors each, pinned b057071c).
+- **B — re-authors:** S6 relations_pipeline (106 IR lines: symmetric
+  semantic_peer accepts, word-overlap alias guard, CLI param
+  bundling); S7 derive_chain (113 IR lines: derive_cli.py unified
+  entrypoint, events/insights/cited_in churn).
+- **C — quote_capture S9:** new workflow pair (242-line IR, 6 phases ×
+  2 lanes, 9 nodes / 10 edges); evidence card pins
+  quote_coverage_audit.py, derive_insights.py:592/:497/:712/:709,
+  triage_pending_quotes.py:52/:37. Operator-reported small-canvas
+  failure fixed same arc: viewBox 1700 → 1373 (compiler-required),
+  labels/tags/cards compacted with anchors verbatim; min projected
+  node text 7.34 → 8.36 px at 1440×900, zero overflow at 4 viewports
+  × 2 themes.
+- **D — pipeline doc cleanup:** S9 added as census row 11; refresh
+  status block appended. The proposal's §2 "phantom suite" audit was
+  WRONG: all three cited suites exist as files
+  (test_integration_extract_relations_cli,
+  test_integration_derive_chain, test_integration_snapshot_cycle) —
+  no test refs needed fixing. Correction recorded here and in the
+  pipeline doc.
+
+### Verification
+
+Per-artifact: archify validate 9/9 × 7 IRs (0 err / 0 warn;
+architecture pair with `--repo-root`), quote_capture deliver rc=0
+(sha256 772c0ccf), visual-check pass 1440×900 / 1600×1000 /
+1920×1080 / 2048×1320 light+dark, perceptual judge 4/4. Arc gates
+(`make qa` / `make advisory` / `make search-fresh APPLY=1`) run by
+the operator at arc end.

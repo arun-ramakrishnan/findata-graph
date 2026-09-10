@@ -2,7 +2,7 @@
   "schema_version": 1,
   "diagram_type": "lifecycle",
   "meta": {
-    "title": "Snapshot lifecycle — create, verify, restore",
+    "title": "Snapshot lifecycle \u2014 create, verify, restore",
     "quality_profile": "showcase",
     "locale": "en",
     "viewBox": [
@@ -194,12 +194,20 @@
   ],
   "cards": [
     {
+      "dot": "slate",
+      "title": "Evidence origin/main e37eb7db",
+      "items": [
+        "snapshot_db.py:102 create \u00b7 :139 verify \u00b7 :946 restore",
+        "Makefile:119 snapshot \u00b7 :123 snapshot-check \u00b7 :126 snapshot-restore"
+      ]
+    },
+    {
       "dot": "cyan",
       "title": "What a create stamps (snapshot_db.py)",
       "items": [
         "pools: research.db, graph.duckdb, embed_store, corpus.db",
         "parquet exports + binary snapshots, zstd twins in db-backup/",
-        "embed matrix excluded by design — zstd twins are the recovery points"
+        "embed matrix excluded by design \u2014 zstd twins are the recovery points"
       ]
     },
     {
@@ -208,7 +216,7 @@
       "items": [
         "a tampered snapshot with a dropped table FAILS verify",
         "generation drift is flagged against db_meta",
-        "tampered snapshots are dropped — they never become recovery points"
+        "tampered snapshots are dropped \u2014 they never become recovery points"
       ]
     },
     {

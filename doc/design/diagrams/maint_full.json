@@ -2,7 +2,7 @@
   "schema_version": 2,
   "diagram_type": "workflow",
   "meta": {
-    "title": "make maint-full — the 14-step chain",
+    "title": "make maint-full \u2014 the 14-step chain",
     "quality_profile": "showcase",
     "locale": "en",
     "viewBox": [
@@ -78,7 +78,7 @@
       "col": 3,
       "type": "backend",
       "label": "sector gates",
-      "tag": "2 × --check",
+      "tag": "2 \u00d7 --check",
       "width": 150
     },
     {
@@ -146,8 +146,16 @@
   ],
   "cards": [
     {
+      "dot": "slate",
+      "title": "Evidence origin/main e37eb7db",
+      "items": [
+        "maint.py:203 PRE_FULL \u00b7 :222 TIER1 \u00b7 :234 TIER2 gates",
+        "query.py:893 graph-rebuild \u00b7 snapshot_db.py:1191 tail snapshot"
+      ]
+    },
+    {
       "dot": "cyan",
-      "title": "PRE_FULL — helpers/maintenance/maint.py",
+      "title": "PRE_FULL \u2014 helpers/maintenance/maint.py",
       "items": [
         "sync-tags --corpus --apply -> okf-backfill --apply -> rebuild-note-search -> derive-cited-in --apply",
         "deterministic projections of already-stamped state; no-ops between ingests",
@@ -158,7 +166,7 @@
       "dot": "rose",
       "title": "Fail-closed",
       "items": [
-        "TIER2 --check gates abort the run on drift — fix, then re-run",
+        "TIER2 --check gates abort the run on drift \u2014 fix, then re-run",
         "db_maint's recovery backup is the rollback point for everything after it",
         "plain `make maint` = 3 TIER1 steps, never PRE_FULL"
       ]
@@ -169,7 +177,7 @@
       "items": [
         "--full elides the mid-run TIER1 snapshot",
         "exactly one snapshot runs at the tail, capturing recomputed analytics + events",
-        "derived refresh = embeddings · doc-search · recompute-graph · derive-insights --no-notes · derive-events"
+        "derived refresh = embeddings \u00b7 doc-search \u00b7 recompute-graph \u00b7 derive-insights --no-notes \u00b7 derive-events"
       ]
     }
   ]

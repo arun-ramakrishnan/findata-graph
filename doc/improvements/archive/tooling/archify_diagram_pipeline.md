@@ -176,6 +176,7 @@ Suite-backed subjects outrank prose-only ones. Revised verdicts:
 | 8 | OKF frontmatter lifecycle | lifecycle | `doc/okf/README.md` | frontmatter_schema gate | **DEFER** — high rot risk while schema evolves |
 | 9 | Mojo bridge | sequence | `doc/design/graph_design.txt` | bench parity gates | **DEFER** — niche audience |
 | 10 | Vault-scaling tripwire / filesystem layout / ts contract / note-writer matrix / validators / perf legs | — | — | — | **DON'T DRAW** — threshold tables, invariant lists, or matrices; not flows |
+| 11 | Quote capture — coverage audit → S1 marker family → S2 resolver ladder (alias tier) → sector ladder → Quotes catch-all → human triage + alias write-back loop | workflow | `doc/procedures/markdown_parse.md` (capture funnel) | test_quote_coverage_audit + test_quote_capture_s2/s4/s7 | **DRAW (S9)** — row added 2026-09-09 by the refresh arc; executed |
 
 S1-S3 landed; S5-S8 are the live queue in priority order.
 
@@ -189,6 +190,20 @@ validation + delivery green; the four-band canvas saturates at
 fits broad displays (~2100px-wide class, e.g. 2560×1440, or zoom
 out) — caveat recorded in the maintenance.md pointer. Per-viewport
 legs: 2048×1320 misses by 56px; 2560×1440-class fits.
+
+**Refresh (2026-09-09/10, completed.md #220 — archify_diagram_refresh):**
+S6/S7 re-authored to the post-rework surface (symmetric semantic_peer
+accepts, word-overlap alias guard, derive_cli entrypoint); S2/S3/S8
+given slate evidence cards pinning origin/main e37eb7db file:line
+anchors; S9 quote_capture landed after a small-canvas refit
+(viewBox 1700→1373; all-viewport visual-check + perceptual judge pass).
+All 7 IRs re-validated 9/9 showcase, 0 err / 0 warn. Correction to the
+refresh proposal's §2 audit: the three suites it calls phantom
+(test_integration_extract_relations_cli, test_integration_derive_chain,
+test_integration_snapshot_cycle) all exist as files — no census test
+refs needed fixing. Structured `sources` arrays +
+`meta.repository` pins remain architecture-IR-only; the five newer IRs
+carry evidence as cards.
 
 Doctrine addition: when a chain has an integration suite, the suite is the
 diagram's re-render tripwire — cite the suite in the diagram's card so the

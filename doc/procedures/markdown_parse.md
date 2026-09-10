@@ -100,6 +100,12 @@ Parse documents to extract entities (companies, sectors), create synchronized SQ
 
     Idempotent via DELETE-then-INSERT (`source_ref LIKE 'derive:quotes:%'` / `'derive:metrics:%'`). See [Auto-generated chatter blocks](#auto-generated-chatter-blocks-deterministic-first-pass) for the curation-safety rule and how to replace an auto block with a curated one.
 
+    > **Diagram:** `../design/diagrams/quote_capture.{json,html}` — the
+    > capture funnel: audit → marker family → resolver ladder → sector
+    > ladder → Quotes catch-all → human triage + alias write-back loop
+    > (archify; JSON IR is the committed source). Re-render when the
+    > resolver tiers or triage contract change.
+
 ```python
 # Extraction patterns
 companies = re.findall(r"#[A-Z][a-zA-Z\s]+(?:Limited|Ltd|Private)", content)

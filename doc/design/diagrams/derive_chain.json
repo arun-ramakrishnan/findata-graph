@@ -2,12 +2,12 @@
   "schema_version": 1,
   "diagram_type": "dataflow",
   "meta": {
-    "title": "derive_* chain — prose to derived state",
+    "title": "derive_* chain \u2014 prose to derived state",
     "quality_profile": "showcase",
     "locale": "en",
     "viewBox": [
-      1500,
-      673
+      1280,
+      680
     ]
   },
   "stages": [
@@ -31,8 +31,8 @@
     {
       "id": "newsletters",
       "type": "database",
-      "label": "Newsletters",
-      "tag": "The_Chatter · P&F · Plotlines",
+      "label": "Newsletter editions",
+      "tag": "The_Chatter \u00b7 P&F \u00b7 Plotlines",
       "stage": 0,
       "row": 0,
       "width": 150
@@ -41,27 +41,18 @@
       "id": "company_notes",
       "type": "database",
       "label": "Company notes",
-      "tag": "## [Concall] bodies",
+      "tag": "concall \u00b7 sources[]",
       "stage": 0,
       "row": 1,
-      "width": 150
+      "width": 140
     },
     {
       "id": "extract",
       "type": "backend",
       "label": "extract_relations",
-      "tag": "prose → edges",
+      "tag": "prose \u2192 edges \u00b7 noise-gated",
       "stage": 1,
       "row": 0,
-      "width": 150
-    },
-    {
-      "id": "insights",
-      "type": "backend",
-      "label": "derive_insights",
-      "tag": "quotes · metrics",
-      "stage": 2,
-      "row": 1,
       "width": 160
     },
     {
@@ -72,6 +63,15 @@
       "stage": 3,
       "row": 0,
       "width": 160
+    },
+    {
+      "id": "insights",
+      "type": "backend",
+      "label": "derive_insights",
+      "tag": "quotes \u00b7 metrics",
+      "stage": 2,
+      "row": 1,
+      "width": 165
     },
     {
       "id": "events_tbl",
@@ -85,7 +85,7 @@
     {
       "id": "quotes_tbl",
       "type": "database",
-      "label": "quotes · metrics",
+      "label": "quotes \u00b7 metrics",
       "tag": "verbatim + magnitudes",
       "stage": 3,
       "row": 2,
@@ -95,7 +95,7 @@
       "id": "reader",
       "type": "frontend",
       "label": "Reader",
-      "tag": "timeline · search",
+      "tag": "timeline \u00b7 search \u00b7 quotes",
       "stage": 4,
       "row": 1,
       "width": 150
@@ -109,67 +109,68 @@
       "label": "edition prose",
       "route": "straight",
       "labelAt": [
-        252,
-        200
-      ]
+        205,
+        124
+      ],
+      "labelSegment": 0
     },
     {
       "id": "f2",
       "from": "company_notes",
       "to": "extract",
-      "label": "note bodies",
-      "labelDy": 53
+      "label": "note bodies"
     },
     {
       "id": "f3",
       "from": "company_notes",
       "to": "insights",
-      "label": "concall sections",
-      "labelDy": 53,
+      "label": "concall + edition text",
+      "route": "straight"
+    },
+    {
+      "id": "f4",
+      "from": "extract",
+      "to": "graph_edges",
+      "label": "verified edges",
+      "variant": "emphasis",
       "route": "straight"
     },
     {
       "id": "f5",
-      "from": "extract",
-      "to": "graph_edges",
-      "label": "verified edges",
-      "variant": "emphasis"
-    },
-    {
-      "id": "f6",
       "from": "insights",
       "to": "quotes_tbl",
-      "label": "quotes + magnitudes"
-    },
-    {
-      "id": "f7",
-      "from": "graph_edges",
-      "to": "events_tbl",
-      "label": "promotion",
-      "route": "straight",
+      "label": "quotes + magnitudes",
       "labelAt": [
-        770,
-        205
+        639,
+        314
       ]
     },
     {
-      "id": "f8",
+      "id": "f6",
+      "from": "graph_edges",
+      "to": "events_tbl",
+      "label": "ARM1 edge promotion",
+      "labelDy": 24
+    },
+    {
+      "id": "f7",
       "from": "graph_edges",
       "to": "reader",
       "label": "graph queries"
     },
     {
-      "id": "f9",
+      "id": "f8",
       "from": "events_tbl",
       "to": "reader",
       "label": "timeline",
+      "labelDx": -30,
       "labelAt": [
-        765,
-        314
+        825,
+        238
       ]
     },
     {
-      "id": "f10",
+      "id": "f9",
       "from": "quotes_tbl",
       "to": "reader",
       "label": "quotes API",
@@ -178,32 +179,30 @@
   ],
   "cards": [
     {
-      "dot": "cyan",
-      "title": "Idempotence (P3 suite)",
+      "dot": "slate",
+      "title": "Evidence origin/main e37eb7db",
       "items": [
-        "extract_relations.py → derive_events.py → derive_insights.py → derive_cited_in.py",
-        "edges dedupe on UNIQUE(source, target, edge_type)",
-        "derive rows are DELETE-then-INSERT on source_ref LIKE 'derive:%'",
-        "cited_in is INSERT OR IGNORE — no-op between ingests"
+        "extract: helpers/graph/extract_relations.py:110 sidecar \u00b7 noise gate :100",
+        "cited_in: derive_cited_in.py:278 \u00b7 events promote: derive_events.py:259",
+        "insights: derive_insights.py (quotes/render) \u00b7 shared CLI: derive_cli.py:37"
       ]
     },
     {
       "dot": "emerald",
-      "title": "Curation safety",
+      "title": "Chain wiring & idempotence",
       "items": [
-        "auto chatter blocks are sentinel-wrapped; hand-written blocks never clobbered",
-        "sidecar _pending_relations.txt catches unknown targets for triage",
-        "maint-full runs derive_insights --no-notes: notes mutate only on explicit --apply",
-        "derive_insights also reads edition text, not just concall sections"
+        "PRE_FULL runs derive-cited-in ahead of graph-rebuild",
+        "edges dedupe on UNIQUE triple \u00b7 derive rows DELETE-then-INSERT \u00b7 cited-in INSERT OR IGNORE",
+        "make derive-all = READ-ONLY preview \u00b7 -rebuild targets re-render the DuckDB cache"
       ]
     },
     {
       "dot": "rose",
-      "title": "Ordering",
+      "title": "Curation safety & feedback",
       "items": [
-        "PRE_FULL runs derive_cited-in ahead of graph-rebuild",
-        "derive_events promotes edges AFTER extract re-runs",
-        "executable spec: tests/test_integration_derive_chain.py"
+        "render The Chatter into notes only via --apply (--no-notes in maint-full)",
+        "auto chatter blocks sentinel-wrapped; hand-written blocks never clobbered",
+        "evaluate/quote feedback: word-overlap \u2192 sidecar queue \u00b7 tiers S1-S4 \u2192 Quotes.md"
       ]
     }
   ]
