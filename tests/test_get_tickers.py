@@ -797,9 +797,10 @@ class TestPerPropertyGuards:
     """get_ticker_fixes S1: one dead module degrades, never kills all."""
 
     def test_single_404_renders_rest(self, monkeypatch, capsys):
+        from email.message import Message
         from urllib.error import HTTPError
 
-        err = HTTPError("http://x", 404, "Not Found", {}, None)
+        err = HTTPError("http://x", 404, "Not Found", Message(), None)
         comp = _stubbed_run(monkeypatch, "STUB.NS", _full_props(balance_sheet=err))
         assert comp is not None
         assert comp["financials"]["balance_sheet"] is None

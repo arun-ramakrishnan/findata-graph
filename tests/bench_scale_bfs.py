@@ -110,9 +110,13 @@ def _run_scale(rows: int, degree: int, keep: bool) -> dict[str, float]:
         _materialise_walk_substrate(con)
         materialize_s = time.perf_counter() - t0
 
-        actual_rows = con.execute("SELECT COUNT(*) FROM e_all_und").fetchone()[0]
+        _nrow = con.execute("SELECT COUNT(*) FROM e_all_und").fetchone()
+        assert _nrow is not None
+        actual_rows = _nrow[0]
 
-        src_id = con.execute("SELECT id FROM v_node WHERE name = 'n0'").fetchone()[0]
+        _srow = con.execute("SELECT id FROM v_node WHERE name = 'n0'").fetchone()
+        assert _srow is not None
+        src_id = _srow[0]
         expand_s = _best_of(
             lambda: con.execute(
                 "SELECT count(*) FROM e_all_und WHERE a_id = ?", [src_id]

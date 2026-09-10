@@ -3011,6 +3011,94 @@ def near_duplicate_notes(
 # normalisation). The public contract is unchanged: companies-only rows,
 # same sort orders, same signatures.
 # --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+# Country layer exposure (C1 / #219 layer; snapshot_trust_country_exposure S3)
+# --------------------------------------------------------------------------- #
+def country_companies(
+    con: duckdb.DuckDBPyConnection,
+    country: str,
+    market_cap: str | None = None,
+) -> list[dict] | None:
+    """Companies listed in one country (the ``listed_in`` edge).
+
+    ``country`` resolves case-insensitively against ``v_country.name``
+    ('india', 'usa', ...). Optional ``market_cap`` narrows to one bucket
+    (``large_cap`` / ``mid_cap`` / ``small_cap`` / ``micro_cap``).
+    Returns ``None`` when the country doesn't exist (404 parity for the
+    API layer), else a list of company dicts ordered by name."""
+    row = con.execute(
+        'SELECT id FROM v_country WHERE lower("name") = lower(?)', [country]
+    ).fetchone()
+    if row is None:
+        return None
+    sql = """SELECT v.id, v."name", v.sector_classification, v.market_cap, v.ticker
+             FROM e_listed_in e
+             JOIN v_company v ON v.id = e.company_id
+             WHERE e.country_id = ?"""
+    params: list = [row[0]]
+    if market_cap:
+        sql += " AND v.market_cap = ?"
+        params.append(market_cap)
+    sql += ' ORDER BY v."name"'
+    return [
+        dict(zip(["id", "company", "sector", "market_cap", "ticker"], r))
+        for r in con.execute(sql, params).fetchall()
+    ]
+
+
+def country_exposure_bundle(con: duckdb.DuckDBPyConnection) -> dict:
+    """Country exposure in two queries (bundle convention: aggregation in
+    SQL, Python gets result sets only).
+
+    - ``countries``: per-country listing totals with the market-cap bucket
+      histogram (the v14 country layer over ``e_listed_in`` x ``v_company``).
+    - ``matrix``: country x sector counts (``sector_classification``)."""
+    summary = con.execute(
+        """
+        SELECT c."name" AS country, COUNT(*) AS companies,
+               SUM(CASE WHEN v.market_cap = 'large_cap' THEN 1 ELSE 0 END) AS large_cap,
+               SUM(CASE WHEN v.market_cap = 'mid_cap' THEN 1 ELSE 0 END) AS mid_cap,
+               SUM(CASE WHEN v.market_cap = 'small_cap' THEN 1 ELSE 0 END) AS small_cap,
+               SUM(CASE WHEN v.market_cap = 'micro_cap' THEN 1 ELSE 0 END) AS micro_cap,
+               SUM(CASE WHEN v.market_cap IS NULL THEN 1 ELSE 0 END) AS unbucketed
+        FROM e_listed_in e
+        JOIN v_country c ON c.id = e.country_id
+        JOIN v_company v ON v.id = e.company_id
+        GROUP BY 1 ORDER BY companies DESC, country
+        """
+    ).fetchall()
+    matrix = con.execute(
+        """
+        SELECT c."name" AS country, v.sector_classification AS sector, COUNT(*) AS n
+        FROM e_listed_in e
+        JOIN v_country c ON c.id = e.country_id
+        JOIN v_company v ON v.id = e.company_id
+        WHERE v.sector_classification IS NOT NULL
+        GROUP BY 1, 2 ORDER BY country, n DESC
+        """
+    ).fetchall()
+    return {
+        "countries": [
+            dict(
+                zip(
+                    [
+                        "country",
+                        "companies",
+                        "large_cap",
+                        "mid_cap",
+                        "small_cap",
+                        "micro_cap",
+                        "unbucketed",
+                    ],
+                    r,
+                )
+            )
+            for r in summary
+        ],
+        "matrix": [dict(zip(["country", "sector", "companies"], r)) for r in matrix],
+    }
+
+
 def _label_to_edge_type(label: str) -> str:
     """Map an edge label (e.g. 'BelongsTo') to its graph_edges.edge_type.
 

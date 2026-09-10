@@ -143,6 +143,43 @@ def print_stats() -> int:  # noqa: C901
     for m in gs["market_cap_distribution"]:
         print(f"  {m['tier']:15} {m['n']}")
 
+    # --- Country census (country layer C1 / #219; exposure S5) ---
+    # DuckDB-side (e_listed_in x v_country x v_company). Degrades
+    # gracefully when the graph cache is absent — the SQLite-side
+    # sections above stay authoritative.
+    print(_hr("Countries by listing count", "-"))
+    try:
+        from helpers.graph.query import DUCKDB_PATH, connect_read_only
+
+        _dcon = connect_read_only(DUCKDB_PATH)
+        try:
+            _rows = _dcon.execute(
+                """
+                SELECT c."name", COUNT(*)
+                FROM e_listed_in e
+                JOIN v_country c ON c.id = e.country_id
+                GROUP BY 1 ORDER BY 2 DESC
+                """
+            ).fetchall()
+            _row = _dcon.execute(
+                """
+                SELECT COUNT(*)
+                FROM e_listed_in e
+                JOIN v_company v ON v.id = e.company_id
+                WHERE v.market_cap IS NULL
+                """
+            ).fetchone()
+            _unbucketed = _row[0] if _row else 0
+        finally:
+            _dcon.close()
+        _total = sum(n for _, n in _rows)
+        for _name, _n in _rows:
+            print(f"  {_name:20} {_n:5}  {_bar(_n, _total)}")
+        if _unbucketed:
+            print(f"  listed without a cap bucket: {_unbucketed}")
+    except Exception as e:  # noqa: BLE001  # census is best-effort by design
+        print(f"  (graph cache unavailable: {e})")
+
     # --- Data hygiene ---
     # These mirror ERROR-level checks in the integrity gate (orphan
     # companies, self-loops, orphan edges); reprinted here for the

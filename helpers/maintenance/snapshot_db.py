@@ -217,6 +217,7 @@ def create_duckdb_snapshot(duckdb_path: Path, out_path: Path, logger: logging.Lo
 
     import duckdb
 
+    checkpointed = True
     try:
         con = duckdb.connect(str(duckdb_path), read_only=True)
         try:
@@ -227,6 +228,7 @@ def create_duckdb_snapshot(duckdb_path: Path, out_path: Path, logger: logging.Lo
         # read-only CHECKPOINT may be rejected on some DuckDB versions;
         # fall back to a plain file copy (the WAL sidecar carries the
         # pending changes if any).
+        checkpointed = False
         logger.warning(f"read-only CHECKPOINT failed ({e}); copying file as-is")
 
     # zstd the main .duckdb file (library-default level; tiny file at
@@ -256,7 +258,12 @@ def create_duckdb_snapshot(duckdb_path: Path, out_path: Path, logger: logging.Lo
                 wal_out.unlink()
             except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
                 pass
-    return {"snapshot": str(out_path), "compressed_bytes": gz, "source_bytes": raw}
+    return {
+        "snapshot": str(out_path),
+        "compressed_bytes": gz,
+        "source_bytes": raw,
+        "checkpointed": checkpointed,
+    }
 
 
 def verify_duckdb_snapshot(  # noqa: C901
@@ -272,7 +279,10 @@ def verify_duckdb_snapshot(  # noqa: C901
     ``e_group``, ``e_supplier``, ``e_customer``, ``e_acquired``,
     ``e_subsidiary``, ``e_comention``). Pre-O2 this checked only ``v_node``
     and ``e_belongs``, giving false confidence that the other 11 tables
-    had round-tripped.
+    had round-tripped. Extended 2026-09-10 (snapshot_trust_country_exposure
+    S1): the list is ``helpers.graph.query.MATERIALISED_TABLES`` verbatim —
+    28 tables — closing the gap where 15 materialised tables (incl. the
+    v14 country layer) rode snapshots unverified.
 
     Structural check (formerly the property-graph check): duckpgq was
     retired (2026-08-14, doc/improvements/archive/graph/duckpgq_retirement.txt)
@@ -304,13 +314,16 @@ def verify_duckdb_snapshot(  # noqa: C901
     # Defer the duckdb + EDGE_REGISTRY imports until the snapshot exists;
     # the SQLite-only verify path never pays this cost.
     import duckdb
-    from helpers.graph.query import EDGE_REGISTRY
+    from helpers.graph.query import EDGE_REGISTRY, MATERIALISED_TABLES
 
-    # Canonical list of materialised tables to verify, in creation order
-    # (vertex tables first, then edge tables in EDGE_REGISTRY order).
-    materialised_tables = ["v_node", "v_company", "v_sector"] + [
-        spec["table"] for spec in EDGE_REGISTRY.values()
-    ]
+    # Canonical list of materialised tables to verify: the manifest
+    # frozenset verbatim, sorted for deterministic output. (Was: a
+    # hardcoded ["v_node", "v_company", "v_sector"] + EDGE_REGISTRY list
+    # that let 15 materialised tables — incl. the v14 country layer —
+    # ride snapshots unverified; snapshot_trust_country_exposure S1,
+    # 2026-09-10. The structural spot-check below stays EDGE_REGISTRY-
+    # scoped: only those tables pin FK columns against v_node.id.)
+    materialised_tables = sorted(MATERIALISED_TABLES)
 
     def _count_tables(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         """Return ``{table_name: row_count}`` for every materialised table
@@ -349,6 +362,7 @@ def verify_duckdb_snapshot(  # noqa: C901
             return False
 
     snap_gen = None
+    snap_dbver = None
     src_gen = None
     with tempfile.NamedTemporaryFile(suffix=".duckdb", delete=False) as tf:
         tmp_path = Path(tf.name)
@@ -369,6 +383,21 @@ def verify_duckdb_snapshot(  # noqa: C901
                 snap_gen = _r[0] if _r else None
             except Exception:
                 snap_gen = None
+            # Bundle O3 (snapshot_trust_country_exposure S2): surface the
+            # writer-version stamp so a pin bump that changed on-disk
+            # semantics between build and verify is observable, not silent.
+            try:
+                _r = con.execute(
+                    "SELECT value FROM _build_meta WHERE key='duckdb_version'"
+                ).fetchone()
+                snap_dbver = _r[0] if _r else None
+            except Exception:
+                snap_dbver = None
+            if snap_dbver is not None and snap_dbver.lstrip("v") != duckdb.__version__:
+                logger.warning(
+                    f"DuckDB version drift: snapshot built on {snap_dbver}, "
+                    f"verifying with {duckdb.__version__} (re-test drill: graph_design.txt 9.3)"
+                )
         finally:
             con.close()
     finally:
@@ -414,6 +443,9 @@ def verify_duckdb_snapshot(  # noqa: C901
         ok = same_tables and same_counts and snap_pg_ok and gen_match
 
         result.update(source_tables=src_counts, match=ok)
+        if snap_dbver is not None:
+            result["duckdb_version"] = snap_dbver
+            result["version_match"] = snap_dbver == duckdb.__version__
         # One-line summary: v_node + total edges + pg flag; per-table diffs
         # appended only when something disagrees (keeps logs scannable).
         snap_edges = sum(c for t, c in snap_counts.items() if t.startswith("e_"))

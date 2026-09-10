@@ -30,6 +30,10 @@ entry number and stale DONE pointers):
 
 _(None.)_
 
+_(Previously: snapshot_trust_country_exposure.md, archived as
+completed.md entry 221 on 2026-09-10 — execution record in
+`../archive/database/snapshot_trust_country_exposure.md`.)_
+
 _(Previously: archify_diagram_refresh.md, archived as completed.md
 entry 220 on 2026-09-10 — execution record in
 `../archive/tooling/archify_diagram_refresh.md`.)_

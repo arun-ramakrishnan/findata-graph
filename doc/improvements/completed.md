@@ -11,42 +11,42 @@
 
 ### P — Schema & constraints
 
-- **P1** — Live graph_edges missing CHECK (json_valid(properties))
-- **P2** — Live entities table is the legacy ALTER-TABLE-add-column shape
-- **P3** — graph_analytics PK column order defeats the hot query
+- **P1** — Live graph_edges missing CHECK (json_valid(properties)) **[DONE]** — *rebuild carries CHECK (json_valid(properties)) on the live table — migrate_to_graph_edges.py/rebuild_schema.*
+- **P2** — Live entities table is the legacy ALTER-TABLE-add-column shape **[DONE]** — *re-migrated single-CREATE shape: name PK, file_path, normalized_name, sector_classification inline; legacy market_cap/index_membership columns gone.*
+- **P3** — graph_analytics PK column order defeats the hot query **[DONE]** — *live PK is (metric, entity_name) — metric-first serves /api/graph/analytics/<metric>; landed via rebuild_schema (the only way to alter PK order on a live table).*
 
 ### Q — Indexing
 
-- **Q1** — No index on entities.file_path — api_entity_detail full SCAN
-- **Q2** — EXPLAIN QUERY PLAN regression test covers only 1 of ~10 hot queries
+- **Q1** — No index on entities.file_path — api_entity_detail full SCAN **[DONE]** — *idx_entities_file_path (+ sector/type/normalized_name indexes) live — migrate_to_graph_edges.py.*
+- **Q2** — EXPLAIN QUERY PLAN regression test covers only 1 of ~10 hot queries **[DONE — Bundle Q2]** — *tests/test_query_plans.py: 10 EXPLAIN QUERY PLAN regression guards over the hot queries.*
 
 ### R — Integrity checks
 
-- **R1** — No entity_tags orphan check in the integrity report
-- **R2** — orphan_companies count not in the integrity report file
+- **R1** — No entity_tags orphan check in the integrity report **[DONE — Bundle R1]** — *check_entity_tags ERROR-level check (orphaned entity_name rows) — helpers/misc/database_integrity_check.py.*
+- **R2** — orphan_companies count not in the integrity report file **[DONE]** — *check_orphan_companies registered ERROR-level in database_integrity_check.py; reprinted in graph-health (stats.py).*
 
 ### S — Upsert patterns
 
-- **S1** — INSERT OR REPLACE → ON CONFLICT DO UPDATE (UPSERT)
+- **S1** — INSERT OR REPLACE → ON CONFLICT DO UPDATE (UPSERT) **[EVALUATED — PARTIAL, BY DESIGN]** — *graph-data writers have zero INSERT OR REPLACE (edges via _edge_writer INSERT OR IGNORE + UNIQUE). The 25 remaining sites are all keyed last-write-wins caches (doc/script/note search meta, corpus_cache, embed_cache, _build_meta, markdown_lint) plus company_embeddings, which carries an explicit stale-row hygiene pass — embeddings.py:293.*
 - **S2** — Generated column for properties.year on the SQLite side **[EVALUATED — NOT ADOPTED]**
 - **S3** — Partial index for entity_type='company' **[EVALUATED — NOT ADOPTED]**
 - **S4** — FTS5 for entity typeahead/search **[EVALUATED — NOT ADOPTED]**
 
 ### T — Timestamps
 
-- **T1** — Mixed UTC/local timestamps make the staleness flag unreliable
+- **T1** — Mixed UTC/local timestamps make the staleness flag unreliable **[DONE — 2026-09-10]** — *1,346/1,346 generated.at stamps Z-format after the OKF freshness sweep; stale_after census reads uniformly (check_okf_conformance).*
 
 ### U — Concurrency
 
-- **U1** — No PRAGMA busy_timeout — concurrent writers get immediate SQLITE_BUSY
-- **U2** — Most writers use manual commit(), not `with conn:`
-- **U3** — apply_edges dry-run does N+1 SELECTs
+- **U1** — No PRAGMA busy_timeout — concurrent writers get immediate SQLITE_BUSY **[DONE]** — *PRAGMA busy_timeout = 5000 in connect() — helpers/core/db.py.*
+- **U2** — Most writers use manual commit(), not `with conn:` **[DONE]** — *connect() is a context manager (auto commit/rollback) and the standard writer path — helpers/core/db.py.*
+- **U3** — apply_edges dry-run does N+1 SELECTs **[DONE — Bundle U3]** — *_edge_writer dry-run bulk-fetches existing (source, target) pairs once instead of per-edge SELECT — helpers/graph/_edge_writer.py.*
 
 ### V — API query consolidation
 
 - **V1** — api_graph_stats fires 9 serial queries per request **[DONE — C6]** — *single graph-health CTE (with mc_conflict + orphan counters), one round-trip — app.py api_graph_stats.*
-- **V2** — /api/graph/metrics json.loads per row
-- **V3** — derive_co_mentions does per-file SELECT for entity name
+- **V2** — /api/graph/metrics json.loads per row **[DONE]** — *metric values parsed in SQL (CAST + ORDER BY in-query; was per-row json.loads in Python) — app.py api_graph_metrics.*
+- **V3** — derive_co_mentions does per-file SELECT for entity name **[DONE]** — *co_mentions resolves names via a prebuilt map; the per-file _resolve_entity_name SELECT left the hot path — helpers/graph/derive_co_mentions.py.*
 
 ### X — Fuzzy name matching
 
@@ -76,15 +76,15 @@
 
 - **O1** — duckpgq version-unlock regression test **[DONE]** — *test_onager_loads_in_extension_build INSTALLs+LOADs onager from community on the live duckdb — tests/test_onager_capabilities.py.*
 - **O2** — Snapshot verify checks only v_node + e_belongs **[DONE — 2026-07-27]** — *verify_duckdb_snapshot (Bundle O2) covers all three vertex tables and every EDGE_REGISTRY edge table — helpers/maintenance/snapshot_db.py.*
-- **O3** — read-only CHECKPOINT version assumption
+- **O3** — read-only CHECKPOINT version assumption **[OPEN — DOCUMENTED]** — *read-only opens pin the writer's DuckDB version; create_duckdb_snapshot falls back to verbatim main+WAL copy on failure. No regression test; pin-bump re-test drill in doc/design/graph_design.txt §9.3 (Bundle O3).*
 
 ## Graph Algorithm Improvements
 
 ### G — Algorithm coverage gaps
 
-- **G1** — Closeness & eigenvector centrality not implemented
-- **G2** — Louvain returns partition only, no modularity score
-- **G3** — No standalone cycle detection
+- **G1** — Closeness & eigenvector centrality not implemented **[DONE — Bundle G1]** — *closeness + eigenvector centrality in _SCALAR_GRAPH_METRICS on Onager backends.*
+- **G2** — Louvain returns partition only, no modularity score **[DONE — 2026-09-10]** — *louvain returns (labels, modularity), modularity computed in-process — helpers/graph/onager.py.*
+- **G3** — No standalone cycle detection **[DONE]** — *find_cycles (helpers/graph/query.py) on stored-direction e_dir (duckpgq retirement §B).*
 
 ### I — Engine extension opportunities
 
@@ -93,15 +93,15 @@
 
 ### J — Temporal & API surface
 
-- **J2** — clustering_coefficient computed but NOT persisted
-- **J3** — No /api endpoint serves centrality/community scores
+- **J2** — clustering_coefficient computed but NOT persisted **[DONE]** — *local_clustering_coefficient persisted in graph_analytics (14-metric set) + avg_clustering in graph-health output.*
+- **J3** — No /api endpoint serves centrality/community scores **[DONE]** — */api/graph/metrics/<metric> serves the centrality/community scores — app.py.*
 
 ## Findata Corpus Audit
 
 ### CRITICAL — data-loss bugs
 
 - **C1** — Three YAML tag namespaces silently dropped by sync_tags.py — Fixed 2026-07-30: ALLOWED_CATEGORIES widened; 6,642 entity_tags rows populated
-- **C2** — market_cap column disagrees with market_cap/* tag for 126 companies
+- **C2** — market_cap column disagrees with market_cap/* tag for 126 companies **[DONE — RE-MEASURED 2026-09-10]** — *both surfaces now categorical: v_company.market_cap vs note `market_cap/*` tags. 1,119/1,119 single-tagged companies agree, 0 conflicts, 0 multi-tag notes; 46 v_company rows have no note tag (untagged companies).*
 
 ### HIGH — coverage gaps
 
@@ -112,21 +112,21 @@
 ### MEDIUM — structured-vs-prose gaps
 
 - **M1** — Financials are entirely prose (~199 notes with ## Financial Profile) **[DONE — REMOVED]**
-- **M4** — No sector parent/child hierarchy (0 sector-to-sector edges)
+- **M4** — No sector parent/child hierarchy (0 sector-to-sector edges) **[DONE]** — *build_sector_hierarchy.py; v_sub_sector/v_super_sector tables tracked in the snapshot manifest.*
 
 ### LOW — data hygiene
 
-- **L1-findata** — Ticker format inconsistency (203/1021 ≈ 20%)
-- **L2-findata** — index_membership is 99.4% empty (6/1031 populated)
-- **L4-findata** — 68 distinct subsector/* tags each appear exactly once
+- **L1-findata** — Ticker format inconsistency (203/1021 ≈ 20%) **[DONE — 2026-09-10]** — *geography arc converged tickers onto countries; live: 930/1,165 companies carry tickers, 0 malformed under a loose format check.*
+- **L2-findata** — index_membership is 99.4% empty (6/1031 populated) **[OBSOLETE]** — *dropped deliberately by Bundle C2/L2 (2026-07-28): market_cap moved to v_company, index_membership 99.4% empty and not re-platformed — rebuild_schema.py, migrate_to_graph_edges.py.*
+- **L4-findata** — 68 distinct subsector/* tags each appear exactly once **[EVALUATED — SUPERSEDED]** — *57/57 singletons today (down from 68); no code reader — the sector hierarchy is built from `n*` sector-note tags + the curated mapping (build_sector_hierarchy.py). Tag cleanup optional, writer-owned vault.*
 
 ## Hierarchy Design Roadmap
 
 ### EXPANSION — new data sources
 
-- **D3** — Markdown schema normalization + frontmatter validator
-- **D4** — Theme nodes — the cross-sector dimension analysts actually reason in
-- **D7** — Event nodes — timestamped happenings, the temporal backbone
+- **D3** — Markdown schema normalization + frontmatter validator **[DONE]** — *helpers/validators/frontmatter_schema.py + the OKF schema JSONs enforce the note frontmatter contract.*
+- **D4** — Theme nodes — the cross-sector dimension analysts actually reason in **[DONE]** — *v_theme materialized from v_node kind='theme' — helpers/graph/query.py.*
+- **D7** — Event nodes — timestamped happenings, the temporal backbone **[DONE]** — */api/events/<name> date-ordered entity timeline ("the temporal spine") — app.py.*
 
 ### STORAGE / ENGINE HYGIENE
 
@@ -5127,3 +5127,33 @@ architecture pair with `--repo-root`), quote_capture deliver rc=0
 1920×1080 / 2048×1320 light+dark, perceptual judge 4/4. Arc gates
 (`make qa` / `make advisory` / `make search-fresh APPLY=1`) run by
 the operator at arc end.
+## 221. Snapshot trust + country exposure — verify union, version drill, exposure views
+
+- `snapshot_trust_country_exposure.md` (archived under
+  `archive/database/`): three parts landed together, all found or built
+  during the 2026-09-10 ledger-resolution session.
+  **A (S1):** `verify_duckdb_snapshot` now derives its table list from
+  `helpers.graph.query.MATERIALISED_TABLES` verbatim (28 tables, sorted)
+  — was a hardcoded 13-table list that let 15 materialised tables
+  (incl. the v14 country layer `v_country`/`e_listed_in`) ride snapshots
+  unverified. Structural spot-check stays EDGE_REGISTRY-scoped.
+  **B (S2, Bundle O3 closed):** `tests/test_snapshot_version_drill.py`
+  in the DEFAULT suite (the existing cycle test is integration-marked,
+  opt-in): happy-path round-trip drill, forced-fallback drill
+  (reader-CHECKPOINT failure -> verbatim copy, `checkpointed: False` in
+  the result), and the restore-side version guard — verify warns on
+  `_build_meta.duckdb_version` drift (v-prefix normalized) and reports
+  `version_match`. The §9.3 pin-bump drill is now executable, not
+  documentary.
+  **C (S3–S5):** country exposure over the #219 layer —
+  `country_companies` (case-insensitive resolve, `?market_cap=`) +
+  `country_exposure_bundle` (per-country totals + cap histogram +
+  country x sector matrix; 2 SQL round trips); `GET /api/graph/country/<name>`
+  and `GET /api/graph/exposure` (`?country= ?sector=` filters) with 404
+  parity; graph-health country census (degrades gracefully when the
+  cache is absent). Measured live: india 850 / usa 41 / uk 7, cap mix
+  320 large / 255 mid / 242 small / 94 micro / 19 unbucketed (report-only).
+- Snapshot re-exported at execution (generation 67502) — the pre-existing
+  snapshot_check staleness traced to the same-day benchmark rebuild.
+- Gates: `make qa` 9/9 (2717 passed), `make perf` 22/22,
+  `make search-fresh APPLY=1`.

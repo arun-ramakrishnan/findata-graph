@@ -42,7 +42,8 @@ def _graph_rows() -> int | None:
         return None
     con = duckdb.connect(str(db), read_only=True)
     try:
-        return con.execute("SELECT COUNT(*) FROM e_all_und").fetchone()[0]
+        _row = con.execute("SELECT COUNT(*) FROM e_all_und").fetchone()
+        return _row[0] if _row else 0
     except duckdb.Error:
         return None  # pre-substrate build / migrated shape — advisory only
     finally:

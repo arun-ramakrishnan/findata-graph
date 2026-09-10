@@ -240,6 +240,8 @@ persistence), perf: `graph_link_prediction` benchmark.
 | `GET /api/graph/neighbors/<name>` | ego bundle (sector+peers+jv+siblings+acq+parent+suppliers+customers), `?as_of=` |
 | `GET /api/graph/shortest?a=&b=` | `query.shortest_path` (+`as_of`) |
 | `GET /api/graph/sector/<name>` | `sector_of` / `sector_members` |
+| `GET /api/graph/country/<name>` | `country_companies` (#219 layer; `?market_cap=`) |
+| `GET /api/graph/exposure` | `country_exposure_bundle` (per-country totals + country x sector matrix; `?country= ?sector=`) |
 | `GET /api/graph/stats` | SQLite aggregates + Onager `structure` block (null-safe; Onager block cached per generation, #106) |
 | `GET /api/graph/metrics/<metric>` | `graph_analytics` reader |
 | `GET /api/graph/co-mentions` `bridges` `edges-by-year` | batch reports |

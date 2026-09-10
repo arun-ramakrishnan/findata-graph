@@ -30,6 +30,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`duckdb_improvs.txt`](database/duckdb_improvs.txt) — DuckDB Improvements — core features, SQL, & extension surface — completed.md #72
 - [`sql_query_improvements.txt`](database/sql_query_improvements.txt) — SQL QUERY IMPROVEMENTS — FinData Knowledge Graph — completed.md #73
 - [`local_embeddings.md`](database/local_embeddings.md) — In-House Semantic Embeddings via a Local bge-small-en Model — completed.md #141
+- [`snapshot_trust_country_exposure.md`](database/snapshot_trust_country_exposure.md) — Snapshot trust + country exposure — verify union, version drill, exposure views — completed.md #221
 - [`company_embeddings_maint.md`](database/company_embeddings_maint.md) — Proposal: Cached Company-Embeddings Refresh in maint-full — completed.md #142
 - [`sql_capability_unlocks.md`](database/sql_capability_unlocks.md) — Proposal: SQL Capability Unlocks — note vectors in DuckDB (`v_note_embeddings` + 4 wrappers + 2 endpoints), BFS shortest-path fix, bind-param hardening — completed.md #143
 - [`maint_full_zero_churn.md`](database/maint_full_zero_churn.md) — Proposal: Zero-Churn maint-full — stable event/embedding writes, seeded+canonical louvain, `ORDER BY ALL` parquet exports, guarded B4 bumps — completed.md #147

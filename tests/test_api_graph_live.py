@@ -312,3 +312,43 @@ class TestGraphEndpointsLive:
         r = live_client.get("/api/graph/semantic/NoSuchCompany")
         assert r.status_code == 404
         assert r.is_json
+
+
+@pytest.mark.live
+class TestCountryEndpointsLive:
+    """snapshot_trust_country_exposure S4: /api/graph/country + /exposure
+    over the #219 country layer (v14: v_country 21, e_listed_in 930)."""
+
+    def test_country_india_lists_companies(self, live_client):
+        r = live_client.get("/api/graph/country/india")
+        assert r.status_code == 200
+        data = r.get_json()
+        assert data["count"] > 500  # 850 measured 2026-09-10
+        assert any(c["ticker"] for c in data["companies"])
+
+    def test_country_case_insensitive(self, live_client):
+        assert live_client.get("/api/graph/country/INDIA").status_code == 200
+
+    def test_country_unknown_404(self, live_client):
+        r = live_client.get("/api/graph/country/atlantis")
+        assert r.status_code == 404
+
+    def test_country_market_cap_filter(self, live_client):
+        r = live_client.get("/api/graph/country/india?market_cap=large_cap")
+        assert r.status_code == 200
+        assert all(c["market_cap"] == "large_cap" for c in r.get_json()["companies"])
+
+    def test_exposure_matrix(self, live_client):
+        r = live_client.get("/api/graph/exposure")
+        assert r.status_code == 200
+        data = r.get_json()
+        india = next(c for c in data["countries"] if c["country"] == "india")
+        assert india["companies"] > 500
+        # india's ~850 listings spread over ~25 sectors; the largest
+        # slice measured 70 (Automotive) on 2026-09-10.
+        assert any(m["country"] == "india" and m["companies"] >= 50 for m in data["matrix"])
+
+    def test_exposure_filters(self, live_client):
+        r = live_client.get("/api/graph/exposure?country=usa")
+        data = r.get_json()
+        assert data["countries"] and all(c["country"] == "usa" for c in data["countries"])

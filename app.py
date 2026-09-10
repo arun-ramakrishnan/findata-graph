@@ -1871,6 +1871,42 @@ def api_graph_shortest():
     )
 
 
+@app.route("/api/graph/country/<path:name>")
+def api_graph_country(name: str):
+    """Companies listed in one country (snapshot_trust_country_exposure S4,
+    over the #219 country layer).
+
+    Resolves the country case-insensitively against ``v_country.name``
+    ('india', 'usa', ...). Optional ``?market_cap=`` narrows to one bucket."""
+    from helpers.graph.query import country_companies
+
+    con = get_graph_connection()
+    market_cap = request.args.get("market_cap", "").strip() or None
+    rows = country_companies(con, name, market_cap=market_cap)
+    if rows is None:
+        return jsonify({"error": f"unknown country: {name}"}), 404
+    return jsonify({"country": name, "count": len(rows), "companies": rows})
+
+
+@app.route("/api/graph/exposure")
+def api_graph_exposure():
+    """Country exposure views (S4): per-country listing totals with the
+    market-cap histogram, plus the country x sector matrix. Optional
+    ``?country=`` / ``?sector=`` narrow the returned slices."""
+    from helpers.graph.query import country_exposure_bundle
+
+    con = get_graph_connection()
+    bundle = country_exposure_bundle(con)
+    country = request.args.get("country", "").strip().lower()
+    sector = request.args.get("sector", "").strip().lower()
+    if country:
+        bundle["countries"] = [r for r in bundle["countries"] if r["country"].lower() == country]
+        bundle["matrix"] = [r for r in bundle["matrix"] if r["country"].lower() == country]
+    if sector:
+        bundle["matrix"] = [r for r in bundle["matrix"] if r["sector"].lower() == sector]
+    return jsonify(bundle)
+
+
 @app.route("/api/graph/semantic/<path:name>")
 def api_graph_semantic(name: str):
     """Semantic neighbours for `name` via vector embeddings (VSS).
