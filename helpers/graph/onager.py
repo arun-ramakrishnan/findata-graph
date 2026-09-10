@@ -38,7 +38,10 @@ Storage summary
 
 from __future__ import annotations
 
+import contextlib
+import hashlib
 import re
+import threading
 from typing import Any
 
 import duckdb
@@ -170,6 +173,132 @@ def _materialize_edges(con: duckdb.DuckDBPyConnection, edges: list[tuple[int, in
         con.execute(sql, flat)
 
 
+# --------------------------------------------------------------------------- #
+# Single-invocation batching (graph_db_optimization Phase 3)
+# --------------------------------------------------------------------------- #
+# Per-thread flag set only while a with_onager_connection() block is active.
+# Outside a block every call materialises exactly as before; inside one,
+# successive computes that resolve to the SAME projection skip the rebuild.
+_BATCH_CTX = threading.local()
+
+
+def _batch_sig(
+    edge_types: list[str] | None, edges: list[tuple[int, int, float]] | None
+) -> str | None:
+    """Signature of a materialisation, or ``None`` when batching is inactive.
+
+    DB path: graph generation (bumped on rebuild/refresh) + sorted edge
+    types, so a generation change inside a long-lived block re-materialises.
+    Synthetic path: order-sensitive content hash (louvain is edge-order
+    sensitive, so two orderings of the same content must NOT share a skip).
+    """
+    if not getattr(_BATCH_CTX, "active", False):
+        return None
+    if edges is not None:
+        payload = repr([tuple(e) for e in edges])
+        # usedforsecurity=False: content fingerprint for a skip-signature,
+        # not security (same idiom as vss_index._decoded_vss_table).
+        return "edges:" + hashlib.sha1(payload.encode(), usedforsecurity=False).hexdigest()
+    from helpers.graph.query import _current_generation_for_cache
+
+    try:
+        gen = _current_generation_for_cache()
+    except Exception:  # noqa: S110  # best-effort; absence just widens the key
+        gen = None
+    payload = repr((str(gen), sorted(edge_types or [])))
+    # usedforsecurity=False: cache-key fingerprint, not security.
+    return "db:" + hashlib.sha1(payload.encode(), usedforsecurity=False).hexdigest()
+
+
+def _sig_state(con: duckdb.DuckDBPyConnection, sig: str) -> bool | None:
+    """True/False from the connection-local signature table, None if absent."""
+    try:
+        row = con.execute("SELECT sig, nonempty FROM _onager_sig").fetchone()
+    except duckdb.Error:
+        return None
+    if row is None or row[0] != sig:
+        return None
+    return bool(row[1])
+
+
+def _ensure_materialized(
+    con: duckdb.DuckDBPyConnection,
+    edge_types: list[str] | None = None,
+    edges: list[tuple[int, int, float]] | None = None,
+) -> bool:
+    """Materialise ``_onager_e`` (+ ``_onager_int`` on the DB path), or skip.
+
+    Behaviour is identical to calling :func:`_materialize_from_db` /
+    :func:`_materialize_edges` directly UNLESS a ``with_onager_connection``
+    block is active on this thread and the requested projection already has
+    fresh temp tables — then the rebuild is skipped and the recorded
+    non-empty flag returned. The signature lives in the connection's TEMP
+    schema (hex literal; no parameter binding, so the pandas-importing
+    binding path is never touched) and is dropped when the block exits.
+    """
+    sig = _batch_sig(edge_types, edges)
+    if sig is not None:
+        state = _sig_state(con, sig)
+        if state is not None:
+            return state
+    if edges is None:
+        ok = _materialize_from_db(con, edge_types)
+    else:
+        _materialize_edges(con, edges)
+        ok = True
+    if sig is not None:
+        con.execute(
+            "CREATE OR REPLACE TEMP TABLE _onager_sig AS "
+            f"SELECT '{sig}' AS sig, {int(bool(ok))} AS nonempty"
+        )
+    return ok
+
+
+@contextlib.contextmanager
+def with_onager_connection(con: duckdb.DuckDBPyConnection | None = None):
+    """Share one connection and one materialisation across a batch of
+    Onager computes (graph_db_optimization Phase 3).
+
+    Use as::
+
+        with with_onager_connection(duck_con):
+            a = closeness_centrality(duck_con)
+            b = eigenvector_centrality(duck_con)
+
+    Inside the block, successive ``onager_*`` calls whose projection matches
+    the already-materialised one skip the ~34 ms rebuild (the signature —
+    graph generation + edge types, or synthetic edge content — is kept in
+    the connection's TEMP schema). Outside the block nothing changes: every
+    call materialises afresh, exactly as before.
+
+    Contract (proposal wording): scoped to a SINGLE CLI/API invocation and
+    never spanning the ``query.connect()`` seam — ``con`` is the caller's
+    connection (honoured, never cached, never closed here); when ``con`` is
+    omitted a fresh in-memory connection is opened for the block and closed
+    on exit. No module-level state outlives the block: the flag is
+    thread-local and reset, and the signature table is dropped on exit.
+    Mutating ``fin.graph_edges`` inside the block without a generation bump
+    voids the skip guarantee.
+    """
+    owns = False
+    if con is None:
+        con, owns = _prepare(None)
+    else:
+        _prepare(con)
+    prev = getattr(_BATCH_CTX, "active", False)
+    _BATCH_CTX.active = True
+    try:
+        yield con
+    finally:
+        _BATCH_CTX.active = prev
+        try:
+            con.execute("DROP TABLE IF EXISTS _onager_sig")
+        except duckdb.Error:  # noqa: S110  # best-effort cleanup
+            pass
+        if owns:
+            con.close()
+
+
 def _onager_named(
     con: duckdb.DuckDBPyConnection,
     fn: str,
@@ -225,11 +354,11 @@ def onager_eigenvector(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
             res = _onager_named(con, "onager_ctr_eigenvector", "eigenvector")
         else:
-            _materialize_edges(con, edges)
+            _ensure_materialized(con, edges=edges)
             res = _onager_int(con, "onager_ctr_eigenvector", "eigenvector")
     finally:
         if owns:
@@ -251,11 +380,11 @@ def onager_closeness(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
             res = _onager_named(con, "onager_ctr_closeness", "closeness")
         else:
-            _materialize_edges(con, edges)
+            _ensure_materialized(con, edges=edges)
             res = _onager_int(con, "onager_ctr_closeness", "closeness")
     finally:
         if owns:
@@ -272,11 +401,11 @@ def onager_betweenness(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
             res = _onager_named(con, "onager_ctr_betweenness", "betweenness")
         else:
-            _materialize_edges(con, edges)
+            _ensure_materialized(con, edges=edges)
             res = _onager_int(con, "onager_ctr_betweenness", "betweenness")
     finally:
         if owns:
@@ -301,11 +430,11 @@ def onager_degree(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
             res = _onager_named(con, "onager_ctr_degree", "in_degree")
         else:
-            _materialize_edges(con, edges)
+            _ensure_materialized(con, edges=edges)
             res = _onager_int(con, "onager_ctr_degree", "in_degree")
     finally:
         if owns:
@@ -331,11 +460,11 @@ def onager_pagerank(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
             res = _onager_named(con, "onager_ctr_pagerank", "rank")
         else:
-            _materialize_edges(con, edges)
+            _ensure_materialized(con, edges=edges)
             res = _onager_int(con, "onager_ctr_pagerank", "rank")
     finally:
         if owns:
@@ -358,11 +487,11 @@ def onager_components(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
             res = _onager_named(con, "onager_par_components", "component")
         else:
-            _materialize_edges(con, edges)
+            _ensure_materialized(con, edges=edges)
             res = _onager_int(con, "onager_par_components", "component")
     finally:
         if owns:
@@ -384,11 +513,11 @@ def onager_clustering(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
             res = _onager_named(con, "onager_par_clustering", "coefficient")
         else:
-            _materialize_edges(con, edges)
+            _ensure_materialized(con, edges=edges)
             res = _onager_int(con, "onager_par_clustering", "coefficient")
     finally:
         if owns:
@@ -433,7 +562,7 @@ def onager_louvain(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}, 0.0
             rows = con.execute(
                 """
@@ -450,7 +579,7 @@ def onager_louvain(
                 for r in con.execute("SELECT src, dst, weight FROM _onager_e").fetchall()
             ]
         else:
-            _materialize_edges(con, edges)
+            _ensure_materialized(con, edges=edges)
             rows = con.execute(
                 "SELECT node_id, community FROM onager_cmm_louvain("
                 "(SELECT src, dst, weight FROM _onager_e), seed => 42)"
@@ -525,12 +654,12 @@ def onager_link_prediction(
     try:
         if edges is None:
             types = DEFAULT_PREDICTION_EDGE_TYPES if edge_types is None else edge_types
-            if not _materialize_from_db(con, types):
+            if not _ensure_materialized(con, types):
                 return []
             endpoints = "i1.name, i2.name"
             name_joins = "JOIN _onager_int i1 ON i1.nid = p.lo JOIN _onager_int i2 ON i2.nid = p.hi"
         else:
-            _materialize_edges(con, edges)
+            _ensure_materialized(con, edges=edges)
             endpoints = "p.lo, p.hi"
             name_joins = ""
         # Canonicalise pair direction in SQL: onager emits each unordered
@@ -567,18 +696,39 @@ def onager_link_prediction(
 # --------------------------------------------------------------------------- #
 # Whole-graph structural metrics (Phase 2, doc/improvements/archive/graph/graph_algos.txt)
 # --------------------------------------------------------------------------- #
-_GRAPH_METRIC_SQL = """
+# Cheap structural metrics (sub-second combined): density, transitivity,
+# avg_clustering, assortativity, triangles. Always computed.
+_GRAPH_METRIC_LOCAL_SQL = """
     WITH ee AS (SELECT src, dst, weight FROM _onager_e)
     SELECT
       (SELECT density           FROM onager_mtr_density((SELECT * FROM ee))),
-      (SELECT diameter          FROM onager_mtr_diameter((SELECT * FROM ee))),
-      (SELECT radius            FROM onager_mtr_radius((SELECT * FROM ee))),
-      (SELECT avg_path_length   FROM onager_mtr_avg_path_length((SELECT * FROM ee))),
       (SELECT transitivity      FROM onager_mtr_transitivity((SELECT * FROM ee))),
       (SELECT avg_clustering    FROM onager_mtr_avg_clustering((SELECT * FROM ee))),
       (SELECT assortativity     FROM onager_mtr_assortativity((SELECT * FROM ee))),
       (SELECT coalesce(sum(triangles), 0)
                              FROM onager_mtr_triangles((SELECT * FROM ee)))
+"""
+
+# All-pairs hop metrics: each is an internal all-pairs BFS, ~1 s apiece on
+# the production graph (~95% of the whole metrics cost). Only run when the
+# projection is CONNECTED — on a disconnected graph the extension returns
+# NULL for all three, so a ~10 ms component check skips ~3 s of work.
+# (Approach-A consolidation is NOT available upstream: no multi-metric
+# extension function exists, floyd_warshall is O(n^3) — 24 s measured on
+# 1.6k nodes — and multi-source par_bfs aborts. Recorded in the
+# graph_db_optimization proposal, Issue 5.)
+_GRAPH_METRIC_PATH_SQL = """
+    WITH ee AS (SELECT src, dst, weight FROM _onager_e)
+    SELECT
+      (SELECT diameter          FROM onager_mtr_diameter((SELECT * FROM ee))),
+      (SELECT radius            FROM onager_mtr_radius((SELECT * FROM ee))),
+      (SELECT avg_path_length   FROM onager_mtr_avg_path_length((SELECT * FROM ee)))
+"""
+
+# Undirected component count over the same projection: 1 == connected.
+_GRAPH_CONNECTED_SQL = """
+    SELECT count(DISTINCT component) FROM onager_cmm_components(
+        (SELECT src, dst, weight FROM _onager_e))
 """
 
 
@@ -611,19 +761,34 @@ def onager_graph_metrics(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
         else:
             if not edges:
                 return {}
-            _materialize_edges(con, edges)
-        row = con.execute(_GRAPH_METRIC_SQL).fetchone()
+            _ensure_materialized(con, edges=edges)
+        row = con.execute(_GRAPH_METRIC_LOCAL_SQL).fetchone()
+        if row is None:
+            return {}
+        density, transitivity, aclustering, assort, tri_sum = row
+        conn_row = con.execute(_GRAPH_CONNECTED_SQL).fetchone()
+        connected = conn_row is not None and conn_row[0] == 1
+        if connected:
+            # Single statement, three packed scalar subqueries: DuckDB
+            # executes independent subqueries concurrently (threads=4
+            # here), so the trio costs ~max(one metric), not the sum.
+            # A thread-pool alternative measured SLOWER (1.51 s vs 0.95 s
+            # — per-connection setup dominates); see the proposal.
+            path_row = con.execute(_GRAPH_METRIC_PATH_SQL).fetchone()
+            diameter, radius, apl = path_row if path_row is not None else (None, None, None)
+        else:
+            # Disconnected projection: the extension returns NULL for all
+            # three anyway — skip the ~3 s of all-pairs BFS (metrics gate
+            # contract: None on disconnected, values on connected).
+            diameter = radius = apl = None
     finally:
         if owns:
             con.close()
-    if row is None:
-        return {}
-    density, diameter, radius, apl, transitivity, aclustering, assort, tri_sum = row
     return {
         "density": float(density) if density is not None else None,
         "diameter": int(diameter) if diameter is not None else None,
@@ -691,10 +856,10 @@ def onager_harmonic(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
             return _onager_named(con, "onager_ctr_harmonic", "harmonic")
-        _materialize_edges(con, edges)
+        _ensure_materialized(con, edges=edges)
         return _onager_int(con, "onager_ctr_harmonic", "harmonic")
     finally:
         if owns:
@@ -721,7 +886,7 @@ def onager_katz(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
             return _onager_named(
                 con,
@@ -730,7 +895,7 @@ def onager_katz(
                 extra=", alpha => $1, beta => $2",
                 params=[alpha, beta],
             )
-        _materialize_edges(con, edges)
+        _ensure_materialized(con, edges=edges)
         return _onager_int(
             con,
             "onager_ctr_katz",
@@ -756,10 +921,10 @@ def onager_laplacian(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
             return _onager_named(con, "onager_ctr_laplacian", "centrality")
-        _materialize_edges(con, edges)
+        _ensure_materialized(con, edges=edges)
         return _onager_int(con, "onager_ctr_laplacian", "centrality")
     finally:
         if owns:
@@ -781,10 +946,10 @@ def onager_local_reaching(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return {}
             return _onager_named(con, "onager_ctr_local_reaching", "centrality")
-        _materialize_edges(con, edges)
+        _ensure_materialized(con, edges=edges)
         return _onager_int(con, "onager_ctr_local_reaching", "centrality")
     finally:
         if owns:
@@ -808,7 +973,7 @@ def onager_voterank(
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _materialize_from_db(con, edge_types):
+            if not _ensure_materialized(con, edge_types):
                 return []
             rows = con.execute(
                 f"""
@@ -820,7 +985,7 @@ def onager_voterank(
                 params,
             ).fetchall()
             return [r[0] for r in rows]
-        _materialize_edges(con, edges)
+        _ensure_materialized(con, edges=edges)
         rows = con.execute(
             f"SELECT node_id FROM onager_ctr_voterank((SELECT src, dst, weight FROM _onager_e){extra})",  # noqa: S608
             params,

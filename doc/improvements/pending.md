@@ -68,6 +68,15 @@ revisit triggers inline; executed work is compressed to records.
   `archive/graph/vault_scaling.md` (#204); re-evaluate when its T1 fires
   (~1M doubled rows; currently 34K) or measured rebuild > 5 s.
 
+  - **graph_db optimization — ALL ISSUES EXECUTED 2026-09-10**
+    (`archive/graph/graph_db_optimization.md`, completed.md #222):
+    closeness_centrality result cache (repeat calls 1.62s→0.001s),
+    graph_metrics connectivity short-circuit (disconnected 1.2s→0.21s),
+    with_onager_connection batch context (14→7 materialisations per
+    --all run), Issue 4 `_splice_sources` (source_note_index now warms
+    _TITLE_MEMO — ~1,400 per-run source re-reads eliminated; derive_insights
+    CLI 3.33s→2.75s measured).
+
 ## Executed — records only (kept for audit; details in completed.md / archive)
 
 - **Technology avenues** — EXECUTED & ARCHIVED 2026-08-17→18

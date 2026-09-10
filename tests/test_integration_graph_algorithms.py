@@ -926,3 +926,89 @@ class TestFormatValue:
 
     def test_string(self):
         assert _format_value("hello") == "hello"
+
+
+# --------------------------------------------------------------------------- #
+# graph_db_optimization: Phase 2 revisit (parallel all-pairs trio) and
+# Phase 3 (with_onager_connection single-invocation batching)
+# --------------------------------------------------------------------------- #
+class TestGraphDbOptimization:
+    """Phase 3 of the graph_db_optimization proposal (2026-09-10).
+
+    The Phase 2 thread-parallel trio was implemented, measured as a
+    REGRESSION against DuckDB's internal subquery parallelism (1.51 s vs
+    0.95 s — per-connection setup dominates), and reverted; the shipped
+    path is the single-statement packed-subquery SQL gated by the
+    connectivity short-circuit.
+    """
+
+    def test_with_onager_connection_batches_materialization(self, synth_db, monkeypatch):
+        """Inside a with_onager_connection block, successive computes with
+        the same projection share ONE materialisation; a different
+        projection re-materialises; after the block, calls materialise
+        afresh (no state outlives the invocation)."""
+        import helpers.graph.onager as ong
+
+        calls = {"n": 0}
+        real = ong._materialize_from_db
+
+        def counting(con, edge_types):
+            calls["n"] += 1
+            return real(con, edge_types)
+
+        monkeypatch.setattr(ong, "_materialize_from_db", counting)
+        con = algos.duckdb_connect(read_only=True)
+        try:
+            with ong.with_onager_connection(con):
+                ong.onager_degree(con)
+                ong.onager_degree(con)
+                ong.onager_closeness(con)
+            assert calls["n"] == 1  # 3 same-projection computes, 1 rebuild
+
+            calls["n"] = 0
+            with ong.with_onager_connection(con):
+                ong.onager_degree(con)
+                ong.onager_degree(con, edge_types=["competes_with"])
+                ong.onager_degree(con, edge_types=["competes_with"])
+            assert calls["n"] == 2  # projection change re-materialises
+
+            calls["n"] = 0
+            ong.onager_degree(con)
+            assert calls["n"] == 1  # outside a block: fresh as before
+        finally:
+            con.close()
+
+    def test_with_onager_connection_results_identical(self, synth_db):
+        """Batched and unbatched computes agree."""
+        import helpers.graph.onager as ong
+
+        con = algos.duckdb_connect(read_only=True)
+        try:
+            plain = ong.onager_degree(con)
+            with ong.with_onager_connection(con):
+                batched = ong.onager_degree(con)
+            assert batched == plain
+        finally:
+            con.close()
+
+    def test_with_onager_connection_no_sig_leak(self, synth_db):
+        """The signature table is dropped on block exit: a later standalone
+        compute on the same connection re-materialises (checked via the
+        temp table's absence)."""
+        import helpers.graph.onager as ong
+
+        con = algos.duckdb_connect(read_only=True)
+        try:
+            with ong.with_onager_connection(con):
+                ong.onager_degree(con)
+                leaked = con.execute(
+                    "SELECT count(*) FROM information_schema.tables "
+                    "WHERE table_name = '_onager_sig'"
+                ).fetchone()[0]
+                assert leaked == 1  # present inside the block
+            after = con.execute(
+                "SELECT count(*) FROM information_schema.tables WHERE table_name = '_onager_sig'"
+            ).fetchone()[0]
+            assert after == 0  # dropped on exit
+        finally:
+            con.close()

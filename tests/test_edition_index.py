@@ -99,3 +99,26 @@ def test_resolve_editions_headings_and_footers(tmp_path):
     resolved = resolve_editions(body, index)
     chatter = tmp_path / "vault" / "The_Chatter"
     assert resolved == [chatter / "Note_Alpha.md", chatter / "Plain_Stem.md"]
+
+
+def test_source_note_index_warms_title_memo(tmp_path: Path) -> None:
+    """graph_db_optimization Issue 4 A: the index build already reads +
+    titles every source note; warming _TITLE_MEMO there means
+    edition_source_entry never re-reads them (~1,400 reads per
+    derive_insights run eliminated)."""
+    import helpers.core.edition_index as ei
+
+    vault = _make_vault(tmp_path)
+    saved = dict(ei._TITLE_MEMO)
+    ei._TITLE_MEMO.clear()
+    try:
+        ei.source_note_index(vault)
+        alpha = vault / "The_Chatter" / "Note_Alpha.md"
+        assert str(alpha) in ei._TITLE_MEMO
+        assert ei._TITLE_MEMO[str(alpha)] == "The Chatter: Note Alpha"
+        entry = ei.edition_source_entry(alpha, vault)
+        assert entry["title"] == "The Chatter: Note Alpha"
+        assert entry["id"] == "Note_Alpha"
+    finally:
+        ei._TITLE_MEMO.clear()
+        ei._TITLE_MEMO.update(saved)

@@ -24,6 +24,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`quote_capture_coverage.md`](graph/quote_capture_coverage.md) — Proposal: quote capture coverage — close every markdown-to-notes drop (audit 34% → 99% target): quote_coverage_audit tripwire, bracket-marker/resolver/walker fixes, Quotes catch-all super-sector, triage-quotes worklist, 751-note bulk update — completed.md #215
 - [`word_overlap_alias_guard.md`](graph/word_overlap_alias_guard.md) — Proposal: Triage hygiene: word-overlap alias guard + discard-persistence noise gate — completed.md #218
 - [`country_layer_institution_lanes.md`](graph/country_layer_institution_lanes.md) — Proposal: Country layer + institution counterparties — listed_in edges from exchange tickers, geography tag/frontmatter convergence (947-note apply, A3 whitelist activation), RBI/SEBI institution entities + rated_by/regulated_by/approved_by/penalized_by lanes — completed.md #219
+- [`graph_db_optimization.md`](graph/graph_db_optimization.md) — Proposal: Graph perf — Onager round-trip consolidation + result caches (closeness result cache, graph_metrics connectivity short-circuit, with_onager_connection batch context; all three issues incl. the `_splice_sources` warm-memo wrap-up) — completed.md #222
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 

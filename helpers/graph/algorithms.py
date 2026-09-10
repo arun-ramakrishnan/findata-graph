@@ -104,6 +104,7 @@ from helpers.graph.onager import (  # noqa: E402
     onager_voterank,
     onager_louvain,
     onager_pagerank,
+    with_onager_connection,
     DEFAULT_PREDICTION_EDGE_TYPES,
 )
 
@@ -184,16 +185,36 @@ def closeness_centrality(
 
     ``approximate`` is accepted for API compatibility but ignored: Onager
     computes exact closeness (it is fast enough at our scale).
+
+    DB-backed results (``edges=None``) are cached per generation in the
+    query-result cache (P2.3), mirroring ``graph_metrics``: the scores are
+    a pure function of the edge set, which only changes when the SQLite
+    source bumps its generation; ``clear_graph_cache()`` (rebuild/refresh)
+    evicts the entry. Synthetic ``edges=`` calls bypass the cache — they
+    are cheap and may deliberately differ from the DB projection.
     """
+    key = None
+    if edges is None:
+        try:
+            gen = _current_generation_for_cache()
+        except Exception:  # noqa: S110  # best-effort; absence just disables the cache
+            gen = None
+        key = ("closeness_centrality", gen)
+        cached = _query_cache_get(key)
+        if cached is not None:
+            return cached
     own = False
     if con is None:
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return onager_closeness(con, edges=edges)
+        result = onager_closeness(con, edges=edges)
     finally:
         if own:
             con.close()
+    if key is not None:
+        _query_cache_set(key, result)
+    return result
 
 
 def betweenness_centrality(
@@ -816,113 +837,117 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     # and onager.py loads onager per call.
     duck_con = duckdb_connect(read_only=True)
     try:
-        pending_writes: list[tuple[str, dict[str, Any]]] = []
-        for cmd in commands:
-            if cmd == "link-predict":
-                print(f"\nlink-predict (method={args.method}):")
-                edge_types = (
-                    [t.strip() for t in args.edge_types.split(",") if t.strip()]
-                    if args.edge_types
-                    else None
-                )
+        # Phase 3 (graph_db_optimization): one materialisation shared by
+        # every metric in this run — with_onager_connection scopes the
+        # skip flag to this invocation; nothing outlives the block.
+        with with_onager_connection(duck_con):
+            pending_writes: list[tuple[str, dict[str, Any]]] = []
+            for cmd in commands:
+                if cmd == "link-predict":
+                    print(f"\nlink-predict (method={args.method}):")
+                    edge_types = (
+                        [t.strip() for t in args.edge_types.split(",") if t.strip()]
+                        if args.edge_types
+                        else None
+                    )
+                    try:
+                        # Full ranked list: --top caps the DISPLAY, persistence
+                        # keeps every positive-score candidate.
+                        pairs = link_prediction(duck_con, edge_types=edge_types, method=args.method)
+                    except Exception as e:
+                        print(f"  FAIL: {type(e).__name__}: {str(e)[:150]}", file=sys.stderr)
+                        continue
+                    print("  [via onager]", file=sys.stderr)
+                    limit = args.top if args.top is not None else 20
+                    shown = pairs[:limit]
+                    if not shown:
+                        print("  (no candidate pairs with a positive score)")
+                    for a, b, s in shown:
+                        print(f"  {a:36} {b:36} {s:.6f}")
+                    if len(pairs) > len(shown):
+                        print(
+                            f"  ... ({len(pairs)} candidate pairs total, showing {len(shown)})",
+                            file=sys.stderr,
+                        )
+                    if not args.apply:
+                        print(
+                            "  [dry-run: nothing written to graph_analytics (pass --apply to persist)]",
+                            file=sys.stderr,
+                        )
+                    else:
+                        n_rows = _persist_link_prediction(pairs, args.method, edge_types)
+                        print(
+                            f"  applied link_prediction: {n_rows} entity rows to graph_analytics",
+                            file=sys.stderr,
+                        )
+                    continue
+                if cmd == "voterank":
+                    print("\nvoterank (seed set, in seed order):")
+                    try:
+                        seeds = voterank_seeds(duck_con)
+                    except Exception as e:
+                        print(f"  FAIL: {type(e).__name__}: {str(e)[:150]}", file=sys.stderr)
+                        continue
+                    if not seeds:
+                        print("  (no seeds)")
+                    else:
+                        for i, name in enumerate(seeds, 1):
+                            print(f"  {i:2}. {name}")
+                    if not args.apply:
+                        print(
+                            "  [dry-run: nothing written to graph_analytics (pass --apply to persist)]",
+                            file=sys.stderr,
+                        )
+                    else:
+                        n_rows = _persist_voterank(seeds)
+                        print(
+                            f"  applied voterank: {n_rows} entity rows to graph_analytics",
+                            file=sys.stderr,
+                        )
+                    continue
+                metric = cmd_to_metric[cmd]
+                print(f"\n{cmd} (metric={metric}):")
+                louvain_modularity: float | None = None
+                if cmd == "louvain":
+                    louvain_modularity = louvain_communities(duck_con).modularity
                 try:
-                    # Full ranked list: --top caps the DISPLAY, persistence
-                    # keeps every positive-score candidate.
-                    pairs = link_prediction(duck_con, edge_types=edge_types, method=args.method)
+                    result = compute(
+                        metric,
+                        con=duck_con,
+                        edge_label=args.edge_label,
+                        top_k=args.top,
+                    )
+                    print("  [via onager]", file=sys.stderr)
                 except Exception as e:
                     print(f"  FAIL: {type(e).__name__}: {str(e)[:150]}", file=sys.stderr)
                     continue
-                print("  [via onager]", file=sys.stderr)
-                limit = args.top if args.top is not None else 20
-                shown = pairs[:limit]
-                if not shown:
-                    print("  (no candidate pairs with a positive score)")
-                for a, b, s in shown:
-                    print(f"  {a:36} {b:36} {s:.6f}")
-                if len(pairs) > len(shown):
-                    print(
-                        f"  ... ({len(pairs)} candidate pairs total, showing {len(shown)})",
-                        file=sys.stderr,
-                    )
+                _print_result(cmd, result, args.top, modularity=louvain_modularity)
+
+                # Every metric states its write status (D13 made dry-run the
+                # default for ALL commands; silent dry-runs read as omissions).
                 if not args.apply:
                     print(
                         "  [dry-run: nothing written to graph_analytics (pass --apply to persist)]",
                         file=sys.stderr,
                     )
-                else:
-                    n_rows = _persist_link_prediction(pairs, args.method, edge_types)
-                    print(
-                        f"  applied link_prediction: {n_rows} entity rows to graph_analytics",
-                        file=sys.stderr,
-                    )
-                continue
-            if cmd == "voterank":
-                print("\nvoterank (seed set, in seed order):")
-                try:
-                    seeds = voterank_seeds(duck_con)
-                except Exception as e:
-                    print(f"  FAIL: {type(e).__name__}: {str(e)[:150]}", file=sys.stderr)
                     continue
-                if not seeds:
-                    print("  (no seeds)")
+                metric_db = _METRIC_TO_ANALYTICS_NAME.get(cmd)
+                if metric_db is None:
+                    continue
+                payload = _wrap_for_analytics(cmd, result, modularity=louvain_modularity)
+                pending_writes.append((metric_db, payload))
+
+            if args.apply:
+                if not pending_writes:
+                    print("nothing to apply", file=sys.stderr)
                 else:
-                    for i, name in enumerate(seeds, 1):
-                        print(f"  {i:2}. {name}")
-                if not args.apply:
+                    total = 0
+                    for metric_db, payload in pending_writes:
+                        total += write_analytics(metric_db, payload)
                     print(
-                        "  [dry-run: nothing written to graph_analytics (pass --apply to persist)]",
+                        f"applied {len(pending_writes)} metric(s), {total} rows to graph_analytics",
                         file=sys.stderr,
                     )
-                else:
-                    n_rows = _persist_voterank(seeds)
-                    print(
-                        f"  applied voterank: {n_rows} entity rows to graph_analytics",
-                        file=sys.stderr,
-                    )
-                continue
-            metric = cmd_to_metric[cmd]
-            print(f"\n{cmd} (metric={metric}):")
-            louvain_modularity: float | None = None
-            if cmd == "louvain":
-                louvain_modularity = louvain_communities(duck_con).modularity
-            try:
-                result = compute(
-                    metric,
-                    con=duck_con,
-                    edge_label=args.edge_label,
-                    top_k=args.top,
-                )
-                print("  [via onager]", file=sys.stderr)
-            except Exception as e:
-                print(f"  FAIL: {type(e).__name__}: {str(e)[:150]}", file=sys.stderr)
-                continue
-            _print_result(cmd, result, args.top, modularity=louvain_modularity)
-
-            # Every metric states its write status (D13 made dry-run the
-            # default for ALL commands; silent dry-runs read as omissions).
-            if not args.apply:
-                print(
-                    "  [dry-run: nothing written to graph_analytics (pass --apply to persist)]",
-                    file=sys.stderr,
-                )
-                continue
-            metric_db = _METRIC_TO_ANALYTICS_NAME.get(cmd)
-            if metric_db is None:
-                continue
-            payload = _wrap_for_analytics(cmd, result, modularity=louvain_modularity)
-            pending_writes.append((metric_db, payload))
-
-        if args.apply:
-            if not pending_writes:
-                print("nothing to apply", file=sys.stderr)
-            else:
-                total = 0
-                for metric_db, payload in pending_writes:
-                    total += write_analytics(metric_db, payload)
-                print(
-                    f"applied {len(pending_writes)} metric(s), {total} rows to graph_analytics",
-                    file=sys.stderr,
-                )
     finally:
         duck_con.close()
 

@@ -30,6 +30,11 @@ entry number and stale DONE pointers):
 
 _(None.)_
 
+_(Previously: graph_db_optimization.md, archived as completed.md entry
+222 on 2026-09-10 — execution record in
+`../archive/graph/graph_db_optimization.md` — all three issues
+executed, incl. the same-day `_splice_sources` wrap-up.)_
+
 _(Previously: snapshot_trust_country_exposure.md, archived as
 completed.md entry 221 on 2026-09-10 — execution record in
 `../archive/database/snapshot_trust_country_exposure.md`.)_

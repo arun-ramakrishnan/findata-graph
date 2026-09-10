@@ -48,6 +48,13 @@ SOURCE_FOOTER_RE = re.compile(r"^\*?Source:\s*(.+?)\*?\s*$", re.M | re.I)
 # keys shorter than this are too generic to match by containment.
 _MIN_CONTAINMENT_LEN = 8
 
+# Source-note titles keyed by path: edition_source_entry re-reads the
+# source note per derived note that references it; only the first read
+# per run is necessary. source_note_index warms it as a free side effect
+# (graph_db_optimization Issue 4 Approach A: the index build already
+# reads + titles every source note — the titles were thrown away).
+_TITLE_MEMO: dict[str, str] = {}
+
 
 def norm_key(s: str) -> str:
     """Fuzzy-match key: NFKD, lowercase, all non-alphanumerics to spaces."""
@@ -108,6 +115,7 @@ def source_note_index(vault: Path) -> dict[str, Path]:
                 continue
             text = p.read_text(encoding="utf-8", errors="replace")
             title = note_title(text, p.stem)
+            _TITLE_MEMO.setdefault(str(p), title)
             keys = {norm_key(p.stem), norm_key(title)}
             if ":" in title:
                 keys.add(norm_key(title.split(":")[-1]))
@@ -132,8 +140,10 @@ def _resolve_variants(c: str, index: dict[str, Path]) -> Path | None:
             continue
         if k in index:
             return index[k]
+        if len(k) < _MIN_CONTAINMENT_LEN:
+            continue
         for key, p in index.items():
-            if len(k) >= _MIN_CONTAINMENT_LEN and (k in key or key in k):
+            if k in key or key in k:
                 return p
     return None
 
@@ -198,10 +208,6 @@ _GIT_DATE_MEMO: dict[str, str | None] = {}
 # (giant repos, git errors) — note it can differ for RENAMED files (the
 # batch gives the at-path add date); this vault never renames OCR notes.
 _GIT_LOG_DATES: dict[str, str] | None = None
-# Source-note titles keyed by path: edition_source_entry re-reads the
-# source note per derived note that references it; only the first read
-# per run is necessary.
-_TITLE_MEMO: dict[str, str] = {}
 
 
 def _batch_add_dates() -> dict[str, str] | None:

@@ -5157,3 +5157,49 @@ the operator at arc end.
   snapshot_check staleness traced to the same-day benchmark rebuild.
 - Gates: `make qa` 9/9 (2717 passed), `make perf` 22/22,
   `make search-fresh APPLY=1`.
+## 222. Graph perf — Onager round-trip consolidation + result caches
+
+- `graph_db_optimization.md` (archived under `archive/graph/`): all
+  three issues executed (Issues 1 and 5 via the Onager phases; Issue 4
+  in the same-day wrap-up below).
+- **Phase 1 — closeness_centrality result cache** (algorithms.py only,
+  P2.3 pattern): generation-keyed, invalidated by `clear_graph_cache()`.
+  Repeat calls 1.62s -> 0.001s. No connection or temp-table state — the
+  `query.connect()` test seam stays intact.
+- **Phase 2 — graph_metrics connectivity short-circuit**:
+  `onager_cmm_components` (~10ms) gates the all-pairs trio
+  (diameter/radius/avg_path_length); disconnected projections return the
+  contractually-NULL trio without the ~3s all-pairs work (1.2s -> 0.21s),
+  semantics pinned by `test_full_projection_disconnected`.
+- **Phase 3 — `with_onager_connection` batch context**: signature-keyed
+  materialisation skip in the connection's TEMP schema (`_onager_sig`);
+  successive computes in one block share the rebuild — 14 -> 7
+  materialisations per `--all` invocation. Evidence-based dead ends
+  documented in the proposal: no multi-metric extension function exists
+  (all 64 enumerated), `floyd_warshall` is O(n³) 24.4s with different
+  semantics, multi-source `par_bfs` aborts; the thread-pool-over-private-
+  connections alternative measured 1.50s vs the shipped packed-subquery
+  trio's 0.95s (DuckDB already runs independent scalar subqueries
+  concurrently) and was reverted same-day.
+- First caching attempt (module-level connection + temp tables) reverted
+  pre-execution: broke the `query.connect` test seam (integration tests
+  silently computed against the production DB) and risked stale
+  mixed-projection tables; post-mortem in the proposal's Lessons.
+- Post-landing gate fixes folded into the same patch:
+  `_ensure_materialized`'s synthetic-edges path self-recursed
+  (RecursionError in all 8 link_prediction tests) — now calls
+  `_materialize_edges`; ruff format x2; MD049 x2 in the proposal.
+- **Issue 4 wrap-up — `_splice_sources` in derive_insights**: Approach A
+  landed as a one-line warm — `source_note_index` already reads + titles
+  every source note to build the index; it now populates `_TITLE_MEMO`
+  as a side effect (the titles were computed then thrown away), so
+  `edition_source_entry` never re-reads (~1,400 reads/run eliminated).
+  Plus Approach C: `_resolve_variants` hoists the containment-length
+  guard out of the per-key loop (2,597 distinct candidates x ~1,200
+  index keys). Approach B (merged_sources memo on `(id(fm), hash(text))`)
+  skipped — id()-keyed module state is a staleness hazard and the
+  residual per-call cost after A is ~0.05s. Measured: derive_insights
+  CLI 3.33s -> 2.75s (-17%); splice path 1.345s -> ~0.8s.
+- Gates: `make qa` 9/9 (2719 passed), `make perf` 22/22
+  (graph_closeness 1.70s vs 4.0s budget, derive_insights 2.75s vs 12.0s
+  budget), `make types-tests` clean, md-lint clean.
