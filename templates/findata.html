@@ -224,9 +224,10 @@
                             </div>
                             <div class="filters">
                                 <select id="graph-layout" title="Layout">
-                                    <option value="fcose">Force-directed (fcose)</option>
+                                    <option value="fcose">Force-directed (FA2)</option>
+                                    <option value="cached">Cached layout (server)</option>
                                     <option value="components">Connected sets (separated)</option>
-                                    <option value="cose">Force-directed (cose)</option>
+                                    <option value="cose">Force-directed (fast)</option>
                                     <option value="circle">Circle</option>
                                     <option value="concentric">Concentric</option>
                                     <option value="grid">Grid</option>
@@ -254,7 +255,7 @@
                         </div>
                         <div class="graph-layout-row">
                             <div id="graph-canvas" class="graph-canvas">
-                                <!-- Cytoscape mounts here -->
+                                <!-- sigma.js (WebGL) mounts here -->
                                 <div class="graph-empty" id="graph-empty">
                                     <i class="fas fa-project-diagram"></i>
                                     <p>Search for a company above to explore its relationship graph.</p>

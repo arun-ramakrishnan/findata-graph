@@ -8,6 +8,8 @@ from typing import Any
 
 import yaml
 from dotenv import load_dotenv
+
+from helpers.web.prefab_views import register as _register_prefab_views
 from flask import (
     Flask,
     abort,
@@ -37,6 +39,9 @@ if not app.logger.handlers:
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 app.logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
+
+# Prefab page routes (/v2/*) — prefab_ui_flask_views proposal, S1 pilot.
+_register_prefab_views(app)
 
 
 # --- Static File Routes ---
@@ -2568,6 +2573,42 @@ def api_graph_cloud():
     )
 
 
+@app.route("/api/graph/positions")
+def api_graph_positions():
+    """Precomputed whole-graph layout positions (graph_rendering_overhaul lane 3).
+
+    Serves the ``memory/graph_layout.json`` sidecar — deterministic
+    ForceAtlas2 positions computed server-side, hash-gated on the edge set
+    (the embed-matrix refresh pattern): unchanged topology = byte-identical
+    replay, so the client gets stable cross-visit cloud coordinates without
+    running fcose. A stale sidecar (SQLite writes without a refresh)
+    recomputes here — first request after a topology change pays the solve
+    (~30 s at the 1.6k-node scale); refresh pre-warms it.
+
+    Cache semantics: inherits the /api/graph/* ETag policy (keyed on the
+    DuckDB cache's built_at) — consistent with the architecture's "data
+    changes only via refresh" contract.
+
+    Returns: {"positions": {id: [x, y]}, "edge_set_hash", "engine",
+              "engine_params", "computed_at", "node_count", "edge_count",
+              "recomputed": bool}
+    """
+    conn = get_db_connection()
+    try:
+        from helpers.graph.layout import load_or_compute_positions
+
+        payload = load_or_compute_positions(conn)
+    except ValueError as e:
+        # Node ceiling — the engine refuses rather than stalling a refresh.
+        return jsonify({"error": str(e), "positions": None}), 503
+    except Exception as e:
+        app.logger.exception("graph positions failed")
+        return jsonify({"error": f"graph positions failed: {e}", "positions": None}), 500
+    finally:
+        conn.close()
+    return jsonify(payload)
+
+
 # Metrics whose values are scalar floats (sortable, rankable). The label
 # metrics (louvain_community, weakly_connected_component) carry int labels
 # that group rather than rank — handled separately below.
@@ -2887,7 +2928,24 @@ def api_graph_refresh():
     except Exception as e:
         app.logger.error("graph rebuild failed: %s", e)
         return jsonify({"status": "error", "message": f"rebuild failed: {e}"}), 500
-    return jsonify({"status": "ok", "message": "graph rebuilt and connection reset"})
+    # Pre-warm the layout-positions sidecar (graph_rendering_overhaul lane 3):
+    # hash-gated, so an unchanged edge set is a no-op. Non-fatal — a failure
+    # here leaves the sidecar stale and /api/graph/positions self-heals.
+    layout_note = ""
+    try:
+        from helpers.graph.layout import load_or_compute_positions
+
+        _conn = get_db_connection()
+        try:
+            payload = load_or_compute_positions(_conn)
+        finally:
+            _conn.close()
+        layout_note = (
+            f"; layout positions {'recomputed' if payload.get('recomputed') else 'reused'}"
+        )
+    except Exception as e:  # noqa: BLE001  # advisory for the refresh response
+        app.logger.warning("layout positions refresh skipped: %s", e)
+    return jsonify({"status": "ok", "message": f"graph rebuilt and connection reset{layout_note}"})
 
 
 # --------------------------------------------------------------------------- #

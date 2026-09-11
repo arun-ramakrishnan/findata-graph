@@ -70,6 +70,12 @@ dependencies = [
     "regex",
     # OCR Dependency
     "matplotlib",
+    # Prefab UI (helpers/web/prefab_views.py — Python-composed Flask views,
+    # prefab_ui_flask_views proposal 2026-09-11). Pinned EXACT despite the
+    # repo's unpinned convention: pre-1.0 upstream allows breaking changes
+    # per minor, so upgrades are deliberate slice-sized steps (proposal §5).
+    # Pulls pydantic + cyclopts + rich (rich already present).
+    "prefab-ui==0.20.2",
 ]
 
 [project.optional-dependencies]

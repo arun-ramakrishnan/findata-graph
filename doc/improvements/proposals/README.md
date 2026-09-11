@@ -28,7 +28,14 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(None.)_
+_(none)_
+
+_(Previously: prefab_ui_flask_views.md, archived as completed.md entry
+226 on 2026-09-12 — execution record in
+`../archive/ui/prefab_ui_flask_views.md`; standing posture: dual-URL,
+`/findata` authoritative. Earlier: bulk_data_lanes_arrow_numpy.md,
+archived as completed.md entry 224 on 2026-09-11 —
+`../archive/database/bulk_data_lanes_arrow_numpy.md`.)_
 
 _(Previously: bulk_data_lanes_arrow_numpy.md, archived as completed.md
 entry 224 on 2026-09-11 — execution record in

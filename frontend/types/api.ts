@@ -331,6 +331,26 @@ export interface GraphCloudResponse {
 }
 
 // --------------------------------------------------------------------------- //
+// GET /api/graph/positions (precomputed cloud layout — lane 3)                //
+// --------------------------------------------------------------------------- //
+/**
+ * Server-side deterministic ForceAtlas2 positions for the whole-graph
+ * cloud, hash-gated on the edge set (stable across visits). `positions`
+ * is null only on hard failure / node-ceiling refusal — callers treat it
+ * as "enhancement unavailable" and keep the local layout default.
+ */
+export interface GraphPositionsResponse {
+    positions: Record<string, [number, number]> | null;
+    edge_set_hash: string;
+    engine: string;
+    engine_params: Record<string, unknown>;
+    computed_at: string;
+    node_count: number;
+    edge_count: number;
+    recomputed?: boolean;
+}
+
+// --------------------------------------------------------------------------- //
 // GET /api/graph/stats (graph stats block for the Statistics view)            //
 // --------------------------------------------------------------------------- //
 /** Whole-graph structural metrics via Onager (null when unavailable). */

@@ -13,7 +13,9 @@
     "typescript": "7.0.2"
   },
   "dependencies": {
-    "cytoscape": "3.28.1",
-    "cytoscape-fcose": "2.2.0"
+    "@sigma/node-border": "^3.0.0",
+    "graphology": "^0.25.4",
+    "graphology-layout-forceatlas2": "^0.10.1",
+    "sigma": "^3.0.3"
   }
 }

@@ -14,18 +14,18 @@
 // the co-mention leaderboard and the on-demand near-duplicate tripwire.
 // The Inspector (right rail) gains an events timeline via /api/events.
 //
-// fcose (registered at module load since S2) is the default layout for both
-// ego networks and the whole-graph cloud; it tiles disconnected components
-// natively, so the hand-rolled "components" preset stays available but is
-// no longer the cloud default. Edge/node colours read the --edge-* /
-// interaction tokens from tokens.css at module load (single source of
-// truth: legend chips, filters and canvas cannot drift).
+// Rendering is sigma.js v3 (WebGL) via graphRenderer.ts — the S1 swap from
+// graph_rendering_overhaul.md. This file keeps the domain layer only:
+// payloads → GraphElement[], modes, filters, panels; the renderer owns
+// the canvas, layouts, reducers and camera. The default layout is the
+// server-side "cached" sidecar when it has landed (stable fcose-quality
+// coordinates, zero client layout cost), FA2 otherwise. Edge/node colours
+// read the --edge-* / interaction tokens from tokens.css at module load
+// (single source of truth: legend chips, filters and canvas cannot drift).
 //
 // The window.viewer inline-onclick contract does NOT extend into this view:
 // every control below is wired with addEventListener.
 
-import cytoscape from "cytoscape";
-import fcose from "cytoscape-fcose";
 import type {
     BridgesResponse,
     CompanyNeighbors,
@@ -35,6 +35,7 @@ import type {
     EventItem,
     EventsResponse,
     GraphCloudResponse,
+    GraphPositionsResponse,
     GraphRefreshResponse,
     LinkPredictionResponse,
     MetricGroupsResponse,
@@ -51,9 +52,14 @@ import type {
 } from "../../types/api";
 import { getEl, escapeHtml } from "../core/dom";
 import { fetchJson, postJson } from "../core/api";
-
-// Register fcose once per bundle; idempotent inside cytoscape.
-cytoscape.use(fcose);
+import {
+    GraphRenderer,
+    type EdgeHoverInfo,
+    type GraphElement,
+    type NodePayload,
+    COMMUNITY_PALETTE,
+    edgeColor,
+} from "./graphRenderer";
 
 /** Union of the graph relationship filters from the #graph-filter dropdown. */
 type GraphFilter = "all" | "peers" | "jv" | "acquired" | "subsidiary" | "supply";
@@ -61,43 +67,19 @@ type GraphFilter = "all" | "peers" | "jv" | "acquired" | "subsidiary" | "supply"
 /** Lens modes (S3: ego / all / path; S4: rank / time). */
 type LensMode = "ego" | "all" | "path" | "rank" | "time";
 
-/**
- * cytoscape element (node or edge) as built by the ego-network builders.
- * `group` is optional because edges don't carry one (only nodes are grouped
- * for styling).
- */
-interface GraphElement {
-    data: {
-        id: string;
-        label: string;
-        group?: string;
-        centrality?: number;
-        deg?: number;
-        /** Cloud node diameter in px (sqrt visible-degree curve). */
-        size?: number;
-        source?: string;
-        target?: string;
-        type?: string;
-        /** Set to "1" on every cloud-mode element (drives cheap cloud styling). */
-        cloud?: string;
-        /** Connected-component root id (cloud mode). */
-        component?: string;
-        /** "1" on high-degree cloud nodes — zoom-fade labels keep these visible. */
-        hub?: string;
-        props?: Record<string, unknown>;
-    };
-}
-
 /** Whole-graph cloud data, kept client-side for filter re-application. */
 interface CloudCache {
     data: GraphCloudResponse;
     degree: Record<string, number>;
     communities: Map<string, number> | null;
+    /** Server-side precomputed positions (lane 3), null until fetched/failed.
+     * Same coordinate space as the full cloud — filtered subsets reuse them. */
+    positions: Record<string, { x: number; y: number }> | null;
 }
 
 /** Lazy graph-tab state, initialized on first visit to the Graph view. */
 interface GraphState {
-    cy: CyInstance | null;
+    renderer: GraphRenderer | null;
     central: string | null;
     elements: GraphElement[] | null;
     entitiesLoaded: boolean;
@@ -113,8 +95,11 @@ interface GraphState {
      *  always on (zoom-fade gating suspended). Ego sets it false. */
     labelAlways: boolean;
     /** True once the user picks a layout explicitly (cloud defaults to the
-     *  fast component preset until then — fcose on ~700 nodes is slow). */
+     *  cached sidecar / component preset until then). */
     layoutTouched: boolean;
+    /** Neighbors bundle of the ego focal (drives the Inspector panel; the
+     *  old cytoscape node-data attachment hack, minus the node data). */
+    focalBundle: NeighborsBundle | null;
     /** S4 Rank caches: `${metric}:${top}` → payload; louvain groups; seeds. */
     rankData: Map<string, MetricRankedResponse | LinkPredictionResponse>;
     rankGroups: MetricGroupsResponse | null;
@@ -128,65 +113,30 @@ interface GraphState {
     nearDup: NearDuplicatesResponse | null;
     /** Token guarding async inspector-event renders against stale panels. */
     detailSeq: number;
+    /** Timestamp of the last node tap (ego re-centre double-fire guard —
+     *  sigma emits two clickNode events ahead of a double click). */
+    lastNodeTapAt: number;
 }
 
 // --------------------------------------------------------------------------- //
-// Palette: read the design tokens so canvas + legend + chips share colours.  //
+// Palette: edge/community colours live in graphRenderer.ts (read from the   //
+// tokens.css --edge-* tokens at module load) — re-exported above.           //
 // --------------------------------------------------------------------------- //
-
-/** edge_type → tokens.css custom property (§3.1 of the proposal). */
-const _EDGE_TOKENS: Record<string, string> = {
-    co_mentioned_in: "--edge-co-mention",
-    part_of: "--edge-part-of",
-    has_company: "--edge-has-company",
-    exposed_to: "--edge-exposed-to",
-    belongs_to: "--edge-belongs-to",
-    subsidiary_of: "--edge-subsidiary",
-    jv_with: "--edge-jv",
-    acquired: "--edge-acquired",
-    competes_with: "--edge-competes",
-    supplier_to: "--edge-supply",
-    supplies_to: "--edge-supply",
-    customer_of: "--edge-supply",
-    same_group: "--edge-same-group",
-    cited_in: "--edge-cited-in",
-    semantic_peer: "--edge-semantic-peer",
-    invested_in: "--edge-invested-in",
-};
-
-const EDGE_COLORS: Record<string, string> = {};
-(() => {
-    const cs = getComputedStyle(document.documentElement);
-    for (const [t, token] of Object.entries(_EDGE_TOKENS)) {
-        const v = cs.getPropertyValue(token).trim();
-        if (v) EDGE_COLORS[t] = v;
-    }
-})();
-
-const edgeColor = (t: string | undefined): string => (t && EDGE_COLORS[t]) || "#5C6E7E";
-
-/** Louvain community hues (nodes get data(color) when shading is on). */
-const _COMMUNITY_PALETTE = [
-    "#E0A93E",
-    "#2DD4BF",
-    "#C39BFF",
-    "#F5B14C",
-    "#7CA8C9",
-    "#F28B82",
-    "#9BE08A",
-    "#E79BE0",
-    "#8AD7C6",
-    "#D8C9A3",
-];
 
 /** Cloud node considered a hub for zoom-fade labels + sizing. */
 const _HUB_DEGREE = 6;
+
 /** Guard rails for progressive expansion / sector member renders. */
 const _EXPAND_NODE_CAP = 150;
 const _SECTOR_RENDER_CAP = 200;
-/** Zoom thresholds for the label-fade buckets (cloud mode). */
-const _ZOOM_LBL_OFF = 0.35;
-const _ZOOM_LBL_HUBS = 0.8;
+/** Camera-ratio thresholds for the label-fade buckets (cloud mode). Sigma
+ *  ratio is fit-relative (1 = whole graph fitted): zoomed out past 2.5× no
+ *  labels, past 1.4× hubs only, otherwise the density grid governs. The old
+ *  cytoscape thresholds were model-px zooms — meaningless in normalized
+ *  camera space, so the buckets became fit-relative (recorded in the S1 log).
+ *  Sigma's label density grid + size threshold keep the fitted cloud calm. */
+const _RATIO_LBL_OFF = 2.5;
+const _RATIO_LBL_HUBS = 1.4;
 /** Cloud node sizing: sqrt degree curve between these px bounds. */
 const _NODE_SIZE_MIN = 9;
 const _NODE_SIZE_MAX = 30;
@@ -239,7 +189,7 @@ export class GraphView {
     async loadGraphView(): Promise<void> {
         if (!this.graph) {
             this.graph = {
-                cy: null,
+                renderer: null,
                 central: null,
                 elements: null,
                 entitiesLoaded: false,
@@ -250,6 +200,7 @@ export class GraphView {
                 labelBucket: -1,
                 labelAlways: false,
                 layoutTouched: false,
+                focalBundle: null,
                 rankData: new Map(),
                 rankGroups: null,
                 rankSeeds: null,
@@ -259,51 +210,45 @@ export class GraphView {
                 timeCoMentions: null,
                 nearDup: null,
                 detailSeq: 0,
+                lastNodeTapAt: 0,
             };
         }
-        // Build the cytoscape instance if it doesn't exist yet.
-        if (!this.graph.cy) {
+        // Build the renderer if it doesn't exist yet.
+        if (!this.graph.renderer) {
             const canvas = getEl("graph-canvas");
-            this.graph.cy = cytoscape({
-                container: canvas,
-                elements: [],
-                style: this._cytoscapeStyle(),
-                layout: { name: "concentric" },
-                wheelSensitivity: 0.2,
-                minZoom: 0.2,
-                maxZoom: 3,
-            });
-            // Click handler: re-centre on the clicked node (ego-network mode
-            // only — in cloud mode tapping a node shows its detail panel and
-            // highlights the connected set it belongs to).
-            this.graph.cy.on("tap", "node", async (evt) => {
-                this._hideTip();
-                const name = evt.target.data().id;
-                if (!this.graph) return;
-                if (this.graph.mode === "all") {
-                    this._highlightCloudSet(evt.target.data());
-                    this._renderGraphDetail(evt.target.data());
-                    return;
-                }
-                if (name && name !== this.graph.central) {
-                    (getEl("graph-search") as HTMLInputElement).value = name;
-                    this._setMode("ego");
-                    await this.loadEgoNetwork(name);
-                }
-            });
-            // Selection handler: populate side panel (+ highlight cloud set).
-            this.graph.cy.on("select", "node", (evt) => {
-                if (this.graph && this.graph.mode === "all") {
-                    this._highlightCloudSet(evt.target.data());
-                }
-                this._renderGraphDetail(evt.target.data());
-            });
-            // Tapping empty canvas clears the set highlight in cloud mode.
-            this.graph.cy.on("tap", (evt: CyEvent) => {
-                this._hideTip();
-                if (!this.graph || this.graph.mode !== "all") return;
-                const isNode = (evt.target as CySingular & { isNode?: () => boolean }).isNode?.();
-                if (!isNode) this._clearCloudHighlight();
+            this.graph.renderer = new GraphRenderer(canvas, {
+                // Node tap: cloud mode highlights the tapped connected set +
+                // opens its detail panel; ego mode re-centres on the node.
+                // Double-fire guard: sigma emits two clickNode events ahead
+                // of a double click — the ego re-centre (a fetch + full
+                // re-render) only runs 350 ms after the previous tap.
+                onNodeTap: (id) => {
+                    const g = this.graph;
+                    const attrs = g?.renderer?.nodeAttrs(id);
+                    if (!g || !attrs) return;
+                    if (g.mode === "all") {
+                        this._highlightCloudSet(attrs);
+                        this._renderGraphDetail(attrs);
+                        return;
+                    }
+                    const now = performance.now();
+                    if (now - g.lastNodeTapAt < 350) return;
+                    g.lastNodeTapAt = now;
+                    if (id !== g.central) {
+                        (getEl("graph-search") as HTMLInputElement).value = id;
+                        this._setMode("ego");
+                        return this.loadEgoNetwork(id);
+                    }
+                },
+                onStageTap: () => {
+                    if (this.graph?.mode === "all") this._clearCloudHighlight();
+                },
+                onNodeHover: (attrs, x, y) => this._showNodeTip(attrs, x, y),
+                onNodeLeave: () => this._hideTip(),
+                onEdgeHover: (attrs, x, y) => this._showEdgeTip(attrs, x, y),
+                onEdgeLeave: () => this._hideTip(),
+                onCameraChange: () => this._onCameraChange(),
+                onError: (e) => this._setGraphStatus(`graph error: ${(e as Error).message}`),
             });
 
             // --- toolbar ------------------------------------------------- //
@@ -328,11 +273,11 @@ export class GraphView {
                 if (e.key === "Enter") void centreFromSearch();
             });
             (getEl("graph-layout") as HTMLSelectElement).addEventListener("change", (e) => {
-                if (!this.graph || !this.graph.cy) return;
+                if (!this.graph || !this.graph.renderer) return;
                 this.graph.layoutTouched = true;
                 const inCloud = this.graph.mode === "all";
                 this._runGraphLayout((e.target as HTMLSelectElement).value, inCloud);
-                if (inCloud) this.graph.cy.fit(undefined, 30);
+                if (inCloud) this._fitCapped(30, _CLOUD_FIT_MAX_ZOOM);
             });
             getEl("graph-filter").addEventListener("change", () => {
                 // Re-render the same central entity with the new filter.
@@ -385,7 +330,6 @@ export class GraphView {
             getEl("shortest-clear").addEventListener("click", () => this.clearShortestPath());
 
             this._initLensRail();
-            this._initTooltip();
             this._initGraphZoom();
             this._setMode("ego");
         }
@@ -394,9 +338,9 @@ export class GraphView {
             await this.loadGraphEntityList();
             this.graph.entitiesLoaded = true;
         }
-        // Resize after the section becomes visible (cytoscape needs the
-        // container to have non-zero dimensions before its first layout).
-        setTimeout(() => this.graph && this.graph.cy && this.graph.cy.resize(), 50);
+        // Kick a refresh after the section becomes visible (the renderer
+        // needs the container to have non-zero dimensions before first paint).
+        setTimeout(() => this.graph?.renderer?.refresh(), 50);
     }
 
     // --- Lens rail: modes + chronoscope + cloud filters ------------------- //
@@ -508,9 +452,9 @@ export class GraphView {
         }
         if (mode === "rank") void this._loadRankView();
         if (mode === "time") void this._loadTimeView();
-        // Returning from a table mode: cytoscape needs a resize kick after
-        // its container sat display:none (cheap no-op otherwise).
-        if (!tableMode) setTimeout(() => this.graph?.cy?.resize(), 0);
+        // Returning from a table mode: the renderer needs a refresh kick
+        // after its container sat display:none (cheap no-op otherwise).
+        if (!tableMode) setTimeout(() => this.graph?.renderer?.refresh(), 0);
     }
 
     async loadGraphEntityList(): Promise<void> {
@@ -539,7 +483,7 @@ export class GraphView {
 
     /** Fetch + cache the whole graph, then render through the active filters. */
     async loadGraphCloud(): Promise<void> {
-        if (!this.graph || !this.graph.cy) return;
+        if (!this.graph || !this.graph.renderer) return;
         this._setGraphStatus("Loading full graph...");
         let data: GraphCloudResponse;
         try {
@@ -555,10 +499,16 @@ export class GraphView {
             degree[e.target] = (degree[e.target] || 0) + 1;
         });
 
-        this.graph.cloud = { data, degree, communities: null };
+        this.graph.cloud = { data, degree, communities: null, positions: null };
         this.graph.central = null;
         this.graph.entityType = undefined;
         this._clearCloudHighlight();
+
+        // Lane 3: precomputed positions are a progressive enhancement —
+        // fetch in parallel, never block the first (components-preset)
+        // paint; when they land on an untouched layout, re-run the cheap
+        // preset with stable server coordinates.
+        void this._loadCachedPositions();
 
         // Any failure past the fetch lands in the status line instead of a
         // swallowed unhandled rejection (the whole render is one try block).
@@ -569,6 +519,38 @@ export class GraphView {
             this._renderRelationshipCloud(data.relationship_types);
         } catch (e) {
             this._setGraphStatus(`Cloud render failed: ${(e as Error).message}`);
+        }
+    }
+
+    /** Fetch the server-side layout sidecar into the cloud cache and apply
+     * it to the visible cloud when the user hasn't picked a layout yet.
+     * Silent on failure by design: positions are an enhancement, the local
+     * components/concentric default remains fully functional without them. */
+    private async _loadCachedPositions(): Promise<void> {
+        try {
+            const data = await fetchJson<GraphPositionsResponse>("/api/graph/positions");
+            const graph = this.graph;
+            if (!data.positions || !graph?.cloud) return;
+            const positions: Record<string, { x: number; y: number }> = {};
+            for (const [id, xy] of Object.entries(data.positions)) {
+                positions[id] = { x: xy[0], y: xy[1] };
+            }
+            graph.cloud.positions = positions;
+            // Apply now only if the cloud is on screen and untouched: an
+            // explicit layout pick (layoutTouched) always wins.
+            if (
+                graph.mode === "all" &&
+                graph.renderer &&
+                !graph.layoutTouched &&
+                (getEl("graph-layout") as HTMLSelectElement).value === "fcose"
+            ) {
+                this._runGraphLayout("cached", true);
+                this._fitCapped(30, _CLOUD_FIT_MAX_ZOOM);
+                this._applyLabelBucket(this._labelBucketFor(graph.renderer.zoomValue()));
+            }
+        } catch {
+            // Cold server, ceiling refusal, or transient error — the status
+            // line stays with the render message; nothing to surface.
         }
     }
 
@@ -584,9 +566,9 @@ export class GraphView {
      * type visible, the min-degree behaviour is unchanged.
      */
     private _applyCloudFilter(): void {
-        const cy = this.graph && this.graph.cy;
+        const renderer = this.graph && this.graph.renderer;
         const cache = this.graph && this.graph.cloud;
-        if (!cy || !cache) return;
+        if (!renderer || !cache) return;
         const everything = (getEl("cloud-everything") as HTMLInputElement).checked;
         const minDegree = everything
             ? 1
@@ -699,8 +681,7 @@ export class GraphView {
             });
         });
 
-        cy.elements().remove();
-        cy.add(elements as unknown as CyElementInput[]);
+        renderer.setElements(elements);
         this.graph!.elements = elements;
 
         const nodeCount = elements.filter((e) => !e.data.source).length;
@@ -716,29 +697,27 @@ export class GraphView {
 
         // Small subgraph = drop the big-cloud compromises: labels always on
         // (the zoom-fade buckets exist for the ~700-node full cloud only —
-        // at a filtered view's fit zoom they hid EVERY label), animated
-        // layout. Applied before the layout so the animate choice + zoom
-        // handler both key off the same flag.
+        // at a filtered view's fit zoom they hid EVERY label). Applied
+        // before the layout so the bucket state + zoom handler agree.
         const small = nodeCount <= _LABEL_ALWAYS_NODES;
         this.graph!.labelAlways = small;
-
-        // Hub classes drive the zoom-fade label buckets.
-        cy.batch(() => {
-            cy.nodes().forEach((n) => {
-                if (n.data().hub === "1") n.addClass("hub");
-            });
-        });
         if (small) this._applyLabelBucket(2);
 
-        // Cloud default layout is the fast component-packing preset; fcose on
-        // the ~700-node filtered cloud takes seconds on the main thread. An
-        // explicit layout pick (layoutTouched) is always honored.
+        // Cloud default layout: the precomputed server sidecar when it has
+        // landed (stable fcose-quality coordinates, zero client layout
+        // cost), else the fast component-packing preset; an explicit force
+        // run on the ~700-node filtered cloud takes seconds on the main
+        // thread. An explicit layout pick (layoutTouched) is always honored.
         const selected = (getEl("graph-layout") as HTMLSelectElement).value;
         const cloudLayout =
-            selected === "fcose" && !this.graph!.layoutTouched ? "components" : selected;
+            selected === "fcose" && !this.graph!.layoutTouched
+                ? cache.positions
+                    ? "cached"
+                    : "components"
+                : selected;
         this._runGraphLayout(cloudLayout, true);
         this._fitCapped(30, _CLOUD_FIT_MAX_ZOOM);
-        if (!small) this._applyLabelBucket(this._labelBucketFor(cy.zoom()));
+        if (!small) this._applyLabelBucket(this._labelBucketFor(renderer.zoomValue()));
 
         if (edgeFilterActive) {
             const shown = cache.data.relationship_types.length - hidden.size;
@@ -755,21 +734,13 @@ export class GraphView {
     }
 
     /**
-     * Fit the canvas to its elements, then clamp the zoom. Without the cap a
-     * 4-node ego graph stretches to 200%+ across the whole canvas (screenshot
-     * 2); with it, small graphs stay human-sized and centred.
+     * Fit the canvas to its elements, then clamp the zoom (see
+     * GraphRenderer.fitCapped — sigma's normalized camera keeps node sizes
+     * screen-constant, so the small-graph balloon the cap fixed in
+     * cytoscape does not arise; the cap remains a sanity bound).
      */
     _fitCapped(padding: number, maxZoom: number, focusId?: string): void {
-        const cy = this.graph && this.graph.cy;
-        if (!cy || cy.elements().length === 0) return;
-        cy.fit(undefined, padding);
-        if (cy.zoom() > maxZoom) {
-            cy.zoom(maxZoom);
-            if (focusId) {
-                const focus = cy.getElementById(focusId);
-                if (focus.length) cy.center(focus);
-            }
-        }
+        this.graph?.renderer?.fitCapped(padding, maxZoom, focusId);
     }
 
     /**
@@ -778,45 +749,28 @@ export class GraphView {
      * on the canvas (caller falls back to the Ego jump).
      */
     _spotlightInCloud(name: string): boolean {
-        const cy = this.graph && this.graph.cy;
-        if (!cy || !this.graph) return false;
-        const node = cy.getElementById(name);
-        if (!node.length || !node.isNode()) return false;
-        this._highlightCloudSet(node.data());
-        const nbhd = node.closedNeighborhood();
-        cy.stop();
-        cy.animate({ fit: { eles: nbhd, padding: 90 } }, { duration: 280 });
-        this._setGraphStatus(
-            `Spotlight — ${name} · ${nbhd.nodes().length} entities in its connected set`,
-        );
+        const renderer = this.graph && this.graph.renderer;
+        if (!renderer || !this.graph) return false;
+        if (!renderer.hasNode(name)) return false;
+        this._highlightCloudSet(renderer.nodeAttrs(name));
+        const count = renderer.spotlight(name);
+        this._setGraphStatus(`Spotlight — ${name} · ${count} entities in its connected set`);
         return true;
     }
 
     /**
-     * Highlight the connected set (component) a tapped node belongs to: every
-     * element sharing its component root gets the `in-set` style, everything
-     * else fades to background.
+     * Highlight the connected set (component) a tapped node belongs to:
+     * reducer-level in-set emphasis for its members, everything else fades
+     * toward the background.
      */
-    _highlightCloudSet(nodeData: CyNodeData): void {
-        const cy = this.graph && this.graph.cy;
-        if (!cy || !this.graph || this.graph.mode !== "all") return;
-        const comp = nodeData.component as string | undefined;
-        cy.elements().removeClass("in-set faded");
-        if (!comp) return;
-        cy.elements().forEach((el) => {
-            if (el.data().component === comp) {
-                el.removeClass("faded").addClass("in-set");
-            } else {
-                el.addClass("faded").removeClass("in-set");
-            }
-        });
+    _highlightCloudSet(nodeData: NodePayload | undefined): void {
+        if (!this.graph || this.graph.mode !== "all") return;
+        this.graph.renderer?.highlightComponent(nodeData?.component ?? null);
     }
 
     /** Remove the cloud set-highlight (restores full opacity). */
     _clearCloudHighlight(): void {
-        if (this.graph && this.graph.cy) {
-            this.graph.cy.elements().removeClass("in-set faded");
-        }
+        this.graph?.renderer?.highlightComponent(null);
     }
 
     /**
@@ -959,15 +913,11 @@ export class GraphView {
 
     /** Louvain community shading (All mode): fetch once, colour nodes. */
     private async _applyCommunityShading(on: boolean): Promise<void> {
-        const cy = this.graph && this.graph.cy;
+        const renderer = this.graph && this.graph.renderer;
         const cache = this.graph && this.graph.cloud;
-        if (!cy || !cache) return;
+        if (!renderer || !cache) return;
         if (!on) {
-            cy.batch(() => {
-                cy.nodes().forEach((n) => {
-                    n.removeClass("shaded").removeData("color").removeData("community");
-                });
-            });
+            renderer.setCommunities(null);
             return;
         }
         if (!cache.communities) {
@@ -986,19 +936,10 @@ export class GraphView {
                 return;
             }
         }
-        const map = cache.communities;
-        cy.batch(() => {
-            cy.nodes().forEach((n) => {
-                const c = map.get(String(n.data().id));
-                if (c !== undefined) {
-                    n.data("color", _COMMUNITY_PALETTE[c % _COMMUNITY_PALETTE.length]);
-                    n.data("community", c);
-                    n.addClass("shaded");
-                }
-            });
-        });
-        const n = map.size;
-        this._setGraphStatus(`Louvain shading on — ${n} entities in communities`);
+        renderer.setCommunities(cache.communities);
+        this._setGraphStatus(
+            `Louvain shading on — ${cache.communities.size} entities in communities`,
+        );
     }
 
     // --- Rank mode (S4): metric league tables + side intelligence -------- //
@@ -1179,7 +1120,7 @@ export class GraphView {
         mount.innerHTML =
             groups
                 .map((g) => {
-                    const color = _COMMUNITY_PALETTE[g.label % _COMMUNITY_PALETTE.length];
+                    const color = COMMUNITY_PALETTE[g.label % COMMUNITY_PALETTE.length];
                     const members = g.members
                         .slice(0, 6)
                         .map(
@@ -1476,7 +1417,7 @@ export class GraphView {
             this._setGraphStatus(`Error: ${(e as Error).message}`);
             return;
         }
-        if (!this.graph || !this.graph.cy) return;
+        if (!this.graph || !this.graph.renderer) return;
 
         const isSector = data.entity_type === "sector";
         const filter: GraphFilter = isSector
@@ -1486,24 +1427,27 @@ export class GraphView {
             ? this._buildSectorEgoElements(data as SectorNeighbors)
             : this._bundleElements(data as CompanyNeighbors, filter, "focal");
 
-        this.graph.cy.elements().remove();
-        this.graph.cy.add(elements as unknown as CyElementInput[]);
+        this.graph.renderer.setElements(elements);
         this.graph.central = isSector
             ? (data as SectorNeighbors).sector
             : (data as CompanyNeighbors).company;
         this.graph.elements = elements;
         this.graph.entityType = isSector ? "sector" : "company";
 
-        this._runGraphLayout((getEl("graph-layout") as HTMLSelectElement).value);
+        this._runGraphLayout(
+            (getEl("graph-layout") as HTMLSelectElement).value,
+            false,
+            true,
+            this.graph.central,
+        );
         this._fitCapped(40, _EGO_FIT_MAX_ZOOM, this.graph.central || undefined);
         this.graph.labelAlways = false;
         this._applyLabelBucket(-1); // ego labels are never zoom-gated
 
-        // Highlight + select the focal node; show it in the side panel.
-        this.graph.cy.getElementById(this.graph.central).addClass("focal").select();
-        const focalData = this.graph.cy.getElementById(this.graph.central).data();
-        (focalData as CyNodeData & { __bundle?: NeighborsBundle }).__bundle = data;
-        this._renderGraphDetail(focalData);
+        // Emphasize the focal node; show it in the side panel.
+        this.graph.renderer.setFocal(this.graph.central);
+        this.graph.focalBundle = data;
+        this._renderGraphDetail(this.graph.renderer.nodeAttrs(this.graph.central), data);
 
         const asOfSuffix = asOf ? ` · as of ${asOf}` : "";
         if (isSector) {
@@ -1668,13 +1612,15 @@ export class GraphView {
 
     /**
      * Progressive expansion: fetch the bundle for `name` and merge its
-     * not-yet-present nodes/edges into the canvas as a dashed "outer" ring,
-     * keeping existing positions (fcose without randomize).
+     * not-yet-present nodes/edges into the canvas as an "outer" ring,
+     * keeping existing positions (the renderer seeds new nodes around the
+     * anchor and relaxes with a short FA2 pass — the old fcose-without-
+     * randomize role).
      */
     private async _expandNode(name: string): Promise<void> {
-        const cy = this.graph && this.graph.cy;
-        if (!cy || !this.graph) return;
-        if (cy.nodes().length >= _EXPAND_NODE_CAP) {
+        const renderer = this.graph && this.graph.renderer;
+        if (!renderer || !this.graph) return;
+        if (renderer.nodeCount() >= _EXPAND_NODE_CAP) {
             this._setGraphStatus(
                 `expansion cap (${_EXPAND_NODE_CAP} nodes) — centre on ${name} to continue there`,
             );
@@ -1694,178 +1640,116 @@ export class GraphView {
             data.entity_type === "sector"
                 ? this._buildSectorEgoElements(data as SectorNeighbors)
                 : this._bundleElements(data as CompanyNeighbors, "all", "outer");
-
-        const fresh: GraphElement[] = [];
-        els.filter((el) => !el.data.source).forEach((el) => {
-            if (
-                cy.getElementById(el.data.id).length === 0 &&
-                !fresh.some((x) => x.data.id === el.data.id)
-            ) {
-                el.data.group = "outer";
-                fresh.push(el);
-            }
+        els.forEach((el) => {
+            if (!el.data.source && !renderer.hasNode(el.data.id)) el.data.group = "outer";
         });
-        const ids = new Set(fresh.map((el) => el.data.id));
-        const freshEdges = els.filter(
-            (el) =>
-                el.data.source &&
-                el.data.target &&
-                (ids.has(el.data.source) || cy.getElementById(el.data.source).length > 0) &&
-                (ids.has(el.data.target) || cy.getElementById(el.data.target).length > 0),
-        );
 
-        cy.add([...fresh, ...freshEdges] as unknown as CyElementInput[]);
-        this._runGraphLayout((getEl("graph-layout") as HTMLSelectElement).value, false, false);
+        const added = renderer.mergeElements(els, name);
         this._fitCapped(40, _EGO_FIT_MAX_ZOOM); // include the merged outer ring in the view
-        this._setGraphStatus(
-            `+${fresh.length} nodes from ${name} · ${cy.nodes().length} on canvas`,
-        );
+        this._setGraphStatus(`+${added} nodes from ${name} · ${renderer.nodeCount()} on canvas`);
     }
 
     // --- Zoom, tooltips, zoom-fade labels ---------------------------------- //
 
-    /** Wire the zoom slider / buttons / fit + the zoom-fade label buckets. */
+    /** Wire the zoom slider / buttons / fit (buckets sync via camera events). */
     _initGraphZoom(): void {
-        if (!this.graph || !this.graph.cy) return;
+        if (!this.graph || !this.graph.renderer) return;
+        const renderer = this.graph.renderer;
         const slider = getEl("graph-zoom") as HTMLInputElement;
         const label = getEl("graph-zoom-label");
-        const cy = this.graph.cy;
 
         const applyZoom = (): void => {
             const z = parseFloat(slider.value) || 1;
-            cy.zoom(z);
+            renderer.setZoomValue(z);
             label.textContent = `${Math.round(z * 100)}%`;
         };
         slider.addEventListener("input", applyZoom);
-        getEl("graph-zoom-in").addEventListener("click", () => {
-            cy.zoom(Math.min(cy.maxZoom(), cy.zoom() * 1.25));
-        });
-        getEl("graph-zoom-out").addEventListener("click", () => {
-            cy.zoom(Math.max(cy.minZoom(), cy.zoom() / 1.25));
-        });
-        getEl("graph-zoom-fit").addEventListener("click", () => cy.fit(undefined, 30));
-
-        const sync = (): void => {
-            const z = cy.zoom();
-            slider.value = String(z);
-            label.textContent = `${Math.round(z * 100)}%`;
-        };
-        // cytoscape → slider + label buckets (wheel / pinch / buttons).
-        cy.on("zoom", () => {
-            sync();
-            if (this.graph && this.graph.mode === "all" && !this.graph.labelAlways) {
-                this._applyLabelBucket(this._labelBucketFor(cy.zoom()));
-            }
-        });
-        // After any layout, keep the slider truthful (layout may re-zoom).
-        cy.on("layoutstop", () => {
-            sync();
-            if (this.graph && this.graph.mode === "all" && !this.graph.labelAlways) {
-                this._applyLabelBucket(this._labelBucketFor(cy.zoom()));
-            }
-        });
+        getEl("graph-zoom-in").addEventListener("click", () => renderer.zoomIn());
+        getEl("graph-zoom-out").addEventListener("click", () => renderer.zoomOut());
+        getEl("graph-zoom-fit").addEventListener("click", () =>
+            renderer.fitCapped(30, _CLOUD_FIT_MAX_ZOOM),
+        );
+        this._syncZoomUi();
     }
 
+    /** Slider + % label ← renderer camera (wheel / pinch / buttons / animation). */
+    private _syncZoomUi(): void {
+        const renderer = this.graph?.renderer;
+        if (!renderer) return;
+        const slider = getEl("graph-zoom") as HTMLInputElement;
+        const label = getEl("graph-zoom-label");
+        const z = renderer.zoomValue();
+        slider.value = String(Math.min(3, Math.max(0.2, z)));
+        label.textContent = `${Math.round(z * 100)}%`;
+    }
+
+    /** Camera moved: tooltip hides, slider re-syncs, buckets recompute. */
+    private _onCameraChange(): void {
+        this._hideTip();
+        this._syncZoomUi();
+        if (this.graph && this.graph.mode === "all" && !this.graph.labelAlways) {
+            this._applyLabelBucket(this._labelBucketFor(this.graph.renderer?.zoomValue() || 1));
+        }
+    }
+
+    /** Bucket for a zoom value in slider units (z = 1/camera-ratio). */
     private _labelBucketFor(z: number): number {
-        if (z < _ZOOM_LBL_OFF) return 0;
-        if (z < _ZOOM_LBL_HUBS) return 1;
+        if (z < 1 / _RATIO_LBL_OFF) return 0;
+        if (z < 1 / _RATIO_LBL_HUBS) return 1;
         return 2;
     }
 
     /**
-     * Apply a zoom-fade label bucket to the CLOUD nodes only (ego labels are
-     * always on — small graphs): 0 = no labels, 1 = hubs only, 2 = all.
-     * Bucket -1 clears the gate. Only touches elements on bucket CHANGE.
+     * Apply a zoom-fade label bucket (cloud nodes only — ego labels are
+     * always on; the reducer gates labels by the bucket + hub flag).
+     * Bucket -1 clears the gate. Only refreshes on bucket CHANGE.
      */
     private _applyLabelBucket(bucket: number): void {
-        const cy = this.graph && this.graph.cy;
-        if (!cy || !this.graph) return;
+        if (!this.graph?.renderer) return;
         if (bucket === this.graph.labelBucket) return;
         this.graph.labelBucket = bucket;
-        cy.batch(() => {
-            cy.nodes().forEach((n) => {
-                if (n.data().cloud !== "1") return;
-                const hub = n.data().hub === "1";
-                const show = bucket === 2 || (bucket === 1 && hub);
-                n.toggleClass("lbl-hide", !show);
-            });
-        });
+        this.graph.renderer.setLabelBucket(bucket);
     }
 
-    /** Hover tooltips for nodes + edges (#graph-tip, viewport-positioned). */
-    private _initTooltip(): void {
-        const cy = this.graph && this.graph.cy;
-        if (!cy) return;
+    /** Tooltip placement + content (viewport-positioned, camera-relative). */
+    private _placeTip(x: number, y: number): void {
         const tip = getEl("graph-tip");
         const canvas = getEl("graph-canvas");
-        const place = (e: CyEvent): void => {
-            let x = e.renderedPosition?.x;
-            let y = e.renderedPosition?.y;
-            if (x === undefined || y === undefined) {
-                const rect = canvas.getBoundingClientRect();
-                x = (e.originalEvent?.clientX ?? rect.left) - rect.left;
-                y = (e.originalEvent?.clientY ?? rect.top) - rect.top;
-            }
-            const maxX = canvas.clientWidth - 290;
-            const maxY = canvas.clientHeight - 90;
-            tip.style.left = `${Math.max(4, Math.min(x + 14, maxX))}px`;
-            tip.style.top = `${Math.max(4, Math.min(y + 14, maxY))}px`;
-        };
-        // Neighbourhood highlight: dim everything outside the hovered node's
-        // immediate set. Class-based so the stylesheet transitions animate
-        // it; batched — a full-cloud hover touches ~4k elements.
-        const setHover = (core: CyElements | null): void => {
-            cy.batch(() => {
-                const all = cy.elements();
-                all.removeClass("hov-core");
-                if (!core) {
-                    all.removeClass("hov-dim");
-                    return;
-                }
-                all.addClass("hov-dim");
-                core.removeClass("hov-dim").addClass("hov-core");
-            });
-        };
-        cy.on("mouseover", "node", (e) => {
-            const d = e.target.data();
-            const rows: string[] = [];
-            if (d.cloud === "1") {
-                rows.push(
-                    `<div class="tip-meta">degree ${String(d.deg ?? "?")} · ${escapeHtml(String(d.group || "entity"))}</div>`,
-                );
-            }
-            if (d.community !== undefined) {
-                rows.push(`<div class="tip-meta">community ${String(d.community)}</div>`);
-            }
-            tip.innerHTML =
-                `<div class="tip-type">${escapeHtml(String(d.group || "node"))}</div>` +
-                `<div class="tip-name">${escapeHtml(String(d.label || d.id))}</div>` +
-                rows.join("");
-            place(e);
-            tip.style.display = "block";
-            setHover(e.target.closedNeighborhood());
-        });
-        cy.on("mouseover", "edge", (e) => {
-            const d = e.target.data();
-            if (d.cloud === "1" && !d.type) return; // hidden cloud edges carry no info
-            const props = (d.props || {}) as Record<string, unknown>;
-            const extra = Object.keys(props)
-                .map((k) => `${k}: ${String(props[k])}`)
-                .join(" · ");
-            tip.innerHTML =
-                `<div class="tip-type">${escapeHtml(String(d.type || "edge"))}</div>` +
-                `<div class="tip-name">${escapeHtml(String(d.source))} → ${escapeHtml(String(d.target))}</div>` +
-                (extra ? `<div class="tip-meta">${escapeHtml(extra)}</div>` : "");
-            place(e);
-            tip.style.display = "block";
-        });
-        cy.on("mouseout", "node", () => {
-            this._hideTip();
-            setHover(null);
-        });
-        cy.on("mouseout", "edge", () => this._hideTip());
-        cy.on("zoom", () => this._hideTip());
-        cy.on("pan", () => this._hideTip());
+        const maxX = canvas.clientWidth - 290;
+        const maxY = canvas.clientHeight - 90;
+        tip.style.left = `${Math.max(4, Math.min(x + 14, maxX))}px`;
+        tip.style.top = `${Math.max(4, Math.min(y + 14, maxY))}px`;
+        tip.style.display = "block";
+    }
+
+    private _showNodeTip(d: NodePayload, x: number, y: number): void {
+        const rows: string[] = [];
+        if (d.cloud) {
+            rows.push(
+                `<div class="tip-meta">degree ${String(d.deg ?? "?")} · ${escapeHtml(String(d.group || "entity"))}</div>`,
+            );
+        }
+        const community = this.graph?.cloud?.communities?.get(d.id);
+        if (community !== undefined) {
+            rows.push(`<div class="tip-meta">community ${community}</div>`);
+        }
+        getEl("graph-tip").innerHTML =
+            `<div class="tip-type">${escapeHtml(String(d.group || "node"))}</div>` +
+            `<div class="tip-name">${escapeHtml(String(d.label || ""))}</div>` +
+            rows.join("");
+        this._placeTip(x, y);
+    }
+
+    private _showEdgeTip(d: EdgeHoverInfo, x: number, y: number): void {
+        const props = (d.props || {}) as Record<string, unknown>;
+        const extra = Object.keys(props)
+            .map((k) => `${k}: ${String(props[k])}`)
+            .join(" · ");
+        getEl("graph-tip").innerHTML =
+            `<div class="tip-type">${escapeHtml(String(d.rel || "edge"))}</div>` +
+            `<div class="tip-name">${escapeHtml(d.source)} → ${escapeHtml(d.target)}</div>` +
+            (extra ? `<div class="tip-meta">${escapeHtml(extra)}</div>` : "");
+        this._placeTip(x, y);
     }
 
     private _hideTip(): void {
@@ -1875,146 +1759,31 @@ export class GraphView {
 
     // --- Layouts ------------------------------------------------------------ //
 
-    _runGraphLayout(name: string, cloud = false, randomize = true): void {
-        if (!this.graph || !this.graph.cy || this.graph.cy.elements().length === 0) return;
-        // Animated transitions only where they pay: subgraph-sized canvases
-        // (the hard cut on every chip toggle read as "clunky"); the 700-node
-        // full cloud animates nothing (seconds of main-thread layout).
-        const small = this.graph.cy.nodes().length <= _LABEL_ALWAYS_NODES;
-        const animate = cloud ? small : true;
-
-        // Component-separating preset: each connected set gets its own grid
-        // cell (only meaningful when elements carry component ids).
-        if (name === "components") {
-            const els = this.graph.elements || [];
-            if (els.some((e) => e.data.component)) {
-                const positions = this._cloudComponentPositions(els);
-                if (Object.keys(positions).length) {
-                    this.graph.cy
-                        .layout({
-                            name: "preset",
-                            positions,
-                            animate,
-                            animationDuration: 300,
-                        })
-                        .run();
-                    return;
-                }
-            }
-            name = "concentric";
-        }
-
-        const opts: Record<string, unknown> = {
-            name,
-            animate,
-            animationDuration: 400,
+    /** Run a layout from the #graph-layout dropdown (renderer owns the
+     *  engines: FA2 for the force options, preset assignments otherwise;
+     *  "cached" falls back to "components" when the sidecar is cold). */
+    _runGraphLayout(
+        name: string,
+        cloud = false,
+        randomize = true,
+        root: string | null = null,
+    ): void {
+        if (!this.graph?.renderer) return;
+        this.graph.renderer.runLayout(name, {
+            cloud,
             randomize,
-        };
-        if (name === "fcose") {
-            // fcose tiles disconnected components natively (tile: true). On
-            // the ego-sized graphs it is the default; on the full cloud it is
-            // an explicit opt-in (seconds of main-thread work), with a
-            // bounded iteration budget. Valid qualities: default | proof.
-            opts.quality = "default";
-            opts.nodeSeparation = cloud ? 60 : 90;
-            opts.idealEdgeLength = cloud ? 70 : small ? 70 : 110;
-            opts.edgeElasticity = 0.45;
-            opts.gravity = cloud ? 0.25 : 0.3;
-            opts.numIter = cloud ? 600 : 2500;
-            opts.tile = true;
-            opts.tilingPaddingVertical = 40;
-            opts.tilingPaddingHorizontal = 40;
-            // Cloud fits itself after layout; ego lets the layout fit (the
-            // ego path does not call fit(), so fit:false would strand the
-            // network outside the viewport).
-            if (cloud) opts.fit = false;
-        } else if (name === "cose") {
-            opts.nodeRepulsion = () => 8000;
-            opts.idealEdgeLength = () => 100;
-            opts.nodeOverlap = 20;
-            if (cloud) {
-                opts.randomize = true;
-                opts.numIter = 300;
-                opts.initialTemp = 200;
-                opts.coolingFactor = 0.8;
-                opts.minTemp = 1.0;
-                opts.gravity = 2;
-            }
-        } else if (name === "concentric") {
-            opts.concentric = (n: CySingular) => (n.data().centrality as number) || 0;
-            opts.levelWidth = () => 1;
-            opts.minNodeSpacing = 30;
-        } else if (name === "breadthfirst") {
-            opts.directed = true;
-            opts.spacingFactor = 1.2;
-            opts.roots = this.graph.central ? `#${CSS.escape(this.graph.central)}` : undefined;
-        }
-        this.graph.cy.layout(opts).run();
-    }
-
-    /**
-     * Positions for the component-separating cloud layout (each connected
-     * component grid-packed with its hub at the cell centre). Kept as a
-     * selectable alternative to fcose's native tiling.
-     */
-    _cloudComponentPositions(els: GraphElement[]): Record<string, { x: number; y: number }> {
-        const nodes = els.filter((e) => e.data.id && !e.data.source);
-        if (!nodes.length) return {};
-        const compMap = new Map<string, string[]>();
-        nodes.forEach((n) => {
-            const c = n.data.component || n.data.id;
-            if (!compMap.has(c)) compMap.set(c, []);
-            compMap.get(c)!.push(n.data.id);
+            cachedPositions: this.graph.cloud?.positions ?? null,
+            root,
         });
-        const comps = [...compMap.values()].sort((a, b) => b.length - a.length);
-        const degree: Record<string, number> = {};
-        els.forEach((e) => {
-            if (e.data.source && e.data.target) {
-                degree[e.data.source] = (degree[e.data.source] || 0) + 1;
-                degree[e.data.target] = (degree[e.data.target] || 0) + 1;
-            }
-        });
-        const nodeSpacing = 52;
-        // Pad scales with the largest component: a fixed 90px pad turned a
-        // single-type filter (dozens of disconnected pairs) into a sparse,
-        // mostly-empty grid (screenshot 1) — but too tight a pad makes the
-        // now always-on pair labels collide with the neighbouring cell's
-        // labels, so pairs get a middle allowance.
-        const maxComp = comps.length ? Math.max(...comps.map((c) => c.length)) : 0;
-        const cellPad = maxComp >= 8 ? 90 : 70;
-        const cellRadius = (n: number): number => Math.max(30, (Math.sqrt(n) * nodeSpacing) / 2);
-        const maxR = Math.max(...comps.map((c) => cellRadius(c.length)));
-        const cell = maxR * 2 + cellPad;
-        const cols = Math.max(1, Math.ceil(Math.sqrt(comps.length)));
-        const positions: Record<string, { x: number; y: number }> = {};
-        comps.forEach((comp, i) => {
-            const cx = (i % cols) * cell + cell / 2;
-            const cyy = Math.floor(i / cols) * cell + cell / 2;
-            const r = cellRadius(comp.length);
-            const sorted = [...comp].sort((a, b) => (degree[b] || 0) - (degree[a] || 0));
-            const hub = sorted[0];
-            if (comp.length === 2) {
-                // Vertical pair: the two labels stack instead of sharing a
-                // baseline, where long names collide with each other and
-                // with the neighbouring cell's labels.
-                positions[hub] = { x: cx, y: cyy - r };
-                positions[sorted[1]] = { x: cx, y: cyy + r };
-                return;
-            }
-            positions[hub] = { x: cx, y: cyy };
-            sorted.slice(1).forEach((id, j) => {
-                // Start the ring at 12 o'clock so the common 2-neighbour
-                // component stacks vertically (labels stop sharing a y).
-                const ang = -Math.PI / 2 + (j / (sorted.length - 1)) * Math.PI * 2;
-                positions[id] = { x: cx + Math.cos(ang) * r, y: cyy + Math.sin(ang) * r };
-            });
-        });
-        return positions;
+        // Layouts may re-zoom via the subsequent fit; the camera event
+        // handler re-syncs the slider, but a fit-free path (ego) won't fire
+        // one — sync explicitly.
+        this._syncZoomUi();
     }
 
     // --- Inspector (detail panel) ------------------------------------------- //
 
-    _renderGraphDetail(nodeData: CyNodeData | null): void {
+    _renderGraphDetail(nodeData: NodePayload | null, bundle?: NeighborsBundle | null): void {
         const panel = getEl("graph-detail");
         if (!nodeData) {
             panel.innerHTML =
@@ -2023,16 +1792,23 @@ export class GraphView {
             return;
         }
         const name = nodeData.id;
-        const group = (nodeData.group as string) || "company";
-        const bundle = (nodeData as CyNodeData & { __bundle?: NeighborsBundle }).__bundle;
+        const group = nodeData.group || "company";
+        // The ego focal carries its neighbors bundle (state field); every
+        // other node renders the centre/expand action row instead.
+        const nb = bundle !== undefined ? bundle : (this.graph?.focalBundle ?? null);
+        const isFocal =
+            nb !== null &&
+            (nb.entity_type === "sector"
+                ? (nb as SectorNeighbors).sector === name
+                : (nb as CompanyNeighbors).company === name);
 
         let html = `<div class="graph-detail-header">
             <span class="graph-badge graph-badge-${CSS.escape(group)}">${escapeHtml(group)}</span>
             <h3>${escapeHtml(name)}</h3>
         </div>`;
 
-        if (bundle && bundle.entity_type === "sector") {
-            const sectorBundle = bundle as SectorNeighbors;
+        if (nb && isFocal && nb.entity_type === "sector") {
+            const sectorBundle = nb as SectorNeighbors;
             html += `<ul class="graph-detail-list">`;
             html += `<li><strong>Members:</strong> ${sectorBundle.member_count}</li>`;
             const mc = sectorBundle.market_cap_counts || {};
@@ -2043,8 +1819,8 @@ export class GraphView {
             if (sectorBundle.file_path) {
                 html += `<a class="btn-primary" href="/entity/${sectorBundle.file_path}">View sector note →</a>`;
             }
-        } else if (bundle) {
-            const companyBundle = bundle as CompanyNeighbors;
+        } else if (nb && isFocal) {
+            const companyBundle = nb as CompanyNeighbors;
             html += `<ul class="graph-detail-list">`;
             if (companyBundle.sector)
                 html += `<li><strong>Sector:</strong> ${escapeHtml(companyBundle.sector)}</li>`;
@@ -2066,7 +1842,7 @@ export class GraphView {
 
         panel.innerHTML = html;
 
-        if (!bundle) {
+        if (!isFocal) {
             const row = document.createElement("div");
             row.className = "graph-detail-actions";
             const centreBtn = document.createElement("button");
@@ -2155,267 +1931,6 @@ export class GraphView {
         if (el) el.textContent = text;
     }
 
-    // --- Stylesheet ---------------------------------------------------------- //
-
-    _cytoscapeStyle(): CyStylesheet {
-        // Colours come from the tokens.css --edge-* palette (single source of
-        // truth with the legend chips) plus the Desk interaction tokens.
-        // 2026-08-27 widget overhaul: labels sit on dark halo plates instead
-        // of hard outlines; a dark ring separates every fill from the canvas;
-        // opacity transitions make the hover-dim feel intentional; rectangles
-        // carry their labels centred INSIDE the shape (bottom-valign clipped
-        // them into the shape).
-        const ss = cytoscape
-            .stylesheet()
-            .selector("node")
-            .style({
-                label: "data(label)",
-                "text-valign": "bottom",
-                "text-halign": "center",
-                "text-margin-y": 5,
-                "text-outline-width": 0,
-                "text-background-color": "#0B0F14",
-                "text-background-opacity": 0.6,
-                "text-background-padding": 2,
-                "text-background-shape": "roundrectangle",
-                color: "#DCE5EE",
-                "font-family": "'IBM Plex Mono', monospace",
-                "font-size": 10,
-                width: 24,
-                height: 24,
-                "background-color": "#7E8FA3",
-                "border-width": 1.5,
-                "border-color": "#0B0F14",
-                "overlay-opacity": 0,
-                "transition-property": "opacity",
-                "transition-duration": 150,
-            })
-            .selector('node[group="focal"]')
-            .style({
-                "background-color": "#E0A93E",
-                width: 32,
-                height: 32,
-                "border-width": 2,
-                "border-color": "#F5D08C",
-                "font-size": 12,
-                "font-weight": "bold",
-            })
-            .selector('node[group="peer"]')
-            .style({ "background-color": "#F5B14C" })
-            .selector('node[group="jv"]')
-            .style({ "background-color": "#C39BFF" })
-            .selector('node[group="sibling"]')
-            .style({ "background-color": "#B5838D" })
-            .selector('node[group="acquired"]')
-            .style({ "background-color": "#F28B82" })
-            .selector('node[group="parent"]')
-            .style({ "background-color": "#43AA8B" })
-            .selector('node[group="supplier"]')
-            .style({ "background-color": "#7CA8C9" })
-            .selector('node[group="customer"]')
-            .style({ "background-color": "#7CA8C9" })
-            .selector('node[group="outer"]')
-            .style({
-                "background-color": "#66788C",
-                "border-width": 1,
-                "border-style": "dashed",
-                "border-color": "#8CA0B4",
-                width: 20,
-                height: 20,
-            })
-            // Entity-type groups (cloud + sector ego).
-            .selector('node[group="company"]')
-            .style({ "background-color": "#C7D3E0" })
-            .selector('node[group="theme"]')
-            .style({
-                "background-color": "#C39BFF",
-                shape: "hexagon",
-                width: 24,
-                height: 24,
-            })
-            .selector('node[group="edition"]')
-            .style({
-                "background-color": "#D8C9A3",
-                shape: "rectangle",
-                width: 30,
-                height: 30,
-            })
-            // Rectangles carry their labels centred INSIDE the shape — the
-            // old bottom-valign clipped the label into the rectangle edge.
-            // Dark text on the lighter teal/tan fills; super_sector's fill is
-            // dark enough to need light text.
-            .selector(
-                'node[group="sector"], node[group="sector-focal"], node[group="sub_sector"], node[group="edition"]',
-            )
-            .style({
-                "text-valign": "center",
-                "text-margin-y": 0,
-                "text-background-opacity": 0,
-                "font-weight": "bold",
-                color: "#06231F",
-            })
-            .selector('node[group="super_sector"]')
-            .style({
-                "text-valign": "center",
-                "text-margin-y": 0,
-                "text-background-opacity": 0,
-                "font-weight": "bold",
-                color: "#E8EDF2",
-            })
-            .selector('node[group="super_sector"]')
-            .style({
-                "background-color": "#17766C",
-                shape: "rectangle",
-                width: 54,
-                height: 32,
-            })
-            .selector('node[group="sub_sector"]')
-            .style({
-                "background-color": "#3E8F86",
-                shape: "round-rectangle",
-                width: 44,
-                height: 28,
-            })
-            .selector('node[group="sector"]')
-            .style({
-                "background-color": "#2DD4BF",
-                shape: "rectangle",
-                width: 50,
-                height: 30,
-            })
-            .selector('node[group="sector-focal"]')
-            .style({
-                "background-color": "#1FB9A6",
-                shape: "rectangle",
-                width: 56,
-                height: 36,
-                "font-size": 12,
-            })
-            .selector('node[group="member"]')
-            .style({
-                "background-color": "#7CA8C9",
-                width: 22,
-                height: 22,
-            })
-            // Path subgraph (Path mode).
-            .selector('node[group="path-end"]')
-            .style({
-                "background-color": "#E0A93E",
-                width: 40,
-                height: 40,
-                "font-weight": "bold",
-            })
-            .selector("node.focal")
-            .style({
-                "border-width": 3,
-                "border-color": "#F5D08C",
-            })
-            // Louvain shading overrides the type colour with data(color).
-            .selector("node.shaded")
-            .style({ "background-color": "data(color)" })
-            // Zoom-fade labels (cloud).
-            .selector("node.lbl-hide")
-            .style({ "text-opacity": 0 })
-            .selector("edge")
-            .style({
-                width: 1.6,
-                "line-color": "rgba(96, 116, 140, 0.75)",
-                "target-arrow-color": "rgba(96, 116, 140, 0.75)",
-                "target-arrow-shape": "triangle",
-                "target-arrow-scale": 0.7,
-                "curve-style": "bezier",
-                label: "data(label)",
-                "font-family": "'IBM Plex Mono', monospace",
-                "font-size": 8.5,
-                color: "#B9C6D4",
-                "text-background-color": "#0B0F14",
-                "text-background-padding": 2,
-                "text-background-opacity": 0.75,
-                "text-background-shape": "roundrectangle",
-                "overlay-opacity": 0,
-                "transition-property": "opacity",
-                "transition-duration": 150,
-            })
-            .selector('edge[type="path-hop"]')
-            .style({
-                width: 3.5,
-                "line-color": "#E0A93E",
-                "target-arrow-color": "#E0A93E",
-                "curve-style": "bezier",
-                "z-index": 10,
-            });
-
-        // Edge-type colours from the token palette.
-        Object.keys(_EDGE_TOKENS).forEach((t) => {
-            ss.selector(`edge[type="${t}"]`).style({
-                "line-color": edgeColor(t),
-                "target-arrow-color": edgeColor(t),
-            });
-        });
-
-        ss.selector(
-            'edge[type="co_mentioned_in"], edge[type="jv_with"], edge[type="competes_with"], edge[type="same_group"]',
-        )
-            .style({ "target-arrow-shape": "none" })
-            .selector("edge.highlighted")
-            .style({
-                width: 4,
-                "line-color": "#E0A93E",
-                "target-arrow-color": "#E0A93E",
-                "z-index": 10,
-            })
-            .selector("node.highlighted")
-            .style({
-                "border-width": 3,
-                "border-color": "#E0A93E",
-                "z-index": 10,
-            })
-            // Cloud styling: straight thin edges, no text (the #1 render
-            // cost at 4k+ edges); degree-scaled nodes (sqrt curve — the px
-            // diameter arrives precomputed in data(size)); zoom-gated labels
-            // only on the FULL cloud (small subgraphs force bucket 2).
-            .selector('edge[cloud="1"]')
-            .style({
-                "curve-style": "straight",
-                width: 1,
-                label: "",
-                "text-opacity": 0,
-                "font-size": 0,
-            })
-            .selector('node[cloud="1"]')
-            .style({
-                "font-size": 9,
-                "min-zoomed-font-size": 5,
-                width: "data(size)",
-                height: "data(size)",
-            })
-            // Hover neighbourhood highlight (setHover in _initTooltip).
-            .selector(".hov-dim")
-            .style({ opacity: 0.22 })
-            .selector("node.hov-core")
-            .style({
-                "border-width": 2,
-                "border-color": "#F5D08C",
-            })
-            .selector("edge.in-set")
-            .style({
-                width: 4,
-                "line-color": "#E0A93E",
-                "target-arrow-color": "#E0A93E",
-                "z-index": 12,
-                "overlay-opacity": 0,
-            })
-            .selector("node.in-set")
-            .style({
-                "border-width": 3,
-                "border-color": "#E0A93E",
-                "z-index": 12,
-            })
-            .selector(".faded")
-            .style({ opacity: 0.25 });
-        return ss;
-    }
-
     // --- Path mode ------------------------------------------------------------ //
 
     async loadShortestPath(): Promise<void> {
@@ -2442,7 +1957,7 @@ export class GraphView {
 
     _renderShortestPath(data: ShortestPathResponse): void {
         const result = getEl("shortest-result");
-        const cy = this.graph && this.graph.cy;
+        const renderer = this.graph && this.graph.renderer;
         if (data.path === null) {
             result.innerHTML =
                 `<p class="hint">No path found between <em>${escapeHtml(data.source)}</em> and ` +
@@ -2478,7 +1993,7 @@ export class GraphView {
             });
         });
 
-        if (!cy) return;
+        if (!renderer) return;
         // Path mode renders the path as its own subgraph (a clean hop chain);
         // in ego mode we keep the old behaviour of highlighting the path when
         // it is fully present on the canvas.
@@ -2501,35 +2016,18 @@ export class GraphView {
                     },
                 });
             }
-            cy.elements().remove();
-            cy.add(elements as unknown as CyElementInput[]);
-            if (this.graph) this.graph.labelAlways = false;
-            cy.layout({
-                name: "breadthfirst",
-                directed: true,
-                spacingFactor: 1.4,
-                roots: `#${CSS.escape(chain[0])}`,
-                animate: true,
-                animationDuration: 400,
-            }).run();
+            renderer.setElements(elements);
+            this.graph.labelAlways = false;
+            this._runGraphLayout("breadthfirst", false, true, chain[0]);
             this._fitCapped(60, _EGO_FIT_MAX_ZOOM);
             this._applyLabelBucket(-1);
             getEl("graph-empty").style.display = "none";
         } else {
-            cy.elements().removeClass("highlighted faded");
-            const pathNodes = chain.filter((n) => cy.getElementById(n).length > 0);
+            const pathNodes = chain.filter((n) => renderer.hasNode(n));
             if (pathNodes.length === chain.length) {
-                const pathEles = cy.collection();
-                for (let i = 0; i < chain.length - 1; i++) {
-                    const e = cy
-                        .getElementById(chain[i])
-                        .edgesWith(cy.getElementById(chain[i + 1]));
-                    pathEles.merge(e);
-                    pathEles.merge(cy.getElementById(chain[i]));
-                }
-                pathEles.merge(cy.getElementById(chain[chain.length - 1]));
-                pathEles.addClass("highlighted");
-                cy.elements().not(pathEles).addClass("faded");
+                renderer.highlightPath(chain);
+            } else {
+                renderer.highlightPath(null);
             }
         }
     }
@@ -2538,8 +2036,6 @@ export class GraphView {
         getEl("shortest-result").innerHTML = "";
         (getEl("shortest-a") as HTMLInputElement).value = "";
         (getEl("shortest-b") as HTMLInputElement).value = "";
-        if (this.graph && this.graph.cy) {
-            this.graph.cy.elements().removeClass("highlighted faded");
-        }
+        this.graph?.renderer?.highlightPath(null);
     }
 }

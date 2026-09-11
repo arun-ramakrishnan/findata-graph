@@ -1507,11 +1507,11 @@ footer {
     border-radius: 8px;
     height: 600px;
     overflow: hidden;
-    /* cytoscape mounts inside this; the empty-state overlay sits on top */
+    /* the WebGL renderer mounts inside this; the empty-state overlay sits on top */
 }
 
 .graph-canvas canvas {
-    /* cytoscape creates its own canvas; no border/padding needed */
+    /* the renderer creates its own canvases; no border/padding needed */
     display: block;
 }
 

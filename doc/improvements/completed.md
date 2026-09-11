@@ -5299,3 +5299,117 @@ loud-empty, refresh-over-BLOB; bench vector leg ×3);
 `make qa` 9/9 (2,741 passed). Riders: ruff-format footprint on 2 #223
 files, S608 noqas in test_embedding_blob_migration, ty ignores for
 pyarrow.compute dynamics.
+## 225. Graph rendering overhaul — sigma.js v3 WebGL swap over precomputed server-side layout
+
+**Proposal**: `doc/improvements/archive/ui/graph_rendering_overhaul.md`
+(filed 2026-09-11, executed 2026-09-11 — S0 spike, S1 lane-3, Gate 1a/1b,
+renderer swap all in one arc).
+
+**Problem**: the graph canvas was the weakest UI surface and the only one
+needing repeated remediation (#108 birth, #110 same-day usability fix,
+polish pass, #145 redesign): edges had grown ~4.7x since cloud birth
+(4,110 → 19,261) while the rendering strategy stayed "compute fcose
+client-side, draw every element on canvas2d" — 2.0 FPS pan/zoom at 1x
+(1.1 at 2x), ~55 s fcose per explicit layout pick, 274 MB heap at 2x.
+No head-to-head had ever been measured; a prior arc rejected a library
+swap to protect a styling pass.
+
+**Landed**:
+- S0 head-to-head harness (scratch, no repo change): baseline vs cytoscape
+  LOD vs sigma.js WebGL vs precomputed positions, 2 scales x 3 runs;
+  payload sizing (JSON vs Arrow IPC). sigma won FPS 2.5-3.5x and heap
+  15-30x lower under software raster; LOD lost to baseline at 2x (0.8 vs
+  1.1 FPS) — rejected by its own numbers; precompute is no-regret.
+- S1 lane 3 first (operator-sequenced): `helpers/graph/layout.py` —
+  deterministic numpy FA2 (repulsion collapsed to two BLAS matmuls via
+  separation linearity; 130 s → ~30 s), edge-set-hash-gated sidecar
+  `memory/graph_layout.json` (embed-matrix refresh pattern),
+  `GET /api/graph/positions` + post-rebuild pre-warm, "cached" frontend
+  preset; 7 tests.
+- Gate 1a on the desktop GPU (headed chromium, ANGLE Intel HD 530):
+  sigma3 + lane-3 at 2x = 579 ms paint / 59.9 FPS vsync-locked / 18 MB
+  heap vs baseline 1.2 FPS — all §4 targets passed with 3.5-83x headroom.
+- Gate 1b parity prototype (~140 LOC): select/highlight/expand/mode-switch/
+  As-Of — "not a rewrite"; four cost items priced and addressed in S1.
+- S1 renderer swap: `frontend/src/views/graphRenderer.ts` (new, ~930
+  lines — graphology multigraph, node/edge reducers, all eight layout
+  engines, normalized-camera math, arrow + border programs), `graph.ts`
+  reduced to the domain layer (stylesheet, component-packing layout and
+  all cy.* calls deleted), cytoscape + cytoscape-fcose uninstalled
+  (sigma ships its own types; vendors.d.ts stubs removed), bundle
+  519.8 KB committed (Node-free deploy holds). Gate 1b cost items:
+  350 ms tap double-fire guard, existing builders already normalize
+  payloads, ring-seed + short FA2 for expanded nodes, promise-wrapped
+  callbacks → status line. E2E parity checklist green on the live UI
+  (tap-select, expand, five modes, As-Of, layouts, zoom/fit, tooltips,
+  spotlight, re-centre, shading, path chain).
+- S2 retirement co-landed: single renderer, no transition window;
+  Prefab `Embed` hosting stays recorded-not-scheduled.
+
+**Measured (2026-09-11, this box)**: cloud first-interactive-paint
+4.4 s → 0.58 s @ 2x; pan/zoom 1.1 → 59.9 FPS (GPU; software-raster
+ceiling was 3.9); client layout cost 55.4 s (fcose pick) or 0.85 s
+(concentric default) → 0 (sidecar replay; 49 ms server read); JS heap
+274 MB → 18 MB @ 2x. graphrs (operator-suggested Rust/WASM igraph)
+evaluated and scoped-rejected: paint is the bottleneck, lane 3 already
+eliminates the one expensive client algorithm, metrics duplicate Onager
+(#222); licensing operator-reviewed (no-conveyance private use).
+`make qa` 9/9 PASS at arc end (ruff-format footprint, helper shebang,
+xdist-safe ETag stub in the new test).
+
+## 226. Prefab Flask views — /v2/* pilot family over existing APIs, dual-URL posture
+
+**Proposal**: `doc/improvements/archive/ui/prefab_ui_flask_views.md`
+(filed 2026-09-11, executed 2026-09-12 — S0 spike + S1–S4 across two
+days).
+
+**Problem**: the findata UI is ~5.3k LOC of hand-written TypeScript
+(typed API contracts, view classes, a rebuilt bundle per change) for
+surfaces that are mostly cards, tables, and one chart — render work a
+Python-composed component library could own, letting Flask serve
+self-contained pages over the existing APIs with zero custom JS. No
+measure had confirmed whether the round-trip model (Prefab 0.20.2,
+bundled 6.6 MB renderer) is viable inside this app's CSP and SQLite/DuckDB
+backing.
+
+**Landed**:
+- S0 (scratch): kill criteria passed — 3.14 import OK, html() 6.6 MB
+  bundled (ceiling 10 MB); Fetch round-trip, Embed both modes, DataTable,
+  BarChart, and the CSP integration point (after_request head-insert)
+  all verified against a live Flask.
+- `helpers/web/prefab_views.py` + `register(app)`: six pages behind one
+  `/v2/*` CSP relaxation lane — `/v2/stats` (full stats.ts parity),
+  `/v2/companies` (server-side filters: search + type/sector/cap
+  Comboboxes), `/v2/sectors` (badge cloud + analysis cards), `/v2/docs`
+  (Tabs catalog/hybrid-search/Markdown-reader), `/v2/search` (FTS5),
+  `/v2/entity` (detail + events timeline). `prefab-ui==0.20.2` pinned
+  exact in pyproject.
+- Interactive grammar proven with no custom JS: on_change chains
+  (`SetState` own key from `$event`, then Fetch re-reading all filter
+  keys from state), Form onSubmit Enter-commit (FormData harvest runs
+  before actions), click-to-reader (set path → fetch off updated state →
+  flip Tabs state).
+- 21 tests in `tests/test_prefab_views.py` (route shells, CSP split,
+  self-contained bundled page, wiring templates, baked-state shapes).
+- S4 decisions: KEEP dual-URL (`/findata` authoritative — TS reader owns
+  vault collection, anchors, snippet marks, query encoding); graph-table
+  endpoint mirrors DESCOPED (graph bundle serves that exploration
+  better); companies pagination deferred; Embed-mount of the graph not
+  taken.
+
+**Measured**: prefab-ui 0.20.2 renderer laws (proposal logs carry the
+full set): ForEach is arrays-only and the `length` pipe returns 0 on
+objects → Record<string,number> fields must be shaped server-side;
+`default()` pipe args serialize bare and break the expression tokenizer
+on non-ident args (use null-comparison ternaries); a method-call template
+like `{{ x.length() }}` isn't grammar — mixed-string interpolation drops
+the segment SILENTLY; ChartSeries default fill `var(--color-edges)` is
+undefined in bundled mode (invisible bars). Dynamic
+`DataTable(rows=state)` still crashes at 0.20.2 (S0 finding) — ForEach +
+Table primitives instead.
+
+**Result**: six Prefab pages live alongside the untouched `/findata`
+bundle, every one E2E-verified headless (consolidated S4 pass green,
+zero console errors); `make qa` 9/9 at each arc end. The Prefab posture
+is recorded: dual-URL until a prefab-ui minor closes the dict-iteration /
+DataTable-rows / pipe-arg gaps, then re-evaluate the tab flip.
