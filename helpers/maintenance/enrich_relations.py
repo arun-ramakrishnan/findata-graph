@@ -1194,24 +1194,12 @@ def _parse_holder_date(val) -> str | None:
     """Normalize Date Reported to YYYY-MM-DD or None."""
     if val is None:
         return None
-    try:
-        import math as _math
-
-        if isinstance(val, float) and _math.isnan(val):
-            return None
-    except Exception:  # noqa: S110
-        pass
     s = str(val).strip()
-    if not s or s.lower() == "nan":
+    if not s or s.lower() in ("nan", "nat", "none"):
         return None
-    # Try pandas Timestamp
-    try:
-        import pandas as _pd
-
-        if isinstance(val, _pd.Timestamp):
-            return val.date().isoformat()
-    except Exception:  # noqa: S110
-        pass
+    # pandas.Timestamp subclasses datetime, so this needs no pandas import.
+    if isinstance(val, datetime):
+        return val.date().isoformat()
     # Try ISO-ish
     for fmt in ("%Y-%m-%d", "%m/%d/%Y", "%Y/%m/%d", "%d-%m-%Y", "%b %d, %Y"):
         try:
@@ -1229,9 +1217,6 @@ def _parse_holders_dataframe(df) -> list[dict]:  # noqa
     if df is None:
         return []
     try:
-        # pandas DataFrame
-        import pandas as _pd  # noqa: F401
-
         if hasattr(df, "empty") and df.empty:
             return []
         if hasattr(df, "columns"):
@@ -1251,20 +1236,20 @@ def _parse_holders_dataframe(df) -> list[dict]:  # noqa
             rows: list[dict] = []
             # Iterate rows
             try:
-                for _, row in df.iterrows():
+                for rec in df.to_dict("records"):
                     holder = (
-                        str(row[holder_col]).strip()
-                        if holder_col is not None and holder_col in row
+                        str(rec[holder_col]).strip()
+                        if holder_col is not None and holder_col in rec
                         else ""
                     )
-                    if not holder or holder.lower() == "nan":
+                    if not holder or holder.lower() in ("nan", "none", "nat"):
                         continue
                     shares = (
-                        row[shares_col] if shares_col is not None and shares_col in row else None
+                        rec[shares_col] if shares_col is not None and shares_col in rec else None
                     )
-                    pct_raw = row[pct_col] if pct_col is not None and pct_col in row else None
-                    value = row[value_col] if value_col is not None and value_col in row else None
-                    date_raw = row[date_col] if date_col is not None and date_col in row else None
+                    pct_raw = rec[pct_col] if pct_col is not None and pct_col in rec else None
+                    value = rec[value_col] if value_col is not None and value_col in rec else None
+                    date_raw = rec[date_col] if date_col is not None and date_col in rec else None
                     # Normalize shares/value to int/float where possible
                     try:
                         shares_n = (

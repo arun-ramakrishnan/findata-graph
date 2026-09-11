@@ -1266,3 +1266,114 @@ class TestTerminalClassifications:
         )
         assert rc == 0
         assert probed == []  # target dropped before any lookup
+
+
+# --------------------------------------------------------------------------- #
+# Holder-frame parsing — post-#224 tidy-up (no pandas import in the module)    #
+# --------------------------------------------------------------------------- #
+
+
+def test_parse_holders_dataframe_happy_path():
+    import pandas as pd
+
+    from helpers.maintenance.enrich_relations import _parse_holders_dataframe
+
+    df = pd.DataFrame(
+        {
+            "Holder": ["Vanguard Group", "BlackRock"],
+            "Shares": [1_234_567, "7,654,321"],
+            "% Out": [0.0812, "5.31%"],
+            "Value": ["1,234,567,890", 987_654_321.0],
+            "Date Reported": pd.to_datetime(["2024-03-31", "2024-03-31"]),
+        }
+    )
+    rows = _parse_holders_dataframe(df)
+
+    assert [r["holder"] for r in rows] == ["Vanguard Group", "BlackRock"]
+    assert [r["shares"] for r in rows] == [1_234_567, 7_654_321]
+    assert [r["value"] for r in rows] == [1_234_567_890.0, 987_654_321.0]
+    assert [r["date"] for r in rows] == ["2024-03-31", "2024-03-31"]
+    assert rows[0]["pct"] == pytest.approx(0.0812)
+    assert rows[1]["pct"] == pytest.approx(0.0531)
+
+
+def test_parse_holders_dataframe_skips_missing_holder():
+    """A null holder must be dropped, never surfaced as "NaT"/"None".
+
+    Regression for the iterrows() dtype-coercion bug: a missing Holder in a
+    frame carrying a datetime column came back as NaT and was persisted as a
+    bogus holder row.
+    """
+    import pandas as pd
+
+    from helpers.maintenance.enrich_relations import _parse_holders_dataframe
+
+    df = pd.DataFrame(
+        {
+            "Holder": ["Vanguard Group", None, "State Street"],
+            "Shares": [1, None, 3],
+            "Date Reported": pd.to_datetime(["2024-03-31", None, "2024-03-31"]),
+        }
+    )
+    rows = _parse_holders_dataframe(df)
+
+    assert [r["holder"] for r in rows] == ["Vanguard Group", "State Street"]
+    assert "NaT" not in {r["holder"] for r in rows}
+
+
+class _StubFrame:
+    """Duck-typed frame: proves the parse path needs no pandas import."""
+
+    def __init__(self, columns, records):
+        self.columns = columns
+        self._records = records
+
+    @property
+    def empty(self):
+        return not self._records
+
+    def to_dict(self, orient="records"):
+        assert orient == "records"
+        return self._records
+
+
+def test_parse_holders_dataframe_duck_typed_without_pandas():
+    from helpers.maintenance.enrich_relations import _parse_holders_dataframe
+
+    frame = _StubFrame(
+        ["Holder", "Shares", "Value"],
+        [
+            {"Holder": "Vanguard Group", "Shares": 5, "Value": "10,000"},
+            {"Holder": None, "Shares": None, "Value": None},
+        ],
+    )
+    assert _parse_holders_dataframe(frame) == [
+        {"holder": "Vanguard Group", "shares": 5, "pct": None, "value": 10_000.0, "date": None}
+    ]
+    assert _parse_holders_dataframe(_StubFrame(["Holder"], [])) == []
+
+
+def test_parse_holder_date_normalizes_and_rejects_nulls():
+    from datetime import datetime
+
+    import pandas as pd
+
+    from helpers.maintenance.enrich_relations import _parse_holder_date
+
+    assert _parse_holder_date(pd.Timestamp("2024-03-31")) == "2024-03-31"
+    assert _parse_holder_date(datetime(2024, 3, 31)) == "2024-03-31"
+    assert _parse_holder_date("2024-03-31") == "2024-03-31"
+    assert _parse_holder_date("3/31/2024") == "2024-03-31"
+    assert _parse_holder_date("Mar 31, 2024") == "2024-03-31"
+    assert _parse_holder_date(pd.NaT) is None
+    assert _parse_holder_date(float("nan")) is None
+    assert _parse_holder_date(None) is None
+    assert _parse_holder_date("garbage") is None
+
+
+def test_enrich_relations_module_has_no_pandas_import():
+    import inspect
+
+    import helpers.maintenance.enrich_relations as er
+
+    assert "import pandas" not in inspect.getsource(er)

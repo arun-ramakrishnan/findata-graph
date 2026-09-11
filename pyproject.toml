@@ -33,8 +33,6 @@ dependencies = [
     "duckdb",
     # Parquet/Arrow I/O (helpers/maintenance/snapshot_db.py).
     "pyarrow",
-    # DataFrame exports (helpers/maintenance/snapshot_db.py).
-    "pandas",
     # Numeric kernels for the aligned f32 embedding matrix (S2b,
     # helpers/core/embed_matrix.py — corpus_embeddings_scaling proposal
     # 2026-09-02). Was transitively available (max/pandas) but is now

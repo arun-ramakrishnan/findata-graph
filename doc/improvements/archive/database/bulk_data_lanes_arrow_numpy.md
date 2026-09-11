@@ -238,7 +238,8 @@ pyproject change.
   `_flat_knn_map`) rather than maintain it.
 - **`enrich_relations._parse_holders_dataframe` `iterrows()`** — real
   antipattern but ~10-row frames; fix is `to_dict("records")`, not
-  PyArrow. Out of scope.
+  PyArrow. Out of scope. **Closed same-day** — it was a live bug, not
+  just an antipattern (see Follow-up below).
 - **`get_tickers._print_history_section` `iterrows()`** — display-only,
   ~30 rows. Out of scope.
 
@@ -333,3 +334,52 @@ Verification: 10 new tests (snapshot NULL-int / NaN-vs-NULL /
 mixed-storage-class roundtrips; matrix BLOB fast-path, TEXT fallback,
 loud-empty, refresh-over-BLOB; bench vector leg decode / loud-empty /
 legacy-TEXT) + full suites green — `make qa` 9/9 (2,741 passed).
+
+## Follow-up (2026-09-11, same day): holder-parse tidy-up — closes the §5 leftover
+
+Patch `df_fix` (this patch): the §5 alternative deferred above —
+"`enrich_relations._parse_holders_dataframe` `iterrows()`, fix is
+`to_dict('records')`, not PyArrow" — turned out to be a live bug, not
+just an antipattern, and is now fixed. This also drops the module's
+last pandas imports and supersedes §S7's dependency note.
+
+**The bug:** `iterrows()` coerces each row to a single dtype. On
+pandas 3.0, a holders frame carrying a null `Holder` and a datetime
+`Date Reported` column coerced the row to `datetime64`, so the null
+holder surfaced as `NaT`; `str(NaT)` slipped past the `== "nan"` skip
+and the writer persisted a bogus holder row named `NaT`.
+
+**`helpers/maintenance/enrich_relations.py`:**
+
+- `_parse_holders_dataframe`: `iterrows()` → `df.to_dict("records")`
+  (per-row dtype coercion gone); field access `row[col]` → `rec[col]`;
+  skip guard `== "nan"` → `in ("nan", "none", "nat")`; removed the dead
+  `import pandas as _pd  # noqa: F401` (never referenced — the noqa was
+  its only consumer).
+- `_parse_holder_date`: dropped `import math` + `import pandas`; the
+  null guard folds nan/nat/none into one check; `isinstance(val,
+  _pd.Timestamp)` → `isinstance(val, datetime)` (pandas.Timestamp
+  subclasses datetime). Output verified byte-identical across
+  Timestamp / NaT / None / float nan / `"Mar 31, 2024"` / garbage.
+
+**Dependency surface — supersedes §S7 "Pandas stays a project
+dependency; no pyproject change":** with the module's last direct
+imports gone, `pandas` is dropped from `pyproject.toml`
+`[project.dependencies]`. No production import remains; only test
+fixtures construct frames, and pandas still loads transitively
+(yfinance → pandas), so those tests run unchanged.
+
+**Tests (`tests/test_enrich_relations.py`, 5 new — the parser had no
+direct coverage):** happy path (int and `"7,654,321"` shares, `0.0812`
+and `"5.31%"` pct, comma-formatted value, Timestamps); null-holder
+skip (the NaT regression); duck-typed stub proving the parse needs no
+pandas import; date normalization/rejection table; module source guard
+that no pandas import remains.
+
+**Scope:** frames are 5–15 rows and pandas is still loaded transitively
+(yfinance → pandas), so this is a correctness + dead-code + coupling
+fix, not an import-tax or perf win.
+
+**Gates:** `pytest tests/test_enrich_relations.py` 70 passed (5 new);
+ruff check + format clean; `ty check
+helpers/maintenance/enrich_relations.py` passed.
