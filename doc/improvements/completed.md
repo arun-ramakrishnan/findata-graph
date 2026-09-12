@@ -5610,7 +5610,7 @@ edges = the node's boundary), ec 40 / vc 32; pilot venv 184 MB
 **Deferral verdict (D15)**: integration deferred — no consumer had
 wired into an igraph lane when the EasyGraph engine question reopened,
 and it has since CLOSED: the operator source-built EasyGraph's C++
-backend (full log `doc/local/easy_graph_run.txt`, condensed in
+backend (full log folded into the proposal appendix, condensed in
 graph_layer.md "Easy-Graph C++ source-build re-test") and the verdict
 is **NO Easy-Graph stands** — cpp betweenness numerically broken on
 live data (378/1648 nodes overflow to ~1e20+; 199/200 sampled values
@@ -5622,3 +5622,43 @@ wiring until a lane earns a real consumer (proposal §7 revival
 conditions (b)/(c); (a) resolved by this verdict). Bridge remains a
 dry-run-only capability; Onager prod lanes and the analytics write
 path are unchanged.
+
+## 231. EasyGraph C++ re-eval — build unlocked on 3.11/3.14, adoption deferred
+
+**Proposal**: `doc/improvements/archive/graph/easygraph_cpp_readoption.md`
+(filed 2026-09-12, archived 2026-09-12 — verdict: adoption **DEFERRED**,
+parked behind R1–R4 revival triggers). Docs/eval arc — no code change.
+
+**Problem**: the 2026-09-12 wheel eval had ruled EasyGraph out pending a
+"recursive C++ build re-test" of its C++/OpenMP backend. The operator
+supplied a working build recipe; this arc executed it, benchmarked at
+full scale, and reconciled the result with the igraph handover plan.
+
+**Landed** (records only — no production code):
+- Build unlocked on BOTH interpreters: 3.11.13 (uv venv, cython preinstall
+  + cmake on PATH) and 3.14.0 (+ setuptools as the distutils shim — stdlib
+  distutils is gone on >=3.12; system cmake 4.2.3 suffices; torch needed
+  only for `import easygraph`). Recipe deltas + the shadowing-egg /
+  namespace-package gotchas in the proposal appendix.
+- Full-scale benchmarks (1648n/19261e → 16552 in-graph): cpp pagerank
+  0.105s, top5 identical to Onager; cpp louvain 0.014s, 11–13 comms,
+  Q=0.4817–0.484 (best modularity in the whole engine eval); cpp
+  betweenness numerically broken — 378/1648 nodes overflow to ~1e20+
+  in BOTH modes, reproduced EXACTLY on 3.11 and 3.14 (deterministic
+  upstream bug, not build flakiness).
+- Defect catalog D1–D5 (betweenness, unwired louvain, CSRMatrix ODR,
+  spurious torch warnings, packaging) + lane matrix vs the igraph
+  handover list: 1 of 8 lanes fully covered (weighted pagerank), 2
+  partial (dijkstra-only paths, louvain-without-leiden), 5 absent or
+  broken (leiden, maxflow/mincut absent; weighted closeness/eigenvector
+  ignore weight). GraphC silently collapses 2709 parallel edges —
+  per-etype semantics impossible.
+- Verdict: **NO Easy-Graph stands**; igraph keeps the second-engine
+  lanes; integration deferral (D15) unchanged. Revival gated on R1–R4
+  (upstream BC fix + weight support + louvain wiring, Leiden-or-reduced-
+  scope) recorded in the proposal §3.
+
+**Measured**: 3.14 build in minutes on 4 cores (gcc 15.2); cpp BC(w)
+0.29–0.38s but untrustworthy; run log folded verbatim into the proposal
+appendix; the gitignored `doc/local/easy_graph_run.txt` copy was
+removed after folding).

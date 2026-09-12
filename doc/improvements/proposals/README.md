@@ -30,6 +30,10 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+— (Previously: easygraph_cpp_readoption.md archived 2026-09-12 as completed.md
+entry 231 - verdict: adoption DEFERRED, parked behind R1-R4 upstream-fix
+triggers; lane matrix + full run log folded into the proposal.)_
+
 — (Previously: hybrid_graph_onager_igraph.md archived 2026-09-12 as completed.md
 entry 230 - execution record in
 `../archive/graph/hybrid_graph_onager_igraph.md`; standing posture: bridge
