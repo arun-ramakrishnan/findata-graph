@@ -25,6 +25,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`word_overlap_alias_guard.md`](graph/word_overlap_alias_guard.md) — Proposal: Triage hygiene: word-overlap alias guard + discard-persistence noise gate — completed.md #218
 - [`country_layer_institution_lanes.md`](graph/country_layer_institution_lanes.md) — Proposal: Country layer + institution counterparties — listed_in edges from exchange tickers, geography tag/frontmatter convergence (947-note apply, A3 whitelist activation), RBI/SEBI institution entities + rated_by/regulated_by/approved_by/penalized_by lanes — completed.md #219
 - [`graph_db_optimization.md`](graph/graph_db_optimization.md) — Proposal: Graph perf — Onager round-trip consolidation + result caches (closeness result cache, graph_metrics connectivity short-circuit, with_onager_connection batch context; all three issues incl. the `_splice_sources` warm-memo wrap-up) — completed.md #222
+- [`hybrid_derive_graph_microperf.md`](graph/hybrid_derive_graph_microperf.md) — Proposal: residual CPU hotpaths — derive --corpus lanes (events/co_mentions/cited_in) + maint threading, co_mentions pass fusion, Quotes.md 64KB frontmatter cap; S1 deferred, S3 no-op with evidence — completed.md #228
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 

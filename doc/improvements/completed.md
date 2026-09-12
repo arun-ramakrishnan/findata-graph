@@ -5463,3 +5463,49 @@ web-llm lane would need its own proposal. Follow-on filed the same day:
 `doc/improvements/proposals/unified_search.md` (unified UI search over
 notes/docs/scripts, reusing this highlighting path; sugar-high covers
 28 grammars — no Mojo, python-approximation mapped there).
+
+## 228. Hybrid fallback, derive walks, and graph top-k — residual CPU hotpaths
+
+**Proposal**: `doc/improvements/archive/graph/hybrid_derive_graph_microperf.md`
+(filed 2026-09-12, executed 2026-09-12 — S2 shipped, S1 deferred, S3
+no-op with evidence; OCR explicitly out per Paddle-regression evidence).
+
+**Problem**: after the O1–O3 perf arc and the graph_db_optimization arc
+took the big wins, residual CPU waste sat on fallback legs and repeated
+per-derive walks: every derive re-walked the vault in its own
+subprocess, `derive_co_mentions` walked Companies twice, and
+`derive_cited_in` full-read the 7.5MB `Quotes.md` just to parse
+frontmatter `sources[]`.
+
+**Landed (S2)**:
+- `derive_events.py`: `--corpus` lane on `extract_from_prose`
+  (in-memory bodies, same order/semantics) — 1.14s → 1.06s standalone.
+- `derive_co_mentions.py`: two passes fused into one single-read pass
+  (helps every invocation) + `--corpus` lane — 0.36s → 0.34s.
+- `derive_cited_in.py`: `edition_notes` corpus lane (both walks → 0
+  under `--corpus`) — 0.50s → 0.39s; fixed a pre-existing silent bug
+  where the old `extract_citations` corpus path yielded 0 edges on
+  absolute-root loads (path-key mismatch, caught by the byte-identical
+  gate); `_note_frontmatter` 64KB head-read cap (fm extent 11,860 B,
+  proven 0-mismatch over all 1336 notes).
+- `maint.py`: `--corpus` threaded into derive-cited-in (PRE_FULL) +
+  derive-insights/events (TIER2); `Corpus.load` warm is 0.14s, so the
+  win amortizes under `--full` pre-warm (one shared walk vs N).
+- All three byte-identical plain-vs-corpus; quote logic untouched
+  (quote audit 100.0%, G1–G5 zero).
+
+**Deferred / no-op with evidence**:
+- S1 (hybrid re-sort cache): deferred — the ~2k-note sort is sub-ms
+  noise vs the ~7ms vec0 KNN leg; a win would need module-level rank
+  caching.
+- S3 (graph top-k pushdown / approximate sampling): no-op —
+  `onager_ctr_betweenness` is `(TABLE, directed, normalized)` with no
+  top-k or sampling knob; Python `sorted(...)[:10]` measured 0.410ms
+  vs ~5s cold compute. Exact + Python slice stay.
+
+**Measured**: best-of-3 dry-runs this box (Appendix carries the full
+log); gates: 76 derive unit + 28 integration/fuzz green, ruff +
+format + `ty` clean, `static_checks` green, `make perf` 20/22 —
+`graph_pagerank` over-budget re-ran 0.37s isolated (box-load noise;
+untouched path) and `snapshot_check` FAIL(rc) matches the pre-existing
+2026-09-10 generation-mismatch signature.

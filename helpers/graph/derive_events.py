@@ -473,7 +473,9 @@ def _dedup(events: list[Event]) -> list[Event]:
 
 
 def extract_from_prose(
-    root: Path = COMPANIES_DIR, path_to_name: dict[str, str] | None = None
+    root: Path = COMPANIES_DIR,
+    path_to_name: dict[str, str] | None = None,
+    corpus=None,  # S1b shared walk: pre-parsed notes (helpers.core.corpus)
 ) -> list[Event]:
     """Scan company notes and derive guidance + management_change events.
 
@@ -486,11 +488,45 @@ def extract_from_prose(
             names use spaces, e.g. "ABB India", while file stems use
             underscores, e.g. "ABB_India"). When None, the file stem is used
             (test convenience).
+        corpus: Pre-loaded ``Corpus`` (maint --full pre-warm) — iterate over
+            in-memory bodies instead of re-walking + re-reading. Notes
+            outside ``root`` are skipped (same scope as the walk).
 
     Returns a flat list of Event rows. Sector notes are SKIPPED (events are
     company-scoped, mirroring derive_themes / extract_relations).
     """
     events: list[Event] = []
+    if corpus is not None:
+        # S1b corpus fast path — same per-note logic over pre-parsed bodies.
+        try:
+            root_rel = root.resolve().relative_to(_REPO_ROOT).as_posix()
+        except ValueError:
+            root_rel = ""
+        for note in corpus.notes:
+            rel = note.path.as_posix()
+            if note.path.is_absolute():
+                try:
+                    rel = note.path.resolve().relative_to(_REPO_ROOT).as_posix()
+                except ValueError:
+                    continue
+            if root_rel and not (rel == root_rel or rel.startswith(root_rel + "/")):
+                continue
+            company = None
+            if path_to_name is not None:
+                company = path_to_name.get(rel)
+            else:
+                company = Path(rel).stem
+            if company is None:
+                continue
+            body = note.body
+            if not body.strip():
+                continue
+            windows = list(_iter_bullets(body))
+            events.extend(_extract_guidance(company, body, rel, windows=windows))
+            events.extend(_extract_management(company, body, rel, windows=windows))
+        # Restore a stable order (by date then quote).
+        events.sort(key=lambda e: (e.event_date or "", e.source_quote or ""))
+        return events
     for note in sorted(root.rglob("*.md")):
         try:
             text = note.read_text(encoding="utf-8")
@@ -597,7 +633,7 @@ def apply(events: list[Event], *, conn=None, dry_run: bool = True) -> ReplaceRes
 _ARGS = dcli.DeriveArgsSpec(
     apply_help="Write event rows (default: dry-run summary only).",
     stale_help="S1c: skip when no source newer than last derived.",
-    corpus=False,
+    corpus=True,
     verbose_help="Print every event in addition to the summary.",
 )
 
@@ -638,7 +674,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 "WHERE entity_type = 'company' AND file_path IS NOT NULL"
             ).fetchall()
         }
-        extracted = extract_from_prose(COMPANIES_DIR, path_to_name)
+        # S1b: when --corpus, share maint --full's pre-warmed walk.
+        _corpus = None
+        if args.corpus and _HAS_CORPUS:
+            try:
+                _corpus = Corpus.load("findata", workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
+            except Exception:  # noqa: S110
+                _corpus = None
+        extracted = extract_from_prose(COMPANIES_DIR, path_to_name, corpus=_corpus)
         all_events = promoted + extracted
 
         by_type: dict[str, int] = defaultdict(int)

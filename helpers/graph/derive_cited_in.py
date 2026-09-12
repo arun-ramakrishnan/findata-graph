@@ -84,15 +84,56 @@ EDGE_TYPE = "cited_in"
 SOURCE_REF = "derive:cited_in"
 
 
-def edition_notes(vault: Path) -> list[dict]:
+def edition_notes(vault: Path, corpus=None) -> list[dict]:
     """One record per source-tree note: {stem, file_path, title}.
 
     Fails loudly on duplicate stems across the three trees — the stem is
     the canonical edition key (sources[].id, wikilinks, entity name), so
     a collision would corrupt every join downstream.
+
+    ``corpus`` (S1b): pre-parsed notes — same records from in-memory text,
+    no re-walk. Order matches the walk (tree order, then path).
     """
     seen: dict[str, Path] = {}
     out: list[dict] = []
+    if corpus is not None:
+        # Vault-relative keys: absolute corpus paths relativize exactly
+        # (Corpus.load was given this vault); repo-relative keys shed the
+        # leading vault.name. Either way rel = <tree>/... below.
+        staged: list[tuple[int, str, str, str]] = []  # (tree_idx, rel, stem, text)
+        for note in corpus.notes:
+            p = note.path
+            try:
+                rel = p.relative_to(vault).as_posix() if p.is_absolute() else p.as_posix()
+            except ValueError:
+                continue
+            if rel.startswith(vault.name + "/"):
+                rel = rel[len(vault.name) + 1 :]
+            parts = rel.split("/")
+            if len(parts) < 2:
+                continue
+            tree, name = parts[0], parts[-1]
+            if tree not in SOURCE_TREES:
+                continue
+            if name in CHROME_FILES or "images" in parts:
+                continue
+            staged.append((SOURCE_TREES.index(tree), rel, Path(name).stem, note.text))
+        staged.sort()
+        for _, rel, stem, text in staged:
+            if stem in seen:
+                raise ValueError(
+                    f"edition stem collision: {rel} and {seen[stem]} — "
+                    "the stem is the canonical edition key; resolve manually"
+                )
+            seen[stem] = Path(rel)
+            out.append(
+                {
+                    "stem": stem,
+                    "file_path": f"{vault.name}/{rel}",
+                    "title": note_title(text, stem),
+                }
+            )
+        return out
     for tree in SOURCE_TREES:
         for p in sorted((vault / tree).rglob("*.md")):
             if p.name in CHROME_FILES or "images" in p.parts:
@@ -159,16 +200,45 @@ def create_edition_entities(conn, editions: list[dict], *, apply: bool = True) -
     return inserted
 
 
-def _note_frontmatter(p: Path) -> dict:
-    text = p.read_text(encoding="utf-8", errors="replace")
-    opener, fm_text, _ = split_frontmatter(text)
-    if not opener:
-        return {}
+# S2c: frontmatter lives at the top of the file — a full read just to
+# parse sources[] makes multi-MB notes (Quotes.md 7.5MB) dominate the
+# plain-path walk. Vault max fm extent measured 11,860 B (2026-09-12);
+# the 64KB head covers every note today, with a full-read fallback for
+# future giants whose closing --- lands past the cap.
+_FM_HEAD_BYTES = 65536
+
+
+def _loads_fm(fm_text: str) -> dict:
     try:
         fm = yaml_safe_load(fm_text)
     except yaml.YAMLError:
         return {}
     return fm if isinstance(fm, dict) else {}
+
+
+def _note_frontmatter(p: Path) -> dict:
+    try:
+        size = p.stat().st_size
+    except OSError:
+        return {}
+    try:
+        if size > _FM_HEAD_BYTES:
+            with p.open("rb") as f:
+                head = f.read(_FM_HEAD_BYTES + 1).decode("utf-8", errors="replace")
+            opener, fm_text, rest = split_frontmatter(head)
+            if opener and rest:
+                # Closing --- found strictly inside the head — parse it.
+                return _loads_fm(fm_text)
+            # Truncated block (or no fm in a giant file) — full read.
+            text = p.read_text(encoding="utf-8", errors="replace")
+        else:
+            text = p.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {}
+    opener, fm_text, _ = split_frontmatter(text)
+    if not opener:
+        return {}
+    return _loads_fm(fm_text)
 
 
 def extract_citations(
@@ -189,25 +259,32 @@ def extract_citations(
     stats = {"skipped_pdf": 0, "unknown_id": 0}
     # S1b corpus fast path — iterate over pre-parsed frontmatter instead of re-reading
     if corpus is not None:
-        # Build vault-relative lookup: findata/Companies/... -> entity
+        # Build vault-relative lookup: findata/Companies/... -> entity.
+        # Corpus keys vary by load root (absolute vault -> absolute paths;
+        # relative root -> repo-relative keys) — normalize to vault-relative
+        # rel = <tree>/... exactly as the walk below sees it.
         for note in corpus.notes:
+            p = note.path
+            try:
+                rel = p.relative_to(vault).as_posix() if p.is_absolute() else p.as_posix()
+            except ValueError:
+                continue
+            if rel.startswith(vault.name + "/"):
+                rel = rel[len(vault.name) + 1 :]
+            parts = rel.split("/")
+            if len(parts) < 2:
+                continue
             # Filter to derived trees
-            rel = note.path.as_posix()
-            # note.path may be findata/Companies/... relative
-            tree = rel.split("/")[1] if "/" in rel else ""
+            tree = parts[0]
             if tree not in DERIVED_TREES:
                 continue
             fm = note.frontmatter or {}
             sources = fm.get("sources")
             if not isinstance(sources, list):  # noqa: C901
                 continue
-            # Reconstruct vault-relative key as extract_citations expects: f"{vault.name}/{p.relative_to(vault)}"
-            # note.path is findata/...; vault is .../findata, so vault.name is findata
-            vault_rel = (
-                f"{vault.name}/{Path(rel).relative_to(vault.name).as_posix()}"
-                if rel.startswith(vault.name + "/")
-                else f"{vault.name}/{rel}"
-            )
+            # rel is vault-relative (<tree>/...); the join key carries the
+            # vault name, exactly as the walk path below builds it.
+            vault_rel = f"{vault.name}/{rel}"
             # Fallback try both
             entity = path_to_name.get(vault_rel) or path_to_name.get(rel)
             if entity is None:
@@ -320,7 +397,15 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                     file=sys.stderr,
                 )
                 return 0
-        editions = edition_notes(vault)
+        # S1b: load the shared walk BEFORE edition_notes so both walks
+        # (edition scan + citation scan) ride the pre-warmed cache.
+        corpus = None
+        if args.corpus and _HAS_CORPUS:
+            try:
+                corpus = Corpus.load(vault, workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
+            except Exception:  # noqa: S110
+                corpus = None
+        editions = edition_notes(vault, corpus=corpus)
         stems = {e["stem"] for e in editions}
         path_to_name = {
             r[1]: r[0]
@@ -330,12 +415,6 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 "AND file_path IS NOT NULL"
             ).fetchall()
         }
-        corpus = None
-        if args.corpus and _HAS_CORPUS:
-            try:
-                corpus = Corpus.load(vault, workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
-            except Exception:  # noqa: S110
-                corpus = None
         citations, stats = extract_citations(vault, path_to_name, stems, corpus=corpus)
         nq = quote_counts(conn, source_note_index(vault))
         edges = derive_edges(citations, nq)

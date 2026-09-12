@@ -134,6 +134,7 @@ def extract_co_mentions(  # noqa: C901
     *,
     companies_dir: Path | None = None,
     conn=None,
+    corpus=None,  # S1b shared walk: pre-parsed notes (helpers.core.corpus)
 ) -> dict[str, list[str]]:
     """Scan the vault for `## <Newsletter> — <edition>` headings.
 
@@ -142,6 +143,8 @@ def extract_co_mentions(  # noqa: C901
         companies_dir: Override for the companies root (used in tests).
         conn: Reuse an existing SQLite connection. If None, opens a fresh one
             via ``helpers.core.db.connect()``.
+        corpus: Pre-loaded ``Corpus`` (maint --full pre-warm) — scan
+            in-memory texts instead of re-walking + re-reading.
 
     Returns:
         ``{edition_title: [entity_name, ...]}`` where ``entity_name`` is the
@@ -181,15 +184,46 @@ def extract_co_mentions(  # noqa: C901
             if r["file_path"]
         }
 
+        # S1b: one read per file — corpus texts or a single walk — then the
+        # two existing phases run over in-memory texts. Phases stay ordered
+        # (the footer map must be complete before headings canonicalise),
+        # but files are read ONCE, not twice (was: 2 walks × ~1000 reads).
+        texts: list[tuple[str, str]] = []
+        if corpus is not None:
+            try:
+                root_rel = root.resolve().relative_to(_REPO_ROOT).as_posix()
+            except ValueError:
+                root_rel = ""
+            for note in corpus.notes:
+                rel = note.path.as_posix()
+                if note.path.is_absolute():
+                    try:
+                        rel = note.path.resolve().relative_to(_REPO_ROOT).as_posix()
+                    except ValueError:
+                        continue
+                if root_rel and not (rel == root_rel or rel.startswith(root_rel + "/")):
+                    continue
+                texts.append((rel, note.text))
+            texts.sort()
+        else:
+            for md_path in sorted(root.rglob("*.md")):
+                try:
+                    text = md_path.read_text(encoding="utf-8")
+                except OSError, UnicodeDecodeError:
+                    continue
+                try:
+                    rel_path = md_path.relative_to(_REPO_ROOT)
+                except ValueError:
+                    # companies_dir was overridden (tests); fall back to a path
+                    # fragment that won't match any entity row.
+                    rel_path = md_path
+                texts.append((str(rel_path).replace("\\", "/"), text))
+
         # Pass 1: collect title -> footer-parenthetical (with edition number)
         # across the entire vault. The first occurrence wins; subsequent
         # footers for the same title are assumed to agree.
         title_to_suffix: dict[str, str] = {}
-        for md_path in sorted(root.rglob("*.md")):
-            try:
-                text = md_path.read_text(encoding="utf-8")
-            except OSError, UnicodeDecodeError:
-                continue
+        for _file_path_str, text in texts:
             for m in footer_re.finditer(text):
                 title, paren = m.group(1).strip(), m.group(2)
                 if not title:
@@ -198,23 +232,12 @@ def extract_co_mentions(  # noqa: C901
 
         # Pass 2: collect entities per (canonicalised) edition title.
         editions: dict[str, set[str]] = {}
-        for md_path in sorted(root.rglob("*.md")):
-            try:
-                text = md_path.read_text(encoding="utf-8")
-            except OSError, UnicodeDecodeError:
-                continue
+        for file_path_str, text in texts:
             matches = heading_re.findall(text)
             if not matches:
                 continue
             # Resolve the note's entity name via the bulk map (was: per-file
             # SELECT via _resolve_entity_name — Bundle V3).
-            try:
-                rel_path = md_path.relative_to(_REPO_ROOT)
-            except ValueError:
-                # companies_dir was overridden (tests); fall back to a path
-                # fragment that won't match any entity row.
-                rel_path = md_path
-            file_path_str = str(rel_path).replace("\\", "/")
             entity_name = file_to_name.get(file_path_str)
             if entity_name is None:
                 continue
@@ -351,7 +374,7 @@ def apply_edges(
 _ARGS = dcli.DeriveArgsSpec(
     apply_help="Write edges to graph_edges (default: dry-run summary only).",
     stale_help="S1c: skip when no source newer than last derived.",
-    corpus=False,
+    corpus=True,
 )
 
 
@@ -368,7 +391,14 @@ def _cli(argv: list[str] | None = None) -> int:
     dcli.add_derive_args(p, _ARGS)
     args = p.parse_args(argv)
 
-    editions = extract_co_mentions(args.newsletter)
+    # S1b: when --corpus, share maint --full's pre-warmed walk.
+    _corpus = None
+    if args.corpus and _HAS_CORPUS:
+        try:
+            _corpus = Corpus.load("findata", workers=1, use_cache=True)  # ty: ignore[unresolved-attribute]
+        except Exception:  # noqa: S110
+            _corpus = None
+    editions = extract_co_mentions(args.newsletter, corpus=_corpus)
     edges = derive_edges(editions, newsletter_type=args.newsletter)
 
     # Summary to stderr so stdout stays machine-readable if needed.

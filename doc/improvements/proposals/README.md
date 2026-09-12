@@ -35,6 +35,11 @@ entry number and stale DONE pointers):
   operator observation after `../archive/ui/sugar_high_highlighter.md`
   landed.
 
+_(Previously: hybrid_derive_graph_microperf.md, archived as completed.md
+entry 228 on 2026-09-12 — execution record in
+`../archive/graph/hybrid_derive_graph_microperf.md`; standing posture: S2
+shipped, S1 deferred, S3 no-op with evidence.)_
+
 _(Previously: sugar_high_highlighter.md, archived as completed.md
 entry 227 on 2026-09-12 — execution record in
 `../archive/ui/sugar_high_highlighter.md`. Earlier: prefab_ui_flask_views.md,

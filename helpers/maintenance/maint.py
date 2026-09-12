@@ -215,7 +215,7 @@ PRE_FULL_STEPS: list[tuple[str, list[str]]] = [
     ),
     (
         "derive-cited-in (project OKF sources[] into edition entities + cited_in edges)",
-        [sys.executable, "helpers/graph/derive_cited_in.py", "--apply"],
+        [sys.executable, "helpers/graph/derive_cited_in.py", "--corpus", "--apply"],
     ),
 ]
 
@@ -302,11 +302,18 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     # maint-full placement invariant); order retained for stability.
     (
         "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
-        [sys.executable, "helpers/graph/derive_insights.py", "findata", "--apply", "--no-notes"],
+        [
+            sys.executable,
+            "helpers/graph/derive_insights.py",
+            "findata",
+            "--corpus",
+            "--apply",
+            "--no-notes",
+        ],
     ),
     (
         "derive-events (refresh events timeline from note prose + edges)",
-        [sys.executable, "helpers/graph/derive_events.py", "--apply"],
+        [sys.executable, "helpers/graph/derive_events.py", "--corpus", "--apply"],
     ),
     (
         "snapshot (re-snapshot to include recomputed analytics + events)",
