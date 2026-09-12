@@ -30,17 +30,9 @@ import { GraphView } from "./views/graph";
 // `viewer` is referenced as a bare global by inline onclick handlers in the
 // HTML strings the views build. Declare it on window so those references are
 // navigable + typo-checked, and so the bottom assignment type-checks.
-// `hljs`/`Prism` are vendored library globals (see types/vendors.d.ts for
-// their declared shapes); they're optional (feature-detected at the call site).
 declare global {
     interface Window {
         viewer: FinDataViewer;
-        hljs?: {
-            highlight(code: string, opts: { language: string }): HljsResult;
-        };
-        Prism?: {
-            highlightAll(): void;
-        };
     }
 }
 

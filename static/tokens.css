@@ -139,3 +139,26 @@
     --motion-fast: 120ms;
     --motion-med: 300ms;
 }
+
+/* --- sugar-high syntax tokens (S1 sugar_high_highlighter.md) ------------ */
+/* Referenced inline by bundled sugar-high output inside .code-block. Hexes
+   are upstream's dark theme (apps/site/public/themes/sugar-high.css,
+   [data-theme='dark'] block) to sit on the #1e1e1e pre background. */
+.code-block {
+    --sh-identifier: #d4d4d4;
+    --sh-keyword: #ffada8;
+    --sh-string: #88bbb6;
+    --sh-class: #7eb5ff;
+    --sh-property: #79c0ff;
+    --sh-entity: #b7adff;
+    --sh-jsxliterals: #d2a8ff;
+    --sh-sign: #8b949e;
+    --sh-comment: #8b8b8b;
+}
+.code-block .sh__token--keyword,
+.code-block .sh__token--class {
+    font-weight: 600;
+}
+.code-block .sh__token--comment {
+    font-style: italic;
+}

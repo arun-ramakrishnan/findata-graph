@@ -13,15 +13,9 @@
     <!-- SEC-3: all third-party assets vendored under static/vendor/ (pinned
          versions, same-origin) — CSP is closed to 'self'; no CDN runtime deps. -->
     <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/css/all.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/prism/prism-tomorrow.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/hljs/github-dark.min.css') }}">
 
     <script src="{{ url_for('static', filename='vendor/marked.min.js') }}"></script>
     <script src="{{ url_for('static', filename='vendor/purify.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='vendor/prism/prism-core.min.js') }}"></script>
-    <script src="{{ url_for('static', filename='vendor/prism/prism-autoloader.min.js') }}"
-            data-autoloader-path="/static/vendor/prism/components"></script>
-    <script src="{{ url_for('static', filename='vendor/hljs/highlight.min.js') }}"></script>
 </head>
 <body>
     <!-- Entity page (S6) — paper register + mono facts rail, events timeline,

@@ -8,7 +8,11 @@
 // longer inject inline handlers or javascript: URLs, while the lightbox /
 // copy-code handlers we add ourselves (after sanitization) still work.
 //
-// The hljs/Prism/marked globals are declared in types/vendors.d.ts.
+// The marked/DOMPurify globals are declared in types/vendors.d.ts; syntax
+// highlighting is bundled (sugar-high), not a vendor global.
+
+import { highlight as sugarHighlight } from "sugar-high";
+import { lang as normalizeLang } from "sugar-high/lang";
 
 import { getEl, escapeHtml } from "./dom";
 import { showToast } from "./toast";
@@ -147,10 +151,11 @@ export function generateTableOfContents(headings: TocHeading[]): string {
 }
 
 export function highlightCode(code: string, language: string): string {
+    // sugar-high (bundled, S1 of doc/improvements/archive/ui/sugar_high_highlighter.md): lang() normalizes
+    // fence aliases (py→python, bash→shell, …); unknown names map to
+    // 'plaintext', whose neutral token colors read as plain text.
     try {
-        if (window.hljs) {
-            return window.hljs.highlight(code, { language }).value;
-        }
+        return sugarHighlight(code, { lang: normalizeLang(language) });
     } catch (e) {
         console.warn("Syntax highlighting failed:", e);
     }
@@ -209,48 +214,6 @@ function processExternalContent(html: string): string {
     });
 
     return html;
-}
-
-/**
- * Post-render wiring for rich content (Prism highlighting, smooth-scroll TOC
- * links, broken-image placeholders). NOTE: currently unreferenced by any view
- * in the original file either — preserved verbatim through the split.
- */
-export function initializeInteractiveElements(): void {
-    // Initialize syntax highlighting if available.
-    if (window.Prism) {
-        window.Prism.highlightAll();
-    }
-
-    // Add smooth scrolling for TOC links (respect reduced-motion preference).
-    const prefersReducedMotion =
-        window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    document.querySelectorAll<HTMLAnchorElement>(".toc-link").forEach((link) => {
-        link.addEventListener("click", (e) => {
-            e.preventDefault();
-            const targetId = (link.getAttribute("href") || "").substring(1);
-            const targetElement = getEl(targetId);
-            if (targetElement) {
-                targetElement.scrollIntoView({
-                    behavior: prefersReducedMotion ? "auto" : "smooth",
-                    block: "start",
-                });
-            }
-        });
-    });
-
-    // Add image loading error handling.
-    document.querySelectorAll<HTMLImageElement>(".rich-image").forEach((img) => {
-        img.addEventListener("error", () => {
-            img.style.display = "none";
-            const placeholder = document.createElement("div");
-            placeholder.className = "image-placeholder";
-            placeholder.innerHTML = '<i class="fas fa-image"></i><span>Image failed to load</span>';
-            if (img.parentNode) {
-                img.parentNode.insertBefore(placeholder, img);
-            }
-        });
-    });
 }
 
 /** Attribute-safe escaping (escapeHtml leaves quotes untouched). */

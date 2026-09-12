@@ -28,14 +28,19 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+- **unified_search.md** (filed 2026-09-12) — `/api/scripts/search`
+  endpoint over `search_scripts()` plus a client-side grouped
+  Docs/Scripts/Notes search view; snippets highlighted via the landed
+  sugar-high path (mojo→python approximation). Evidence: same-day
+  operator observation after `../archive/ui/sugar_high_highlighter.md`
+  landed.
 
-_(Previously: prefab_ui_flask_views.md, archived as completed.md entry
-226 on 2026-09-12 — execution record in
+_(Previously: sugar_high_highlighter.md, archived as completed.md
+entry 227 on 2026-09-12 — execution record in
+`../archive/ui/sugar_high_highlighter.md`. Earlier: prefab_ui_flask_views.md,
+archived as completed.md entry 226 on 2026-09-12 — execution record in
 `../archive/ui/prefab_ui_flask_views.md`; standing posture: dual-URL,
-`/findata` authoritative. Earlier: bulk_data_lanes_arrow_numpy.md,
-archived as completed.md entry 224 on 2026-09-11 —
-`../archive/database/bulk_data_lanes_arrow_numpy.md`.)_
+`/findata` authoritative.)_
 
 _(Previously: bulk_data_lanes_arrow_numpy.md, archived as completed.md
 entry 224 on 2026-09-11 — execution record in

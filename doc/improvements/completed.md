@@ -5413,3 +5413,53 @@ bundle, every one E2E-verified headless (consolidated S4 pass green,
 zero console errors); `make qa` 9/9 at each arc end. The Prefab posture
 is recorded: dual-URL until a prefab-ui minor closes the dict-iteration /
 DataTable-rows / pipe-arg gaps, then re-evaluate the tab flip.
+
+## 227. sugar-high swap — one bundled lexer over the dual hljs+Prism vendor setup
+
+**Proposal**: `doc/improvements/archive/ui/sugar_high_highlighter.md`
+(filed and executed 2026-09-12, all three slices same-day).
+
+**Problem**: the docs reader loaded two syntax highlighters on every
+page — hljs (live, one call site) and Prism (dead: its only consumer,
+`initializeInteractiveElements()`, was unreferenced per its own comment;
+its autoloader still fetched per-language components at render time) —
+with two conflicting vendored stylesheets and 208 KB of static weight.
+
+**Landed**:
+- S1: `sugar-high@2.4.0` bundled via `bun add`; `highlightCode()`
+  (frontend/src/core/markdown.ts) swapped to `highlight(code, {lang:
+  normalizeLang(language)})` using the `sugar-high/lang` named export
+  (verified live: py/yml/sh/bash/ts/js/md/rb/c++/tf all normalize;
+  unknown → 'plaintext'); nine `--sh-*` theme variables appended to
+  tokens.css from upstream's dark palette, scoped to `.code-block`.
+- S2: both templates stripped of prism-core, prism-autoloader, the hljs
+  script tag, and both highlighter stylesheets; `static/vendor/hljs/`
+  (128 KB) and `static/vendor/prism/` (80 KB) deleted;
+  `hljs`/`Prism` declarations dropped from types/vendors.d.ts and
+  findata.ts; dead `initializeInteractiveElements()` removed.
+- S3: `bun run build` + `tsc --noEmit` green; `rg 'hljs|prism|Prism'`
+  over frontend/ templates/ static/ returns nothing; module-graph smoke
+  test through the real `highlightCode()`; visual pass served via a
+  standalone demo page of the same call path + theme (user-verified
+  2026-09-12: "looks beautiful") — python/sql/yaml/ts tokenize, diff
+  gets line-level add/del tints, unknown fence reads as plain text.
+
+**Measured**: findata.bundle.js 532,424 → 598,778 B and
+entity.bundle.js 24,690 → 91,056 B (each +66 KB unminified sugar-high
+copy — the standing no-minify bundle convention, not a regression vs
+the 208 KB vendors removed): net static −76 KB, autoloader runtime
+fetches 0, stylesheets per page 0 extra. During execution, one
+assessment claim was corrected: an earlier smoke test imported `lang`
+from the root package and failed; `import { lang } from
+"sugar-high/lang"` works on npm 2.4.0 — test error, not upstream drift
+(proposal §2/§5 and the web-components assessment updated in the same
+arc).
+
+**Arc scope note**: the arc's other two studies are recorded verdicts,
+not pending work — web-llm DEFERRED with explicit gates and the WASM
+3.0 + runtime survey (Wasmtime parked as the reference embed) both live
+in `doc/local/evaluations/web_components_assessment.md` §3/§5; a
+web-llm lane would need its own proposal. Follow-on filed the same day:
+`doc/improvements/proposals/unified_search.md` (unified UI search over
+notes/docs/scripts, reusing this highlighting path; sugar-high covers
+28 grammars — no Mojo, python-approximation mapped there).

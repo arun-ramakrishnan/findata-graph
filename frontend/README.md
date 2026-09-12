@@ -12,7 +12,7 @@ frontend/
 ├── src/core/           # dom.ts / router.ts / markdown.ts / api.ts / toast.ts
 ├── src/views/          # graph.ts / stats.ts / companies.ts / sectors.ts / docs.ts
 ├── types/api.ts        # response shapes for the /api/* endpoints (the type contract)
-├── types/vendors.d.ts  # ambient declarations for CDN libs (cytoscape, marked, Prism, hljs)
+├── types/vendors.d.ts  # ambient declarations for vendor globals (marked, DOMPurify)
 ├── package.json        # devDeps + build/typecheck scripts
 ├── tsconfig.json       # strict type-check config (noEmit — esbuild emits)
 └── bun.lock           # committed for reproducible `bun install --frozen-lockfile`
