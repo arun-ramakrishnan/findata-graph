@@ -15,18 +15,18 @@ frontend/
 ├── types/vendors.d.ts  # ambient declarations for CDN libs (cytoscape, marked, Prism, hljs)
 ├── package.json        # devDeps + build/typecheck scripts
 ├── tsconfig.json       # strict type-check config (noEmit — esbuild emits)
-└── package-lock.json   # committed for reproducible `npm ci`
+└── bun.lock           # committed for reproducible `bun install --frozen-lockfile`
 ```
 
 ## Build
 
 ```bash
-make frontend         # cd frontend && npm ci && npm run build
+make frontend         # cd frontend && bun install --frozen-lockfile && bun run build
                       # → emits ../static/{findata,entity}.bundle.js (+ .map)
-make frontend-check   # cd frontend && npx tsc --noEmit   (strict, fast)
+make frontend-check   # cd frontend && bun x tsc --noEmit   (strict, fast)
 ```
 
-Both targets need Node installed. **`make qa` does NOT need Node** — the QA
+Both targets need Bun installed. **`make qa` does NOT need Bun** — the QA
 gate stays Python-only. Both built bundles are committed to git, so the deploy (`nixpacks.toml` —
 no Dockerfile) stays 100% Python and a contributor without Node can still
 run the app and pass `make qa`.

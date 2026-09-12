@@ -43,8 +43,8 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-themes            Derive exposed_to (company -> theme) edges from company-note prose"
 > @echo "  derive-themes-rebuild    derive-themes + graph-rebuild — the paired run themes require (writes edges, then rebuilds the DuckDB cache to match)"
 > @echo "  format                   Normalize Python formatting repo-wide (ruff format; fix for the test_lint_gates.py format gate)"
-> @echo "  frontend                 Build the TypeScript frontend bundle into static/findata.bundle.js (needs Node)"
-> @echo "  frontend-check           Type-check + prettier format-check the TypeScript frontend (fast, needs Node)"
+> @echo "  frontend                 Build the TypeScript frontend bundle into static/findata.bundle.js (needs Bun)"
+> @echo "  frontend-check           Type-check + prettier format-check the TypeScript frontend (fast, needs Bun)"
 > @echo "  fuzz                     Run Hypothesis property-based tests (deterministic seed for reproducibility)"
 > @echo "  graph-algos              Smoke test the Onager algorithm layer (all 14 metrics, no writes)"
 > @echo "  graph-rebuild            Rebuild the disk-based DuckDB cache from SQLite (run after parse_newsletter --apply / derive-relations)"
@@ -315,13 +315,13 @@ derive-all: ## READ-ONLY preview of every derive-* step (dry-runs; nothing writt
 > python3 helpers/graph/derive_events.py
 > @echo "✓ derive-all preview complete — nothing written"
 
-frontend: ## Build the TypeScript frontend bundle into static/findata.bundle.js (needs Node)
-> cd frontend && npm ci && npm run build
+frontend: ## Build the TypeScript frontend bundle into static/findata.bundle.js (needs Bun)
+> cd frontend && bun install --frozen-lockfile && bun run build
 > @echo "✓ frontend bundle rebuilt (static/findata.bundle.js)"
 
-frontend-check: ## Type-check + prettier format-check the TypeScript frontend (fast, needs Node)
-> cd frontend && npx tsc --noEmit
-> cd frontend && npx prettier --check src types
+frontend-check: ## Type-check + prettier format-check the TypeScript frontend (fast, needs Bun)
+> cd frontend && bun x tsc --noEmit
+> cd frontend && bun x prettier --check src types
 > @echo "✓ frontend type-check + prettier passed (strict)"
 
 format:         ## Normalize Python formatting repo-wide (ruff format; fix for the test_lint_gates.py format gate)

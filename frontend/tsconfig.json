@@ -1,6 +1,6 @@
 {
   // Type-check config for the findata frontend. esbuild emits the bundle
-  // (npm run build); tsc only type-checks (npm run typecheck / make
+  // (bun run build); tsc only type-checks (bun run typecheck / make
   // frontend-check), so noEmit is set. esbuild is NOT a type-checker — this
   // config is what catches API shape-drift under strict mode.
   "compilerOptions": {

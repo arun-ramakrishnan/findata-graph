@@ -9638,12 +9638,7 @@ void main() {
     "#8AD7C6",
     "#D8C9A3"
   ];
-  var _SYMMETRIC_RELS = /* @__PURE__ */ new Set([
-    "co_mentioned_in",
-    "jv_with",
-    "competes_with",
-    "same_group"
-  ]);
+  var _SYMMETRIC_RELS = /* @__PURE__ */ new Set(["co_mentioned_in", "jv_with", "competes_with", "same_group"]);
   var _NODE_GROUPS = {
     focal: { color: "#E0A93E", size: 16 },
     peer: { color: "#F5B14C", size: 12 },
@@ -11345,7 +11340,12 @@ void main() {
       this.graph.central = isSector ? data.sector : data.company;
       this.graph.elements = elements;
       this.graph.entityType = isSector ? "sector" : "company";
-      this._runGraphLayout(getEl("graph-layout").value, false, true, this.graph.central);
+      this._runGraphLayout(
+        getEl("graph-layout").value,
+        false,
+        true,
+        this.graph.central
+      );
       this._fitCapped(40, _EGO_FIT_MAX_ZOOM, this.graph.central || void 0);
       this.graph.labelAlways = false;
       this._applyLabelBucket(-1);
@@ -11524,9 +11524,7 @@ void main() {
       });
       const added = renderer.mergeElements(els, name);
       this._fitCapped(40, _EGO_FIT_MAX_ZOOM);
-      this._setGraphStatus(
-        `+${added} nodes from ${name} \xB7 ${renderer.nodeCount()} on canvas`
-      );
+      this._setGraphStatus(`+${added} nodes from ${name} \xB7 ${renderer.nodeCount()} on canvas`);
     }
     // --- Zoom, tooltips, zoom-fade labels ---------------------------------- //
     /** Wire the zoom slider / buttons / fit (buckets sync via camera events). */
@@ -11543,7 +11541,10 @@ void main() {
       slider.addEventListener("input", applyZoom);
       getEl("graph-zoom-in").addEventListener("click", () => renderer.zoomIn());
       getEl("graph-zoom-out").addEventListener("click", () => renderer.zoomOut());
-      getEl("graph-zoom-fit").addEventListener("click", () => renderer.fitCapped(30, _CLOUD_FIT_MAX_ZOOM));
+      getEl("graph-zoom-fit").addEventListener(
+        "click",
+        () => renderer.fitCapped(30, _CLOUD_FIT_MAX_ZOOM)
+      );
       this._syncZoomUi();
     }
     /** Slider + % label ← renderer camera (wheel / pinch / buttons / animation). */
