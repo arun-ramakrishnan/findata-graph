@@ -1331,3 +1331,97 @@ def test_fallback_used_when_not_a_stack_repo(tmp_path, monkeypatch):
     # The real _stack_files runs here: tmp_path is outside any stack -> None.
     merge_failures, _advisory = sc.check_merge_markers_and_artifacts()
     assert len(merge_failures) == 1
+
+
+# --------------------------------------------------------------------------- #
+# Embedding decode chokepoint (unified_search S3)                              #
+# --------------------------------------------------------------------------- #
+def _seed_py(monkeypatch, tmp_path, rel: str, body: str) -> None:
+    target = tmp_path / rel
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(body, encoding="utf-8")
+    monkeypatch.setattr(sc, "REPO_ROOT", tmp_path)
+
+
+def test_embedding_decode_flags_json_loads_on_embedding_name(tmp_path, monkeypatch):
+    """The strike shape: json.loads(embedding) in production code."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "app.py",
+        "import json\n"
+        "def f(row):\n"
+        "    embedding = row[4]\n"
+        "    vec = json.loads(embedding) if embedding else None\n",
+    )
+    fatal = sc.check_embedding_decode_chokepoint()
+    assert len(fatal) == 1
+    assert "app.py:4" in fatal[0]
+    assert "load_vec" in fatal[0]
+
+
+def test_embedding_decode_flags_vec_receiver(tmp_path, monkeypatch):
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/misc/x.py",
+        "import json\nv = json.loads(emb_blob)\n",
+    )
+    fatal = sc.check_embedding_decode_chokepoint()
+    assert len(fatal) == 1
+    assert "helpers/misc/x.py:2" in fatal[0]
+
+
+def test_embedding_decode_passes_on_load_vec(tmp_path, monkeypatch):
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "app.py",
+        "from helpers.core.vec_codec import load_vec\nvec = load_vec(row[4]) if row[4] else None\n",
+    )
+    assert sc.check_embedding_decode_chokepoint() == []
+
+
+def test_embedding_decode_passes_on_file_read_shapes(tmp_path, monkeypatch):
+    """JSON documents on disk (caches, question banks) are a different
+    format by design — read_text() calls are exempt even when named
+    VEC_CACHE."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/bench/x.py",
+        'import json\ncache = json.loads(VEC_CACHE.read_text(encoding="utf-8"))\n',
+    )
+    assert sc.check_embedding_decode_chokepoint() == []
+
+
+def test_embedding_decode_passes_on_unrelated_json_loads(tmp_path, monkeypatch):
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "app.py",
+        "import json\ncfg = json.loads(config_text)\n",
+    )
+    assert sc.check_embedding_decode_chokepoint() == []
+
+
+def test_embedding_decode_allowlists_migration_readers(tmp_path, monkeypatch):
+    """The one-shot blob migration reads legacy TEXT by design."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/maintenance/migrate_embedding_blob.py",
+        "import json\nvec = json.loads(value)\n",
+    )
+    assert sc.check_embedding_decode_chokepoint() == []
+
+
+def test_embedding_decode_ignores_tests(tmp_path, monkeypatch):
+    """Production scope only — tests legitimately seed TEXT fixtures."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "tests/test_x.py",
+        "import json\nvec = json.loads(embedding_text)\n",
+    )
+    assert sc.check_embedding_decode_chokepoint() == []

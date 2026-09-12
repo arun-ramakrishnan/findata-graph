@@ -196,6 +196,44 @@ def client(tmp_path):
         yield c
 
 
+@contextmanager
+def _seed_blob_db(tmp_path):
+    """Post-blob-migration shape: same _SEED corpus with embeddings stored
+    as vec_codec f32 BLOBs instead of JSON TEXT (the embedding_blob_migration
+    end state). Pins that every decode path tolerates BOTH codecs."""
+    import sqlite3 as _s3
+
+    from helpers.core.vec_codec import load_vec, pack_f32
+
+    db_path = tmp_path / "test-blob.db"
+    conn = _s3.connect(str(db_path))
+    conn.executescript(_SCHEMA)
+    rows = []
+    for r in _SEED:
+        vec = load_vec(r[5])
+        rows.append((*r[:5], pack_f32(vec) if vec else None, r[6], r[7]))
+    conn.executemany(
+        "INSERT INTO note_search "
+        "(doc_type, file_path, title, sector, content, embedding, "
+        "section_title, anchor) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        rows,
+    )
+    conn.commit()
+    conn.close()
+
+    from tests.helpers import flask_test_client  # noqa: E402
+
+    with flask_test_client(db_path) as client:
+        yield client
+
+
+@pytest.fixture
+def blob_client(tmp_path):
+    with _seed_blob_db(tmp_path) as c:
+        yield c
+
+
 @pytest.fixture(autouse=True)
 def _three_dim_query_space(monkeypatch):
     """Pin the hybrid query embedder to the 3-dim space of this module's
@@ -475,6 +513,32 @@ class TestHybridKnnPath:
         monkeypatch.setattr(VS, "knn_similarities", lambda *a, **k: None)
         hybrid = client.get("/api/search?q=feed&hybrid=true&limit=20").get_json()["results"]
         for hit in hybrid:
+            assert isinstance(hit["similarity"], float)
+
+    def test_hybrid_fallback_decodes_blob_embeddings(self, blob_client, monkeypatch):
+        """Regression (unified_search appendix 2026-09-12): the Python
+        fallback decoded embeddings with raw json.loads — every post-blob-
+        migration row returned sim 0.0. Seeded as BLOBs and with the KNN map
+        off, similarities must match the TEXT-seeded ranking: Chatter (the
+        [0,1,0] seed) wins the [0,1,0] query at cosine 1.0."""
+        from helpers.core import vec_search as VS
+
+        monkeypatch.setattr(VS, "knn_similarities", lambda *a, **k: None)
+        data = blob_client.get("/api/search?q=feed&hybrid=true&limit=20").get_json()
+        results = data["results"]
+        assert results
+        chatter = next(h for h in results if h["title"] == "The Chatter: Aquaculture Edition")
+        assert chatter["similarity"] == pytest.approx(1.0, abs=1e-6)
+        # The exact-cosine winner must outrank near-orthogonal Avanti.
+        avanti = next(h for h in results if h["title"] == "Avanti_Feeds")
+        assert chatter["similarity"] > avanti["similarity"]
+
+    def test_hybrid_knn_path_decodes_blob_embeddings(self, blob_client, monkeypatch):
+        """The KNN-leg similarity map also reads stored vectors; against a
+        BLOB-seeded index with the real knn_similarities, hybrid must still
+        serve floats (dims gate passes: 3-dim seeds, 3-dim query pin)."""
+        data = blob_client.get("/api/search?q=feed&hybrid=true&limit=20").get_json()
+        for hit in data["results"]:
             assert isinstance(hit["similarity"], float)
 
     def test_hybrid_knn_and_fallback_agree_on_order(self, client, monkeypatch):

@@ -31,6 +31,7 @@ except ImportError:  # pragma: no cover
     Corpus = None  # type: ignore[assignment]
     _HAS_CORPUS = False
 
+import ast
 import os
 import py_compile
 import re
@@ -888,7 +889,78 @@ def check_sqlite_helper_usage() -> list[str]:  # noqa: C901
     return failures
 
 
-def check_db_meta_generation() -> list[str]:
+_EMB_DECODE_IDENT_RE = re.compile(r"emb|vec", re.IGNORECASE)
+
+
+def _flag_json_loads_on_embedding_receivers(src: str) -> list[tuple[int, str]]:
+    """Per-file scan: (line, receiver) for every json.loads(<expr>) whose
+    identifiers match emb|vec and whose argument is not a file-read shape
+    (a call — .read_text()/.read() reads JSON documents off disk, a
+    different format by design; the strike class was DB columns)."""
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return []
+    flagged: list[tuple[int, str]] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        if not (
+            isinstance(func, ast.Attribute)
+            and func.attr == "loads"
+            and isinstance(func.value, ast.Name)
+            and func.value.id == "json"
+        ):
+            continue
+        arg = node.args[0] if node.args else None
+        if arg is None or any(isinstance(n, ast.Call) for n in ast.walk(arg)):
+            continue
+        idents = [n.id for n in ast.walk(arg) if isinstance(n, ast.Name)]
+        idents += [n.attr for n in ast.walk(arg) if isinstance(n, ast.Attribute)]
+        if any(_EMB_DECODE_IDENT_RE.search(i or "") for i in idents):
+            flagged.append((node.lineno, ast.get_source_segment(src, arg) or "<expr>"))
+    return flagged
+
+
+def check_embedding_decode_chokepoint() -> list[str]:
+    """Decode-class tripwire (unified_search S3): stored embeddings are
+    vec_codec f32 BLOBs since embedding_blob_migration; the tolerant reader
+    is helpers.core.vec_codec.load_vec. A raw json.loads on an emb/vec-named
+    receiver has silently zeroed three similarity paths (script_search
+    cosine, /api/search Python fallback, the deep-probe bench — all fixed
+    2026-09-12; the embed_matrix refresh was the #224 strike). AST scan of
+    production code (helpers/ + app.py); known gap, accepted: receivers
+    with opaque names (e, row[0]) rely on the BLOB-seeded behavior tests.
+    """
+    allowlist_prefixes = (
+        "helpers/core/vec_codec.py",
+        # One-shot migrations read pre-blob TEXT by design.
+        "helpers/maintenance/migrate_embedding_blob.py",
+        "helpers/maintenance/migrate_embed_store.py",
+    )
+    failures: list[str] = []
+    for py in REPO_ROOT.rglob("*.py"):
+        if any(part in SKIP_DIRS for part in py.parts):
+            continue
+        rel = py.relative_to(REPO_ROOT).as_posix()
+        if not (rel.startswith("helpers/") or rel == "app.py"):
+            continue
+        if rel.startswith(allowlist_prefixes):
+            continue
+        try:
+            src = py.read_text(encoding="utf-8")
+        except OSError, UnicodeDecodeError:
+            continue  # py_compile owns syntax/encoding failures
+        for lineno, receiver in _flag_json_loads_on_embedding_receivers(src):
+            failures.append(
+                f"{rel}:{lineno}: json.loads({receiver}) on an emb/vec receiver — "
+                "decode via helpers.core.vec_codec.load_vec (BLOB-tolerant)"
+            )
+    return failures
+
+
+def check_db_meta_generation():
     """P0: live DB must have db_meta.generation and user_version == 7."""
     db = _db_path()
     if not db.exists() or sqlite3 is None:
@@ -942,6 +1014,7 @@ CHECKS = [
     ("OKF conformance", check_okf_conformance_contract),
     ("Dependency pinning", check_dependency_pinning),
     ("SQLite helper usage", check_sqlite_helper_usage),
+    ("Embedding decode chokepoint", check_embedding_decode_chokepoint),
     ("DB meta generation", check_db_meta_generation),
 ]
 

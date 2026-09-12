@@ -1453,11 +1453,13 @@ def _cosine_leg(
     for rid, emb in conn.execute(
         "SELECT rowid, embedding FROM script_search WHERE embedding IS NOT NULL AND embedding != ''"
     ):
-        try:
-            vec = json.loads(emb)
-        except TypeError, ValueError:
-            continue
-        if not isinstance(vec, list) or len(vec) != len(q_vec):
+        # Stored embeddings are vec_codec blobs (dump_vec), NOT JSON —
+        # json.loads here decoded zero rows and silently killed the cosine
+        # leg (mode never "hybrid", similarity always null). Found via the
+        # unified_search S1 endpoint tests 2026-09-12; load_vec matches the
+        # doc-side decode (rds.search_docs uses it for the same loop).
+        vec = load_vec(emb)
+        if not vec or len(vec) != len(q_vec):
             continue
         norm_v = sum(x * x for x in vec) ** 0.5 or 1.0
         sim = sum(a * b for a, b in zip(q_vec, vec)) / (norm_q * norm_v)

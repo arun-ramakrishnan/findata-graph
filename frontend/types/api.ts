@@ -296,6 +296,32 @@ export interface DocSearchResponse {
 }
 
 // --------------------------------------------------------------------------- //
+// GET /api/scripts/search (unified_search S1)                                 //
+// --------------------------------------------------------------------------- //
+/** One hit from the script_search sidecar (script/test/make/mojo/ts). */
+export interface ScriptSearchHit {
+    /** Repo-rooted path (helpers/…, tests/…, app.py) or the bare make target name. */
+    path: string;
+    title: string;
+    kind: "script" | "test" | "make" | "mojo" | "ts";
+    area: string | null;
+    purpose: string | null;
+    /** FTS5 snippet with literal `<mark>…</mark>` around matches. */
+    snippet: string;
+    score: number;
+    /** Cosine similarity vs the query embedding (null on the bm25-only leg). */
+    similarity: number | null;
+}
+
+export interface ScriptSearchResponse {
+    query: string;
+    mode: "hybrid" | "bm25";
+    /** True when the sidecar no longer matches the tree (warn-and-answer). */
+    stale: boolean;
+    results: ScriptSearchHit[];
+}
+
+// --------------------------------------------------------------------------- //
 // GET /api/graph/cloud (whole-graph force cloud)                              //
 // --------------------------------------------------------------------------- //
 /** One entity rendered in the graph cloud. `entity_type` colours the node

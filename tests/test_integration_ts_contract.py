@@ -483,6 +483,49 @@ class TestDocsContract:
 
 
 # --------------------------------------------------------------------------- #
+# Script search (unified_search S1) — script_search sidecar                     #
+# --------------------------------------------------------------------------- #
+
+
+class TestScriptSearchContract:
+    @pytest.fixture
+    def script_env(self, tmp_path, monkeypatch):
+        """Tmp tree + sidecar so the contract holds on any machine (the
+        live memory/script_search.db exists only on built boxes)."""
+        from helpers.maintenance import rebuild_script_search as rss
+
+        tree = tmp_path
+        (tree / "helpers" / "misc").mkdir(parents=True)
+        (tree / "tests").mkdir()
+        (tree / "helpers" / "misc" / "contract_probe.py").write_text(
+            '#!/usr/bin/env python3\n"}"}Contract probe helper."}"}\n'.replace("}", chr(34))
+        )
+        (tree / "app.py").write_text('"}"}Flask app."}"}\n'.replace("}", chr(34)))
+        (tree / "Makefile").write_text(".RECIPEPREFIX := >\nqa: ## gate\n> true\n")
+        monkeypatch.setattr(rss, "SCRIPT_DB", tree / "script_search.db")
+        monkeypatch.setattr(rss, "HELPERS_ROOT", tree / "helpers")
+        monkeypatch.setattr(rss, "TESTS_ROOT", tree / "tests")
+        monkeypatch.setattr(rss, "APP_PY", tree / "app.py")
+        monkeypatch.setattr(rss, "MAKEFILE", tree / "Makefile")
+        monkeypatch.setattr(rss, "BACKUP_DIR", tree / "db-backup")
+        rss.rebuild(write=True)
+        return tree
+
+    def test_keys_match_scriptsearchresponse_and_hit(self, contract_client, script_env):
+        r = contract_client.get("/api/scripts/search?q=contract probe")
+        assert r.status_code == 200
+        data = r.get_json()
+        _assert_keys(data, "ScriptSearchResponse")
+        for hit in data["results"]:
+            _assert_keys(hit, "ScriptSearchHit")
+
+    def test_missing_q_returns_error(self, contract_client, script_env):
+        r = contract_client.get("/api/scripts/search")
+        assert r.status_code == 400
+        _assert_keys(r.get_json(), "ErrorResponse")
+
+
+# --------------------------------------------------------------------------- #
 # Graph cloud + graph stats — SQLite-backed, full contract verification
 # --------------------------------------------------------------------------- #
 

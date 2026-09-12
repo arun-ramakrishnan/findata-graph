@@ -26,6 +26,7 @@ import { SectorsView } from "./views/sectors";
 import { StatsView } from "./views/stats";
 import { DocsView } from "./views/docs";
 import { GraphView } from "./views/graph";
+import { SearchView } from "./views/search";
 
 // `viewer` is referenced as a bare global by inline onclick handlers in the
 // HTML strings the views build. Declare it on window so those references are
@@ -43,6 +44,7 @@ class FinDataViewer {
     readonly stats: StatsView;
     readonly docs: DocsView;
     readonly graph: GraphView;
+    readonly search: SearchView;
 
     constructor() {
         this.companies = new CompaniesView(() => this.router.isActive("companies"));
@@ -57,6 +59,7 @@ class FinDataViewer {
         this.stats = new StatsView(() => this.router.isActive("stats"));
         this.docs = new DocsView(() => this.router.isActive("docs"));
         this.graph = new GraphView();
+        this.search = new SearchView(() => this.router.isActive("search"));
 
         this.router = new Router({
             companies: () => this.companies.loadEntities(),
@@ -64,6 +67,7 @@ class FinDataViewer {
             stats: () => this.stats.load(),
             graph: () => this.graph.loadGraphView(),
             docs: () => this.docs.loadCatalog(),
+            search: () => this.search.activate(),
         } satisfies Record<ViewName, () => unknown>);
 
         this.init();
@@ -81,6 +85,7 @@ class FinDataViewer {
         // Per-view static controls.
         this.companies.bindEvents();
         this.docs.bindEvents();
+        this.search.bindEvents();
     }
 
     async loadInitialData(): Promise<void> {

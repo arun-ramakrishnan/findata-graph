@@ -42,6 +42,9 @@
                 <a href="#docs" class="nav-link" data-view="docs">
                     <i class="fas fa-book-open"></i> Docs
                 </a>
+                <a href="#search" class="nav-link" data-view="search">
+                    <i class="fas fa-search"></i> Search
+                </a>
             </nav>
         </header>
 
@@ -476,7 +479,32 @@
                 <div class="lightbox-caption"></div>
             </div>
         </div>
-        </main>
+        
+            <!-- Unified Search View (unified_search S2): one input, three corpora -->
+            <section id="search-view" class="view-section" style="display: none;">
+                <div class="view-header">
+                    <h2><i class="fas fa-search"></i> Unified Search</h2>
+                    <div class="view-controls">
+                        <span id="unified-count" class="count-label"></span>
+                    </div>
+                </div>
+                <div class="search-box collection-search" style="max-width: 560px;">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="unified-search-input"
+                           placeholder="Search docs, scripts, notes..."
+                           autocomplete="off">
+                    <button id="unified-search-clear" class="btn-clear" style="display: none;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="unified-kind-chips" class="view-controls" style="margin: 8px 0;">
+                    <!-- Script kind chips render here -->
+                </div>
+                <div id="unified-results">
+                    <!-- Grouped per-corpus results render here -->
+                </div>
+            </section>
+</main>
 
         <footer>
             <p>&copy; 2025 FinData Knowledge Graph</p>

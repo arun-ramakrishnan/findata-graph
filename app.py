@@ -515,8 +515,9 @@ def _scored_rows(rows, q_vec, knn: dict[str, float] | None) -> list[tuple[int, A
     without a vec row (missing/invalid embedding) get 0.0, same contract as
     the Python path below.
     """
-    import json
     import math
+
+    from helpers.core.vec_codec import load_vec
 
     def _cosine(a, b):
         dot = sum(x * y for x, y in zip(a, b))
@@ -531,13 +532,13 @@ def _scored_rows(rows, q_vec, knn: dict[str, float] | None) -> list[tuple[int, A
         if knn is not None:
             sim = knn.get(row[1], 0.0)
         else:
-            embedding = row[4]
-            vec = None
-            if embedding:
-                try:
-                    vec = json.loads(embedding)
-                except TypeError, ValueError:
-                    vec = None
+            # Choke-point decode (vec_codec.load_vec): post-blob-migration
+            # rows are f32 BLOBs — a raw json.loads here returned None for
+            # every row and silently zeroed the whole fallback similarity
+            # column (third strike of this class; see unified_search
+            # appendix 2026-09-12). load_vec also keeps pre-migration TEXT
+            # rows working (the tolerant reader).
+            vec = load_vec(row[4]) if row[4] else None
             sim = _cosine(q_vec, vec) if (q_vec and vec) else 0.0
         out.append((orig_index, row, sim))
     return out
@@ -1256,6 +1257,103 @@ def api_docs_search():  # noqa: C901
     ranked.sort(key=lambda t: (-t[0], t[1]))
     docs_out = [d for _score, _title, d in ranked[:limit]]
     return jsonify({"query": q, "mode": "scan", "stale": stale, "results": docs_out})
+
+
+# Kinds present in the script_search sidecar (measured 2026-09-12:
+# script 97 / test 164 / make 61 / mojo 19 / ts 17). The ts rows are the
+# corpus_uniformity S6 footprint — the proposal listed only four kinds and
+# missed ts; the route serves what the index actually holds.
+_SCRIPT_KINDS = ("script", "test", "make", "mojo", "ts")
+
+
+def _scripts_index_search(
+    q: str, limit: int, offset: int, kind: str | None, area: str | None, hybrid_on: bool
+) -> tuple[dict, bool] | None:
+    """Answer from the script_search sidecar.
+
+    Returns (result_dict, stale), or None when the route must 503 — a
+    missing or unreadable index (the script_query CLI's hard-fail
+    contract; scripts have no scan fallback, unlike doc/).
+    """
+    try:
+        from helpers.maintenance import rebuild_script_search as rss
+
+        if not Path(rss.SCRIPT_DB).exists():
+            return None
+        conn = rss.connect_script_db()
+    except Exception:  # noqa: S110  # unreadable sidecar -> 503, never a 500
+        return None
+    try:
+        if not rss.script_index_ready(conn):
+            return None
+        stale = rss.script_index_stale(conn)
+        res = rss.search_scripts(
+            conn, q, limit=limit, offset=offset, kind=kind, area=area, hybrid=hybrid_on
+        )
+        return res, stale
+    except Exception:  # noqa: S110  # degraded sidecar must never 500 the search
+        return None
+    finally:
+        conn.close()
+
+
+@app.route("/api/scripts/search")
+def api_scripts_search():
+    """Search the script/test/make/Mojo/TS index — hybrid BM25 + cosine
+    over the script_search sidecar, wrapping the same search_scripts()
+    core the script_query CLI wraps (proposal:
+    doc/improvements/archive/ui/unified_search.md S1,
+    completed.md #229).
+
+    Query params:
+        q (required) — free-text query. Tokens are FTS-quoted on the index
+          path, so punctuation can never produce a syntax error.
+        limit (default 25) — max results (clamped 1..100).
+        offset (default 0) — pagination offset.
+        kind (script|test|make|mojo|ts) — filter to one row kind.
+        area — filter by area (core, misc, graph, web, views, ...).
+        hybrid (default on; hybrid=0 forces the lexical leg only).
+
+    Returns: {"query", "mode", "stale", "results": [{"path", "title",
+    "kind", "area", "purpose", "snippet", "score", "similarity"}]}
+    sorted by descending score; mode is "hybrid" | "bm25". A stale index
+    still answers with stale: true (the CLI's warn-and-answer contract —
+    slightly outdated knowledge beats none); a missing sidecar is 503
+    with the rebuild command in the body.
+    """
+    q = request.args.get("q", "").strip()
+    if not q:
+        return jsonify({"error": "missing required param 'q'"}), 400
+    try:
+        limit = int(request.args.get("limit", 25))
+    except ValueError:
+        return jsonify({"error": "limit must be an integer"}), 400
+    limit = max(1, min(limit, 100))
+    try:
+        offset = int(request.args.get("offset", 0))
+    except ValueError:
+        return jsonify({"error": "offset must be an integer"}), 400
+    if offset < 0:
+        return jsonify({"error": "offset must be >= 0"}), 400
+    kind = request.args.get("kind") or None
+    if kind is not None and kind not in _SCRIPT_KINDS:
+        return jsonify({"error": f"kind must be one of {_SCRIPT_KINDS}"}), 400
+    area = request.args.get("area") or None
+    hybrid_on = request.args.get("hybrid", "1") not in ("0", "false")
+
+    answered = _scripts_index_search(q, limit, offset, kind, area, hybrid_on)
+    if answered is None:
+        return (
+            jsonify(
+                {
+                    "error": "script_search index missing or unreadable",
+                    "rebuild": ".venv/bin/python3 helpers/maintenance/rebuild_script_search.py",
+                }
+            ),
+            503,
+        )
+    res, stale = answered
+    return jsonify({"query": q, "mode": res["mode"], "stale": stale, "results": res["results"]})
 
 
 @app.route("/api/entity/<path:entity_path>")

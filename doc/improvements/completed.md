@@ -5460,7 +5460,7 @@ not pending work — web-llm DEFERRED with explicit gates and the WASM
 3.0 + runtime survey (Wasmtime parked as the reference embed) both live
 in `doc/local/evaluations/web_components_assessment.md` §3/§5; a
 web-llm lane would need its own proposal. Follow-on filed the same day:
-`doc/improvements/proposals/unified_search.md` (unified UI search over
+`doc/improvements/archive/ui/unified_search.md` (#229; unified UI search over
 notes/docs/scripts, reusing this highlighting path; sugar-high covers
 28 grammars — no Mojo, python-approximation mapped there).
 
@@ -5509,3 +5509,56 @@ format + `ty` clean, `static_checks` green, `make perf` 20/22 —
 `graph_pagerank` over-budget re-ran 0.37s isolated (box-load noise;
 untouched path) and `snapshot_check` FAIL(rc) matches the pre-existing
 2026-09-10 generation-mismatch signature.
+
+## 229. Unified UI search — /api/scripts/search + grouped view + decode-class fixes
+
+**Proposal**: `doc/improvements/archive/ui/unified_search.md`
+(filed 2026-09-12, executed 2026-09-12).
+
+**Problem**: the browser could search two of the house's three
+content-addressable surfaces (notes `/api/search`, docs
+`/api/docs/search`) but the script/test/make/Mojo/TS index was
+CLI-only — three entry points, three shapes, no single place answering
+"where does this topic live across the corpus". Execution surfaced a
+latent decode bug class alongside: three similarity paths read stored
+f32-BLOB embeddings with raw `json.loads` and silently scored zero.
+
+**Landed**:
+- S1 app.py: `/api/scripts/search` — thin wrapper over
+  `search_scripts()` mirroring the docs contract (q/limit/offset/kind/
+  area/hybrid; 400s on bad input; missing/corrupt sidecar → 503 with
+  the rebuild command; stale → warn-and-answer). Kinds
+  script/test/make/mojo/ts (census 97/164/61/19/17 rows).
+- S2 frontend: SearchView (`frontend/src/views/search.ts`, 299 LOC) +
+  router/nav/template wiring + `ScriptSearchResponse/Hit` types — one
+  input (300 ms debounce, Enter commits), `Promise.allSettled` fan-out
+  to the three endpoints, grouped per-corpus sections, kind chips,
+  per-leg error lines (a 503 never blanks the page), snippets through
+  `highlightSnippet`/`highlightCode` with "mojo≈python" labeling;
+  zero new CSS. findata.bundle.js 598,778 → 608,226 B (+1.6%).
+- Decode-class fixes (operator-requested base-layer audit):
+  `rebuild_script_search._cosine_leg` `json.loads` → `vec_codec.
+  load_vec` (script hybrid silently dead since that arc; now live —
+  358 embedded rows @384-dim, mode "hybrid" with real similarity);
+  `app.py _scored_rows` notes-hybrid Python fallback, same fix (sim
+  had been 0.0 for every post-blob-migration row); bench
+  `note_deep_probe_candidates.py`, same. The #224 embed_matrix strike
+  is the recorded precedent; doc-side paths were already clean.
+- S3 guard: `check_embedding_decode_chokepoint` in static_checks —
+  blocking AST check flagging `json.loads` on emb/vec-named receivers
+  in helpers/ + app.py (file-read shapes exempt, vec_codec + the two
+  blob migrations allowlisted; opaque-name gap documented, covered by
+  the BLOB-seeded behavior tests). First gate run caught the stray
+  0-byte graph_rendering_overhaul.md failing two checks — removed.
+- Tests: `tests/test_api_scripts_search.py` new (20, hermetic tmp tree
+  + fake 8-dim embedder); ts-contract +2 (35); `test_api_search.py`
+  +2 BLOB-seeded regression pins via `_seed_blob_db` (21);
+  `test_static_checks.py` +7 (93).
+
+**Measured**: live route `q=integrity` → 200, mode hybrid, stale true
+(files edited post-rebuild), 25 hits, top-3 exactly right
+(database_integrity_check.py / make integration / its test); kind=make
+→ 4 hits all make; limit/offset windowing correct. `make qa` 9/9,
+2805 passed, 3 skipped (pix2text absent) — after clearing ~2.7 GB of
+dead 143 MB sp.db test sandboxes from /tmp whose quota exhaustion
+(Errno 122) had errored 102 tests in the first gate run.

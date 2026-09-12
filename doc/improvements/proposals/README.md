@@ -28,12 +28,9 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- **unified_search.md** (filed 2026-09-12) — `/api/scripts/search`
-  endpoint over `search_scripts()` plus a client-side grouped
-  Docs/Scripts/Notes search view; snippets highlighted via the landed
-  sugar-high path (mojo→python approximation). Evidence: same-day
-  operator observation after `../archive/ui/sugar_high_highlighter.md`
-  landed.
+_(none)_ — unified_search.md archived 2026-09-12 as completed.md entry
+229 (execution record in `../archive/ui/unified_search.md`; decode-class
+fixes + the embedding-chokepoint static check landed in the same arc).
 
 _(Previously: hybrid_derive_graph_microperf.md, archived as completed.md
 entry 228 on 2026-09-12 — execution record in

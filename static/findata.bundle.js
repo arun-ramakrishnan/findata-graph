@@ -14112,6 +14112,203 @@ void main() {
     }
   };
 
+  // src/views/search.ts
+  var SCRIPT_KINDS = ["script", "test", "make", "mojo", "ts"];
+  var PER_CORPUS_LIMIT = 8;
+  var DEBOUNCE_MS = 300;
+  var DOCTYPE_LABELS2 = {
+    company: "company",
+    sector: "sector",
+    super_sector: "super sector",
+    chatter: "chatter",
+    points_and_figures: "P&F",
+    plotlines: "plotlines"
+  };
+  function fenceLangForPath(path) {
+    if (path.endsWith(".mojo")) return { lang: "python", label: "mojo\u2248python" };
+    if (path.endsWith(".py")) return { lang: "python", label: null };
+    if (path.endsWith(".ts")) return { lang: "typescript", label: null };
+    if (path.endsWith(".js")) return { lang: "javascript", label: null };
+    if (path.endsWith(".sql")) return { lang: "sql", label: null };
+    if (path.endsWith(".md")) return { lang: "markdown", label: null };
+    if (path.endsWith(".yaml") || path.endsWith(".yml")) return { lang: "yaml", label: null };
+    if (path.endsWith(".sh")) return { lang: "shell", label: null };
+    return { lang: "plaintext", label: null };
+  }
+  function stripMarks(snippet) {
+    return snippet.replace(/<\/?mark>/g, "");
+  }
+  var SearchView = class {
+    constructor(isActive) {
+      /** Scripts kind filter (null = all). */
+      this.kindFilter = null;
+      this.isActive = isActive;
+    }
+    /** Wire the static controls (once at boot). */
+    bindEvents() {
+      const input = getEl("unified-search-input");
+      const clear = getEl("unified-search-clear");
+      input.addEventListener("input", (e) => {
+        const target = e.target;
+        clear.style.display = target.value ? "block" : "none";
+        this.debounceSearch();
+      });
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          clearTimeout(this.searchTimeout);
+          void this.runSearch(input.value.trim());
+        }
+      });
+      clear.addEventListener("click", () => {
+        input.value = "";
+        clear.style.display = "none";
+        this.renderIdle();
+      });
+      getEl("unified-kind-chips").addEventListener("click", (e) => {
+        const chip = e.target.closest("[data-kind]");
+        if (!chip) return;
+        const kind = chip.dataset.kind;
+        this.kindFilter = kind === "all" ? null : kind;
+        this.renderKindChips();
+        const q = input.value.trim();
+        if (q) void this.runSearch(q);
+      });
+      this.renderKindChips();
+    }
+    /** Router loader: focus + idle hint on first activation (no auto-query). */
+    activate() {
+      const results = getEl("unified-results");
+      if (!results.childElementCount) this.renderIdle();
+      const input = document.getElementById("unified-search-input");
+      if (input && this.isActive()) input.focus();
+    }
+    debounceSearch() {
+      clearTimeout(this.searchTimeout);
+      this.searchTimeout = setTimeout(() => {
+        const input = getEl("unified-search-input");
+        void this.runSearch(input.value.trim());
+      }, DEBOUNCE_MS);
+    }
+    /** Fan out to the three corpora; render grouped sections. */
+    async runSearch(q) {
+      const results = getEl("unified-results");
+      if (!q) {
+        this.renderIdle();
+        this.setCount("");
+        return;
+      }
+      results.innerHTML = `<div class="docs-list"><em>searching\u2026</em></div>`;
+      if (!this.isActive()) return;
+      const enc = encodeURIComponent(q);
+      const kindQ = this.kindFilter ? `&kind=${this.kindFilter}` : "";
+      const [docs, scripts, notes] = await Promise.allSettled([
+        fetchJson(
+          `/api/docs/search?q=${enc}&limit=${PER_CORPUS_LIMIT}`
+        ),
+        fetchJson(
+          `/api/scripts/search?q=${enc}&limit=${PER_CORPUS_LIMIT}${kindQ}`
+        ),
+        fetchJson(`/api/search?q=${enc}&limit=${PER_CORPUS_LIMIT}`)
+      ]);
+      if (!this.isActive()) return;
+      const total = (docs.status === "fulfilled" ? docs.value.results.length : 0) + (scripts.status === "fulfilled" ? scripts.value.results.length : 0) + (notes.status === "fulfilled" ? notes.value.results.length : 0);
+      this.setCount(q ? `${total} hits across 3 corpora` : "");
+      results.innerHTML = this.renderDocs(docs) + this.renderScripts(scripts) + this.renderNotes(notes);
+    }
+    // --- per-corpus renderers --------------------------------------------- //
+    renderDocs(leg) {
+      if (leg.status === "rejected") {
+        return this.sectionError("Docs", leg.reason);
+      }
+      const data = leg.value;
+      const stale = data.stale ? `<div class="count-label">index stale \u2014 rebuild via helpers/maintenance/rebuild_doc_search.py</div>` : "";
+      if (!data.results.length) return this.sectionEmpty("Docs") + stale;
+      const rows = data.results.map((hit) => {
+        const where = hit.section_title ? `${escapeHtml(hit.title)} \xB7 ${escapeHtml(hit.section_title)}` : escapeHtml(hit.title);
+        return `<li>
+                    <div class="count-label">${escapeHtml(hit.path)}</div>
+                    <div>${where}</div>
+                    <div class="docs-row-snippet">${highlightSnippet(hit.snippet)}</div>
+                </li>`;
+      }).join("");
+      return this.section("Docs", `mode: ${data.mode}`, stale, rows);
+    }
+    renderScripts(leg) {
+      if (leg.status === "rejected") {
+        const err = leg.reason instanceof ApiError ? leg.reason : null;
+        const hint = err && err.status === 503 ? ` \u2014 rebuild via .venv/bin/python3 helpers/maintenance/rebuild_script_search.py` : "";
+        return this.sectionError("Scripts", leg.reason, hint);
+      }
+      const data = leg.value;
+      const stale = data.stale ? `<div class="count-label">index stale \u2014 rebuild via helpers/maintenance/rebuild_script_search.py</div>` : "";
+      if (!data.results.length) return this.sectionEmpty("Scripts") + stale;
+      const rows = data.results.map((hit) => {
+        const { lang: lang2, label } = fenceLangForPath(hit.path);
+        const approx = label ? ` <span class="fm-chip">${escapeHtml(label)}</span>` : "";
+        const code = highlightCode(stripMarks(hit.snippet), lang2);
+        return `<li>
+                    <div>
+                        <span class="fm-chip fm-type">${escapeHtml(hit.kind)}</span>
+                        ${escapeHtml(hit.path)}${approx}
+                    </div>
+                    ${hit.purpose ? `<div>${escapeHtml(hit.purpose)}</div>` : ""}
+                    <pre class="code-block"><code>${code}</code></pre>
+                </li>`;
+      }).join("");
+      return this.section("Scripts", `mode: ${data.mode}`, stale, rows);
+    }
+    renderNotes(leg) {
+      if (leg.status === "rejected") {
+        const err = leg.reason instanceof ApiError ? leg.reason : null;
+        const hint = err && err.status === 503 ? ` \u2014 rebuild via .venv/bin/python3 helpers/maintenance/rebuild_note_search.py` : "";
+        return this.sectionError("Notes", leg.reason, hint);
+      }
+      const data = leg.value;
+      if (!data.results.length) return this.sectionEmpty("Notes");
+      const more = data.total_count > data.results.length ? ` \xB7 ${data.total_count} total` : "";
+      const rows = data.results.map((hit) => {
+        const chip = hit.doc_type ? `<span class="fm-chip fm-type">${escapeHtml(DOCTYPE_LABELS2[hit.doc_type] ?? hit.doc_type)}</span> ` : "";
+        const where = hit.section_title ? ` \xB7 ${escapeHtml(hit.section_title)}` : "";
+        return `<li>
+                    <div>${chip}${escapeHtml(hit.title ?? hit.file_path)}${where}</div>
+                    <div class="count-label">${escapeHtml(hit.file_path)}</div>
+                    <div class="docs-row-snippet">${highlightSnippet(hit.snippet)}</div>
+                </li>`;
+      }).join("");
+      return this.section(`Notes${more}`, "", "", rows);
+    }
+    // --- shared section chrome -------------------------------------------- //
+    section(title, meta, pre, rows) {
+      const metaLine = meta ? ` <span class="count-label">${escapeHtml(meta)}</span>` : "";
+      return `<div class="docs-list">
+            <h3>${escapeHtml(title)}${metaLine}</h3>${pre}
+            <ul class="unified-group">${rows}</ul>
+        </div>`;
+    }
+    sectionEmpty(corpora) {
+      return `<div class="docs-list"><h3>${escapeHtml(corpora)}</h3><div class="count-label">no hits in ${escapeHtml(corpora.toLowerCase())}</div></div>`;
+    }
+    sectionError(corpora, reason, hint = "") {
+      const msg = reason instanceof Error ? reason.message : String(reason);
+      return `<div class="docs-list"><h3>${escapeHtml(corpora)}</h3><div class="count-label">leg failed: ${escapeHtml(msg)}${escapeHtml(hint)}</div></div>`;
+    }
+    renderKindChips() {
+      const chips = [
+        `<button type="button" class="fm-chip${this.kindFilter === null ? " fm-type" : ""}" data-kind="all">all</button>`,
+        ...SCRIPT_KINDS.map(
+          (k) => `<button type="button" class="fm-chip${this.kindFilter === k ? " fm-type" : ""}" data-kind="${k}">${k}</button>`
+        )
+      ];
+      getEl("unified-kind-chips").innerHTML = chips.join("");
+    }
+    renderIdle() {
+      getEl("unified-results").innerHTML = `<div class="docs-list"><em>one query, three indexes \u2014 doc/ sections, scripts/tests/make targets, vault notes. Start typing.</em></div>`;
+    }
+    setCount(text) {
+      getEl("unified-count").textContent = text;
+    }
+  };
+
   // src/findata.ts
   var FinDataViewer = class {
     constructor() {
@@ -14127,12 +14324,14 @@ void main() {
       this.stats = new StatsView(() => this.router.isActive("stats"));
       this.docs = new DocsView(() => this.router.isActive("docs"));
       this.graph = new GraphView();
+      this.search = new SearchView(() => this.router.isActive("search"));
       this.router = new Router({
         companies: () => this.companies.loadEntities(),
         sectors: () => this.sectors.load(),
         stats: () => this.stats.load(),
         graph: () => this.graph.loadGraphView(),
-        docs: () => this.docs.loadCatalog()
+        docs: () => this.docs.loadCatalog(),
+        search: () => this.search.activate()
       });
       this.init();
     }
@@ -14144,6 +14343,7 @@ void main() {
       this.router.bindNav();
       this.companies.bindEvents();
       this.docs.bindEvents();
+      this.search.bindEvents();
     }
     async loadInitialData() {
       await this.sectors.load();

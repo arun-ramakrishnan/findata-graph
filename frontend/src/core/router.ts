@@ -6,7 +6,7 @@
 // the view's loader (which decides whether to render immediately or defer —
 // same as the original switch statement did).
 
-export type ViewName = "companies" | "sectors" | "stats" | "graph" | "docs";
+export type ViewName = "companies" | "sectors" | "stats" | "graph" | "docs" | "search";
 
 /** Per-view data loader invoked on activation (may be async). */
 export type ViewLoader = () => void | Promise<void>;

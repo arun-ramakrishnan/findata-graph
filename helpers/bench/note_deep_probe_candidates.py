@@ -46,6 +46,8 @@ import time
 from pathlib import Path
 from typing import TypedDict
 
+from helpers.core.vec_codec import load_vec
+
 REPO = Path(__file__).resolve().parents[2]
 if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
@@ -351,7 +353,9 @@ def run_sectioned(tags: list[str]) -> dict:  # noqa: C901  # bench script: one s
         print(f"\n=== {tag} sectioned (ctx={cfg['ctx']}) ===", file=sys.stderr, flush=True)
         t0 = time.perf_counter()
         if tag == "bge":
-            vecs = [json.loads(e) if e else None for e in (r[5] for r in sections)]
+            # vec_codec choke point: stored embeddings are f32 BLOBs since
+            # the blob migration; raw json.loads dies on every row.
+            vecs = [load_vec(e) for e in (r[5] for r in sections)]
             misses = 0
         else:
             vecs, misses = _embed_candidate(tag, bases, cache_name=f"{tag}_sectioned")
