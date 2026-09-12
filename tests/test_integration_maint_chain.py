@@ -43,6 +43,7 @@ from helpers.graph import embeddings as emb  # noqa: E402
 from helpers.graph import query  # noqa: E402
 from helpers.graph.query import DB_PATH  # noqa: E402
 from helpers.graph import derive_cited_in as dci  # noqa: E402
+from helpers.graph import derive_hyperedges as dh_mod  # noqa: E402
 from helpers.maintenance import build_sector_hierarchy as bsh  # noqa: E402
 from helpers.maintenance import db_maint  # noqa: E402
 from helpers.maintenance import maint  # noqa: E402
@@ -135,6 +136,10 @@ class _MaintProject:
         )
         dst.execute("DELETE FROM graph_analytics")  # recomputed by the chain
         dst.execute("DELETE FROM events")  # recomputed by the chain
+        # hyper store is recomputed by the chain's derive-hyperedges step;
+        # keeping it here would strand FK references after the entity prune
+        dst.execute("DELETE FROM hyper_incidences")
+        dst.execute("DELETE FROM hyper_edges")
         # DROP the FTS index (shadows included — DELETEs leave tombstones
         # that keep the file ~7MB, which dominates the snapshot compress cost);
         # the chain's rebuild-note-search step recreates it via CREATE
@@ -351,6 +356,12 @@ def _shim_derive_events(p, mp, args):
     return _rc(de._cli(list(args)))
 
 
+def _shim_derive_hyperedges(p, mp, args):
+    mp.setattr(dh_mod, "_REPO_ROOT", p.root)
+    mp.setattr(dh_mod, "connect", lambda *a, **k: db_connect(str(p.db)))
+    return _rc(dh_mod._cli(list(args)))
+
+
 def _shim_okf_backfill(p, mp, args):
     # Notes-only converger: redirect the vault-resolution root. The tmp
     # project has no git, so canonical edition entries carry no
@@ -380,6 +391,7 @@ _SHIMS = {
     "helpers/graph/derive_events.py": _shim_derive_events,
     "helpers/misc/backfill_okf_provenance.py": _shim_okf_backfill,
     "helpers/graph/derive_cited_in.py": _shim_derive_cited_in,
+    "helpers/graph/derive_hyperedges.py": _shim_derive_hyperedges,
 }
 
 

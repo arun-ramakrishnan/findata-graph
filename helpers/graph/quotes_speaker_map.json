@@ -1,0 +1,744 @@
+{
+ "_meta": {
+  "what": "S21(b) curated speaker->entity map + entity seeds (operator-evaluated 2026-09-13, pass 2)",
+  "apply_order": [
+   "ensure_entities",
+   "roster",
+   "token",
+   "heading_walk",
+   "speaker_map"
+  ],
+  "scope": "only rows whose current entity is not company-kind (or is 'Quotes')",
+  "audit": "properties.reattributed_from + stage; original entity preserved"
+ },
+ "entities": [
+  {
+   "name": "Action Construction Equipment",
+   "kind": "company",
+   "sector": "Engineering_Capital_Goods",
+   "ticker": null
+  },
+  {
+   "name": "CCL Products",
+   "kind": "company",
+   "sector": "FMCG",
+   "ticker": null
+  },
+  {
+   "name": "CRIF High Mark",
+   "kind": "company",
+   "sector": "Financial_Services",
+   "ticker": null
+  },
+  {
+   "name": "Dave And Busters Entertainment",
+   "kind": "company",
+   "sector": "Consumer",
+   "ticker": "PLAY"
+  },
+  {
+   "name": "Formula One",
+   "kind": "company",
+   "sector": "Media_Entertainment",
+   "ticker": null
+  },
+  {
+   "name": "Godrej Agrovet",
+   "kind": "company",
+   "sector": "Agriculture",
+   "ticker": null
+  },
+  {
+   "name": "Graviss Foods",
+   "kind": "company",
+   "sector": "FMCG",
+   "ticker": null
+  },
+  {
+   "name": "Honda Motor",
+   "kind": "company",
+   "sector": "Automotive",
+   "ticker": "HMC"
+  },
+  {
+   "name": "Liberty Media",
+   "kind": "company",
+   "sector": "Media_Entertainment",
+   "ticker": null
+  },
+  {
+   "name": "Parle Products",
+   "kind": "company",
+   "sector": "FMCG",
+   "ticker": null
+  },
+  {
+   "name": "PepsiCo",
+   "kind": "company",
+   "sector": "FMCG",
+   "ticker": "PEP"
+  },
+  {
+   "name": "RBI",
+   "kind": "institution",
+   "sector": null,
+   "ticker": null
+  },
+  {
+   "name": "Sportking India",
+   "kind": "company",
+   "sector": "Textiles",
+   "ticker": null
+  },
+  {
+   "name": "Synaptics",
+   "kind": "company",
+   "sector": "Semiconductors",
+   "ticker": "SYNA"
+  },
+  {
+   "name": "TIL",
+   "kind": "company",
+   "sector": "Engineering_Capital_Goods",
+   "ticker": null
+  },
+  {
+   "name": "Target",
+   "kind": "company",
+   "sector": "Retail",
+   "ticker": "TGT"
+  },
+  {
+   "name": "Warner Bros. Discovery",
+   "kind": "company",
+   "sector": "Media_Entertainment",
+   "ticker": "WBD"
+  }
+ ],
+ "speakers": [
+  {
+   "target": "Hotel Leelaventure",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "Taj brands vivanta/gateway; FTA demand",
+   "rows": 13,
+   "speaker": "Puneet Chhatwal"
+  },
+  {
+   "target": "Figma",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'At Config, we launched Figma Make/Sites/Buzz'",
+   "rows": 12,
+   "speaker": "Dylan Field"
+  },
+  {
+   "target": "Micron Technology",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "HBM3E/HBM4 multi-year customer agreements",
+   "rows": 12,
+   "speaker": "Sumit Sadana"
+  },
+  {
+   "target": "Paras Defence and Space Technologies",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'Paras Defence on deal with Bandak Aviation'",
+   "rows": 10,
+   "speaker": "Amit Mahajan"
+  },
+  {
+   "target": "VST Tillers Tractors",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "power tillers/weeders/tractors",
+   "rows": 9,
+   "speaker": "Antony Cherukara"
+  },
+  {
+   "target": "RBI",
+   "kind": "institution",
+   "confidence": "high",
+   "evidence": "RBI Governor",
+   "rows": 9,
+   "speaker": "Shri Sanjay Malhotra"
+  },
+  {
+   "target": "RBI",
+   "kind": "institution",
+   "confidence": "high",
+   "evidence": "RBI Deputy Governor",
+   "rows": 9,
+   "speaker": "Shri Shirish Chandra Murmu"
+  },
+  {
+   "target": "SEBI",
+   "kind": "institution",
+   "confidence": "high",
+   "evidence": "SEBI Chairman; SEBI entity exists",
+   "rows": 9,
+   "speaker": "Shri Tuhin Kanta Pandey"
+  },
+  {
+   "target": "Happiest Minds Technologies",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "CEO GABS title; 1000 AI-team buildout",
+   "rows": 9,
+   "speaker": "Sridhar Mantha"
+  },
+  {
+   "target": "RBI",
+   "kind": "institution",
+   "confidence": "high",
+   "evidence": "RBI Deputy Governor",
+   "rows": 8,
+   "speaker": "Rohit Jain"
+  },
+  {
+   "target": "NMDC",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "NMDC CMD; Metals cur-tag",
+   "rows": 7,
+   "speaker": "Amitava Mukherjee"
+  },
+  {
+   "target": "Urban Company",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "UC CEO/co-founder; IPO era",
+   "rows": 6,
+   "speaker": "Abhiraj Singh Bhal"
+  },
+  {
+   "target": "L&T Finance",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "4.3GW/yr nuclear capacity language",
+   "rows": 6,
+   "speaker": "Anil V Parab"
+  },
+  {
+   "target": "Cummins India",
+   "kind": "company",
+   "confidence": "review",
+   "evidence": "heading/tag context",
+   "rows": 6,
+   "speaker": "Company Management"
+  },
+  {
+   "target": "Indian Oil Corporation",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "Director Finance; Energy cur-tag",
+   "rows": 5,
+   "speaker": "Anuj Jain"
+  },
+  {
+   "target": "IBM",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "title names IBM",
+   "rows": 5,
+   "speaker": "Arvind Krishna"
+  },
+  {
+   "target": "Nomura Holdings Inc.",
+   "kind": "institution",
+   "confidence": "high",
+   "evidence": "Nomura strategist, market call",
+   "rows": 5,
+   "speaker": "Chetan Seth"
+  },
+  {
+   "target": "The New India Assurance",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "corporate accounts repricing; NIA CMD",
+   "rows": 5,
+   "speaker": "Girija Subramanian"
+  },
+  {
+   "target": "Greenpanel Industries",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'Greenpanel on Price Hikes' section",
+   "rows": 5,
+   "speaker": "Himanshu Jindal"
+  },
+  {
+   "target": "Larsen and Toubro",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "DMD&President; SN Subrahmanyan variant",
+   "rows": 5,
+   "speaker": "S.N. Subrahmanyan Sharma"
+  },
+  {
+   "target": "Shriram Finance",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "EVC Shriram Finance",
+   "rows": 5,
+   "speaker": "Umesh Revankar"
+  },
+  {
+   "target": "Vishal Mega Mart",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "VMM MD&CEO; Retail cur-tag",
+   "rows": 4,
+   "speaker": "Gunender Kapur"
+  },
+  {
+   "target": "Parle Products",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "VP Parle per title",
+   "rows": 4,
+   "speaker": "Mayank Pravinchandra Shah"
+  },
+  {
+   "target": "Earkart",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'Earkart came into being'; entity exists",
+   "rows": 4,
+   "speaker": "Mr. Rohit Misra"
+  },
+  {
+   "target": "Lemon Tree Hotels",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "Lemon Tree Executive Chairman",
+   "rows": 4,
+   "speaker": "Patanjali P. Keswani"
+  },
+  {
+   "target": "Indian Hotels",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "same person, spelling variant",
+   "rows": 4,
+   "speaker": "Punit Chhatwal"
+  },
+  {
+   "target": "Honda Motor",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'Honda Motor Co., Ltd.' section",
+   "rows": 3,
+   "speaker": "A. Fujimura"
+  },
+  {
+   "target": "PharmEasy",
+   "kind": "company",
+   "confidence": "medium",
+   "evidence": "$10M cost program on $50M spend",
+   "rows": 3,
+   "speaker": "Anil Raghavan"
+  },
+  {
+   "target": "Godrej Agrovet",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'GAVL' oil-palm capex",
+   "rows": 3,
+   "speaker": "Balram Yadav"
+  },
+  {
+   "target": "HCL Technologies",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "HCLTech CEO",
+   "rows": 3,
+   "speaker": "C Vijayakumar"
+  },
+  {
+   "target": "Novavax",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "Matrix-M adjuvant MTAs",
+   "rows": 3,
+   "speaker": "John Jacobs"
+  },
+  {
+   "target": "Sportking India",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'Sportking India' section",
+   "rows": 3,
+   "speaker": "Munish Awasti"
+  },
+  {
+   "target": "GoPro",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "GoPro CEO",
+   "rows": 3,
+   "speaker": "Nicholas Woodman"
+  },
+  {
+   "target": "ICICI Prudential Asset Management Company",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "ICICI Pru AMC MD&CEO",
+   "rows": 3,
+   "speaker": "Nimesh Shah"
+  },
+  {
+   "target": "Nazara Technologies",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "quote names Nazara/PokerBazzi; OCR of Mittersain",
+   "rows": 3,
+   "speaker": "Nitish Mattersing"
+  },
+  {
+   "target": "Pearl Global Industries",
+   "kind": "company",
+   "confidence": "review",
+   "evidence": "heading/tag context",
+   "rows": 3,
+   "speaker": "Pallab Banerjee"
+  },
+  {
+   "target": "Globus Agronics",
+   "kind": "company",
+   "confidence": "medium",
+   "evidence": "FCI rice ethanol; consumer division",
+   "rows": 3,
+   "speaker": "Paramjit Singh Gill"
+  },
+  {
+   "target": "PepsiCo",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "PepsiCo CEO",
+   "rows": 3,
+   "speaker": "Ramon Laguarta"
+  },
+  {
+   "target": "Larsen and Toubro",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "name variant",
+   "rows": 3,
+   "speaker": "Subrahmanian Sharma"
+  },
+  {
+   "target": "Uno Minda",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "Rs8,000cr order book; Flash Electronics",
+   "rows": 2,
+   "speaker": "Akash Minda"
+  },
+  {
+   "target": "Raymond",
+   "kind": "company",
+   "confidence": "medium",
+   "evidence": "'Ethnix' brand; Group CFO",
+   "rows": 2,
+   "speaker": "Amit Agarwal"
+  },
+  {
+   "target": "CCL Products",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'CCL Products' section (Beyond_Results); coffee category CFO",
+   "rows": 2,
+   "speaker": "Chittaranjan Raju"
+  },
+  {
+   "target": "Warner Bros. Discovery",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "WBD CEO",
+   "rows": 2,
+   "speaker": "David Zaslav"
+  },
+  {
+   "target": "PVR INOX",
+   "kind": "company",
+   "confidence": "medium",
+   "evidence": "day-based customer acquisition promo",
+   "rows": 2,
+   "speaker": "Gautam Dutta"
+  },
+  {
+   "target": "Venkys",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'Venky's: biotech moat SPF eggs' section",
+   "rows": 2,
+   "speaker": "J.K. Handa"
+  },
+  {
+   "target": "Graviss Foods",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'Graviss Foods (Baskin Robbins)' section",
+   "rows": 2,
+   "speaker": "Mohit Khattar"
+  },
+  {
+   "target": "ICICI Prudential Asset Management Company",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "PMS/AIF distribution fees via AMC",
+   "rows": 2,
+   "speaker": "Naveen Agarwal"
+  },
+  {
+   "target": "Figma",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'models trained on Figma's design corpus'",
+   "rows": 2,
+   "speaker": "Praveer Melwani"
+  },
+  {
+   "target": "Larsen and Toubro",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "L&T CMD",
+   "rows": 2,
+   "speaker": "S.N. Subrahmanyan"
+  },
+  {
+   "target": "Kings Infra",
+   "kind": "company",
+   "confidence": "review",
+   "evidence": "heading/tag context",
+   "rows": 2,
+   "speaker": "Shaji Baby John"
+  },
+  {
+   "target": "MM Forgings",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'MM Forgings on Demand Recovery' tag",
+   "rows": 2,
+   "speaker": "Vidyashankar Krishnan"
+  },
+  {
+   "target": "Nazara Technologies",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "Absolute Sports CEO; Pro Football Network",
+   "rows": 1,
+   "speaker": "Ajay Pratap Singh"
+  },
+  {
+   "target": "Hitachi Energy India",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "PBT 389.5cr +120%, HVDC; section header",
+   "rows": 1,
+   "speaker": "Ajay Singh"
+  },
+  {
+   "target": "Target",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "Target CEO",
+   "rows": 1,
+   "speaker": "Brian Cornell"
+  },
+  {
+   "target": "Royal Orchid Hotels",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "Royal Orchid CMD",
+   "rows": 1,
+   "speaker": "Chander K. Baljee"
+  },
+  {
+   "target": "Dave And Busters Entertainment",
+   "kind": "company",
+   "confidence": "review",
+   "evidence": "heading/tag context",
+   "rows": 1,
+   "speaker": "Darren Harper"
+  },
+  {
+   "target": "Liberty Media",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "MotoGP acquisition closed Jul 3",
+   "rows": 1,
+   "speaker": "Derek Chang"
+  },
+  {
+   "target": "HMA",
+   "kind": "company",
+   "confidence": "review",
+   "evidence": "heading/tag context",
+   "rows": 1,
+   "speaker": "Gulzeb Ahmed"
+  },
+  {
+   "target": "Warner Bros. Discovery",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "WBD CFO",
+   "rows": 1,
+   "speaker": "Gunnar Wiedenfels"
+  },
+  {
+   "target": "Harley-Davidson",
+   "kind": "company",
+   "confidence": "medium",
+   "evidence": "'soft tails' powersport portfolio",
+   "rows": 1,
+   "speaker": "Jonathan Ruth"
+  },
+  {
+   "target": "Page Industries",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "Jockey sub-Rs1000 = 90%; link-line",
+   "rows": 1,
+   "speaker": "Karthik Yathindra"
+  },
+  {
+   "target": "Xiaomi",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "Xiaomi President",
+   "rows": 1,
+   "speaker": "Lu Weibing"
+  },
+  {
+   "target": "Micron Technology",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "HBM silicon-per-bit, greenfield fabs",
+   "rows": 1,
+   "speaker": "Manish Bhatia"
+  },
+  {
+   "target": "ABB India",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "title; entity exists (institution kind)",
+   "rows": 1,
+   "speaker": "Masayoshi Son"
+  },
+  {
+   "target": "Target",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'Target Corporation' section; Fiddelke OCR",
+   "rows": 1,
+   "speaker": "Michael Fideki"
+  },
+  {
+   "target": "ABB India",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "ABB CEO; map India listing",
+   "rows": 1,
+   "speaker": "Morten Wierod"
+  },
+  {
+   "target": "Star Health and Allied Insurance Company",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "COO Star Health per title",
+   "rows": 1,
+   "speaker": "Mr. Amitabh Jain"
+  },
+  {
+   "target": "Avenue Supermarts DMart",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "DMart CEO&MD",
+   "rows": 1,
+   "speaker": "Mr. Neville Noronha"
+  },
+  {
+   "target": "Indian Oil Corporation",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "ED Corp Fin & Treasury, IOC",
+   "rows": 1,
+   "speaker": "Nitin Kumar"
+  },
+  {
+   "target": "Dassault Systèmes",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "title names Dassault",
+   "rows": 1,
+   "speaker": "Pascal Daloz"
+  },
+  {
+   "target": "LIC Housing Finance",
+   "kind": "company",
+   "confidence": "review",
+   "evidence": "heading/tag context",
+   "rows": 1,
+   "speaker": "R. Doraiswamy"
+  },
+  {
+   "target": "Coforge",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "Coforge/Encora G&A cost-out",
+   "rows": 1,
+   "speaker": "Saurabh Goyal"
+  },
+  {
+   "target": "HCL Technologies",
+   "kind": "company",
+   "confidence": "medium",
+   "evidence": "Project Ascent margin program; edition",
+   "rows": 1,
+   "speaker": "Shiv Walia"
+  },
+  {
+   "target": "Action Construction Equipment",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'ACE: Defense & Export' section",
+   "rows": 1,
+   "speaker": "Sorab Agarwal"
+  },
+  {
+   "target": "Formula One",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "F1 CEO per title",
+   "rows": 1,
+   "speaker": "Stefano Domenicali"
+  },
+  {
+   "target": "TIL",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "'TIL' pick-and-carry crane IP",
+   "rows": 1,
+   "speaker": "Sunil Kumar Chaturvedi"
+  },
+  {
+   "target": "Dave And Busters Entertainment",
+   "kind": "company",
+   "confidence": "review",
+   "evidence": "heading/tag context",
+   "rows": 1,
+   "speaker": "Terrun Lol"
+  },
+  {
+   "target": "Page Industries",
+   "kind": "company",
+   "confidence": "high",
+   "evidence": "bonded tech; link-line Page Industries",
+   "rows": 1,
+   "speaker": "V.S. Ganesh"
+  }
+ ]
+}

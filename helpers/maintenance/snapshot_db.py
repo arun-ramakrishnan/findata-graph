@@ -507,6 +507,8 @@ SQLITE_PARQUET_TABLES = [
     "company_metrics",
     "company_embeddings",
     "graph_analytics",
+    "hyper_edges",
+    "hyper_incidences",
     "db_meta",
     "note_search_content",
 ]

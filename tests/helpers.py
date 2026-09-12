@@ -15,8 +15,11 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Callable, Iterator
 
-# Derived tables wiped by the copy-production-DB pattern (the 9-table
+# Derived tables wiped by the copy-production-DB pattern (the 11-table
 # tuple shared verbatim, S608-suppressed at the DELETE site below).
+# hyper_edges/hyper_incidences joined 2026-09-14: leaving them populated
+# after the entities wipe strands their FK references (measured: 5,639
+# orphaned hyper_incidences broke maint integrity + fk_safety fixtures).
 DERIVED_TABLES = (
     "graph_edges",
     "entity_tags",
@@ -27,6 +30,8 @@ DERIVED_TABLES = (
     "company_embeddings",
     "note_search",
     "note_search_meta",
+    "hyper_incidences",
+    "hyper_edges",
 )
 
 # snapshot_cycle's 8-table subset (drops note_search_meta for size).

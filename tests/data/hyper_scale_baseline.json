@@ -1,0 +1,142 @@
+{
+ "_provenance": {
+  "date": "2026-09-13",
+  "box": "live dev box, 14 GB RAM",
+  "proposal": "doc/improvements/proposals/hypergraph_incidence_hyx.md (\u00a72.1)",
+  "script": "helpers/bench/hyper_scale_bench.py (consolidated; raw evolving probes lived in /tmp/bench*.py)",
+  "generator": "seeded lognormal(3.1, 0.9) hyperedge sizes, seed=7; caps as labeled",
+  "onager": "duckdb extension, table functions onager_ctr_pagerank / onager_cmm_louvain(seed=>42)",
+  "note": "louvain at 3.42M dyads exceeded 440 s wall and the process died (suspected OOM) - recorded as did_not_complete"
+ },
+ "star_lane_hgx_hymsbm": [
+  {
+   "shape": "live-shape",
+   "hyperedges": 54,
+   "incidences": 2621,
+   "nodes": 1044,
+   "fit500_s": 0.95,
+   "peak_mb": 1
+  },
+  {
+   "shape": "wide-30K",
+   "hyperedges": 912,
+   "incidences": 30071,
+   "nodes": 3000,
+   "fit100_s": 0.39,
+   "peak_mb": 3
+  },
+  {
+   "shape": "wide-100K",
+   "hyperedges": 3049,
+   "incidences": 100006,
+   "nodes": 10000,
+   "fit100_s": 1.05,
+   "peak_mb": 9
+  },
+  {
+   "shape": "deep-100K (cap 1200)",
+   "hyperedges": 147,
+   "incidences": 100104,
+   "nodes": 10000,
+   "fit100_s": 0.94,
+   "peak_mb": 9
+  },
+  {
+   "shape": "paired cap500",
+   "hyperedges": 3101,
+   "incidences": 100030,
+   "nodes": 10000,
+   "fit100_s": 1.01,
+   "peak_mb": 9
+  }
+ ],
+ "dyadic_lane_clique_onager": [
+  {
+   "shape": "paired cap500",
+   "incidences": 100030,
+   "dyadic_edges": 3422116,
+   "blowup_x": 34.2,
+   "expand_sql_s": 0.34
+  },
+  {
+   "shape": "paired cap500",
+   "dyadic_edges": 3422116,
+   "pagerank_s": 196.57
+  },
+  {
+   "shape": "paired cap150",
+   "dyadic_edges": 2847100,
+   "louvain_s": 142.65,
+   "communities": 22
+  },
+  {
+   "shape": "paired cap500",
+   "dyadic_edges": 3422116,
+   "louvain_s": null,
+   "louvain_result": "did_not_complete (>440 s, suspected OOM)"
+  },
+  {
+   "shape": "small-end check",
+   "dyadic_edges": 138146,
+   "pagerank_s": 0.31,
+   "louvain_s": 0.32,
+   "communities": 31
+  }
+ ],
+ "verification_points_captured_script": [
+  {
+   "incidences": 5008,
+   "cap": 150,
+   "fit100_s": 0.29,
+   "dyadic_edges": 138146,
+   "expand_sql_s": 0.03,
+   "pagerank_s": 0.31,
+   "louvain_s": 0.32,
+   "communities": 31
+  },
+  {
+   "incidences": 30093,
+   "cap": 500,
+   "fit100_s": 0.61,
+   "dyadic_edges": 1010936,
+   "blowup_x": 33.6,
+   "expand_sql_s": 0.11
+  }
+ ],
+ "edge_blowout_by_shape": [
+  {
+   "shape": "live-real (edition+group)",
+   "hyperedges": 21,
+   "incidences": 233,
+   "clique_dyads": 1332,
+   "blowup_x": 5.7
+  },
+  {
+   "shape": "cap150",
+   "hyperedges": 3239,
+   "incidences": 100003,
+   "clique_dyads": 2847100,
+   "blowup_x": 28.5,
+   "expand_sql_s": 0.28,
+   "fit100_s": 1.03
+  },
+  {
+   "shape": "cap500",
+   "hyperedges": 3101,
+   "incidences": 100030,
+   "clique_dyads": 3422116,
+   "blowup_x": 34.2,
+   "expand_sql_s": 0.34,
+   "fit100_s": 1.01
+  },
+  {
+   "shape": "cap1200",
+   "hyperedges": 3070,
+   "incidences": 100016,
+   "clique_dyads": 4343878,
+   "blowup_x": 43.4,
+   "expand_sql_s": 0.39,
+   "fit100_s": 1.03
+  }
+ ]
+}

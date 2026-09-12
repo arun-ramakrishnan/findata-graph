@@ -151,11 +151,35 @@ SUPER_SECTORS: dict[str, list[str]] = {
 # remaining 18 sectors (out of 42) have neither signal and stay at
 # super-sector -> sector (no Level 3).
 SUB_CATEGORIES: dict[str, list[str]] = {
+    # S17 additions (2026-09-13, operator-approved taxonomy): 7 sectors
+    # previously without Level-3 facets gain curated sub_sectors from the
+    # S11 worklist triage (members >= 5 + clean name; see proposal S17).
+    "Consumer": ["Consumer Durables", "Restaurants"],
+    "Electronics": ["Consumer Electronics"],
+    "Energy": ["Gas Distribution", "Power Generation"],
+    "Engineering_Capital_Goods": ["Capital Goods", "Electrical Equipment"],
+    "Financial_Services": ["Asset Management"],
+    "Infrastructure": ["Construction Equipment", "Infra EPC"],
+    "Retail": ["Apparel Retail", "Ecommerce", "Luxury Goods"],
+    "Technology": ["Digital Platforms", "IT Services", "Software"],
     "Agriculture": ["Crop Production", "Food Processing", "Livestock"],
-    "Automotive": ["Commercial Vehicles", "Electric Vehicles", "Manufacturing", "Two Wheelers"],
+    "Automotive": [
+        "Automobiles",
+        "Auto Ancillary",
+        "Commercial Vehicles",
+        "Electric Vehicles",
+        "Manufacturing",
+        "Two Wheelers",
+    ],
     "Aviation": ["Airlines", "Airport Operations", "Aviation Services"],
     "Banking": ["Cooperative Banks", "Foreign Banks", "Private Sector", "Public Sector"],
-    "Building_Materials": ["Cement", "Ceramics", "Paints", "Sanitaryware"],
+    "Building_Materials": [
+        "Construction Materials",
+        "Cement",
+        "Ceramics",
+        "Paints",
+        "Sanitaryware",
+    ],
     "Chemicals": ["Agrochemicals", "Petrochemicals", "Specialty Chemicals"],
     "Defense": ["Aerospace", "Military"],
     "Diagnostics": ["Imaging", "IVD", "Pathology"],
@@ -169,7 +193,12 @@ SUB_CATEGORIES: dict[str, list[str]] = {
     ],
     "FMCG": ["Food Beverages", "Household Care", "Personal Care"],
     "Hospitals": ["Cancer Care", "Hospital Chains", "Specialty Care"],
-    "Insurance": ["General Insurance", "Health Insurance", "Life Insurance"],
+    "Insurance": [
+        "Reinsurance",
+        "General Insurance",
+        "Health Insurance",
+        "Life Insurance",
+    ],
     "Logistics": ["Transportation", "Supply Chain Services", "Specialized Logistics"],
     "Media_Entertainment": ["Broadcasting", "Cinema", "Digital"],
     "Metals": [
@@ -182,8 +211,8 @@ SUB_CATEGORIES: dict[str, list[str]] = {
     ],
     "Mining": ["Coal", "Iron Ore", "Non Ferrous"],
     "Packaging": ["Flexible Packaging", "Rigid Packaging"],
-    "Pharma": ["API", "CRAMS", "Formulations", "Pharma Retail", "Vaccines"],
-    "Real_Estate": ["Commercial", "Residential"],
+    "Pharma": ["API", "Biotech", "CRAMS", "Formulations", "Pharma Retail", "Vaccines"],
+    "Real_Estate": ["Commercial", "Real Estate Development", "Residential"],
     "Renewables": ["Biofuel", "Solar", "Wind"],
     "Semiconductors": ["Design", "Foundry", "Memory"],
     "Textiles": [

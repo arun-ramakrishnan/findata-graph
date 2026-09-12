@@ -28,7 +28,10 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+- **hypergraph_incidence_hyx.md** (filed 2026-09-13) — hyper_edges/hyper_incidences
+  incidence tables + derive_hyperedges backfill + hy-MMSBM overlapping communities
+  (HypergraphX) over the sector+theme incidence. Source memo:
+  `doc/local/evaluations/hyper_graph_assessment.md`.
 
 — (Previously: easygraph_cpp_readoption.md archived 2026-09-12 as completed.md
 entry 231 - verdict: adoption DEFERRED, parked behind R1-R4 upstream-fix

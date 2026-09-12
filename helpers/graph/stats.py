@@ -50,6 +50,133 @@ def _bar(n: int, total: int, width: int = 30) -> str:
     return "[" + "#" * filled + "." * (width - filled) + f"] {n}"
 
 
+# --------------------------------------------------------------------------- #
+# Longest chains (capture quality across domains) — hypergraph_incidence_hyx
+# follow-up, 2026-09-13. Longest SHORTEST paths (all-pairs BFS, unweighted,
+# undirected projection): the diameter is set by periphery-to-periphery
+# pairs, and WHICH edge families carry those chains shows how well the
+# capture domains bridge each other (a chain that rides only 1-2 families
+# = weakly-bridged domains). scipy is a direct import -> declared dep.
+# --------------------------------------------------------------------------- #
+#: Membership/provenance star families excluded from the ACTIVITY view —
+#: taxonomy/country/theme hubs collapse distances without carrying
+#: economic signal (same exclusion family as analytics._MEMBERSHIP_TYPES).
+_CHAINS_EXCLUDE = ("part_of", "has_company", "belongs_to", "cited_in", "listed_in", "exposed_to")
+
+
+def longest_chains(conn, top_k: int = 5) -> list[str]:  # noqa: C901
+    """Render the longest-chains section lines (pure function of ``conn``).
+
+    Two views: ALL edges, and ACTIVITY edges only (membership stars
+    excluded). For each: component count, diameter, median distance, the
+    top-K most distant pairs, and the #1 chain hop-by-hop with the edge
+    family carrying each hop, plus the family tally across all top-K
+    chains (the capture-quality signal).
+    """
+    import numpy as np
+    from scipy.sparse import csr_matrix
+    from scipy.sparse.csgraph import connected_components, shortest_path
+
+    names = [r[0] for r in conn.execute("SELECT name FROM entities ORDER BY rowid")]
+    idx = {n: i for i, n in enumerate(names)}
+    n = len(names)
+
+    pair_types: dict[tuple[int, int], set[str]] = {}
+
+    def _add(exclude: bool) -> csr_matrix:
+        rows_, cols_ = [], []
+        for s, tgt, et in conn.execute("SELECT source, target, edge_type FROM graph_edges"):
+            if exclude and et in _CHAINS_EXCLUDE:
+                continue
+            i, j = idx.get(s), idx.get(tgt)
+            if i is None or j is None or i == j:
+                continue
+            rows_ += [i, j]
+            cols_ += [j, i]
+            key = (i, j) if i < j else (j, i)
+            pair_types.setdefault(key, set()).add(et)
+        return csr_matrix((np.ones(len(rows_), dtype=np.int8), (rows_, cols_)), shape=(n, n))
+
+    lines: list[str] = []
+    for label, mat in (("ALL edges", _add(False)), ("ACTIVITY edges", _add(True))):
+        n_comp, comp = connected_components(mat, directed=False)
+        dist, pred = shortest_path(mat, method="D", unweighted=True, return_predecessors=True)
+        iu = np.triu_indices(n, 1)
+        finite = dist[iu]
+        finite = finite[np.isfinite(finite)]
+        if not len(finite):
+            lines.append(f"  {label}: no edges")
+            continue
+        diameter = int(finite.max())
+        rank = np.where(np.isfinite(dist), dist, -1)
+        # Distinct-candidate selection: greedy by distance, accepting a pair
+        # only while BOTH endpoints are unused (node-disjoint), so the top-K
+        # are K different chains rather than one hub endpoint repeated K
+        # times (the naive top-5 at the diameter was Food_Processing -> five
+        # different holders — one chain shape, five times). If the graph
+        # cannot supply K disjoint pairs, a relaxed second pass fills the
+        # remainder allowing reuse, never repeating an accepted pair.
+        pairs: list[tuple[int, int, int]] = []
+        seen: set[tuple[int, int]] = set()
+        used: set[int] = set()
+        order = [
+            (int(a), int(b))
+            for a, b in np.dstack(np.unravel_index(np.argsort(-rank.ravel()), rank.shape))[0]
+            if a < b and np.isfinite(dist[a, b])  # disconnected = never a chain
+        ]
+        for relax in (False, True):
+            for a, b in order:
+                if len(pairs) == top_k:
+                    break
+                if (a, b) in seen:
+                    continue
+                if not relax and (a in used or b in used):
+                    continue
+                seen.add((a, b))
+                used.update((a, b))
+                pairs.append((a, b, int(dist[a, b])))
+            if len(pairs) == top_k:
+                break
+        ties = int((dist[iu] == diameter).sum())
+
+        lines.append(
+            f"  {label}: {n_comp} components | diameter {diameter} "
+            f"({ties} pairs at d={diameter}) | median dist {np.median(finite):.0f}"
+        )
+        family_tally: dict[str, int] = {}
+        for cand_i, (a, b, d) in enumerate(pairs, 1):
+            lines.append(
+                f"    {cand_i}. d={d}  {names[a]}  <->  {names[b]}  "
+                f"[comp {int((comp == comp[a]).sum())} nodes]"
+            )
+            # reconstruct this chain and tally the families carrying its hops
+            path, cur = [b], b
+            while cur != a and pred[a, cur] >= 0:
+                cur = int(pred[a, cur])
+                path.append(cur)
+            for u, v in zip(path, path[1:]):
+                key = (u, v) if u < v else (v, u)
+                for fam in pair_types.get(key, {"?"}):
+                    family_tally[fam] = family_tally.get(fam, 0) + 1
+        if pairs:
+            a, b, _d = pairs[0]
+            path, cur = [b], b
+            while cur != a and pred[a, cur] >= 0:
+                cur = int(pred[a, cur])
+                path.append(cur)
+            hops = []
+            for u, v in zip(path, path[1:]):
+                key = (u, v) if u < v else (v, u)
+                fams = "/".join(sorted(pair_types.get(key, {"?"})))
+                hops.append(f"{names[u]} -[{fams}]-> {names[v]}")
+            lines.append(f"    #1 chain ({len(path) - 1} hops): " + "; ".join(hops))
+        tally = ", ".join(
+            f"{k} x{v}" for k, v in sorted(family_tally.items(), key=lambda kv: -kv[1])
+        )
+        lines.append(f"    chain composition across top-{len(pairs)}: {tally}")
+    return lines
+
+
 def print_stats() -> int:  # noqa: C901
     # --- Distributions: sourced from the checker (single source of truth) ---
     checker = DatabaseIntegrityChecker()
@@ -119,6 +246,19 @@ def print_stats() -> int:  # noqa: C901
                     f"   radius {metrics['radius']}"
                     f"   avg path length {_fmt(metrics['avg_path_length'])}"
                 )
+
+    # --- Longest chains (capture quality across domains) ---
+    # Advisory + best-effort like the sections around it: the chain reader
+    # needs scipy (declared dep) and reads straight from SQLite.
+    print(_hr("Longest chains — capture quality across domains", "-"))
+    _conn = connect()
+    try:
+        for _line in longest_chains(_conn):
+            print(_line)
+    except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
+        print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
+    finally:
+        _conn.close()
 
     # --- Sector size distribution ---
     print(_hr("Sectors by member count", "-"))

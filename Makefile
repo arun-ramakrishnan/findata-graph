@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -38,6 +38,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-co-mentions       Derive co_mentioned_in edges from newsletter enhancement blocks"
 > @echo "  derive-countries          Derive listed_in (company -> country) edges from exchange tickers (country layer C1)"
 > @echo "  derive-events            Promote relation edges + extract guidance/management events into the events timeline table"
+> @echo "  derive-hyperedges        Regroup membership dyads into hyper_edges/hyper_incidences (star incidence store)"
 > @echo "  derive-insights          DRY-RUN stale-only preview of quotes/company_metrics + auto '## The Chatter' blocks (writes nothing; apply yourself — see comment above)"
 > @echo "  derive-relations         Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose"
 > @echo "  derive-themes            Derive exposed_to (company -> theme) edges from company-note prose"
@@ -258,6 +259,10 @@ derive-events: ## Promote relation edges + extract guidance/management events in
 > python3 helpers/graph/derive_events.py --apply
 > @echo "✓ events table refreshed (acquisition/jv/guidance/management_change)"
 
+derive-hyperedges: ## Regroup membership dyads into hyper_edges/hyper_incidences (sector/theme/country/group/edition)
+> python3 helpers/graph/derive_hyperedges.py --apply
+> @echo "✓ hyperedge incidence refreshed (hyper_edges + hyper_incidences)"
+
 # Note-rendering path — DELIBERATELY DRY-RUN (2026-08-19): a bare `make
 # derive-insights` previews what would be written and never mutates notes
 # (mass note rewrites must be an explicit decision). The preview runs
@@ -313,6 +318,8 @@ derive-all: ## READ-ONLY preview of every derive-* step (dry-runs; nothing writt
 > python3 helpers/graph/derive_cited_in.py
 > @echo "=== derive-events ==="
 > python3 helpers/graph/derive_events.py
+> @echo "=== derive-hyperedges ==="
+> python3 helpers/graph/derive_hyperedges.py
 > @echo "✓ derive-all preview complete — nothing written"
 
 frontend: ## Build the TypeScript frontend bundle into static/findata.bundle.js (needs Bun)

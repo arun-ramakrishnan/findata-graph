@@ -315,6 +315,17 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
         "derive-events (refresh events timeline from note prose + edges)",
         [sys.executable, "helpers/graph/derive_events.py", "--corpus", "--apply"],
     ),
+    # hypergraph incidence backfill (hypergraph_incidence_hyx, 2026-09-13):
+    # regroups the membership dyads (part_of/exposed_to/listed_in/same_group/
+    # co_mentioned_in) into hyper_edges/hyper_incidences AFTER every upstream
+    # edge producer has run. Idempotent (UNIQUE keys) — a warm no-change cycle
+    # inserts 0 rows. SQLite-only write; the DuckDB cache does not read the
+    # incidence tables yet (Phase 1 cache is a proposal non-goal), so no
+    # paired graph-rebuild is needed.
+    (
+        "derive-hyperedges (regroup membership dyads into hyper_edges)",
+        [sys.executable, "helpers/graph/derive_hyperedges.py", "--apply"],
+    ),
     (
         "snapshot (re-snapshot to include recomputed analytics + events)",
         [sys.executable, "helpers/maintenance/snapshot_db.py"],

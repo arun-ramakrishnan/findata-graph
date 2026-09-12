@@ -1505,6 +1505,50 @@ def _resolve_h1_title(body: str, resolver: EntityResolver) -> str | None:
     return resolver.resolve(title)
 
 
+# --------------------------------------------------------------------------- #
+# S10 (hypergraph_incidence_hyx, 2026-09-13): JV venture-name capture.        #
+# A k-partner JV is one n-ary fact, but the dyads carry no happening key —     #
+# only 2/69 live rows have properties.venture (both Phase-2 seed). These      #
+# three CONSERVATIVE patterns capture the name when prose actually states it; #
+# measured on the live corpus the yield is low (see proposal appendix) — the  #
+# hook + regroup key land now, capture improves as prose is re-mined.         #
+# --------------------------------------------------------------------------- #
+_VENTURE_PATTERNS: tuple[re.Pattern, ...] = (
+    # a quoted name within a JV sentence: ... JV "JioBlackRock AMC" ...
+    re.compile(
+        r"(?:JV|joint\s+venture)[^.]{0,80}?['\"\u201c]([A-Z][\w&.\-]*(?:\s+[A-Z][\w&.\-]*){0,5})['\"\u201d]",
+        re.IGNORECASE,
+    ),
+    # "formed X with" / "formed X, a JV" shapes
+    re.compile(
+        r"\bformed\s+((?-i:[A-Z])[\w&.\-]*(?:\s+(?-i:[A-Z])[\w&.\-]*){0,4}"
+        r"(?:\s+(?:Ltd|Limited|AMC|Reinsurance|Ventures?))?)\s+(?:with|together|,)",
+    ),
+    # "JV arm X" / "JV entity X"
+    re.compile(
+        r"\bJV\s+(?:arm|entity|company)\s+((?-i:[A-Z])[\w&.\-]*(?:\s+(?-i:[A-Z])[\w&.\-]*){0,4})",
+    ),
+)
+
+
+def capture_venture_name(quote: str) -> str | None:
+    """Extract the JV's own name from a quote, or None (S10).
+
+    Conservative by design: every pattern requires an explicit naming shape
+    (quoted name, 'formed X with', 'JV arm X'); bare partner mentions never
+    match. Returns the first hit, trimmed and length-capped.
+    """
+    if not quote:
+        return None
+    for pat in _VENTURE_PATTERNS:
+        m = pat.search(quote)
+        if m:
+            name = m.group(1).strip()
+            if 3 <= len(name) <= 60:
+                return name
+    return None
+
+
 def _make_properties(
     edition_title: str,
     newsletter_type: str,
@@ -1993,17 +2037,22 @@ def extract_relations(  # noqa: C901
                         quote,
                         edition_label=edition_title,
                     )
+                _props = _make_properties(
+                    edition_title,
+                    newsletter_type,
+                    doc_type,
+                    quote,
+                    year,
+                )
+                if edge_type == "jv_with":
+                    _venture = capture_venture_name(quote)
+                    if _venture:
+                        _props["venture"] = _venture
                 edge = Edge(
                     source=src,
                     target=tgt,
                     edge_type=edge_type,
-                    properties=_make_properties(
-                        edition_title,
-                        newsletter_type,
-                        doc_type,
-                        quote,
-                        year,
-                    ),
+                    properties=_props,
                     source_ref=source_ref_default,
                     symmetric=symmetric,
                     valid_from=iso_date,

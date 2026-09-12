@@ -75,10 +75,13 @@ class TestPlan:
             "graph-rebuild (refresh DuckDB cache)",
         ]
 
-    def test_tier2_has_eight_steps(self):
+    def test_tier2_has_nine_steps(self):
         # sync-tags + rebuild-note-search moved to PRE_FULL (2026-08-29):
         # their output must land inside the db_maint recovery backup.
-        assert len(maint.TIER2_STEPS) == 8
+        # derive-hyperedges joined 2026-09-14 (hyper incidence store arc):
+        # membership dyads regroup into hyper_edges BEFORE the tail
+        # snapshot so the closing capture includes them.
+        assert len(maint.TIER2_STEPS) == 9
 
     def test_tier2_steps_order(self):
         # Post-ingest re-derivation: the sector --check gates first
@@ -92,7 +95,8 @@ class TestPlan:
         # into the quotes/company_metrics tables ONLY (--no-notes), then
         # derive-events refreshes the events timeline (D7) from note prose
         # rendered by the last standalone derive_insights --apply, then
-        # re-snapshot captures the full post-ingest state.
+        # derive-hyperedges regroups membership dyads into hyper_edges,
+        # and re-snapshot captures the full post-ingest state.
         labels = [label for label, _ in maint.TIER2_STEPS]
         assert labels == [
             "sync-sector-links --check (gate: sector-note company indexes fresh)",
@@ -102,6 +106,7 @@ class TestPlan:
             "recompute-graph (refresh analytics in graph_analytics)",
             "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
             "derive-events (refresh events timeline from note prose + edges)",
+            "derive-hyperedges (regroup membership dyads into hyper_edges)",
             "snapshot (re-snapshot to include recomputed analytics + events)",
         ]
 
@@ -138,12 +143,13 @@ class TestPlan:
         # snapshot's artifacts are unconditionally overwritten by the TIER2
         # tail snapshot, so exactly ONE snapshot runs at the end
         # (maint_full_single_snapshot.md D1). Plain maint keeps all 3 TIER1
-        # steps and never runs PRE_FULL.
+        # steps and never runs PRE_FULL. 15 steps since derive-hyperedges
+        # joined TIER2 (2026-09-14).
         skipped = [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
         full = maint.PRE_FULL_STEPS + skipped + maint.TIER2_STEPS
         assert len(maint.TIER1_FULL_SKIP) == 1
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
-        assert len(full) == 14
+        assert len(full) == 15
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [
             "snapshot (re-snapshot to include recomputed analytics + events)"
@@ -265,8 +271,8 @@ class TestDryRun:
             + [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
             + maint.TIER2_STEPS
         )
-        # 4 pre-full + 2 tier1 (snapshot elided in --full) + 8 tier2.
-        assert len(all_steps) == 14
+        # 4 pre-full + 2 tier1 (snapshot elided in --full) + 9 tier2.
+        assert len(all_steps) == 15
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
         assert "snapshot (refresh versioned snapshots)" not in output

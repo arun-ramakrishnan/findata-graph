@@ -70,6 +70,17 @@ dependencies = [
     "regex",
     # OCR Dependency
     "matplotlib",
+    # Hypergraph analytics tier (helpers/graph/hyper_communities.py —
+    # hypergraph_incidence_hyx proposal 2026-09-13): hy-MMSBM overlapping
+    # communities over the hyper_edges/hyper_incidences star store. BSD-3
+    # (unlike GPL igraph's pilot-venv split), pure-Python; dep delta vs the
+    # pre-proposal venv is scipy + tqdm only (networkx/numpy/pandas were
+    # already present). Eval: doc/local/evaluations/hyper_graph_assessment.md.
+    "hypergraphx",
+    # Sparse all-pairs BFS for the longest-chains section of
+    # helpers/graph/stats.py (direct import; was only a transitive
+    # hypergraphx dep before 2026-09-13).
+    "scipy",
     # Prefab UI (helpers/web/prefab_views.py — Python-composed Flask views,
     # prefab_ui_flask_views proposal 2026-09-11). Pinned EXACT despite the
     # repo's unpinned convention: pre-1.0 upstream allows breaking changes
@@ -133,6 +144,19 @@ ignore = ["E501"]
 # identifiers; values always bound). Per-file rule beats ~15 inline noqas
 # that ruff-format keeps stranding off their anchor lines (corpus_uniformity S7b).
 "helpers/graph/query.py" = ["S608"]
+# hyper_hif.py: same reviewed pattern as query.py — DuckDB ATTACH-count and
+# export queries interpolate only ?-clause builders (ph) / constant
+# identifiers; values always bound (S18(d) roundtrip validator).
+# hyper_arrow.py / hyper_centralities.py / hyper_data_bench.py: the same
+# hyper-lane pattern (ATTACH + IN-clause builders over constant column
+# lists; values bound) — S18/S19/S20 arcs.
+"helpers/graph/hyper_hif.py" = ["S608"]
+"helpers/graph/hyper_arrow.py" = ["S608"]
+"helpers/graph/hyper_centralities.py" = ["S608"]
+"helpers/bench/hyper_data_bench.py" = ["S608"]
+# hyper_scale_bench.py: seeded random.Random IS the benchmark's synthetic
+# generator (determinism contract, seed=7) — not a crypto context.
+"helpers/bench/hyper_scale_bench.py" = ["S311"]
 "helpers/core/get_tickers.py" = ["E402"]
 "helpers/core/parse_newsletter.py" = ["E402"]
 "helpers/core/vss_index.py" = ["E402"]

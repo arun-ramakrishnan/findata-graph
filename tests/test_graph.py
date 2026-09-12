@@ -262,7 +262,7 @@ class TestSectorHierarchy:
     def test_belongs_to_materialised_in_graph(self, con):
         # The e_belongs_to table must be populated (the dedicated CTAS ran).
         n = con.execute("SELECT COUNT(*) FROM e_belongs_to").fetchone()[0]
-        assert n == 120  # 42 sector->super + 78 sub->sector (merged Level 3)
+        assert n == 142  # 42 sector->super + 100 sub->sector (S17 +22, 2026-09-14)
 
     def test_vertex_projections_populated(self, con):
         # The 4 entity kinds must all materialise as vertices. The live DB

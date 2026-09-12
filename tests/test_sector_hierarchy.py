@@ -177,9 +177,9 @@ class TestBuild:
         rc = _run_build(db, "apply", tmp_path)
         assert rc == 0
         con = sqlite3.connect(db)
-        # 9 super_sector + 78 sub_sector = 87 new entities. The 78 sub_sectors
-        # are the merged Level 3 (19 sectors' subsector/* tags + 5 sectors'
-        # ### headings, minus 2 degenerate self-named entries).
+        # 10 super_sector + 100 sub_sector entities. The sub_sector count
+        # grew 78 -> 100 on 2026-09-14 (S17 taxonomy execution: +22
+        # SUB_CATEGORIES nodes via build_sector_hierarchy).
         n_ss = con.execute(
             "SELECT COUNT(*) FROM entities WHERE entity_type='super_sector'"
         ).fetchone()[0]
@@ -187,12 +187,12 @@ class TestBuild:
             "SELECT COUNT(*) FROM entities WHERE entity_type='sub_sector'"
         ).fetchone()[0]
         assert n_ss == 10
-        assert n_sub == 78
-        # 42 sector->super + 78 sub->sector = 120 belongs_to edges
+        assert n_sub == 100
+        # 42 sector->super + 100 sub->sector = 142 belongs_to edges
         n_bt = con.execute(
             "SELECT COUNT(*) FROM graph_edges WHERE edge_type='belongs_to'"
         ).fetchone()[0]
-        assert n_bt == 120
+        assert n_bt == 142
         con.close()
 
     def test_apply_is_idempotent(self, tmp_path):

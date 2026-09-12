@@ -16,11 +16,11 @@ the chain changes (see
 
 ## 1. Problem & Scope
 
-The knowledge graph stores 1,317 entities in SQLite (`memory/research.db`) —
-1,068 companies, 42 sectors, 78 sub_sectors, 9 super_sectors, 12 themes,
-108 editions —
-connected by 5,126 edges across 13 semantic edge types (§4). At ~1k nodes /
-~5k edges a server-grade graph DB is overkill; DuckDB gives in-process graph
+The knowledge graph stores 1,649 entities in SQLite (`memory/research.db`) —
+1,165 companies, 207 institutions, 114 editions, 78 sub_sectors, 42 sectors,
+21 countries, 12 themes, 10 super_sectors (2026-09-13) —
+connected by 19,261 edges across 19 semantic edge types (§4). At ~1.6k nodes /
+~19k edges a server-grade graph DB is overkill; DuckDB gives in-process graph
 SQL + analytics attached read-only to the existing SQLite — zero new infra.
 
 ## 2. Architecture
@@ -32,7 +32,7 @@ WRITES: markdown_parse / parse_newsletter / derive-* / mutations
 
 READS (read-only ATTACH per session, sqlite_scanner):
     memory/graph.duckdb (disk cache; schema v9, §8)
-      v_node (1209 rows: all 5 entity kinds) + 12 e_* tables
+      v_node (1649 rows: all 8 entity kinds) + 18 e_* tables
     ├── pattern queries ............ plain SQL JOINs (query.py)
     ├── shortest_path / find_cycles  recursive CTEs
     └── algorithms ................. Onager extension (onager.py):
@@ -99,21 +99,33 @@ CREATE VIEW relations AS                -- backward-compat (READ-ONLY!)
     SELECT source, target, edge_type AS relation_type FROM graph_edges;
 ```
 
-Edge types (extensible; TEXT column). Live counts 2026-08-19:
+Edge types (extensible; TEXT column). Live counts 2026-09-13 (19 types,
+19,261 rows; previous snapshot 2026-08-19 said 12):
 
 | edge_type | Direction / semantics | sym | rows |
 |---|---|---|---|
+| `semantic_peer` | company ↔ company (embedding kNN similarity, derived — enrich_relations E3 via DuckDB VSS; weight = rank score) | 1 | 7806 |
+| `competes_with` | company ↔ company | 1* | 3576 |
+| `cited_in` | company/sector → edition (OKF provenance; okf_activation P) | 0 | 1899 |
 | `co_mentioned_in` | company ↔ company (newsletter co-mention, derived) | 1 | 1329 |
-| `part_of` / `has_company` | company ↔ sector (legacy two-row pair) | – | 1068 each |
-| `exposed_to` | company → theme (cross-sector) | 0 | 348 |
+| `part_of` / `has_company` | company ↔ sector (legacy two-row pair) | – | 1165 each |
+| `listed_in` | company → country (geography lane, derived) | 0 | 930 |
+| `invested_in` | investor (institution/company) → company | 0 | 715 |
+| `exposed_to` | company → theme (cross-sector) | 0 | 359 |
 | `belongs_to` | sector → super_sector / sub_sector → sector (hierarchy) | 0 | 120 |
-| `cited_in` | company/sector → edition (OKF provenance; okf_activation P) | 0 | 1005 |
-| `subsidiary_of` | subsidiary → parent | 0 | 63 |
-| `jv_with` | company ↔ company (JV) | 1 | 54 |
-| `acquired` | acquirer → acquired (temporal; set valid_to) | 0 | 39 |
-| `competes_with` | company ↔ company | 1 | 10 |
-| `supplier_to` / `customer_of` | company → company (asymmetric, one direction) | 0 | 6 / 1 |
-| `same_group` | company ↔ company (promoter group) | 1 | 4 |
+| `jv_with` | company ↔ company (JV) | 1* | 69 |
+| `subsidiary_of` | subsidiary → parent | 0 | 67 |
+| `acquired` | acquirer → acquired (temporal; set valid_to) | 0 | 41 |
+| `supplier_to` / `customer_of` | company → company (asymmetric, one direction) | 0 | 7 / 1 |
+| `regulated_by` | company → institution (RBI, SEBI) | 0 | 5 |
+| `same_group` | company ↔ company (promoter group) | 1 | 3 |
+| `approved_by` | company/institution → institution | 0 | 2 |
+| `rated_by` | company → rating agency (CRISIL) | 0 | 2 |
+
+`sym` drift: `competes_with` (105 rows) and `jv_with` (10 rows) carry
+`symmetric=0` against the symmetric convention (`sym=1` marked `1*`).
+Untriaged — clean up or relax the convention before relying on `symmetric`
+in queries.
 
 **Edition nodes (okf_activation P, 2026-08-19):** editions are entities
 (`entity_type='edition'`, name = note STEM — the canonical edition key;
@@ -122,7 +134,7 @@ the derive write boundary via edition_index, #136: 99.4%/99.7% of sourced
 rows join directly; 4 known mangled/unresolvable titles stay verbatim and
 are reported, never guessed). `cited_in` edges project the OKF `sources[]`
 frontmatter into the graph (props `{resource, n_quotes}`); fan-in is hub-
-skewed (`A_Quarter_That_Refuses_To_Behave` = 360/1,005), so analytics
+skewed (`A_Quarter_That_Refuses_To_Behave` = 379/1,899, 2026-09-13), so analytics
 exclude it from activity views (`_MEMBERSHIP_TYPES`), link-prediction's
 default projection omits it, and context packs rank it last and never
 expand hops through it. Standalone target `make derive-cited-in-rebuild`
@@ -133,7 +145,8 @@ expand hops through it. Standalone target `make derive-cited-in-rebuild`
 bidirectional pattern for backward compat. `belongs_to`/`exposed_to` are
 materialised via dedicated CTASs outside `EDGE_REGISTRY` (mixed endpoint
 kinds). `listed_on_index` was never built (`index_membership` column dropped
-2026-07-28; re-ingest from YAML if ever wanted).
+2026-07-28; re-ingest from YAML if ever wanted) — distinct from the live
+`listed_in` company→country lane above.
 
 Constraints: orphan edges impossible (FK); no self-loops (CHECK); no
 duplicate directed edges (UNIQUE); provenance NOT NULL; WAL handles
@@ -215,7 +228,7 @@ default dry-run): per-node candidate lists
 
 Unweighted (weights ignored by all onager metrics); undirected with
 reverse/duplicate rows deduped; `{}`/`[]` on empty edge sets; company-only
-rows where the historical contract demands (some metrics 1068 rows vs 1209).
+rows where the historical contract demands (some metrics 1165 rows vs 1648).
 **Do not wrap `onager_ctr_personalized_pagerank`**: its personalisation
 column is ignored, the restart node is hardcoded to node_id 1, and it errors
 without one (Onager bug, documented in onager.py — revisit on a future
@@ -225,8 +238,9 @@ persistence), perf: `graph_link_prediction` benchmark.
 
 ### 5.6 Persistence & refresh
 
-`make recompute-graph` → `--all --apply`: 14 metrics live (12 node metrics
-1209/1068 rows each, link_prediction 236, voterank 10). Node metrics store
+`make recompute-graph` → `--all --apply`: 14 metrics live (12 node metrics —
+9 at 1,648 rows, 3 company-only at 1,165; link_prediction 835, voterank 15;
+2026-09-13). Node metrics store
 `{"value": X}` (louvain adds `"community"`+`"modularity"`; wcc
 `"componentId"`). UPSERT on metric-first PK; recompute replaces wholesale.
 `make qa` warns when `computed_at` < `max(entities.last_updated)` (advisory).
@@ -341,6 +355,7 @@ rm note) are mechanical; see git history for worked examples.
 | D13 | every CLI metric opt-in `--apply` (reverses D10's link-predict/voterank default-apply) | uniform write switch; exploratory `--method`/`--edge-types` runs were silently replacing the persisted table |
 | D14 | igraph stays a SECOND engine behind Onager, run from the pilot venv only (no igraph in `.venv`/pyproject); GPL-2.0-or-later cleared by the operator 2026-09-12, re-cleared without reservation same day (owner-operated repo) — pilot-venv split is now operational, not legal | keep-both: Onager keeps the validated Apache-2.0 SQL lanes; igraph covers Leiden/weighted centralities/weighted paths/max-flow where Onager has gaps (`helpers/graph/igraph_bridge.py`, ROUTING table); lazy import keeps `.venv` collection working; promotion of any lane (or of igraph into pyproject) needs its own proposal; pilot recipe carries duckdb 1.5.5 so `--apply` runs real |
 | D15 | igraph integration DEFERRED — bridge stays pilot-gated, no consumers; trigger was the operator's working EasyGraph C++ source build, but the same-day re-test CLOSED the engine question: NO Easy-Graph stands (cpp betweenness broken on live data, louvain unwired; full log folded into doc/improvements/archive/graph/easygraph_cpp_readoption.md appendix) | igraph keeps every second-engine lane; what defers is prod wiring until a real consumer needs a lane (proposal §7 (b)/(c)) — wiring ahead of demand would mean maintaining an unused integration |
+| D16 | igraph pilot RETIRED and deleted (`helpers/graph/igraph_bridge.py` + tests, operator decision 2026-09-13): the alternate-engine seat passes to the HGX hypergraph lane (hypergraph_incidence_hyx S7) — BSD-3, main-venv, `helpers/graph/hyper_communities.py`. Lane disposition: Leiden superseded by hy-MMSBM overlapping communities; weighted centralities replaced by HGX higher-order lanes (`RW_stationary_state`, `s_betweenness`/`s_closeness` — s-walk semantics over incidence, a recorded semantics change); `maxflow_mincut` and directed weighted shortest-path RETIRED unserved (directed paths stay SQL BFS per D9). Onager keeps every dyadic SQL lane; reviving a dyadic weighted lane needs its own proposal |
 
 ## 11. File Layout
 

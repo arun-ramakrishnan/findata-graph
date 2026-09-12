@@ -64,8 +64,7 @@ ripwire . --mentions=SYM | --doc-drift           # doc↔code links / stale doc 
 
 - **Keep the session todo list current** — mark items completed the
   moment they land, add blockers/follow-ups as they emerge. A stale
-  list actively misleads the operator (2026-09-11: full arc executed
-  while the list still showed S1-only).
+  list actively misleads the operator.
 - Blocking: `make qa` — ruff, **md-lint** (markdownlint-cli2; Node-gated,
   skips without Node), types, deptry, static_checks, pytest,
   verify_notes, integrity, snapshot. Non-blocking sweep: `make advisory`.
@@ -73,7 +72,7 @@ ripwire . --mentions=SYM | --doc-drift           # doc↔code links / stale doc 
   `findata/**` (writer-owned vault, sentinel machinery). `doc/` is the
   remediable surface.
 - After editing `doc/**`, the `Makefile`, or helper docstrings:
-  `make search-fresh APPLY=1` converges all three indexes (doc, script,
+  `make search-fresh ` checks all three indexes (doc, script,
   note). Index checks are advisory, never qa-gated.
 - Full gates ONCE per arc, at the end, with the user's go. The user
   stages and commits — leave the tree dirty.

@@ -127,6 +127,58 @@ GRAPH_EDGES_INDEXES = [
     "CREATE INDEX IF NOT EXISTS ge_valid_idx  ON graph_edges(valid_from, valid_to);",
 ]
 
+# --- Hypergraph incidence layer (hypergraph_incidence_hyx proposal,
+# 2026-09-13; source memo doc/local/evaluations/hyper_graph_assessment.md
+# §6.3/§9.4). Star expansion is storage truth: a set-valued fact (a sector's
+# member companies, an edition's co-mentioned set, a promoter group) is ONE
+# hyper_edges row + n hyper_incidences rows. The dyadic graph_edges store is
+# untouched — clique projections stay derive-time views over the same data.
+# Columns are HIF-lossless: weight exists at BOTH granularities (per-edge and
+# per-incidence) and direction carries HIF's head/tail for directed
+# hypergraphs (§9.4 schema-parity catch). `label` is the hyperedge's own name
+# (the category, edition title, or group name); UNIQUE(edge_type, label) is
+# the idempotency key backfills key into, mirroring graph_edges'
+# UNIQUE(source, target, edge_type).
+HYPER_EDGES_DDL = """
+CREATE TABLE IF NOT EXISTS hyper_edges (
+    id          INTEGER PRIMARY KEY,
+    edge_type   TEXT NOT NULL,        -- sector|theme|country|group|edition|...
+    label       TEXT NOT NULL,        -- the hyperedge's own name (category/edition/group)
+    weight      REAL NOT NULL DEFAULT 1.0,
+    valid_from  DATE,
+    valid_to    DATE,
+    source_ref  TEXT NOT NULL,
+    properties  TEXT NOT NULL DEFAULT '{}',
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(edge_type, label),
+    CHECK (json_valid(properties))
+);
+"""
+
+HYPER_EDGES_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS he_type_idx ON hyper_edges(edge_type);",
+]
+
+# One row per (hyperedge, member) incidence. FK CASCADE on both sides matches
+# graph_edges: incidences auto-vanish when the hyperedge or the entity dies.
+HYPER_INCIDENCES_DDL = """
+CREATE TABLE IF NOT EXISTS hyper_incidences (
+    edge_id     INTEGER NOT NULL
+                  REFERENCES hyper_edges(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    entity_name TEXT NOT NULL
+                  REFERENCES entities(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    weight      REAL,                  -- per-incidence weight (HIF granularity 2)
+    direction   TEXT,                  -- 'head'|'tail' for directed hypergraphs; NULL = undirected
+    PRIMARY KEY (edge_id, entity_name),
+    CHECK (direction IS NULL OR direction IN ('head', 'tail'))
+);
+"""
+
+HYPER_INCIDENCES_INDEXES = [
+    # Reverse lookup: "which hyperedges is entity X in" without a full scan.
+    "CREATE INDEX IF NOT EXISTS hi_entity_idx ON hyper_incidences(entity_name);",
+]
+
 # D7 — temporal spine. Events are TIMESTAMPED HAPPENINGS (acquisitions, JVs,
 # guidance, management changes) that give every company a timeline. They are
 # instances (many per company), so they are a typed TABLE, not graph vertices
@@ -147,6 +199,13 @@ CREATE TABLE IF NOT EXISTS events (
     date_precision TEXT,                 -- day|month|quarter|year|none (granularity of event_date)
     magnitude      TEXT,                 -- "Rs 708 cr AUM" | "10-12%" | "58.96% stake"
     counterparty   TEXT,                 -- "Akzo Nobel India" (acq/jv); NULL for guidance/mgmt
+    -- S9 (hypergraph_incidence_hyx, 2026-09-13): the resolved FK twin of
+    -- counterparty. Measured: 110/110 counterparty values match
+    -- entities.name EXACTLY, so this is pure integrity regain. SET NULL on
+    -- delete (an event survives its counterparty vanishing), CASCADE on
+    -- update (rename_entity flows keep it in step).
+    counterparty_entity TEXT
+                     REFERENCES entities(name) ON UPDATE CASCADE ON DELETE SET NULL,
     source_quote   TEXT,                 -- verbatim audit trail (provenance)
     as_of_edition  TEXT,                 -- sourcing newsletter edition
     source_ref     TEXT NOT NULL,        -- "derive:events:..." | "manual:..." | "migration:..."
@@ -332,6 +391,26 @@ def migrate(verbose: bool = True) -> dict:  # noqa: C901
         for idx in COMPANY_METRICS_INDEXES:
             conn.execute(idx)
 
+        # 2d. hyper_edges + hyper_incidences (hypergraph incidence layer,
+        #     hypergraph_incidence_hyx proposal 2026-09-13). IF NOT EXISTS ->
+        #     no-op on existing DBs; created on fresh builds / first migrate.
+        #     hyper_edges must precede hyper_incidences (FK target).
+        conn.execute(HYPER_EDGES_DDL)
+        for idx in HYPER_EDGES_INDEXES:
+            conn.execute(idx)
+        conn.execute(HYPER_INCIDENCES_DDL)
+        for idx in HYPER_INCIDENCES_INDEXES:
+            conn.execute(idx)
+
+        # 2e. S9: events.counterparty_entity — ALTER-based (CREATE IF NOT
+        #     EXISTS cannot extend a live table); idempotent via column check.
+        ev_cols = {r[1] for r in conn.execute("PRAGMA table_info(events)")}
+        if "counterparty_entity" not in ev_cols:
+            conn.execute(
+                "ALTER TABLE events ADD COLUMN counterparty_entity TEXT "
+                "REFERENCES entities(name) ON UPDATE CASCADE ON DELETE SET NULL"
+            )
+
         # 3. Backfill from legacy relations table (if it still exists as a table)
         backfilled = 0
         if _table_exists(conn, "relations"):
@@ -364,6 +443,8 @@ def migrate(verbose: bool = True) -> dict:  # noqa: C901
         stats["object_kind_graph_edges"] = _object_kind(conn, "graph_edges")
         stats["object_kind_graph_analytics"] = _object_kind(conn, "graph_analytics")
         stats["object_kind_events"] = _object_kind(conn, "events")
+        stats["object_kind_hyper_edges"] = _object_kind(conn, "hyper_edges")
+        stats["object_kind_hyper_incidences"] = _object_kind(conn, "hyper_incidences")
     except Exception:
         conn.execute("ROLLBACK")
         raise

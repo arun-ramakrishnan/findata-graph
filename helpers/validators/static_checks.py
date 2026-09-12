@@ -857,13 +857,6 @@ def check_sqlite_helper_usage() -> list[str]:  # noqa: C901
         # target — a house connect() cannot express "the ATTACH target of
         # this duckdb connection"). SELECTs only, no writes.
         "helpers/graph/query.py",
-        # igraph pilot bridge (hybrid_graph D14/D15): the plain sqlite3
-        # fallback keeps the pilot venv working without the dotenv chain,
-        # and the db_path override is the feature — the S7 --apply
-        # read-back targeted an explicit /tmp COPY of research.db, which
-        # house connect() (resolved research.db only) cannot express.
-        # Dry-run default; writes go through algorithms.write_analytics.
-        "helpers/graph/igraph_bridge.py",
     )
     failures: list[str] = []
     for py in REPO_ROOT.rglob("*.py"):
@@ -1004,6 +997,13 @@ def check_db_meta_generation():
 # Each check returns either:
 #   list[str]             -> fatal failures only
 #   (list[str], list[str]) -> (fatal, advisory). Advisory never affects exit code.
+def check_data_format() -> tuple[list[str], list[str]]:
+    """S19: parquet(zstd) at rest + Arrow in flight (shrinking baselines)."""
+    from helpers.validators.data_format_checks import check_data_format as _run
+
+    return _run()
+
+
 CHECKS = [
     ("Python syntax", check_python_syntax),
     ("JS syntax", check_js_syntax),
@@ -1023,6 +1023,7 @@ CHECKS = [
     ("SQLite helper usage", check_sqlite_helper_usage),
     ("Embedding decode chokepoint", check_embedding_decode_chokepoint),
     ("DB meta generation", check_db_meta_generation),
+    ("Data format (parquet zstd + Arrow in flight)", check_data_format),
 ]
 
 

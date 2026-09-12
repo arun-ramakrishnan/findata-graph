@@ -3,9 +3,9 @@
 SQLite source of truth for the FinData knowledge graph, plus the derived
 DuckDB read-cache schema (§ "memory/graph.duckdb" below). Architecture and
 cache policy: `graph_design.txt`.
-Live row counts (2026-08-15): entities 1209, entity_tags 6747,
-graph_edges 4110, events 342, quotes 2564, company_metrics 1731,
-graph_analytics 14,331, note_search (FTS5) + `relations` VIEW.
+Live row counts (2026-09-13): entities 1649, entity_tags 7178,
+graph_edges 19261, events 436, quotes 8272, company_metrics 4412,
+graph_analytics 19,177, note_search (FTS5) + `relations` VIEW.
 
 ## `entities`
 
@@ -14,7 +14,7 @@ One row per entity; `name` is the identity (PRIMARY KEY).
 | Column | Type | Notes |
 |---|---|---|
 | `name` | TEXT PK | CHECK rejects `Ltd`/`Limited`/`Ltd.`/`Pvt`/`Private` suffixes — scoped to `entity_type='company'` only (taxonomy names like `Private_Sector` are exempt; see DDL comment) |
-| `entity_type` | TEXT | `company` (1068) \| `sub_sector` (78) \| `sector` (42) \| `theme` (12) \| `super_sector` (9) |
+| `entity_type` | TEXT | `company` (1165) \| `institution` (207) \| `edition` (114) \| `sub_sector` (78) \| `sector` (42) \| `country` (21) \| `theme` (12) \| `super_sector` (10) |
 | `created_at` / `last_updated` | DATETIME | last_updated set on every modification |
 | `file_path` | TEXT | MUST resolve to an existing file under `findata/` |
 | `normalized_name` | TEXT | MUST equal the markdown filename minus `.md`, character-for-character |
@@ -46,8 +46,9 @@ query: JOIN two tag aliases for tag intersection.
 
 ## `graph_edges` — canonical edge store
 
-Directed links; supersedes the `relations` table. 4,110 rows across 12
-edge types (counts + symmetric convention: `graph_design.txt` §4).
+Directed links; supersedes the `relations` table. 19,261 rows across 19
+edge types (counts + symmetric convention: `graph_design.txt` §4,
+refreshed 2026-09-13).
 Producers: `parse_newsletter`/`markdown_parse` (membership pair),
 `extract_relations.py` (company↔company from prose),
 `derive_{co_mentions,themes}.py`, `build_sector_hierarchy.py`.
@@ -89,6 +90,7 @@ One row per derived/manual company event. Populated by
 | `date_precision` | TEXT | `day` \| `month` \| `quarter` \| `year` \| `none` |
 | `magnitude` | TEXT | `Rs 708 cr AUM` \| `10-12%` \| `58.96% stake` |
 | `counterparty` | TEXT | acq/jv party; NULL for guidance/mgmt |
+| `counterparty_entity` | TEXT | FK → `entities(name)` ON UPDATE CASCADE / ON DELETE SET NULL — the resolved twin of `counterparty` (S9: 110/110 exact matches); written by derive_hyperedges' S9 resolver |
 | `source_quote` | TEXT | verbatim audit trail |
 | `as_of_edition` | TEXT | sourcing newsletter edition — canonical edition STEM (joinable to `entities.name`); unresolvable titles verbatim (#136) |
 | `source_ref` | TEXT | `derive:events:…` \| `manual:…` \| `migration:…` |
@@ -148,7 +150,7 @@ edition.
 ## `graph_analytics` — per-entity graph metrics
 
 Written ONLY by `helpers/graph/algorithms.py` (`make recompute-graph`);
-never hand-edited. 14 metrics live (12 node metrics + `link_prediction` +
+never hand-edited. 18 metrics live (12 node metrics + `link_prediction` +
 `voterank`) — semantics, JSON value shapes, and refresh policy:
 `graph_design.txt` §5.
 
@@ -162,6 +164,57 @@ never hand-edited. 14 metrics live (12 node metrics + `link_prediction` +
 **PRIMARY KEY (metric, entity_name)** — metric-first (Bundle P3) so
 `/api/graph/metrics/<metric>` does a prefix SEARCH with free ORDER BY.
 No query filters by entity_name alone.
+
+## `hyper_edges` — hypergraph incidence layer (star store)
+
+Set-valued facts as first-class rows (hypergraph_incidence_hyx proposal,
+2026-09-13; source memo `doc/local/evaluations/hyper_graph_assessment.md`).
+A category IS a hyperedge here (its members via `hyper_incidences`) instead
+of a materialised star of dyads — star expansion is storage truth, the
+`graph_edges` clique projections stay derive-time views. Live (2026-09-13,
+after S5/S8/S9/S10/S11): 444 hyperedges / 5,184 incidences over 9 edge types
+(`sector` 42, `theme` 12, `country` 21, `group` 1, `edition` 107 — the S8
+quotes union, weighted — `industry` 117, `event` 110, `jv` 2, `sub_sector` 32
+— S11's curated industry→canonical map, the first company→sub_sector
+linkage in the store).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | INTEGER PK | |
+| `edge_type` | TEXT | `sector` \| `theme` \| `country` \| `group` \| `edition` \| `industry` \| `event` \| `jv` \| `sub_sector` |
+| `label` | TEXT | the hyperedge's own name (category, edition title, group, venture, `event_type:id`) |
+| `weight` | REAL | default 1.0; per-hyperedge weight |
+| `valid_from` / `valid_to` | DATE | temporal window (HIF-compatible) |
+| `source_ref` | TEXT | provenance: `derive:hyperedges:<upstream>` (edition: `co_mentioned_in+quotes`) |
+| `properties` | TEXT | JSON; `CHECK (json_valid(...))`; carries `n_members`, `upstream_types` |
+| `created_at` | DATETIME | |
+
+**Constraints:** `UNIQUE(edge_type, label)` (backfill idempotency key).
+Written ONLY by `helpers/graph/derive_hyperedges.py` (`make
+derive-hyperedges`; maint-full TIER2). Columns are HIF-lossless — the JSON
+interchange schema maps 1:1 onto the pair (memo §9.4).
+
+## `hyper_incidences` — hypergraph membership rows
+
+One row per (hyperedge, member). The per-incidence `weight` is REAL since
+S8 (quote count per (edition, company); 1,180 weighted rows live — a
+member's intensity within the set); `direction` (`head`/`tail`) exists for
+directed-hypergraph parity and is still NULL (no directed source yet).
+
+| Column | Type | Notes |
+|---|---|---|
+| `edge_id` | INTEGER | PK part; FK → `hyper_edges(id)` cascade |
+| `entity_name` | TEXT | PK part; FK → `entities(name)` cascade |
+| `weight` | REAL | per-incidence intensity (HIF granularity 2); NULL = unweighted |
+| `direction` | TEXT | `head` \| `tail` \| NULL (undirected); CHECK-enforced |
+
+**Indexes:** `he_type_idx` (edge_type), `hi_entity_idx` (entity_name —
+"which sets is X in" without a scan). First compute consumer:
+`helpers/graph/hyper_communities.py` (hy-MMSBM overlapping communities,
+metric `hypermmsbm_community`); S12/S14 lanes in
+`helpers/graph/hyper_centralities.py` — `ho_pagerank` consumes the
+per-incidence weights (weighted higher-order walk, exact HGX reduction
+when unweighted), s-lanes unweighted pending S16.
 
 ## `note_search` — FTS5
 

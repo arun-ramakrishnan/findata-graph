@@ -30,7 +30,9 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     ("sync_tags", ["helpers/core/sync_tags.py", "--apply"], 2.0),
     # 8.0s since 2026-08-19: the B1 corpus check gained the 108 newsletter
     # notes (frontmatter.newsletter.v1.json), ~+2s of jsonschema validation.
-    ("static_checks", ["helpers/validators/static_checks.py"], 8.0),
+    # 10.0s since 2026-09-14: static_checks gained the S19 data-format AST
+    # guards (zstd + Arrow-in-flight scans over the helper corpus).
+    ("static_checks", ["helpers/validators/static_checks.py"], 10.0),
     ("snapshot_check", ["helpers/maintenance/snapshot_db.py", "--check"], 4.0),
     ("graph_pagerank", ["helpers/graph/algorithms.py", "pagerank", "--top", "10"], 3.0),
     ("graph_closeness", ["helpers/graph/algorithms.py", "closeness", "--top", "10"], 4.0),

@@ -44,7 +44,7 @@ snapshots/            git-tracked Parquet snapshot (per-table + schema DDL) — 
 db-backup/            local scratch: zstd snapshots + zstd *_backup.* recovery copies (gitignored)
 findata/              the vault (see findata.md for layout & note format)
 helpers/              core/ graph/ maintenance/ misc/ pdf/ validators/
-doc/                  this file, schema.md, findata.md, okf.md, graph_design.txt,
+doc/                  this file, db_schema.md, findata.md, okf.md, graph_design.txt,
                       procedures/, improvements/{pending,completed,archive}
 tests/                pytest suite (~1.6k tests; qa gate = not-live subset)
 frontend/             TypeScript UI sources
@@ -52,14 +52,18 @@ frontend/             TypeScript UI sources
 
 ## 4. Data model
 
-Authoritative: [`schema.md`](schema.md) (SQLite + DuckDB cache schemas).
+Authoritative: [`db_schema.md`](db_schema.md) (SQLite + DuckDB cache schemas).
 Summary: 7 user tables + the FTS5 `note_search` + the `relations` VIEW —
-`entities` (1,209 rows; 5 entity kinds: company 1068 / sub_sector 78 /
-sector 42 / theme 12 / super_sector 9; PK `name`), `entity_tags` (note-tag
-mirror), `graph_edges` (4,110 rows, 12 edge types), `events` (342),
-`quotes` (2,564), `company_metrics` (1,731), `graph_analytics` (14 metrics;
+`entities` (1,649 rows; 8 entity kinds: company 1165 / institution 207 /
+edition 114 / sub_sector 78 / sector 42 / country 21 / theme 12 /
+super_sector 10; PK `name`), `entity_tags` (note-tag
+mirror), `graph_edges` (19,261 rows, 19 edge types), `events` (436),
+`quotes` (8,272), `company_metrics` (4,412), `graph_analytics` (19,177 rows;
 written only by `make recompute-graph`). No `market_cap`/`index_membership`
-columns — tag-only.
+columns — tag-only. Counts live 2026-09-13.
+
+Derived/frozen/moving data follows the §10 format standard
+(parquet-zstd at rest, Arrow in flight).
 
 FKs are declared CASCADE and `helpers/core/db.py:connect()` **enables
 `PRAGMA foreign_keys`** (so cascades fire there); a raw `sqlite3.connect()`
@@ -96,7 +100,7 @@ checked before parent catch-alls during classification
 | `helpers/graph/extract_relations.py` `derive_{co_mentions,themes,events,insights}.py` | edge/event/quote/metric producers (`make derive-*`) |
 | `helpers/graph/stats.py` | `make graph-stats` human summary (incl. Onager structure section) |
 | `helpers/validators/verify_notes.py` `static_checks.py` | note YAML/content/duplicates · syntax/tags/permalink/pin checks (`make static-checks`) |
-| `helpers/misc/database_integrity_check.py` | registry-driven DB+cache integrity (`_CHECKS`; see schema.md for the check table) |
+| `helpers/misc/database_integrity_check.py` | registry-driven DB+cache integrity (`_CHECKS`; see db_schema.md for the check table) |
 | `helpers/maintenance/db_maint.py` `maint.py` `snapshot_db.py` `rebuild_schema.py` | VACUUM/ANALYZE/backup/REINDEX · `maint-full` orchestrator (PRE_FULL index refresh + maint + TIER2 re-derivations + re-snapshot; see doc/procedures/maintenance.md) · WAL-safe snapshots (+parquet L1) · canonical-DDL rebuild |
 | `helpers/pdf/capture_newsletter_images.py` | inline images for the parse path |
 
@@ -175,3 +179,37 @@ folded into the doc map. §9 rewritten 2026-09-08 for the ripwire
 adoption — the retired graph-index section is gone from live docs; its
 dialect notes and audit patterns live on in the archived proposals
 (ripwire_adoption.md, script_metadata_search.md).*
+
+## 10. Data format standard — parquet(zstd) at rest, Arrow in flight
+
+Operator directive 2026-09-13, effective repo-wide. First applied on the
+hypergraph incidence lane (proposal
+`improvements/proposals/hypergraph_incidence_hyx.md` S18); this section
+is the enforceable statement for everything else.
+
+| Tier | Standard | Why |
+|---|---|---|
+| At rest (any data stored to / read from disk) | **parquet, zstd codec** | columnar, restorable, git-friendly; the 45-table snapshot lane already emits it (`snapshot_db.py`: `pq.write_table(..., compression="zstd")` — codec verified on disk) |
+| In flight / on-the-wire (data moving between components) | **Arrow tables** | DuckDB understands Arrow natively (`fetch_arrow_table` / `from_arrow` / `register`, zero-copy); pyarrow reads parquet(zstd) straight into Arrow, so one representation serves both tiers |
+
+Rules:
+
+1. New on-disk data artifacts default to parquet(zstd). Existing writers
+   converge to it when touched.
+2. Inter-component data movement defaults to Arrow. An engine without an
+   Arrow API takes `to_pylist()` at its construction boundary (HGX does).
+3. CSV/JSON are **transient serializations** produced on consumer
+   demand — never stored artifacts. Exports keep the at-rest standard
+   too: the HIF export's canonical form is three zstd parquet tables
+   (HIF column names, memo §9.4 mapping); JSON is emitted from them
+   on demand.
+4. `db-backup/*.zst` (whole-SQLite-file zstd) is a DB-file backup class,
+   not table data — unchanged by this standard.
+5. `memory/research.db` (SQLite) stays the live source of truth; the
+   standard governs derived, frozen, and moving data — not the
+   operational DB.
+
+Reference application (hyper lane): one Arrow loader with two sources —
+live SQLite via DuckDB's sqlite scanner, or the zstd parquet snapshot
+directly — feeding HGX (`to_pylist` boundary) and DuckDB
+(`from_arrow`, SQL-over-incidence in flight with no `h_*` materiality).
