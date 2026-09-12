@@ -48,9 +48,15 @@ from helpers.core.env import REPO_ROOT as _REPO_ROOT
 # anywhere (helpers/core/, app.py at repo root, tests/, etc.).
 DEFAULT_DB_PATH = _REPO_ROOT / "memory" / "research.db"
 
-# P0: canonical schema version (mirrors helpers.graph.query._SCHEMA_VERSION).
-# Used for PRAGMA user_version and db_meta.generation staleness. Keep in sync
-# with helpers/graph/query.py::_SCHEMA_VERSION (string) — this is the int form.
+# P0: SQLite research.db schema generation. EXPECTED_USER_VERSION is the int
+# PRAGMA user_version form; EXPECTED_SCHEMA_VERSION mirrors it into
+# db_meta.schema_version (informational at runtime — only
+# database_integrity_check.py reads it, erroring on drift). These version the
+# SQLite schema only: 7 since the knowledge-graph landing; new edge types are
+# data, not schema. helpers/graph/query.py::_SCHEMA_VERSION versions a
+# DIFFERENT surface — the disposable DuckDB cache layout — and bumps on
+# cache-only changes as well (note vectors, lane tables). A SQLite schema
+# change implies a cache bump, not the reverse: do NOT keep the two in sync.
 EXPECTED_USER_VERSION = 7
 EXPECTED_SCHEMA_VERSION = "7"
 
@@ -284,7 +290,8 @@ def ensure_db_meta(conn: sqlite3.Connection) -> int:
         except ValueError, TypeError:
             conn.execute("UPDATE db_meta SET value='1' WHERE key='generation'")
             cur_gen = 1
-    # seed schema_version mirror (advisory, not used for logic)
+    # seed schema_version mirror (informational at runtime; integrity check
+    # errors on drift)
     if conn.execute("SELECT 1 FROM db_meta WHERE key='schema_version'").fetchone() is None:
         conn.execute(
             "INSERT INTO db_meta(key, value) VALUES ('schema_version', ?)",

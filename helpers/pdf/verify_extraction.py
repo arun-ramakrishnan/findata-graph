@@ -39,7 +39,7 @@ if __package__ in (None, ""):
 import pymupdf  # noqa: E402
 
 # Per-page coverage thresholds, tuned on the 7-PDF Reports corpus
-# (doc/local/local_pdf_engine_trial.md): deliberate drops (footer ads,
+# (doc/local/trials/local_pdf_engine_trial.md): deliberate drops (footer ads,
 # banners, page numbers) keep healthy pages at ~0.90+; ad-heavy pages
 # (first/last) dip lower. WARN flags suspicious pages, FAIL only pages
 # that lost most of their content.

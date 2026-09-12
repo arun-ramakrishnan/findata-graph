@@ -13,7 +13,7 @@ without a usable text layer raises :class:`LocalRefusalError` so callers
 can fall back to an OCR engine (the Paddle API).
 
 Normalizations applied to pymupdf4llm output (tuned on the 7-PDF trial,
-``doc/local/local_pdf_engine_trial.md``; word recall 96-98.6% vs the
+``doc/local/trials/local_pdf_engine_trial.md``; word recall 96-98.6% vs the
 Paddle/GLM reference notes, zero content lost):
 
 - headings: strip ``**`` / ``<u>`` wrappers (parse_newsletter's SECTION_RE

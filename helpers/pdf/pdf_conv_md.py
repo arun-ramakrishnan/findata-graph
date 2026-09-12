@@ -24,7 +24,7 @@ Options
                              born-digital PDFs only) and falls back to the
                              Paddle API when the local engine refuses a PDF
                              (no usable text layer). local/paddle force one
-                             engine. Trial: doc/local/local_pdf_engine_trial.md
+                             engine. Trial: doc/local/trials/local_pdf_engine_trial.md
     --model PP-StructureV3   Paddle model name (default: PP-StructureV3)
     --token TOKEN            Paddle API token (required for the Paddle engine
                              unless PADDLE_API_KEY is set in memory/.env or

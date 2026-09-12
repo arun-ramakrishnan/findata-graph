@@ -41,7 +41,8 @@ USAGE
 
 Post-rebuild: run ``make snapshot`` to refresh the committed artifacts, and
 ``make graph-rebuild`` (or the script's built-in call) to refresh the DuckDB
-cache (its _SCHEMA_VERSION bumps to "3" so warm files auto-rebuild).
+cache (query.py's ``_SCHEMA_VERSION`` gate flags warm caches from older
+schema generations, so they auto-rebuild on next connect).
 
 See doc/improvements/sqlite_improvs.txt Bundle P for the full finding + rationale.
 """
@@ -292,14 +293,14 @@ def rebuild(db_path: Path | str = DB_PATH, *, dry_run: bool = False) -> dict:
 def _refresh_duckdb_cache() -> None:
     """Force-rebuild the DuckDB cache so it picks up the new SQLite schema.
 
-    The _SCHEMA_VERSION bump (3) means the next connect() rebuilds anyway,
+    The _SCHEMA_VERSION gate means the next connect() rebuilds anyway,
     but calling fresh_rebuild() here avoids the first-request latency and
     guarantees the cache is consistent immediately after the rebuild."""
     try:
-        from helpers.graph.query import fresh_rebuild
+        from helpers.graph.query import _SCHEMA_VERSION, fresh_rebuild
 
         fresh_rebuild()
-        print("DuckDB cache rebuilt (schema v3).")
+        print(f"DuckDB cache rebuilt (schema v{_SCHEMA_VERSION}).")
     except Exception as e:
         # Non-fatal: the cache auto-rebuilds on next connect(). Just warn.
         print(
