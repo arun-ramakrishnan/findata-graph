@@ -28,9 +28,17 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — unified_search.md archived 2026-09-12 as completed.md entry
-229 (execution record in `../archive/ui/unified_search.md`; decode-class
-fixes + the embedding-chokepoint static check landed in the same arc).
+_(none)_
+
+— (Previously: hybrid_graph_onager_igraph.md archived 2026-09-12 as completed.md
+entry 230 - execution record in
+`../archive/graph/hybrid_graph_onager_igraph.md`; standing posture: bridge
+landed pilot-gated, integration DEFERRED per D15 — revival conditions in
+proposal §7.)_
+
+— (Previously: unified_search.md archived 2026-09-12 as completed.md entry
+229 - execution record in `../archive/ui/unified_search.md`; decode-class
+fixes + the embedding-chokepoint static check landed in the same arc.)_
 
 _(Previously: hybrid_derive_graph_microperf.md, archived as completed.md
 entry 228 on 2026-09-12 — execution record in

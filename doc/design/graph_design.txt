@@ -339,6 +339,8 @@ rm note) are mechanical; see git history for worked examples.
 | D11 | katz alpha pinned 1e-4 | Onager default diverges on the live graph |
 | D12 | ppr not wrapped (Onager bug) | personalisation column ignored; restart hardcoded |
 | D13 | every CLI metric opt-in `--apply` (reverses D10's link-predict/voterank default-apply) | uniform write switch; exploratory `--method`/`--edge-types` runs were silently replacing the persisted table |
+| D14 | igraph stays a SECOND engine behind Onager, run from the pilot venv only (no igraph in `.venv`/pyproject); GPL-2.0-or-later cleared by the operator 2026-09-12, re-cleared without reservation same day (owner-operated repo) — pilot-venv split is now operational, not legal | keep-both: Onager keeps the validated Apache-2.0 SQL lanes; igraph covers Leiden/weighted centralities/weighted paths/max-flow where Onager has gaps (`helpers/graph/igraph_bridge.py`, ROUTING table); lazy import keeps `.venv` collection working; promotion of any lane (or of igraph into pyproject) needs its own proposal; pilot recipe carries duckdb 1.5.5 so `--apply` runs real |
+| D15 | igraph integration DEFERRED — bridge stays pilot-gated, no consumers; trigger was the operator's working EasyGraph C++ source build, but the same-day re-test CLOSED the engine question: NO Easy-Graph stands (cpp betweenness broken on live data, louvain unwired; full log doc/local/easy_graph_run.txt) | igraph keeps every second-engine lane; what defers is prod wiring until a real consumer needs a lane (proposal §7 (b)/(c)) — wiring ahead of demand would mean maintaining an unused integration |
 
 ## 11. File Layout
 

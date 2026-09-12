@@ -287,7 +287,7 @@ def ensure_db_meta(conn: sqlite3.Connection) -> int:
     else:
         try:
             cur_gen = int(row[0])
-        except ValueError, TypeError:
+        except (ValueError, TypeError):
             conn.execute("UPDATE db_meta SET value='1' WHERE key='generation'")
             cur_gen = 1
     # seed schema_version mirror (informational at runtime; integrity check
@@ -327,5 +327,5 @@ def ensure_db_meta(conn: sqlite3.Connection) -> int:
     row2 = conn.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
     try:
         return int(row2[0]) if row2 else cur_gen
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         return cur_gen

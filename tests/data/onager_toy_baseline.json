@@ -1,0 +1,197 @@
+{
+ "toy": {
+  "n": 12,
+  "m": 16,
+  "pagerank": {
+   "ms": 693.0,
+   "values": {
+    "CIPLA": 0.07452,
+    "RELIANCE": 0.06873,
+    "INFY": 0.06679,
+    "SECTOR_FIN": 0.10506,
+    "SBIN": 0.06619,
+    "SECTOR_AUTO": 0.11643,
+    "ICICIBANK": 0.06619,
+    "TCS": 0.10715,
+    "TATAMOTORS": 0.07452,
+    "SUNPHARMA": 0.07452,
+    "HDFCBANK": 0.10537,
+    "MARUTI": 0.07452
+   }
+  },
+  "betweenness_centrality": {
+   "ms": 364.27,
+   "values": {
+    "INFY": 0.0,
+    "ICICIBANK": 0.0,
+    "TATAMOTORS": 0.0,
+    "SUNPHARMA": 0.0,
+    "HDFCBANK": 0.00909,
+    "MARUTI": 0.0,
+    "TCS": 0.54545,
+    "SECTOR_FIN": 0.44545,
+    "SECTOR_AUTO": 0.58182,
+    "RELIANCE": 0.54545,
+    "CIPLA": 0.0,
+    "SBIN": 0.0
+   }
+  },
+  "closeness_centrality": {
+   "ms": 273.13,
+   "values": {
+    "ICICIBANK": 0.31429,
+    "SECTOR_FIN": 0.42308,
+    "RELIANCE": 0.47826,
+    "SUNPHARMA": 0.32353,
+    "TATAMOTORS": 0.32353,
+    "MARUTI": 0.32353,
+    "CIPLA": 0.32353,
+    "SECTOR_AUTO": 0.44,
+    "SBIN": 0.31429,
+    "TCS": 0.47826,
+    "INFY": 0.37931,
+    "HDFCBANK": 0.32353
+   }
+  },
+  "eigenvector_centrality": {
+   "error": "InvalidInputException: Invalid Input Error: Eigenvector failed: Graph error: Convergence failed after 100 iterations: Eigenvector centrality failed to converge within maximum iterations"
+  },
+  "degree_centrality": {
+   "ms": 241.93,
+   "values": {
+    "SBIN": 0.18182,
+    "ICICIBANK": 0.18182,
+    "TATAMOTORS": 0.18182,
+    "RELIANCE": 0.18182,
+    "INFY": 0.18182,
+    "CIPLA": 0.18182,
+    "SUNPHARMA": 0.18182,
+    "MARUTI": 0.18182,
+    "TCS": 0.27273,
+    "HDFCBANK": 0.27273,
+    "SECTOR_FIN": 0.45455,
+    "SECTOR_AUTO": 0.45455
+   }
+  },
+  "weakly_connected_component": {
+   "ms": 320.48,
+   "values": {
+    "SUNPHARMA": 0.0,
+    "TCS": 0.0,
+    "ICICIBANK": 0.0,
+    "INFY": 0.0,
+    "CIPLA": 0.0,
+    "RELIANCE": 0.0,
+    "SECTOR_AUTO": 0.0,
+    "SBIN": 0.0,
+    "HDFCBANK": 0.0,
+    "SECTOR_FIN": 0.0,
+    "MARUTI": 0.0,
+    "TATAMOTORS": 0.0
+   }
+  },
+  "local_clustering_coefficient": {
+   "ms": 263.31,
+   "values": {
+    "HDFCBANK": 0.66667,
+    "CIPLA": 1.0,
+    "SECTOR_FIN": 0.3,
+    "ICICIBANK": 1.0,
+    "SECTOR_AUTO": 0.2,
+    "SUNPHARMA": 1.0,
+    "INFY": 1.0,
+    "TCS": 0.33333,
+    "RELIANCE": 0.0,
+    "SBIN": 1.0,
+    "TATAMOTORS": 1.0,
+    "MARUTI": 1.0
+   }
+  },
+  "louvain_community": {
+   "ms": 185.96,
+   "raw": "{3: 1, 4: 1, 5: 1, 10: 1, 6: 0, 7: 0, 8: 0, 9: 0, 11: 0, 0: 2, 1: 2, 2: 2}"
+  },
+  "direct": {
+   "pagerank_ms": 164.65,
+   "louvain_ms": 117.81,
+   "louvain_mod": 0.33212809917355374,
+   "graph_metrics": {
+    "density": 0.24242424242424243,
+    "diameter": 5,
+    "radius": 3,
+    "avg_path_length": 2.772727272727273,
+    "transitivity": 0.4411764705882353,
+    "triangles": 5,
+    "avg_clustering": 0.7083333333333331,
+    "assortativity": -0.5135135135135135
+   },
+   "graph_metrics_ms": 111.01,
+   "linkpred_pairs": 18,
+   "linkpred_top3": [
+    [
+     4,
+     5,
+     1.0
+    ],
+    [
+     0,
+     2,
+     0.3333
+    ],
+    [
+     0,
+     6,
+     0.3333
+    ]
+   ],
+   "linkpred_ms": 95.03
+  },
+  "shortest_path_TCS_MARUTI": [
+   "TCS",
+   "RELIANCE",
+   "SECTOR_AUTO",
+   "MARUTI"
+  ]
+ },
+ "remap_synthetic_ms": 2.38,
+ "real": {
+  "n": 881,
+  "m": 2000,
+  "pagerank_s": 0.139,
+  "louvain_s": 0.141,
+  "total_s": 0.28,
+  "pagerank_top5": [
+   [
+    "Engineering_Capital_Goods",
+    0.0338
+   ],
+   [
+    "Automotive",
+    0.02997
+   ],
+   [
+    "Technology",
+    0.02816
+   ],
+   [
+    "Pharma",
+    0.02113
+   ],
+   [
+    "Banking",
+    0.01925
+   ]
+  ],
+  "louvain_ncomms": 41,
+  "louvain_sizes_top5": [
+   68,
+   66,
+   58,
+   53,
+   49
+  ],
+  "louvain_mod": 0.4552,
+  "db_remap_ms": 29.6,
+  "db_remap_rows": 19261
+ }
+}

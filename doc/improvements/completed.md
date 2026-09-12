@@ -5562,3 +5562,63 @@ f32-BLOB embeddings with raw `json.loads` and silently scored zero.
 2805 passed, 3 skipped (pix2text absent) — after clearing ~2.7 GB of
 dead 143 MB sp.db test sandboxes from /tmp whose quota exhaustion
 (Errno 122) had errored 102 tests in the first gate run.
+
+## 230. Hybrid graph bridge — Onager + igraph keep-both pilot; integration deferred
+
+**Proposal**: `doc/improvements/archive/graph/hybrid_graph_onager_igraph.md`
+(filed 2026-09-12, executed 2026-09-12 — verdict: **integration DEFERRED**,
+D15).
+
+**Problem**: edge weights are now continuous (semantic_peer/competes
+0.4–0.914, not near-binary) and Onager has structural gaps: no Leiden,
+weighted betweenness/closeness/eigenvector absent, eigenvector fails
+convergence outright (toy 12n + live), no flow/cut, weighted paths
+unwired (shortest_path is an unweighted SQL BFS). Eval (§2, measured on
+the full 1648n/19261e graph) picked igraph 1.0.0 (C core) as second
+engine; EasyGraph/Graphina ruled out on wheel-only evidence at filing
+time.
+
+**Landed** (all pilot-gated — lazy import, dry-run default, opt-in
+`--apply`, no prod wiring):
+- `helpers/graph/igraph_bridge.py`: ROUTING table (10 Onager-default
+  lanes unchanged; igraph lanes leiden, weighted_* centralities,
+  weighted_shortest_path, maxflow_mincut, louvain_compare); sorted
+  deterministic name→id; per-etype projection; Leiden seeded via
+  `random.Random(42)` installed as igraph's process RNG (igraph has no
+  seed arg — unseeded full-graph runs measured Q 0.5326 vs 0.5308);
+  per-label weighted path; maxflow_mincut with weights as capacities
+  (igraph `capacity=`, singular); persistence through the same
+  `write_analytics` UPSERT seam (D13/D14).
+- Tests (9 pilot / 1 skipped in `.venv`): toy parity vs
+  `tests/data/onager_toy_baseline.json`, seeded determinism (toy +
+  full), persist dry-run/apply delegation, routing table, maxflow
+  chokepoint hand-check, full-graph smoke on bounds 19.0k–21.0k edges
+  (S7: bounds not pins).
+- S7 adoption gate closed: **D14** (pilot venv only, no igraph in
+  `.venv`/pyproject; GPL-2.0-or-later owner-cleared without
+  reservation); real `--apply` read-back — Leiden 1648 rows written +
+  read back on a /tmp research.db copy via `write_analytics`, Q=0.5312
+  in 0.05s, live DB untouched (duckdb 1.5.5 in the pilot recipe, no
+  stub); docs routing notes in algorithms_assessment.md §1 +
+  graph_layer.md.
+
+**Measured**: full-graph Leiden Q≈0.53 / 0.05s; PR ~0.01s; build
+0.01–0.03s; TCS→Maruti Suzuki India maxflow 28.1 = mincut (40 cut
+edges = the node's boundary), ec 40 / vc 32; pilot venv 184 MB
+(§3 recipe, duckdb included).
+
+**Deferral verdict (D15)**: integration deferred — no consumer had
+wired into an igraph lane when the EasyGraph engine question reopened,
+and it has since CLOSED: the operator source-built EasyGraph's C++
+backend (full log `doc/local/easy_graph_run.txt`, condensed in
+graph_layer.md "Easy-Graph C++ source-build re-test") and the verdict
+is **NO Easy-Graph stands** — cpp betweenness numerically broken on
+live data (378/1648 nodes overflow to ~1e20+; 199/200 sampled values
+disagree with python), louvain not hybrid-wired (cpp export dead code;
+python path crashes on GraphC), ODR violation in cpp sources; cpp PR
+(~0.02s) and cpp-direct louvain (0.015s, Q=0.48) are real but not
+enough. igraph stays the second engine; what defers is any prod
+wiring until a lane earns a real consumer (proposal §7 revival
+conditions (b)/(c); (a) resolved by this verdict). Bridge remains a
+dry-run-only capability; Onager prod lanes and the analytics write
+path are unchanged.

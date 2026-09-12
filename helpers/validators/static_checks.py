@@ -857,6 +857,13 @@ def check_sqlite_helper_usage() -> list[str]:  # noqa: C901
         # target — a house connect() cannot express "the ATTACH target of
         # this duckdb connection"). SELECTs only, no writes.
         "helpers/graph/query.py",
+        # igraph pilot bridge (hybrid_graph D14/D15): the plain sqlite3
+        # fallback keeps the pilot venv working without the dotenv chain,
+        # and the db_path override is the feature — the S7 --apply
+        # read-back targeted an explicit /tmp COPY of research.db, which
+        # house connect() (resolved research.db only) cannot express.
+        # Dry-run default; writes go through algorithms.write_analytics.
+        "helpers/graph/igraph_bridge.py",
     )
     failures: list[str] = []
     for py in REPO_ROOT.rglob("*.py"):
