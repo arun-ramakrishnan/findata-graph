@@ -32,7 +32,7 @@ unpins DuckDB, deletes plumbing, and (measured) speeds the three metrics.
 ### A. duckpgq-native algorithm wrappers (3)
 
 helpers/graph/query.py L2036-2106, dispatched from helpers/graph/algorithms.py
-(_run_pagerank / _run_wcc / _run_clustering):
+(`_run`_pagerank / `_run`_wcc / `_run`_clustering):
 
 | Metric (algorithms.compute key) | duckpgq call today | Onager replacement | Verified parity (live graph) | Speed (live graph) |
 |---|---|---|---|---|
@@ -49,7 +49,7 @@ entities? See Open Questions.)
 ### B. GRAPH_TABLE / MATCH pattern queries (26 sites, 17 functions)
 
 All in helpers/graph/query.py. Every site is mechanically a plain-SQL JOIN
-over the materialised e_* tables + v_node. No site uses >1 hop except
+over the materialised `e_*` tables + v_node. No site uses >1 hop except
 shortest_path.
 
 | Pattern | Functions (n sites) | Replacement |
@@ -57,7 +57,7 @@ shortest_path.
 | (a)-[e:X]->(b) directed 1-hop | sector_of, sector_members, theme_members, super_sector_of, sectors_in_super, sub_sectors_of, acquisitions, subsidiary_of_company | SELECT ... FROM e_X e JOIN v_node a ON a.id = e.src JOIN v_node b ON b.id = e.dst |
 | (a)-[e:X]-(b) undirected 1-hop | peers, jv_partners, group_siblings | UNION of both directions |
 | 4-12 arm UNION bundles | neighbors (5), suppliers_and_customers (5), company_neighbors_bundle (12), sector_members_with_market_cap (2) | same JOINs, already batched |
-| ANY SHORTEST {1,max_hops} | shortest_path (L1266) | _shortest_path_cte already exists in the same file as the fallback and returns the FULL vertex sequence (duckpgq v1.5 cannot) |
+| ANY SHORTEST {1,max_hops} | shortest_path (L1266) | `_shortest`_path_cte already exists in the same file as the fallback and returns the FULL vertex sequence (duckpgq v1.5 cannot) |
 | ad-hoc PGQ passthrough | sql CLI subcommand | plain SQL covers it; PGQ syntax no longer accepted |
 
 ### C. Infrastructure
@@ -91,9 +91,9 @@ shortest_path.
    any test asserting exact pagerank values needs a tolerance or a
    re-baseline.
 2. The sql CLI subcommand loses PGQ syntax (FROM GRAPH_TABLE ...). Plain
-   SQL over e_*/v_node covers the same queries; anyone relying on PGQ
+   SQL over `e_*`/v_node covers the same queries; anyone relying on PGQ
    syntax interactively loses it.
-3. The e_* materialisation tables and v_node remain (they are plain DuckDB
+3. The `e_*` materialisation tables and v_node remain (they are plain DuckDB
    tables — that design is kept), but they no longer feed a property graph;
    doc/graph_design.txt needs a rewrite of the PGQ sections (§17.4 etc.).
 4. snapshot_db.py verification queries (GRAPH_TABLE count) need a plain
@@ -103,72 +103,72 @@ shortest_path.
 ## Implementation plan (phased, each phase lands green)
 
 Phase 1 — Onager-backed metric wrappers — COMPLETE (2026-08-14)
-  - helpers/graph/onager.py: added onager_pagerank / onager_components /
+- helpers/graph/onager.py: added onager_pagerank / onager_components /
     onager_clustering (onager_ctr_pagerank 'rank' / onager_par_components
     'component' / onager_par_clustering 'coefficient'), same (con,
     edge_types, edges) signature style as the existing five.
-  - query.py: the three public wrappers (pagerank /
+- query.py: the three public wrappers (pagerank /
     weakly_connected_components / clustering_coefficient) now resolve the
-    label via _label_to_edge_type() (EDGE_REGISTRY + BelongsToHierarchy +
+    label via `_label`_to_edge_type() (EDGE_REGISTRY + BelongsToHierarchy +
     ExposedTo), run the Onager function over fin.graph_edges filtered by
-    that edge_type, filter to _company_names() (v_company), and keep the
+    that edge_type, filter to `_company`_names() (v_company), and keep the
     exact sort orders. Signatures unchanged.
     NOTE (deviation from plan): the companies-only filter lives in
     query.py, not onager.py — v_company exists only on connections built
     by query.connect(), so onager.py stays generic.
-  - algorithms.py: _run_pagerank/_run_wcc/_run_clustering re-pointed
-    (aliases renamed _duckpgq_* -> _graph_*) and now support the synthetic
-    edges= path via onager_* directly (compute("pagerank", edges=[...])
+- algorithms.py: `_run`_pagerank/`_run`_wcc/`_run`_clustering re-pointed
+    (aliases renamed `_duckpgq`_* -> `_graph`_*) and now support the synthetic
+    edges= path via `onager_*` directly (compute("pagerank", edges=[...])
     works for the first time).
-  - BONUS — three pre-existing bugs in onager.py's _materialize_from_db
+- BONUS — three pre-existing bugs in onager.py's `_materialize`_from_db
     edge_types path (never exercised before; all earlier metrics ran with
     edge_types=None) found and fixed:
-      (a) first CREATE (the _onager_int CTAS) interpolated {where} but
+      (a) first CREATE (the `_onager`_int CTAS) interpolated {where} but
           did not pass params;
       (b) {where} appears twice per statement -> positional ? cannot
-          repeat; _where() now emits numbered params ($1, $2...);
+          repeat; `_where()` now emits numbered params ($1, $2...);
       (c) second CREATE placed {where} BEFORE the JOINs (invalid SQL).
-  - Tests: 10 new tests in tests/test_onager_capabilities.py (clique
+- Tests: 10 new tests in tests/test_onager_capabilities.py (clique
     uniformity, undirected hub dominance, disjoint-triangle components,
     triangle/pendant clustering textbook values, empty-list safety, and
     name-keyed DB-path checks via the synth_db fixture). Existing
     TestPhase3NativeAlgorithms contract tests pass unchanged.
-  - Verified live (post-landing): wcc partition IDENTICAL to duckpgq;
+- Verified live (post-landing): wcc partition IDENTICAL to duckpgq;
     clustering max abs diff 0.0 over all 1068 companies; pagerank node
     set identical, values differentiated (see Inventory A note).
-  - graph_analytics re-applied for the three metrics (1068 company rows
+- graph_analytics re-applied for the three metrics (1068 company rows
     each) and 42 stale non-company pagerank rows pruned. NOTE: the stale
     rows used a legacy {"value": x} JSON shape; the current writer stores
     plain floats (CAST(value AS REAL) to read).
 
 Phase 2 — 1-hop MATCH sites -> plain SQL (26 sites) — COMPLETE (2026-08-14)
-  - All 26 GRAPH_TABLE sites in 17 functions rewritten as parameterised
-    JOINs over e_*/v_node (? params replace _lit string interpolation —
+- All 26 GRAPH_TABLE sites in 17 functions rewritten as parameterised
+    JOINs over `e_*`/v_node (? params replace `_lit` string interpolation —
     DuckDB supports binding in these statements; the generation cache keys
     on function args so caching is unaffected).
-  - Symmetric (undirected) labels matched via the CASE WHEN + WHERE-pair
+- Symmetric (undirected) labels matched via the CASE WHEN + WHERE-pair
     pattern; e_customer arms use explicit v_ct/v_sb aliases.
-  - One regression caught by tests during the rewrite: mismatched SQL
+- One regression caught by tests during the rewrite: mismatched SQL
     aliases in the e_customer arms (SELECT v_b while JOINing v_c/v_s) —
     the Binder errors made it obvious.
-  - Rewrite each site as JOIN(s) over e_*/v_node. Remove _lit interpolation
+- Rewrite each site as JOIN(s) over `e_*`/v_node. Remove `_lit` interpolation
     where parameterisation becomes possible (sqlite ATTACH supports ?).
-  - Keep the query-result cache and as_of semantics identical (the CTE
+- Keep the query-result cache and as_of semantics identical (the CTE
     already does this for shortest_path).
-  - Tests: existing query tests are the contract; run targeted suites.
+- Tests: existing query tests are the contract; run targeted suites.
 
 Phase 3 — shortest_path native path -> CTE primary — COMPLETE (2026-08-14)
-  - shortest_path is now a one-line delegation to _shortest_path_cte;
+- shortest_path is now a one-line delegation to `_shortest`_path_cte;
     returns the FULL vertex sequence everywhere (the ANY SHORTEST branch's
     2-element endpoints-only shape is gone). Obsolete fallback test
     replaced by full-sequence + unknown-label traversal tests.
-  - Promote _shortest_path_cte to the primary implementation; delete the
+- Promote `_shortest`_path_cte to the primary implementation; delete the
     ANY SHORTEST branch. Keep the same return contract (vertex sequence).
 
 Phase 4 — Unpin DuckDB — VALIDATED (2026-08-14)
-  - pyproject.toml had already been unpinned by the user (commit 23e2fe3,
+- pyproject.toml had already been unpinned by the user (commit 23e2fe3,
     duckdb==1.5.4 -> duckdb).
-  - Validated in a throwaway venv with duckdb 1.5.5 + minimal deps:
+- Validated in a throwaway venv with duckdb 1.5.5 + minimal deps:
     connect() (cold v9 rebuild), sector_of/peers/neighbors/
     shortest_path/company_neighbors_bundle, and all three onager metrics
     (pagerank top values identical to 1.5.4's; wcc 42; clustering 1068)
@@ -176,40 +176,40 @@ Phase 4 — Unpin DuckDB — VALIDATED (2026-08-14)
     bumped (left to the user; a plain `uv sync` is now safe).
 
 Phase 5 — Cleanup — COMPLETE (2026-08-14)
-  - query.py: INSTALL/LOAD duckpgq removed; _declare_property_graph
-    deleted; DROP PROPERTY GRAPH removed from _build_graph; duckpgq half
+- query.py: INSTALL/LOAD duckpgq removed; `_declare`_property_graph
+    deleted; DROP PROPERTY GRAPH removed from `_build`_graph; duckpgq half
     of the P3.4 drift check removed (duckdb_version half kept);
-    _mark_warm no longer stamps duckpgq_version; _SCHEMA_VERSION bumped
-    8 -> 9 (forces every .duckdb cache cold so no stale fin_graph /
-    __duckpgq_internal entries survive; production graph.duckdb rebuilt
-    clean — verified __duckpgq_internal absent).
-  - snapshot_db.py: INSTALL/LOAD duckpgq removed (both sites); the
+    `_mark_warm` no longer stamps duckpgq_version; `_SCHEMA_VERSION` bumped
+    8 -> 9 (forces every .duckdb cache cold so no stale `fin_graph` /
+    `__duckpgq_internal` entries survive; production graph.duckdb rebuilt
+    clean — verified `__duckpgq_internal` absent).
+- snapshot_db.py: INSTALL/LOAD duckpgq removed (both sites); the
     property-graph constructibility check replaced by an FK-join
-    structural check (every EDGE_REGISTRY e_* src/dst resolves against
+    structural check (every EDGE_REGISTRY `e_*` src/dst resolves against
     v_node.id) — preserves the dropped-KEY-column detection contract;
     snapshot verify now opens read-only (no DDL needed); result key
     property_graph_ok kept for API compat.
-  - tests: test_duckpgq_capabilities.py DELETED (its purpose — canary
+- tests: test_duckpgq_capabilities.py DELETED (its purpose — canary
     for duckpgq shipping native louvain — is moot post-retirement);
     obsolete INSTALL/LOAD lines removed from test_sql_query_correctness
     and test_db_maint_duckdb; test_property_graph_declared ->
     test_materialised_tables_present (asserts the JOIN works AND no
     property-graph catalog entry remains); sql-passthrough test now
     plain SQL.
-  - docs: graph_design.txt header + §3.2 rewritten, §5 marked HISTORICAL,
+- docs: graph_design.txt header + §3.2 rewritten, §5 marked HISTORICAL,
     graph_analytics provenance table updated; app.py banner comments;
     algorithms.py/onager.py/query.py module docstrings; CLI [via onager].
-  - BONUS fix: onager.py COALESCE(e.weight, 1.0) -> COALESCE(TRY_CAST(
+- BONUS fix: onager.py COALESCE(e.weight, 1.0) -> COALESCE(TRY_CAST(
     e.weight AS DOUBLE), 1.0) — DuckDB 1.5.5's stricter typing rejects
     VARCHAR/DECIMAL COALESCE (1.5.4 coerced silently). Caught by the
     1.5.5 verification run.
-  - Delete CREATE PROPERTY GRAPH, INSTALL/LOAD duckpgq everywhere, the
+- Delete CREATE PROPERTY GRAPH, INSTALL/LOAD duckpgq everywhere, the
     duckpgq_version half of the P3.4 drift check, __duckpgq_internal
     filtering.
-  - snapshot_db.py: replace GRAPH_TABLE verification with plain count.
-  - Doc updates: graph_design.txt (PGQ sections), ty.toml/Makefile only if
+- snapshot_db.py: replace GRAPH_TABLE verification with plain count.
+- Doc updates: graph_design.txt (PGQ sections), ty.toml/Makefile only if
     needed.
-  - Tests: update/remove the duckpgq-specific ones (test_integration_perf
+- Tests: update/remove the duckpgq-specific ones (test_integration_perf
     scipy guards unaffected).
 
 ## Verification checklist
@@ -235,6 +235,6 @@ Phase 5 — Cleanup — COMPLETE (2026-08-14)
    (legacy non-company rows pruned).
 2. ANSWERED (Phase E): dropped — the `sql` CLI runs plain SQL over the
    attached databases; help text updated. No rewriter shim.
-3. ANSWERED (Phase E): kept — e_*/v_node remain the data layer for both
+3. ANSWERED (Phase E): kept — `e_*`/v_node remain the data layer for both
    the onager projections and the plain JOINs; no consumer depended on
    fin_graph (all references were in-repo and rewritten/deleted).

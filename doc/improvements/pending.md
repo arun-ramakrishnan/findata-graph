@@ -1,7 +1,7 @@
 # Pending improvements
 
 Full annotated triage map with live-verified trigger status:
-`doc/local/future_items.txt` (2026-09-05). Open items below keep their
+`doc/local/notes/future_items.md` (2026-09-05). Open items below keep their
 - **§G2 word-overlap alias guard + §G3 discard-persistence noise gate** — executed as `doc/improvements/archive/graph/word_overlap_alias_guard.md` (completed.md #218, 2026-09-09).
 revisit triggers inline; executed work is compressed to records.
 
@@ -34,7 +34,7 @@ revisit triggers inline; executed work is compressed to records.
     produces index-membership data; tickers (945/1,165 companies, 850
     India-exchange) prove exchange listing, not index membership. Revisit only
     if a real index-constituent data source appears. Detail in
-    `doc/local/future_items.txt` §G1 and `word_overlap_alias_guard.md` §7.
+    `doc/local/notes/future_items.md` §G1 and `word_overlap_alias_guard.md` §7.
 
 - **Security Phase 4 (deploy-time; app confirmed NOT deployed 2026-08-17)**
   (private security review under doc/local, untracked;
@@ -50,7 +50,7 @@ revisit triggers inline; executed work is compressed to records.
   provenance (edge_type, counterparties, as_of, confidence, source permalink).
   The only unblocked medium item anywhere in the backlog — but the driver is
   weak while `findata/_pending_relations.txt` stays near-empty (see
-  `doc/local/future_items.txt` §D for the queue run book).
+  `doc/local/notes/future_items.md` §D for the queue run book).
 
 - **OpenViking context-server pilot DEFERRED** (2026-08-20; proposal with
   full fact-check at `doc/local/openviking_pilot_proposal.md`). The gap

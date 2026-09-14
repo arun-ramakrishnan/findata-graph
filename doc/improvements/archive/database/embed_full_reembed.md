@@ -278,7 +278,7 @@ cache invalidation. When triggered:
 - 32k-ctx pipelines (§3.3) and any sub-H2 chunking (parent proposal).
 - Parallel/pooled ingest (settled: no win under load).
 - docs/companies surfaces (already section-chunked/capped by design).
-- GPU float formats (BF16/FP8 doctrine, embed_model_eval.txt).
+- GPU float formats (BF16/FP8 doctrine, doc/local/evaluations/embed_model_eval.md).
 - Model quality re-litigation on cost grounds alone — quality tables
   stand; only cost bars were re-derived.
 

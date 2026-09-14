@@ -15,7 +15,7 @@ area: "search index (helpers/maintenance/rebuild_note_search.py) + app.py hybrid
 
 ## 1. Motivation
 
-The 2026-09-06 token-cap measurement (doc/local/embed_model_eval.txt
+The 2026-09-06 token-cap measurement (doc/local/evaluations/embed_model_eval.md
 "Token-cap bite measurement", reproducible via
 `helpers/bench/embed_token_cap.py`) showed the notes surface embeds only
 the HEAD of each note: bge's 512-token cap (trained rope; llama.cpp has
@@ -82,7 +82,7 @@ source in its docstring). The probe itself is rerunnable:
 `helpers/bench/note_deep_probe_questions.json` (id/category/query/
 expect per question; the before-leg spills its legacy vectors to
 /tmp and rebuilds them in ~6m when absent). S3 results live in
-doc/local/embed_model_eval.txt "NOTE SECTIONING — S3 EXECUTION
+doc/local/evaluations/embed_model_eval.md "NOTE SECTIONING — S3 EXECUTION
 RECORD". Adopt the winner only on a measured win.
 
 ## 4. Acceptance criteria & shakedown
@@ -134,7 +134,7 @@ RECORD". Adopt the winner only on a measured win.
 ## 7. Execution Results (2026-09-06, post-apply)
 
 This section is the single durable record of the S3 execution (the
-former doc/local/embed_model_eval.txt duplicate was eliminated at user
+former doc/local/evaluations/embed_model_eval.md duplicate was eliminated at user
 direction 2026-09-06 — the proposal is the record).
 
 **Rebuild (serial, EMBED_POOL_WORKERS=1, ~48m wall)**: 1,243 → 14,500

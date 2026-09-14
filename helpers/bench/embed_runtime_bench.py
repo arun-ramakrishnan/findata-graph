@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Embedding runtime-shape bench: serial vs threaded throughput + RSS.
 
-Born of the 2026-09-06 pool-artifact find (doc/local/embed_model_eval.txt):
+Born of the 2026-09-06 pool-artifact find (doc/local/evaluations/embed_model_eval.md):
 under desktop load a PINNED spawn-pool worker cannot migrate off a stolen
 core and ran 3x slower than a floating single process (3.65/s serial vs
 1.2/s pinned pool, same window). #173's pinning doctrine is idle-box

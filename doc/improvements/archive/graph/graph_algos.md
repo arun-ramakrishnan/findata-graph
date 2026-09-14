@@ -1,5 +1,4 @@
-# Proposal: Expand graph-algorithm coverage via Onager — link prediction,
-# graph metrics, and additional centralities
+# Proposal: Expand graph-algorithm coverage via Onager — link prediction, graph metrics, and additional centralities
 
 Status: PHASES 1-3 COMPLETE (2026-08-15); Phase 4 DROPPED
 Date: 2026-08-14
@@ -20,26 +19,26 @@ next, and closes the outstanding "pin onager" TODO from the Onager adoption.
 Verified live facts (2026-08-14, DuckDB 1.5.4, membership subgraph 2136
 edges / ~1110 nodes):
 
-  - onager_lnk_adamic_adar / _jaccard / _common_neighbors / _pref_attach /
-    _resource_alloc all return (node1, node2, score) over the same edge-table
+- `onager_lnk_adamic_adar` / `_jaccard` / `_common_neighbors` / `_pref_attach` /
+    `_resource_alloc` all return (node1, node2, score) over the same edge-table
     contract onager.py already materialises (_onager_e). LINK PREDICTION is
     a genuinely NEW capability — nothing in the repo computes candidate edges.
-  - onager_mtr_density / _diameter / _radius / _avg_path_length /
-    _transitivity / _triangles / _avg_clustering / _assortativity all return
+- `onager_mtr_density` / `_diameter` / `_radius` / `_avg_path_length` /
+    `_transitivity` / `_triangles` / `_avg_clustering` / `_assortativity` all return
     whole-graph scalars. Currently `make graph-stats` reports only degree /
     component-count style aggregates; no global structural metrics exist.
-  - onager_ctr_harmonic / _laplacian / _voterank / _local_reaching /
-    _personalized_pagerank return (node_id, value) — same shape as the 8
-    already wired, so they slot into the existing _onager_named() helper with
+- `onager_ctr_harmonic` / `_laplacian` / `_voterank` / `_local_reaching` /
+    `_personalized_pagerank` return (node_id, value) — same shape as the 8
+    already wired, so they slot into the existing `_onager_named()` helper with
     zero new plumbing.
-  - onager_ctr_katz works but REQUIRES a tuned alpha: the default converges
+- onager_ctr_katz works but REQUIRES a tuned alpha: the default converges
     to NaN / errors on this graph ("Convergence failed after 100 iterations").
     alpha=0.0001, beta=1.0 verified OK live.
-  - Path family (onager_pth_dijkstra / _bellman_ford / _floyd_warshall /
-    onager_par_shortest_paths / onager_par_bfs) returns (node_id, distance).
+- Path family (`onager_pth_dijkstra` / `_bellman_ford` / `_floyd_warshall` /
+    `onager_par_shortest_paths` / `onager_par_bfs`) returns (node_id, distance).
     The repo already has a recursive-CTE shortest_path in query.py; these
     add a weighted, single-source native option.
-  - Caveats (binding quirks): katz/dijkstra/k_hop/girvan_newman bind only
+- Caveats (binding quirks): katz/dijkstra/k_hop/girvan_newman bind only
     via NAMED parameters (source=1, communities=N), not positional;
     personalized_pagerank wants a 4th BIGINT column in the edge table.
 
@@ -58,7 +57,7 @@ Unwired (verified live, this session):
 ## Scope
 
 Proposed additions (Phases below), each a small wrapper + dispatcher entry
-mirroring the existing onager_* / _run_* pattern:
+mirroring the existing `onager_*` / `_run_*` pattern:
 
   1. Link prediction — NEW capability, highest value (addresses the H1 gap:
      typed edges capture ~10% of the available signal; prediction suggests
@@ -73,15 +72,15 @@ mirroring the existing onager_* / _run_* pattern:
      open TODO from the Onager adoption plan.
 
 Explicitly OUT of scope (deferred / not adopted):
-  - weighted-path native wrappers (onager_pth_*) — the recursive-CTE
+- weighted-path native wrappers (onager_pth_*) — the recursive-CTE
     shortest_path already covers the unweighted case and returns the full
     vertex sequence; native single-source would be additive but not needed
     by any current consumer. Consider only if a weighted-shortest-path
     consumer appears.
-  - MST / approximation / subgraph / generators — no consumer today;
+- MST / approximation / subgraph / generators — no consumer today;
     generators are useful only for synthetic perf tests, which already
     pass edges= lists.
-  - alt community detection (label_prop/spectral/infomap/girvan_newman) —
+- alt community detection (label_prop/spectral/infomap/girvan_newman) —
     louvain is established; cross-validation is possible later via the
     same wrapper pattern if a consumer asks for consensus communities.
 
@@ -116,51 +115,51 @@ Explicitly OUT of scope (deferred / not adopted):
 4. Graph metrics over the FULL edge set (all 12 types) vs a projected
    subset can disagree substantially (e.g. diameter collapses with
    co_mentioned_in present). Each metric wrapper should project an explicit
-   edge_type list, mirroring the _where() contract.
+    edge_type list, mirroring the `_where()` contract.
 5. `make perf` additions increase the gate wall-clock by a few seconds
    (all verified sub-second live).
 
 ## Implementation plan (phased, each lands green)
 
 Phase 1 — Link prediction (highest value)
-  - helpers/graph/onager.py: add onager_link_prediction(con, edge_types,
+- helpers/graph/onager.py: add onager_link_prediction(con, edge_types,
     edges, method) -> list[tuple[name1, name2, score]] (or dict), one
-    wrapper over onager_lnk_adamic_adar / _jaccard / _common_neighbors /
-    _pref_attach / _resource_alloc, joining node ids back to names via
-    _onager_int (mirrors _onager_named but keeps both endpoints).
-  - Caller contract: an optional exclude_types= so shared-membership noise
+    wrapper over `onager_lnk_adamic_adar` / `_jaccard` / `_common_neighbors` /
+    `_pref_attach` / `_resource_alloc`, joining node ids back to names via
+    `_onager_int` (mirrors `_onager_named` but keeps both endpoints).
+- Caller contract: an optional exclude_types= so shared-membership noise
     can be filtered; default projects the NON-membership edge types.
-  - helpers/graph/algorithms.py: compute("link_prediction", method=...)
+- helpers/graph/algorithms.py: compute("link_prediction", method=...)
     dispatcher entry + CLI `link-predict [--method jaccard|adamic-adar|
     common-neighbors|pref-attach|resource-alloc] [--top N]`.
-  - Tests: tests/test_onager_capabilities.py — known tiny graphs (clique,
+- Tests: tests/test_onager_capabilities.py — known tiny graphs (clique,
     path, two disjoint triangles) with hand-computed Jaccard/AA scores;
     name-keyed DB path via synth_db fixture; empty-list safety.
 
 Phase 2 — Graph metrics
-  - helpers/graph/onager.py: onager_graph_metrics(con, edge_types, edges)
+- helpers/graph/onager.py: onager_graph_metrics(con, edge_types, edges)
     -> dict[str, float] (density, diameter, radius, avg_path_length,
     transitivity, triangles, avg_clustering, assortativity). triangles is
     per-node (node_id, triangles) -> count + graph sum.
-  - helpers/graph/stats.py + /api/graph/stats: extend the output with the
+- helpers/graph/stats.py + /api/graph/stats: extend the output with the
     metric dict (SQLite-side consumers unchanged; metrics computed on the
     DuckDB connection, cost sub-second).
-  - Tests: known triangle/line graphs for transitivity/avg_clustering/
+- Tests: known triangle/line graphs for transitivity/avg_clustering/
     diameter values; empty-list safety.
 
 Phase 3 — Extra centralities
-  - helpers/graph/onager.py: onager_katz (defaults beta=1.0, alpha=0.0001),
+- helpers/graph/onager.py: onager_katz (defaults beta=1.0, alpha=0.0001),
     onager_harmonic, onager_laplacian, onager_voterank, onager_local_reaching,
     onager_personalized_pagerank (with the 4th-column edge projection).
-  - algorithms.py dispatcher entries + CLI choices.
-  - Tests: value-parity against known graphs (star, path) for harmonic/
+- algorithms.py dispatcher entries + CLI choices.
+- Tests: value-parity against known graphs (star, path) for harmonic/
     katz; voterank seed-set semantics; empty-list safety.
 
 Phase 4 — Onager version pin
-  - helpers/graph/query.py update_extensions(): append "onager" with a
+- helpers/graph/query.py update_extensions(): append "onager" with a
     pinned version to the install list (version discovered via
     onager_version() at pin time; document the pin rationale).
-  - Verification: `make update-extensions` installs the pinned build; a
+- Verification: `make update-extensions` installs the pinned build; a
     fresh venv picks up the same version (CI reproducibility).
 
 ## Verification checklist

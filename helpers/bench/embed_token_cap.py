@@ -2,8 +2,8 @@
 """Token-cap bite measurement: how much corpus text survives the 512-token
 embedding window on each surface.
 
-Born of the 2026-09-06 capability-gap measurement (doc/local/
-embed_model_eval.txt, "Token-cap bite measurement"): frontmatter is
+Born of the 2026-09-06 capability-gap measurement (doc/local/evaluations/
+embed_model_eval.md, "Token-cap bite measurement"): frontmatter is
 already stripped from all text bases (YAML is NOT the issue), yet 79% of
 notes truncate at the cap — median note is 1,210 tokens, token-mass
 retained 39% (notes) / 53% (companies) / 70% (docs, section-chunked).

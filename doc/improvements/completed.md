@@ -4721,7 +4721,7 @@ The embedding-model arc, end to end. S0: llama.cpp master REJECTED at parity (0.
 
 **Date:** 2026-09-07 · **Type:** graph (scan/render/VSS micro-perf) ·
 **Scope:** `helpers/graph/derive_insights.py`, `helpers/core/get_tickers.py` ·
-**Status:** EXECUTED 2026-09-06/07 (filed + implemented 09-06 from `doc/local/perf_eval.txt`, gates 09-07) ·
+**Status:** EXECUTED 2026-09-06/07 (filed + implemented 09-06 from `doc/local/perf/perf_eval.md`, gates 09-07) ·
 **Proposal:** `doc/improvements/archive/graph/scan_render_vss_microperf.md`
 
 Three residual hot spots after #208, all measured first. S1: `iter_company_sections` built newline offsets with a pure-Python char loop (~0.9ms/file, ~70% of serial scan) — replaced with C-speed `str.count` per yielded section (arithmetic identity: match starts point at `#`, never `\n`; bisect oracle kept in tests). Serial scan 1612→923ms, parallel(4) 717→401ms; pool stays, <8-file serial threshold stays. S2: every rendered note's frontmatter was yaml-parsed twice (gate + splice) — one shared parse via `_load_frontmatter` + `_UNSET` sentinel on both render paths, halving the ~0.5s YAML cost with zero semantic change (frontmatter-region invariant pinned by fuzz test; regex pre-checks explicitly rejected per the #206 quote-soup lesson). S3: every VSS fire re-fetched 9.2 MB + re-digested + Python-looped the dots (~62ms around the 71ms granite embed) — fetch-once float64 run index built in `main()`, threaded as `index=` through display/resolve/vss_match, guarded by a COUNT/MAX(rowid) end-of-run tripwire (concurrent-writer audit: writers are maint-only CLI commands, no cron, no call edges — overlap needs two simultaneous manual runs, SQLite serializes writes). Non-model fire 55.5→0.7ms. Verified: stash-diff dry-run byte-identical (2777/1532/310/9), wall 1.74→1.24s, 221 targeted tests (bisect-oracle, shared-parse equivalence, FM-bytes invariant, index parity + tripwire), qa 9/9, advisory 10/10, perf 22/22, search-fresh converged. Gate fallout in-change: ty narrowing on the fm union, C901 vss_match extraction, S101 assert→RuntimeError, pre-existing parquet_textconv format/None-guard.
@@ -4971,7 +4971,7 @@ current. Touched-suite pre-verification during the slices (282 + 93 +
 **Status**: COMPLETE
 **Proposal**: `doc/improvements/archive/graph/word_overlap_alias_guard.md` (filed 2026-09-09)
 
-Two hygiene pick-ups from `future_items.txt` (§G2, §G3), both
+Two hygiene pick-ups from `doc/local/notes/future_items.md` (§G2, §G3), both
 newly unlocked by the #215/#217 arcs. No machinery behavior change.
 
 ### S1 — word-overlap alias guard (G2)

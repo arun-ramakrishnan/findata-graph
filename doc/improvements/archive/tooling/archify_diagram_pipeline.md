@@ -11,11 +11,11 @@ area: doc/
 
 **Status:** EXECUTED 2026-09-05 (filed + executed same day; S1-S7 landed,
 S8 landed with viewport caveat — completed.md #207) · **Trigger:** user go after trial 1
-(`doc/local/archify_eval.txt` — storage-topology system-overview passed the
+(`doc/local/evaluations/archify_eval.md` — storage-topology system-overview passed the
 full 9-check showcase gate, browser evidence, and perceptual review; user
 verdict: "looks fantastic"). · **Skill:** `archify` (installed
 `~/.agents/skills/archify`, symlinked per `doc/local/skills_symlink.md`;
-eval + trial record in `doc/local/archify_eval.txt`).
+eval + trial record in `doc/local/evaluations/archify_eval.md`).
 
 ## Scope / Motivation
 
@@ -118,7 +118,7 @@ and synced — never wall art:
 - **S4 — Conventions.** Naming, the pointer-line pattern, and a short
   "when to draw" rule (only when a section gains a genuinely
   multi-dimensional subject) written into `doc/procedures/` or the
-  corpus-uniformity doc; `doc/local/archify_eval.txt` finalized.
+  corpus-uniformity doc; `doc/local/evaluations/archify_eval.md` finalized.
 
 ## Authoring conventions (trial-1 lessons; land in S4)
 

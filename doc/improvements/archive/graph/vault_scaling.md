@@ -17,7 +17,7 @@ area: "helpers/core/corpus, helpers/graph/query + rebuild, Mojo/src/bench (new b
 gated (operator decision 2026-09-04) · **Forecast:** 100M doubled rows is
 a REAL growth target, not a stress ceiling.
 **Area:** corpus layer · graph substrate + query + rebuild · similarity.
-Folded from: `doc/local/perf_investigations.txt` §1/§5/§8 +
+Folded from: `doc/local/perf/perf_investigations.md` §1/§5/§8 +
 former `doc/local/graph_scaling.md` (deleted on fold 2026-09-04 —
 those sections now point here).
 
@@ -202,9 +202,9 @@ still 1.9 MB and Phase C unneeded, and vice versa.
   MB against the tier thresholds, so §1's "record the actual driver" is
   a measurement, not a discipline (advisory, never rc 1).
 
-## 8. Non-goals (closed — see perf_investigations.txt DONE/CLOSED log)
+## 8. Non-goals (closed — see perf_investigations.md DONE/CLOSED log)
 
 Recursive CTE · bidir-as-primary · Mojo-over-bridge · liteparse/PDF
 re-review · chonkie/stringzilla/polars-class deps · iGPU device code
 below crossover · numba · semantica track (separate evaluation:
-doc/local/semantica_evaluation.txt).
+doc/local/evaluations/semantica_evaluation.md).

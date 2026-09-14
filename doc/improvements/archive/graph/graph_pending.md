@@ -1,7 +1,8 @@
 # Graph Pending Items — Deferred (P2.2, P3.2, P3.3)
-# Generated 2026-08-08 after P3.1, P3.4, P3.6 landing.
-# P0/P1/P2.1/P2.3/P2.4/P2.5/P3.1/P3.4/P3.6 are DONE (see git log).
-# This file tracks intentional deferrals — not TODO debt.
+
+Generated 2026-08-08 after P3.1, P3.4, P3.6 landing.
+P0/P1/P2.1/P2.3/P2.4/P2.5/P3.1/P3.4/P3.6 are DONE (see git log).
+This file tracks intentional deferrals — not TODO debt.
 
 ## P2.2 — Incremental DuckDB materialization (deferred)
 - Current: full DROP/CREATE v_node (1187) + 12 e_* + PROPERTY GRAPH on any generation bump (~0.9s via P1 cache, 2.9ms cached hit).
