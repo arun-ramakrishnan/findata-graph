@@ -16,10 +16,11 @@ the chain changes (see
 
 ## 1. Problem & Scope
 
-The knowledge graph stores 1,649 entities in SQLite (`memory/research.db`) —
-1,165 companies, 207 institutions, 114 editions, 78 sub_sectors, 42 sectors,
-21 countries, 12 themes, 10 super_sectors (2026-09-13) —
-connected by 19,261 edges across 19 semantic edge types (§4). At ~1.6k nodes /
+The knowledge graph stores 1,685 entities in SQLite (`memory/research.db`) —
+1,179 companies, 207 institutions, 114 editions, 100 sub_sectors, 42 sectors,
+21 countries, 12 themes, 10 super_sectors (2026-09-14) —
+connected by 19,325 edges across 20 registered semantic edge types (§4;
+19 populated — `penalized_by` registered with zero rows). At ~1.7k nodes /
 ~19k edges a server-grade graph DB is overkill; DuckDB gives in-process graph
 SQL + analytics attached read-only to the existing SQLite — zero new infra.
 
@@ -31,8 +32,8 @@ WRITES: markdown_parse / parse_newsletter / derive-* / mutations
           entities, graph_edges, entity_tags, graph_analytics
 
 READS (read-only ATTACH per session, sqlite_scanner):
-    memory/graph.duckdb (disk cache; schema v9, §8)
-      v_node (1649 rows: all 8 entity kinds) + 18 e_* tables
+    memory/graph.duckdb (disk cache; schema v14, §8)
+      v_node (1685 rows: all 8 entity kinds) + 18 e_* tables
     ├── pattern queries ............ plain SQL JOINs (query.py)
     ├── shortest_path / find_cycles  recursive CTEs
     └── algorithms ................. Onager extension (onager.py):
@@ -99,20 +100,20 @@ CREATE VIEW relations AS                -- backward-compat (READ-ONLY!)
     SELECT source, target, edge_type AS relation_type FROM graph_edges;
 ```
 
-Edge types (extensible; TEXT column). Live counts 2026-09-13 (19 types,
-19,261 rows; previous snapshot 2026-08-19 said 12):
+Edge types (extensible; TEXT column). Live counts 2026-09-14 (20 registered
+types, 19 populated, 19,325 rows; previous snapshot 2026-08-19 said 12):
 
 | edge_type | Direction / semantics | sym | rows |
 |---|---|---|---|
 | `semantic_peer` | company ↔ company (embedding kNN similarity, derived — enrich_relations E3 via DuckDB VSS; weight = rank score) | 1 | 7806 |
 | `competes_with` | company ↔ company | 1* | 3576 |
-| `cited_in` | company/sector → edition (OKF provenance; okf_activation P) | 0 | 1899 |
+| `cited_in` | company/sector → edition (OKF provenance; okf_activation P) | 0 | 1913 |
 | `co_mentioned_in` | company ↔ company (newsletter co-mention, derived) | 1 | 1329 |
-| `part_of` / `has_company` | company ↔ sector (legacy two-row pair) | – | 1165 each |
+| `part_of` / `has_company` | company ↔ sector (legacy two-row pair) | – | 1179 each |
 | `listed_in` | company → country (geography lane, derived) | 0 | 930 |
 | `invested_in` | investor (institution/company) → company | 0 | 715 |
 | `exposed_to` | company → theme (cross-sector) | 0 | 359 |
-| `belongs_to` | sector → super_sector / sub_sector → sector (hierarchy) | 0 | 120 |
+| `belongs_to` | sector → super_sector / sub_sector → sector (hierarchy) | 0 | 142 |
 | `jv_with` | company ↔ company (JV) | 1* | 69 |
 | `subsidiary_of` | subsidiary → parent | 0 | 67 |
 | `acquired` | acquirer → acquired (temporal; set valid_to) | 0 | 41 |
@@ -121,6 +122,7 @@ Edge types (extensible; TEXT column). Live counts 2026-09-13 (19 types,
 | `same_group` | company ↔ company (promoter group) | 1 | 3 |
 | `approved_by` | company/institution → institution | 0 | 2 |
 | `rated_by` | company → rating agency (CRISIL) | 0 | 2 |
+| `penalized_by` | company → institution (RBI, SEBI) | 0 | 0 — registered, not yet produced |
 
 `sym` drift: `competes_with` (105 rows) and `jv_with` (10 rows) carry
 `symmetric=0` against the symmetric convention (`sym=1` marked `1*`).
@@ -134,7 +136,7 @@ the derive write boundary via edition_index, #136: 99.4%/99.7% of sourced
 rows join directly; 4 known mangled/unresolvable titles stay verbatim and
 are reported, never guessed). `cited_in` edges project the OKF `sources[]`
 frontmatter into the graph (props `{resource, n_quotes}`); fan-in is hub-
-skewed (`A_Quarter_That_Refuses_To_Behave` = 379/1,899, 2026-09-13), so analytics
+skewed (`A_Quarter_That_Refuses_To_Behave` = 393/1,913, 2026-09-14), so analytics
 exclude it from activity views (`_MEMBERSHIP_TYPES`), link-prediction's
 default projection omits it, and context packs rank it last and never
 expand hops through it. Standalone target `make derive-cited-in-rebuild`
@@ -238,9 +240,9 @@ persistence), perf: `graph_link_prediction` benchmark.
 
 ### 5.6 Persistence & refresh
 
-`make recompute-graph` → `--all --apply`: 14 metrics live (12 node metrics —
-9 at 1,648 rows, 3 company-only at 1,165; link_prediction 835, voterank 15;
-2026-09-13). Node metrics store
+`make recompute-graph` → `--all --apply` (+ hyper lanes): 18 metrics live
+(16 node metrics — 9 at 1,648 rows, 7 company-only at 1,165; link_prediction
+835, voterank 15; 2026-09-14). Node metrics store
 `{"value": X}` (louvain adds `"community"`+`"modularity"`; wcc
 `"componentId"`). UPSERT on metric-first PK; recompute replaces wholesale.
 `make qa` warns when `computed_at` < `max(entities.last_updated)` (advisory).

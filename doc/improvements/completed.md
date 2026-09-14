@@ -5770,3 +5770,61 @@ prediction/motifs/dynamics lanes.
 sub_sector coverage ~34%→73.5%; quotes company-attribution →97.8%;
 edition lane 20→109 sets with real weights; per-slice targeted suites
 green (up to 66 tests per lane, logged in the proposal appendix).
+
+## 234. Ontology convention stack — SKOS/ORG/PROV-O as table conventions
+
+**Proposal**:
+`doc/improvements/archive/database/ontology_convention_stack.md`
+(filed + executed + archived 2026-09-14; source memo
+`doc/local/engineering/ontology_assessment.md` §10, binding). Schema
+arc — conventions, not runtimes: no RDF store, no SHACL, no OWL;
+SQLite schema v7→v11, DuckDB cache unchanged.
+
+**Problem**: the knowledge graph carried structure without agreed
+semantics — no provenance model behind `source_ref` prefixes, no
+controlled vocabulary behind the tag namespaces, identifiers (CIN/LEI/
+CIK) nowhere in schema, and borrowed ontology terms (SKOS/ORG/PROV/FIBO)
+cited informally if at all.
+
+**Landed** (S0–S5, one day):
+- S1 PROV-O Starting-Point lineage: `provenance_agents` registry (21
+  agents) + `agent_id`/`source_tier` on the five fact tables —
+  28,912/28,912 rows mapped (100%), PRE_FULL converger.
+- S2 SKOS conventions: `concept_schemes`/`concepts`/`concept_mappings`
+  — 11 schemes / 403 concepts / 68 exactMatch crosswalks seeded from
+  tags + taxonomy + the S11/S17 curated industry map; taxonomy entity
+  names canonical on case-collision; OKF company schema gains
+  `industry_code`-family fields; verify_notes industry fill advisory
+  (816/1,179).
+- S3 identifiers: `entities.cin` + five parsed facets +
+  `entity_identifiers` registry (cin|lei|cik|isin|llpin|alias, one
+  entity per identifier); `helpers/core/cin.py` — format-strict/
+  value-lenient parser (LLPIN rejected distinctly; pre-2008 NIC
+  vintages warn); `--set-cin`/`--set-id` validated write surface;
+  `/api/resolve` reader; `check_identifiers` WARNING check; triage
+  funnel accepts `stub|cin=<CIN>`.
+- S4 n-ary event facets: `hyper_incidences.role`/`valid_from`/
+  `valid_to`; `derive_hyperedges --roles` — 220 role-tagged incidences
+  live (41 acquirer / 41 target / 138 partner over the 110
+  counterparty events), event-facet properties JSON (period,
+  date_precision, magnitude raw+numeric+unit), pre-apply
+  reconciliation report (live: 0 unresolved / 0 duplicates / 0
+  conflicts); maint-full TIER2 wired; `events` stays the canonical
+  temporal spine (no event_participants, no confidence columns).
+- S5 cited glossary: `doc/reference/ontology_glossary.md` — 5 entries
+  (ORG subOrganizationOf, schema.org Corporation, FIBO BE
+  PrivateLimitedCompany, SKOS exactMatch, PROV-O wasGeneratedBy) each
+  with URI + license + usage block; citation convention fixed
+  (borrowed names → module docstring: seed_concepts cites SKOS,
+  backfill_row_provenance cites PROV-O; GDM/OXL never cited).
+- Maint-full 15→17 steps (row-provenance, seed-concepts, identifiers
+  PRE_FULL; derive-hyperedges +--roles in TIER2); maint pins updated.
+
+**Gates**: maint-full 18/18; `make qa` 9/9 (2,944 tests); `make
+advisory` 10/10. First-run bill: ruff format on 5 arc files, one ty
+narrowing, 12 lint-audit findings resolved (sanctioned noqa patterns).
+
+**Deferred** (proposal §7): S1b write-time agent stamping (converger
+covers between maint-full runs), NIC-2008 seed-table builder +
+industry_code fill, GLEIF Level-2 relationship checker (first S3
+consumer), Wikidata QID crosswalks, person/DIN lane behind the D6 gate.

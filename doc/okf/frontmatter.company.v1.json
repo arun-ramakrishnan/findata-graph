@@ -98,6 +98,58 @@
         }
       ]
     },
+    "industry_code": {
+      "description": "Coded industry — NIC-2008 5-digit sub-class primary (ontology_convention_stack S2); carry industry_label alongside. Free text until the NIC seed table ships; the pair is the migration target for industry.",
+      "x-okf-version": "0.2",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        }
+      ]
+    },
+    "industry_label": {
+      "description": "Canonical label of the mapped industry_code (SKOS prefLabel of the target concept).",
+      "x-okf-version": "0.2",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        }
+      ]
+    },
+    "industry_source": {
+      "description": "Provenance of industry_code: nic2008 | nace | gics-peer (opaque peer-provided, never our own tree) | manual.",
+      "x-okf-version": "0.2",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "enum": ["nic2008", "nace", "gics-peer", "manual"]
+        }
+      ]
+    },
+    "industry_version": {
+      "description": "Vocabulary version of industry_code, e.g. NIC-2008.",
+      "x-okf-version": "0.2",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "minLength": 1
+        }
+      ]
+    },
     "geography": {
       "type": "string",
       "pattern": "^[a-z_]+$",

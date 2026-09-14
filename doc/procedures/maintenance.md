@@ -29,10 +29,13 @@ that order. Plain `make maint` runs **TIER1 only**.
 |---|---|
 | `sync-tags` | `entity_tags` + `note_tags` from note YAML; E5a-derives `entities.sector_classification` |
 | `okf-backfill` | machine-owned note frontmatter (`sources[]`, `stale_after`) converged from note bodies — the one sanctioned note mutation in maint-full |
+| `row-provenance` | `agent_id`/`source_tier` converged from `source_ref` prefixes across the fact tables (S1) |
+| `seed-concepts` | `concept_schemes`/`concepts`/`concept_mappings` converged from tags + taxonomy + curated map (S2) |
+| `identifiers` | `entity_identifiers` registry ensured + `entities.cin_*` facets re-parsed from `cin` (S3) |
 | `rebuild-note-search` | `note_search` FTS over findata markdowns |
 | `derive-cited-in` | edition `entities` + `cited_in` `graph_edges` from OKF `sources[]` |
 
-All four are **full rebuilds / deterministic projections of
+All seven are **full rebuilds / deterministic projections of
 already-stamped state**. They run before `db_maint` so their output
 lands inside the recovery backup — without this, the backup's FTS was
 one step stale by construction (the rebuild ran after it). Keeping them
@@ -77,6 +80,8 @@ verified committed state (the git-tracked parquet is the real artifact).
 Sector `--check` gates → `company-embeddings --maint` (best-effort,
 never auto-upgrades) → `rebuild-doc-search` (sidecar-only, self-backing)
 → `recompute-graph` → `derive-insights --no-notes` → `derive-events` →
+`derive-hyperedges --apply --roles` (membership regroup + S4 event
+role/facet convergence, reconciliation report in the run log) →
 tail `snapshot` (the single snapshot of a `--full` run).
 
 Gates write nothing; their WRITE paths are explicit make targets
@@ -107,7 +112,7 @@ bookkeeping.
 ## When to run what
 
 - **Routine** → `make maint` (3 steps, always safe).
-- **Post-ingest / post-surgery** → `make maint-full` (14 steps).
+- **Post-ingest / post-surgery** → `make maint-full` (17 steps).
 - **Crash mid-VACUUM** → restore from `db-backup/*_backup.*.zst`:
   `zstd -dc db-backup/research_backup.db.zst > memory/research.db`.
 - **Verify a backup** → decompress to an alt location, `PRAGMA

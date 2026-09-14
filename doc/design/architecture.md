@@ -53,14 +53,17 @@ frontend/             TypeScript UI sources
 ## 4. Data model
 
 Authoritative: [`db_schema.md`](db_schema.md) (SQLite + DuckDB cache schemas).
-Summary: 7 user tables + the FTS5 `note_search` + the `relations` VIEW —
-`entities` (1,649 rows; 8 entity kinds: company 1165 / institution 207 /
-edition 114 / sub_sector 78 / sector 42 / country 21 / theme 12 /
+Summary: 10 user tables + the FTS5 `note_search` + the `relations` VIEW —
+`entities` (1,685 rows; 8 entity kinds: company 1179 / institution 207 /
+edition 114 / sub_sector 100 / sector 42 / country 21 / theme 12 /
 super_sector 10; PK `name`), `entity_tags` (note-tag
-mirror), `graph_edges` (19,261 rows, 19 edge types), `events` (436),
-`quotes` (8,272), `company_metrics` (4,412), `graph_analytics` (19,177 rows;
-written only by `make recompute-graph`). No `market_cap`/`index_membership`
-columns — tag-only. Counts live 2026-09-13.
+mirror), `graph_edges` (19,325 rows, 20 registered edge types — 19
+populated), `events` (436),
+`quotes` (8,272), `company_metrics` (4,412), `graph_analytics` (23,837 rows;
+written only by `make recompute-graph`), `hyper_edges` +
+`hyper_incidences` (the star incidence store), `provenance_agents`
+(the S1 agent registry). No `market_cap`/`index_membership`
+columns — tag-only. Counts live 2026-09-14.
 
 Derived/frozen/moving data follows the §10 format standard
 (parquet-zstd at rest, Arrow in flight).

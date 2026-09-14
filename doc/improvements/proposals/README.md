@@ -30,6 +30,14 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+— (Previously: ontology_convention_stack.md archived 2026-09-14 as completed.md
+entry 234 - execution record in
+`../archive/database/ontology_convention_stack.md`; S0–S5 landed in one
+day: provenance registry (100% coverage), SKOS concept conventions,
+CIN/identifier surfaces, incidence-store event roles, cited glossary;
+SQLite schema v7→v11; S1b writer stamping + NIC seed table deferred
+inside the proposal §7.)_
+
 — (Previously: hypergraph_incidence_hyx.md archived 2026-09-14 as completed.md
 entry 233 - execution record in
 `../archive/graph/hypergraph_incidence_hyx.md`; S0–S21 landed: star store +

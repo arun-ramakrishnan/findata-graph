@@ -8,11 +8,11 @@ JSON API / explorer UI on top.
 
 | | |
 |---|---|
-| **Entities** | 1,517 — 1,063 companies · 205 institutions · 108 editions · 42 sectors · 78 sub-sectors · 9 super-sectors · 12 themes |
-| **Edges** | 17,022 across 15 semantic types (`part_of`, `supplies`, `jv`, `competes`, `co_mentioned_in`, `acquired`, `semantic_peer`, `invested_in`, …) |
-| **Derived data** | 357 events · 2,607 executive quotes · 1,794 financial metrics · 14 persisted graph-metric kinds |
-| **Notes** | 1,226 tracked markdown notes, full-text + vector searchable |
-| **Tests** | 2,590 across 127 modules — unit / integration / fuzz / perf / live gates |
+| **Entities** | 1,685 — 1,179 companies · 207 institutions · 114 editions · 42 sectors · 100 sub-sectors · 10 super-sectors · 12 themes · 21 countries |
+| **Edges** | 19,325 across 20 registered semantic types — 19 populated (`part_of`, `competes_with`, `jv_with`, `co_mentioned_in`, `acquired`, `semantic_peer`, `invested_in`, `listed_in`, …) |
+| **Derived data** | 436 events · 8,272 executive quotes · 4,412 financial metrics · 18 persisted graph-metric kinds · 469 hyperedges / 5,659 incidences |
+| **Notes** | 16,521 searchable note docs (9,247 company · 3,900 chatter · 2,087 points-and-figures · …), full-text + vector searchable |
+| **Tests** | 3,094 across 158 modules — unit / integration / fuzz / perf / live gates |
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/system_overview-dark.png">
@@ -39,7 +39,7 @@ the serving layer.
 
 ## How it fits together
 
-```
+```text
 Reports/*.pdf ──(pdf_conv_md.py: local pymupdf4llm ─┬─>  findata/{Points_And_Figures,The_Chatter,The_PlotLines}/*.md
              Paddle PP-StructureV3 fallback on scans)┘         inputs, gitignored
         │                        │
@@ -103,7 +103,7 @@ HTML in [`doc/design/diagrams/`](doc/design/diagrams/)).
 | Path | Contents |
 |---|---|
 | `app.py` | Flask server: findata viewer + graph API (case-insensitive entity resolution) |
-| `findata/` | the markdown vault — 1,226 tracked notes (+ gitignored OCR inputs) |
+| `findata/` | the markdown vault — 1,348 tracked notes (+ gitignored OCR inputs) |
 | `helpers/pdf/` | `pdf_conv_md` (PDF → markdown), `pdf_local` (local engine), `verify_extraction` (post-conversion self-check) |
 | `helpers/core/` | `parse_newsletter`, `get_tickers` (NSE/BSE via Yahoo), `frontmatter`, `sync_tags`, `db` |
 | `helpers/graph/` | `query` (cache + pattern queries), `onager`, `algorithms`, `derive_*`, `extract_relations`, `embeddings`, `stats` |
@@ -111,7 +111,7 @@ HTML in [`doc/design/diagrams/`](doc/design/diagrams/)).
 | `helpers/maintenance/` | `db_maint`, `snapshot_db` (zstd Parquet + zstd snapshots), `rebuild_schema`, `rename_entity`, `move_sector`, `rebuild_{doc,note,script}_search` |
 | `helpers/misc/` | `database_integrity_check`, `doc_query` (doc/ knowledge index), `script_query` (code-surface index) |
 | `doc/` | architecture, schema, vault spec, graph design, procedures, improvement log |
-| `tests/` | 127 pytest modules (2,590 tests) + conftest, fixtures, perf-benchmark + gate runners |
+| `tests/` | 158 pytest modules (3,094 tests) + conftest, fixtures, perf-benchmark + gate runners |
 | `frontend/` | TypeScript sources; built bundle is committed to `static/` so serving stays Node-free |
 | `Mojo/` | SIMD kernel pilot (`src/bench` kernels + TestSuite tests; `make mojo-build`/`mojo-bench`/`mojo-test` — machinery in `Makefile.mojo`, pyproject `mojo` extra). Deliberately NOT wired into `make perf` |
 | `memory/`, `db-backup/` | runtime DB + local zstd backup/snapshot scratch — **gitignored**, see Quickstart |

@@ -888,3 +888,190 @@ class TestCheckNoteTags:
     def test_missing_table_returns_zeros(self, tmp_path):
         with _make_checker_db(tmp_path) as (db_path, checker):
             assert checker.check_note_tags() == {"total": 0, "stale": 0, "errors": 0}
+
+
+# --- check_identifiers ------------------------------------------------------
+# S3 (ontology_convention_stack): CIN format/facet hygiene + the
+# entity_identifiers registry. The fixture reuses the minimal entities
+# DDL and lets the production self-ensure (backfill_identifiers) add the
+# cin facet block + registry — the same DDL path maint-full uses.
+
+
+class TestCheckIdentifiers:
+    def _db(self, tmp_path: Path) -> Path:
+        from helpers.misc import backfill_identifiers as bi
+
+        db_path = tmp_path / "ident.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute(ENTITIES_DDL)
+        conn.execute("CREATE TABLE entity_tags (entity_name TEXT, tag TEXT)")
+        bi.ensure_schema(conn)  # cin facet block + entity_identifiers
+        conn.commit()
+        conn.close()
+        return db_path
+
+    def _checker(self, tmp_path: Path) -> DatabaseIntegrityChecker:
+        return DatabaseIntegrityChecker(db_path=str(tmp_path / "ident.db"), base_path=str(tmp_path))
+
+    def _insert_entity(self, db_path: Path, **cols) -> None:
+        names = ",".join(cols)
+        marks = ",".join("?" * len(cols))
+        conn = sqlite3.connect(db_path)
+        conn.execute(
+            f"INSERT INTO entities ({names}) VALUES ({marks})",  # noqa: S608  # test fixture, caller-controlled columns
+            tuple(cols.values()),
+        )
+        conn.commit()
+        conn.close()
+
+    def test_clean_cin_zero_warnings(self, tmp_path):
+        db_path = self._db(tmp_path)
+        self._insert_entity(
+            db_path,
+            name="Tata Steel",
+            ticker="TATASTEEL.NS",
+            cin="L01631KA2010PTC096843",
+            cin_listing="L",
+            cin_nic5="01631",
+            cin_state="KA",
+            cin_year=2010,
+            cin_ownership="PTC",
+        )
+        conn = sqlite3.connect(db_path)
+        conn.execute("INSERT INTO entity_tags VALUES ('Tata Steel', 'geography/india')")
+        conn.commit()
+        conn.close()
+        r = self._checker(tmp_path).check_identifiers()
+        assert r["cin_entities"] == 1
+        assert r["warnings"] == 0
+        assert r["errors"] == 0
+
+    def test_facet_drift_flagged(self, tmp_path):
+        db_path = self._db(tmp_path)
+        self._insert_entity(
+            db_path,
+            name="Drift Co",
+            ticker="DRIFT.NS",
+            cin="L01631KA2010PTC096843",
+            cin_listing="L",
+            cin_nic5="01631",
+            cin_state="MH",  # stale — real state is KA
+            cin_year=2010,
+            cin_ownership="PTC",
+        )
+        conn = sqlite3.connect(db_path)
+        conn.execute("INSERT INTO entity_tags VALUES ('Drift Co', 'geography/india')")
+        conn.commit()
+        conn.close()
+        r = self._checker(tmp_path).check_identifiers()
+        assert r["facet_drift"] == 1
+        assert r["warnings"] == 1
+
+    def test_malformed_cin_counted(self, tmp_path):
+        db_path = self._db(tmp_path)
+        self._insert_entity(db_path, name="Bad Co", cin="garbage")
+        r = self._checker(tmp_path).check_identifiers()
+        assert r["malformed_cin"] == 1
+        assert r["warnings"] == 1
+
+    def test_pre2008_vintage_is_warning(self, tmp_path):
+        db_path = self._db(tmp_path)
+        self._insert_entity(
+            db_path,
+            name="Legacy Co",
+            ticker="LEGACY.NS",
+            cin="L01631KA1996PTC096843",
+            cin_listing="L",
+            cin_nic5="01631",
+            cin_state="KA",
+            cin_year=1996,
+            cin_ownership="PTC",
+        )
+        conn = sqlite3.connect(db_path)
+        conn.execute("INSERT INTO entity_tags VALUES ('Legacy Co', 'geography/india')")
+        conn.commit()
+        conn.close()
+        r = self._checker(tmp_path).check_identifiers()
+        assert r["warning_kinds"] == {"vintage_pre2008": 1}
+        assert r["warnings"] == 1
+
+    def test_listing_ticker_cross_checks(self, tmp_path):
+        db_path = self._db(tmp_path)
+        self._insert_entity(
+            db_path,
+            name="Listed No Ticker",
+            cin="L01631KA2010PTC096843",
+            cin_listing="L",
+            cin_nic5="01631",
+            cin_state="KA",
+            cin_year=2010,
+            cin_ownership="PTC",
+        )
+        self._insert_entity(
+            db_path,
+            name="Unlisted With Ticker",
+            ticker="PRIVATE.NS",
+            cin="U01631MH2005PLC123456",
+            cin_listing="U",
+            cin_nic5="01631",
+            cin_state="MH",
+            cin_year=2005,
+            cin_ownership="PLC",
+        )
+        r = self._checker(tmp_path).check_identifiers()
+        assert r["listed_without_ticker"] == 1
+        assert r["ticker_without_listing"] == 1
+
+    def test_state_geography_mismatch(self, tmp_path):
+        db_path = self._db(tmp_path)
+        self._insert_entity(
+            db_path,
+            name="No Geo Co",
+            cin="L01631KA2010PTC096843",
+            cin_listing="L",
+            cin_nic5="01631",
+            cin_state="KA",
+            cin_year=2010,
+            cin_ownership="PTC",
+        )
+        r = self._checker(tmp_path).check_identifiers()
+        assert r["state_geography_mismatch"] == 1
+        conn = sqlite3.connect(db_path)
+        conn.execute("INSERT INTO entity_tags VALUES ('No Geo Co', 'geography/india')")
+        conn.commit()
+        conn.close()
+        r2 = self._checker(tmp_path).check_identifiers()
+        assert r2["state_geography_mismatch"] == 0
+
+    def test_registry_dangling_and_window_inversion(self, tmp_path):
+        db_path = self._db(tmp_path)
+        self._insert_entity(db_path, name="Real Co")
+        conn = sqlite3.connect(db_path)
+        conn.executemany(
+            "INSERT INTO entity_identifiers (entity_name, identifier_type, "
+            "identifier_value, source_ref, valid_from, valid_to) VALUES (?,?,?,?,?,?)",
+            [
+                ("Real Co", "lei", "A" * 20, "manual", None, None),
+                ("Ghost Co", "cik", "123456", "manual", None, None),  # dangling
+                ("Real Co", "isin", "INE123A01024", "manual", "2021-01-01", "2019-01-01"),
+            ],
+        )
+        conn.commit()
+        conn.close()
+        r = self._checker(tmp_path).check_identifiers()
+        assert r["registry"]["rows"] == 3
+        assert r["registry"]["dangling_entity"] == 1
+        assert r["registry"]["window_inversion"] == 1
+        assert r["warnings"] == 2
+
+    def test_pre_s3_schema_skips(self, tmp_path):
+        db_path = tmp_path / "pre.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute(ENTITIES_DDL)
+        conn.commit()
+        conn.close()
+        checker = DatabaseIntegrityChecker(db_path=str(db_path), base_path=str(tmp_path))
+        try:
+            assert checker.check_identifiers() == {"warnings": 0, "errors": 0, "skipped": 1}
+        finally:
+            checker.close()

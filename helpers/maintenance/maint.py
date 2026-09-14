@@ -210,6 +210,18 @@ PRE_FULL_STEPS: list[tuple[str, list[str]]] = [
         [sys.executable, "helpers/misc/backfill_okf_provenance.py", "--apply"],
     ),
     (
+        "row-provenance (converge agent_id/source_tier from source_ref prefixes)",
+        [sys.executable, "helpers/misc/backfill_row_provenance.py", "--apply"],
+    ),
+    (
+        "seed-concepts (converge SKOS schemes/concepts/mappings from tags+taxonomy)",
+        [sys.executable, "helpers/misc/seed_concepts.py", "--apply"],
+    ),
+    (
+        "identifiers (ensure entity_identifiers registry + converge CIN facets)",
+        [sys.executable, "helpers/misc/backfill_identifiers.py", "--apply"],
+    ),
+    (
         "rebuild-note-search (rebuild FTS over findata markdowns)",
         [sys.executable, "helpers/maintenance/rebuild_note_search.py"],
     ),
@@ -323,8 +335,8 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     # incidence tables yet (Phase 1 cache is a proposal non-goal), so no
     # paired graph-rebuild is needed.
     (
-        "derive-hyperedges (regroup membership dyads into hyper_edges)",
-        [sys.executable, "helpers/graph/derive_hyperedges.py", "--apply"],
+        "derive-hyperedges (regroup membership dyads into hyper_edges; --roles = S4 facets)",
+        [sys.executable, "helpers/graph/derive_hyperedges.py", "--apply", "--roles"],
     ),
     (
         "snapshot (re-snapshot to include recomputed analytics + events)",

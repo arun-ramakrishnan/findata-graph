@@ -508,9 +508,22 @@ class NotesVerifier:
         self._check_expected_fields(file_path, data, expected)
         self._check_field_order(file_path, data)
 
-    def check_company_yaml_consistency(self, file_path, data, yaml_content):
+    def check_company_yaml_consistency(  # noqa: C901  # flat per-field advisory ladder (permalink → industry fill → ticker/twin counters), one branch per YAML field family
+        self, file_path, data, yaml_content
+    ):
         """Company-specific checks. Field order is advisory; permalink is gate-failing."""
         self._check_permalink_prefix(file_path, data, "/companies/")
+
+        # industry fill-rate (ontology_convention_stack S2 advisory
+        # metric — the honest signal the NIC migration tracks; never a
+        # gate): carriers / non-null / coded
+        self.stats["company_files"] = self.stats.get("company_files", 0) + 1
+        if "industry" in data:
+            self.stats["industry_carriers"] = self.stats.get("industry_carriers", 0) + 1
+            if data.get("industry") is not None:
+                self.stats["industry_nonnull"] = self.stats.get("industry_nonnull", 0) + 1
+        if data.get("industry_code"):
+            self.stats["industry_coded"] = self.stats.get("industry_coded", 0) + 1
 
         order = list(data.keys())
         if len(order) >= 2 and order[:2] != ["title", "type"]:
@@ -900,12 +913,14 @@ class NotesVerifier:
             print(f"   Parallel mode: {len(dirs)} dirs across {workers} workers")
             companies_count = 0
             with ProcessPoolExecutor(max_workers=workers) as ex:
-                for issues, warnings, count in ex.map(_process_dir_worker, dirs):
+                for issues, warnings, count, industry in ex.map(_process_dir_worker, dirs):
                     for bucket, items in issues.items():
                         self.issues.setdefault(bucket, []).extend(items)
                     for bucket, items in warnings.items():
                         self.warnings.setdefault(bucket, []).extend(items)
                     self.stats["total_files"] += count or 0
+                    for key, n in industry.items():
+                        self.stats[key] = self.stats.get(key, 0) + n
             # Sectors/Super_Sectors are already counted by _collect_scan_dirs;
             # companies = total minus those two.
             companies_count = self.stats["total_files"] - (sectors_count + super_sectors_count)
@@ -933,6 +948,13 @@ class NotesVerifier:
         print(f"   Super-sectors checked: {super_sectors_count}")
         print(f"   Companies checked: {companies_count}")
         print(f"   Total files: {self.stats['total_files']}")
+        if self.stats.get("company_files"):
+            print(
+                f"   Industry fill: {self.stats.get('industry_nonnull', 0)}/"
+                f"{self.stats['company_files']} non-null "
+                f"({self.stats.get('industry_carriers', 0)} carriers, "
+                f"{self.stats.get('industry_coded', 0)} coded) — S2 migration metric"
+            )
         print(f"   Errors: {errors}   Warnings: {warnings}")
 
         self.generate_report(output_file)
@@ -1001,13 +1023,19 @@ def _process_dir_worker(dir_path):
     """Process one scan directory in a worker process.
 
     Creates a fresh NotesVerifier, runs all checks on the directory, and
-    returns the issues/warnings dicts + file count. Must be module-level
-    (not a method) so it's picklable by ProcessPoolExecutor.
+    returns the issues/warnings dicts + file count + the industry
+    fill-rate counters (S2 advisory — process workers don't share the
+    parent's stats dict). Must be module-level (not a method) so it's
+    picklable by ProcessPoolExecutor.
     """
     v = NotesVerifier()
     v.suppress_progress = True  # workers print nothing (avoids interleaving)
     count = v.process_directory(dir_path, Path(dir_path).name)
-    return v.issues, v.warnings, count
+    industry = {
+        key: v.stats.get(key, 0)
+        for key in ("company_files", "industry_carriers", "industry_nonnull", "industry_coded")
+    }
+    return v.issues, v.warnings, count, industry
 
 
 def main(argv=None):

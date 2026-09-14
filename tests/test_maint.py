@@ -46,16 +46,21 @@ class TestPlan:
     """Pin the step labels + commands so reordering is a deliberate
     test update, not a silent regression."""
 
-    def test_pre_full_has_four_steps(self):
+    def test_pre_full_has_seven_steps(self):
         # PRE_FULL (--full only, BEFORE db_maint's recovery backup): pure
-        # index rebuilds + the provenance convergers whose output should
-        # land INSIDE the backup. okf-backfill must precede
-        # derive-cited-in (it converges the sources[] the latter projects).
-        assert len(maint.PRE_FULL_STEPS) == 4
+        # index rebuilds + the provenance/concept/identifier convergers
+        # whose output should land INSIDE the backup. okf-backfill must
+        # precede derive-cited-in (it converges the sources[] the latter
+        # projects); seed-concepts/identifiers are self-ensure DDL +
+        # deterministic projections (ontology_convention_stack S2/S3).
+        assert len(maint.PRE_FULL_STEPS) == 7
         labels = [label for label, _ in maint.PRE_FULL_STEPS]
         assert labels == [
             "sync-tags (rebuild entity_tags from note YAML)",
             "okf-backfill (converge machine-owned sources[] provenance from note bodies)",
+            "row-provenance (converge agent_id/source_tier from source_ref prefixes)",
+            "seed-concepts (converge SKOS schemes/concepts/mappings from tags+taxonomy)",
+            "identifiers (ensure entity_identifiers registry + converge CIN facets)",
             "rebuild-note-search (rebuild FTS over findata markdowns)",
             "derive-cited-in (project OKF sources[] into edition entities + cited_in edges)",
         ]
@@ -106,7 +111,7 @@ class TestPlan:
             "recompute-graph (refresh analytics in graph_analytics)",
             "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
             "derive-events (refresh events timeline from note prose + edges)",
-            "derive-hyperedges (regroup membership dyads into hyper_edges)",
+            "derive-hyperedges (regroup membership dyads into hyper_edges; --roles = S4 facets)",
             "snapshot (re-snapshot to include recomputed analytics + events)",
         ]
 
@@ -143,13 +148,13 @@ class TestPlan:
         # snapshot's artifacts are unconditionally overwritten by the TIER2
         # tail snapshot, so exactly ONE snapshot runs at the end
         # (maint_full_single_snapshot.md D1). Plain maint keeps all 3 TIER1
-        # steps and never runs PRE_FULL. 15 steps since derive-hyperedges
-        # joined TIER2 (2026-09-14).
+        # steps and never runs PRE_FULL. 18 steps since identifiers joined
+        # PRE_FULL (ontology_convention_stack S3, 2026-09-14).
         skipped = [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
         full = maint.PRE_FULL_STEPS + skipped + maint.TIER2_STEPS
         assert len(maint.TIER1_FULL_SKIP) == 1
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
-        assert len(full) == 15
+        assert len(full) == 18
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [
             "snapshot (re-snapshot to include recomputed analytics + events)"
@@ -271,8 +276,8 @@ class TestDryRun:
             + [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
             + maint.TIER2_STEPS
         )
-        # 4 pre-full + 2 tier1 (snapshot elided in --full) + 9 tier2.
-        assert len(all_steps) == 15
+        # 7 pre-full + 2 tier1 (snapshot elided in --full) + 9 tier2.
+        assert len(all_steps) == 18
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
         assert "snapshot (refresh versioned snapshots)" not in output

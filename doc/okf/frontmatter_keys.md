@@ -20,6 +20,10 @@ Source: [`frontmatter.company.v1.json`](frontmatter.company.v1.json)
 | `geography` | no | string | pattern `^[a-z_]+$` | Optional lowercase home-market country value (india, usa, uk, south_korea, ...). Single-valued home market — the listed_in target set (helpers/core/countries.py); multi-market facts live on listed_in edges, not here. Sector notes may instead use coverage values (e.g. global). |
 | `index_membership` | no | null | — | Dropped key (2026-07-28); tolerated as null on legacy notes, absent on new ones. |
 | `industry` | no | string? | min length 1 | Optional GICS-style industry description (present on ~87% of notes). |
+| `industry_code` | no | string? | min length 1 | Coded industry — NIC-2008 5-digit sub-class primary (ontology_convention_stack S2); carry industry_label alongside. Free text until the NIC seed table ships; the pair is the migration target for industry. |
+| `industry_label` | no | string? | min length 1 | Canonical label of the mapped industry_code (SKOS prefLabel of the target concept). |
+| `industry_source` | no | string? | one of `nic2008`, `nace`, `gics-peer`, `manual` | Provenance of industry_code: nic2008 / nace / gics-peer (opaque peer-provided, never our own tree) / manual. |
+| `industry_version` | no | string? | min length 1 | Vocabulary version of industry_code, e.g. NIC-2008. |
 | `last_modified` | yes | string | pattern `^\d{4}-\d{2}-\d{2}$` | ISO calendar date (YYYY-MM-DD). NOTE: unquoted YAML dates are auto-parsed into date objects by PyYAML; the validator normalizes these to ISO strings before checking. |
 | `listed` | no | boolean | — | Optional explicit listing flag (used to record known-unlisted companies). |
 | `market_cap` | yes | string? | one of `large_cap`, `mid_cap`, `small_cap`, `micro_cap` | Cap classification used for tags and search facets, or null when unknown. |

@@ -9,7 +9,10 @@ persist to `findata/Misc/quote_aliases.json` (runtime-loaded by
 `derive_insights._resolve_ladder`); stubs are emitted for the user-held
 entity flow; entries auto-close on the next `derive-insights --apply`.
 
-Decision actions: alias:<Entity> | stub | discard
+Decision actions: alias:<Entity> | stub | stub|cin=<CIN> | discard
+(`stub|cin=` marks the stub's CIN at triage time — validated on apply
+via helpers/core/cin.py, which then prints the ready-to-run
+backfill_identifiers --set-cin command for after the entity exists).
 
 Usage:
     python3 helpers/graph/triage_pending_quotes.py                 # report
@@ -30,6 +33,7 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(_REPO_ROOT))
+from helpers.core.cin import parse_cin  # noqa: E402
 from helpers.core.db import connect  # noqa: E402
 
 WORKLIST = _REPO_ROOT / "findata" / "Misc" / "quote_entity_worklist.json"
@@ -131,7 +135,7 @@ def cmd_report(vss_hints: bool = True) -> int:
         + ", ".join(f"{k} {v}" for k, v in sorted(counts.items())),
         "",
         "Annotate `decision` in `findata/Misc/quote_triage_decisions.jsonl`",
-        "(`alias:<Entity>` | `stub` | `discard`), then:",
+        "(`alias:<Entity>` | `stub` | `stub|cin=<CIN>` | `discard`), then:",
         "`python3 helpers/graph/triage_pending_quotes.py --apply-decisions`",
         "",
     ]
@@ -167,6 +171,7 @@ def cmd_apply() -> int:  # noqa: C901
     failures = []
     alias_rows: list[tuple[str, str]] = []
     stubs: list[str] = []
+    cin_stubs: list[tuple[str, str]] = []
     for r in decided:
         d = r["decision"].strip()
         canonical = r["canonical"]
@@ -179,7 +184,18 @@ def cmd_apply() -> int:  # noqa: C901
                 continue
             aliases[canonical.lower()] = target
             alias_rows.append((canonical, target))
-        elif d == "stub":
+        elif d == "stub" or d.startswith("stub|cin="):
+            # stub|cin=<CIN>: the CIN is validated NOW (bad parse blocks
+            # the batch) and echoed as a ready-to-run --set-cin command
+            # for after the user creates the stub entity.
+            if d.startswith("stub|cin="):
+                cin_value = d.split("=", 1)[1].strip()
+                p = parse_cin(cin_value)
+                if not p.ok:
+                    failures.append(f"{r['id']} ({canonical}): cin {cin_value!r}: {p.message}")
+                    continue
+                assert p.value is not None  # noqa: S101  # ty narrowing; ok implies a parsed 21-char value
+                cin_stubs.append((canonical, p.value))
             stubs.append(canonical)
         elif d == "discard":
             continue
@@ -207,6 +223,12 @@ def cmd_apply() -> int:  # noqa: C901
         print(f"stubs to create (user-held, {len(stubs)}):")
         for s in stubs:
             print(f"  {s}")
+    if cin_stubs:
+        print(f"stub CINs — run after the stub entities exist ({len(cin_stubs)}):")
+        for name, cin in cin_stubs:
+            print(
+                f'  python3 helpers/misc/backfill_identifiers.py --apply --set-cin "{name}={cin}"'
+            )
     print(
         "re-run `derive-insights --apply` to re-home quotes; worklist "
         "entries auto-close when canonicals resolve."

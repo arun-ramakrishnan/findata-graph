@@ -51,7 +51,10 @@ from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 from helpers.maintenance import rebuild_note_search as rns  # noqa: E402
 from helpers.maintenance import snapshot_db  # noqa: E402
 from helpers.maintenance import sync_sector_wikilinks as ssw  # noqa: E402
+from helpers.misc import backfill_identifiers as bi  # noqa: E402
 from helpers.misc import backfill_okf_provenance as bf  # noqa: E402
+from helpers.misc import backfill_row_provenance as brp  # noqa: E402
+from helpers.misc import seed_concepts as sc  # noqa: E402
 
 pytestmark = [pytest.mark.integration]
 
@@ -370,6 +373,25 @@ def _shim_okf_backfill(p, mp, args):
     return _rc(bf._cli(list(args)))
 
 
+def _shim_row_provenance(p, mp, args):
+    # Row converger: run in-process against the tmp project DB. Absent
+    # fact tables are skipped by design (never-blocking), so a minimal
+    # fixture stays green.
+    return _rc(brp.main(["--db", str(p.db), *args]))
+
+
+def _shim_seed_concepts(p, mp, args):
+    # Concept converger: same contract — absent source tables are
+    # skipped, never-blocking.
+    return _rc(sc.main(["--db", str(p.db), *args]))
+
+
+def _shim_identifiers(p, mp, args):
+    # Identifier converger: self-ensure DDL + CIN facet projection —
+    # absent entities table is reported, never blocking.
+    return _rc(bi.main(["--db", str(p.db), *args]))
+
+
 def _shim_derive_cited_in(p, mp, args):
     mp.setattr(dci, "_REPO_ROOT", p.root)
     mp.setattr(dci, "connect", lambda *a, **k: db_connect(str(p.db)))
@@ -390,6 +412,9 @@ _SHIMS = {
     "helpers/graph/derive_insights.py": _shim_derive_insights,
     "helpers/graph/derive_events.py": _shim_derive_events,
     "helpers/misc/backfill_okf_provenance.py": _shim_okf_backfill,
+    "helpers/misc/backfill_row_provenance.py": _shim_row_provenance,
+    "helpers/misc/seed_concepts.py": _shim_seed_concepts,
+    "helpers/misc/backfill_identifiers.py": _shim_identifiers,
     "helpers/graph/derive_cited_in.py": _shim_derive_cited_in,
     "helpers/graph/derive_hyperedges.py": _shim_derive_hyperedges,
 }

@@ -470,6 +470,66 @@ def api_entities():
     )
 
 
+@app.route("/api/resolve")
+def api_resolve():
+    """Resolve an identifier (CIN, LEI, CIK, ISIN, LLPIN, alias) to its
+    entity (ontology_convention_stack S3).
+
+    Lookup order: the live CIN on entities (normalized), then the
+    entity_identifiers registry (case-insensitive — alias values are
+    free-form). Graceful degradation: on a DB predating S3 (no cin
+    column / registry table) both probes miss and the route reports
+    not-found rather than erroring.
+    """
+    from helpers.core.cin import normalize as cin_normalize
+
+    identifier = (request.args.get("identifier") or "").strip()
+    if not identifier:
+        return jsonify({"error": "identifier query param required"}), 400
+
+    conn = get_db_connection()
+    try:
+        cursor = conn.cursor()
+        entity = None
+        if "cin" in {r[1] for r in cursor.execute("PRAGMA table_info(entities)")}:
+            row = cursor.execute(
+                "SELECT name, entity_type, file_path FROM entities WHERE cin = ?",
+                (cin_normalize(identifier),),
+            ).fetchone()
+            if row:
+                entity = {
+                    "name": row[0],
+                    "entity_type": row[1],
+                    "file_path": row[2],
+                    "matched": "entities.cin",
+                }
+        if (
+            entity is None
+            and cursor.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='entity_identifiers' AND type='table'"
+            ).fetchone()
+        ):
+            row = cursor.execute(
+                "SELECT i.entity_name, i.identifier_type, e.entity_type, e.file_path "
+                "FROM entity_identifiers i JOIN entities e ON e.name = i.entity_name "
+                "WHERE i.identifier_value = ? COLLATE NOCASE",
+                (identifier,),
+            ).fetchone()
+            if row:
+                entity = {
+                    "name": row[0],
+                    "entity_type": row[2],
+                    "file_path": row[3],
+                    "matched": f"entity_identifiers.{row[1]}",
+                }
+    finally:
+        conn.close()
+
+    if entity is None:
+        return jsonify({"identifier": identifier, "entity": None}), 404
+    return jsonify({"identifier": identifier, "entity": entity})
+
+
 def _flat_knn_map(q_vec, page_paths, store=None):  # type: ignore[no-untyped-def]
     """S2d (corpus_embeddings_scaling): whole-corpus cosine map from the
     aligned f32 matrix — the fallback of the fallback, used only when vec0
@@ -2585,6 +2645,26 @@ _EDGE_SEMANTICS: dict[str, dict[str, object]] = {
     "invested_in": {
         "symmetric": False,
         "semantics": "Institution → company (reported holder stake)",
+    },
+    "listed_in": {
+        "symmetric": False,
+        "semantics": "Company → country (ticker-derived home market)",
+    },
+    "rated_by": {
+        "symmetric": False,
+        "semantics": "Company → rating agency",
+    },
+    "regulated_by": {
+        "symmetric": False,
+        "semantics": "Company → institution (RBI/SEBI)",
+    },
+    "approved_by": {
+        "symmetric": False,
+        "semantics": "Company → institution (RBI/SEBI)",
+    },
+    "penalized_by": {
+        "symmetric": False,
+        "semantics": "Company → institution (RBI/SEBI)",
     },
 }
 

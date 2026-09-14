@@ -52,13 +52,19 @@ DEFAULT_DB_PATH = _REPO_ROOT / "memory" / "research.db"
 # PRAGMA user_version form; EXPECTED_SCHEMA_VERSION mirrors it into
 # db_meta.schema_version (informational at runtime — only
 # database_integrity_check.py reads it, erroring on drift). These version the
-# SQLite schema only: 7 since the knowledge-graph landing; new edge types are
-# data, not schema. helpers/graph/query.py::_SCHEMA_VERSION versions a
-# DIFFERENT surface — the disposable DuckDB cache layout — and bumps on
-# cache-only changes as well (note vectors, lane tables). A SQLite schema
-# change implies a cache bump, not the reverse: do NOT keep the two in sync.
-EXPECTED_USER_VERSION = 7
-EXPECTED_SCHEMA_VERSION = "7"
+# SQLite schema only: 7 was the knowledge-graph landing; 8 adds the
+# provenance_agents registry + agent_id/source_tier columns
+# (ontology_convention_stack S1); 9 adds concept_schemes/concepts/
+# concept_mappings (S2 SKOS conventions); 10 adds entities.cin + five
+# cin_* facets + entity_identifiers (S3 identifiers); 11 adds role/
+# valid_from/valid_to on hyper_incidences (S4 n-ary event facets); new
+# edge types are data, not schema.
+# helpers/graph/query.py::_SCHEMA_VERSION versions a DIFFERENT surface — the
+# disposable DuckDB cache layout — and bumps on cache-only changes as well
+# (note vectors, lane tables). A SQLite schema change implies a cache bump,
+# not the reverse: do NOT keep the two in sync.
+EXPECTED_USER_VERSION = 11
+EXPECTED_SCHEMA_VERSION = "11"
 
 
 def utc_now() -> str:

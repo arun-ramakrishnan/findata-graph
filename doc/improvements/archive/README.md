@@ -32,6 +32,7 @@ commit, referenced by nothing). Entry numbers point at
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 
+- [`ontology_convention_stack.md`](database/ontology_convention_stack.md) — Ontology convention stack — SKOS/ORG/PROV-O as pure table conventions (no RDF/SHACL/OWL): S1 provenance_agents + source_tier (100% row coverage), S2 concept schemes/concepts/crosswalks (11/403/68), S3 CIN parser + entity_identifiers registry + /api/resolve, S4 hyper_incidences roles/validity + derive_hyperedges --roles (220 role-tagged live), S5 cited glossary; SQLite v7→v11, maint-full 15→17 steps — completed.md #234
 - [`duckdb_improvs.txt`](database/duckdb_improvs.txt) — DuckDB Improvements — core features, SQL, & extension surface — completed.md #72
 - [`sql_query_improvements.txt`](database/sql_query_improvements.txt) — SQL QUERY IMPROVEMENTS — FinData Knowledge Graph — completed.md #73
 - [`local_embeddings.md`](database/local_embeddings.md) — In-House Semantic Embeddings via a Local bge-small-en Model — completed.md #141

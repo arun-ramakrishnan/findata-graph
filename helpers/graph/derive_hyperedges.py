@@ -36,9 +36,25 @@ entity_name)`` — re-running inserts only what changed. No ``--stale-only``
 gate (mirrors derive_countries.py): the source is ``graph_edges`` itself
 (DB-derived), so there is no note watch path to gate on.
 
+S4 (--roles, ontology_convention_stack): participant-level n-ary facets
+on the incidence store. ``hyper_incidences`` gains ``role`` /
+``valid_from`` / ``valid_to`` (guarded ALTERs here — the canonical DDL
+lives in migrate_to_graph_edges); event hyperedges get role-tagged
+participants (acquirer/target for acquisition, partner/partner for jv —
+unmapped types stay NULL, never confabulated), the observation date on
+``hyper_edges.valid_from``, and an event-facet ``properties`` JSON
+(period, date_precision, magnitude_raw + magnitude_numeric +
+magnitude_unit — the raw string stays for audit, never identity). The
+``events`` table REMAINS the canonical temporal spine (D-O2): event/jv
+hyperedges are derived projections, re-converged here. A
+reconciliation report (unresolved counterparties / duplicate
+observations / conflicting stored sets / untagged types) prints BEFORE
+any apply, dry-run or not.
+
 Usage:
     python3 helpers/graph/derive_hyperedges.py             # dry-run summary
     python3 helpers/graph/derive_hyperedges.py --apply     # write hyperedges
+    python3 helpers/graph/derive_hyperedges.py --roles     # + S4 facets + reconciliation report
     python3 helpers/graph/derive_hyperedges.py --verbose   # list every hyperedge
 """
 
@@ -46,6 +62,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sqlite3
 import sys
 from pathlib import Path
@@ -188,6 +205,197 @@ def resolve_counterparties(conn, *, dry_run: bool = True) -> tuple[int, int, lis
                 + "\n"
             )
     return len(resolved), len(unresolved), sorted(set(unresolved))
+
+
+# --------------------------------------------------------------------------- #
+# S4: n-ary event facets (role / valid_from / valid_to on incidences)         #
+# --------------------------------------------------------------------------- #
+# Role vocabulary: (entity role, counterparty role) per event_type. ONLY the
+# two types that carry counterparties live (acquisition 41, jv 69 — measured
+# 2026-09-14); an unmapped type resolves to (None, None) — participants stay
+# unlabeled rather than confabulated, and the reconciliation report names it.
+_EVENT_ROLES: dict[str, tuple[str | None, str | None]] = {
+    "acquisition": ("acquirer", "target"),
+    "jv": ("partner", "partner"),
+}
+
+_INCIDENCE_FACETS: tuple[tuple[str, str], ...] = (
+    ("role", "TEXT"),
+    ("valid_from", "DATE"),
+    ("valid_to", "DATE"),
+)
+
+
+def ensure_incidence_facets(conn) -> None:
+    """Add role/valid_from/valid_to to ``hyper_incidences`` where missing.
+
+    Mirrors the canonical DDL (migrate_to_graph_edges) column order via
+    guarded ALTERs; idempotent, and a no-op on DBs without the table
+    (never-block).
+    """
+    if (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='hyper_incidences' AND type='table'"
+        ).fetchone()
+        is None
+    ):
+        return
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(hyper_incidences)")}
+    for name, decl in _INCIDENCE_FACETS:
+        if name not in cols:
+            conn.execute(f"ALTER TABLE hyper_incidences ADD COLUMN {name} {decl}")  # noqa: S608 -- fixed identifier names
+    conn.commit()
+
+
+def _parse_magnitude(raw: str | None) -> tuple[float | None, str | None]:
+    """Split a raw magnitude string into (numeric, unit).
+
+    ``"USD 1,234.5 crore"`` -> ``(1234.5, "USD crore")`` — the first
+    standalone numeric token becomes the number (currency prefixes like
+    ``Rs`` are common), everything else collapses into the unit
+    qualifier. Ranges (``10-12%``) and range members are NOT single
+    magnitudes -> ``(None, None)``; the raw string is always preserved
+    as ``magnitude_raw`` for audit.
+    """
+    if not raw or not raw.strip():
+        return None, None
+    m = re.search(r"(?<![\d.])(?<!-)(\d[\d,]*(?:\.\d+)?)(?!\d)(?!-[\d.])", raw)
+    if not m:
+        return None, None
+    try:
+        num = float(m.group(1).replace(",", ""))
+    except ValueError:
+        return None, None
+    unit = " ".join((raw[: m.start(1)] + raw[m.end(1) :]).split()) or None
+    return num, unit
+
+
+def collect_event_facets(conn) -> dict:
+    """Role/facet projections for counterparty-carrying events (S4).
+
+    Returns ``{"roles": {(label, member): role}, "props": {label: {...}},
+    "valid_from": {label: date}}`` over the SAME event hyperedges
+    collect_hyperedges builds (``{event_type}:{id}``). Absent events
+    table / column → empty maps (fresh DBs skip, never-block).
+    """
+    facets: dict = {"roles": {}, "props": {}, "valid_from": {}}
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(events)")}
+    if not cols or "counterparty_entity" not in cols:
+        return facets
+    for eid, etype, ent, cp, date, period, prec, mag in conn.execute(
+        "SELECT id, event_type, entity, counterparty_entity, event_date, "
+        "period, date_precision, magnitude FROM events "
+        "WHERE counterparty_entity IS NOT NULL"
+    ):
+        label = f"{etype}:{eid}"
+        ent_role, cp_role = _EVENT_ROLES.get(etype, (None, None))
+        if ent_role:
+            facets["roles"][(label, ent)] = ent_role
+        if cp_role:
+            facets["roles"][(label, cp)] = cp_role
+        num, unit = _parse_magnitude(mag)
+        props = {
+            k: v
+            for k, v in {
+                "period": period,
+                "date_precision": prec,
+                "magnitude_raw": mag,
+                "magnitude_numeric": num,
+                "magnitude_unit": unit,
+            }.items()
+            if v is not None
+        }
+        if props:
+            facets["props"][label] = props
+        if date:
+            facets["valid_from"][label] = date
+    return facets
+
+
+def reconcile_events(conn) -> dict:
+    """S4 pre-apply reconciliation report (never mutates).
+
+    Counts what the role backfill WOULD consume: unresolved counterparty
+    names (0 expected after S9's 110/110), duplicate observations (same
+    event_type + participants + date across multiple rows — each row
+    still gets its own hyperedge, one per observation; enumerated, not
+    collapsed), conflicting stored hyperedges (existing event hyperedge
+    whose member set != {entity, counterparty} — converged on apply),
+    and counterparty-carrying types with no role mapping (participants
+    stay unlabeled).
+    """
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(events)")}
+    if not cols or "counterparty_entity" not in cols:
+        return {
+            "observations": 0,
+            "unresolved": 0,
+            "unresolved_names": [],
+            "duplicate_groups": 0,
+            "duplicate_rows": [],
+            "conflicts": [],
+            "untagged": {},
+        }
+    unresolved = [
+        r[0]
+        for r in conn.execute(
+            "SELECT DISTINCT counterparty FROM events "
+            "WHERE counterparty IS NOT NULL AND counterparty != '' "
+            "AND counterparty_entity IS NULL"
+        )
+    ]
+    duplicates = [
+        (r[0], r[1], r[2], r[3], r[4])
+        for r in conn.execute(
+            # pair normalized (min/max): an acquisition and its direction
+            # flip are the same observation pair
+            "SELECT event_type, min(entity, counterparty_entity), "
+            "max(entity, counterparty_entity), event_date, COUNT(*) "
+            "FROM events WHERE counterparty_entity IS NOT NULL "
+            "GROUP BY 1, 2, 3, 4 HAVING COUNT(*) > 1 ORDER BY 5 DESC"
+        )
+    ]
+    conflicts: list[str] = []
+    has_hyper = (
+        conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='hyper_edges' AND type='table'"
+        ).fetchone()
+        is not None
+    )
+    if has_hyper:
+        for eid, etype, ent, cp in conn.execute(
+            "SELECT id, event_type, entity, counterparty_entity FROM events "
+            "WHERE counterparty_entity IS NOT NULL"
+        ):
+            label = f"{etype}:{eid}"
+            stored = {
+                r[0]
+                for r in conn.execute(
+                    "SELECT i.entity_name FROM hyper_incidences i "
+                    "JOIN hyper_edges h ON h.id = i.edge_id "
+                    "WHERE h.edge_type = 'event' AND h.label = ?",
+                    (label,),
+                )
+            }
+            # absent hyperedge = "to be created" (new_edges counts it), not a conflict
+            if stored and stored != {ent, cp}:
+                conflicts.append(label)
+    untagged: dict[str, int] = {}
+    for etype, n in conn.execute(
+        "SELECT event_type, COUNT(*) FROM events WHERE counterparty_entity IS NOT NULL GROUP BY 1"
+    ):
+        if etype not in _EVENT_ROLES:
+            untagged[etype] = n
+    return {
+        "observations": conn.execute(
+            "SELECT COUNT(*) FROM events WHERE counterparty_entity IS NOT NULL"
+        ).fetchone()[0],
+        "unresolved": len(unresolved),
+        "unresolved_names": sorted(unresolved)[:5],
+        "duplicate_groups": len(duplicates),
+        "duplicate_rows": [f"{t}:{e}↔{c}@{d} ×{n}" for t, e, c, d, n in duplicates[:5]],
+        "conflicts": conflicts[:5],
+        "untagged": untagged,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -463,6 +671,7 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
     *,
     conn=None,
     dry_run: bool = True,
+    facets: dict | None = None,
 ) -> dict[str, tuple[int, int]]:
     """Upsert the collected hyperedges; return ``{edge_type: (new_edges,
     new_incidences)}`` per source.
@@ -475,6 +684,13 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
     (a company leaving a category) is NOT compacted here — the backfill is
     additive; compaction belongs to a future full-refresh mode (proposal
     §3 S2, honest-scope note).
+
+    ``facets`` (S4, from :func:`collect_event_facets`, ``--roles``):
+    per-incidence roles are written on INSERT and converged on existing
+    rows (a mapped participant whose stored role drifted — or an untagged
+    one carrying a stale role — is UPDATEd; pass ``facets=None`` to leave
+    roles untouched), event-hyperedge ``properties`` gain the event-facet
+    keys, and ``valid_from`` converges to the observation date.
     """
     own_conn = conn is None
     if own_conn:
@@ -497,45 +713,39 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
                         continue
 
                     if not dry_run:
+                        # base properties every hyperedge carries; S4 event
+                        # facets merge in (period/date_precision/magnitude)
+                        props = {
+                            "n_members": len(members),
+                            "upstream_types": _upstream_types(hyper_type),
+                        }
+                        if facets:
+                            props.update(facets.get("props", {}).get(label, {}))
+                        props_json = json.dumps(props, sort_keys=True)
                         # refresh properties on existing hyperedges too
                         # (upstream_types was [] for industry before S8 —
                         # backfills converge stale props in one pass)
                         conn.execute(
                             "UPDATE hyper_edges SET properties = ? "
                             "WHERE edge_type = ? AND label = ? AND properties != ?",
-                            (
-                                json.dumps(
-                                    {
-                                        "n_members": len(members),
-                                        "upstream_types": _upstream_types(hyper_type),
-                                    },
-                                    sort_keys=True,
-                                ),
-                                hyper_type,
-                                label,
-                                json.dumps(
-                                    {
-                                        "n_members": len(members),
-                                        "upstream_types": _upstream_types(hyper_type),
-                                    },
-                                    sort_keys=True,
-                                ),
-                            ),
+                            (props_json, hyper_type, label, props_json),
                         )
+                        if facets:
+                            vf = facets.get("valid_from", {}).get(label)
+                            if vf:
+                                conn.execute(
+                                    "UPDATE hyper_edges SET valid_from = ? "
+                                    "WHERE edge_type = ? AND label = ? AND valid_from IS NOT ?",
+                                    (vf, hyper_type, label, vf),
+                                )
                         if is_new:
-                            props = json.dumps(
-                                {
-                                    "n_members": len(members),
-                                    "upstream_types": _upstream_types(hyper_type),
-                                },
-                                sort_keys=True,
-                            )
                             source_ref = f"derive:hyperedges:{_upstream(hyper_type)}"
+                            vf_new = facets.get("valid_from", {}).get(label) if facets else None
                             cur = conn.execute(
                                 "INSERT OR IGNORE INTO hyper_edges "
-                                "(edge_type, label, properties, source_ref) "
-                                "VALUES (?, ?, ?, ?)",
-                                (hyper_type, label, props, source_ref),
+                                "(edge_type, label, properties, source_ref, valid_from) "
+                                "VALUES (?, ?, ?, ?, ?)",
+                                (hyper_type, label, props_json, source_ref, vf_new),
                             )
                             if cur.rowcount:
                                 new_edges += 1
@@ -545,21 +755,31 @@ def apply_hyperedges(  # noqa: C901 — per-edge_type DDL + dry-run/apply branch
                         ).fetchone()[0]
                         for member in sorted(members):
                             w = (weights or {}).get((hyper_type, label, member))
+                            role = facets.get("roles", {}).get((label, member)) if facets else None
                             cur = conn.execute(
                                 "INSERT OR IGNORE INTO hyper_incidences "
-                                "(edge_id, entity_name, weight) VALUES (?, ?, ?)",
-                                (edge_id, member, w),
+                                "(edge_id, entity_name, weight, role) VALUES (?, ?, ?, ?)",
+                                (edge_id, member, w, role),
                             )
                             if cur.rowcount:
                                 new_inc += 1  # genuinely new membership
-                            elif w is not None:
-                                # existing member: refresh the intensity only
-                                # (S8 re-runs after new quotes; not new rows)
-                                conn.execute(
-                                    "UPDATE hyper_incidences SET weight = ? "
-                                    "WHERE edge_id = ? AND entity_name = ?",
-                                    (w, edge_id, member),
-                                )
+                            else:
+                                # existing member: converge the intensity
+                                # (S8 re-runs after new quotes) and, in
+                                # --roles mode, the participant role (S4 —
+                                # untagged participants converge to NULL)
+                                if w is not None:
+                                    conn.execute(
+                                        "UPDATE hyper_incidences SET weight = ? "
+                                        "WHERE edge_id = ? AND entity_name = ?",
+                                        (w, edge_id, member),
+                                    )
+                                if facets:
+                                    conn.execute(
+                                        "UPDATE hyper_incidences SET role = ? "
+                                        "WHERE edge_id = ? AND entity_name = ? AND role IS NOT ?",
+                                        (role, edge_id, member, role),
+                                    )
                     else:
                         # dry-run, edge exists: count only missing incidences
                         edge_id = conn.execute(
@@ -606,6 +826,12 @@ def _cli(argv: list[str] | None = None) -> int:
             corpus=False,
         ),
     )
+    p.add_argument(
+        "--roles",
+        action="store_true",
+        help="S4: write/converge participant roles + event facets on incidences "
+        "(reconciliation report prints before any apply)",
+    )
     args = p.parse_args(argv)
 
     conn = connect()
@@ -617,6 +843,29 @@ def _cli(argv: list[str] | None = None) -> int:
                 f"S9 counterparty resolution ({mode}): {n_ok} resolved, "
                 f"{n_bad} unresolved{'; ' + ', '.join(names_bad[:5]) if names_bad else ''}"
             )
+        facets = None
+        if args.roles:
+            ensure_incidence_facets(conn)
+            rec = reconcile_events(conn)
+            dup = (
+                f"{rec['duplicate_groups']} group(s): " + ", ".join(rec["duplicate_rows"])
+                if rec["duplicate_groups"]
+                else "0"
+            )
+            print(
+                f"S4 event reconciliation: {rec['observations']} observations, "
+                f"{rec['unresolved']} unresolved"
+                + (f" ({', '.join(rec['unresolved_names'])})" if rec["unresolved"] else "")
+                + f", duplicates {dup}"
+                + f", {len(rec['conflicts'])} conflicting stored set(s)"
+                + (f" ({', '.join(rec['conflicts'])})" if rec["conflicts"] else "")
+                + (
+                    f", untagged types {rec['untagged']}"
+                    if rec["untagged"]
+                    else ", all types role-mapped"
+                )
+            )
+            facets = collect_event_facets(conn)
         hyper, weights = collect_hyperedges(conn)
         valid = {r[0] for r in conn.execute("SELECT name FROM entities")}
         sub_groups, unmapped = derive_sub_sectors(hyper, valid)
@@ -647,7 +896,7 @@ def _cli(argv: list[str] | None = None) -> int:
                 for label, members in sorted(groups.items()):
                     print(f"{hyper_type}\t{label}\t{len(members)} members")
 
-        stats = apply_hyperedges(hyper, weights, conn=conn, dry_run=not args.apply)
+        stats = apply_hyperedges(hyper, weights, conn=conn, dry_run=not args.apply, facets=facets)
         print(
             f"{'source':<10} {'new_edges':>10} {'new_incidences':>15}"
             + (f"  ({len(weights)} weighted)" if weights else "")

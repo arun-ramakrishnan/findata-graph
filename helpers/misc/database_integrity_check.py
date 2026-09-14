@@ -104,6 +104,14 @@ _CHECKS: tuple[Check, ...] = (
     ),
     Check("fuzzy_duplicates", "check_fuzzy_duplicate_names", "warning", "Fuzzy Name Similarity"),
     Check("validity_window", "check_validity_window", "warning", "Edge Validity Window Coverage"),
+    Check(
+        "provenance_coverage",
+        "check_provenance_coverage",
+        "warning",
+        "Row Provenance Coverage",
+    ),
+    Check("concepts", "check_concepts", "warning", "SKOS Concepts"),
+    Check("identifiers", "check_identifiers", "warning", "Identifiers (CIN + registry)"),
     Check("graph_summary", "check_graph_summary", "warning", "Graph Summary"),
     Check("db_meta", "check_db_meta", "error", "DB Meta (generation + user_version)"),
 )
@@ -1182,6 +1190,251 @@ class DatabaseIntegrityChecker:
     # ------------------------------------------------------------------ #
     # Edge validity-window coverage (advisory)
     # ------------------------------------------------------------------ #
+    def check_concepts(self) -> dict:
+        """SKOS concept hygiene (ontology_convention_stack S2): acyclicity
+        of ``broader_id``, dangling references, duplicate pref_labels
+        within a scheme, and schemes with no concepts.
+
+        WARNING severity — the tables are a converged projection
+        (maint-full PRE_FULL ``seed_concepts``), so a red row means the
+        SOURCE state (tags / taxonomy edges / curated map) drifted, not
+        that this check should gate. Tolerates a DB predating S2.
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        if (
+            cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='concepts' AND type='table'"
+            ).fetchone()
+            is None
+        ):
+            return {"warnings": 0, "errors": 0, "skipped": 1}
+
+        warnings = 0
+        # dangling broader_id (FK-off renames)
+        dangling = cur.execute(
+            "SELECT COUNT(*) FROM concepts c WHERE c.broader_id IS NOT NULL "
+            "AND NOT EXISTS (SELECT 1 FROM concepts p WHERE p.concept_id = c.broader_id)"
+        ).fetchone()[0]
+        warnings += dangling
+        # cycles: walk the broader chain from every row (a few hundred
+        # concepts — Python walk is exact and cheap)
+        broader = {
+            row[0]: row[1]
+            for row in cur.execute(
+                "SELECT concept_id, broader_id FROM concepts WHERE broader_id IS NOT NULL"
+            )
+        }
+        cyclic = set()
+        for start in broader:
+            seen = set()
+            node = start
+            while node is not None and node in broader:
+                if node in seen:
+                    cyclic.add(start)
+                    break
+                seen.add(node)
+                node = broader[node]
+        warnings += len(cyclic)
+        # duplicate pref_label within a scheme (case-insensitive: the
+        # tag-vs-entity case-variant class the seeder absorbs)
+        dupes = cur.execute(
+            "SELECT COUNT(*) FROM (SELECT scheme_id, pref_label FROM concepts "
+            "GROUP BY scheme_id, pref_label COLLATE NOCASE HAVING COUNT(*) > 1)"
+        ).fetchone()[0]
+        warnings += dupes
+        # schemes with no concepts (roster drift)
+        empty_schemes = cur.execute(
+            "SELECT COUNT(*) FROM concept_schemes s "
+            "WHERE NOT EXISTS (SELECT 1 FROM concepts c WHERE c.scheme_id = s.scheme_id)"
+        ).fetchone()[0]
+        warnings += empty_schemes
+        return {
+            "dangling_broader": dangling,
+            "cycles": len(cyclic),
+            "duplicate_pref_labels": dupes,
+            "empty_schemes": empty_schemes,
+            "warnings": warnings,
+            "errors": 0,
+        }
+
+    def check_identifiers(self) -> dict:  # noqa: C901  # one validation ladder per facet family (parse → facets → cross-checks → registry), mirroring check_provenance_coverage's shape
+        """Identifier hygiene (ontology_convention_stack S3): CIN format +
+        facet drift on entities, tag/ticker cross-checks, and the
+        entity_identifiers registry.
+
+        WARNING severity by design (memo §6.6): MCA legacy values
+        (unknown ROC/ownership codes, pre-2008 NIC vintages) parse fine
+        and are a census signal, not gate failures; the PRE_FULL
+        ``identifiers`` converger (backfill_identifiers.py) refreshes
+        drifted facets. Tolerates a DB predating S3 (facet columns or
+        registry table absent → skipped).
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        cols = {row[1] for row in cur.execute("PRAGMA table_info(entities)")}
+        if not {"cin", "cin_listing", "cin_nic5", "cin_state", "cin_year", "cin_ownership"} <= cols:
+            return {"warnings": 0, "errors": 0, "skipped": 1}
+
+        from helpers.core.cin import ROC_STATES, parse_cin
+
+        # geography is country-level (geography/india), so any attested
+        # ROC state ⇒ an india tag is expected on the entity.
+        india_entities: set[str] | None = None
+        if (
+            cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='entity_tags' AND type='table'"
+            ).fetchone()
+            is not None
+        ):
+            india_entities = {
+                row[0]
+                for row in cur.execute(
+                    "SELECT entity_name FROM entity_tags WHERE tag='geography/india'"
+                )
+            }
+
+        malformed = 0
+        facet_drift = 0
+        listed_without_ticker = 0
+        ticker_without_listing = 0
+        state_geography_mismatch = 0
+        warning_kinds: dict[str, int] = {}
+        rows = cur.execute(
+            "SELECT name, ticker, cin, cin_listing, cin_nic5, cin_state, cin_year, "
+            "cin_ownership FROM entities WHERE cin IS NOT NULL AND TRIM(cin) <> ''"
+        ).fetchall()
+        for name, ticker, cin, listing, nic5, state, year, ownership in rows:
+            p = parse_cin(cin)
+            if not p.ok:
+                malformed += 1
+                continue
+            for w in p.warnings:
+                kind = w.split(":", 1)[0]
+                warning_kinds[kind] = warning_kinds.get(kind, 0) + 1
+            if (listing, nic5, state, year, ownership) != (
+                p.listing,
+                p.nic5,
+                p.state,
+                p.year,
+                p.ownership,
+            ):
+                facet_drift += 1
+            if listing == "L" and not (ticker or "").strip():
+                listed_without_ticker += 1
+            if (ticker or "").strip() and listing is not None and listing != "L":
+                ticker_without_listing += 1
+            if p.state in ROC_STATES and india_entities is not None and name not in india_entities:
+                state_geography_mismatch += 1
+
+        registry: dict[str, int] = {}
+        if (
+            cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='entity_identifiers' AND type='table'"
+            ).fetchone()
+            is None
+        ):
+            registry["skipped"] = 1
+        else:
+            registry["rows"] = cur.execute("SELECT COUNT(*) FROM entity_identifiers").fetchone()[0]
+            registry["dangling_entity"] = cur.execute(
+                "SELECT COUNT(*) FROM entity_identifiers i WHERE NOT EXISTS "
+                "(SELECT 1 FROM entities e WHERE e.name = i.entity_name)"
+            ).fetchone()[0]
+            registry["window_inversion"] = cur.execute(
+                "SELECT COUNT(*) FROM entity_identifiers WHERE valid_from IS NOT NULL "
+                "AND valid_to IS NOT NULL AND valid_from > valid_to"
+            ).fetchone()[0]
+
+        warnings = (
+            malformed
+            + facet_drift
+            + sum(warning_kinds.values())
+            + listed_without_ticker
+            + ticker_without_listing
+            + state_geography_mismatch
+            + registry.get("dangling_entity", 0)
+            + registry.get("window_inversion", 0)
+        )
+        return {
+            "cin_entities": len(rows),
+            "malformed_cin": malformed,
+            "facet_drift": facet_drift,
+            "warning_kinds": warning_kinds,
+            "listed_without_ticker": listed_without_ticker,
+            "ticker_without_listing": ticker_without_listing,
+            "state_geography_mismatch": state_geography_mismatch,
+            # informational: cin_nic5 -> nic2008 concept scheme is a
+            # deferred own slice, so NIC codes are not cross-checked yet.
+            "nic5_crosscheck": "deferred (nic2008 scheme lands in a later slice)",
+            "registry": registry,
+            "warnings": warnings,
+            "errors": 0,
+        }
+
+    def check_provenance_coverage(self) -> dict:
+        """Row-level provenance coverage: agent_id + source_tier fill per fact table.
+
+        WARNING severity by design (ontology_convention_stack S1): rows
+        land un-converged between maint-full runs — the PRE_FULL
+        ``backfill_row_provenance`` converger closes the gap — and
+        unmapped source_ref prefixes are a census signal, not a gate
+        failure. The check exists to make coverage drift visible each
+        ``make qa``, the same role ``check_validity_window`` plays for
+        temporal coverage. Tolerates a DB predating S1 (no columns →
+        reported as skipped zeros).
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        fact_tables = (
+            "graph_edges",
+            "events",
+            "quotes",
+            "company_metrics",
+            "hyper_edges",
+        )
+        by_table: dict[str, dict[str, int]] = {}
+        unmapped_total = 0
+        unmapped_prefixes: dict[str, list[tuple[str, int]]] = {}
+        for table in fact_tables:
+            if (
+                cur.execute(
+                    "SELECT 1 FROM sqlite_master WHERE name=? AND type='table'",
+                    (table,),
+                ).fetchone()
+                is None
+            ):
+                by_table[table] = {"total": 0, "unmapped": 0, "skipped": 1}
+                continue
+            cols = {row[1] for row in cur.execute(f"PRAGMA table_info({table})")}
+            if not {"agent_id", "source_tier"} <= cols:
+                by_table[table] = {"total": 0, "unmapped": 0, "skipped": 1}
+                continue
+            total, no_agent, no_tier = cur.execute(
+                f"SELECT COUNT(*), COALESCE(SUM(agent_id IS NULL), 0), "  # noqa: S608  # table from the in-repo fact-table tuple
+                f"COALESCE(SUM(source_tier IS NULL), 0) FROM {table}"
+            ).fetchone()
+            unmapped = max(no_agent, no_tier)
+            by_table[table] = {"total": total, "unmapped": unmapped, "skipped": 0}
+            unmapped_total += unmapped
+            if unmapped:
+                unmapped_prefixes[table] = [
+                    (row[0], row[1])
+                    for row in cur.execute(
+                        f"SELECT substr(source_ref, 1, instr(source_ref || ':', ':') - 1), "  # noqa: S608  # table from the in-repo fact-table tuple; LIMIT literal 5
+                        f"COUNT(*) FROM {table} "
+                        f"WHERE agent_id IS NULL AND source_ref IS NOT NULL "
+                        f"GROUP BY 1 ORDER BY 2 DESC LIMIT 5"
+                    )
+                ]
+        return {
+            "by_table": by_table,
+            "unmapped_prefixes": unmapped_prefixes,
+            "unmapped_total": unmapped_total,
+            "warnings": unmapped_total,
+            "errors": 0,
+        }
+
     def check_validity_window(self) -> dict:
         """Per-edge-type coverage of ``valid_from`` / ``valid_to`` on
         ``graph_edges``.

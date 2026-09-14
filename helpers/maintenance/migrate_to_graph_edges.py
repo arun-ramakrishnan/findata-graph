@@ -161,6 +161,11 @@ HYPER_EDGES_INDEXES = [
 
 # One row per (hyperedge, member) incidence. FK CASCADE on both sides matches
 # graph_edges: incidences auto-vanish when the hyperedge or the entity dies.
+# role/valid_from/valid_to (ontology_convention_stack S4): participant-level
+# n-ary facets — role names the member's part in the set (event roles:
+# acquirer/target/partner; NULL = unlabeled membership), the validity window
+# scopes WHEN this member held that role. Existing DBs gain them via the
+# guarded ALTERs in derive_hyperedges.ensure_incidence_facets (same order).
 HYPER_INCIDENCES_DDL = """
 CREATE TABLE IF NOT EXISTS hyper_incidences (
     edge_id     INTEGER NOT NULL
@@ -169,6 +174,9 @@ CREATE TABLE IF NOT EXISTS hyper_incidences (
                   REFERENCES entities(name) ON DELETE CASCADE ON UPDATE CASCADE,
     weight      REAL,                  -- per-incidence weight (HIF granularity 2)
     direction   TEXT,                  -- 'head'|'tail' for directed hypergraphs; NULL = undirected
+    role        TEXT,                  -- participant role (S4 n-ary facets); NULL = unlabeled
+    valid_from  DATE,                  -- participant-level validity window (S4); NULL = unbounded
+    valid_to    DATE,
     PRIMARY KEY (edge_id, entity_name),
     CHECK (direction IS NULL OR direction IN ('head', 'tail'))
 );
