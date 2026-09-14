@@ -129,7 +129,7 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 77 company note(s) in FMCG. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 81 company note(s) in FMCG. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[AWL_Agri_Business|AWL Agri Business]]
 - [[Acrysil]]
@@ -141,6 +141,7 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 - [[Bectors_Food_Specialities|Bectors Food Specialities]]
 - [[Bikaji_Foods_International|Bikaji Foods International]]
 - [[Britannia_Industries|Britannia Industries]]
+- [[CCL_Products|CCL Products]]
 - [[Campus_Activewear|Campus Activewear]]
 - [[Carlsberg]]
 - [[Colgate_Palmolive_India_Ltd|Colgate Palmolive India]]
@@ -156,6 +157,7 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 - [[Godfrey_Phillips_India|Godfrey Phillips India]]
 - [[Godrej_Consumer_Products|Godrej Consumer Products]]
 - [[Gopal_Snacks|Gopal Snacks]]
+- [[Graviss_Foods|Graviss Foods]]
 - [[Gulf_Oil_Lubricants_India|Gulf Oil Lubricants India]]
 - [[HMA]]
 - [[Hatsun_Agro_Products|Hatsun Agro Products]]
@@ -181,7 +183,9 @@ FMCG is a sub-sector of [[Consumer_Staples]] within the broader [[Consumer]] sec
 - [[P_G_Hygiene_And_Healthcare|P&G Hygiene and Healthcare]]
 - [[Pajson_Agro_India|Pajson Agro India]]
 - [[Parag_Milk_Foods|Parag Milk Foods]]
+- [[Parle_Products|Parle Products]]
 - [[Patanjali_Foods|Patanjali Foods]]
+- [[PepsiCo]]
 - [[Philip_Morris_International|Philip Morris International]]
 - [[Pizza_Hut|Pizza Hut]]
 - [[Radico_Khaitan|Radico Khaitan]]

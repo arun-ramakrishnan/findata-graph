@@ -115,7 +115,7 @@ The Retail sector in India encompasses physical retail, e-commerce, fashion reta
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 31 company note(s) in Retail. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 32 company note(s) in Retail. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Aditya_Birla_Fashion_and_Retail|Aditya Birla Fashion and Retail]]
 - [[Amazon]]
@@ -144,6 +144,7 @@ The Retail sector in India encompasses physical retail, e-commerce, fashion reta
 - [[Shoppers_Stop|Shoppers Stop Limited]]
 - [[Spencers_Retail|Spencers Retail]]
 - [[Swiggy]]
+- [[Target]]
 - [[Trent]]
 - [[Tribhovandas_Bhimji_Zaveri|Tribhovandas Bhimji Zaveri]]
 - [[Vaibhav_Global|Vaibhav Global]]

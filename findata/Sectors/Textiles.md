@@ -105,7 +105,7 @@ Source: The Chatter Newsletter - Edition #39
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 30 company note(s) in Textiles. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 31 company note(s) in Textiles. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Arvind_Limited|Arvind Limited]]
 - [[Arvind_Fashions|Arvind Fashions Limited]]
@@ -131,6 +131,7 @@ Source: The Chatter Newsletter - Edition #39
 - [[Raymond_Lifestyle|Raymond Lifestyle]]
 - [[Rupa_and_Company|Rupa]]
 - [[Sanathan_Textiles|Sanathan Textiles]]
+- [[Sportking_India|Sportking India]]
 - [[The_Cotton_Corporation|The Cotton Corporation]]
 - [[Trident]]
 - [[VardhmanTextiles|Vardhman Textiles]]

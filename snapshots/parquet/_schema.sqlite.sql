@@ -86,7 +86,7 @@ CREATE TABLE events (
     as_of_edition  TEXT,                 -- sourcing newsletter edition
     source_ref     TEXT NOT NULL,        -- "derive:events:..." | "manual:..." | "migration:..."
     properties     TEXT NOT NULL DEFAULT '{}',
-    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, counterparty_entity TEXT REFERENCES entities(name) ON UPDATE CASCADE ON DELETE SET NULL,
     CHECK (json_valid(properties))
 );
 
@@ -146,13 +146,38 @@ CREATE TABLE entity_ticker_status (
     decided_at TEXT NOT NULL
 );
 
-CREATE TABLE company_embeddings (
+CREATE TABLE "company_embeddings" (
             company_name TEXT PRIMARY KEY,
-            embedding    FLOAT[384],
+            embedding    BLOB NOT NULL,
             model        TEXT NOT NULL,
             created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
-            CHECK (json_array_length(embedding) = 384)
+            CHECK (length(embedding) % 4 = 0 AND length(embedding) > 0)
         );
+
+CREATE TABLE hyper_edges (
+    id          INTEGER PRIMARY KEY,
+    edge_type   TEXT NOT NULL,        -- sector|theme|country|group|edition|...
+    label       TEXT NOT NULL,        -- the hyperedge's own name (category/edition/group)
+    weight      REAL NOT NULL DEFAULT 1.0,
+    valid_from  DATE,
+    valid_to    DATE,
+    source_ref  TEXT NOT NULL,
+    properties  TEXT NOT NULL DEFAULT '{}',
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(edge_type, label),
+    CHECK (json_valid(properties))
+);
+
+CREATE TABLE hyper_incidences (
+    edge_id     INTEGER NOT NULL
+                  REFERENCES hyper_edges(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    entity_name TEXT NOT NULL
+                  REFERENCES entities(name) ON DELETE CASCADE ON UPDATE CASCADE,
+    weight      REAL,                  -- per-incidence weight (HIF granularity 2)
+    direction   TEXT,                  -- 'head'|'tail' for directed hypergraphs; NULL = undirected
+    PRIMARY KEY (edge_id, entity_name),
+    CHECK (direction IS NULL OR direction IN ('head', 'tail'))
+);
 
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 
@@ -188,7 +213,9 @@ CREATE INDEX idx_metrics_edition ON company_metrics(as_of_edition);
 
 CREATE INDEX idx_note_tags_tag ON note_tags(tag);
 
-CREATE INDEX idx_emb_company ON company_embeddings(company_name);
+CREATE INDEX he_type_idx ON hyper_edges(edge_type);
+
+CREATE INDEX hi_entity_idx ON hyper_incidences(entity_name);
 
 CREATE VIEW relations AS
     SELECT source, target, edge_type AS relation_type

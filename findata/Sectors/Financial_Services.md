@@ -134,10 +134,11 @@ The Financial Services sector in India encompasses banks, non-banking financial 
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 11 company note(s) in Financial_Services. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 12 company note(s) in Financial_Services. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[360_ONE_WAM|360 ONE WAM]]
 - [[BlackRock|BlackRock, Inc.]]
+- [[CRIF_High_Mark|CRIF High Mark]]
 - [[Housing_and_Urban_Development_Corporation|Housing and Urban Development Corporation]]
 - [[Indian_Railway_Finance|Indian Railway Finance]]
 - [[Indian_Renewable_Energy_Development_Agency|Indian Renewable Energy Development Agency]]

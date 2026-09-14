@@ -169,7 +169,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 95 company note(s) in Automotive. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 96 company note(s) in Automotive. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Amara_Raja_Batteries|Amara Raja Batteries Limited]]
 - [[Apollo_Tyres|Apollo Tyres]]
@@ -204,6 +204,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 - [[General_Motors|General Motors]]
 - [[Grammer_AG|Grammer AG]]
 - [[Hero_MotoCorp|Hero MotoCorp]]
+- [[Honda_Motor|Honda Motor]]
 - [[Hyundai_Motor_Company|Hyundai Motor Company]]
 - [[Hyundai_Motor_India_Limited|Hyundai Motor India Limited]]
 - [[Indag_Rubber|Indag Rubber]]

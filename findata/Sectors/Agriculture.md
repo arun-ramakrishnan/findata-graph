@@ -102,11 +102,12 @@ Agriculture companies are involved in crop production, livestock farming, and ag
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 13 company note(s) in Agriculture. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 14 company note(s) in Agriculture. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Avanti_Feeds|Avanti Feeds]]
 - [[Dhanuka_Agritech|Dhanuka Agritech]]
 - [[EID_Parry|EID Parry]]
+- [[Godrej_Agrovet|Godrej Agrovet]]
 - [[Jain_Irrigation_Systems|Jain Irrigation Systems]]
 - [[Kaveri_seeds|Kaveri seeds]]
 - [[Kuantum_Papers_Ltd|Kuantum Papers Limited]]
