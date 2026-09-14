@@ -71,6 +71,22 @@ subject (a multi-stage chain, a store topology, an ordered protocol).
 - Overflow: fix by compacting gaps / cropping empty viewBox bands /
   shortening card copy — never by clipping.
 - Budget: ~6 validate rounds for a new 10-node diagram, minutes total.
+- **`external` is the actor primitive** — C4 actors need no schema
+  fork: `type: "external"` renders on every diagram type
+  (markdown_parse inputs + Stage 5, relations_pipeline human lane,
+  system_overview writer + GitHub origin, snapshot_apply operator).
+  Persons carry no `sources`; provenance goes in cards.
+- **`sequence` is the behavioral type** — one ordered protocol per
+  diagram answering one question ("what talks to what, in what
+  order"), ≤8 participants; states stay in lifecycle diagrams
+  (snapshot_lifecycle) and messages here (snapshot_apply).
+- **Sequence pages scroll vertically at every viewport — renderer
+  property, not an authoring defect** (2026-09-14: archify's own
+  cache-miss example fails the containment check identically,
+  scrollH ≈ 1.6k vs 900). The sequence gate is: validate 9/9 +
+  readability/viewer-chrome/captures green + zero horizontal
+  overflow; full-page containment stays an architecture-only
+  expectation. Upstream issue: pending operator filing.
 
 ## Gates
 

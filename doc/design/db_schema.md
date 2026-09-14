@@ -285,6 +285,13 @@ counts toward the exit code, WARNING is advisory.
   under `db-backup/`; `--check` round-trip-verifies; `make snapshot-restore`
   rebuilds `memory/` from the Parquet snapshot.
 
+> **Diagram:** `diagrams/snapshot_apply.{json,html}` — the apply
+> handshake: force-guard, locate dirs + DDL, SQLite tmp-build (DDL →
+> parquet rows → FTS5 rebuild → FK check → atomic swap), DuckDB restore
+> (CHECKPOINT), verify round-trip (archify sequence; JSON IR is the
+> committed source, HTML regenerable). Re-render when the restore path
+> in `helpers/maintenance/snapshot_db.py` changes.
+
 ## Dropped tables / columns (history)
 
 `images` (189 orphaned FK rows; files still served from filesystem),

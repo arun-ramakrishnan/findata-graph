@@ -1,0 +1,251 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Snapshot apply handshake",
+    "output": "doc/design/diagrams/snapshot_apply.json",
+    "viewBox": [
+      900,
+      800
+    ],
+    "animation": "trace",
+    "quality_profile": "showcase",
+    "column_fit": "spread"
+  },
+  "participants": [
+    {
+      "id": "operator",
+      "type": "external",
+      "label": "Operator",
+      "sublabel": "human · make"
+    },
+    {
+      "id": "cli",
+      "type": "backend",
+      "label": "snapshot_db.py",
+      "sublabel": "--restore --force"
+    },
+    {
+      "id": "snap",
+      "type": "database",
+      "label": "snapshots/",
+      "sublabel": "git-tracked · zstd"
+    },
+    {
+      "id": "sqlite",
+      "type": "database",
+      "label": "research.db",
+      "sublabel": "tmp build → atomic swap"
+    },
+    {
+      "id": "fts",
+      "type": "database",
+      "label": "note_search FTS5",
+      "sublabel": "vault-notes index"
+    },
+    {
+      "id": "duck",
+      "type": "database",
+      "label": "graph cache",
+      "sublabel": "views + analytics"
+    }
+  ],
+  "segments": [
+    {
+      "from": 140,
+      "to": 270,
+      "label": "Guard + locate"
+    },
+    {
+      "from": 282,
+      "to": 460,
+      "label": "SQLite restore"
+    },
+    {
+      "from": 472,
+      "to": 600,
+      "label": "DuckDB restore"
+    },
+    {
+      "from": 612,
+      "to": 740,
+      "label": "Verify round-trip"
+    }
+  ],
+  "messages": [
+    {
+      "id": "invoke",
+      "from": "operator",
+      "to": "cli",
+      "y": 160,
+      "label": "make snapshot-restore",
+      "variant": "default"
+    },
+    {
+      "id": "locate",
+      "from": "cli",
+      "to": "snap",
+      "y": 198,
+      "label": "locate dirs + _schema DDL",
+      "variant": "default"
+    },
+    {
+      "id": "located",
+      "from": "snap",
+      "to": "cli",
+      "y": 232,
+      "label": "sqlite/ + duckdb/ + DDL",
+      "variant": "return"
+    },
+    {
+      "id": "restore-sql",
+      "from": "cli",
+      "to": "sqlite",
+      "y": 305,
+      "label": "restore_sqlite_from_parquet",
+      "variant": "emphasis",
+      "note": "builds research.db.restore-tmp; overwrite refused without --force (snapshot_db.py:1034)"
+    },
+    {
+      "id": "load-sql",
+      "from": "sqlite",
+      "to": "snap",
+      "y": 340,
+      "label": "apply DDL · load *.parquet rows",
+      "variant": "default"
+    },
+    {
+      "id": "fts-rebuild",
+      "from": "sqlite",
+      "to": "fts",
+      "y": 375,
+      "label": "rebuild note_search from shadow",
+      "variant": "default"
+    },
+    {
+      "id": "fts-done",
+      "from": "fts",
+      "to": "sqlite",
+      "y": 408,
+      "label": "index rebuilt",
+      "variant": "return"
+    },
+    {
+      "id": "sql-done",
+      "from": "sqlite",
+      "to": "cli",
+      "y": 442,
+      "label": "FK check ✓ · atomic replace",
+      "variant": "return",
+      "note": "PRAGMA foreign_key_check hard-fails the restore (snapshot_db.py:976)"
+    },
+    {
+      "id": "restore-duck",
+      "from": "cli",
+      "to": "duck",
+      "y": 495,
+      "label": "restore_duckdb_from_parquet",
+      "variant": "emphasis"
+    },
+    {
+      "id": "load-duck",
+      "from": "duck",
+      "to": "snap",
+      "y": 530,
+      "label": "ordered DDL + views · read_parquet",
+      "variant": "default"
+    },
+    {
+      "id": "duck-done",
+      "from": "duck",
+      "to": "cli",
+      "y": 565,
+      "label": "CHECKPOINT ✓ · atomic replace",
+      "variant": "return"
+    },
+    {
+      "id": "apply-done",
+      "from": "cli",
+      "to": "operator",
+      "y": 605,
+      "label": "✓ live DBs rebuilt",
+      "variant": "return"
+    },
+    {
+      "id": "check",
+      "from": "operator",
+      "to": "cli",
+      "y": 645,
+      "label": "make snapshot-check",
+      "variant": "default"
+    },
+    {
+      "id": "roundtrip",
+      "from": "cli",
+      "to": "snap",
+      "y": 680,
+      "label": "verify_parquet_snapshot",
+      "variant": "security"
+    },
+    {
+      "id": "roundtrip-ok",
+      "from": "snap",
+      "to": "cli",
+      "y": 712,
+      "label": "row counts + schema match",
+      "variant": "return"
+    }
+  ],
+  "activations": [
+    {
+      "participant": "cli",
+      "from": 160,
+      "to": 730,
+      "type": "backend"
+    },
+    {
+      "participant": "snap",
+      "from": 198,
+      "to": 725,
+      "type": "database"
+    },
+    {
+      "participant": "sqlite",
+      "from": 305,
+      "to": 445,
+      "type": "database"
+    },
+    {
+      "participant": "fts",
+      "from": 375,
+      "to": 412,
+      "type": "database"
+    },
+    {
+      "participant": "duck",
+      "from": 495,
+      "to": 570,
+      "type": "database"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Apply order",
+      "items": [
+        "Guard first: --restore refuses to clobber live DBs without --force",
+        "SQLite tmp-build: DDL → parquet rows → FTS5 rebuild → FK check → atomic replace",
+        "DuckDB: creation-ordered DDL + views, read_parquet bulk load, CHECKPOINT"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Trust + bounds",
+      "items": [
+        "Vault notes are never mutated — only the note_search index is rebuilt from the exported shadow",
+        "foreign_key_check hard-fails a bad SQLite restore (helpers/maintenance/snapshot_db.py:976)",
+        "Restore: _cmd_restore :1034 · sqlite :935 · duckdb :989 · verify_parquet_snapshot :867 · Makefile snapshot-restore :128 — all pinned origin/main 56926513"
+      ]
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="generator" content="archify 2.17.0-dev.1">
-  <title>FinData storage topology Diagram</title>
+  <title>Snapshot apply handshake Diagram</title>
   <script>
     // Resolve the theme before first paint so light-preference users don't
     // see a dark flash. The toolbar script below re-applies with UI state.
@@ -4955,12 +4955,12 @@
            data-preset-badge-blueprint="BLUEPRINT / REV 01"
            data-preset-badge-editorial="EDITORIAL / FIELD NOTE">
         <div class="pulse-dot"></div>
-        <h1>FinData storage topology</h1>
+        <h1>Snapshot apply handshake</h1>
       </div>
     </div>
 
     <script id="archify-guided-views-data" type="application/json">[]</script>
-    <script id="archify-source-evidence-data" type="application/json">{"schemaVersion":1,"verified":true,"repository":{"url":"https://github.com/arun-ramakrishnan/findata-graph","revision":"56926513d340bc8c4b32595862d7274d8b81273f","shortRevision":"5692651"},"referenceCount":9,"nodes":{"ingest":[{"path":"helpers/pdf/pdf_conv_md.py","line":311,"label":"build_okf_frontmatter","href":"https://github.com/arun-ramakrishnan/findata-graph/blob/56926513d340bc8c4b32595862d7274d8b81273f/helpers/pdf/pdf_conv_md.py#L311"},{"path":"helpers/core/parse_newsletter.py","line":782,"label":"main","href":"https://github.com/arun-ramakrishnan/findata-graph/blob/56926513d340bc8c4b32595862d7274d8b81273f/helpers/core/parse_newsletter.py#L782"}],"maintenance":[{"path":"helpers/maintenance/maint.py","line":203,"endLine":240,"label":"PRE_FULL_STEPS","href":"https://github.com/arun-ramakrishnan/findata-graph/blob/56926513d340bc8c4b32595862d7274d8b81273f/helpers/maintenance/maint.py#L203-L240"}],"duckdb":[{"path":"helpers/graph/query.py","line":898,"label":"rebuild()","href":"https://github.com/arun-ramakrishnan/findata-graph/blob/56926513d340bc8c4b32595862d7274d8b81273f/helpers/graph/query.py#L898"}],"frontend":[{"path":"app.py","line":25,"label":"Flask app","href":"https://github.com/arun-ramakrishnan/findata-graph/blob/56926513d340bc8c4b32595862d7274d8b81273f/app.py#L25"},{"path":"frontend/src/core/reader.ts","line":1,"label":"reader core","href":"https://github.com/arun-ramakrishnan/findata-graph/blob/56926513d340bc8c4b32595862d7274d8b81273f/frontend/src/core/reader.ts#L1"}],"derived":[{"path":"helpers/core/corpus.py","line":74,"label":"CORPUS_DB","href":"https://github.com/arun-ramakrishnan/findata-graph/blob/56926513d340bc8c4b32595862d7274d8b81273f/helpers/core/corpus.py#L74"}],"algos":[{"path":"helpers/graph/algorithms.py","line":741,"label":"_cli","href":"https://github.com/arun-ramakrishnan/findata-graph/blob/56926513d340bc8c4b32595862d7274d8b81273f/helpers/graph/algorithms.py#L741"},{"path":"helpers/graph/derive_insights.py","line":2823,"label":"scan()","href":"https://github.com/arun-ramakrishnan/findata-graph/blob/56926513d340bc8c4b32595862d7274d8b81273f/helpers/graph/derive_insights.py#L2823"}]}}</script>
+
     <script id="archify-i18n-data" type="application/json">{"locale":"en","messages":{"viewer.kind.frontend":"Frontend","viewer.kind.backend":"Backend","viewer.kind.database":"Database","viewer.kind.cloud":"Cloud","viewer.kind.security":"Security","viewer.kind.messagebus":"Message bus","viewer.kind.external":"External","viewer.kind.neutral":"Neutral","viewer.kind.node":"Node","viewer.kind.start":"Start","viewer.kind.active":"Active","viewer.kind.waiting":"Waiting","viewer.kind.decision":"Decision","viewer.kind.success":"Success","viewer.kind.failure":"Failure","viewer.toolbar.actions":"Diagram actions","viewer.theme.toggle.title":"Toggle theme (T)","viewer.theme.toggle":"Toggle color theme","viewer.theme.dark":"Dark","viewer.theme.light":"Light","viewer.preset.choose.title":"Choose visual style (S cycles)","viewer.preset.choose":"Choose visual style","viewer.preset.style":"Style","viewer.preset.menu":"Visual style","viewer.preset.identity":"Visual identity","viewer.preset.cycles":"S cycles","viewer.preset.classic":"Classic","viewer.preset.classic.short":"Classic","viewer.preset.classic.hint":"Stable technical default","viewer.preset.flow":"Signal Flow","viewer.preset.flow.short":"Flow","viewer.preset.flow.hint":"Motion-forward presentation","viewer.preset.blueprint":"Blueprint","viewer.preset.blueprint.hint":"Engineering review","viewer.preset.editorial":"Editorial","viewer.preset.editorial.hint":"Publication and launch notes","viewer.preset.badge.signalFlow":"SIGNAL FLOW","viewer.preset.badge.blueprint":"BLUEPRINT / REV 01","viewer.preset.badge.editorial":"EDITORIAL / FIELD NOTE","viewer.preset.badge.editorialPlate":"ARCHIFY / PLATE 04","viewer.preset.current":"Visual style: {style}. Choose visual style","viewer.motion.live":"Live","viewer.motion.still":"Still","viewer.motion.pause":"Pause motion","viewer.motion.resume":"Resume motion","viewer.motion.reduced":"Motion paused by reduced-motion preference","viewer.motion.hidden":"Motion paused while this page is hidden","viewer.motion.yielding":"Pause motion; currently yielding to {owner}","viewer.motion.yielding.title":"Live preview enabled · yielding to {owner}","viewer.owner.story":"the guided story","viewer.owner.chapter":"the active chapter","viewer.owner.chapterPreview":"the chapter delta preview","viewer.owner.handoff":"the chapter handoff","viewer.owner.route":"Route Probe","viewer.owner.lens":"Semantic Lens","viewer.owner.relationship":"Relationship Preview","viewer.owner.intent":"Intent Trace","viewer.owner.focus":"semantic focus","viewer.owner.legend":"legend preview","viewer.owner.reader":"reader interaction","viewer.present.enter":"Enter presentation stage","viewer.present.enter.title":"Presentation stage (F)","viewer.present.exit":"Exit presentation stage","viewer.present.exit.title":"Exit presentation stage (F or Escape)","viewer.present.present":"Present","viewer.present.exit.label":"Exit","viewer.export.button":"Export","viewer.export.button.title":"Export diagram (E)","viewer.export.diagram":"Export diagram","viewer.export.menu":"Export","viewer.export.subtitle":"Portable, clean outputs","viewer.export.share":"Share","viewer.export.shareCard":"Share Card","viewer.export.routeShareCard":"Route Share Card","viewer.export.reachShareCard":"Reach Share Card","viewer.export.copyShareCard":"Copy Share Card","viewer.export.copyDiagram":"Copy diagram","viewer.export.clipboardPng":"PNG to clipboard","viewer.export.raster":"Raster images","viewer.export.image":"Image","viewer.export.lossless":"Lossless image","viewer.export.compact":"Compact image","viewer.export.modern":"Modern image","viewer.export.vectorMotion":"Vector and motion","viewer.export.vectorMotion.heading":"Vector \u0026 motion","viewer.export.editable":"Editable vector","viewer.export.motion6s":"6s motion","viewer.export.unsupported":"Not supported by this browser","viewer.export.clipboardUnsupported":"Clipboard image write not supported by this browser","viewer.export.clipboardUnsupported.period":"Clipboard image write not supported by this browser.","viewer.export.clipboardUnsupported.short":"Clipboard image write not supported in this browser.","viewer.export.motionUnavailable":"Motion capture unavailable in this browser","viewer.export.webmUnavailable":"WebM unavailable in this browser","viewer.export.failed":"Export failed: {message}","viewer.export.unknownVariant":"Unknown Share Card variant: {variant}","viewer.export.routeRequired":"Trace a route before exporting a Route Share Card","viewer.export.reachRequired":"Trace authored reach before exporting a Reach Share Card","viewer.export.unknown":"unknown","viewer.export.routeFailed":"Route Share Card export failed: {message}","viewer.export.reachFailed":"Reach Share Card export failed: {message}","viewer.export.copyFailed":"Copy failed: {message}","viewer.export.copiedPng":"Copied PNG to clipboard","viewer.export.copiedShare":"Copied Share Card","viewer.export.downloadedShare":"Downloaded Share Card","viewer.export.downloadedRoute":"Downloaded Route Share Card","viewer.export.downloadedReach":"Downloaded Reach Share Card","viewer.export.downloadedWebm":"Downloaded WebM","viewer.export.recording":"Recording 6 seconds of motion…","viewer.export.card.routeSummary.one":"Route: {source} → {target} · {count} directed hop","viewer.export.card.routeSummary.other":"Route: {source} → {target} · {count} directed hops","viewer.export.card.reachSummary":"Authored {direction} from {origin} · {nodes} · {links} · max {hops}","viewer.export.card.node.one":"{count} node","viewer.export.card.node.other":"{count} nodes","viewer.export.card.link.one":"{count} link","viewer.export.card.link.other":"{count} links","viewer.export.card.hop.one":"{count} hop","viewer.export.card.hop.other":"{count} hops","viewer.export.card.routeBadge":"ARCHIFY · ROUTE · {hops}","viewer.export.card.reachBadge":"ARCHIFY · {direction} REACH","viewer.export.card.defaultBadge":"ARCHIFY · {preset} · {theme}","viewer.export.direction.upstream":"Upstream","viewer.export.direction.downstream":"Downstream","viewer.export.error.canvasUnavailable":"Canvas unavailable for {label}","viewer.export.error.contextUnavailable":"2D canvas context unavailable for {label}","viewer.export.error.toBlobUnavailable":"canvas.toBlob unavailable for {label}","viewer.export.error.toBlobNull":"canvas.toBlob returned no data for {label}","viewer.export.error.variantsCombined":"Share Card variants cannot be combined","viewer.export.error.viewerState":"Share Card export could not remove temporary viewer state","viewer.export.error.routeState":"Route Card export could not preserve the resolved route safely","viewer.export.error.reachState":"Reach Card export could not preserve authored reach safely","viewer.export.error.webmRequirements":"WebM motion export requires a trace animation and browser MediaRecorder support","viewer.export.error.mediaRecorder":"MediaRecorder failed","viewer.export.error.emptyWebm":"MediaRecorder produced an empty WebM","viewer.export.error.webmBackground":"SVG background could not be loaded for WebM export","viewer.guided.region":"Guided diagram views","viewer.guided.previous":"Previous guided view","viewer.guided.previous.title":"Previous guided view ([)","viewer.guided.next":"Next guided view","viewer.guided.next.title":"Next guided view (])","viewer.guided.views":"Guided views","viewer.guided.explore":"Explore this system","viewer.guided.intro":"Step through curated paths without changing the source diagram.","viewer.guided.trail":"Story trail","viewer.guided.beat":"Beat","viewer.guided.nextBeat":"Next","viewer.guided.play":"Play guided story","viewer.guided.play.title":"Play guided story (P)","viewer.guided.pause":"Pause guided story","viewer.guided.pause.title":"Pause guided story (P)","viewer.guided.replay":"Replay guided story","viewer.guided.replay.title":"Replay guided story (P)","viewer.guided.playStory":"Play story","viewer.guided.pauseStory":"Pause","viewer.guided.replayStory":"Replay story","viewer.guided.motionUnavailable":"Story playback unavailable while motion is Still","viewer.guided.enableMotion":"Switch motion to Live to play the guided story","viewer.guided.selectBeatLink":"Select a Story Beat to copy its exact link","viewer.guided.copyMoment":"Copy moment","viewer.guided.momentCopied":"Moment link copied","viewer.guided.momentCopyFailed":"Could not copy story moment link","viewer.guided.copied":"Copied","viewer.guided.copyFailed":"Copy failed","viewer.guided.showAll":"Show all","viewer.guided.showAll.aria":"Show entire diagram","viewer.guided.chapters":"Story chapters","viewer.guided.storyTrail":"Story trail for {label}: {count} beats","viewer.guided.chapter.open":"Open chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.current":"Current chapter {index} of {total}: {label}, {count} stops","viewer.guided.chapter.selectedNodes":"{count} selected nodes","viewer.guided.chapter.stops":"{count} stops","viewer.guided.chapter.stop.one":"{count} stop","viewer.guided.chapter.stop.other":"{count} stops","viewer.guided.chapter.current.title":"{label} — current chapter, {count} stops","viewer.guided.chapter.delta.expanded":"{stay} stay, {enter} enter, {leave} leave","viewer.guided.chapter.delta.aria":"Open chapter {index} of {total}: {label}. Chapter focus delta: {delta}","viewer.guided.chapter.delta.title":"{label} — {delta} chapter focus","viewer.guided.handoff":"{from} → {to} · via {label}","viewer.guided.share.chapter":"Chapter {index} / {total}","viewer.guided.share.initial":"Chapter 01 / 01","viewer.guided.share.default":"Guided chapter","viewer.guided.state.ready":"Ready","viewer.guided.state.playing":"Playing","viewer.guided.state.settled":"Settled","viewer.guided.state.paused":"Paused","viewer.guided.state.pinned":"Pinned","viewer.guided.state.still":"Still","viewer.guided.share.step":"Step {index} / {total} · {label}","viewer.guided.share.staticMoment":"{step} · Static moment","viewer.guided.share.complete":"{count} steps complete · {note}","viewer.guided.share.settled":"Path settled for reading.","viewer.guided.share.staticPath":"{count} steps · Static path","viewer.guided.share.ready":"{count} steps · Ready","viewer.guided.share.aria":"{state} chapter {index} of {total}: {label}. {beat}. {route}","viewer.guided.beat.start":"Beat {index} / {total} · {label} · starting point","viewer.guided.beat.forward":"Beat {index} / {total} · {from} → {to}","viewer.guided.beat.reverse":"Beat {index} / {total} · {from} → {to} · reverse authored link","viewer.guided.beat.multiple":"Beat {index} / {total} · {from} ⇄ {to} · {count} authored links","viewer.guided.beat.group":"Beat {index} / {total} · {from} · {to} · grouped · no direct link","viewer.guided.beat.aria.prefix":"Story beat {index} of {total}: {label}. ","viewer.guided.beat.aria.start":"Starting point.","viewer.guided.beat.aria.forward":"From {from} through one authored forward relationship.","viewer.guided.beat.aria.reverse":"From {from}; the authored relationship points from {to} to {from}.","viewer.guided.beat.aria.multiple":"From {from} through {count} authored relationships; shown without arbitrary motion.","viewer.guided.beat.aria.group":"Grouped from {from} with no direct authored relationship.","viewer.guided.caption.start":"Starting point","viewer.guided.caption.grouped":"Grouped transition · no direct authored link","viewer.guided.caption.more":" +{count} more","viewer.guided.caption.reverse":"Reverse authored relationship","viewer.guided.caption.relationships":"{count} authored relationships","viewer.guided.caption.relationship":"Authored relationship","viewer.guided.caption.direction":"authored direction: {from} → {to}","viewer.guided.caption.starting":"Authored starting point","viewer.guided.beatLink":"Copy link to current story moment: Beat {index} of {total}: {label}","viewer.guided.noStory":"This diagram has no authored guided story.","viewer.guide.eyebrow":"Diagram guide","viewer.guide.close":"Close diagram guide","viewer.guide.inspecting":"Inspecting compiled semantics","viewer.guide.actions":"Diagram exploration actions","viewer.guide.find":"Find any node","viewer.guide.find.hint":"Search labels, responsibilities, kinds, and stable IDs.","viewer.guide.route":"Trace a route","viewer.guide.route.aria":"Trace a directed route","viewer.guide.route.hint":"Ask how two semantic nodes connect in authored direction.","viewer.guide.map":"See the whole system","viewer.guide.map.hint":"Open Semantic Radar with a live viewport and stable nodes.","viewer.guide.lens":"Compare semantic kinds","viewer.guide.lens.hint":"Count roles, reveal their traffic, and compare direct authored links.","viewer.guide.story":"Play the guided story","viewer.guide.story.hint":"Walk the authored chapters and real relationships.","viewer.guide.present":"Enter Presentation Stage","viewer.guide.present.hint":"Give the live diagram the viewport without changing export.","viewer.guide.shortcuts":"Additional keyboard shortcuts","viewer.guide.shortcut.export":"Export","viewer.guide.shortcut.theme":"Theme","viewer.guide.shortcut.style":"Style","viewer.guide.shortcut.reset":"Reset","viewer.guide.shortcut.zoomIn":"Zoom in","viewer.guide.shortcut.zoomOut":"Zoom out","viewer.guide.shortcut.close":"Close","viewer.guide.facts":"{nodes} · {relationships} · {views}","viewer.guide.fact.node.one":"{count} semantic node","viewer.guide.fact.node.other":"{count} semantic nodes","viewer.guide.fact.relationship.one":"{count} relationship","viewer.guide.fact.relationship.other":"{count} relationships","viewer.guide.fact.view.one":"{count} guided view","viewer.guide.fact.view.other":"{count} guided views","viewer.guide.story.available.one":"Walk {count} authored chapter and its real relationships.","viewer.guide.story.available.other":"Walk {count} authored chapters and their real relationships.","viewer.guide.story.unavailable":"No authored guided story in this diagram.","viewer.guide.open":"Open diagram guide","viewer.guide.noStory":"This diagram has no authored guided story.","viewer.finder.title":"Find a node","viewer.finder.close":"Close node finder","viewer.finder.placeholder":"Search labels or IDs","viewer.finder.search":"Search diagram nodes","viewer.finder.results":"Diagram nodes","viewer.finder.empty":"No matching nodes","viewer.finder.result.focus":"Focus {label}","viewer.finder.result.routeStart":"Choose {label} as route start","viewer.finder.result.routeTarget":"Choose {label} as route destination, {links}","viewer.finder.status.empty":"No matching nodes","viewer.finder.status.count.one":"{count} matching node","viewer.finder.status.count.other":"{count} matching nodes","viewer.finder.noun.nodes":"nodes","viewer.finder.link.one":"{count} link","viewer.finder.link.other":"{count} links","viewer.finder.result.focus.one":"Focus {label}, {count} related connection","viewer.finder.result.focus.other":"Focus {label}, {count} related connections","viewer.finder.status.filtered":"{visible} of {available} {noun}","viewer.finder.status.all":"{available} {noun}","viewer.passport.eyebrow":"Semantic passport","viewer.passport.metadata":"Node metadata","viewer.passport.evidence":"Verified source evidence","viewer.passport.verified":"Verified source","viewer.passport.reach":"Authored reach","viewer.passport.reach.trace":"Trace authored reachability","viewer.passport.upstream":"Upstream","viewer.passport.downstream":"Downstream","viewer.passport.upstream.trace":"Trace upstream authored reachability","viewer.passport.downstream.trace":"Trace downstream authored reachability","viewer.passport.close":"Close semantic passport","viewer.passport.copy":"Copy link","viewer.passport.copy.focus":"Copy link to focused node","viewer.passport.relations":"Relations","viewer.passport.relations.show":"Show connected relationships","viewer.passport.relations.hide":"Hide connected relationships","viewer.passport.relations.list":"Connected relationships","viewer.passport.copyRelation":"Copy relation","viewer.passport.copyNode":"Copy node","viewer.passport.copyPinned":"Copy link to pinned relationship","viewer.passport.copySource":"Copy link to source node","viewer.passport.copy.focused.success":"Focused node link copied","viewer.passport.copy.pinned.success":"Pinned relationship link copied","viewer.passport.copy.focused.failed":"Could not copy focused node link","viewer.passport.copy.pinned.failed":"Could not copy pinned relationship link","viewer.passport.relationship.none":"No connected relationships","viewer.passport.relationship.count.one":"{count} relation","viewer.passport.relationship.count.other":"{count} relations","viewer.passport.relationship.show.one":"Show {count} connected relationship","viewer.passport.relationship.show.other":"Show {count} connected relationships","viewer.passport.relationship.summary":"{out} outgoing · {in} incoming{loops}","viewer.passport.relationship.loops":" · {count} loop","viewer.passport.relationship.explorer":"Direct relationship explorer","viewer.passport.relationship.help":"Use arrow keys to explore relationships. Press Enter or Space to pin details; Escape clears.","viewer.passport.relationship.loopsBack":"loops back","viewer.passport.relationship.connectsTo":"connects to","viewer.passport.relationship.connectsFrom":"connects from","viewer.passport.relationship.pinned":"Pinned relationship · {from} → {to} · {label}","viewer.passport.relationship.inspect":"Inspect relationship {index} of {total}: {from} to {to}, {label}. Press Enter for details.","viewer.passport.relationship.group.out":"Outgoing","viewer.passport.relationship.group.in":"Incoming","viewer.passport.relationship.group.loop":"Self loops","viewer.passport.relationship.row":"{group}: {relationship}, {neighbor}","viewer.passport.relationship.direction.out":"OUT →","viewer.passport.relationship.direction.in":"← IN","viewer.passport.relationship.direction.loop":"LOOP","viewer.passport.sourceCount.one":"{count} verified source reference","viewer.passport.sourceCount.other":"{count} verified source references","viewer.passport.sourceMarker":"SRC","viewer.passport.beacon.one":"{count} verified source; focus this node to inspect","viewer.passport.beacon.other":"{count} verified sources; focus this node to inspect","viewer.passport.repository.open":"Open verified repository revision {revision}","viewer.passport.source.open":"Open verified source {path} at revision {revision}","viewer.passport.source.openLink":"Open ↗","viewer.passport.reach.upstream.one":"Trace {count} upstream authored node","viewer.passport.reach.upstream.other":"Trace {count} upstream authored nodes","viewer.passport.reach.downstream.one":"Trace {count} downstream authored node","viewer.passport.reach.downstream.other":"Trace {count} downstream authored nodes","viewer.passport.reach.noUpstream":"No upstream authored nodes","viewer.passport.reach.noDownstream":"No downstream authored nodes","viewer.passport.reach.status":"{direction} · {nodes} nodes · {links} links · max {hops} hops","viewer.route.eyebrow":"Route probe","viewer.route.start":"Choose a start node","viewer.route.start.find":"Find start","viewer.route.start.find.aria":"Find a route start","viewer.route.copy":"Copy link","viewer.route.copy.aria":"Copy link to traced route","viewer.route.clear":"Clear","viewer.route.clear.aria":"Clear route probe","viewer.route.traced":"Traced route","viewer.route.pickTwo":"Pick two semantic nodes on the diagram","viewer.route.pickOne":"Pick a semantic node on the diagram","viewer.route.controls":"Route journey controls","viewer.route.previous":"Previous route position","viewer.route.play":"Play route journey","viewer.route.pause":"Pause route journey","viewer.route.replay":"Replay route journey","viewer.route.next":"Next route position","viewer.route.journey":"Journey","viewer.route.pause.label":"Pause","viewer.route.replay.label":"Replay","viewer.route.overview":"Overview","viewer.route.overview.aria":"Show complete route overview","viewer.route.instructions":"Choose the source, then the destination. Direction matters.","viewer.route.destination":"Choose a destination from {label}","viewer.route.destination.find":"Find target","viewer.route.destination.find.aria":"Find a reachable route destination","viewer.route.differentDestination":"Choose a different destination","viewer.route.distinct":"A route needs two distinct semantic nodes.","viewer.route.unreachable":"No directed route to {label}","viewer.route.unreachable.detail":"{target} is not reachable from {source}. Pick a highlighted destination.","viewer.route.start.instructions":"Select the source. The next step will reveal only directed destinations.","viewer.route.copy.success":"Traced route link copied","viewer.route.copy.failed":"Could not copy traced route link","viewer.route.position":"Route position {index} of {total}: {label}","viewer.route.step":"Step {index} of {total} · {phase} · {label}","viewer.route.motionRequired":"Automatic journey requires Live motion","viewer.route.trigger.clear":"Clear traced route","viewer.route.overview.status":"{nodes} · {hops} · shortest authored route","viewer.route.overview.node.one":"{count} node","viewer.route.overview.node.other":"{count} nodes","viewer.route.overview.hop.one":"{count} directed hop","viewer.route.overview.hop.other":"{count} directed hops","viewer.route.phase.playing":"Playing","viewer.route.phase.complete":"Complete","viewer.route.phase.inspecting":"Inspecting","viewer.route.destination.count.one":"{count} directed destination available. Pick a highlighted node.","viewer.route.destination.count.other":"{count} directed destinations available. Pick a highlighted node.","viewer.route.noOutgoing":"No outgoing route starts here. Clear and choose another source.","viewer.route.result.title":"{source} to {target}","viewer.route.finder.source.title":"Choose route start","viewer.route.finder.source.placeholder":"Search route sources","viewer.route.finder.source.empty":"No matching route sources","viewer.route.finder.source.results":"Nodes that can start a route","viewer.route.finder.source.noun":"route sources","viewer.route.finder.source.badge":"start","viewer.route.finder.target.title":"Destination from {label}","viewer.route.finder.target.placeholder":"Search reachable destinations","viewer.route.finder.target.empty":"No matching reachable destinations","viewer.route.finder.target.results":"Reachable route destinations","viewer.route.finder.target.noun":"reachable destinations","viewer.route.hop.one":"{count} hop","viewer.route.hop.other":"{count} hops","viewer.lens.eyebrow":"Semantic lens","viewer.lens.title":"Compare system roles","viewer.lens.close":"Close semantic lens","viewer.lens.instruction":"Choose up to two semantic kinds. One reveals its real traffic; two compare only direct authored relationships.","viewer.lens.kinds":"Semantic kinds","viewer.lens.choose":"Choose a kind to inspect its nodes and touching relationships.","viewer.lens.copy":"Copy link to semantic lens","viewer.lens.clear":"Clear semantic lens","viewer.lens.open":"Open semantic lens","viewer.lens.openActive":"Open active semantic lens","viewer.lens.legend":"Semantic legend","viewer.lens.legend.inspect.one":"Inspect {label}, {count} node","viewer.lens.legend.inspect.other":"Inspect {label}, {count} nodes","viewer.lens.kind.count.one":"{label}, {count} node","viewer.lens.kind.count.other":"{label}, {count} nodes","viewer.lens.compare.one":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationship","viewer.lens.compare.other":"{first} → {second}: {forward} · {second} → {first}: {reverse} · {count} direct relationships","viewer.lens.single":"{nodes} · {relationships} · connected peers remain visible","viewer.lens.node.one":"{count} {label} node","viewer.lens.node.other":"{count} {label} nodes","viewer.lens.relationship.one":"{count} touching relationship","viewer.lens.relationship.other":"{count} touching relationships","viewer.radar.title":"Semantic radar","viewer.radar.building":"Building overview","viewer.radar.openFull":"Open full semantic radar","viewer.radar.open":"Open radar","viewer.radar.close":"Close semantic radar","viewer.radar.surface":"Diagram overview. Click a node to focus it, or use arrow keys to pan.","viewer.radar.click":"Click node","viewer.radar.drag":"Drag to pan","viewer.radar.space":"Semantic radar needs more MAP space.","viewer.radar.nodes":"Semantic diagram radar nodes","viewer.radar.focus":"Focus {label} from Semantic Radar","viewer.radar.status":"{count} nodes · {viewport}","viewer.radar.fullMap":"{count} nodes · full map","viewer.radar.compacted":"Radar compacted to avoid covering the Semantic Passport or MAP controls.","viewer.radar.cancelWaiting":"Cancel semantic radar waiting for more MAP space","viewer.radar.needsSpace":"Semantic radar needs more visible MAP space","viewer.radar.viewport.full":"full map","viewer.radar.viewport.width":"{percent}% width","viewer.radar.viewport.scale":"{percent}% viewport","viewer.nav.controls":"Diagram view controls","viewer.nav.route":"Trace a directed route","viewer.nav.route.title":"Trace route (R)","viewer.nav.route.short":"PATH","viewer.nav.radar":"Open semantic radar","viewer.nav.radar.title":"Semantic radar (M)","viewer.nav.radar.short":"MAP","viewer.nav.lens":"Open semantic lens","viewer.nav.lens.title":"Semantic lens (L)","viewer.nav.lens.short":"LENS","viewer.nav.find":"Find a node","viewer.nav.find.title":"Find a node (/)","viewer.nav.guide":"Open diagram guide","viewer.nav.guide.title":"Diagram guide (?)","viewer.nav.zoomOut":"Zoom out","viewer.nav.zoomOut.title":"Zoom out (-)","viewer.nav.reset":"Reset diagram view","viewer.nav.reset.title":"Reset view (0)","viewer.nav.read":"READ","viewer.nav.zoomIn":"Zoom in","viewer.nav.zoomIn.title":"Zoom in (+)","viewer.nav.camera":"{hint}. Reset diagram view","viewer.nav.camera.title":"{semantic}{hint} · reset view (0)","viewer.nav.camera.semantic":"Semantic camera active · ","viewer.nav.level.map":"MAP","viewer.nav.level.read":"READ","viewer.nav.level.full":"FULL","viewer.nav.level.auto":"AUTO","viewer.nav.detail.map":"Zoom in to reveal relationship labels and node context","viewer.nav.detail.read":"Zoom in again to reveal tags and annotations","viewer.nav.detail.full":"Full diagram detail","viewer.intent.summary":"{label}. {out} outgoing, {in} incoming{loops}. {total} connections. Press Enter for details.","viewer.intent.loops":", {count} self loop","viewer.common.copied":"Copied","viewer.common.copyFailed":"Copy failed","viewer.common.copyLink":"Copy link","viewer.common.clear":"Clear","viewer.common.close":"Close"}}</script>
     <div class="guided-views no-print" id="guided-views" hidden aria-label="Guided diagram views">
       <button id="guided-view-prev" type="button" aria-label="Previous guided view" title="Previous guided view ([)">&#8592;</button>
@@ -5004,9 +5004,9 @@
     <!-- Main Diagram -->
     <div class="diagram-container" data-detail-level="read"
          data-preset-badge-editorial-plate="ARCHIFY / PLATE 04">
-      <svg viewBox="0 0 890 472" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-preset="classic" data-quality-profile="showcase">
-        <title id="archify-diagram-title">FinData storage topology</title>
-        <desc id="archify-diagram-description">An architecture diagram generated by Archify.</desc>
+      <svg viewBox="0 0 900 800" role="img" lang="en" aria-labelledby="archify-diagram-title archify-diagram-description" data-animation="trace" data-preset="classic" data-quality-profile="showcase">
+        <title id="archify-diagram-title">Snapshot apply handshake</title>
+        <desc id="archify-diagram-description">A sequence diagram generated by Archify.</desc>
         <!-- Definitions -->
         <defs>
           <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
@@ -5029,236 +5029,266 @@
         <!-- Background Grid -->
         <rect width="100%" height="100%" fill="url(#grid)" />
 
-        <!-- Boundaries (behind everything) -->
-        <rect data-graph-role="structural-frame" data-composition-frame-kind="region" data-composition-frame-id="0" data-composition-frame-label="Repo-local storage" x="10" y="138" width="640" height="198" rx="12" class="c-region" stroke-width="1"/>
+        <!-- Time Segments -->
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="0" x="48" y="140" width="804" height="130" rx="10" class="c-lane" stroke-width="1"/>
 
-        <!-- Connection paths (before components for correct z-order) -->
-        <path data-edge-from="ingest" data-edge-to="vault" data-edge-key="0" data-edge-id="ingest-vault" data-composition-points="100,140;100,168" d="M 100 140 L 100 168" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="ingest" data-edge-to="sqlite" data-edge-label="entities · events" data-edge-key="1" data-edge-id="ingest-sqlite" data-composition-points="160,110;215,110;215,191;270,191" d="M 160 110 L 207 110 Q 215 110 215 118 L 215 183 Q 215 191 223 191 L 270 191" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="vault" data-edge-to="sqlite" data-edge-label="sync_tags rebuild" data-edge-key="2" data-edge-id="vault-sqlite" data-composition-points="160,205;270,205" d="M 160 205 L 270 205" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="sqlite" data-edge-to="duckdb" data-edge-label="materializes" data-edge-key="3" data-edge-id="sqlite-duckdb" data-composition-points="390,191;500,191" d="M 390 191 L 500 191" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="duckdb" data-edge-to="frontend" data-edge-label="serves graph reads" data-edge-key="4" data-edge-id="duckdb-frontend" data-composition-points="620,191;730,191" d="M 620 191 L 730 191" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="maintenance" data-edge-to="sqlite" data-edge-label="VACUUM · integrity" data-edge-key="5" data-edge-id="maintenance-sqlite" data-composition-points="330,140;330,168" d="M 330 140 L 330 168" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="sqlite" data-edge-to="snapshots" data-edge-key="6" data-edge-id="sqlite-snapshots" data-composition-points="330,228;330,256" d="M 330 228 L 330 256" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="duckdb" data-edge-to="snapshots" data-edge-key="7" data-edge-id="duckdb-snapshots" data-composition-points="500,205;445,205;445,286;390,286" d="M 500 205 L 453 205 Q 445 205 445 213 L 445 278 Q 445 286 437 286 L 390 286" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="duckdb" data-edge-to="algos" data-edge-label="reads" data-edge-key="8" data-edge-id="duckdb-algos" data-composition-points="620,205;675,205;675,286;730,286" d="M 620 205 L 667 205 Q 675 205 675 213 L 675 278 Q 675 286 683 286 L 730 286" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="vault" data-edge-to="derived" data-edge-label="corpus walk" data-edge-key="9" data-edge-id="vault-derived" data-composition-points="100,228;100,256" d="M 100 228 L 100 256" class="a-dashed" stroke-width="1.5" marker-end="url(#arrowhead-dashed)"/>
-        <path data-edge-from="writer" data-edge-to="vault" data-edge-label="edits OKF notes" data-edge-key="10" data-edge-id="writer-vault" data-composition-points="40,374;16,374;16,198;40,198" d="M 40 374 L 24 374 Q 16 374 16 366 L 16 206 Q 16 198 24 198 L 40 198" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
-        <path data-edge-from="github" data-edge-to="algos" data-edge-label="hosts origin/main" data-edge-key="11" data-edge-id="github-maintenance" data-composition-points="790,344;790,316" d="M 790 344 L 790 316" class="a-default" stroke-width="1.5" marker-end="url(#arrowhead)"/>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="1" x="48" y="282" width="804" height="178" rx="10" class="c-lane" stroke-width="1"/>
 
-        <!-- Components -->
-        <g id="node-ingest" data-node-id="ingest" data-node-label="Ingest helpers" tabindex="0" role="button" aria-label="Focus Ingest helpers, pdf_conv_md · parse_newsletter, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="pdf_conv_md · parse_newsletter" data-node-context="Architecture component">
-          <title>Ingest helpers · pdf_conv_md · parse_newsletter · Architecture component</title>
-          <rect x="40" y="80" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="40" y="80" width="120" height="60" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(46 86) scale(0.6875)">
-            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="100" y="108" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Ingest helpers</text>
-        <text data-detail="context" x="100" y="124" class="t-muted" font-size="6.2" text-anchor="middle">pdf_conv_md · parse_newsletter</text>
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="2" x="48" y="472" width="804" height="128" rx="10" class="c-lane" stroke-width="1"/>
+
+        <rect data-graph-role="structural-frame" data-composition-frame-kind="segment" data-composition-frame-id="3" x="48" y="612" width="804" height="128" rx="10" class="c-lane" stroke-width="1"/>
+
+        <!-- Lifelines -->
+        <path d="M 114.5 142 L 114.5 735" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 253.1 142 L 253.1 735" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 391.7 142 L 391.7 735" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 530.3 142 L 530.3 735" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 668.9 142 L 668.9 735" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+        <path d="M 807.5 142 L 807.5 735" class="a-default" stroke-width="0.8" stroke-dasharray="3,7"/>
+
+        <!-- Activations -->
+        <rect x="248.1" y="160" width="10" height="570" rx="3" class="c-mask"/>
+        <rect x="248.1" y="160" width="10" height="570" rx="3" class="c-backend" stroke-width="1"/>
+        <rect x="386.7" y="198" width="10" height="527" rx="3" class="c-mask"/>
+        <rect x="386.7" y="198" width="10" height="527" rx="3" class="c-database" stroke-width="1"/>
+        <rect x="525.3" y="305" width="10" height="140" rx="3" class="c-mask"/>
+        <rect x="525.3" y="305" width="10" height="140" rx="3" class="c-database" stroke-width="1"/>
+        <rect x="663.9" y="375" width="10" height="37" rx="3" class="c-mask"/>
+        <rect x="663.9" y="375" width="10" height="37" rx="3" class="c-database" stroke-width="1"/>
+        <rect x="802.5" y="495" width="10" height="75" rx="3" class="c-mask"/>
+        <rect x="802.5" y="495" width="10" height="75" rx="3" class="c-database" stroke-width="1"/>
+
+        <!-- Messages -->
+        <g data-edge-from="operator" data-edge-to="cli" data-edge-label="make snapshot-restore" data-edge-key="0" data-edge-id="invoke">
+          <path data-composition-edge-from="operator" data-composition-edge-to="cli" data-composition-edge-id="invoke" data-composition-points="121.5,160;246.1,160" d="M 121.5 160 L 246.1 160" class="a-default" data-animate="edge" style="--step:0" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="123.20000000000002" y="140" width="121.2" height="16" rx="3" class="c-mask"/>
+          <text x="183.8" y="150" class="t-backend" font-size="9" text-anchor="middle">make snapshot-restore</text>
+        </g>
         </g>
 
-        <g id="node-maintenance" data-node-id="maintenance" data-node-label="Maintenance chains" tabindex="0" role="button" aria-label="Focus Maintenance chains, make maint / maint-full, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="make maint / maint-full" data-node-tag="14 steps" data-node-context="Architecture component">
-          <title>Maintenance chains · make maint / maint-full · Architecture component · 14 steps</title>
-          <rect x="270" y="80" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="270" y="80" width="120" height="60" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(276 86) scale(0.6875)">
-            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="330" y="108" class="t-primary" font-size="10.3" font-weight="600" text-anchor="middle">Maintenance chains</text>
-        <text data-detail="context" x="330" y="124" class="t-muted" font-size="8.1" text-anchor="middle">make maint / maint-full</text>
-        <text data-detail="fine" x="330" y="132" class="t-backend" font-size="7" text-anchor="middle">14 steps</text>
+        <g data-edge-from="cli" data-edge-to="snap" data-edge-label="locate dirs + _schema DDL" data-edge-key="1" data-edge-id="locate">
+          <path data-composition-edge-from="cli" data-composition-edge-to="snap" data-composition-edge-id="locate" data-composition-points="260.1,198;384.7,198" d="M 260.1 198 L 384.7 198" class="a-default" data-animate="edge" style="--step:1" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="251.39999999999998" y="178" width="142" height="16" rx="3" class="c-mask"/>
+          <text x="322.4" y="188" class="t-backend" font-size="9" text-anchor="middle">locate dirs + _schema DDL</text>
+        </g>
         </g>
 
-        <g id="node-vault" data-node-id="vault" data-node-label="findata/ vault" tabindex="0" role="button" aria-label="Focus findata/ vault, OKF markdown notes, Repo-local storage" aria-pressed="false" data-node-kind="database" data-node-sublabel="OKF markdown notes" data-node-tag="writer-owned" data-node-context="Repo-local storage">
-          <title>findata/ vault · OKF markdown notes · Repo-local storage · writer-owned</title>
-          <rect x="40" y="168" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="40" y="168" width="120" height="60" rx="6" class="c-database" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(46 174) scale(0.6875)">
-            <ellipse cx="8" cy="4" rx="5" ry="2"/>
-            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="100" y="196" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">findata/ vault</text>
-        <text data-detail="context" x="100" y="212" class="t-muted" font-size="9" text-anchor="middle">OKF markdown notes</text>
-        <text data-detail="fine" x="100" y="220" class="t-database" font-size="7" text-anchor="middle">writer-owned</text>
+        <g data-edge-from="snap" data-edge-to="cli" data-edge-label="sqlite/ + duckdb/ + DDL" data-edge-key="2" data-edge-id="located">
+          <path data-composition-edge-from="snap" data-composition-edge-to="cli" data-composition-edge-id="located" data-composition-points="384.7,232;260.1,232" d="M 384.7 232 L 260.1 232" class="a-default" data-animate="edge" style="--step:2" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="256.59999999999997" y="212" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="322.4" y="222" class="t-muted" font-size="9" text-anchor="middle">sqlite/ + duckdb/ + DDL</text>
+        </g>
         </g>
 
-        <g id="node-sqlite" data-node-id="sqlite" data-node-label="SQLite research.db" tabindex="0" role="button" aria-label="Focus SQLite research.db, source of truth, Repo-local storage" aria-pressed="false" data-node-kind="database" data-node-sublabel="source of truth" data-node-tag="entities · edges · events" data-node-context="Repo-local storage">
-          <title>SQLite research.db · source of truth · Repo-local storage · entities · edges · events</title>
-          <rect x="270" y="168" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="270" y="168" width="120" height="60" rx="6" class="c-database" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(276 174) scale(0.6875)">
-            <ellipse cx="8" cy="4" rx="5" ry="2"/>
-            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="330" y="196" class="t-primary" font-size="10.3" font-weight="600" text-anchor="middle">SQLite research.db</text>
-        <text data-detail="context" x="330" y="212" class="t-muted" font-size="9" text-anchor="middle">source of truth</text>
-        <text data-detail="fine" x="330" y="220" class="t-database" font-size="7" text-anchor="middle">entities · edges · events</text>
+        <g data-edge-from="cli" data-edge-to="sqlite" data-edge-label="restore_sqlite_from_parquet" data-edge-key="3" data-edge-id="restore-sql">
+          <path data-composition-edge-from="cli" data-composition-edge-to="sqlite" data-composition-edge-id="restore-sql" data-composition-points="260.1,305;523.3,305" d="M 260.1 305 L 523.3 305" class="a-emphasis" data-animate="edge" style="--step:3" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <g data-detail="context">
+          <rect x="315.5" y="285" width="152.4" height="16" rx="3" class="c-mask"/>
+          <text x="391.7" y="295" class="t-backend" font-size="9" text-anchor="middle">restore_sqlite_from_parquet</text>
+        </g>
+        <text data-detail="fine" x="272.1" y="323" class="t-dim" font-size="7">builds research.db.restore-tmp; overwrite refused without --force (snapshot_db.py:1034)</text>
         </g>
 
-        <g id="node-duckdb" data-node-id="duckdb" data-node-label="DuckDB graph cache" tabindex="0" role="button" aria-label="Focus DuckDB graph cache, graph.duckdb, Repo-local storage" aria-pressed="false" data-node-kind="database" data-node-sublabel="graph.duckdb" data-node-tag="views + analytics" data-node-context="Repo-local storage">
-          <title>DuckDB graph cache · graph.duckdb · Repo-local storage · views + analytics</title>
-          <rect x="500" y="168" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="500" y="168" width="120" height="60" rx="6" class="c-database" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(506 174) scale(0.6875)">
-            <ellipse cx="8" cy="4" rx="5" ry="2"/>
-            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="560" y="196" class="t-primary" font-size="10.3" font-weight="600" text-anchor="middle">DuckDB graph cache</text>
-        <text data-detail="context" x="560" y="212" class="t-muted" font-size="9" text-anchor="middle">graph.duckdb</text>
-        <text data-detail="fine" x="560" y="220" class="t-database" font-size="7" text-anchor="middle">views + analytics</text>
+        <g data-edge-from="sqlite" data-edge-to="snap" data-edge-label="apply DDL · load *.parquet rows" data-edge-key="4" data-edge-id="load-sql">
+          <path data-composition-edge-from="sqlite" data-composition-edge-to="snap" data-composition-edge-id="load-sql" data-composition-points="523.3,340;398.7,340" d="M 523.3 340 L 398.7 340" class="a-default" data-animate="edge" style="--step:4" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="374.4" y="320" width="173.20000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="461" y="330" class="t-backend" font-size="9" text-anchor="middle">apply DDL · load *.parquet rows</text>
+        </g>
         </g>
 
-        <g id="node-frontend" data-node-id="frontend" data-node-label="Reader frontend" tabindex="0" role="button" aria-label="Focus Reader frontend, Flask + static TS, Architecture component" aria-pressed="false" data-node-kind="frontend" data-node-sublabel="Flask + static TS" data-node-context="Architecture component">
-          <title>Reader frontend · Flask + static TS · Architecture component</title>
-          <rect x="730" y="168" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="730" y="168" width="120" height="60" rx="6" class="c-frontend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="frontend" class="semantic-sigil s-frontend" transform="translate(736 174) scale(0.6875)">
-            <rect x="2" y="3" width="12" height="10" rx="2"/>
-            <path d="M2 6.5h12"/>
-            <circle cx="4.1" cy="4.8" r=".7" class="sigil-fill"/>
-            <circle cx="6.3" cy="4.8" r=".7" class="sigil-fill"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="790" y="196" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Reader frontend</text>
-        <text data-detail="context" x="790" y="212" class="t-muted" font-size="9" text-anchor="middle">Flask + static TS</text>
+        <g data-edge-from="sqlite" data-edge-to="fts" data-edge-label="rebuild note_search from shadow" data-edge-key="5" data-edge-id="fts-rebuild">
+          <path data-composition-edge-from="sqlite" data-composition-edge-to="fts" data-composition-edge-id="fts-rebuild" data-composition-points="537.3,375;661.9,375" d="M 537.3 375 L 661.9 375" class="a-default" data-animate="edge" style="--step:5" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="512.9999999999999" y="355" width="173.20000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="599.5999999999999" y="365" class="t-backend" font-size="9" text-anchor="middle">rebuild note_search from shadow</text>
+        </g>
         </g>
 
-        <g id="node-derived" data-node-id="derived" data-node-label="Derived caches" tabindex="0" role="button" aria-label="Focus Derived caches, corpus.db · embeds · doc-search, Repo-local storage" aria-pressed="false" data-node-kind="database" data-node-sublabel="corpus.db · embeds · doc-search" data-node-context="Repo-local storage">
-          <title>Derived caches · corpus.db · embeds · doc-search · Repo-local storage</title>
-          <rect x="40" y="256" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="40" y="256" width="120" height="60" rx="6" class="c-database" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(46 262) scale(0.6875)">
-            <ellipse cx="8" cy="4" rx="5" ry="2"/>
-            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="100" y="284" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Derived caches</text>
-        <text data-detail="context" x="100" y="300" class="t-muted" font-size="6" text-anchor="middle">corpus.db · embeds · doc-search</text>
+        <g data-edge-from="fts" data-edge-to="sqlite" data-edge-label="index rebuilt" data-edge-key="6" data-edge-id="fts-done">
+          <path data-composition-edge-from="fts" data-composition-edge-to="sqlite" data-composition-edge-id="fts-done" data-composition-points="661.9,408;537.3,408" d="M 661.9 408 L 537.3 408" class="a-default" data-animate="edge" style="--step:6" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="559.8" y="388" width="79.60000000000001" height="16" rx="3" class="c-mask"/>
+          <text x="599.5999999999999" y="398" class="t-muted" font-size="9" text-anchor="middle">index rebuilt</text>
+        </g>
         </g>
 
-        <g id="node-backups" data-node-id="backups" data-node-label="db-backup twins" tabindex="0" role="button" aria-label="Focus db-backup twins, zstd sidecars, Repo-local storage" aria-pressed="false" data-node-kind="database" data-node-sublabel="zstd sidecars" data-node-context="Repo-local storage">
-          <title>db-backup twins · zstd sidecars · Repo-local storage</title>
-          <rect x="500" y="256" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="500" y="256" width="120" height="60" rx="6" class="c-database" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(506 262) scale(0.6875)">
-            <ellipse cx="8" cy="4" rx="5" ry="2"/>
-            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="560" y="284" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">db-backup twins</text>
-        <text data-detail="context" x="560" y="300" class="t-muted" font-size="9" text-anchor="middle">zstd sidecars</text>
+        <g data-edge-from="sqlite" data-edge-to="cli" data-edge-label="FK check ✓ · atomic replace" data-edge-key="7" data-edge-id="sql-done">
+          <path data-composition-edge-from="sqlite" data-composition-edge-to="cli" data-composition-edge-id="sql-done" data-composition-points="523.3,442;260.1,442" d="M 523.3 442 L 260.1 442" class="a-default" data-animate="edge" style="--step:7" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="315.5" y="422" width="152.4" height="16" rx="3" class="c-mask"/>
+          <text x="391.7" y="432" class="t-muted" font-size="9" text-anchor="middle">FK check ✓ · atomic replace</text>
+        </g>
+        <text data-detail="fine" x="272.1" y="460" class="t-dim" font-size="7">PRAGMA foreign_key_check hard-fails the restore (snapshot_db.py:976)</text>
         </g>
 
-        <g id="node-snapshots" data-node-id="snapshots" data-node-label="Snapshot parquets" tabindex="0" role="button" aria-label="Focus Snapshot parquets, duckdb/ + sqlite/, Repo-local storage" aria-pressed="false" data-node-kind="database" data-node-sublabel="duckdb/ + sqlite/" data-node-context="Repo-local storage">
-          <title>Snapshot parquets · duckdb/ + sqlite/ · Repo-local storage</title>
-          <rect x="270" y="256" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="270" y="256" width="120" height="60" rx="6" class="c-database" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(276 262) scale(0.6875)">
-            <ellipse cx="8" cy="4" rx="5" ry="2"/>
-            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="330" y="284" class="t-primary" font-size="10.9" font-weight="600" text-anchor="middle">Snapshot parquets</text>
-        <text data-detail="context" x="330" y="300" class="t-muted" font-size="9" text-anchor="middle">duckdb/ + sqlite/</text>
+        <g data-edge-from="cli" data-edge-to="duck" data-edge-label="restore_duckdb_from_parquet" data-edge-key="8" data-edge-id="restore-duck">
+          <path data-composition-edge-from="cli" data-composition-edge-to="duck" data-composition-edge-id="restore-duck" data-composition-points="260.1,495;800.5,495" d="M 260.1 495 L 800.5 495" class="a-emphasis" data-animate="edge" style="--step:8" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+        <g data-detail="context">
+          <rect x="454.09999999999997" y="475" width="152.4" height="16" rx="3" class="c-mask"/>
+          <text x="530.3" y="485" class="t-backend" font-size="9" text-anchor="middle">restore_duckdb_from_parquet</text>
+        </g>
         </g>
 
-        <g id="node-algos" data-node-id="algos" data-node-label="Graph algorithms" tabindex="0" role="button" aria-label="Focus Graph algorithms, Python + Mojo bridge, Architecture component" aria-pressed="false" data-node-kind="backend" data-node-sublabel="Python + Mojo bridge" data-node-context="Architecture component">
-          <title>Graph algorithms · Python + Mojo bridge · Architecture component</title>
-          <rect x="730" y="256" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="730" y="256" width="120" height="60" rx="6" class="c-backend" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(736 262) scale(0.6875)">
-            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
-          </g>
-          <text data-node-label="" data-detail-anchor="" x="790" y="284" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Graph algorithms</text>
-        <text data-detail="context" x="790" y="300" class="t-muted" font-size="9" text-anchor="middle">Python + Mojo bridge</text>
+        <g data-edge-from="duck" data-edge-to="snap" data-edge-label="ordered DDL + views · read_parquet" data-edge-key="9" data-edge-id="load-duck">
+          <path data-composition-edge-from="duck" data-composition-edge-to="snap" data-composition-edge-id="load-duck" data-composition-points="800.5,530;398.7,530" d="M 800.5 530 L 398.7 530" class="a-default" data-animate="edge" style="--step:9" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="505.20000000000005" y="510" width="188.8" height="16" rx="3" class="c-mask"/>
+          <text x="599.6" y="520" class="t-backend" font-size="9" text-anchor="middle">ordered DDL + views · read_parquet</text>
+        </g>
         </g>
 
-        <g id="node-writer" data-node-id="writer" data-node-label="Writer" tabindex="0" role="button" aria-label="Focus Writer, Architecture component" aria-pressed="false" data-node-kind="external" data-node-tag="person · writer-owner" data-node-context="Architecture component">
-          <title>Writer · Architecture component · person · writer-owner</title>
-          <rect x="40" y="344" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="40" y="344" width="120" height="60" rx="6" class="c-external" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(46 350) scale(0.6875)">
+        <g data-edge-from="duck" data-edge-to="cli" data-edge-label="CHECKPOINT ✓ · atomic replace" data-edge-key="10" data-edge-id="duck-done">
+          <path data-composition-edge-from="duck" data-composition-edge-to="cli" data-composition-edge-id="duck-done" data-composition-points="800.5,565;260.1,565" d="M 800.5 565 L 260.1 565" class="a-default" data-animate="edge" style="--step:10" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="448.9" y="545" width="162.8" height="16" rx="3" class="c-mask"/>
+          <text x="530.3" y="555" class="t-muted" font-size="9" text-anchor="middle">CHECKPOINT ✓ · atomic replace</text>
+        </g>
+        </g>
+
+        <g data-edge-from="cli" data-edge-to="operator" data-edge-label="✓ live DBs rebuilt" data-edge-key="11" data-edge-id="apply-done">
+          <path data-composition-edge-from="cli" data-composition-edge-to="operator" data-composition-edge-id="apply-done" data-composition-points="246.1,605;121.5,605" d="M 246.1 605 L 121.5 605" class="a-default" data-animate="edge" style="--step:11" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="131" y="585" width="105.60000000000001" height="16" rx="3" class="c-mask"/>
+          <text x="183.8" y="595" class="t-muted" font-size="9" text-anchor="middle">✓ live DBs rebuilt</text>
+        </g>
+        </g>
+
+        <g data-edge-from="operator" data-edge-to="cli" data-edge-label="make snapshot-check" data-edge-key="12" data-edge-id="check">
+          <path data-composition-edge-from="operator" data-composition-edge-to="cli" data-composition-edge-id="check" data-composition-points="121.5,645;246.1,645" d="M 121.5 645 L 246.1 645" class="a-default" data-animate="edge" style="--step:12" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="128.4" y="625" width="110.8" height="16" rx="3" class="c-mask"/>
+          <text x="183.8" y="635" class="t-backend" font-size="9" text-anchor="middle">make snapshot-check</text>
+        </g>
+        </g>
+
+        <g data-edge-from="cli" data-edge-to="snap" data-edge-label="verify_parquet_snapshot" data-edge-key="13" data-edge-id="roundtrip">
+          <path data-composition-edge-from="cli" data-composition-edge-to="snap" data-composition-edge-id="roundtrip" data-composition-points="260.1,680;384.7,680" d="M 260.1 680 L 384.7 680" class="a-security" data-animate="edge" style="--step:12" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+        <g data-detail="context">
+          <rect x="256.59999999999997" y="660" width="131.60000000000002" height="16" rx="3" class="c-mask"/>
+          <text x="322.4" y="670" class="t-security" font-size="9" text-anchor="middle">verify_parquet_snapshot</text>
+        </g>
+        </g>
+
+        <g data-edge-from="snap" data-edge-to="cli" data-edge-label="row counts + schema match" data-edge-key="14" data-edge-id="roundtrip-ok">
+          <path data-composition-edge-from="snap" data-composition-edge-to="cli" data-composition-edge-id="roundtrip-ok" data-composition-points="384.7,712;260.1,712" d="M 384.7 712 L 260.1 712" class="a-default" data-animate="edge" style="--step:12" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+        <g data-detail="context">
+          <rect x="251.39999999999998" y="692" width="142" height="16" rx="3" class="c-mask"/>
+          <text x="322.4" y="702" class="t-muted" font-size="9" text-anchor="middle">row counts + schema match</text>
+        </g>
+        </g>
+
+        <!-- Segment Labels -->
+        <g data-graph-role="segment-label" data-segment-id="0">
+          <rect x="56" y="118" width="86.8" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="131" class="t-dim" font-size="9" font-weight="600">Guard + locate</text>
+        </g>
+        <g data-graph-role="segment-label" data-segment-id="1">
+          <rect x="56" y="260" width="86.8" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="273" class="t-dim" font-size="9" font-weight="600">SQLite restore</text>
+        </g>
+        <g data-graph-role="segment-label" data-segment-id="2">
+          <rect x="56" y="450" width="86.8" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="463" class="t-dim" font-size="9" font-weight="600">DuckDB restore</text>
+        </g>
+        <g data-graph-role="segment-label" data-segment-id="3">
+          <rect x="56" y="546" width="102.4" height="18" rx="3" class="c-mask"/>
+          <text x="62" y="559" class="t-dim" font-size="9" font-weight="600">Verify round-trip</text>
+        </g>
+
+        <!-- Participants -->
+        <g id="node-operator" data-node-id="operator" data-node-label="Operator" tabindex="0" role="button" aria-label="Focus Operator, human · make, Sequence participant" aria-pressed="false" data-node-kind="external" data-node-sublabel="human · make" data-node-context="Sequence participant">
+          <title>Operator · human · make · Sequence participant</title>
+          <rect x="62" y="72" width="105" height="54" rx="6" class="c-mask"/>
+          <rect x="62" y="72" width="105" height="54" rx="6" class="c-external" data-animate="node" style="--step:0" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(68 78) scale(0.6875)">
             <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
             <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
           </g>
-          <text data-node-label="" x="100" y="378" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Writer</text>
-        <text data-detail="fine" x="100" y="396" class="t-external" font-size="7" text-anchor="middle">person · writer-owner</text>
+          <text data-node-label="" data-detail-anchor="" x="114.5" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">Operator</text>
+          <text data-detail="context" x="114.5" y="111" class="t-muted" font-size="7" text-anchor="middle">human · make</text>
         </g>
 
-        <g id="node-github" data-node-id="github" data-node-label="GitHub origin" tabindex="0" role="button" aria-label="Focus GitHub origin, Architecture component" aria-pressed="false" data-node-kind="external" data-node-tag="external system" data-node-context="Architecture component">
-          <title>GitHub origin · Architecture component · external system</title>
-          <rect x="730" y="344" width="120" height="60" rx="6" class="c-mask"/>
-          <rect x="730" y="344" width="120" height="60" rx="6" class="c-external" stroke-width="1.5"/>
-          <g aria-hidden="true" data-semantic-sigil="external" class="semantic-sigil s-external" transform="translate(736 350) scale(0.6875)">
-            <rect x="2.5" y="5" width="8.5" height="8" rx="1.5"/>
-            <path d="M8 2.5h5.5V8M13.5 2.5 7.5 8.5"/>
+        <g id="node-cli" data-node-id="cli" data-node-label="snapshot_db.py" tabindex="0" role="button" aria-label="Focus snapshot_db.py, --restore --force, Sequence participant" aria-pressed="false" data-node-kind="backend" data-node-sublabel="--restore --force" data-node-context="Sequence participant">
+          <title>snapshot_db.py · --restore --force · Sequence participant</title>
+          <rect x="200.6" y="72" width="105" height="54" rx="6" class="c-mask"/>
+          <rect x="200.6" y="72" width="105" height="54" rx="6" class="c-backend" data-animate="node" style="--step:1" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="backend" class="semantic-sigil s-backend" transform="translate(206.6 78) scale(0.6875)">
+            <path d="M6 3 3 8l3 5M10 3l3 5-3 5"/>
           </g>
-          <text data-node-label="" x="790" y="378" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">GitHub origin</text>
-        <text data-detail="fine" x="790" y="396" class="t-external" font-size="7" text-anchor="middle">external system</text>
+          <text data-node-label="" data-detail-anchor="" x="253.1" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">snapshot_db.py</text>
+          <text data-detail="context" x="253.1" y="111" class="t-muted" font-size="7" text-anchor="middle">--restore --force</text>
         </g>
 
-        <!-- Connection labels -->
-
-        <g data-detail="context" data-edge-from="ingest" data-edge-to="sqlite" data-edge-label="entities · events" data-edge-key="1" data-edge-id="ingest-sqlite">
-          <rect x="169.2" y="130.5" width="91.6" height="14" rx="3" class="c-mask"/>
-          <text x="215" y="140.5" class="t-muted" font-size="8" text-anchor="middle">entities · events</text>
-        </g>
-        <g data-detail="context" data-edge-from="vault" data-edge-to="sqlite" data-edge-label="sync_tags rebuild" data-edge-key="2" data-edge-id="vault-sqlite">
-          <rect x="169.2" y="232" width="91.6" height="14" rx="3" class="c-mask"/>
-          <text x="215" y="242" class="t-muted" font-size="8" text-anchor="middle">sync_tags rebuild</text>
-        </g>
-        <g data-detail="context" data-edge-from="sqlite" data-edge-to="duckdb" data-edge-label="materializes" data-edge-key="3" data-edge-id="sqlite-duckdb">
-          <rect x="466.2" y="232" width="67.6" height="14" rx="3" class="c-mask"/>
-          <text x="500" y="242" class="t-muted" font-size="8" text-anchor="middle">materializes</text>
-        </g>
-        <g data-detail="context" data-edge-from="duckdb" data-edge-to="frontend" data-edge-label="serves graph reads" data-edge-key="4" data-edge-id="duckdb-frontend">
-          <rect x="681.8" y="232" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
-          <text x="730" y="242" class="t-muted" font-size="8" text-anchor="middle">serves graph reads</text>
-        </g>
-        <g data-detail="context" data-edge-from="maintenance" data-edge-to="sqlite" data-edge-label="VACUUM · integrity" data-edge-key="5" data-edge-id="maintenance-sqlite">
-          <rect x="305.8" y="144" width="96.39999999999999" height="14" rx="3" class="c-mask"/>
-          <text x="354" y="154" class="t-muted" font-size="8" text-anchor="middle">VACUUM · integrity</text>
+        <g id="node-snap" data-node-id="snap" data-node-label="snapshots/" tabindex="0" role="button" aria-label="Focus snapshots/, git-tracked · zstd, Sequence participant" aria-pressed="false" data-node-kind="database" data-node-sublabel="git-tracked · zstd" data-node-context="Sequence participant">
+          <title>snapshots/ · git-tracked · zstd · Sequence participant</title>
+          <rect x="339.2" y="72" width="105" height="54" rx="6" class="c-mask"/>
+          <rect x="339.2" y="72" width="105" height="54" rx="6" class="c-database" data-animate="node" style="--step:2" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(345.2 78) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="391.7" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">snapshots/</text>
+          <text data-detail="context" x="391.7" y="111" class="t-muted" font-size="7" text-anchor="middle">git-tracked · zstd</text>
         </g>
 
-
-        <g data-detail="context" data-edge-from="duckdb" data-edge-to="algos" data-edge-label="reads" data-edge-key="8" data-edge-id="duckdb-algos">
-          <rect x="658" y="225.5" width="34" height="14" rx="3" class="c-mask"/>
-          <text x="675" y="235.5" class="t-muted" font-size="8" text-anchor="middle">reads</text>
-        </g>
-        <g data-detail="context" data-edge-from="vault" data-edge-to="derived" data-edge-label="corpus walk" data-edge-key="9" data-edge-id="vault-derived">
-          <rect x="68.6" y="232" width="62.8" height="14" rx="3" class="c-mask"/>
-          <text x="100" y="242" class="t-messagebus" font-size="8" text-anchor="middle">corpus walk</text>
-        </g>
-        <g data-detail="context" data-edge-from="writer" data-edge-to="vault" data-edge-label="edits OKF notes" data-edge-key="10" data-edge-id="writer-vault">
-          <rect x="-25" y="226" width="82" height="14" rx="3" class="c-mask"/>
-          <text x="16" y="236" class="t-muted" font-size="8" text-anchor="middle">edits OKF notes</text>
-        </g>
-        <g data-detail="context" data-edge-from="github" data-edge-to="algos" data-edge-label="hosts origin/main" data-edge-key="11" data-edge-id="github-maintenance">
-          <rect x="624.2" y="386" width="91.6" height="14" rx="3" class="c-mask"/>
-          <text x="670" y="396" class="t-muted" font-size="8" text-anchor="middle">hosts origin/main</text>
+        <g id="node-sqlite" data-node-id="sqlite" data-node-label="research.db" tabindex="0" role="button" aria-label="Focus research.db, tmp build → atomic swap, Sequence participant" aria-pressed="false" data-node-kind="database" data-node-sublabel="tmp build → atomic swap" data-node-context="Sequence participant">
+          <title>research.db · tmp build → atomic swap · Sequence participant</title>
+          <rect x="477.79999999999995" y="72" width="105" height="54" rx="6" class="c-mask"/>
+          <rect x="477.79999999999995" y="72" width="105" height="54" rx="6" class="c-database" data-animate="node" style="--step:3" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(483.79999999999995 78) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="530.3" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">research.db</text>
+          <text data-detail="context" x="530.3" y="111" class="t-muted" font-size="7" text-anchor="middle">tmp build → atomic swap</text>
         </g>
 
-        <!-- Boundary labels (foreground masks keep routes out of titles) -->
-        <g data-graph-role="structural-frame-label" data-composition-frame-id="0" data-composition-frame-kind="region" data-composition-frame-label="Repo-local storage">
-          <rect data-graph-role="structural-frame-label-mask" x="14" y="148" width="107.2" height="16" rx="3" class="c-mask"/>
-          <text data-boundary-label="" x="18" y="161" class="t-cloud" font-size="9" font-weight="600">Repo-local storage</text>
+        <g id="node-fts" data-node-id="fts" data-node-label="note_search FTS5" tabindex="0" role="button" aria-label="Focus note_search FTS5, vault-notes index, Sequence participant" aria-pressed="false" data-node-kind="database" data-node-sublabel="vault-notes index" data-node-context="Sequence participant">
+          <title>note_search FTS5 · vault-notes index · Sequence participant</title>
+          <rect x="616.4" y="72" width="105" height="54" rx="6" class="c-mask"/>
+          <rect x="616.4" y="72" width="105" height="54" rx="6" class="c-database" data-animate="node" style="--step:4" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(622.4 78) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="668.9" y="94" class="t-primary" font-size="10.1" font-weight="600" text-anchor="middle">note_search FTS5</text>
+          <text data-detail="context" x="668.9" y="111" class="t-muted" font-size="7" text-anchor="middle">vault-notes index</text>
+        </g>
+
+        <g id="node-duck" data-node-id="duck" data-node-label="graph cache" tabindex="0" role="button" aria-label="Focus graph cache, views + analytics, Sequence participant" aria-pressed="false" data-node-kind="database" data-node-sublabel="views + analytics" data-node-context="Sequence participant">
+          <title>graph cache · views + analytics · Sequence participant</title>
+          <rect x="755" y="72" width="105" height="54" rx="6" class="c-mask"/>
+          <rect x="755" y="72" width="105" height="54" rx="6" class="c-database" data-animate="node" style="--step:5" stroke-width="1.5"/>
+          <g aria-hidden="true" data-semantic-sigil="database" class="semantic-sigil s-database" transform="translate(761 78) scale(0.6875)">
+            <ellipse cx="8" cy="4" rx="5" ry="2"/>
+            <path d="M3 4v8c0 1.1 2.2 2 5 2s5-.9 5-2V4M3 8c0 1.1 2.2 2 5 2s5-.9 5-2"/>
+          </g>
+          <text data-node-label="" data-detail-anchor="" x="807.5" y="94" class="t-primary" font-size="11" font-weight="600" text-anchor="middle">graph cache</text>
+          <text data-detail="context" x="807.5" y="111" class="t-muted" font-size="7" text-anchor="middle">views + analytics</text>
         </g>
 
         <!-- Legend -->
-        <g data-legend="" data-legend-bridge="">
-          <text x="40" y="436" class="t-primary" font-size="12" font-weight="650">Legend</text>
-          <g data-legend-semantic-kind="frontend" data-legend-kind="frontend" data-legend-label="Frontend" data-legend-x="40" data-legend-baseline="456" data-legend-width="83">
-            <rect x="40" y="447" width="16" height="10" rx="2.5" class="c-frontend" stroke-width="1"/>
-            <text x="62" y="456" class="t-muted" font-size="10" font-weight="500">Frontend</text>
+        <g data-legend="">
+          <text x="40" y="726" class="t-primary" font-size="12" font-weight="650">Legend</text>
+          <g data-legend-semantic-kind="emphasis" data-legend-x="40" data-legend-baseline="746" data-legend-width="78">
+            <path d="M 40 743 L 74 743" class="a-emphasis" stroke-width="1.8" marker-end="url(#arrowhead-emphasis)"/>
+            <text x="83" y="746" class="t-muted" font-size="10" font-weight="500">request</text>
           </g>
-          <g data-legend-semantic-kind="backend" data-legend-kind="backend" data-legend-label="Backend" data-legend-x="145" data-legend-baseline="456" data-legend-width="78">
-            <rect x="145" y="447" width="16" height="10" rx="2.5" class="c-backend" stroke-width="1"/>
-            <text x="167" y="456" class="t-muted" font-size="10" font-weight="500">Backend</text>
+          <g data-legend-semantic-kind="return" data-legend-x="140" data-legend-baseline="746" data-legend-width="73">
+            <path d="M 140 743 L 174 743" class="a-default" stroke-width="1.4" stroke-dasharray="3,5" marker-end="url(#arrowhead)"/>
+            <text x="183" y="746" class="t-muted" font-size="10" font-weight="500">return</text>
           </g>
-          <g data-legend-semantic-kind="database" data-legend-kind="database" data-legend-label="Database" data-legend-x="245" data-legend-baseline="456" data-legend-width="83">
-            <rect x="245" y="447" width="16" height="10" rx="2.5" class="c-database" stroke-width="1"/>
-            <text x="267" y="456" class="t-muted" font-size="10" font-weight="500">Database</text>
+          <g data-legend-semantic-kind="security" data-legend-x="235" data-legend-baseline="746" data-legend-width="83">
+            <path d="M 235 743 L 269 743" class="a-security" stroke-width="1.4" marker-end="url(#arrowhead-security)"/>
+            <text x="278" y="746" class="t-muted" font-size="10" font-weight="500">security</text>
           </g>
-          <g data-legend-semantic-kind="external" data-legend-kind="external" data-legend-label="External" data-legend-x="350" data-legend-baseline="456" data-legend-width="83">
-            <rect x="350" y="447" width="16" height="10" rx="2.5" class="c-external" stroke-width="1"/>
-            <text x="372" y="456" class="t-muted" font-size="10" font-weight="500">External</text>
+          <g data-legend-semantic-kind="default" data-legend-x="340" data-legend-baseline="746" data-legend-width="118">
+            <path d="M 340 743 L 374 743" class="a-default" stroke-width="1.4" marker-end="url(#arrowhead)"/>
+            <text x="383" y="746" class="t-muted" font-size="10" font-weight="500">default message</text>
           </g>
         </g>
       </svg>
@@ -5450,37 +5480,24 @@
       <div class="card">
         <div class="card-header">
           <div class="card-dot cyan"></div>
-          <h3>Source of truth</h3>
+          <h3>Apply order</h3>
         </div>
         <ul>
-          <li>&bull; SQLite research.db owns entities, edges, events, quotes</li>
-          <li>&bull; Ingest helpers write OKF notes into the vault; sync_tags lands entities/edges in SQLite</li>
-          <li>&bull; findata/ vault is the writer-owned note corpus</li>
-          <li>&bull; Writer owns vault edits; GitHub origin hosts the repo — sources anchors pin origin/main</li>
+          <li>&bull; Guard first: --restore refuses to clobber live DBs without --force</li>
+          <li>&bull; SQLite tmp-build: DDL → parquet rows → FTS5 rebuild → FK check → atomic replace</li>
+          <li>&bull; DuckDB: creation-ordered DDL + views, read_parquet bulk load, CHECKPOINT</li>
         </ul>
       </div>
 
       <div class="card">
         <div class="card-header">
-          <div class="card-dot emerald"></div>
-          <h3>Derived</h3>
+          <div class="card-dot amber"></div>
+          <h3>Trust + bounds</h3>
         </div>
         <ul>
-          <li>&bull; DuckDB cache re-materialized by graph-rebuild</li>
-          <li>&bull; Parquet snapshots export both stores</li>
-          <li>&bull; corpus.db, embeds and doc-search rebuildable; algorithms write analytics back to SQLite</li>
-        </ul>
-      </div>
-
-      <div class="card">
-        <div class="card-header">
-          <div class="card-dot rose"></div>
-          <h3>Operator path</h3>
-        </div>
-        <ul>
-          <li>&bull; maint-full runs 14 steps: PRE_FULL convergers, backup, rebuilds</li>
-          <li>&bull; db_maint takes the recovery backup + zstd twins before mutation</li>
-          <li>&bull; Note mutation carve-out: machine-owned provenance keys only</li>
+          <li>&bull; Vault notes are never mutated — only the note_search index is rebuilt from the exported shadow</li>
+          <li>&bull; foreign_key_check hard-fails a bad SQLite restore (helpers/maintenance/snapshot_db.py:976)</li>
+          <li>&bull; Restore: _cmd_restore :1034 · sqlite :935 · duckdb :989 · verify_parquet_snapshot :867 · Makefile snapshot-restore :128 — all pinned origin/main 56926513</li>
         </ul>
       </div>
     </div>

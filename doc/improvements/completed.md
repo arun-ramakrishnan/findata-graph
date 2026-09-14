@@ -5662,3 +5662,50 @@ full scale, and reconciled the result with the igraph handover plan.
 0.29–0.38s but untrustworthy; run log folded verbatim into the proposal
 appendix; the gitignored `doc/local/easy_graph_run.txt` copy was
 removed after folding).
+
+## 232. Archify C4 coverage on stock schema — external actors + first
+sequence diagram
+
+**Proposal**: `doc/improvements/archive/tooling/archify_c4_coverage_stock.md`
+(filed 2026-09-13, archived 2026-09-14). Docs/diagram arc — no production
+code; one diagram re-authored, one authored, procedure notes.
+
+**Problem**: the terrain C4 evaluation left two gaps against the diagram
+surface — no C4 actor semantics anywhere, and the `sequence` type at
+zero instances. The follow-up proposal proved both close with stock
+primitives (`type: "external"` already rendered in two shipped diagrams;
+the sequence schema complete and unused): authoring-only, fork rejected
+upfront (renderer walls become constraint notes + upstream issues).
+
+**Landed**:
+- Slice A — `system_overview` re-rendered with two external actors
+  (writer person → vault; GitHub origin → algos) on a dedicated actor
+  row after row-0 placement violated showcase crossing rules; revision
+  pin refreshed to origin/main 56926513 with 5 drifted evidence anchors
+  re-pinned (parse_newsletter 774→782, query.py 893→898, app.py 22→25,
+  algorithms.py 720→741, derive_insights 1768→2823 — each verified via
+  `git show origin/main:`); layout compacted (gapX 100 / gapY 24, actor
+  card folded into Source-of-truth) to restore the fit-to-viewport
+  contract. validate 9/9 · visual-check pass, 4 viewports × 2 themes.
+- Slice B — `snapshot_apply`: first sequence diagram (6 participants,
+  15 messages, 4 segments): `make snapshot-restore` force-guard →
+  locate dirs + `_schema` DDL → SQLite tmp-build (DDL → parquet rows →
+  FTS5 `note_search` rebuild → `PRAGMA foreign_key_check` → atomic
+  swap) → DuckDB restore (creation-ordered DDL + views, `read_parquet`
+  bulk load, CHECKPOINT) → `make snapshot-check` round-trip. Anchors
+  pinned origin/main in the Trust card (`snapshot_db.py` :1034/:935/
+  :973/:976/:989/:1023/:867; Makefile :128).
+- Slice C — `diagrams.md`: three hard-won constraints — `external` is
+  the actor primitive (no schema fork); `sequence` is the one-question
+  behavioral type (states stay in lifecycle diagrams); sequence pages
+  scroll vertically at every viewport (renderer-wide: archify's own
+  cache-miss example fails containment identically), so the sequence
+  gate is validate 9/9 + readability/chrome/captures + zero horizontal
+  overflow. `db_schema.md` §Maintenance carries the pointer line.
+
+**Numbers**: 5 anchors re-pinned; system_overview compacted from a
+naive 1283px scroll height back under every viewport (900–1320); 2 new
+diagram pairs on origin-pinned evidence; 1 renderer constraint recorded;
+upstream issue (sequence containment) pending operator filing. Lesson:
+proposal frontmatter must carry `executed`/`completed_md` as nulls while
+proposed — the schema demands presence, not just absence of values.

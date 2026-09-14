@@ -7,14 +7,14 @@
     "locale": "en",
     "repository": {
       "url": "https://github.com/arun-ramakrishnan/findata-graph",
-      "revision": "b057071c4209e91341bd6f949b1b6c7f8520ee2b"
+      "revision": "56926513d340bc8c4b32595862d7274d8b81273f"
     }
   },
   "layout": {
     "mode": "grid",
     "cols": 4,
-    "gapX": 60,
-    "gapY": 48
+    "gapX": 100,
+    "gapY": 24
   },
   "components": [
     {
@@ -32,7 +32,7 @@
         },
         {
           "path": "helpers/core/parse_newsletter.py",
-          "line": 774,
+          "line": 782,
           "label": "main"
         }
       ]
@@ -83,7 +83,7 @@
       "sources": [
         {
           "path": "helpers/graph/query.py",
-          "line": 893,
+          "line": 898,
           "label": "rebuild()"
         }
       ]
@@ -98,7 +98,7 @@
       "sources": [
         {
           "path": "app.py",
-          "line": 22,
+          "line": 25,
           "label": "Flask app"
         },
         {
@@ -149,15 +149,31 @@
       "sources": [
         {
           "path": "helpers/graph/algorithms.py",
-          "line": 720,
+          "line": 741,
           "label": "_cli"
         },
         {
           "path": "helpers/graph/derive_insights.py",
-          "line": 1768,
+          "line": 2823,
           "label": "scan()"
         }
       ]
+    },
+    {
+      "id": "writer",
+      "type": "external",
+      "label": "Writer",
+      "tag": "person · writer-owner",
+      "row": 3,
+      "col": 0
+    },
+    {
+      "id": "github",
+      "type": "external",
+      "label": "GitHub origin",
+      "tag": "external system",
+      "row": 3,
+      "col": 3
     }
   ],
   "boundaries": [
@@ -178,9 +194,7 @@
     {
       "id": "ingest-vault",
       "from": "ingest",
-      "to": "vault",
-      "label": "writes OKF notes",
-      "labelDy": 24
+      "to": "vault"
     },
     {
       "id": "ingest-sqlite",
@@ -245,6 +259,30 @@
       "label": "corpus walk",
       "variant": "dashed",
       "labelDy": 24
+    },
+    {
+      "id": "writer-vault",
+      "from": "writer",
+      "to": "vault",
+      "label": "edits OKF notes",
+      "labelDy": 24,
+      "fromSide": "left",
+      "toSide": "left",
+      "labelAt": [
+        16,
+        236
+      ]
+    },
+    {
+      "id": "github-maintenance",
+      "from": "github",
+      "to": "algos",
+      "label": "hosts origin/main",
+      "labelDy": 24,
+      "labelAt": [
+        670,
+        396
+      ]
     }
   ],
   "cards": [
@@ -253,8 +291,9 @@
       "title": "Source of truth",
       "items": [
         "SQLite research.db owns entities, edges, events, quotes",
+        "Ingest helpers write OKF notes into the vault; sync_tags lands entities/edges in SQLite",
         "findata/ vault is the writer-owned note corpus",
-        "Reader serves entities/events from SQLite, graph from DuckDB"
+        "Writer owns vault edits; GitHub origin hosts the repo — sources anchors pin origin/main"
       ]
     },
     {
@@ -263,8 +302,7 @@
       "items": [
         "DuckDB cache re-materialized by graph-rebuild",
         "Parquet snapshots export both stores",
-        "corpus.db, embed matrix and doc-search are rebuildable indexes",
-        "Mojo-bridge algorithms write graph_analytics back to SQLite"
+        "corpus.db, embeds and doc-search rebuildable; algorithms write analytics back to SQLite"
       ]
     },
     {
