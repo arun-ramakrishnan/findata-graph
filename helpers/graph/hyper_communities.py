@@ -47,6 +47,8 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 # S5: industry joined the default scope (117 labels / 816 memberships —
 # tripled the theme lane's density; country stays opt-in, measured-degenerate).
+from helpers.graph import hyper_arrow as ha  # noqa: E402  # S18(b) canonical loader
+
 DEFAULT_SOURCES = ("sector", "theme", "industry")
 METRIC = "hypermmsbm_community"
 
@@ -70,31 +72,6 @@ def _require_hgx():
             "uv sync / uv pip install hypergraphx)."
         ) from exc
     return Hypergraph, HyMMSBM
-
-
-def load_incidence(
-    sources: list[str],
-    *,
-    db_path: str | Path | None = None,
-) -> dict[str, list[str]]:
-    """Load ``{label: members}`` hyperedges from hyper_edges/hyper_incidences.
-
-    Label is prefixed with the edge_type (``sector:Automotive``) so blocks can
-    report their dominant source categories without a second lookup. Pure
-    read; works on any SQLite connection path.
-
-    S18(b): thin wrapper over the canonical Arrow loader
-    (:func:`helpers.graph.hyper_arrow.load_incidence_arrow`, live source) —
-    same contract, deterministic order, weights dropped (dict lane is
-    membership-only; weights go through the Arrow table).
-    """
-    from helpers.graph.hyper_arrow import load_incidence_arrow
-
-    tbl = load_incidence_arrow(sources, source="live", db_path=db_path)
-    out: dict[str, list[str]] = {}
-    for row in tbl.to_pylist():
-        out.setdefault(f"{row['edge_type']}:{row['label']}", []).append(row["node"])
-    return out
 
 
 def _exclude_degenerate(
@@ -272,7 +249,7 @@ def _cli(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     sources = [s.strip() for s in args.sources.split(",") if s.strip()]
-    raw = load_incidence(sources)
+    raw = ha.incidence_dict(ha.load_incidence_arrow(sources))  # S18(b) exit: Arrow load
     kept, giants, singletons = _exclude_degenerate(raw, allow_giant=args.allow_giant)
     n_members = sum(len(v) for v in kept.values())
     print(

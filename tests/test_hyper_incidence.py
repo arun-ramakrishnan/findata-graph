@@ -236,7 +236,10 @@ class TestBackfill:
         dh.apply_hyperedges(hyper, weights, conn=conn, dry_run=False)
         conn.commit()
         conn.close()
-        inc = hc.load_incidence(["sector", "theme"], db_path=tmp_path / "hyper.db")
+        tbl = ha.load_incidence_arrow(
+            ["sector", "theme"], source="live", db_path=tmp_path / "hyper.db"
+        )
+        inc = ha.incidence_dict(tbl)
         assert inc["sector:Automotive"] == ["Alpha", "Beta", "Gamma"]
         assert inc["theme:EV_Transition"] == ["Alpha", "Beta"]
 
@@ -368,14 +371,16 @@ class TestHyperArrowLoader:
         assert hg.num_edges() == len(tbl["label"].unique().to_pylist())
         assert any(k.startswith("sector:") for k in labels.values())
 
-    def test_legacy_wrapper_equivalence(self, conn, tmp_path):
+    def test_arrow_direct_dict_boundary(self, conn, tmp_path):
+        """S18(b) exit: consumers use load_incidence_arrow + incidence_dict."""
         self._seed(conn)
         conn.commit()
         db = tmp_path / "hyper.db"
         conn.close()
-        via_wrapper = hc.load_incidence(["sector", "theme"], db_path=db)
-        assert via_wrapper["sector:Automotive"] == ["Alpha", "Beta", "Gamma"]
-        assert via_wrapper["theme:EV_Transition"] == ["Alpha", "Beta"]
+        tbl = ha.load_incidence_arrow(["sector", "theme"], source="live", db_path=db)
+        via_boundary = ha.incidence_dict(tbl)
+        assert via_boundary["sector:Automotive"] == ["Alpha", "Beta", "Gamma"]
+        assert via_boundary["theme:EV_Transition"] == ["Alpha", "Beta"]
 
 
 class TestIndustryLane:

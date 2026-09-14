@@ -44,18 +44,11 @@ DATA_LANE_MODULES = {
 _ZSTD_BASELINE: dict[str, str] = {}
 
 # In-flight straggler ledger — {relpath:func : (reason, exit slice)}.
-_ARROW_BASELINE: dict[str, tuple[str, str]] = {
-    "helpers/graph/hyper_communities.py:load_incidence": (
-        "legacy dict contract kept for the S12/S14 consumers; canonical "
-        "Arrow loader is load_incidence_arrow (S18(b))",
-        "exit when communities/centralities consume Arrow directly",
-    ),
-    "helpers/graph/hyper_centralities.py:load_incidence_weights": (
-        "per-incidence weights as {(label, member): float} feeds the S14 "
-        "weighted walk; weight column already rides load_incidence_arrow",
-        "exit when stationary_pi takes the Arrow weight column",
-    ),
-}
+# EMPTY since 2026-09-14: both founding entries retired — the communities
+# and centralities CLIs consume load_incidence_arrow directly and derive
+# their working shapes via incidence_dict / weights_from_arrow (the
+# sanctioned Arrow->dict boundaries in hyper_arrow.py).
+_ARROW_BASELINE: dict[str, tuple[str, str]] = {}
 
 
 def _rel(p: Path) -> str:

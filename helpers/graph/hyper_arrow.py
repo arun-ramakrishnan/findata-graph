@@ -125,6 +125,39 @@ def load_incidence_arrow(
     raise ValueError(msg)
 
 
+def incidence_dict(tbl: pa.Table) -> dict[str, list[str]]:
+    """Arrow long-form -> ``{edge_type:label: [members]}`` in row order.
+
+    The lanes' internal working shape (degeneracy filtering, Hy-MMSBM
+    edge list); the LOAD contract stays Arrow — this is the sanctioned
+    Arrow->dict boundary, not a second loader (S18(b) exit, 2026-09-14).
+    """
+    out: dict[str, list[str]] = {}
+    for et, lbl, node in zip(
+        tbl["edge_type"].to_pylist(), tbl["label"].to_pylist(), tbl["node"].to_pylist()
+    ):
+        out.setdefault(f"{et}:{lbl}", []).append(node)
+    return out
+
+
+def weights_from_arrow(tbl: pa.Table) -> dict[tuple[str, str], float]:
+    """Non-null weight column -> ``{(edge_type:label, member): float}``.
+
+    Feeds stationary_pi / compute_centralities (S8 edition quote counts
+    today). Keyed identically to incidence_dict labels (S14 exit).
+    """
+    return {
+        (f"{et}:{lbl}", node): float(wt)
+        for et, lbl, node, wt in zip(
+            tbl["edge_type"].to_pylist(),
+            tbl["label"].to_pylist(),
+            tbl["node"].to_pylist(),
+            tbl["weight"].to_pylist(),
+        )
+        if wt is not None
+    }
+
+
 def incidence_query(table: pa.Table, sql: str, params: list | None = None) -> pa.Table:
     """SQL over the incidence Arrow table, in flight (nothing lands anywhere).
 

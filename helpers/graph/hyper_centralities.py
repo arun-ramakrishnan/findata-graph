@@ -45,41 +45,13 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+from helpers.graph import hyper_arrow as ha  # noqa: E402
 from helpers.graph.hyper_communities import (  # noqa: E402
     DEFAULT_SOURCES,
     _exclude_degenerate,
-    load_incidence,
 )
 
 METRICS = ("ho_pagerank", "s_betweenness", "s_closeness", "eigen_cec", "eigen_zec", "eigen_hec")
-
-
-def load_incidence_weights(
-    sources: list[str],
-    *,
-    db_path: str | Path | None = None,
-) -> dict[tuple[str, str], float]:
-    """S14: per-incidence weights as ``{(prefixed_label, member): weight}``.
-
-    Keyed identically to load_incidence's prefixed labels. Only rows with a
-    non-NULL weight are returned (today: S8 edition quote counts).
-    """
-    from helpers.core.db import connect as _connect
-
-    con = _connect(db_path)
-    try:
-        ph = ",".join("?" for _ in sources)
-        return {
-            (row[0], row[1]): float(row[2])
-            for row in con.execute(
-                "SELECT he.edge_type || ':' || he.label, hi.entity_name, hi.weight "
-                f"FROM hyper_incidences hi JOIN hyper_edges he ON he.id = hi.edge_id "
-                f"WHERE he.edge_type IN ({ph}) AND hi.weight IS NOT NULL",  # noqa: S608
-                sources,
-            )
-        }
-    finally:
-        con.close()
 
 
 def stationary_pi(
@@ -279,8 +251,9 @@ def _cli(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     sources = [x.strip() for x in args.sources.split(",") if x.strip()]
-    raw = load_incidence(sources)
-    weights = load_incidence_weights(sources)
+    tbl = ha.load_incidence_arrow(sources)  # S18(b)/S14 exit: single Arrow load
+    raw = ha.incidence_dict(tbl)
+    weights = ha.weights_from_arrow(tbl)
     res = compute_centralities(raw, s=args.s, allow_giant=args.allow_giant, weights=weights or None)
     meta = res.pop("_meta")
     print(

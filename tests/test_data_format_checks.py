@@ -126,4 +126,4 @@ class TestLiveRepo:
     def test_live_repo_scans_clean(self):
         fatal, advisory = dfc.check_data_format()
         assert fatal == []
-        assert len(advisory) >= 2
+        assert advisory == []  # baseline ledger emptied 2026-09-14 (S18(b)/S14 exits)
