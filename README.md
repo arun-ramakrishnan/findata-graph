@@ -91,7 +91,7 @@ HTML in [`doc/design/diagrams/`](doc/design/diagrams/)).
 </picture>
 
 **Derivations — prose to quotes, magnitudes, and derived edges**
-([design](doc/design/graph_design.txt)):
+([design](doc/design/graph_design.md)):
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/img/derive_chain-dark.png">
@@ -225,7 +225,7 @@ Insights). Note `tags:` are mirrored into `entity_tags` by
 | [`doc/design/architecture.md`](doc/design/architecture.md) | system overview, operational path, tooling map |
 | [`doc/design/db_schema.md`](doc/design/db_schema.md) | SQLite + DuckDB cache schemas, integrity-check registry |
 | [`doc/design/findata.md`](doc/design/findata.md) | vault layout, YAML/tag spec, sync rules |
-| [`doc/design/graph_design.txt`](doc/design/graph_design.txt) | graph engine, algorithm catalog, decision log |
+| [`doc/design/graph_design.md`](doc/design/graph_design.md) | graph engine, algorithm catalog, decision log |
 | [`doc/procedures/markdown_parse.md`](doc/procedures/markdown_parse.md) | the newsletter ingestion procedure |
 | [`doc/procedures/embeddings.md`](doc/procedures/embeddings.md) | local embeddings & note-search: apply procedure, pre-warm, refresh model |
 | [`doc/procedures/doc-search.md`](doc/procedures/doc-search.md) | the doc/ knowledge index: build, refresh, query (API + CLI) |

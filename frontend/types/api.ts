@@ -340,7 +340,7 @@ export interface GraphCloudEdge {
 }
 
 /** Relationship-type summary for the cloud card: count + direction flag +
- * human-readable semantics (mirrors the graph_design.txt edge-type table). */
+ * human-readable semantics (mirrors the graph_design.md edge-type table). */
 export interface RelationshipTypeSummary {
     edge_type: string;
     count: number;

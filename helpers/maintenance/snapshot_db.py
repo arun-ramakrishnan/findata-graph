@@ -211,7 +211,7 @@ def create_duckdb_snapshot(duckdb_path: Path, out_path: Path, logger: logging.Lo
 
     Version-sensitive assumption: read-only CHECKPOINT relies on DuckDB
     ≥ 1.5 allowing a reader connection to flush the WAL. See
-    doc/design/graph_design.txt §9.3 (was §17.11, Bundle O3) for the full caveat + how to
+    doc/design/graph_design.md §9.3 (was §17.11, Bundle O3) for the full caveat + how to
     re-test on pin bumps; the fallback below degrades gracefully.
 
     Skips silently if the DuckDB file does not exist (returns
@@ -404,7 +404,7 @@ def verify_duckdb_snapshot(  # noqa: C901
             if snap_dbver is not None and snap_dbver.lstrip("v") != duckdb.__version__:
                 logger.warning(
                     f"DuckDB version drift: snapshot built on {snap_dbver}, "
-                    f"verifying with {duckdb.__version__} (re-test drill: graph_design.txt 9.3)"
+                    f"verifying with {duckdb.__version__} (re-test drill: graph_design.md 9.3)"
                 )
         finally:
             con.close()

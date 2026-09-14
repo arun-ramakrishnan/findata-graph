@@ -2,7 +2,7 @@
 
 SQLite source of truth for the FinData knowledge graph, plus the derived
 DuckDB read-cache schema (§ "memory/graph.duckdb" below). Architecture and
-cache policy: `graph_design.txt`.
+cache policy: `graph_design.md`.
 Live row counts (2026-09-13): entities 1649, entity_tags 7178,
 graph_edges 19261, events 436, quotes 8272, company_metrics 4412,
 graph_analytics 19,177, note_search (FTS5) + `relations` VIEW.
@@ -47,7 +47,7 @@ query: JOIN two tag aliases for tag intersection.
 ## `graph_edges` — canonical edge store
 
 Directed links; supersedes the `relations` table. 19,261 rows across 19
-edge types (counts + symmetric convention: `graph_design.txt` §4,
+edge types (counts + symmetric convention: `graph_design.md` §4,
 refreshed 2026-09-13).
 Producers: `parse_newsletter`/`markdown_parse` (membership pair),
 `extract_relations.py` (company↔company from prose),
@@ -57,7 +57,7 @@ Producers: `parse_newsletter`/`markdown_parse` (membership pair),
 |---|---|---|
 | `id` | INTEGER PK | autoincrement |
 | `source` / `target` | TEXT | FK → `entities(name)` cascade |
-| `edge_type` | TEXT | 12 values, `graph_design.txt` §4 |
+| `edge_type` | TEXT | 12 values, `graph_design.md` §4 |
 | `weight` | REAL | default 1.0 |
 | `properties` | TEXT | JSON; `CHECK (json_valid(...))` |
 | `valid_from` / `valid_to` | DATE | temporal window; NULL valid_from = always-valid, NULL valid_to = current |
@@ -152,7 +152,7 @@ edition.
 Written ONLY by `helpers/graph/algorithms.py` (`make recompute-graph`);
 never hand-edited. 18 metrics live (12 node metrics + `link_prediction` +
 `voterank`) — semantics, JSON value shapes, and refresh policy:
-`graph_design.txt` §5.
+`graph_design.md` §5.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -230,7 +230,7 @@ Rebuilt by `helpers/maintenance/rebuild_note_search.py`; shadow tables
 ## `memory/graph.duckdb` — DuckDB cache schema (derived)
 
 Read-side cache rebuilt from SQLite (never hand-edited; lifecycle/staleness:
-`graph_design.txt` §8). 28 objects (`v_node` + 7 filtered projections + 2
+`graph_design.md` §8). 28 objects (`v_node` + 7 filtered projections + 2
 embedding tables + 17 `e_*` + `_build_meta`); `_build_meta.schema_version`
 = "13" — a cache stamped otherwise fails `_is_warm()` and triggers a rebuild.
 

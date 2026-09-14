@@ -28,10 +28,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- **hypergraph_incidence_hyx.md** (filed 2026-09-13) — hyper_edges/hyper_incidences
-  incidence tables + derive_hyperedges backfill + hy-MMSBM overlapping communities
-  (HypergraphX) over the sector+theme incidence. Source memo:
-  `doc/local/evaluations/hyper_graph_assessment.md`.
+_(none)_
+
+— (Previously: hypergraph_incidence_hyx.md archived 2026-09-14 as completed.md
+entry 233 - execution record in
+`../archive/graph/hypergraph_incidence_hyx.md`; S0–S21 landed: star store +
+backfills + HGX communities/centralities + the parquet/Arrow/HIF data
+standard; capture-gap ledger deferred inside the proposal.)_
 
 — (Previously: easygraph_cpp_readoption.md archived 2026-09-12 as completed.md
 entry 231 - verdict: adoption DEFERRED, parked behind R1-R4 upstream-fix

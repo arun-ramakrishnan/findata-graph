@@ -14,7 +14,7 @@ algorithms.write_analytics (metric `hypermmsbm_community`). HGX imported
 LAZILY so module collection works even where hypergraphx is absent (dep
 delta scipy+tqdm only, BSD-3, main-venv per the proposal). S7 (2026-09-13):
 this lane REPLACED the retired igraph pilot as the alternate engine
-(bridge module removed 2026-09; see D16 in graph_design.txt).
+(bridge module removed 2026-09; see D16 in graph_design.md).
 
 Scope default is `sector,theme,industry` (42+12+117 hyperedges over 1,165
 companies; S5 added industry — the yfinance frontmatter lane):

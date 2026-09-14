@@ -257,7 +257,7 @@ def _reset_graph_connection() -> None:
     Used by the /api/graph/refresh admin endpoint after the SQLite source has
     been updated (e.g. by parse_newsletter --apply + derive-relations) so the
     next /api/graph/* request sees fresh data. Also closes the file handle
-    (DuckDB single-writer contract — see doc/design/graph_design.txt §8) so the
+    (DuckDB single-writer contract — see doc/design/graph_design.md §8) so the
     subsequent rebuild() can reopen the file read-write.
     """
     global _graph_con, _graph_con_error, _graph_error_at, _graph_etag
@@ -2523,7 +2523,7 @@ def api_graph_stats():
 
 
 # Relationship-type semantics for the graph cloud + relationship cloud card.
-# Mirrors the edge-type table in doc/design/graph_design.txt §4. Every live edge type
+# Mirrors the edge-type table in doc/design/graph_design.md §4. Every live edge type
 # is listed; `symmetric` drives arrow rendering, `semantics` feeds the tooltip.
 _EDGE_SEMANTICS: dict[str, dict[str, object]] = {
     "co_mentioned_in": {

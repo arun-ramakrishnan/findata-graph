@@ -3,7 +3,7 @@
 Three synchronized layers: **SQLite** (`memory/research.db`), **markdown**
 (`findata/`), and **Python helpers** (`helpers/`). DB schema (incl. the
 DuckDB cache): [`schema.md`](schema.md). Graph engine & algorithms:
-[`graph_design.txt`](graph_design.txt). System overview:
+[`graph_design.md`](graph_design.md). System overview:
 [`architecture.md`](architecture.md). **Check existing tools before writing
 new ones.**
 

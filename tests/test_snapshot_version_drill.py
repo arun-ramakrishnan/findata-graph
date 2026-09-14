@@ -2,7 +2,7 @@
 """Bundle O3 / snapshot_trust_country_exposure S2: DuckDB version-drill tests.
 
 The read-only CHECKPOINT in ``create_duckdb_snapshot`` assumes DuckDB
->= 1.5 lets a reader connection flush the WAL (graph_design.txt §9.3).
+>= 1.5 lets a reader connection flush the WAL (graph_design.md §9.3).
 These tests make that assumption observable from the DEFAULT pytest
 suite: the full create -> verify -> restore cycle over a real
 materialised cache lives in test_integration_snapshot_cycle.py, which is

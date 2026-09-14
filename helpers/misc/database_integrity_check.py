@@ -1308,7 +1308,7 @@ class DatabaseIntegrityChecker:
         The DuckDB file is a read-derived cache of SQLite; after any SQLite
         writer (``parse_newsletter --apply``, ``derive-relations``) the cache
         goes stale and must be refreshed via ``make graph-rebuild`` or the
-        Refresh button. There is no auto-detection (see doc/design/graph_design.txt
+        Refresh button. There is no auto-detection (see doc/design/graph_design.md
         §18) — THIS check is the programmatic staleness detector, comple-
         menting the UI's Refresh button.
 

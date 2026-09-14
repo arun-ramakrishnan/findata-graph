@@ -44,7 +44,7 @@ snapshots/            git-tracked Parquet snapshot (per-table + schema DDL) — 
 db-backup/            local scratch: zstd snapshots + zstd *_backup.* recovery copies (gitignored)
 findata/              the vault (see findata.md for layout & note format)
 helpers/              core/ graph/ maintenance/ misc/ pdf/ validators/
-doc/                  this file, db_schema.md, findata.md, okf.md, graph_design.txt,
+doc/                  this file, db_schema.md, findata.md, okf.md, graph_design.md,
                       procedures/, improvements/{pending,completed,archive}
 tests/                pytest suite (~1.6k tests; qa gate = not-live subset)
 frontend/             TypeScript UI sources
@@ -68,7 +68,7 @@ Derived/frozen/moving data follows the §10 format standard
 FKs are declared CASCADE and `helpers/core/db.py:connect()` **enables
 `PRAGMA foreign_keys`** (so cascades fire there); a raw `sqlite3.connect()`
 does not — stale children are caught by the validators. Graph engine and
-the algorithm catalog: [`graph_design.txt`](graph_design.txt) (DuckDB
+the algorithm catalog: [`graph_design.md`](graph_design.md) (DuckDB
 read-cache + Onager; duckpgq and NetworkX were retired 2026-08-14).
 
 ## 5. Filesystem ↔ DB sync contract
@@ -128,7 +128,7 @@ a pure findata graph server). Survivors form a layered DAG: `core/db.py`,
 ## 8. Doc map
 
 `architecture.md` (this file) · `schema.md` (DB + cache schemas, integrity
-checks) · `findata.md` (vault, YAML, tags, sync rules) · `graph_design.txt`
+checks) · `findata.md` (vault, YAML, tags, sync rules) · `graph_design.md`
 (engine + algorithm catalog) · `procedures/markdown_parse.md` ·
 `templates/` (start-from skeletons for new Python helpers, Mojo sources,
 and proposals — gated by `tests/test_templates.py`) ·
@@ -168,7 +168,7 @@ duplication candidate (surfaced by the 2026-08 graph audit).
 
 **Note:** ripwire is a read-only analysis layer over the *codebase* —
 distinct from the FinData entity graph served by DuckDB/Onager
-(`graph_design.txt`).
+(`graph_design.md`).
 
 ---
 *Rewritten 2026-08-15 from the Jun 2026 version: §4 data model now points at
@@ -184,7 +184,7 @@ dialect notes and audit patterns live on in the archived proposals
 
 Operator directive 2026-09-13, effective repo-wide. First applied on the
 hypergraph incidence lane (proposal
-`improvements/proposals/hypergraph_incidence_hyx.md` S18); this section
+`improvements/archive/graph/hypergraph_incidence_hyx.md` S18); this section
 is the enforceable statement for everything else.
 
 | Tier | Standard | Why |

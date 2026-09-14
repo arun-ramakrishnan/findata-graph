@@ -8,7 +8,7 @@ from the same edition therefore carries an identical edition title; those
 companies are "co-mentioned" and we materialise a symmetric `co_mentioned_in`
 edge between every unordered pair.
 
-This is Slice C of Graph Phase 2 — see `doc/design/graph_design.txt` §4 for the
+This is Slice C of Graph Phase 2 — see `doc/design/graph_design.md` §4 for the
 symmetric-edge convention (`source LE target`, one row per pair).
 
 Public API
@@ -301,7 +301,7 @@ def derive_edges(
 
     For an edition with N entities, emits ``N*(N-1)/2`` edges. Each edge is
     a tuple ``(source, target, properties, source_ref)`` where ``source`` is
-    alphabetically ≤ ``target`` (symmetric convention from graph_design.txt
+    alphabetically ≤ ``target`` (symmetric convention from graph_design.md
     §4). Editions with fewer than 2 entities produce no edges.
 
     The ``properties`` dict carries:

@@ -8,7 +8,7 @@ Idempotent. Safe to re-run. Run once on a snapshot-protected DB:
 What it does (all in one SQLite transaction):
   0. Ensures `entities` exists with the canonical schema (name-suffix CHECK,
      all 10 columns, 4 production indexes). IF NOT EXISTS = no-op on live DB.
-  1. Creates `graph_edges` table if missing (per doc/design/graph_design.txt §4).
+  1. Creates `graph_edges` table if missing (per doc/design/graph_design.md §4).
   2. Creates `graph_analytics` table if missing.
   3. Backfills `graph_edges` from `relations` (idempotent via INSERT OR IGNORE).
   4. Replaces the legacy `relations` TABLE with a VIEW backed by graph_edges.

@@ -1,9 +1,9 @@
 ---
 title: "Hypergraph incidence layer — hyper_edges/hyper_incidences + hy-MMSBM overlapping communities"
-status: proposed
+status: executed
 filed: "2026-09-13"
-executed: null
-completed_md: null
+executed: "2026-09-14"
+completed_md: "233"
 area: "helpers/graph (new derive_hyperedges.py, hyper_communities.py), helpers/maintenance/migrate_to_graph_edges.py, doc/design/db_schema.md"
 ---
 
@@ -13,7 +13,7 @@ area: "helpers/graph (new derive_hyperedges.py, hyper_communities.py), helpers/m
      archival, flip status/executed/completed_md in the same change. -->
 # Hypergraph incidence layer — hyper_edges/hyper_incidences + hy-MMSBM overlapping communities
 
-**Date:** 2026-09-13 · **Status:** PROPOSED ·
+**Date:** 2026-09-13 · **Status:** EXECUTED 2026-09-14 (completed.md #233) — S0–S21 landed ·
 **Area:** graph layer (SQLite schema + derive family + HGX compute lane); Onager/igraph untouched
 
 ## 1. Motivation
@@ -587,6 +587,23 @@ members) with REAL weights, all from existing data — no extraction, no new
 sources. That is what makes higher-order motifs ("3-way co-mention vs 3
 pairwise") and hyperedge prediction meaningful instead of starved. Natural
 next slice after S5–S7.
+
+### DEFERRED — three .txt stragglers under archive/graph/ (added 2026-09-14)
+
+The doc markdown migration (4e1ec8f3) plus this patch's graph_design
+.txt→.md convergence leave **three .txt files unconverted** under
+`doc/improvements/archive/graph/`: `networkx_duckpgq_gap_plan.txt`,
+`graph_improvs.txt`, `hierarchy_design_roadmap.txt`. Deferred, not
+forgotten — the migration is NOT complete until these are gone.
+
+- Conversion is mechanical (same recipe as 4e1ec8f3), but each file is
+  referenced from `archive/README.md` and from historical
+  `completed.md` entries — repoint the LIVE references (archive/README)
+  in the same change; leave the historical run-log mentions verbatim.
+- `tests/test_rebuild_doc_search.py` keeps a synthetic `.txt` fixture
+  BY DESIGN (it pins the doc walker's `.txt` branch). Converting the
+  last live `.txt` does not retire that branch while the fixture
+  stands — decide the fixture's fate at that point, not before.
 
 ## External references
 

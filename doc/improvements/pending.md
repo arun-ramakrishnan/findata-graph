@@ -13,12 +13,12 @@ revisit triggers inline; executed work is compressed to records.
   binaries unchanged since 2026-08-14/09 — nothing new upstream to test).
   Brute-force VSS works (~3ms @ 1k) so nothing is broken today; revisit via
   quarterly `make update-extensions` (~Nov 2026) and re-test the macros
-  (graph_design.txt §18.5/§5.4).
+  (graph_design.md §18.5/§5.4).
 
 - **Wrap `onager_ctr_personalized_pagerank`** (deferred N5 item 6). Onager bug:
   personalisation column ignored, restart node hardcoded to `node_id 1`, and it
   requires a weight column of type `BIGINT`; variants A/B produce identical
-  output. Documented at `helpers/graph/onager.py:597` and graph_design.txt §5.5.
+  output. Documented at `helpers/graph/onager.py:597` and graph_design.md §5.5.
   Do not wrap until a future Onager build honours the personalisation vector.
 
 - **`listed_on_index` membership edge** (deferred N5 item 7). The

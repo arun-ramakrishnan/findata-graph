@@ -3,7 +3,7 @@
 Rebuild the `doc_search` FTS5 index over the repo's own doc/ corpus.
 
 The doc/ tree is the repo's institutional memory — architecture.md,
-graph_design.txt, the archived proposals, the completed.md run log, the
+graph_design.md, the archived proposals, the completed.md run log, the
 procedures, and the gitignored doc/local/ assessments. The #107 doc
 browser (app.py /api/docs*) reads it from the filesystem with a naive
 substring scan: no stemming, no ranking model, no semantics, and no way

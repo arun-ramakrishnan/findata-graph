@@ -2,7 +2,7 @@
  "_provenance": {
   "date": "2026-09-13",
   "box": "live dev box, 14 GB RAM",
-  "proposal": "doc/improvements/proposals/hypergraph_incidence_hyx.md (\u00a72.1)",
+  "proposal": "doc/improvements/archive/graph/hypergraph_incidence_hyx.md (\u00a72.1)",
   "script": "helpers/bench/hyper_scale_bench.py (consolidated; raw evolving probes lived in /tmp/bench*.py)",
   "generator": "seeded lognormal(3.1, 0.9) hyperedge sizes, seed=7; caps as labeled",
   "onager": "duckdb extension, table functions onager_ctr_pagerank / onager_cmm_louvain(seed=>42)",

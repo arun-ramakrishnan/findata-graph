@@ -5709,3 +5709,64 @@ diagram pairs on origin-pinned evidence; 1 renderer constraint recorded;
 upstream issue (sequence containment) pending operator filing. Lesson:
 proposal frontmatter must carry `executed`/`completed_md` as nulls while
 proposed — the schema demands presence, not just absence of values.
+
+## 233. Hypergraph incidence layer — star store + HGX compute lanes
+
+**Proposal**:
+`doc/improvements/archive/graph/hypergraph_incidence_hyx.md`
+(filed 2026-09-13, archived 2026-09-14). Graph layer — SQLite star
+store + derive family + HypergraphX consumers; Onager/igraph
+untouched.
+
+**Problem**: four producers destroy set-information at derive time —
+edition co-mentions stored as indistinguishable clique pairs,
+sector/country/theme membership as materialised star dyads, promoter
+groups as 3 dyads, k-partner JVs fragmented — and the hand-curated
+taxonomy has no first-class structure to run higher-order community
+detection over.
+
+**Landed** (S0–S21, 2026-09-13/14; full run log in the proposal
+appendix):
+- Star store: `hyper_edges`/`hyper_incidences` + `derive_hyperedges`
+  backfill — 469 hyperedges / 5,659 incidences / 1,318 weighted over 9
+  edge types (sector, theme, country, group, edition, industry, event,
+  jv, sub_sector); per-incidence weights from the S8 quotes regroup.
+- Backfill lanes: S8 edition regroup from `quotes` (20→109 weighted
+  edition hyperedges); S9 `events.counterparty_entity` FK (110/110
+  exact resolution) + event hyperedges; S10 jv venture seeds;
+  S11 curated industry→sub_sector map (first company→sub_sector
+  linkage in the store); S17 taxonomy +22 sub_sector entities
+  (industry coverage 600/816 = 73.5%); S21 quotes attribution backfill
+  (8,086/8,272 = 97.8% company-attributed, 572 rows re-attributed with
+  audit trail).
+- Compute: hy-MMSBM overlapping communities (K=8 default; BIC sweep
+  logged as over-penalising membership models), S12/S14 higher-order
+  centralities (ho_pagerank weighted walk — Reliance to #1, the first
+  analytical payoff of incidence weights), S15 eigen wrappers with
+  uniformity gate, S16 ruling: s-lanes stay unweighted (no canonical
+  weighted s-walk semantics).
+- Data-format standard (S18/S19, operator directive 2026-09-13):
+  parquet(zstd) at rest, Arrow in flight — `hyper_arrow.py`
+  dual-source loader (live DuckDB ATTACH / snapshot parquet, legacy
+  dict loader retired), HIF canonical = three parquet tables with a
+  transient JSON skin (`hyper_hif.py`), AST guards in
+  `data_format_checks.py` wired into static_checks (Arrow baseline
+  retired to empty on the S18(b)/S14 consumer exits).
+- S20 external-dataset bench (trivago-clicks, 727K incidences): EM fit
+  holds seconds-scale posture; s-betweenness killed at web scale
+  (~25 min / ~7 GB RSS) — the six-lane centralities stage is a
+  taxonomy-scale tool, not web-scale.
+- S7/D16: igraph pilot retired and deleted — the alternate-engine seat
+  passes to the BSD-3 HGX lane in the main venv (+scipy/tqdm only, no
+  compiled deps).
+
+**Deferred** (capture-gap ledger, proposal §6): company→sub_sector
+YAML capture discipline, JV venture-name capture upgrade (retro-yield
+0 on existing prose), promoter-group prose extraction; no API/UI
+hyperedge surface, no `h_*` DuckDB materialisation, no hyperedge
+prediction/motifs/dynamics lanes.
+
+**Numbers**: hyper store 0→469 hyperedges / 5,659 incidences; industry
+sub_sector coverage ~34%→73.5%; quotes company-attribution →97.8%;
+edition lane 20→109 sets with real weights; per-slice targeted suites
+green (up to 66 tests per lane, logged in the proposal appendix).

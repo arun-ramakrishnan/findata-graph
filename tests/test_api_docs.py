@@ -82,7 +82,7 @@ class TestDocsCatalog:
         data = _catalog(client).get_json()
         paths = {d["path"] for d in data["docs"]}
         assert "doc/design/architecture.md" in paths
-        assert "doc/design/graph_design.txt" in paths
+        assert "doc/design/graph_design.md" in paths
         assert "doc/improvements/completed.md" in paths
         assert any(p.startswith("doc/improvements/archive/") for p in paths)
 
