@@ -84,7 +84,7 @@ from dataclasses import asdict, dataclass, field
 from functools import cache
 from itertools import combinations
 from pathlib import Path
-from typing import NamedTuple
+from typing import Literal, NamedTuple, overload
 from collections.abc import Iterable
 
 # Bootstrap so this module is importable both as a script and as a package.
@@ -1478,7 +1478,11 @@ def _detect_doc_type(content: str) -> str:
 
     Returns:
         'company'  — YAML `type: company`
-        'sector'   — YAML `type: sector`
+        'sector'   — YAML `type: sector` or `type: super_sector` (listing/
+                     catch-all notes — skipped; the Quotes.md catch-all
+                     mis-scanned as a newsletter once and attributed 31
+                     quote-block edges to garbage section sources, triaged
+                     2026-09-15)
         'newsletter' — no YAML, unknown type, or any other value.
 
     Newsletter source files have no YAML front matter; synced entity notes
@@ -1487,7 +1491,7 @@ def _detect_doc_type(content: str) -> str:
     t = _parse_yaml_field(content, "type")
     if t == "company":
         return "company"
-    if t == "sector":
+    if t in ("sector", "super_sector"):
         return "sector"
     return "newsletter"
 
@@ -1528,6 +1532,28 @@ _VENTURE_PATTERNS: tuple[re.Pattern, ...] = (
     re.compile(
         r"\bJV\s+(?:arm|entity|company)\s+((?-i:[A-Z])[\w&.\-]*(?:\s+(?-i:[A-Z])[\w&.\-]*){0,4})",
     ),
+    # D5 (jv_promoter_capture_upgrade, 2026-09-15): name-BEFORE-marker
+    # families — the dominant corpus shape the three patterns above miss.
+    # "AllyGram JV with Grammer AG" / "(via AllyGram JV with Y)".
+    re.compile(
+        r"\b((?-i:[A-Z])[\w&.\-]*(?:\s+(?-i:[A-Z])[\w&.\-]*){0,4})\s+JV\s+with\b",
+    ),
+    # "VE Commercial Vehicles (VECV), a joint venture with ..." /
+    # "ASHVINI, out joint venture with NPCIL" (measured OCR-typo article) /
+    # "Titan Watches, a joint venture between Tata Group and TIDCO".
+    re.compile(
+        r"\b((?-i:[A-Z])[\w&.\-]*(?:\s+(?-i:[A-Z])[\w&.\-]*){0,4})"
+        r"(?:\s*\(([A-Z]{2,6})\))?,?\s+(?:a|an|our|the|its|out)\s+joint\s+venture\s+(?:with|between)\b",
+    ),
+)
+
+# Bare-article/pronoun names the name-before families can sweep up when the
+# name slot is empty ("Our JV with X" -> "Our"). Rejected after capture.
+_VENTURE_NAME_STOPWORDS = frozenset(
+    # "the"/"our"/... : empty name slot ("Our JV with X"). "india": the
+    # measured self-venture FP ("... company in India, a joint venture
+    # between X and Y" — the section company IS the venture, no name stated).
+    {"the", "our", "a", "an", "its", "new", "this", "their", "two", "three", "india"}
 )
 
 
@@ -1544,7 +1570,7 @@ def capture_venture_name(quote: str) -> str | None:
         m = pat.search(quote)
         if m:
             name = m.group(1).strip()
-            if 3 <= len(name) <= 60:
+            if 3 <= len(name) <= 60 and name.lower() not in _VENTURE_NAME_STOPWORDS:
                 return name
     return None
 
@@ -1753,6 +1779,28 @@ def _extract_year_from_context(
 # --------------------------------------------------------------------------- #
 # Extraction                                                                  #
 # --------------------------------------------------------------------------- #
+@overload
+def extract_relations(
+    content: str,
+    *,
+    edition_title: str,
+    newsletter_type: str,
+    resolver: EntityResolver,
+    doc_type: str = ...,
+    source_entity_override: str | None = ...,
+    return_groups: Literal[False] = ...,
+) -> tuple[dict[str, list[Edge]], list[Unresolved]]: ...
+@overload
+def extract_relations(
+    content: str,
+    *,
+    edition_title: str,
+    newsletter_type: str,
+    resolver: EntityResolver,
+    doc_type: str = ...,
+    source_entity_override: str | None = ...,
+    return_groups: Literal[True] = ...,
+) -> tuple[dict[str, list[Edge]], list[Unresolved], dict[str, set[str]]]: ...
 def extract_relations(  # noqa: C901
     content: str,
     *,
@@ -1761,7 +1809,11 @@ def extract_relations(  # noqa: C901
     resolver: EntityResolver,
     doc_type: str = "newsletter",
     source_entity_override: str | None = None,
-) -> tuple[dict[str, list[Edge]], list[Unresolved]]:
+    return_groups: bool = False,
+) -> (
+    tuple[dict[str, list[Edge]], list[Unresolved]]
+    | tuple[dict[str, list[Edge]], list[Unresolved], dict[str, set[str]]]
+):
     """Extract structured edges from a single document.
 
     Args:
@@ -2086,6 +2138,11 @@ def extract_relations(  # noqa: C901
             deduped.append(e)
         edges_by_type[et] = deduped
 
+    if return_groups:
+        # D6 (jv_promoter_capture_upgrade): the per-file group map rides out
+        # so the CLI can accumulate it across files (cross-note promoter
+        # groups) — company notes populate this map today, then discard it.
+        return edges_by_type, unresolved, group_to_companies
     return edges_by_type, unresolved
 
 
@@ -2141,6 +2198,42 @@ def _derive_same_group(
                         "group": group_name,
                         "edition": edition_title,
                         "newsletter": newsletter_type,
+                    },
+                    source_ref=source_ref,
+                    symmetric=True,
+                )
+            )
+    return edges
+
+
+def _derive_cross_note_groups(
+    cross: dict[str, dict[str, int]],
+    *,
+    source_ref: str = "derive:relations:cross_note",
+) -> list[Edge]:
+    """D6 (jv_promoter_capture_upgrade): same_group edges from the CLI's
+    cross-file group accumulation.
+
+    ``cross`` maps group -> member -> contributing-note count. Unlike the
+    per-edition ``_derive_same_group`` (co-observed in ONE newsletter), these
+    pairs come from group prose spread across files — typically one mention
+    per company note. Provenance: ``properties.found_in`` = note count per
+    member; ``source_ref`` marks the cross-note lane. Dedup against
+    per-edition edges happens at apply (INSERT OR IGNORE).
+    """
+    edges: list[Edge] = []
+    for group_name, members in sorted(cross.items()):
+        if len(members) < 2:
+            continue
+        for a, b in combinations(sorted(members), 2):
+            edges.append(
+                Edge(
+                    source=a,
+                    target=b,
+                    edge_type="same_group",
+                    properties={
+                        "group": group_name,
+                        "found_in": {a: members[a], b: members[b]},
                     },
                     source_ref=source_ref,
                     symmetric=True,
@@ -2362,7 +2455,15 @@ def _extract_batch(
     file_paths: list[str],
     entity_names: list[str],
 ) -> list[
-    tuple[str, str, list[Edge], list[Unresolved], dict[str, int], list[tuple[str, list[str]]]]
+    tuple[
+        str,
+        str,
+        list[Edge],
+        list[Unresolved],
+        dict[str, int],
+        list[tuple[str, list[str]]],
+        dict[str, set[str]],
+    ]
 ]:
     """Process a batch of newsletter files in a worker process.
 
@@ -2385,7 +2486,7 @@ def _extract_batch(
         newsletter_type = _newsletter_type_for(nl_path)
         doc_type = _detect_doc_type(content)
         if doc_type == "sector":
-            results.append((str(nl_path), "sector", [], [], {}, []))
+            results.append((str(nl_path), "sector", [], [], {}, [], {}))
             continue
         source_entity_override = None
         if doc_type == "company":
@@ -2394,18 +2495,21 @@ def _extract_batch(
                 resolved = resolver.resolve(norm.replace("_", " ")) or resolver.resolve(norm)
                 if resolved:
                     source_entity_override = resolved
-        edges_by_type, unresolved = extract_relations(
+        edges_by_type, unresolved, group_map = extract_relations(
             content,
             edition_title=edition_title,
             newsletter_type=newsletter_type,
             resolver=resolver,
             doc_type=doc_type,
             source_entity_override=source_entity_override,
+            return_groups=True,
         )
         type_counts = {et: len(es) for et, es in edges_by_type.items()}
         all_edges = [e for es in edges_by_type.values() for e in es]
         ambiguities = resolver.ambiguous_log[ambig_before:]
-        results.append((str(nl_path), doc_type, all_edges, unresolved, type_counts, ambiguities))
+        results.append(
+            (str(nl_path), doc_type, all_edges, unresolved, type_counts, ambiguities, group_map)
+        )
     return results
 
 
@@ -2617,10 +2721,33 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         n_inst = ensure_institution_entities(conn)
         if n_inst:
             print(f"institution entities inserted: {n_inst} (RBI/SEBI)", file=sys.stderr)
-    for nl_path_str, doc_type, all_edges, unresolved, type_counts, ambiguities in file_results:
+    cross_groups: dict[str, dict[str, int]] = {}
+    jv_extracted: dict[tuple[str, str], dict] = {}
+    for (
+        nl_path_str,
+        doc_type,
+        all_edges,
+        unresolved,
+        type_counts,
+        ambiguities,
+        group_map,
+    ) in file_results:
         nl_path = Path(nl_path_str)
         if doc_type == "sector":
             continue
+        # D6: accumulate the per-file group maps (company notes included).
+        for gname, members in group_map.items():
+            slot = cross_groups.setdefault(gname, {})
+            for member in members:
+                slot[member] = slot.get(member, 0) + 1
+        # D5: keep the richest extracted properties per jv pair (both
+        # orientations) for the post-apply props-converge.
+        for e in all_edges:
+            if e.edge_type == "jv_with":
+                pair = sorted((e.source, e.target))
+                key = (pair[0], pair[1])
+                if "venture" in e.properties and "venture" not in jv_extracted.get(key, {}):
+                    jv_extracted[key] = e.properties
 
         n_extracted = len(all_edges)
         total_extracted += n_extracted
@@ -2673,6 +2800,58 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         if args.write_sidecar and unresolved:
             write_sidecar(unresolved)
 
+    # D6: cross-note same_group pass — derived once over the accumulated map,
+    # applied through the same INSERT OR IGNORE path (per-edition pairs that
+    # already exist are skipped; genuinely cross-file pairs land).
+    cross_edges = _derive_cross_note_groups(cross_groups)
+    if cross_edges:
+        per_type_totals["same_group"] = per_type_totals.get("same_group", 0) + len(cross_edges)
+        total_extracted += len(cross_edges)
+        cres = apply_edges(cross_edges, conn=conn, dry_run=not args.apply, existing=existing_edges)
+        total_applied += cres.inserted
+        total_skipped_fk += cres.skipped_fk
+        total_skipped_suppressed += cres.skipped_suppressed
+        print(
+            f"cross-note same_group: derived={len(cross_edges)} "
+            f"applied={cres.inserted} ({'APPLY' if args.apply else 'dry-run'})",
+            file=sys.stderr,
+        )
+
+    # D5: props-converge — apply_edges skips existing triples, so rows whose
+    # re-extraction now yields a venture need an explicit missing-key merge
+    # (never overwrite; S5 precedent). Idempotent: second run is a no-op.
+    if args.apply and jv_extracted:
+        converged = 0
+        rows = conn.execute(
+            "SELECT id, source, target, properties FROM graph_edges WHERE edge_type='jv_with'"
+        ).fetchall()
+        for r in rows:
+            key = tuple(sorted((r["source"], r["target"])))
+            props_new = jv_extracted.get(key) or {}
+            try:
+                stored = json.loads(r["properties"]) if r["properties"] else {}
+            except ValueError:
+                continue
+            if "venture" in stored:
+                continue
+            # Prefer this run's extraction; fall back to the row's own recorded
+            # evidence (the stored quote IS the edge's provenance — notes get
+            # rewritten, the quote is what the edge claims).
+            venture = props_new.get("venture") or capture_venture_name(stored.get("quote", ""))
+            if not venture:
+                continue
+            stored["venture"] = venture
+            conn.execute(
+                "UPDATE graph_edges SET properties = ? WHERE id = ?",
+                (json.dumps(stored, ensure_ascii=False, sort_keys=True), r["id"]),
+            )
+            converged += 1
+        if converged:
+            print(
+                f"venture props-converged on {converged} existing jv_with row(s)", file=sys.stderr
+            )
+            total_extracted += 0  # counts already exist; converge is enrichment
+
     # Commit once at the end if we applied.
     if args.apply:
         conn.commit()
@@ -2695,8 +2874,6 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         print(f"  {per_type_totals[et]:4d}  {et}", file=sys.stderr)
 
     if args.counts_json:
-        import json
-
         payload = {
             "files": len(nl_paths),
             "per_type": dict(sorted(per_type_totals.items())),

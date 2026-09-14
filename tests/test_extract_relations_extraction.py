@@ -845,3 +845,132 @@ class TestInstitutionHelpers:
             assert [r[0] for r in rows] == ["RBI", "SEBI"]
         finally:
             conn.close()
+
+
+# --------------------------------------------------------------------------- #
+# jv_promoter_capture_upgrade (D5+D6)                                         #
+# --------------------------------------------------------------------------- #
+class TestVentureNameBeforeMarker:
+    """D5: the name-BEFORE-marker families — the dominant corpus shape the
+    three S10 patterns missed (measured 2026-09-15)."""
+
+    @pytest.mark.parametrize(
+        ("quote", "expected"),
+        [
+            ("(via AllyGram JV with Grammer AG).", "AllyGram"),
+            (
+                "VE Commercial Vehicles (VECV), a joint venture with the Volvo Group",
+                "VE Commercial Vehicles",
+            ),
+            ("First is ASHVINI, out joint venture with NPCIL", "ASHVINI"),
+            (
+                "Titan Watches, a joint venture between Tata Group and TIDCO",
+                "Titan Watches",
+            ),
+        ],
+    )
+    def test_name_before_marker_shapes(self, quote, expected):
+        from helpers.graph.extract_relations import capture_venture_name
+
+        assert capture_venture_name(quote) == expected
+
+    @pytest.mark.parametrize(
+        "quote",
+        [
+            # Empty name slot — the article must not become the venture.
+            "Our JV with Signify will make phones",
+            # Self-venture: no distinct name stated ("... in India, a JV
+            # between X and Y" — measured FP before the stoplist).
+            "a leading general insurance company in India, a joint venture between Bajaj Finserv and Allianz",
+        ],
+    )
+    def test_false_shapes_rejected(self, quote):
+        from helpers.graph.extract_relations import capture_venture_name
+
+        assert capture_venture_name(quote) is None
+
+
+class TestReturnGroups:
+    """D6: extract_relations(return_groups=True) hands the per-file group map
+    to the caller — company notes already built it, then discarded it."""
+
+    def test_company_note_returns_group_map(self):
+        resolver = EntityResolver(["Tata Motors"])
+        content = (
+            "---\n"
+            "title: Tata Motors\n"
+            "normalized_name: Tata Motors\n"
+            "---\n"
+            "# Tata Motors\n"
+            "Tata Motors, a Tata Group company, dominates CVs.\n"
+        )
+        edges, unresolved, groups = extract_relations(
+            content,
+            edition_title="Tata Motors",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+            doc_type="company",
+            source_entity_override="Tata Motors",
+            return_groups=True,
+        )
+        assert groups.get("Tata") == {"Tata Motors"}
+
+    def test_default_arity_unchanged(self):
+        resolver = EntityResolver(["Tata Motors"])
+        result = extract_relations(
+            "# Tata Motors\nbody text only\n",
+            edition_title="X",
+            newsletter_type="The_Chatter",
+            resolver=resolver,
+            doc_type="company",
+            source_entity_override="Tata Motors",
+        )
+        assert len(result) == 2  # back-compat: 2-tuple without return_groups
+
+
+class TestSuperSectorNotesSkipped:
+    """Triage 2026-09-15: the Quotes.md catch-all (type: super_sector, 7.4MB
+    of quote blocks) mis-scanned as a newsletter and attributed 31 edges to
+    garbage section sources. super_sector now classifies as sector -> skip."""
+
+    def test_super_sector_is_sector(self):
+        from helpers.graph.extract_relations import _detect_doc_type
+
+        assert (
+            _detect_doc_type("---\ntype: super_sector\nnormalized_name: Quotes\n---\n# Quotes\n")
+            == "sector"
+        )
+
+    def test_sector_and_company_unchanged(self):
+        from helpers.graph.extract_relations import _detect_doc_type
+
+        assert _detect_doc_type("---\ntype: sector\n---\n") == "sector"
+        assert _detect_doc_type("---\ntype: company\n---\n") == "company"
+        assert _detect_doc_type("no yaml at all") == "newsletter"
+
+
+class TestCrossNoteGroups:
+    """D6: the CLI's cross-file accumulation derives same_group pairs that no
+    single file could see (one member per note, spread across files)."""
+
+    def test_two_members_across_notes_derive_edge(self):
+        from helpers.graph.extract_relations import _derive_cross_note_groups
+
+        cross = {
+            "Tata": {"Tata Motors": 3, "Titan": 1},
+            "Lonely": {"Solo Corp": 2},  # <2 members — no edge
+        }
+        edges = _derive_cross_note_groups(cross)
+        assert len(edges) == 1
+        e = edges[0]
+        assert (e.source, e.target) == ("Tata Motors", "Titan")
+        assert e.edge_type == "same_group"
+        assert e.properties["group"] == "Tata"
+        assert e.properties["found_in"] == {"Tata Motors": 3, "Titan": 1}
+        assert e.source_ref == "derive:relations:cross_note"
+        assert e.symmetric is True
+
+    def test_single_member_group_skipped(self):
+        from helpers.graph.extract_relations import _derive_cross_note_groups
+
+        assert _derive_cross_note_groups({"Adani": {"Adani Enterprises": 4}}) == []

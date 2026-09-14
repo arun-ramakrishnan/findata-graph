@@ -114,14 +114,14 @@ types, 19 populated, 19,325 rows; previous snapshot 2026-08-19 said 12):
 | `invested_in` | investor (institution/company) → company | 0 | 715 |
 | `exposed_to` | company → theme (cross-sector) | 0 | 359 |
 | `belongs_to` | sector → super_sector / sub_sector → sector (hierarchy) | 0 | 142 |
-| `jv_with` | company ↔ company (JV) | 1* | 69 |
-| `subsidiary_of` | subsidiary → parent | 0 | 67 |
-| `acquired` | acquirer → acquired (temporal; set valid_to) | 0 | 41 |
-| `supplier_to` / `customer_of` | company → company (asymmetric, one direction) | 0 | 7 / 1 |
-| `regulated_by` | company → institution (RBI, SEBI) | 0 | 5 |
-| `same_group` | company ↔ company (promoter group) | 1 | 3 |
-| `approved_by` | company/institution → institution | 0 | 2 |
-| `rated_by` | company → rating agency (CRISIL) | 0 | 2 |
+| `jv_with` | company ↔ company (JV; `properties.venture` where prose names it — the `jv` regroup key, D5) | 1* | 81 |
+| `subsidiary_of` | subsidiary → parent | 0 | 68 |
+| `acquired` | acquirer → acquired (temporal; set valid_to) | 0 | 52 |
+| `supplier_to` / `customer_of` | company → company (asymmetric, one direction) | 0 | 9 / 1 |
+| `regulated_by` | company → institution (RBI, SEBI) | 0 | 17 |
+| `same_group` | company ↔ company (promoter group; cross-note lane `derive:relations:cross_note` — group prose accumulated across files, D6) | 1 | 34 |
+| `approved_by` | company/institution → institution | 0 | 9 |
+| `rated_by` | company → rating agency (CRISIL) | 0 | 5 |
 | `penalized_by` | company → institution (RBI, SEBI) | 0 | 0 — registered, not yet produced |
 
 `sym` drift: `competes_with` (105 rows) and `jv_with` (10 rows) carry

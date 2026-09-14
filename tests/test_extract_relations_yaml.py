@@ -363,8 +363,15 @@ def test_detect_doc_type_newsletter():
 
 
 def test_detect_doc_type_unknown_type():
-    content = "---\ntype: super_sector\n---\nBody"
+    content = "---\ntype: something_else\n---\nBody"
     assert _detect_doc_type(content) == "newsletter"
+
+
+def test_detect_doc_type_super_sector_maps_to_sector():
+    # super_sector notes are listing/catch-all notes, skipped like sector
+    # (Quotes.md catch-all mis-scan incident, triaged 2026-09-15).
+    content = "---\ntype: super_sector\n---\nBody"
+    assert _detect_doc_type(content) == "sector"
 
 
 # ---------------------------------------------------------------------------

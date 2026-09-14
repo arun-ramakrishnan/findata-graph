@@ -828,7 +828,7 @@ class TestSubSectorMapping:
     }
 
     def test_union_and_unmapped(self):
-        groups, unmapped = dh.derive_sub_sectors(self.HYPER, self.VALID)
+        groups, unmapped, _unmapped_authored = dh.derive_sub_sectors(self.HYPER, self.VALID)
         assert groups["Specialty_Chemicals"] == {"A", "B"}
         assert groups["Iron_and_Steel"] == {"C"}
         assert groups["Auto_Ancillary"] == {"D", "E"}  # S17 alias
@@ -836,6 +836,60 @@ class TestSubSectorMapping:
         assert [u[0] for u in unmapped] == ["Banks - Regional", "Metal Fabrication"]
         sugg = {u[0]: u[2] for u in unmapped}
         assert "Banks" in sugg["Banks - Regional"]
+
+    # ------------------------------------------------------------------ #
+    # D7: authored subsector precedence                                    #
+    # ------------------------------------------------------------------ #
+    def test_authored_is_canonical_and_exclusive(self):
+        groups, _un, unmapped_authored = dh.derive_sub_sectors(
+            self.HYPER,
+            self.VALID,
+            authored={"apparel retail": {"A"}},  # A alias-derives to Specialty_Chemicals
+            sub_sector_entities={"Specialty_Chemicals", "Iron_and_Steel", "Apparel_Retail"},
+        )
+        assert unmapped_authored == []
+        assert groups["Apparel_Retail"] == {"A"}  # normalized hand value
+        assert "A" not in groups["Specialty_Chemicals"]  # moved out, not unioned
+        assert groups["Specialty_Chemicals"] == {"B"}  # alias sibling untouched
+
+    def test_authored_unknown_value_worklisted_not_fatal(self):
+        groups, _un, unmapped_authored = dh.derive_sub_sectors(
+            self.HYPER,
+            self.VALID,
+            authored={"Not A Subsector": {"A"}},
+            sub_sector_entities={"Specialty_Chemicals"},
+        )
+        assert unmapped_authored == [("Not A Subsector", 1)]
+        # membership stays alias-derived — visible, not silent, not fatal
+        assert groups["Specialty_Chemicals"] == {"A", "B"}
+
+    def test_authored_can_create_solo_membership(self):
+        # a company in an UNMAPPED industry can be authored directly
+        groups, _un, _ua = dh.derive_sub_sectors(
+            self.HYPER,
+            self.VALID,
+            authored={"Iron_and_Steel": {"F"}},  # F's industry is unmapped Banks - Regional
+            sub_sector_entities={"Iron_and_Steel"},
+        )
+        assert groups["Iron_and_Steel"] == {"C", "F"}
+
+    def test_extract_subsector_membership_reads_field(self, tmp_path):
+        d = tmp_path / "Companies" / "X"
+        d.mkdir(parents=True)
+        (d / "Acme.md").write_text(
+            "---\ntype: company\nsubsector: Apparel_Retail\n---\n# Acme\n"
+        )
+        (d / "Beta.md").write_text("---\ntype: company\nsubsector: null\n---\n# Beta\n")
+        (d / "Gamma.md").write_text("---\ntype: company\n---\n# Gamma\n")
+        got = dh.extract_subsector_membership(root=tmp_path / "Companies")
+        assert got == {"Apparel_Retail": {"Acme"}}
+
+    def test_worklist_carries_authored_section(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(dh, "_REPO_ROOT", tmp_path)
+        wl = dh._write_subsector_worklist([("Solar", 2, "new node")], [("Typo Land", 1)])
+        data = json.loads(wl.read_text())
+        assert data["unmapped"][0]["label"] == "Solar"
+        assert data["unmapped_authored"] == [{"value": "Typo Land", "members": 1}]
 
     def test_stale_alias_raises(self):
         hyper = {"industry": {"Solar": {"A"}}}  # Solar -> Solar alias exists
@@ -858,6 +912,7 @@ class TestSubSectorMapping:
             {"industry": {"Specialty Chemicals": {"Alpha", "Beta"}}},
             {"Alpha", "Beta", "Specialty_Chemicals"},
         )[0]
+        # D7: authored arg optional; no authored -> identical result, empty 3rd
         assert derived == {"Specialty_Chemicals": {"Alpha", "Beta"}}
         hyper = {"sub_sector": derived}
         stats = dh.apply_hyperedges(hyper, conn=conn, dry_run=False)

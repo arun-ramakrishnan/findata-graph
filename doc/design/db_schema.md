@@ -220,8 +220,8 @@ A category IS a hyperedge here (its members via `hyper_incidences`) instead
 of a materialised star of dyads — star expansion is storage truth, the
 `graph_edges` clique projections stay derive-time views. Live (2026-09-14,
 after S5/S8–S11 + S17/S21): 469 hyperedges / 5,659 incidences over 9 edge types
-(`sector` 42, `theme` 12, `country` 21, `group` 1, `edition` 109 — the S8
-quotes union, weighted — `industry` 117, `event` 110, `jv` 2, `sub_sector` 55
+(`sector` 42, `theme` 12, `country` 21, `group` 8, `edition` 109 — the S8
+quotes union, weighted — `industry` 117, `event` 110, `jv` 6, `sub_sector` 55
 — S11's curated + S17's grown industry→canonical map, the first
 company→sub_sector linkage in the store).
 
