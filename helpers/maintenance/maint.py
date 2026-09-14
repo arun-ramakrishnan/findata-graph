@@ -338,6 +338,20 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
         "derive-hyperedges (regroup membership dyads into hyper_edges; --roles = S4 facets)",
         [sys.executable, "helpers/graph/derive_hyperedges.py", "--apply", "--roles"],
     ),
+    # HGX compute lanes (hyper_lane_wiring, 2026-09-15): consume the
+    # incidence store the previous step just refreshed, write graph_analytics
+    # via the algorithms.write_analytics upsert (seeded fits → warm cycles
+    # converge byte-stable values, zero snapshot churn), and land BEFORE the
+    # tail snapshot so the metrics are captured. Never-blocking on a
+    # degenerate store (W1 skip) — genuine compute errors still fail loudly.
+    (
+        "hyper-communities (hy-MMSBM overlapping communities → graph_analytics)",
+        [sys.executable, "helpers/graph/hyper_communities.py", "--apply"],
+    ),
+    (
+        "hyper-centralities (ho/s lanes → graph_analytics)",
+        [sys.executable, "helpers/graph/hyper_centralities.py", "--apply"],
+    ),
     (
         "snapshot (re-snapshot to include recomputed analytics + events)",
         [sys.executable, "helpers/maintenance/snapshot_db.py"],

@@ -187,11 +187,17 @@ edition.
 
 ## `graph_analytics` — per-entity graph metrics
 
-Written ONLY by `helpers/graph/algorithms.py` (`make recompute-graph`);
-never hand-edited. 18 metrics live (16 node metrics + `link_prediction` +
-`voterank` — 9 whole-graph node metrics at 1,648 rows, 7 company-only at
-1,165 incl. the hyper lanes `ho_pagerank`/`hypermmsbm_community`/
-`s_betweenness`/`s_closeness`) — semantics, JSON value shapes, and
+Written by `helpers/graph/algorithms.py` (`make recompute-graph`: the 12
+dyadic dispatch metrics + `link_prediction`/`voterank`) AND the two HGX
+lanes (`hyper_communities.py` / `hyper_centralities.py`, `make
+recompute-hyper`; maint-full TIER2 after derive-hyperedges) — all three
+writers converge on `algorithms.write_analytics`, an upsert that never
+restamps `computed_at` on identical values. Never hand-edited. 18
+metrics live (16 node metrics + `link_prediction` + `voterank` — the
+dyadic family at up to 1,684 rows; 4 hyper company-only at 1,165:
+`hypermmsbm_community`/`ho_pagerank`/`s_betweenness`/`s_closeness`;
+the eigen trio is defined but skipped at the non-uniform default
+scope) — semantics, JSON value shapes, and
 refresh policy:
 `graph_design.md` §5.
 

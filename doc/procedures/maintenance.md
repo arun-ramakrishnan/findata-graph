@@ -81,7 +81,10 @@ Sector `--check` gates → `company-embeddings --maint` (best-effort,
 never auto-upgrades) → `rebuild-doc-search` (sidecar-only, self-backing)
 → `recompute-graph` → `derive-insights --no-notes` → `derive-events` →
 `derive-hyperedges --apply --roles` (membership regroup + S4 event
-role/facet convergence, reconciliation report in the run log) →
+role/facet convergence, reconciliation report in the run log) → the
+HGX compute lanes `hyper-communities`/`hyper-centralities`
+(hy-MMSBM + ho/s centralities into `graph_analytics` over the fresh
+store; skip cleanly on a degenerate store, never block) →
 tail `snapshot` (the single snapshot of a `--full` run).
 
 Gates write nothing; their WRITE paths are explicit make targets

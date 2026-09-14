@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -69,6 +69,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  qa                       Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)"
 > @echo "  quote-coverage           S0 quote capture coverage audit (advisory, read-only; per-note 95% tripwire + watchlist + salvage measurement)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
+> @echo "  recompute-hyper          Recompute HGX hyper metrics (hy-MMSBM communities + ho/s centralities)"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
 > @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
 > @echo "  secret-scan              Incremental git-history secret scan (state under .git/secret-scan/)"
@@ -238,6 +239,11 @@ search-fresh:    ## Check ALL search indexes for staleness — doc/, script meta
 recompute-graph: ## Recompute all graph analytics and persist to graph_analytics
 > python3 helpers/graph/algorithms.py --all --apply
 > @echo "✓ graph_analytics refreshed (degree, pagerank, betweenness, louvain, ..., link_prediction)"
+
+recompute-hyper: ## Recompute HGX hyper metrics (hy-MMSBM communities + ho/s centralities) into graph_analytics
+> python3 helpers/graph/hyper_communities.py --apply
+> python3 helpers/graph/hyper_centralities.py --apply
+> @echo "✓ hyper metrics refreshed (hypermmsbm_community, ho_pagerank, s_betweenness, s_closeness)"
 
 derive-co-mentions: ## Derive co_mentioned_in edges from newsletter enhancement blocks
 > python3 helpers/graph/derive_co_mentions.py --newsletter The_Chatter --apply

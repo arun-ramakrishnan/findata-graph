@@ -251,9 +251,24 @@ def _cli(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     sources = [x.strip() for x in args.sources.split(",") if x.strip()]
+    # Never-block precheck (hyper_lane_wiring W1): absent store / no rows
+    # for the requested sources -> clean skip (maint-full on fresh DBs).
+    if not ha.store_rowcount(sources):
+        print(
+            f"[hyper-centralities] incidence store empty for sources "
+            f"({', '.join(sources) or 'none'}) — nothing to compute, skipping"
+        )
+        return 0
     tbl = ha.load_incidence_arrow(sources)  # S18(b)/S14 exit: single Arrow load
     raw = ha.incidence_dict(tbl)
     weights = ha.weights_from_arrow(tbl)
+    # same W1 skip for a guard-exhausted store (compute_centralities keeps
+    # raising — its contract is pinned; the CLI pre-checks with the same
+    # guard so the maint chain never sees that raise on degenerate input)
+    kept_probe, _, _ = _exclude_degenerate(raw, allow_giant=args.allow_giant)
+    if not kept_probe:
+        print("SKIP: no hyperedges left after the degeneracy guard — nothing to compute")
+        return 0
     res = compute_centralities(raw, s=args.s, allow_giant=args.allow_giant, weights=weights or None)
     meta = res.pop("_meta")
     print(

@@ -44,6 +44,9 @@ from helpers.graph import query  # noqa: E402
 from helpers.graph.query import DB_PATH  # noqa: E402
 from helpers.graph import derive_cited_in as dci  # noqa: E402
 from helpers.graph import derive_hyperedges as dh_mod  # noqa: E402
+from helpers.graph import hyper_arrow as har  # noqa: E402
+from helpers.graph import hyper_centralities as hcen  # noqa: E402
+from helpers.graph import hyper_communities as hcom  # noqa: E402
 from helpers.maintenance import build_sector_hierarchy as bsh  # noqa: E402
 from helpers.maintenance import db_maint  # noqa: E402
 from helpers.maintenance import maint  # noqa: E402
@@ -365,6 +368,21 @@ def _shim_derive_hyperedges(p, mp, args):
     return _rc(dh_mod._cli(list(args)))
 
 
+def _shim_hyper_communities(p, mp, args):
+    # HGX lanes (hyper_lane_wiring W3): data via hyper_arrow's module
+    # default, writes via algorithms.write_analytics → alg.connect. W1
+    # skips cleanly when the tmp store is empty/degenerate — never blocks.
+    mp.setattr(har, "DEFAULT_DB_PATH", p.db)
+    mp.setattr(alg, "connect", lambda *a, **k: db_connect(str(p.db)))
+    return _rc(hcom._cli(list(args)))
+
+
+def _shim_hyper_centralities(p, mp, args):
+    mp.setattr(har, "DEFAULT_DB_PATH", p.db)
+    mp.setattr(alg, "connect", lambda *a, **k: db_connect(str(p.db)))
+    return _rc(hcen._cli(list(args)))
+
+
 def _shim_okf_backfill(p, mp, args):
     # Notes-only converger: redirect the vault-resolution root. The tmp
     # project has no git, so canonical edition entries carry no
@@ -417,6 +435,8 @@ _SHIMS = {
     "helpers/misc/backfill_identifiers.py": _shim_identifiers,
     "helpers/graph/derive_cited_in.py": _shim_derive_cited_in,
     "helpers/graph/derive_hyperedges.py": _shim_derive_hyperedges,
+    "helpers/graph/hyper_communities.py": _shim_hyper_communities,
+    "helpers/graph/hyper_centralities.py": _shim_hyper_centralities,
 }
 
 

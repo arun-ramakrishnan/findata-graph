@@ -240,12 +240,19 @@ persistence), perf: `graph_link_prediction` benchmark.
 
 ### 5.6 Persistence & refresh
 
-`make recompute-graph` → `--all --apply` (+ hyper lanes): 18 metrics live
-(16 node metrics — 9 at 1,648 rows, 7 company-only at 1,165; link_prediction
-835, voterank 15; 2026-09-14). Node metrics store
+`make recompute-graph` → `--all --apply`: the 14 dyadic metrics (12
+dispatch metrics at up to 1,684 rows + link_prediction 835, voterank 15;
+2026-09-14). Node metrics store
 `{"value": X}` (louvain adds `"community"`+`"modularity"`; wcc
 `"componentId"`). UPSERT on metric-first PK; recompute replaces wholesale.
 `make qa` warns when `computed_at` < `max(entities.last_updated)` (advisory).
+`make recompute-hyper` → the HGX lanes (`hyper_communities` +
+`hyper_centralities`; also maint-full TIER2, after `derive-hyperedges`
+and before the tail snapshot): 4 hyper metrics at 1,165 company rows
+(`hypermmsbm_community`, `ho_pagerank`, `s_betweenness`, `s_closeness`);
+the eigen trio is uniform-hypergraph-only and skips at the mixed-size
+default scope. Seeded fits (seed 42) → warm cycles converge byte-stable
+values through the same upsert (zero snapshot churn).
 
 ## 6. API surface (`app.py`)
 

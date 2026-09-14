@@ -28,7 +28,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+- **hyper_lane_wiring.md** (filed 2026-09-15) — HGX compute lanes into
+  the automated flow: skip-hardening for degenerate stores, `make
+  recompute-hyper` on-demand target, maint-full TIER2 placement after
+  derive-hyperedges (zero-churn via the seeded write_analytics upsert),
+  doc truth for the recompute-graph coverage claims. Wiring arc, no
+  schema change. Trigger: /tmp/hgx_gaps.txt findings (verified; the
+  graph.ts-hint claim was a misdiagnosis — see proposal §1.3).
 
 — (Previously: ontology_convention_stack.md archived 2026-09-14 as completed.md
 entry 234 - execution record in

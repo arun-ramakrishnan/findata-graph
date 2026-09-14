@@ -80,13 +80,16 @@ class TestPlan:
             "graph-rebuild (refresh DuckDB cache)",
         ]
 
-    def test_tier2_has_nine_steps(self):
+    def test_tier2_has_eleven_steps(self):
         # sync-tags + rebuild-note-search moved to PRE_FULL (2026-08-29):
         # their output must land inside the db_maint recovery backup.
         # derive-hyperedges joined 2026-09-14 (hyper incidence store arc):
         # membership dyads regroup into hyper_edges BEFORE the tail
-        # snapshot so the closing capture includes them.
-        assert len(maint.TIER2_STEPS) == 9
+        # snapshot so the closing capture includes them. The HGX compute
+        # lanes joined 2026-09-15 (hyper_lane_wiring): they consume the
+        # store derive-hyperedges just refreshed and their graph_analytics
+        # upserts land inside the same tail snapshot.
+        assert len(maint.TIER2_STEPS) == 11
 
     def test_tier2_steps_order(self):
         # Post-ingest re-derivation: the sector --check gates first
@@ -101,6 +104,8 @@ class TestPlan:
         # derive-events refreshes the events timeline (D7) from note prose
         # rendered by the last standalone derive_insights --apply, then
         # derive-hyperedges regroups membership dyads into hyper_edges,
+        # the HGX lanes (hyper_lane_wiring) persist hy-MMSBM communities
+        # + ho/s centralities over that fresh store,
         # and re-snapshot captures the full post-ingest state.
         labels = [label for label, _ in maint.TIER2_STEPS]
         assert labels == [
@@ -112,6 +117,8 @@ class TestPlan:
             "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
             "derive-events (refresh events timeline from note prose + edges)",
             "derive-hyperedges (regroup membership dyads into hyper_edges; --roles = S4 facets)",
+            "hyper-communities (hy-MMSBM overlapping communities → graph_analytics)",
+            "hyper-centralities (ho/s lanes → graph_analytics)",
             "snapshot (re-snapshot to include recomputed analytics + events)",
         ]
 
@@ -148,13 +155,13 @@ class TestPlan:
         # snapshot's artifacts are unconditionally overwritten by the TIER2
         # tail snapshot, so exactly ONE snapshot runs at the end
         # (maint_full_single_snapshot.md D1). Plain maint keeps all 3 TIER1
-        # steps and never runs PRE_FULL. 18 steps since identifiers joined
-        # PRE_FULL (ontology_convention_stack S3, 2026-09-14).
+        # steps and never runs PRE_FULL. 20 steps since the HGX lanes
+        # joined TIER2 (hyper_lane_wiring, 2026-09-15).
         skipped = [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
         full = maint.PRE_FULL_STEPS + skipped + maint.TIER2_STEPS
         assert len(maint.TIER1_FULL_SKIP) == 1
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
-        assert len(full) == 18
+        assert len(full) == 20
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [
             "snapshot (re-snapshot to include recomputed analytics + events)"
@@ -276,8 +283,8 @@ class TestDryRun:
             + [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
             + maint.TIER2_STEPS
         )
-        # 7 pre-full + 2 tier1 (snapshot elided in --full) + 9 tier2.
-        assert len(all_steps) == 18
+        # 7 pre-full + 2 tier1 (snapshot elided in --full) + 11 tier2.
+        assert len(all_steps) == 20
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
         assert "snapshot (refresh versioned snapshots)" not in output

@@ -125,6 +125,43 @@ def load_incidence_arrow(
     raise ValueError(msg)
 
 
+def store_rowcount(
+    sources: list[str],
+    *,
+    db_path: str | Path | None = None,
+) -> int | None:
+    """Hyperedge count for ``sources`` in the live store, or None if absent.
+
+    The maint-lane precheck (hyper_lane_wiring W1): a DB without the
+    incidence tables has nothing to compute — callers skip cleanly
+    instead of dying on the loader's CatalogException. Read-only URI
+    probe, same ``DEFAULT_DB_PATH`` default as :func:`load_incidence_arrow`
+    (monkeypatch the module attribute to redirect both).
+    """
+    from helpers.core.db import connect as _connect
+
+    if not sources:
+        return 0
+    path = Path(db_path) if db_path else DEFAULT_DB_PATH
+    if not path.exists():
+        return None
+    conn = _connect(path, read_only=True)
+    try:
+        present = conn.execute(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' "
+            "AND name IN ('hyper_edges', 'hyper_incidences')"
+        ).fetchone()[0]
+        if present < 2:
+            return None
+        placeholders = ",".join("?" for _ in sources)
+        return conn.execute(
+            f"SELECT COUNT(*) FROM hyper_edges WHERE edge_type IN ({placeholders})",  # noqa: S608  # fixed schema identifiers; values are ?-parameters
+            sources,
+        ).fetchone()[0]
+    finally:
+        conn.close()
+
+
 def incidence_dict(tbl: pa.Table) -> dict[str, list[str]]:
     """Arrow long-form -> ``{edge_type:label: [members]}`` in row order.
 

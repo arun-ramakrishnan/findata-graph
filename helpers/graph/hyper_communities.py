@@ -249,6 +249,15 @@ def _cli(argv: list[str] | None = None) -> int:
     args = p.parse_args(argv)
 
     sources = [s.strip() for s in args.sources.split(",") if s.strip()]
+    # Never-block precheck (hyper_lane_wiring W1): absent store / no rows
+    # for the requested sources -> clean skip (maint-full on fresh DBs).
+    n_store = ha.store_rowcount(sources)
+    if not n_store:
+        print(
+            f"[hyper-communities] incidence store empty for sources "
+            f"({', '.join(sources) or 'none'}) — nothing to compute, skipping"
+        )
+        return 0
     raw = ha.incidence_dict(ha.load_incidence_arrow(sources))  # S18(b) exit: Arrow load
     kept, giants, singletons = _exclude_degenerate(raw, allow_giant=args.allow_giant)
     n_members = sum(len(v) for v in kept.values())
@@ -272,7 +281,14 @@ def _cli(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
     if not kept:
-        raise ValueError("no hyperedges left after the degeneracy guard")
+        # guard-exhausted store (everything a singleton/giant) — nothing
+        # the EM can use; skip cleanly rather than fail the maint chain
+        print(
+            f"SKIP: no hyperedges left after the degeneracy guard "
+            f"({len(giants)} giant(s), {len(singletons)} singleton(s) dropped) "
+            f"— nothing to compute"
+        )
+        return 0
 
     if args.sweep:
         ks = [int(x) for x in args.sweep.split(",") if x.strip()]
