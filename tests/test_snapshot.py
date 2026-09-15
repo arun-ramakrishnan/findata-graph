@@ -367,3 +367,52 @@ def test_parquet_export_mixed_storage_class_fails_loud(tmp_path):
 
     with pytest.raises(ParquetExportError, match=r"\[mixed\].\[v\].*typeof"):
         export_parquet_sqlite(db, out_dir, _logger())
+
+
+def test_sources_duckdb_export_restore_roundtrip(tmp_path):
+    """D15: sources.duckdb (exchange_listings + mca_cin + views) round-trips
+    through the parquet snapshot with its OWN manifest and schema file —
+    never through helpers.graph.query.MATERIALISED_TABLES (that manifest
+    belongs to graph.duckdb and its drop pass would clobber sources)."""
+    import duckdb
+
+    from maintenance.snapshot_db import (
+        SOURCES_TABLES,
+        _verify_parquet_duckdb_side,
+        export_parquet_duckdb,
+        restore_duckdb_from_parquet,
+    )
+
+    src = tmp_path / "sources.duckdb"
+    con = duckdb.connect(str(src))
+    con.execute("CREATE TABLE exchange_listings (isin VARCHAR, name VARCHAR, segment VARCHAR)")
+    con.execute(
+        "INSERT INTO exchange_listings VALUES ('INE1', 'Alpha', 'sme'), ('INE2', 'Beta', 'main')"
+    )
+    con.execute("CREATE TABLE mca_cin (entity_name VARCHAR, cin VARCHAR)")
+    con.execute("INSERT INTO mca_cin VALUES ('Alpha', 'L00000KA2000PLC000001')")
+    con.execute("CREATE VIEW vw_sme AS SELECT * FROM exchange_listings WHERE segment = 'sme'")
+    con.close()
+
+    pq_root = tmp_path / "parquet"
+    pq_dir = pq_root / "sources"
+    export_parquet_duckdb(
+        src, pq_dir, _logger(), manifest=SOURCES_TABLES, schema_filename="_schema.sources.sql"
+    )
+    assert (pq_root / "_schema.sources.sql").exists()
+    assert {p.name for p in pq_dir.glob("*.parquet")} == {
+        "exchange_listings.parquet",
+        "mca_cin.parquet",
+    }
+
+    # verify side: row counts match live vs snapshot tree
+    res = _verify_parquet_duckdb_side(pq_root, src, _logger(), subdir="sources")
+    assert res["tables_checked"] == 2 and res["mismatches"] == []
+
+    # restore into a FRESH target: schema (tables + view) replays, rows load
+    tgt = tmp_path / "restored.duckdb"
+    out = restore_duckdb_from_parquet(pq_dir, tgt, _logger(), schema_filename="_schema.sources.sql")
+    assert out["tables"] == {"exchange_listings": 2, "mca_cin": 1}
+    rc = duckdb.connect(str(tgt), read_only=True)
+    assert rc.execute("SELECT COUNT(*) FROM vw_sme").fetchone()[0] == 1
+    rc.close()

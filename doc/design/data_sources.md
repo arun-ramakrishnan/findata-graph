@@ -125,9 +125,12 @@ COPY (SELECT * FROM mca_cin) TO 'mca.csv' (FORMAT CSV, HEADER);
 COPY (SELECT * FROM exchange_listings) TO 'listings.json';
 ```
 
-Snapshot integration (D15, filed): these tables join the git-tracked
-parquet snapshot via a SOURCES_TABLES manifest — see D15 in
-`doc/improvements/proposals/hyper_lane_wiring.md` §5.
+Snapshot integration (D15, executed 2026-09-15): every `make snapshot`
+exports these tables to git-tracked `snapshots/parquet/sources/` (own
+`SOURCES_TABLES` manifest + `_schema.sources.sql` — deliberately NOT the
+graph `MATERIALISED_TABLES`, whose drop pass must never touch this store);
+`snapshot_db.py --check` verifies row counts and `--restore` rebuilds the
+file (views replay from the DDL).
 
 Query pattern:
 
