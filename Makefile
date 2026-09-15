@@ -76,6 +76,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
 > @echo "  snapshot-check           Verify the snapshot round-trips against the live DB"
 > @echo "  snapshot-restore         Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)"
+> @echo "  hif-export               Export the hypergraph in HIF to snapshots/hif/ (rides make snapshot; SOURCES=... to override)"
 > @echo "  static-checks            Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)"
 > @echo "  suggest-relations        Print link-prediction relation suggestions (C2; append with --append)"
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
@@ -119,9 +120,15 @@ integration:    ## Run end-to-end cross-component pipeline tests (parse_newslett
 > python3 tests/run_gate_report.py integration
 > @echo "✓ Integration tests passed (appended to integration_report.txt)"
 
-snapshot:       ## Refresh the versioned DB snapshot
+snapshot:       ## Refresh the versioned DB snapshot (+ HIF rider)
 > python3 helpers/maintenance/snapshot_db.py
-> @echo "✓ Snapshots refreshed (snapshots/parquet/ [git] + db-backup/*.zst [local])"
+> $(MAKE) --no-print-directory hif-export
+> @echo "✓ Snapshots refreshed (snapshots/parquet/ [git] + db-backup/*.zst [local] + snapshots/hif/ [git])"
+
+HIF_SOURCES ?= sector,sub_sector,group,jv
+hif-export:    ## Export the hypergraph in HIF (snapshots/hif/; SOURCES=..., OUT=... to override)
+> python3 helpers/graph/hyper_hif.py --sources $(HIF_SOURCES) --out-dir snapshots/hif
+> @echo "✓ HIF exported (hif_nodes/edges/incidences .parquet in snapshots/hif/; canonical per architecture.md §10)"
 
 snapshot-check: ## Verify the snapshot round-trips against the live DB
 > python3 helpers/maintenance/snapshot_db.py --check

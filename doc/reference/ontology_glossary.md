@@ -24,6 +24,22 @@ are never cited (verified non-standards).
   We do NOT materialise ORG triples; the term anchors what the edge
   MEANS when the taxonomy is read against external vocabularies.
 
+## NIC-2008 ↔ sub_sector crosswalk (D12, reference only)
+
+Registrar vocabulary (MCA CIN NIC-2008 classes, ISIC Rev.4-aligned) —
+house/registrar terms, no citation owed. Measured 2026-09-15: NOT
+viable as a classification lane for this corpus (83% legacy-era CINs,
+generic post-2014 codes; see D12 filing) — kept as reference pairs for
+the 5 defensible mappings.
+
+| NIC-2008 class | sub_sector | Companies that would map |
+|---|---|---|
+| 27100 (electric motors/transformers) | `Electrical_Equipment` | KVS Castings (misclassified by NIC — castings) |
+| 29306 / 29308 (motor-vehicle parts) | `Auto_Ancillary` | Motherson Sumi Wiring, Tenneco Clean Air |
+| 40106 (power generation — legacy shape) | `Power_Generation` | Acme Solar, Adani Green, Saatvik (already in curated map) |
+| 45200 / 45201 (motor-vehicle sale) | `Dealerships` | Bigbloc Construction (misclassified by NIC) |
+| 67190 (securities dealing) | `Brokers` | Justo Realfintech (Bandhan Bank misclassified by NIC) |
+
 ## schema.org `Corporation`
 
 - **URI:** <https://schema.org/Corporation>
