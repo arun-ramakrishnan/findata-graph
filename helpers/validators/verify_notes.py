@@ -377,7 +377,7 @@ class NotesVerifier:
                 # any value outside the known-good set. Unlike tag_format this
                 # loops over ALL tags so each unknown value is flagged. Free-
                 # vocabulary namespaces are skipped (not in _KNOWN_TAG_VALUES).
-                # See doc/improvements/hierarchy_design_roadmap.txt D3.
+                # See doc/improvements/archive/graph/hierarchy_design_roadmap.md D3.
                 for t in tags:
                     ns, sep, val = t.partition("/")
                     if not sep or ns not in _KNOWN_TAG_VALUES:

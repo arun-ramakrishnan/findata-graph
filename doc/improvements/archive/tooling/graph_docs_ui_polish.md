@@ -32,7 +32,7 @@ clunky" (All mode, acquired-only filter), *"the docs interface is not very
 convenient to read stuff and too narrow"*, *"the button has no label and tiny
 and blue … also doesnt refresh when i change the Edge type"*, *"can you also
 change the graph display widget. It is looks very clunky"* (ego screenshot).
-Note: the archived `graph_improvs.txt` pass was algorithm-coverage work; it
+Note: the archived `graph_improvs.md` pass was algorithm-coverage work; it
 never touched this UI surface — this proposal is the UI counterpart.
 
 ---

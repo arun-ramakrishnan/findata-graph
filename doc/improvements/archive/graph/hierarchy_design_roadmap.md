@@ -1,4 +1,4 @@
-# Hierarchy Design Roadmap — enriching the notes ↔ DB ↔ graph knowledge model
+# Hierarchy design roadmap — notes ↔ DB ↔ graph knowledge model
 
 Source: forward-looking design review (2026-07-30) of the whole capture → store
 → graph stack, prompted by "look at the structure of notes captured via
@@ -25,12 +25,12 @@ mix diagnostic in §THE FRAMING FINDING is the live SELECT, not an estimate.
 file:line references point at current source.
 
 Environment as of this review:
-  - 1031 company + 42 sector + 78 sub_sector + 9 super_sector = 1160 entities
-  - 3634 graph_edges (see §THE FRAMING FINDING for the type mix)
-  - 8 graph_analytics metrics, ALL topology-only (no financial signals)
-  - DuckDB fin_graph: defined + catalogued but INERT under a plain connection
+- 1031 company + 42 sector + 78 sub_sector + 9 super_sector = 1160 entities
+- 3634 graph_edges (see §THE FRAMING FINDING for the type mix)
+- 8 graph_analytics metrics, ALL topology-only (no financial signals)
+- DuckDB fin_graph: defined + catalogued but INERT under a plain connection
     (duckpgq not autoloaded) — see D13
-  - markdown_parse procedure version 8.3; extract_relations.py 1867 lines
+- markdown_parse procedure version 8.3; extract_relations.py 1867 lines
 
 How to read the tiers: TIER 1 needs NO new data source (the signal is already
 in the 75 newsletter editions on disk); TIER 2 adds entity types/dimensions
@@ -38,9 +38,7 @@ that are also latent in existing notes; TIER 3 requires new external sources;
 TIER 4 is storage/engine hygiene that unblocks the rest.
 
 ================================================================================
-THE FRAMING FINDING — the graph is 95% scaffolding, 5% signal
-================================================================================
-
+## THE FRAMING FINDING — the graph is 95% scaffolding, 5% signal
 This single observation frames every proposal below. The live edge
 distribution (SELECT edge_type, count(*) FROM graph_edges GROUP BY 1):
 
@@ -68,10 +66,8 @@ of it; the proposals here address the *modelling* side — capturing signal the
 current two-anchor, company-only design structurally cannot hold.)
 
 ================================================================================
-CURRENT STATE — what each layer captures today (recap)
-================================================================================
-
-  Capture path: newsletter .md (expiring signed-URL <img> crops)
+## CURRENT STATE — what each layer captures today (recap)
+  Capture path: newsletter .md (expiring signed-URL `img` crops)
     → Stage 0 capture_newsletter_images.py downloads + rewrites to ![[embeds]]
     → Stage 1-3 parse_newsletter.py: extract_companies() regex, classify into
       new/existing/uncertain, for NEW: guess_sector_for() → resolve_ticker()
@@ -87,16 +83,14 @@ CURRENT STATE — what each layer captures today (recap)
 
   What exists as nodes: company, sector, sub_sector, super_sector (4 kinds).
   What exists as edges: 11 types (above). What is dated: acquired ONLY
-  (valid_from + properties.year; _EDGE_TYPES_WITH_PROSE_YEAR_EXTRACTION at
+  (valid_from + properties.year; `_EDGE_TYPES_WITH_PROSE_YEAR_EXTRACTION` at
   extract_relations.py:320 deliberately limits prose-year extraction to
   'acquired' — ~80% false positives on other types).
   What is NOT modelled (latent in notes, see TIER 2): quantitative metrics,
   themes, products/brands, people, events.
 
 ================================================================================
-TIER 1 — HIGH-LEVERAGE (no new sources required; signal already in 75 editions)
-================================================================================
-
+## TIER 1 — HIGH-LEVERAGE (no new sources required; signal already in 75 editions)
 D1. Structured metrics layer — promote concall NUMBERS out of prose [DEFERRED]
     doc/procedures/markdown_parse.md:379-390 (concall taxonomy: Guidance /
     Margins / Capex / Segment color / Strategic / Risk — a WRITING convention
@@ -267,9 +261,7 @@ D3. Markdown schema normalization + frontmatter validator [DONE 2026-07-30 — P
     future vocab sprawl, which the tag_value WARNING already covers.
 
 ================================================================================
-TIER 2 — MEDIUM-LEVERAGE (new entity types / dimensions, also latent in notes)
-================================================================================
-
+## TIER 2 — MEDIUM-LEVERAGE (new entity types / dimensions, also latent in notes)
 D4. Theme nodes — the cross-sector dimension analysts actually reason in [DONE]
     Hierarchy today is super_sector(9) -> sector(42) -> sub_sector(78) ->
     company(1031): clean, GICS-aligned, strictly hierarchical. But analysts
@@ -389,9 +381,7 @@ D7. Event nodes — timestamped happenings, the temporal backbone [DONE]
     events).
 
 ================================================================================
-TIER 3 — EXPANSION (new external data sources)
-================================================================================
-
+## TIER 3 — EXPANSION (new external data sources)
 D8. Earnings concall TRANSCRIPTS (primary source) [PROPOSED]
     The newsletters are DERIVATIVE of concall transcripts. Ingesting transcripts
     directly captures guidance BEFORE it is editorialised and is the cleanest
@@ -431,9 +421,7 @@ D12. Index constituents — Nifty/Sensex membership [PROPOSED]
     Leverage: MEDIUM.
 
 ================================================================================
-TIER 4 — STORAGE / ENGINE HYGIENE (unblocks the rest)
-================================================================================
-
+## TIER 4 — STORAGE / ENGINE HYGIENE (unblocks the rest)
 D13. fin_graph is INERT under a plain DuckDB connection [EVALUATED NOT-ADOPTED]
     Original claim: fin_graph (12 rows in __duckpgq_internal; 1 vertex label +
     11 edge labels via v_node) is "defined but inert — PGQ installed not
@@ -469,18 +457,16 @@ D14. Extend graph_analytics with a FINANCIAL-SIGNAL namespace [PROPOSED]
     until D8 supplies a recurring source).
 
 ================================================================================
-IF YOU DO THREE THINGS
-================================================================================
-
-  1. D5 — product/brand nodes. Structured asset relationships below companies
+## IF YOU DO THREE THINGS
+1. D5 — product/brand nodes. Structured asset relationships below companies
      (HUL -> Dove/Knorr/Surf); the 585 Product-Portfolio bullets are cleanly
      structured but scattered across ~40 header variants.
-  2. D6 — person nodes. Management names + quote attribution are in every note
+2. D6 — person nodes. Management names + quote attribution are in every note
      (## Management in 286 notes) but unlinked. NOW UNBLOCKED by D7: the
      management_change events + their properties.person/role give D6 a ready
      seed, and the temporal spine lets a person<->company edge carry a role +
      date range.
-  3. D8 — concall transcripts (new source), which un-defers D1 (structured
+3. D8 — concall transcripts (new source), which un-defers D1 (structured
      metrics). OR D9 filing-sourced edges for edge precision.
 
   (D3, D4, and D7 are DONE. D3: C1 tag-drop fixed (~3,300 tags restored),
@@ -492,7 +478,7 @@ IF YOU DO THREE THINGS
   pending.)
 
 (D1 — structured metrics — and D2 — semantic-edge thickening — were the original
-#1/#2 but are DEFERRED. D1 needs a recurring guidance/earnings source the corpus
+\#1/#2 but are DEFERRED. D1 needs a recurring guidance/earnings source the corpus
 lacks; D2, when measured against the sidecar, salvages only ~15 cross-sector
 supplier edges and its weight/PageRank sub-claim was wrong. D8 lands a recurring
 source and un-defers D1; D9 filing-sourced edges make the semantic-edge
@@ -504,9 +490,7 @@ as QUERYABLE STRUCTURE. The hierarchy and storage design are sound; the gap is
 almost entirely on the extraction/structuring side, not the architecture.
 
 ================================================================================
-STATUS LEDGER
-================================================================================
-
+## STATUS LEDGER
   D1  structured metrics layer            DEFERRED  HIGHEST  (needs recurring source — D8)
   D2  semantic edges + weights            DEFERRED  LOW-MED  (was HIGH; ~15-edge salvage, weight claim wrong)
   D3  markdown schema normalisation       DONE  HIGH (tag-drop fixed; listed:false + quote-style + render_stub all normalised; file_path gaps = fileless sub_sector nodes, NOT-A-DEFECT; drift guards in place)

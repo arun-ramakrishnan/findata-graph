@@ -1,4 +1,4 @@
-# Graph Algorithm Improvements — coverage gaps & DuckDB extension surface
+# Graph algorithm improvements — coverage gaps & DuckDB extension surface
 
 Source: read-only audit (2026-07-26) of the graph algorithm layer, prompted by
 "what algorithms do we support and can DuckDB extend them". Built on top of
@@ -16,9 +16,7 @@ that audit considered algorithm coverage "closed" via the DuckPGQ-primary +
 NetworkX-fallback split.
 
 ================================================================================
-CURRENT STATE — what the graph layer computes today
-================================================================================
-
+## CURRENT STATE — what the graph layer computes today
 Architecture: SQLite (memory/research.db) is the sole writer/source of truth.
 DuckDB + the DuckPGQ community extension (memory/graph.duckdb) is the PRIMARY
 read engine and graph-algorithm engine. NetworkX is a fallback for the two
@@ -52,9 +50,7 @@ shortest, sector, stats, refresh). No endpoint serves centrality/community
 scores from graph_analytics — those are CLI/consumed only (see J3).
 
 ================================================================================
-BUNDLE G — Algorithm coverage gaps (metrics that could be added)
-================================================================================
-
+## BUNDLE G — Algorithm coverage gaps (metrics that could be added)
 STATUS: G1, G2, G3 DONE (2026-07-27). All three coverage gaps closed.
   G1: closeness_centrality + eigenvector_centrality added as NetworkX bridges
     behind compute(); wired into the CLI (--all, _METRIC_TO_ANALYTICS_NAME,
@@ -65,7 +61,7 @@ STATUS: G1, G2, G3 DONE (2026-07-27). All three coverage gaps closed.
     holds 8 metrics (was 5 pre-J2/G1/G2). 5 new tests in TestCentralityCoverage.
   G2: louvain_communities() returns a LouvainResult NamedTuple (labels +
     modularity), co-producing the score so callers can't forget it. compute()
-    still returns just the labels dict (backward-compatible). The _cli apply
+    still returns just the labels dict (backward-compatible). The `cli apply`
     path captures modularity and attaches it to every louvain row as
     {"community": label, "modularity": score}. Design note: the audit's
     proposed "__graph__" sentinel fails — graph_analytics.entity_name FKs
@@ -99,7 +95,7 @@ G1. Closeness & eigenvector centrality not implemented [DONE]
     Fix: added closeness_centrality() + eigenvector_centrality() to
     algorithms.py as NetworkX bridges (pure-Python power iteration for
     eigenvector — no scipy dependency). compute() dispatches both; CLI
-    choices + _METRIC_TO_ANALYTICS_NAME extended; --all now runs 8 metrics.
+    choices + `_METRIC_TO_ANALYTICS_NAME` extended; --all now runs 8 metrics.
     Side-fix: documented the scipy/nx.pagerank latent bug (networkx 3.6
     made scipy the default pagerank backend; reference test skips cleanly,
     production uses duckpgq). 5 new tests in TestCentralityCoverage.
@@ -130,9 +126,7 @@ G3. No standalone cycle detection [DONE]
     part_of/has_company bidirectional pairs. 5 tests.
 
 ================================================================================
-BUNDLE H — DuckPGQ capability unlocks (blocked on extension features)
-================================================================================
-
+## BUNDLE H — DuckPGQ capability unlocks (blocked on extension features)
 STATUS: All OPEN. These are blocked on duckpgq features that don't exist in
 v1.5.4. Each is a "when duckpgq adds X, we can drop complexity Y" item. They
 are NOT independently actionable today (the CTE fallbacks already cover
@@ -170,13 +164,11 @@ H3. Native ANY SHORTEST returns path_length only, not vertices [OPEN]
     Fix: none until duckpgq exposes vertices(p). Track upstream.
 
 ================================================================================
-BUNDLE I — Move NetworkX fallbacks into DuckDB (drop a dependency)
-================================================================================
-
+## BUNDLE I — Move NetworkX fallbacks into DuckDB (drop a dependency)
 STATUS: I1 + I2 SKIPPED (2026-07-27) after re-checking the duckpgq surface
   and measuring the live timings. Rationale (measured, not estimated):
 
-  1. duckpgq re-checked at version f386a6c (the latest as of 2026-07-27;
+1. duckpgq re-checked at version f386a6c (the latest as of 2026-07-27;
      UPDATE EXTENSIONS was a no-op). The native graph-algorithm function
      registry is UNCHANGED from when the audit was written — still only
      pagerank, weakly_connected_component, local_clustering_coefficient,
@@ -185,7 +177,7 @@ STATUS: I1 + I2 SKIPPED (2026-07-27) after re-checking the duckpgq surface
      all four as "just proposed" with no branch, no PR, no sub-issue, zero
      code activity since Aug 2024. So there is no native-function swap path.
 
-  2. Measured live timings on the 1073-entity / 3507-edge graph:
+2. Measured live timings on the 1073-entity / 3507-edge graph:
        Louvain (networkx)             68ms
        Betweenness approx (default)  185ms
        Betweenness exact (opt-in)    5.5s
@@ -195,7 +187,7 @@ STATUS: I1 + I2 SKIPPED (2026-07-27) after re-checking the duckpgq surface
      speedup) eliminated the bottleneck. --all is under 1 second with
      defaults; the networkx paths are not a measured hot spot.
 
-  3. A SQL port would not meaningfully improve on these numbers:
+3. A SQL port would not meaningfully improve on these numbers:
      - SQL Louvain (I1) is research-grade — greedy multi-pass modularity
        maximization, ~100+ lines, uncertain correctness, 68ms payoff.
      - SQL Brandes (I2) is doable but the win is only on the opt-in exact
@@ -241,9 +233,7 @@ I2. Betweenness runs in NetworkX, not DuckDB [SKIPPED]
     has no native betweenness. See Bundle I STATUS for full rationale.
 
 ================================================================================
-BUNDLE J — Temporal, persistence & consumer surface
-================================================================================
-
+## BUNDLE J — Temporal, persistence & consumer surface
 STATUS: J2 + J3 DONE (2026-07-27). J1 OPEN (design change, deferred until a
   real temporal-analytics use case appears). J2 was a 1-line mapping fix
   closing the only consistency gap where a computed metric wasn't persisted
@@ -299,27 +289,25 @@ J3. No /api endpoint serves centrality/community scores [DONE]
     make qa; seeds graph_analytics rows in a temp DB).
 
 ================================================================================
-RECOMMENDED SEQUENCING
-================================================================================
-
+## RECOMMENDED SEQUENCING
   Leverage-to-effort ordering (not urgency — none are correctness bugs):
 
-  1. J2 (persist clustering)        — DONE 2026-07-27.
-  2. G2 (modularity score)          — DONE 2026-07-27.
-  3. J3 (API for centrality scores) — DONE 2026-07-27.
-  4. G1 (closeness/eigenvector)     — DONE 2026-07-27.
-  5. G3 (cycle detection)           — DONE 2026-07-27.
-  6. I1 + I2 (NetworkX → DuckDB)    — SKIPPED 2026-07-27 after re-checking
+1. J2 (persist clustering)        — DONE 2026-07-27.
+2. G2 (modularity score)          — DONE 2026-07-27.
+3. J3 (API for centrality scores) — DONE 2026-07-27.
+4. G1 (closeness/eigenvector)     — DONE 2026-07-27.
+5. G3 (cycle detection)           — DONE 2026-07-27.
+6. I1 + I2 (NetworkX → DuckDB)    — SKIPPED 2026-07-27 after re-checking
                                       duckpgq (f386a6c, no native louvain/
                                       betweenness; #132 zero progress) and
                                       measuring live timings (68ms/185ms,
                                       --all <1s). Stale premise post-Bundle-D.
                                       Revisit if duckpgq ships native fns or
                                       the graph grows 10x.
-  7. H1/H2/H3 (duckpgq unlocks)    — track upstream; not independently
+7. H1/H2/H3 (duckpgq unlocks)    — track upstream; not independently
                                       actionable until duckpgq ships them.
                                       Re-test on each `make update-extensions`.
-  8. J1 (temporal subgraph algos)   — design change; defer until a real
+8. J1 (temporal subgraph algos)   — design change; defer until a real
                                       temporal-analytics use case appears.
 
 Cross-cutting note: every remaining OPEN item (H1/H2/H3, J1) is gated on

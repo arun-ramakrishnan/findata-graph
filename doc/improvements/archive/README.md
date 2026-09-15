@@ -9,11 +9,11 @@ commit, referenced by nothing). Entry numbers point at
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 
 - [`graph_algos.txt`](graph/graph_algos.txt) — Proposal: Expand graph-algorithm coverage via Onager — link prediction,
-- [`graph_improvs.txt`](graph/graph_improvs.txt) — Graph Algorithm Improvements — coverage gaps & DuckDB extension surface
+- [`graph_improvs.md`](graph/graph_improvs.md) — Graph Algorithm Improvements — coverage gaps & DuckDB extension surface
 - [`graph_pending.txt`](graph/graph_pending.txt) — Graph Pending Items — Deferred (P2.2, P3.2, P3.3)
 - [`duckpgq_retirement.txt`](graph/duckpgq_retirement.txt) — Proposal: Retire duckpgq — consolidate on Onager + plain SQL — completed.md #73, #92
-- [`networkx_duckpgq_gap_plan.txt`](graph/networkx_duckpgq_gap_plan.txt) — NETWORKX -> DUCKPGQ GAP ANALYSIS & DEPENDENCY PLAN
-- [`hierarchy_design_roadmap.txt`](graph/hierarchy_design_roadmap.txt) — Hierarchy Design Roadmap — enriching the notes ↔ DB ↔ graph knowledge model
+- [`networkx_duckpgq_gap_plan.md`](graph/networkx_duckpgq_gap_plan.md) — NETWORKX -> DUCKPGQ GAP ANALYSIS & DEPENDENCY PLAN
+- [`hierarchy_design_roadmap.md`](graph/hierarchy_design_roadmap.md) — Hierarchy Design Roadmap — enriching the notes ↔ DB ↔ graph knowledge model
 - [`hybrid_graph_onager_igraph.md`](graph/hybrid_graph_onager_igraph.md) — Proposal: hybrid graph compute — Onager default + igraph second engine (bridge ROUTING: Leiden, weighted centralities/paths, maxflow/mincut, louvain-compare; seeded Leiden, dry-run default, `--apply` via write_analytics); S1–S7 landed pilot-gated, integration DEFERRED (D15 — EasyGraph C++ re-test closed the engine question: NO Easy-Graph) — completed.md #230
 - [`easygraph_cpp_readoption.md`](graph/easygraph_cpp_readoption.md) — Proposal: EasyGraph C++ re-adoption — build unlocked on 3.11/3.14 (pybind11 branch, setuptools shim), cpp pagerank/louvain fast + best-Q but adoption DEFERRED: betweenness overflow 378/1648 reproduced on both interpreters, closeness/eigenvector ignore weight, no Leiden/flow-cut, parallel-edge collapse; R1–R4 revival triggers + full run log appendix — completed.md #231
 - [`hypergraph_incidence_hyx.md`](graph/hypergraph_incidence_hyx.md) — Proposal: hypergraph incidence layer — hyper_edges/hyper_incidences star store + derive_hyperedges backfill + HypergraphX compute lanes (hy-MMSBM overlapping communities, higher-order centralities, HIF/Arrow data standard); S0–S21 executed 2026-09-13/14 incl. S9 counterparty FK, S17 taxonomy +22 sub_sectors, S21 quotes attribution; capture-gap ledger deferred inside — completed.md #233

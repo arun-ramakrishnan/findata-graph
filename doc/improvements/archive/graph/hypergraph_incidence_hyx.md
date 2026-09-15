@@ -592,8 +592,8 @@ next slice after S5–S7.
 
 The doc markdown migration (4e1ec8f3) plus this patch's graph_design
 .txt→.md convergence leave **three .txt files unconverted** under
-`doc/improvements/archive/graph/`: `networkx_duckpgq_gap_plan.txt`,
-`graph_improvs.txt`, `hierarchy_design_roadmap.txt`. Deferred, not
+`doc/improvements/archive/graph/`: `networkx_duckpgq_gap_plan.md`,
+`graph_improvs.md`, `hierarchy_design_roadmap.md`. Deferred, not
 forgotten — the migration is NOT complete until these are gone.
 
 - Conversion is mechanical (same recipe as 4e1ec8f3), but each file is
