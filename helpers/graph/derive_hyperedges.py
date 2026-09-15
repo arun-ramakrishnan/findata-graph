@@ -101,6 +101,289 @@ _SYMMETRIC_SOURCES: list[tuple[str, str, str]] = [
 ]
 
 
+# Operator-curated company -> sub_sector classifications (D11, 2026-09-15).
+# Version-controlled EDGE lane: same canonical precedence as the note
+# `subsector:` field (map wins on conflict); revisited after D12 (NIC-2008).
+COMPANY_SUB_SECTORS: dict[str, list[str]] = {
+    "Paper_Products": ["Kuantum Papers"],
+    "Computer_Hardware": [
+        "DC Infotech Comm",
+    ],
+    "Digital_Platforms": [
+        "Nazara Technologies",
+    ],
+    "Two_Wheelers": [
+        "Harley-Davidson",
+    ],
+    "Brokers": [
+        "5paisa Capital",
+        "Angel One",
+        "Dolat Algotech",
+        "Emkay Global Financial Services",
+        "Geojit Financial Services",
+        "Motilal Oswal Financial Services",
+        "SMC Global",
+        "Anand Rathi Share and Stock Brokers",
+        "Yes Securities",
+        "Upstox",
+    ],
+    "Capital_Goods": [
+        "John Cockerill India",
+        "SKF India",
+        "Timken India",
+    ],
+    "Cooperative_Banks": [
+        "Cosmos Co-operative Bank",
+    ],
+    "Dealerships": [
+        "CarTrade Tech",
+        "Landmark Cars",
+    ],
+    "Depositories": [
+        "Central Depository Services",
+        "NSDL",
+    ],
+    "Design": [
+        "Advanced Micro Devices",
+        "Broadcom",
+        "Intel Corporation",
+        "NVIDIA Corporation",
+        "Synaptics",
+    ],
+    "E&P": [
+        "Oil India",
+        "ONGC",
+        "Saudi Aramco",
+        "TotalEnergies SE",
+    ],
+    "Electrical_Equipment": [
+        "Shivalik Bimetal Controls",
+    ],
+    "Exchanges": [
+        "BSE",
+        "NSE",
+        "Multi Commodity Exchange of India (MCX)",
+        "Indian Energy Exchange",
+        "M1Xchange",
+    ],
+    "Flexible_Packaging": [
+        "Cosmo First",
+        "EPL",
+        "Jindal Poly Films",
+        "TCPL Packaging",
+        "Uflex",
+        "Huhtamaki Oyj",
+    ],
+    "Footwear": [
+        "Bata India",
+        "Campus Activewear",
+        "Redtape",
+        "Birkenstock",
+        "Crocs",
+    ],
+    "Foreign_Banks": [
+        "Standard Chartered",
+    ],
+    "Forge_Castings": [
+        "MM Forgings",
+        "Karbonsteel Engineering",
+        "Nelcast",
+        "PTC Industries",
+        "Pitti Engineering",
+        "Ramkrishna Forgings",
+        "Frontier Springs",
+    ],
+    "Gas_Distribution": [
+        "Petronet LNG",
+        "Gujarat Energy",
+        "Gujarat Gas",
+    ],
+    "General_Insurance": [
+        "ICICI Lombard General Insurance",
+        "The New India Assurance",
+    ],
+    "Gold_Loans": [
+        "Muthoot Finance",
+        "Manappuram Finance",
+        "IIFL Finance",
+    ],
+    "HFC": [
+        "Aavas Financiers",
+        "Aptus Value Housing Finance",
+        "Can Fin Homes",
+        "GIC Housing Finance",
+        "Home First Finance Company India",
+        "LIC Housing Finance",
+        "PNB Housing Finance",
+        "Repco Home Finance",
+        "Sammaan Capital",
+    ],
+    "Hydro": [
+        "NHPC",
+        "SJVN",
+    ],
+    "Hypermarkets": [
+        "Avenue Supermarts DMart",
+        "Shoppers Stop",
+        "Spencers Retail",
+        "V-Mart Retail",
+        "Costco Wholesale",
+        "Walmart",
+        "Target",
+    ],
+    "Infra_Lending": [
+        "Housing and Urban Development Corporation",
+        "Indian Railway Finance",
+        "Indian Renewable Energy Development Agency",
+        "REC",
+        "Power Finance Corporation",
+    ],
+    "Life_Insurance": [
+        "Sun Life Financial",
+    ],
+    "Market_Infrastructure": [
+        "KFin Technologies",
+        "Computer Age Management Services",
+    ],
+    "Memory": [
+        "Micron Technology",
+    ],
+    "Microfinance": [
+        "CreditAccess Grameen",
+        "Arman Financial Services",
+        "Muthoot Microfin",
+        "Spandana Sphoorty Financial",
+    ],
+    "Multi_Line": [
+        "Bajaj Finance",
+        "HDB Financial Services",
+        "Magma Fincorp",
+        "L&T Finance",
+        "Tata Capital",
+        "Shriram Finance",
+        "JM Financial",
+    ],
+    "OTA": [
+        "Airbnb",
+        "EaseMyTrip (Easy Trip Planners)",
+        "IRCTC",
+        "Le Travenues Technology",
+        "TBO Tek",
+        "Yatra Online",
+        "Easy Trip Planners",
+    ],
+    "Private_Sector": [
+        "AU Small Finance Bank",
+        "Axis Bank",
+        "Bandhan Bank",
+        "CSB Bank",
+        "City Union Bank",
+        "DCB Bank",
+        "Dhanlaxmi Bank",
+        "ESAF Small Finance Bank",
+        "Equitas Small Finance Bank",
+        "Federal Bank",
+        "Fino Payments Bank",
+        "HDFC Bank",
+        "ICICI Bank",
+        "IDFC First Bank",
+        "IndusInd Bank",
+        "Jammu & Kashmir Bank",
+        "Jana Small Finance Bank",
+        "Karnataka Bank",
+        "Karur Vysya Bank",
+        "Kotak Mahindra Bank",
+        "RBL Bank",
+        "South Indian Bank",
+        "Suryoday Small Finance Bank",
+        "Tamilnad Mercantile Bank",
+        "Ujjivan Small Finance Bank",
+        "Yes Bank",
+    ],
+    "Public_Sector": [
+        "Bank of Baroda",
+        "Bank of India",
+        "Bank of Maharashtra",
+        "Canara Bank",
+        "Central Bank of India",
+        "Indian Bank",
+        "Indian Overseas Bank",
+        "Punjab National Bank (PNB)",
+        "Punjab Sind Bank",
+        "State Bank of India",
+        "UCO Bank",
+        "Union Bank of India",
+    ],
+    "Publishing": [
+        "D B Corp",
+        "MPS",
+        "Cyber Media Research & Services",
+    ],
+    "Ratings": [
+        "CRISIL",
+        "ICRA",
+    ],
+    "Recycling": [
+        "Gravita India",
+    ],
+    "Refining": [
+        "Bharat Petroleum Corporation",
+        "Hindustan Petroleum",
+        "Indian Oil Corporation",
+        "Mangalore Refinery and Petrochemicals",
+        "Reliance Industries",
+    ],
+    "Rigid_Packaging": [
+        "Huhtamaki India",
+        "Mold Tek Packaging",
+        "Swashthik Plascon",
+        "Time Technoplast",
+        "Worth Peripherals",
+    ],
+    "Solar": [
+        "Acme Solar Holdings",
+        "Adani Green",
+        "KPI Green Energy",
+    ],
+    "Specialty_Chemicals": [
+        "Deepak Nitrite",
+        "GHCL",
+        "Shiv Texchem",
+    ],
+    "Telecom_Equipment": [
+        "Sterlite Technologies",
+        "Tejas Networks",
+        "Telecommunications Consultants India",
+        "HFCL",
+    ],
+    "Telecom_Services": [
+        "Bharti Airtel",
+        "Bharti Hexacom",
+        "Tata Communications",
+        "Vodafone Idea",
+        "Railtel Corporation Of India",
+    ],
+    "Vehicle_Loans": [
+        "Cholamandalam Investment and Finance Company",
+        "Mahindra & Mahindra Financial Services",
+        "Sundaram Finance",
+        "Muthoot Capital Services",
+    ],
+}
+
+
+def _company_path_map(conn) -> dict[str, str]:
+    """company note path -> entity display name (the S5 frontmatter-read join)."""
+    return {
+        row[0]: row[1]
+        for row in conn.execute(
+            "SELECT file_path, name FROM entities "
+            "WHERE entity_type = 'company' "
+            "AND file_path IS NOT NULL AND file_path != ''"
+        )
+    }
+
+
 def extract_industry_membership(
     root: Path = COMPANIES_DIR,
     path_to_name: dict[str, str] | None = None,
@@ -146,6 +429,47 @@ def extract_industry_membership(
         if company is None:
             continue  # stray .md not backed by an entity
         out.setdefault(industry.strip(), set()).add(company)
+    return out
+
+
+def extract_subsector_membership(
+    root: Path = COMPANIES_DIR,
+    path_to_name: dict[str, str] | None = None,
+) -> dict[str, set[str]]:
+    """Read the YAML ``subsector:`` field of company notes -> ``{value: members}``.
+
+    D7 authored lane (company_subsector_authored_lane.md): the field is the
+    operator-authored canonical classification (``Apparel_Retail`` — an
+    existing sub_sector entity name; case/spacing-insensitive). Absent/null
+    values are skipped, exactly like ``extract_industry_membership``. 0
+    authored values live at landing — the lane is a no-op until authored.
+    """
+    out: dict[str, set[str]] = {}
+    for note in sorted(root.rglob("*.md")):
+        try:
+            text = note.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        _dashes, yaml_body, _rest = split_frontmatter(text)
+        if not yaml_body:
+            continue
+        try:
+            fields = yaml_safe_load(yaml_body) or {}
+        except Exception:  # noqa: BLE001, S112 — a malformed note must not kill the derive
+            continue
+        if not isinstance(fields, dict):
+            continue
+        subsector = fields.get("subsector")
+        if not subsector or not isinstance(subsector, str):
+            continue  # covers subsector: null and absent
+        try:
+            rel = note.resolve().relative_to(_REPO_ROOT).as_posix()
+        except ValueError:
+            rel = note.resolve().relative_to(root.resolve()).as_posix()
+        company = path_to_name.get(rel) if path_to_name else note.stem
+        if company is None:
+            continue  # stray .md not backed by an entity
+        out.setdefault(subsector.strip(), set()).add(company)
     return out
 
 
@@ -476,8 +800,56 @@ SUB_SECTOR_ALIASES: dict[str, str] = {
     "Utilities - Independent Power Producers": "Power_Generation",
     "Utilities - Regulated Electric": "Power_Generation",
     "Utilities - Regulated Gas": "Gas_Distribution",
+    "Mortgage Finance": "HFC",
+    "Oil & Gas Refining & Marketing": "Refining",
+    "Financial Data & Stock Exchanges": "Exchanges",
+    "Footwear & Accessories": "Footwear",
+    "Auto & Truck Dealerships": "Dealerships",
+    "Insurance - Diversified": "Multi_Line",
+    "Travel Services": "OTA",
+    "Discount Stores": "Hypermarkets",
 }
+
 SUB_SECTOR_ALIASES["Diagnostics & Research"] = "Pathology"  # fix placeholder
+
+# D13 additions (2026-09-15, operator-approved worklist triage round 2):
+# 7 labels onto EXISTING nodes + 19 onto the new D13 sub_sector nodes
+# (taxonomy edits in build_sector_hierarchy.SUB_CATEGORIES). Closes 48 of
+# the 407 no-sub_sector authored companies; the remaining ~354 lack a note
+# `industry:` field entirely and ride D18 (yfinance enrichment lane).
+SUB_SECTOR_ALIASES.update(
+    {
+        # onto existing nodes
+        "Communication Equipment": "Telecom_Equipment",
+        "Telecom Services": "Telecom_Services",
+        "Insurance Brokers": "Brokers",
+        "Real Estate Services": "Real_Estate_Development",
+        "Chemicals": "Specialty_Chemicals",
+        "Oil & Gas E&P": "E&P",
+        "Rental & Leasing Services": "Construction_Equipment",
+        # onto the 19 new D13 nodes
+        "Electronic Components": "Electronic_Components",
+        "Specialty Business Services": "Facility_Services",
+        "Education & Training Services": "Training_Services",
+        "Medical Devices": "Medical_Devices",
+        "Business Equipment & Supplies": "Business_Equipment",
+        "Tobacco": "Tobacco",
+        "Health Information Services": "Health_IT",
+        "Computer Hardware": "Computer_Hardware",
+        "Lumber & Wood Production": "Wood_Products",
+        "Pollution & Treatment Controls": "Water_Treatment",
+        "Grocery Stores": "Grocery",
+        "Medical Instruments & Supplies": "Medical_Instruments",
+        "Specialty Retail": "Specialty_Retail",
+        "Infrastructure Operations": "Infrastructure_Operations",
+        "Real Estate - Diversified": "Diversified_Real_Estate",
+        "Scientific & Technical Instruments": "Instruments",
+        "Credit Services": "Credit_Cards",
+        "Advertising Agencies": "Advertising",
+        "Staffing & Employment Services": "Staffing",
+        "Oil & Gas Equipment & Services": "Oilfield_Services",
+    }
+)
 
 # Worklist hints for unmapped majors (suggested NEW sub_sector nodes).
 SUB_SECTOR_SUGGESTIONS: dict[str, str] = {
@@ -512,16 +884,32 @@ SUB_SECTOR_SUGGESTIONS: dict[str, str] = {
 }
 
 
-def derive_sub_sectors(
-    hyper: dict[str, dict[str, set[str]]], valid_entities: set[str]
-) -> tuple[dict[str, set[str]], list[tuple[str, int, str]]]:
-    """S11: union mapped industry hyperedges into sub_sector hyperedges.
+def _norm_subsector(value: str) -> str:
+    """Canonical lookup key: lowercase, spaces/hyphens -> underscores."""
+    return value.strip().lower().replace(" ", "_").replace("-", "_")
 
-    Returns ``(sub_sector_groups, unmapped)`` where sub_sector_groups is
-    ``{sub_sector_name: set(company members)}`` (union across every industry
-    label mapping there) and unmapped is ``[(label, n_members, suggestion)]``
-    sorted by member count desc. A stale alias whose target entity no longer
-    exists raises before anything is written (map rides in version control).
+
+def derive_sub_sectors(
+    hyper: dict[str, dict[str, set[str]]],
+    valid_entities: set[str],
+    authored: dict[str, set[str]] | None = None,
+    sub_sector_entities: set[str] | None = None,
+) -> tuple[dict[str, set[str]], list[tuple[str, int, str]], list[tuple[str, int]]]:
+    """S11 union + D7 authored precedence: build sub_sector member groups.
+
+    Returns ``(sub_sector_groups, unmapped, unmapped_authored)`` where
+    sub_sector_groups is ``{sub_sector_name: set(company members)}``
+    (union across every industry label mapping there), unmapped is
+    ``[(label, n_members, suggestion)]`` sorted by member count desc, and
+    unmapped_authored is ``[(value, n_members)]`` for hand-authored values
+    that resolve to no existing sub_sector entity (warned + worklisted;
+    membership stays alias-derived — hand typos must be visible, not
+    pipeline-fatal). A stale alias whose target entity no longer exists
+    raises before anything is written (map rides in version control).
+
+    D7 precedence: an authored ``subsector:`` assignment is CANONICAL for
+    that company — the company is removed from every alias-derived group
+    and placed only in the authored one.
     """
     groups: dict[str, set[str]] = {}
     unmapped: list[tuple[str, int, str]] = []
@@ -541,11 +929,35 @@ def derive_sub_sectors(
             raise ValueError(msg)
         groups.setdefault(target, set()).update(members)
     unmapped.sort(key=lambda x: -x[1])
-    return groups, unmapped
+
+    unmapped_authored: list[tuple[str, int]] = []
+    if authored and sub_sector_entities:
+        canon = {}
+        for e in sub_sector_entities:
+            canon.setdefault(_norm_subsector(e), e)
+        for value, members in sorted(authored.items()):
+            canonical = canon.get(_norm_subsector(value))
+            if canonical is None:
+                unmapped_authored.append((value, len(members)))
+                continue  # worklist; membership stays alias-derived
+            groups.setdefault(canonical, set())
+            for m in members:
+                for members_of in groups.values():
+                    members_of.discard(m)  # authored is canonical: exclusive
+                groups[canonical].add(m)
+        unmapped_authored.sort(key=lambda x: -x[1])
+    return groups, unmapped, unmapped_authored
 
 
-def _write_subsector_worklist(unmapped: list[tuple[str, int, str]]) -> Path:
-    """Mirror counterparty_worklist: JSON under findata/Misc/, count-sorted."""
+def _write_subsector_worklist(
+    unmapped: list[tuple[str, int, str]],
+    unmapped_authored: list[tuple[str, int]] | None = None,
+) -> Path:
+    """Mirror counterparty_worklist: JSON under findata/Misc/, count-sorted.
+
+    D7: ``unmapped_authored`` lists hand-authored ``subsector:`` note values
+    that resolve to no existing sub_sector entity (visible, not fatal).
+    """
     wl = _REPO_ROOT / "findata" / "Misc" / "subsector_worklist.json"
     wl.parent.mkdir(parents=True, exist_ok=True)
     wl.write_text(
@@ -555,8 +967,12 @@ def _write_subsector_worklist(unmapped: list[tuple[str, int, str]]) -> Path:
                     {"label": lbl, "members": n, "suggestion": s} for lbl, n, s in unmapped
                 ],
                 "count": len(unmapped),
+                "unmapped_authored": [
+                    {"value": v, "members": n} for v, n in unmapped_authored or []
+                ],
                 "hint": "mapped labels live in derive_hyperedges.SUB_SECTOR_ALIASES; "
-                "new sub_sector nodes are an operator taxonomy decision",
+                "new sub_sector nodes are an operator taxonomy decision; authored "
+                "company-level overrides ride the `subsector:` note field (D7)",
             },
             indent=1,
         )
@@ -816,7 +1232,7 @@ def _upstream(hyper_type: str) -> str:
     return "+".join(_upstream_types(hyper_type))
 
 
-def _cli(argv: list[str] | None = None) -> int:
+def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CLI
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     dcli.add_derive_args(
         p,
@@ -868,10 +1284,24 @@ def _cli(argv: list[str] | None = None) -> int:
             facets = collect_event_facets(conn)
         hyper, weights = collect_hyperedges(conn)
         valid = {r[0] for r in conn.execute("SELECT name FROM entities")}
-        sub_groups, unmapped = derive_sub_sectors(hyper, valid)
+        # D7 authored lane: `subsector:` note field is canonical per company.
+        # D11 operator lane: the version-controlled COMPANY_SUB_SECTORS map
+        # rides the same precedence (map wins on conflict — no note writes).
+        p2n = _company_path_map(conn)
+        authored = extract_subsector_membership(path_to_name=p2n) if p2n else {}
+        for sub, members in COMPANY_SUB_SECTORS.items():
+            for m in members:
+                authored.setdefault(sub, set()).add(m)
+        ss_entities = {
+            r[0] for r in conn.execute("SELECT name FROM entities WHERE entity_type='sub_sector'")
+        }
+        sub_groups, unmapped, unmapped_authored = derive_sub_sectors(
+            hyper, valid, authored=authored, sub_sector_entities=ss_entities
+        )
         if sub_groups or unmapped:
             hyper["sub_sector"] = sub_groups
             n_new_members = sum(len(m) for m in sub_groups.values())
+            n_authored = sum(len(m) for m in authored.values())
             print(
                 f"S11 sub-sector map: {len(SUB_SECTOR_ALIASES) - 0} aliases -> "
                 f"{len(sub_groups)} sub_sector hyperedges ({n_new_members} members); "
@@ -881,9 +1311,20 @@ def _cli(argv: list[str] | None = None) -> int:
                     if unmapped
                     else ""
                 )
+                + (
+                    f"; D7 authored: {n_authored} assignment(s)"
+                    f" ({sum(len(v) for v in COMPANY_SUB_SECTORS.values())} map)"
+                    + (
+                        f", {len(unmapped_authored)} unknown value(s) worklisted"
+                        if unmapped_authored
+                        else ""
+                    )
+                    if authored
+                    else ""
+                )
             )
-            if args.apply and unmapped:
-                wl = _write_subsector_worklist(unmapped)
+            if args.apply and (unmapped or unmapped_authored):
+                wl = _write_subsector_worklist(unmapped, unmapped_authored)
                 print(f"worklist: {wl.relative_to(_REPO_ROOT)}")
         n_types = sum(len(g) for g in hyper.values())
         n_members = sum(len(m) for g in hyper.values() for m in g.values())

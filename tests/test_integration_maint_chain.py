@@ -62,6 +62,15 @@ from helpers.misc import seed_concepts as sc  # noqa: E402
 pytestmark = [pytest.mark.integration]
 
 _KEEP_COMPANIES = ("HDFC Bank", "ICICI Bank")
+# D11 authored-map members must survive the prune: derive-hyperedges
+# re-derives sub_sector hyperedges for ALL COMPANY_SUB_SECTORS members
+# and hyper_incidences.entity_name is FK-bound to entities(name) — a
+# pruned member aborts the chain (FK constraint failed). All 182 exist
+# in the live DB; the tmp fixture must keep them too.
+_KEEP_MAP_MEMBERS = tuple(
+    sorted({m for members in dh_mod.COMPANY_SUB_SECTORS.values() for m in members})
+)
+_KEEP_ALL = _KEEP_COMPANIES + _KEEP_MAP_MEMBERS
 
 _NEWSLETTER = """\
 # The Chatter: Alpha Edition
@@ -123,12 +132,13 @@ class _MaintProject:
         dst = sqlite3.connect(str(self.db))
         src.backup(dst)
         src.close()
+        placeholders = ",".join("?" * len(_KEEP_ALL))
         dst.execute(
             "CREATE TEMP TABLE keep AS SELECT name FROM ("
             "SELECT name, 0 o FROM entities WHERE entity_type != 'company' "
-            "UNION ALL SELECT name, 1 o FROM entities WHERE name IN (?, ?) "
+            "UNION ALL SELECT name, 1 o FROM entities WHERE name IN (" + placeholders + ") "
             "GROUP BY name HAVING MIN(o))",
-            _KEEP_COMPANIES,
+            _KEEP_ALL,
         )
         dst.execute(
             "DELETE FROM graph_edges WHERE source NOT IN "

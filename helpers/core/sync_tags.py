@@ -49,7 +49,11 @@ if str(_REPO_ROOT) not in sys.path:
 from helpers.core.countries import COUNTRY_VOCABULARY  # noqa: E402
 from helpers.core.db import connect  # noqa: E402
 from helpers.validators.static_checks import CANONICAL_SECTORS  # noqa: E402
-from helpers.core.frontmatter import extract_tags as split_front_matter  # noqa: E402
+from helpers.core.frontmatter import (  # noqa: E402
+    extract_tags as split_front_matter,
+    split_frontmatter,
+    yaml_safe_load,
+)
 
 try:
     from helpers.core.corpus import Corpus  # noqa: E402  # S1b shared walk
@@ -108,6 +112,28 @@ def allowed_tags(tags):
         if cat in ALLOWED_CATEGORIES and "/" in t:
             out.append(t)
     return out
+
+
+def _authored_subsector(text: str) -> str | None:
+    """D7: read the named ``subsector:`` frontmatter field -> tag slug.
+
+    Company notes only. The slug mirrors the derive-side normalization
+    (lowercase, spaces/hyphens -> underscores — helpers/graph/
+    derive_hyperedges.py `_norm_subsector`); authored-canonical discipline
+    (value must be an existing sub_sector entity) is enforced in the
+    derive lane's worklist, not here.
+    """
+    _dashes, yaml_body, _rest = split_frontmatter(text)
+    if not yaml_body:
+        return None
+    try:
+        fields = yaml_safe_load(yaml_body) or {}
+    except Exception:  # noqa: BLE001, S112 — malformed YAML must not kill the sync
+        return None
+    value = fields.get("subsector") if isinstance(fields, dict) else None
+    if not value or not isinstance(value, str):
+        return None
+    return value.strip().lower().replace(" ", "_").replace("-", "_")
 
 
 def company_geo_violations(entity_type: str, tags: list[str]) -> list[str]:
@@ -213,6 +239,10 @@ def _sync_from_corpus(
                 missing_files.append((name, file_path))
                 continue
         tags = allowed_tags(split_front_matter(note.text))
+        if entity_type == "company":
+            authored = _authored_subsector(note.text)
+            if authored:
+                tags.append(f"subsector/{authored}")  # D7 named-field mirror
         uniq = list(dict.fromkeys(tags))
         slop = company_geo_violations(entity_type, uniq)
         if slop:
@@ -369,6 +399,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                     missing_files.append((name, f"{file_path} (read error: {e})"))
                     continue
                 tags = allowed_tags(split_front_matter(text))
+                if entity_type == "company":
+                    authored = _authored_subsector(text)
+                    if authored:
+                        tags.append(f"subsector/{authored}")  # D7 named-field mirror
                 # dedupe while preserving order
                 seen = set()
                 uniq = []

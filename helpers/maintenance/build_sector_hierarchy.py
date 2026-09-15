@@ -150,17 +150,43 @@ SUPER_SECTORS: dict[str, list[str]] = {
 # acronyms restored to canonical caps (api -> "API", ivd -> "IVD"). The
 # remaining 18 sectors (out of 42) have neither signal and stay at
 # super-sector -> sector (no Level 3).
+# NAMING RULE (operator guideline, 2026-09-15, D11): a sub_sector name
+# carries the SEGMENT only — the parent sector already supplies the domain
+# word. Segment nouns and standard industry terms are right (Vehicle_Loans,
+# Gold_Loans, Microfinance, Exchanges); restating the parent's word is wrong
+# (no "Telecom Services" under Telecommunications, no "Infra Finance" under
+# Financial_Services). Names must NEVER collide with a sector entity name
+# (hard guard below). Preferred source for new names: the Indian
+# industry/sector classification list (NIC-2008 seed table — backlog D12;
+# see doc/reference/ontology_glossary.md). _validate_coverage() warns on
+# parent-domain echoes; the classifier set is provisional until the
+# post-D12 revisit (D13).
 SUB_CATEGORIES: dict[str, list[str]] = {
     # S17 additions (2026-09-13, operator-approved taxonomy): 7 sectors
     # previously without Level-3 facets gain curated sub_sectors from the
     # S11 worklist triage (members >= 5 + clean name; see proposal S17).
+    # D11 additions (2026-09-15, operator-approved; names under the rule
+    # above; members ride derive_hyperedges.COMPANY_SUB_SECTORS — the
+    # version-controlled company->sub_sector map, NOT note fields):
+    # "Multi_Line" (not "Diversified" — hard guard: collides with the
+    # Diversified sector; multi-line lender is the industry term).
+    "NBFC": ["Vehicle Loans", "Multi_Line", "Gold Loans", "Microfinance"],
+    "Housing_Finance": ["HFC"],
+    "Capital_Markets": [
+        "Exchanges",
+        "Depositories",
+        "Ratings",
+        "Brokers",
+        "Market Infrastructure",
+    ],
+    "Telecommunications": ["Telecom Services", "Telecom Equipment"],
     "Consumer": ["Consumer Durables", "Restaurants"],
     "Electronics": ["Consumer Electronics"],
-    "Energy": ["Gas Distribution", "Power Generation"],
-    "Engineering_Capital_Goods": ["Capital Goods", "Electrical Equipment"],
-    "Financial_Services": ["Asset Management"],
+    "Energy": ["Gas Distribution", "Power Generation", "Refining", "E&P"],
+    "Engineering_Capital_Goods": ["Capital Goods", "Electrical Equipment", "Forge Castings"],
+    "Financial_Services": ["Asset Management", "Infra Lending"],
     "Infrastructure": ["Construction Equipment", "Infra EPC"],
-    "Retail": ["Apparel Retail", "Ecommerce", "Luxury Goods"],
+    "Retail": ["Apparel Retail", "Ecommerce", "Luxury Goods", "Footwear", "Hypermarkets"],
     "Technology": ["Digital Platforms", "IT Services", "Software"],
     "Agriculture": ["Crop Production", "Food Processing", "Livestock"],
     "Automotive": [
@@ -170,6 +196,7 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Electric Vehicles",
         "Manufacturing",
         "Two Wheelers",
+        "Dealerships",
     ],
     "Aviation": ["Airlines", "Airport Operations", "Aviation Services"],
     "Banking": ["Cooperative Banks", "Foreign Banks", "Private Sector", "Public Sector"],
@@ -200,7 +227,9 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Life Insurance",
     ],
     "Logistics": ["Transportation", "Supply Chain Services", "Specialized Logistics"],
-    "Media_Entertainment": ["Broadcasting", "Cinema", "Digital"],
+    "Media_Entertainment": ["Broadcasting", "Cinema", "Digital", "Publishing"],
+    # D11 addition (2026-09-15, operator-approved): Recycling — Gravita
+    # (lead/aluminium recycling) authors here.
     "Metals": [
         "Iron and Steel",
         "Aluminum",
@@ -208,12 +237,15 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Zinc and Lead",
         "Precious Metals",
         "Minor Metals",
+        "Recycling",
     ],
     "Mining": ["Coal", "Iron Ore", "Non Ferrous"],
     "Packaging": ["Flexible Packaging", "Rigid Packaging"],
     "Pharma": ["API", "Biotech", "CRAMS", "Formulations", "Pharma Retail", "Vaccines"],
     "Real_Estate": ["Commercial", "Real Estate Development", "Residential"],
-    "Renewables": ["Biofuel", "Solar", "Wind"],
+    # D11 addition (2026-09-15, operator-approved): "Solar/Hydro are
+    # canonical categories" — NHPC/SJVN author here.
+    "Renewables": ["Biofuel", "Solar", "Wind", "Hydro"],
     "Semiconductors": ["Design", "Foundry", "Memory"],
     "Textiles": [
         "Traditional Textiles",
@@ -221,7 +253,7 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Apparel Manufacturing",
         "Textile Machinery",
     ],
-    "Travel": ["Hotels", "Leisure", "Resorts"],
+    "Travel": ["Hotels", "Leisure", "Resorts", "OTA"],
 }
 
 
@@ -320,6 +352,25 @@ def _write_super_note(ss: str, members: list[str]) -> bool:
     return True
 
 
+def _naming_echo_warnings() -> list[str]:
+    """D11 naming rule: children carry the segment; the parent supplies the
+    domain word. A child token that echoes a parent token (>=4-char prefix
+    either way) restates the parent. Advisory only — standard compound
+    industry terms (General_Insurance, Life_Insurance) legitimately carry
+    the parent word; this list doubles as the generated D13 review list
+    for the post-NIC revisit, not a veto."""
+    warns = []
+    for parent, subs in SUB_CATEGORIES.items():
+        ptoks = [t.lower() for t in re.split(r"[ _]+", parent)]
+        for sub in subs:
+            stoks = [t.lower() for t in re.split(r"[ _&]+", sub)]
+            for st in stoks:
+                for pt in ptoks:
+                    if len(st) >= 4 and len(pt) >= 4 and (st.startswith(pt) or pt.startswith(st)):
+                        warns.append(f"sub {sub!r} under {parent!r} echoes parent token {pt!r}")
+    return warns
+
+
 def _validate_coverage(live_sectors: set[str]) -> list[str]:  # noqa: C901
     """Return a list of coverage errors (empty == valid).
 
@@ -396,6 +447,11 @@ def build(*, write: bool) -> int:  # noqa: C901
         for r in conn.execute("SELECT name FROM entities WHERE entity_type='sector'").fetchall()
     }
 
+    warns = _naming_echo_warnings()
+    if warns:
+        print(f"[warn] naming rule (D13 review list, {len(warns)} echoes):", file=sys.stderr)
+        for w in warns:
+            print(f"    - {w}", file=sys.stderr)
     errors = _validate_coverage(live_sectors)
     if errors:
         print("✗ taxonomy coverage errors:", file=sys.stderr)

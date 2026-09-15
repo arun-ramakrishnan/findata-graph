@@ -223,7 +223,10 @@ after S5/S8–S11 + S17/S21): 469 hyperedges / 5,659 incidences over 9 edge type
 (`sector` 42, `theme` 12, `country` 21, `group` 8, `edition` 109 — the S8
 quotes union, weighted — `industry` 117, `event` 110, `jv` 6, `sub_sector` 55
 — S11's curated + S17's grown industry→canonical map, the first
-company→sub_sector linkage in the store).
+company→sub_sector linkage in the store. D7 (2026-09-15): an authored
+`subsector:` note field is CANONICAL per company — exclusive precedence
+over the alias-derived union; unknown values are worklisted, never fatal;
+`sync_tags` mirrors it as `subsector/<slug>` in `entity_tags`).
 
 | Column | Type | Notes |
 |---|---|---|

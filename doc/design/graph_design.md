@@ -120,6 +120,15 @@ types, 19 populated, 19,325 rows; previous snapshot 2026-08-19 said 12):
 | `supplier_to` / `customer_of` | company → company (asymmetric, one direction) | 0 | 9 / 1 |
 | `regulated_by` | company → institution (RBI, SEBI) | 0 | 17 |
 | `same_group` | company ↔ company (promoter group; cross-note lane `derive:relations:cross_note` — group prose accumulated across files, D6) | 1 | 34 |
+
+Sub_sector classification (D11, 2026-09-15): three lanes — the S11/S17
+industry-alias map, the D7 note `subsector:` field, and the
+version-controlled `COMPANY_SUB_SECTORS` map in derive_hyperedges.py
+(operator-curated; canonical precedence, map wins; NO note writes — the
+preferred lane until the D12/D13 NIC revisit). Naming rule: children
+name the segment only; the parent supplies the domain word; never
+collide with a sector name (machine-warned via
+`build_sector_hierarchy --check`).
 | `approved_by` | company/institution → institution | 0 | 9 |
 | `rated_by` | company → rating agency (CRISIL) | 0 | 5 |
 | `penalized_by` | company → institution (RBI, SEBI) | 0 | 0 — registered, not yet produced |

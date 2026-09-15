@@ -817,6 +817,7 @@ class TestSubSectorMapping:
     VALID = {
         "A",
         "B",
+        "Micron Technology",
         "C",
         "D",
         "E",
@@ -876,13 +877,29 @@ class TestSubSectorMapping:
     def test_extract_subsector_membership_reads_field(self, tmp_path):
         d = tmp_path / "Companies" / "X"
         d.mkdir(parents=True)
-        (d / "Acme.md").write_text(
-            "---\ntype: company\nsubsector: Apparel_Retail\n---\n# Acme\n"
-        )
+        (d / "Acme.md").write_text("---\ntype: company\nsubsector: Apparel_Retail\n---\n# Acme\n")
         (d / "Beta.md").write_text("---\ntype: company\nsubsector: null\n---\n# Beta\n")
         (d / "Gamma.md").write_text("---\ntype: company\n---\n# Gamma\n")
         got = dh.extract_subsector_membership(root=tmp_path / "Companies")
         assert got == {"Apparel_Retail": {"Acme"}}
+
+    def test_company_map_shape(self):
+        # D11: the version-controlled edge lane — non-empty string lists
+        assert dh.COMPANY_SUB_SECTORS
+        for sub, members in dh.COMPANY_SUB_SECTORS.items():
+            assert isinstance(sub, str) and sub
+            assert members and all(isinstance(m, str) and m for m in members)
+            assert len(set(members)) == len(members)
+
+    def test_map_rides_authored_precedence(self):
+        # a map entry overrides the alias union exactly like a note field
+        groups, _un, unmapped_authored = dh.derive_sub_sectors(
+            self.HYPER,
+            self.VALID,
+            authored={k: set(v) for k, v in dh.COMPANY_SUB_SECTORS.items() if k == "Memory"},
+            sub_sector_entities={"Memory"},
+        )
+        assert groups["Memory"] == {"Micron Technology"}
 
     def test_worklist_carries_authored_section(self, tmp_path, monkeypatch):
         monkeypatch.setattr(dh, "_REPO_ROOT", tmp_path)

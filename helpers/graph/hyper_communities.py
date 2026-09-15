@@ -47,9 +47,12 @@ if str(_PROJECT_ROOT) not in sys.path:
 
 # S5: industry joined the default scope (117 labels / 816 memberships —
 # tripled the theme lane's density; country stays opt-in, measured-degenerate).
+# D3 (2026-09-15): sub_sector joined the default scope (86 hyperedges /
+# 771 memberships — the authored D11 taxonomy; scope 171→257 edges,
+# 2,352→3,123 incidences, node set unchanged; country still opt-in).
 from helpers.graph import hyper_arrow as ha  # noqa: E402  # S18(b) canonical loader
 
-DEFAULT_SOURCES = ("sector", "theme", "industry")
+DEFAULT_SOURCES = ("sector", "theme", "industry", "sub_sector")
 METRIC = "hypermmsbm_community"
 
 

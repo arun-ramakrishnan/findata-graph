@@ -461,3 +461,92 @@ class TestCompanyGeoWhitelist:
         """Sector geography tags describe coverage — global is legitimate there."""
         assert sync_tags.company_geo_violations("sector", ["geography/global"]) == []
         assert sync_tags.company_geo_violations("super_sector", ["geography/global"]) == []
+
+
+# --------------------------------------------------------------------------- #
+# D7: authored `subsector:` named-field mirror (company_subsector_authored_lane)
+# --------------------------------------------------------------------------- #
+class TestAuthoredSubsectorMirror:
+    @staticmethod
+    def _seed(db_path: Path, note: str, name: str = "Acme", rel: str = "Companies/X/Acme.md"):
+        note_path = db_path.parent / rel
+        note_path.parent.mkdir(parents=True, exist_ok=True)
+        note_path.write_text(note)
+        _seed_db(db_path, [(name, "company", rel, None)])
+
+    def test_named_field_mirrors_to_subsector_slug(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(sync_tags, "_REPO_ROOT", tmp_path)
+        db = tmp_path / "research.db"
+        self._seed(
+            db,
+            "---\ntitle: Acme\ntype: company\nsubsector: Apparel_Retail\n"
+            "tags:\n- entity_type/company\n- sector/consumer\n---\n# Acme\n",
+        )
+        assert _run_sync(db, "--apply") == 0
+        conn = sqlite3.connect(db)
+        tags = {r[0] for r in conn.execute("select tag from entity_tags where entity_name='Acme'")}
+        conn.close()
+        assert "subsector/apparel_retail" in tags  # slug mirrors derive normalization
+
+    def test_hand_spacing_normalized(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(sync_tags, "_REPO_ROOT", tmp_path)
+        db = tmp_path / "research.db"
+        self._seed(
+            db,
+            "---\ntitle: Acme\ntype: company\nsubsector: apparel retail\n"
+            "tags:\n- entity_type/company\n---\n# Acme\n",
+        )
+        assert _run_sync(db, "--apply") == 0
+        conn = sqlite3.connect(db)
+        tags = {r[0] for r in conn.execute("select tag from entity_tags where entity_name='Acme'")}
+        conn.close()
+        assert "subsector/apparel_retail" in tags
+
+    def test_absent_and_null_add_no_row(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(sync_tags, "_REPO_ROOT", tmp_path)
+        db = tmp_path / "research.db"
+        self._seed(
+            db,
+            "---\ntitle: Acme\ntype: company\nsubsector: null\n"
+            "tags:\n- entity_type/company\n---\n# Acme\n",
+            rel="Companies/X/Acme.md",
+        )
+        assert _run_sync(db, "--apply") == 0
+        conn = sqlite3.connect(db)
+        tags = {r[0] for r in conn.execute("select tag from entity_tags where entity_name='Acme'")}
+        conn.close()
+        assert not any(t.startswith("subsector/") for t in tags)
+
+    def test_non_company_note_ignored(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(sync_tags, "_REPO_ROOT", tmp_path)
+        db = tmp_path / "research.db"
+        note = (
+            "---\ntitle: Agri\ntype: sector\nsubsector: Apparel_Retail\n"
+            "tags:\n- entity_type/sector\n---\n# Agri\n"
+        )
+        p = tmp_path / "Sectors/Agri.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(note)
+        _seed_db(db, [("Agri", "sector", "Sectors/Agri.md", None)])
+        assert _run_sync(db, "--apply") == 0
+        conn = sqlite3.connect(db)
+        tags = {r[0] for r in conn.execute("select tag from entity_tags where entity_name='Agri'")}
+        conn.close()
+        assert not any(t.startswith("subsector/") for t in tags)
+
+
+class TestEnrichFrontmatterPreservesAuthoredField:
+    """D7 discipline pin: metrics-rebuild must not drop an operator-authored
+    `subsector:` line — `_update_frontmatter` is surgical by design."""
+
+    def test_update_industry_keeps_subsector(self):
+        from helpers.maintenance.enrich_from_yfinance import _update_frontmatter
+
+        note = (
+            "---\ntitle: Acme\ntype: company\nsector: Consumer\n"
+            "industry: Auto Parts\nsubsector: Apparel_Retail\nticker: ACME\n---\n# Acme\n"
+        )
+        out = _update_frontmatter(note, "Internet Retail")
+        assert "subsector: Apparel_Retail" in out
+        assert "industry: Internet Retail" in out
+        assert "subsector" not in out.replace("subsector: Apparel_Retail", "")

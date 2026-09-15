@@ -246,23 +246,35 @@ class TestSectorHierarchy:
         assert sectors_in_super(con, "NoSuchSuper") == []
 
     def test_sub_sectors_of_sector_with_categories(self, con):
-        # Metals has 6 authored sub-categories (Iron and Steel, Aluminum, ...).
+        # Metals has 7 authored sub-categories (D11 added Recycling
+        # alongside the Iron and Steel, Aluminum, ... set).
         subs = sub_sectors_of(con, "Metals")
-        assert len(subs) == 6
+        assert len(subs) == 7
         assert "Iron_and_Steel" in subs
+        assert "Recycling" in subs
         assert subs == sorted(subs)
 
     def test_sub_sectors_of_sector_without_categories(self, con):
         # Capital_Markets is one of the 18 sectors with no authored
         # sub-categories (neither subsector/* tags nor ### headings) —
         # returns []. (Banking now has 4 sub-categories under the merged
-        # Level 3, so it's no longer the right no-category example.)
-        assert sub_sectors_of(con, "Capital_Markets") == []
+        # Level 3, so it's no longer the right no-category example.
+        # Capital_Markets itself GAINED 5 authored sub-categories on
+        # 2026-09-15 (D11: Brokers/Depositories/Exchanges/
+        # Market_Infrastructure/Ratings) — Fertilizer keeps the role.)
+        assert sub_sectors_of(con, "Fertilizer") == []
+        assert sub_sectors_of(con, "Capital_Markets") == [
+            "Brokers",
+            "Depositories",
+            "Exchanges",
+            "Market_Infrastructure",
+            "Ratings",
+        ]
 
     def test_belongs_to_materialised_in_graph(self, con):
         # The e_belongs_to table must be populated (the dedicated CTAS ran).
         n = con.execute("SELECT COUNT(*) FROM e_belongs_to").fetchone()[0]
-        assert n == 142  # 42 sector->super + 100 sub->sector (S17 +22, 2026-09-14)
+        assert n == 183  # 42 sector->super + 141 sub->sector (D13 echo round 2, 2026-09-15)
 
     def test_vertex_projections_populated(self, con):
         # The 4 entity kinds must all materialise as vertices. The live DB
@@ -1062,7 +1074,17 @@ class TestFindCycles:
         symmetric type accidentally doubled)."""
         from helpers.graph.query import EDGE_REGISTRY_BY_LABEL
 
+        # SemanticPeer is SKIPPED: embedding / link-prediction pairs are
+        # stored bidirectional (directional rank+cosine props), so a dense
+        # similarity cluster contains cycles of EVERY length by
+        # construction — acyclicity is N/A as an invariant there (any
+        # 2-cycle-or-longer assertion fails on legitimate structure).
+        # The rows themselves are Aug-2026 bge-small artifacts (model
+        # since superseded) — purge/rebuild is a data call, not tested.
+        skip_labels = {"SemanticPeer"}
         for label in sorted(EDGE_REGISTRY_BY_LABEL):
+            if label in skip_labels:
+                continue
             cycles = find_cycles(con, edge_label=label, max_hops=4, limit=1000)
             assert cycles == [], (
                 f"edge_label={label!r} has {len(cycles)} directed cycle(s); first: {cycles[:2]}"
