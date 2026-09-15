@@ -1,12 +1,12 @@
 ---
-title: Amara Raja Batteries Limited
+title: Amara Raja Energy and Mobility
 type: company
 ticker: ARE&M.NS
 sector: Automotive
 industry: Electrical Equipment & Parts
 market_cap: small_cap
-normalized_name: Amara_Raja_Batteries
-permalink: /companies/automotive/amara_raja_batteries
+normalized_name: Amara_Raja_Energy_and_Mobility
+permalink: /companies/automotive/amara_raja_energy_and_mobility
 geography: india
 tags:
 - business_model/b2b
@@ -19,7 +19,7 @@ tags:
 - industry/automotive_components
 - industry/energy_storage
 created: '2025-12-28'
-last_modified: '2026-09-10'
+last_modified: 2026-09-15
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T16:45:46Z'
@@ -49,6 +49,7 @@ sources:
   resource: /findata/The_Chatter/The_Blind_Spots.md
   title: 'The Chatter: The Blind Spots'
   last_modified: '2026-08-15'
+file_path: findata/Companies/Automotive/Amara_Raja_Energy_and_Mobility.md
 ---
 
 # Amara Raja Batteries Limited

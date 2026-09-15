@@ -2,11 +2,11 @@
 title: Kuantum Papers Limited
 type: company
 ticker: KUANTUM.NS
-sector: Agriculture
+sector: Packaging
 industry: Paper & Paper Products
 market_cap: micro_cap
 normalized_name: Kuantum_Papers_Ltd
-permalink: /companies/agriculture/kuantum_papers_ltd
+permalink: /companies/packaging/kuantum_papers_ltd
 geography: india
 tags:
 - entity_type/company

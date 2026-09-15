@@ -281,7 +281,7 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Recycling",
     ],
     "Mining": ["Coal", "Iron Ore", "Non Ferrous"],
-    "Packaging": ["Flexible Packaging", "Rigid Packaging"],
+    "Packaging": ["Flexible Packaging", "Rigid Packaging", "Paper_Products"],
     "Pharma": ["API", "Biotech", "CRAMS", "Formulations", "Pharma Retail", "Vaccines"],
     # D11 addition (2026-09-15, operator-approved): "Solar/Hydro are
     # canonical categories" — NHPC/SJVN author here.

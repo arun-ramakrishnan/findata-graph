@@ -83,23 +83,23 @@ rides the EMERGE index list until pinned.
 | US — ticker+CIK | `sec.gov/files/company_tickers.json` (10.4k; UA must carry contact email) | — | ✅ verified |
 | US — S&P 500 | Wikipedia *List of S&P 500 companies* (id=constituents table) | **GICS Sector + Sub-Industry** | ✅ verified (503 parsed) |
 | Japan | JPX publishes monthly listed-issue xlsx under `jpx.co.jp/markets/statistics-equities/misc/` (attachment paths rotate; the misc/04 page hosts PBR stats — the Tōyō list file needs pinning) | — | ⏳ endpoint to pin |
-| Japan — labels | Wikipedia *Nikkei 225* constituents (per-page parser needed — table shape differs from S&P 500; generic parser picks up index-stats rows) | sector per constituent | ⏳ parser at execution |
-| Hong Kong | Wikipedia *Hang Seng Index* constituents (same caveat) | sub-index | ⏳ parser at execution |
-| Korea | KRX data portal (`data.krx.co.kr`, POST-based) | — | ⏳ to pin |
-| China — SSE | `query.sse.com.cn/commonQuery.do?sqlId=COMMON_SSE_CP_GPJCTPZ_GPLB_GP_L` (JSON; ignores paging → full list; needs `Referer: sse.com.cn`) | — | ✅ verified |
-| Taiwan | TWSE ISIN list (`isin.twse.com.tw/isin/C_public.jsp`) returned 500 — params/encoding to pin | — | ⏳ to pin |
-| Toronto | TSX/TSXV listed-directory xlsx (resource URL 404 — find via tsx.com listing pages) | — | ⏳ to pin |
-| Europe — FTSE/DAX/CAC | Wikipedia index-constituent tables (ICB sector per constituent — per-page parsers, same pattern as S&P 500; generic parse proved the route but caught stats rows) | ICB sector | parser at execution |
-| Toronto | TSX/TSXV listed-directory xlsx (resource URL 404 — find via tsx.com listing pages) | — | ⏳ to pin |
-| China — Shenzhen (SZSE) | pair of the SSE API (szse.cn equity list) | — | unprobed |
-| Korea | KRX data portal (`data.krx.co.kr`, POST-based) | — | ⏳ to pin |
+| Japan — labels | Nikkei 225 Wikipedia constituents table lacks a ticker-headed header (no parse) — REDUNDANT anyway: the TSE master (data_j.xlsx, 4,441 issues with 33-sector labels) covers Japan | — | ⏹ skipped as redundant |
+| Hong Kong — HSI labels | Wikipedia *Hang Seng Index* constituents parse fine (ticker/name/sub-index, 85 rows) but are REDUNDANT for listings: the official HKEX ListOfSecurities covers them (sub-index would be a taxonomy label, not a listing fact) | sub-index | ⏹ skipped as redundant |
+| Korea | **FOLDED** from Wikipedia *KOSPI 200* components table (`en.wikipedia.org/wiki/KOSPI_200#Components`), operator-curated to `/tmp/krx_listings.json` (200 rows; fields company/krx_code/yf_ticker/gics_sector; tickers suffixed `.KS`, `.KQ` for KOSDAQ — operator conventions). TRAP: that table's header is company-first — my first parse inverted symbol/name (purged). Full universe: `openapi.krx.co.kr` (operator pointer) needs an API key | GICS sector | ✅ 200 (kospi) / ⏳ openapi key for full universe |
+| China — SSE | **FOLDED**: `query.sse.com.cn/sseQuery/commonQuery.do?jsonCallBack=...&sqlId=COMMON_SSE_CP_GPJCTPZ_GPLB_GP_L&STOCK_TYPE=1&pageHelp...` (JSONP, Referer `www.sse.com.cn`, 25/page; fields A_STOCK_CODE / FULL_NAME_IN_ENGLISH / CSRC_CODE_DESC industry / LIST_BOARD 1=main 2=STAR; throttles mid-run but retries land it) | CSRC industry (zh) | ✅ 1,844 A-shares (main/star, suffix `.SS`) |
+| Taiwan | **VERIFIED**: `isin.twse.com.tw/isin/e_class_main.jsp?market=1&Page=N&Language=en` (paginated; columns No./ISIN/Code/Name/Market/Type; ISIN regex `^TW[A-Z0-9]{10}$`) | — | 🟡 scrape in flight |
+| Toronto | **FOLDED**: operator-supplied official TMX xlsx (tsx.com issuer-directory download, hand-delivered 2026-09-15 — JS-rendered link, DevTools only). Sheets TSX/TSXV × domestic/international; header at row 10 (r1-3 disclaimer, r6-8 summary); column offsets shift between boards (TSXV carries PO ID); filter Sector ∈ ETP/Closed-End/Fund/Structured/Trust | **TMX Sub-Sector** (own taxonomy, richer than GICS) | ✅ 2,248 equities (747 tsx `.TO` + 1,501 tsxv `.V`) + 60 tsx60 index rows |
+| Europe — FTSE/DAX/CAC | **VERIFIED+FOLDED**: Wikipedia constituent tables — pick the table whose header row contains ticker/symbol/code (the year-history tables are decoys): FTSE 100 = company/ticker/ICB; DAX 40 = ticker/company/sector; CAC 40 = company/GICS/ticker | ICB / sector / GICS | ✅ 180 rows (LSE ftse100, XETRA dax40, EURONEXT cac40) |
+| Toronto | **FOLDED**: operator-supplied official TMX xlsx (tsx.com issuer-directory download, hand-delivered 2026-09-15 — JS-rendered link, DevTools only). Sheets TSX/TSXV × domestic/international; header at row 10 (r1-3 disclaimer, r6-8 summary); column offsets shift between boards (TSXV carries PO ID); filter Sector ∈ ETP/Closed-End/Fund/Structured/Trust | **TMX Sub-Sector** (own taxonomy, richer than GICS) | ✅ 2,248 equities (747 tsx `.TO` + 1,501 tsxv `.V`) + 60 tsx60 index rows |
+| China — Shenzhen (SZSE) | **VERIFIED**: `szse.cn/api/report/ShowReport/data?SHOWTYPE=JSON&CATALOGID=1110&TABKEY=tab1&PAGENO=N` (Referer szse.cn; 20 rows/page; fields bk board / agdm code / agjc name-with-HTML / agssrq listing date) — throttles aggressively from a repeat-hitting IP (read timeouts mid-scrape) | — | 🟡 scrape grinding |
+| Korea | **Index lane folded**: Wikipedia KOSPI 200 (company/symbol/GICS sector, suffix `.KS`; `.KQ` for KOSDAQ — operator pointer 2026-09-15). Full universe: `openapi.krx.co.kr` (operator pointer) needs an API key; the old `data.krx.co.kr/getJsonData.cmd` bld set 400s | GICS sector | ✅ 200 (kospi200) / ⏳ openapi key for full universe |
 | HK | HKEX daily quotation CSVs | — | unprobed |
 
 Design note: international entities need (a) Yahoo-style tickers
 (`AAPL`, `SHEL.L`, `SAP.DE`, `005930.KS`, `0700.HK`, `2330.TW`, `7203.T`)
 to enter the yfinance label lane, and (b) sector labels from the index
 tables. US is fully free-end-to-end; Europe is covered by index tables;
-Asia varies (SSE verified; JPX/TWSE/TSX/KRX need endpoint pinning).
+Asia varies (SSE/TSE/TWSE verified; TSX/KRX ride operator research).
 
 ## Sidecars (queryable, git-managed)
 
