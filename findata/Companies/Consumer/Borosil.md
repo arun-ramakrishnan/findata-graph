@@ -10,6 +10,7 @@ tags:
 - geography/india
 normalized_name: Borosil
 sector: Consumer
+industry: Furnishings, Fixtures & Appliances
 market_cap: small_cap
 permalink: /companies/consumer/borosil
 created: '2026-08-28'
@@ -34,6 +35,19 @@ stale_after: '2027-02-24'
 ## Company Overview
 Borosil — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Furnishings, Fixtures & Appliances
+- **Employees**: 699
+- **Promoter Holding**: 67.9%
+- **Institutional Holding**: 3.6%
+- **Business Summary**: Borosil Limited manufactures, sells, and trades in consumer ware products in India. The company offers laboratory glassware, including beakers, bottles, burettes, cones, condensers, cylinders, dessiciators, dishes, distilling apparatus, flasks, funnels, funnels, filtration assembly, volumetric fl…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

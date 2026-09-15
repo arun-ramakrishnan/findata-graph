@@ -3,6 +3,7 @@ title: Gujarat Energy
 type: company
 ticker: GUJGASLTD.NS
 sector: Energy
+industry: Utilities - Regulated Gas
 market_cap: large_cap
 normalized_name: Gujarat_Energy
 permalink: /companies/energy/gujarat_energy
@@ -35,6 +36,19 @@ sources:
 
 Gujarat Energy Limited (formerly Gujarat Gas Limited), incorporated in 2012 and headquartered in Gandhinagar, is a natural gas distribution and transmission company. It operates approximately 42,600 km of pipeline network and 828 CNG stations, supplying piped natural gas (PNG) to ~22.6 lakh households, ~15,600 commercial customers, and ~4,400 industrial customers. The amalgamation with Gujarat State Petronet (GSPL) consolidates gas transmission infrastructure with city gas distribution, creating an integrated gas utility. The company is also engaged in wind power generation and a green hydrogen blending pilot, and provides IT services for Gujarat e-governance. It operates across Gujarat, Maharashtra, Punjab, Madhya Pradesh, Rajasthan, Haryana, Dadra & Nagar Haveli, and Daman & Diu.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Utilities - Regulated Gas
+- **Employees**: 964
+- **Promoter Holding**: 54.5%
+- **Institutional Holding**: 25.4%
+- **Business Summary**: Gujarat Energy Limited engages in the distribution of natural gas in India. It operates a network of approximately 42,600 kilometers of natural gas pipeline and 828 compressed natural gas (CNG) stations. The company supplies piped natural gas to approximately 22.6 lakh households, approximately 1…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 ## Financial Profile (Yahoo Finance, Jun 2026)
 
 | Metric | Value |

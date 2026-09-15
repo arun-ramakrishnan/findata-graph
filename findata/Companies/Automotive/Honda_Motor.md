@@ -9,6 +9,7 @@ tags:
 - geography/usa
 normalized_name: Honda_Motor
 sector: Automotive
+industry: Auto Manufacturers
 market_cap: null
 permalink: /companies/automotive/honda_motor
 created: '2026-09-14'
@@ -29,6 +30,19 @@ sources:
 ## Company Overview
 Honda Motor — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Auto Manufacturers
+- **Employees**: 195,109
+- **Promoter Holding**: 0.0%
+- **Institutional Holding**: 4.2%
+- **Business Summary**: Honda Motor Co., Ltd. engages in the development, manufacturing, and distribution of motorcycles, automobiles, and power products in Japan, North America, Europe, Asia, and internationally. It operates through four segments: Motorcycle Business, Automobile Business, Financial Services Business, a…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 ## The Chatter — <edition title>
 
 *Source: The Chatter — <edition title>*

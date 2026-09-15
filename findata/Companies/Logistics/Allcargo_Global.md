@@ -10,6 +10,7 @@ tags:
 - geography/india
 normalized_name: Allcargo_Global
 sector: Logistics
+industry: Integrated Freight & Logistics
 market_cap: small_cap
 permalink: /companies/logistics/allcargo_global
 created: '2026-08-25'
@@ -37,6 +38,19 @@ verified:
 ## Company Overview
 Allcargo Global — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Integrated Freight & Logistics
+- **Employees**: 4,500
+- **Promoter Holding**: 65.3%
+- **Institutional Holding**: 7.8%
+- **Business Summary**: Allcargo Global Limited operates as a logistics company in India and internationally. The company engages in non-vessel operating common carriers in less-than-container load logistics; and operation of the ECU360, an end-to-end LCL digital platform. It also provides end-to-end multimodal logistic…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

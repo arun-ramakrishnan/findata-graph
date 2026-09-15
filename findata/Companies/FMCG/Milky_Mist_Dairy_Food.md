@@ -12,6 +12,7 @@ tags:
 - sector/fmcg
 normalized_name: Milky_Mist_Dairy_Food
 sector: FMCG
+industry: Packaged Foods
 market_cap: small_cap
 permalink: /companies/fmcg/milky_mist_dairy_food
 created: '2026-09-04'
@@ -32,6 +33,18 @@ sources:
 ## Company Overview
 Value-added dairy player (paneer, cheese, yogurt, ice cream) with an integrated manufacturing base at Perundurai, Tamil Nadu and a self-owned cold-chain fleet. Listed on the NSE (recent IPO); largest manufacturer of paneer in India.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Packaged Foods
+- **Promoter Holding**: 85.5%
+- **Institutional Holding**: 3.7%
+- **Business Summary**: Milky Mist Dairy Food Limited produces and supplies dairy products. The company provides dairy products including cheese, paneer, butter, curd, ghee, yogurt, ice cream, milk cream, and UHT milk products. It offers ready-to-eat and ready-to-cook products, such as pizza, paneer finger, dahi tikki, …
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

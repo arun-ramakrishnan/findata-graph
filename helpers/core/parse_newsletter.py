@@ -657,19 +657,48 @@ def create_entity(conn, name, sector, ticker, apply, sector_entities=None):
 # ===========================================================================
 # Stage 4: emit enhancement worklist (NOT executed — for an agent)
 # ===========================================================================
-def emit_worklist(md_path, edition_title, new_cos, existing_cos, uncertain_cos, out_dir):
+def emit_worklist(
+    md_path,
+    edition_title,
+    new_cos,
+    existing_cos,
+    uncertain_cos,
+    out_dir,
+    stubs: set | None = None,
+    tickers: dict | None = None,
+):
+    """D17: ``stubs`` (exchange-seeded entities with no note) and ``tickers``
+    annotate the worklist so an enhancer knows which "existing" entities are
+    bare stubs needing their FIRST note (an upgrade: sector_classification,
+    file_path, authored fields) versus authored notes needing a chatter
+    block. A stub never births a second entity — the note lands on it."""
+    stubs = stubs or set()
+    tickers = tickers or {}
     slug = md_path.stem
     wl = {
         "newsletter": str(md_path.relative_to(PROJECT_ROOT)),
         "edition_title": edition_title,
         "new_entities": [{"name": n, "section_line": ln} for n, ln in new_cos],
-        "existing_entities_to_enhance": [{"name": n, "section_line": ln} for n, ln in existing_cos],
-        "uncertain_entities": uncertain_cos,
+        "existing_entities_to_enhance": [
+            {
+                "name": n,
+                "section_line": ln,
+                "is_stub": n in stubs,
+                "known_ticker": tickers.get(n),
+            }
+            for n, ln in existing_cos
+        ],
+        "uncertain_entities": [
+            {**u, "likely_is_stub": u.get("likely_existing") in stubs} for u in uncertain_cos
+        ],
         "instructions": (
             "For each entity, read its concall section (starting at section_line in "
             "the newsletter), extract 3-5 bullet insights + 1 verbatim quote, and "
             "append/replace a '## The Chatter — <edition_title>' block. See "
-            "doc/procedures/markdown_parse.md#enhancing-existing-entities."
+            "doc/procedures/markdown_parse.md#enhancing-existing-entities. D17: entries "
+            "with is_stub=true are exchange-seeded stubs (no note yet) — author the "
+            "note ON the stub entity (it keeps its name/ticker; gains file_path, "
+            "sector_classification and authored fields); NEVER create a second entity."
         ),
     }
     out = out_dir / f"{slug}_enhancement_worklist.json"
@@ -893,7 +922,26 @@ def main(argv: list[str] | None = None):  # noqa: C901
 
     # Stage 4: worklist (always emitted — dry-run or apply)
     out_dir = md_path.parent
-    wl = emit_worklist(md_path, edition_title, new_cos, existing_cos, uncertain_cos, out_dir)
+    # D17: stub annotation — exchange-seeded entities (file_path IS NULL)
+    # are the upgrade targets, distinct from authored notes to enhance.
+    stubs, tickers = set(), {}
+    if args.apply:
+        for nm, tk in conn.execute(
+            "SELECT name, ticker FROM entities WHERE entity_type='company' AND file_path IS NULL"
+        ):
+            stubs.add(nm)
+            if tk:
+                tickers[nm] = tk
+    wl = emit_worklist(
+        md_path,
+        edition_title,
+        new_cos,
+        existing_cos,
+        uncertain_cos,
+        out_dir,
+        stubs=stubs,
+        tickers=tickers,
+    )
     log("4", f"enhancement worklist -> {wl.relative_to(PROJECT_ROOT)}")
     log(
         "4",

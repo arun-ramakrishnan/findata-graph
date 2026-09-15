@@ -170,7 +170,6 @@ SUB_CATEGORIES: dict[str, list[str]] = {
     # version-controlled company->sub_sector map, NOT note fields):
     # "Multi_Line" (not "Diversified" — hard guard: collides with the
     # Diversified sector; multi-line lender is the industry term).
-    "NBFC": ["Vehicle Loans", "Multi_Line", "Gold Loans", "Microfinance"],
     "Housing_Finance": ["HFC"],
     "Capital_Markets": [
         "Exchanges",
@@ -180,14 +179,64 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Market Infrastructure",
     ],
     "Telecommunications": ["Telecom Services", "Telecom Equipment"],
+    # D13 additions (2026-09-15, operator-approved; nodes may start thin —
+    # "members can come as the project evolves"): 19 new sub_sectors from
+    # the S11 worklist triage round 2, plus alias extensions riding
+    # derive_hyperedges.SUB_SECTOR_ALIASES (incl. 7 labels mapped onto
+    # EXISTING nodes: Telecom Services/Equipment, Brokers, Real Estate
+    # Development, Specialty Chemicals, E&P, Construction Equipment).
+    "Electronics": ["Consumer Electronics", "Electronic Components"],
+    "Engineering_Capital_Goods": [
+        "Capital Goods",
+        "Electrical Equipment",
+        "Forge Castings",
+        "Facility Services",
+        "Instruments",
+    ],
+    "Healthcare": ["Medical Devices", "Medical Instruments"],
+    "FMCG": ["Food Beverages", "Household Care", "Personal Care", "Tobacco", "Business Equipment"],
+    "Technology": [
+        "Digital Platforms",
+        "IT Services",
+        "Software",
+        "Computer Hardware",
+        "Health IT",
+        "Staffing",
+    ],
+    "Building_Materials": [
+        "Construction Materials",
+        "Cement",
+        "Ceramics",
+        "Paints",
+        "Sanitaryware",
+        "Wood Products",
+    ],
+    "Infrastructure": [
+        "Construction Equipment",
+        "Infra EPC",
+        "Water Treatment",
+        "Infrastructure Operations",
+    ],
+    "Retail": [
+        "Apparel Retail",
+        "Ecommerce",
+        "Luxury Goods",
+        "Footwear",
+        "Hypermarkets",
+        "Grocery",
+        "Specialty Retail",
+    ],
+    "NBFC": ["Vehicle Loans", "Multi_Line", "Gold Loans", "Microfinance", "Credit Cards"],
+    "Media_Entertainment": ["Broadcasting", "Cinema", "Digital", "Publishing", "Advertising"],
+    "Energy": ["Gas Distribution", "Power Generation", "Refining", "E&P", "Oilfield Services"],
+    "Real_Estate": [
+        "Commercial",
+        "Real Estate Development",
+        "Residential",
+        "Diversified Real Estate",
+    ],
     "Consumer": ["Consumer Durables", "Restaurants"],
-    "Electronics": ["Consumer Electronics"],
-    "Energy": ["Gas Distribution", "Power Generation", "Refining", "E&P"],
-    "Engineering_Capital_Goods": ["Capital Goods", "Electrical Equipment", "Forge Castings"],
     "Financial_Services": ["Asset Management", "Infra Lending"],
-    "Infrastructure": ["Construction Equipment", "Infra EPC"],
-    "Retail": ["Apparel Retail", "Ecommerce", "Luxury Goods", "Footwear", "Hypermarkets"],
-    "Technology": ["Digital Platforms", "IT Services", "Software"],
     "Agriculture": ["Crop Production", "Food Processing", "Livestock"],
     "Automotive": [
         "Automobiles",
@@ -200,25 +249,18 @@ SUB_CATEGORIES: dict[str, list[str]] = {
     ],
     "Aviation": ["Airlines", "Airport Operations", "Aviation Services"],
     "Banking": ["Cooperative Banks", "Foreign Banks", "Private Sector", "Public Sector"],
-    "Building_Materials": [
-        "Construction Materials",
-        "Cement",
-        "Ceramics",
-        "Paints",
-        "Sanitaryware",
-    ],
     "Chemicals": ["Agrochemicals", "Petrochemicals", "Specialty Chemicals"],
     "Defense": ["Aerospace", "Military"],
     "Diagnostics": ["Imaging", "IVD", "Pathology"],
     "Diversified": ["Multi Segment"],
+    # D13 (2026-09-15, operator): the three empty skeletons pruned —
+    # Formal Education / Vocational Training / Corporate Training each
+    # held 0 members; Training Services replaces them with 3 real ones.
     "Education_Training": [
-        "Formal Education",
         "Test Preparation",
         "EdTech Platforms",
-        "Vocational Training",
-        "Corporate Training",
+        "Training Services",
     ],
-    "FMCG": ["Food Beverages", "Household Care", "Personal Care"],
     "Hospitals": ["Cancer Care", "Hospital Chains", "Specialty Care"],
     "Insurance": [
         "Reinsurance",
@@ -227,7 +269,6 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Life Insurance",
     ],
     "Logistics": ["Transportation", "Supply Chain Services", "Specialized Logistics"],
-    "Media_Entertainment": ["Broadcasting", "Cinema", "Digital", "Publishing"],
     # D11 addition (2026-09-15, operator-approved): Recycling — Gravita
     # (lead/aluminium recycling) authors here.
     "Metals": [
@@ -242,7 +283,6 @@ SUB_CATEGORIES: dict[str, list[str]] = {
     "Mining": ["Coal", "Iron Ore", "Non Ferrous"],
     "Packaging": ["Flexible Packaging", "Rigid Packaging"],
     "Pharma": ["API", "Biotech", "CRAMS", "Formulations", "Pharma Retail", "Vaccines"],
-    "Real_Estate": ["Commercial", "Real Estate Development", "Residential"],
     # D11 addition (2026-09-15, operator-approved): "Solar/Hydro are
     # canonical categories" — NHPC/SJVN author here.
     "Renewables": ["Biofuel", "Solar", "Wind", "Hydro"],

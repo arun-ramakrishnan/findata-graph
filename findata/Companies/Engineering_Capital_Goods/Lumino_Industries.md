@@ -13,6 +13,7 @@ tags:
 - risk_investment/high_growth
 normalized_name: Lumino_Industries
 sector: Engineering_Capital_Goods
+industry: Electrical Equipment & Parts
 market_cap: small_cap
 permalink: /companies/engineering_capital_goods/lumino_industries
 created: '2026-09-08'
@@ -33,6 +34,19 @@ sources:
 ## Company Overview
 Lumino Industries is an integrated Kolkata-based manufacturer and EPC services provider in the power transmission & distribution sector — overhead conductors, power cables and transformer products, plus turnkey infrastructure projects for state utilities and private power operators. BSE-listed (LUMINO.BO, BSE-only listing); recent IPO fresh-issue proceeds are retiring ₹337 crore of debt.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Electrical Equipment & Parts
+- **Employees**: 850
+- **Promoter Holding**: 0.0%
+- **Institutional Holding**: 4.4%
+- **Business Summary**: Lumino Industries Limited manufactures and sells conductors, power cables, electrical wires, and other products and components for power distribution and transmission industries in India and internationally. It offers aluminium conductors; LV XLPE/PVC insulated power, LV XLPE/PVC insulated contro…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

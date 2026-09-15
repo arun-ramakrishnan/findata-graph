@@ -4,6 +4,7 @@ type: company
 ticker: null
 listed: false
 sector: Energy
+industry: Oil & Gas Integrated
 market_cap: large_cap
 normalized_name: ONGC
 permalink: /companies/energy/ongc
@@ -39,6 +40,19 @@ India's largest upstream oil and gas producer.
 
 *Stub node — created as a graph endpoint. Expand as additional primary research accumulates.*
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Oil & Gas Integrated
+- **Employees**: 23,117
+- **Promoter Holding**: 69.2%
+- **Institutional Holding**: 22.6%
+- **Business Summary**: Oil and Natural Gas Corporation Limited, together with its subsidiaries, engages in the exploration, development, and production of crude oil, natural gas, and value-added products in India and internationally. It operates through Exploration and Production, Refining & Marketing, and Petrochemica…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

@@ -3,6 +3,7 @@ title: Frontier Springs
 type: company
 ticker: FRONTSP.NS
 sector: Metals
+industry: Metal Fabrication
 market_cap: small_cap
 normalized_name: Frontier_Springs
 permalink: /companies/metals/frontier_springs
@@ -36,6 +37,19 @@ Frontier Springs Ltd is a global leader in manufacturing hot wound springs for v
 - **Industrial Springs:** Specialty springs for power generators, railroad pipe hangers, and mass transit
 - **Primary Customer:** Indian Railways (direct beneficiary of railway capex)
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Metal Fabrication
+- **Employees**: 248
+- **Promoter Holding**: 63.6%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Frontier Springs Limited engages in the production and sale of L.H.B. springs, hot coiled compression springs, air springs, and forging items in India. Its forging products include anti-roll bar assemblies, screw couplings, draft gear assemblies, hangers, knuckle throwers, top followers, wedge, a…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 ## Industry Context: Metals / Railway Spring Manufacturing
 
 Frontier Springs operates within the [[Metals]] sector, specifically in spring manufacturing tied to Indian Railways:

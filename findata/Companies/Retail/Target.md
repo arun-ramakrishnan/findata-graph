@@ -9,6 +9,7 @@ tags:
 - geography/usa
 normalized_name: Target
 sector: Retail
+industry: Discount Stores
 market_cap: null
 permalink: /companies/retail/target
 created: '2026-09-14'
@@ -29,6 +30,19 @@ sources:
 ## Company Overview
 Target — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Discount Stores
+- **Employees**: 400,000
+- **Promoter Holding**: 0.3%
+- **Institutional Holding**: 89.0%
+- **Business Summary**: Target Corporation operates as a general merchandise retailer in the United States. It offers apparel for women, men, young adults, kids, toddlers, and babies, as well as jewelry, accessories, and shoes; and beauty products, such as skin and bath care, cosmetics, hair care, oral care, deodorant, …
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 ## The Chatter — <edition title>
 
 *Source: The Chatter — <edition title>*

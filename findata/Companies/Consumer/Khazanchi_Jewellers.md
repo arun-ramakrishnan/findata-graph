@@ -10,6 +10,7 @@ tags:
 - geography/india
 normalized_name: Khazanchi_Jewellers
 sector: Consumer
+industry: Luxury Goods
 market_cap: small_cap
 permalink: /companies/consumer/khazanchi_jewellers
 created: '2026-08-28'
@@ -30,6 +31,19 @@ stale_after: '2027-02-24'
 ## Company Overview
 Khazanchi Jewellers — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Luxury Goods
+- **Employees**: 86
+- **Promoter Holding**: 78.3%
+- **Institutional Holding**: 0.0%
+- **Business Summary**: Khazanchi Jewellers Limited engages in the wholesale and retail of jewelry products in India. The company offers a range of gold, silver, diamond, precious stone, and temple jewelry; bridal, contemporary, and occasion-based collections; and designer pieces, bullion products, and coins. It sells i…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

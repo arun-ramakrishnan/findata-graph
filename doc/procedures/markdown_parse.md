@@ -446,6 +446,17 @@ for company in companies:
 
 ## Enhancing Existing Entities
 
+> **D17 — stub-aware upgrade (2026-09-15).** Since D14 the entity universe
+> carries ~5,000 exchange-seeded STUB companies (`file_path IS NULL`, no
+> note). The Stage-4 worklist marks them `is_stub: true` with their known
+> ticker. For a stub, "enhancement" means authoring its FIRST note ON the
+> stub entity — it keeps its name and ticker, gains `file_path`,
+> `sector_classification`, and authored fields. NEVER create a second
+> entity for a name that already resolves (exact or fuzzy) — the fuzzy
+> matcher's uncertain tier exists precisely to catch these. One-shot
+> retro-pass output for pre-stub mentions:
+> `findata/Misc/retro_resolution_worklist.json`.
+
 When an entity already exists in the DB, the parsing action is **enhancement**, not creation — append a per-edition newsletter block to its note. This is mandatory for every existing company that has a concall / management / reference section in the source newsletter. One block per newsletter edition; editions accumulate over time (a company note may carry several `## The Chatter — …` blocks).
 
 ### Block format

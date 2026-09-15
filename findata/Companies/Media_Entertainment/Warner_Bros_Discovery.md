@@ -9,6 +9,7 @@ tags:
 - geography/usa
 normalized_name: Warner_Bros_Discovery
 sector: Media_Entertainment
+industry: Entertainment
 market_cap: null
 permalink: /companies/media_entertainment/warner_bros_discovery
 created: '2026-09-14'
@@ -29,6 +30,19 @@ sources:
 ## Company Overview
 Warner Bros. Discovery — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Entertainment
+- **Employees**: 35,500
+- **Promoter Holding**: 4.1%
+- **Institutional Holding**: 79.2%
+- **Business Summary**: Warner Bros. Discovery, Inc. operates as a media and entertainment company worldwide. It operates through three segments: Streaming, Studios, and Global Linear Networks. The Streaming segment offers streaming services, such as HBO Max and discovery+, and premium pay-TV services, including HBO and…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 ## The Chatter — <edition title>
 
 *Source: The Chatter — <edition title>*

@@ -12,6 +12,7 @@ tags:
 - sector/logistics
 normalized_name: Leap_India
 sector: Logistics
+industry: Integrated Freight & Logistics
 market_cap: small_cap
 permalink: /companies/logistics/leap_india
 created: '2026-09-04'
@@ -32,6 +33,19 @@ sources:
 ## Company Overview
 Supply-chain asset pooling company — 14M+ assets (pallets, containers, material handling equipment) on an on-demand model connecting suppliers, manufacturers and retailers through 10,500+ touchpoints. Listed on the NSE (recent IPO).
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Integrated Freight & Logistics
+- **Employees**: 419
+- **Promoter Holding**: 60.8%
+- **Institutional Holding**: 10.2%
+- **Business Summary**: LEAP India Limited provides supply chain asset pooling and management services, including pallet and asset rental, transportation, storage management, distribution, and warehousing solutions. The company offers asset pooling solutions for supply chains, such as the rental and management of pallet…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

@@ -3,6 +3,7 @@ title: NSDL
 type: company
 ticker: null
 sector: Capital_Markets
+industry: Financial Data & Stock Exchanges
 listed: false
 market_cap: mid_cap
 geography: india
@@ -29,3 +30,16 @@ stale_after: '2027-02-07'
 National Securities Depository Limited (NSDL) is India's first and largest securities depository. Competitor of Central Depository Services (CDSL) in specific market segments of the depository business.
 
 *Stub created 2026-08-11 as a graph endpoint for the `competes_with` relation from Central Depository Services. Expand with full company commentary when primary research accumulates.*
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Financial Data & Stock Exchanges
+- **Employees**: 549
+- **Promoter Holding**: 47.9%
+- **Institutional Holding**: 11.6%
+- **Business Summary**: National Securities Depository Limited, together with its subsidiaries, provides depository services in India. It operates through Depository, Database Management Services, and Banking Services segments. The company provides SPEED-e for demat account holders for direct online submission of instru…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->

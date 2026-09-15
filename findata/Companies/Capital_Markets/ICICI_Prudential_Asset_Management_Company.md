@@ -3,6 +3,7 @@ title: ICICI Prudential Asset Management Company
 type: company
 ticker: ICICIAMC.NS
 sector: Capital_Markets
+industry: Asset Management
 market_cap: large_cap
 normalized_name: ICICI_Prudential_Asset_Management_Company
 permalink: /companies/capital_markets/icici_prudential_asset_management_company
@@ -43,6 +44,19 @@ sources:
 ## Company Overview
 ICICI Prudential Asset Management Company Limited is one of India's leading asset management companies, managing mutual funds and providing investment solutions to retail and institutional investors.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Asset Management
+- **Employees**: 3,585
+- **Promoter Holding**: 34.6%
+- **Institutional Holding**: 59.7%
+- **Business Summary**: ICICI Prudential Asset Management Company Limited, an asset management company, provides a range of investment solutions. The company manages mutual and alternative funds; and offers portfolio management and advisory services to offshore clients. It provides savings and investment products across…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

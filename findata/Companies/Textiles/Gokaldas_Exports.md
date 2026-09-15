@@ -9,6 +9,7 @@ tags:
 - geography/india
 normalized_name: Gokaldas_Exports
 sector: Textiles
+industry: Apparel Manufacturing
 market_cap: null
 permalink: /companies/textiles/gokaldas_exports
 created: '2026-08-31'
@@ -33,6 +34,19 @@ sources:
 ## Company Overview
 Gokaldas Exports — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Apparel Manufacturing
+- **Employees**: 41,149
+- **Promoter Holding**: 12.6%
+- **Institutional Holding**: 54.0%
+- **Business Summary**: Gokaldas Exports Limited designs, manufactures, and sells a range of garments in India. The company offers fashion wear, outerwear, bottom wear, casualwear, and sportswear, such as jackets, pants, tops/shirts, and other products for men, women, and children. It serves international fashion brands…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

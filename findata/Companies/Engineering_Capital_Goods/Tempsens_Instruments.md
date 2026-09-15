@@ -9,6 +9,7 @@ tags:
 - geography/india
 normalized_name: Tempsens_Instruments
 sector: Engineering_Capital_Goods
+industry: Scientific & Technical Instruments
 market_cap: null
 permalink: /companies/engineering_capital_goods/tempsens_instruments
 created: '2026-08-31'
@@ -33,6 +34,18 @@ sources:
 ## Company Overview
 Tempsens Instruments — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Scientific & Technical Instruments
+- **Promoter Holding**: 71.7%
+- **Institutional Holding**: 6.3%
+- **Business Summary**: Tempsens Instruments (India) Limited operates as a thermal engineering and specialised cable manufacturer in India and internationally. The company operates through verticals, such as Temperature sensing solutions, Electrical heating solutions, and Specialised cables. The Temperature sensing solu…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 <!-- BEGIN auto key figures (derive_insights.py) -->
 
 ## Key Figures (auto)

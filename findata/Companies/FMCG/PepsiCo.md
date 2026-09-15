@@ -9,6 +9,7 @@ tags:
 - geography/usa
 normalized_name: PepsiCo
 sector: FMCG
+industry: Beverages - Non-Alcoholic
 market_cap: null
 permalink: /companies/fmcg/pepsico
 created: '2026-09-14'
@@ -29,6 +30,19 @@ sources:
 ## Company Overview
 PepsiCo — auto-generated stub from newsletter parsing. To be enriched.
 
+
+<!-- BEGIN auto company profile (enrich_from_yfinance.py) -->
+
+## Company Profile (yfinance)
+
+- **Industry**: Beverages - Non-Alcoholic
+- **Employees**: 306,000
+- **Promoter Holding**: 0.2%
+- **Institutional Holding**: 81.5%
+- **Business Summary**: PepsiCo, Inc. engages in the manufacture, marketing, distribution, and sale of various beverages and convenient foods worldwide. The company operates through six segments: PepsiCo Foods North America; PepsiCo Beverages North America; International Beverages Franchise; Europe, Middle East and Afri…
+
+_Source: yfinance | Refreshed: 2026-09-15_
+<!-- END auto company profile -->
 ## The Chatter — <edition title>
 
 *Source: The Chatter — <edition title>*
