@@ -331,12 +331,17 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
     # regroups the membership dyads (part_of/exposed_to/listed_in/same_group/
     # co_mentioned_in) into hyper_edges/hyper_incidences AFTER every upstream
     # edge producer has run. Idempotent (UNIQUE keys) — a warm no-change cycle
-    # inserts 0 rows. SQLite-only write; the DuckDB cache does not read the
-    # incidence tables yet (Phase 1 cache is a proposal non-goal), so no
-    # paired graph-rebuild is needed.
+    # inserts 0 rows. SQLite-only write — but since D4 (hgx_first_scaling,
+    # 2026-09-16) the DuckDB cache MATERIALIZES the star store (h_edge/
+    # h_incidence), so the paired graph-rebuild-h step right below refreshes
+    # it inside the run; the tail snapshot then exports the h_* parquet.
     (
         "derive-hyperedges (regroup membership dyads into hyper_edges; --roles = S4 facets)",
         [sys.executable, "helpers/graph/derive_hyperedges.py", "--apply", "--roles"],
+    ),
+    (
+        "graph-rebuild-h (refresh DuckDB cache h_edge/h_incidence — D4)",
+        [sys.executable, "helpers/graph/query.py", "rebuild"],
     ),
     # HGX compute lanes (hyper_lane_wiring, 2026-09-15): consume the
     # incidence store the previous step just refreshed, write graph_analytics

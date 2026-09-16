@@ -192,6 +192,75 @@ def longest_chains(conn, top_k: int = 5) -> list[str]:  # noqa: C901
     return lines
 
 
+def hyper_structure_lines(conn, top_k: int = 5) -> list[str]:
+    """Render the hypergraph structure section (pure function of ``conn``).
+
+    D4's first SQL-over-incidence consumer (hgx_first_scaling S2a):
+    block/hyperedge structure straight from the star store — cost scales
+    with |incidences| (~6k rows), never with node pairs. The capture-
+    quality signal moves here from the dyadic top-K chain tally: the
+    family mix across the largest hyperedges shows WHICH capture lanes
+    dominate, without materialising any pairwise distance.
+    """
+    have = conn.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
+        " AND name IN ('hyper_edges','hyper_incidences')"
+    ).fetchone()[0]
+    if have != 2:
+        return ["  (incidence store absent)"]
+
+    n_he, n_inc = conn.execute(
+        "SELECT (SELECT COUNT(*) FROM hyper_edges),       (SELECT COUNT(*) FROM hyper_incidences)"
+    ).fetchone()
+    fams = conn.execute(
+        "SELECT edge_type, COUNT(*) FROM hyper_edges GROUP BY 1 ORDER BY 2 DESC"
+    ).fetchall()
+    roles = conn.execute(
+        "SELECT role, COUNT(*) FROM hyper_incidences WHERE role IS NOT NULL"
+        " GROUP BY 1 ORDER BY 2 DESC"
+    ).fetchall()
+    dated = conn.execute(
+        "SELECT COUNT(*) FROM hyper_incidences WHERE valid_from IS NOT NULL"
+    ).fetchone()[0]
+    top = conn.execute(
+        """
+        SELECT he.edge_type, he.label, COUNT(*) AS members
+        FROM hyper_edges he JOIN hyper_incidences hi ON hi.edge_id = he.id
+        GROUP BY 1, 2 ORDER BY members DESC, 1, 2 LIMIT ?
+        """,
+        (top_k,),
+    ).fetchall()
+    blocks = conn.execute(
+        "SELECT COUNT(DISTINCT value), MAX(n) FROM"
+        " (SELECT value, COUNT(*) AS n FROM graph_analytics"
+        "  WHERE metric = 'hypermmsbm_community' GROUP BY value)"
+    ).fetchone()
+
+    lines = [
+        f"  hyperedges {n_he}  |  incidences {n_inc}  |  dated valid_from {dated}",
+        "  families: " + ", ".join(f"{f} {n}" for f, n in fams),
+    ]
+    if roles:
+        lines.append("  roles: " + ", ".join(f"{r} {n}" for r, n in roles))
+    lines.append("  top by membership: " + ", ".join(f"{et}/{lab} ({m})" for et, lab, m in top))
+    tally = {}
+    for et, n in fams:
+        for tet, _lab, _m in top:
+            if tet == et:
+                tally[et] = tally.get(et, 0) + 1
+    lines.append(
+        "  capture-quality family tally (top-"
+        + str(top_k)
+        + "): "
+        + (", ".join(f"{k} {v}" for k, v in sorted(tally.items(), key=lambda x: -x[1])) or "—")
+    )
+    if blocks and blocks[0]:
+        lines.append(
+            f"  hy-MMSBM blocks {blocks[0]} (largest {blocks[1]} members) — graph_analytics"
+        )
+    return lines
+
+
 def print_stats() -> int:  # noqa: C901
     # --- Distributions: sourced from the checker (single source of truth) ---
     checker = DatabaseIntegrityChecker()
@@ -274,6 +343,20 @@ def print_stats() -> int:  # noqa: C901
         print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
     finally:
         _conn.close()
+
+    # --- Hypergraph structure (D4 first SQL-over-incidence consumer) ---
+    # Incidence-native: block/hyperedge structure straight from the star
+    # store — O(|incidences|), no pairwise materialisation. Advisory +
+    # best-effort like the sections around it.
+    print(_hr("Hypergraph structure (incidence SQL)", "-"))
+    _hconn = connect()
+    try:
+        for _line in hyper_structure_lines(_hconn):
+            print(_line)
+    except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
+        print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
+    finally:
+        _hconn.close()
 
     # --- Sector size distribution ---
     print(_hr("Sectors by member count", "-"))

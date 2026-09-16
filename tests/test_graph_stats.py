@@ -47,6 +47,7 @@ def test_print_stats_contains_required_sections(stats_render):
         "FinData Graph — Stats",
         "Edge-type breakdown",
         "Structure (Onager, full edge set)",
+        "Hypergraph structure (incidence SQL)",
         "Sectors by member count",
         "Market cap distribution",
         "Data hygiene",

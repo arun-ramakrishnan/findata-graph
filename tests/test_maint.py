@@ -89,7 +89,7 @@ class TestPlan:
         # lanes joined 2026-09-15 (hyper_lane_wiring): they consume the
         # store derive-hyperedges just refreshed and their graph_analytics
         # upserts land inside the same tail snapshot.
-        assert len(maint.TIER2_STEPS) == 11
+        assert len(maint.TIER2_STEPS) == 12
 
     def test_tier2_steps_order(self):
         # Post-ingest re-derivation: the sector --check gates first
@@ -117,6 +117,7 @@ class TestPlan:
             "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
             "derive-events (refresh events timeline from note prose + edges)",
             "derive-hyperedges (regroup membership dyads into hyper_edges; --roles = S4 facets)",
+            "graph-rebuild-h (refresh DuckDB cache h_edge/h_incidence — D4)",
             "hyper-communities (hy-MMSBM overlapping communities → graph_analytics)",
             "hyper-centralities (ho/s lanes → graph_analytics)",
             "snapshot (re-snapshot to include recomputed analytics + events)",
@@ -155,13 +156,13 @@ class TestPlan:
         # snapshot's artifacts are unconditionally overwritten by the TIER2
         # tail snapshot, so exactly ONE snapshot runs at the end
         # (maint_full_single_snapshot.md D1). Plain maint keeps all 3 TIER1
-        # steps and never runs PRE_FULL. 20 steps since the HGX lanes
-        # joined TIER2 (hyper_lane_wiring, 2026-09-15).
+        # steps and never runs PRE_FULL. 21 steps since D4 h_*
+        # materialisation joined TIER2 (hgx_first_scaling, 2026-09-16).
         skipped = [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
         full = maint.PRE_FULL_STEPS + skipped + maint.TIER2_STEPS
         assert len(maint.TIER1_FULL_SKIP) == 1
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
-        assert len(full) == 20
+        assert len(full) == 21
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [
             "snapshot (re-snapshot to include recomputed analytics + events)"
@@ -283,8 +284,8 @@ class TestDryRun:
             + [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
             + maint.TIER2_STEPS
         )
-        # 7 pre-full + 2 tier1 (snapshot elided in --full) + 11 tier2.
-        assert len(all_steps) == 20
+        # 7 pre-full + 2 tier1 (snapshot elided in --full) + 12 tier2.
+        assert len(all_steps) == 21
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
         assert "snapshot (refresh versioned snapshots)" not in output

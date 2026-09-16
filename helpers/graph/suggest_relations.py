@@ -157,6 +157,47 @@ def filter_suggestions(
     return out
 
 
+def _co_membership_pairs(con: duckdb.DuckDBPyConnection, top: int) -> list[tuple[str, str, float]]:
+    """D4's second SQL-over-incidence consumer (hgx_first_scaling S2b).
+
+    Company pairs sharing >=2 hyperedges, ranked by shared count — read
+    straight off the cache's ``h_incidence`` materialisation. Cost scales
+    with incidences-joined-per-edge, never with node pairs; no Onager
+    pairwise ranking on this lane. Degrades to [] when the cache has no
+    h_* tables (star store absent / stale-schema cache).
+    """
+    row = con.execute(
+        """
+        SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_name IN ('h_incidence', 'v_node')
+        """
+    ).fetchone()
+    if not row or row[0] != 2:
+        return []
+    rows = con.execute(
+        """
+        SELECT p.a, p.b, CAST(p.shared AS DOUBLE)
+        FROM (
+            SELECT i1.entity_name AS a, i2.entity_name AS b,
+                   COUNT(DISTINCT i1.edge_id) AS shared
+            FROM h_incidence i1
+            JOIN h_incidence i2
+              ON i1.edge_id = i2.edge_id
+             AND i1.entity_name < i2.entity_name
+            GROUP BY 1, 2
+            HAVING COUNT(DISTINCT i1.edge_id) >= 2
+        ) p
+        JOIN v_node n1 ON n1.name = p.a
+        JOIN v_node n2 ON n2.name = p.b
+        WHERE n1.kind = 'company' AND n2.kind = 'company'
+        ORDER BY shared DESC, p.a, p.b
+        LIMIT ?
+        """,
+        (top,),
+    ).fetchall()
+    return [(a, b, sc) for a, b, sc in rows]
+
+
 def suggest_relations(
     con: duckdb.DuckDBPyConnection | None = None,
     *,
@@ -181,7 +222,12 @@ def suggest_relations(
         own = True
     try:
         companies = _company_names(con)
-        raw = link_prediction(con, edge_types=edge_types, method=method, top=max(top * 8, top))
+        if method == "co_membership":
+            # Incidence-native lane (D4): SQL over h_incidence, no Onager
+            # pairwise ranking — see _co_membership_pairs.
+            raw = _co_membership_pairs(con, top=max(top * 8, top))
+        else:
+            raw = link_prediction(con, edge_types=edge_types, method=method, top=max(top * 8, top))
     finally:
         if own:
             con.close()

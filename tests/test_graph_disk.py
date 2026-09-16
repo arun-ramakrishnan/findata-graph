@@ -257,6 +257,55 @@ class TestDiskBasics:
 # TestRebuild                                                                  #
 # --------------------------------------------------------------------------- #
 class TestRebuild:
+    def test_hyper_materialisation_parity(self, tmp_db):
+        """D4 (hgx_first_scaling): h_edge/h_incidence mirror the star store
+        exactly — row counts match SQLite, roles/validity columns carried."""
+        import duckdb as dd
+        import sqlite3 as s3
+
+        rebuild(db_path=tmp_db)
+        dcon = dd.connect(str(_duckdb_for(tmp_db)), read_only=True)
+        try:
+            he = dcon.execute("SELECT COUNT(*) FROM h_edge").fetchone()[0]
+            hi = dcon.execute("SELECT COUNT(*) FROM h_incidence").fetchone()[0]
+            cols = {r[0] for r in dcon.execute("DESCRIBE h_incidence").fetchall()}
+        finally:
+            dcon.close()
+        c = s3.connect(tmp_db)
+        try:
+            she = c.execute("SELECT COUNT(*) FROM hyper_edges").fetchone()[0]
+            shi = c.execute("SELECT COUNT(*) FROM hyper_incidences").fetchone()[0]
+        finally:
+            c.close()
+        assert (he, hi) == (she, shi)
+        assert {"edge_id", "entity_name", "role", "valid_from", "valid_to"} <= cols
+
+    def test_hyper_materialisation_degrades_without_star_store(self, tmp_db, tmp_path):
+        """W1 posture: a store without the incidence tables yields NO h_*
+        tables (and a rebuild over one that had them drops them cleanly)."""
+        import duckdb as dd
+        import sqlite3 as s3
+
+        stripped = tmp_path / "stripped.db"
+        shutil.copyfile(tmp_db, stripped)
+        c = s3.connect(stripped)
+        try:
+            c.execute("DROP TABLE hyper_incidences")
+            c.execute("DROP TABLE hyper_edges")
+            c.commit()
+        finally:
+            c.close()
+        rebuild(db_path=stripped)
+        dcon = dd.connect(str(stripped.with_suffix(".duckdb")), read_only=True)
+        try:
+            tables = {
+                r[0]
+                for r in dcon.execute("SELECT table_name FROM information_schema.tables").fetchall()
+            }
+        finally:
+            dcon.close()
+        assert "h_edge" not in tables and "h_incidence" not in tables
+
     def test_rebuild_true_forces_materialisation(self, tmp_db, monkeypatch):
         called = {"count": 0}
         from helpers.graph import query as q

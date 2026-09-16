@@ -198,7 +198,7 @@ def _with_generation_cache(fn):
 # longer declared — pattern queries are plain SQL JOINs over the e_* tables.
 # The bump forces every existing .duckdb cache cold so no stale fin_graph /
 # __duckpgq_internal catalog entries survive.
-_SCHEMA_VERSION = "14"
+_SCHEMA_VERSION = "15"  # 15: h_edge/h_incidence materialised (D4)
 # 14: + v_country / e_listed_in (country layer C1 — company -> country,
 # derived from exchange tickers; out-of-registry like exposed_to because
 # the endpoint kinds are mixed).
@@ -812,6 +812,12 @@ _EXTRA_MATERIALIZED = (
     "e_listed_in",
     "e_all_und",
     "e_dir",
+    # D4 (hgx_first_scaling, 2026-09-16): the incidence star store joins
+    # the cache — SQL-over-incidence consumers (stats structure section,
+    # co-membership suggestions) read these instead of materialising
+    # pairwise projections.
+    "h_edge",
+    "h_incidence",
 )
 MATERIALISED_TABLES = frozenset(spec["table"] for spec in EDGE_REGISTRY.values()).union(
     _EXTRA_MATERIALIZED, {"_build_meta"}
@@ -840,6 +846,7 @@ def _build_graph(con: duckdb.DuckDBPyConnection) -> None:
 
     _materialise_vertices(con)
     _materialise_edges(con)
+    _materialise_hyper(con)
     _materialise_note_embeddings(con)
     # Phase E (duckpgq retirement): no property graph is declared any more —
     # the pattern queries are plain SQL JOINs over these materialised tables
@@ -1214,6 +1221,48 @@ def _materialise_embeddings(con: duckdb.DuckDBPyConnection) -> None:
             )
             """
         )
+
+
+def _materialise_hyper(con: duckdb.DuckDBPyConnection) -> None:
+    """Materialise the hypergraph incidence star store (D4, hgx_first_scaling).
+
+    ``h_edge`` / ``h_incidence`` mirror ``fin.hyper_edges`` /
+    ``fin.hyper_incidences`` — the source the HGX compute lanes and the
+    SQL-over-incidence consumers (stats structure section, co-membership
+    suggestions) read. Incidence-shaped by design: cost scales with
+    |incidences| (~6k rows), never with node pairs — the dyadic n^2 wall
+    (live_inv_longest_chains #240) stays out of these paths.
+
+    Degrades cleanly when the star store is absent (pristine clone):
+    stale h_* tables are dropped and nothing is created, matching the
+    W1 never-block posture of the HGX lanes.
+    """
+    row = con.execute(
+        """
+        SELECT COUNT(*) FROM information_schema.tables
+        WHERE table_catalog = 'fin'
+          AND table_name IN ('hyper_edges', 'hyper_incidences')
+        """
+    ).fetchone()
+    if not row or row[0] != 2:
+        con.execute("DROP TABLE IF EXISTS h_edge")
+        con.execute("DROP TABLE IF EXISTS h_incidence")
+        return
+    con.execute(
+        """
+        CREATE TABLE h_edge AS
+        SELECT id, edge_type, label, weight, valid_from, valid_to, source_ref
+        FROM fin.hyper_edges
+        """
+    )
+    con.execute(
+        """
+        CREATE TABLE h_incidence AS
+        SELECT edge_id, entity_name, weight, direction, role,
+               valid_from, valid_to
+        FROM fin.hyper_incidences
+        """
+    )
 
 
 def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:

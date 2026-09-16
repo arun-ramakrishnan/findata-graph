@@ -197,3 +197,89 @@ class TestLiveSuggestions:
             assert 0.0 < s.score <= 1.0
             assert s.source and s.target and s.source != s.target
             assert s.method == "jaccard"
+
+
+class TestCoMembershipLane:
+    """S2b (hgx_first_scaling): SQL-over-incidence suggestion producer."""
+
+    @staticmethod
+    def _cache_db(tmp_path):
+        """In-memory-shaped duckdb cache with the h_incidence/v_node the
+        producer reads (no sqlite attach needed — the lane reads only the
+        materialised cache tables)."""
+        import duckdb as dd
+
+        con = dd.connect(str(tmp_path / "cache.duckdb"))
+        con.execute("CREATE TABLE v_node (id INT, name VARCHAR, kind VARCHAR)")
+        con.execute("CREATE TABLE v_company AS SELECT * FROM v_node WHERE kind = 'company'")
+        con.execute(
+            "CREATE TABLE h_incidence (edge_id INT, entity_name VARCHAR,"
+            " weight DOUBLE, direction VARCHAR, role VARCHAR,"
+            " valid_from VARCHAR, valid_to VARCHAR)"
+        )
+        return con
+
+    def test_pairs_need_two_shared_hyperedges(self, tmp_path):
+        con = self._cache_db(tmp_path)
+        # Acme+Beta share 2 hyperedges; Acme+Gamma share 1 (no signal);
+        # Sector is not a company (v_node kind filter).
+        con.executemany(
+            "INSERT INTO v_node VALUES (?,?,?)",
+            [
+                (1, "Acme", "company"),
+                (2, "Beta", "company"),
+                (3, "Gamma", "company"),
+                (4, "Sector", "sector"),
+            ],
+        )
+        con.executemany(
+            "INSERT INTO h_incidence (edge_id, entity_name) VALUES (?,?)",
+            [
+                (10, "Acme"),
+                (10, "Beta"),
+                (11, "Acme"),
+                (11, "Beta"),
+                (12, "Acme"),
+                (12, "Gamma"),
+                (13, "Acme"),
+                (13, "Sector"),
+            ],
+        )
+        try:
+            got = SR._co_membership_pairs(con, top=10)
+        finally:
+            con.close()
+        assert got == [("Acme", "Beta", 2.0)]
+
+    def test_degrades_without_h_tables(self, tmp_path):
+        import duckdb as dd
+
+        con = dd.connect(str(tmp_path / "cold.duckdb"))
+        try:
+            assert SR._co_membership_pairs(con, top=10) == []
+        finally:
+            con.close()
+
+    def test_dispatch_through_suggest_relations(self, tmp_path, monkeypatch):
+        """method='co_membership' routes to the SQL lane and keeps the
+        Suggestion contract (edition carries the method; filters apply)."""
+        con = self._cache_db(tmp_path)
+        con.executemany(
+            "INSERT INTO v_node VALUES (?,?,?)",
+            [(1, "Acme", "company"), (2, "Beta", "company")],
+        )
+        con.execute("INSERT INTO v_company SELECT * FROM v_node")
+        con.executemany(
+            "INSERT INTO h_incidence (edge_id, entity_name) VALUES (?,?)",
+            [(10, "Acme"), (10, "Beta"), (11, "Acme"), (11, "Beta")],
+        )
+        monkeypatch.setattr(SR, "existing_edge_pairs", lambda *a, **k: set())
+        try:
+            out = SR.suggest_relations(con, method="co_membership", top=5, min_score=0.0)
+        finally:
+            con.close()
+        assert len(out) == 1
+        s = out[0]
+        assert {s.source, s.target} == {"Acme", "Beta"}
+        assert s.method == "co_membership"
+        assert s.edition.startswith("link-prediction/co_membership/")

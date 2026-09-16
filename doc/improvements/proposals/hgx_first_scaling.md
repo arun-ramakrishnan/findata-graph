@@ -101,6 +101,40 @@ output. Dyadic ops stay Onager-side and capped.
   universe growth past the cap.
 - Full `make qa` + `make advisory` once at arc end.
 
+## 6. Execution Results
+
+- **S1 EXECUTED (2026-09-16)** — `h_edge`/`h_incidence` materialised in
+  the DuckDB cache (query.py `_materialise_hyper`, manifest +
+  `_SCHEMA_VERSION` 14→15); presence probe via information_schema
+  (fin.sqlite_master is not exposed by the DuckDB sqlite scanner);
+  degrades to no-tables on a star-less store (W1 posture, pinned).
+  maint-full TIER2 gains `graph-rebuild-h` right after derive-hyperedges
+  (11→12 steps, full composition 20→21; the old "no paired graph-rebuild
+  needed" Phase-1 note retired). Parity pins green; live: h_edge 533 /
+  h_incidence 5,952 == star store, roles carried (partner 138,
+  acquirer 41, target 41). First snapshot export landed
+  (snapshots/parquet/duckdb/h_{edge,incidence}.parquet).
+- **S2a EXECUTED (2026-09-16)** — stats.py `hyper_structure_lines` +
+  "Hypergraph structure (incidence SQL)" section (pure function of the
+  sqlite conn; store-absent degrade). Live render: hyperedges 533,
+  incidences 5,952, families industry 117 / event 110 / edition 109 /
+  sub_sector 108 / sector 42 / country 21 / theme 12 / group 8 / jv 6;
+  top by membership country/india (850), sector/Automotive (96);
+  hy-MMSBM 9 blocks (largest 179). Section adds ~0.1s to the render
+  (total 14.4s — still dominated by the capped-universe longest_chains).
+  render family tally replaces the dyadic chain tally as the
+  capture-quality signal (the dyadic section stays, capped by S3).
+- **S2b EXECUTED (2026-09-16)** — suggest_relations co-membership lane:
+  `_co_membership_pairs` SQL over h_incidence/v_node (>=2 shared
+  hyperedges, companies only, ranked by shared count); dispatched via
+  `--method co_membership`, jaccard default untouched. Live dry-run
+  top pairs: Autoline Industries <-> India Nippon Electricals (7),
+  ABB India <-> Aztec Fluids (6), Aarti Drugs <-> Divis/Alkem/Granules
+  (5) — same-cluster hypotheses with no typed dyadic edge. 3 unit
+  tests (threshold, degrade, dispatch+Suggestion contract).
+- **S2c stays DEFERRED** (consumer-driven); S3 (dyadic cap) unexecuted —
+  next slice.
+
 ## 5. Deferred
 
 - **D10 prediction/motifs/dynamics** — still density-gated (group
