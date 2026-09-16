@@ -120,6 +120,7 @@ from helpers.core.stable_write import ReplaceResult, stable_prefix_diff, stable_
 from helpers.core.edition_index import (  # noqa: E402
     _body,
     edition_source_entry,
+    is_concall_header,
     merged_sources,
     resolve_edition_string,
     source_note_index,
@@ -1350,12 +1351,20 @@ def _edition_title(stem: str, content: str) -> str:
 
     Prefers the newsletter's H1 (the documented convention, markdown_parse.md);
     falls back to the filename stem with underscores/spaces normalized.
+
+    concall_title_edition_normalisation D8: an H1 in the ``[Company | Cap |
+    Sector]`` concall-header shape (or one that just repeats the stem) is NOT
+    an edition title — return the stem itself, the canonical key that
+    resolves exactly. Keeps diseased H1s out of the edition display-title
+    surface and out of verbatim-straggler range.
     """
     body = _FM_RE.sub("", content, count=1)
     h1 = _H1_TITLE_RE.match(body)
     if h1:
         title = h1.group(1).strip()
         # Drop a trailing edition tag if the H1 is just the newsletter name.
+        if is_concall_header(title) or title == stem:
+            return stem
         if 3 <= len(title) <= 80:
             return title
     return stem.replace("_", " ").strip()

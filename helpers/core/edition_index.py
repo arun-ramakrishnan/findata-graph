@@ -62,6 +62,24 @@ def norm_key(s: str) -> str:
     return " ".join(re.sub(r"[^a-z0-9]+", " ", s.lower()).split())
 
 
+_CONCALL_HEADER_RE = re.compile(r"^[^|]+\|[^|]+\|")
+
+
+def is_concall_header(title: str) -> bool:
+    """True for the ``[Company | Cap | Sector]`` heading shape.
+
+    concall_title_edition_normalisation D8 (#233 §6.1): a handful of
+    chatter notes carry a company-section header where their edition H1
+    belongs (``Bharat Electronics Limited | Large Cap | Aerospace &
+    Defence``). Callers that pick a display title from an H1 must not
+    let that shape ride as an edition title — return the canonical stem
+    instead (it resolves exactly; a header that misses the index becomes
+    a verbatim straggler, the #136 failure mode). Two-or-more pipe
+    separators only: single-pipe titles are legitimate prose.
+    """
+    return bool(_CONCALL_HEADER_RE.match(title.strip()))
+
+
 def note_title(text: str, stem: str) -> str:
     """Frontmatter title -> first markdown heading -> file stem.
 
@@ -81,11 +99,21 @@ def note_title(text: str, stem: str) -> str:
         except yaml.YAMLError:
             parsed = None
         if isinstance(parsed, str) and parsed.strip():
-            return parsed.strip()
-        return raw
+            # concall_title_edition_normalisation D8: a [Company | Cap |
+            # Sector] header in the title slot is a mis-capture, not an
+            # edition title — fall through to heading/stem instead of
+            # letting it ride into sources[].title and index keys.
+            if not is_concall_header(parsed.strip()):
+                return parsed.strip()
+        elif not is_concall_header(raw):
+            return raw
     m = re.search(r"^#\s+(.+)$", text, re.M)
     if m and m.group(1).strip():
-        return m.group(1).strip()
+        heading = m.group(1).strip()
+        # D8: same guard on the heading arm — the live diseased notes carry
+        # the concall header as BOTH their title: and first heading.
+        if not is_concall_header(heading):
+            return heading
     return stem
 
 

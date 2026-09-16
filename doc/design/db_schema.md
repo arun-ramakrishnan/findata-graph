@@ -150,7 +150,7 @@ attributes, NOT entities (D6 deferral).
 | `quote_text` | TEXT | verbatim |
 | `paraphrase` | TEXT | editor's 1-2 line summary |
 | `speaker_name` / `speaker_title` | TEXT | NULL name for anonymous/role-only |
-| `as_of_edition` | TEXT | edition STEM (as quotes, #136) |
+| `as_of_edition` | TEXT | edition STEM (as quotes, #136; H1s in the `[Company \| Cap \| Sector]` concall-header shape are guarded back to the stem at capture — concall_title_edition_normalisation D8) |
 | `source_ref` | TEXT | `derive:quotes:<stem>:<line>` — LIKE sweep = idempotency key |
 | `agent_id` / `source_tier` | TEXT | row provenance (S1), converged from `source_ref` prefixes |
 | `properties` | TEXT | JSON, json_valid CHECK |

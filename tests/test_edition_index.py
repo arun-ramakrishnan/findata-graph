@@ -42,6 +42,40 @@ def test_norm_key_collapses_to_fuzzy_form():
     assert norm_key("…") == ""
 
 
+def test_is_concall_header_shape():
+    """concall_title_edition_normalisation D8: the [Company | Cap | Sector]
+    heading shape is detectable — callers must not let it ride as an
+    edition title (the #136 straggler failure mode)."""
+    from helpers.core.edition_index import is_concall_header
+
+    # Both live spacing variants (spaced + tight around pipes).
+    assert is_concall_header("Bharat Electronics Limited | Large Cap | Aerospace & Defence")
+    assert is_concall_header("Zydus Lifesciences Ltd.|Large Cap| Pharmaceuticals")
+    # Legitimate edition titles never trip it.
+    assert not is_concall_header("The Chatter: On Record")
+    assert not is_concall_header("Bets and blueprints")
+    assert not is_concall_header("FMCG")  # section leak — NOT this guard's shape
+    assert not is_concall_header("")
+
+
+def test_note_title_guards_concall_headers():
+    """D8: a [Company | Cap | Sector] header in the title slot (or as the
+    first heading — the live diseased notes carry both) falls through the
+    chain: healthy heading recovered if present, else the stem. It never
+    rides into sources[].title or index title keys."""
+    # Frontmatter pipe header, healthy H1 beneath -> the H1 wins.
+    text = "title: Zydus Lifesciences Ltd.|Large Cap| Pharmaceuticals\n---\n# The Chatter: Bosch, Amara, Zydus & More"
+    assert note_title(text, "Bosch_Amara_Zydus") == "The Chatter: Bosch, Amara, Zydus & More"
+    # Pipe in BOTH title and heading -> stem (no honest title to recover).
+    text2 = "title: Bharat Electronics Limited | Large Cap | Aerospace & Defence\n---\n# Bharat Electronics Limited | Large Cap | Aerospace & Defence"
+    assert note_title(text2, "BEL_HUL_Tata_Capital") == "BEL_HUL_Tata_Capital"
+    # Healthy titles untouched on both arms.
+    assert (
+        note_title("title: The Chatter: On Record\n---\nbody", "On_Record")
+        == "The Chatter: On Record"
+    )
+
+
 def test_note_title_strips_yaml_quoting():
     # yaml.safe_load scalars: quotes are delimiters, not content — a raw
     # line grab used to keep them (they then landed in sources[].title

@@ -1957,6 +1957,33 @@ class TestAsOfEditionStems:
         conn.close()
 
 
+class TestEditionTitleGuard:
+    """concall_title_edition_normalisation D8: a diseased H1 (concall
+    header shape, or one that just repeats the stem) must not become the
+    edition display title — the stem is returned instead (canonical key,
+    resolves exactly). Healthy H1s and the missing-H1 fallback are
+    pinned unchanged."""
+
+    def test_pipe_header_h1_returns_stem(self):
+        content = "# Bharat Electronics Limited | Large Cap | Aerospace & Defence\n\nbody"
+        assert di._edition_title("BEL_HUL_Tata_Capital", content) == "BEL_HUL_Tata_Capital"
+
+    def test_tight_pipe_variant_returns_stem(self):
+        content = "# Zydus Lifesciences Ltd.|Large Cap| Pharmaceuticals\n\nbody"
+        assert di._edition_title("Bosch_Amara_Zydus", content) == "Bosch_Amara_Zydus"
+
+    def test_bare_stem_h1_returns_stem(self):
+        content = "# Meesho_Marico_Bajaj\n\nbody"
+        assert di._edition_title("Meesho_Marico_Bajaj", content) == "Meesho_Marico_Bajaj"
+
+    def test_healthy_h1_passes_through(self):
+        content = "# The Chatter: On Record\n\nbody"
+        assert di._edition_title("On_Record", content) == "The Chatter: On Record"
+
+    def test_missing_h1_keeps_stem_space_fallback(self):
+        assert di._edition_title("On_Record", "no heading here") == "On Record"
+
+
 class TestChatterFootnotes:
     """okf_readside N1: per-claim [^chatter-<stem>] footnotes in auto chatter
     blocks, when an edition index is supplied. No index -> legacy output."""
