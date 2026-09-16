@@ -48,6 +48,34 @@ ripwire . --recall="<doc question>"              # doc FIND step (closing read s
 ripwire . --mentions=SYM | --doc-drift           # doc↔code links / stale doc anchors
 ```
 
+## witr — process discovery for long-running jobs
+
+`witr` (v0.3.3, `/usr/local/bin/witr`) explains WHY a process or
+resource is busy: ancestry (who started it), env, restarts, health,
+open files. Reach for it before `ps aux | grep` when untangling
+background jobs, DB lock clashes, or orphaned test/dev servers — and
+to confirm a PID belongs to THIS session before killing it.
+
+```bash
+witr d12_r2 --tree             # ancestry: systemd → prime-agent → … → python3
+witr -f memory/data/sources.duckdb      # WHO holds this file open (lock holder)
+witr -f memory/research.db --json       # same, machine-readable
+witr --pid 590092 --warnings   # suspicious env/args/parents only
+witr --port 5432 --env         # who owns a port + its environment
+witr --pid N --verbose         # memory, I/O, fd list
+witr nginx node --pid 7 --port 8080     # multiple + mixed inputs in one call
+witr bun -x                     # exact name match (no fuzzy)
+witr -c redis                   # container lookup
+witr -i                         # interactive TUI (human sessions)
+```
+
+- Ancestry chain `prime-agent → bash → timeout → python3` = a job THIS
+  agent session launched (safe to kill at the leaf; `timeout` parents
+  reap themselves).
+- Two writers on `memory/data/sources.duckdb` or `memory/research.db`:
+  `witr -f <db>` names the holder directly — kill the stale one, then
+  rerun. If it reports another user's process, retry with `sudo witr -f`.
+
 ## Rules
 
 - **Stale index?** The CLI warns and still answers (script_query may
@@ -72,7 +100,7 @@ ripwire . --mentions=SYM | --doc-drift           # doc↔code links / stale doc 
   `findata/**` (writer-owned vault, sentinel machinery). `doc/` is the
   remediable surface.
 - After editing `doc/**`, the `Makefile`, or helper docstrings:
-  `make search-fresh ` checks all three indexes (doc, script,
+  `make search-fresh` checks all three indexes (doc, script,
   note). Index checks are advisory, never qa-gated.
 - Full gates ONCE per arc, at the end, with the user's go. The user
   stages and commits — leave the tree dirty.
