@@ -613,6 +613,43 @@ class TestLongestChains:
             c.close()
         assert all("no edges" in ln for ln in lines)
 
+    def test_isolated_entities_excluded_from_universe(self, tmp_path):
+        """S1 pin (live_inv_longest_chains): isolated entities must not
+        enter the longest_chains node universe — they add n^2 matrix
+        cells while contributing nothing to chains (the D19 stub blowup).
+        Output is byte-identical with vs without isolates in `entities`."""
+        import sqlite3 as s3
+        from helpers.graph.stats import longest_chains
+        from helpers.maintenance.migrate_to_graph_edges import (
+            ENTITIES_DDL,
+            GRAPH_EDGES_DDL,
+        )
+
+        def _db(with_isolates: bool):
+            c = s3.connect(tmp_path / ("iso.db" if with_isolates else "plain.db"))
+            c.execute(ENTITIES_DDL)
+            c.execute(GRAPH_EDGES_DDL)
+            c.executemany(
+                "INSERT INTO entities (name, entity_type) VALUES (?, 'company')",
+                [("A",), ("B",), ("C",)] + ([("ISO1",), ("ISO2",)] if with_isolates else []),
+            )
+            c.executemany(
+                "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,'t')",
+                [("A", "B", "competes_with"), ("B", "C", "invested_in")],
+            )
+            c.commit()
+            return c
+
+        try:
+            with_iso = longest_chains(_db(True))
+            plain = longest_chains(_db(False))
+        finally:
+            pass
+        assert with_iso == plain
+        text = "\n".join(plain)
+        assert "ISO1" not in text and "ISO2" not in text
+        assert "d=2" not in text or "A  <->  C" in text
+
 
 # --------------------------------------------------------------------------- #
 # S9: counterparty resolution + event hyperedges                              #

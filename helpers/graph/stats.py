@@ -77,9 +77,24 @@ def longest_chains(conn, top_k: int = 5) -> list[str]:  # noqa: C901
     from scipy.sparse import csr_matrix
     from scipy.sparse.csgraph import connected_components, shortest_path
 
-    names = [r[0] for r in conn.execute("SELECT name FROM entities ORDER BY rowid")]
+    # Node universe = entities touched by at least one graph_edge.
+    # Isolated entities (e.g. D19 exchange stubs: pathless, ticker-only,
+    # zero edges) add n^2 distance-matrix cells while contributing
+    # nothing to chains, diameter, or distant pairs — 5,026 of 6,748
+    # entities (74%) on 2026-09-16, a 16x cell blowup over the 1,722
+    # edge-touched universe this restores.
+    names = [
+        r[0]
+        for r in conn.execute(
+            "SELECT name FROM entities WHERE name IN "
+            "(SELECT source FROM graph_edges UNION SELECT target FROM graph_edges) "
+            "ORDER BY rowid"
+        )
+    ]
     idx = {n: i for i, n in enumerate(names)}
     n = len(names)
+    if not n:
+        return ["  ALL edges: no edges", "  ACTIVITY edges: no edges"]
 
     pair_types: dict[tuple[int, int], set[str]] = {}
 

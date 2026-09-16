@@ -502,7 +502,10 @@ class TestLocalEmbedderWiring:
     def test_embed_cache_keyed_by_model_label(self, seeded_tree, fake_local, monkeypatch):
         """A model swap must re-embed even unchanged docs — the cache key
         includes the model label, so a new label never serves another
-        model's vectors."""
+        model's vectors. Production rebuilds attach with purge_foreign=True
+        (model-swap GC, 2026-09-16), so the swap also deletes the previous
+        generation's rows instead of stranding them (the 11k stale
+        bge-small rows that sat unreachable after the 09-05 swap)."""
         from helpers.core import vec_search as VS
 
         first_label = fake_local.MODEL_ID
@@ -522,7 +525,9 @@ class TestLocalEmbedderWiring:
             )
         finally:
             con.close()
-        assert groups == {first_label: 4, first_label + "-tmp": 4}
+        # Keying: no cross-model serving (misses=4 above). GC: the swap
+        # purged the old generation — only the new label's rows remain.
+        assert groups == {first_label + "-tmp": 4}
 
     def test_generation_bump_apply_only(self, seeded_tree, fake_local):
         """B4 (sql_capability_unlocks): note_search is an FTS5 virtual

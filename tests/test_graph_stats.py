@@ -8,7 +8,10 @@ import io
 
 import pytest
 
-pytestmark = pytest.mark.live
+# One xdist group for the whole module: the module-scoped stats_render
+# fixture below is rebuilt PER WORKER under -n auto — without the group,
+# three workers each pay the full print_stats() render in parallel.
+pytestmark = [pytest.mark.live, pytest.mark.xdist_group("graph_stats_render")]
 
 
 from helpers.graph.stats import print_stats  # noqa: E402
@@ -19,9 +22,11 @@ from helpers.graph import stats  # noqa: E402
 def stats_render():
     """print_stats() output, rendered ONCE for the module.
 
-    A full render costs ~1s (the Onager structure section runs over the
-    complete edge set) and every assertion in this module reads the SAME
-    argument-free output, so one captured render serves them all.
+    A full render costs are dominated by longest_chains, which is
+    O(n^2) in the EDGE-TOUCHED entity universe (isolated entities are
+    excluded there since 2026-09-16; n ~1.7k live). Every assertion in
+    this module reads the SAME argument-free output, so one captured
+    render serves them all.
     """
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
