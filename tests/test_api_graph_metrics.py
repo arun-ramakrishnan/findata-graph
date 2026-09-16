@@ -43,6 +43,28 @@ _J3_ANALYTICS = [
     ("Infosys", "weakly_connected_component", '{"componentId": 20}'),
     # malformed value JSON — must be skipped, not crash
     ("HDFC Bank", "degree_centrality", '{"not_value": true}'),
+    # hyper_metric_ui_visibility D1: HGX lanes. ho_pagerank carries fit
+    # provenance keys the scalar branch ignores; hy-MMSBM stores the argmax
+    # "block" + soft memberships the label branch ignores (block 0 ×2,
+    # block 5 ×1 — mirrors the 12-block live shape).
+    (
+        "HDFC Bank",
+        "ho_pagerank",
+        '{"value": 0.09, "s": 1, "sources": ["sector", "theme", "industry"], "weighted": false}',
+    ),
+    (
+        "ICICI Bank",
+        "ho_pagerank",
+        '{"value": 0.04, "s": 1, "sources": ["sector", "theme", "industry"], "weighted": false}',
+    ),
+    (
+        "Infosys",
+        "ho_pagerank",
+        '{"value": 0.02, "s": 1, "sources": ["sector", "theme", "industry"], "weighted": false}',
+    ),
+    ("HDFC Bank", "hypermmsbm_community", '{"block": 0, "memberships": {"0": 0.7, "1": 0.3}}'),
+    ("ICICI Bank", "hypermmsbm_community", '{"block": 0, "memberships": {"0": 0.9, "1": 0.1}}'),
+    ("Infosys", "hypermmsbm_community", '{"block": 5, "memberships": {"0": 0.2, "5": 0.8}}'),
     # graph_docs_ui_redesign S1: newly-served scalar centrality…
     ("HDFC Bank", "harmonic_centrality", '{"value": 0.7}'),
     ("ICICI Bank", "harmonic_centrality", '{"value": 0.5}'),
@@ -227,6 +249,46 @@ class TestGraphMetricsPayloadMetrics:
             "link_prediction",
             "voterank",
         ):
+            assert m in valid
+
+    def test_hyper_scalar_served_with_provenance_keys_ignored(self, tmp_path):
+        # D1: ho_pagerank/s_betweenness/s_closeness ride the scalar branch —
+        # {"value": float} + fit provenance (s/sources/weighted); only $.value
+        # is read, ranking is desc like every scalar metric.
+        with _seeded_sqlite_db_with_analytics(tmp_path) as client:
+            r = client.get("/api/graph/metrics/ho_pagerank")
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body["metric"] == "ho_pagerank"
+        assert body["total"] == 3
+        assert body["ranked"] == [
+            {"entity": "HDFC Bank", "value": 0.09},
+            {"entity": "ICICI Bank", "value": 0.04},
+            {"entity": "Infosys", "value": 0.02},
+        ]
+
+    def test_hyper_label_groups_built_from_block_key(self, tmp_path):
+        # D1: hy-MMSBM rows store {"block": int, "memberships": {...}} — a
+        # third label key. Groups come from the argmax block; soft
+        # memberships are ignored (no modularity key, unlike louvain).
+        with _seeded_sqlite_db_with_analytics(tmp_path) as client:
+            r = client.get("/api/graph/metrics/hypermmsbm_community")
+        assert r.status_code == 200
+        body = r.get_json()
+        assert body["metric"] == "hypermmsbm_community"
+        assert body["total"] == 3
+        assert "modularity" not in body
+        assert len(body["groups"]) == 2
+        g0, g1 = body["groups"]
+        assert g0["label"] == 0 and g0["size"] == 2
+        assert sorted(g0["members"]) == ["HDFC Bank", "ICICI Bank"]
+        assert g1["label"] == 5 and g1["members"] == ["Infosys"]
+
+    def test_allowlist_error_lists_hyper_metrics(self, tmp_path):
+        with _seeded_sqlite_db_with_analytics(tmp_path) as client:
+            r = client.get("/api/graph/metrics/bogus")
+        valid = r.get_json()["valid_metrics"]
+        for m in ("ho_pagerank", "s_betweenness", "s_closeness", "hypermmsbm_community"):
             assert m in valid
 
     def test_link_prediction_ranked_by_best_candidate(self, tmp_path):

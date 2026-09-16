@@ -12575,8 +12575,17 @@ void main() {
     local_reaching_centrality: "reach over each neighbour's own ties",
     local_clustering_coefficient: "how densely each entity's neighbours interconnect",
     link_prediction: "predicted partners per entity (persisted scoring run)",
-    voterank: "VoteRank seed set \u2014 the nodes worth starting a story from"
+    voterank: "VoteRank seed set \u2014 the nodes worth starting a story from",
+    ho_pagerank: "higher-order influence through shared-context hyperedges (HGX)",
+    s_betweenness: "S-betweenness \u2014 brokerage across hyperedge overlaps",
+    s_closeness: "S-closeness \u2014 proximity through shared contexts"
   };
+  var HYPER_METRICS = /* @__PURE__ */ new Set([
+    "ho_pagerank",
+    "s_betweenness",
+    "s_closeness",
+    "hypermmsbm_community"
+  ]);
   var _NON_EVENT_GROUPS = /* @__PURE__ */ new Set([
     "sector",
     "sector-focal",
@@ -13219,7 +13228,8 @@ void main() {
       const top = parseInt(getEl("rank-top").value, 10) || 25;
       const blurb = METRIC_BLURBS[metric] || metric;
       const loading = `<p class="hint"><i class="fas fa-spinner fa-spin"></i> computing ${escapeHtml(metric)}\u2026</p>`;
-      const fail = (e) => `<p class="hint">unavailable \u2014 ${escapeHtml(e.message)} (is <span class="mono">make recompute-graph</span> fresh?)</p>`;
+      const refreshCmd = HYPER_METRICS.has(metric) ? "make recompute-hyper" : "make recompute-graph";
+      const fail = (e) => `<p class="hint">unavailable \u2014 ${escapeHtml(e.message)} (is <span class="mono">${refreshCmd}</span> fresh?)</p>`;
       if (metric === "voterank") {
         let seeds = this.graph.rankSeeds;
         if (!seeds) {
@@ -14202,9 +14212,7 @@ void main() {
       const enc = encodeURIComponent(q);
       const kindQ = this.kindFilter ? `&kind=${this.kindFilter}` : "";
       const [docs, scripts, notes] = await Promise.allSettled([
-        fetchJson(
-          `/api/docs/search?q=${enc}&limit=${PER_CORPUS_LIMIT}`
-        ),
+        fetchJson(`/api/docs/search?q=${enc}&limit=${PER_CORPUS_LIMIT}`),
         fetchJson(
           `/api/scripts/search?q=${enc}&limit=${PER_CORPUS_LIMIT}${kindQ}`
         ),

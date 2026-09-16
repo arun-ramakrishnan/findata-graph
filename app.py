@@ -2804,10 +2804,19 @@ _SCALAR_GRAPH_METRICS = {
     "katz_centrality",
     "laplacian_centrality",
     "local_reaching_centrality",
+    # hyper_metric_ui_visibility D1: HGX lanes (make recompute-hyper / maint
+    # TIER2) — value carries {"value": float, "s", "sources", "weighted"}; the
+    # scalar branch reads $.value, the provenance keys describe the fit and
+    # are ignored here.
+    "ho_pagerank",
+    "s_betweenness",
+    "s_closeness",
 }
-# Label metrics: value is an int community/component id. Ranked/grouped, not
-# sorted by value.
-_LABEL_GRAPH_METRICS = {"louvain_community", "weakly_connected_component"}
+# Label metrics: value is an int community/component/block id. Ranked/grouped,
+# not sorted by value. hypermmsbm_community stores {"block": int,
+# "memberships": {...}} — argmax block only; soft memberships stay internal
+# (hy-MMSBM is overlapping; the groups shape is single-label).
+_LABEL_GRAPH_METRICS = {"louvain_community", "weakly_connected_component", "hypermmsbm_community"}
 # Structured-payload metrics: value JSON is not {"value": float}; each gets
 # its own response shape in the handler below (graph_docs_ui_redesign §4.3).
 _PAYLOAD_GRAPH_METRICS = {"link_prediction", "voterank"}
@@ -2825,7 +2834,9 @@ def api_graph_metrics(metric: str):  # noqa: C901
     "top-N by PageRank" or "which community is X in?" without hitting the CLI.
 
     All-SQLite (no DuckDB needed) — graph_analytics is refreshed by
-    `make recompute-graph`, not by the DuckDB cache rebuild.
+    `make recompute-graph` (dyadic) and `make recompute-hyper` (HGX
+    ho_pagerank/s_betweenness/s_closeness/hypermmsbm_community), not by
+    the DuckDB cache rebuild.
 
     Path param: metric (one of the allowlist below; 400 otherwise).
     Query params:
@@ -2984,11 +2995,15 @@ def api_graph_metrics(metric: str):  # noqa: C901
                 }
             )
         else:
-            # Label metric: value JSON is {"community": int} or
-            # {"componentId": int} (+ "modularity" for louvain, G2). Group by
-            # label; the per-label modularity (if present) is surfaced once
-            # at the top level, not duplicated per group.
-            label_key = "community" if metric_lc == "louvain_community" else "componentId"
+            # Label metric: value JSON is {"community": int},
+            # {"componentId": int}, or {"block": int} (+ "modularity" for
+            # louvain, G2; hy-MMSBM adds soft memberships, ignored here).
+            # Group by label; the per-label modularity (if present) is
+            # surfaced once at the top level, not duplicated per group.
+            label_key = {
+                "louvain_community": "community",
+                "hypermmsbm_community": "block",  # D1: HGX hy-MMSBM argmax block
+            }.get(metric_lc, "componentId")
             rows = conn.execute(
                 "SELECT entity_name, value FROM graph_analytics "
                 "WHERE metric = ? ORDER BY entity_name",

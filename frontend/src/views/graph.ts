@@ -164,7 +164,19 @@ const METRIC_BLURBS: Record<string, string> = {
     local_clustering_coefficient: "how densely each entity's neighbours interconnect",
     link_prediction: "predicted partners per entity (persisted scoring run)",
     voterank: "VoteRank seed set — the nodes worth starting a story from",
+    ho_pagerank: "higher-order influence through shared-context hyperedges (HGX)",
+    s_betweenness: "S-betweenness — brokerage across hyperedge overlaps",
+    s_closeness: "S-closeness — proximity through shared contexts",
 };
+/** Metrics refreshed by `make recompute-hyper` (HGX lanes); every other rank
+ *  metric refreshes via `make recompute-graph`. hypermmsbm_community is listed
+ *  for completeness — it is label-shaped and not in the rank select. */
+const HYPER_METRICS = new Set([
+    "ho_pagerank",
+    "s_betweenness",
+    "s_closeness",
+    "hypermmsbm_community",
+]);
 
 /** Node groups that can never carry company events (skip the timeline fetch). */
 const _NON_EVENT_GROUPS = new Set([
@@ -960,9 +972,12 @@ export class GraphView {
         const top = parseInt((getEl("rank-top") as HTMLSelectElement).value, 10) || 25;
         const blurb = METRIC_BLURBS[metric] || metric;
         const loading = `<p class="hint"><i class="fas fa-spinner fa-spin"></i> computing ${escapeHtml(metric)}…</p>`;
+        const refreshCmd = HYPER_METRICS.has(metric)
+            ? "make recompute-hyper"
+            : "make recompute-graph";
         const fail = (e: unknown): string =>
             `<p class="hint">unavailable — ${escapeHtml((e as Error).message)}` +
-            ` (is <span class="mono">make recompute-graph</span> fresh?)</p>`;
+            ` (is <span class="mono">${refreshCmd}</span> fresh?)</p>`;
 
         if (metric === "voterank") {
             let seeds = this.graph.rankSeeds;
