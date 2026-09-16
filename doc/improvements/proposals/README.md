@@ -36,6 +36,23 @@ entry number and stale DONE pointers):
   schema change. Trigger: /tmp/hgx_gaps.txt findings (verified; the
   graph.ts-hint claim was a misdiagnosis — see proposal §1.3).
 
+— (Previously: hyper_metric_ui_visibility.md archived 2026-09-16 as
+completed.md entry 235 — execution record in `../archive/ui/hyper_metric_ui_visibility.md`.)_
+
+— (Previously: concall_title_edition_normalisation.md archived 2026-09-16 as
+completed.md entry 236 — execution record in
+`../archive/pipeline/concall_title_edition_normalisation.md`; writer worklist
+deferred inside.)_
+
+— (Previously: jv_promoter_capture_upgrade.md archived 2026-09-16 as
+completed.md entry 237 — execution record in
+`../archive/graph/jv_promoter_capture_upgrade.md`.)_
+
+— (Previously: company_subsector_authored_lane.md archived 2026-09-16 as
+completed.md entry 238 — execution record in
+`../archive/graph/company_subsector_authored_lane.md`; authored adoption is
+operator surface via `findata/Misc/subsector_worklist.json`.)_
+
 — (Previously: ontology_convention_stack.md archived 2026-09-14 as completed.md
 entry 234 - execution record in
 `../archive/database/ontology_convention_stack.md`; S0–S5 landed in one

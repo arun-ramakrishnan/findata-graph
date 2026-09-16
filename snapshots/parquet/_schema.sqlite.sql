@@ -18,7 +18,7 @@ CREATE TABLE "entities" (
     last_updated          DATETIME,
     normalized_name       TEXT,
     sector_classification TEXT,
-    ticker                TEXT,
+    ticker                TEXT, cin CHAR(21), cin_listing CHAR(1), cin_nic5 CHAR(5), cin_state CHAR(2), cin_year SMALLINT, cin_ownership CHAR(3),
     -- Bundle M4: the company-name-suffix guard (reject 'Foo Pvt Ltd' /
     -- 'Foo Private Limited' etc.) is scoped to entity_type='company' only.
     -- It was a blanket CHECK that wrongly rejected legitimate taxonomy
@@ -48,7 +48,7 @@ CREATE TABLE "graph_edges" (
     valid_to    DATE,
     source_ref  TEXT NOT NULL,
     symmetric   INTEGER NOT NULL DEFAULT 0,
-    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, agent_id TEXT REFERENCES provenance_agents(agent_id) ON UPDATE CASCADE ON DELETE SET NULL, source_tier TEXT CHECK (source_tier IN ('manual','migration','derive','regulator','external')),
     UNIQUE(source, target, edge_type),
     CHECK (source != target),
     CHECK (json_valid(properties))
@@ -86,7 +86,7 @@ CREATE TABLE events (
     as_of_edition  TEXT,                 -- sourcing newsletter edition
     source_ref     TEXT NOT NULL,        -- "derive:events:..." | "manual:..." | "migration:..."
     properties     TEXT NOT NULL DEFAULT '{}',
-    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, counterparty_entity TEXT REFERENCES entities(name) ON UPDATE CASCADE ON DELETE SET NULL,
+    created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, counterparty_entity TEXT REFERENCES entities(name) ON UPDATE CASCADE ON DELETE SET NULL, agent_id TEXT REFERENCES provenance_agents(agent_id) ON UPDATE CASCADE ON DELETE SET NULL, source_tier TEXT CHECK (source_tier IN ('manual','migration','derive','regulator','external')),
     CHECK (json_valid(properties))
 );
 
@@ -101,7 +101,7 @@ CREATE TABLE quotes (
     as_of_edition TEXT,                 -- edition_title the quote appeared in
     source_ref    TEXT NOT NULL,        -- "derive:quotes:<newsletter_stem>:<line>"
     properties    TEXT NOT NULL DEFAULT '{}',
-    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, agent_id TEXT REFERENCES provenance_agents(agent_id) ON UPDATE CASCADE ON DELETE SET NULL, source_tier TEXT CHECK (source_tier IN ('manual','migration','derive','regulator','external')),
     UNIQUE(entity, quote_text, as_of_edition),
     CHECK (json_valid(properties))
 );
@@ -119,7 +119,7 @@ CREATE TABLE company_metrics (
     source_quote  TEXT,                 -- verbatim line it came from (provenance)
     source_ref    TEXT NOT NULL,        -- "derive:metrics:<newsletter_stem>:<line>"
     properties    TEXT NOT NULL DEFAULT '{}',
-    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, agent_id TEXT REFERENCES provenance_agents(agent_id) ON UPDATE CASCADE ON DELETE SET NULL, source_tier TEXT CHECK (source_tier IN ('manual','migration','derive','regulator','external')),
     CHECK (json_valid(properties))
 );
 
@@ -146,14 +146,6 @@ CREATE TABLE entity_ticker_status (
     decided_at TEXT NOT NULL
 );
 
-CREATE TABLE "company_embeddings" (
-            company_name TEXT PRIMARY KEY,
-            embedding    BLOB NOT NULL,
-            model        TEXT NOT NULL,
-            created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
-            CHECK (length(embedding) % 4 = 0 AND length(embedding) > 0)
-        );
-
 CREATE TABLE hyper_edges (
     id          INTEGER PRIMARY KEY,
     edge_type   TEXT NOT NULL,        -- sector|theme|country|group|edition|...
@@ -163,7 +155,7 @@ CREATE TABLE hyper_edges (
     valid_to    DATE,
     source_ref  TEXT NOT NULL,
     properties  TEXT NOT NULL DEFAULT '{}',
-    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, agent_id TEXT REFERENCES provenance_agents(agent_id) ON UPDATE CASCADE ON DELETE SET NULL, source_tier TEXT CHECK (source_tier IN ('manual','migration','derive','regulator','external')),
     UNIQUE(edge_type, label),
     CHECK (json_valid(properties))
 );
@@ -174,10 +166,79 @@ CREATE TABLE hyper_incidences (
     entity_name TEXT NOT NULL
                   REFERENCES entities(name) ON DELETE CASCADE ON UPDATE CASCADE,
     weight      REAL,                  -- per-incidence weight (HIF granularity 2)
-    direction   TEXT,                  -- 'head'|'tail' for directed hypergraphs; NULL = undirected
+    direction   TEXT, role TEXT, valid_from DATE, valid_to DATE,                  -- 'head'|'tail' for directed hypergraphs; NULL = undirected
     PRIMARY KEY (edge_id, entity_name),
     CHECK (direction IS NULL OR direction IN ('head', 'tail'))
 );
+
+CREATE TABLE provenance_agents (
+            agent_id  TEXT PRIMARY KEY,
+            name      TEXT NOT NULL,
+            version   TEXT NOT NULL,
+            repo_ref  TEXT,
+            script    TEXT,
+            command   TEXT,
+            as_of     TEXT NOT NULL
+        );
+
+CREATE TABLE concept_schemes (
+            scheme_id    TEXT PRIMARY KEY,
+            label        TEXT NOT NULL,
+            scheme_type  TEXT NOT NULL,
+            version      TEXT NOT NULL,
+            source_uri   TEXT,
+            license      TEXT,
+            attribution  TEXT,
+            active       INTEGER NOT NULL DEFAULT 1
+        );
+
+CREATE TABLE concepts (
+            concept_id   TEXT PRIMARY KEY,
+            scheme_id    TEXT NOT NULL REFERENCES concept_schemes(scheme_id),
+            concept_code TEXT NOT NULL,
+            pref_label   TEXT NOT NULL,
+            alt_label    TEXT,
+            notation     TEXT,
+            broader_id   TEXT REFERENCES concepts(concept_id),
+            scope_note   TEXT,
+            source_ref   TEXT NOT NULL,
+            UNIQUE (scheme_id, concept_code)
+        );
+
+CREATE TABLE concept_mappings (
+            source_scheme  TEXT NOT NULL,
+            source_concept TEXT NOT NULL,
+            target_scheme  TEXT NOT NULL,
+            target_concept TEXT NOT NULL,
+            match_type     TEXT NOT NULL CHECK (match_type IN
+                             ('exactMatch', 'closeMatch', 'broadMatch', 'narrowMatch')),
+            source_ref     TEXT NOT NULL,
+            version        TEXT NOT NULL
+        );
+
+CREATE TABLE entity_identifiers (
+        entity_name      TEXT NOT NULL REFERENCES entities(name)
+                           ON DELETE CASCADE ON UPDATE CASCADE,
+        identifier_type  TEXT NOT NULL CHECK (identifier_type IN
+                           ('cin', 'lei', 'cik', 'isin', 'llpin', 'alias')),
+        identifier_value TEXT NOT NULL,
+        namespace        TEXT,
+        valid_from       TEXT,
+        valid_to         TEXT,
+        source_ref       TEXT NOT NULL,
+        created_at       DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        last_updated     DATETIME,
+        PRIMARY KEY (entity_name, identifier_type, identifier_value),
+        UNIQUE (identifier_type, identifier_value)
+    );
+
+CREATE TABLE company_embeddings (
+            company_name TEXT PRIMARY KEY,
+            embedding    BLOB NOT NULL,
+            model        TEXT NOT NULL,
+            created_at   DATETIME NOT NULL DEFAULT (datetime('now')),
+            CHECK (length(embedding) = 384 * 4)
+        );
 
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 
@@ -216,6 +277,8 @@ CREATE INDEX idx_note_tags_tag ON note_tags(tag);
 CREATE INDEX he_type_idx ON hyper_edges(edge_type);
 
 CREATE INDEX hi_entity_idx ON hyper_incidences(entity_name);
+
+CREATE INDEX idx_emb_company ON company_embeddings(company_name);
 
 CREATE VIEW relations AS
     SELECT source, target, edge_type AS relation_type

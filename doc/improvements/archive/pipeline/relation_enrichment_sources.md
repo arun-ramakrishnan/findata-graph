@@ -386,6 +386,8 @@ Driver `helpers/maintenance/enrich_relations.py --source embeddings` (`make rela
 
 Gate: E3 live dry-run + apply + rebuild + integrity clean.
 
+**Purge — E3 bge-small artifacts removed (2026-09-16):** the embedding model was superseded (granite-embedding-97m-r2 via `helpers/core/local_embedder.py`), so the 2026-08-25 VSS pairs no longer describe the live embedding space. Deleted 7,761 `graph_edges` rows (`edge_type='semantic_peer'`, `source_ref LIKE 'embeddings:bge-small%'`; 7,776 applied, 15 lost earlier to entity merges/deletions). Kept the 30 `triage:accept` rows (operator-accepted jaccard predictions — model-independent). Pre-purge backup `~/Research/patches/work/normalize-2026-09-16/research_pre_bgepurge.db`; only `graph_edges` changed; FK clean. Followed by `make graph-rebuild` (cache `e_semantic_peer`=30) + `make snapshot` (relations 19,392→11,631; snapshot re-verified clean; parquet homed in the `db_sync` patch). Re-running E3 under granite re-seeds the lane via the same idempotent prefix-scoped apply.
+
 **R4 — E4 implemented (2026-08-25): co-mention inference → pending sidecar DONE.**
 
 Driver `helpers/maintenance/enrich_relations.py --source coinfer` :

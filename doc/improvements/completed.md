@@ -5828,3 +5828,74 @@ narrowing, 12 lint-audit findings resolved (sanctioned noqa patterns).
 covers between maint-full runs), NIC-2008 seed-table builder +
 industry_code fill, GLEIF Level-2 relationship checker (first S3
 consumer), Wikidata QID crosswalks, person/DIN lane behind the D6 gate.
+## 235. Hyper metric UI/API visibility — three fixed rosters + block-key label branch
+
+**Proposal**: `doc/improvements/archive/ui/hyper_metric_ui_visibility.md`
+(filed 2026-09-15, executed + archived 2026-09-16). Area: `app.py`
+(metric rosters + label branch), `templates/findata.html`,
+`frontend/src/views/graph.ts` + bundle, `tests/test_api_graph_metrics.py`.
+
+The three fixed metric rosters render real hyper value shapes:
+`_J3_ANALYTICS` seeds scalar-ranked-desc-with-provenance-ignored,
+groups built from `block` (memberships ignored — no modularity key),
+and the allowlist 400 lists all four metric names. 19/19 tests. Live
+read-only smoke: ho_pagerank top-1 Exide Industries 0.00437,
+s_betweenness top-1 SpaceX 0.17762, s_closeness top-1 Gala Precision
+0.54139, hypermmsbm 8 groups (largest block 0, 319 members) — 1,179
+rows per metric. Correction en route: the real hy-MMSBM argmax block
+count is 8, not the preamble's 12 (that counted distinct value-JSON
+strings).
+
+## 236. Concall-title edition normalisation — H1 guard at the capture boundary
+
+**Proposal**: `doc/improvements/archive/pipeline/concall_title_edition_normalisation.md`
+(filed 2026-09-15, executed + archived 2026-09-16). Area:
+`helpers/core/edition_index.py` (predicate), `helpers/graph/derive_insights.py`
+(`_edition_title`), tests, `doc/design/db_schema.md` — no schema change,
+no DB rewrite.
+
+H1 guard lands at the capture boundary so diseased titles stop being
+minted; the writer worklist names the residual four pipe/bare-stem
+titles (`Infosys_Adani_Power`, `Meesho_Marico_Bajaj`, `RBI_Tata_Steel`,
+`Milky_Mist_Bluestone`-class section leaks) — writer-only, no
+deterministic capture-time shape. Quotes 8,272/8,272 and metrics
+4,033/4,033 already join edition entities (100%, re-measured); the
+next sanctioned derive/backfill pass replays through the guarded
+`note_title` and `sources[].title` converges on the next
+`merged_sources` run.
+
+## 237. JV venture + promoter-group capture upgrade — name-before-marker patterns
+
+**Proposal**: `doc/improvements/archive/graph/jv_promoter_capture_upgrade.md`
+(filed 2026-09-15, executed + archived 2026-09-16). Area:
+`helpers/graph/extract_relations.py` (venture patterns, batch group
+pass, props-converge), tests — D5+D6 capture arc, no schema change.
+
+Name-before-marker venture patterns + cross-note same_group
+accumulation landed; the post-triage ledger: removed low-attribution
+edges (acquired 11, jv_with 12, subsidiary_of 1, supplier_to 2,
+regulated_by 1, approved_by 2, rated_by 1 — none fed a hyperedge;
+store stays 480/5,688), kept 17 real company-note edges (regulated_by
+×11 banks/NBFC/Pine Labs/CRISIL → RBI, approved_by ×5 → RBI/SEBI,
+rated_by ×1 Motilal Oswal → CRISIL). Post-triage: jv_with 69 (ventures
+6/69), same_group 34 with all 31 cross-note pairs correctly attributed
+via the normalized_name override.
+
+## 238. Company sub_sector authored lane — optional `subsector:` YAML + canonical precedence
+
+**Proposal**: `doc/improvements/archive/graph/company_subsector_authored_lane.md`
+(filed 2026-09-15, executed + archived 2026-09-16). Area:
+`helpers/graph/derive_hyperedges.py` (authored-field read + canonical
+precedence), `helpers/core/sync_tags.py` (entity_tags mirror), tests,
+`doc/design/graph_design.md` — D7 capture discipline, no schema change.
+
+Authored `subsector:` YAML now wins over derivation with canonical
+precedence, mirrored into entity_tags. Tests: 4 sync_tags mirror pins
+(slug, spacing, null/absent, non-company ignored) + frontmatter
+preservation; `test_hyper_incidence.py` 57/57, `test_sync_tags.py`
+65/65. S4 live no-op proof with 0 authored values: `make
+derive-hyperedges` 0 new edges/incidences (55 sub_sector hyperedges /
+600 members unchanged), `make sync-tags` byte-stable (7,211 rows).
+Authored adoption is operator surface — the unmapped worklist
+`findata/Misc/subsector_worklist.json` names the candidates (Banks –
+Regional ×38, Credit Services ×23, Capital Markets ×10, …).
