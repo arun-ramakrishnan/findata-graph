@@ -64,7 +64,7 @@ def _bar(n: int, total: int, width: int = 30) -> str:
 _CHAINS_EXCLUDE = ("part_of", "has_company", "belongs_to", "cited_in", "listed_in", "exposed_to")
 
 
-def longest_chains(conn, top_k: int = 5) -> list[str]:  # noqa: C901
+def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:  # noqa: C901
     """Render the longest-chains section lines (pure function of ``conn``).
 
     Two views: ALL edges, and ACTIVITY edges only (membership stars
@@ -72,6 +72,14 @@ def longest_chains(conn, top_k: int = 5) -> list[str]:  # noqa: C901
     top-K most distant pairs, and the #1 chain hop-by-hop with the edge
     family carrying each hop, plus the family tally across all top-K
     chains (the capture-quality signal).
+
+    S3 hard cap (hgx_first_scaling): diameter/distant-pairs are inherently
+    pairwise questions, so this diagnostic may NEVER again dominate a
+    gate leg — above ``max_exact`` edge-touched nodes the all-pairs
+    matrix is replaced by distances from a deterministic stride sample
+    of roots (O(sample*n) memory, not O(n^2)); sampled lines are labeled
+    and distances read as lower bounds. Below the cap: exact, unchanged.
+    Component counts stay exact either way (O(n+m)).
     """
     import numpy as np
     from scipy.sparse import csr_matrix
@@ -112,13 +120,26 @@ def longest_chains(conn, top_k: int = 5) -> list[str]:  # noqa: C901
             pair_types.setdefault(key, set()).add(et)
         return csr_matrix((np.ones(len(rows_), dtype=np.int8), (rows_, cols_)), shape=(n, n))
 
+    capped = n > max_exact
+    roots = np.unique(np.linspace(0, n - 1, max_exact).astype(int)) if capped else None
+    n_roots = 0 if roots is None else int(len(roots))
     lines: list[str] = []
     for label, mat in (("ALL edges", _add(False)), ("ACTIVITY edges", _add(True))):
         n_comp, comp = connected_components(mat, directed=False)
-        dist, pred = shortest_path(mat, method="D", unweighted=True, return_predecessors=True)
-        iu = np.triu_indices(n, 1)
-        finite = dist[iu]
-        finite = finite[np.isfinite(finite)]
+        if capped:
+            dist, pred = shortest_path(
+                mat,
+                method="D",
+                unweighted=True,
+                return_predecessors=True,
+                indices=roots,
+            )
+            finite = dist[np.isfinite(dist)]
+        else:
+            dist, pred = shortest_path(mat, method="D", unweighted=True, return_predecessors=True)
+            iu = np.triu_indices(n, 1)
+            finite = dist[iu]
+            finite = finite[np.isfinite(finite)]
         if not len(finite):
             lines.append(f"  {label}: no edges")
             continue
@@ -131,53 +152,72 @@ def longest_chains(conn, top_k: int = 5) -> list[str]:  # noqa: C901
         # different holders — one chain shape, five times). If the graph
         # cannot supply K disjoint pairs, a relaxed second pass fills the
         # remainder allowing reuse, never repeating an accepted pair.
-        pairs: list[tuple[int, int, int]] = []
+        pairs: list[tuple[int, int, int, int]] = []
         seen: set[tuple[int, int]] = set()
         used: set[int] = set()
+        # Entries: (node_a, node_b, d, row_a) — node ids for names/sets,
+        # row_a (the sampled-root row, == node_a when exact) indexes
+        # dist/pred, which are row-space under the cap.
         order = [
-            (int(a), int(b))
+            (
+                int(a) if roots is None else int(roots[a]),
+                int(b),
+                int(dist[a, b]),
+                int(a),
+            )
             for a, b in np.dstack(np.unravel_index(np.argsort(-rank.ravel()), rank.shape))[0]
-            if a < b and np.isfinite(dist[a, b])  # disconnected = never a chain
+            if a != b and np.isfinite(dist[a, b])  # disconnected = never a chain
         ]
         for relax in (False, True):
-            for a, b in order:
+            for a, b, d, _row in order:
                 if len(pairs) == top_k:
                     break
-                if (a, b) in seen:
+                key = (a, b) if a < b else (b, a)
+                if key in seen:
                     continue
                 if not relax and (a in used or b in used):
                     continue
-                seen.add((a, b))
+                seen.add(key)
                 used.update((a, b))
-                pairs.append((a, b, int(dist[a, b])))
+                pairs.append((a, b, d, _row))
             if len(pairs) == top_k:
                 break
-        ties = int((dist[iu] == diameter).sum())
+        if capped:
+            ties = int((dist[np.isfinite(dist)] == diameter).sum())
+        else:
+            ties = int((dist[iu] == diameter).sum())
 
+        cap_note = (
+            f" | SAMPLED {n_roots}/{n} roots (cap {max_exact}): "
+            f"d >= {diameter}, distances are lower bounds"
+            if capped
+            else ""
+        )
         lines.append(
             f"  {label}: {n_comp} components | diameter {diameter} "
             f"({ties} pairs at d={diameter}) | median dist {np.median(finite):.0f}"
+            f"{cap_note}"
         )
         family_tally: dict[str, int] = {}
-        for cand_i, (a, b, d) in enumerate(pairs, 1):
+        for cand_i, (a, b, d, row) in enumerate(pairs, 1):
             lines.append(
                 f"    {cand_i}. d={d}  {names[a]}  <->  {names[b]}  "
                 f"[comp {int((comp == comp[a]).sum())} nodes]"
             )
             # reconstruct this chain and tally the families carrying its hops
             path, cur = [b], b
-            while cur != a and pred[a, cur] >= 0:
-                cur = int(pred[a, cur])
+            while cur != a and pred[row, cur] >= 0:
+                cur = int(pred[row, cur])
                 path.append(cur)
             for u, v in zip(path, path[1:]):
                 key = (u, v) if u < v else (v, u)
                 for fam in pair_types.get(key, {"?"}):
                     family_tally[fam] = family_tally.get(fam, 0) + 1
         if pairs:
-            a, b, _d = pairs[0]
+            a, b, _d, row = pairs[0]
             path, cur = [b], b
-            while cur != a and pred[a, cur] >= 0:
-                cur = int(pred[a, cur])
+            while cur != a and pred[row, cur] >= 0:
+                cur = int(pred[row, cur])
                 path.append(cur)
             hops = []
             for u, v in zip(path, path[1:]):

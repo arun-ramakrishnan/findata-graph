@@ -75,8 +75,8 @@ output. Dyadic ops stay Onager-side and capped.
     (origin: co_membership), same JSONL + dedup + H4 review contract;
     SQL over h_*, no Onager pairwise ranking for this lane (the
     jaccard lane stays, gated).
-  - S2c (DEFERRED): extra API endpoints beyond the #235 rosters —
-    only when a consumer needs them.
+  - S2c: extra API endpoints beyond the #235 rosters (EXECUTED
+    2026-09-16 — see section 6).
 - **S3 capped dyadic diagnostics (absorbs live_inv_longest_chains
   S3, archived completed.md #240)**: longest_chains keeps the edge-touched universe AND gains a
   hard cap (universe ceiling ~3k with head-count note, or sampled
@@ -132,8 +132,26 @@ output. Dyadic ops stay Onager-side and capped.
   ABB India <-> Aztec Fluids (6), Aarti Drugs <-> Divis/Alkem/Granules
   (5) — same-cluster hypotheses with no typed dyadic edge. 3 unit
   tests (threshold, degrade, dispatch+Suggestion contract).
-- **S2c stays DEFERRED** (consumer-driven); S3 (dyadic cap) unexecuted —
-  next slice.
+- **S2c EXECUTED (2026-09-16)** — three read-only hyper endpoints
+  (app.py, all-SQLite over the star store, degrade-200/404 when absent):
+  `/api/graph/hyper/structure` (JSON mirror of the S2a section; live:
+  533/5,952, 9 families, blocks 9/largest 179), `/api/graph/hyper/edge/
+  <type>/<label>` (members with role/validity; live Training_Services ->
+  Global Education, NIIT, Physicswallah), `/api/graph/hyper/neighbors/
+  <name>` (entity hyperedges + top co-members; live Aarti Drugs -> 5
+  hyperedges, co-members Pharmalabs/Alkem/Divis at 5 shared — the query
+  mirror of the S2b lane, independent SQL path agreeing). Unit seed
+  grew the star tables (conftest); 3 endpoint test classes, 90/90
+  module green.
+- **S3 EXECUTED (2026-09-16)** — `longest_chains(max_exact=3000)`: above
+  the cap, distances come from a deterministic stride sample of roots
+  (O(sample*n) memory, not O(n^2)); sampled lines labeled "SAMPLED s/N
+  roots (cap): d >= x, lower bounds"; component counts stay exact;
+  below the cap byte-identical to before (live render unchanged at
+  14.4s — universe 1,722 < 3,000). Row/node-space mapping in the pair
+  selection + chain walks pinned by tests (deterministic, labeled,
+  exact-path-unlabeled). The diagnostic can no longer dominate a gate
+  leg at any universe size.
 
 ## 5. Deferred
 

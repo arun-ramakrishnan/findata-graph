@@ -283,6 +283,24 @@ CREATE TABLE graph_analytics (
     computed_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (metric, entity_name)
 );
+CREATE TABLE hyper_edges (
+    id INTEGER PRIMARY KEY,
+    edge_type TEXT,
+    label TEXT,
+    weight REAL,
+    valid_from TEXT,
+    valid_to TEXT,
+    source_ref TEXT
+);
+CREATE TABLE hyper_incidences (
+    edge_id INTEGER,
+    entity_name TEXT,
+    weight REAL,
+    direction TEXT,
+    role TEXT,
+    valid_from TEXT,
+    valid_to TEXT
+);
 """
 
 # (name, type, file_path, sector_classification, ticker)
@@ -343,6 +361,15 @@ def seeded_graph_sqlite_db(tmp_path):
     conn.executemany(
         "INSERT INTO graph_edges (source, target, edge_type, source_ref) VALUES (?,?,?,?)",
         _UNIT_EDGES,
+    )
+    # Hypergraph star store (S2c unit seed): two sector hyperedges.
+    conn.executemany(
+        "INSERT INTO hyper_edges (id, edge_type, label, source_ref) VALUES (?,?,?,?)",
+        [(1, "sector", "Banking", "seed"), (2, "sector", "Technology", "seed")],
+    )
+    conn.executemany(
+        "INSERT INTO hyper_incidences (edge_id, entity_name) VALUES (?,?)",
+        [(1, "HDFC Bank"), (1, "ICICI Bank"), (2, "Infosys"), (2, "No Ticker Co")],
     )
     conn.commit()
     conn.close()

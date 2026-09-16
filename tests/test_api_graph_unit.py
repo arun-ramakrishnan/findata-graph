@@ -1294,3 +1294,35 @@ class TestAnalyticsReportEndpoint:
 
         r = unit_client.get("/api/analytics/summary")
         assert r.status_code == 503
+
+
+class TestHyperAPI:
+    """S2c (hgx_first_scaling): hyper structure/edge/neighbors endpoints."""
+
+    def test_structure_shape(self, unit_client):
+        r = unit_client.get("/api/graph/hyper/structure")
+        assert r.status_code == 200
+        d = r.get_json()
+        assert d["n_hyperedges"] == 2 and d["n_incidences"] == 4
+        assert d["families"] == [{"edge_type": "sector", "n": 2}]
+        assert {t["label"] for t in d["top"]} == {"Banking", "Technology"}
+        assert d["blocks"] is None  # no hypermmsbm_community rows seeded
+
+    def test_edge_members_hit_and_404(self, unit_client):
+        r = unit_client.get("/api/graph/hyper/edge/sector/Banking")
+        assert r.status_code == 200
+        d = r.get_json()
+        assert [m["name"] for m in d["members"]] == ["HDFC Bank", "ICICI Bank"]
+        r404 = unit_client.get("/api/graph/hyper/edge/sector/Nope")
+        assert r404.status_code == 404
+
+    def test_neighbors_hyperedges_and_co_members(self, unit_client):
+        r = unit_client.get("/api/graph/hyper/neighbors/HDFC Bank")
+        assert r.status_code == 200
+        d = r.get_json()
+        assert d["entity"] == "HDFC Bank"
+        assert d["hyperedges"] == [{"edge_type": "sector", "label": "Banking", "role": None}]
+        assert d["co_members"] == [{"name": "ICICI Bank", "shared": 1}]
+        # Unknown entity resolves through the shared 404 helper.
+        r404 = unit_client.get("/api/graph/hyper/neighbors/Does Not Exist")
+        assert r404.status_code == 404

@@ -2674,6 +2674,127 @@ _EDGE_SEMANTICS: dict[str, dict[str, object]] = {
 }
 
 
+def _hyper_present(conn) -> bool:
+    """True when the star store (hyper_edges/hyper_incidences) exists."""
+    n = conn.execute(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
+        " AND name IN ('hyper_edges','hyper_incidences')"
+    ).fetchone()[0]
+    return n == 2
+
+
+@app.route("/api/graph/hyper/structure")
+def api_graph_hyper_structure():
+    """Hypergraph structure summary (S2c, hgx_first_scaling D4 consumer).
+
+    All-SQLite over the star store — the JSON mirror of the stats.py
+    "Hypergraph structure" section: family counts, top hyperedges by
+    membership, hy-MMSBM block shape. Empty-but-200 when the store is
+    absent (pristine clone)."""
+    conn = get_db_connection()
+    try:
+        if not _hyper_present(conn):
+            return jsonify(
+                {"n_hyperedges": 0, "n_incidences": 0, "families": [], "top": [], "blocks": None}
+            )
+        n_he, n_inc = conn.execute(
+            "SELECT (SELECT COUNT(*) FROM hyper_edges),"
+            "       (SELECT COUNT(*) FROM hyper_incidences)"
+        ).fetchone()
+        families = [
+            {"edge_type": r[0], "n": r[1]}
+            for r in conn.execute(
+                "SELECT edge_type, COUNT(*) FROM hyper_edges GROUP BY 1 ORDER BY 2 DESC"
+            ).fetchall()
+        ]
+        top = [
+            {"edge_type": r[0], "label": r[1], "members": r[2]}
+            for r in conn.execute(
+                "SELECT he.edge_type, he.label, COUNT(*) AS members"
+                " FROM hyper_edges he JOIN hyper_incidences hi ON hi.edge_id = he.id"
+                " GROUP BY 1, 2 ORDER BY members DESC, 1, 2 LIMIT 10"
+            ).fetchall()
+        ]
+        blocks = conn.execute(
+            "SELECT COUNT(DISTINCT value), MAX(n) FROM"
+            " (SELECT value, COUNT(*) AS n FROM graph_analytics"
+            "  WHERE metric = 'hypermmsbm_community' GROUP BY value)"
+        ).fetchone()
+        return jsonify(
+            {
+                "n_hyperedges": n_he,
+                "n_incidences": n_inc,
+                "families": families,
+                "top": top,
+                "blocks": {"n": blocks[0], "largest": blocks[1]} if blocks and blocks[0] else None,
+            }
+        )
+    finally:
+        conn.close()
+
+
+@app.route("/api/graph/hyper/edge/<edge_type>/<path:label>")
+def api_graph_hyper_edge(edge_type: str, label: str):
+    """Members of one hyperedge (S2c): (name, role, valid_from) rows."""
+    conn = get_db_connection()
+    try:
+        if not _hyper_present(conn):
+            return jsonify({"error": "incidence store absent"}), 404
+        row = conn.execute(
+            "SELECT id FROM hyper_edges WHERE edge_type = ? AND label = ? ORDER BY id LIMIT 1",
+            (edge_type, label),
+        ).fetchone()
+        if row is None:
+            return jsonify({"error": "hyperedge not found"}), 404
+        members = [
+            {"name": r[0], "role": r[1], "valid_from": r[2]}
+            for r in conn.execute(
+                "SELECT entity_name, role, valid_from FROM hyper_incidences"
+                " WHERE edge_id = ? ORDER BY entity_name",
+                (row[0],),
+            ).fetchall()
+        ]
+        return jsonify({"edge_type": edge_type, "label": label, "members": members})
+    finally:
+        conn.close()
+
+
+@app.route("/api/graph/hyper/neighbors/<path:name>")
+def api_graph_hyper_neighbors(name: str):
+    """Hyper neighborhood of an entity (S2c): its hyperedges + top
+    co-members by shared-hyperedge count — the query mirror of the
+    co-membership suggestion lane (S2b). All-SQLite, O(|its rows|)."""
+    canonical, _etype = _resolve_entity_with_type_or_404(name)
+    conn = get_db_connection()
+    try:
+        if not _hyper_present(conn):
+            return jsonify({"error": "incidence store absent"}), 404
+        edges = [
+            {"edge_type": r[0], "label": r[1], "role": r[2]}
+            for r in conn.execute(
+                "SELECT he.edge_type, he.label, hi.role"
+                " FROM hyper_incidences hi JOIN hyper_edges he ON he.id = hi.edge_id"
+                " WHERE hi.entity_name = ? ORDER BY he.edge_type, he.label",
+                (canonical,),
+            ).fetchall()
+        ]
+        co = [
+            {"name": r[0], "shared": r[1]}
+            for r in conn.execute(
+                "SELECT i2.entity_name, COUNT(DISTINCT i2.edge_id) AS shared"
+                " FROM hyper_incidences i1"
+                " JOIN hyper_incidences i2 ON i2.edge_id = i1.edge_id"
+                "   AND i2.entity_name != i1.entity_name"
+                " WHERE i1.entity_name = ?"
+                " GROUP BY 1 ORDER BY shared DESC, 1 LIMIT 10",
+                (canonical,),
+            ).fetchall()
+        ]
+        return jsonify({"entity": canonical, "hyperedges": edges, "co_members": co})
+    finally:
+        conn.close()
+
+
 @app.route("/api/graph/cloud")
 def api_graph_cloud():
     """Whole-graph cloud for the Graph tab's cloud mode.

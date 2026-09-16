@@ -613,6 +613,76 @@ class TestLongestChains:
             c.close()
         assert all("no edges" in ln for ln in lines)
 
+    def test_capped_sampling_deterministic_and_labeled(self, tmp_path):
+        """S3 (hgx_first_scaling): above the cap the diagnostic samples
+        stride roots instead of the full n x n matrix — labeled as lower
+        bounds, deterministic across runs, structurally complete."""
+        import sqlite3 as s3
+        from helpers.graph.stats import longest_chains
+
+        from helpers.maintenance.migrate_to_graph_edges import (
+            ENTITIES_DDL,
+            GRAPH_EDGES_DDL,
+        )
+
+        c = s3.connect(tmp_path / "capped.db")
+        c.execute(ENTITIES_DDL)
+        c.execute(GRAPH_EDGES_DDL)
+        # A 12-node path graph; cap at 5 roots forces the sampled path.
+        n = 12
+        c.executemany(
+            "INSERT INTO entities (name, entity_type) VALUES (?, 'company')",
+            [(f"N{i:02d}",) for i in range(n)],
+        )
+        c.executemany(
+            "INSERT INTO graph_edges (source, target, edge_type, source_ref)"
+            " VALUES (?,?, 'competes_with', 't')",
+            [(f"N{i:02d}", f"N{i + 1:02d}") for i in range(n - 1)],
+        )
+        c.commit()
+        try:
+            first = longest_chains(c, top_k=3, max_exact=5)
+            second = longest_chains(c, top_k=3, max_exact=5)
+        finally:
+            c.close()
+        text = "\n".join(first)
+        assert "SAMPLED 5/12 roots (cap 5)" in text
+        assert "d >= " in text and "lower bounds" in text
+        assert first == second  # stride sample: deterministic, no RNG
+        # Structure survives sampling: components, pairs, chain lines.
+        assert "1 components" in text and "d=" in text
+
+    def test_below_cap_stays_exact_unlabeled(self, tmp_path):
+        """Below the cap nothing changes — no SAMPLED annotation appears."""
+        import sqlite3 as s3
+        from helpers.graph.stats import longest_chains
+
+        from helpers.maintenance.migrate_to_graph_edges import (
+            ENTITIES_DDL,
+            GRAPH_EDGES_DDL,
+        )
+
+        c = s3.connect(tmp_path / "exact.db")
+        c.execute(ENTITIES_DDL)
+        c.execute(GRAPH_EDGES_DDL)
+        c.executemany(
+            "INSERT INTO entities (name, entity_type) VALUES (?, 'company')",
+            [("A",), ("B",), ("C",)],
+        )
+        c.executemany(
+            "INSERT INTO graph_edges (source, target, edge_type, source_ref)"
+            " VALUES (?,?, 'competes_with', 't')",
+            [("A", "B"), ("B", "C")],
+        )
+        c.commit()
+        try:
+            lines = longest_chains(c, top_k=2, max_exact=3000)
+        finally:
+            c.close()
+        text = "\n".join(lines)
+        assert "SAMPLED" not in text
+        assert "d=2  A  <->  C" in text  # exact answer preserved
+
     def test_isolated_entities_excluded_from_universe(self, tmp_path):
         """S1 pin (live_inv_longest_chains): isolated entities must not
         enter the longest_chains node universe — they add n^2 matrix
