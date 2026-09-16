@@ -7,6 +7,7 @@ commit, referenced by nothing). Entry numbers point at
 `../completed.md`. Live items live in `../pending.md`.
 
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
+- [`hgx_first_scaling.md`](graph/hgx_first_scaling.md) — HGX-first scaling — h_edge/h_incidence cache (schema 15, TIER2 12), incidence-native stats section + co-membership suggestions + hyper API, S3 longest_chains cap 3000 (stride-sampled lower bounds) — D4 absorbed, igraph retired per D16 — completed.md #241
 
 - [`graph_algos.txt`](graph/graph_algos.txt) — Proposal: Expand graph-algorithm coverage via Onager — link prediction,
 - [`graph_improvs.md`](graph/graph_improvs.md) — Graph Algorithm Improvements — coverage gaps & DuckDB extension surface
@@ -83,6 +84,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`concall_title_edition_normalisation.md`](pipeline/concall_title_edition_normalisation.md) — Proposal: concall-title edition normalisation — H1 guard at the capture boundary (`edition_index.py` predicate + `_edition_title`) + writer worklist (4 pipe/stem + 4 section-leak titles); quotes 8,272/8,272 + metrics 4,033/4,033 already join edition entities — no DB rewrite — completed.md #236
 
 ## tooling/ — Tooling & performance — MCP eval, doc browser/search, perf review, tech survey
+- [`search_tui.md`](tooling/search_tui.md) — Search TUI — one terminal front door over the five search surfaces (docs/scripts/notes/code/literal lanes, call-chain drill-through, index monitor) — completed.md #242
 - [`code_duplication_consolidation.md`](tooling/code_duplication_consolidation.md) — Proposal: Code duplication consolidation — ripwire --clones map to shared scaffolds (rebuild_common.py CLI/report/staleness/backup/embedder core, derive_cli.py args/stale-gate, pdf_local single-owner of the liteparse normalization block, verify_notes YAML primitives, run_pinned_pool for the bench probe); dup 15.0→14.5%, quality-delta gating 28→0, 3 inspected-and-rejected families recorded — completed.md #216
 - [`corpus_uniformity.md`](tooling/corpus_uniformity.md) — Proposal: Corpus uniformity — doc/ five-class taxonomy (okf/ + design/), template seeds + PAIRINGS guards, kind='ts' script_search footprint, proposal frontmatter contract (36-file backfill), prettier + ruff-format gates — completed.md #190
 - [`markdown_lint_adoption.md`](tooling/markdown_lint_adoption.md) — Proposal: Adopt markdownlint-cli2 — markdown lint gate for doc/ prose + findata Tier-1 defects (MD037 truncation writer + EOF-newline guards fixed at source, permission-gated 524-note backfill, 7 reprint editions quarantined for the reprint-recovery arc), promoted into the qa gate — completed.md #191

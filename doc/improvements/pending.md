@@ -5,12 +5,11 @@ Full annotated triage map with live-verified trigger status:
 - **§G2 word-overlap alias guard + §G3 discard-persistence noise gate** — executed as `doc/improvements/archive/graph/word_overlap_alias_guard.md` (completed.md #218, 2026-09-09).
 revisit triggers inline; executed work is compressed to records.
 
-- **HGX D4 `h_*` cache materialisation + D10 prediction/motifs lanes**
-  (from hyper_lane_wiring.md §5, archived completed.md #239): D4 reopens
-  when a SQL-over-incidence consumer appears (D1's API reads via
-  helpers, not SQL — trigger not yet armed); D10 gated on incidence
-  density (measured 2026-09-15: group 8/k=3.8, jv 6/k=2.0; hyper_edges
-  533 live). D11 residue: 16 unmapped industry-label buckets in
+- **HGX D10 prediction/motifs lanes** (D4 EXECUTED as hgx_first_scaling
+  #241: h_edge/h_incidence cache + SQL consumers + hyper API —
+  remaining trigger: hyper-native link prediction, unstarted). D10
+  stays gated on incidence density (measured 2026-09-15: group 8/k=3.8,
+  jv 6/k=2.0; hyper_edges 533 live). D11 residue: 16 unmapped industry-label buckets in
   `findata/Misc/subsector_worklist.json` (top: Banks - Regional ×38)
   are operator taxonomy decisions; note-level `subsector:` stays
   0-authored (D7 lane open).

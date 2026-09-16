@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh derive-relations derive-co-mentions derive-themes derive-events derive-insights quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -76,6 +76,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  refresh-xbrl             D20: incremental NSE XBRL sweep, unseen filings only (ARGS=--new for IPOs; APPLY=1 to write)"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
 > @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
+> @echo "  search-tui               Full-screen search front door — docs/scripts/notes indexes + ripwire + rg lanes; enter reads markdown via glow"
 > @echo "  secret-scan              Incremental git-history secret scan (state under .git/secret-scan/)"
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
 > @echo "  snapshot-check           Verify the snapshot round-trips against the live DB"
@@ -90,6 +91,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  types                    Run ty type checker on helpers + app.py (Astral uv+ruff stack)"
 > @echo "  types-tests              Run EXPANDED ty checks over tests/ (advisory-grade, warnings non-blocking; TYPES_TESTS_FMT=concise for one-line-per-diagnostic logs — the make advisory ty-tests step uses that)"
 > @echo "  update-extensions        Update all installed DuckDB extensions to latest (weekly cadence)"
+
 
 static-checks:  ## Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)
 > python3 helpers/validators/static_checks.py
@@ -259,6 +261,11 @@ search-fresh:    ## Check ALL search indexes for staleness — doc/, script meta
 >   done; \
 >   if [ $$rc -eq 0 ]; then echo "✓ all search indexes fresh (doc_search, script_search, note_search)"; fi; \
 >   exit $$rc
+
+
+search-tui:      ## Full-screen search front door — docs/scripts/notes indexes + ripwire + rg lanes; enter reads markdown via glow
+>	@if [ -x .venv/bin/python3 ]; then .venv/bin/python3 helpers/misc/search_tui.py; else python3 helpers/misc/search_tui.py; fi
+> @echo "✓ search TUI exited (doc/procedures/search-tui.md)"
 
 recompute-graph: ## Recompute all graph analytics and persist to graph_analytics
 > python3 helpers/graph/algorithms.py --all --apply

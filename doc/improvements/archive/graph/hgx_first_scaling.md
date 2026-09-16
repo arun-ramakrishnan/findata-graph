@@ -1,9 +1,9 @@
 ---
 title: "HGX-first scaling — h_* materialisation, incidence-native workflows, capped dyadic diagnostics"
-status: proposed
+status: executed
 filed: "2026-09-16"
-executed: null
-completed_md: null
+executed: "2026-09-16"
+completed_md: "241"
 area: "helpers/graph/query.py (h_* cache views), helpers/maintenance/maint.py (chain), helpers/graph/suggest_relations.py (co-membership lane), helpers/graph/stats.py (incidence-native sections) — D4 + HGX promotion, no SQLite schema change"
 ---
 

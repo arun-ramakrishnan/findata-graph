@@ -28,14 +28,14 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- **hgx_first_scaling.md** (filed 2026-09-16) — HGX-first scaling: D4
-  `h_*` cache materialisation absorbed + first SQL-over-incidence
-  consumers (stats structure section, co-membership suggestions) +
-  capped dyadic diagnostics (S3 absorbed from live_inv_longest_chains).
-  Design principle: n^2 is the dyadic projection's artifact — structure
-  questions go incidence-side (5,952 rows vs 45.5M cells); pairwise
-  diagnostics stay dyadic but capped. igraph retired+deleted per D16;
-  this arc is the HGX seat's purpose.
+_(none)_
+
+_(Previously: search_tui.md archived 2026-09-16 as completed.md entry
+242 — one terminal front door over the five search surfaces; execution
+record in `../archive/tooling/search_tui.md`. hgx_first_scaling.md
+archived 2026-09-16 as completed.md entry 241 — execution record in
+`../archive/graph/hgx_first_scaling.md`; S1/S2 committed 55318803,
+S3/S2c committed 7a8cf92e, aim corrections 78758ab3.)_
 
 — (Previously: live_inv_longest_chains.md archived 2026-09-16 as completed.md
 entry 240 — execution record in `../archive/graph/live_inv_longest_chains.md`;

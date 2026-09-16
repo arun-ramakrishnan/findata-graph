@@ -174,6 +174,28 @@ Freshness is gated: `make search-fresh` (exit 1 on drift, `APPLY=1` to
 refresh) and three advisory-gate rows. Operators:
 `doc/procedures/{doc-search,script-search,embeddings}.md`.
 
+### Search TUI — `make search-tui`
+
+A full-screen front door over all of it (htop-class; textual via the
+optional `tui` extra): five lanes — **docs** · **scripts** · **notes** ·
+**code** (riprecall + `callers:`/`impact:`/`grep:`/`recall:` verbs) ·
+**literal** (rg) — with a rendered-markdown reading pane, an index
+monitor with per-index freshness + rebuild, and `glow`/`$EDITOR` open
+on any hit.
+
+<img src="docs/img/search_tui-docs.png" alt="search-tui: docs lane — hybrid results, rendered markdown preview with the hit line highlighted" width="100%">
+
+`tab`/`shift+tab` cycle panes · `←→` on the lane strip or `1-5` switch
+lanes · `m` toggles keyword/semantic matching · `i` opens the index
+monitor · `enter` opens a hit · `y` copies the location.
+
+In the code lane, `h` renders the symbol's call chain as rows — click or
+enter a caller/callee to drill into its own chain, `b` walks back out.
+
+<img src="docs/img/search_tui-chain.png" alt="search-tui: code lane — call-chain drill (h): callers/callees as rows, click/enter drills deeper, b backs out" width="100%">
+
+<img src="docs/img/search_tui-monitor.png" alt="search-tui: index monitor — per-index age, freshness check and rebuild" width="70%">
+
 ## API surface (excerpt)
 
 | Route | Returns |

@@ -5881,6 +5881,56 @@ rated_by ×1 Motilal Oswal → CRISIL). Post-triage: jv_with 69 (ventures
 6/69), same_group 34 with all 31 cross-note pairs correctly attributed
 via the normalized_name override.
 
+## 241. HGX-first scaling: h_* cache + incidence-native consumers + S3 dyadic cap
+
+**Proposal**: `doc/improvements/archive/graph/hgx_first_scaling.md`
+(filed + executed + archived 2026-09-16). Area: `helpers/graph/query.py`,
+`helpers/graph/stats.py`, `helpers/graph/suggest_relations.py`,
+`helpers/maintenance/maint.py`, `app.py`, tests x4 — D4 absorbed, no
+store schema change (graph.duckdb schema 15).
+
+Architecture stance (operator ruling): n^2 blowups are the dyadic
+projection's artifact — 45.5M matrix cells vs 5,952 incidence rows — so
+structure questions go incidence-native (D4 lane), pairwise diagnostics
+stay dyadic but capped. HGX promoted from secondary option to primary
+structure lane by CONSUMPTION, not new compute; Onager stays the dyadic
+engine; igraph retired+deleted per D16 (no re-litigation).
+
+S1: h_edge/h_incidence materialised into graph.duckdb
+(_materialise_hyper CTAS from fin.*; manifest + schema 14 -> 15;
+information_schema presence probe — fin.sqlite_master is NOT exposed
+by the DuckDB sqlite scanner; star-less degrade pinned). maint.py
+TIER2 11 -> 12 / full 20 -> 21 (graph-rebuild-h after
+derive-hyperedges — the "no paired rebuild needed" Phase-1 note
+retired). Live parity: 533 / 5,952 == star store, roles carried
+(partner 138, acquirer 41, target 41); first parquet export joined the
+canonical snapshot.
+
+S2a: hyper_structure_lines + "Hypergraph structure (incidence SQL)"
+stats section — families (industry 117, event 110, edition 109,
+sub_sector 108, sector 42, country 21, theme 12, group 8, jv 6), top
+by membership (country/india 850), hy-MMSBM 9 blocks (largest 179);
+capture-quality family tally moves here from the dyadic chain tally;
+~0.1s cost. S2b: --method co_membership (SQL over h_incidence/v_node,
+>=2 shared hyperedges, companies only, no existing typed edge; jaccard
+default untouched). Live dry-run: Autoline <-> India Nippon (7),
+ABB <-> Aztec (6), Aarti Drugs <-> Divis/Alkem/Granules (5).
+S2c: three read-only hyper endpoints (structure JSON mirror,
+edge/<type>/<label> members+role, neighbors/<name> + top co-members) —
+live cross-check: Aarti Drugs co-members at 5 shared agree between
+independent SQL paths (S2b lane and the API). S3:
+longest_chains(max_exact=3000) — below cap byte-identical exact mode
+(live render unchanged 14.4s, universe 1,722); above cap deterministic
+stride sample, O(sample x n) memory, lines labeled "SAMPLED s/N roots
+(cap 3000): d >= x, lower bounds"; component counts stay exact.
+
+Committed as 55318803 (S1/S2) + 7a8cf92e (S3/S2c) atop 78758ab3
+(aim corrections + #240 archival); db_sync fallout in the operator's
+follow-up commit. Gates: qa 9/9 (types 2.7s, pytest 87.8s), advisory
+10/10 (live-invariants 80.8s), search-fresh APPLY=1. Deferred §5:
+D10 prediction/motifs stay density-gated (pending.md holds triggers);
+hyper-native link prediction unstarted.
+
 ## 240. live-invariants: longest_chains edge-touched universe
 
 **Proposal**: `doc/improvements/archive/graph/live_inv_longest_chains.md`
@@ -5954,3 +6004,45 @@ derive-hyperedges` 0 new edges/incidences (55 sub_sector hyperedges /
 Authored adoption is operator surface — the unmapped worklist
 `findata/Misc/subsector_worklist.json` names the candidates (Banks –
 Regional ×38, Credit Services ×23, Capital Markets ×10, …).
+\n
+## 242. Search TUI — one terminal front door over the search surfaces
+
+**Proposal**: `doc/improvements/archive/tooling/search_tui.md`
+(filed retroactively + executed + archived 2026-09-16). Area:
+`helpers/misc/search_tui.py` (terminal-free lane adapters + entry),
+`helpers/misc/search_tui_app.py` (Textual UI), `tests/test_search_tui.py`
+(25 mocked-pilot tests, xdist-pinned), Makefile `search-tui` target,
+pyproject `tui` extra (textual>=8.2, rich>=15), `doc/procedures/search-tui.md`,
+README heroes x3 — pure consumer of the three `make search-fresh`
+sidecars + ripwire + rg; no new index.
+
+Lanes: docs (`doc_query --json`), scripts (`script_query --json`),
+notes (`note_search` FTS5 over `memory/research.db`), code (`ripwire`:
+`--for` ranked map with doc-section demotion + `callers:`/`impact:`/
+`grep:`/`recall:` verbs), literal (`rg` regex-first, `-F` fallback for
+non-regex patterns, rc 0/1/2 honest status). UI: enter-to-search, pane
+cycle (query → lane strip → results → preview), title-first table
+(path tail-truncated, score narrow), hit-line callout with numbered
+gutter + term chips, GitHub-dark markdown palette (`push_theme`),
+strip-initiated lane switches keep strip focus (arrow-browsing).
+Call-chain drill: `h` renders callers/callees as rows; click/enter
+drills into a symbol's own chain; `b` unwinds the view stack; preview
+follows each row. Index monitor: enclosed dialog, honest freshness
+verdicts, strictly sequential checks/rebuilds, one-line help.
+Reliability: `Tabs.add_tab` arming gate (awaited adds + 0.75 s
+timer-only arm — a dropped timer call left every lane click dead for
+an arc; direct arming let mount churn switch lanes), `RowSelected`
+drills on `cursor_row`, worker crashes surface in the status bar and
+`/tmp/search_tui.log` event log, `check_action` dims single-key
+actions while typing.
+Verified: make qa 8/9 + make advisory 8/10 on the first post-archival
+run — types flagged a bogus `Tab.TabActivated` annotation (removed:
+the event exists only on `Tabs`), lint-audit flagged the evlog's
+hardcoded `/tmp` + bare `except` (now `tempfile.gettempdir()` +
+noqa'd), doc-search-check stale from the archival moves (search-fresh
+APPLY=1 + plain converged); pytest's one failure was the
+fuzzy-match scaling micro-benchmark at 3.043x vs 3.0x budget on
+18-54ms batches — load noise, green in isolation (0.27 s). Final
+sequential rerun: `make qa` 9/9, `make advisory` 10/10 (one rerun
+attempt died to a /tmp disk-quota pytest INTERNALERROR — stale
+pytest-tmp dirs cleared, rerun clean).

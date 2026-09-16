@@ -106,6 +106,12 @@ dev = [
     "ty",
     "deptry",
 ]
+# Textual TUI front door over the search indexes (helpers/misc/search_tui.py).
+# Optional extra — `uv sync --extra tui`; without it the CLI prints install help.
+tui = [
+    "textual>=8.2",
+    "rich>=15",
+]
 
 mojo = [
     # Mojo Lang support — compiler toolchain only.
