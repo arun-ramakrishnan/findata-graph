@@ -38,7 +38,7 @@ Spun out of [[Healthcare]] in the 2026 sector-rebalancing pass.
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 15 company note(s) in Diagnostics. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 14 company note(s) in Diagnostics. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Agilus_Diagnostics|Agilus Diagnostics]]
 - [[Dr_Dangs_Lab|Dr. Dangs Lab]]
@@ -52,7 +52,6 @@ Spun out of [[Healthcare]] in the 2026 sector-rebalancing pass.
 - [[Q_Line_Biotech|Q-Line Biotech]]
 - [[Redcliffe_Labs|Redcliffe Labs]]
 - [[SRL_Diagnostics|SRL Diagnostics]]
-- [[Suburban_Diagnostics|Suburban Diagnostics]]
 - [[Thyrocare_Technologies|Thyrocare Technologies]]
 - [[Vijaya_Diagnostic_Centre|Vijaya Diagnostic Centre]]
 

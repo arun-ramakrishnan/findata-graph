@@ -25,7 +25,7 @@ stale_after: '2027-02-11'
 sources:
 - id: BEL_HUL_Tata_Capital
   resource: /findata/The_Chatter/BEL_HUL_Tata_Capital.md
-  title: Bharat Electronics Limited | Large Cap | Aerospace & Defence
+  title: BEL_HUL_Tata_Capital
   last_modified: '2026-08-15'
 - id: Half_a_century_in
   resource: /findata/The_Chatter/Half_a_century_in.md

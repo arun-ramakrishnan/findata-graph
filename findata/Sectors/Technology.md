@@ -19,7 +19,7 @@ stale_after: '2027-02-11'
 sources:
 - id: BEL_HUL_Tata_Capital
   resource: /findata/The_Chatter/BEL_HUL_Tata_Capital.md
-  title: Bharat Electronics Limited | Large Cap | Aerospace & Defence
+  title: BEL_HUL_Tata_Capital
   last_modified: '2026-08-15'
 - id: Nvidia_Samsung_Cloudflare
   resource: /findata/The_Chatter/Nvidia_Samsung_Cloudflare.md

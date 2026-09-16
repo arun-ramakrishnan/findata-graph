@@ -34,6 +34,10 @@ CREATE TABLE e_subsidiary(subsidiary_name BIGINT, parent_name BIGINT, weight DOU
 
 CREATE TABLE e_supplier(supplier_name BIGINT, customer_name BIGINT, weight DOUBLE, properties VARCHAR, source_ref VARCHAR, valid_from DATE, valid_to DATE);
 
+CREATE TABLE h_edge(id BIGINT, edge_type VARCHAR, "label" VARCHAR, weight DOUBLE, valid_from DATE, valid_to DATE, source_ref VARCHAR);
+
+CREATE TABLE h_incidence(edge_id BIGINT, entity_name VARCHAR, weight DOUBLE, direction VARCHAR, "role" VARCHAR, valid_from DATE, valid_to DATE);
+
 CREATE TABLE v_company(id BIGINT, "name" VARCHAR, sector_classification VARCHAR, market_cap VARCHAR, ticker VARCHAR);
 
 CREATE TABLE v_country(id BIGINT, "name" VARCHAR);

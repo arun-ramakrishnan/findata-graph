@@ -28,7 +28,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Infosys_Adani_Power
   resource: /findata/The_Chatter/Infosys_Adani_Power.md
-  title: Spandana Sphoorty Financial Limited | Small Cap | NBFC - Microfinance
+  title: Infosys_Adani_Power
   last_modified: '2026-08-15'
 - id: Discovering_Hidden_Signals
   resource: /findata/The_Chatter/Discovering_Hidden_Signals.md

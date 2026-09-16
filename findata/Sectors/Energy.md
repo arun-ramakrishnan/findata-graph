@@ -140,7 +140,7 @@ The Energy sector in India encompasses power generation, transmission, distribut
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 46 company note(s) in Energy. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 45 company note(s) in Energy. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Adani_Power|Adani Power]]
 - [[Adani_Total_Gas|Adani Total Gas]]
@@ -172,7 +172,6 @@ The Energy sector in India encompasses power generation, transmission, distribut
 - [[NTPC_Parmanu_Urja_Nigam]]
 - [[ONGC]]
 - [[Oil_India|Oil India]]
-- [[Oil_and_Natural_Gas]]
 - [[PTC_India|PTC India]]
 - [[Petronet_LNG|Petronet LNG]]
 - [[Power_Finance_Corporation|Power Finance Corporation (PFC)]]

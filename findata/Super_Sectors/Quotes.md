@@ -24,7 +24,7 @@ sources:
   last_modified: '2026-08-15'
 - id: BEL_HUL_Tata_Capital
   resource: /findata/The_Chatter/BEL_HUL_Tata_Capital.md
-  title: Bharat Electronics Limited | Large Cap | Aerospace & Defence
+  title: BEL_HUL_Tata_Capital
   last_modified: '2026-08-15'
 - id: Bajaj_Mahindra_Persistent
   resource: /findata/The_Chatter/Bajaj_Mahindra_Persistent.md
@@ -92,7 +92,7 @@ sources:
   last_modified: '2026-08-15'
 - id: Infosys_Adani_Power
   resource: /findata/The_Chatter/Infosys_Adani_Power.md
-  title: Spandana Sphoorty Financial Limited | Small Cap | NBFC - Microfinance
+  title: Infosys_Adani_Power
   last_modified: '2026-08-15'
 - id: Infosys_Adani_Tata_Motors
   resource: /findata/The_Chatter/Infosys_Adani_Tata_Motors.md

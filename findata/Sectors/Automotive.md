@@ -171,7 +171,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 
 <!-- Auto-generated from the SQLite source of truth. 96 company note(s) in Automotive. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
-- [[Amara_Raja_Batteries|Amara Raja Batteries Limited]]
+- [[Amara_Raja_Energy_and_Mobility|Amara Raja Energy and Mobility]]
 - [[Apollo_Tyres|Apollo Tyres]]
 - [[Ashok_Leyland|Ashok Leyland]]
 - [[Ather_Energy|Ather Energy]]
