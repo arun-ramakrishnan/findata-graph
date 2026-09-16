@@ -65,6 +65,9 @@ dependencies = [
     "gspread",
     # FinnHub API
     "finnhub-python",
+    # NSE Integrated Filing XBRL client (helpers/maintenance/ingest_nse_xbrl.py).
+    # Installed but transitively available; imported directly, so declared.
+    "nse-xbrl",
     # TMX issuer-directory xlsx parsing (helpers/maintenance/exchange_sync.py
     # ingest_tmx). Imported lazily in-lane; declared so types/deptry resolve.
     "openpyxl",
