@@ -1,8 +1,7 @@
 ---
 title: Marriott International
 type: company
-ticker: null
-listed: false
+ticker: MAR
 sector: Travel
 market_cap: large_cap
 normalized_name: Marriott_International

@@ -1,8 +1,7 @@
 ---
 title: SML Mahindra
 type: company
-ticker: null
-listed: false
+ticker: SMLMAH.NS
 sector: Automotive
 market_cap: small_cap
 normalized_name: SML_Mahindra

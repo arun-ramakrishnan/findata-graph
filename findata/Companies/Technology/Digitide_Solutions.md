@@ -1,8 +1,7 @@
 ---
 title: Digitide Solutions
 type: company
-ticker: null
-listed: false
+ticker: DIGITIDE.NS
 sector: Technology
 market_cap: small_cap
 normalized_name: Digitide_Solutions

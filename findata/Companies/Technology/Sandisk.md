@@ -1,8 +1,7 @@
 ---
 title: Sandisk
 type: company
-ticker: null
-listed: false
+ticker: SNDK
 sector: Technology
 market_cap: mid_cap
 normalized_name: Sandisk

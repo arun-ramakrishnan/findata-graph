@@ -1,8 +1,7 @@
 ---
 title: Hindustan Oil Exploration Company
 type: company
-ticker: null
-listed: false
+ticker: HINDOILEXP.NS
 sector: Energy
 market_cap: small_cap
 normalized_name: Hindustan_Oil_Exploration_Company

@@ -1,8 +1,7 @@
 ---
 title: Awfis Space Solutions
 type: company
-ticker: null
-listed: false
+ticker: AWFIS.NS
 sector: Real_Estate
 market_cap: small_cap
 normalized_name: Awfis_Space_Solutions

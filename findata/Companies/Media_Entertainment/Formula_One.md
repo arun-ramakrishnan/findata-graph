@@ -1,8 +1,7 @@
 ---
 title: Formula One
 type: company
-ticker: null
-listed: false
+ticker: FWONK
 tags:
 - entity_type/company
 - sector/media_entertainment

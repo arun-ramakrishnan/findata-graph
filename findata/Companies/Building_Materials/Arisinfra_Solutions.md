@@ -1,8 +1,7 @@
 ---
 title: Arisinfra Solutions
 type: company
-ticker: null
-listed: false
+ticker: ARIS.BO
 sector: Building_Materials
 market_cap: small_cap
 normalized_name: Arisinfra_Solutions

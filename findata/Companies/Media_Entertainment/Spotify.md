@@ -1,8 +1,7 @@
 ---
 title: Spotify
 type: company
-ticker: null
-listed: false
+ticker: SPOT
 sector: Media_Entertainment
 market_cap: large_cap
 normalized_name: Spotify

@@ -1,8 +1,7 @@
 ---
 title: Fine Organic Industries
 type: company
-ticker: null
-listed: false
+ticker: FINEORG.BO
 sector: Chemicals
 market_cap: mid_cap
 normalized_name: Fine_Organic_Industries

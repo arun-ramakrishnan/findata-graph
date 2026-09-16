@@ -1,8 +1,7 @@
 ---
 title: Godrej Properties
 type: company
-ticker: null
-listed: false
+ticker: GODREJPROP.NS
 sector: Real_Estate
 market_cap: mid_cap
 normalized_name: Godrej_Properties

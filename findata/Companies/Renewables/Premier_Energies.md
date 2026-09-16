@@ -1,8 +1,7 @@
 ---
 title: Premier Energies
 type: company
-ticker: null
-listed: false
+ticker: PREMIERENE.NS
 sector: Renewables
 market_cap: large_cap
 normalized_name: Premier_Energies

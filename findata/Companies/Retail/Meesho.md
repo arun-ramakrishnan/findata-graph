@@ -1,8 +1,7 @@
 ---
 title: Meesho
 type: company
-ticker: null
-listed: false
+ticker: MEESHO.NS
 sector: Retail
 market_cap: mid_cap
 normalized_name: Meesho

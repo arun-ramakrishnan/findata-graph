@@ -7,9 +7,8 @@ tags:
 - business_model/b2c
 normalized_name: Hisense
 sector: International
-ticker: null
+ticker: 0921.HK
 market_cap: null
-listed: false
 created: '2026-08-13'
 last_modified: '2026-09-10'
 permalink: /companies/international/hisense

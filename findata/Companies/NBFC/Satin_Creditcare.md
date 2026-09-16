@@ -1,8 +1,7 @@
 ---
 title: Satin Creditcare
 type: company
-ticker: null
-listed: false
+ticker: SATIN.NS
 sector: NBFC
 market_cap: small_cap
 normalized_name: Satin_Creditcare

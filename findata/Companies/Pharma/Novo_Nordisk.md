@@ -1,8 +1,7 @@
 ---
 title: Novo Nordisk
 type: company
-ticker: null
-listed: false
+ticker: NVO
 sector: Pharma
 market_cap: large_cap
 normalized_name: Novo_Nordisk

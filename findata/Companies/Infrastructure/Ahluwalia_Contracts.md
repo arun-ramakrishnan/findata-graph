@@ -1,8 +1,7 @@
 ---
 title: Ahluwalia Contracts
 type: company
-ticker: null
-listed: false
+ticker: AHLUCONT.NS
 sector: Infrastructure
 market_cap: small_cap
 normalized_name: Ahluwalia_Contracts

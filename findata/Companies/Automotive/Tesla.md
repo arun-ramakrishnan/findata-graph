@@ -1,8 +1,7 @@
 ---
 title: Tesla
 type: company
-ticker: null
-listed: false
+ticker: TSLA
 sector: Automotive
 market_cap: large_cap
 normalized_name: Tesla

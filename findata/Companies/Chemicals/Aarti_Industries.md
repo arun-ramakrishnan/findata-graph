@@ -1,8 +1,7 @@
 ---
 title: Aarti Industries
 type: company
-ticker: null
-listed: false
+ticker: AARTIIND.NS
 sector: Chemicals
 market_cap: mid_cap
 normalized_name: Aarti_Industries

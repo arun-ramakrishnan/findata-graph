@@ -1,8 +1,7 @@
 ---
 title: JPMorgan Chase
 type: company
-ticker: null
-listed: false
+ticker: JPM
 sector: Banking
 market_cap: large_cap
 normalized_name: JPMorgan_Chase

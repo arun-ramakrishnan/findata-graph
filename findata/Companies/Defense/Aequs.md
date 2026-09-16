@@ -1,8 +1,7 @@
 ---
 title: Aequs
 type: company
-ticker: null
-listed: false
+ticker: AEQUS.NS
 sector: Defense
 market_cap: small_cap
 normalized_name: Aequs

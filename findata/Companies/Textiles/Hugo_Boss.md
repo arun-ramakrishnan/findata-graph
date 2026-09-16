@@ -1,8 +1,7 @@
 ---
 title: Hugo Boss
 type: company
-ticker: null
-listed: false
+ticker: BOSS.DE
 sector: Textiles
 market_cap: mid_cap
 normalized_name: Hugo_Boss

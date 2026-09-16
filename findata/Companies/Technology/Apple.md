@@ -1,8 +1,7 @@
 ---
 title: Apple
 type: company
-ticker: null
-listed: false
+ticker: AAPL
 sector: Technology
 market_cap: large_cap
 normalized_name: Apple

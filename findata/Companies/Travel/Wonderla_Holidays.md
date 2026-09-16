@@ -1,8 +1,7 @@
 ---
 title: Wonderla Holidays
 type: company
-ticker: null
-listed: false
+ticker: WONDERLA.NS
 sector: Travel
 market_cap: small_cap
 normalized_name: Wonderla_Holidays

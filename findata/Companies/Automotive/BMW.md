@@ -1,8 +1,7 @@
 ---
 title: BMW
 type: company
-ticker: null
-listed: false
+ticker: BMW.DE
 sector: Automotive
 market_cap: large_cap
 normalized_name: BMW

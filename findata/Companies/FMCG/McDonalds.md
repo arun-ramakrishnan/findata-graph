@@ -1,8 +1,7 @@
 ---
 title: McDonald's
 type: company
-ticker: null
-listed: false
+ticker: MCD
 tags:
 - entity_type/company
 - sector/fmcg

@@ -1,8 +1,7 @@
 ---
 title: Mercedes-Benz Group
 type: company
-ticker: null
-listed: false
+ticker: MBG.DE
 sector: Automotive
 market_cap: large_cap
 normalized_name: Mercedes_Benz_Group

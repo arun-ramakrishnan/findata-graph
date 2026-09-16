@@ -1,8 +1,7 @@
 ---
 title: Signature Global
 type: company
-ticker: null
-listed: false
+ticker: SIGNEDIA.NS
 sector: Real_Estate
 market_cap: small_cap
 normalized_name: Signature_Global

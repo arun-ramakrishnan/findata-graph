@@ -1,8 +1,7 @@
 ---
 title: Orient Green Power
 type: company
-ticker: null
-listed: false
+ticker: GREENPOWER.NS
 sector: Renewables
 market_cap: small_cap
 normalized_name: Orient_Green_Power

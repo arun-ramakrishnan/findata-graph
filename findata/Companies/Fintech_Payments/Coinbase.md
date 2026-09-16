@@ -1,8 +1,7 @@
 ---
 title: Coinbase
 type: company
-ticker: null
-listed: false
+ticker: COIN
 sector: Fintech_Payments
 market_cap: large_cap
 normalized_name: Coinbase

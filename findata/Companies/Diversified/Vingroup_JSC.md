@@ -1,8 +1,7 @@
 ---
 title: Vingroup JSC
 type: company
-ticker: null
-listed: false
+ticker: VIC.VN
 sector: Diversified
 market_cap: large_cap
 business_model: b2b

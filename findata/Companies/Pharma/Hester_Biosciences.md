@@ -1,8 +1,7 @@
 ---
 title: Hester Biosciences
 type: company
-ticker: null
-listed: false
+ticker: HESTERBIO.NS
 sector: Pharma
 market_cap: small_cap
 normalized_name: Hester_Biosciences

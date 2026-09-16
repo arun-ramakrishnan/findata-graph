@@ -1,8 +1,7 @@
 ---
 title: Khadim India
 type: company
-ticker: null
-listed: false
+ticker: KHADIM.NS
 sector: Consumer
 market_cap: small_cap
 normalized_name: Khadim_India

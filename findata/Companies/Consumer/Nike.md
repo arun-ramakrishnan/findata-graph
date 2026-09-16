@@ -1,8 +1,7 @@
 ---
 title: Nike
 type: company
-ticker: null
-listed: false
+ticker: NKE
 sector: Consumer
 market_cap: large_cap
 normalized_name: Nike

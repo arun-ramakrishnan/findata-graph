@@ -1,8 +1,7 @@
 ---
 title: Bayer
 type: company
-ticker: null
-listed: false
+ticker: BAYN.DE
 sector: Chemicals
 market_cap: large_cap
 normalized_name: Bayer

@@ -1,8 +1,7 @@
 ---
 title: Action Construction Equipment
 type: company
-ticker: null
-listed: false
+ticker: ACE.NS
 tags:
 - entity_type/company
 - sector/engineering_capital_goods

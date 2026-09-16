@@ -1,8 +1,7 @@
 ---
 title: LT Foods
 type: company
-ticker: null
-listed: false
+ticker: LTFOODS.NS
 sector: FMCG
 market_cap: mid_cap
 normalized_name: LT_Foods

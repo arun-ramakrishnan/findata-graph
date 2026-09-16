@@ -1,8 +1,7 @@
 ---
 title: Ferrari
 type: company
-ticker: null
-listed: false
+ticker: RACE
 sector: Automotive
 market_cap: large_cap
 normalized_name: Ferrari

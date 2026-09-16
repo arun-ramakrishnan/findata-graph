@@ -1,8 +1,7 @@
 ---
 title: Sportking India
 type: company
-ticker: null
-listed: false
+ticker: SPORTKING.NS
 tags:
 - entity_type/company
 - sector/textiles

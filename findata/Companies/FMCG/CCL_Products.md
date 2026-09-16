@@ -1,8 +1,7 @@
 ---
 title: CCL Products
 type: company
-ticker: null
-listed: false
+ticker: CCL.NS
 tags:
 - entity_type/company
 - sector/fmcg

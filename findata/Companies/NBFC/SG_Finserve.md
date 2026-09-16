@@ -1,8 +1,7 @@
 ---
 title: SG Finserve
 type: company
-ticker: null
-listed: false
+ticker: SGFIN.NS
 sector: NBFC
 market_cap: small_cap
 normalized_name: SG_Finserve

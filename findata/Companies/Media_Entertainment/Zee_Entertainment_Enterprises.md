@@ -1,8 +1,7 @@
 ---
 title: Zee Entertainment Enterprises
 type: company
-ticker: null
-listed: false
+ticker: ZEEL.NS
 sector: Media_Entertainment
 market_cap: mid_cap
 normalized_name: Zee_Entertainment_Enterprises

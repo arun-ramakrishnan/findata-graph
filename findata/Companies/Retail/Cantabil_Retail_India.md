@@ -1,8 +1,7 @@
 ---
 title: Cantabil Retail India
 type: company
-ticker: null
-listed: false
+ticker: CANTABIL.NS
 sector: Retail
 market_cap: small_cap
 normalized_name: Cantabil_Retail_India

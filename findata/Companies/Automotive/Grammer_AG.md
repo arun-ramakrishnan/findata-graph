@@ -1,8 +1,7 @@
 ---
 title: Grammer AG
 type: company
-ticker: null
-listed: false
+ticker: GMM.DE
 sector: Automotive
 market_cap: mid_cap
 business_model: b2b

@@ -1,8 +1,7 @@
 ---
 title: Maersk
 type: company
-ticker: null
-listed: false
+ticker: AMKBY
 sector: Logistics
 market_cap: large_cap
 normalized_name: Maersk

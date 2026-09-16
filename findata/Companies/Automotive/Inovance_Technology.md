@@ -1,8 +1,7 @@
 ---
 title: Inovance Technology
 type: company
-ticker: null
-listed: false
+ticker: 300124.SZ
 sector: Automotive
 market_cap: mid_cap
 business_model: b2b

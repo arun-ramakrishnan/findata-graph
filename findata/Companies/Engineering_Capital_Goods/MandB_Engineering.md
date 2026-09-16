@@ -1,8 +1,7 @@
 ---
 title: M&B Engineering
 type: company
-ticker: null
-listed: false
+ticker: MBEL.NS
 sector: Engineering_Capital_Goods
 market_cap: small_cap
 normalized_name: MandB_Engineering

@@ -1,8 +1,7 @@
 ---
 title: Anand Rathi Share and Stock Brokers
 type: company
-ticker: null
-listed: false
+ticker: ARSSBL.NS
 sector: Capital_Markets
 market_cap: mid_cap
 normalized_name: Anand_Rathi_Share_and_Stock_Brokers

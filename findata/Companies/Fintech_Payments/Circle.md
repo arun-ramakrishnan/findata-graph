@@ -1,9 +1,8 @@
 ---
 title: Circle
 type: company
-ticker: null
+ticker: CRCL
 sector: Fintech_Payments
-listed: false
 market_cap: large_cap
 geography: usa
 business_model: b2b

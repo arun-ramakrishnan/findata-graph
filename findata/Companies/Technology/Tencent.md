@@ -1,8 +1,7 @@
 ---
 title: Tencent
 type: company
-ticker: null
-listed: false
+ticker: 0700.HK
 sector: Technology
 market_cap: large_cap
 normalized_name: Tencent

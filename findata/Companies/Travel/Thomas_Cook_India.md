@@ -1,8 +1,7 @@
 ---
 title: Thomas Cook (India)
 type: company
-ticker: null
-listed: false
+ticker: THOMASCOOK.NS
 sector: Travel
 market_cap: small_cap
 normalized_name: Thomas_Cook_India

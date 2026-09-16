@@ -1,8 +1,7 @@
 ---
 title: Anheuser-Busch Inbev
 type: company
-ticker: null
-listed: false
+ticker: BUD
 sector: FMCG
 market_cap: large_cap
 normalized_name: Anheuser_Busch_Inbev

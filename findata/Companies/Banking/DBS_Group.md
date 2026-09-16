@@ -1,8 +1,7 @@
 ---
 title: DBS Group
 type: company
-ticker: null
-listed: false
+ticker: D05.SI
 sector: Banking
 market_cap: large_cap
 normalized_name: DBS_Group

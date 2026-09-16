@@ -1,8 +1,7 @@
 ---
 title: Styrenix Performance Materials
 type: company
-ticker: null
-listed: false
+ticker: STYRENIX.NS
 sector: Chemicals
 market_cap: small_cap
 normalized_name: Styrenix_Performance_Materials

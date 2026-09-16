@@ -1,8 +1,7 @@
 ---
 title: Monika Alcobev
 type: company
-ticker: null
-listed: false
+ticker: MONIKA.BO
 sector: FMCG
 market_cap: micro_cap
 normalized_name: Monika_Alcobev

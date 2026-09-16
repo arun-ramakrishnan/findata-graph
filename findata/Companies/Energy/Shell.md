@@ -1,8 +1,7 @@
 ---
 title: Shell
 type: company
-ticker: null
-listed: false
+ticker: SHEL
 sector: Energy
 market_cap: large_cap
 normalized_name: Shell

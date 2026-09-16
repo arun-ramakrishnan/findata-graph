@@ -1,8 +1,7 @@
 ---
 title: Godrej Industries
 type: company
-ticker: null
-listed: false
+ticker: GODREJIND.BO
 sector: Diversified
 market_cap: mid_cap
 normalized_name: Godrej_Industries

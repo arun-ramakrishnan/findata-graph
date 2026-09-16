@@ -1,8 +1,7 @@
 ---
 title: Welspun Enterprises
 type: company
-ticker: null
-listed: false
+ticker: WELENT.NS
 sector: Infrastructure
 market_cap: mid_cap
 normalized_name: Welspun_Enterprises

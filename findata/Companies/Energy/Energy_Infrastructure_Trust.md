@@ -1,8 +1,7 @@
 ---
 title: Energy Infrastructure Trust
 type: company
-ticker: null
-listed: false
+ticker: ENERGYINF.BO
 sector: Energy
 market_cap: micro_cap
 normalized_name: Energy_Infrastructure_Trust

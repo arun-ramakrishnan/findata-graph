@@ -1,8 +1,7 @@
 ---
 title: AWL Agri Business
 type: company
-ticker: null
-listed: false
+ticker: AWL.NS
 sector: FMCG
 market_cap: large_cap
 normalized_name: AWL_Agri_Business

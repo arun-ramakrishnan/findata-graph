@@ -1,8 +1,7 @@
 ---
 title: Sony Group
 type: company
-ticker: null
-listed: false
+ticker: SONY
 sector: Electronics
 market_cap: large_cap
 normalized_name: Sony_Group

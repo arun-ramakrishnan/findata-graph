@@ -1,8 +1,7 @@
 ---
 title: Apcotex Industries
 type: company
-ticker: null
-listed: false
+ticker: APCOTEXIND.BO
 sector: Chemicals
 market_cap: small_cap
 normalized_name: Apcotex_Industries

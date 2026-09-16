@@ -1,8 +1,7 @@
 ---
 title: Birla Corporation
 type: company
-ticker: null
-listed: false
+ticker: BIRLACORPN.NS
 sector: Building_Materials
 market_cap: mid_cap
 normalized_name: Birla_Corporation

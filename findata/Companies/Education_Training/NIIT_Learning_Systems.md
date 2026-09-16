@@ -1,8 +1,7 @@
 ---
 title: NIIT Learning Systems
 type: company
-ticker: null
-listed: false
+ticker: NIITMTS.NS
 sector: Education_Training
 market_cap: mid_cap
 normalized_name: NIIT_Learning_Systems

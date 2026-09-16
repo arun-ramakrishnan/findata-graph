@@ -1,8 +1,7 @@
 ---
 title: Allianz SE
 type: company
-ticker: null
-listed: false
+ticker: ALV.DE
 sector: Insurance
 market_cap: large_cap
 normalized_name: Allianz

@@ -1,8 +1,7 @@
 ---
 title: Netflix
 type: company
-ticker: null
-listed: false
+ticker: NFLX
 sector: Media_Entertainment
 market_cap: large_cap
 normalized_name: Netflix

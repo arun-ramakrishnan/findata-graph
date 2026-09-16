@@ -1,8 +1,7 @@
 ---
 title: Emami
 type: company
-ticker: null
-listed: false
+ticker: EMAMILTD.NS
 sector: FMCG
 market_cap: mid_cap
 normalized_name: Emami

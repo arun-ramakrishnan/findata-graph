@@ -1,8 +1,7 @@
 ---
 title: Dilip Buildcon
 type: company
-ticker: null
-listed: false
+ticker: DBL.BO
 sector: Infrastructure
 market_cap: mid_cap
 normalized_name: Dilip_Buildcon

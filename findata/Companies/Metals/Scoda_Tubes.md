@@ -1,8 +1,7 @@
 ---
 title: Scoda Tubes
 type: company
-ticker: null
-listed: false
+ticker: SCODATUBES.NS
 sector: Metals
 market_cap: small_cap
 normalized_name: Scoda_Tubes

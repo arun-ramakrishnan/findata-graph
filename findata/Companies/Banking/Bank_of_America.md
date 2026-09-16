@@ -1,8 +1,7 @@
 ---
 title: Bank of America
 type: company
-ticker: null
-listed: false
+ticker: BAC
 sector: Banking
 market_cap: large_cap
 normalized_name: Bank_of_America

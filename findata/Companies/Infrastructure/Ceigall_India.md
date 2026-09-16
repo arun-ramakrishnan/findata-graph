@@ -1,8 +1,7 @@
 ---
 title: Ceigall India
 type: company
-ticker: null
-listed: false
+ticker: CEIGALL.NS
 sector: Infrastructure
 market_cap: small_cap
 normalized_name: Ceigall_India

@@ -1,8 +1,7 @@
 ---
 title: Google
 type: company
-ticker: null
-listed: false
+ticker: GOOGL
 sector: Technology
 market_cap: null
 business_model: b2b

@@ -1,8 +1,7 @@
 ---
 title: Godrej Agrovet
 type: company
-ticker: null
-listed: false
+ticker: GODREJAGRO.NS
 tags:
 - entity_type/company
 - sector/agriculture

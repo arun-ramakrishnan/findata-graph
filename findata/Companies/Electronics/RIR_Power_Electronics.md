@@ -1,8 +1,7 @@
 ---
 title: RIR Power Electronics
 type: company
-ticker: null
-listed: false
+ticker: RIR.BO
 sector: Electronics
 market_cap: small_cap
 normalized_name: RIR_Power_Electronics

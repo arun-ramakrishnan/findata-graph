@@ -1,8 +1,7 @@
 ---
 title: Jindal Saw
 type: company
-ticker: null
-listed: false
+ticker: JINDALSAW.NS
 sector: Metals
 market_cap: mid_cap
 normalized_name: Jindal_Saw

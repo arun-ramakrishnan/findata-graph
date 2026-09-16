@@ -1,8 +1,7 @@
 ---
 title: Sunteck Realty
 type: company
-ticker: null
-listed: false
+ticker: SUNTECK.NS
 sector: Real_Estate
 market_cap: small_cap
 normalized_name: Sunteck_Realty

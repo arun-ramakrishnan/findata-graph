@@ -1,8 +1,7 @@
 ---
 title: Bikaji Foods International
 type: company
-ticker: null
-listed: false
+ticker: BIKAJI.NS
 sector: FMCG
 market_cap: mid_cap
 normalized_name: Bikaji_Foods_International

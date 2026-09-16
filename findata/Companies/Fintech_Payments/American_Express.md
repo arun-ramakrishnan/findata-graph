@@ -1,9 +1,8 @@
 ---
 title: American Express
 type: company
-ticker: null
+ticker: AXP
 sector: Fintech_Payments
-listed: false
 market_cap: large_cap
 geography: usa
 business_model: b2b

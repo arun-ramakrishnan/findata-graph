@@ -1,8 +1,7 @@
 ---
 title: Symphony
 type: company
-ticker: null
-listed: false
+ticker: SYMPHONY.NS
 sector: Consumer
 market_cap: mid_cap
 normalized_name: Symphony

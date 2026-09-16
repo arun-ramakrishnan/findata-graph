@@ -1,8 +1,7 @@
 ---
 title: SpaceX
 type: company
-ticker: null
-listed: false
+ticker: SPCX
 sector: International
 market_cap: large_cap
 normalized_name: SpaceX

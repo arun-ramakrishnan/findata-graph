@@ -1,8 +1,7 @@
 ---
 title: Delta Air Lines
 type: company
-ticker: null
-listed: false
+ticker: DAL
 sector: Aviation
 market_cap: large_cap
 normalized_name: Delta_Air_Lines

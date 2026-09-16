@@ -1,8 +1,7 @@
 ---
 title: Antony Waste Handling Cell
 type: company
-ticker: null
-listed: false
+ticker: AWHCL.NS
 sector: Logistics
 market_cap: small_cap
 normalized_name: Antony_Waste_Handling_Cell

@@ -1,8 +1,7 @@
 ---
 title: Kilburn Engineering
 type: company
-ticker: null
-listed: false
+ticker: KLBRENG-B.BO
 sector: Engineering_Capital_Goods
 market_cap: small_cap
 normalized_name: Kilburn_Engineering

@@ -1,8 +1,7 @@
 ---
 title: JSW Infrastructure
 type: company
-ticker: null
-listed: false
+ticker: JSWINFRA.NS
 sector: Logistics
 market_cap: large_cap
 normalized_name: JSW_Infrastructure

@@ -1,8 +1,7 @@
 ---
 title: Starbucks
 type: company
-ticker: null
-listed: false
+ticker: SBUX
 sector: FMCG
 market_cap: large_cap
 normalized_name: Starbucks

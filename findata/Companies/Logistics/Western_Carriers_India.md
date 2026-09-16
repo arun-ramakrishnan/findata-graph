@@ -1,8 +1,7 @@
 ---
 title: Western Carriers (India)
 type: company
-ticker: null
-listed: false
+ticker: WCIL.NS
 sector: Logistics
 market_cap: small_cap
 normalized_name: Western_Carriers_India

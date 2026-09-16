@@ -1,8 +1,7 @@
 ---
 title: Freightos
 type: company
-ticker: null
-listed: false
+ticker: CRGO
 sector: Logistics
 market_cap: small_cap
 normalized_name: Freightos

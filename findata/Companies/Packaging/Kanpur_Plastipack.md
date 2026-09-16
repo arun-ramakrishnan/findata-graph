@@ -1,8 +1,7 @@
 ---
 title: Kanpur Plastipack
 type: company
-ticker: null
-listed: false
+ticker: KANPRPLA.NS
 sector: Packaging
 market_cap: small_cap
 normalized_name: Kanpur_Plastipack

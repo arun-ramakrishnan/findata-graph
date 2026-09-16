@@ -1,8 +1,7 @@
 ---
 title: Meta
 type: company
-ticker: null
-listed: false
+ticker: META
 sector: Technology
 market_cap: large_cap
 normalized_name: Meta

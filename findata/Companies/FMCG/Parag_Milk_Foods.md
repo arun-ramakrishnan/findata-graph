@@ -1,8 +1,7 @@
 ---
 title: Parag Milk Foods
 type: company
-ticker: null
-listed: false
+ticker: PARAGMILK.NS
 sector: FMCG
 market_cap: small_cap
 normalized_name: Parag_Milk_Foods

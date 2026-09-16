@@ -1,8 +1,7 @@
 ---
 title: Bansal Wire Industries
 type: company
-ticker: null
-listed: false
+ticker: BANSALWIRE.BO
 sector: Metals
 market_cap: small_cap
 normalized_name: Bansal_Wire_Industries

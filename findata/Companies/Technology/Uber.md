@@ -1,8 +1,7 @@
 ---
 title: Uber
 type: company
-ticker: null
-listed: false
+ticker: UBER
 sector: Technology
 market_cap: large_cap
 normalized_name: Uber

@@ -1,8 +1,7 @@
 ---
 title: Siemens Energy
 type: company
-ticker: null
-listed: false
+ticker: ENR.DE
 sector: Energy
 market_cap: large_cap
 normalized_name: Siemens_Energy

@@ -1,8 +1,7 @@
 ---
 title: Netgear
 type: company
-ticker: null
-listed: false
+ticker: NTGR
 sector: Technology
 market_cap: mid_cap
 normalized_name: Netgear

@@ -1,8 +1,7 @@
 ---
 title: Sarveshwar Foods
 type: company
-ticker: null
-listed: false
+ticker: SARVESHWAR.NS
 sector: Agriculture
 market_cap: small_cap
 normalized_name: Sarveshwar_Foods
