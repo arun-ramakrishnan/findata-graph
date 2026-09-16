@@ -640,7 +640,7 @@ def rebuild(  # noqa: C901  # noqa anchor moved to the statement's diagnostic li
                 embed_fn, embed_dims, model_label = resolve_embedder()
                 stats["embed_model"] = model_label
                 cache = (
-                    CachedEmbed(embed_fn, model_label, conn, source="note")
+                    CachedEmbed(embed_fn, model_label, conn, source="note", purge_foreign=True)
                     # Pseudo embedding is a hash — caching it would only bloat
                     # the sidecar; only the real model costs CPU per doc.
                     if (model_label != f"dry-run-v{_PSEUDO_DIMS}")

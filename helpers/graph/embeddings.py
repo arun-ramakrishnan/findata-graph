@@ -269,6 +269,7 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
         local_embedder.MODEL_ID,
         local_embedder.embed_documents_parallel,
         source="company",
+        purge_foreign=True,
     )
     # Stable-write upsert (maint_full_zero_churn F2): an unchanged vector
     # writes NOTHING — INSERT OR REPLACE here used to delete+reinsert every

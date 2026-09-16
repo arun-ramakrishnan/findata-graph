@@ -19,7 +19,10 @@ optional ``source`` column only stamps which indexer wrote a row (cohort
 analytics) and never participates in lookups. A model swap re-embeds
 everything (label is part of the key), which is exactly the required
 semantics: vectors from different models must never be served for each
-other's spaces.
+other's spaces. Since 2026-09-16 the swap also self-cleans: production
+indexers pass ``purge_foreign=True`` so the previous generation's
+unreachable rows are GCed at attach (bench/trial embedders must NOT —
+they share this store with candidate labels).
 
 Everything here is best-effort: when the store can't be attached the callers
 degrade to uncached embedding (correct, just slower).
@@ -75,6 +78,27 @@ def _hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8", errors="replace")).hexdigest()
 
 
+def purge_foreign_models(conn, model_label: str) -> int:
+    """GC for the pooled cache: delete rows whose model label differs.
+
+    A model swap leaves the previous generation's rows permanently
+    unreachable (model is part of the lookup key, so they can never be
+    served — only bytes). Production indexers run this so swaps
+    self-clean instead of stranding dead vectors per generation (the
+    2026-09-16 bge-small leftover: ~11k rows, 11 days unnoticed).
+    Best-effort: failures return 0, never break the embed flow.
+    """
+    try:
+        cur = conn.execute(
+            f"DELETE FROM {EMBED_CACHE_TABLE} WHERE model != ?",  # noqa: S608  # constant table name
+            (model_label,),
+        )
+        conn.commit()
+        return cur.rowcount or 0
+    except Exception:  # noqa: S110  # purge is never load-bearing
+        return 0
+
+
 class CachedEmbed:
     """Per-text wrapper around a resolved embedder (note_search rebuild).
 
@@ -90,6 +114,7 @@ class CachedEmbed:
         model_label: str,
         conn,
         source: str = "",
+        purge_foreign: bool = False,
     ):
         self._fn = embed_fn
         self._model = model_label
@@ -99,6 +124,14 @@ class CachedEmbed:
         self.misses = 0
         self.dirty = 0
         self._ok = self._try_init()
+        if purge_foreign and self._ok:
+            gone = purge_foreign_models(self._conn, model_label)
+            if gone:
+                print(
+                    f"[embed-cache] purged {gone} foreign-model row(s) (model-swap GC)",
+                    file=sys.stderr,
+                    flush=True,
+                )
 
     def _try_init(self) -> bool:
         try:
@@ -161,6 +194,7 @@ def cached_embed_batch(
     model_label: str,
     embed_missing: Callable[[list[str]], list[list[float]]],
     source: str = "",
+    purge_foreign: bool = False,
 ) -> tuple[list[list[float]], dict]:
     """Cache-aware BATCH embed (company-embeddings populate).
 
@@ -184,6 +218,14 @@ def cached_embed_batch(
         vecs = embed_missing(texts)
         stats["misses"] = len(texts)
         return vecs, stats
+    if purge_foreign:
+        gone = purge_foreign_models(conn, model_label)
+        if gone:
+            print(
+                f"[embed-cache] purged {gone} foreign-model row(s) (model-swap GC)",
+                file=sys.stderr,
+                flush=True,
+            )
 
     # One bulk load of this model's cache slice (a few thousand rows at
     # most — note_search + company texts) beats N point SELECTs.

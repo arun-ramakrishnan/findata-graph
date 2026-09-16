@@ -455,7 +455,9 @@ def rebuild(  # noqa: C901
                 embed_fn, embed_dims, model_label = resolve_embedder()
                 stats["embed_model"] = model_label
                 if model_label != f"dry-run-v{_PSEUDO_DIMS}":
-                    embed_fn = CachedEmbed(embed_fn, model_label, conn, source="doc")
+                    embed_fn = CachedEmbed(
+                        embed_fn, model_label, conn, source="doc", purge_foreign=True
+                    )
             else:
                 # --check: verdict is content-hash only — skip model
                 # resolution + sidecar cache lookups (mirror of the

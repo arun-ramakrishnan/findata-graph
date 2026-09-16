@@ -252,6 +252,33 @@ class TestEmbedStoreConsolidation:
             con.close()
         assert rows == {"doc": 1}
 
+    def test_purge_foreign_models_gc_on_swap(self, tmp_path):
+        """Model-swap GC (2026-09-16): purge_foreign=True deletes the previous
+        generation's rows at attach; default False leaves them (trials share
+        this store with candidate labels and must not purge production)."""
+        from helpers.core.embed_cache import CachedEmbed
+
+        a = sqlite3.connect(str(tmp_path / "index.db"))
+        old_gen = CachedEmbed(lambda t: [0.1] * 4, "old-model", a, source="doc")
+        assert old_gen._ok
+        old_gen("some text")
+        old_gen("other text")
+        a.commit()
+        # default: no purge — foreign rows survive
+        keep = CachedEmbed(lambda t: [0.2] * 4, "new-model", a, source="doc")
+        keep("some text")
+        a.commit()
+        n = a.execute("SELECT COUNT(*) FROM vecdb.embed_cache WHERE model='old-model'").fetchone()[
+            0
+        ]
+        assert n == 2
+        # purge_foreign=True: old generation GCed, current rows survive
+        purged = CachedEmbed(lambda t: [0.3] * 4, "new-model", a, source="doc", purge_foreign=True)
+        purged("third text")
+        a.commit()
+        rows = dict(a.execute("SELECT model, COUNT(*) FROM vecdb.embed_cache GROUP BY model"))
+        assert rows == {"new-model": 2}
+
     def test_in_memory_main_gets_anonymous_store_not_live(self, tmp_path):
         """The :memory:-main hermeticity branch: even with a POPULATED real
         store on disk at EMBED_DB_PATH, an in-memory main attaches an
