@@ -1,9 +1,9 @@
 ---
 title: "live-invariants: longest_chains edge-touched universe — cut the n^2 isolate blowup"
-status: proposed
+status: executed
 filed: "2026-09-16"
-executed: null
-completed_md: null
+executed: "2026-09-16"
+completed_md: "240"
 area: "helpers/graph/stats.py (longest_chains), tests/test_graph_stats.py (xdist dedup + docstring), tests/test_hyper_incidence.py (regression pin)"
 ---
 
@@ -13,7 +13,7 @@ area: "helpers/graph/stats.py (longest_chains), tests/test_graph_stats.py (xdist
      archival, flip status/executed/completed_md in the same change. -->
 # live-invariants: longest_chains edge-touched universe — cut the n^2 isolate blowup
 
-**Date:** 2026-09-16 · **Status:** PROPOSED ·
+**Date:** 2026-09-16 · **Status:** EXECUTED (2026-09-16, completed.md #240) ·
 **Area:** `helpers/graph/stats.py` (longest_chains),
 `tests/test_graph_stats.py`, `tests/test_hyper_incidence.py` — perf
 fix, no schema change, output semantics preserved for the connected
@@ -53,9 +53,21 @@ long before D19; the leg was 51-122s on 09-11/12).
   test_graph_stats.py so all its tests share ONE xdist worker -> one
   render per run instead of three; fixture docstring rewritten with
   the honest cost model (O(n^2) in the edge-touched universe).
-- **S3 per-component shortest paths** (DEFERRED): replace the single
-  n x n matrix with per-connected-component computation. Only worth
-  it if the connected universe grows ~10x; revisit trigger recorded.
+- **S3 incidence-native structure analytics** (DEFERRED — the D4
+  lane): the n^2 blowup is an artifact of the DYADIC projection —
+  pairwise distances over the 2-section of what the star store
+  already models as incidences (5,952 incidence rows vs 45.5M cells
+  at the bloated n). The path out is not a faster dense-matrix
+  engine (igraph RETIRED AND DELETED per D16, 2026-09-13 — bridge +
+  tests gone; the alternate-engine seat passed to the HGX lane) but
+  moving structure
+  questions to the incidence side: D4 `h_*` materialisation +
+  SQL-over-incidence consumers; hy-MMSBM blocks and higher-order
+  centralities already scale with memberships, not node pairs. The
+  dyadic diameter/distant-pairs diagnostic stays as a CAPPED
+  projection view (universe cap or sampling) — those questions are
+  inherently pairwise. Reopen when edge-touched n approaches ~5k or
+  a real incidence-side consumer lands (the D4 trigger).
 
 ## 3. Slices
 
@@ -78,5 +90,14 @@ long before D19; the leg was 51-122s on 09-11/12).
 
 ## 5. Deferred
 
-- **S3 per-component paths** — reopen when edge-touched n grows
-  ~10x above 1,722 or the render again dominates the leg.
+- **S3 SUPERSEDED 2026-09-16 by `../../proposals/hgx_first_scaling.md` S3** (absorbed,
+  with the D4 materialisation and the first SQL-over-incidence
+  consumers). Original record (D4 lane) — the dyadic
+  n^2 matrix is the legacy view; hypergraph/incidence analytics scale
+  with memberships (5,952 rows), four orders below the pairwise
+  cells. Reopen at edge-touched n ~5k, on a real SQL-over-incidence
+  consumer (D4), or when the capped diagnostic again dominates the
+  live-invariants leg. Note: s-walk projections still flatten to
+  cliques (measured 2026-09-15: the 41-member usa edge acts as a
+  41-clique) — the win comes from asking incidence-native questions,
+  not from re-projecting.

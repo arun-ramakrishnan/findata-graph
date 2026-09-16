@@ -5881,6 +5881,36 @@ rated_by ×1 Motilal Oswal → CRISIL). Post-triage: jv_with 69 (ventures
 6/69), same_group 34 with all 31 cross-note pairs correctly attributed
 via the normalized_name override.
 
+## 240. live-invariants: longest_chains edge-touched universe
+
+**Proposal**: `doc/improvements/archive/graph/live_inv_longest_chains.md`
+(filed + executed + archived 2026-09-16). Area: `helpers/graph/stats.py`
+(longest_chains), `tests/test_graph_stats.py`,
+`tests/test_hyper_incidence.py` — perf fix, no schema change.
+
+Advisory live-invariants had gone 59-97s (09-14 median ~71s) to
+234.3/267.4s = 3.3-3.8x after D19 seeding. Attribution: one
+print_stats() render = 139.5s, 97% in longest_chains — dense n x n
+distance output (twice: ALL + ACTIVITY views) over n = count(entities)
+= 6,748, of which 5,026 (74%, D19 pathless stubs) touch zero
+graph_edges; 2.84M -> 45.5M cells = 16x vs the 1,722 edge-touched
+universe; module render fixture rebuilt per xdist worker (x3).
+
+S1: node universe = entities touched by >=1 graph_edge + empty guard.
+Render 139.5s -> 13.6s (10.3x). S2: module xdist_group so all
+stats_render consumers share one worker (one render per run, not
+three) + stale "~1s" docstring rewritten. Regression pin: output
+byte-identical with vs without isolated entities. Repair included:
+test_embed_cache_keyed_by_model_label asserted the pre-GC
+both-generations-survive world — pre-existing breakage in 036f532a,
+re-pinned to the shipped contract (keying via misses=4/hits=0; GC via
+only-new-label rows). Committed as e5728add. Leg: 267.4s -> 66.3s /
+79.0s, back inside the pre-D19 band. Gates: qa 9/9, advisory 10/10,
+search-fresh APPLY=1. S3 (capped dyadic diagnostics) SUPERSEDED by
+the live proposal hgx_first_scaling.md (incidence-first scaling, D4
+absorbed); architecture stance recorded there: n^2 is the dyadic
+projection's artifact — igraph retired+deleted per D16.
+
 ## 239. HGX lane wiring — hyper compute into make/maint + doc truth
 
 **Proposal**: `doc/improvements/archive/graph/hyper_lane_wiring.md`
