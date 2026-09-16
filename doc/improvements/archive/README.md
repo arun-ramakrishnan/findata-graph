@@ -32,6 +32,7 @@ commit, referenced by nothing). Entry numbers point at
 
 - [`jv_promoter_capture_upgrade.md`](graph/jv_promoter_capture_upgrade.md) — Proposal: JV venture + promoter-group capture upgrade — name-before-marker venture patterns + cross-note group accumulation in `extract_relations.py` (D5+D6 capture arc, no schema change); triage ledger: 30 low-attribution edges removed, 17 real company-note edges kept, post-triage jv_with 69 / same_group 34 — completed.md #237
 - [`company_subsector_authored_lane.md`](graph/company_subsector_authored_lane.md) — Proposal: company sub_sector authored lane — optional `subsector:` YAML with canonical precedence in `derive_hyperedges.py` + `sync_tags.py` entity_tags mirror (D7, no schema change); S4 no-op proof at 0 authored values (55 hyperedges / 600 members unchanged); adoption via `findata/Misc/subsector_worklist.json` — completed.md #238
+- [`hyper_lane_wiring.md`](graph/hyper_lane_wiring.md) — Proposal: HGX lane wiring — hyper compute into make/maint (skip-hardening + zero-churn write-path pins, `make recompute-hyper`, maint-full TIER2 hyper steps 9→11, doc truth); §5 D-ledger closed (D1–D19 executed or operator-closed; D4/D10 deferrals → `../pending.md`; D11 residue = 16 taxonomy buckets) — completed.md #239
 
 ## database/ — Databases — DuckDB/SQLite engine and SQL query improvements
 

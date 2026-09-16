@@ -5,7 +5,7 @@ data endpoint this repo pulls, with auth quirks, verified shapes, and the
 sidecar files that cache the results. Re-discovery is expensive — this
 register exists so the blind search never repeats. Companion filings:
 D12 (CIN/NIC) and D14 (universe seed) in
-`doc/improvements/proposals/hyper_lane_wiring.md` §5.
+`doc/improvements/archive/graph/hyper_lane_wiring.md` §5.
 
 ## Conventions
 

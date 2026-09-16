@@ -5881,6 +5881,31 @@ rated_by ×1 Motilal Oswal → CRISIL). Post-triage: jv_with 69 (ventures
 6/69), same_group 34 with all 31 cross-note pairs correctly attributed
 via the normalized_name override.
 
+## 239. HGX lane wiring — hyper compute into make/maint + doc truth
+
+**Proposal**: `doc/improvements/archive/graph/hyper_lane_wiring.md`
+(filed 2026-09-15, W1–W5 executed 2026-09-15, D-ledger closed through
+2026-09-16). Area: `helpers/graph` (hyper lanes),
+`helpers/maintenance/maint.py`, Makefile, `doc/design` — wiring arc, no
+schema change.
+
+W1–W5: never-block skip-hardening + `hyper_arrow.store_rowcount()`
+read-only probe (7-test `test_hyper_wiring.py` incl. the zero-churn
+`computed_at` pin); `make recompute-hyper` (both lanes `--apply`);
+maint-full TIER2 steps `hyper-communities` / `hyper-centralities`
+(9→11 TIER2, 20 full-composition ×2 sites, chain shims ×2 — 33/33);
+doc truth (db_schema.md three-writer graph_analytics ownership,
+graph_design.md §5.6 recompute-graph/hyper split, maintenance.md TIER2
+flow sentence); live apply 1,179 rows/metric with a byte-identical
+re-run (zero-churn proven live). §5 D-ledger closed with the arc: D1
+(#235), D8 (#236), D5+D6 (#237), D7 (#238), D2/D3/D9/D12/D13/D14/D15/
+D16/D17/D18/D19 in-arc or own patches; D11 operator authoring pass
+closed-for-now 2026-09-16 (16 unmapped label buckets remain as
+taxonomy decisions; note-level `subsector:` 0-authored — D7 lane
+open). Standing deferrals recorded in `../pending.md`: D4 `h_*` cache
+materialisation (reopen on a SQL-over-incidence consumer), D10
+prediction/motifs/dynamics (density-gated).
+
 ## 238. Company sub_sector authored lane — optional `subsector:` YAML + canonical precedence
 
 **Proposal**: `doc/improvements/archive/graph/company_subsector_authored_lane.md`

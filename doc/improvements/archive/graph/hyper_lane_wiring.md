@@ -1,9 +1,9 @@
 ---
 title: "HGX lane wiring — hyper compute into make/maint + doc truth"
-status: proposed
+status: executed
 filed: "2026-09-15"
-executed: null
-completed_md: null
+executed: "2026-09-16"
+completed_md: "239"
 area: "helpers/graph (hyper lanes), helpers/maintenance/maint.py, Makefile, doc/design — wiring arc, no schema change"
 ---
 
@@ -13,7 +13,7 @@ area: "helpers/graph (hyper lanes), helpers/maintenance/maint.py, Makefile, doc/
      archival, flip status/executed/completed_md in the same change. -->
 # HGX lane wiring — hyper compute into make/maint + doc truth
 
-**Date:** 2026-09-15 · **Status:** PROPOSED ·
+**Date:** 2026-09-15 · **Status:** EXECUTED (2026-09-16, completed.md #239) ·
 **Area:** helpers/graph (hyper lanes), maint.py, Makefile, doc/design —
 wiring arc, **no schema change** (trigger: /tmp/hgx_gaps.txt findings,
 verified against the repo)
@@ -160,10 +160,11 @@ Inherited — still-open items pulled from the archived #233 ledger
 pulled: HIF lane S18, quotes regroup S8, counterparty FK S9, industry
 regroup S5):
 
-- **D4 DuckDB `h_*` materialisation** (#233 §6): the cache does not read
-  the incidence tables (the maint.py "Phase 1 cache" note) — reopen when
-  a SQL-over-incidence consumer appears; D1's API work is the likely
-  first consumer.
+- **D4 DuckDB `h_*` materialisation** — **DEFERRED** (2026-09-16,
+  recorded in `../../pending.md`; #233 §6): the cache does not read the
+  incidence tables (the maint.py "Phase 1 cache" note) — reopen when a
+  SQL-over-incidence consumer appears; D1's API work proved NOT to be
+  one (it reads via helpers, not SQL), so the trigger stays unarmed.
 - **D5 JV venture capture upgrade** (#233 capture-gap; EXECUTED
   2026-09-15 — own proposal `jv_promoter_capture_upgrade.md`):
   extract_relations capturing `venture` into jv_with properties (2/69
@@ -180,7 +181,9 @@ regroup S5):
   classification is canonical — exclusive precedence, unknown values
   worklisted; live no-op with 0 authored values until the operator
   authors).
-- **D8 Concall-title edition normalisation** (#233 §6.1 note): quote
+- **D8 Concall-title edition normalisation** (EXECUTED 2026-09-16 — own
+  proposal `concall_title_edition_normalisation.md`, completed.md #236;
+  writer worklist deferred inside) (#233 §6.1 note): quote
   `as_of_edition` concall titles riding as editions.
 - **D9 Three .txt stragglers under archive/graph/** (#233 DEFERRED):
   `networkx_duckpgq_gap_plan.txt`, `graph_improvs.txt`,
@@ -190,9 +193,11 @@ regroup S5):
   EXECUTED 2026-09-15: all three converted to frontmatter+markdown
   (lint-clean), archive/README + verify_notes.py comment + hyx §6 +
   graph_docs_ui_polish references repointed.
-- **D10 Hyperedge prediction / motifs / dynamics lanes** (#233 §6):
-  gated on incidence density (the #233 flagship argument) — not before
-  D5–D8 move the capture forward.
+- **D10 Hyperedge prediction / motifs / dynamics lanes** — **DEFERRED**
+  (2026-09-16, recorded in `../../pending.md`; #233 §6): gated on
+  incidence density (the #233 flagship argument); measured 2026-09-15
+  group 8/k=3.8, jv 6/k=2.0 — still far below prediction-grade
+  density after D5–D8 moved capture forward.
 - **D11 Operator authoring pass — `subsector:` values over the unmapped
   worklist** (opened 2026-09-15, follow-up of D7; IN PROGRESS — A-bucket
   applied, B-bucket rulings complete, single apply pass pending):
@@ -208,9 +213,16 @@ regroup S5):
   name the segment only — the parent supplies the domain word
   (Vehicle_Loans/Gold_Loans/Microfinance yes; Telecom_Services under
   Telecommunications no); never collide with a sector name; preferred
-  name source is the Indian classification list (see D12).
-- **D14 Exchange-master universe seed — incl. SME boards, tickers, and
-  query coverage** (filed 2026-09-15): the graph today is corpus-driven —
+  name source is the Indian classification list (see D12). OPERATOR
+  CLOSED for now 2026-09-16: apply pass landed (Credit Services-class
+  buckets resolved via the alias map + new nodes); worklist residue =
+  16 unmapped label buckets as future taxonomy decisions (top:
+  Banks - Regional ×38); note-level `subsector:` stays 0-authored —
+  the D7 lane remains open.
+- **D14 Exchange-master universe seed** (EXECUTED 2026-09-15 — taxonomy
+  apply: 123→140 sub_sector entities, 819 memberships; SME rows kept in
+  the store; NIC re-derivation closed per D12) — incl. SME boards,
+  tickers, and query coverage** (filed 2026-09-15): the graph today is corpus-driven —
   1,178 company entities, all born from newsletter/relation mentions
   (create_entity), 950 tickered (731 .NS). The operator wants the listed
   universe seeded from exchange masters, SME boards included, so queries
@@ -286,7 +298,9 @@ regroup S5):
   (authored coverage 819/1,176; 0 empty edges). 227 tests green.
   NIC re-derivation (b) stays CLOSED per the D12 measured negative.
   Remaining ~357 no-industry notes ride D18.
-- **D12 NIC-2008 ingestion** (filed 2026-09-15, from the ontology
+- **D12 NIC-2008 ingestion** (EXECUTED 2026-09-15 — CIN harvest + parser
+  + facets via the mca_cin lane; seed scoped per the measured negative
+  below) (filed 2026-09-15, from the ontology
   assessment §6.1 — decided but never ingested): pull the MCA company
   master for the 1,179 companies and populate `entities.cin` +
   `cin_nic5` (schema facets already exist, all rows empty today), build
@@ -400,8 +414,11 @@ regroup S5):
   foreign privates — need the D12 pass2b longName bridge or manual).
   Success metric met on the fetch side.
 
-- **D19 exchange intake lane — refresh + IPO/listing detection + stub
-  seed hooks** (filed 2026-09-15, operator: "how do we keep the exchange
+- **D19 exchange intake lane** (EXECUTED 2026-09-16 —
+  `helpers/maintenance/exchange_sync.py` incremental-by-default with lane
+  freshness gates + ipo_worklist diff lane + junk-safe seeder; store
+  47,489 rows / 24 exchanges; XBRL feeds via `ingest_nse_xbrl.py`) —
+  refresh + IPO/listing detection + stub seed hooks** (filed 2026-09-15, operator: "how do we keep the exchange
   DB updated — IPOs, listings etc", build scheduled next session):
   D16 left `exchange_listings` populated (38,426 rows, 11 exchanges) but
   every fold ran from ephemeral /tmp scripts — nothing in the repo

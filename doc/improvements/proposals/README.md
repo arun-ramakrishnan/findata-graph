@@ -28,13 +28,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- **hyper_lane_wiring.md** (filed 2026-09-15) — HGX compute lanes into
-  the automated flow: skip-hardening for degenerate stores, `make
-  recompute-hyper` on-demand target, maint-full TIER2 placement after
-  derive-hyperedges (zero-churn via the seeded write_analytics upsert),
-  doc truth for the recompute-graph coverage claims. Wiring arc, no
-  schema change. Trigger: /tmp/hgx_gaps.txt findings (verified; the
-  graph.ts-hint claim was a misdiagnosis — see proposal §1.3).
+_(none)_
+
+— (Previously: hyper_lane_wiring.md archived 2026-09-16 as completed.md
+entry 239 — execution record in `../archive/graph/hyper_lane_wiring.md`;
+D4 `h_*` materialisation + D10 prediction/motifs deferrals moved to
+`../pending.md`; D11 operator authoring closed-for-now with 16 unmapped
+taxonomy buckets in `findata/Misc/subsector_worklist.json`.)_
 
 — (Previously: hyper_metric_ui_visibility.md archived 2026-09-16 as
 completed.md entry 235 — execution record in `../archive/ui/hyper_metric_ui_visibility.md`.)_
