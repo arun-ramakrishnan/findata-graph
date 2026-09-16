@@ -65,6 +65,9 @@ dependencies = [
     "gspread",
     # FinnHub API
     "finnhub-python",
+    # TMX issuer-directory xlsx parsing (helpers/maintenance/exchange_sync.py
+    # ingest_tmx). Imported lazily in-lane; declared so types/deptry resolve.
+    "openpyxl",
     # Mojo regex bridge (Mojo/bench/mojo_regex_*.py + Mojo/src via Python
     # `regex` interop) — active Mojo code uses `import regex`, so runtime.
     "regex",

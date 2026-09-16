@@ -51,6 +51,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  graph-rebuild            Rebuild the disk-based DuckDB cache from SQLite (run after parse_newsletter --apply / derive-relations)"
 > @echo "  graph-smoke              Quick smoke test of the graph query layer (sector-of + neighbors)"
 > @echo "  graph-stats              Print a one-shot summary of the graph state (entities, edges, sectors, hygiene)"
+> @echo "  hif-export               Export the hypergraph in HIF to snapshots/hif/ (rides make snapshot; SOURCES=... to override)"
 > @echo "  install-dev              Install dev dependencies (uv sync; prunes undeclared packages)"
 > @echo "  integration              Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends integration_report.txt)"
 > @echo "  lint                     Run ruff linter (replaces flake8)"
@@ -70,13 +71,15 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  quote-coverage           S0 quote capture coverage audit (advisory, read-only; per-note 95% tripwire + watchlist + salvage measurement)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
 > @echo "  recompute-hyper          Recompute HGX hyper metrics (hy-MMSBM communities + ho/s centralities)"
+> @echo "  refresh-chain            D20 phase 3: exchanges → enrich → CIN → XBRL --new → snapshot (APPLY=1 to write)"
+> @echo "  refresh-exchanges        D19: sync exchange masters + detect new listings (lanes as args; APPLY=1 to write)"
+> @echo "  refresh-xbrl             D20: incremental NSE XBRL sweep, unseen filings only (ARGS=--new for IPOs; APPLY=1 to write)"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
 > @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
 > @echo "  secret-scan              Incremental git-history secret scan (state under .git/secret-scan/)"
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
 > @echo "  snapshot-check           Verify the snapshot round-trips against the live DB"
 > @echo "  snapshot-restore         Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)"
-> @echo "  hif-export               Export the hypergraph in HIF to snapshots/hif/ (rides make snapshot; SOURCES=... to override)"
 > @echo "  static-checks            Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)"
 > @echo "  suggest-relations        Print link-prediction relation suggestions (C2; append with --append)"
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
@@ -119,6 +122,20 @@ fuzz:           ## Run Hypothesis property-based tests (deterministic seed for r
 integration:    ## Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends integration_report.txt)
 > python3 tests/run_gate_report.py integration
 > @echo "✓ Integration tests passed (appended to integration_report.txt)"
+
+
+refresh-exchanges:  ## D19: sync exchange masters + detect new listings (lanes as args; APPLY=1 to write)
+> .venv/bin/python3 helpers/maintenance/exchange_sync.py $(filter-out $@,$(filter-out APPLY=1,$(MAKECMDGOALS))) $(if $(APPLY),--apply)
+
+refresh-xbrl:  ## D20: incremental NSE XBRL sweep — only new filings per entity (APPLY=1 to write; ARGS="--new" for fresh IPOs only)
+> .venv/bin/python3 helpers/maintenance/ingest_nse_xbrl.py $(ARGS) $(if $(APPLY),--apply)
+
+refresh-chain:  ## D20 phase 3: post-refresh hook chain — exchanges → enrich → CIN web → XBRL --new → snapshot (APPLY=1 to write)
+> .venv/bin/python3 helpers/maintenance/exchange_sync.py $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/enrich_from_yfinance.py $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/mca_cin_resolve.py ingest-web --no-revalidate $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/ingest_nse_xbrl.py --new $(if $(APPLY),--apply)
+> $(if $(APPLY),.venv/bin/python3 helpers/maintenance/snapshot_db.py,@echo "dry-run: snapshot export skipped (APPLY=1 writes)")
 
 snapshot:       ## Refresh the versioned DB snapshot (+ HIF rider)
 > python3 helpers/maintenance/snapshot_db.py

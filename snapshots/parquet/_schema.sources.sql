@@ -1,4 +1,4 @@
-CREATE TABLE exchange_listings(isin VARCHAR, "name" VARCHAR, industry VARCHAR, asset_type VARCHAR, exchange VARCHAR, segment VARCHAR, symbol VARCHAR, kite_tradingsymbol VARCHAR, kite_token BIGINT, tick_size VARCHAR, lot_size VARCHAR);
+CREATE TABLE exchange_listings(isin VARCHAR, "name" VARCHAR, industry VARCHAR, asset_type VARCHAR, exchange VARCHAR, segment VARCHAR, symbol VARCHAR, kite_tradingsymbol VARCHAR, kite_token BIGINT, tick_size VARCHAR, lot_size VARCHAR, fetched_at DATE);
 
 CREATE TABLE mca_cin(entity_name VARCHAR, cin VARCHAR, mca_name VARCHAR, status VARCHAR, "class" VARCHAR, pba VARCHAR, state VARCHAR, via VARCHAR, query VARCHAR, fetched_at VARCHAR);
 

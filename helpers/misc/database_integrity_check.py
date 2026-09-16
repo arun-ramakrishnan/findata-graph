@@ -159,7 +159,7 @@ class DatabaseIntegrityChecker:
         cursor = conn.cursor()
 
         query = """
-        SELECT name, entity_type, file_path, normalized_name, sector_classification
+        SELECT name, entity_type, file_path, normalized_name, sector_classification, ticker
         FROM entities
         ORDER BY entity_type, name
         """
@@ -600,10 +600,12 @@ class DatabaseIntegrityChecker:
         pattern ``check_relations`` uses. The predicate is identical to the
         API's; only the access path differs.
 
-        0 today; a nonzero value means a company slipped through
+        A nonzero value means a company slipped through
         parse_newsletter without a sector assignment, or a ``part_of`` edge
         was deleted between syncs. ERROR-level so the maintenance gate
         catches the regression before it surfaces in the UI.
+        D19 (2026-09-16): listings-derived companies (pathless + ticker'd)
+        are exempt — sectorless by design until a note exists.
         """
         conn = self.get_connection()
         cur = conn.cursor()
@@ -615,12 +617,19 @@ class DatabaseIntegrityChecker:
             is None
         ):
             return {"total_companies": 0, "orphan_companies": 0, "errors": 0}
+        # D19 exchange intake: listings-derived companies (ticker present,
+        # no backing note) are sectorless BY DESIGN until a note exists —
+        # the same fileless class the file_path exemption covers. They are
+        # excluded from the orphan count; the junk signature (no ticker, no
+        # path) still counts.
         row = cur.execute(
             "SELECT "
             "(SELECT COUNT(*) FROM entities WHERE entity_type='company') AS total, "
             "(SELECT COUNT(*) FROM entities e WHERE e.entity_type='company' AND NOT EXISTS "
             "(SELECT 1 FROM relations r "
-            "WHERE r.relation_type='part_of' AND r.source=e.name)) AS orphans"
+            "WHERE r.relation_type='part_of' AND r.source=e.name) "
+            "AND NOT (e.file_path IS NULL AND e.ticker IS NOT NULL AND e.ticker <> '')) "
+            "AS orphans"
         ).fetchone()
         total, orphans = row[0], row[1]
         return {
@@ -894,11 +903,29 @@ class DatabaseIntegrityChecker:
         groups: dict[str, list[str]] = {}
         for ticker, name in rows:
             groups.setdefault(ticker, []).append(name)
-        duplicates = {t: ns for t, ns in groups.items() if len(ns) > 1}
+        duplicates = {
+            t: ns
+            for t, ns in groups.items()
+            if len(ns) > 1
+            and not all(
+                frozenset([a, b]) in self._TICKER_DUP_SUPPRESSED for a in ns for b in ns if a != b
+            )
+        }
         return {
             "duplicate_ticker_groups": duplicates,
             "errors": len(duplicates),
         }
+
+    # ------------------------------------------------------------------ #
+    # Confirmed-intentional ticker sharing (parent + brand-note pairs —    #
+    # both notes legitimately frontmatter the same listed ticker).        #
+    # Mirrors _FUZZY_SUPPRESSED: add entries here after review.           #
+    # 2026-09-16: Alphabet (listed parent) + Google (brand note) — both    #
+    # writer-owned notes since 2026-08-15, GOOGL by design.               #
+    # ------------------------------------------------------------------ #
+    _TICKER_DUP_SUPPRESSED: set[frozenset[str]] = {
+        frozenset({"Alphabet", "Google"}),
+    }
 
     # --- tokenization helpers shared by the fuzzy-name check ---------------
     _STOPWORDS = {
@@ -1776,11 +1803,14 @@ class DatabaseIntegrityChecker:
             # Country layer C1: country entities are bare structural rows
             # (listed_in endpoints, derived from exchange tickers) — the
             # same fileless class.
-            if not file_path and entity_type in (
-                "sub_sector",
-                "theme",
-                "institution",
-                "country",
+            # D19 exchange intake: companies seeded from exchange_listings
+            # (ticker present, no backing note) are listings-derived rows —
+            # file_path is legitimately NULL for them, same fileless class.
+            # Scope: company + ticker. The junk signature (company, no path,
+            # no ticker) stays counted as invalid.
+            if not file_path and (
+                entity_type in ("sub_sector", "theme", "institution", "country")
+                or (entity_type == "company" and entity.get("ticker"))
             ):
                 results["valid_entities"] += 1
                 results["by_entity_type"][entity_type]["valid"] += 1

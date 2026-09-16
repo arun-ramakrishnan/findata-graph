@@ -134,7 +134,7 @@ class _MaintProject:
         src.close()
         placeholders = ",".join("?" * len(_KEEP_ALL))
         dst.execute(
-            "CREATE TEMP TABLE keep AS SELECT name FROM ("
+            "CREATE TEMP TABLE keep AS SELECT name FROM ("  # noqa: S608  # placeholders only — constant SQL + ? keep-list
             "SELECT name, 0 o FROM entities WHERE entity_type != 'company' "
             "UNION ALL SELECT name, 1 o FROM entities WHERE name IN (" + placeholders + ") "
             "GROUP BY name HAVING MIN(o))",

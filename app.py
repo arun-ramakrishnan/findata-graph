@@ -2506,6 +2506,11 @@ def api_graph_stats():
                             THEN 1 ELSE 0 END) AS orphan_companies
                 FROM entities
                 WHERE entity_type = 'company'
+                  -- D19 exchange intake (2026-09-16): listings-derived
+                  -- companies (pathless + ticker'd) are sectorless by
+                  -- design until a note exists — same fileless class the
+                  -- integrity checker exempts; mirrors its scope exactly.
+                  AND NOT (file_path IS NULL AND ticker IS NOT NULL AND ticker <> '')
             )
             SELECT
                 ci.orphan_companies,
