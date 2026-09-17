@@ -2,8 +2,8 @@
 
 **Status:** LIVE. The five-lane front door shipped in `b28991d548`
 (2026-09-16); the reports lane, theme system, and report screen shipped
-under `doc/improvements/proposals/search_tui_enhancements.md` (patch
-`tui_extends`); the read-only database screen shipped 2026-09-17
+under `doc/improvements/archive/tooling/search_tui_enhancements.md` (patch
+`tui_db`); the read-only database screen shipped 2026-09-17
 (same patch, §2.6 item 8 decision: native over harlequin).
 
 ## 1. Problem & Scope
@@ -160,12 +160,13 @@ fallback). `t` cycles, `T` opens the picker.
 - `b28991d548` (2026-09-16) — five-lane front door + index monitor +
   call chain + 25 adapter/pilot tests (proposal
   `doc/improvements/archive/tooling/search_tui.md`, `completed.md` entry).
-- `tui_extends` (2026-09-17, this patch) — report writers to
+- `tui_db` (2026-09-17, this patch) — report writers to
   append-only `.md` in `outputs/`, report adapters, sixth lane, theme
   system, report screen, read-only database screen (proposal
-  `doc/improvements/proposals/search_tui_enhancements.md`, §6 execution
-  log). No new dependencies: SQLite via stdlib + house `connect`,
-  DuckDB already vendored (harlequin evaluated and parked —
+  `doc/improvements/archive/tooling/search_tui_enhancements.md`, §6 execution
+  log). Deps: SQLite via stdlib + house `connect`, DuckDB already
+  vendored, `tree-sitter` + `tree-sitter-sql` for SQL highlighting
+  (harlequin evaluated and parked —
   `doc/local/evaluations/tui_db_assessment.md`, preserved trial inputs
   in `bench_data/dbtui/`).
 
@@ -185,6 +186,6 @@ fallback). `t` cycles, `T` opens the picker.
 ## Related
 
 - `doc/procedures/search-tui.md` — operator manual (lanes, keys, launch)
-- `doc/improvements/proposals/search_tui_enhancements.md` — enhancement spec + execution log
+- `doc/improvements/archive/tooling/search_tui_enhancements.md` — enhancement spec + execution log (`completed.md` #243)
 - `doc/templates/report.md` — the report format contract writers follow
 - `doc/improvements/archive/tooling/search_tui.md` — original build proposal

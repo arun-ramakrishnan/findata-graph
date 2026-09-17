@@ -1,9 +1,9 @@
 ---
 title: "Search TUI enhancements — themes + report lane"
-status: proposed
+status: executed
 filed: "2026-09-17"
-executed: null
-completed_md: null
+executed: "2026-09-17"
+completed_md: "243"
 area: "helpers/misc/search_tui.py (theme system + report-parsing adapters), helpers/misc/search_tui_app.py (theme switching + report screen), tests/test_search_tui.py (theme + report adapter tests)"
 ---
 

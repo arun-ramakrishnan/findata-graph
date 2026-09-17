@@ -6046,3 +6046,35 @@ fuzzy-match scaling micro-benchmark at 3.043x vs 3.0x budget on
 sequential rerun: `make qa` 9/9, `make advisory` 10/10 (one rerun
 attempt died to a /tmp disk-quota pytest INTERNALERROR — stale
 pytest-tmp dirs cleared, rerun clean).
+
+## 243. Search TUI enhancements — report lane, themes, report screen, database screen
+
+**Proposal**: `doc/improvements/archive/tooling/search_tui_enhancements.md`
+(filed + executed + archived 2026-09-17, patch `tui_db`). Area:
+`helpers/misc/search_tui.py`, `helpers/misc/search_tui_app.py`,
+`tests/test_search_tui.py` (61/61), `doc/procedures/search-tui.md`,
+`doc/design/tui_design.md`.
+
+Report consolidation: all nine run reports append-only `.md` under
+`outputs/` (gitignored): gate family (qa/advisory/integration/maint),
+perf, database_integrity, verify_notes, plus enrichment
+metrics/relations — writers migrated, stale roots deleted, Makefile +
+docs follow. Sixth `reports` lane (verb → file, verb+text across runs,
+empty = overview) + theme system (4 presets, `t`/`T`, persisted) +
+`ReportScreen` drill-down with `r` rerun.
+
+Database screen (`d` / alt+`d`, native per §2.6 item 8 — harlequin's
+SQLite catalog mislabels relations, sqlit 1.6.4 correct but
+read-write-only; both full apps, launcher-only): schema tree +
+highlighted multiline SQL + live hints + fuzzy filter + results +
+inspect. Terminal-free adapters (schema/run/preview/complete/history/
+filter, never-raises DbResult), one short-lived read-only connection
+per query, 200-row cap, 2 s SQLite abort. Trial inputs preserved in
+`bench_data/dbtui/` (/tmp ate a 174 MB snapshot mid-arc).
+
+Framework findings: def-time `root=REPO_ROOT` froze past monkeypatches;
+Suggester base casefolds; ctrl+p is the palette and ctrl+q priority
+force-quit (history P/N, close alt+q); grow key is `equals_sign`.
+Verified: ruff/format/ty/deptry/static clean, search-fresh green;
+`make qa` 8/9 (sole failure pre-existing fuzz-frontmatter invariant on
+untouched files), `make advisory` 10/10.
