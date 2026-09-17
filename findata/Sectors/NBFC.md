@@ -115,8 +115,9 @@ Non-Banking Financial Companies — diversified consumer, SME, gold-loan, microf
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 26 company note(s) in NBFC. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 27 company note(s) in NBFC. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
+- [[Arcil]]
 - [[Arman_Financial_Services|Arman Financial Services]]
 - [[Bajaj_Finance|Bajaj Finance]]
 - [[Bajaj_Finserv|Bajaj Finserv]]

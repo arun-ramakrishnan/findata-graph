@@ -278,10 +278,18 @@ sources:
   resource: /findata/The_Chatter/Max_Life_Tempsens_TCS.md
   title: 'The Chatter: Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More'
   last_modified: '2026-08-31'
+- id: KEI_Ind_Cochin_Ship
+  resource: /findata/The_Chatter/KEI_Ind_Cochin_Ship.md
+  title: 'The Chatter: RBI Governor, RBI Deputy Governor, KEI Industries, Cochin Shipyard & More'
+  last_modified: '2026-09-17'
+- id: Solar_Ind_PhonePe_Coforge
+  resource: /findata/The_Chatter/Solar_Ind_PhonePe_Coforge.md
+  title: 'The Chatter: Solar Industries, PhonePe, Coforge, Senco & More'
+  last_modified: '2026-09-17'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-08T11:56:39Z'
-stale_after: '2027-03-07'
+  at: '2026-09-17T02:59:45Z'
+stale_after: '2027-03-16'
 ---
 # Quotes
 
@@ -65054,44 +65062,6 @@ these s…"
 
 > "In terms of insurance repository, you would have seen that till about a year back we us to increment volumes at the rate of about 20 to 25 lakh [2-2.5 million] policies a year. L one year this increase has almost doubled to become 40 to 50 lakh [4-5 million] policies. LIC is s…"
 
-- *[Sportking India]*
-
-- **# Sportking India Provides near-term outlook for cotton prices (stable) and flags potential governmen policy change (import duty removal) wh…**
-
-> "About cotton prices, you know, there is... we feel the cotton prices are going to be stable where they are, like there won't be much movement maybe, you know, 2-3\%, within a ras of 5\% for next until at least till October. And there is a lot of movement, the government seriou…"
-> — Munish Awasti, Chairman \& MD [^chatter-Risks_Rewards_and_Revelations]
-
-- *[Sportking India]*
-
-- **Management observes stronger-than-usual demand in the current quarter (post-Ap suggesting resilience despite typical seasonal slowdowns, a p…**
-
-> "So, you know, these generally historically, you know, the the market is a little quiet goin after Holi, like in April, May, June. But surprisingly this year, we have seen much better demand than what it used to be. So demand continues to be pretty good right now."
-> — Munish Awasti, Chairman \& MD [^chatter-Risks_Rewards_and_Revelations]
-
-- *[Sportking India]*
-
-- **Highlights the significant role of government intervention (CCI holding MSP stock the cotton market, influencing prices and supply dynamics,…**
-
-> "Cotton prices have remained range bound with less volatility. The Cotton Corporation India continues to hold a very significant stock of cotton driven by its MSP related actic and has procured close to 100 lakh bales of cotton in the current cotton season. Cotton? spreads cont…"
-> — Munish Awasti, Chairman \& MD [^chatter-Risks_Rewards_and_Revelations]
-
-- *[Sportking India]*
-
-- **Management highlights potential free trade agreements with key Western markets major positive catalyst for the Indian textile industry and S…**
-
-> "Overall, we are pleased with our business performance for FY25 as we delivered robust gross based growth. We are excited about the future as the impending trade deals with $U$ Europe and the UK can be a watershed moment for textile industry. And they all look tc pretty imminen…"
-
-- *[Sportking India]*
-
-> "Exports have been a source of strength in yet another quarter, we achieved the highest $\epsilon$ exports revenue for the full financial year during this fiscal. While the full effect of tarif? remain an uncertainty, going by the current structure, Indian textile sectors have …"
-> — Munish Awasti, Chairman \& MD [^chatter-Risks_Rewards_and_Revelations]
-
-- *[Sportking India]*
-
-- **Provides clarity that the US ban on Xinjiang cotton primarily affects China's dome: usage patterns rather than directly flooding export mark…**
-
-> "So first of all, it's not premium cotton, it's the similar cotton as we produce in India. There's nothing premium about that cotton that, you know, the product made out of tha"
-
 - *[Graviss Foods (Baskin Robbins)]*
 
 - **# Graviss Foods (Baskin Robbins) Reports underwhelming growth despite favorable weather. As quoted in businessline:**
@@ -65141,60 +65111,12 @@ these s…"
 > "Technically, foreign tourist arrivals are not yet back to pre-Covid, so we now talk about 'foreign arrivals' more broadly. Business-related inflows-from global capability centres auto OEMs, post-G20 follow-ups-are rising steadily, but pure leisure remains below 20 IHCL is spen…"
 > — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
 
-- *[Godrej Agrovet]*
-
-- **## Godrej Agrovet Focusing capital expenditure solely on high-margin segments, notably oil palm, avoiding new investments in underperforming…**
-
-> "No capex in ASX. In GAVL we are only putting capex in high-margin businesses now, particularly oil palm plantation. It is the recipient of most capex-they're coming up wi refineries in palm kernel oil etc. Apart from that, they'll get into further value-added products also. So…"
-> — Balram Yadav, MD [^chatter-Risks_Rewards_and_Revelations]
-
-- *[Godrej Agrovet]*
-
-- **Investing heavily in branding for dairy products, including celebrity endorsements, drive growth in value-added segments:**
-
-> "One reason for margin compression in dairy business was that we accelerated our marketing initiative for our value-added products and you'll be glad to know that we spu almost 26 crore in Q4 of last year and we have taken Rana Daggubati, the superstar of Southern cinema, as ou…"
-> — Balram Yadav, MD [^chatter-Risks_Rewards_and_Revelations]
-
-- *[Godrej Agrovet]*
-
-- **Astec LifeSciences faced heavy losses due to sharp decline in product prices and hi; cost inventory; maintaining cautious outlook ahead:**
-
-> "I'll simplify the whole thing. In enterprise business we lost heavily because the prices ju halved and we were left with a lot of finished product and high-cost raw material. At on time, our cost of raw material was higher than the finished product. So we sold a lot of materia…"
-
-- *[Godrej Agrovet]*
-
-- **Balram Yadav, MD Actively considering portfolio restructuring, gaining flexibility by fully acquiring stakes in key JVs**
-
-> "I fully agree with you that portfolio consolidation or reorganization has to play out in t company. And by buying these stakes [in Godrej Tyson Foods and ATPL], we have given ourselves that freedom to do that. So my sense is that we are going to see what each business can do. …"
-> — Balram Yadav, MD [^chatter-Risks_Rewards_and_Revelations]
-
 - *[R R Kabel]*
 
 - **# R R Kabel Shift towards premium and mid-premium segments driving better pricing and red $_{t}$ warranty expenses**
 
 > "Premium and mid-premium SKUs now account for one-fifth of FMEG sales, up sharpl from a couple of years ago. The shift is raising average selling prices and trimming warr $_{t}$ costs."
 > — Rajesh Jain, CFO [^chatter-Risks_Rewards_and_Revelations]
-
-- *[CCL Products]*
-
-- **## CCL Products Significant jump in borrowing due to sharply higher coffee bean prices, impacting working capital requirements**
-
-> "From FY 15-20 your benchmark price for raw Robusta was about US \$1,000 a tonne; today it's US $\$ 5,000$. For the same physical volume I need $5 \times$ the cash. That single facto explains most of the borrowing jump. The inventories are against confirmed orders-we not specul…"
-> — Chittaranjan Raju, CFO [^chatter-Risks_Rewards_and_Revelations]
-
-- *[CCL Products]*
-
-- **Global coffee demand growth expected primarily from developing markets amid fla consumption in mature economies**
-
-> "In Europe or the US everyone already drinks coffee, so the category is flat. Future globc consumption growth will come from developing economies-India, China, Middle East where penetration is low; we see sustained double-digit category growth there."
-> — Chittaranjan Raju, CFO [^chatter-Risks_Rewards_and_Revelations]
-
-- *[CCL Products]*
-
-- **Stability in coffee prices, even at higher levels, is preferable over volatility as it improves working capital cycles**
-
-> "What really hurts is choppy prices, not high prices... If prices stabilise-even at today's high base-customers go back to longer contracts, and our working-capital cycle and inventory days shrink."
-> — Chittaranjan Raju, CFO [^chatter-Risks_Rewards_and_Revelations]
 
 - *[Coca Cola]*
 
@@ -113378,3 +113300,20 @@ Currently, spot prices are 145 per kg for fishmeal."
 > — Shri Tuhin Kanta Pandey, Chairman, SEBI
 
 *Source: The Chatter — Maruti Lumino Indian Bank*
+
+## The Chatter — KEI Ind Cochin Ship
+
+**Financial inclusion is fintech's unfinished job:** Governor Malhotra framed last-mile access (savings for the informal sector, micro-insurance, small pensions, small-ticket credit, credit for women entrepreneurs and marginal farmers) as fintech's "single most important purpose" — and cautioned that industry effort gravitates to already-banked, bureau-visible customers because the cost-benefit justifies it, leaving the hardest inclusion work under-addressed.
+
+**AI agenda with a risk rider:** RBI named four AI use areas — consumer service, unmet credit, operational efficiency of intermediaries, fraud reduction — while flagging opacity, bias, exclusion, concentration and herding, cybersecurity, data privacy and erosion of human judgement as risks whose mitigation underpins consumer trust.
+
+**Data as fiduciary duty; scale-priced responsibility:** Fintechs should treat customer data "the way a trustee treats assets held for a beneficiary", not as a monetisation asset; firms whose payments, lending or user base become systemically significant acquire obligations beyond their balance sheet — resilience and cyber spend are "the price of the scale a firm has achieved", and "scale first, seek forgiveness later" structuring drew an explicit caution.
+
+**Market-infrastructure pipeline:** United FinTech Forum recognised as the sector's second SRO; programmable CBDC pilots exploring targeted government benefit transfers (PMGKAY); tokenised Certificates of Deposit via wholesale CBDC extended to corporate-bond settlement in a joint initiative with SEBI.
+
+**Deputy Governor Jain's Purpose/Prudence/Policy frame:** AI now augments human judgement itself; speed, concentration and opacity let familiar risks (credit, liquidity, leverage, operations) propagate faster and wider — a single cloud/model vendor can transmit disruption across many institutions. "An institution may outsource the computation, but it cannot outsource the consequences"; governance expectations should scale with use-case consequence (document summariser ≠ autonomous credit approval). Quantum computing demands pre-emptive cryptographic resilience; sandboxes and outcome-focused, proportionate regulation complete the toolkit.
+
+> "As a firm's payment volumes, lending book, or user base grows to a point where its disruption could meaningfully affect the financial system, that firm acquires a responsibility that goes beyond its balance sheet or its shareholders. I would describe this as the obligation to be not just 'too big to fail' but 'too significant to be careless.'"
+> — Sanjay Malhotra, Governor, Reserve Bank of India
+
+*Source: The Chatter — KEI Ind Cochin Ship*

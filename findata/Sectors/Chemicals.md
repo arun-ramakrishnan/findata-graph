@@ -98,7 +98,7 @@ The Chemicals sector in India encompasses specialty chemicals, agrochemicals, pe
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 68 company note(s) in Chemicals. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 69 company note(s) in Chemicals. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Company20_Microns|20 Microns Limited]]
 - [[Aarti_Industries|Aarti Industries]]
@@ -128,6 +128,7 @@ The Chemicals sector in India encompasses specialty chemicals, agrochemicals, pe
 - [[Grasim_Industries]]
 - [[Gujarat_Fluorochemicals|Gujarat Fluorochemicals]]
 - [[Himadri_Speciality_Chemical|Himadri Speciality Chemical]]
+- [[IOL_Chemicals_and_Pharmaceuticals|IOL Chemicals and Pharmaceuticals]]
 - [[Indigo_Paints|Indigo Paints]]
 - [[Indorama]]
 - [[Ion_Exchange|Ion Exchange]]

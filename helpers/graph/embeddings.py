@@ -186,6 +186,10 @@ def _get_company_text(conn: sqlite3.Connection, company_name: str) -> str:
 
     file_path, sector = r
 
+    # Exchange-seeded stub (D17): file_path IS NULL — no note exists yet.
+    if not file_path:
+        return f"{company_name}. {sector or ''}"
+
     # Try to read the markdown file
     full_path = PROJECT_ROOT / file_path
     if full_path.exists():
@@ -250,10 +254,13 @@ def populate_local(conn: sqlite3.Connection, company: str | None = None) -> int:
     if company:
         names = [company]
     else:
+        # Noteless stubs (file_path IS NULL, ~5k exchange-seeded) are
+        # excluded — a name+sector-only vector is cosine noise.
         names = [
             r[0]
             for r in conn.execute(
-                "SELECT name FROM entities WHERE entity_type = 'company' ORDER BY name"
+                "SELECT name FROM entities WHERE entity_type = 'company'"
+                " AND file_path IS NOT NULL ORDER BY name"
             ).fetchall()
         ]
 
@@ -383,7 +390,8 @@ def populate_dry_run(conn: sqlite3.Connection, dims: int = 64, company: str | No
         names = [
             r[0]
             for r in conn.execute(
-                "SELECT name FROM entities WHERE entity_type = 'company' ORDER BY name"
+                "SELECT name FROM entities WHERE entity_type = 'company'"
+                " AND file_path IS NOT NULL ORDER BY name"
             ).fetchall()
         ]
 

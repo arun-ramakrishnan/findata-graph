@@ -169,7 +169,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 96 company note(s) in Automotive. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 97 company note(s) in Automotive. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Amara_Raja_Energy_and_Mobility|Amara Raja Energy and Mobility]]
 - [[Apollo_Tyres|Apollo Tyres]]
@@ -240,6 +240,7 @@ Component manufacturing, tires, batteries, forgings, gears, and specialized part
 - [[Royal_Enfield|Royal Enfield]]
 - [[SML_Mahindra|SML Mahindra]]
 - [[Samvardhana_Motherson_International|Samvardhana Motherson International]]
+- [[Sandhar_Technologies|Sandhar Technologies]]
 - [[Schaeffler_India|Schaeffler India]]
 - [[Setco_Automotive|Setco Automotive]]
 - [[Shigan_Quantum_Technologies|Shigan Quantum Technologies]]

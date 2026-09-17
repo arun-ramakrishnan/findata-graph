@@ -188,6 +188,23 @@ class TestGetCompanyText:
         assert "TestCo" in text
         assert "Banking" in text
 
+    def test_null_file_path(self, tmp_path):
+        """D17 stub (file_path IS NULL) must not crash path building."""
+        conn, _ = _make_embed_db(tmp_path)
+        conn.execute("""
+            CREATE TABLE entities (
+                name TEXT PRIMARY KEY,
+                entity_type TEXT,
+                file_path TEXT,
+                sector_classification TEXT
+            )
+        """)
+        conn.execute("INSERT INTO entities VALUES ('StubCo', 'company', NULL, 'Banking')")
+        conn.commit()
+        text = _get_company_text(conn, "StubCo")
+        assert "StubCo" in text
+        assert "Banking" in text
+
     def test_with_file(self, tmp_path):
         conn, _ = _make_embed_db(tmp_path)
         conn.execute("""
@@ -318,6 +335,25 @@ class TestPopulateDryRun:
         assert n == 3  # only companies, not sectors
         rows = conn.execute("SELECT COUNT(*) FROM company_embeddings").fetchone()[0]
         assert rows == 3
+
+    def test_noteless_stubs_excluded(self, tmp_path):
+        """D17 stubs (file_path IS NULL) are never embedded (2026-09-17)."""
+        conn, _ = _make_embed_db(tmp_path)
+        conn.execute("""
+            CREATE TABLE entities (
+                name TEXT PRIMARY KEY,
+                entity_type TEXT,
+                file_path TEXT,
+                sector_classification TEXT
+            )
+        """)
+        conn.execute("INSERT INTO entities VALUES ('Authored', 'company', 'findata/A.md', 'Tech')")
+        conn.execute("INSERT INTO entities VALUES ('StubCo', 'company', NULL, 'Banking')")
+        conn.commit()
+        n = populate_dry_run(conn, dims=32)
+        assert n == 1
+        rows = {r[0] for r in conn.execute("SELECT company_name FROM company_embeddings")}
+        assert rows == {"Authored"}
 
     def test_replace_existing(self, tmp_path):
         conn, _ = _make_embed_db(tmp_path)
