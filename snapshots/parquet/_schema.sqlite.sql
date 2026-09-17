@@ -201,7 +201,7 @@ CREATE TABLE concepts (
             notation     TEXT,
             broader_id   TEXT REFERENCES concepts(concept_id),
             scope_note   TEXT,
-            source_ref   TEXT NOT NULL,
+            source_ref   TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('candidate', 'active', 'superseded')),
             UNIQUE (scheme_id, concept_code)
         );
 
@@ -214,7 +214,7 @@ CREATE TABLE concept_mappings (
                              ('exactMatch', 'closeMatch', 'broadMatch', 'narrowMatch')),
             source_ref     TEXT NOT NULL,
             version        TEXT NOT NULL
-        );
+        , status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('candidate', 'active', 'superseded')));
 
 CREATE TABLE entity_identifiers (
         entity_name      TEXT NOT NULL REFERENCES entities(name)

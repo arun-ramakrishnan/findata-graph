@@ -1425,3 +1425,60 @@ def test_embedding_decode_ignores_tests(tmp_path, monkeypatch):
         "import json\nvec = json.loads(embedding_text)\n",
     )
     assert sc.check_embedding_decode_chokepoint() == []
+
+
+# --------------------------------------------------------------------------- #
+# Ontology doc roster drift (ontology_governance S0)                          #
+# --------------------------------------------------------------------------- #
+
+
+def _write_matching_doc(tmp_path: Path) -> Path:
+    """A doc whose gated rosters exactly mirror the live registries."""
+    lines = ["# t", ""]
+    for name, values in sc.roster_registry_sources().items():
+        lines += [f"<!-- roster: {name} -->", ""]
+        lines += [f"- {v}" for v in sorted(values)]
+        lines += ["", "<!-- /roster -->", ""]
+    doc = tmp_path / "ontology.md"
+    doc.write_text("\n".join(lines), encoding="utf-8")
+    return doc
+
+
+def test_ontology_rosters_pass_when_doc_matches_registries(tmp_path):
+    assert sc.check_ontology_doc_rosters(_write_matching_doc(tmp_path)) == []
+
+
+def test_ontology_rosters_fail_on_removed_value(tmp_path):
+    doc = _write_matching_doc(tmp_path)
+    text = doc.read_text(encoding="utf-8")
+    first_edge = next(iter(sc.roster_registry_sources()["edge_types"]))
+    doc.write_text(text.replace(f"- {first_edge}\n", "", 1), encoding="utf-8")
+    failures = sc.check_ontology_doc_rosters(doc)
+    assert len(failures) == 1
+    assert "edge_types" in failures[0] and "missing from doc" in failures[0]
+    assert first_edge in failures[0]
+
+
+def test_ontology_rosters_fail_on_unknown_value(tmp_path):
+    doc = _write_matching_doc(tmp_path)
+    text = doc.read_text(encoding="utf-8")
+    doc.write_text(
+        text.replace("<!-- /roster -->", "- not_a_real_edge\n\n<!-- /roster -->", 1),
+        encoding="utf-8",
+    )
+    failures = sc.check_ontology_doc_rosters(doc)
+    assert len(failures) == 1
+    assert "not in code registry: not_a_real_edge" in failures[0]
+
+
+def test_ontology_rosters_fail_when_gated_roster_absent(tmp_path):
+    doc = tmp_path / "ontology.md"
+    doc.write_text("# t — no roster blocks at all\n", encoding="utf-8")
+    failures = sc.check_ontology_doc_rosters(doc)
+    assert len(failures) == 2
+    assert all("absent from the doc" in f for f in failures)
+
+
+def test_ontology_rosters_live_doc_is_green():
+    """The shipped doc/design/ontology.md matches the code registries."""
+    assert sc.check_ontology_doc_rosters() == []

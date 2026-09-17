@@ -1263,11 +1263,29 @@ class DatabaseIntegrityChecker:
                 seen.add(node)
                 node = broader[node]
         warnings += len(cyclic)
+        # --- lifecycle hygiene (ontology_governance S1; pre-S1 DBs skip) ---
+        concept_cols = {row[1] for row in cur.execute("PRAGMA table_info(concepts)")}
+        has_mappings = (
+            cur.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='concept_mappings' AND type='table'"
+            ).fetchone()
+            is not None
+        )
+        mapping_cols = (
+            {row[1] for row in cur.execute("PRAGMA table_info(concept_mappings)")}
+            if has_mappings
+            else set()
+        )
+        has_lifecycle = "status" in concept_cols and "status" in mapping_cols
         # duplicate pref_label within a scheme (case-insensitive: the
-        # tag-vs-entity case-variant class the seeder absorbs)
+        # tag-vs-entity case-variant class the seeder absorbs); among
+        # ACTIVE rows only when the lifecycle column exists — duplicate
+        # labels across time are the history superseding keeps.
+        active_only = "WHERE status='active'" if has_lifecycle else ""
         dupes = cur.execute(
-            "SELECT COUNT(*) FROM (SELECT scheme_id, pref_label FROM concepts "
-            "GROUP BY scheme_id, pref_label COLLATE NOCASE HAVING COUNT(*) > 1)"
+            f"SELECT COUNT(*) FROM (SELECT scheme_id, pref_label FROM concepts "  # noqa: S608 — interpolated part is the constant active_only filter; no user input
+            f"{active_only} "
+            f"GROUP BY scheme_id, pref_label COLLATE NOCASE HAVING COUNT(*) > 1)"
         ).fetchone()[0]
         warnings += dupes
         # schemes with no concepts (roster drift)
@@ -1276,11 +1294,45 @@ class DatabaseIntegrityChecker:
             "WHERE NOT EXISTS (SELECT 1 FROM concepts c WHERE c.scheme_id = s.scheme_id)"
         ).fetchone()[0]
         warnings += empty_schemes
+        active_map_superseded = hierarchy_through_superseded = dangling_candidates = 0
+        if has_lifecycle:
+            # active mappings whose either side resolves to a superseded concept
+            active_map_superseded = cur.execute(
+                "SELECT COUNT(*) FROM concept_mappings m "
+                "JOIN concepts cs ON cs.scheme_id=m.source_scheme "
+                "AND cs.concept_code=m.source_concept "
+                "JOIN concepts ct ON ct.scheme_id=m.target_scheme "
+                "AND ct.concept_code=m.target_concept "
+                "WHERE m.status='active' "
+                "AND (cs.status='superseded' OR ct.status='superseded')"
+            ).fetchone()[0]
+            warnings += active_map_superseded
+            # active concepts whose broader is superseded (closure routes
+            # through a retired node — subtree() would drop the branch)
+            hierarchy_through_superseded = cur.execute(
+                "SELECT COUNT(*) FROM concepts c JOIN concepts p "
+                "ON p.concept_id=c.broader_id "
+                "WHERE c.status='active' AND p.status='superseded'"
+            ).fetchone()[0]
+            warnings += hierarchy_through_superseded
+            # candidate mappings referencing a concept that does not exist
+            # (stale suggestions — their target was renamed/absorbed away)
+            dangling_candidates = cur.execute(
+                "SELECT COUNT(*) FROM concept_mappings m WHERE m.status='candidate' AND ("
+                "NOT EXISTS (SELECT 1 FROM concepts c WHERE c.scheme_id=m.source_scheme "
+                "AND c.concept_code=m.source_concept) "
+                "OR NOT EXISTS (SELECT 1 FROM concepts c WHERE c.scheme_id=m.target_scheme "
+                "AND c.concept_code=m.target_concept))"
+            ).fetchone()[0]
+            warnings += dangling_candidates
         return {
             "dangling_broader": dangling,
             "cycles": len(cyclic),
             "duplicate_pref_labels": dupes,
             "empty_schemes": empty_schemes,
+            "active_mappings_to_superseded": active_map_superseded,
+            "hierarchy_through_superseded": hierarchy_through_superseded,
+            "dangling_candidates": dangling_candidates,
             "warnings": warnings,
             "errors": 0,
         }

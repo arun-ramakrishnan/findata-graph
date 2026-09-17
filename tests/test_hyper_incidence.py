@@ -590,8 +590,10 @@ class TestLongestChains:
         # listed_in is excluded; ALL keeps them as a 2-node component).
         all_line = next(ln for ln in lines if ln.startswith("  ALL edges"))
         act_line = next(ln for ln in lines if ln.startswith("  ACTIVITY edges"))
-        n_all = int(re.search(r"(\d+) components", all_line).group(1))
-        n_act = int(re.search(r"(\d+) components", act_line).group(1))
+        m_all = re.search(r"(\d+) components", all_line)
+        m_act = re.search(r"(\d+) components", act_line)
+        assert m_all is not None and m_act is not None
+        n_all, n_act = int(m_all.group(1)), int(m_act.group(1))
         assert n_act > n_all
 
     def test_degrades_on_empty(self, tmp_path):

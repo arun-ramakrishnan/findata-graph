@@ -266,8 +266,10 @@ class TestRebuild:
         rebuild(db_path=tmp_db)
         dcon = dd.connect(str(_duckdb_for(tmp_db)), read_only=True)
         try:
-            he = dcon.execute("SELECT COUNT(*) FROM h_edge").fetchone()[0]
-            hi = dcon.execute("SELECT COUNT(*) FROM h_incidence").fetchone()[0]
+            he_row = dcon.execute("SELECT COUNT(*) FROM h_edge").fetchone()
+            hi_row = dcon.execute("SELECT COUNT(*) FROM h_incidence").fetchone()
+            assert he_row is not None and hi_row is not None
+            he, hi = he_row[0], hi_row[0]
             cols = {r[0] for r in dcon.execute("DESCRIBE h_incidence").fetchall()}
         finally:
             dcon.close()

@@ -247,6 +247,9 @@ build). Tests: `tests/test_onager_capabilities.py` (contract, hand-computed
 values), `tests/test_integration_graph_algorithms.py` (dispatcher + CLI +
 persistence), perf: `graph_link_prediction` benchmark.
 
+Ontology vocabulary (edge/event/hyperedge/role rosters, binding decisions
+D-O1…O6): `doc/design/ontology.md` — the master reference.
+
 ### 5.6 Persistence & refresh
 
 `make recompute-graph` → `--all --apply`: the 14 dyadic metrics (12

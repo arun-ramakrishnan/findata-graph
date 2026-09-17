@@ -1004,6 +1004,75 @@ def check_data_format() -> tuple[list[str], list[str]]:
     return _run()
 
 
+# --- ontology_governance S0: master-doc roster drift ----------------------- #
+
+ONTOLOGY_DOC = Path("doc/design/ontology.md")
+
+_ROSTER_RE = re.compile(r"<!--\s*roster:\s*(\w+)\s*-->(.*?)<!--\s*/roster\s*-->", re.DOTALL)
+_ROSTER_ITEM_RE = re.compile(r"^\s*-\s+(\S+)\s*$", re.MULTILINE)
+
+
+def parse_roster_blocks(text: str) -> dict[str, set[str]]:
+    """Extract ``<!-- roster: name -->`` blocks → {name: set(items)}.
+
+    Items are the first token of each bullet line between the markers;
+    prose inside the block is ignored.
+    """
+    blocks: dict[str, set[str]] = {}
+    for match in _ROSTER_RE.finditer(text):
+        items = set(_ROSTER_ITEM_RE.findall(match.group(2)))
+        blocks.setdefault(match.group(1), set()).update(items)
+    return blocks
+
+
+def roster_registry_sources() -> dict[str, set[str]]:
+    """Gated rosters → their code registries.
+
+    Local imports: database_integrity_check imports CANONICAL_EVENT_TYPES
+    from this module (module-level import would be circular), and its own
+    imports are light. Edge vocabulary truth is _KNOWN_EDGE_TYPES (20) —
+    query.py's EDGE_REGISTRY is the DuckDB-materialized SUBSET, not the
+    vocabulary.
+    """
+    from helpers.misc.database_integrity_check import _KNOWN_EDGE_TYPES
+
+    return {
+        "edge_types": set(_KNOWN_EDGE_TYPES),
+        "canonical_event_types": set(CANONICAL_EVENT_TYPES),
+    }
+
+
+def check_ontology_doc_rosters(doc_path: Path | None = None) -> list[str]:
+    """ontology_governance S0: doc/design/ontology.md rosters match registries.
+
+    Fails in BOTH directions — a registry value missing from the doc, or a
+    doc value the registry doesn't know — so the master doc and the code
+    registries can never silently drift apart. Documented-only rosters
+    (no loader entry here) are exempt; they join when a shared constant
+    exports cleanly (proposal §7).
+    """
+    path = doc_path or (REPO_ROOT / ONTOLOGY_DOC)
+    if not path.is_file():
+        return [f"{ONTOLOGY_DOC}: master ontology doc missing (ontology_governance S0)"]
+    blocks = parse_roster_blocks(path.read_text(encoding="utf-8"))
+    failures: list[str] = []
+    for name, registry in roster_registry_sources().items():
+        if name not in blocks:
+            failures.append(f"{ONTOLOGY_DOC}: gated roster '{name}' absent from the doc")
+            continue
+        doc_only = sorted(blocks[name] - registry)
+        code_only = sorted(registry - blocks[name])
+        if doc_only:
+            failures.append(
+                f"{ONTOLOGY_DOC} roster '{name}': not in code registry: " + ", ".join(doc_only)
+            )
+        if code_only:
+            failures.append(
+                f"{ONTOLOGY_DOC} roster '{name}': missing from doc: " + ", ".join(code_only)
+            )
+    return failures
+
+
 CHECKS = [
     ("Python syntax", check_python_syntax),
     ("JS syntax", check_js_syntax),
@@ -1024,6 +1093,8 @@ CHECKS = [
     ("Embedding decode chokepoint", check_embedding_decode_chokepoint),
     ("DB meta generation", check_db_meta_generation),
     ("Data format (parquet zstd + Arrow in flight)", check_data_format),
+    # ontology_governance S0: master-doc rosters vs code registries
+    ("Ontology doc rosters", check_ontology_doc_rosters),
 ]
 
 

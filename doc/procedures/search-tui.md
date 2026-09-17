@@ -73,7 +73,8 @@ never blocks. Needs the `tui` extra (now includes `tree-sitter` +
 | enter (tree row) | run `SELECT *` (table) or one column (leaf), capped |
 | f5 | run the editor SQL (enter is a newline — multiline supported) |
 | type prefix + tab | complete from keywords + tables + `table.column` (matches list under the editor) |
-| `P` / `N` | older / newer query (per-store history in `~/.config/search_tui/`; ctrl+`p` is the app command palette) || `/` | focus the row filter (fuzzy subsequence over loaded rows, live) |
+| `P` / `N` | older / newer query (per-store history in `~/.config/search_tui/`; ctrl+`p` is the app command palette) |
+| `/` | focus the row filter (fuzzy subsequence over loaded rows, live) |
 | enter (filter) | back to the editor |
 | `v` | inspect the row (`col: value` lines under the grid) |
 | `y` / `Y` | yank cell / row (tab-separated) |

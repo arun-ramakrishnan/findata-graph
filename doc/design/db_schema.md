@@ -311,26 +311,35 @@ integrity check (WARNING).
 ## `concept_schemes` / `concepts` / `concept_mappings` — SKOS conventions (S2)
 
 SKOS as table conventions (ontology_convention_stack S2, 2026-09-14;
-schema v9). Written ONLY by `helpers/misc/seed_concepts.py` (maint-full
-PRE_FULL; DELETE-then-INSERT on the `seed:%` source_ref prefix). Live:
-11 schemes / 403 concepts / 68 mappings — the 9 entity_tags namespaces
-+ `super_sector`/`industry`; taxonomy concepts canonical from entity
-names (case-variant tags absorbed), `broader_id` from `belongs_to`
-(sub_sector→sector→super_sector); crosswalks seeded from
+schema v9; lifecycle `status` columns added by ontology_governance S1,
+schema v12). Written ONLY by `helpers/misc/seed_concepts.py` (maint-full
+PRE_FULL; lifecycle-aware DELETE-then-INSERT on the `seed:%` source_ref
+prefix — rows the roster still produces are reinserted `active`, rows it
+no longer produces flip to `superseded` instead of being deleted).
+Live: 11 schemes / 403 concepts / 68 mappings — the 9 entity_tags
+namespaces + `super_sector`/`industry`; taxonomy concepts canonical
+from entity names (case-variant tags absorbed), `broader_id` from
+`belongs_to` (sub_sector→sector→super_sector); crosswalks seeded from
 `derive_hyperedges.SUB_SECTOR_ALIASES` (S11/S17 curated map,
 exactMatch). `concept_mappings` is the ONE crosswalk home (D-O1) —
 match-id columns on `concepts` are forbidden; external targets (NIC,
 NACE, GICS-opaque, Wikidata QIDs) land here without FKs by design.
 `subtree()` in the seeder is the reusable closure helper (recursive
-CTE, not OWL). Hygiene via the `concepts` integrity check (WARNING):
-dangling broader, cycles, duplicate pref_labels (case-insensitive),
-empty schemes.
+CTE, not OWL; active-only by default — superseded/candidate concepts
+stop grouping their descendants). Candidate rows land via
+extractor/triage funnels (`agent:`/`manual:` source_ref) and promote
+through the validated `--promote` / `--promote-map` surfaces
+(plan-then-apply; any failure blocks the batch). Hygiene via the
+`concepts` integrity check (WARNING): dangling broader, cycles,
+duplicate pref_labels among ACTIVE rows (case-insensitive), empty
+schemes, active mappings referencing superseded concepts, hierarchy
+routing through superseded nodes, dangling candidates.
 
 | Table | Key columns |
 |---|---|
 | `concept_schemes` | `scheme_id` PK · `label` · `scheme_type` (tag_namespace\|taxonomy\|label_scheme) · `version` · `active` |
-| `concepts` | `concept_id` PK (`scheme:code`) · `scheme_id` FK · `concept_code` · `pref_label` · `alt_label` (underscore-spaced) · `notation` (external codes, future) · `broader_id` self-FK · `source_ref` · UNIQUE(scheme_id, concept_code) |
-| `concept_mappings` | `source_scheme` + `source_concept` · `target_scheme` + `target_concept` (no FK — external targets by design) · `match_type` CHECK (exactMatch\|closeMatch\|broadMatch\|narrowMatch) · `source_ref` · `version` |
+| `concepts` | `concept_id` PK (`scheme:code`) · `scheme_id` FK · `concept_code` · `pref_label` · `alt_label` (underscore-spaced) · `notation` (external codes, future) · `broader_id` self-FK · `source_ref` · `status` (candidate\|active\|superseded) · UNIQUE(scheme_id, concept_code) |
+| `concept_mappings` | `source_scheme` + `source_concept` · `target_scheme` + `target_concept` (no FK — external targets by design) · `match_type` CHECK (exactMatch\|closeMatch\|broadMatch\|narrowMatch) · `source_ref` · `version` · `status` (candidate\|active\|superseded) |
 
 ## `note_search` — FTS5
 

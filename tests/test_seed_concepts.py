@@ -181,3 +181,280 @@ class TestMain:
         conn.close()
         assert sc.main(["--db", str(path)]) == 0
         assert sc.main(["--db", str(path), "--apply"]) == 0
+
+
+# --------------------------------------------------------------------------- #
+# Lifecycle (ontology_governance S1): supersede / resurrect / promote         #
+# --------------------------------------------------------------------------- #
+
+
+def _status(db, concept_id: str) -> str:
+    return db.execute("SELECT status FROM concepts WHERE concept_id=?", (concept_id,)).fetchone()[0]
+
+
+def _mapping_status(db, key: tuple) -> list[str]:
+    return [
+        row[0]
+        for row in db.execute(
+            "SELECT status FROM concept_mappings WHERE source_scheme=? AND "
+            "source_concept=? AND target_scheme=? AND target_concept=? AND match_type=?",
+            key,
+        )
+    ]
+
+
+class TestLifecycle:
+    def test_supersede_on_roster_removal(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        assert _status(db, "subsector:Payments") == "active"
+        db.execute("DELETE FROM entities WHERE name='Payments'")
+        db.execute("DELETE FROM graph_edges WHERE source='Payments' OR target='Payments'")
+        db.commit()
+        counts = sc.seed(db, apply=True)
+        assert counts["superseded_concepts"] == 1
+        assert counts["resurrected_concepts"] == 0
+        # kept queryable, not deleted
+        assert _status(db, "subsector:Payments") == "superseded"
+
+    def test_resurrect_on_re_add(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        db.execute("DELETE FROM entities WHERE name='Payments'")
+        db.execute("DELETE FROM graph_edges WHERE source='Payments' OR target='Payments'")
+        db.commit()
+        sc.seed(db, apply=True)
+        db.execute("INSERT INTO entities (name, entity_type) VALUES ('Payments', 'sub_sector')")
+        db.execute(
+            "INSERT INTO graph_edges (source, target, edge_type) VALUES ('Payments', 'Technology', 'belongs_to')"
+        )
+        db.commit()
+        counts = sc.seed(db, apply=True)
+        assert counts["resurrected_concepts"] == 1
+        assert counts["superseded_concepts"] == 0
+        assert _status(db, "subsector:Payments") == "active"
+
+    def test_idempotent_rerun_zero_lifecycle_flips(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        db.execute("DELETE FROM entities WHERE name='Payments'")
+        db.execute("DELETE FROM graph_edges WHERE source='Payments' OR target='Payments'")
+        db.commit()
+        sc.seed(db, apply=True)  # converge: Payments superseded
+        counts = sc.seed(db, apply=True)
+        assert counts["superseded_concepts"] == 0
+        assert counts["superseded_mappings"] == 0
+        assert counts["resurrected_concepts"] == 0
+        assert counts["resurrected_mappings"] == 0
+
+    def test_operator_rows_untouched(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        db.execute(
+            "INSERT INTO concepts (concept_id, scheme_id, concept_code, pref_label, "
+            "source_ref, status) VALUES ('subsector:Operator Candidate', 'subsector', "
+            "'Operator Candidate', 'Operator Candidate', 'manual:op', 'candidate')"
+        )
+        db.execute(
+            "INSERT INTO concept_mappings (source_scheme, source_concept, target_scheme, "
+            "target_concept, match_type, source_ref, version, status) VALUES "
+            "('industry', 'Op Label', 'subsector', 'Software', 'closeMatch', "
+            "'manual:op', 'v1', 'candidate')"
+        )
+        db.commit()
+        sc.seed(db, apply=True)
+        assert _status(db, "subsector:Operator Candidate") == "candidate"
+        assert _mapping_status(
+            db, ("industry", "Op Label", "subsector", "Software", "closeMatch")
+        ) == ["candidate"]
+
+    def test_dry_run_reports_without_writing(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        db.execute("DELETE FROM entities WHERE name='Payments'")
+        db.execute("DELETE FROM graph_edges WHERE source='Payments' OR target='Payments'")
+        db.commit()
+        counts = sc.seed(db, apply=False)
+        assert counts["superseded_concepts"] == 1
+        assert _status(db, "subsector:Payments") == "active"  # not yet written
+
+    def test_mapping_supersede_and_resurrect(self, db, monkeypatch):
+        from helpers.graph import derive_hyperedges as dh
+
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        full = dict(dh.SUB_SECTOR_ALIASES)
+        assert len(full) >= 2
+        dropped = sorted(full)[-1]
+        shrunk = {k: v for k, v in full.items() if k != dropped}
+        monkeypatch.setattr(dh, "SUB_SECTOR_ALIASES", shrunk)
+        counts = sc.seed(db, apply=True)
+        assert counts["superseded_mappings"] >= 1
+        key = ("industry", dropped, "subsector", full[dropped], "exactMatch")
+        assert _mapping_status(db, key) == ["superseded"]
+        monkeypatch.undo()
+        counts = sc.seed(db, apply=True)
+        assert counts["resurrected_mappings"] >= 1
+        assert _mapping_status(db, key) == ["active"]
+
+    def test_subtree_excludes_superseded(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        full = sc.subtree(db, "super_sector:Financials")
+        assert "subsector:Payments" in full
+        db.execute("DELETE FROM entities WHERE name='Payments'")
+        db.execute("DELETE FROM graph_edges WHERE source='Payments' OR target='Payments'")
+        db.commit()
+        sc.seed(db, apply=True)
+        active = sc.subtree(db, "super_sector:Financials")
+        assert "subsector:Payments" not in active
+        historical = sc.subtree(db, "super_sector:Financials", include_inactive=True)
+        assert "subsector:Payments" in historical
+
+
+class TestPromote:
+    def _add_candidate(self, db):
+        db.execute(
+            "INSERT INTO concepts (concept_id, scheme_id, concept_code, pref_label, "
+            "source_ref, status) VALUES ('subsector:New Thing', 'subsector', "
+            "'New Thing', 'New Thing', 'agent:test', 'candidate')"
+        )
+        db.commit()
+
+    def test_promote_candidate_concept(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        self._add_candidate(db)
+        applied, errors = sc.promote(db, ["subsector:New Thing"], [])
+        assert errors == []
+        assert applied == ["concept subsector:New Thing -> active"]
+        assert _status(db, "subsector:New Thing") == "active"
+
+    def test_missing_target_blocks_batch(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        self._add_candidate(db)
+        applied, errors = sc.promote(db, ["subsector:nope", "subsector:New Thing"], [])
+        assert len(errors) == 1 and "no such concept" in errors[0]
+        assert applied == []  # batch blocked — nothing applied
+        assert _status(db, "subsector:New Thing") == "candidate"
+
+    def test_already_active_blocks(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        _, errors = sc.promote(db, ["sector:Banking"], [])
+        assert errors == ["sector:Banking: already active"]
+
+    def test_promote_mapping_with_conflict(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        db.execute(
+            "INSERT INTO concept_mappings (source_scheme, source_concept, target_scheme, "
+            "target_concept, match_type, source_ref, version, status) VALUES "
+            "('industry', 'Banks - Regional', 'subsector', 'Payments', 'exactMatch', "
+            "'manual:t', 'v1', 'active')"
+        )
+        db.execute(
+            "INSERT INTO concept_mappings (source_scheme, source_concept, target_scheme, "
+            "target_concept, match_type, source_ref, version, status) VALUES "
+            "('industry', 'Banks - Regional', 'subsector', 'Software', 'exactMatch', "
+            "'agent:test', 'v1', 'candidate')"
+        )
+        db.commit()
+        applied, errors = sc.promote(db, [], ["industry:Banks - Regional->subsector:Software"])
+        assert len(errors) == 1 and "conflicting active mapping -> Payments" in errors[0]
+        assert applied == []
+
+    def test_promote_mapping_happy_path(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        db.execute(
+            "INSERT INTO concept_mappings (source_scheme, source_concept, target_scheme, "
+            "target_concept, match_type, source_ref, version, status) VALUES "
+            "('industry', 'Banks - Regional', 'subsector', 'Payments', 'exactMatch', "
+            "'agent:test', 'v1', 'candidate')"
+        )
+        db.commit()
+        applied, errors = sc.promote(db, [], ["industry:Banks - Regional->subsector:Payments"])
+        assert errors == []
+        assert len(applied) == 1
+        assert _mapping_status(
+            db, ("industry", "Banks - Regional", "subsector", "Payments", "exactMatch")
+        ) == ["active"]
+
+    def test_cli_promote_rc(self, db, tmp_path):
+        path = db.execute("PRAGMA database_list").fetchone()[2]
+        assert sc.main(["--db", path, "--promote", "subsector:nope"]) == 1
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        self._add_candidate(db)
+        assert sc.main(["--db", path, "--promote", "subsector:New Thing"]) == 0
+        assert _status(db, "subsector:New Thing") == "active"
+
+    def test_cli_rejects_promote_with_apply(self, tmp_path):
+        with pytest.raises(SystemExit):
+            sc.main(["--db", str(tmp_path / "x.db"), "--apply", "--promote", "a:b"])
+
+
+class TestCheckConceptsLifecycle:
+    def _checker(self, db):
+        from helpers.misc.database_integrity_check import DatabaseIntegrityChecker
+
+        path = db.execute("PRAGMA database_list").fetchone()[2]
+        return DatabaseIntegrityChecker(db_path=path, base_path=str(Path(path).parent))
+
+    def test_lifecycle_advisories_fire(self, db):
+        sc.ensure_schema(db)
+        sc.seed(db, apply=True)
+        # active mapping -> superseded source concept
+        db.execute(
+            "INSERT INTO concept_mappings (source_scheme, source_concept, target_scheme, "
+            "target_concept, match_type, source_ref, version, status) VALUES "
+            "('industry', 'Software Infrastructure', 'subsector', 'Software', "
+            "'exactMatch', 'manual:t', 'v1', 'active')"
+        )
+        db.execute(
+            "UPDATE concepts SET status='superseded' WHERE concept_id='industry:Software Infrastructure'"
+        )
+        # active concept whose broader is superseded
+        db.execute("UPDATE concepts SET status='superseded' WHERE concept_id='sector:Technology'")
+        # candidate mapping with a nonexistent target
+        db.execute(
+            "INSERT INTO concept_mappings (source_scheme, source_concept, target_scheme, "
+            "target_concept, match_type, source_ref, version, status) VALUES "
+            "('industry', 'Banks - Regional', 'subsector', 'Ghost', 'exactMatch', "
+            "'agent:test', 'v1', 'candidate')"
+        )
+        db.commit()
+        result = self._checker(db).check_concepts()
+        assert result["active_mappings_to_superseded"] == 1
+        assert result["hierarchy_through_superseded"] == 2  # Software + Payments
+        assert result["dangling_candidates"] == 1
+
+    def test_pre_s1_db_skips_lifecycle(self, tmp_path):
+        conn = connect(tmp_path / "pre_s1.db")
+        conn.execute(
+            "CREATE TABLE concept_schemes (scheme_id TEXT PRIMARY KEY, label TEXT, "
+            "scheme_type TEXT, version TEXT, source_uri TEXT, license TEXT, "
+            "attribution TEXT, active INTEGER DEFAULT 1)"
+        )
+        conn.execute(
+            "CREATE TABLE concepts (concept_id TEXT PRIMARY KEY, scheme_id TEXT, "
+            "concept_code TEXT, pref_label TEXT, alt_label TEXT, notation TEXT, "
+            "broader_id TEXT, scope_note TEXT, source_ref TEXT)"
+        )
+        conn.execute(
+            "CREATE TABLE concept_mappings (source_scheme TEXT, source_concept TEXT, "
+            "target_scheme TEXT, target_concept TEXT, match_type TEXT, "
+            "source_ref TEXT, version TEXT)"
+        )
+        conn.commit()
+        path = str(tmp_path / "pre_s1.db")
+        conn.close()
+        from helpers.misc.database_integrity_check import DatabaseIntegrityChecker
+
+        checker = DatabaseIntegrityChecker(db_path=path, base_path=str(tmp_path))
+        result = checker.check_concepts()
+        assert result["active_mappings_to_superseded"] == 0
+        assert result["hierarchy_through_superseded"] == 0
+        assert result["dangling_candidates"] == 0

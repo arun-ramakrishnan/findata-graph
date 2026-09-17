@@ -6078,3 +6078,58 @@ force-quit (history P/N, close alt+q); grow key is `equals_sign`.
 Verified: ruff/format/ty/deptry/static clean, search-fresh green;
 `make qa` 8/9 (sole failure pre-existing fuzz-frontmatter invariant on
 untouched files), `make advisory` 10/10.
+
+## 244. Ontology governance front door — master doc, concept lifecycle, change gate
+
+**Proposal**: `doc/improvements/archive/database/ontology_governance.md`
+(filed + executed + archived 2026-09-17, stg patch `ontology`). Area:
+`doc/design/ontology.md` (new master), `helpers/misc/seed_concepts.py`,
+`helpers/misc/ontology_eval_gate.py` (new),
+`helpers/misc/ontology_questions.json` (new, 79 frozen questions),
+`helpers/validators/static_checks.py`,
+`helpers/misc/database_integrity_check.py`, `helpers/core/db.py`,
+`doc/procedures/ontology-gate.md` (new), template/README gate rule.
+
+Evaluated EvoOntology (ruc-datalab, MIT, arXiv 2609.15779): borrowed
+record lifecycle + the gated parent-vs-candidate eval (translated to
+deterministic set-diff); declined confidence enums (D-O3), trajectory
+store, versioned store, MCP layer.
+
+S0: `doc/design/ontology.md` — normative rosters in `<!-- roster: -->`
+marker blocks (12; edge_types + canonical_event_types qa-gated by the
+new static check, loader from `_KNOWN_EDGE_TYPES` — the check BIT on
+first live run, exposing EDGE_REGISTRY as the 12-type DuckDB SUBSET),
+D-O1…O6, obligations table, zero-counts rule; graph_design §5.5 pointer.
+
+S1: concept lifecycle, SQLite v11→v12 — `status` on
+concepts/concept_mappings (CREATE + guarded ALTER), supersede-not-delete
+converger (roster drops flip to superseded, kept queryable; resurrect on
+re-add; operator rows untouched), `--promote`/`--promote-map`
+plan-then-apply (batch-block on missing/already-active/conflict),
+`subtree()` active-only default, three lifecycle advisories in
+`check_concepts`. Live apply: 444 concepts / 103 mappings all active,
+zero flips, user_version healed 12.
+
+S2: `ontology_eval_gate.py` — frozen question set vs parent/candidate
+DB copies; accept iff zero regressions AND no undeclared changes AND
+declared improvements materialize (declared-but-lost = regression);
+unanswerable hard-rejects; draft sets refused; `--rebaseline REF`
+refuses without ACCEPT, rewrites from candidate, bumps version, stamps
+the accepting ref. Question set rehomed to helpers/misc (the
+embed_eval_questions.json precedent) after the operator ruled tests/data
+wrong; 8 answer shapes, 79 questions mapped 1:1 to the documented
+surfaces (19 edge types, 9 hyperedge types, 7 entity-type vocabularies,
+14 subtree, 13 counterparties, 8 CIN resolves incl. 728 live-filled,
+4 crosswalks, 5 provenance tables); verified by raw SQL + live ACCEPT +
+planted-drift REJECT. Mandatory gate-bullet rule in proposal template §4
++ proposals README. Scope measured: bulk data drift is NOT the gate's
+(integrity check owns that).
+
+Gates: maint-full 21/21 → search-fresh converged → snapshot; qa 9/9
+(one tmpfs-pressure rerun), advisory 10/10 (S608 noqa, C901 refactors,
+UP017 + pre-existing fixes en route: search-tui MD056, ty error, 2 ty
+guards, frontend bun install), perf SOLO 20/22 WAIVED by operator
+(graph_eigenvector/link_prediction growth drift since 2026-09-12
+pre-ingest baseline 0.53s/1.62s at ~1.2k companies vs 6.2k now).
+Deferred: §7 items + perf graph budgets + test_fuzz_shortest_path
+176MB/run sp.db tempdir leak (cleaned 3.7GB) → pending.md.

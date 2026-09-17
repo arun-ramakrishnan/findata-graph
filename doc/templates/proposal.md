@@ -60,6 +60,13 @@ landable: S1 (first), S2, ... Order matters; say what unblocks what.>
 2. <gate that must stay green>
 3. <repeat-count for anything timing- or concurrency-shaped — never one run>
 
+Mandatory whenever the change alters query-visible semantics (rosters,
+crosswalks, hierarchies, extractor rules): an eval-gate bullet running
+`helpers/misc/ontology_eval_gate.py` over the frozen question set
+(`helpers/misc/ontology_questions.json`) between dry-run and canonical
+apply — zero regressions, no undeclared changes, declared improvements
+materialize (ontology_governance S2).
+
 | Projected outcome | Today | After |
 |---|---|---|
 | <metric> | <measured> | <projected> |

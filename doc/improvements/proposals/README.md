@@ -2,7 +2,12 @@
 
 Home for proposals awaiting execution (first occupant: the doc-search
 proposal, archived 2026-08-23). House rule (2026-08-21): file a proposal
-here BEFORE implementing multi-slice work. On Status EXECUTED, move it to
+here BEFORE implementing multi-slice work. Acceptance criteria for any
+change that alters query-visible semantics (rosters, crosswalks,
+hierarchies, extractor rules) MUST carry an eval-gate bullet —
+`helpers/misc/ontology_eval_gate.py` over the frozen question set
+between dry-run and canonical apply (ontology_governance S2). On Status
+EXECUTED, move it to
 `../archive/<topic>/` and add the `../completed.md` entry in the same
 change — and update any `embed_eval_questions.json` labels referencing
 the old path (see `doc/procedures/doc-search.md` §Corpus lifecycle).
@@ -29,6 +34,13 @@ entry number and stale DONE pointers):
 ## Current live proposals
 
 _(none)_
+
+_(Previously: ontology_governance.md archived 2026-09-17 as completed.md
+entry 244 — master ontology doc + qa-gated roster-drift check, concept
+lifecycle (status/supersede/promote, schema v12), deterministic ontology
+change gate over a doc-driven 79-question frozen set; execution record in
+`../archive/database/ontology_governance.md`; EvoOntology (ruc-datalab)
+design-reference borrow, deferred items in §7 + pending.md.)_
 
 _(Previously: search_tui.md archived 2026-09-16 as completed.md entry
 242 — one terminal front door over the five search surfaces; execution

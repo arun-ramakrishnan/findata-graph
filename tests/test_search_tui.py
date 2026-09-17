@@ -1057,7 +1057,7 @@ def test_db_screen_tab_completes_and_alt_d_opens(
             editor.cursor_location = (0, 3)
             await pilot.pause(0.2)  # Changed → hints line lists options
             hints = app.screen.query_one("#db-hints", Static).content
-            assert "SELECT" in hints
+            assert "SELECT" in str(hints)  # content is a RichRenderable union — coerce for `in`
             await pilot.press("tab")
             await pilot.pause(0.1)
             return typed, gated, opened, editor.text

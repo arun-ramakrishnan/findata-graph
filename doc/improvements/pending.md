@@ -104,3 +104,23 @@ revisit triggers inline; executed work is compressed to records.
   (2.70×); company ~11–15 min → 4m46s. Its §7 deferred-at-scale record holds
   the remaining deferred levers with revisit triggers (all unmet as of
   2026-09-05). Incremental-snapshot item closed by #174.
+
+- **Ontology governance #244 deferred** (2026-09-17) — (a) Mapping
+  record glossary note (EvoOntology Mapping: term→table/column/filter/
+  grain) — trigger: a metrics Q&A lane proposal; (b) LLM-judge protocol
+  2 for the change gate (`"llm_judge"` slot reserved in the report
+  schema, aggregation from EvoOntology evaluation.py:63) — trigger: an
+  LLM-API posture (terrain C4 revival condition); (c) DDL CHECK enums
+  into the roster-drift loader table — behind shared constants for
+  match_type/identifier_type/source_tier.
+- **Perf graph-leg budgets post-ingest** (operator waiver 2026-09-17) —
+  graph_eigenvector 2.23–2.34s vs 2.0s, graph_link_prediction 3.35–3.46s
+  vs 2.0s: first perf run since 2026-09-12; store tripled (companies
+  ~1.2k→6.2k via chatter ingest). Decide: budget bump vs investigation.
+- **test_fuzz_shortest_path leaks a 176MB sp.db tempdir per run**
+  (found 2026-09-17 during qa tmpfs exhaustion; 12 dirs ≈ 2.1GB cleaned)
+  — tempfile.mkdtemp dirs never removed; add cleanup/fixture.
+- **ty-tests 13 warnings** (exit-zero, non-gating; 2026-09-17) —
+  Optional-subscript/Match-None guards across test_snapshot,
+  test_mca_cin_resolve, test_search_tui et al.; the one hard error was
+  fixed at #244 close, warnings remain.
