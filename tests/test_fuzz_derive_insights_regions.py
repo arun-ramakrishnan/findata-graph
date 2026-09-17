@@ -249,9 +249,17 @@ def _splice_state() -> tuple[dict, Path]:
     fixtures. One tiny source vault + its edition index, built lazily."""
     global _SPLICE_STATE
     if _SPLICE_STATE is None:
+        import atexit
+        import shutil
         import tempfile
 
-        vault = Path(tempfile.mkdtemp()) / "findata"
+        # tmpdir_sanitization S3 (2026-09-17): this mkdtemp has no pytest
+        # tmp_path behind it, so nothing reaped it. The vault is read-only
+        # for the module's lifetime — process exit is the correct cleanup
+        # boundary, and ignore_errors covers the already-gone case.
+        root = Path(tempfile.mkdtemp(prefix="fuzz_derive_insights_"))
+        atexit.register(shutil.rmtree, root, ignore_errors=True)
+        vault = root / "findata"
         (vault / "The_Chatter").mkdir(parents=True)
         (vault / "The_Chatter" / "TC_Alpha.md").write_text(
             "# The Chatter: Alpha Edition\n\nbody\n", encoding="utf-8"

@@ -117,9 +117,11 @@ revisit triggers inline; executed work is compressed to records.
   graph_eigenvector 2.23–2.34s vs 2.0s, graph_link_prediction 3.35–3.46s
   vs 2.0s: first perf run since 2026-09-12; store tripled (companies
   ~1.2k→6.2k via chatter ingest). Decide: budget bump vs investigation.
-- **test_fuzz_shortest_path leaks a 176MB sp.db tempdir per run**
-  (found 2026-09-17 during qa tmpfs exhaustion; 12 dirs ≈ 2.1GB cleaned)
-  — tempfile.mkdtemp dirs never removed; add cleanup/fixture.
+- **test_fuzz_shortest_path leaks a 176MB sp.db tempdir per run** —
+  DONE 2026-09-17 (#245; `archive/testing/tmpdir_sanitization.md`): the
+  tmpdir-hygiene arc — fixture onto pytest basetemp with a vacuumed copy,
+  bench/pdf/TUI-log scratch lifecycles, gate-front `make tmp-sweep`
+  (owner + 24 h + prefix guards, dry-run default).
 - **ty-tests 13 warnings** (exit-zero, non-gating; 2026-09-17) —
   Optional-subscript/Match-None guards across test_snapshot,
   test_mca_cin_resolve, test_search_tui et al.; the one hard error was

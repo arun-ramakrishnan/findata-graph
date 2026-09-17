@@ -52,31 +52,33 @@ def convert_pix2text(pdf_path: Path | str, *, dpi: int = 150) -> tuple[str, dict
     import pymupdf
 
     pdf_path = Path(pdf_path)
-    # Render PDF to PNGs in tmp
+    # Render PDF to PNGs; TemporaryDirectory (tmpdir_sanitization S4,
+    # 2026-09-17) guarantees the page images are reaped on success AND
+    # exception — the previous bare mkdtemp leaked them to /tmp.
     doc = pymupdf.open(str(pdf_path))
-    import pathlib
     import tempfile
 
-    tmp = pathlib.Path(tempfile.mkdtemp(prefix="pix2text_"))
-    pngs = []
-    for i, page in enumerate(doc):  # ty: ignore[invalid-argument-type]  # pymupdf stubs lack __iter__
-        pix = page.get_pixmap(dpi=dpi)
-        p = tmp / f"page_{i + 1}.png"
-        pix.save(str(p))
-        pngs.append(p)
-    doc.close()
+    with tempfile.TemporaryDirectory(prefix="pix2text_") as tmpdir:
+        tmp = Path(tmpdir)
+        pngs = []
+        for i, page in enumerate(doc):  # ty: ignore[invalid-argument-type]  # pymupdf stubs lack __iter__
+            pix = page.get_pixmap(dpi=dpi)
+            p = tmp / f"page_{i + 1}.png"
+            pix.save(str(p))
+            pngs.append(p)
+        doc.close()
 
-    p2t = Pix2Text()
-    parts: list[str] = []
-    for png in pngs:
-        try:
-            txt = p2t.recognize(str(png))
-            # Pix2Text returns str or list; normalize
-            if isinstance(txt, list):
-                txt = "\n".join(str(x) for x in txt)
-            parts.append(txt)
-        except Exception as e:
-            parts.append(f"<!-- pix2text failed page {png.name}: {e} -->")
+        p2t = Pix2Text()
+        parts: list[str] = []
+        for png in pngs:
+            try:
+                txt = p2t.recognize(str(png))
+                # Pix2Text returns str or list; normalize
+                if isinstance(txt, list):
+                    txt = "\n".join(str(x) for x in txt)
+                parts.append(txt)
+            except Exception as e:
+                parts.append(f"<!-- pix2text failed page {png.name}: {e} -->")
 
     md = "\n\n".join(parts)
     meta = {

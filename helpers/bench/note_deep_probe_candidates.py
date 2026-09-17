@@ -195,6 +195,10 @@ def run(tags: list[str]) -> dict:
 
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
+    # tmpdir_sanitization S5 (2026-09-17): reap on any exit path.
+    import atexit
+
+    atexit.register(Path(tmp.name).unlink, missing_ok=True)
     lconn = sqlite3.connect(tmp.name)
     lconn.execute(
         "CREATE VIRTUAL TABLE note_search USING fts5("
@@ -309,6 +313,10 @@ def run_sectioned(tags: list[str]) -> dict:  # noqa: C901  # bench script: one s
 
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
+    # tmpdir_sanitization S5 (2026-09-17): reap on any exit path.
+    import atexit
+
+    atexit.register(Path(tmp.name).unlink, missing_ok=True)
     sconn = sqlite3.connect(tmp.name)
     sconn.execute(
         "CREATE VIRTUAL TABLE sec USING fts5("

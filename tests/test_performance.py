@@ -18,11 +18,13 @@ deterministic, synthetic):
 1. **Scaling tests** (``test_*_scales_*``) — time-RATIO assertions between
    two synthetic sizes; they pin the complexity *class* (quadratic-pair
    cost for duplicate detection, linear per-query cost for fuzzy_match),
-   not a wall-clock number, so they don't flap on loaded machines. They
+   not a wall-clock number. Both sizes are timed back-to-back each round
+   and the **median round's ratio** is asserted, so the 4-job ``make qa``
+   scheduler load skews at most a round and cannot flap the guard. They
    guard against the class of bug fixed in ``check_fuzzy_duplicate_names``
    (tokens recomputed in the inner loop → O(n^3)) and keep
    ``fuzzy_match`` (hybrid matcher, Bundle X1) from regressing to
-   per-query O(n^2) scans. Total runtime ~0.05s.
+   per-query O(n^2) scans. Total runtime ~0.1s.
 
 2. **Connection-reuse units** — ``DatabaseIntegrityChecker.get_connection``
    memoization (the P2 fix) and idempotent ``close()``.
@@ -93,24 +95,23 @@ def synthetic_db(tmp_path):
 # show ~8x.
 
 
-def _run_fuzzy_check(checker):
-    """Best-of-3 elapsed seconds for a BURST of 10 consecutive
-    check_fuzzy_duplicate_names runs.
+_ROUNDS = 5  # odd, so the median is an actual round
 
-    The burst lifts the small-size sample well above the 1ms skip threshold
-    (a single synthetic-200 pass measures a few hundred microseconds), and
-    the best-of-3 strips xdist scheduler noise that would otherwise flake
-    the ratio budget. Both sizes get the same burst factor, so the
-    quadratic ratio under test is unchanged.
+
+def _median_round_ratio(pairs):
+    """Return ``(ratio, t_small, t_large)`` for the median round of ``pairs``.
+
+    Each pair is one interleaved ``(t_small, t_large)`` measurement: both
+    sizes are timed back-to-back in the same round, so a scheduler stall
+    from the 4-job ``make qa`` load skews at most a round or two. The
+    median discards those, whereas the old "all small, then all large"
+    order let a single stall in either phase corrupt the whole ratio
+    (measured ``t_small≈6ms`` vs ``t_large≈57ms`` → 9.7x while passing
+    solo).
     """
-    best = None
-    for _ in range(3):
-        t0 = time.perf_counter()
-        for _ in range(10):
-            checker.check_fuzzy_duplicate_names()
-        dt = time.perf_counter() - t0
-        best = dt if best is None else min(best, dt)
-    return best
+    ordered = sorted(pairs, key=lambda p: p[1] / p[0])
+    t_small, t_large = ordered[len(ordered) // 2]
+    return t_large / t_small, t_small, t_large
 
 
 def test_fuzzy_duplicates_scales_quadratically_not_worse(synthetic_db):
@@ -131,23 +132,37 @@ def test_fuzzy_duplicates_scales_quadratically_not_worse(synthetic_db):
             )
         conn.commit()
 
-    # Small run.
-    populate(200)
-    checker_small = DatabaseIntegrityChecker(db_path=str(db_path))
-    t_small = _run_fuzzy_check(checker_small)
-    checker_small.close()
+    def burst(checker):
+        # A burst of 10 lifts the small-size sample well above the 1ms
+        # skip threshold (a single synthetic-200 pass is a few hundred
+        # microseconds); the same burst factor applies to both sizes, so
+        # the quadratic ratio under test is unchanged.
+        t0 = time.perf_counter()
+        for _ in range(10):
+            checker.check_fuzzy_duplicate_names()
+        return time.perf_counter() - t0
 
-    # Large run.
-    populate(400)
-    checker_large = DatabaseIntegrityChecker(db_path=str(db_path))
-    t_large = _run_fuzzy_check(checker_large)
-    checker_large.close()
+    # Time both sizes back-to-back in each round; the median round's ratio
+    # is the estimate (see _median_round_ratio).
+    pairs = []
+    for _ in range(_ROUNDS):
+        populate(200)
+        checker_small = DatabaseIntegrityChecker(db_path=str(db_path))
+        t_small = burst(checker_small)
+        checker_small.close()
+
+        populate(400)
+        checker_large = DatabaseIntegrityChecker(db_path=str(db_path))
+        t_large = burst(checker_large)
+        checker_large.close()
+
+        pairs.append((t_small, t_large))
 
     # Avoid division by zero on extremely fast machines.
-    if t_small < 0.001:
+    if min(s for s, _ in pairs) < 0.001:
         pytest.skip("baseline too fast to measure reliably")
 
-    ratio = t_large / t_small
+    ratio, t_small, t_large = _median_round_ratio(pairs)
     # Expected ratio for O(n^2) with constant per-pair: (400*399)/(200*199) ≈ 4.01
     # Allow 6x tolerance for noise. O(n^3) regression would be ~8x.
     assert ratio < 6.0, (
@@ -182,12 +197,6 @@ def test_fuzzy_match_scales_linearly_with_entities():
         "Reliance Industries",
     ]
 
-    def batch(n):
-        # Each sample times 10 inner iterations (lifting it well above the
-        # 1ms skip threshold; same factor both sizes so the ratio is
-        # unchanged) and the min of 3 strips xdist scheduler noise.
-        return min(_once(n) for _ in range(3))
-
     def _once(n):
         entities = [f"Company {i} Group Private Limited" for i in range(n)]
         t0 = time.perf_counter()
@@ -196,12 +205,14 @@ def test_fuzzy_match_scales_linearly_with_entities():
                 fuzzy_match(q, entities)
         return time.perf_counter() - t0
 
-    t_small = batch(200)
-    t_large = batch(400)
-    if t_small < 0.001:
+    # Interleave the two sizes round-by-round; the median round's ratio is
+    # the estimate (see _median_round_ratio). Each sample times 10 inner
+    # iterations, lifting it well above the 1ms skip threshold.
+    pairs = [(_once(200), _once(400)) for _ in range(_ROUNDS)]
+    if min(s for s, _ in pairs) < 0.001:
         pytest.skip("baseline too fast to measure reliably")
 
-    ratio = t_large / t_small
+    ratio, t_small, t_large = _median_round_ratio(pairs)
     # Expected ratio for O(n) per query: ~2x (200 -> 400 entities).
     # Allow 3x for noise. An O(n^2) per-query scan would be ~4x.
     assert ratio < 3.0, (

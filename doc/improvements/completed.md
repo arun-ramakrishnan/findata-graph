@@ -6133,3 +6133,44 @@ guards, frontend bun install), perf SOLO 20/22 WAIVED by operator
 pre-ingest baseline 0.53s/1.62s at ~1.2k companies vs 6.2k now).
 Deferred: §7 items + perf graph budgets + test_fuzz_shortest_path
 176MB/run sp.db tempdir leak (cleaned 3.7GB) → pending.md.
+
+## 245. Temp-dir hygiene — self-cleaning /tmp budget for every gate run
+
+**Proposal**: `doc/improvements/archive/testing/tmpdir_sanitization.md`
+(filed + executed + archived 2026-09-17). Area: tests/test_fuzz_* fixtures,
+helpers/bench + helpers/pdf scratch, helpers/maintenance/tmp_sweep.py (new),
+Makefile, tests/run_gate_report.py.
+
+Root cause: `make qa` leaked ~176 MiB/cycle into tmpfs — the module-scoped
+`con` fixture in test_fuzz_shortest_path.py ran a full unpruned
+copy_production_db (research.db 174 MiB) into tempfile.mkdtemp() and never
+removed it; plus bench/pdf mkdtemp scratch with no finally, an unbounded
+search_tui.log, and one-off gate survivors (gate_drift_candidate.db
+174 MiB, tmpdky35x5i 184 MB).
+
+S1: shortest-path fixture onto tmp_path_factory basetemp with a vacuumed
+copy (181,624,832 B → 2,633,728 B per run). S2: test_fuzz_edge_writer →
+pytest-owned basetemp. S3: test_fuzz_derive_insights_regions mkdtemp +
+atexit rmtree. S4: pix2text render/recognize inside TemporaryDirectory.
+S5: fts_duckdb_parity TemporaryDirectory + outputs/ dump;
+note_deep_probe(+candidates) atexit unlink on any exit path. S6: 64 KiB
+startup cap on search_tui.log. S7: tmp_sweep.py — euid-owner + 24 h mtime
++ prefix/marker-guarded sweep (dry-run default, APPLY=1, --check rc),
+wired as non-blocking first step of qa AND advisory.
+
+Measured: two back-to-back green `make qa` → /tmp delta 0 MiB (was ~176);
+`make fuzz --hypothesis-seed=0` 165 passed, delta 0; crash semantics +
+--check verified; one-time purge ~0.4 GB.
+
+Attribution correction recorded in-proposal: the
+`/tmp/.{hash}-{chunk}.so` / `.hm` temp files are opencode's Zig/OpenTUI
+TUI native lib (Bun-extracted, mmap'd — lsof-proven; `witr --file` sees
+fds only), NOT llama.cpp residue; tmp-sweep deliberately does not claim
+them. Adjacent fix while here: both perf ratio guards in
+tests/test_performance.py flaked under 4-job qa load (small/large phases
+timed separately; 6 ms/57 ms → 9.7x) — now interleaved back-to-back with
+the median round's ratio asserted (5 rounds); 8/8 green under xdist +
+CPU hogs, simulated O(n^3) 8x still fails.
+
+Gates: all green (operator run 2026-09-17); doc/script indexes converged.
+Deferred: opencode-side `.so` residue (host tool, non-goal).

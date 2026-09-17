@@ -19,7 +19,6 @@ from __future__ import annotations
 import random
 import sqlite3
 from collections import deque
-from pathlib import Path
 
 import pytest
 from hypothesis import HealthCheck, given, settings
@@ -97,11 +96,16 @@ def _oracle_dist(src: str, dst: str, adj: dict[str, set]) -> int | None:
 
 
 @pytest.fixture(scope="module")
-def con():
-    import tempfile
-
-    tmp = Path(tempfile.mkdtemp()) / "sp.db"
-    copy_production_db(DB_PATH, tmp)
+def con(tmp_path_factory):
+    # tmp_path_factory (not a raw tempfile.mkdtemp) keeps the ~176 MiB
+    # production-DB copy inside pytest's basetemp, so the conftest
+    # retention policy (tmp_path_retention_policy=failed, count=1) reaps
+    # it — the module-scoped raw mkdtemp here was the single largest /tmp
+    # leak in `make qa` (tmpdir_sanitization S1, 2026-09-17). vacuum=True
+    # returns the pruned pages to the OS instead of leaving a full-size
+    # sparse copy.
+    tmp = tmp_path_factory.mktemp("shortest_path") / "sp.db"
+    copy_production_db(DB_PATH, tmp, vacuum=True)
     dst = sqlite3.connect(str(tmp))
     dst.executemany(
         "INSERT INTO entities (name, entity_type) VALUES (?, 'company')",

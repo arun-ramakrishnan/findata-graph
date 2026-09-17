@@ -249,7 +249,12 @@ def main() -> int:
     corpus = export_corpus(args.db)
     print(f"corpus rows: {len(corpus)}")
 
-    tmp = Path(tempfile.mkdtemp(prefix="fts_parity_"))
+    # tmpdir_sanitization S5 (2026-09-17): TemporaryDirectory (not a bare
+    # mkdtemp) reaps the throwaway DuckDB on every exit path — normal,
+    # exception, and interpreter shutdown (finalizer). The per-query dump
+    # moves to outputs/ (gitignored report dir) so it survives the reap.
+    tmp_ctx = tempfile.TemporaryDirectory(prefix="fts_parity_")
+    tmp = Path(tmp_ctx.name)
     ddb = tmp / "notes.duckdb"
     t0 = time.perf_counter()
     build_duckdb(corpus, ddb)
@@ -373,10 +378,11 @@ def main() -> int:
                 f" hybDDB={'HIT' if r['hyb_duckdb_hit'] else 'miss'}"
             )
 
-    out_json = tmp / "parity_results.json"
+    out_json = REPO / "outputs" / "fts_parity_results.json"
+    out_json.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(rows_out, indent=1))
     print(f"\nper-query dump: {out_json}")
-    print(f"duckdb throwaway: {ddb} (delete when done)")
+    tmp_ctx.cleanup()
     return 0
 
 

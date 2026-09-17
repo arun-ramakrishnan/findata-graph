@@ -12,8 +12,6 @@ CALLER's job — derive_co_mentions.derive_edges sorts each pair).
 from __future__ import annotations
 
 import sqlite3
-import tempfile
-from pathlib import Path
 
 import pytest
 from hypothesis import HealthCheck, given, settings
@@ -54,17 +52,17 @@ CREATE TABLE graph_edges (
 
 
 @pytest.fixture(scope="module")
-def db_path():
-    fd, name = tempfile.mkstemp(suffix=".db")
-    import os
-
-    os.close(fd)
-    Path(name).unlink()
-    conn = sqlite3.connect(name)
+def db_path(tmp_path_factory):
+    # pytest-owned basetemp (tmpdir_sanitization S2, 2026-09-17): the old
+    # mkstemp+unlink dance left a tmpXXXXXX.db in /tmp per qa run that
+    # nothing reaped. Tests DELETE before every use, so a module-scoped
+    # fresh file is all that's needed.
+    path = tmp_path_factory.mktemp("edge_writer") / "edges.db"
+    conn = sqlite3.connect(str(path))
     conn.executescript(_DDL)
     conn.commit()
     conn.close()
-    return Path(name)
+    return path
 
 
 def _conn(db):

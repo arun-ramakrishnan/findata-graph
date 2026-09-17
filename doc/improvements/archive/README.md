@@ -69,6 +69,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`lint_analysis.txt`](testing/lint_analysis.txt) — LINT ANALYSIS — ruff replaces flake8 (FinData knowledge graph) — completed.md #73
 - [`coverage_extension_plan.md`](testing/coverage_extension_plan.md) — Coverage Analysis & Extension Plan (Updated)
 - [`consolidate_tests_fixtures.md`](testing/consolidate_tests_fixtures.md) — Proposal: tests/ fixture & scaffolding consolidation — shared schema, production-DB copy helper (+`keep_all`), Flask client helpers, sys.path strip (78 files/258 deletions), seed/note-template exclusions with evidence — completed.md #203
+- [`tmpdir_sanitization.md`](testing/tmpdir_sanitization.md) — Proposal: temp-dir hygiene — fuzz fixtures onto pytest-owned temp (vacuumed copy 176 MiB → ~2.5 MiB/run), bench/pdf/TUI-log scratch self-cleaning, gate-front `make tmp-sweep` (owner + 24 h + prefix guards, dry-run default) wired into qa + advisory; opencode/OpenTUI `/tmp/.{hash}-{chunk}.so` chunks identified as other-tool and excluded; perf ratio guards hardened to interleaved median-of-5 — completed.md #245
 
 ## pipeline/ — Data pipeline — parsing, PDF conversion hardening, enrichment, corpus audit
 

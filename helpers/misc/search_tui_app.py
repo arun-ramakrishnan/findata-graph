@@ -101,6 +101,7 @@ BUILD_STAMP = _build_stamp()
 
 
 _EVLOG = Path(tempfile.gettempdir()) / "search_tui.log"
+_EVLOG_MAX_BYTES = 64 * 1024
 
 
 def _evlog(msg: str) -> None:
@@ -108,6 +109,17 @@ def _evlog(msg: str) -> None:
     try:
         with _EVLOG.open("a") as fh:
             fh.write(f"{datetime.datetime.now().strftime('%H:%M:%S.%f')[:-3]} {msg}\n")
+    except Exception:  # noqa: S110 — logging must never kill the app
+        pass
+
+
+def _cap_evlog() -> None:
+    """Bound the event log: truncate on startup once it exceeds the cap
+    (tmpdir_sanitization S6, 2026-09-17 — the append-only log reached
+    121 KiB and grew without limit). Never raises."""
+    try:
+        if _EVLOG.exists() and _EVLOG.stat().st_size > _EVLOG_MAX_BYTES:
+            _EVLOG.write_text("")
     except Exception:  # noqa: S110 — logging must never kill the app
         pass
 
@@ -1081,6 +1093,7 @@ class SearchApp(App[None]):
             )
 
     async def on_mount(self) -> None:
+        _cap_evlog()
         _evlog(f"mount build={BUILD_STAMP} pid={os.getpid()}")
         # Widget refs captured once: query_one is scoped to the ACTIVE
         # screen, so late worker callbacks must not re-query while the

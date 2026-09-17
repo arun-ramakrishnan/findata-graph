@@ -200,6 +200,12 @@ def run() -> int:  # noqa: C901  # bench script: one straight-line report
 
     tmp = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
     tmp.close()
+    # tmpdir_sanitization S5 (2026-09-17): reap the scratch DB on ANY exit
+    # path (the old single unlink at the end leaked on exception). A hard
+    # kill -9 still leaves it — the gate-front tmp-sweep covers that class.
+    import atexit
+
+    atexit.register(Path(tmp.name).unlink, missing_ok=True)
     lconn = sqlite3.connect(tmp.name)
     lconn.execute(
         "CREATE VIRTUAL TABLE note_search USING fts5("

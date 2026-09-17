@@ -119,6 +119,13 @@ GATES: dict[str, Gate] = {
     # summary table + report tails.
     "qa": Gate(
         steps=(
+            # tmpdir_sanitization S7: reap OUR /tmp residue up front so a
+            # near-full tmpfs cannot crash the run that exists to catch
+            # problems. Nonblocking (hygiene is never a gate verdict) and the
+            # 24h age guard means it cannot race fixtures created this run.
+            Step(
+                "tmp-sweep", (_PY, "helpers/maintenance/tmp_sweep.py", "--apply"), nonblocking=True
+            ),
             Step("lint", (_RUFF, "check", ".")),
             # markdown_lint_adoption S5 promotion: markdown joins ruff as a
             # gating linter (S1–S4 took the corpus green; the helper SKIPs
@@ -159,6 +166,10 @@ GATES: dict[str, Gate] = {
     # runnable via `make integration`.
     "advisory": Gate(
         steps=(
+            # tmpdir_sanitization S7 — see the qa gate's note above.
+            Step(
+                "tmp-sweep", (_PY, "helpers/maintenance/tmp_sweep.py", "--apply"), nonblocking=True
+            ),
             Step(
                 "ty-tests",
                 (_MAKE, "types-tests", "TYPES_TESTS_FMT=concise"),

@@ -35,6 +35,15 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+_(Previously: tmpdir_sanitization.md archived 2026-09-17 as completed.md
+entry 245 — temp-dir hygiene: fuzz fixtures onto pytest-owned temp
+(vacuumed production copy 176 MiB → ~2.5 MiB/run), bench/pdf/TUI-log
+scratch self-cleaning, gate-front `make tmp-sweep` with owner+age+prefix
+guards wired into qa + advisory; the `/tmp/.{hash}-{chunk}.so` chunks
+re-attributed to opencode/OpenTUI and excluded; perf ratio guards
+hardened to interleaved median-of-5; execution record in
+`../archive/testing/tmpdir_sanitization.md`.)_
+
 _(Previously: ontology_governance.md archived 2026-09-17 as completed.md
 entry 244 — master ontology doc + qa-gated roster-drift check, concept
 lifecycle (status/supersede/promote, schema v12), deterministic ontology
