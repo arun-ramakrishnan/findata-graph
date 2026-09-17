@@ -31,13 +31,26 @@ from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
 
-from textual.binding import Binding
+from textual.binding import ActiveBinding, Binding
 from textual.containers import Horizontal, Vertical
 from textual.coordinate import Coordinate
 from textual.screen import ModalScreen
-from textual.widgets import DataTable, Footer, Header, Input, RichLog, Static, Tab, Tabs
+from textual.widgets import (
+    DataTable,
+    Footer,
+    Header,
+    Input,
+    RichLog,
+    Static,
+    Tab,
+    Tabs,
+    TextArea,
+    Tree,
+)
 
 from helpers.misc.search_tui import (
+    DB_ROW_CAP,
+    DB_STORES,
     DEFAULT_THEME,
     INDEXES,
     LANES,
@@ -45,8 +58,18 @@ from helpers.misc.search_tui import (
     REPO_ROOT,
     THEME_ORDER,
     THEMES,
+    DbResult,
     Hit,
     call_chain,
+    append_db_history,
+    db_complete,
+    db_completions,
+    db_filter_rows,
+    db_match_words,
+    db_preview_sql,
+    db_run,
+    db_schema,
+    load_db_history,
     index_ages,
     index_check_argv,
     index_refresh_argv,
@@ -538,6 +561,405 @@ class ReportScreen(ModalScreen[None]):
         self._fill()
 
 
+def _db_cell(value: object) -> str:
+    """Render one result cell: NULLs, blobs, and long text stay grid-safe."""
+    if value is None:
+        return "NULL"
+    if isinstance(value, (bytes, bytearray, memoryview)):
+        return f"<{len(value)} bytes>"
+    text = str(value)
+    return text if len(text) <= 120 else text[:119] + "…"
+
+
+class DbScreen(ModalScreen[None]):
+    """Read-only database explorer: schema tree + SQL editor + results grid.
+
+    Follows the ReportScreen skeleton (modal + worker + footer). Each run
+    opens one short-lived read-only connection and closes it, so no lock
+    is held across the session; writes are rejected by the engines.
+    F5 runs the editor (enter is a newline); enter on a tree row runs a
+    SELECT over it; ``/`` filters loaded rows (fuzzy); ``v`` inspects the
+    row; ``s`` switches stores. Single-key actions are inert while typing
+    in the editor or filter (they are text there) — focus tree/results.
+    """
+
+    BINDINGS = [
+        ("f5", "run_sql", "run (f5)"),
+        ("s", "switch_store", "switch store"),
+        ("slash", "focus_filter", "filter (/)"),
+        ("v", "toggle_detail", "inspect (v)"),
+        ("y", "yank_cell", "yank cell"),
+        ("Y", "yank_row", "yank row"),
+        ("j", "pane_down", "down (j)"),
+        ("k", "pane_up", "up (k)"),
+        ("h", "pane_left", "left (h)"),
+        ("l", "pane_right", "right (l)"),
+        ("P", "history_older", "older (P)"),
+        ("N", "history_newer", "newer (N)"),
+        ("left_square_bracket", "narrow_tree", "narrow tree"),
+        ("right_square_bracket", "widen_tree", "widen tree"),
+        ("minus", "shrink_sql", "shrink sql"),
+        ("equals_sign", "grow_sql", "grow sql"),
+        ("escape", "tree_focus", "to tree"),
+        ("q", "tree_focus", "to tree"),
+        ("alt+q", "close_db", "close"),
+    ]
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._store = "research"
+        self._status = ""
+        self._tree_fr = 3
+        self._sql_h = 5
+        self._words: list[str] = []
+        self._hist: list[str] = []
+        self._hist_idx = 0
+        self._res_columns: list[str] = []
+        self._res_rows: list[tuple[object, ...]] = []
+        self._show_detail = False
+
+    @property
+    def active_bindings(self) -> dict[str, ActiveBinding]:
+        """Footer shows modal keys only — the search-lane keys behind the
+        modal don't apply here, so they are hidden, not just dimmed."""
+        bindings_map: dict[str, ActiveBinding] = {}
+        for key, binding in self._bindings:
+            bindings_map[key] = ActiveBinding(self, binding, True, binding.tooltip)
+        return bindings_map
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="db-box"):
+            yield Static("", id="db-note")
+            with Horizontal(id="db-body"):
+                yield Tree("stores", id="db-tree")
+                with Vertical(id="db-right"):
+                    yield TextArea(id="db-sql", language="sql")
+                    yield Static("", id="db-hints")
+                    yield Input(
+                        placeholder="filter loaded rows (fuzzy) — / focuses, enter back to SQL",
+                        id="db-filter",
+                    )
+                    yield DataTable(id="db-results", cursor_type="row", zebra_stripes=True)
+                    yield Static("", id="db-detail")
+                    yield Static("", id="db-status")
+            yield Static(
+                "↑↓/jk tree+rows · enter runs row · f5 runs SQL · tab completes (in SQL) · / filters · v inspects · P/N history · esc tree · alt+q close",
+                id="db-keys",
+            )
+            yield Footer()
+
+    def on_mount(self) -> None:
+        self._fill_tree()
+        self._load_words()
+        self._hist = load_db_history(self._store)
+        self._hist_idx = len(self._hist)
+        self._note()
+        self.set_focus(self.query_one("#db-sql", TextArea))
+
+    def _typing(self) -> bool:
+        """True while the editor or filter has focus — keys are text there."""
+        return isinstance(self.focused, (Input, TextArea))
+
+    def _editor(self) -> TextArea:
+        return self.query_one("#db-sql", TextArea)
+
+    # -- schema ----------------------------------------------------------
+
+    def _fill_tree(self) -> None:
+        tree = self.query_one("#db-tree", Tree)
+        tree.clear()
+        tree.root.set_label(str(DB_STORES[self._store]["label"]))
+        try:
+            tables = db_schema(self._store)
+        except Exception as e:  # noqa: BLE001 — missing/corrupt db file
+            tree.root.set_label(f"{self._store} — schema failed: {e}")
+            return
+        for table in tables:
+            node = tree.root.add(
+                f"{table.name} ({len(table.columns)})",
+                data=db_preview_sql(table.name),
+            )
+            for col in table.columns:
+                node.add_leaf(
+                    col.name if not col.ctype else f"{col.name}: {col.ctype}",
+                    data=db_preview_sql(table.name, col.name),
+                )
+        tree.root.expand()
+
+    def _load_words(self) -> None:
+        """Completion words from the live schema (Tab completes, see on_key)."""
+        try:
+            self._words = db_completions(self._store)
+        except Exception:  # noqa: BLE001 — missing/corrupt db file
+            self._words = []
+
+    def _note(self) -> None:
+        label = str(DB_STORES[self._store]["label"])
+        self.query_one("#db-note", Static).update(
+            f"{label} · read-only · live · one connection per query · {DB_ROW_CAP}-row cap"
+        )
+
+    # -- run -------------------------------------------------------------
+
+    def _run(self, sql: str) -> None:
+        if not sql.strip():
+            return
+        append_db_history(self._store, sql)
+        self._hist = load_db_history(self._store)
+        self._hist_idx = len(self._hist)
+        self._status = f"running on {self._store}…"
+        self.query_one("#db-status", Static).update(self._status)
+        self._query_worker(self._store, sql)
+
+    def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
+        sql = event.node.data
+        if isinstance(sql, str) and sql:
+            self._editor().text = sql
+            self.set_focus(self._editor())
+            self._run(sql)
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        if event.input.id == "db-filter":
+            self._apply_filter(event.value)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "db-filter":
+            self.set_focus(self._editor())
+
+    @work(thread=True, exclusive=True)
+    def _query_worker(self, store: str, sql: str) -> None:
+        try:
+            res = db_run(store, sql)
+        except Exception as e:  # noqa: BLE001 — db_run is total, this is belt+bracers
+            res = DbResult(columns=[], rows=[], truncated=False, elapsed_ms=0.0, error=str(e))
+        self.app.call_from_thread(self._query_done, res)
+
+    def _query_done(self, res: DbResult) -> None:
+        if res.error is not None:
+            self._res_columns, self._res_rows = [], []
+            self._status = f"error · {res.error} ({res.elapsed_ms:.0f} ms)"
+            self._fill_results([], [])
+        else:
+            self._res_columns, self._res_rows = res.columns, res.rows
+            filt = self.query_one("#db-filter", Input).value
+            shown = db_filter_rows(res.rows, filt)
+            trunc = " · truncated — narrow the query" if res.truncated else ""
+            ftr = f" · filter {len(shown)}/{len(res.rows)}" if filt.strip() else ""
+            self._status = f"{len(shown)} rows · {res.elapsed_ms:.0f} ms{trunc}{ftr}"
+            self._fill_results(res.columns, shown)
+        self.query_one("#db-status", Static).update(self._status)
+        self._update_detail()
+
+    def _fill_results(self, columns: list[str], rows: list[tuple[object, ...]]) -> None:
+        table = self.query_one("#db-results", DataTable)
+        table.clear(columns=True)
+        for col in columns:
+            table.add_column(col)
+        for row in rows:
+            table.add_row(*[_db_cell(v) for v in row])
+
+    def _apply_filter(self, text: str) -> None:
+        shown = db_filter_rows(self._res_rows, text)
+        self._fill_results(self._res_columns, shown)
+        base = self._status.split(" · filter")[0]
+        ftr = f" · filter {len(shown)}/{len(self._res_rows)}" if text.strip() else ""
+        self._status = base + ftr
+        self.query_one("#db-status", Static).update(self._status)
+        self._update_detail()
+
+    def on_key(self, event) -> None:  # noqa: ANN001 — Textual Key event
+        """Tab completes the token left of the editor cursor (first of the
+        hints line); the app-wide focus-cycle is gated away there."""
+        if event.key == "tab" and isinstance(self.focused, TextArea):
+            editor = self.focused
+            row, start, frag = self._cursor_frag(editor)
+            hit = db_complete(self._words, frag)
+            if hit:
+                try:
+                    lines = editor.text.splitlines() or [""]
+                    line = lines[min(row, len(lines) - 1)]
+                    col = start + len(frag)
+                    editor.text = "\n".join(
+                        lines[: min(row, len(lines) - 1)]
+                        + [line[:start] + hit + line[col:]]
+                        + lines[min(row, len(lines) - 1) + 1 :]
+                    )
+                    editor.cursor_location = (min(row, len(lines) - 1), start + len(hit))
+                except Exception:  # noqa: BLE001 — cursor edge cases
+                    return
+                event.stop()
+                event.prevent_default()
+
+    def _cursor_frag(self, editor: TextArea) -> tuple[int, int, str]:
+        """(row, token-start-col, fragment) left of the editor cursor."""
+        row, col = editor.cursor_location
+        lines = editor.text.splitlines() or [""]
+        line = lines[min(row, len(lines) - 1)]
+        frag = re.split(r"[\s(),;]+", line[:col])[-1].lstrip('"')
+        return row, col - len(frag), frag
+
+    def on_text_area_changed(self, event: TextArea.Changed) -> None:
+        if event.text_area.id == "db-sql":
+            editor = event.text_area
+            _, _, frag = self._cursor_frag(editor)
+            matches = db_match_words(self._words, frag)
+            text = " · ".join(matches)
+            self.query_one("#db-hints", Static).update(text)
+
+    def on_data_table_cell_highlighted(self, event: DataTable.CellHighlighted) -> None:
+        if event.data_table.id == "db-results":
+            self._update_detail()
+
+    # -- inspect ---------------------------------------------------------
+
+    def _update_detail(self) -> None:
+        detail = self.query_one("#db-detail", Static)
+        if not self._show_detail:
+            detail.update("")
+            detail.display = False
+            return
+        table = self.query_one("#db-results", DataTable)
+        try:
+            cells = table.get_row_at(table.cursor_row)
+        except Exception:  # noqa: BLE001 — empty grid
+            detail.update("(no rows)")
+            detail.display = True
+            return
+        cols = self._res_columns or [f"c{i}" for i in range(len(cells))]
+        lines = [f"{name}: {_db_cell(v)}" for name, v in zip(cols, cells)]
+        detail.update("\n".join(lines[:24]))
+        detail.display = True
+
+    # -- actions ---------------------------------------------------------
+
+    def action_run_sql(self) -> None:
+        self._run(self._editor().text)
+
+    def action_focus_filter(self) -> None:
+        if self._typing():
+            return
+        self.set_focus(self.query_one("#db-filter", Input))
+
+    def action_toggle_detail(self) -> None:
+        if self._typing():
+            return
+        self._show_detail = not self._show_detail
+        self._update_detail()
+
+    def _history_show(self, delta: int) -> None:
+        if self._typing():
+            return
+        if not self._hist:
+            self.app.notify("no query history yet", severity="warning")
+            return
+        self._hist_idx = min(len(self._hist), max(0, self._hist_idx + delta))
+        if self._hist_idx < len(self._hist):
+            editor = self._editor()
+            editor.text = self._hist[self._hist_idx]
+            self.set_focus(editor)
+
+    def action_history_older(self) -> None:
+        self._history_show(-1)
+
+    def action_history_newer(self) -> None:
+        self._history_show(1)
+
+    def _pane_move(self, tree_method: str, table_method: str) -> None:
+        focused = self.focused
+        if isinstance(focused, Tree):
+            getattr(focused, tree_method)()
+        elif isinstance(focused, DataTable):
+            getattr(focused, table_method)()
+
+    def action_pane_down(self) -> None:
+        if not self._typing():
+            self._pane_move("action_cursor_down", "action_cursor_down")
+
+    def action_pane_up(self) -> None:
+        if not self._typing():
+            self._pane_move("action_cursor_up", "action_cursor_up")
+
+    def action_pane_left(self) -> None:
+        if not self._typing():
+            self._pane_move("action_cursor_parent", "action_cursor_left")
+
+    def action_pane_right(self) -> None:
+        if not self._typing():
+            self._pane_move("action_toggle_node", "action_cursor_right")
+
+    def _yank(self, row_only: bool) -> None:
+        if self._typing():
+            return
+        table = self.query_one("#db-results", DataTable)
+        try:
+            coord = table.cursor_coordinate
+            cells = [str(v) if v is not None else "NULL" for v in table.get_row_at(coord.row)]
+        except Exception:  # noqa: BLE001 — empty grid
+            return
+        text = "\t".join(cells) if row_only else cells[min(coord.column, len(cells) - 1)]
+        try:
+            self.app.copy_to_clipboard(text)
+        except Exception:  # noqa: BLE001, S110 — clipboard is best-effort
+            pass
+        self.app.notify(f"yanked {'row' if row_only else 'cell'}")
+
+    def action_yank_cell(self) -> None:
+        self._yank(False)
+
+    def action_yank_row(self) -> None:
+        self._yank(True)
+
+    # -- actions ---------------------------------------------------------
+
+    def action_switch_store(self) -> None:
+        if self._typing():
+            return
+        ids = sorted(DB_STORES)
+        self._store = ids[(ids.index(self._store) + 1) % len(ids)]
+        self.query_one("#db-results", DataTable).clear(columns=True)
+        self.query_one("#db-status", Static).update("")
+        self.query_one("#db-filter", Input).value = ""
+        self._res_columns, self._res_rows = [], []
+        self._hist = load_db_history(self._store)
+        self._hist_idx = len(self._hist)
+        self._fill_tree()
+        self._load_words()
+        self._note()
+        self.app.notify(f"db store: {self._store}")
+
+    def _resize_tree(self, delta: int) -> None:
+        if self._typing():
+            return
+        self._tree_fr = min(6, max(1, self._tree_fr + delta))
+        self.query_one("#db-tree", Tree).styles.width = f"{self._tree_fr}fr"
+
+    def action_narrow_tree(self) -> None:
+        self._resize_tree(-1)
+
+    def action_widen_tree(self) -> None:
+        self._resize_tree(1)
+
+    def _resize_sql(self, delta: int) -> None:
+        """SQL box height 2..12; the results grid (1fr) takes the rest."""
+        if self._typing():
+            return
+        self._sql_h = min(12, max(2, self._sql_h + delta))
+        self.query_one("#db-sql", TextArea).styles.height = str(self._sql_h)
+
+    def action_shrink_sql(self) -> None:
+        self._resize_sql(-1)
+
+    def action_grow_sql(self) -> None:
+        self._resize_sql(1)
+
+    def action_tree_focus(self) -> None:
+        """Safe harbor: esc/q land on the tree, never out of the modal."""
+        self.set_focus(self.query_one("#db-tree", Tree))
+
+    def action_close_db(self) -> None:
+        self.dismiss()
+
+
 class SearchApp(App[None]):
     """One screen over every search lane the repo keeps fresh."""
 
@@ -561,11 +983,26 @@ class SearchApp(App[None]):
     #theme-table { height: auto; }
     #theme-keys { color: $text-muted; }
     ReportScreen { align: center middle; }
-    #rep-box { border: round $accent; background: $surface; width: 118; height: 30; }
-    #rep-body { height: 1fr; }
+    #rep-box { border: round $accent; background: $surface; width: 118; height: 30; }    #rep-body { height: 1fr; }
     #rep-table { width: 7fr; }
     #rep-detail { width: 5fr; }
     #rep-keys { color: $text-muted; }
+    DbScreen { align: center middle; }
+    #db-box { border: round $accent; background: $surface; width: 1fr; height: 1fr; margin: 1 2; }
+    #db-note { color: $warning; height: 1; }
+    #db-body { height: 1fr; }
+    #db-tree { width: 3fr; border: round $panel; }
+    #db-tree:focus { border: round $accent; }
+    #db-right { width: 8fr; }
+    #db-sql { border: round $panel; height: 5; }
+    #db-sql:focus { border: round $accent; }
+    #db-filter { border: none; height: 1; background: $surface; }
+    #db-filter:focus { border: none; background: $panel; }
+    #db-hints { height: 1; color: $text-muted; }
+    #db-results { border: round $panel; height: 1fr; }
+    #db-detail { height: auto; max-height: 10; color: $text; }
+    #db-status { height: 1; color: $text-muted; }
+    #db-keys { color: $text-muted; }
     #idx-box { border: round $accent; background: $surface; width: 92; height: auto; padding: 0 1; }
     #idx-table { height: auto; }
     #idx-keys { color: $text-muted; }
@@ -574,18 +1011,20 @@ class SearchApp(App[None]):
     """
 
     BINDINGS = [
-        Binding("tab", "focus_cycle", "next pane", priority=True),
-        Binding("shift+tab", "focus_cycle_back", "prev pane", priority=True),
+        Binding("tab", "focus_cycle", show=False, priority=True),
+        Binding("shift+tab", "focus_cycle_back", show=False, priority=True),
         ("m", "toggle_mode", "kw/semantic"),
-        ("t", "cycle_theme", "theme"),
+        ("d", "db_screen", "database"),
+        Binding("alt+d", "db_screen_now", show=False),
+        Binding("t", "cycle_theme", show=False),
         ("T", "theme_picker", "themes"),
         ("V", "report_screen", "reports"),
         ("h", "call_chain", "call chain"),
         ("b", "chain_back", "back"),
         ("i", "monitor", "indexes"),
-        ("e", "editor", "editor"),
-        ("y", "copy_path", "y: path"),
-        ("Y", "copy_loc", "Y: path:line"),
+        Binding("e", "editor", show=False),
+        Binding("y", "copy_path", show=False),
+        Binding("Y", "copy_loc", show=False),
         ("/", "focus_query", "query"),
         ("q", "quit", "quit"),
         ("ctrl+c", "quit", "quit"),
@@ -621,7 +1060,7 @@ class SearchApp(App[None]):
         yield Header(show_clock=False, name=f"search_tui · build {BUILD_STAMP} · pid {os.getpid()}")
         yield Input(
             value=self._initial_query,
-            placeholder="query — pick a lane (tabs / 1-6), type, press enter · verbs: callers: impact: grep: recall: qa: perf:",
+            placeholder="query — pick a lane (tabs / 1-6), type, press enter · verbs: callers: impact: grep: recall: qa: perf: · d database",
             id="query",
         )
         yield Tabs(id="lanes")
@@ -904,6 +1343,14 @@ class SearchApp(App[None]):
     def action_theme_picker(self) -> None:
         self.push_screen(ThemeScreen())
 
+    def action_db_screen(self) -> None:
+        """d: read-only database explorer (schema tree + SQL + results)."""
+        self.push_screen(DbScreen())
+
+    def action_db_screen_now(self) -> None:
+        """alt+d: db screen from anywhere, including while typing."""
+        self.push_screen(DbScreen())
+
     def _register_themes(self) -> None:
         """Register every THEMES palette with textual's theme system."""
         try:
@@ -1003,9 +1450,14 @@ class SearchApp(App[None]):
 
     def check_action(self, action: str, parameters: tuple[object, ...]) -> bool:
         """Gate single-key actions: while typing in the query line they are text;
-        on the tabs strip the Tabs widget owns the arrow keys itself."""
-        if isinstance(self.focused, Input):
-            return action in ("focus_query", "blur_to_results", "focus_cycle", "focus_cycle_back")
+        on the tabs strip the Tabs widget owns the arrow keys itself.
+        focus_cycle stays available only from the main query box — inside a
+        modal input (db SQL box) tab falls through to the widget (DbScreen
+        accepts the completion); alt+d opens the db screen from anywhere."""
+        if isinstance(self.focused, (Input, TextArea)):
+            if action in ("focus_cycle", "focus_cycle_back"):
+                return self.focused is getattr(self, "_w_input", None)
+            return action in ("focus_query", "blur_to_results", "db_screen_now")
         if isinstance(self.focused, Tabs) and action in ("lane_next", "lane_prev"):
             return False
         return True

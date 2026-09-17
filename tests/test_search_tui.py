@@ -37,6 +37,14 @@ from helpers.misc.search_tui import (
     parse_integrity_report,
     parse_verify_report,
     parse_report_summary,
+    db_run,
+    db_complete,
+    db_completions,
+    db_filter_rows,
+    db_match_words,
+    db_preview_sql,
+    db_schema,
+    db_store_path,
 )
 
 # ---------------------------------------------------------------- parsers
@@ -868,3 +876,327 @@ def test_report_screen_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     n, detail_lines = asyncio.run(drive())
     assert n == 8
     assert detail_lines > 0
+
+
+# ---------------------------------------------------------------- db screen
+
+
+def _fixture_root(tmp_path: Path) -> Path:
+    """tmp repo layout: memory/research.db (sqlite) + memory/data/sources.duckdb."""
+    mem = tmp_path / "memory"
+    (mem / "data").mkdir(parents=True)
+    conn = sqlite3.connect(mem / "research.db")
+    conn.execute("CREATE TABLE entities (id INTEGER PRIMARY KEY, name TEXT)")
+    conn.execute("CREATE VIEW v_entities AS SELECT id, name FROM entities")
+    conn.executemany("INSERT INTO entities (name) VALUES (?)", [(f"n{i}",) for i in range(210)])
+    conn.commit()
+    conn.close()
+    duckdb = pytest.importorskip("duckdb")
+    dconn = duckdb.connect(str(mem / "data" / "sources.duckdb"))
+    dconn.execute("CREATE TABLE listings (sym VARCHAR, px DOUBLE)")
+    dconn.execute("INSERT INTO listings VALUES ('A', 1.0), ('B', 2.0)")
+    dconn.execute("CREATE VIEW vw_list AS SELECT * FROM listings")
+    dconn.close()
+    return tmp_path
+
+
+def test_db_preview_sql_quotes_identifiers() -> None:
+    assert db_preview_sql("entities") == 'SELECT * FROM "entities" LIMIT 200'
+    assert db_preview_sql("entities", "name", limit=10) == 'SELECT "name" FROM "entities" LIMIT 10'
+    assert db_preview_sql('we"ird', 'c"ol') == 'SELECT "c""ol" FROM "we""ird" LIMIT 200'
+
+
+def test_db_completions_cover_keywords_tables_columns(tmp_path: Path) -> None:
+    root = _fixture_root(tmp_path)
+    words = db_completions("research", root)
+    assert "SELECT" in words and "entities" in words
+    assert "entities.name" in words and "name" in words
+    assert words.index("SELECT") < words.index("entities") < words.index("entities.name")
+
+
+def test_db_store_path_resolves_and_rejects() -> None:
+    assert db_store_path("research").name == "research.db"
+    try:
+        db_store_path("nope")
+    except ValueError as e:
+        assert "known:" in str(e)
+    else:  # pragma: no cover - must raise
+        raise AssertionError("db_store_path accepted an unknown store")
+
+
+def test_db_schema_sqlite_lists_tables_views_columns(tmp_path: Path) -> None:
+    root = _fixture_root(tmp_path)
+    tables = {t.name: t for t in db_schema("research", root)}
+    assert tables["entities"].kind == "table"
+    assert [c.name for c in tables["entities"].columns] == ["id", "name"]
+    assert tables["v_entities"].kind == "view"
+
+
+def test_db_run_sqlite_select_and_errors(tmp_path: Path) -> None:
+    root = _fixture_root(tmp_path)
+    ok = db_run("research", "SELECT id, name FROM entities ORDER BY id LIMIT 2", root=root)
+    assert ok.error is None and ok.columns == ["id", "name"] and len(ok.rows) == 2
+    bad = db_run("research", "SELECT * FRM entities", root=root)
+    assert bad.error is not None and not bad.rows
+    write = db_run("research", "CREATE TABLE t_x (x)", root=root)
+    assert write.error is not None and "readonly" in write.error
+    empty = db_run("research", "   ", root=root)
+    assert empty.error == "empty query"
+
+
+def test_db_run_sqlite_row_cap(tmp_path: Path) -> None:
+    root = _fixture_root(tmp_path)
+    res = db_run("research", "SELECT id FROM entities", root=root)
+    assert res.error is None and res.truncated and len(res.rows) == 200
+
+
+def test_db_run_sqlite_timeout_aborts(tmp_path: Path) -> None:
+    root = _fixture_root(tmp_path)
+    res = db_run(
+        "research",
+        "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM c LIMIT 50000000)"
+        " SELECT count(*) FROM c",
+        root=root,
+        timeout_ms=50,
+    )
+    assert res.error is not None and "interrupted" in res.error
+
+
+def test_db_schema_run_duckdb(tmp_path: Path) -> None:
+    pytest.importorskip("duckdb")
+    root = _fixture_root(tmp_path)
+    tables = {t.name: t for t in db_schema("sources", root)}
+    assert tables["listings"].kind == "table"
+    assert [c.name for c in tables["listings"].columns] == ["sym", "px"]
+    assert tables["vw_list"].kind == "view"
+    ok = db_run("sources", "SELECT sym FROM listings ORDER BY sym", root=root)
+    assert ok.error is None and [r[0] for r in ok.rows] == ["A", "B"]
+    write = db_run("sources", "CREATE TABLE t_x (x INTEGER)", root=root)
+    assert write.error is not None and "read-only" in write.error
+
+
+def test_db_complete_matches_prefix_skips_exact() -> None:
+    words = ["SELECT", "FROM", "WHERE", "LIMIT", "entities", "entities.name", "name"]
+    assert db_complete(words, "ent") == "entities"
+    assert db_complete(words, "entities.n") == "entities.name"
+    assert db_complete(words, "SEL") == "SELECT"
+    assert db_complete(words, "SELECT") is None  # exact match completes nothing
+    assert db_complete(words, "entities.name") is None  # qualified exact
+    assert db_complete(words, "nope.n") is None  # unknown table head
+    assert db_complete(words, "") is None
+    assert db_complete(words, "xyz") is None
+    assert db_complete(words, '"ent') == "entities"  # quoted fragment
+
+
+def test_db_match_words_lists_options() -> None:
+    words = ["SELECT", "FROM", "entities", "entities.name", "entities.id", "name"]
+    assert db_match_words(words, "ent") == ["entities", "entities.name", "entities.id"]
+    assert db_match_words(words, "entities.") == ["entities.name", "entities.id"]
+    assert db_match_words(words, "SELECT") == []
+    assert db_match_words(words, "") == []
+
+
+def test_db_history_roundtrip_dedupe_cap(tmp_path: Path) -> None:
+    from helpers.misc.search_tui import append_db_history, load_db_history
+
+    p = tmp_path / "h.txt"
+    assert load_db_history("research", p) == []
+    append_db_history("research", "SELECT 1", p)
+    append_db_history("research", "SELECT 1", p)  # repeat-of-last skipped
+    append_db_history("research", "   ", p)  # blank skipped
+    append_db_history("research", "SELECT 2", p)
+    assert load_db_history("research", p) == ["SELECT 1", "SELECT 2"]
+    for i in range(210):
+        append_db_history("research", f"SELECT {i}", p)
+    assert len(load_db_history("research", p)) == 200
+
+
+def test_db_filter_rows_fuzzy(tmp_path: Path) -> None:
+    rows = [("alpha", 1), ("beta", 2), ("gamma", 3)]
+    assert db_filter_rows(rows, "") == rows
+    assert db_filter_rows(rows, "alp") == [("alpha", 1)]
+    assert db_filter_rows(rows, "am") == [("gamma", 3)]  # subsequence, not substring
+    assert db_filter_rows(rows, "zzz") == []
+    assert db_filter_rows(rows, "2") == [("beta", 2)]
+
+
+def test_db_screen_tab_completes_and_alt_d_opens(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Tab completes the editor token; alt+d opens the db screen while
+    typing in the main query box; plain d stays gated (it is text)."""
+    pytest.importorskip("textual")
+    import helpers.misc.search_tui_app as appmod
+    import helpers.misc.search_tui as tui
+    from textual.widgets import Static
+
+    _fixture_root(tmp_path)
+    monkeypatch.setattr(appmod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+
+    async def drive() -> tuple[str, bool, bool, str]:
+        app = appmod.SearchApp("", "docs", 10)
+        async with app.run_test(size=(140, 40)) as pilot:
+            for _ in range(40):
+                await pilot.pause(0.05)
+                if app._mounted:
+                    break
+            # plain d while typing is text, not a screen jump
+            app.set_focus(app._w_input)
+            await pilot.press("d")
+            await pilot.pause(0.1)
+            typed = app._w_input.value
+            gated = not isinstance(app.screen, appmod.DbScreen)
+            # alt+d opens from anywhere, even mid-word
+            await pilot.press("alt+d")
+            await pilot.pause(0.3)
+            opened = isinstance(app.screen, appmod.DbScreen)
+            # tab completes the editor token (TextArea, sql-highlighted)
+            editor = app.screen.query_one("#db-sql", appmod.TextArea)
+            editor.text = "SEL"
+            editor.cursor_location = (0, 3)
+            await pilot.pause(0.2)  # Changed → hints line lists options
+            hints = app.screen.query_one("#db-hints", Static).content
+            assert "SELECT" in hints
+            await pilot.press("tab")
+            await pilot.pause(0.1)
+            return typed, gated, opened, editor.text
+
+    import asyncio
+
+    typed, gated, opened, completed = asyncio.run(drive())
+    assert typed == "d" and gated
+    assert opened
+    assert completed == "SELECT"
+
+
+def test_db_screen_pilot_tree_run_switch(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """DbScreen against tmp fixture DBs (REPO_ROOT patched): tree fill,
+    enter-to-run via worker, store switch, dismiss. No live stores."""
+    pytest.importorskip("textual")
+    import helpers.misc.search_tui_app as appmod
+    import helpers.misc.search_tui as tui
+    from textual.widgets import DataTable, Input, Static, Tree
+
+    _fixture_root(tmp_path)
+    monkeypatch.setattr(appmod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    app = appmod.SearchApp("", "docs", 10)
+
+    async def drive() -> tuple[int, str, bool, bool, int, int, str, str, str, bool, bool, str]:
+        async with app.run_test(size=(140, 40)) as pilot:
+            for _ in range(40):
+                await pilot.pause(0.05)
+                if app._mounted:
+                    break
+            app.action_db_screen()  # direct: "d" is typing-gated like V/i/t
+            await pilot.pause(0.3)
+            assert isinstance(app.screen, appmod.DbScreen)
+            tree = app.screen.query_one("#db-tree", Tree)
+            kids = len(tree.root.children)
+            first = tree.root.children[0].label.plain if kids else ""
+            sql_highlight = app.screen.query_one("#db-sql", appmod.TextArea).language == "sql"
+            # vim-style: j moves the tree cursor
+            app.screen.set_focus(tree)
+            await pilot.pause(0.1)
+            line0 = tree.cursor_line
+            await pilot.press("j")
+            await pilot.pause(0.1)
+            vim_moved = tree.cursor_line != line0
+            # F5 runs the editor text (real key path, not the action)
+            app.screen.query_one("#db-sql", appmod.TextArea).text = "SELECT name FROM entities"
+            await pilot.press("f5")
+            for _ in range(40):
+                await pilot.pause(0.05)
+                if app.screen.query_one("#db-results", DataTable).row_count > 0:
+                    break
+            rows = app.screen.query_one("#db-results", DataTable).row_count
+            status = app.screen.query_one("#db-status", Static).content
+            # filter narrows the loaded working set (live-apply on change)
+            app.screen.query_one("#db-filter", Input).value = "n20"
+            await pilot.pause(0.2)
+            shown = app.screen.query_one("#db-results", DataTable).row_count
+            # inspect shows the row as col: value lines
+            app.screen.action_toggle_detail()
+            await pilot.pause(0.1)
+            detail = app.screen.query_one("#db-detail", Static).content
+            assert detail.startswith("name: n")  # inspect shows col: value lines
+            # history: the run above was recorded; ctrl+p recalls it
+            app.screen.action_history_older()
+            recalled = app.screen.query_one("#db-sql", appmod.TextArea).text
+            # guard: single keys are text while the editor has focus
+            app.screen.set_focus(app.screen.query_one("#db-sql", appmod.TextArea))
+            await pilot.pause(0.1)
+            app.screen.action_switch_store()
+            guarded = app.screen._store
+            app.screen.set_focus(tree)
+            await pilot.pause(0.1)
+            app.screen.action_switch_store()
+            await pilot.pause(0.1)
+            store = app.screen._store
+            # resize runs with tree focused, then dismiss
+            app.screen.action_widen_tree()
+            app.screen.action_narrow_tree()
+            wide_ok = app.screen._tree_fr == 3
+            app.screen.action_grow_sql()
+            await pilot.press("equals_sign")  # real key path (was "equals": dead)
+            await pilot.pause(0.1)
+            app.screen.action_shrink_sql()
+            assert app.screen._sql_h == 6  # 5 +1 +1 -1
+            # footer shows modal keys only — no search-lane leftovers
+            footer_keys = set(app.screen.active_bindings)
+            assert "m" not in footer_keys and "1" not in footer_keys
+            assert {"s", "escape", "q"} <= footer_keys
+            # esc is a safe harbor (tree), alt+q closes — no accidental exit
+            app.screen.set_focus(app.screen.query_one("#db-sql", appmod.TextArea))
+            await pilot.pause(0.1)
+            await pilot.press("escape")
+            await pilot.pause(0.1)
+            assert isinstance(app.screen, appmod.DbScreen)
+            assert isinstance(app.screen.focused, Tree)
+            await pilot.press("alt+q")
+            await pilot.pause(0.1)
+            return (
+                kids,
+                first,
+                sql_highlight,
+                vim_moved,
+                rows,
+                shown,
+                recalled,
+                guarded,
+                store,
+                wide_ok,
+                isinstance(app.screen, appmod.DbScreen),
+                status,
+            )
+
+    import asyncio
+
+    vals = asyncio.run(drive())
+    (
+        kids,
+        first,
+        sql_highlight,
+        vim_moved,
+        rows,
+        shown,
+        recalled,
+        guarded,
+        store,
+        wide_ok,
+        still_open,
+        status,
+    ) = vals
+    assert kids == 2  # entities + v_entities
+    assert first.startswith("entities (2)")
+    assert sql_highlight
+    assert vim_moved
+    assert rows == 200  # 210-row table, 200-row cap
+    assert 0 < shown < 200  # fuzzy filter narrowed the working set
+    assert recalled == "SELECT name FROM entities"
+    assert guarded == "research"  # switch ignored while typing
+    assert "200 rows" in status
+    assert store == "sources"
+    assert wide_ok  # widen then narrow returns to 3
+    assert not still_open

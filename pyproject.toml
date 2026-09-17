@@ -111,6 +111,9 @@ dev = [
 tui = [
     "textual>=8.2",
     "rich>=15",
+    # DbScreen SQL highlighting (TextArea language="sql").
+    "tree-sitter",
+    "tree-sitter-sql",
 ]
 
 mojo = [
@@ -208,4 +211,7 @@ optional_dependencies_dev_groups = ["dev", "mojo"]
 # mojo_regex_corpus.py), which extend_exclude removes from scanning — it
 # stays a direct dependency for the same reason it was promoted 2026-08-30
 # (bench code is code, it just isn't shipped).
-per_rule_ignores = "DEP001=pix2text,DEP002=gunicorn|Werkzeug|finnhub-python|regex"
+# tree-sitter + tree-sitter-sql: DbScreen SQL highlighting — the TextArea
+# loads the grammar at runtime (TextArea language="sql"), so no repo file
+# imports them directly; declared in the tui extra, not the dev group.
+per_rule_ignores = "DEP001=pix2text,DEP002=gunicorn|Werkzeug|finnhub-python|regex|tree-sitter|tree-sitter-sql"

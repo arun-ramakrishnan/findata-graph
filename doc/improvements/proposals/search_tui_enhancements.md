@@ -224,6 +224,25 @@ Identified during evaluation; can be added after S1–S2:
    Make empty query show lane-appropriate recents (reports: overview;
    code: recent symbols from evlog; docs: index stats).
 7. **Evlog rotation** — `/tmp/search_tui.log` appends forever — cap at N lines on mount.
+8. **Database screen (DECIDED 2026-09-17, option 2 native)** — from the
+   TUI DB assessment (`doc/local/evaluations/tui_db_assessment.md`):
+   harlequin's three panes (schema/SQL/results) are the UX pattern, but
+   harlequin itself stays out — it is a whole Textual app (no embedding),
+   its SQLite catalog mislabels `research.db`'s 27 relations, and it is
+   not in `.venv`. Instead a native `DbScreen` modal clones the
+   three-pane layout: schema tree from `sqlite_master` /
+   `information_schema` (correct by construction), SQL input, results
+   grid. `research.db` via stdlib sqlite + house `connect(read_only=True)`,
+   `sources.duckdb` via the already-vendored `duckdb` — zero new deps
+   (harlequin suspend-launch parked, not removed: viable later as a
+   glow-style optional external for DuckDB).
+   2026-09-17 addendum: `sqlit` 1.6.4 trialed (`bench_data/dbtui/README.md`
+   §sqlit) — correct SQLite catalog where harlequin was broken, DuckDB
+   supported, same Textual 8.2.8, headless JSON query. Still launcher-only
+   (full app, cannot embed) and read-write-only (no `mode=ro`; snapshots
+   only). sqlit replaces harlequin as the preferred external companion;
+   steal-list for the modal: dropdown completions, file-backed query
+   history, results filter.
 
 ### 2.7 Keybindings
 
@@ -347,4 +366,42 @@ overview row — enter on overview rows opens it filtered). New
 terminal-free helpers in `search_tui.py`: `report_run_spans`,
 `report_rerun_argv`, `REPORT_NAMES`, `report_verb_for_path`. 3 tests
 (spans/verb, rerun argv, live pilot smoke: open → 8 rows → drill →
-esc, no rerun).
+   esc, no rerun).
+
+### 6.5 DbScreen — executed (2026-09-17)
+
+Native three-pane database modal per §2.6 item 8 (operator chose native
+over harlequin suspend-launch). Terminal-free adapters in
+`helpers/misc/search_tui.py`: `DB_STORES` registry (`research` →
+`memory/research.db` SQLite, `sources` → `memory/data/sources.duckdb`
+DuckDB), `db_schema` (tables/views + ordered columns, alphabetical),
+`db_run` (never raises — errors, the 200-row cap, and the missing-file
+case are `DbResult` data), `db_store_path` (call-time root resolution
+so `REPO_ROOT` monkeypatching reaches the adapters — def-time defaults
+froze the live root and sent the first pilot at the live DB). Safety:
+per-query short-lived read-only connections (house `connect(read_only=True,
+wal=False)` for SQLite, `duckdb.connect(read_only=True)`), SQLite
+2 s progress-handler abort, all queries in a worker thread. `DbScreen`
+in `search_tui_app.py` (ReportScreen skeleton: `Tree` + `Input` +
+`DataTable` + status `Static` + `Footer`, `event.stop()` inherited from
+modal scope): enter on a tree row runs a capped `SELECT`, enter in the
+SQL box runs it, `s` switches stores, safety line states the posture.
+Entry: `d` (`action_db_screen`). 7 tests (schema/run/cap/timeout/ro-write/
+empty/unknown-store on tmp fixtures + hermetic pilot: tree → run →
+switch → dismiss). Docs: `doc/procedures/search-tui.md` database
+section; design history/future updated.
+
+### 6.6 DbScreen v2 — executed (2026-09-17)
+
+Operator trial notes, same patch: (1) SQL editor is now a
+syntax-highlighted multiline `TextArea` (`language="sql"`; `tui` extra
+gains `tree-sitter` + `tree-sitter-sql`, deptry DEP002-ignored like the
+other runtime-loaded deps) — F5 runs, enter is a newline, Tab completes
+the cursor-line token via pure `db_complete`; (2) per-store query
+history (`~/.config/search_tui/db_history_<store>.txt`, cap 200,
+dedupe-consecutive) with P/N recall (ctrl+p is Textual's command palette); (3) vim-style subset —
+hjkl movement in tree/results, `y`/`Y` yank cell/row; (4) results —
+`/` focuses a live fuzzy filter over loaded rows, `v` inspects the row
+as `col: value` lines, working-set honesty kept (200-row cap, no fake
+millions). 60 tests in-file (pure matcher/history/filter units +
+pilots: F5 key path, live filter, inspect, recall, vim move).

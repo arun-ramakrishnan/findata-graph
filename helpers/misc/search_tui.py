@@ -24,7 +24,10 @@ runs are shown). Nothing here builds a new index — a lane is
 only as fresh as ``make search-fresh APPLY=1`` left it (the status bar
 shows each index's age).
 
-Reading: ``enter`` opens the hit — markdown via ``glow -p`` when glow
+``d`` opens the read-only database screen: schema tree + SQL input +
+results grid over ``memory/research.db`` (SQLite) and
+``memory/data/sources.duckdb`` (DuckDB), one short-lived read-only
+connection per query, 200-row cap.Reading: ``enter`` opens the hit — markdown via ``glow -p`` when glow
 is installed, everything else via $VISUAL/$EDITOR/nvim/vim/less (line
 aware). ``e`` forces the editor. ``y``/``Y`` copy path / path:line.
 
@@ -1142,6 +1145,340 @@ def _run_reports(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], s
     if not hits:
         return [], f"no report rows for {q!r} ({shown_s}){missing_s}"
     return hits, f"{len(hits)} rows · {shown_s}{missing_s}"
+
+
+# ---------------------------------------------------------------- db screen
+
+DB_STORES: dict[str, dict[str, object]] = {
+    # Short-lived read-only connections per query (open → run → close),
+    # so no lock is ever held across the TUI session — the same posture
+    # as the notes lane. Writes are rejected by the engines, never by
+    # parsing: SQLite via URI mode=ro, DuckDB via read_only=True.
+    "research": {
+        "label": "research.db · SQLite",
+        "engine": "sqlite",
+        "rel": "memory/research.db",
+    },
+    "sources": {
+        "label": "sources.duckdb · DuckDB",
+        "engine": "duckdb",
+        "rel": "memory/data/sources.duckdb",
+    },
+}
+DB_ROW_CAP = 200
+DB_TIMEOUT_MS = 2000
+DB_SQL_KEYWORDS = (
+    "SELECT",
+    "FROM",
+    "WHERE",
+    "ORDER BY",
+    "GROUP BY",
+    "LIMIT",
+    "WITH",
+    "JOIN",
+    "LEFT JOIN",
+    "ON",
+    "AND",
+    "OR",
+    "NOT",
+    "AS",
+    "DISTINCT",
+    "COUNT",
+    "SUM",
+    "AVG",
+    "MIN",
+    "MAX",
+    "PRAGMA",
+    "EXPLAIN",
+    "MATCH",
+)
+
+
+@dataclass
+class DbColumn:
+    """One column of a table/view (name + declared type, '' if unknown)."""
+
+    name: str
+    ctype: str = ""
+
+
+@dataclass
+class DbTable:
+    """One relation: name, kind ('table'/'view'), ordered columns."""
+
+    name: str
+    kind: str
+    columns: list[DbColumn]
+
+
+@dataclass
+class DbResult:
+    """Outcome of one read-only query — errors are data, never raised."""
+
+    columns: list[str]
+    rows: list[tuple[object, ...]]
+    truncated: bool
+    elapsed_ms: float
+    error: str | None = None
+
+
+def db_store_path(store: str, root: Path | None = None) -> Path:
+    """Resolve a store id to its DB file (ValueError on unknown id)."""
+    try:
+        rel = str(DB_STORES[store]["rel"])
+    except KeyError:
+        known = ", ".join(sorted(DB_STORES))
+        raise ValueError(f"unknown db store {store!r} (known: {known})") from None
+    return (REPO_ROOT if root is None else root) / rel
+
+
+def _quote_ident(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
+def db_preview_sql(table: str, column: str | None = None, limit: int = DB_ROW_CAP) -> str:
+    """Capped SELECT over one catalog relation (tree enter-to-run).
+
+    Identifiers come from the engine's own catalog and are double-quote
+    escaped; the limit is int-coerced; execution is read-only — so the
+    worst case is a failed query, never a write.
+    """
+    cols = _quote_ident(column) if column else "*"
+    return f"SELECT {cols} FROM {_quote_ident(table)} LIMIT {int(limit)}"  # noqa: S608
+
+
+def db_completions(store: str, root: Path | None = None) -> list[str]:
+    """Completion words for the SQL box: keywords, tables, table.column,
+    bare columns (deduped, priority-ordered for first-match suggestion)."""
+    tables = db_schema(store, root)
+    words = list(DB_SQL_KEYWORDS)
+    words.extend(t.name for t in tables)
+    for t in tables:
+        words.extend(f"{t.name}.{c.name}" for c in t.columns)
+    seen: set[str] = set()
+    bare = []
+    for t in tables:
+        for c in t.columns:
+            if c.name not in seen:
+                seen.add(c.name)
+                bare.append(c.name)
+    words.extend(bare)
+    return words
+
+
+def db_complete(words: list[str], fragment: str) -> str | None:
+    """Complete one token: first case-insensitive prefix match that extends
+    the fragment (exact matches complete nothing). A ``table.`` prefix
+    completes that table's columns. Pure — the modal calls it on the
+    cursor-line fragment for Tab completion. Returns the full token."""
+    matches = db_match_words(words, fragment, 1)
+    return matches[0] if matches else None
+
+
+def db_match_words(words: list[str], fragment: str, limit: int = 6) -> list[str]:
+    """All completions for a fragment (db_complete returns the first)."""
+    frag = fragment.lstrip('"')
+    if not frag:
+        return []
+    if "." in frag:
+        head, _, tail = frag.rpartition(".")
+        base = head + "."
+        cands = [w for w in words if "." in w and w.split(".")[0].casefold() == head.casefold()]
+        sub = tail
+    else:
+        base, cands, sub = "", words, frag
+    fold = sub.casefold()
+    out = []
+    for word in cands:
+        stem = word[len(base) :] if base else word
+        if stem.casefold().startswith(fold) and stem.casefold() != fold:
+            out.append(base + stem)
+            if len(out) >= limit:
+                break
+    return out
+
+
+def _db_history_path(store: str) -> Path:
+    return Path.home() / ".config" / "search_tui" / f"db_history_{store}.txt"
+
+
+def load_db_history(store: str, path: Path | None = None, limit: int = 200) -> list[str]:
+    """Past queries, oldest-first (operator state; missing file → [])."""
+    p = path if path is not None else _db_history_path(store)
+    try:
+        lines = p.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    return [ln for ln in lines if ln.strip()][-limit:]
+
+
+def append_db_history(store: str, sql: str, path: Path | None = None, cap: int = 200) -> None:
+    """Record one run: skip blanks/repeat-of-last, cap the file. Never raises."""
+    sql = sql.strip()
+    if not sql:
+        return
+    p = path if path is not None else _db_history_path(store)
+    try:
+        p.parent.mkdir(parents=True, exist_ok=True)
+        hist = load_db_history(store, p, cap)
+        if hist and hist[-1] == sql:
+            return
+        hist.append(sql)
+        p.write_text("\n".join(hist[-cap:]) + "\n", encoding="utf-8")
+    except OSError:  # noqa: S110 — history is a nicety, never fatal
+        pass
+
+
+def db_row_matches(cells: list[object], query: str) -> bool:
+    """Fuzzy subsequence match over a row's cells (casefolded)."""
+    q = query.casefold()
+    if not q:
+        return True
+    hay = " ".join("" if v is None else str(v) for v in cells).casefold()
+    it = iter(hay)
+    return all(ch in it for ch in q)
+
+
+def db_filter_rows(rows: list[tuple[object, ...]], query: str) -> list[tuple[object, ...]]:
+    """Rows whose cells fuzz-match the query (empty query → all)."""
+    return [r for r in rows if db_row_matches(list(r), query)]
+
+
+def db_schema(store: str, root: Path | None = None) -> list[DbTable]:
+    """List tables/views + columns for a store (read-only, alphabetical)."""
+    path = db_store_path(store, root)
+    engine = str(DB_STORES[store]["engine"])
+    if engine == "sqlite":
+        from helpers.core.db import connect as _db_connect
+
+        conn = _db_connect(path, read_only=True, wal=False)
+        try:
+            names = conn.execute(
+                "SELECT name, type FROM sqlite_master"
+                " WHERE type IN ('table','view') AND name NOT LIKE 'sqlite_%'"
+                " ORDER BY name"
+            ).fetchall()
+            tables = []
+            for name, kind in names:
+                cols = conn.execute(f"PRAGMA table_info({_quote_ident(name)})").fetchall()
+                tables.append(
+                    DbTable(
+                        name=name,
+                        kind="view" if kind == "view" else "table",
+                        columns=[DbColumn(name=str(c[1]), ctype=str(c[2] or "")) for c in cols],
+                    )
+                )
+            return tables
+        finally:
+            conn.close()
+    import duckdb  # lazy: duckdb is a main dep, not part of the tui extra
+
+    conn = duckdb.connect(str(path), read_only=True)
+    try:
+        names = conn.execute(
+            "SELECT table_name, table_type FROM information_schema.tables"
+            " WHERE table_schema = 'main' ORDER BY table_name"
+        ).fetchall()
+        tables = []
+        for name, table_type in names:
+            cols = conn.execute(
+                "SELECT column_name, data_type FROM information_schema.columns"
+                " WHERE table_schema = 'main' AND table_name = ?"
+                " ORDER BY ordinal_position",
+                [name],
+            ).fetchall()
+            tables.append(
+                DbTable(
+                    name=str(name),
+                    kind="view" if str(table_type).upper() == "VIEW" else "table",
+                    columns=[DbColumn(name=str(c[0]), ctype=str(c[1] or "")) for c in cols],
+                )
+            )
+        return tables
+    finally:
+        conn.close()
+
+
+def _db_run_sqlite(path: Path, sql: str, limit: int, timeout_ms: int) -> DbResult:
+    from helpers.core.db import connect as _db_connect
+
+    t0 = time.perf_counter()
+    conn = _db_connect(path, read_only=True, wal=False)
+    try:
+        deadline = t0 + timeout_ms / 1000.0
+
+        def _abort() -> int:
+            return 1 if time.perf_counter() >= deadline else 0
+
+        conn.set_progress_handler(_abort, 1000)
+        try:
+            cur = conn.execute(sql)
+        finally:
+            conn.set_progress_handler(None, 0)
+        cols = [d[0] for d in (cur.description or [])]
+        fetched = cur.fetchmany(limit + 1)
+        elapsed = (time.perf_counter() - t0) * 1000.0
+        return DbResult(
+            columns=[str(c) for c in cols],
+            rows=list(fetched[:limit]),
+            truncated=len(fetched) > limit,
+            elapsed_ms=elapsed,
+        )
+    except Exception as e:  # noqa: BLE001 — errors are DbResult data
+        elapsed = (time.perf_counter() - t0) * 1000.0
+        return DbResult(columns=[], rows=[], truncated=False, elapsed_ms=elapsed, error=str(e))
+    finally:
+        conn.close()
+
+
+def _db_run_duckdb(path: Path, sql: str, limit: int) -> DbResult:
+    import duckdb  # lazy: see db_schema
+
+    t0 = time.perf_counter()
+    conn = duckdb.connect(str(path), read_only=True)
+    try:
+        try:
+            cur = conn.execute(sql)
+            cols = [d[0] for d in (cur.description or [])]
+            fetched = cur.fetchmany(limit + 1)
+        except Exception as e:  # noqa: BLE001 — errors are DbResult data
+            elapsed = (time.perf_counter() - t0) * 1000.0
+            return DbResult(columns=[], rows=[], truncated=False, elapsed_ms=elapsed, error=str(e))
+        elapsed = (time.perf_counter() - t0) * 1000.0
+        return DbResult(
+            columns=[str(c) for c in cols],
+            rows=list(fetched[:limit]),
+            truncated=len(fetched) > limit,
+            elapsed_ms=elapsed,
+        )
+    finally:
+        conn.close()
+
+
+def db_run(
+    store: str,
+    sql: str,
+    limit: int = DB_ROW_CAP,
+    timeout_ms: int = DB_TIMEOUT_MS,
+    root: Path | None = None,
+) -> DbResult:
+    """Run one read-only query; failures and the row cap are DbResult data.
+
+    timeout_ms is enforced on SQLite via a progress-handler abort; DuckDB
+    is bounded by the row cap (its result sets here are ms-scale) and the
+    UI runs every query in a worker thread so the screen never blocks.
+    """
+    if not sql.strip():
+        return DbResult(columns=[], rows=[], truncated=False, elapsed_ms=0.0, error="empty query")
+    path = db_store_path(store, root)
+    if not path.exists():
+        return DbResult(
+            columns=[], rows=[], truncated=False, elapsed_ms=0.0, error=f"missing db file: {path}"
+        )
+    engine = str(DB_STORES[store]["engine"])
+    if engine == "sqlite":
+        return _db_run_sqlite(path, sql, limit, timeout_ms)
+    return _db_run_duckdb(path, sql, limit)
 
 
 def index_rows(root: Path) -> list[dict[str, object]]:

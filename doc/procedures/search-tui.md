@@ -43,6 +43,8 @@ prefixes are treated as plain text.
 | `b` | back — unwind the chain stack to the previous view |
 | `i` | index monitor (c/C deep-check, r/R rebuild, esc close) |
 | `V` | report screen — comprehensive view over `outputs/` reports |
+| `d` | database screen — schema tree + SQL + results (read-only, see below) |
+| alt+`d` | database screen from anywhere, even while typing |
 | enter (overview row, reports lane) | open the report screen for that file |
 | `/` | focus the query line |
 | enter (normal row) | open the hit: markdown via `glow -p`, else `$VISUAL`/`$EDITOR`/nvim/vim/less (line-aware) |
@@ -52,6 +54,47 @@ prefixes are treated as plain text.
 
 The status bar shows each index's age — the `search-fresh` contract:
 lanes are only as fresh as the last `make search-fresh APPLY=1`.
+
+## Database screen (`d` / alt+`d`)
+
+Three panes over the live stores — schema tree (left), SQL editor
+(middle-top, syntax-highlighted), results grid (middle-bottom).
+Read-only by construction: one short-lived read-only connection per
+query (SQLite `mode=ro`, DuckDB `read_only=True`), closed after each
+run, so no lock is ever held across the session; writes are rejected
+by the engines (`attempt to write a readonly database`). 200-row cap
+with a truncation notice; SQLite statements abort after 2 s via a
+progress handler; every query runs in a worker thread so the screen
+never blocks. Needs the `tui` extra (now includes `tree-sitter` +
+`tree-sitter-sql` for highlighting).
+
+| Key | Action |
+|-----|--------|
+| enter (tree row) | run `SELECT *` (table) or one column (leaf), capped |
+| f5 | run the editor SQL (enter is a newline — multiline supported) |
+| type prefix + tab | complete from keywords + tables + `table.column` (matches list under the editor) |
+| `P` / `N` | older / newer query (per-store history in `~/.config/search_tui/`; ctrl+`p` is the app command palette) || `/` | focus the row filter (fuzzy subsequence over loaded rows, live) |
+| enter (filter) | back to the editor |
+| `v` | inspect the row (`col: value` lines under the grid) |
+| `y` / `Y` | yank cell / row (tab-separated) |
+| `j`/`k`/`h`/`l` | vim-style move in tree/results (expand/collapse on `l` in tree) |
+| `s` | switch store: `research.db` (SQLite) ↔ `sources.duckdb` (DuckDB) |
+| `[` / `]` | widen/narrow the schema tree (modal fills the terminal) |
+| `-` / `=` | shrink/grow the SQL box (the results grid takes the rest) |
+| esc / `q` | safe harbor — focus the tree (never exits the modal) |
+| alt+`q` | close (the only way out; `ctrl+q` is Textual's app force-quit) |
+
+Single-key actions are inert while the editor or filter has focus (they
+are text there) — focus the tree/results first. The footer shows modal
+keys only; search-lane keys don't apply here.
+
+The safety line names the store and the posture
+(`research.db · SQLite · read-only · live · one connection per query ·
+200-row cap`). Blobs render as `<N bytes>`, `NULL`s as `NULL`, long
+cells truncate at 120 chars. FTS5 `note_search MATCH …` queries work
+through the same box. Terminal-free adapters (`db_schema`, `db_run`)
+live in `helpers/misc/search_tui.py` and are unit-tested against tmp
+fixture DBs — never the live stores.
 
 ## Dependency
 

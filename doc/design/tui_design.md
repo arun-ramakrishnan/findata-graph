@@ -1,10 +1,10 @@
 # Search TUI Design
 
-**Status:** LIVE (initial build) + PROPOSED (enhancements). The five-lane
-front door shipped in `b28991d548` (2026-09-16); the reports lane, theme
-system, and report screen are specified in
-`doc/improvements/proposals/search_tui_enhancements.md` (patch
-`tui_extends`) — reports lane + themes implemented, report screen pending.
+**Status:** LIVE. The five-lane front door shipped in `b28991d548`
+(2026-09-16); the reports lane, theme system, and report screen shipped
+under `doc/improvements/proposals/search_tui_enhancements.md` (patch
+`tui_extends`); the read-only database screen shipped 2026-09-17
+(same patch, §2.6 item 8 decision: native over harlequin).
 
 ## 1. Problem & Scope
 
@@ -33,14 +33,18 @@ helpers/misc/search_tui.py      terminal-free adapters (importable without
   run_lane(lane, q)     dispatch over _LANE_RUNNERS (+ report/theme helpers below)
   open_command          glow-for-md else $VISUAL/$EDITOR/nvim/vim/less (line-aware)
   index_*               freshness snapshot + deep-check/rebuild argv builders
-  report adapters       RunBlock/RunStep/CheckRow parsers over outputs/*_report.md
-  THEMES                palette data (textual vars + rich tokens + description) + persist
+   report adapters       RunBlock/RunStep/CheckRow parsers over outputs/*_report.md
+   THEMES                palette data (textual vars + rich tokens + description) + persist
+   db adapters           DbTable/DbColumn/DbResult over memory/research.db (SQLite,
+                         house connect read_only) + memory/data/sources.duckdb
+                         (DuckDB read_only): db_schema, db_run (never raises)
 
 helpers/misc/search_tui_app.py  Textual front-end (imported lazily; needs TTY)
-  SearchApp             query line, lane tabs, results table | preview pane
-  IndexMonitor          modal: ages, deep checks, sequential rebuilds
-  ThemeScreen           modal: theme picker (enter applies + persists)
-  ReportScreen          modal: report drill-down (PROPOSED, pending)
+   SearchApp             query line, lane tabs, results table | preview pane
+   IndexMonitor          modal: ages, deep checks, sequential rebuilds
+   ThemeScreen           modal: theme picker (enter applies + persists)
+   ReportScreen          modal: report drill-down + rerun
+   DbScreen              modal: schema tree + SQL input + results grid (key `d`)
 ```
 
 Backend contract per lane: `(hits, status-string)` — the status bar
@@ -113,8 +117,17 @@ fallback). `t` cycles, `T` opens the picker.
 - **Openers:** `enter` opens (glow for markdown, editor otherwise),
   `e` forces the editor, `y`/`Y` copy path / path:line (OSC52, then
   wl-copy/xclip/xsel/pbcopy fallbacks). `q`/ctrl+c quits.
-- **Modals** (`IndexMonitor`, `ThemeScreen`, `ReportScreen`) stop
-  row-selected events so enter behind the modal never fires, and the
+- **Database screen** (`d` / alt+`d`): schema tree (tables + typed columns),
+  syntax-highlighted multiline SQL editor (F5 runs, Tab completes from
+  keywords/tables/`table.column`, P/N per-store history), results
+  grid with live fuzzy filter (`/`) and row inspect (`v`), vim-style
+  hjkl + yank. One short-lived read-only connection per query (closed
+  after each run — no held locks); 200-row cap + truncation notice;
+  SQLite 2 s abort; errors render in the status line, never as
+  exceptions. The safety line always states store + posture
+  (`read-only · live · one connection per query`).
+- **Modals** (`IndexMonitor`, `ThemeScreen`, `ReportScreen`, `DbScreen`)
+  stop row-selected events so enter behind the modal never fires, and the
   app captures widget refs once (late worker callbacks must not
   re-query while a modal is up). The `Tabs` arming gate (awaited adds
   + 0.75s timer) absorbs mount-time auto-activation churn.
@@ -149,17 +162,22 @@ fallback). `t` cycles, `T` opens the picker.
   `doc/improvements/archive/tooling/search_tui.md`, `completed.md` entry).
 - `tui_extends` (2026-09-17, this patch) — report writers to
   append-only `.md` in `outputs/`, report adapters, sixth lane, theme
-  system (proposal `doc/improvements/proposals/search_tui_enhancements.md`,
-  §6 execution log). Report screen specified, not yet built.
+  system, report screen, read-only database screen (proposal
+  `doc/improvements/proposals/search_tui_enhancements.md`, §6 execution
+  log). No new dependencies: SQLite via stdlib + house `connect`,
+  DuckDB already vendored (harlequin evaluated and parked —
+  `doc/local/evaluations/tui_db_assessment.md`, preserved trial inputs
+  in `bench_data/dbtui/`).
 
 ## 10. Future
 
-- **ReportScreen** (specified §2.2/S3 of the proposal): summary table +
-  detail pane over the parsed reports, `r` rerun, comprehensive view
-  by default.
 - Lane-appropriate empty queries beyond reports, multi-lane fan-out
   (`*:`), make-target execution from script-lane rows, perf trend
   sparklines, yank-all paths, inline tail expansion.
+- DbScreen follow-ups: multi-line SQL input, cell yank (`y` per cell),
+  snapshot-at-open if a held-`ro` complaint ever appears (current
+  posture is per-query connections, so no lock is held), harlequin
+  suspend-launch as a glow-style optional external for DuckDB.
 - Inspiration catalogue: [awesome-tuis](https://github.com/clayne/awesome-tuis) —
   a curated collection of terminal UI apps; worth mining for
   picker/preview/status-bar patterns before inventing new ones.
