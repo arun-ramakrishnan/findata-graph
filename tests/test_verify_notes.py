@@ -581,8 +581,8 @@ class TestTotalsAndReport:
         report_file = tmp_path / "report.txt"
         v.generate_report(str(report_file))
         text = report_file.read_text()
-        assert "ERRORS: 1" in text
-        assert "WARNINGS: 1" in text
+        assert "| Errors | 1 |" in text
+        assert "| Warnings | 1 |" in text
         assert "test error" in text
         assert "test warning" in text
 

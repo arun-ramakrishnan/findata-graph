@@ -124,8 +124,8 @@ Each step is a separate subprocess so its CLI logging is preserved and
 a failure in one step doesn't corrupt another's state. Step output
 streams live to the console AND is captured: every real run appends a
 timestamped summary table — plus the tail of any failed step's output —
-to ``maint_report.txt`` at the repo root (same append-only philosophy
-as the gate reports in tests/run_gate_report.py → qa_report.txt), so a
+to ``outputs/maint_report.md`` (same append-only philosophy
+as the gate reports in tests/run_gate_report.py → outputs/qa_report.md), so a
 bare "step failed with exit 1" always leaves the step's own stderr
 behind for post-mortem. ``--dry-run`` writes no report.
 
@@ -173,7 +173,7 @@ except ImportError:  # pragma: no cover
 
 # Append-only run log (gitignored, like the gate reports). Module-level
 # and monkeypatchable so tests never touch the real file.
-REPORT_PATH = PROJECT_ROOT / "maint_report.txt"
+REPORT_PATH = PROJECT_ROOT / "outputs" / "maint_report.md"
 _TAIL_LINES = 60  # lines appended to the report per failed step
 _CAPTURE_LINES = 400  # rolling in-memory cap while streaming
 
@@ -436,21 +436,29 @@ def _table_lines(results: list[_StepResult]) -> list[str]:
 
 
 def _write_report(results: list[_StepResult], full: bool) -> None:
-    """Append the run record: header + summary table, then the captured
-    tail of every FAILED step (qa_report.txt philosophy — successes stay
-    lean, failures keep their evidence)."""
+    """Append one markdown run record: `# make <mode>` header +
+    `| step | time | status |` table, then a `## <step> (FAILED)` section
+    per failed step (outputs/qa_report.md philosophy — successes stay lean,
+    failures keep their evidence)."""
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     mode = "maint-full" if full else "maint"
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(REPORT_PATH, "a") as f:
-        f.write(f"=== make {mode}  {ts}  (Python {sys.version.split()[0]}) ===\n")
-        f.write("\n".join(_table_lines(results)) + "\n")
+        f.write(f"# make {mode} — maint report\n\n")
+        f.write(f"**Generated:** {ts}  ·  **Python:** {sys.version.split()[0]}\n\n")
+        f.write("| Step | Time (s) | Status |\n")
+        f.write("|---|---|---|\n")
+        for r in results:
+            flag = "✓ OK" if r.rc == 0 else "✗ FAIL"
+            f.write(f"| {r.label} | {r.seconds:.2f} | {flag} |\n")
+        ok = sum(1 for r in results if r.rc == 0)
+        verdict = "PASS" if all(r.rc == 0 for r in results) else "FAIL (aborted)"
+        f.write(f"| **{ok}/{len(results)} steps ok** | | **maint {verdict}** |\n\n")
         for r in results:
             if r.rc == 0:
                 continue
-            n = min(_TAIL_LINES, len(r.tail))
-            f.write(f"--- {r.label} · last {n} lines (FAILED) ---\n")
-            f.write("\n".join(r.tail[-_TAIL_LINES:]) + "\n")
-        f.write("\n")
+            f.write(f"## {r.label} (FAILED)\n\n")
+            f.write("\n".join(r.tail[-_TAIL_LINES:]) + "\n\n")
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -16,8 +16,11 @@ findata/
 ├── Super_Sectors/                            # super-sector notes (hierarchy tier)
 ├── Points_And_Figures/ The_Chatter/ The_PlotLines/   # OCR'd newsletter INPUTS (gitignored, not synced)
 ├── Misc/                                     # pipeline state + catch-all notes\n│   ├── _pending_relations.txt                # review queue: extraction misses (H4) + link-prediction suggestions\n│   ├── Quotes.md                             # quote-capture catch-all note (S4)tions (C2, origin=link_prediction)
-└── verify_notes_report.txt                   # last validator output
 ```
+
+Validator run history lives in `outputs/verify_notes_report.md`
+(append-only; all seven gate/perf/maint/validator reports
+consolidate under `outputs/`, gitignored like `bench_data`).
 
 ## YAML Front Matter
 

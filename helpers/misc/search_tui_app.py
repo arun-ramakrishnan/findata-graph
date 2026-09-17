@@ -9,7 +9,7 @@ keybind footer.
 
 Interaction model (operator-directed 2026-09-16): search fires on
 ``enter`` only — the query line never runs lanes under your fingers
-while you pick one of the five tabs. Markdown hits preview rendered
+while you pick one of the six tabs. Markdown hits preview rendered
 (``rich.markdown``), code hits preview as a numbered context slice.
 ``i`` opens the index monitor: per-index store age + deep ``--check``
 freshness, ``r`` refreshes the selected index, ``R`` refreshes all
@@ -38,17 +38,31 @@ from textual.screen import ModalScreen
 from textual.widgets import DataTable, Footer, Header, Input, RichLog, Static, Tab, Tabs
 
 from helpers.misc.search_tui import (
+    DEFAULT_THEME,
     INDEXES,
     LANES,
+    REPORT_NAMES,
     REPO_ROOT,
+    THEME_ORDER,
+    THEMES,
     Hit,
     call_chain,
     index_ages,
     index_check_argv,
     index_refresh_argv,
     index_rows,
+    load_theme_name,
+    next_theme,
     open_command,
+    parse_gate_report,
+    parse_integrity_report,
+    parse_perf_report,
+    parse_verify_report,
+    report_rerun_argv,
+    report_run_spans,
+    report_verb_for_path,
     run_lane,
+    save_theme_name,
 )
 
 
@@ -234,6 +248,296 @@ class IndexMonitor(ModalScreen[None]):
         self.dismiss()
 
 
+class ThemeScreen(ModalScreen[None]):
+    """Theme picker: one row per theme, enter applies + persists.
+
+    Follows the IndexMonitor skeleton (DataTable + footer, worker-free —
+    a theme swap is synchronous). Row keys are theme names.
+    """
+
+    BINDINGS = [
+        ("escape", "dismiss_theme", "close"),
+        ("q", "dismiss_theme", "close"),
+    ]
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="theme-box"):
+            yield DataTable(id="theme-table", cursor_type="row", zebra_stripes=True)
+            yield Static("enter applies + persists · esc close", id="theme-keys")
+            yield Footer()
+
+    def on_mount(self) -> None:
+        table = self.query_one("#theme-table", DataTable)
+        table.border_title = "theme picker — t cycles, T picks"
+        table.add_column("theme", width=16)
+        table.add_column("palette", width=54)
+        app = self.app
+        cur = app._theme if isinstance(app, SearchApp) else DEFAULT_THEME
+        for i, name in enumerate(THEME_ORDER):
+            mark = "✓ " if name == cur else "  "
+            table.add_row(mark + name, str(THEMES[name]["description"]), key=name)
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        event.stop()  # enter here must NOT open the underlying hit behind the modal
+        key = event.row_key.value if event.row_key is not None else None
+        app = self.app
+        if key in THEMES and isinstance(app, SearchApp):
+            app._apply_theme(str(key))
+        self.dismiss()
+
+    def action_dismiss_theme(self) -> None:
+        self.dismiss()
+
+
+_REP_RUNS_PER_REPORT = 5  # comprehensive view bounds the table
+
+_SEV_STYLE = {
+    "ERROR": "bold red",
+    "FAIL": "bold red",
+    "WARNING": "yellow",
+    "OK": "green",
+    "SKIP": "dim",
+}
+
+
+def _sev_style(status: str) -> str:
+    up = status.upper()
+    for key, style in _SEV_STYLE.items():
+        if key in up:
+            return style
+    return ""
+
+
+class ReportScreen(ModalScreen[None]):
+    """Comprehensive report view: summary table (left) + detail pane (right).
+
+    Gate/perf reports list runs most-recent-first with their steps;
+    integrity/verify list the latest run's checks/issues. Enter drills
+    the selected row into the detail pane (markdown-rendered file slice);
+    ``r`` reruns the row's report; ``i`` opens the index monitor.
+    Follows the IndexMonitor skeleton; enter is stopped so the hit
+    behind the modal never opens.
+    """
+
+    BINDINGS = [
+        ("r", "rerun_report", "rerun report"),
+        ("i", "open_monitor", "indexes"),
+        ("escape", "dismiss_report", "close"),
+        ("q", "dismiss_report", "close"),
+    ]
+
+    def __init__(self, report: str | None = None) -> None:
+        super().__init__()
+        self._report = report if report in REPORT_NAMES else None
+        self._rows: list[dict[str, object]] = []
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="rep-box"):
+            with Horizontal(id="rep-body"):
+                yield DataTable(id="rep-table", cursor_type="row", zebra_stripes=True)
+                yield RichLog(id="rep-detail", markup=True, wrap=True, max_lines=4000, min_width=1)
+            yield Static("enter drills · r reruns report · i indexes · esc close", id="rep-keys")
+            yield Footer()
+
+    def on_mount(self) -> None:
+        table = self.query_one("#rep-table", DataTable)
+        table.border_title = "reports — comprehensive view"
+        table.add_column("item", width=40)
+        table.add_column("severity", width=10)
+        table.add_column("summary", width=44)
+        self._fill()
+
+    # -- fill ----------------------------------------------------------
+
+    def _add(self, item: str, sev: str, summary: str, **extra: object) -> None:
+        row: dict[str, object] = {"item": item, "sev": sev, "summary": summary}
+        row.update(extra)
+        self._rows.append(row)
+
+    def _fill(self) -> None:
+        from helpers.misc import search_tui as _tui
+
+        self._rows = []
+        names = [self._report] if self._report else list(REPORT_NAMES)
+        for name in names:
+            rel = next(r for n, r, _ in _tui._REPORTS if n == name)
+            p = REPO_ROOT / rel
+            if not p.exists():
+                continue
+            kind = next(k for n, _, k in _tui._REPORTS if n == name)
+            if kind in ("gate", "perf"):
+                self._fill_runs(name, rel, kind, p)
+            elif kind == "integrity":
+                self._fill_checks(name, rel, p)
+            else:
+                self._fill_issues(name, rel, p)
+        table = self.query_one("#rep-table", DataTable)
+        table.clear()
+        for i, row in enumerate(self._rows):
+            style = _sev_style(str(row["sev"]))
+            item = Text(str(row["item"]))
+            if style:
+                item.stylize(style)
+            table.add_row(item, str(row["sev"]), str(row["summary"])[:44], key=str(i))
+        self._detail(f"{len(self._rows)} rows · enter drills · r reruns")
+
+    def _fill_runs(self, name: str, rel: str, kind: str, p: Path) -> None:
+        parse = parse_gate_report if kind == "gate" else parse_perf_report
+        for b in list(reversed(parse(p)))[:_REP_RUNS_PER_REPORT]:
+            self._add(
+                f"── {name} · {b.timestamp or 'unknown'} ──",
+                "RUN",
+                b.summary,
+                kind="run",
+                report=name,
+                path=rel,
+                stamp=b.timestamp,
+            )
+            for s in b.steps:
+                self._add(
+                    s.label,
+                    s.status,
+                    f"{'' if s.seconds is None else f'{s.seconds:.2f}s · '}{b.summary}",
+                    kind="step",
+                    report=name,
+                    path=rel,
+                    needle=s.label,
+                    stamp=b.timestamp,
+                )
+
+    def _fill_checks(self, name: str, rel: str, p: Path) -> None:
+        for r in parse_integrity_report(p):
+            self._add(
+                r.name,
+                r.severity,
+                r.summary,
+                kind="check",
+                report=name,
+                path=rel,
+                needle=f"## {r.name}",
+            )
+
+    def _fill_issues(self, name: str, rel: str, p: Path) -> None:
+        from helpers.misc import search_tui as _tui
+
+        d = parse_verify_report(p)
+        self._add(
+            f"{name} — {d.get('total_files', 0)} files",
+            "RUN",
+            f"{d.get('errors', 0)} errors · {d.get('warnings', 0)} warnings",
+            kind="run",
+            report=name,
+            path=rel,
+            stamp="",
+        )
+        hits: list[Hit] = []
+        lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
+        _tui._run_verify_hits(name, rel, lines, "", 100, hits)
+        for h in hits:
+            self._add(
+                h.title,
+                "ISSUE",
+                h.snippet,
+                kind="issue",
+                report=name,
+                path=rel,
+                needle=h.snippet[:40],
+            )
+
+    # -- detail ----------------------------------------------------------
+
+    def _detail(self, text: str) -> None:
+        log = self.query_one("#rep-detail", RichLog)
+        log.clear()
+        log.write(Markdown(text))
+
+    def _slice(self, rel: str, needle: str, stamp: str) -> str:
+        """File slice for a row: run span containing the stamp, narrowed to
+        the needle's section when found."""
+        lines = (REPO_ROOT / rel).read_text(encoding="utf-8", errors="replace").splitlines()
+        spans = report_run_spans(REPO_ROOT / rel)
+        lo, hi = 1, len(lines)
+        if spans:
+            pick = spans[-1]
+            if stamp:
+                for s, e in spans:
+                    seg = "\n".join(lines[s - 1 : e])
+                    if stamp in seg:
+                        pick = (s, e)
+                        break
+            lo, hi = pick
+        start = lo
+        if needle:
+            for i in range(lo - 1, min(hi, len(lines))):
+                if needle in lines[i]:
+                    start = i + 1
+                    break
+        end = min(start + 60, hi, len(lines))
+        for i in range(start, min(start + 60, hi, len(lines))):
+            if i > start and (lines[i].startswith("# ") or lines[i].startswith("## ")):
+                end = i
+                break
+        return "\n".join(lines[start - 1 : end]) or "(empty section)"
+
+    def _selected_row(self) -> dict[str, object] | None:
+        table = self.query_one("#rep-table", DataTable)
+        idx = table.cursor_row
+        return self._rows[idx] if 0 <= idx < len(self._rows) else None
+
+    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
+        self._drill(event.cursor_row, preview_only=True)
+
+    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+        event.stop()  # enter here must NOT open the underlying hit behind the modal
+        self._drill(event.cursor_row)
+
+    def _drill(self, idx: int, preview_only: bool = False) -> None:
+        if not (0 <= idx < len(self._rows)):
+            return
+        row = self._rows[idx]
+        try:
+            text = self._slice(
+                str(row["path"]), str(row.get("needle", "")), str(row.get("stamp", ""))
+            )
+        except OSError:
+            text = "(report file unreadable)"
+        self._detail(f"### {row['item']}\n\n{text}")
+
+    # -- actions ----------------------------------------------------------
+
+    def action_dismiss_report(self) -> None:
+        self.dismiss()
+
+    def action_open_monitor(self) -> None:
+        self.app.push_screen(IndexMonitor())
+
+    def action_rerun_report(self) -> None:
+        row = self._selected_row()
+        name = str((row or {}).get("report", "") or self._report or "")
+        argv = report_rerun_argv(name) if name else None
+        if argv is None:
+            self.app.notify("select a report row first", severity="warning")
+            return
+        self._detail(f"rerunning `{name}`…")
+        self._rerun_worker(name, argv)
+
+    @work(thread=True, exclusive=True)
+    def _rerun_worker(self, name: str, argv: list[str]) -> None:
+        try:
+            r = subprocess.run(  # noqa: S603 — repo-local make/script, fixed argv
+                argv, capture_output=True, text=True, timeout=3600, cwd=REPO_ROOT
+            )
+            ok = r.returncode == 0
+        except (OSError, subprocess.TimeoutExpired) as e:
+            self.app.call_from_thread(self.app.notify, f"rerun failed: {e}", severity="error")
+            return
+        self.app.call_from_thread(self._rerun_done, name, ok)
+
+    def _rerun_done(self, name: str, ok: bool) -> None:
+        self.app.notify(f"rerun {name}: {'PASS' if ok else 'FAIL'}")
+        self._fill()
+
+
 class SearchApp(App[None]):
     """One screen over every search lane the repo keeps fresh."""
 
@@ -252,6 +556,16 @@ class SearchApp(App[None]):
     #lanes:focus { border: tall $accent; }
     #status { height: 1; color: $text-muted; }
     IndexMonitor { align: center middle; }
+    ThemeScreen { align: center middle; }
+    #theme-box { border: round $accent; background: $surface; width: 76; height: auto; padding: 0 1; }
+    #theme-table { height: auto; }
+    #theme-keys { color: $text-muted; }
+    ReportScreen { align: center middle; }
+    #rep-box { border: round $accent; background: $surface; width: 118; height: 30; }
+    #rep-body { height: 1fr; }
+    #rep-table { width: 7fr; }
+    #rep-detail { width: 5fr; }
+    #rep-keys { color: $text-muted; }
     #idx-box { border: round $accent; background: $surface; width: 92; height: auto; padding: 0 1; }
     #idx-table { height: auto; }
     #idx-keys { color: $text-muted; }
@@ -263,6 +577,9 @@ class SearchApp(App[None]):
         Binding("tab", "focus_cycle", "next pane", priority=True),
         Binding("shift+tab", "focus_cycle_back", "prev pane", priority=True),
         ("m", "toggle_mode", "kw/semantic"),
+        ("t", "cycle_theme", "theme"),
+        ("T", "theme_picker", "themes"),
+        ("V", "report_screen", "reports"),
         ("h", "call_chain", "call chain"),
         ("b", "chain_back", "back"),
         ("i", "monitor", "indexes"),
@@ -277,6 +594,7 @@ class SearchApp(App[None]):
         ("3", "lane('notes')", "notes"),
         ("4", "lane('code')", "code"),
         ("5", "lane('literal')", "rg"),
+        ("6", "lane('reports')", "reports"),
         ("escape", "blur_to_results", "to results"),
     ]
 
@@ -294,6 +612,8 @@ class SearchApp(App[None]):
         self._raw_status = ""
         self._mounted = False
         self._initial_query = query
+        self._theme = DEFAULT_THEME
+        self._rich_theme_on = False
 
     # -- layout ----------------------------------------------------------
 
@@ -301,7 +621,7 @@ class SearchApp(App[None]):
         yield Header(show_clock=False, name=f"search_tui · build {BUILD_STAMP} · pid {os.getpid()}")
         yield Input(
             value=self._initial_query,
-            placeholder="query — pick a lane (tabs / 1-5), type, press enter · verbs: callers: impact: grep: recall:",
+            placeholder="query — pick a lane (tabs / 1-6), type, press enter · verbs: callers: impact: grep: recall: qa: perf:",
             id="query",
         )
         yield Tabs(id="lanes")
@@ -349,29 +669,9 @@ class SearchApp(App[None]):
         self.set_timer(0.75, self._arm_tabs)
         self._w_status.update(f"ready — pick a lane, type, press enter  ·  {index_ages(REPO_ROOT)}")
         self.set_focus(self._w_input)
-        try:  # diff-flavoured palette (GitHub dark): red headings are unreadable
-            from rich.theme import Theme
-
-            self.console.push_theme(
-                Theme(
-                    {
-                        "markdown.h1": "bold #79c0ff",
-                        "markdown.h2": "bold #56d364",
-                        "markdown.h3": "bold #d2a8ff",
-                        "markdown.h4": "bold #c9d1d9",
-                        "markdown.h5": "bold #c9d1d9",
-                        "markdown.h6": "bold #8b949e",
-                        "markdown.link": "#58a6ff underline",
-                        "markdown.code": "#a5d6ff on #1b1f24",
-                        "markdown.item.number": "bold #56d364",
-                        "markdown.item.bullet": "bold #56d364",
-                        "markdown.quote": "italic #8b949e",
-                        "markdown.quote_barrier": "#30363d",
-                    }
-                )
-            )
-        except Exception:  # noqa: S110 - cosmetic only
-            pass
+        self._rich_theme_on = False
+        self._register_themes()
+        self._apply_theme(load_theme_name(), persist=False)
         self._mounted = True
         if self._initial_query:
             self._start_query()
@@ -508,6 +808,9 @@ class SearchApp(App[None]):
                 self._w_status.update(f"call chain: {hit.title}…")
                 self._chain_worker(hit.title)
                 return
+            if self._lane == "reports" and hit.kind == "overview":
+                self.push_screen(ReportScreen(report_verb_for_path(hit.path)))
+                return
         self._open()
 
     def on_data_table_cell_highlighted(self, event: DataTable.CellHighlighted) -> None:
@@ -588,6 +891,62 @@ class SearchApp(App[None]):
 
     def action_monitor(self) -> None:
         self.push_screen(IndexMonitor())
+
+    def action_report_screen(self) -> None:
+        """V: comprehensive report view (preselected when on an overview row)."""
+        preselect: str | None = None
+        if self._lane == "reports":
+            hit = self._selected()
+            if hit is not None and hit.kind == "overview":
+                preselect = report_verb_for_path(hit.path)
+        self.push_screen(ReportScreen(preselect))
+
+    def action_theme_picker(self) -> None:
+        self.push_screen(ThemeScreen())
+
+    def _register_themes(self) -> None:
+        """Register every THEMES palette with textual's theme system."""
+        try:
+            from textual.theme import Theme as _TTheme
+        except ImportError:  # pragma: no cover - textured extra missing
+            return
+        for name in THEME_ORDER:
+            try:
+                spec = dict(THEMES[name]["variables"])
+                self.register_theme(_TTheme(name, **spec))  # type: ignore[arg-type]
+            except Exception:  # noqa: S110 - one bad palette must not kill the app
+                pass
+
+    def _apply_rich_theme(self, name: str) -> None:
+        """Swap the markdown preview palette (pop-then-push, never stack)."""
+        try:
+            from rich.theme import Theme as _RTheme
+
+            if self._rich_theme_on:
+                self.console.pop_theme()
+                self._rich_theme_on = False
+            self.console.push_theme(_RTheme(dict(THEMES[name]["rich"])))
+            self._rich_theme_on = True
+        except Exception:  # noqa: S110 - cosmetic only
+            pass
+
+    def _apply_theme(self, name: str, persist: bool = True) -> str:
+        """Switch widget chrome + preview palette; persists unless told not to."""
+        if name not in THEMES:
+            name = DEFAULT_THEME
+        try:
+            self.theme = name
+        except Exception:  # noqa: S110 - cosmetic only
+            pass
+        self._apply_rich_theme(name)
+        self._theme = name
+        if persist:
+            save_theme_name(name)
+        return name
+
+    def action_cycle_theme(self) -> None:
+        name = self._apply_theme(next_theme(self._theme))
+        self.notify(f"theme: {name}")
 
     def _open(self, force_editor: bool = False) -> None:
         hit = self._selected()

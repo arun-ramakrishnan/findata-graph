@@ -468,7 +468,7 @@ def _make_dispatcher(p, mp, record: list, overrides: dict | None = None):
     passes through to the real subprocess.Popen. The maint run report is
     repointed into the tmp project root — never the repo-root file."""
     real_popen = subprocess.Popen
-    mp.setattr(maint, "REPORT_PATH", p.root / "maint_report.txt")
+    mp.setattr(maint, "REPORT_PATH", p.root / "maint_report.md")
     shims = dict(_SHIMS)
     if overrides:
         shims.update(overrides)

@@ -136,8 +136,8 @@ make snapshot-restore          # rebuilds memory/*.db from snapshots/parquet/
 make graph-rebuild            # (re)build the DuckDB cache from SQLite
 make qa                       # full gate: lint + types + deptry + static + tests + validators
                                # (qa/integration/advisory append timestamped run tables to
-                               #  qa_report.txt / integration_report.txt / advisory_report.txt,
-                               #  perf-style — see perf_report.txt)
+                               #  outputs/qa_report.md / outputs/integration_report.md / outputs/advisory_report.md,
+                               #  perf-style — see outputs/perf_report.md)
 uv run python3 app.py         # http://localhost:5200   (FLASK_PORT to override)
 ```
 
@@ -221,7 +221,7 @@ enter a caller/callee to drill into its own chain, `b` walks back out.
 |---|---|
 | `make qa` | the canonical gate: lint, types, deptry, static checks, tests, note + DB integrity, snapshot round-trip |
 | `make test` · `integration` · `live-invariants` · `fuzz` · `perf` | tiered test entry points |
-| `make advisory` | non-gating parallel checks: ty-on-tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit (appends advisory_report.txt) |
+| `make advisory` | non-gating parallel checks: ty-on-tests, live invariants, frontend, graph algos, analytics, suggestions, integration, lint-audit (appends outputs/advisory_report.md) |
 | `make search-fresh` | check ALL search indexes for drift (`APPLY=1` refreshes; also advisory rows) |
 | `make static-checks` · `sync-tags` · `graph-stats` | fast hygiene + summaries |
 | `make derive-relations` · `derive-themes-rebuild` · `derive-events` · `derive-insights` · `metrics-rebuild` | edge/event/quote/metric producers (`metrics-rebuild` = yfinance refresh) |

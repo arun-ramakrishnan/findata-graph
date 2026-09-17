@@ -5,7 +5,7 @@ These are pure unit tests against the orchestrator's plan/structure. No
 subprocess spawning, no live DB. The actual maintenance steps (db_maint,
 snapshot_db, query rebuild) have their own test coverage; here we only
 pin the orchestrator's wiring — including the qa-style run report
-(``maint_report.txt``: summary table always, failed-step tails on abort).
+(`outputs/maint_report.md`: summary table always, failed-step tails on abort).
 """
 
 from __future__ import annotations
@@ -24,8 +24,8 @@ from helpers.maintenance import maint  # noqa: E402
 @pytest.fixture(autouse=True)
 def _tmp_report(tmp_path, monkeypatch):
     """Every main() call in this module appends to a REPORT under tmp_path —
-    never the repo-root maint_report.txt."""
-    monkeypatch.setattr(maint, "REPORT_PATH", tmp_path / "maint_report.txt")
+    never the real outputs/maint_report.md."""
+    monkeypatch.setattr(maint, "REPORT_PATH", tmp_path / "maint_report.md")
 
 
 class _FakeProc:
@@ -351,10 +351,10 @@ class TestSubprocessFailure:
 
 
 # --------------------------------------------------------------------------- #
-# TestReport — the qa-style run log (maint_report.txt)                        #
+# TestReport — the qa-style run log (outputs/maint_report.md)                        #
 # --------------------------------------------------------------------------- #
 class TestReport:
-    """Every real run appends a timestamped table to maint_report.txt;
+    """Every real run appends a timestamped table to outputs/maint_report.md;
     failed steps additionally leave their captured output tail behind
     (the debugging evidence a bare 'exit 1' never shows). The autouse
     _tmp_report fixture repoints REPORT_PATH at tmp_path."""
@@ -368,7 +368,7 @@ class TestReport:
         )
         assert maint.main([]) == 0
         text = self._read()
-        assert "=== make maint  " in text
+        assert "# make maint — maint report" in text
         assert "db_maint (VACUUM/ANALYZE/REINDEX/integrity)" in text
         assert "✓ OK" in text
         assert "3/3 steps ok" in text
@@ -385,24 +385,24 @@ class TestReport:
         )
         assert maint.main([]) == 1
         text = self._read()
-        assert "=== make maint  " in text
+        assert "# make maint — maint report" in text
         assert "✗ FAIL" in text
         assert "0/1 steps ok" in text  # table lists executed steps only
         assert "FAIL (aborted)" in text
-        assert "lines (FAILED) ---" in text
+        assert "## db_maint (VACUUM/ANALYZE/REINDEX/integrity) (FAILED)" in text
         assert "ERROR: the actual cause" in text  # the tail is the evidence
 
     def test_full_mode_header_says_maint_full(self, monkeypatch):
         monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
         assert maint.main(["--full"]) == 0
-        assert "=== make maint-full  " in self._read()
+        assert "# make maint-full — maint report" in self._read()
 
     def test_report_appends_across_runs(self, monkeypatch):
         monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
         maint.main([])
         maint.main([])
         text = self._read()
-        assert text.count("=== make maint  ") == 2  # append-only history
+        assert text.count("# make maint — maint report") == 2  # append-only history
 
     def test_dry_run_writes_no_report(self, monkeypatch):
         monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))

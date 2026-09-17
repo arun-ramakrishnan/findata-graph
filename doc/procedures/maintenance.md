@@ -122,7 +122,7 @@ bookkeeping.
   integrity_check`, diff row counts vs live (expect drift only in
   tables written after the backup point).
 
-Run history appends to `maint_report.txt` (summary table always;
+Run history appends to `outputs/maint_report.md` (summary table always;
 failed-step output tails on abort).
 
 ## CLI conventions (guard unification 2026-09-03)

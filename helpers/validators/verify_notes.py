@@ -857,16 +857,20 @@ class NotesVerifier:
         self.stats["warnings"] = warnings
         return errors, warnings
 
-    def generate_report(self, output_file="verify_notes_report.txt"):
+    def generate_report(self, output_file="outputs/verify_notes_report.md"):
         errors, warnings = self._totals()
 
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write("FinData Knowledge Graph - Notes Verification Report\n")
-            f.write("=" * 60 + "\n")
-            f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"Project Root: {self.project_root}\n")
-            f.write(f"Total Files Checked: {self.stats['total_files']}\n")
-            f.write(f"ERRORS: {errors}   WARNINGS: {warnings}\n\n")
+        Path(output_file).parent.mkdir(parents=True, exist_ok=True)
+        with open(output_file, "a", encoding="utf-8") as f:
+            f.write("# FinData Knowledge Graph — Notes Verification Report\n\n")
+            f.write(
+                f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  ·  "
+                f"**Project Root:** `{self.project_root}`\n\n"
+            )
+            f.write("| Metric | Value |\n|---|---|\n")
+            f.write(f"| Total Files Checked | {self.stats['total_files']} |\n")
+            f.write(f"| Errors | {errors} |\n")
+            f.write(f"| Warnings | {warnings} |\n\n")
 
             f.write("## ERRORS (gate-failing)\n\n")
             for bucket, items in self.issues.items():
@@ -885,13 +889,13 @@ class NotesVerifier:
                             f.write(f"- {w['file']}: {w['description']}\n")
                         f.write("\n")
 
-            f.write("## Summary\n" + "=" * 20 + "\n")
-            f.write(f"Total files checked: {self.stats['total_files']}\n")
-            f.write(f"Errors: {errors}\nWarnings: {warnings}\n\n")
+            f.write("## Verdict\n\n")
             if errors == 0:
                 f.write("✅ All notes passed verification (no errors).\n")
             else:
                 f.write(f"⚠️  Found {errors} errors that need attention.\n")
+
+            f.write("\n")
 
         return errors
 
@@ -899,7 +903,7 @@ class NotesVerifier:
         print("🚀 Starting comprehensive notes verification...")
         print("=" * 60)
 
-        output_file = str(self.project_root / "verify_notes_report.txt")
+        output_file = str(self.project_root / "outputs" / "verify_notes_report.md")
 
         dirs, labels, sectors_count, super_sectors_count = _collect_scan_dirs(self.project_root)
 

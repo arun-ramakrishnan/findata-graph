@@ -10,13 +10,17 @@ lane  source   backend
 1     docs     helpers/misc/doc_query.py (FTS5 + embeddings, --json)
 2     scripts  helpers/misc/script_query.py (--json; make/test/mojo too)
 3     notes    note_search FTS5 in memory/research.db (bm25-ranked)
-4     code     ripwire --for= (verbs: callers:/impact:/grep:/recall:)
-5     literal  rg (gitignore-aware, no color, path:line:text rows)
-===== ======== =====================================================
+ 4     code     ripwire --for= (verbs: callers:/impact:/grep:/recall:)
+ 5     literal  rg (gitignore-aware, no color, path:line:text rows)
+ 6     reports  outputs/*_report.md (verbs: qa:/advisory:/integration:/
+              maint:/perf:/integrity:/verify:; empty query = per-report overview)
+ ===== ======== =====================================================
 
 Lanes 1-3 are the indexes ``make search-fresh`` maintains; 4-5 are the
 stateless structure/literal tools from AGENTS.md (``--grep`` always
-carries ``--grep-in=any``). Nothing here builds a new index — a lane is
+carries ``--grep-in=any``); 6 reads the append-only ``outputs/`` run
+reports (only as fresh as the last gate run — the status bar says which
+runs are shown). Nothing here builds a new index — a lane is
 only as fresh as ``make search-fresh APPLY=1`` left it (the status bar
 shows each index's age).
 
@@ -51,9 +55,10 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace as dc_replace
 from pathlib import Path
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-LANES: tuple[str, ...] = ("docs", "scripts", "notes", "code", "literal")
+LANES: tuple[str, ...] = ("docs", "scripts", "notes", "code", "literal", "reports")
 DEFAULT_LIMIT = 40
 RG_ROW_CAP = 300
 _SUB_TIMEOUT = 90  # ripwire walks the tree; doc/script CLIs embed queries.
@@ -408,6 +413,8 @@ _LANE_RUNNERS: dict[str, _LaneRunner] = {
     "notes": _run_notes,
     "code": _run_code,
     "literal": _run_literal,
+    # reports adapters live below (beside the other parse_*); resolve late.
+    "reports": lambda q, limit, mode="hybrid": _run_reports(q, limit, mode),  # noqa: E731
 }
 
 
@@ -416,9 +423,10 @@ def run_lane(lane: str, query: str, limit: int, mode: str = "hybrid") -> tuple[l
 
     ``mode`` applies to the two hybrid backends: "hybrid" (semantic +
     lexical blend, default) or "bm25" (every hit contains the word).
+    The reports lane accepts an empty query (per-report overview).
     """
     q = query.strip()
-    if not q:
+    if not q and lane != "reports":
         return [], "empty query"
     runner = _LANE_RUNNERS.get(lane)
     if runner is None:
@@ -445,6 +453,695 @@ INDEXES: tuple[tuple[str, str, str], ...] = (
     ("scripts", "memory/script_search.db", "helpers/maintenance/rebuild_script_search.py"),
     ("notes", "memory/research.db", "helpers/maintenance/rebuild_note_search.py"),
 )
+
+# ---------------------------------------------------------------------------
+# Report adapters — parse the seven repo report files (all markdown)
+# into structured data for the TUI report lane.
+# Append-across-runs files (qa/advisory/integration/maint/perf) return
+# RunBlock list in file order (TUI defaults to last = most recent).
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RunStep:
+    label: str
+    seconds: float | None
+    status: str  # "✓ OK" | "✗ FAIL" | "⌀ SKIP"
+
+
+@dataclass(frozen=True)
+class RunBlock:
+    gate: str  # e.g. "qa", "advisory", "integration", "perf"
+    timestamp: str  # YYYY-MM-DD HH:MM:SS
+    jobs: int | None
+    steps: tuple[RunStep, ...]
+    summary: str  # e.g. "8/9 passed  ·  gate FAIL"
+
+
+@dataclass(frozen=True)
+class CheckRow:
+    name: str  # check label
+    severity: str  # "ERROR" | "WARNING" | "OK"
+    summary: str  # e.g. "total=1020 errors=0 warnings=3"
+    detail: tuple[str, ...]  # detail lines under this header
+
+
+_GATE_HEADER_RE = re.compile(r"^#\s+make\s+(\S+)\s+—\s+(gate|maint)\s+report\s*$")
+_GATE_META_RE = re.compile(
+    r"^\*\*Generated:\*\*\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})"
+    r"\s+·\s+\*\*Python:\*\*\s+(\S+)"
+    r"(?:\s+jobs=(\d+))?"
+)
+_GATE_TABLE_SEP_RE = re.compile(r"^\|[\s\-|]+\|$")
+_GATE_TABLE_ROW_RE = re.compile(r"^\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|$")
+_PERF_TABLE_ROW_RE = re.compile(r"^\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|$")
+
+
+_PERF_HEADER_RE = re.compile(r"^#\s+make\s+(\S+)\s+—\s+benchmark\s+report\s*$")
+_PERF_META_RE = re.compile(r"^\*\*Generated:\*\*\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})")
+_INTEGRITY_SECTION_RE = re.compile(
+    r"^##\s+(.+?)\s+\((ERROR|WARNING|ADVISORY)[^\)]*\)",
+    re.IGNORECASE,
+)
+
+
+def _parse_gate_table_block(lines: list[str]) -> tuple[tuple[RunStep, ...], str]:
+    """Parse markdown table rows into (steps, summary)."""
+    steps: list[RunStep] = []
+    summary = ""
+    in_table = False
+    for ln in lines:
+        if _GATE_TABLE_SEP_RE.match(ln):
+            in_table = True
+            continue
+        if in_table:
+            m = _GATE_TABLE_ROW_RE.match(ln)
+            if m:
+                label = m.group(1).strip()
+                secs_s = m.group(2).strip()
+                status = m.group(3).strip()
+                if label.startswith("**") and label.endswith("**"):
+                    summary = f"{label.strip('*')}  ·  {status.strip('*')}"
+                    continue
+                seconds: float | None = None
+                if secs_s != "—":
+                    try:
+                        seconds = float(secs_s)
+                    except ValueError:
+                        pass
+                steps.append(RunStep(label, seconds, status))
+            elif not ln.strip():
+                break
+    return tuple(steps), summary
+
+
+def parse_gate_report(path: Path) -> list[RunBlock]:
+    """Parse a gate/maint report (qa/advisory/integration/maint) into RunBlocks.
+
+    Append-across-runs: returns all blocks in file order (most recent last).
+    Splits on ``#`` headers; a headerless leading chunk (stale content)
+    is skipped.
+    """
+    blocks: list[RunBlock] = []
+    current: list[str] = []
+    gate = ""
+    for ln in Path(path).read_text(encoding="utf-8").splitlines():
+        m = _GATE_HEADER_RE.match(ln)
+        if m and current and gate:
+            blocks.append(_build_gate_block(gate, current))
+            current = []
+        if m:
+            gate = m.group(1)
+        current.append(ln)
+    if current and gate:
+        blocks.append(_build_gate_block(gate, current))
+    return blocks
+
+
+def _build_gate_block(gate: str, lines: list[str]) -> RunBlock:
+    timestamp = ""
+    jobs: int | None = None
+    table_lines: list[str] = []
+    for ln in lines:
+        mm = _GATE_META_RE.match(ln)
+        if mm:
+            timestamp = mm.group(1)
+            jobs = int(mm.group(3)) if mm.group(3) else None
+            continue
+        table_lines.append(ln)
+    steps, summary = _parse_gate_table_block(table_lines)
+    if not summary:
+        summary = f"{len([s for s in steps if s.status != 'SKIP'])}/{len(steps)} passed"
+    return RunBlock(gate, timestamp, jobs, steps, summary)
+
+
+def parse_perf_report(path: Path) -> list[RunBlock]:
+    """Parse a perf report into RunBlock list (append-across-runs)."""
+    blocks: list[RunBlock] = []
+    current: list[str] = []
+    gate = ""
+    for ln in Path(path).read_text(encoding="utf-8").splitlines():
+        m = _PERF_HEADER_RE.match(ln)
+        if m and current and gate:
+            blocks.append(_build_perf_block(gate, current))
+            current = []
+        if m:
+            gate = m.group(1)
+        current.append(ln)
+    if current and gate:
+        blocks.append(_build_perf_block(gate, current))
+    return blocks
+
+
+def _build_perf_block(gate: str, lines: list[str]) -> RunBlock:
+    timestamp = ""
+    steps: list[RunStep] = []
+    for ln in lines:
+        mm = _PERF_META_RE.match(ln)
+        if mm:
+            timestamp = mm.group(1)
+            continue
+        m = _PERF_TABLE_ROW_RE.match(ln)
+        if m:
+            label = m.group(1).strip()
+            secs_s = m.group(2).strip()
+            status = m.group(4).strip()
+            if label in ("Benchmark", "---", "|", "Time (s)", "Budget", "Status", "passed"):
+                continue
+            seconds: float | None = None
+            if secs_s and secs_s != "—":
+                try:
+                    seconds = float(secs_s)
+                except ValueError:
+                    pass
+            if seconds is None:
+                continue
+            steps.append(RunStep(label, seconds, status))
+    summary = f"{len(steps)} benchmarks" if steps else "0 benchmarks"
+    return RunBlock(f"perf:{gate}", timestamp, None, tuple(steps), summary)
+
+
+def parse_integrity_report(path: Path) -> list[CheckRow]:
+    """Parse a database integrity report into CheckRow list.
+
+    Multi-run file: only the latest run's sections are returned (runs are
+    ``#``-header delimited; a headerless leading chunk is stale content).
+    Severity from heading parens (not _CHECKS).
+    Section headers: `## LABEL (SEVERITY ...)` — severity is the first
+    word in parens (ERROR, WARNING, advisory, gate-failing).
+    """
+    rows: list[CheckRow] = []
+    current_name = ""
+    current_severity = "OK"
+    current_summary = ""
+    current_detail: list[str] = []
+    has_summary = False
+
+    def _flush() -> None:
+        if current_name:
+            rows.append(
+                CheckRow(
+                    current_name,
+                    current_severity,
+                    current_summary,
+                    tuple(current_detail),
+                )
+            )
+
+    for ln in Path(path).read_text(encoding="utf-8").splitlines():
+        if ln.startswith("# ") and not ln.startswith("##"):
+            # New run block: drop the previous run's sections, keep latest only.
+            rows.clear()
+            current_name = ""
+            current_summary = ""
+            current_detail = []
+            has_summary = False
+            continue
+        m = _INTEGRITY_SECTION_RE.match(ln)
+        if m:
+            _flush()
+            current_name = m.group(1).strip()
+            current_severity = m.group(2).upper()
+            if current_severity == "ADVISORY":
+                current_severity = "WARNING"
+            current_summary = ""
+            current_detail = []
+            has_summary = False
+            continue
+        if current_name and ln.strip() and not ln.startswith("#"):
+            stripped = ln.strip()
+            if not has_summary:
+                current_summary = stripped
+                has_summary = True
+            else:
+                current_detail.append(stripped)
+    _flush()
+    return rows
+
+
+def parse_verify_report(path: Path) -> dict:
+    """Parse a verify_notes report into a summary dict.
+
+    Multi-run file: metric rows and the verdict overwrite as scanned, so
+    the returned dict describes the latest run.
+    """
+    text = Path(path).read_text(encoding="utf-8")
+    result: dict = {"errors": 0, "warnings": 0, "total_files": 0, "verdict": ""}
+    for ln in text.splitlines():
+        m = re.match(
+            r"\|\s*(Total Files Checked|Errors|Warnings)\s*\|\s*(\d+)\s*\|",
+            ln,
+        )
+        if m:
+            raw = m.group(1).lower()
+            key = "total_files" if raw == "total files checked" else raw.replace(" ", "_")
+            result[key] = int(m.group(2))
+        vm = re.match(r"^(✅|⚠️)\s*(.+)", ln)
+        if vm:
+            result["verdict"] = vm.group(2)
+    return result
+
+
+def parse_report_summary(path: Path) -> str:
+    """One-line summary for the status bar / sidebar."""
+    name = Path(path).name
+    if name.startswith(("qa", "advisory", "integration", "maint")):
+        blocks = parse_gate_report(path)
+        if blocks:
+            return blocks[-1].summary
+        return "no runs"
+    if name.startswith("perf"):
+        blocks = parse_perf_report(path)
+        if blocks:
+            return blocks[-1].summary
+        return "no runs"
+    if name.startswith("database_integrity"):
+        rows = parse_integrity_report(path)
+        err_count = 0
+        warn_count = 0
+        for r in rows:
+            em = re.search(r"errors=(\d+)", r.summary)
+            if em and int(em.group(1)) > 0:
+                err_count += 1
+            wm = re.search(r"warnings=(\d+)", r.summary)
+            if wm and int(wm.group(1)) > 0:
+                warn_count += 1
+        return f"{len(rows)} checks  ·  {err_count} errors  ·  {warn_count} warnings"
+    if name.startswith("verify_notes"):
+        d = parse_verify_report(path)
+        return (
+            f"{d.get('total_files', 0)} files  ·  "
+            f"{d.get('errors', 0)} errors  ·  "
+            f"{d.get('warnings', 0)} warnings"
+        )
+    return name
+
+
+# ---------------------------------------------------------------------------
+# Themes — palette data (terminal-free) + persistence
+# ---------------------------------------------------------------------------
+# Applied by the app via textual's built-in theme registry
+# (register_theme + self.theme) for widget chrome, plus a rich Theme push
+# for the markdown preview pane. No CSS strings change hands — the app's
+# single CSS block resolves $panel/$accent/... from the active theme.
+
+THEME_ORDER: tuple[str, ...] = ("github-dark", "github-light", "solarized-dark", "high-contrast")
+
+THEMES: dict[str, dict[str, Any]] = {
+    "github-dark": {
+        "description": "GitHub dark (default) — blue headings, dark panels",
+        "variables": {
+            "primary": "#58a6ff",
+            "secondary": "#56d364",
+            "accent": "#d29922",
+            "foreground": "#c9d1d9",
+            "background": "#0d1117",
+            "surface": "#161b22",
+            "panel": "#21262d",
+            "error": "#f85149",
+            "warning": "#d29922",
+            "success": "#56d364",
+            "dark": True,
+        },
+        "rich": {
+            "markdown.h1": "bold #79c0ff",
+            "markdown.h2": "bold #56d364",
+            "markdown.h3": "bold #d2a8ff",
+            "markdown.h4": "bold #c9d1d9",
+            "markdown.h5": "bold #c9d1d9",
+            "markdown.h6": "bold #8b949e",
+            "markdown.link": "#58a6ff underline",
+            "markdown.code": "#a5d6ff on #1b1f24",
+            "markdown.item.number": "bold #56d364",
+            "markdown.item.bullet": "bold #56d364",
+            "markdown.quote": "italic #8b949e",
+            "markdown.quote_barrier": "#30363d",
+        },
+    },
+    "github-light": {
+        "description": "GitHub light — white panels, blue headings",
+        "variables": {
+            "primary": "#0969da",
+            "secondary": "#1a7f37",
+            "accent": "#9a6700",
+            "foreground": "#24292f",
+            "background": "#ffffff",
+            "surface": "#f6f8fa",
+            "panel": "#eaeef2",
+            "error": "#cf222e",
+            "warning": "#9a6700",
+            "success": "#1a7f37",
+            "dark": False,
+        },
+        "rich": {
+            "markdown.h1": "bold #24292f",
+            "markdown.h2": "bold #0969da",
+            "markdown.h3": "bold #8250df",
+            "markdown.h4": "bold #24292f",
+            "markdown.h5": "bold #24292f",
+            "markdown.h6": "bold #57606a",
+            "markdown.link": "#0969da underline",
+            "markdown.code": "#24292f on #ddf4ff",
+            "markdown.item.number": "bold #1a7f37",
+            "markdown.item.bullet": "bold #1a7f37",
+            "markdown.quote": "italic #57606a",
+            "markdown.quote_barrier": "#d0d7de",
+        },
+    },
+    "solarized-dark": {
+        "description": "Solarized dark — desaturated base, amber accents",
+        "variables": {
+            "primary": "#268bd2",
+            "secondary": "#859900",
+            "accent": "#b58900",
+            "foreground": "#839496",
+            "background": "#002b36",
+            "surface": "#073642",
+            "panel": "#073642",
+            "error": "#dc322f",
+            "warning": "#b58900",
+            "success": "#859900",
+            "dark": True,
+        },
+        "rich": {
+            "markdown.h1": "bold #268bd2",
+            "markdown.h2": "bold #859900",
+            "markdown.h3": "bold #b58900",
+            "markdown.h4": "bold #839496",
+            "markdown.h5": "bold #839496",
+            "markdown.h6": "bold #586e75",
+            "markdown.link": "#268bd2 underline",
+            "markdown.code": "#93a1a1 on #073642",
+            "markdown.item.number": "bold #859900",
+            "markdown.item.bullet": "bold #859900",
+            "markdown.quote": "italic #586e75",
+            "markdown.quote_barrier": "#073642",
+        },
+    },
+    "high-contrast": {
+        "description": "High contrast — black/white/yellow (accessibility)",
+        "variables": {
+            "primary": "#ffff00",
+            "secondary": "#00ffff",
+            "accent": "#ffff00",
+            "foreground": "#ffffff",
+            "background": "#000000",
+            "surface": "#000000",
+            "panel": "#1a1a1a",
+            "error": "#ff0000",
+            "warning": "#ffff00",
+            "success": "#00ff00",
+            "dark": True,
+        },
+        "rich": {
+            "markdown.h1": "bold #ffff00",
+            "markdown.h2": "bold #ffffff",
+            "markdown.h3": "bold #00ffff",
+            "markdown.h4": "bold #ffffff",
+            "markdown.h5": "bold #ffffff",
+            "markdown.h6": "bold #ffffff",
+            "markdown.link": "bold #00ffff underline",
+            "markdown.code": "bold #ffffff on #000000",
+            "markdown.item.number": "bold #ffff00",
+            "markdown.item.bullet": "bold #ffff00",
+            "markdown.quote": "#ffffff",
+            "markdown.quote_barrier": "#ffffff",
+        },
+    },
+}
+
+DEFAULT_THEME = "github-dark"
+
+
+def theme_file() -> Path:
+    """Persistence path: ~/.config/search_tui/theme, else repo memory/."""
+    home_cfg = Path.home() / ".config" / "search_tui" / "theme"
+    try:
+        home_cfg.parent.mkdir(parents=True, exist_ok=True)
+        return home_cfg
+    except OSError:
+        return REPO_ROOT / "memory" / "search_tui_theme"
+
+
+def load_theme_name() -> str:
+    """Saved theme, or DEFAULT_THEME when absent/unreadable/unknown."""
+    try:
+        name = theme_file().read_text(encoding="utf-8").strip().split()[0]
+    except OSError, IndexError:
+        return DEFAULT_THEME
+    return name if name in THEMES else DEFAULT_THEME
+
+
+def save_theme_name(name: str) -> bool:
+    """Persist a theme; False when unknown (nothing written)."""
+    if name not in THEMES:
+        return False
+    try:
+        theme_file().write_text(name + "\n", encoding="utf-8")
+    except OSError:
+        return False
+    return True
+
+
+def next_theme(name: str) -> str:
+    """Cycle order; unknown names restart at the default."""
+    if name not in THEME_ORDER:
+        return THEME_ORDER[0]
+    return THEME_ORDER[(THEME_ORDER.index(name) + 1) % len(THEME_ORDER)]
+
+
+# ---------------------------------------------------------------------------
+# Reports lane — queryable view over outputs/*_report.md
+# ---------------------------------------------------------------------------
+
+# (verb, filename, kind). kind selects the parser: gate covers the
+# run_gate_report family (qa/advisory/integration) plus maint.
+_REPORTS: tuple[tuple[str, str, str], ...] = (
+    ("qa", "outputs/qa_report.md", "gate"),
+    ("advisory", "outputs/advisory_report.md", "gate"),
+    ("integration", "outputs/integration_report.md", "gate"),
+    ("maint", "outputs/maint_report.md", "gate"),
+    ("perf", "outputs/perf_report.md", "perf"),
+    ("integrity", "outputs/database_integrity_report.md", "integrity"),
+    ("verify", "outputs/verify_notes_report.md", "verify"),
+)
+
+_VERIFY_BUCKET_RE = re.compile(r"^###\s+(.+?)\s+\((\d+)\)\s*$")
+_VERIFY_ITEM_RE = re.compile(r"^-\s+(.+?):\s+(.+)$")
+
+
+def _split_report_verb(query: str) -> tuple[str | None, str]:
+    """Split ``verb: rest`` (case-insensitive); unknown verbs are text."""
+    m = re.match(r"^([A-Za-z_]+):\s*(.*)$", query.strip())
+    if m and m.group(1).lower() in {name for name, _, _ in _REPORTS}:
+        return m.group(1).lower(), m.group(2).strip()
+    return None, query.strip()
+
+
+def _locate_line(lines: list[str], start: int, end: int, needle: str) -> int | None:
+    """1-based line number of the first line in [start, end) holding needle."""
+    for i in range(start, min(end, len(lines))):
+        if needle in lines[i]:
+            return i + 1
+    return None
+
+
+def _report_block_starts(lines: list[str]) -> list[int]:
+    """0-based offsets where a new run block starts (``# `` H1 lines)."""
+    return [i for i, ln in enumerate(lines) if ln.startswith("# ") and not ln.startswith("##")]
+
+
+def report_run_spans(path: Path) -> list[tuple[int, int]]:
+    """(start, end) 1-based inclusive line spans per ``#``-header run block.
+
+    Headerless leading content is not a run and never spans. Used by the
+    report screen to slice detail views out of the file.
+    """
+    lines = Path(path).read_text(encoding="utf-8", errors="replace").splitlines()
+    starts = _report_block_starts(lines)
+    return [
+        (s + 1, (starts[i + 1] if i + 1 < len(starts) else len(lines)))
+        for i, s in enumerate(starts)
+    ]
+
+
+def report_rerun_argv(name: str) -> list[str] | None:
+    """Regenerate argv for a report (make target where one exists)."""
+    make = shutil.which("make") or "make"
+    argv: dict[str, list[str]] = {
+        "qa": [make, "qa"],
+        "advisory": [make, "advisory"],
+        "integration": [make, "integration"],
+        "maint": [make, "maint"],
+        "perf": [make, "perf"],
+        "integrity": [sys.executable, "helpers/misc/database_integrity_check.py"],
+        "verify": [sys.executable, "helpers/validators/verify_notes.py"],
+    }
+    return argv.get(name)
+
+
+REPORT_NAMES: tuple[str, ...] = tuple(n for n, _, _ in _REPORTS)
+
+
+def report_verb_for_path(rel: str) -> str | None:
+    """Registry verb for a report path (``outputs/qa_report.md`` → ``qa``)."""
+    for n, r, _ in _REPORTS:
+        if r == rel or rel.endswith("/" + r) or Path(rel).name == Path(r).name:
+            return n
+    return None
+
+
+def _run_gate_hits(
+    name: str, rel: str, kind: str, lines: list[str], text: str, limit: int, hits: list[Hit]
+) -> str:
+    """Append gate/perf hits: latest run's rows, or all-run matches."""
+    path = REPO_ROOT / rel
+    blocks = parse_gate_report(path) if kind == "gate" else parse_perf_report(path)
+    if not blocks:
+        return ""
+    starts = _report_block_starts(lines)
+    # block i spans [starts[i], starts[i+1]); headerless preamble is chunk -1.
+    match_all = bool(text)
+    low = text.lower()
+    for bi, b in enumerate(blocks):
+        if not match_all and bi != len(blocks) - 1:
+            continue
+        lo = starts[bi] if bi < len(starts) else 0
+        hi = starts[bi + 1] if bi + 1 < len(starts) else len(lines)
+        for s in b.steps:
+            if match_all and low not in f"{s.label} {s.status} {b.summary} {b.timestamp}".lower():
+                continue
+            secs = "" if s.seconds is None else f"{s.seconds:.2f}s"
+            hits.append(
+                Hit(
+                    path=rel,
+                    line=_locate_line(lines, lo, hi, s.label),
+                    title=s.label,
+                    section=f"{name} · {b.timestamp or 'unknown run'}",
+                    snippet=f"{secs} · {s.status} · run: {b.summary}".strip(" ·"),
+                    lane="reports",
+                    kind="step",
+                )
+            )
+            if len(hits) >= limit:
+                return f"{name} {b.timestamp}"
+    return f"{name} {blocks[-1].timestamp}" if not match_all else f"{name} all runs"
+
+
+def _run_integrity_hits(
+    name: str, rel: str, lines: list[str], text: str, limit: int, hits: list[Hit]
+) -> str:
+    rows = parse_integrity_report(REPO_ROOT / rel)
+    low = text.lower()
+    for r in rows:
+        if text and low not in f"{r.name} {r.severity} {r.summary}".lower():
+            continue
+        detail = f" — {r.detail[0][:120]}" if r.detail else ""
+        hits.append(
+            Hit(
+                path=rel,
+                line=_locate_line(lines, 0, len(lines), f"## {r.name}"),
+                title=r.name,
+                section=f"integrity · {r.severity}",
+                snippet=f"{r.summary}{detail}",
+                lane="reports",
+                kind="check",
+            )
+        )
+        if len(hits) >= limit:
+            break
+    return f"{name} {len(rows)} checks"
+
+
+def _run_verify_hits(
+    name: str, rel: str, lines: list[str], text: str, limit: int, hits: list[Hit]
+) -> str:
+    """Issue rows from the latest run chunk (``### bucket`` + ``-`` items)."""
+    starts = _report_block_starts(lines)
+    lo = starts[-1] if starts else 0
+    low = text.lower()
+    bucket = ""
+    in_issues = False
+    for i in range(lo, len(lines)):
+        ln = lines[i]
+        if ln.startswith("## "):
+            in_issues = "ERROR" in ln.upper() or "WARNING" in ln.upper()
+            continue
+        bm = _VERIFY_BUCKET_RE.match(ln)
+        if bm and in_issues:
+            bucket = bm.group(1)
+            continue
+        im = _VERIFY_ITEM_RE.match(ln)
+        if im and in_issues and bucket:
+            detail = f"{im.group(1)}: {im.group(2)}"
+            if text and low not in f"{bucket} {detail}".lower():
+                continue
+            hits.append(
+                Hit(
+                    path=rel,
+                    line=i + 1,
+                    title=bucket,
+                    section="verify · issue",
+                    snippet=detail[:200],
+                    lane="reports",
+                    kind="issue",
+                )
+            )
+            if len(hits) >= limit:
+                break
+    d = parse_verify_report(REPO_ROOT / rel)
+    return (
+        f"{name} {d.get('total_files', 0)} files · "
+        f"{d.get('errors', 0)} errors · {d.get('warnings', 0)} warnings"
+    )
+
+
+def _run_reports(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+    """Reports lane: verbs select a file, text filters rows, empty = overview."""
+    verb, text = _split_report_verb(q)
+    names = [verb] if verb else [name for name, _, _ in _REPORTS]
+    hits: list[Hit] = []
+    shown: list[str] = []
+    missing: list[str] = []
+    for name in names:
+        rel = next(rel for n, rel, _ in _REPORTS if n == name)
+        kind = next(k for n, _, k in _REPORTS if n == name)
+        p = REPO_ROOT / rel
+        if not p.exists():
+            missing.append(name)
+            continue
+        lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
+        if verb is None and not text:
+            # Comprehensive view: one overview row per report.
+            summary = parse_report_summary(p)
+            starts = _report_block_starts(lines)
+            hits.append(
+                Hit(
+                    path=rel,
+                    line=(starts[-1] + 1) if starts else 1,
+                    title=f"{name} — {summary}",
+                    section="latest run",
+                    snippet=summary,
+                    lane="reports",
+                    kind="overview",
+                )
+            )
+            shown.append(name)
+            continue
+        if kind in ("gate", "perf"):
+            shown.append(_run_gate_hits(name, rel, kind, lines, text, limit, hits))
+        elif kind == "integrity":
+            shown.append(_run_integrity_hits(name, rel, lines, text, limit, hits))
+        else:
+            shown.append(_run_verify_hits(name, rel, lines, text, limit, hits))
+        if len(hits) >= limit:
+            hits = hits[:limit]
+            break
+    shown_s = ", ".join(s for s in shown if s)
+    missing_s = f" · missing: {','.join(missing)}" if missing else ""
+    if not hits:
+        return [], f"no report rows for {q!r} ({shown_s}){missing_s}"
+    return hits, f"{len(hits)} rows · {shown_s}{missing_s}"
 
 
 def index_rows(root: Path) -> list[dict[str, object]]:

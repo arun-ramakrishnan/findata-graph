@@ -451,7 +451,7 @@ def get_enriched_companies(file_paths: list[tuple[str, str | None]]) -> set[str]
 
 # --- report -------------------------------------------------------------------
 
-REPORT_PATH = PROJECT_ROOT / "metrics_report.txt"
+REPORT_PATH = PROJECT_ROOT / "outputs" / "metrics_report.md"
 
 
 def write_report(
@@ -464,57 +464,52 @@ def write_report(
     total_time: float,
     dry_run: bool,
 ) -> None:
-    """Write a detailed enrichment report to metrics_report.txt."""
+    """Write a detailed enrichment report to outputs/metrics_report.md (append)."""
     mode_label = "DRY-RUN" if dry_run else "APPLIED"
     ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
 
-    lines_out: list[str] = []
-    lines_out.append(f"# yfinance Enrichment Report — {mode_label}")
-    lines_out.append(f"# Generated: {ts}")
-    lines_out.append(f"# Workers: 2 | Duration: {total_time:.1f}s")
-    lines_out.append("")
+    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with open(REPORT_PATH, "a", encoding="utf-8") as f:
+        f.write(f"# yfinance Enrichment Report — {mode_label}\n\n")
+        f.write(f"**Generated:** {ts}  ·  **Duration:** {total_time:.1f}s\n\n")
 
-    # Summary
-    lines_out.append("## Summary")
-    lines_out.append(f"  Total companies attempted : {len(results) + len(failures)}")
-    lines_out.append(f"  Successfully fetched      : {len(results)}")
-    lines_out.append(f"  Failed (404 / no data)    : {len(failures)}")
-    lines_out.append(f"  Skipped (already enriched): {notes_skipped}")
-    if not dry_run:
-        lines_out.append(f"  Metrics written to DB     : {metrics_written}")
-        lines_out.append(f"  competes_with edges added : {edges_written}")
-        lines_out.append(f"  Company notes updated     : {notes_updated}")
-    lines_out.append("")
+        # Summary
+        f.write("| Metric | Value |\n|---|---|\n")
+        f.write(f"| Total companies attempted | {len(results) + len(failures)} |\n")
+        f.write(f"| Successfully fetched | {len(results)} |\n")
+        f.write(f"| Failed (404 / no data) | {len(failures)} |\n")
+        f.write(f"| Skipped (already enriched) | {notes_skipped} |\n")
+        if not dry_run:
+            f.write(f"| Metrics written to DB | {metrics_written} |\n")
+            f.write(f"| competes_with edges added | {edges_written} |\n")
+            f.write(f"| Company notes updated | {notes_updated} |\n")
+        f.write("\n")
 
-    # Success details — industry distribution
-    if results:
-        from collections import Counter
+        # Success details — industry distribution
+        if results:
+            from collections import Counter
 
-        industries = Counter()
-        for _, _, _, info in results:
-            ind = info.get("industry", "(unknown)")
-            industries[ind] += 1
+            industries = Counter()
+            for _, _, _, info in results:
+                ind = info.get("industry", "(unknown)")
+                industries[ind] += 1
 
-        lines_out.append("## Industries (fetched)")
-        for ind, cnt in industries.most_common():
-            lines_out.append(f"  {cnt:4d}  {ind}")
-        lines_out.append("")
+            f.write("## Industries (fetched)\n\n")
+            f.write("| Companies | Industry |\n|---|---|\n")
+            for ind, cnt in industries.most_common():
+                f.write(f"| {cnt} | {ind} |\n")
+            f.write("\n")
 
-    # Failures — full list with file paths
-    if failures:
-        lines_out.append("## Failed Tickers (404 or no data)")
-        lines_out.append("    # name | ticker | note_path")
-        lines_out.append("    # ---- | ------ | ---------")
-        for name, ticker, file_path in sorted(failures):
-            fp = file_path or "(no file_path)"
-            lines_out.append(f"    {name} | {ticker} | {fp}")
-        lines_out.append("")
+        # Failures — full list with file paths
+        if failures:
+            f.write("## Failed Tickers (404 or no data)\n\n")
+            f.write("| Name | Ticker | Note path |\n|---|---|---|\n")
+            for name, ticker, file_path in sorted(failures):
+                fp = file_path or "(no file_path)"
+                f.write(f"| {name} | {ticker} | {fp} |\n")
+            f.write("\n")
 
-    lines_out.append("---")
-    lines_out.append("")
-
-    REPORT_PATH.write_text("\n".join(lines_out))
-    log.info("report written to %s", REPORT_PATH.relative_to(PROJECT_ROOT))
+    log.info("report appended to %s", REPORT_PATH.relative_to(PROJECT_ROOT))
 
 
 # --- main --------------------------------------------------------------------

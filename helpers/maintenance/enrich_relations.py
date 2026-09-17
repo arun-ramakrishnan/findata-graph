@@ -25,7 +25,7 @@ in later slices:
 Google-Finance fallback (F2/F3,
 doc/improvements/proposals/google_finance_ticker_fallback.md):
 ``--source googlefinance`` re-attacks exactly the yfinance failures
-(``[ticker_issues]`` of the last report) plus an opt-in unlisted set:
+(``## ticker_issues`` of the last report) plus an opt-in unlisted set:
 curated overrides first (entity_gf_map, read-only until F4), then tier-1
 slug variants, then — with ``--tier2`` — BSE name-search discovery
 (exchange_search.py). Every hit is verified by fuzzy About-name match.
@@ -105,7 +105,7 @@ from helpers.maintenance.googlesheets_metrics import GF_ATTRIBUTES  # noqa: E402
 
 log = logging.getLogger("enrich_relations")
 
-REPORT_PATH = PROJECT_ROOT / "relations_report.txt"
+REPORT_PATH = PROJECT_ROOT / "outputs" / "relations_report.md"
 # Persistent fetch cache — the ~931-ticker yfinance sweep costs minutes, so
 # the .info payloads are retained across runs (topology/K experiments then
 # cost zero network). Lives under gitignored memory/ next to research.db.
@@ -466,40 +466,46 @@ def write_report(
     industries: dict[str, int],
     applied: int | None,
 ) -> None:
-    """metrics_report.txt-style run report with the ticker-hygiene section."""
-    lines = [
-        "relations_report.txt — enrich_relations.py",
-        f"generated: {datetime.now(UTC).isoformat(timespec='seconds')}",
-        f"mode: {mode}",
-        "",
-        "[universe]",
-        f"  tickered companies: {n_tickered}",
-        f"  deliberately unlisted (skipped, never fuzz-matched): {len(unlisted_names)}",
-        f"  fetched OK: {n_fetched}",
-    ]
-    if unlisted_names:
-        lines += [f"  (unlisted) {n}" for n in unlisted_names]
-    lines += [
-        "",
-        "[ticker_issues]  # 404 / no-data — enrichment silently starves on these",
-        "    # name | ticker",
-    ]
-    if failures:
-        lines += [f"    {name} | {ticker}" for name, ticker in failures]
-    else:
-        lines.append("    (none)")
-    lines += [
-        "",
-        "[industries]",
-    ]
-    for ind, n in sorted(industries.items(), key=lambda kv: -kv[1]):
-        lines.append(f"  {n:4d}  {ind}")
-    lines += ["", f"[competes_with candidates] total={len(n_edges)}"]
-    if applied is not None:
-        lines.append(
-            f"[apply result] {'would-insert' if mode == 'dry-run' else 'inserted'}={applied}"
+    """outputs/metrics_report.md-style run report with the ticker-hygiene section.
+
+    Append-only (uniform with the other outputs/ reports): each call adds
+    one `#` run block; section appends (holders/embeddings/gf) follow it.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(f"# enrich_relations — {mode} report\n\n")
+        f.write(
+            f"**Generated:** {datetime.now(UTC).isoformat(timespec='seconds')}  ·  "
+            f"**Mode:** {mode}\n\n"
         )
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        f.write("## universe\n\n")
+        f.write("| Metric | Value |\n|---|---|\n")
+        f.write(f"| Tickered companies | {n_tickered} |\n")
+        f.write(
+            f"| Deliberately unlisted (skipped, never fuzz-matched) | {len(unlisted_names)} |\n"
+        )
+        f.write(f"| Fetched OK | {n_fetched} |\n")
+        if unlisted_names:
+            f.write("\n")
+            for n in unlisted_names:
+                f.write(f"- (unlisted) {n}\n")
+        f.write("\n## ticker_issues  # 404 / no-data — enrichment silently starves on these\n\n")
+        f.write("| Name | Ticker |\n|---|---|\n")
+        if failures:
+            for name, ticker in failures:
+                f.write(f"| {name} | {ticker} |\n")
+        else:
+            f.write("| (none) |  |\n")
+        f.write("\n## industries\n\n")
+        f.write("| Companies | Industry |\n|---|---|\n")
+        for ind, n in sorted(industries.items(), key=lambda kv: -kv[1]):
+            f.write(f"| {n} | {ind} |\n")
+        f.write(f"\n## competes_with candidates (total={len(n_edges)})\n\n")
+        if applied is not None:
+            f.write(
+                f"**Apply result:** {'would-insert' if mode == 'dry-run' else 'inserted'}={applied}\n"
+            )
+        f.write("\n")
 
 
 def _resolve_log_mcaps(
@@ -639,7 +645,7 @@ def run_yfinance_pass(
 # E3: semantic_peer from DuckDB VSS (bge-small-en-v1.5, 384d)                 #
 # --------------------------------------------------------------------------- #
 EMBEDDINGS_SOURCE_REF_PREFIX = "embeddings:bge-small:v1"
-EMBEDDINGS_REPORT_PATH = PROJECT_ROOT / "relations_report.txt"
+EMBEDDINGS_REPORT_PATH = PROJECT_ROOT / "outputs" / "relations_report.md"
 
 
 def _semantic_pair_for_company(
@@ -801,12 +807,12 @@ def run_embeddings_pass(
         applied,
         "would insert" if dry_run else "inserted",
     )
-    # Append a small report section to the shared relations_report.txt
+    # Append a small report section to the shared relations_report.md
     try:
         today = utc_today_iso()
         lines = [
             "",
-            f"[semantic_peer]  # E3 embeddings:bge-small:v1 (k={k}, threshold={threshold})",
+            f"## semantic_peer  # E3 embeddings:bge-small:v1 (k={k}, threshold={threshold})",
             f"  generated: {datetime.now(UTC).isoformat(timespec='seconds')}",
             f"  mode: {mode}",
             f"  candidates: {len(edges)}",
@@ -820,6 +826,7 @@ def run_embeddings_pass(
             lines.append("  sample (a | b | cosine | rank):")
             for a, b, _w, _ref, props in sample:
                 lines.append(f"    {a} | {b} | {props.get('cosine')} | {props.get('rank')}")
+        EMBEDDINGS_REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(EMBEDDINGS_REPORT_PATH, "a", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
         log.info("report appended to %s", EMBEDDINGS_REPORT_PATH)
@@ -1484,7 +1491,7 @@ def run_holders_pass(
         today = utc_today_iso()
         lines = [
             "",
-            f"[invested_in]  # E5 {HOLDERS_SOURCE_REF_PREFIX} (yfinance institutional holders)",
+            f"## invested_in  # E5 {HOLDERS_SOURCE_REF_PREFIX} (yfinance institutional holders)",
             f"  generated: {datetime.now(UTC).isoformat(timespec='seconds')}",
             f"  mode: {mode}",
             f"  tickered companies: {len(companies)}",
@@ -1501,6 +1508,7 @@ def run_holders_pass(
             for src, dst, w, _ref, props, vf in sample:
                 pct = props.get("pctHeld", "-")
                 lines.append(f"    {src} -> {dst} | {pct} | {w} | {vf or '-'}")
+        REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
         with open(REPORT_PATH, "a", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
         log.info("report appended to %s", REPORT_PATH)
@@ -1587,23 +1595,25 @@ def load_gf_targets(
     *,
     include_unlisted: bool,
 ) -> list[tuple[str, str | None]]:
-    """GF pass targets (§4.4): [ticker_issues] rows of the last yfinance
-    report as (name, ticker); with --include-unlisted also the [universe]
+    """GF pass targets (§4.4): ## ticker_issues rows of the last yfinance
+    report as (name, ticker); with --include-unlisted also the ## universe
     ``(unlisted)`` rows as (name, None)."""
     issues: list[tuple[str, str]] = []
     unlisted: list[str] = []
     section = None
     for line in report_path.read_text(encoding="utf-8").splitlines():
-        header = re.match(r"^\[(\w+)\]", line)
+        header = re.match(r"^##\s+(\w+)", line)
         if header:
             section = header.group(1)
             continue
         if section == "ticker_issues":
-            m = re.match(r"^    (.+?) \| (\S+)$", line)
-            if m and not line.lstrip().startswith("#"):
-                issues.append((m.group(1).strip(), m.group(2)))
+            m = re.match(r"^\|\s*(.+?)\s*\|\s*(\S+)\s*\|$", line)
+            if m:
+                name, ticker = m.group(1).strip(), m.group(2).strip()
+                if name not in ("Name", "(none)") and not set(name) <= {"-", "|", " "}:
+                    issues.append((name, ticker))
         elif section == "universe" and include_unlisted:
-            m = re.match(r"^  \(unlisted\) (.+)$", line)
+            m = re.match(r"^-\s+\(unlisted\)\s+(.+)$", line)
             if m:
                 unlisted.append(m.group(1).strip())
     return [*issues, *[(name, None) for name in unlisted]]
@@ -1638,7 +1648,7 @@ def append_terminal_report_section(
     path: Path,
     statuses: dict[str, tuple[str, str | None]],
 ) -> None:
-    """Append the [terminal] section: classified dead ends (--classify).
+    """Append the ## terminal section: classified dead ends (--classify).
 
     These entities never enter resolution sweeps again; they are the
     proposal §7 'remainder explicitly classified' half of the success
@@ -1647,7 +1657,7 @@ def append_terminal_report_section(
     """
     lines = [
         "",
-        "[terminal]  # classified dead ends (--classify); excluded from all resolution sweeps",
+        "## terminal  # classified dead ends (--classify); excluded from all resolution sweeps",
         f"  generated: {datetime.now(UTC).isoformat(timespec='seconds')}",
         f"  classified: {len(statuses)}",
         "  # entity | status | successor",
@@ -1655,6 +1665,7 @@ def append_terminal_report_section(
     for name in sorted(statuses):
         status, successor = statuses[name]
         lines.append(f"    {name} | {status} | {successor or '-'}")
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -1901,9 +1912,9 @@ def append_gf_report_section(
     tier2: bool = False,
     apply_info: str = "",
 ) -> None:
-    """Append the [google_finance] section to the existing report.
+    """Append the ## google_finance section to the existing report.
 
-    Append-only: the yfinance pass regenerates the file wholesale, so a
+    Append-only: the yfinance pass appends its own run block, so a
     fresh GF section simply follows the latest yfinance run (§4.4 ordering).
     """
 
@@ -1914,7 +1925,7 @@ def append_gf_report_section(
     yahoo_candidates = sum(1 for o in resolved if o.outcome == "resolved yahoo-candidate")
     lines = [
         "",
-        "[google_finance]  # fallback resolution pass (curated + tier 1"
+        "## google_finance  # fallback resolution pass (curated + tier 1"
         + (" + tier 2" if tier2 else "")
         + ", dry-run)",
         f"  generated: {datetime.now(UTC).isoformat(timespec='seconds')}",
@@ -1946,6 +1957,7 @@ def append_gf_report_section(
             sample = " / ".join(_fmt_gf_num(x) for x in (px, s.get("mkt_cap"), s.get("pe_ratio")))
         slug = o.slug or "-"
         lines.append(f"    {o.entity} | {outcome} | {slug} | {score} | {sample}")
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -2216,14 +2228,14 @@ def append_finhub_report_section(
     *,
     mode: str,
 ) -> None:
-    """Append the [finnhub] section to the existing report."""
+    """Append the ## finnhub section to the existing report."""
 
     def count(name: str) -> int:
         return sum(1 for o in outcomes if o.outcome == name)
 
     lines = [
         "",
-        "[finnhub]  # stage-1 discovery + yfinance verify (writebacks on --apply)",
+        "## finnhub  # stage-1 discovery + yfinance verify (writebacks on --apply)",
         f"  generated: {datetime.now(UTC).isoformat(timespec='seconds')}  mode: {mode}",
         (
             f"  outcomes: {count('writeback-candidate')} writeback-candidates"
@@ -2238,6 +2250,7 @@ def append_finhub_report_section(
         score = f"{o.score:.2f}" if o.score is not None else "-"
         sample = o.sample or "-"
         lines.append(f"    {o.entity} | {o.outcome} | {change} | {score} | {sample}")
+    path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a") as f:
         f.write("\n".join(lines) + "\n")
 

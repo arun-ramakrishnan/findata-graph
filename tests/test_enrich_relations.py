@@ -266,7 +266,7 @@ class TestYfinancePass:
     def test_pass_classifies_hygiene_failures(self, db, tmp_path, monkeypatch):
         self._seed_companies(db)
         monkeypatch.setattr(
-            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.txt"
+            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.md"
         )
         rc = run_yfinance_pass(
             db,
@@ -276,15 +276,15 @@ class TestYfinancePass:
             fetch_cache=None,
         )  # cache off: exercise the fetcher
         assert rc == 0
-        report = (tmp_path / "relations_report.txt").read_text()
-        assert "[ticker_issues]" in report
+        report = (tmp_path / "relations_report.md").read_text()
+        assert "## ticker_issues" in report
         assert "C1 | T2.NS" in report
         assert "UnlistedCo" in report  # reported as deliberately skipped
 
     def test_fetch_cache_write_and_reuse(self, db, tmp_path, monkeypatch):
         self._seed_companies(db)
         monkeypatch.setattr(
-            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.txt"
+            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.md"
         )
         cache_path = tmp_path / "fetch_cache.json"
         calls = {"n": 0}
@@ -311,7 +311,7 @@ class TestYfinancePass:
     def test_refresh_cache_refetches(self, db, tmp_path, monkeypatch):
         self._seed_companies(db)
         monkeypatch.setattr(
-            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.txt"
+            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.md"
         )
         cache_path = tmp_path / "fetch_cache.json"
         calls = {"n": 0}
@@ -336,7 +336,7 @@ class TestYfinancePass:
     def test_check_only_writes_nothing(self, db, tmp_path, monkeypatch):
         self._seed_companies(db)
         monkeypatch.setattr(
-            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.txt"
+            "helpers.maintenance.enrich_relations.REPORT_PATH", tmp_path / "relations_report.md"
         )
         run_yfinance_pass(
             db, check_only=True, fetch_fn=self._fake_fetcher(), workers=1, fetch_cache=None
@@ -383,16 +383,17 @@ def _gf_fetch(pages: dict[str, str]):
 def _write_gf_report(
     path, *, issues=(("Srigee DLM", "SRIGEE.NS"),), unlisted=("Veeda Clinical Research",)
 ) -> str:
-    """A minimal relations_report.txt as the yfinance pass writes it."""
+    """A minimal relations_report.md as the yfinance pass writes it."""
     text = (
-        "relations_report.txt — enrich_relations.py\n"
-        "[universe]\n"
-        "  tickered companies: 1\n"
-        + "".join(f"  (unlisted) {n}\n" for n in unlisted)
-        + "\n[ticker_issues]  # 404 / no-data — enrichment silently starves on these\n"
-        "    # name | ticker\n"
-        + "".join(f"    {n} | {t}\n" for n, t in issues)
-        + "\n[industries]\n  1  Steel\n"
+        "# enrich_relations — dry-run report\n\n"
+        "## universe\n\n"
+        "| Metric | Value |\n|---|---|\n"
+        "| Tickered companies | 1 |\n"
+        + "".join(f"- (unlisted) {n}\n" for n in unlisted)
+        + "\n## ticker_issues  # 404 / no-data — enrichment silently starves on these\n\n"
+        "| Name | Ticker |\n|---|---|\n"
+        + "".join(f"| {n} | {t} |\n" for n, t in issues)
+        + "\n## industries\n\n| Companies | Industry |\n|---|---|\n| 1 | Steel |\n"
     )
     path.write_text(text, encoding="utf-8")
     return text
@@ -400,7 +401,7 @@ def _write_gf_report(
 
 class TestLoadGfTargets:
     def test_parses_ticker_issues_and_skips_comment(self, tmp_path):
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Srigee DLM", "SRIGEE.NS"), ("Gati", "ACLGATI.BO")))
         assert load_gf_targets(rp, include_unlisted=False) == [
             ("Srigee DLM", "SRIGEE.NS"),
@@ -408,7 +409,7 @@ class TestLoadGfTargets:
         ]
 
     def test_include_unlisted_appends_none_ticker_targets(self, tmp_path):
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp)
         targets = load_gf_targets(rp, include_unlisted=True)
         assert targets == [("Srigee DLM", "SRIGEE.NS"), ("Veeda Clinical Research", None)]
@@ -684,7 +685,7 @@ class TestRunGoogleFinancePass:
         assert rc == 2
 
     def test_appends_section_and_writes_no_data_rows(self, db, tmp_path):
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         original = _write_gf_report(
             rp, issues=(("Ajax Engineering", "AJAXENGG.NS"), ("Srigee DLM", "SRIGEE.NS"))
         )
@@ -696,12 +697,12 @@ class TestRunGoogleFinancePass:
         assert db.execute("SELECT COUNT(*) FROM entity_gf_map").fetchone()[0] == 0
         text = rp.read_text(encoding="utf-8")
         assert text.startswith(original)  # append-only, never regenerated
-        assert "[google_finance]" in text
+        assert "## google_finance" in text
         assert "Ajax Engineering | resolved gf-only [t1] | AJAXENGG:NSE" in text
         assert "Srigee DLM | still-dead" in text
 
     def test_curated_row_drives_outcome(self, db, tmp_path):
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Ajax Engineering", "AJAXENGG.NS"),))
         db.execute(ENTITY_GF_MAP_DDL)  # seed before the pass (it creates it)
         db.execute(
@@ -717,7 +718,7 @@ class TestRunGoogleFinancePass:
         assert "curated (gf_only)" in rp.read_text(encoding="utf-8")
 
     def test_include_unlisted_reports_them_as_no_candidates(self, db, tmp_path):
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=())
         rc = run_googlefinance_pass(
             db, include_unlisted=True, report_path=rp, cache_dir=tmp_path, fetch_fn=_gf_fetch({})
@@ -727,7 +728,7 @@ class TestRunGoogleFinancePass:
         assert "Veeda Clinical Research | no-candidates" in text
 
     def test_tier2_run_annotates_rows_and_header(self, db, tmp_path):
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Srigee DLM", "SRIGEE.NS"),))
         rc = run_googlefinance_pass(
             db,
@@ -769,7 +770,7 @@ class TestGfApply:
     def test_apply_persists_map_and_metrics_idempotently(self, db, tmp_path):
         db.execute(_COMPANY_METRICS_DDL)
         # Entity name matches the page's About-name so tier 1 verifies.
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Srigee DLM", "544442.BO"),))
 
         def metrics_fn(requests):
@@ -817,7 +818,7 @@ class TestGfApply:
 
     def test_dry_run_writes_no_rows(self, db, tmp_path):
         db.execute(_COMPANY_METRICS_DDL)
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Srigee DLM", "544442.BO"),))
         rc = run_googlefinance_pass(
             db,
@@ -834,7 +835,7 @@ class TestGfApply:
 
     def test_yahoo_candidate_gets_map_row_but_no_metrics(self, db, tmp_path):
         db.execute(_COMPANY_METRICS_DDL)
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Srigee DLM", "SRIGEE.NS"),))
         rc = run_googlefinance_pass(
             db,
@@ -856,7 +857,7 @@ class TestGfApply:
         # F3-forward render coverage: a different-stem resolved slug (only
         # producible by tier 2 or curation, never by stem-preserving
         # tier-1 swaps) must show the mapped-back Yahoo symbol.
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         rp.write_text("", encoding="utf-8")
         outcomes = [
             GfOutcome(
@@ -871,7 +872,7 @@ class TestGfApply:
         ]
         append_gf_report_section(rp, outcomes, include_unlisted=False)
         text = rp.read_text(encoding="utf-8")
-        assert "[google_finance]" in text
+        assert "## google_finance" in text
         assert "Gati | resolved yahoo-candidate (GATI.NS) | GATI:NSE" in text
 
 
@@ -915,7 +916,7 @@ class TestFinnhubPass:
 
     def test_writeback_discovered_and_verified(self, db, tmp_path):
         self._seed(db, [("Piramal Enterprises", "PIEIL.NS", None)])
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Piramal Enterprises", "PIEIL.NS"),))
         verify = self._verify(
             {"PEL.NS": {"longName": "Piramal Enterprises Ltd", "industry": "Insurance"}}
@@ -937,14 +938,14 @@ class TestFinnhubPass:
             == "PIEIL.NS"
         )
         text = rp.read_text(encoding="utf-8")
-        assert "[finnhub]" in text
+        assert "## finnhub" in text
         assert "Piramal Enterprises | writeback-candidate | PIEIL.NS -> PEL.NS" in text
 
     def test_akzo_guard_blocks_foreign_parent(self, db, tmp_path):
         # The §5 trap: FinnHub returns the Dutch parent for 'Akzo Nobel';
         # an India-domiciled entity must never take a non-.NS/.BO symbol.
         self._seed(db, [("Akzo Nobel India", "AKZOINDIA.BO", None)])
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Akzo Nobel India", "AKZOINDIA.BO"),))
         rc = run_finnhub_pass(
             db,
@@ -959,7 +960,7 @@ class TestFinnhubPass:
 
     def test_stored_ticker_excluded_from_candidates(self, db, tmp_path):
         self._seed(db, [("Srigee DLM", "544399.BO", None)])
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Srigee DLM", "544399.BO"),))
         rc = run_finnhub_pass(
             db,
@@ -974,7 +975,7 @@ class TestFinnhubPass:
 
     def test_yahoo_dead_candidate_is_still_dead(self, db, tmp_path):
         self._seed(db, [("Srigee DLM", "SRIGEE.NS", None)])
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Srigee DLM", "SRIGEE.NS"),))
         rc = run_finnhub_pass(
             db,
@@ -990,7 +991,7 @@ class TestFinnhubPass:
     def test_name_mismatch_is_unverified(self, db, tmp_path):
         # Info payload exists but names the wrong company: never write.
         self._seed(db, [("Gati", "ACLGATI.BO", None)])
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Gati", "ACLGATI.BO"),))
         rc = run_finnhub_pass(
             db,
@@ -1019,7 +1020,7 @@ class TestFinnhubPass:
         # absolute path: PROJECT_ROOT / <absolute> yields the absolute
         # path itself (pathlib join semantics), keeping the test hermetic
         self._seed(db, [("Piramal Enterprises", "PIEIL.NS", str(note))])
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Piramal Enterprises", "PIEIL.NS"),))
         cache_file = tmp_path / "fetch_cache.json"
         cache_file.write_text(
@@ -1060,7 +1061,7 @@ class TestFinnhubPass:
         # The dry-run writeback table IS what apply writes — same pass,
         # same fakes, only dry_run flips.
         self._seed(db, [("Piramal Enterprises", "PIEIL.NS", None), ("Gati", "ACLGATI.BO", None)])
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Piramal Enterprises", "PIEIL.NS"), ("Gati", "ACLGATI.BO")))
         kw = dict(
             report_path=rp,
@@ -1111,7 +1112,7 @@ class TestTerminalClassifications:
 
     def test_gf_pass_skips_terminal_and_reports_it(self, db, tmp_path):
         self._seed_status(db, "Akzo Nobel India", "amalgamated", "JSW Paints")
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(
             rp, issues=(("Srigee DLM", "SRIGEE.NS"), ("Akzo Nobel India", "AKZOINDIA.BO"))
         )
@@ -1133,15 +1134,17 @@ class TestTerminalClassifications:
         text = rp.read_text(encoding="utf-8")
         # Srigee swept; Akzo never resolved, only classified.
         assert "Srigee DLM |" in text
-        assert "Akzo Nobel India |" not in text.split("[terminal]")[0].split("[google_finance]")[1]
-        assert "[terminal]" in text
+        assert (
+            "Akzo Nobel India |" not in text.split("## terminal")[0].split("## google_finance")[1]
+        )
+        assert "## terminal" in text
         assert "Akzo Nobel India | amalgamated | JSW Paints" in text
         assert not any("AKZOINDIA" in s for s in probed)
 
     def test_finnhub_pass_skips_terminal(self, db, tmp_path):
         self._seed_status(db, "Hanesbrands", "delisted")
         self._seed_entities(db, [("Hanesbrands", "HBI", None)])
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Hanesbrands", "HBI"),))
         queried: list[str] = []
 
@@ -1160,8 +1163,8 @@ class TestTerminalClassifications:
         )
         assert rc == 0
         text = rp.read_text(encoding="utf-8")
-        assert "[finnhub]" in text
-        fh_section = text.split("[finnhub]")[1].split("[terminal]")[0]
+        assert "## finnhub" in text
+        fh_section = text.split("## finnhub")[1].split("## terminal")[0]
         assert "Hanesbrands" not in fh_section  # never resolved
         assert queried == []  # never looked up at all
 
@@ -1220,7 +1223,7 @@ class TestTerminalClassifications:
                 ("Kotak Mahindra Bank", "KOTAKBANK.NS", None),
             ],
         )
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Kotak Mahindra Life Insurance", "KOTAKLIFE.NS"),))
         rc = run_finnhub_pass(
             db,
@@ -1233,7 +1236,7 @@ class TestTerminalClassifications:
         )
         assert rc == 0
         text = rp.read_text(encoding="utf-8")
-        fh_sec = text.split("[finnhub]")[1]
+        fh_sec = text.split("## finnhub")[1]
         assert " | writeback-candidate | " not in fh_sec
         assert "Kotak Mahindra Life Insurance | no-candidates" in fh_sec
         assert (
@@ -1247,7 +1250,7 @@ class TestTerminalClassifications:
         # Report says TATAMOTORS.NS but the DB already holds TMPV.NS
         # (applied by an earlier run): resolution happens ONCE.
         self._seed_entities(db, [("Tata Motors Passenger Vehicles", "TMPV.NS", None)])
-        rp = tmp_path / "relations_report.txt"
+        rp = tmp_path / "relations_report.md"
         _write_gf_report(rp, issues=(("Tata Motors Passenger Vehicles", "TATAMOTORS.NS"),))
         probed: list[str] = []
 

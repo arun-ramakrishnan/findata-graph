@@ -3,7 +3,7 @@
 
 Runs each perf-gated benchmark individually under ``time.perf_counter`` and
 prints a formatted table to stdout, then appends the same table to
-``perf_report.txt``.  Invoked by ``make perf``.
+``outputs/perf_report.md``.  Invoked by ``make perf``.
 
 Usage::
 
@@ -18,7 +18,7 @@ import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-REPORT = REPO_ROOT / "perf_report.txt"
+REPORT = REPO_ROOT / "outputs" / "perf_report.md"
 
 # Each entry: (label, args, budget_seconds).
 BENCHMARKS: list[tuple[str, list[str], float]] = [
@@ -162,13 +162,25 @@ def main() -> int:
     table = "\n".join(lines)
     print(table)
 
-    # ── append to report ──
+    # ── append to report (markdown format) ──
     from datetime import datetime
 
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    md_lines: list[str] = []
+    md_lines.append("# make perf — benchmark report")
+    md_lines.append("")
+    md_lines.append(f"**Generated:** {ts}  ·  **Python:** {sys.version.split()[0]}")
+    md_lines.append("")
+    md_lines.append("| Benchmark | Time (s) | Budget | Status |")
+    md_lines.append("|---|---|---|---|")
+    for label, dt, status, ok, budget in results:
+        flag = "✓ OK" if ok else "✗ FAIL"
+        md_lines.append(f"| {label} | {dt:.2f} | {budget:.1f}s | {flag} |")
+    md_lines.append(f"| **{passed}/{total} passed** | | | |")
+    md_lines.append("")
+    REPORT.parent.mkdir(parents=True, exist_ok=True)
     with open(REPORT, "a") as f:
-        f.write(f"=== make perf  {ts}  (Python {sys.version.split()[0]}) ===\n")
-        f.write(table + "\n\n")
+        f.write("\n".join(md_lines))
 
     return 0 if all_ok else 1
 

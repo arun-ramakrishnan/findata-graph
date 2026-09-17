@@ -30,6 +30,13 @@ from helpers.misc.search_tui import (
     parse_riprewire,
     parse_script_json,
     ripwire_argv,
+    run_lane,
+    RunStep,
+    parse_gate_report,
+    parse_perf_report,
+    parse_integrity_report,
+    parse_verify_report,
+    parse_report_summary,
 )
 
 # ---------------------------------------------------------------- parsers
@@ -316,3 +323,548 @@ def test_int_or_none() -> None:
     assert _int_or_none(7) == 7
     assert _int_or_none(None) is None
     assert _int_or_none("x") is None
+
+
+# ---------------------------------------------------------------- report
+# fixtures use the markdown format produced by the updated writers.
+# Section headers use `## LABEL (SEVERITY ...)` where SEVERITY is the
+# first word in parens (ERROR, WARNING, advisory→WARNING, gate-failing→ERROR).
+
+_GATE_FIXTURE = (
+    "# make qa \u2014 gate report\n"
+    "\n"
+    "**Generated:** 2026-09-17 09:18:12  \u00b7  **Python:** 3.14.4  jobs=4\n"
+    "\n"
+    "| Step | Time (s) | Status |\n"
+    "|---|---|---|\n"
+    "| lint | 0.06 | \u2713 OK |\n"
+    "| md-lint | 6.79 | \u2713 OK |\n"
+    "| types | 2.97 | \u2713 OK |\n"
+    "| deptry | 1.20 | \u2717 FAIL |\n"
+    "| **3/4 passed** | | **gate FAIL** |\n"
+    "\n"
+    "## deptry (FAILED)\n"
+    "\n"
+    "Scanning 97 files...\n"
+    "Found 1 dependency issue.\n"
+)
+
+_GATE_TWO_RUNS = (
+    "# make qa \u2014 gate report\n"
+    "\n"
+    "**Generated:** 2026-09-11 15:21:06  \u00b7  **Python:** 3.14.4  jobs=8\n"
+    "\n"
+    "| Step | Time (s) | Status |\n"
+    "|---|---|---|\n"
+    "| lint | 0.06 | \u2713 OK |\n"
+    "| deptry | 1.20 | \u2717 FAIL |\n"
+    "| **8/9 passed** | | **gate FAIL** |\n"
+    "\n"
+    "# make qa \u2014 gate report\n"
+    "\n"
+    "**Generated:** 2026-09-12 10:03:03  \u00b7  **Python:** 3.14.4  jobs=8\n"
+    "\n"
+    "| Step | Time (s) | Status |\n"
+    "|---|---|---|\n"
+    "| lint | 0.05 | \u2713 OK |\n"
+    "| deptry | 1.10 | \u2713 OK |\n"
+    "| **9/9 passed** | | **gate PASS** |\n"
+)
+
+_INTEGRITY_FIXTURE = (
+    "# FinData Knowledge Graph \u2014 Database Integrity Report\n"
+    "\n"
+    "**Generated:** 2026-09-17 09:18:12  \u00b7  **Database:** `/home/arun/memory/research.db`\n"
+    "\n"
+    "## RELATIONS (ERROR-level; gate-failing)\n"
+    "total=11663 unknown_type=0 self_loops=0 -> errors=0\n"
+    "\n"
+    "## ENTITY_TAGS (ERROR-level; gate-failing)\n"
+    "total=7206 orphaned=0 -> errors=0\n"
+    "\n"
+    "## FUZZY NAME SIMILARITY (advisory \u2014 likely-same-company pairs)\n"
+    "similar_pairs=157 -> warnings=157\n"
+    "  - EaseMyTrip (Easy Trip Planners)  ~=  Easy Trip Planners\n"
+    "\n"
+    "## GRAPH SUMMARY (advisory; shape snapshot)\n"
+    "entity counts: company=6203, institution=207\n"
+)
+
+_VERIFY_FIXTURE = (
+    "# FinData Knowledge Graph \u2014 Notes Verification Report\n"
+    "\n"
+    "**Generated:** 2026-09-17 09:18:12  \u00b7  **Project Root:** `/home/arun/repo`\n"
+    "\n"
+    "| Metric | Value |\n"
+    "|---|---|\n"
+    "| Total Files Checked | 1233 |\n"
+    "| Errors | 0 |\n"
+    "| Warnings | 0 |\n"
+    "\n"
+    "## ERRORS (gate-failing)\n"
+    "\n"
+    "## Verdict\n"
+    "\n"
+    "\u2705 All notes passed verification (no errors).\n"
+)
+
+_PERF_FIXTURE = (
+    "# make perf \u2014 benchmark report\n"
+    "\n"
+    "**Generated:** 2026-09-11 15:12:55  \u00b7  **Python:** 3.14.4\n"
+    "\n"
+    "| Benchmark | Time (s) | Budget | Status |\n"
+    "|---|---|---|---|\n"
+    "| integrity_check | 0.37 | 2.0s | \u2713 OK |\n"
+    "| verify_notes | 0.49 | 3.0s | \u2713 OK |\n"
+    "| **22/22 passed** | | | |\n"
+)
+
+
+def test_parse_gate_report_fixture() -> None:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        f.write(_GATE_FIXTURE)
+        path = Path(f.name)
+    try:
+        blocks = parse_gate_report(path)
+        assert len(blocks) == 1
+        b = blocks[0]
+        assert b.gate == "qa"
+        assert b.timestamp == "2026-09-17 09:18:12"
+        assert b.jobs == 4
+        assert len(b.steps) == 4
+        assert b.steps[0] == RunStep("lint", 0.06, "\u2713 OK")
+        assert b.steps[3] == RunStep("deptry", 1.20, "\u2717 FAIL")
+        assert "3/4 passed" in b.summary
+        assert "gate FAIL" in b.summary
+    finally:
+        path.unlink()
+
+
+def test_parse_gate_report_multi_run() -> None:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", prefix="qa_", suffix=".txt", delete=False, encoding="utf-8"
+    ) as f:
+        f.write(_GATE_TWO_RUNS)
+        path = Path(f.name)
+    try:
+        blocks = parse_gate_report(path)
+        assert len(blocks) == 2
+        assert blocks[0].timestamp == "2026-09-11 15:21:06"
+        assert blocks[0].summary.split("/")[0].strip() == "8"
+        assert blocks[1].timestamp == "2026-09-12 10:03:03"
+        assert blocks[1].summary.split("/")[0].strip() == "9"
+        assert "9/9 passed" in parse_report_summary(path)
+    finally:
+        path.unlink()
+
+
+def test_parse_perf_report() -> None:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        f.write(_PERF_FIXTURE)
+        path = Path(f.name)
+    try:
+        blocks = parse_perf_report(path)
+        assert len(blocks) == 1
+        b = blocks[0]
+        assert b.gate == "perf:perf"
+        assert b.timestamp == "2026-09-11 15:12:55"
+        assert len(b.steps) == 2
+        assert b.steps[0] == RunStep("integrity_check", 0.37, "\u2713 OK")
+        assert "2 benchmarks" in b.summary
+    finally:
+        path.unlink()
+
+
+def test_parse_integrity_report() -> None:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        f.write(_INTEGRITY_FIXTURE)
+        path = Path(f.name)
+    try:
+        rows = parse_integrity_report(path)
+        assert len(rows) == 4
+        assert rows[0].name == "RELATIONS"
+        assert rows[0].severity == "ERROR"
+        assert rows[0].summary == "total=11663 unknown_type=0 self_loops=0 -> errors=0"
+        assert rows[2].name == "FUZZY NAME SIMILARITY"
+        assert rows[2].severity == "WARNING"
+        assert rows[3].name == "GRAPH SUMMARY"
+        assert rows[3].severity == "WARNING"
+    finally:
+        path.unlink()
+
+
+def test_parse_verify_report() -> None:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        f.write(_VERIFY_FIXTURE)
+        path = Path(f.name)
+    try:
+        d = parse_verify_report(path)
+        assert d["total_files"] == 1233
+        assert d["errors"] == 0
+        assert d["warnings"] == 0
+        assert "All notes passed verification" in d["verdict"]
+    finally:
+        path.unlink()
+
+
+def test_parse_report_summary_gate() -> None:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", prefix="qa_", suffix=".txt", delete=False, encoding="utf-8"
+    ) as f:
+        f.write(_GATE_FIXTURE)
+        path = Path(f.name)
+    try:
+        s = parse_report_summary(path)
+        assert "3/4 passed" in s
+        assert "gate FAIL" in s
+    finally:
+        path.unlink()
+
+
+def test_parse_report_summary_integrity() -> None:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", prefix="database_integrity_", suffix=".txt", delete=False, encoding="utf-8"
+    ) as f:
+        f.write(_INTEGRITY_FIXTURE)
+        path = Path(f.name)
+    try:
+        s = parse_report_summary(path)
+        assert "4 checks" in s
+    finally:
+        path.unlink()
+
+
+def test_parse_report_summary_verify() -> None:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", prefix="verify_notes_", suffix=".txt", delete=False, encoding="utf-8"
+    ) as f:
+        f.write(_VERIFY_FIXTURE)
+        path = Path(f.name)
+    try:
+        s = parse_report_summary(path)
+        assert "1233 files" in s
+        assert "0 errors" in s
+        assert "0 warnings" in s
+    finally:
+        path.unlink()
+
+
+# ---------------------------------------------------------------- reports lane
+
+
+_LANE_QA = """# make qa — gate report
+
+**Generated:** 2026-09-11 15:21:06  ·  **Python:** 3.14.4  jobs=4
+
+| Step | Time (s) | Status |
+|---|---|---|
+| lint | 0.06 | ✓ OK |
+| pytest | 72.12 | ✗ FAIL |
+| **1/2 passed** | | **gate FAIL** |
+
+## pytest (FAILED)
+
+E   first failure tail
+
+# make qa — gate report
+
+**Generated:** 2026-09-12 10:03:03  ·  **Python:** 3.14.4  jobs=4
+
+| Step | Time (s) | Status |
+|---|---|---|
+| lint | 0.05 | ✓ OK |
+| pytest | 65.10 | ✓ OK |
+| **2/2 passed** | | **gate PASS** |
+"""
+
+_LANE_PERF = """# make perf — benchmark report
+
+**Generated:** 2026-09-12 10:04:00  ·  **Python:** 3.14.4
+
+| Benchmark | Time (s) | Budget | Status |
+|---|---|---|---|
+| integrity_check | 0.37 | 2.0s | ✓ OK |
+| graph_pagerank | 4.10 | 3.0s | ✗ FAIL |
+| **1/2 passed** | | | |
+"""
+
+_LANE_INT = """# FinData Knowledge Graph — Database Integrity Report
+
+**Generated:** 2026-09-12T18:20:21  ·  **Database:** `memory/research.db`
+
+## RELATIONS (ERROR-level; gate-failing)
+
+total=100 unknown_type=2 -> errors=2
+
+## ENTITY_TAGS (ERROR-level; gate-failing)
+
+total=50 orphaned=0 -> errors=0
+"""
+
+_LANE_VERIFY = """# FinData Knowledge Graph — Notes Verification Report
+
+**Generated:** 2026-09-12 18:20:22  ·  **Project Root:** `/tmp/x`
+
+| Metric | Value |
+|---|---|
+| Total Files Checked | 10 |
+| Errors | 1 |
+| Warnings | 0 |
+
+## ERRORS (gate-failing)
+
+### yaml_structure (1)
+- /path/f.md: bad frontmatter
+
+## Verdict
+
+⚠️  Found 1 errors that need attention.
+"""
+
+
+def _lane_root(tmp_path: Path) -> Path:
+    out = tmp_path / "outputs"
+    out.mkdir()
+    (out / "qa_report.md").write_text(_LANE_QA)
+    (out / "perf_report.md").write_text(_LANE_PERF)
+    (out / "database_integrity_report.md").write_text(_LANE_INT)
+    (out / "verify_notes_report.md").write_text(_LANE_VERIFY)
+    return tmp_path
+
+
+def test_reports_lane_overview(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import helpers.misc.search_tui as tui
+
+    monkeypatch.setattr(tui, "REPO_ROOT", _lane_root(tmp_path))
+    hits, status = run_lane("reports", "", 40)
+    assert {h.kind for h in hits} == {"overview"}
+    assert len(hits) == 4  # only the files present (no advisory/integration/maint)
+    assert "missing" in status
+    assert all(h.line and h.line > 0 for h in hits)
+    assert all(h.path.startswith("outputs/") for h in hits)
+
+
+def test_reports_lane_verb_latest_run(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import helpers.misc.search_tui as tui
+
+    monkeypatch.setattr(tui, "REPO_ROOT", _lane_root(tmp_path))
+    hits, status = run_lane("reports", "qa:", 40)
+    assert [h.title for h in hits] == ["lint", "pytest"]
+    assert all("2026-09-12" in h.section for h in hits)  # latest run only
+    assert all(h.line and h.line > 0 for h in hits)
+
+
+def test_reports_lane_verb_plus_text_searches_all_runs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import helpers.misc.search_tui as tui
+
+    monkeypatch.setattr(tui, "REPO_ROOT", _lane_root(tmp_path))
+    hits, _ = run_lane("reports", "qa: fail", 40)
+    assert len(hits) == 2  # run verdict matches: both rows of the failed run
+    assert all("2026-09-11" in h.section for h in hits)
+    hits, _ = run_lane("reports", "qa: 2026-09-11", 40)
+    assert len(hits) == 2  # stamp-scoped: the old run's rows
+
+
+def test_reports_lane_bare_text_searches_latest_everywhere(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import helpers.misc.search_tui as tui
+
+    monkeypatch.setattr(tui, "REPO_ROOT", _lane_root(tmp_path))
+    hits, _ = run_lane("reports", "pagerank", 40)
+    assert [h.title for h in hits] == ["graph_pagerank"]
+    hits, _ = run_lane("reports", "RELATIONS", 40)
+    assert [h.title for h in hits] == ["RELATIONS"]
+    assert hits[0].line == 5
+
+
+def test_reports_lane_verify_issues(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import helpers.misc.search_tui as tui
+
+    monkeypatch.setattr(tui, "REPO_ROOT", _lane_root(tmp_path))
+    hits, status = run_lane("reports", "verify:", 40)
+    assert len(hits) == 1
+    assert hits[0].title == "yaml_structure"
+    assert "/path/f.md: bad frontmatter" in hits[0].snippet
+    assert "1 errors" in status
+
+
+def test_reports_lane_unknown_verb_is_text(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import helpers.misc.search_tui as tui
+
+    monkeypatch.setattr(tui, "REPO_ROOT", _lane_root(tmp_path))
+    hits, status = run_lane("reports", "zzz_no_such_step", 40)
+    assert hits == []
+    assert "no report rows" in status
+
+
+def test_reports_lane_empty_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import helpers.misc.search_tui as tui
+
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)  # no outputs/ at all
+    hits, status = run_lane("reports", "", 40)
+    assert hits == []
+    assert "missing" in status
+
+
+# ---------------------------------------------------------------- themes
+
+
+def test_theme_cycle_order() -> None:
+    from helpers.misc.search_tui import THEME_ORDER, next_theme
+
+    assert len(THEME_ORDER) == 4
+    assert next_theme("github-dark") == "github-light"
+    assert next_theme("high-contrast") == "github-dark"  # wraps
+    assert next_theme("bogus") == "github-dark"  # unknown restarts
+
+
+def test_theme_token_sets_uniform() -> None:
+    from helpers.misc.search_tui import THEMES
+
+    base = set(THEMES["github-dark"]["rich"])
+    assert len(base) >= 12
+    for name, spec in THEMES.items():
+        assert set(spec["rich"]) == base, name
+        assert {"primary", "background", "dark"} <= set(spec["variables"]), name
+        assert isinstance(spec["description"], str) and spec["description"]
+
+
+def test_theme_persist_roundtrip(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from helpers.misc.search_tui import load_theme_name, save_theme_name
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    assert load_theme_name() == "github-dark"  # absent file
+    assert save_theme_name("solarized-dark") is True
+    assert load_theme_name() == "solarized-dark"
+    assert save_theme_name("bogus") is False
+    assert load_theme_name() == "solarized-dark"  # unknown write refused
+    (tmp_path / ".config" / "search_tui" / "theme").write_text("bogus\n")
+    assert load_theme_name() == "github-dark"  # unknown content falls back
+
+
+def test_theme_cycle_pilot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """t cycles widget theme + preview palette and persists the choice."""
+    pytest.importorskip("textual")
+    import asyncio
+
+    import helpers.misc.search_tui_app as appmod
+
+    monkeypatch.setenv("HOME", str(tmp_path))
+    app = appmod.SearchApp("", "docs", 10)
+
+    async def drive() -> tuple[str, str]:
+        async with app.run_test(size=(120, 40)) as pilot:
+            for _ in range(40):
+                await pilot.pause(0.05)
+                if app._mounted:
+                    break
+            assert app._theme == "github-dark"
+            # direct action: the "t"/"T" keys are gated while typing
+            # (same reason the monitor test calls the action directly)
+            app.action_cycle_theme()
+            await pilot.pause(0.1)
+            first = app._theme
+            app.action_theme_picker()
+            await pilot.pause(0.2)
+            assert isinstance(app.screen, appmod.ThemeScreen)
+            rows = app.screen.query_one("#theme-table").row_count
+            assert rows == 4
+            await pilot.press("escape")
+            await pilot.pause(0.1)
+            return first, (tmp_path / ".config" / "search_tui" / "theme").read_text().strip()
+
+    first, saved = asyncio.run(drive())
+    assert first == "github-light"
+    assert saved == "github-light"
+
+
+# ---------------------------------------------------------------- report screen helpers
+
+
+def test_report_run_spans_and_verb(tmp_path: Path) -> None:
+    from helpers.misc.search_tui import report_run_spans, report_verb_for_path
+
+    p = tmp_path / "qa_report.md"
+    p.write_text(_LANE_QA)
+    spans = report_run_spans(p)
+    assert len(spans) == 2
+    assert spans[0][0] == 1
+    assert spans[1][1] == len(_LANE_QA.splitlines())
+    assert report_verb_for_path("outputs/qa_report.md") == "qa"
+    assert report_verb_for_path("qa_report.md") == "qa"
+    assert report_verb_for_path("outputs/verify_notes_report.md") == "verify"
+    assert report_verb_for_path("nope.md") is None
+
+
+def test_report_rerun_argv() -> None:
+    from helpers.misc.search_tui import REPORT_NAMES, report_rerun_argv
+
+    assert len(REPORT_NAMES) == 7
+    for name in REPORT_NAMES:
+        argv = report_rerun_argv(name)
+        assert argv and len(argv) == 2
+    assert report_rerun_argv("bogus") is None
+    assert report_rerun_argv("qa")[1] == "qa"
+
+
+def test_report_screen_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """V opens the comprehensive view; rows drill; esc closes (no rerun)."""
+    pytest.importorskip("textual")
+    import asyncio
+
+    import helpers.misc.search_tui as tui
+    import helpers.misc.search_tui_app as appmod
+    from textual.widgets import DataTable
+
+    out = tmp_path / "outputs"
+    out.mkdir()
+    (out / "qa_report.md").write_text(_LANE_QA)
+    (out / "verify_notes_report.md").write_text(_LANE_VERIFY)
+    monkeypatch.setattr(appmod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    app = appmod.SearchApp("", "docs", 10)
+
+    async def drive() -> tuple[int, int]:
+        async with app.run_test(size=(120, 40)) as pilot:
+            for _ in range(40):
+                await pilot.pause(0.05)
+                if app._mounted:
+                    break
+            # direct action: V is gated while typing (same as t/T/i)
+            app.action_report_screen()
+            await pilot.pause(0.3)
+            assert isinstance(app.screen, appmod.ReportScreen)
+            table = app.screen.query_one("#rep-table", DataTable)
+            n = table.row_count
+            assert n > 0  # 2 qa runs (2+2 steps + 2 headers) + verify run + issue
+            table.move_cursor(row=0)
+            await pilot.pause(0.2)
+            detail = app.screen.query_one("#rep-detail").lines
+            await pilot.press("escape")
+            await pilot.pause(0.1)
+            assert not isinstance(app.screen, appmod.ReportScreen)
+            return n, len(detail)
+
+    n, detail_lines = asyncio.run(drive())
+    assert n == 8
+    assert detail_lines > 0

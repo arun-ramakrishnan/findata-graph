@@ -25,6 +25,7 @@ pairing is a conscious, reviewable edit.
 | mojo_module.mojo | mojo format | copy-diff gate | tests/test_lint_gates.py (qa) |
 | ts_module.ts | tsconfig + esbuild bundle doctrine | tests/test_templates.py | advisory (frontend-check) |
 | proposal.md | doc/okf/frontmatter.proposal.v1.json | frontmatter_schema + Proposal lifecycle | make static-checks |
+| report.md | report.md — format contract (no schema) | none (generated) | make static-checks (declaration guard) |
 | commit_message.md | doc/procedures/commit-messages.md | tests/test_templates.py declaration guard | git commit -t / stg edit -f (manual) |
 
 ## Language matrix

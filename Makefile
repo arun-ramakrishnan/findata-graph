@@ -28,7 +28,7 @@ export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
-> @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, lint-audit (appends advisory_report.txt)"
+> @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, lint-audit (appends outputs/advisory_report.md)"
 > @echo "  analytics                Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)"
 > @echo "  cover                    Run all tests with coverage over helpers/ (branch + missing-line report)"
 > @echo "  deptry                   Run deptry dependency-health scan (unused/undeclared/transitive deps)"
@@ -53,7 +53,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  graph-stats              Print a one-shot summary of the graph state (entities, edges, sectors, hygiene)"
 > @echo "  hif-export               Export the hypergraph in HIF to snapshots/hif/ (rides make snapshot; SOURCES=... to override)"
 > @echo "  install-dev              Install dev dependencies (uv sync; prunes undeclared packages)"
-> @echo "  integration              Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends integration_report.txt)"
+> @echo "  integration              Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends outputs/integration_report.md)"
 > @echo "  lint                     Run ruff linter (replaces flake8)"
 > @echo "  lint-audit               Run ruff S/UP/C901 audits (security + modernization + complexity) — Bandit/Refurb/Radon equivs"
 > @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live, xdist -n auto; skip-safe on pristine clone)"
@@ -66,8 +66,8 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  mojo-format                 Normalize Mojo/src + Mojo/tests with \`mojo format\` (fix for the tests/test_lint_gates.py format gate)"
 > @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
-> @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt"
-> @echo "  qa                       Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)"
+> @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md"
+> @echo "  qa                       Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)"
 > @echo "  quote-coverage           S0 quote capture coverage audit (advisory, read-only; per-note 95% tripwire + watchlist + salvage measurement)"
 > @echo "  recompute-graph          Recompute all graph analytics and persist to graph_analytics"
 > @echo "  recompute-hyper          Recompute HGX hyper metrics (hy-MMSBM communities + ho/s centralities)"
@@ -96,9 +96,9 @@ help:           ## Show available targets (alphabetical; entries generated from 
 static-checks:  ## Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)
 > python3 helpers/validators/static_checks.py
 
-qa:             ## Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends qa_report.txt)
+qa:             ## Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)
 > python3 tests/run_gate_report.py qa
-> @echo "✓ QA passed (lint + types + deptry + static + pytest + notes + integrity + snapshot; appended to qa_report.txt)"
+> @echo "✓ QA passed (lint + types + deptry + static + pytest + notes + integrity + snapshot; appended to outputs/qa_report.md)"
 
 test:           ## pytest unit tests only (no live DB, no slow benchmarks; xdist -n auto)
 > pytest -m "not live" -n auto
@@ -110,9 +110,9 @@ live-invariants: ## Run ONLY the live-marked invariant tests (-m live, xdist -n 
 > pytest -m live -n auto
 > @echo "✓ live invariant tests passed"
 
-perf:           ## Run wall-clock perf benchmarks, print timing table, and append to perf_report.txt
+perf:           ## Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md
 > python3 tests/run_perf_benchmarks.py
-> @echo "✓ performance benchmarks passed (see table above; appended to perf_report.txt)"
+> @echo "✓ performance benchmarks passed (see table above; appended to outputs/perf_report.md)"
 
 cover:          ## Run all tests with coverage over helpers/ (branch + missing-line report)
 > pytest --cov=helpers --cov-branch --cov-report=term-missing --cov-report=html
@@ -121,9 +121,9 @@ cover:          ## Run all tests with coverage over helpers/ (branch + missing-l
 fuzz:           ## Run Hypothesis property-based tests (deterministic seed for reproducibility; xdist -n auto)
 > pytest tests/test_fuzz_*.py -v -n auto
 
-integration:    ## Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends integration_report.txt)
+integration:    ## Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends outputs/integration_report.md)
 > python3 tests/run_gate_report.py integration
-> @echo "✓ Integration tests passed (appended to integration_report.txt)"
+> @echo "✓ Integration tests passed (appended to outputs/integration_report.md)"
 
 
 refresh-exchanges:  ## D19: sync exchange masters + detect new listings (lanes as args; APPLY=1 to write)
@@ -402,6 +402,6 @@ md-lint:        ## Markdown lint via pinned markdownlint-cli2 — doc/ prose bas
 deptry:         ## Run deptry dependency-health scan (unused/undeclared/transitive deps)
 > deptry .
 
-advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, lint-audit (appends advisory_report.txt)
+advisory:       ## Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, lint-audit (appends outputs/advisory_report.md)
 > python3 tests/run_gate_report.py advisory
-> @echo "✓ Advisory checks complete (appended to advisory_report.txt; these do NOT block \`make qa\`)"
+> @echo "✓ Advisory checks complete (appended to outputs/advisory_report.md; these do NOT block \`make qa\`)"

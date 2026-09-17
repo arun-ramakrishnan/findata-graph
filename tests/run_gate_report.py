@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Gate runner — runs the qa / integration / advisory gate steps, streams
 each step's output live, prints a perf-style summary table, and appends the
-run to ``<gate>_report.txt`` (same philosophy as perf_report.txt: append-only
+run to ``outputs/<gate>_report.md`` (same philosophy as outputs/perf_report.md: append-only
 history, one timestamped table per run, plus output tails for analysis).
 
 The step lists and exit-code semantics below mirror the previous inline
@@ -16,7 +16,7 @@ Makefile recipes exactly:
 EVERY step appends its output tail to the report — passing steps included
 (user directive 2026-08-25: "all make steps log to output file"; a passing
 live-invariants run's warnings used to stream to console and never reach
-advisory_report.txt). pytest's ``-ra`` (pytest.ini addopts) additionally
+outputs/advisory_report.md). pytest's ``-ra`` (pytest.ini addopts) additionally
 puts the short test summary at the end of its output, inside the tail.
 
 Invoked by ``make qa`` / ``make integration`` / ``make advisory``.  Like
@@ -289,35 +289,50 @@ def table_lines(results: list[Result]) -> list[str]:
 
 
 def write_report(report_path: Path, gate_name: str, results: list[Result], jobs: int = 1) -> None:
-    """Append one report block; whole-block under an exclusive flock.
+    """Append one markdown report block; whole-block under an exclusive flock.
 
     Parallel-safety (2026-08-25): the in-process report is written once at
     the end from per-step captures, so a single runner can never interleave
     its own block. The flock covers the CROSS-process case — two gate
     runners appending to the same file (e.g. `make advisory`'s nested
     integration sub-runner racing a concurrently-invoked
-    `make integration`; both write integration_report.txt). Locking the fd
+    `make integration`; both write outputs/integration_report.md). Locking the fd
     serializes whole blocks: a waiter's block starts only after the holder
     closes the file (POSIX flock releases on close).
+
+    Format: markdown — `# make <gate>` header, `| step | time | status |`
+    table, `**Verdict:** N/M · gate PASS/FAIL`, `## <step> (STATUS)` per-step
+    detail sections. Append mode: each call adds one block (run); TUI
+    defaults to the last (most recent) block.
     """
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    jobs_str = f"  jobs={jobs}" if jobs > 1 else ""
+    report_path.parent.mkdir(parents=True, exist_ok=True)
     with open(report_path, "a") as f:
         fcntl.flock(f.fileno(), fcntl.LOCK_EX)
         try:
-            f.write(
-                f"=== make {gate_name}  {ts}  (Python {sys.version.split()[0]})"
-                + (f"  jobs={jobs}" if jobs > 1 else "")
-                + " ===\n"
-            )
-            f.write("\n".join(table_lines(results)) + "\n")
+            f.write(f"# make {gate_name} — gate report\n\n")
+            f.write(f"**Generated:** {ts}  ·  **Python:** {sys.version.split()[0]}{jobs_str}\n\n")
+            f.write("| Step | Time (s) | Status |\n")
+            f.write("|---|---|---|\n")
+            for r in results:
+                secs = f"{r.seconds:.2f}" if r.seconds is not None else "—"
+                flag = (
+                    "✓ OK"
+                    if (not r.skipped and r.rc == 0)
+                    else ("⌀ SKIP" if r.skipped else "✗ FAIL")
+                )
+                f.write(f"| {r.step.label} | {secs} | {flag} |\n")
+            ok = sum(1 for r in results if not r.skipped and r.rc == 0)
+            verdict = "PASS" if overall_ok(results) else "FAIL"
+            f.write(f"| **{ok}/{len(results)} passed** | | **gate {verdict}** |\n\n")
             for r in results:
                 if r.skipped:
                     continue
                 why = "FAILED" if r.rc != 0 else "OK"
                 keep = r.step.tail_lines or _TAIL_LINES
-                f.write(f"--- {r.step.label} · last {min(keep, len(r.tail))} lines ({why}) ---\n")
-                f.write("\n".join(r.tail[-keep:]) + "\n")
-            f.write("\n")
+                f.write(f"## {r.step.label} ({why})\n\n")
+                f.write("\n".join(r.tail[-min(keep, len(r.tail)) :]) + "\n\n")
             f.flush()
         finally:
             fcntl.flock(f.fileno(), fcntl.LOCK_UN)
@@ -355,7 +370,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"(gate {name}: jobs={jobs})")
     results = run_gate(GATES[name], jobs)
     print("\n".join(table_lines(results)))
-    report = REPO_ROOT / f"{name}_report.txt"
+    report = REPO_ROOT / "outputs" / f"{name}_report.md"
     write_report(report, name, results, jobs)
     print(f"appended to {report.relative_to(REPO_ROOT)}")
     return 0 if overall_ok(results) else 1

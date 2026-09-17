@@ -66,7 +66,7 @@ def test_keep_going_and_nonblocking(monkeypatch):
 
 def test_report_contents(tmp_path):
     # 2026-08-25: EVERY step's tail is logged (user directive — a passing
-    # live-invariants run's warnings must reach advisory_report.txt).
+    # live-invariants run's warnings must reach outputs/advisory_report.md).
     ok_pytest = rgr.Step("pytest", ("pytest",))
     ok_plain = rgr.Step("lint", ("ruff",))
     failed = rgr.Step("deptry", ("deptry",))
@@ -76,17 +76,18 @@ def test_report_contents(tmp_path):
         _fake_result(failed, 1, tail=["boom-line"]),
         rgr.Result(rgr.Step("skipped", ("x",)), skipped=True),
     ]
-    report = tmp_path / "qa_report.txt"
+    report = tmp_path / "qa_report.md"
     rgr.write_report(report, "qa", results)
     text = report.read_text()
 
-    assert "=== make qa " in text  # perf_report-style header
-    assert "✓ OK" in text and "✗ FAIL" in text and "− SKIP" in text
-    assert "2/4 passed  ·  gate FAIL" in text
+    assert "# make qa " in text
+    assert "✓ OK" in text and "✗ FAIL" in text and "⌀ SKIP" in text
+    assert "**gate FAIL**" in text
     assert "ra-summary-line" in text  # passing pytest tail kept
     assert "plain-ok-tail" in text  # passing plain step tail kept too
     assert "boom-line" in text  # failing step tail kept
     assert "FAILED" in text and "(OK)" in text  # per-step status markers
+    assert "| Step | Time (s) | Status |" in text
 
 
 def test_main_rejects_unknown_gate(capsys):
@@ -193,11 +194,14 @@ def test_report_header_records_jobs(tmp_path):
     res = rgr.Result(step, seconds=0.01, rc=0, tail=["l"])
     report = tmp_path / "g_report.txt"
     rgr.write_report(report, "advisory", [res], jobs=4)
-    assert "jobs=4" in report.read_text().splitlines()[0]
+    text = report.read_text()
+    assert "jobs=4" in text.splitlines()[2]  # meta line
     rgr.write_report(report, "advisory", [res], jobs=1)
     # sequential runs keep the historical header (no jobs marker)
-    headers = [ln for ln in report.read_text().splitlines() if ln.startswith("=== make advisory")]
-    assert "jobs=" not in headers[-1]
+    text2 = report.read_text()
+    blocks = [b for b in text2.split("# make advisory") if b.strip()]
+    last_block = blocks[-1] if blocks else ""
+    assert "jobs=" not in last_block
 
 
 def test_concurrent_report_blocks_never_interleave(tmp_path):
@@ -208,7 +212,7 @@ def test_concurrent_report_blocks_never_interleave(tmp_path):
     # conflicts apply across separate open()s even in one process.
     import threading
 
-    report = tmp_path / "integration_report.txt"
+    report = tmp_path / "integration_report.md"
 
     def block(marker: str, n: int) -> rgr.Result:
         step = rgr.Step(f"{marker}-step", ("x",))
@@ -232,7 +236,7 @@ def test_concurrent_report_blocks_never_interleave(tmp_path):
     assert not errs
 
     lines = report.read_text().splitlines()
-    headers = [ln for ln in lines if ln.startswith("=== make probe")]
+    headers = [ln for ln in lines if ln.startswith("# make probe")]
     assert len(headers) == 2  # two complete blocks
     # every KEPT tail line survived whole: the report keeps the last
     # _TAIL_LINES (60) of a 120-line capture — the cap itself is part of
@@ -261,7 +265,7 @@ def test_write_report_honors_step_tail_lines(tmp_path):
     res = rgr.Result(step, seconds=0.1, rc=0, tail=[f"line{i}" for i in range(10)])
     rgr.write_report(tmp_path / "r.txt", "probe", [res])
     out = (tmp_path / "r.txt").read_text()
-    assert "last 3 lines" in out
+    assert "## digest-step (OK)" in out
     assert "line9" in out and "line6" not in out  # keeps the LAST 3 only
 
 

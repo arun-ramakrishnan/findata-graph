@@ -1905,22 +1905,15 @@ class DatabaseIntegrityChecker:
         """
         Persist the full report (including every advisory warning) to disk so
         warnings can be reviewed in detail after the run. Mirrors verify_notes'
-        report-file approach. Path: <base_path>/database_integrity_report.txt.
+        report-file approach. Path: <base_path>/outputs/database_integrity_report.md.
         """
-        out = self.base_path / "database_integrity_report.txt"
+        out = self.base_path / "outputs" / "database_integrity_report.md"
         rel = results["relations"]
         norm = results["normalization"]
         lines = []
-        lines.append("FinData Knowledge Graph - Database Integrity Report")
-        lines.append("=" * 60)
-        lines.append(f"Generated: {results['timestamp']}")
-        lines.append(f"Database: {self.db_path}")
-        lines.append(f"Base Path: {self.base_path}")
-        lines.append(
-            f"Entities: {results['total_entities']} "
-            f"(valid {results['valid_entities']}, invalid {results['invalid_entities']}) "
-            f"| validation_rate {results['summary']['validation_rate']}%"
-        )
+        lines.append("# FinData Knowledge Graph — Database Integrity Report")
+        lines.append("")
+        lines.append(f"**Generated:** {results['timestamp']}  ·  **Database:** `{self.db_path}`")
         lines.append("")
 
         lines.append("## RELATIONS (ERROR-level; gate-failing)")
@@ -2114,7 +2107,9 @@ class DatabaseIntegrityChecker:
         for issue in results.get("invalid_entities_list", []):
             lines.append(f"  - {issue['name']} ({issue['entity_type']}): {issue['issue']}")
 
-        out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "a", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
         return out
 
     def print_report(self, results: dict):  # noqa: C901
