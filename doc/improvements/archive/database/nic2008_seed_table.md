@@ -1,9 +1,9 @@
 ---
 title: "NIC-2008 seed table — versioned vocabulary, scheme projection, industry coding lane"
-status: proposed
+status: executed
 filed: "2026-09-17"
-executed: null
-completed_md: null
+executed: "2026-09-19"
+completed_md: "246"
 area: "database — helpers/misc (seed), helpers/core/cin.py (cross-check), integrity"
 ---
 

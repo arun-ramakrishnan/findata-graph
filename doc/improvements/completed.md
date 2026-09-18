@@ -6177,8 +6177,8 @@ Deferred: opencode-side `.so` residue (host tool, non-goal).
 
 ## 246. NIC-2008 seed table — primary-source vocabulary, crosswalk coding, review tool
 
-**Proposal**: `doc/improvements/proposals/nic2008_seed_table.md` (filed
-2026-09-17; slices S1–S5 landed + close-out sittings 2026-09-18/19).
+**Proposal**: `doc/improvements/archive/database/nic2008_seed_table.md`
+(filed 2026-09-17; slices S1–S5 landed + close-out sittings 2026-09-18/19).
 
 No NIC-2008 vocabulary existed in the ontology and industry-label coding was
 manual, unaudited JSON. This arc vendored the primary MoSPI source, projected
