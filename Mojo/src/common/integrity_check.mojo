@@ -168,8 +168,8 @@ def note_has_tag(fm: String, tag: String) raises -> Bool:
 
 # tokenization for the fuzzy-name check (STOPWORDS/GENERIC mirror the
 # original's module-level sets; kept as comma-joined constants)
-alias STOPWORDS_S = "the,of,and,ltd,limited,private,pvt,india,industries,company,corporation,enterprise,group,holdings"
-alias GENERIC_S = "life,insurance,financial,finance,bank,banking,power,gas,oil,energy,capital,markets,global,technologies,solutions,services,trading,indian,shree,bajaj,national,union,hospitality,housing,pharma,overseas,south,north,east,west"
+comptime STOPWORDS_S = "the,of,and,ltd,limited,private,pvt,india,industries,company,corporation,enterprise,group,holdings"
+comptime GENERIC_S = "life,insurance,financial,finance,bank,banking,power,gas,oil,energy,capital,markets,global,technologies,solutions,services,trading,indian,shree,bajaj,national,union,hospitality,housing,pharma,overseas,south,north,east,west"
 
 
 def csv_contains(csv: String, t: String) -> Bool:

@@ -16,7 +16,7 @@
 
 
 from std.memory.alloc import alloc, Layout
-from std.runtime.asyncrt import TaskGroup
+from std.runtime._asyncrt import TaskGroup
 from std.utils.lock import BlockingSpinLock, BlockingScopedLock
 
 

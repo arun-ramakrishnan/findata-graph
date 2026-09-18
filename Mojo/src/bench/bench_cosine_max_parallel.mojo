@@ -8,7 +8,7 @@ from std.memory.alloc import alloc, Layout
 from std.sys import argv, simd_width_of
 from std.time import perf_counter_ns
 from std.math import sqrt
-from std.runtime.asyncrt import TaskGroup
+from std.runtime._asyncrt import TaskGroup
 
 from cosine import load_f32, row_cosine, scan_serial
 

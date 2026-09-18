@@ -1,5 +1,5 @@
 """
- Probe: does std.runtime.asyncrt.TaskGroup deliver real multicore on Mojo 1.0?
+ Probe: does std.runtime._asyncrt.TaskGroup deliver real multicore on Mojo 1.x?
 
  Verified result (2026-08-29, 4 logical cores): 4 CPU-bound tasks via
  TaskGroup fan-out run 2.89x faster than the sequential loop (15.6 ms ->
@@ -16,7 +16,7 @@
 
 
 from std.memory.alloc import alloc, Layout
-from std.runtime.asyncrt import TaskGroup
+from std.runtime._asyncrt import TaskGroup
 from std.sys.info import num_logical_cores
 from std.time import perf_counter_ns
 

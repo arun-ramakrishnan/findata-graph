@@ -33,8 +33,20 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — nic2008_seed_table.md executed 2026-09-19 as completed.md
-entry 246 (archived to `../archive/database/`); tmpdir_sanitization.md
-archived 2026-09-17 as entry 245. Per-patch rule (2026-09-19): a
+**[mojo_footprint_repair.md](mojo_footprint_repair.md)** — Mojo footprint
+repair: Mojo 1.1.0 grammar/stdlib drift vs the tracked sources —
+`mojo format` rejects two `alias` declarations (→ `comptime`) and
+`mojo build` cannot compile `std.gpu` (→ `max.gpu`) /
+`std.runtime.asyncrt` (→ `std.runtime._asyncrt`) imports; keeps every
+`make qa` run red; small single-mechanism arc that un-reds the gate
+(filed 2026-09-19; scope broadened same day per operator directive).
+
+_(Pending patches: review_kit.md and industry_coding_completion.md are
+filed and ride their own unapplied patches — their index lines land
+here as those patches apply.)_ Per-patch rule (2026-09-19): a
 proposal's index line is added by the SAME patch that adds its file, so
 this section never references content from future patches.
+
+_(Previously: nic2008_seed_table.md executed 2026-09-19 as completed.md
+entry 246 (archived to `../archive/database/`); tmpdir_sanitization.md
+archived 2026-09-17 as entry 245.)_

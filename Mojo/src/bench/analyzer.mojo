@@ -26,7 +26,7 @@ from std.sys.info import (
 )
 from std.algorithm.functional import vectorize
 from std.time import perf_counter_ns
-from std.gpu import global_idx, thread_idx, block_idx
+from max.gpu import global_idx, thread_idx, block_idx
 from max.gpu.sync import barrier
 from max.gpu.memory import AddressSpace
 from max.gpu.host import DeviceContext

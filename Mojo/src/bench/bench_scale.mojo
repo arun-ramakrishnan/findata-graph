@@ -22,7 +22,7 @@ from cosine import load_f32, scan_serial
 # box (4c no-HT) it fans out to 4 workers, like `Mojo/src/common/taskgroup_fanout.mojo`.
 # Mojo 1.0 has no top-level try for imports, so probe at runtime inside main.
 comptime width = simd_width_of[DType.float32]()
-alias has_sync_parallelize = False
+comptime has_sync_parallelize = False
 
 
 def main() raises:
