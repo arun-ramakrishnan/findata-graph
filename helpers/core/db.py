@@ -12,9 +12,14 @@ that are easy to forget and silently break the schema:
      deletes and renames leave orphaned rows. Centralising the pragma here
      makes that class of bug impossible.
 
-  2. `PRAGMA journal_mode = WAL`
+  2. `PRAGMA journal_mode = WAL` + `PRAGMA journal_size_limit`
      Matches the production on-disk layout; preserves concurrent-reader
-     semantics.
+     semantics. The size limit (16 MiB) bounds the WAL's high-water mark:
+     without it a write burst (maint-full's note_search DELETE+reinsert,
+     derive passes) leaves a permanently large -wal file — observed at
+     64 MiB fully-checkpointed-but-never-shrunk (2026-09-19). Checkpoints
+     still run at the default 1000-page boundary; the limit only lets the
+     file shrink back after one.
 
   3. `sqlite3.Row` row factory by default
      So callers can do `row["name"]` instead of `row[0]`. Tuples are still
@@ -172,6 +177,10 @@ def connect(
         # WAL is persistent on the DB file once set, but re-setting is cheap
         # and guards against a snapshot/restore losing the mode.
         conn.execute("PRAGMA journal_mode = WAL")
+        # Bound the WAL high-water mark (per-connection pragma, NOT
+        # persistent): after a checkpoint the file shrinks back to the
+        # limit instead of parking at the burst maximum forever.
+        conn.execute("PRAGMA journal_size_limit = 16777216")  # 16 MiB
     # Bundle U1: make concurrent writers wait up to 5s for a lock instead of
     # failing immediately with SQLITE_BUSY. SQLite's default busy_timeout is
     # 0, so without this a second writer (e.g. sync_tags spawned by

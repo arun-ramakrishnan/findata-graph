@@ -99,7 +99,7 @@
       ]
     },
     "industry_code": {
-      "description": "Coded industry — NIC-2008 5-digit sub-class primary (ontology_convention_stack S2); carry industry_label alongside. Free text until the NIC seed table ships; the pair is the migration target for industry.",
+      "description": "Coded industry \u2014 NIC-2008 5-digit sub-class primary (ontology_convention_stack S2); carry industry_label alongside. Free text until the NIC seed table ships; the pair is the migration target for industry.",
       "x-okf-version": "0.2",
       "oneOf": [
         {
@@ -133,7 +133,12 @@
         },
         {
           "type": "string",
-          "enum": ["nic2008", "nace", "gics-peer", "manual"]
+          "enum": [
+            "nic2008",
+            "nace",
+            "gics-peer",
+            "manual"
+          ]
         }
       ]
     },
@@ -153,7 +158,7 @@
     "geography": {
       "type": "string",
       "pattern": "^[a-z_]+$",
-      "description": "Optional lowercase home-market country value (india, usa, uk, south_korea, ...). Single-valued home market — the listed_in target set (helpers/core/countries.py); multi-market facts live on listed_in edges, not here. Sector notes may instead use coverage values (e.g. global)."
+      "description": "Optional lowercase home-market country value (india, usa, uk, south_korea, ...). Single-valued home market \u2014 the listed_in target set (helpers/core/countries.py); multi-market facts live on listed_in edges, not here. Sector notes may instead use coverage values (e.g. global)."
     },
     "file_path": {
       "type": "string",

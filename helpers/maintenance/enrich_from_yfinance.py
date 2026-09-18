@@ -193,6 +193,79 @@ def fetch_company(ticker: str, retries: int = 1) -> dict | None:
     return None
 
 
+# --- identity guard (industry_coding_completion S2, 2026-09-19) --------------
+#
+# Wrong-entity ticker matches poison three write surfaces at once: metrics
+# rows, the ``industry:`` frontmatter field, and the note profile block.
+# Case proven 2026-09-19: Felix Industries (water/waste-water recycling,
+# Ahmedabad) carries ``industry: Gold`` because yfinance resolved FELIX.NS to
+# Felix Gold Limited (Alaska mineral explorer, HQ Brisbane). The guard is a
+# corporate-suffix-stripped token subset test in either direction; legitimate
+# renames (e.g. Shriram Pistons -> SPR Auto Technologies) ride the tracked
+# alias map below instead of loosening the rule.
+
+_CORP_SUFFIXES = {
+    "ltd",
+    "limited",
+    "inc",
+    "corp",
+    "corporation",
+    "plc",
+    "co",
+    "company",
+    "llp",
+    "pvt",
+    "of",
+    "the",
+    "and",
+}
+ALIASES_PATH = Path(__file__).resolve().parent / "yf_name_aliases.json"
+
+
+def _name_tokens(name: str) -> set[str]:
+    """Significant name tokens: lowercase, corporate/filler suffixes stripped."""
+    low = name.lower().replace("&", " and ")
+    return {
+        tok for tok in re.split(r"[^a-z0-9]+", low) if len(tok) > 1 and tok not in _CORP_SUFFIXES
+    }
+
+
+def load_aliases(path: Path | None = None) -> dict[str, list[str]]:
+    """Operator-curated entity renames: note name -> accepted yfinance names.
+
+    Schema: ``{"Entity Name": ["New Exchange Name", ...]}`` in
+    ``helpers/maintenance/yf_name_aliases.json``. Missing file = no aliases.
+    """
+    p = path or ALIASES_PATH
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except OSError, json.JSONDecodeError:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def identity_ok(name: str, info: dict, aliases: dict[str, list[str]] | None = None) -> bool:
+    """True when the fetched yfinance info plausibly describes THIS company.
+
+    Either name's significant tokens must be a subset of the other's (short
+    exchange spellings like ``HDFC Bank`` pass against long note names), or an
+    alias from the curated map must cover the exchange name. Empty names on
+    either side refuse the write — there is nothing to anchor identity on.
+    """
+    if aliases is None:
+        aliases = load_aliases()
+    yf_name = info.get("longName") or info.get("shortName") or ""
+    ours, theirs = _name_tokens(name), _name_tokens(yf_name)
+    if not ours or not theirs:
+        return False
+    if ours <= theirs or theirs <= ours:
+        return True
+    return any(
+        (theirs <= _name_tokens(accepted)) or (_name_tokens(accepted) <= theirs)
+        for accepted in aliases.get(name, [])
+    )
+
+
 def extract_metrics(name: str, info: dict) -> list[dict]:
     """Extract company_metrics rows from yfinance .info."""
     metrics = []
@@ -615,6 +688,8 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
         return name, ticker, file_path, info
 
     failures: list[tuple[str, str, str]] = []  # (name, ticker, file_path)
+    mismatches: list[tuple[str, str, str]] = []  # (name, ticker, yf name) — identity guard
+    aliases = load_aliases()
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures = {pool.submit(_fetch_task, todo_item): todo_item for todo_item in todo}
         completed = 0
@@ -623,6 +698,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             completed += 1
             if info is None:
                 failures.append((name, ticker, file_path))
+                continue
+            if not identity_ok(name, info, aliases):
+                yf_name = info.get("longName") or info.get("shortName") or "?"
+                mismatches.append((name, ticker, yf_name))
                 continue
             results.append((name, ticker, file_path, info))
             if completed % 100 == 0:
@@ -640,6 +719,13 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     if failures:
         log.info(
             "failed tickers (%d): %s", len(failures), ", ".join(f"{n}({t})" for n, t, _ in failures)
+        )
+    if mismatches:
+        # identity-guarded: wrong-entity ticker matches; nothing written for these
+        log.warning(
+            "identity mismatches skipped (%d): %s",
+            len(mismatches),
+            ", ".join(f"{n}({t}) -> {y})" for n, t, y in mismatches),
         )
 
     if not args.apply:

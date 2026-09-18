@@ -642,3 +642,26 @@ class TestLogging:
         v = make_verifier()
         v.log_issue("custom_bucket", "/path/f.md", "desc")
         assert "custom_bucket" in v.issues
+
+    def test_industry_code_untracked_warns(self):
+        from helpers.validators.verify_notes import _industry_code_violation
+
+        # untracked code (not a subclass)
+        assert _industry_code_violation("Test Co", "99999") is not None
+        # in-vocab but no tracked per-company entry -> untracked override
+        assert _industry_code_violation("No Map Entry Co", "35202") is not None
+        # tracked entry diverges
+        codes, vocab = _industry_code_violation.__globals__["_company_codes_and_vocab"]()
+        assert _industry_code_violation("BEML", "11111") is not None
+        # tracked + in-vocab + matching -> clean (BEML ships in the tracked map)
+        assert _industry_code_violation("BEML", "35202") is None
+
+    def test_industry_code_warning_bucket(self):
+        v = make_verifier()
+        v.check_company_yaml_consistency(
+            "/path/Test_Co.md",
+            {"title": "Test Co", "industry_code": "99999"},
+            "title: Test Co\nindustry_code: 99999",
+        )
+        assert v.warnings.get("industry_code") and len(v.warnings["industry_code"]) == 1
+        assert "not a NIC-2008 subclass" in v.warnings["industry_code"][0]["description"]

@@ -862,3 +862,80 @@ class TestReview:
             assert lanes == [("closeMatch",), ("narrowMatch",)]
         finally:
             conn.close()
+
+
+class TestStamp:
+    """S3 per-company industry_code stamping (industry_coding_completion)."""
+
+    def _conn_with_members(self, tmp_path, members):
+        conn = sqlite3.connect(":memory:")
+        conn.execute(
+            "CREATE TABLE hyper_edges (id INTEGER PRIMARY KEY, edge_type TEXT, label TEXT)"
+        )
+        conn.execute("CREATE TABLE hyper_incidences (edge_id INTEGER, entity_name TEXT)")
+        conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, file_path TEXT)")
+        conn.execute(
+            "INSERT INTO hyper_edges (edge_type, label) VALUES ('industry', 'Conglomerates')"
+        )
+        for name in members:
+            note = tmp_path / f"{name.replace(' ', '_')}.md"
+            note.write_text(
+                "---\n"
+                "title: " + name + "\n"
+                "type: company\n"
+                "sector: Industrials\n"
+                "industry: Conglomerates\n"
+                "---\n"
+                "# " + name + "\n",
+                encoding="utf-8",
+            )
+            conn.execute("INSERT INTO hyper_incidences VALUES (1, ?)", (name,))
+            conn.execute("INSERT INTO entities VALUES (?, ?)", (name, str(note)))
+        conn.commit()
+        return conn
+
+    def _map(self, tmp_path, codes):
+        p = tmp_path / "map.json"
+        p.write_text(
+            json.dumps({"flagged_labels": ["Conglomerates"], "codes": codes}), encoding="utf-8"
+        )
+        return p
+
+    def test_stamp_dry_then_apply_then_idempotent(self, tmp_path):
+        conn = self._conn_with_members(tmp_path, ["BEML", "SRF"])
+        mp = self._map(tmp_path, {"BEML": {"code": "35202", "via": "cin"}})
+        rep = sn.stamp_company_codes(conn, apply=False, map_path=mp)
+        assert rep["stamped"] == ["BEML"]  # would stamp
+        note = tmp_path / "BEML.md"
+        assert "industry_code" not in note.read_text()  # dry-run wrote nothing
+        rep2 = sn.stamp_company_codes(conn, apply=True, map_path=mp)
+        assert rep2["stamped"] == ["BEML"]
+        text = note.read_text()
+        assert 'industry_code: "35202"' in text
+        # sibling position: directly after industry:
+        lines = text.splitlines()
+        assert lines[lines.index("industry: Conglomerates") + 1] == 'industry_code: "35202"'
+        rep3 = sn.stamp_company_codes(conn, apply=True, map_path=mp)
+        assert rep3["stamped"] == [] and rep3["unchanged"] == ["BEML"]  # idempotent
+        assert rep["pending_attestation"] == [["Conglomerates", "SRF"]]
+
+    def test_stamp_refuses_out_of_vocabulary_code(self, tmp_path):
+        conn = self._conn_with_members(tmp_path, ["Acme Ltd"])
+        mp = self._map(tmp_path, {"Acme Ltd": {"code": "99999", "via": "op"}})
+        rep = sn.stamp_company_codes(conn, apply=True, map_path=mp)
+        assert rep["stamped"] == [] and rep["skipped"] == [["Conglomerates", "Acme Ltd", "99999"]]
+        assert "industry_code" not in (tmp_path / "Acme_Ltd.md").read_text()
+
+    def test_stamp_updates_diverged_field(self, tmp_path):
+        conn = self._conn_with_members(tmp_path, ["BEML"])
+        note = tmp_path / "BEML.md"
+        note.write_text(
+            note.read_text().replace(
+                "industry: Conglomerates", "industry: Conglomerates\nindustry_code: 11111"
+            )
+        )
+        mp = self._map(tmp_path, {"BEML": {"code": "35202", "via": "cin"}})
+        rep = sn.stamp_company_codes(conn, apply=True, map_path=mp)
+        assert rep["stamped"] == ["BEML"]
+        assert 'industry_code: "35202"' in note.read_text()
+        assert "11111" not in note.read_text()

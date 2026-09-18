@@ -4,6 +4,7 @@ type: company
 ticker: BEML.NS
 sector: Defense
 industry: Conglomerates
+industry_code: "35202"
 market_cap: mid_cap
 normalized_name: BEML
 permalink: /companies/defense/beml

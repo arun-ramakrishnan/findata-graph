@@ -3222,6 +3222,18 @@
       ]
     },
     {
+      "id": "xwalk-confectioners",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Confectioners"
+      },
+      "expected": [
+        "nic2008:10721:closeMatch",
+        "subsector:Food_Processing:exactMatch"
+      ]
+    },
+    {
       "id": "xwalk-consumer-electronics",
       "shape": "concept_mappings_for",
       "params": {

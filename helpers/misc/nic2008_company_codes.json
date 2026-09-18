@@ -1,0 +1,53 @@
+{
+  "_note": "Per-company NIC-2008 codes for members of flagged multi-division labels (industry_coding_completion S3). codes keyed by entity name; via: 'cin' = the company's own IN-TABLE CIN nic5 (vintage-checked), 'op' = operator-attested. seed_nic2008.py stamp writes industry_code frontmatter for flagged_labels members present in codes; members without an entry are reported for the attestation sitting. CIN seeds must pass the vintage discipline (in-table only; old-series lookalikes like 72200/65110 are traps \u2014 completed.md #246).",
+  "flagged_labels": [
+    "Conglomerates",
+    "Aerospace & Defense"
+  ],
+  "codes": {
+    "3M Company": {
+      "code": "23993",
+      "via": "op"
+    },
+    "3M India": {
+      "code": "23993",
+      "via": "op"
+    },
+    "BEML": {
+      "code": "35202",
+      "via": "cin"
+    },
+    "Cyient": {
+      "code": "26104",
+      "via": "op"
+    },
+    "Jain Irrigation Systems": {
+      "code": "28212",
+      "via": "op"
+    },
+    "SRF": {
+      "code": "20111",
+      "via": "op"
+    },
+    "Thermax": {
+      "code": "25131",
+      "via": "op"
+    },
+    "Tube Investments of India": {
+      "code": "25999",
+      "via": "op"
+    },
+    "Bharat Electronics": {
+      "code": "26309",
+      "via": "op"
+    },
+    "Data Patterns (India)": {
+      "code": "26309",
+      "via": "op"
+    },
+    "Cyient DLM": {
+      "code": "26104",
+      "via": "op"
+    }
+  }
+}

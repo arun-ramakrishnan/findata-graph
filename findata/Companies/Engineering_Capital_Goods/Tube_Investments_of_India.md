@@ -4,6 +4,7 @@ type: company
 ticker: TIINDIA.NS
 sector: Engineering_Capital_Goods
 industry: Conglomerates
+industry_code: "25999"
 market_cap: mid_cap
 normalized_name: Tube_Investments_of_India
 permalink: /companies/engineering_capital_goods/tube_investments_of_india

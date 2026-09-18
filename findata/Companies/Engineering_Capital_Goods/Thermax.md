@@ -4,6 +4,7 @@ type: company
 ticker: THERMAX.NS
 sector: Engineering_Capital_Goods
 industry: Conglomerates
+industry_code: "25131"
 market_cap: large_cap
 normalized_name: Thermax
 permalink: /companies/engineering_capital_goods/thermax

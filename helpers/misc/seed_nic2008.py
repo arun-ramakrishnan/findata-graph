@@ -37,6 +37,7 @@ import sys
 HELPERS_DIR = pathlib.Path(__file__).resolve().parent
 REPO_ROOT = HELPERS_DIR.parent.parent
 SEED_PATH = HELPERS_DIR / "nic2008_seed.json"
+COMPANY_CODES_PATH = HELPERS_DIR / "nic2008_company_codes.json"
 SOURCE_URL = (
     "https://www.mospi.gov.in/uploads/documents/publicDocuments/1760616645687-nic_2008_17apr09.pdf"
 )
@@ -852,6 +853,101 @@ def latest_action_by_label(journal_path: pathlib.Path) -> dict[str, str]:
     return latest
 
 
+def _stamp_industry_code_field(text: str, code: str) -> tuple[str, bool]:
+    """Add/update the ``industry_code:`` frontmatter field; (text, changed).
+
+    Line-level surgery mirroring enrich_from_yfinance._update_frontmatter —
+    a full YAML re-render would reflow the writer's whole frontmatter block;
+    the vault convention is field-scoped edits only.
+    """
+    lines = text.split("\n")
+    if not lines or lines[0].strip() != "---":
+        return text, False
+    fm_end = None
+    for i in range(1, len(lines)):
+        if lines[i].strip() == "---":
+            fm_end = i
+            break
+    if fm_end is None:
+        return text, False
+    field_re = re.compile(r"^industry_code:\s*(.*)$")
+    for i in range(1, fm_end):
+        m = field_re.match(lines[i])
+        if m:
+            if m.group(1).strip() == f'"{code}"':
+                return text, False  # idempotent no-op (quoted form is canonical)
+            # quoted: YAML must parse it as a STRING (frontmatter convention —
+            # bare numerics parse as int and fail the schema's string pattern)
+            lines[i] = f'industry_code: "{code}"'
+            return "\n".join(lines), True
+    # insert as the industry field's sibling: after industry:, else sector:,
+    # else ticker:, else right after the opening fence
+    insert_at = 1
+    for i in range(1, fm_end):
+        if lines[i].startswith("industry:"):
+            insert_at = i + 1
+            break
+        if lines[i].startswith(("sector:", "ticker:")):
+            insert_at = i + 1
+    lines.insert(insert_at, f'industry_code: "{code}"')
+    return "\n".join(lines), True
+
+
+def stamp_company_codes(conn, *, apply: bool, map_path: pathlib.Path | None = None) -> dict:
+    """S3 — stamp per-member ``industry_code`` frontmatter for flagged labels.
+
+    The tracked map (``helpers/misc/nic2008_company_codes.json``) names the
+    flagged multi-division labels and carries per-company codes (``via: cin``
+    vintage-checked seed or ``via: op`` operator-attested). Members present
+    in the map get the field stamped; members WITHOUT an entry are reported
+    as ``pending`` — the attestation sitting list, never auto-assigned.
+    Codes outside the vendored NIC-2008 vocabulary are refused (skipped).
+    """
+    map_doc = json.loads((map_path or COMPANY_CODES_PATH).read_text(encoding="utf-8"))
+    flagged = list(map_doc.get("flagged_labels", []))
+    codes = map_doc.get("codes", {})
+    vocab = {r["code"] for r in json.loads(SEED_PATH.read_text(encoding="utf-8"))["subclasses"]}
+    members_by_label = label_members(conn)
+    has_entities = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='entities'"
+    ).fetchone()
+    paths = dict(conn.execute("SELECT name, file_path FROM entities")) if has_entities else {}
+    stamped: list[str] = []
+    unchanged: list[str] = []
+    pending: list[list[str]] = []
+    skipped: list[list[str]] = []
+    for label in flagged:
+        for name in members_by_label.get(label, []):
+            entry = codes.get(name)
+            if not entry:
+                pending.append([label, name])
+                continue
+            code = entry.get("code", "")
+            if code not in vocab:
+                skipped.append([label, name, code])
+                continue
+            fp = paths.get(name)
+            note = (REPO_ROOT / fp) if fp else None
+            if not note or not note.exists():
+                skipped.append([label, name, "note-missing"])
+                continue
+            new_text, changed = _stamp_industry_code_field(note.read_text(encoding="utf-8"), code)
+            if not changed:
+                unchanged.append(name)
+                continue
+            if apply:
+                note.write_text(new_text, encoding="utf-8")
+            stamped.append(name)
+    return {
+        "flagged_labels": flagged,
+        "stamped": stamped,
+        "unchanged": unchanged,
+        "pending_attestation": pending,
+        "skipped": skipped,
+        "apply": apply,
+    }
+
+
 def export_worklist(conn, out_path=None, *, journal_path: pathlib.Path | None = None) -> dict:
     """Export the operator coding worklist (S4) — suggestions + CIN signal.
 
@@ -1370,6 +1466,11 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="output path (default findata/Misc/nic_worklist.json)",
     )
+    p_stamp = sub.add_parser(
+        "stamp",
+        help="stamp per-member industry_code frontmatter for flagged labels (S3; map: nic2008_company_codes.json)",
+    )
+    p_stamp.add_argument("--apply", action="store_true", help="write (default: dry-run)")
     p_rev = sub.add_parser(
         "review",
         help="interactive promotion review — approve/reject/override per label, batched via the promote lane",
@@ -1425,6 +1526,16 @@ def main(argv: list[str] | None = None) -> int:
         finally:
             conn.close()
         print(f"wrote {out} — {json.dumps(wl['counts'])}")
+    elif args.mode == "stamp":
+        sys.path.insert(0, str(HELPERS_DIR.parent.parent))
+        from helpers.core.db import connect
+
+        conn = connect(args.db)
+        try:
+            report = stamp_company_codes(conn, apply=args.apply)
+        finally:
+            conn.close()
+        print(("APPLIED " if args.apply else "DRY-RUN ") + json.dumps(report))
     elif args.mode == "review":
         sys.path.insert(0, str(HELPERS_DIR.parent.parent))
         from helpers.core.db import connect

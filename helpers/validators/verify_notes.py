@@ -219,6 +219,53 @@ _KNOWN_TAG_VALUES = {
 }
 
 
+_S3_CACHE: tuple[dict, set] | None = None
+
+
+def _company_codes_and_vocab() -> tuple[dict, set]:
+    """(per-company codes map, NIC-2008 vocabulary) — cached, load-failure-tolerant.
+
+    industry_coding_completion S3: notes may carry a per-company
+    ``industry_code`` override for members of flagged multi-division labels
+    (Conglomerates et al). The tracked sources are the seed vocabulary and
+    the per-company map stamped by ``seed_nic2008.py stamp``.
+    """
+    global _S3_CACHE
+    if _S3_CACHE is None:
+        misc = Path(__file__).resolve().parents[2] / "helpers" / "misc"
+        try:
+            import json as _json
+
+            vocab = {
+                r["code"]
+                for r in _json.loads((misc / "nic2008_seed.json").read_text(encoding="utf-8"))[
+                    "subclasses"
+                ]
+            }
+            doc = _json.loads((misc / "nic2008_company_codes.json").read_text(encoding="utf-8"))
+            codes = doc.get("codes", {}) if isinstance(doc, dict) else {}
+        except OSError, ValueError:
+            vocab, codes = set(), {}
+        _S3_CACHE = (codes, vocab)
+    return _S3_CACHE
+
+
+def _industry_code_violation(title: str | None, code: str) -> str | None:
+    """Per-company industry_code consistency vs the tracked map + vocabulary."""
+    codes, vocab = _company_codes_and_vocab()
+    if code not in vocab:
+        return f"industry_code {code!r} is not a NIC-2008 subclass (helpers/misc/nic2008_seed.json)"
+    entry = codes.get(title or "")
+    if not entry:
+        return (
+            "industry_code carries no tracked per-company entry "
+            "(helpers/misc/nic2008_company_codes.json) — untracked override"
+        )
+    if str(entry.get("code", "")) != code:
+        return f"industry_code {code!r} diverges from tracked {entry.get('code')!r} for {title!r}"
+    return None
+
+
 class NotesVerifier:
     def __init__(self, project_root=None):
         self.project_root = project_root or Path(__file__).parent.parent.parent
@@ -524,6 +571,10 @@ class NotesVerifier:
                 self.stats["industry_nonnull"] = self.stats.get("industry_nonnull", 0) + 1
         if data.get("industry_code"):
             self.stats["industry_coded"] = self.stats.get("industry_coded", 0) + 1
+            # S3 per-company override rule: tracked map + vocabulary consistency
+            violation = _industry_code_violation(data.get("title"), str(data["industry_code"]))
+            if violation:
+                self.log_warning("industry_code", file_path, violation)
 
         order = list(data.keys())
         if len(order) >= 2 and order[:2] != ["title", "type"]:

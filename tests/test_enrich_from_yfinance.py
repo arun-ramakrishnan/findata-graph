@@ -10,6 +10,9 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 from helpers.maintenance.enrich_from_yfinance import (  # noqa: E402
     _auto_region_spans,
+    _name_tokens,
+    identity_ok,
+    load_aliases,
     _format_value,
     _convert_value,
     _outside_auto_region,
@@ -356,3 +359,36 @@ def test_get_enriched_companies_none(tmp_path, monkeypatch):
     note.write_text("---\ntitle: Co B\n---\n\n# Co B")
     result = get_enriched_companies([("Co B", "Co_B.md")])
     assert "Co B" not in result
+
+
+# ---------------------------------------------------------------------------
+# identity guard (industry_coding_completion S2)
+# ---------------------------------------------------------------------------
+def test_name_tokens_strips_corporate_suffixes():
+    assert _name_tokens("DCB Bank Limited") == {"dcb", "bank"}
+    assert _name_tokens("Power Grid Corporation of India") == {"power", "grid", "india"}
+
+
+def test_identity_ok_short_exchange_spelling_passes():
+    assert identity_ok("DCB Bank", {"longName": "DCB Bank Limited"})
+    assert identity_ok("Power Grid Corporation of India", {"shortName": "Power Grid Corp"})
+
+
+def test_identity_ok_blocks_wrong_entity():
+    # FELIX.NS resolved to the Australian explorer — the proven Gold poisoning
+    assert not identity_ok("Felix Industries", {"longName": "Felix Gold Limited"})
+    assert not identity_ok("Shriram Pistons", {"longName": "SPR Auto Technologies Limited"})
+
+
+def test_identity_ok_alias_rescues_renames():
+    aliases = {"Shriram Pistons": ["SPR Auto Technologies Limited"]}
+    assert identity_ok("Shriram Pistons", {"longName": "SPR Auto Technologies Limited"}, aliases)
+
+
+def test_identity_ok_unanchorable_name_refuses():
+    assert not identity_ok("Felix Industries", {"longName": ""})
+    assert not identity_ok("", {"longName": "Felix Industries"})
+
+
+def test_load_aliases_missing_file_is_empty(tmp_path):
+    assert load_aliases(tmp_path / "nope.json") == {}

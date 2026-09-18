@@ -3,7 +3,7 @@ title: Felix Industries
 type: company
 ticker: FELIX.NS
 sector: Consumer
-industry: Gold
+industry: Pollution & Treatment Controls
 market_cap: micro_cap
 normalized_name: Felix_Industries
 permalink: /companies/consumer/felix_industries

@@ -4,6 +4,7 @@ type: company
 ticker: 3MINDIA.NS
 sector: Diversified
 industry: Conglomerates
+industry_code: "23993"
 market_cap: large_cap
 normalized_name: Three_M_India
 file_path: findata/Companies/Diversified/Three_M_India.md
