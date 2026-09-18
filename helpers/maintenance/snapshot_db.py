@@ -1404,6 +1404,14 @@ def main(argv: list[str] | None = None) -> int:
         action="store_false",
         help="Skip the DuckDB snapshot (SQLite only).",
     )
+    parser.add_argument(
+        "--parquet-duckdb-only",
+        action="store_true",
+        help="CREATE path: re-export ONLY the duckdb parquet mirror "
+        "(snapshots/parquet/duckdb). maint.py runs this after "
+        "graph-rebuild, whose cache refresh otherwise leaves the mirror "
+        "one rebuild stale.",
+    )
     parser.set_defaults(with_duckdb=True)
     parser.add_argument(
         "--sources-db",
@@ -1499,6 +1507,12 @@ def main(argv: list[str] | None = None) -> int:
                 sources_path=sources_path,
                 with_sources=args.with_sources,
             )
+        if args.parquet_duckdb_only:
+            if not duckdb_path.exists():
+                print(f"ERROR: {duckdb_path} not found", file=sys.stderr)
+                return 1
+            export_parquet_duckdb(duckdb_path, parquet_duckdb_dir, logger)
+            return 0
         return _cmd_create(
             db_path,
             out_path,

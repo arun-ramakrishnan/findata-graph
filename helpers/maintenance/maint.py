@@ -70,6 +70,10 @@ Chains the maintenance steps in the right order, in THREE blocks:
                              db-backup is its only copy).
     3. ``query.py rebuild`` — rebuild the DuckDB cache from the just-
                              snapshotted SQLite so the cache matches.
+    3b. ``snapshot_db.py --parquet-duckdb-only`` — re-export the duckdb
+                             parquet mirror AFTER the rebuild (step 2's
+                             export predates it; without this the mirror
+                             is one rebuild stale).
 
   In ``--full`` mode step 2 is ELIDED (TIER1_FULL_SKIP): the TIER2 tail
   re-snapshots everything (step 10), so the mid-run snapshot's artifacts
@@ -245,6 +249,15 @@ TIER1_STEPS: list[tuple[str, list[str]]] = [
         [sys.executable, "helpers/maintenance/snapshot_db.py"],
     ),
     ("graph-rebuild (refresh DuckDB cache)", [sys.executable, "helpers/graph/query.py", "rebuild"]),
+    # graph-rebuild refreshes memory/graph.duckdb AFTER step 2 exported the
+    # duckdb parquet mirror — without this tail step the mirror runs one
+    # rebuild stale and snapshot_db.py --check fails after any graph
+    # mutation (2026-09-19, ind_coding close-out). The .zst backups keep
+    # their documented step-2 position (restore-point semantics).
+    (
+        "snapshot duckdb parquet mirror (post-rebuild)",
+        [sys.executable, "helpers/maintenance/snapshot_db.py", "--parquet-duckdb-only"],
+    ),
 ]
 
 TIER2_STEPS: list[tuple[str, list[str]]] = [
@@ -379,6 +392,10 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
 TIER1_FULL_SKIP: frozenset[str] = frozenset(
     {
         "snapshot (refresh versioned snapshots)",
+        # 3b joins the elision in --full: the TIER2 tail re-snapshots
+        # (step 10) AFTER its own graph rebuilds, so a mid-run mirror
+        # export would be unconditionally overwritten anyway.
+        "snapshot duckdb parquet mirror (post-rebuild)",
     }
 )
 

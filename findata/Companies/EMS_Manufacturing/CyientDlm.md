@@ -4,7 +4,7 @@ type: company
 ticker: CYIENTDLM.NS
 sector: EMS_Manufacturing
 industry: Aerospace & Defense
-industry_code: "26104"
+industry_code: '26104'
 market_cap: small_cap
 normalized_name: CyientDlm
 file_path: findata/Companies/Engineering_Capital_Goods/CyientDlm.md

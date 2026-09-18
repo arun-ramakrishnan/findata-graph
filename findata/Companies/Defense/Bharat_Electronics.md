@@ -4,7 +4,7 @@ type: company
 ticker: BEL.NS
 sector: Defense
 industry: Aerospace & Defense
-industry_code: "26309"
+industry_code: '26309'
 market_cap: large_cap
 normalized_name: Bharat_Electronics
 permalink: /companies/defense/bharat_electronics

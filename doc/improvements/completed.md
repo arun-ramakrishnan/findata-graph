@@ -6253,3 +6253,65 @@ hygiene + script-index refresh), snapshot regenerated + --check OK,
 search-fresh converged. Deferred: scorer v2 (gate difflib behind token
 overlap — the 85499-class noise); per-company frontmatter coding for
 conglomerates; mojo footprint repair (separate Mojo-lane arc).
+
+## 247. Mojo footprint repair — 1.1.0 stdlib path migration
+
+**Proposal**: `doc/improvements/archive/tooling/mojo_footprint_repair.md`
+(filed + executed 2026-09-19).
+
+Mojo 1.1.0 (with MAX v26.6) removed `alias`-declarations and moved the
+gpu/runtime stdlib paths; `mojo build` was red on every bench/common
+module, keeping `make qa` red. Offline diagnosis (no network docs):
+compiler error probing plus `std.mojoc` container unpack (MPKG magic,
+zstd stream at byte 96) revealing `Mojo/stdlib/std/runtime/_asyncrt.mojo`.
+
+- alias → comptime ×3: `bench_scale.mojo:25`, `integrity_check.mojo:171-172`
+- `std.gpu` → `max.gpu`: `analyzer.mojo:29`
+- `std.runtime.asyncrt` → `std.runtime._asyncrt`: `taskgroup_fanout`,
+  `spinlock_counter`, `bench_cosine_max_parallel` (+ docstring)
+- Release-notes audit: both renames verbatim in the Mojo 1.1.0 + MAX
+  v26.6 changelogs; two deprecation candidates left documented for a
+  future touch (`unsafe_ptr()` → `.ptr()`, `Span(unsafe_ptr=…)`).
+
+Verified: mojo-build rc=0, mojo-test green, footprint test passes,
+`mojo format` byte-identical, probes re-run (fan-out 2.19×, spinlock
+400000 exact). Gates: make qa 10/10.
+
+## 248. Industry coding completion — scorer bench, source-noise guard, per-company stamps
+
+**Proposal**: `doc/improvements/archive/database/industry_coding_completion.md`
+(filed + executed 2026-09-19; gate-fix collection per
+doc/local/engineering/split_patch.md, 3 rounds to green).
+
+Closed the residual wrong-label noise from the CIN audit (3/31 bad:
+Gold, Confectioners, Conglomerates) plus the A&D electronics cluster.
+
+- **S1 scorer bench**: `nic_scorer_bench.py` harness over the 86 xwalk
+  pins. Landed scorer hit@1 31/83, hit@3 60/83, MRR 0.5181; ALL v2
+  variants falsified (difflib-gate −5/−5, gd −1/−3, nec-demote −5/−7)
+  — production scorer unchanged; n.e.c. demotion permanently settled
+  harmful. Miss anatomy: 15/23 zero-affinity (CIN-attested, unreachable).
+- **S2 identity guard**: `enrich_from_yfinance.py` `_name_tokens` +
+  `identity_ok` subset-either-direction with tracked alias rescue
+  (`yf_name_aliases.json`); kills the Felix-Gold wrong-entity poisoning
+  (FELIX.NS → Felix Gold Limited). Felix → Pollution & Treatment Controls.
+- **S3 per-company stamps**: `nic2008_company_codes.json` (flagged
+  Conglomerates + Aerospace & Defense) + `seed_nic2008.py stamp`
+  (dry-run default, idempotent, diverged-field update) + verify_notes
+  `industry_code` rule + schema key (quoted 5-digit string). 11 notes
+  stamped: 8 Conglomerates; BEL/Data Patterns 26309, Cyient DLM 26104.
+- **Attestations**: 3M 23993, BEML 35202, Cyient 26104, Jain 28212,
+  SRF 20111, Thermax 25131, Tube Investments 25999 (+ conglomerate trio).
+  Confectioners label-coded 10721 (sugar refining; 10711 is bread).
+- **WAL hygiene**: connect() `journal_size_limit` 16 MiB (64 MiB WAL
+  truncated; limit is per-connection → shared connect()).
+
+Live DB: 102 active nic2008 lanes, industry labels 117 → 116 (Gold
+retired via derive + surgical edge delete), Felix beside Ion Exchange.
+Eval gate ACCEPT 164 questions / 0 reasons. Gates: make qa 10/10.
+Tests: seed 54, verify_notes 71, enrich 73, db 22.
+
+Found en route (follow-up, not fixed here): `make maint` exports the
+duckdb parquet mirror (step 2) BEFORE the graph rebuild (step 3), so
+after any graph mutation the duckdb parquet is one rebuild stale —
+`snapshot_db.py --check` catches it; manual regen self-heals.

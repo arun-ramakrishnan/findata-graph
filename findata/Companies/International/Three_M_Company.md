@@ -4,7 +4,7 @@ type: company
 ticker: MMM
 sector: International
 industry: Conglomerates
-industry_code: "23993"
+industry_code: '23993'
 market_cap: large_cap
 geography: usa
 business_model: b2b

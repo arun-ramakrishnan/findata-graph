@@ -4,7 +4,7 @@ type: company
 ticker: SRF.NS
 sector: Chemicals
 industry: Conglomerates
-industry_code: "20111"
+industry_code: '20111'
 market_cap: large_cap
 normalized_name: SRF
 permalink: /companies/chemicals/srf

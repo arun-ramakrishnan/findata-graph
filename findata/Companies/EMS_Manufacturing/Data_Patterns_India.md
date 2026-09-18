@@ -4,7 +4,7 @@ type: company
 ticker: DATAPATTNS.NS
 sector: EMS_Manufacturing
 industry: Aerospace & Defense
-industry_code: "26309"
+industry_code: '26309'
 market_cap: small_cap
 normalized_name: Data_Patterns_India
 permalink: /companies/ems_manufacturing/data_patterns_india

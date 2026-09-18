@@ -1,15 +1,15 @@
 ---
 title: "Industry coding completion — scorer v2, source-noise repair, per-company coding"
-status: proposed
+status: executed
 filed: "2026-09-19"
-executed: null
-completed_md: null
+executed: "2026-09-19"
+completed_md: "248"
 area: "helpers/misc (seed scorer), helpers/graph (ingestion/source edges), findata/Misc worklists, note stamping"
 ---
 
 # Industry coding completion — scorer v2, source-noise repair, per-company coding
 
-**Date:** 2026-09-19 · **Status:** PROPOSED ·
+**Date:** 2026-09-19 · **Status:** EXECUTED (completed.md #248) ·
 **Area:** helpers/misc/seed_nic2008.py (suggest lane), source industry-edge
 ingestion, note stamping + verify_notes
 

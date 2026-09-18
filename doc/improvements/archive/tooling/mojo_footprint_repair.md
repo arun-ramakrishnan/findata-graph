@@ -1,15 +1,15 @@
 ---
 title: "Mojo footprint repair — mojo format parses every tracked Mojo source"
-status: proposed
+status: executed
 filed: "2026-09-19"
-executed: null
-completed_md: null
+executed: "2026-09-19"
+completed_md: "247"
 area: "Mojo — src/bench, src/common (toolchain/grammar alignment)"
 ---
 
 # Mojo footprint repair — mojo format parses every tracked Mojo source
 
-**Date:** 2026-09-19 · **Status:** PROPOSED ·
+**Date:** 2026-09-19 · **Status:** EXECUTED (completed.md #247) ·
 **Area:** src/bench/bench_scale.mojo, src/common/integrity_check.mojo,
 mojo toolchain pin
 

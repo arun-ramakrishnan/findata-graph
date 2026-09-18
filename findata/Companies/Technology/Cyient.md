@@ -4,7 +4,7 @@ type: company
 ticker: CYIENT.NS
 sector: Technology
 industry: Conglomerates
-industry_code: "26104"
+industry_code: '26104'
 market_cap: large_cap
 normalized_name: Cyient
 permalink: /companies/technology/cyient

@@ -4,7 +4,7 @@ type: company
 ticker: JISLJALEQS.NS
 sector: Agriculture
 industry: Conglomerates
-industry_code: "28212"
+industry_code: '28212'
 market_cap: small_cap
 normalized_name: Jain_Irrigation_Systems
 permalink: /companies/agriculture/jain_irrigation_systems
