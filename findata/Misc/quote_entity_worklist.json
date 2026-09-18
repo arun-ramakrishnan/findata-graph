@@ -474,17 +474,17 @@
   },
   "Amara Raja Energy": {
    "closed_by": "canonical resolves on a later run",
-   "decision": "alias:Amara Raja Batteries",
+   "decision": "alias:Amara Raja Energy and Mobility",
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-19",
    "notes": [
     "The_Chatter/Bosch_Amara_Zydus",
     "The_Chatter/Tailwinds_building",
     "The_Chatter/The_Blind_Spots"
    ],
-   "status": "resolved",
+   "status": "decided",
    "suggestions": [
-    "Amara Raja Batteries"
+    "Amara Raja Energy and Mobility"
    ]
   },
   "Amara Raja Energy & Mobility": {
@@ -2019,7 +2019,7 @@
    "status": "resolved",
    "suggestions": []
   },
-  "Dave &amp; Buster\u2019s Entertainment": {
+  "Dave &amp; Buster’s Entertainment": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
@@ -3335,7 +3335,7 @@
    "status": "resolved",
    "suggestions": []
   },
-  "Herm\u00e8s International": {
+  "Hermès International": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
@@ -4568,7 +4568,7 @@
    "status": "resolved",
    "suggestions": []
   },
-  "L'Or\u00e9al": {
+  "L'Oréal": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
@@ -5496,7 +5496,7 @@
    "status": "resolved",
    "suggestions": []
   },
-  "Nestl\u00e9": {
+  "Nestlé": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
@@ -5506,7 +5506,7 @@
    "status": "resolved",
    "suggestions": []
   },
-  "Nestl\u00e9 India": {
+  "Nestlé India": {
    "closed_by": "canonical resolves on a later run",
    "first_seen": "2026-09-07",
    "last_seen": "2026-09-07",
@@ -5623,13 +5623,16 @@
   },
   "Oil and Natural Gas Corporation": {
    "closed_by": "canonical resolves on a later run",
+   "decision": "alias:ONGC",
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-19",
    "notes": [
     "The_Chatter/ONGC_Divis_LG"
    ],
-   "status": "resolved",
-   "suggestions": []
+   "status": "decided",
+   "suggestions": [
+    "Vedanta Oil and Gas"
+   ]
   },
   "Ola Electric Mobility": {
    "closed_by": "canonical resolves on a later run",

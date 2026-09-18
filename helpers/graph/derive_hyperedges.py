@@ -519,11 +519,18 @@ def resolve_counterparties(conn, *, dry_run: bool = True) -> tuple[int, int, lis
                     (cp, cp, cp, int(eid)),
                 )
         if unresolved:
+            from helpers.core.review_kit import latest_action_by
+
+            parked = latest_action_by(
+                _REPO_ROOT / "outputs" / "worklist_parking" / "counterparty" / "journal.jsonl",
+                key_field="name",
+            )
+            fresh = sorted(cp for cp in set(unresolved) if cp not in parked)
             wl = _REPO_ROOT / "findata" / "Misc" / "counterparty_worklist.json"
             wl.parent.mkdir(parents=True, exist_ok=True)
             wl.write_text(
                 json.dumps(
-                    {"unresolved": sorted(set(unresolved)), "count": len(set(unresolved))},
+                    {"unresolved": fresh, "count": len(fresh), "parked": len(parked)},
                     indent=1,
                 )
                 + "\n"
@@ -958,6 +965,13 @@ def _write_subsector_worklist(
     D7: ``unmapped_authored`` lists hand-authored ``subsector:`` note values
     that resolve to no existing sub_sector entity (visible, not fatal).
     """
+    from helpers.core.review_kit import latest_action_by
+
+    parked = latest_action_by(
+        _REPO_ROOT / "outputs" / "worklist_parking" / "subsector" / "journal.jsonl",
+        key_field="label",
+    )
+    unmapped = [(lbl, n, s) for lbl, n, s in unmapped if lbl not in parked]
     wl = _REPO_ROOT / "findata" / "Misc" / "subsector_worklist.json"
     wl.parent.mkdir(parents=True, exist_ok=True)
     wl.write_text(
@@ -967,6 +981,7 @@ def _write_subsector_worklist(
                     {"label": lbl, "members": n, "suggestion": s} for lbl, n, s in unmapped
                 ],
                 "count": len(unmapped),
+                "parked": len(parked),
                 "unmapped_authored": [
                     {"value": v, "members": n} for v, n in unmapped_authored or []
                 ],

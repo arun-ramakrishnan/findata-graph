@@ -130,24 +130,36 @@ def create_country_entities(conn, countries, *, apply: bool = True) -> int:
     return inserted
 
 
+PARKING_JOURNAL = _REPO_ROOT / "outputs" / "worklist_parking" / "countries" / "journal.jsonl"
+
+
 def write_worklist(worklist: list, path: Path = WORKLIST) -> int:
     """Persist the no-ticker/unmapped companies for human assignment.
 
     Same pattern as the quote worklists: a git-tracked operator surface
     that future ticker fills consume (re-running the producer after a
     ticker lands moves the company onto an edge automatically).
+    Parked companies (``worklist_park.py --queue countries``) are
+    suppressed — decided once, never re-asked (review-kit S4).
     """
+    from helpers.core.review_kit import latest_action_by
+
+    parked = latest_action_by(PARKING_JOURNAL, key_field="name")
+    companies = sorted(worklist, key=lambda w: w["name"])
+    if parked:
+        companies = [w for w in companies if w["name"] not in parked]
     payload = {
         "generated": utc_now(),
-        "count": len(worklist),
-        "companies": sorted(worklist, key=lambda w: w["name"]),
+        "count": len(companies),
+        "parked": len(parked),
+        "companies": companies,
     }
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    return len(worklist)
+    return len(companies)  # persisted count (parked suppressed)
 
 
 # --------------------------------------------------------------------------- #

@@ -27,7 +27,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import difflib
-import time
 import json
 import pathlib
 import re
@@ -839,18 +838,11 @@ def latest_action_by_label(journal_path: pathlib.Path) -> dict[str, str]:
     """Latest journal decision per label ({} when no journal exists).
 
     Only terminal per-label actions count: ``approve`` and ``skip``.
+    Read-back lives in the shared kit (parking semantics, S1 rehome).
     """
-    if not journal_path.exists():
-        return {}
-    latest: dict[str, str] = {}
-    for line in journal_path.read_text().splitlines():
-        if not line.strip():
-            continue
-        d = json.loads(line)
-        lbl, act = d.get("label"), d.get("action")
-        if lbl and act in ("approve", "skip"):
-            latest[lbl] = act
-    return latest
+    from helpers.core.review_kit import latest_action_by
+
+    return latest_action_by(journal_path, key_field="label")
 
 
 def _stamp_industry_code_field(text: str, code: str) -> tuple[str, bool]:
@@ -1070,7 +1062,7 @@ def export_worklist(conn, out_path=None, *, journal_path: pathlib.Path | None = 
     return worklist
 
 
-def review(  # noqa: C901 — interactive keypress loop + apply phases, split would scatter state
+def review(  # thin config over helpers.core.review_kit (S1 rehome, zero behavior change)
     conn,
     *,
     labels_filter: set[str] | None = None,
@@ -1098,9 +1090,12 @@ def review(  # noqa: C901 — interactive keypress loop + apply phases, split wo
     Approved specs go through the SAME promote lane the CLI uses
     (seed_concepts.promote — plan-then-apply, batch-blocked on any
     invalid spec). Every decision is journaled to
-    ``outputs/nic_review/<timestamp>.jsonl`` for audit; the journal is
+    ``outputs/nic_review/journal.jsonl`` for audit; the journal is
     written by the tool, never read back (replays are new sittings).
+    The loop/journal/confirm spine lives in ``helpers.core.review_kit``.
     """
+    from helpers.core.review_kit import Journal, ReviewSession, assemble_entries
+
     seed = json.loads(SEED_PATH.read_text(encoding="utf-8"))
     desc_by_code = {r["code"]: r["description"] for r in seed["subclasses"]}
     members_by_label = label_members(conn)
@@ -1113,33 +1108,6 @@ def review(  # noqa: C901 — interactive keypress loop + apply phases, split wo
         " AND status='active' ORDER BY target_concept"
     ):
         active_by_label.setdefault(row[0], []).append((row[1], row[2]))
-    # default walk = OPEN labels only. Already-promoted labels are opt-in
-    # via --redecide; skip-parked labels (operator marked unsure — low
-    # label quality) via --skipped. --labels naming either pulls it in.
-    wl.setdefault("skipped", [])
-    entries = list(wl["suggested"])
-    if redecide:
-        entries += list(wl["promoted"])
-    elif labels_filter is not None:
-        entries += [e for e in wl["promoted"] if e["label"] in labels_filter]
-    if skipped:
-        entries += list(wl["skipped"])
-    elif labels_filter is not None:
-        entries += [e for e in wl["skipped"] if e["label"] in labels_filter]
-        entries += [e for e in wl.get("no_signal", []) if e["label"] in labels_filter]
-    if labels_filter is not None:
-        entries = [e for e in entries if e["label"] in labels_filter]
-    entries.sort(
-        key=lambda e: (-(e["suggestions"][0]["score"] if e.get("suggestions") else 0), e["label"])
-    )
-    if limit:
-        entries = entries[:limit]
-    # ONE consolidated journal — every sitting APPENDS session-bounded
-    # lines (per-sitting files proliferated: demos and tests each made one)
-    session = time.strftime("%Y%m%d_%H%M%S")
-    journal_path.parent.mkdir(parents=True, exist_ok=True)
-    specs: list[str] = []
-    decisions: list[dict] = []
 
     def show_evidence(e: dict) -> None:
         names = members_by_label.get(e["label"], [])
@@ -1161,18 +1129,21 @@ def review(  # noqa: C901 — interactive keypress loop + apply phases, split wo
             )
         print_fn("     (* = code exists in the NIC-2008 table)")
 
-    for idx, e in enumerate(entries, 1):
+    def render(idx: int, total: int, e: dict) -> None:
         label = e["label"]
         if label in active_by_label:
             stack = " + ".join(
                 f"{c} {desc_by_code.get(c, '')[:38]} [{mt}]" for c, mt in active_by_label[label]
             )
-            print_fn(f"[{idx}/{len(entries)}] {label}  ({e['members']} member(s))  ACTIVE: {stack}")
+            print_fn(f"[{idx}/{total}] {label}  ({e['members']} member(s))  ACTIVE: {stack}")
         else:
-            print_fn(f"[{idx}/{len(entries)}] {label}  ({e['members']} member(s))")
+            print_fn(f"[{idx}/{total}] {label}  ({e['members']} member(s))")
         for n, s in enumerate(e.get("suggestions", []), 1):
             print_fn(f"  {n}) {s['code']} {s['score']:.2f} {s['description'][:70]}")
         show_evidence(e)
+
+    def ask(e: dict, note) -> dict:
+        label = e["label"]
         while True:
             ans = input_fn("  approve? 1-3 / c CODE / s / ? / q / x: ").strip()
             if ans in {"s", "q", "x"} or ans in {"1", "2", "3"}:
@@ -1185,7 +1156,7 @@ def review(  # noqa: C901 — interactive keypress loop + apply phases, split wo
                     print_fn(
                         f"  {mt_try} is not a match type — try again ({'/'.join(MATCH_TYPES)})"
                     )
-                    decisions.append(
+                    note(
                         {
                             "label": label,
                             "action": "bad-override",
@@ -1196,176 +1167,165 @@ def review(  # noqa: C901 — interactive keypress loop + apply phases, split wo
                     continue
                 if code_try not in desc_by_code:
                     print_fn(f"  {code_try} is not a NIC-2008 subclass — try again")
-                    decisions.append({"label": label, "action": "bad-override", "code": code_try})
+                    note({"label": label, "action": "bad-override", "code": code_try})
                     continue
-                picked_mt = mt_try
-                break
+                return {
+                    "label": label,
+                    "action": "approve",
+                    "code": code_try,
+                    "match_type": mt_try,
+                }
             if ans == "?":
                 show_evidence(e)
                 continue
             print_fn("  ? (1-3 / c CODE / s / ? / q / x)")
-        if ans == "x":
-            decisions.append({"label": label, "action": "abort"})
-            print_fn("aborted — nothing applied")
-            break
-        if ans == "q":
-            decisions.append({"label": label, "action": "quit"})
-            break
-        if ans == "s":
-            decisions.append({"label": label, "action": "skip"})
-            continue
-        if ans in {"1", "2", "3"}:
-            code = e["suggestions"][int(ans) - 1]["code"]
-            picked_mt = "closeMatch"
-        else:
-            # override: code[:match_type] already validated in the prompt loop
-            code, _, picked_mt = ans[2:].strip().partition(":")
-            code = code.strip()
-            picked_mt = picked_mt.strip() or "closeMatch"
-        specs.append(f"industry:{label}->nic2008:{code}:{picked_mt}")
-        decisions.append(
-            {"label": label, "action": "approve", "code": code, "match_type": picked_mt}
-        )
+        if ans in {"s", "q", "x"}:
+            return {"label": label, "action": {"s": "skip", "q": "quit", "x": "abort"}[ans]}
+        code = e["suggestions"][int(ans) - 1]["code"]
+        return {"label": label, "action": "approve", "code": code, "match_type": "closeMatch"}
+
+    def spec_of(d: dict, e: dict) -> str:  # noqa: ARG001 — e unused: d carries both codes
+        return f"industry:{d['label']}->nic2008:{d['code']}:{d['match_type']}"
+
+    def post_approve(d: dict, e: dict) -> list[dict]:  # noqa: ARG001 — reads actives, not e
         # a re-decision supersedes only the SAME single-primary lane
         # (closeMatch/exactMatch); set lanes (narrowMatch...) accumulate
-        for a_code, a_mt in active_by_label.get(label, []):
-            if a_mt == picked_mt and a_code != code and a_mt in ("closeMatch", "exactMatch"):
-                decisions.append(
+        out = []
+        for a_code, a_mt in active_by_label.get(d["label"], []):
+            if (
+                a_mt == d["match_type"]
+                and a_code != d["code"]
+                and a_mt in ("closeMatch", "exactMatch")
+            ):
+                out.append(
                     {
-                        "label": label,
+                        "label": d["label"],
                         "action": "supersede-previous",
                         "code": a_code,
                         "match_type": a_mt,
                     }
                 )
-    with journal_path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps({"ts": session, "session": session, "action": "sitting-start"}) + "\n")
-        for d in decisions:
-            fh.write(json.dumps({"ts": session, "session": session, **d}) + "\n")
-        fh.write(
-            json.dumps(
-                {"ts": session, "session": session, "action": "sitting-end", "approved": len(specs)}
-            )
-            + "\n"
-        )
-    result: dict = {
-        "decisions": len(decisions),
-        "approved": len(specs),
-        "applied": 0,
-        "journal": str(journal_path),
-    }
-    if not specs:
-        print_fn("nothing approved")
-        return result
-    print_fn("\nbatch to promote:")
-    for spec in specs:
-        print_fn(f"  {spec}")
-    if not apply:
-        return result
-    sure = input_fn(f"apply {len(specs)} promotion(s)? y/N: ").strip().lower()
-    if sure != "y":
-        print_fn("not confirmed — nothing applied (journal kept)")
-        return result
-    from helpers.misc.seed_concepts import promote
+        return out
 
-    # candidate-backed approvals ride the promote lane; overrides to codes
-    # with no candidate row are OPERATOR-authored actives (own source_ref —
-    # the seed convergers never touch operator rows)
-    candidate_keys = {
-        (row[0], row[1])
-        for row in conn.execute(
-            "SELECT source_concept, target_concept FROM concept_mappings"
-            " WHERE source_ref = ? AND status = 'candidate'",
-            (CANDIDATE_SOURCE_REF,),
-        )
-    }
-    promote_specs, override_rows = [], []
-    for spec in specs:
-        left, _, right = spec.partition("->")
-        src = left.partition(":")[2]
-        tgt, mt = right.split(":")[1], right.split(":")[2]
-        if (src, tgt) in candidate_keys and mt == "closeMatch":
-            promote_specs.append(spec)
-        else:
-            override_rows.append((src, tgt, mt))
-    applied, errors = [], []
-    if promote_specs:
-        # a re-decision supersedes the label's previous active pick first,
-        # else promote() sees it as a conflicting crosswalk
-        redecided = sorted(
-            {
-                (d["label"], d["code"], d.get("match_type", "closeMatch"))
-                for d in decisions
-                if d.get("action") == "supersede-previous"
-            }
-        )
-        conn.executemany(
-            "UPDATE concept_mappings SET status='superseded'"
-            " WHERE source_scheme='industry' AND source_concept=?"
-            " AND target_scheme='nic2008' AND target_concept=? AND match_type=?"
-            " AND status='active'",
-            redecided,
-        )
-        conn.commit()
-        applied, errors = promote(conn, [], promote_specs)
-    if override_rows:
-        # a re-decision supersedes the label's previous active pick first
-        redecided = sorted(
-            {
-                (d["label"], d["code"], d.get("match_type", "closeMatch"))
-                for d in decisions
-                if d.get("action") == "supersede-previous"
-            }
-        )
-        conn.executemany(
-            "UPDATE concept_mappings SET status='superseded'"
-            " WHERE source_scheme='industry' AND source_concept=?"
-            " AND target_scheme='nic2008' AND target_concept=? AND match_type=?"
-            " AND status='active'",
-            redecided,
-        )
-        # upsert: a lane may already hold a candidate/superseded row with the
-        # same key — flip it to active instead of violating the unique key
-        for lbl, code, mt in override_rows:
-            row = conn.execute(
-                "SELECT rowid FROM concept_mappings WHERE source_scheme='industry'"
-                " AND source_concept=? AND target_scheme='nic2008'"
-                " AND target_concept=? AND match_type=?",
-                (lbl, code, mt),
-            ).fetchone()
-            active_row = conn.execute(
-                "SELECT rowid FROM concept_mappings WHERE source_scheme='industry'"
-                " AND source_concept=? AND target_scheme='nic2008'"
-                " AND target_concept=? AND match_type=? AND status='active'",
-                (lbl, code, mt),
-            ).fetchone()
-            if active_row is not None:
-                continue  # already active in this lane — nothing to do
-            if row is None:
-                conn.execute(
-                    "INSERT INTO concept_mappings (source_scheme, source_concept,"
-                    " target_scheme, target_concept, match_type, source_ref, version, status)"
-                    " VALUES ('industry', ?, 'nic2008', ?, ?, ?, ?, 'active')",
-                    (lbl, code, mt, OPERATOR_REVIEW_REF, NIC2008_VERSION),
-                )
+    def apply_batch(specs: list[str], decisions: list[dict]) -> tuple[list[str], list[str]]:
+        from helpers.misc.seed_concepts import promote
+
+        # candidate-backed approvals ride the promote lane; overrides to codes
+        # with no candidate row are OPERATOR-authored actives (own source_ref —
+        # the seed convergers never touch operator rows)
+        candidate_keys = {
+            (row[0], row[1])
+            for row in conn.execute(
+                "SELECT source_concept, target_concept FROM concept_mappings"
+                " WHERE source_ref = ? AND status = 'candidate'",
+                (CANDIDATE_SOURCE_REF,),
+            )
+        }
+        promote_specs, override_rows = [], []
+        for spec in specs:
+            left, _, right = spec.partition("->")
+            src = left.partition(":")[2]
+            tgt, mt = right.split(":")[1], right.split(":")[2]
+            if (src, tgt) in candidate_keys and mt == "closeMatch":
+                promote_specs.append(spec)
             else:
-                conn.execute(
-                    "UPDATE concept_mappings SET status='active', source_ref=?,"
-                    " version=? WHERE rowid=?",
-                    (OPERATOR_REVIEW_REF, NIC2008_VERSION, row[0]),
-                )
-        conn.commit()
-        applied += [
-            f"mapping {lbl} -> nic2008:{code} [{mt}] (operator override)"
-            for lbl, code, mt in override_rows
-        ]
-    for line in applied:
-        print_fn(f"  + {line}")
-    for line in errors:
-        print_fn(f"  ! {line}")
-    result["applied"] = len(applied)
-    result["errors"] = errors
-    return result
+                override_rows.append((src, tgt, mt))
+        applied, errors = [], []
+        if promote_specs:
+            # a re-decision supersedes the label's previous active pick first,
+            # else promote() sees it as a conflicting crosswalk
+            redecided = sorted(
+                {
+                    (d["label"], d["code"], d.get("match_type", "closeMatch"))
+                    for d in decisions
+                    if d.get("action") == "supersede-previous"
+                }
+            )
+            conn.executemany(
+                "UPDATE concept_mappings SET status='superseded'"
+                " WHERE source_scheme='industry' AND source_concept=?"
+                " AND target_scheme='nic2008' AND target_concept=? AND match_type=?"
+                " AND status='active'",
+                redecided,
+            )
+            conn.commit()
+            applied, errors = promote(conn, [], promote_specs)
+        if override_rows:
+            # a re-decision supersedes the label's previous active pick first
+            redecided = sorted(
+                {
+                    (d["label"], d["code"], d.get("match_type", "closeMatch"))
+                    for d in decisions
+                    if d.get("action") == "supersede-previous"
+                }
+            )
+            conn.executemany(
+                "UPDATE concept_mappings SET status='superseded'"
+                " WHERE source_scheme='industry' AND source_concept=?"
+                " AND target_scheme='nic2008' AND target_concept=? AND match_type=?"
+                " AND status='active'",
+                redecided,
+            )
+            # upsert: a lane may already hold a candidate/superseded row with the
+            # same key — flip it to active instead of violating the unique key
+            for lbl, code, mt in override_rows:
+                row = conn.execute(
+                    "SELECT rowid FROM concept_mappings WHERE source_scheme='industry'"
+                    " AND source_concept=? AND target_scheme='nic2008'"
+                    " AND target_concept=? AND match_type=?",
+                    (lbl, code, mt),
+                ).fetchone()
+                active_row = conn.execute(
+                    "SELECT rowid FROM concept_mappings WHERE source_scheme='industry'"
+                    " AND source_concept=? AND target_scheme='nic2008'"
+                    " AND target_concept=? AND match_type=? AND status='active'",
+                    (lbl, code, mt),
+                ).fetchone()
+                if active_row is not None:
+                    continue  # already active in this lane — nothing to do
+                if row is None:
+                    conn.execute(
+                        "INSERT INTO concept_mappings (source_scheme, source_concept,"
+                        " target_scheme, target_concept, match_type, source_ref, version, status)"
+                        " VALUES ('industry', ?, 'nic2008', ?, ?, ?, ?, 'active')",
+                        (lbl, code, mt, OPERATOR_REVIEW_REF, NIC2008_VERSION),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE concept_mappings SET status='active', source_ref=?,"
+                        " version=? WHERE rowid=?",
+                        (OPERATOR_REVIEW_REF, NIC2008_VERSION, row[0]),
+                    )
+            conn.commit()
+            applied += [
+                f"mapping {lbl} -> nic2008:{code} [{mt}] (operator override)"
+                for lbl, code, mt in override_rows
+            ]
+        return applied, errors
+
+    entries = assemble_entries(
+        wl,
+        labels_filter=labels_filter,
+        redecide=redecide,
+        skipped=skipped,
+        sort_key=lambda e: (
+            -(e["suggestions"][0]["score"] if e.get("suggestions") else 0),
+            e["label"],
+        ),
+        limit=limit,
+    )
+    return ReviewSession(
+        entries=entries,
+        journal=Journal(journal_path),
+        render=render,
+        ask=ask,
+        spec_of=spec_of,
+        apply_batch=apply_batch,
+        post_approve=post_approve,
+        input_fn=input_fn,
+        print_fn=print_fn,
+        apply_flag=apply,
+    ).run()
 
 
 def converge(conn, *, apply: bool) -> dict[str, int]:

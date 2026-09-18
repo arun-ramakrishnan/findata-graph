@@ -40,6 +40,7 @@ WORKLIST = _REPO_ROOT / "findata" / "Misc" / "quote_entity_worklist.json"
 ALIASES = _REPO_ROOT / "findata" / "Misc" / "quote_aliases.json"
 DECISIONS = _REPO_ROOT / "findata" / "Misc" / "quote_triage_decisions.jsonl"
 REPORT = _REPO_ROOT / "findata" / "Misc" / "quote_triage_report.md"
+REVIEW_JOURNAL_DIR = _REPO_ROOT / "outputs" / "quotes_review"
 
 # Mangled-canonical signature: converter artifacts neither the exact nor the
 # qualifier tiers can fix — trailing `I` / `]` / `,` / `;`, stray `_`, a
@@ -236,6 +237,252 @@ def cmd_apply() -> int:  # noqa: C901
     return 0
 
 
+# --------------------------------------------------------------------------- #
+# review — journaled sitting over the open worklist (review-kit S3)          #
+# --------------------------------------------------------------------------- #
+_REVIEW_FILE_FIELDS = ("id", "canonical", "bucket", "suggestions", "notes", "vss_hint")
+
+
+def _entity_lookup(query: str, entities: dict[str, str]) -> tuple[str | None, list[str]]:
+    """Resolve an alias target against entities: exact (case-insensitive)
+    hit, else substring (space-stripped too) + acronym-initials candidates.
+
+    ``ongc`` resolves to ``Oil & Natural Gas Corporation`` via initials —
+    the abbreviations operators type rarely appear inside the name.
+    """
+    q = query.lower()
+    if q in entities:
+        return entities[q], []
+    cands = {
+        name
+        for name in entities.values()
+        if q in name.lower() or q.replace(" ", "") in name.lower().replace(" ", "")
+    }
+    # token-prefix (1-char stem): every query token prefixes some name
+    # token, optionally minus its last char ('exide industry' ->
+    # 'Exide Industries' — y->ies and trailing-s plurals)
+    qt = [t for t in q.split() if len(t) >= 4]
+    if qt:  # guard: all() over no tokens would vacuously match everything
+        for name in entities.values():
+            nt = [t for t in name.lower().split() if len(t) >= 3]
+            if all(
+                any(n.startswith(t) or (len(t) >= 4 and n.startswith(t[:-1])) for n in nt)
+                for t in qt
+            ):
+                cands.add(name)
+    if " " not in q:
+        for name in entities.values():
+            initials = "".join(w[0] for w in name.split() if w.isalpha())
+            if q == initials.lower():
+                cands.add(name)
+    return None, sorted(cands)[:8]
+
+
+def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter state
+    *,
+    limit: int | None = None,
+    input_fn=input,
+    print_fn=print,
+    apply: bool = True,
+    journal_dir: Path | None = None,
+    redecide: bool = False,
+    skipped: bool = False,
+) -> dict:
+    """Interactive sitting over the open quote canonicals (review-kit S3).
+
+    One keypress per canonical — the sitting only PRODUCES decision rows;
+    the confirm gate appends them to the decisions file, and apply stays
+    the existing ``--apply-decisions`` step (unchanged validator,
+    unchanged writes; the file is no longer hand-edited):
+
+      1/2/3      alias to suggestion n (entity-validated)
+      al NAME    alias to an existing entity NAME
+      st         stub (user-held entity creation)
+      sc CIN     stub + CIN captured now (`stub|cin=`, parse-validated)
+      d          discard
+      p          park — never re-asked (journal read-back)
+      ?          re-render evidence
+      q / x      quit-and-review / abort the walk
+
+    Parking keys on the stable entry id (sha256 of the canonical);
+    already-decided rows (decisions-file read-back) are excluded unless
+    ``--redecide``. VSS hints render only when a prior ``--report`` run
+    computed them (never recomputed, never pre-filled — D4).
+    """
+    from helpers.core.review_kit import Journal, ReviewSession, assemble_entries, latest_action_by
+
+    journal_path = (journal_dir or REVIEW_JOURNAL_DIR) / "journal.jsonl"
+    wl = json.loads(WORKLIST.read_text())
+    rows = build_decisions(wl)
+    decided_rows: list[dict] = []
+    decided_ids: set[str] = set()
+    if DECISIONS.exists():
+        for r in load_decisions():
+            if r.get("decision", "").strip():
+                decided_rows.append(r)
+                decided_ids.add(r["id"])
+    parked_ids = latest_action_by(journal_path, key_field="id")
+    hint_by_id = {r["id"]: r.get("vss_hint", "") for r in rows if r.get("vss_hint")}
+
+    def _entry(r: dict) -> dict:
+        e = dict(r)
+        e.setdefault("vss_hint", "")
+        e["label"] = r["id"]  # kit item key == stable entry id
+        return e
+
+    open_rows = [r for r in rows if r["id"] not in decided_ids]
+    for r in open_rows:
+        r["vss_hint"] = hint_by_id.get(r["id"], "")
+    wl_lanes = {
+        "suggested": [_entry(r) for r in open_rows if r["id"] not in parked_ids],
+        "promoted": [_entry(r) for r in decided_rows],
+        "skipped": [_entry(r) for r in open_rows if r["id"] in parked_ids],
+        "no_signal": [],
+    }
+    _bucket_rank = {"alias_candidate": 0, "garbage_shape": 1, "stub_candidate": 2}
+    entries = assemble_entries(
+        wl_lanes,
+        labels_filter=None,
+        redecide=redecide,
+        skipped=skipped,
+        sort_key=lambda e: (_bucket_rank.get(e.get("bucket", ""), 9), e["label"]),
+        limit=limit,
+    )
+
+    conn = connect()
+    entities = {r[0].lower(): r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
+    conn.close()
+
+    legend = [
+        "  keys: 1-3 alias to suggestion n (* = suggestion is an existing entity)",
+        "        al NAME  alias to an existing entity by exact name",
+        "        st       stub (entity note created by hand later)",
+        "        sc CIN   stub + record CIN now (validated at keypress)",
+        "        d        discard — never asked again   p  park — skip, reopen via --skipped",
+        "        ?        this legend + evidence        q/x  quit-and-review / abort walk",
+    ]
+    if entries:
+        print_fn("\n".join(legend))
+
+    def _evidence(e: dict) -> None:
+        for n, sugg in enumerate(e.get("suggestions", []), 1):
+            mark = "*" if sugg.lower() in entities else " "
+            print_fn(f"     {mark}{n}) {sugg}")
+        for note in e.get("notes", [])[:3]:
+            print_fn(f"     note: {note}")
+        if e.get("vss_hint"):
+            print_fn(f"     vss: {e['vss_hint']}")
+
+    def render(idx: int, total: int, e: dict) -> None:
+        print_fn(f"[{idx}/{total}] `{e['id']}` {e['canonical']}  ({e.get('bucket', '?')})")
+        _evidence(e)
+
+    def ask(e: dict, note) -> dict:
+        rid = e["id"]
+        sugg = e.get("suggestions", [])
+        while True:
+            ans = input_fn("  alias 1-3 / al NAME / st / sc CIN / d / p / ? / q / x: ").strip()
+            if ans in {"p", "q", "x"}:
+                return {"id": rid, "action": {"p": "skip", "q": "quit", "x": "abort"}[ans]}
+            if ans == "?":
+                print_fn("\n".join(legend))
+                _evidence(e)
+                continue
+            file_decision = None
+            if ans in {"1", "2", "3"}:
+                n = int(ans)
+                if n > len(sugg):
+                    print_fn(f"  no suggestion {n} — pick within 1-{len(sugg)}")
+                    note({"id": rid, "action": "bad-pick", "pick": n})
+                    continue
+                target = sugg[n - 1]
+                if target.lower() not in entities:
+                    print_fn(f"  suggestion {target!r} is not an existing entity — use al/st")
+                    note({"id": rid, "action": "bad-pick", "target": target})
+                    continue
+                file_decision = f"alias:{target}"
+            elif ans.startswith("al ") or ans == "al":
+                query = ans[3:].strip()
+                if not query:
+                    print_fn("  al <part of name> — exact, substring, or acronym (e.g. al ongc)")
+                    continue
+                target, cands = _entity_lookup(query, entities)
+                if target is None and len(cands) == 1:
+                    target = cands[0]
+                    print_fn(f"  matched: {target}")
+                if target is None:
+                    if not cands:
+                        print_fn(f"  no entity matches {query!r} — try another spelling or st")
+                        note({"id": rid, "action": "bad-alias", "target": query})
+                        continue
+                    print_fn("  candidates:")
+                    for i, c in enumerate(cands, 1):
+                        print_fn(f"    {i}) {c}")
+                    pick = input_fn("  pick 1-8 / or al <name> again: ").strip()
+                    if pick.isdigit() and 1 <= int(pick) <= len(cands):
+                        target = cands[int(pick) - 1]
+                    elif pick.startswith("al "):
+                        target, c2 = _entity_lookup(pick[3:].strip(), entities)
+                        if target is None and len(c2) == 1:
+                            target = c2[0]
+                    if target is None:
+                        print_fn("  ? (pick a number or al <name>)")
+                        note({"id": rid, "action": "bad-alias", "target": pick})
+                        continue
+                file_decision = f"alias:{target}"
+            elif ans == "st":
+                file_decision = "stub"
+            elif ans.startswith("sc "):
+                cin_value = ans[3:].strip()
+                p = parse_cin(cin_value)
+                if not p.ok:
+                    print_fn(f"  cin {cin_value!r}: {p.message}")
+                    note({"id": rid, "action": "bad-cin", "cin": cin_value})
+                    continue
+                file_decision = f"stub|cin={p.value}"
+            elif ans == "d":
+                file_decision = "discard"
+            else:
+                print_fn("  ? (1-3 / al NAME / st / sc CIN / d / p / ? / q / x)")
+                continue
+            d = {"id": rid, "action": "approve", "decision": file_decision}
+            for k in _REVIEW_FILE_FIELDS:
+                d[k] = e.get(k, [] if k in ("suggestions", "notes") else "")
+            return d
+
+    def spec_of(d: dict, e: dict) -> str:  # noqa: ARG001 — d carries the row fields
+        return f"{d['canonical']} -> {d['decision']}"
+
+    def apply_batch(specs: list[str], decisions: list[dict]) -> tuple[list[str], list[str]]:
+        out_rows = [
+            {k: d.get(k, [] if k in ("suggestions", "notes") else "") for k in _REVIEW_FILE_FIELDS}
+            | {"decision": d["decision"]}
+            for d in decisions
+            if d.get("action") == "approve"
+        ]
+        with DECISIONS.open("a", encoding="utf-8") as f:
+            for r in out_rows:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        return (
+            [f"{len(out_rows)} decision row(s) appended -> {DECISIONS.name}"],
+            ["next: python3 helpers/graph/triage_pending_quotes.py --apply-decisions"],
+        )
+
+    return ReviewSession(
+        entries=entries,
+        journal=Journal(journal_path),
+        render=render,
+        ask=ask,
+        spec_of=spec_of,
+        apply_batch=apply_batch,
+        batch_header="batch to append to the decisions file:",
+        apply_noun="decision row(s)",
+        input_fn=input_fn,
+        print_fn=print_fn,
+        apply_flag=apply,
+    ).run()
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(
         description="Triage the quote entity worklist (S7, triage_pending_quotes)"
@@ -245,7 +492,31 @@ def main(argv=None) -> int:
         action="store_true",
         help="apply annotated decisions (default: regenerate report)",
     )
+    ap.add_argument(
+        "--review",
+        action="store_true",
+        help="interactive journaled sitting over open canonicals (review-kit S3); "
+        "appends decision rows on confirm",
+    )
+    ap.add_argument("--limit", type=int, default=None, help="review: cap rows per sitting")
+    ap.add_argument(
+        "--redecide", action="store_true", help="review: also re-walk annotated-unapplied rows"
+    )
+    ap.add_argument(
+        "--skipped", action="store_true", help="review: also re-walk journaled-parked/declined rows"
+    )
+    ap.add_argument(
+        "--dry-run", action="store_true", help="review: journal + print the batch, write nothing"
+    )
     args = ap.parse_args(argv)
+    if args.review:
+        review(
+            limit=args.limit,
+            redecide=args.redecide,
+            skipped=args.skipped,
+            apply=not args.dry_run,
+        )
+        return 0
     return cmd_apply() if args.apply_decisions else cmd_report()
 
 

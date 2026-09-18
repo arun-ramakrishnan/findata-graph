@@ -6,6 +6,7 @@ Hermetic: tmp sidecar/decisions files, monkeypatched entity names.
 
 import json
 import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -284,6 +285,181 @@ class TestCliFlow:
         tpr.DECISIONS.write_text(broken, encoding="utf-8")
         with pytest.raises(SystemExit, match="is not valid JSON"):
             tpr._read_decisions(tpr.DECISIONS)
+
+
+class TestReviewSitting:
+    """review-kit S2: journaled sitting -> tool-written decision rows."""
+
+    def _sidecar(self, sidecar, rows):
+        sidecar.write_text("\n".join(_row(*r) for r in rows) + "\n", encoding="utf-8")
+
+    def _review(self, answers, sidecar, apply=True, **kw):
+        it = iter(answers)
+        out = []
+        rep = tpr.review(
+            input_fn=lambda _p: next(it),
+            print_fn=out.append,
+            apply=apply,
+            journal_dir=sidecar.parent,
+            **kw,
+        )
+        return rep, out
+
+    def _file_rows(self):
+        return [json.loads(x) for x in tpr.DECISIONS.read_text().splitlines() if x.strip()]
+
+    def test_accept_appends_row_the_validator_consumes(self, paths):
+        self._sidecar(
+            paths, [("supplier_to", "Acme Corp", "Dixon Technologies", "supplies batteries")]
+        )
+        rep, out = self._review(["a", "y"], paths)
+        assert rep["approved"] == 1 and rep["applied"] == 1
+        rows = self._file_rows()
+        assert [r["decision"] for r in rows] == ["accept:supplier_to"]
+        assert rows[0]["note"] == "" and rows[0]["bucket"]
+        # the sitting's output must satisfy the EXISTING validator end-to-end
+        plan = tpr._validate_decisions(rows, tpr.load_entity_names())
+        assert plan is not None and len(plan["accepts"]) == 1
+        assert plan["accepts"][0]["source"] == "Acme Corp"
+        assert plan["accepts"][0]["target"] == "Dixon Technologies"
+        # journal block + follow-up hint
+        assert any("--apply-decisions" in ln for ln in out)
+        assert Path(rep["journal"]).exists()
+
+    def test_accept_with_note_and_target_override(self, paths):
+        self._sidecar(paths, [("jv_with", "Acme Corp", "Dixn Tech", "typo'd mention")])
+        rep, _ = self._review(["a/jv_with/Dixon Technologies | fix typo", "y"], paths)
+        assert rep["approved"] == 1
+        rows = self._file_rows()
+        assert rows[0]["decision"] == "accept:jv_with:Dixon Technologies"
+        assert rows[0]["note"] == "fix typo"
+
+    def test_bad_accept_reasks_then_discard(self, paths):
+        self._sidecar(paths, [("supplier_to", "Graphite India", "Japan", "sourced from Japan")])
+        rep, out = self._review(["a", "d | country not entity", "y"], paths)
+        assert rep["approved"] == 1
+        rows = self._file_rows()
+        assert rows[0]["decision"] == "discard" and rows[0]["note"] == "country not entity"
+        assert any("not an existing entity" in ln for ln in out)
+
+    def test_alias_validates_target(self, paths):
+        self._sidecar(paths, [("jv_with", "Acme Corp", "Kubota Corporation", "jv with Kubota")])
+        rep, out = self._review(["al Bogus Co", "al Colgate Palmolive India", "y"], paths)
+        assert rep["approved"] == 1
+        rows = self._file_rows()
+        assert rows[0]["decision"] == "alias:Colgate Palmolive India"
+        assert any("no entity matches" in ln for ln in out)
+
+    def test_park_never_reasks(self, paths):
+        self._sidecar(paths, [("supplier_to", "Acme Corp", "Dixon Technologies", "q")])
+        rep, _ = self._review(["p"], paths)
+        assert rep["approved"] == 0 and not tpr.DECISIONS.exists()
+        j = json.loads(Path(rep["journal"]).read_text().splitlines()[1])
+        assert j["action"] == "skip"
+        # second sitting: parked row is not re-asked (would exhaust the
+        # answer iterator if walked)
+        rep2, _ = self._review([], paths)
+        assert rep2["approved"] == 0
+        # ...but --skipped re-opens it
+        rep3, _ = self._review(["d", "y"], paths, skipped=True)
+        assert rep3["approved"] == 1
+
+    def test_decided_rows_excluded_unless_redecide(self, paths):
+        self._sidecar(
+            paths,
+            [
+                ("supplier_to", "Acme Corp", "Dixon Technologies", "q1"),
+                ("supplier_to", "Graphite India", "Japan", "q2"),
+            ],
+        )
+        rep, _ = self._review(["a", "y"], paths, limit=1)  # walks ONE row (manual bucket first)
+        assert rep["approved"] == 1
+        rep2, _ = self._review(["d", "y"], paths)
+        rows = self._file_rows()
+        assert len(rows) == 2 and rows[0]["target_mention"] != rows[1]["target_mention"]
+        rep3, _ = self._review(["d", "d", "y"], paths, redecide=True)
+        assert rep3["approved"] == 2  # redecide re-walked BOTH decided rows
+
+    def test_dry_run_journals_but_writes_no_rows(self, paths):
+        self._sidecar(paths, [("supplier_to", "Acme Corp", "Dixon Technologies", "q")])
+        rep, _ = self._review(["a", "y"], paths, apply=False)
+        assert rep["approved"] == 1 and rep["applied"] == 0
+        assert not tpr.DECISIONS.exists()
+        assert Path(rep["journal"]).exists()
+
+    def test_cli_review_flag_wiring(self, paths, monkeypatch, capsys):
+        self._sidecar(paths, [("supplier_to", "Acme Corp", "Dixon Technologies", "q")])
+        calls = []
+
+        def fake_review(**kw):
+            calls.append(kw)
+            return {"approved": 0, "applied": 0, "decisions": 0, "journal": "x"}
+
+        monkeypatch.setattr(tpr, "review", fake_review)
+        assert tpr.main(["--review", "--limit", "3", "--redecide", "--skipped", "--dry-run"]) == 0
+        assert calls == [
+            {
+                "limit": 3,
+                "redecide": True,
+                "skipped": True,
+                "apply": False,
+            }
+        ]
+        assert tpr.main(["--review"]) == 0 and calls[-1] == {
+            "limit": None,
+            "redecide": False,
+            "skipped": False,
+            "apply": True,
+        }
+
+    def test_accept_target_db_lookup(self, paths):
+        # a//QUERY keeps the row's edge type, resolves the target via DB
+        # lookup (acronym/substring/token-prefix), numbered pick if ambiguous
+        self._sidecar(paths, [("supplier_to", "Acme Corp", "EPC contractors", "q")])
+        rep, out = self._review(["a//dixon", "y"], paths, limit=1)
+        assert rep["approved"] == 1
+        rows = self._file_rows()
+        assert rows[-1]["decision"] == "accept:supplier_to:Dixon Technologies"
+        assert any("matched: Dixon Technologies" in ln for ln in out)
+
+    def test_accept_target_lookup_numbered_pick(self, paths):
+        self._sidecar(paths, [("supplier_to", "Acme Corp", "EPC contractors", "q")])
+        rep, out = self._review(["a//india", "2", "y"], paths, limit=1)
+        assert rep["approved"] == 1
+        rows = self._file_rows()
+        assert rows[-1]["decision"].startswith("accept:supplier_to:")
+        assert any("candidates:" in ln for ln in out)
+
+    def test_accept_plain_mention_not_entity_still_reasks(self, paths):
+        # plain 'a' (no override) against a non-entity mention keeps the
+        # guided error — the mention itself is never DB-guessed
+        self._sidecar(paths, [("supplier_to", "Graphite India", "Japan", "q")])
+        rep, out = self._review(["a", "d", "y"], paths, limit=1)
+        assert rep["approved"] == 1
+        assert any("not an existing entity" in ln for ln in out)
+
+    def test_alias_db_lookup_acronym(self, paths):
+        self._sidecar(paths, [("jv_with", "Acme Corp", "Kubota Corporation", "jv with Kubota")])
+        rep, out = self._review(["al colgate", "y"], paths, limit=1)
+        rows = [json.loads(x) for x in tpr.DECISIONS.read_text().splitlines() if x.strip()]
+        assert rows[-1]["decision"] == "alias:Colgate Palmolive India"
+        assert any("matched:" in ln for ln in out)
+
+    def test_alias_db_lookup_numbered_pick(self, paths):
+        self._sidecar(paths, [("jv_with", "Acme Corp", "Kubota Corporation", "jv")])
+        rep, out = self._review(["al india", "2", "y"], paths, limit=1)
+        rows = [json.loads(x) for x in tpr.DECISIONS.read_text().splitlines() if x.strip()]
+        assert rows[-1]["decision"].startswith("alias:")
+        assert any("candidates:" in ln for ln in out)
+
+    def test_quit_and_abort(self, paths):
+        self._sidecar(paths, [("supplier_to", "Acme Corp", "Dixon Technologies", "q")])
+        rep, _ = self._review(["q"], paths)
+        assert rep["approved"] == 0
+        rep2, _ = self._review(["x"], paths)
+        assert rep2["approved"] == 0
+        jlines = Path(rep2["journal"]).read_text().splitlines()
+        assert json.loads(jlines[-1])["action"] == "sitting-end"
 
 
 class TestExtractorIntegration:

@@ -185,16 +185,17 @@
    "status": "closed"
   },
   "The_Chatter/Bosch_Amara_Zydus": {
+   "accepted": 0,
    "buckets": {
     "G2": 14
    },
    "closed_by": "recovered (coverage 100%)",
-   "coverage": 1.0,
+   "coverage": 0.7358,
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-19",
    "openings": 53,
-   "runs_seen": 14,
-   "status": "closed"
+   "runs_seen": 15,
+   "status": "open"
   },
   "The_Chatter/Bottlenecks__Breakouts": {
    "buckets": {
@@ -952,17 +953,17 @@
    "status": "closed"
   },
   "The_Chatter/Tailwinds_building": {
+   "accepted": 0,
    "buckets": {
-    "G2": 5,
-    "G3": 1
+    "G2": 8
    },
    "closed_by": "recovered (coverage 99%)",
-   "coverage": 0.9913,
+   "coverage": 0.9304,
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-19",
    "openings": 115,
-   "runs_seen": 16,
-   "status": "closed"
+   "runs_seen": 17,
+   "status": "open"
   },
   "The_Chatter/Talking_Points": {
    "buckets": {
@@ -1003,16 +1004,17 @@
    "status": "closed"
   },
   "The_Chatter/The_Blind_Spots": {
+   "accepted": 0,
    "buckets": {
-    "G2": 15
+    "G2": 12
    },
    "closed_by": "recovered (coverage 98%)",
-   "coverage": 0.9796,
+   "coverage": 0.9184,
    "first_seen": "2026-09-07",
-   "last_seen": "2026-09-07",
+   "last_seen": "2026-09-19",
    "openings": 147,
-   "runs_seen": 14,
-   "status": "closed"
+   "runs_seen": 15,
+   "status": "open"
   },
   "The_Chatter/The_Known_Unknowns": {
    "buckets": {

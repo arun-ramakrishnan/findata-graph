@@ -209,3 +209,25 @@ def test_write_worklist(tmp_path):
     assert data["count"] == 2
     assert [c["name"] for c in data["companies"]] == ["A", "B"]  # sorted
     assert data["companies"][0]["reason"] == "unmapped_suffix"
+
+
+class TestWorklistParking:
+    """review-kit S4: parked companies are suppressed on export."""
+
+    def test_write_worklist_filters_parked(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(dc, "PARKING_JOURNAL", tmp_path / "wp" / "countries" / "journal.jsonl")
+        from helpers.core.review_kit import park_items
+
+        park_items(dc.PARKING_JOURNAL, ["Unlisted PSU Co"], key_field="name")
+        out = tmp_path / "wl.json"
+        n = dc.write_worklist(
+            [
+                {"name": "Unlisted PSU Co", "reason": "no_ticker"},
+                {"name": "Other Co", "reason": "unmapped_suffix"},
+            ],
+            out,
+        )
+        assert n == 1
+        payload = json.loads(out.read_text())
+        assert [w["name"] for w in payload["companies"]] == ["Other Co"]
+        assert payload["count"] == 1 and payload["parked"] == 1

@@ -1096,3 +1096,38 @@ class TestWeightedWalk:
             weights={("e1", "A"): 10.0},
         )
         assert res["_meta"]["weighted_incidences"] == 1
+
+
+class TestWorklistParking:
+    """review-kit S4: parked items are suppressed on worklist export."""
+
+    def test_counterparty_worklist_filters_parked(self, conn, tmp_path, monkeypatch):
+        c = TestCounterpartyResolution._events_conn(conn)
+        monkeypatch.setattr(dh, "_REPO_ROOT", tmp_path)
+        from helpers.core.review_kit import park_items
+
+        park_items(
+            tmp_path / "outputs" / "worklist_parking" / "counterparty" / "journal.jsonl",
+            ["Ghost CP Co"],
+            key_field="name",
+        )
+        n_ok, n_bad, _ = dh.resolve_counterparties(c, dry_run=False)
+        assert (n_ok, n_bad) == (1, 1)
+        wl = json.loads((tmp_path / "findata" / "Misc" / "counterparty_worklist.json").read_text())
+        assert wl["unresolved"] == [] and wl["count"] == 0 and wl["parked"] == 1
+
+    def test_subsector_worklist_filters_parked(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(dh, "_REPO_ROOT", tmp_path)
+        from helpers.core.review_kit import park_items
+
+        park_items(
+            tmp_path / "outputs" / "worklist_parking" / "subsector" / "journal.jsonl",
+            ["Banks - Regional"],
+            key_field="label",
+        )
+        dh._write_subsector_worklist(
+            [("Banks - Regional", 38, "new sub_sector Banks"), ("Widgets", 2, "map to Widgets")]
+        )
+        wl = json.loads((tmp_path / "findata" / "Misc" / "subsector_worklist.json").read_text())
+        assert [u["label"] for u in wl["unmapped"]] == ["Widgets"]
+        assert wl["count"] == 1 and wl["parked"] == 1

@@ -6477,3 +6477,37 @@ wrong + 126 errors now returns **0 wrong, 0 errors, 3,000 correct**. Three
 regression tests pin the contract: requests get distinct connections, one
 request reuses its connection, teardown closes it, and the direct-call
 singleton is untouched.
+
+## 252. Review kit — journaled sitting workflow for every triage queue
+
+**Proposal**: `doc/improvements/archive/tooling/review_kit.md`
+(filed + executed 2026-09-19; operator drove each surface on the live
+queues — sitting validation was hands-on, not just tested).
+
+Extracted the NIC sitting workflow (#246) into a shared kit and rehomed
+every manual-review surface onto it: one keypress per item, append-only
+session journal, parking read-back ("decided once, never re-asked"),
+and batch confirm as the only write gate.
+
+- **S1 kit**: `helpers/core/review_kit.py` (Journal, assemble_entries,
+  ReviewSession, park_items, latest_action_by); `seed_nic2008.review`
+  rehomed zero-behavior-change (54 tests unmodified);
+  `doc/procedures/review-kit.md` = journal convention + operator runbook.
+- **S2 relations sitting**: `triage_pending_relations --review` —
+  accept (targets DB-resolved, `a//kec`), discard->noise, alias, stub,
+  park, free notes; the sitting only appends validated rows,
+  `--apply-decisions` unchanged.
+- **S3 quotes sitting**: `triage_pending_quotes --review` — suggestion
+  picks, stub+cin parsed at the keypress, alias with DB lookup.
+- **S4 export-side parking**: `worklist_park.py` + producer suppression
+  for country/subsector/counterparty worklists (`"parked": N`);
+  retro_resolution deliberately unwired (one-shot D17 artifact).
+- **Dry-run safety** (found live during operator driving): sittings
+  journal `preview-approve`/`preview-skip` actions — exploration never
+  parks an item.
+
+Tests: kit 13, relations 42, quotes 16 — 200 green across the six
+touched suites. Gates: `make qa` 8/10 — md-lint = pre-existing
+operator-local `security_evaluation.md` MD018 (mid-edit, not this arc);
+snapshot_check drift = the operator's parallel derive+sitting writes,
+re-converged at generation 105389 post-run. All other gates green.

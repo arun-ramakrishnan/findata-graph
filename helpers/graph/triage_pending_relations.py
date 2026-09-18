@@ -63,6 +63,7 @@ ALIAS_FILE = _REPO_ROOT / "findata" / "Misc" / "relation_aliases.json"
 # re-entry lesson: 10 discarded noise rows came straight back).
 NOISE_FILE = _REPO_ROOT / "findata" / "Misc" / "relation_noise.json"
 REPORT = _REPO_ROOT / "findata" / "Misc" / "_pending_triage_report.md"
+REVIEW_JOURNAL_DIR = _REPO_ROOT / "outputs" / "relations_review"
 DECISIONS = _REPO_ROOT / "findata" / "Misc" / "_pending_triage_decisions.jsonl"
 # graph_edges write target for `accept:` decisions. None = connect()'s
 # default (memory/research.db); tests point it at a tmp schema file.
@@ -813,6 +814,308 @@ def _print_followups(has_stubs: bool) -> None:
     print("  make snapshot   # or the maint-full wrap-up")
 
 
+# --------------------------------------------------------------------------- #
+# review — journaled sitting over the open queue (review-kit proposal S2)     #
+# --------------------------------------------------------------------------- #
+_REVIEW_FILE_FIELDS = (
+    "id",
+    "edge_type",
+    "source",
+    "target_mention",
+    "direction",
+    "bucket",
+    "word_overlap",
+    "vss_hint",
+)
+
+
+def _entity_lookup(query: str, names: set[str]) -> tuple[str | None, list[str]]:
+    """Resolve an alias target against entity names: exact
+    (case-insensitive) hit, else substring (space-stripped too) +
+    acronym-initials candidates (``ongc`` -> ``Oil & Natural Gas
+    Corporation``)."""
+    entities = {n.lower(): n for n in names}
+    q = query.lower()
+    if q in entities:
+        return entities[q], []
+    cands = {
+        name
+        for name in names
+        if q in name.lower() or q.replace(" ", "") in name.lower().replace(" ", "")
+    }
+    # token-prefix (1-char stem): every query token prefixes some name
+    # token, optionally minus its last char ('exide industry' ->
+    # 'Exide Industries' — y->ies and trailing-s plurals)
+    qt = [t for t in q.split() if len(t) >= 4]
+    if qt:  # guard: all() over no tokens would vacuously match everything
+        for name in names:
+            nt = [t for t in name.lower().split() if len(t) >= 3]
+            if all(
+                any(n.startswith(t) or (len(t) >= 4 and n.startswith(t[:-1])) for n in nt)
+                for t in qt
+            ):
+                cands.add(name)
+    if " " not in q:
+        for name in names:
+            initials = "".join(w[0] for w in name.split() if w.isalpha())
+            if q == initials.lower():
+                cands.add(name)
+    return None, sorted(cands)[:8]
+
+
+def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter state
+    *,
+    limit: int | None = None,
+    input_fn=input,
+    print_fn=print,
+    apply: bool = True,
+    journal_dir: Path | None = None,
+    redecide: bool = False,
+    skipped: bool = False,
+) -> dict:
+    """Interactive sitting over the open prose queue (review-kit S2).
+
+    One keypress per row — the sitting only PRODUCES decision rows;
+    the confirm gate appends them to the decisions file, and apply stays
+    the existing ``--apply-decisions`` step (unchanged validator,
+    unchanged writes; the file is no longer hand-edited):
+
+      a[/EDGE_TYPE[/TARGET]]  accept (target entity-validated; override
+                              the edge type / a mangled mention target)
+      d                       reject -> noise gate (discard)
+      al NAME                 alias the mention to existing entity NAME
+      st                      stub (entity note via the follow-up chain)
+      p                       park — never re-asked (journal read-back)
+      ?                       re-render evidence
+      q / x                   quit-and-review / abort the walk
+
+    Any verb may carry ``| free note`` — it lands in the row's note field.
+    Parking keys on the stable row id (``_row_id``); already-decided rows
+    (decisions file read-back) are excluded unless ``--redecide``.
+    """
+    from helpers.core.review_kit import Journal, ReviewSession, assemble_entries, latest_action_by
+
+    names = load_entity_names()
+    journal_path = (journal_dir or REVIEW_JOURNAL_DIR) / "journal.jsonl"
+    triage = build_triage(
+        Path(SIDECAR).read_text(encoding="utf-8").splitlines() if Path(SIDECAR).exists() else [],
+        names,
+    )
+    decided_rows: list[dict] = []
+    decided_keys: set[tuple[str, str, str]] = set()
+    if Path(DECISIONS).exists():
+        for d in _read_decisions(Path(DECISIONS)):
+            decided_keys.add((d["edge_type"], d["source"], d["target_mention"]))
+            decided_rows.append(d)
+    parked_ids = latest_action_by(journal_path, key_field="id")
+
+    def _key(r: dict) -> tuple[str, str, str]:
+        return (r["edge_type"], r["source"], r["target_mention"])
+
+    def _entry(r: dict) -> dict:
+        e = dict(r)
+        e.setdefault("vss_hint", "")
+        e["label"] = r["id"]  # kit item key == stable row id
+        return e
+
+    open_rows = [r for r in triage["prose"] if _key(r) not in decided_keys]
+    wl = {
+        "suggested": [_entry(r) for r in open_rows if r["id"] not in parked_ids],
+        "promoted": [_entry(r) for r in decided_rows],
+        "skipped": [_entry(r) for r in open_rows if r["id"] in parked_ids],
+        "no_signal": [],
+    }
+    _bucket_rank = {
+        "manual": 0,
+        "alias_candidate": 1,
+        "stub_candidate": 2,
+        "discard": 3,
+        "bad_source": 4,
+    }
+    entries = assemble_entries(
+        wl,
+        labels_filter=None,
+        redecide=redecide,
+        skipped=skipped,
+        sort_key=lambda e: (_bucket_rank.get(e.get("bucket", ""), 9), e["label"]),
+        limit=limit,
+    )
+
+    legend = [
+        "  keys: a[/TYPE[/TARGET]]  accept (row's edge type + target by default;",
+        "                             override either for mangled mentions — a//kec",
+        "                             keeps the type and DB-resolves the target)",
+        "        d   reject -> noise gate    al NAME  alias mention to entity NAME",
+        "        st  stub (entity via follow-up chain)    p  park — reopen via --skipped",
+        "        ?   this legend + evidence    q/x  quit-and-review / abort walk",
+        "        any verb may carry '| free note' — lands in the row's note field",
+    ]
+    if entries:
+        print_fn("\n".join(legend))
+
+    def _evidence(e: dict) -> None:
+        flags = []
+        if e.get("word_overlap"):
+            flags.append("word-overlap alias — confirm")
+        if e.get("direction") == "reverse":
+            flags.append("captured reversed: mention is the edge source")
+        if flags:
+            print_fn("     [" + "; ".join(flags) + "]")
+        if e.get("detail"):
+            print_fn(f"     {e['detail']}")
+        if e.get("vss_hint"):
+            print_fn(f"     vss: {e['vss_hint']}")
+        if e.get("quote"):
+            print_fn(f"     > {e['quote']}")
+        elif e.get("decision"):
+            print_fn(f"     (previous: {e['decision']})")
+
+    def render(idx: int, total: int, e: dict) -> None:
+        hdr = (
+            f"[{idx}/{total}] `{e['id']}` {e['source']} —[{e['edge_type']}]→ {e['target_mention']}"
+        )
+        if e.get("bucket"):
+            hdr += f"  ({e['bucket']})"
+        print_fn(hdr)
+        _evidence(e)
+
+    def ask(e: dict, note) -> dict:
+        rid = e["id"]
+        while True:
+            ans = input_fn(
+                "  accept a[/TYPE[/TARGET]] / d / al NAME / st / p / ? / q / x: "
+            ).strip()
+            ans, _, free_note = ans.partition("|")
+            ans, free_note = ans.strip(), free_note.strip()
+            if ans in {"p", "q", "x"}:
+                return {"id": rid, "action": {"p": "skip", "q": "quit", "x": "abort"}[ans]}
+            if ans == "?":
+                print_fn("\n".join(legend))
+                _evidence(e)
+                continue
+            file_decision = None
+            if ans == "d":
+                file_decision = "discard"
+            elif ans == "st":
+                file_decision = "stub"
+            elif ans.startswith("al ") or ans == "al":
+                query = ans[3:].strip()
+                if not query:
+                    print_fn("  al <part of name> — exact, substring, or acronym (e.g. al ongc)")
+                    continue
+                target, cands = _entity_lookup(query, names)
+                if target is None and len(cands) == 1:
+                    target = cands[0]
+                    print_fn(f"  matched: {target}")
+                if target is None:
+                    if not cands:
+                        print_fn(f"  no entity matches {query!r} — try another spelling or stub")
+                        note({"id": rid, "action": "bad-alias", "target": query})
+                        continue
+                    print_fn("  candidates:")
+                    for i, c in enumerate(cands, 1):
+                        print_fn(f"    {i}) {c}")
+                    pick = input_fn("  pick 1-8 / or al <name> again: ").strip()
+                    if pick.isdigit() and 1 <= int(pick) <= len(cands):
+                        target = cands[int(pick) - 1]
+                    elif pick.startswith("al "):
+                        target, c2 = _entity_lookup(pick[3:].strip(), names)
+                        if target is None and len(c2) == 1:
+                            target = c2[0]
+                    if target is None:
+                        print_fn("  ? (pick a number or al <name>)")
+                        note({"id": rid, "action": "bad-alias", "target": pick})
+                        continue
+                file_decision = f"alias:{target}"
+            elif ans == "a" or ans.startswith("a/") or ans.startswith("a "):
+                parts = ans.split("/")[1:] if ans.startswith("a/") else ans[1:].split()
+                edge_type = parts[0].strip() if parts and parts[0].strip() else e["edge_type"]
+                target = parts[1].strip() if len(parts) > 1 else None
+                if edge_type not in _ACCEPT_EDGE_TYPES or edge_type == "suggested":
+                    print_fn(
+                        f"  {edge_type!r} is not an accept edge type — try again"
+                        f" ({'/'.join(sorted(_ACCEPT_EDGE_TYPES))})"
+                    )
+                    note({"id": rid, "action": "bad-accept", "edge_type": edge_type})
+                    continue
+                eff_target = target or _norm_target(e["target_mention"])
+                if target is not None and eff_target not in names:
+                    # operator-supplied target: resolve via DB lookup
+                    # (exact -> substring/acronym/token-prefix; single
+                    # candidate auto-matches, numbered pick when ambiguous)
+                    resolved, cands = _entity_lookup(target, names)
+                    if resolved is None and len(cands) == 1:
+                        resolved = cands[0]
+                        print_fn(f"  matched: {resolved}")
+                    if resolved is None and cands:
+                        print_fn("  candidates:")
+                        for i, c in enumerate(cands, 1):
+                            print_fn(f"    {i}) {c}")
+                        pick = input_fn("  pick 1-8 / or a/TYPE/TARGET again: ").strip()
+                        if pick.isdigit() and 1 <= int(pick) <= len(cands):
+                            resolved = cands[int(pick) - 1]
+                    if resolved is None:
+                        print_fn(
+                            f"  no entity matches {target!r} — full name via a/TYPE/TARGET, or stub"
+                        )
+                        note({"id": rid, "action": "bad-accept", "target": target})
+                        continue
+                    eff_target = resolved
+                if eff_target not in names:
+                    print_fn(
+                        f"  target {eff_target!r} is not an existing entity — name one:"
+                        " a/TYPE/TARGET, or stub"
+                    )
+                    note({"id": rid, "action": "bad-accept", "target": eff_target})
+                    continue
+                if e["source"] not in names:
+                    print(f"  source {e['source']!r} is not an entity — row is bad_source")
+                    note({"id": rid, "action": "bad-accept", "source": e["source"]})
+                    continue
+                file_decision = f"accept:{edge_type}" + (
+                    f":{eff_target}" if target is not None else ""
+                )
+            else:
+                print_fn("  ? (a[/TYPE[/TARGET]] / d / al NAME / st / p / ? / q / x)")
+                continue
+            d = {"id": rid, "action": "approve", "file_decision": file_decision, "note": free_note}
+            for k in _REVIEW_FILE_FIELDS:
+                d[k] = e.get(k, False if k == "word_overlap" else "")
+            return d
+
+    def spec_of(d: dict, e: dict) -> str:  # noqa: ARG001 — d carries the row fields
+        return f"{d['source']} —[{d['file_decision']}]→ {d['target_mention']}"
+
+    def apply_batch(specs: list[str], decisions: list[dict]) -> tuple[list[str], list[str]]:
+        rows = [
+            {k: d.get(k, False if k == "word_overlap" else "") for k in _REVIEW_FILE_FIELDS}
+            | {"decision": d["file_decision"], "note": d.get("note", "")}
+            for d in decisions
+            if d.get("action") == "approve"
+        ]
+        with Path(DECISIONS).open("a", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        return (
+            [f"{len(rows)} decision row(s) appended -> {Path(DECISIONS).name}"],
+            ["next: python3 helpers/graph/triage_pending_relations.py --apply-decisions"],
+        )
+
+    return ReviewSession(
+        entries=entries,
+        journal=Journal(journal_path),
+        render=render,
+        ask=ask,
+        spec_of=spec_of,
+        apply_batch=apply_batch,
+        batch_header="batch to append to the decisions file:",
+        apply_noun="decision row(s)",
+        input_fn=input_fn,
+        print_fn=print_fn,
+        apply_flag=apply,
+    ).run()
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     p.add_argument(
@@ -830,11 +1133,35 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument(
         "--clear", action="store_true", help="truncate the sidecar to 0 (post-triage endgame)"
     )
+    p.add_argument(
+        "--review",
+        action="store_true",
+        help="interactive journaled sitting over the open queue (review-kit S2); "
+        "appends annotated rows to the decisions file on confirm",
+    )
+    p.add_argument("--limit", type=int, default=None, help="review: cap rows per sitting")
+    p.add_argument(
+        "--redecide", action="store_true", help="review: also re-walk already-decided rows"
+    )
+    p.add_argument(
+        "--skipped", action="store_true", help="review: also re-walk journaled-parked/declined rows"
+    )
+    p.add_argument(
+        "--dry-run", action="store_true", help="review: journal + print the batch, write nothing"
+    )
     args = p.parse_args(argv)
 
     if args.clear:
         Path(SIDECAR).write_text("", encoding="utf-8")
         print(f"cleared {SIDECAR}")
+        return 0
+    if args.review:
+        review(
+            limit=args.limit,
+            redecide=args.redecide,
+            skipped=args.skipped,
+            apply=not args.dry_run,
+        )
         return 0
     if args.apply_decisions:
         # --apply-decisions writes (the --write co-flag was folded in —
