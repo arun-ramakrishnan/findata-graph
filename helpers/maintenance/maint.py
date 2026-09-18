@@ -222,6 +222,10 @@ PRE_FULL_STEPS: list[tuple[str, list[str]]] = [
         [sys.executable, "helpers/misc/backfill_identifiers.py", "--apply"],
     ),
     (
+        "seed-nic2008 (converge nic2008 vocabulary table + concept scheme from seed JSON)",
+        [sys.executable, "helpers/misc/seed_nic2008.py", "converge", "--apply"],
+    ),
+    (
         "rebuild-note-search (rebuild FTS over findata markdowns)",
         [sys.executable, "helpers/maintenance/rebuild_note_search.py"],
     ),

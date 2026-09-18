@@ -1,6 +1,6 @@
 {
-  "version": 2,
-  "_note": "ontology_governance S2 frozen question set v2 — DOC-DRIVEN roster derived 2026-09-17 from the live store via ontology_eval_gate.answer_question; coverage map and derivation procedure in doc/procedures/ontology-gate.md. After each ACCEPTED ontology-affecting change, rebaseline explicitly via ontology_eval_gate.py --rebaseline 'completed.md #NNN (change)'. Answers are sorted row-sets; subtree and concept_mappings_for are active-only.",
+  "version": 3,
+  "_note": "ontology_governance S2 frozen question set v2 \u2014 DOC-DRIVEN roster derived 2026-09-17 from the live store via ontology_eval_gate.answer_question; coverage map and derivation procedure in doc/procedures/ontology-gate.md. After each ACCEPTED ontology-affecting change, rebaseline explicitly via ontology_eval_gate.py --rebaseline 'completed.md #NNN (change)'. Answers are sorted row-sets; subtree and concept_mappings_for are active-only. | v3 pins added at nic2008_seed_table S2 (subtree x2: nic2008 section J + division 62; the +1 industry->nic2008 crosswalk pin lands with S3 promote); expected computed via answer_question from the gated candidate per doc/procedures/ontology-gate.md roster-extension flow. | xwalk pins re-synced to all active labels post sitting 20260919 (85 labels, incl. narrowMatch stacks).",
   "questions": [
     {
       "id": "subtree-super-sector-communication-services",
@@ -2925,6 +2925,7 @@
         "source_concept": "Advertising Agencies"
       },
       "expected": [
+        "nic2008:73100:closeMatch",
         "subsector:Advertising:exactMatch"
       ]
     },
@@ -2936,6 +2937,9 @@
         "source_concept": "Aerospace & Defense"
       },
       "expected": [
+        "nic2008:25200:closeMatch",
+        "nic2008:26515:narrowMatch",
+        "nic2008:30112:narrowMatch",
         "subsector:Aerospace:exactMatch"
       ]
     },
@@ -2958,6 +2962,7 @@
         "source_concept": "Airlines"
       },
       "expected": [
+        "nic2008:51101:closeMatch",
         "subsector:Airlines:exactMatch"
       ]
     },
@@ -3028,6 +3033,1126 @@
       "expected": [
         "derive_hyperedges"
       ]
+    },
+    {
+      "id": "subtree-nic2008-section-information-communication",
+      "shape": "subtree",
+      "params": {
+        "root": "nic2008:J"
+      },
+      "expected": [
+        "nic2008:58",
+        "nic2008:581",
+        "nic2008:5811",
+        "nic2008:58111",
+        "nic2008:58112",
+        "nic2008:58113",
+        "nic2008:5812",
+        "nic2008:58121",
+        "nic2008:58122",
+        "nic2008:5813",
+        "nic2008:58131",
+        "nic2008:58132",
+        "nic2008:5819",
+        "nic2008:58191",
+        "nic2008:58199",
+        "nic2008:582",
+        "nic2008:5820",
+        "nic2008:58201",
+        "nic2008:58202",
+        "nic2008:58203",
+        "nic2008:59",
+        "nic2008:591",
+        "nic2008:5911",
+        "nic2008:59111",
+        "nic2008:59112",
+        "nic2008:59113",
+        "nic2008:5912",
+        "nic2008:59121",
+        "nic2008:59122",
+        "nic2008:59123",
+        "nic2008:5913",
+        "nic2008:59131",
+        "nic2008:59132",
+        "nic2008:59133",
+        "nic2008:5914",
+        "nic2008:59141",
+        "nic2008:59142",
+        "nic2008:592",
+        "nic2008:5920",
+        "nic2008:59201",
+        "nic2008:59202",
+        "nic2008:60",
+        "nic2008:601",
+        "nic2008:6010",
+        "nic2008:60100",
+        "nic2008:602",
+        "nic2008:6020",
+        "nic2008:61",
+        "nic2008:611",
+        "nic2008:6110",
+        "nic2008:61101",
+        "nic2008:61102",
+        "nic2008:61103",
+        "nic2008:61104",
+        "nic2008:612",
+        "nic2008:6120",
+        "nic2008:61201",
+        "nic2008:61202",
+        "nic2008:61209",
+        "nic2008:613",
+        "nic2008:6130",
+        "nic2008:61301",
+        "nic2008:61309",
+        "nic2008:619",
+        "nic2008:6190",
+        "nic2008:61900",
+        "nic2008:62",
+        "nic2008:620",
+        "nic2008:6201",
+        "nic2008:62011",
+        "nic2008:62012",
+        "nic2008:62013",
+        "nic2008:6202",
+        "nic2008:62020",
+        "nic2008:6209",
+        "nic2008:62091",
+        "nic2008:62092",
+        "nic2008:62099",
+        "nic2008:63",
+        "nic2008:631",
+        "nic2008:6311",
+        "nic2008:63111",
+        "nic2008:63112",
+        "nic2008:63113",
+        "nic2008:63114",
+        "nic2008:63119",
+        "nic2008:6312",
+        "nic2008:63121",
+        "nic2008:63122",
+        "nic2008:639",
+        "nic2008:6391",
+        "nic2008:63910",
+        "nic2008:6399",
+        "nic2008:63991",
+        "nic2008:63992",
+        "nic2008:63999",
+        "nic2008:J"
+      ]
+    },
+    {
+      "id": "subtree-nic2008-division-it-services",
+      "shape": "subtree",
+      "params": {
+        "root": "nic2008:62"
+      },
+      "expected": [
+        "nic2008:62",
+        "nic2008:620",
+        "nic2008:6201",
+        "nic2008:62011",
+        "nic2008:62012",
+        "nic2008:62013",
+        "nic2008:6202",
+        "nic2008:62020",
+        "nic2008:6209",
+        "nic2008:62091",
+        "nic2008:62092",
+        "nic2008:62099"
+      ]
+    },
+    {
+      "id": "xwalk-airports-air-services",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Airports & Air Services"
+      },
+      "expected": [
+        "nic2008:51201:closeMatch",
+        "subsector:Airport_Operations:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-beverages---non-alcoholic",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Beverages - Non-Alcoholic"
+      },
+      "expected": [
+        "nic2008:11049:closeMatch",
+        "subsector:Food_Beverages:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-broadcasting",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Broadcasting"
+      },
+      "expected": [
+        "nic2008:60100:closeMatch",
+        "subsector:Broadcasting:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-chemicals",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Chemicals"
+      },
+      "expected": [
+        "nic2008:20116:closeMatch",
+        "subsector:Specialty_Chemicals:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-communication-equipment",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Communication Equipment"
+      },
+      "expected": [
+        "nic2008:26309:closeMatch",
+        "subsector:Telecom_Equipment:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-consumer-electronics",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Consumer Electronics"
+      },
+      "expected": [
+        "nic2008:26109:closeMatch",
+        "subsector:Consumer_Electronics:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-copper",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Copper"
+      },
+      "expected": [
+        "nic2008:24201:closeMatch",
+        "subsector:Copper:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-education-training-services",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Education & Training Services"
+      },
+      "expected": [
+        "nic2008:85499:closeMatch",
+        "subsector:Training_Services:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-electrical-equipment-parts",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Electrical Equipment & Parts"
+      },
+      "expected": [
+        "nic2008:27900:closeMatch",
+        "subsector:Electrical_Equipment:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-electronic-components",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Electronic Components"
+      },
+      "expected": [
+        "nic2008:26109:closeMatch",
+        "subsector:Electronic_Components:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-engineering-construction",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Engineering & Construction"
+      },
+      "expected": [
+        "nic2008:43299:closeMatch",
+        "subsector:Infra_EPC:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-entertainment",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Entertainment"
+      },
+      "expected": [
+        "nic2008:90009:closeMatch",
+        "subsector:Cinema:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-health-information-services",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Health Information Services"
+      },
+      "expected": [
+        "nic2008:62099:closeMatch",
+        "subsector:Health_IT:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-information-technology-services",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Information Technology Services"
+      },
+      "expected": [
+        "nic2008:62099:closeMatch",
+        "subsector:IT_Services:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-insurance---life",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Insurance - Life"
+      },
+      "expected": [
+        "nic2008:65110:closeMatch",
+        "subsector:Life_Insurance:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-insurance---reinsurance",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Insurance - Reinsurance"
+      },
+      "expected": [
+        "nic2008:65020:closeMatch",
+        "subsector:Reinsurance:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-insurance-brokers",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Insurance Brokers"
+      },
+      "expected": [
+        "nic2008:66220:closeMatch",
+        "subsector:Brokers:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-medical-care-facilities",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Medical Care Facilities"
+      },
+      "expected": [
+        "nic2008:87100:closeMatch",
+        "subsector:Hospital_Chains:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-paper-paper-products",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Paper & Paper Products"
+      },
+      "expected": [
+        "nic2008:17099:closeMatch"
+      ]
+    },
+    {
+      "id": "xwalk-publishing",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Publishing"
+      },
+      "expected": [
+        "nic2008:58131:closeMatch"
+      ]
+    },
+    {
+      "id": "xwalk-restaurants",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Restaurants"
+      },
+      "expected": [
+        "nic2008:56102:closeMatch",
+        "subsector:Restaurants:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-specialty-business-services",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Specialty Business Services"
+      },
+      "expected": [
+        "nic2008:82990:closeMatch",
+        "subsector:Facility_Services:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-specialty-industrial-machinery",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Specialty Industrial Machinery"
+      },
+      "expected": [
+        "nic2008:28299:closeMatch",
+        "subsector:Capital_Goods:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-steel",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Steel"
+      },
+      "expected": [
+        "nic2008:24106:closeMatch",
+        "subsector:Iron_and_Steel:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-tobacco",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Tobacco"
+      },
+      "expected": [
+        "nic2008:12003:closeMatch",
+        "subsector:Tobacco:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-aluminum",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Aluminum"
+      },
+      "expected": [
+        "nic2008:24202:closeMatch",
+        "subsector:Aluminum:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-apparel-manufacturing",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Apparel Manufacturing"
+      },
+      "expected": [
+        "nic2008:14109:closeMatch",
+        "subsector:Apparel_Manufacturing:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-apparel-retail",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Apparel Retail"
+      },
+      "expected": [
+        "nic2008:14109:closeMatch",
+        "subsector:Apparel_Retail:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-asset-management",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Asset Management"
+      },
+      "expected": [
+        "nic2008:66301:closeMatch",
+        "subsector:Asset_Management:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-auto-manufacturers",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Auto Manufacturers"
+      },
+      "expected": [
+        "nic2008:29101:closeMatch",
+        "nic2008:30911:narrowMatch",
+        "subsector:Automobiles:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-banks---diversified",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Banks - Diversified"
+      },
+      "expected": [
+        "nic2008:64191:closeMatch"
+      ]
+    },
+    {
+      "id": "xwalk-banks---regional",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Banks - Regional"
+      },
+      "expected": [
+        "nic2008:64191:closeMatch"
+      ]
+    },
+    {
+      "id": "xwalk-beverages---brewers",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Beverages - Brewers"
+      },
+      "expected": [
+        "nic2008:11031:closeMatch",
+        "subsector:Food_Beverages:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-building-materials",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Building Materials"
+      },
+      "expected": [
+        "nic2008:23941:closeMatch",
+        "subsector:Construction_Materials:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-business-equipment-supplies",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Business Equipment & Supplies"
+      },
+      "expected": [
+        "nic2008:32901:closeMatch",
+        "subsector:Business_Equipment:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-capital-markets",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Capital Markets"
+      },
+      "expected": [
+        "nic2008:66110:closeMatch"
+      ]
+    },
+    {
+      "id": "xwalk-computer-hardware",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Computer Hardware"
+      },
+      "expected": [
+        "nic2008:26209:closeMatch",
+        "subsector:Computer_Hardware:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-credit-services",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Credit Services"
+      },
+      "expected": [
+        "nic2008:64920:closeMatch",
+        "subsector:Credit_Cards:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-diagnostics-research",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Diagnostics & Research"
+      },
+      "expected": [
+        "nic2008:86905:closeMatch",
+        "subsector:Pathology:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-drug-manufacturers---general",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Drug Manufacturers - General"
+      },
+      "expected": [
+        "nic2008:21002:closeMatch",
+        "subsector:Formulations:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-drug-manufacturers---specialty-generic",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Drug Manufacturers - Specialty & Generic"
+      },
+      "expected": [
+        "nic2008:21001:narrowMatch",
+        "nic2008:21002:closeMatch",
+        "subsector:Formulations:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-farm-products",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Farm Products"
+      },
+      "expected": [
+        "nic2008:01463:narrowMatch",
+        "nic2008:03214:narrowMatch",
+        "subsector:Crop_Production:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-financial-conglomerates",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Financial Conglomerates"
+      },
+      "expected": [
+        "nic2008:66190:closeMatch",
+        "subsector:Multi_Segment:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-financial-data-stock-exchanges",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Financial Data & Stock Exchanges"
+      },
+      "expected": [
+        "nic2008:66110:closeMatch",
+        "subsector:Exchanges:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-footwear-accessories",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Footwear & Accessories"
+      },
+      "expected": [
+        "nic2008:47713:closeMatch",
+        "subsector:Footwear:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-household-personal-products",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Household & Personal Products"
+      },
+      "expected": [
+        "nic2008:20231:narrowMatch",
+        "nic2008:20232:narrowMatch",
+        "nic2008:20237:closeMatch",
+        "subsector:Personal_Care:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-infrastructure-operations",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Infrastructure Operations"
+      },
+      "expected": [
+        "nic2008:42101:closeMatch",
+        "subsector:Infrastructure_Operations:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-insurance---diversified",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Insurance - Diversified"
+      },
+      "expected": [
+        "nic2008:65120:closeMatch",
+        "subsector:Multi_Line:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-insurance---property-casualty",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Insurance - Property & Casualty"
+      },
+      "expected": [
+        "nic2008:66220:closeMatch",
+        "subsector:General_Insurance:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-integrated-freight-logistics",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Integrated Freight & Logistics"
+      },
+      "expected": [
+        "nic2008:49120:narrowMatch",
+        "nic2008:49231:closeMatch",
+        "nic2008:52101:narrowMatch",
+        "nic2008:53200:narrowMatch",
+        "subsector:Specialized_Logistics:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-leisure",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Leisure"
+      },
+      "expected": [
+        "nic2008:32409:closeMatch",
+        "subsector:Leisure:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-lodging",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Lodging"
+      },
+      "expected": [
+        "nic2008:55101:closeMatch",
+        "subsector:Hotels:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-luxury-goods",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Luxury Goods"
+      },
+      "expected": [
+        "nic2008:32111:narrowMatch",
+        "nic2008:47733:closeMatch",
+        "subsector:Luxury_Goods:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-medical-devices",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Medical Devices"
+      },
+      "expected": [
+        "nic2008:86201:closeMatch",
+        "subsector:Medical_Devices:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-medical-instruments-supplies",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Medical Instruments & Supplies"
+      },
+      "expected": [
+        "nic2008:32507:closeMatch",
+        "subsector:Medical_Instruments:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-mortgage-finance",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Mortgage Finance"
+      },
+      "expected": [
+        "nic2008:64920:closeMatch",
+        "subsector:HFC:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-oil-gas-e-p",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Oil & Gas E&P"
+      },
+      "expected": [
+        "nic2008:35201:closeMatch",
+        "subsector:E&P:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-oil-gas-integrated",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Oil & Gas Integrated"
+      },
+      "expected": [
+        "nic2008:35201:closeMatch"
+      ]
+    },
+    {
+      "id": "xwalk-oil-gas-refining-marketing",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Oil & Gas Refining & Marketing"
+      },
+      "expected": [
+        "nic2008:35201:closeMatch",
+        "subsector:Refining:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-other-industrial-metals-mining",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Other Industrial Metals & Mining"
+      },
+      "expected": [
+        "nic2008:07295:closeMatch",
+        "subsector:Non_Ferrous:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-packaged-foods",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Packaged Foods"
+      },
+      "expected": [
+        "nic2008:47219:closeMatch",
+        "subsector:Food_Processing:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-packaging-containers",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Packaging & Containers"
+      },
+      "expected": [
+        "nic2008:82920:closeMatch"
+      ]
+    },
+    {
+      "id": "xwalk-pharmaceutical-retailers",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Pharmaceutical Retailers"
+      },
+      "expected": [
+        "nic2008:47721:closeMatch",
+        "subsector:Pharma_Retail:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-pollution-treatment-controls",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Pollution & Treatment Controls"
+      },
+      "expected": [
+        "nic2008:36000:closeMatch",
+        "subsector:Water_Treatment:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-railroads",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Railroads"
+      },
+      "expected": [
+        "nic2008:49120:closeMatch",
+        "subsector:Transportation:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-real-estate---development",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Real Estate - Development"
+      },
+      "expected": [
+        "nic2008:68100:closeMatch",
+        "subsector:Real_Estate_Development:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-real-estate---diversified",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Real Estate - Diversified"
+      },
+      "expected": [
+        "nic2008:68100:closeMatch",
+        "subsector:Diversified_Real_Estate:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-real-estate-services",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Real Estate Services"
+      },
+      "expected": [
+        "nic2008:68100:narrowMatch",
+        "nic2008:68200:closeMatch",
+        "subsector:Real_Estate_Development:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-recreational-vehicles",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Recreational Vehicles"
+      },
+      "expected": [
+        "nic2008:29109:closeMatch"
+      ]
+    },
+    {
+      "id": "xwalk-rental-leasing-services",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Rental & Leasing Services"
+      },
+      "expected": [
+        "nic2008:77303:closeMatch",
+        "subsector:Construction_Equipment:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-resorts-casinos",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Resorts & Casinos"
+      },
+      "expected": [
+        "nic2008:55101:closeMatch",
+        "subsector:Resorts:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-scientific-technical-instruments",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Scientific & Technical Instruments"
+      },
+      "expected": [
+        "nic2008:26519:closeMatch",
+        "subsector:Instruments:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-software---application",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Software - Application"
+      },
+      "expected": [
+        "nic2008:58202:narrowMatch",
+        "nic2008:62011:closeMatch",
+        "subsector:Software:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-software---infrastructure",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Software - Infrastructure"
+      },
+      "expected": [
+        "nic2008:58201:closeMatch",
+        "nic2008:62011:narrowMatch",
+        "subsector:Software:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-solar",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Solar"
+      },
+      "expected": [
+        "nic2008:35105:closeMatch",
+        "subsector:Solar:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-specialty-chemicals",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Specialty Chemicals"
+      },
+      "expected": [
+        "nic2008:46691:closeMatch",
+        "subsector:Specialty_Chemicals:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-telecom-services",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Telecom Services"
+      },
+      "expected": [
+        "nic2008:61900:closeMatch",
+        "subsector:Telecom_Services:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-textile-manufacturing",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Textile Manufacturing"
+      },
+      "expected": [
+        "nic2008:13999:closeMatch",
+        "subsector:Traditional_Textiles:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-thermal-coal",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Thermal Coal"
+      },
+      "expected": [
+        "nic2008:05101:closeMatch",
+        "subsector:Coal:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-travel-services",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Travel Services"
+      },
+      "expected": [
+        "nic2008:79110:closeMatch",
+        "nic2008:79120:narrowMatch",
+        "subsector:OTA:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-trucking",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Trucking"
+      },
+      "expected": [
+        "nic2008:49231:closeMatch",
+        "subsector:Transportation:exactMatch"
+      ]
+    },
+    {
+      "id": "xwalk-utilities---renewable",
+      "shape": "concept_mappings_for",
+      "params": {
+        "source_scheme": "industry",
+        "source_concept": "Utilities - Renewable"
+      },
+      "expected": [
+        "nic2008:35101:narrowMatch",
+        "nic2008:35105:narrowMatch"
+      ]
     }
-  ]
+  ],
+  "rebaselined": {
+    "at": "2026-09-18T04:18:10+00:00",
+    "ref": "completed.md #246 (nic2008_seed_table S5)"
+  }
 }

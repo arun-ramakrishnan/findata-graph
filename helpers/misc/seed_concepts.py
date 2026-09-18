@@ -294,16 +294,22 @@ def seed(conn: sqlite3.Connection, *, apply: bool) -> dict[str, int]:
     roster_concepts = set(concepts)
     roster_mappings = {_mapping_key(m) for m in mappings}
 
+    # seed-owned = THIS converger's roster domain. The nic2008 seed
+    # (seed:nic2008/<version> — seed_nic2008.py S2) owns its own scheme rows with
+    # the same prefix family; carving it out keeps the two convergers from
+    # superseding each other's rosters (proposal nic2008_seed_table S2).
     existing_concepts = {
         row[0]: row[1]
         for row in conn.execute(
             "SELECT concept_id, status FROM concepts WHERE source_ref LIKE 'seed:%'"
+            " AND source_ref NOT LIKE 'seed:nic2008/%'"
         )
     }
     existing_mappings_live: dict[tuple, bool] = {}
     for row in conn.execute(
         "SELECT source_scheme, source_concept, target_scheme, target_concept, "
         "match_type, status FROM concept_mappings WHERE source_ref LIKE 'seed:%'"
+        " AND source_ref NOT LIKE 'seed:nic2008/%'"
     ):
         key = _mapping_key(row)
         existing_mappings_live[key] = (
@@ -360,7 +366,12 @@ def seed(conn: sqlite3.Connection, *, apply: bool) -> dict[str, int]:
             "AND target_concept=? AND match_type=?",
             sorted(roster_mappings),
         )
-        conn.execute("DELETE FROM concept_schemes")
+        # scoped to THIS converger's roster — the nic2008 seed (S2) owns its
+        # own scheme row; an unscoped wipe would dangle 2k+ concepts
+        conn.executemany(
+            "DELETE FROM concept_schemes WHERE scheme_id=?",
+            [(scheme_id,) for scheme_id in schemes],
+        )
         conn.executemany(
             "INSERT INTO concept_schemes (scheme_id, label, scheme_type, version, "
             "source_uri, license, attribution, active) VALUES (?, ?, ?, ?, NULL, NULL, NULL, 1)",
@@ -442,14 +453,19 @@ def _plan_mapping_promotions(
         if any(r[1] == "active" for r in rows):
             errors.append(f"{spec}: already active")
             continue
-        conflict = conn.execute(
-            "SELECT target_concept FROM concept_mappings WHERE source_scheme=? AND "
-            "source_concept=? AND match_type=? AND status='active'",
-            (src_scheme, src, match_type),
-        ).fetchone()
-        if conflict is not None:
-            errors.append(f"{spec}: conflicting active mapping -> {conflict[0]}")
-            continue
+        # single-primary rule: closeMatch/exactMatch hold ONE active per
+        # label (a silent retarget is exactly what the gate exists to catch).
+        # Set lanes (narrowMatch/broadMatch/relatedMatch) legitimately hold
+        # several actives — umbrella labels stack narrower subclasses.
+        if match_type in ("closeMatch", "exactMatch"):
+            conflict = conn.execute(
+                "SELECT target_concept FROM concept_mappings WHERE source_scheme=? AND "
+                "source_concept=? AND match_type=? AND status='active'",
+                (src_scheme, src, match_type),
+            ).fetchone()
+            if conflict is not None:
+                errors.append(f"{spec}: conflicting active mapping -> {conflict[0]}")
+                continue
         plan_mapping_rowids.extend(r[0] for r in rows)
 
 

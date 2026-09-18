@@ -158,11 +158,14 @@ catch-all. ORG Membership/Post/Role activate only when that gate lifts
 
 ### 2.7 Concept schemes (documented)
 
-The 9 `entity_tags` namespaces plus the two non-tag schemes (`industry`
-from live hyper-edge labels, `super_sector` from the taxonomy trio).
-Registry: `_TAG_NAMESPACES` + `_EXTRA_SCHEMES`
-(`helpers/misc/seed_concepts.py`). Crosswalks live ONLY in
-`concept_mappings` (D-O1).
+The 9 `entity_tags` namespaces plus the three non-tag schemes (`industry`
+from live hyper-edge labels, `super_sector` from the taxonomy trio,
+`nic2008` from the vendored NIC-2008 seed). Registry: `_TAG_NAMESPACES`
++ `_EXTRA_SCHEMES` (`helpers/misc/seed_concepts.py`); `nic2008` lives in
+its own converger (`NIC2008_SCHEME_ID` in `helpers/misc/seed_nic2008.py`)
+with a five-level section→subclass broader chain — the two convergers own
+disjoint `seed:` source-ref domains (the `seed:nic2008/%` carve-out).
+Crosswalks live ONLY in `concept_mappings` (D-O1).
 
 <!-- roster: concept_schemes -->
 
@@ -173,6 +176,7 @@ Registry: `_TAG_NAMESPACES` + `_EXTRA_SCHEMES`
 - industry
 - investment_theme
 - market_cap
+- nic2008
 - risk_investment
 - sector
 - subsector
@@ -258,7 +262,7 @@ table (extend in the same change as any new artifact):
 | Artifact | Writer (named) | Reader / check (named) |
 |---|---|---|
 | `provenance_agents` + `agent_id`/`source_tier` | maint-full PRE_FULL converger (`backfill_row_provenance.py`); derive scripts stamp at write time | `check_provenance_coverage` (advisory %) |
-| `concept_schemes`/`concepts`/`concept_mappings` | `seed_concepts.py` (PRE_FULL, supersede/upsert) | `check_concepts` advisories; `subtree()` closure; roster-drift static check (this doc) |
+| `concept_schemes`/`concepts`/`concept_mappings` | `seed_concepts.py` (PRE_FULL, supersede/upsert); scheme `nic2008` + its 2,067 concepts: `seed_nic2008.py` same slot (disjoint source-ref domain) | `check_concepts` advisories; `subtree()` closure; roster-drift static check (this doc) |
 | `entities.cin*` + `entity_identifiers` | `backfill_identifiers.py` converger; `--set-cin`/`--set-id` validated writes; triage `cin=<CIN>` funnel | `check_identifiers`; `/api/resolve` |
 | `hyper_incidences.role/valid_from/valid_to` | `derive_hyperedges --roles` | reconcile_events dry-run report vs `events` |
 | Concept `status` columns (S1) | `seed_concepts.py` supersede/upsert; `--promote` surface | `subtree()` active-only; `check_concepts` advisories |

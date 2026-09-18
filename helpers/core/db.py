@@ -59,13 +59,15 @@ DEFAULT_DB_PATH = _REPO_ROOT / "memory" / "research.db"
 # cin_* facets + entity_identifiers (S3 identifiers); 11 adds role/
 # valid_from/valid_to on hyper_incidences (S4 n-ary event facets); 12
 # adds the lifecycle status column on concepts/concept_mappings
-# (ontology_governance S1); new edge types are data, not schema.
+# (ontology_governance S1); 13 adds the nic2008 vocabulary table
+# (nic2008_seed_table S1, canonical-only like concepts — no DuckDB cache
+# bump); new edge types are data, not schema.
 # helpers/graph/query.py::_SCHEMA_VERSION versions a DIFFERENT surface — the
 # disposable DuckDB cache layout — and bumps on cache-only changes as well
 # (note vectors, lane tables). A SQLite schema change implies a cache bump,
 # not the reverse: do NOT keep the two in sync.
-EXPECTED_USER_VERSION = 12
-EXPECTED_SCHEMA_VERSION = "12"
+EXPECTED_USER_VERSION = 13
+EXPECTED_SCHEMA_VERSION = "13"
 
 
 def utc_now() -> str:

@@ -33,7 +33,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+**[nic2008_seed_table.md](nic2008_seed_table.md)** — NIC-2008 vocabulary as
+a versioned canonical table + own concept scheme (five-level chain),
+deterministic industry-label→NIC candidate crosswalks onto the #244
+promote lane, cin_nic5↔nic2008 vintage-aware cross-check, and the eval
+gate's first live rebaseline (filed 2026-09-17; the standing #234
+deferral, first consumer of the #244 lifecycle).
 
 _(Previously: tmpdir_sanitization.md archived 2026-09-17 as completed.md
 entry 245 — temp-dir hygiene: fuzz fixtures onto pytest-owned temp

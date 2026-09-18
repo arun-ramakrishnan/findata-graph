@@ -240,6 +240,21 @@ CREATE TABLE company_embeddings (
             CHECK (length(embedding) = 384 * 4)
         );
 
+CREATE TABLE nic2008 (
+  subclass    CHAR(5) PRIMARY KEY,  -- '01111'
+  class       CHAR(4) NOT NULL,     -- '0111' (== ISIC Rev.4 class)
+  grp         CHAR(3) NOT NULL,     -- '011' ('group' is reserved)
+  division    CHAR(2) NOT NULL,     -- '01'
+  section     CHAR(1) NOT NULL,     -- 'A'..'U'
+  description TEXT NOT NULL,        -- 'Growing of wheat'
+  isic4       CHAR(4) NOT NULL,     -- == class here
+  nace21      TEXT,                 -- reserved, filled op-paced
+  gics        TEXT,                 -- opaque peer code, never our own
+  wikidata    TEXT,                 -- QID for the closeMatch hub
+  scope_note  TEXT,                 -- PDF inclusion/exclusions (class-grain)
+  version     TEXT NOT NULL DEFAULT 'NIC-2008'
+);
+
 CREATE INDEX idx_entity_tags_tag ON entity_tags(tag);
 
 CREATE INDEX idx_entities_sector_classification ON entities(sector_classification);

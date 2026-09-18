@@ -35,6 +35,7 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 from helpers.core import sync_tags as st  # noqa: E402
+from helpers.misc import seed_nic2008 as sn2  # noqa: E402
 from helpers.core.db import connect as db_connect  # noqa: E402
 from helpers.graph import algorithms as alg  # noqa: E402
 from helpers.graph import derive_events as de  # noqa: E402
@@ -414,6 +415,13 @@ def _shim_seed_concepts(p, mp, args):
     return _rc(sc.main(["--db", str(p.db), *args]))
 
 
+def _shim_seed_nic2008(p, mp, args):
+    # NIC-2008 seed converger (S1 maint step 8): same --db contract as
+    # the concept converger; the seed JSON is vendored in the repo so
+    # the tmp project needs no extra fixture.
+    return _rc(sn2.main(["--db", str(p.db), *args]))
+
+
 def _shim_identifiers(p, mp, args):
     # Identifier converger: self-ensure DDL + CIN facet projection —
     # absent entities table is reported, never blocking.
@@ -442,6 +450,7 @@ _SHIMS = {
     "helpers/misc/backfill_okf_provenance.py": _shim_okf_backfill,
     "helpers/misc/backfill_row_provenance.py": _shim_row_provenance,
     "helpers/misc/seed_concepts.py": _shim_seed_concepts,
+    "helpers/misc/seed_nic2008.py": _shim_seed_nic2008,
     "helpers/misc/backfill_identifiers.py": _shim_identifiers,
     "helpers/graph/derive_cited_in.py": _shim_derive_cited_in,
     "helpers/graph/derive_hyperedges.py": _shim_derive_hyperedges,

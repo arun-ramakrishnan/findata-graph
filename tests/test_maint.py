@@ -46,14 +46,16 @@ class TestPlan:
     """Pin the step labels + commands so reordering is a deliberate
     test update, not a silent regression."""
 
-    def test_pre_full_has_seven_steps(self):
+    def test_pre_full_has_eight_steps(self):
         # PRE_FULL (--full only, BEFORE db_maint's recovery backup): pure
         # index rebuilds + the provenance/concept/identifier convergers
         # whose output should land INSIDE the backup. okf-backfill must
         # precede derive-cited-in (it converges the sources[] the latter
         # projects); seed-concepts/identifiers are self-ensure DDL +
-        # deterministic projections (ontology_convention_stack S2/S3).
-        assert len(maint.PRE_FULL_STEPS) == 7
+        # deterministic projections (ontology_convention_stack S2/S3);
+        # seed-nic2008 converges the vocabulary table from the tracked
+        # seed JSON (nic2008_seed_table S1 — same family, canonical-only).
+        assert len(maint.PRE_FULL_STEPS) == 8
         labels = [label for label, _ in maint.PRE_FULL_STEPS]
         assert labels == [
             "sync-tags (rebuild entity_tags from note YAML)",
@@ -61,6 +63,7 @@ class TestPlan:
             "row-provenance (converge agent_id/source_tier from source_ref prefixes)",
             "seed-concepts (converge SKOS schemes/concepts/mappings from tags+taxonomy)",
             "identifiers (ensure entity_identifiers registry + converge CIN facets)",
+            "seed-nic2008 (converge nic2008 vocabulary table + concept scheme from seed JSON)",
             "rebuild-note-search (rebuild FTS over findata markdowns)",
             "derive-cited-in (project OKF sources[] into edition entities + cited_in edges)",
         ]
@@ -162,7 +165,7 @@ class TestPlan:
         full = maint.PRE_FULL_STEPS + skipped + maint.TIER2_STEPS
         assert len(maint.TIER1_FULL_SKIP) == 1
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
-        assert len(full) == 21
+        assert len(full) == 22  # 8 PRE_FULL + 14 TIER2 (seed-nic2008 S1 adds one PRE_FULL)
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [
             "snapshot (re-snapshot to include recomputed analytics + events)"
@@ -285,7 +288,7 @@ class TestDryRun:
             + maint.TIER2_STEPS
         )
         # 7 pre-full + 2 tier1 (snapshot elided in --full) + 12 tier2.
-        assert len(all_steps) == 21
+        assert len(all_steps) == 22
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
         assert "snapshot (refresh versioned snapshots)" not in output

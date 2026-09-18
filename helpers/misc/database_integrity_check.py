@@ -112,6 +112,7 @@ _CHECKS: tuple[Check, ...] = (
     ),
     Check("concepts", "check_concepts", "warning", "SKOS Concepts"),
     Check("identifiers", "check_identifiers", "warning", "Identifiers (CIN + registry)"),
+    Check("cin_nic2008", "check_cin_nic2008", "warning", "CIN nic5 <-> NIC-2008 (vintage)"),
     Check("graph_summary", "check_graph_summary", "warning", "Graph Summary"),
     Check("db_meta", "check_db_meta", "error", "DB Meta (generation + user_version)"),
 )
@@ -1337,6 +1338,49 @@ class DatabaseIntegrityChecker:
             "errors": 0,
         }
 
+    def check_cin_nic2008(self) -> dict:
+        """cin_nic5 vintage warnings against the vendored NIC-2008 table (S4).
+
+        post-2008 vintage + code absent from nic2008 = data-quality warn
+        (the ROC minted a code the table should know); pre-2008 vintage =
+        vintage-labeled warn (NIC-87/98/2004 legacy series — D-O6: never
+        false-joined, only labeled). Tolerates a DB predating the arc
+        (no nic2008 table or facet columns -> skipped).
+        """
+        conn = self.get_connection()
+        cur = conn.cursor()
+        has_nic = cur.execute(
+            "SELECT 1 FROM sqlite_master WHERE name='nic2008' AND type='table'"
+        ).fetchone()
+        cols = {row[1] for row in cur.execute("PRAGMA table_info(entities)")}
+        if not has_nic or not {"cin_nic5", "cin_year"} <= cols:
+            return {"warnings": 0, "errors": 0, "skipped": 1}
+        codes = {row[0] for row in cur.execute("SELECT subclass FROM nic2008")}
+        absent_post2008 = []
+        vintage_pre2008 = 0
+        native = 0
+        for name, nic5, year in cur.execute(
+            "SELECT name, cin_nic5, cin_year FROM entities WHERE cin_nic5 IS NOT NULL"
+        ):
+            try:
+                yr = int(str(year)[:4]) if year else 0
+            except ValueError:
+                yr = 0
+            if nic5 in codes:
+                native += 1
+            elif yr >= 2008:
+                absent_post2008.append((name, nic5, yr))
+            else:
+                vintage_pre2008 += 1
+        return {
+            "native_codes": native,
+            "absent_post2008": len(absent_post2008),
+            "vintage_pre2008": vintage_pre2008,
+            "sample_absent": [f"{n} ({c}, {y})" for n, c, y in absent_post2008[:5]],
+            "warnings": len(absent_post2008) + vintage_pre2008,
+            "errors": 0,
+        }
+
     def check_identifiers(self) -> dict:  # noqa: C901  # one validation ladder per facet family (parse → facets → cross-checks → registry), mirroring check_provenance_coverage's shape
         """Identifier hygiene (ontology_convention_stack S3): CIN format +
         facet drift on entities, tag/ticker cross-checks, and the
@@ -2080,6 +2124,17 @@ class DatabaseIntegrityChecker:
             lines.append(f"  -> errors={dm.get('errors', 0)}")
         else:
             lines.append(f"  generation={dm.get('generation', '?')} user_version=OK -> errors=0")
+        lines.append("")
+
+        cn = results.get("cin_nic2008", {})
+        lines.append("## CIN nic5 <-> NIC-2008 (advisory; nic2008_seed_table S4)")
+        lines.append(
+            f"native={cn.get('native_codes', 0)} absent_post2008={cn.get('absent_post2008', 0)}"
+            f" vintage_pre2008={cn.get('vintage_pre2008', 0)}"
+            f" -> warnings={cn.get('warnings', 0)}"
+        )
+        for s in cn.get("sample_absent", [])[:5]:
+            lines.append(f"  - absent post-2008: {s}")
         lines.append("")
 
         lines.append("## NORMALIZATION ERRORS (gate-failing)")

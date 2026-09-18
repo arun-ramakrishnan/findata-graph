@@ -1075,3 +1075,45 @@ class TestCheckIdentifiers:
             assert checker.check_identifiers() == {"warnings": 0, "errors": 0, "skipped": 1}
         finally:
             checker.close()
+
+
+class TestCheckCinNic2008:
+    """nic2008_seed_table S4: cin_nic5 vintage warnings against nic2008."""
+
+    def _db(self, tmp_path, entities, codes):
+        db_path = tmp_path / "nic.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE entities (name TEXT PRIMARY KEY, cin_nic5 TEXT, cin_year TEXT)")
+        conn.execute("CREATE TABLE nic2008 (subclass TEXT PRIMARY KEY)")
+        conn.executemany("INSERT INTO entities VALUES (?,?,?)", entities)
+        conn.executemany("INSERT INTO nic2008 VALUES (?)", [(c,) for c in codes])
+        conn.commit()
+        conn.close()
+        return DatabaseIntegrityChecker(db_path=str(db_path), base_path=str(tmp_path))
+
+    def test_counts_and_samples(self, tmp_path):
+        checker = self._db(
+            tmp_path,
+            [
+                ("Native Co", "62099", "2015"),  # in table, post-2008
+                ("Missing Co", "72900", "2011"),  # post-2008 absent -> data quality
+                ("Legacy Co", "31100", "1997"),  # pre-2008 -> vintage-labeled
+                ("NoYear Co", "99999", None),  # no year parses as 0 -> pre-2008 bucket
+            ],
+            ["62099"],
+        )
+        r = checker.check_cin_nic2008()
+        assert r["native_codes"] == 1
+        assert r["absent_post2008"] == 1
+        assert r["vintage_pre2008"] == 2
+        assert r["warnings"] == 3 and r["errors"] == 0
+        assert "Missing Co (72900, 2011)" in r["sample_absent"]
+
+    def test_skips_when_arc_tables_absent(self, tmp_path):
+        db_path = tmp_path / "bare.db"
+        conn = sqlite3.connect(db_path)
+        conn.execute("CREATE TABLE entities (name TEXT)")
+        conn.commit()
+        conn.close()
+        checker = DatabaseIntegrityChecker(db_path=str(db_path), base_path=str(tmp_path))
+        assert checker.check_cin_nic2008() == {"warnings": 0, "errors": 0, "skipped": 1}

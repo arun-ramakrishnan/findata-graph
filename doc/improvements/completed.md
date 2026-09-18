@@ -6174,3 +6174,82 @@ CPU hogs, simulated O(n^3) 8x still fails.
 
 Gates: all green (operator run 2026-09-17); doc/script indexes converged.
 Deferred: opencode-side `.so` residue (host tool, non-goal).
+
+## 246. NIC-2008 seed table — primary-source vocabulary, crosswalk coding, review tool
+
+**Proposal**: `doc/improvements/proposals/nic2008_seed_table.md` (filed
+2026-09-17; slices S1–S5 landed + close-out sittings 2026-09-18/19).
+
+No NIC-2008 vocabulary existed in the ontology and industry-label coding was
+manual, unaudited JSON. This arc vendored the primary MoSPI source, projected
+it into the concept scheme, wired the eval gate, and replaced hand-edited
+approvals with a journaled operator review tool.
+
+- **S1 seed build**: 1,301 subclasses parsed into
+  `helpers/misc/nic2008_seed.json` (two misattestations corrected en route:
+  62090 does not exist in the source → 62099; claimed 1,304 subclasses →
+  1,295 shared + 6 zero-ending singles = 1,301); schema v12 → v13 via
+  `ensure_db_meta` (connect() does NOT self-heal); maint PRE_FULL step 8.
+- **S2 scheme projection**: 2,067 concepts (`notation`=code, class-grain
+  scope notes, `seed:nic2008/NIC-2008`); convergers carve out seed rows;
+  parser round 2 fixed page-break header-reprint glue (56 descriptions +
+  29 notes; structure rebuild byte-identical).
+- **S3 lexical candidates + review tool**: token-F1 0.6 + containment 0.2 +
+  difflib 0.2 scorer with zero-overlap = 0.0 (no filler); 319 candidate
+  rows; `seed_nic2008.py review` keypress sittings — every decision
+  journaled, batch confirm the only write gate, promote lane
+  plan-then-apply.
+- **S4 CIN vintage worklist**: `check_cin_nic2008` (warning) + worklist
+  export; `vintage_counts` split after the 65110 trap (banks in NIC-98 vs
+  life insurance in NIC-2008 — same code, both series, never collapsed).
+- **S5 gate wiring**: live rebaseline v3 (81 questions), undeclared ACCEPT
+  81/81.
+
+Close-out sittings (2026-09-18/19): **85/117 labels coded, 101 active
+lanes** (62 closeMatch primaries + 39 narrowMatch stack lanes), 30 parked,
+2 no-signal. Tooling grew with the work: re-decisions supersede only their
+own lane; skip = park (journal read-back hides parked labels from fresh
+walks; `--skipped` lane revisits them); umbrella-label match-type stacking
+via `c CODE:narrowMatch` — Integrated Freight & Logistics codes as 49231
+closeMatch + 49120/52101/53200 narrowMatch — with the promote gate relaxed
+to single-primary only for closeMatch/exactMatch; no_signal labels now
+reachable by explicit `--labels`; consolidated single journal
+(`outputs/nic_review/journal.jsonl`); promoted-label display fixed to
+DISTINCT incidences. Batch prepopulation: a 24-label/37-sitting proposal
+file executed with every decision through the audited lanes; re-run
+verified idempotent (101 rows = 101 distinct keys).
+
+Gate pins: **163 questions** — 85 `xwalk-*` pins (one per active label,
+expected = the label's full active surface incl. stacks, sample-verified
+against raw SQL), 4 legacy crosswalk pins refreshed, 2 subtree pins;
+live-vs-live ACCEPT ×2 at every step.
+
+Scorer experiments tried live and REVERTED with rationale in-code:
+n.e.c. demotion 0.8x reshuffled difflib long-tail noise rather than
+removing it (education 85499 surfaced into Credit Services); a
+member-company-name vote carried identity words (Bharat Electronics →
+electric motors). Bad-category repair stays operator-owned via `c CODE`
+with CIN evidence on screen (Tobacco 01633 → 12003, Building Materials →
+23941, Publishing 59202 → 58131 flips all landed this way).
+
+Findings worth keeping: MCA "post-2008" CIN vintages are NOT reliable
+NIC-2008 natives (Delhivery 63090, InfoBeans 72200 — old-series codes
+persist for years past 2008); only table membership (the screen `*`
+marker) is authoritative, vintage is context. Source-noise labels
+documented and deliberately uncoded: Gold (sole member is a water firm),
+Confectioners (members are sugar/cement/chemicals), Conglomerates
+(per-company only). Adjacent fixes while here: maint chain integration
+test got its missing `seed_nic2008` dispatcher shim + seed_nic2008 gained
+the seed_concepts `--db` contract (chain test fails unshimmed steps
+loudly by design); ruff S/UP/C901 hygiene on seed_nic2008 (S607/S603
+justified noqa, md5 `usedforsecurity=False` — attestation tag, C901
+justified noqa on the parser/validator/review dispatchers).
+
+Gates: make qa 9/10 (pytest 3187 passed / 3 skipped / 1 FAIL:
+test_mojo_format_footprint_clean — pre-existing mojo toolchain vs grammar
+drift on src/bench/bench_scale.mojo + src/common/integrity_check.mojo, 0
+.mojo files in patch; waived by operator), advisory 11/11 (after lint
+hygiene + script-index refresh), snapshot regenerated + --check OK,
+search-fresh converged. Deferred: scorer v2 (gate difflib behind token
+overlap — the 85499-class noise); per-company frontmatter coding for
+conglomerates; mojo footprint repair (separate Mojo-lane arc).
