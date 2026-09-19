@@ -1148,9 +1148,19 @@ _USD_RE = re.compile(
     r"(?:usd\s|\$)\s?[\d,]+(?:\.\d+)?\s*(?:bn\b|mn\b|billion|million)",
     re.I,
 )
-_PCT_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*[-–to ]+\s*\d+(?:\.\d+)?\s*%|\b\d+(?:\.\d+)?\s*%")
+# Range patterns (AVAIL-2 fix, near_duplicates-family): the range separator
+# MUST stay an alternation `(?:[-–]|to)` and never a bracket class containing a
+# space. A class like `[-–to ]` shares the space char with the flanking `\s*`,
+# so a space run splits between the three quantifiers in O(m^2) ways and the two
+# numeric anchors turn that cubic — measured ~8x per doubling before the fix (4
+# s on a 1.6 KB line, ~500 s at 8 KB), reachable from any corpus document. The
+# regression guard is tests/test_fuzz_regex.py (an adversarial input that takes
+# ~10 s on the old class and ~1 ms here), NOT a sentence length cap: the corpus
+# carries real metrics in sentences up to 3.2 KB, so any cap that bounds a cubic
+# also drops real values — that trade is rejected by the eval gate.
+_PCT_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*(?:[-–]|to)\s*\d+(?:\.\d+)?\s*%|\b\d+(?:\.\d+)?\s*%")
 _BPS_RE = re.compile(
-    r"\b\d[\d,]*(?:\.\d+)?\s*[-–to ]+\s*\d+\s*(?:bps|basis points)|\b\d+(?:\.\d+)?\s*(?:bps|basis points)",
+    r"\b\d[\d,]*(?:\.\d+)?\s*(?:[-–]|to)\s*\d+\s*(?:bps|basis points)|\b\d+(?:\.\d+)?\s*(?:bps|basis points)",
     re.I,
 )
 _GW_MW_RE = re.compile(r"\b\d[\d,]*(?:\.\d+)?\s*(?:gw|mw)\b", re.I)

@@ -28,12 +28,14 @@ Runs alongside regular pytest in `make qa`. Hypothesis defaults to
 
 from __future__ import annotations
 
+import time
 
 from hypothesis import given, settings, strategies as st
 
 
 from core.parse_newsletter import SECTION_RE  # noqa: E402
 from graph.derive_co_mentions import _parse_edition_number  # noqa: E402
+from graph.derive_insights import _BPS_RE, _PCT_RE  # noqa: E402
 from pdf.capture_newsletter_images import IMG_BLOCK_RE  # noqa: E402
 
 
@@ -179,3 +181,78 @@ def test_parse_edition_number_never_raises(title):
 def test_parse_edition_number_positive(edition):
     title = f"Edition #{edition} (Mar 27, 2026)"
     assert _parse_edition_number(title) == edition
+
+
+# ---------------------------------------------------------------------------
+# 11. Range patterns (_PCT_RE / _BPS_RE) do not backtrack (AVAIL-2)
+# ---------------------------------------------------------------------------
+# The range separator used to be a bracket class `[-–to ]` that shares the
+# space char with the flanking `\s*`. A space run could then be split between
+# the three quantifiers in O(m^2) ways, and the two numeric anchors turned
+# that cubic — ~8x per doubling, 4 s on a 1.6 KB line, ~500 s at 8 KB, from a
+# single hostile line in any corpus document. The class is now an alternation
+# `(?:[-–]|to)` (linear; verified 0.9 ms at 6.4 KB). This is the alphabet that
+# found it: digits as the two anchors, with space runs to force the split.
+# max_size 900 — the adversarial shape spends its budget on TWO space runs, so
+# the budget must be large enough for each run to reach ~450 chars, where the
+# old cubic takes ~700 ms (past the deadline) instead of ~200 ms (under it).
+RANGE_ALPHABET = st.characters(whitelist_categories=("Nd",), whitelist_characters=" -–to%\t")
+
+
+@settings(deadline=500)
+@given(st.text(alphabet=RANGE_ALPHABET, max_size=900))
+def test_pct_range_regex_no_catastrophic_backtracking(text):
+    matches = _PCT_RE.findall(text)
+    for m in matches:
+        assert isinstance(m, str), f"_PCT_RE returned non-str match {m!r} for {text!r}"
+
+
+@settings(deadline=500)
+@given(st.text(alphabet=RANGE_ALPHABET, max_size=900))
+def test_bps_range_regex_no_catastrophic_backtracking(text):
+    matches = _BPS_RE.findall(text)
+    for m in matches:
+        assert isinstance(m, str), f"_BPS_RE returned non-str match {m!r} for {text!r}"
+
+
+# Positive-case guard (AVAIL-2): the accepted guidance shapes must still match
+# after de-ambiguation. "10-12%", "10–12%", "10 to 12%", and the bps twins are
+# the corpus forms; a fix that drops them is a correctness bug, not a fix.
+@settings(deadline=500)
+@given(
+    lo=st.integers(min_value=0, max_value=1000),
+    hi=st.integers(min_value=0, max_value=1000),
+    sep=st.sampled_from(["-", "–", " to "]),
+)
+def test_pct_range_matches_well_formed(lo, hi, sep):
+    text = f"{lo}{sep}{hi}%"
+    assert _PCT_RE.search(text) is not None, f"_PCT_RE missed valid range: {text!r}"
+
+
+@settings(deadline=500)
+@given(
+    lo=st.integers(min_value=0, max_value=1000),
+    hi=st.integers(min_value=0, max_value=1000),
+    sep=st.sampled_from(["-", "–", " to "]),
+)
+def test_bps_range_matches_well_formed(lo, hi, sep):
+    text = f"{lo}{sep}{hi} bps"
+    assert _BPS_RE.search(text) is not None, f"_BPS_RE missed valid range: {text!r}"
+
+
+# Deterministic adversarial case (AVAIL-2): the exact input shape that made the
+# old `[-–to ]` class cubic — two numeric anchors with long space runs between
+# them. Not left to Hypothesis discovery: at this size the old pattern takes
+# ~4 s and the de-ambiguated one ~1 ms, so the margin is 4000x and the
+# assertion cannot flap on CI noise. If the range class ever reacquires the
+# space-overlap ambiguity, this fails immediately.
+def test_range_regex_adversarial_space_runs_are_linear():
+    text = "1" + " " * 800 + "2" + " " * 800 + "3"
+    start = time.perf_counter()
+    _PCT_RE.findall(text)
+    _BPS_RE.findall(text)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    assert elapsed_ms < 500, (
+        f"range patterns took {elapsed_ms:.0f} ms on a 1.6 KB space-run input; "
+        "the range separator likely regained its space/\\s* overlap (AVAIL-2)"
+    )

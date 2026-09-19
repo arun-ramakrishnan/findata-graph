@@ -38,7 +38,12 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     ("graph_closeness", ["helpers/graph/algorithms.py", "closeness", "--top", "10"], 4.0),
     ("graph_louvain", ["helpers/graph/algorithms.py", "louvain", "--top", "10"], 4.0),
     ("graph_betweenness", ["helpers/graph/algorithms.py", "betweenness", "--top", "10"], 4.0),
-    ("graph_eigenvector", ["helpers/graph/algorithms.py", "eigenvector", "--top", "10"], 2.0),
+    # 6.0s since 2026-09-19 (operator waiver x3): the store tripled
+    # (companies ~1.2k -> 6.2k via chatter ingest), so eigenvector runs
+    # 2.23-2.34s and link_prediction 3.35-3.46s against the old 2.0s budget.
+    # Budget bumped 2.0 -> 6.0 (3x) to absorb the corpus growth; the timing
+    # flakes are deferred, not investigated (pending.md).
+    ("graph_eigenvector", ["helpers/graph/algorithms.py", "eigenvector", "--top", "10"], 6.0),
     (
         "graph_link_prediction",
         [
@@ -50,7 +55,7 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
             "jaccard",
             "--no-apply",
         ],
-        2.0,
+        6.0,
     ),
     ("graph_rebuild", ["helpers/graph/query.py", "rebuild"], 5.0),
     # sql_capability_unlocks B2 gate: BFS shortest_path steady-state

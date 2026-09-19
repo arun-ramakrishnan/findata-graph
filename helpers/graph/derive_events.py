@@ -107,7 +107,10 @@ _CY_QUARTER_RE = re.compile(r"\bQ[1-4]\s*CY\s?\d{2,4}\b", re.IGNORECASE)
 # either a percent range/figure or a money/keyword signal. The "10-12%" /
 # "Rs 4,000 cr" shapes are the canonical guidance forms (see the corpus
 # evidence in the D7 plan).
-_PCT_RE = re.compile(r"\b\d[\d,]*\s*[-–to ]+\s*\d+\s*%|\b\d+\s*%")
+# AVAIL-2 fix: the range separator stays an alternation, never a bracket
+# class containing a space — a `[-–to ]`-style class shares the space with the
+# flanking `\s*` and turns the match cubic (see the derive_insights twin).
+_PCT_RE = re.compile(r"\b\d[\d,]*\s*(?:[-–]|to)\s*\d+\s*%|\b\d+\s*%")
 _MONEY_OR_KEYWORD_RE = re.compile(
     r"₹|rs\.?\s|inr|\brevenue\b|\bmargin[s]?\b|\border book\b|\bgrowth\b|"
     r"\btarget\b|\bcapex\b|\baum\b|\bmarket share\b|\bcapacity\b",

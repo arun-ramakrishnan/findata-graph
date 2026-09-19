@@ -51,7 +51,15 @@ revisit triggers inline; executed work is compressed to records.
   `git push --mirror` / push `main.stgit`; keep running `make secret-scan`
   after big pushes). Activates only if the Flask app is ever deployed
   publicly: dev-default `FLASK_HOST=127.0.0.1`; auth/shared-secret in
-  front of `POST /api/graph/refresh`; `uv lock`.
+  front of `POST /api/graph/refresh`; `uv lock`. Re-verified 2026-09-18 by
+  the security-coverage arc (completed.md #247b): SEC-5 re-checked three
+  separate times and still deploy-gated, and the arc added two more
+  unauthenticated findings that strengthen this gate — AVAIL-1 (53 s
+  quadratic GET, remediated #249), AVAIL-2 (cubic metric regex, remediated
+  #250) and CONC-1 (shared connection returning wrong rows, remediated
+  #251). All three fix proposals are executed and archived under
+  `archive/security/`. The coverage claim itself is
+  now machine-checked: `helpers/validators/coverage_ledger.py check`.
 
 - **B2 relation sidecars** — optional tech-avenues leftover
   (`archive/tooling/tech_avenues.txt` §3): per-relation YAML sidecars with
@@ -113,10 +121,13 @@ revisit triggers inline; executed work is compressed to records.
   LLM-API posture (terrain C4 revival condition); (c) DDL CHECK enums
   into the roster-drift loader table — behind shared constants for
   match_type/identifier_type/source_tier.
-- **Perf graph-leg budgets post-ingest** (operator waiver 2026-09-17) —
-  graph_eigenvector 2.23–2.34s vs 2.0s, graph_link_prediction 3.35–3.46s
-  vs 2.0s: first perf run since 2026-09-12; store tripled (companies
-  ~1.2k→6.2k via chatter ingest). Decide: budget bump vs investigation.
+- **Perf graph-leg budgets post-ingest** — RESOLVED 2026-09-19 by a 3x
+  budget bump (operator decision: absorb corpus growth now, chase timing
+  flakes later). graph_eigenvector and graph_link_prediction budgets
+  2.0s → 6.0s in tests/run_perf_benchmarks.py (measured 2.23–2.34s and
+  3.35–3.46s after the store tripled to ~6.2k companies via chatter
+  ingest). The investigation option stays parked here: if a future leg
+  crosses 6.0s, the right move is a measurement pass, not another bump.
 - **test_fuzz_shortest_path leaks a 176MB sp.db tempdir per run** —
   DONE 2026-09-17 (#245; `archive/testing/tmpdir_sanitization.md`): the
   tmpdir-hygiene arc — fixture onto pytest basetemp with a vacuumed copy,

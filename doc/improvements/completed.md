@@ -6315,3 +6315,165 @@ Found en route (follow-up, not fixed here): `make maint` exports the
 duckdb parquet mirror (step 2) BEFORE the graph rebuild (step 3), so
 after any graph mutation the duckdb parquet is one rebuild stale —
 `snapshot_db.py --check` catches it; manual regen self-heals.
+
+## 247b. Security coverage expansion — availability class + cumulative coverage machinery
+
+**Proposal**: `doc/improvements/archive/security/post_review_api_reaudit.md`
+(filed 2026-09-18; all four slices landed the same day; the record itself
+stays private at `doc/local/security/security_evaluation.md`).
+
+The 2026-08-17 security evaluation closed with the availability attack
+class never reviewed and a prose record that silently dropped routes. This
+arc closed both: it reviewed the uncovered class, and turned the coverage
+claim into a deterministic, machine-checked structure.
+
+- **S1 — 13 post-close routes re-audited** (Addendum 2): all 13 fully
+  parameterized SQL; the verified-safe f-string pattern (int casts,
+  generated `?`-lists); dangerous-pattern sweep zero hits across five
+  modules. Zero findings — the value was proving the *method*, not the
+  result: an attack class with no coverage, and a record that loses
+  routes.
+- **S2 — availability review** (Addendum 3): one confirmed HIGH,
+  **AVAIL-1** — `/api/graph/near-duplicates` is an unauthenticated O(n²)
+  pairwise self-join, measured 52.8 s on the real cache (9,282 company
+  docs, 43 M pairs); `limit` clamps output, not work; the ETag is
+  `after_request`, so 304s still pay the full query. Four clean verdicts
+  were each *measured*, not assumed — the regex shape analysis that
+  predicted ReDoS on `_ATTR_RE` was later proved wrong by S4.
+- **S3 — coverage ledger as data** (Addendum 4): `helpers/validators/
+  coverage_ledger.py` — an ast-based route inventory that catches
+  `methods=` routes a literal grep drops, with completeness/freshness/
+  consistency checks; `doc/local/security/coverage-ledger.json` seeded
+  with 49 rows. All four success criteria pass. Freshness warns by
+  default and fails only under `--strict`, so routine refactors do not
+  gate the build.
+- **S4 — adversarial-validation trial** (Addendum 5): one refutation
+  child over the four S2 verdicts. It corrected the *reason* behind one
+  clean verdict (`_ATTR_RE` IS quadratic; the `len > 100` guard in
+  `_parse_attribution` is the load-bearing control), refined AVAIL-1
+  (the default request is already the worst case), and found two new
+  confirmed findings:
+
+  - **AVAIL-2** — cubic ReDoS in `_PCT_RE`/`_BPS_RE`: the range class
+    `[-–to ]` shares the space char with the flanking `\s*`, so a space
+    run splits O(m²) ways; ~8× per doubling, 4 s on a 1.6 KB line, ~500 s
+    at 8 KB. No length cap at the call site — one hostile line in an
+    OCR'd newsletter stalls extraction for minutes.
+  - **CONC-1** — the shared graph connection (`get_graph_connection`)
+    returns **wrong rows** under concurrency: 63 cross-returns + 126
+    errors in 3,000 iterations. A handler asking for the company count
+    can be handed the chatter count, as well-formed JSON. It also
+    multiplies AVAIL-1 across N gunicorn workers.
+
+S4's exit condition fired the opposite of low-yield: **adversarial
+validation is now standing doctrine** for the next audit. The three
+confirmed findings each carry a live fix proposal — memoize + ceiling for
+AVAIL-1, pattern de-ambiguation + length cap for AVAIL-2, per-request
+connection for CONC-1 — all with regression tests riding `make qa`.
+
+Non-goals (deferred): the 6-phase orchestration and 11-step promotion
+procedure; full cumulative carry-forward, gated on the ledger being used
+across a second run; deploy-gated SEC-5 Phase 4 auth and `uv lock` (D8),
+re-verified three separate times and still decision-level, not work.
+
+## 249. AVAIL-1 fix — near-duplicates memo + corpus ceiling
+**Proposal**: `doc/improvements/archive/security/near_duplicates_api_compute_cap.md`
+(filed 2026-09-18; executed 2026-09-19).
+
+`/api/graph/near-duplicates` was an unauthenticated O(n²) self-join with no
+bound on *work*: 59 s on the live cache (9,282 company docs, 43 M pairs),
+repeatable on every request, and the attacker-optimal request
+(min_sim → 0, limit = 500) cost 90 s. Two guards landed, both local to the
+endpoint and touching neither the SQL, the algorithm, nor the result shape:
+
+- **Memoize per cache generation.** `_cached_near_duplicates` (app.py)
+  caches the join keyed on the same `built_at` the ETag derives, plus
+  `(doc_type, min_sim, limit)`, and is dropped by
+  `_reset_graph_connection()` alongside `_graph_etag` — so a refresh
+  invalidates it exactly when the data changes. Within one generation the
+  join runs at most once: measured 59.31 s → 0.010 ms (6,132,495×), and the
+  90 s attacker-optimal request is now a cache hit too.
+- **Corpus ceiling.** Before the join, the candidate-row count is checked
+  against `_NEAR_DUP_MAX_ROWS` (10,000); over it the endpoint returns 503
+  naming the live count and the ceiling — parity with the `/positions`
+  node ceiling, which refuses rather than stalls. A refusal stores nothing,
+  so a refused request cannot pollute the memo.
+
+As-implemented addition beyond the proposal: the memo is an LRU bounded at
+64 entries. `min_sim` is client-controlled, so an unbounded memo would have
+traded the CPU hazard for a memory one.
+
+Four regression tests land in `tests/test_api_graph_unit.py`
+(`TestNearDuplicatesAVAIL1`): compute-once within a generation, ceiling
+503 without ever calling the join, invalidation by reset, and the LRU
+bound. All pass; the 120-test graph-route suite is green and
+`make static-checks` is clean.
+
+The live corpus (9,282) sits under the 10,000 ceiling, so the default
+request still serves today; the ceiling is a one named constant when the
+corpus crosses it. AVAIL-1 in the security evaluation (Addenda 3 and 5)
+moves to remediated — the remaining two findings (AVAIL-2, CONC-1) stay
+open with their own proposals.
+
+## 250. AVAIL-2 fix — de-ambiguate the metric range patterns
+
+**Proposal**: `doc/improvements/archive/security/avail2_metric_regex_deAmbiguate.md`
+(filed 2026-09-18; executed 2026-09-19).
+
+The metric range expression shared one space character between the `\s`
+quantifiers and the literal class `[-–to ]`, so a run of spaces could split
+across the three quantifiers in O(m^2) ways while two `\d+` anchors made it
+cubic: ~8x cost per doubling, 3,988 ms at n=800 on the adversarial shape
+`"1" + " "*n + "2" + " "*n + "3"`. The patterns run over every document line
+with no effective length bound, so one adversarial line in an OCR'd
+newsletter stalled the metrics pass.
+
+- **Pattern fix, not a cap.** `\s*[-–to ]+\s*` -> `\s*(?:[-–]|to)\s*` in
+  `_PCT_RE` and `_BPS_RE` (`derive_insights.py`) and the `_PCT_RE` twin in
+  `derive_events.py`. The accepted shapes ("10-15%", "10 to 15%") are
+  unchanged and the en-dash range survives.
+- **The length cap was rejected on measurement.** 21,646 metric-bearing
+  sentences run to 3,165 chars (p99 317), and a 300-char cap drops 1.21% of
+  all metric captures — including real `$33.2bn` / `13.2 GW` values captured
+  by untouched patterns, lost only for sitting in long sentences. No cap is
+  both value-preserving (>3.2 KB) and cubic-bounding (<=800), so the guard
+  is the fuzz test instead: the adversarial shape takes 10,349 ms on the old
+  class and ~1 ms on the fix, so `make qa` fails the moment the ambiguity
+  returns.
+
+Corpus A/B against the pre-fix module: 1,355 notes / 26,255 metrics / 0
+differing notes; events 328 / 0 diffs. Fuzz now linear at 0.9 ms @ 6.4 KB.
+
+## 251. CONC-1 fix — per-request graph connections
+
+**Proposal**: `doc/improvements/archive/security/conc1_graph_connection_isolation.md`
+(filed 2026-09-18; executed 2026-09-19).
+
+`get_graph_connection()` handed every request the same process-wide
+read-only DuckDB connection and the fast path took no lock — by design, per
+the comment at the old app.py:140-145. Concurrent `execute` on one
+connection is not safe: the reproduction (two threads, distinct count
+queries, 3,000 iterations) returned **63 wrong rows + 126 errors** — a
+handler asking for the company count could be handed the chatter count as
+well-formed JSON.
+
+- **Per-request connection, as a hybrid.** In a request context the helper
+  now hands out its own read-only connection stashed on `flask.g`, closed by
+  a `teardown_request` hook, so concurrent requests never share a connection
+  object. Outside a request context (tests, CLI) the singleton path is
+  preserved unchanged, which is why the existing connection, TTL-error, and
+  refresh tests pass as written.
+- **Supporting wiring.** `_graph_build_etag` now prefers the request's own
+  connection (else the singleton, else a one-off read-only open) and
+  `_reset_graph_connection` also drops a request's open connection, so
+  nothing stale survives a refresh. Cache semantics are unchanged — the
+  ETag still derives from the same `built_at`.
+- **The lock alternative was rejected.** It would serialise every graph
+  read, and a correct lock would have to span execute->fetch (the
+  cross-return happens between them), fragile across ~15 call sites.
+
+Verified end-to-end on the live cache: the reproduction that produced 63
+wrong + 126 errors now returns **0 wrong, 0 errors, 3,000 correct**. Three
+regression tests pin the contract: requests get distinct connections, one
+request reuses its connection, teardown closes it, and the direct-call
+singleton is untouched.

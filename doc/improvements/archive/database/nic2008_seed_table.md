@@ -13,7 +13,7 @@ area: "database — helpers/misc (seed), helpers/core/cin.py (cross-check), inte
      archival, flip status/executed/completed_md in the same change. -->
 # NIC-2008 seed table — versioned vocabulary, scheme projection, industry coding lane
 
-**Date:** 2026-09-17 · **Status:** PROPOSED ·
+**Date:** 2026-09-17 · **Status:** EXECUTED (completed.md #246) ·
 **Area:** database — helpers/misc (seed/converger), helpers/core/cin.py
 (cross-check), integrity, ontology docs
 

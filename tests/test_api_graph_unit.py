@@ -1326,3 +1326,125 @@ class TestHyperAPI:
         # Unknown entity resolves through the shared 404 helper.
         r404 = unit_client.get("/api/graph/hyper/neighbors/Does Not Exist")
         assert r404.status_code == 404
+
+
+# ----- AVAIL-1: near-duplicates memo + corpus ceiling --------------------- #
+# (doc/improvements/proposals/near_duplicates_api_compute_cap.md) The
+# unauthenticated O(n^2) self-join is memoized per cache generation and
+# refused over a corpus ceiling. Pure unit tests — _graph_build_etag, the
+# candidate count, and the join itself are all monkeypatched, so no live
+# DuckDB cache is needed.
+
+
+class TestNearDuplicatesAVAIL1:
+    def _wire(self, monkeypatch, count):
+        """Point the endpoint at a counting stub join; return the call counter."""
+        import helpers.graph.query as qm
+
+        monkeypatch.setattr(A, "get_graph_connection", lambda: object())
+        monkeypatch.setattr(A, "_graph_build_etag", lambda: 'W/"graph-2026-07-22"')
+        monkeypatch.setattr(A, "_graph_near_dup_count", lambda con, dt: count)
+        A._graph_near_dup_cache.clear()
+        calls = {"n": 0}
+
+        def counting_join(con, min_sim, doc_type, limit):
+            calls["n"] += 1
+            return [("a.md", "b.md", "A", "B", min_sim)]
+
+        monkeypatch.setattr(qm, "near_duplicate_notes", counting_join)
+        return calls
+
+    def test_compute_once_within_a_generation(self, unit_client, monkeypatch):
+        """Identical params within one cache generation hit the join once."""
+        calls = self._wire(monkeypatch, count=5)
+        r1 = unit_client.get("/api/graph/near-duplicates?min_sim=0.9&limit=50")
+        r2 = unit_client.get("/api/graph/near-duplicates?min_sim=0.9&limit=50")
+        assert r1.status_code == 200 and r2.status_code == 200
+        assert r1.get_json() == r2.get_json()
+        assert calls["n"] == 1, "identical params must compute once, not per request"
+
+    def test_corpus_ceiling_returns_503_without_computing(self, unit_client, monkeypatch):
+        """Over the ceiling the endpoint refuses rather than stalling, and the
+        join never runs."""
+        calls = self._wire(monkeypatch, count=20_000)
+        r = unit_client.get("/api/graph/near-duplicates")
+        assert r.status_code == 503
+        body = r.get_json()
+        assert "too large" in body["error"]
+        assert "20,000" in body["error"]
+        assert body["pairs"] is None
+        assert calls["n"] == 0, "the join must never run over the ceiling"
+
+    def test_memo_invalidated_by_reset(self, unit_client, monkeypatch):
+        """A refresh (via _reset_graph_connection, the same hook) drops the
+        memo so the next request recomputes."""
+        calls = self._wire(monkeypatch, count=5)
+        unit_client.get("/api/graph/near-duplicates?min_sim=0.9")
+        assert calls["n"] == 1
+        A._reset_graph_connection()
+        r = unit_client.get("/api/graph/near-duplicates?min_sim=0.9")
+        assert r.status_code == 200
+        assert calls["n"] == 2, "a reset must invalidate the memo"
+
+    def test_lru_bound_caps_memo_growth(self, unit_client, monkeypatch):
+        """min_sim is client-controlled: distinct keys must evict, not
+        accumulate — an unbounded memo would trade a CPU hazard for memory."""
+        self._wire(monkeypatch, count=5)
+        n = A._NEAR_DUP_CACHE_MAX + 10
+        for i in range(n):
+            unit_client.get(f"/api/graph/near-duplicates?min_sim={0.5 + i / 10_000}")
+        assert len(A._graph_near_dup_cache) <= A._NEAR_DUP_CACHE_MAX
+
+
+# ----- CONC-1: per-request connections ------------------------------------- #
+# (doc/improvements/proposals/conc1_graph_connection_isolation.md) The old
+# process-wide singleton cross-returned rows between concurrent requests
+# (63 wrong + 126 errors / 3,000). Requests must now each get their own
+# connection; the direct-call (no request context) singleton path is
+# preserved for tests and non-request callers.
+
+
+class TestGraphConnectionPerRequest:
+    def test_requests_get_distinct_connections(self, unit_client, monkeypatch):
+        """Two separate request contexts must see two distinct connection
+        objects — that isolation is exactly what the singleton lacked."""
+        made = []
+
+        def fake_open():
+            con = object()  # unique per call
+            made.append(con)
+            return con
+
+        monkeypatch.setattr(A, "_open_graph_connection", fake_open)
+        with A.app.test_request_context("/api/graph/stats"):
+            c1 = A.get_graph_connection()
+            # Within one request, repeated calls reuse the same connection.
+            assert A.get_graph_connection() is c1
+        with A.app.test_request_context("/api/graph/stats"):
+            c2 = A.get_graph_connection()
+        assert c1 is not c2, "concurrent requests must not share a connection"
+        assert len(made) == 2
+
+    def test_direct_call_path_keeps_the_singleton(self, unit_client, monkeypatch):
+        """Outside a request context (tests, CLI), the singleton path is
+        unchanged — existing non-request callers keep their semantics."""
+        sentinel = object()
+        monkeypatch.setattr(A, "_graph_con", sentinel, raising=False)
+        # No request context: returns the singleton, never calls the opener.
+        assert A.get_graph_connection() is sentinel
+
+    def test_teardown_closes_the_request_connection(self, unit_client, monkeypatch):
+        """The teardown hook closes the connection the request opened, so the
+        read lock does not outlive the request."""
+        closed = {"n": 0}
+
+        class FakeCon:
+            def close(self):
+                closed["n"] += 1
+
+        monkeypatch.setattr(A, "_open_graph_connection", lambda: FakeCon())
+        with A.app.test_request_context("/api/graph/stats"):
+            con = A.get_graph_connection()
+            assert isinstance(con, FakeCon)
+        # Context exited -> teardown ran.
+        assert closed["n"] == 1, "teardown must close the request connection"

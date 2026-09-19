@@ -38,6 +38,34 @@ patch — its index line lands here as that patch applies.)_ Per-patch
 rule (2026-09-19): a proposal's index line is added by the SAME patch
 that adds its file, so this section never references content from
 future patches.
+_(Previously: avail2_metric_regex_deAmbiguate.md archived 2026-09-19 as
+completed.md entry 250 — AVAIL-2 fix: the cubic ReDoS in the metric range
+patterns is removed at the pattern (`\s*(?:[-–]|to)\s*`, both derive
+copies); a drafted length cap was rejected on corpus measurement (a 300-char
+cap drops 1.21% of captures) in favour of the adversarial fuzz guard, which
+takes 10,349 ms on the old class and ~1 ms on the fix; execution record in
+`../archive/security/avail2_metric_regex_deAmbiguate.md`.)_
+
+_(Previously: conc1_graph_connection_isolation.md archived 2026-09-19 as
+completed.md entry 251 — CONC-1 fix: requests no longer share one
+process-wide read-only connection (63 wrong rows + 126 errors / 3,000 ->
+0 / 0); each request gets its own connection on `flask.g`, closed at
+teardown, with the direct-call singleton preserved for tests and CLI;
+execution record in `../archive/security/conc1_graph_connection_isolation.md`.)_
+
+_(Previously: near_duplicates_api_compute_cap.md archived 2026-09-19 as
+completed.md entry 249 — AVAIL-1 fix: the unauthenticated O(n^2)
+near-duplicates self-join is memoized per cache generation (59.31 s ->
+0.010 ms measured) and refused over a 10,000-doc corpus ceiling (503);
+execution record in `../archive/security/near_duplicates_api_compute_cap.md`;
+an LRU bound on the memo was added as-implemented because min_sim is
+client-controlled.)_
+
+_(Previously: nic2008_seed_table.md archived 2026-09-18 as completed.md
+entry 246 — NIC-2008 primary-source vocabulary, crosswalk coding, review
+tool; execution record in `../archive/database/nic2008_seed_table.md`;
+filed 2026-09-17, resolved the standing #234 deferral as the first
+consumer of the #244 lifecycle.)_
 
 _(Previously: mojo_footprint_repair.md executed 2026-09-19 as
 completed.md entry 247 (archived to `../archive/tooling/`);

@@ -1,10 +1,11 @@
 import logging
 import os
 import threading
+from collections import OrderedDict
 import time
 import typing
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import yaml
 from dotenv import load_dotenv
@@ -13,12 +14,17 @@ from helpers.web.prefab_views import register as _register_prefab_views
 from flask import (
     Flask,
     abort,
+    g,
+    has_request_context,
     jsonify,
     make_response,
     render_template,
     request,
     send_from_directory,
 )
+
+if TYPE_CHECKING:
+    import duckdb
 
 load_dotenv()
 
@@ -148,52 +154,95 @@ _graph_lock = threading.Lock()
 # immediately produces a fresh ETag.
 _graph_etag: str | None = None
 
+# AVAIL-1 fix (doc/improvements/proposals/near_duplicates_api_compute_cap.md):
+# memo for the near-duplicates pairwise self-join — an unauthenticated O(n^2)
+# query measured at 52.8 s over 9,282 company docs (43 M pairs). Keyed on the
+# cache generation (the same built_at the ETag derives) + (doc_type, min_sim,
+# limit), so a refresh invalidates it exactly when the data changes. Cleared
+# by _reset_graph_connection() alongside _graph_etag. Bounded LRU: min_sim is
+# client-controlled, so an unbounded memo would trade a CPU hazard for a
+# memory one (each entry holds up to `limit` rows).
+_graph_near_dup_cache: OrderedDict[tuple, list] = OrderedDict()
+_NEAR_DUP_CACHE_MAX = 64
+# Corpus ceiling for the self-join: the join's cost is quadratic in candidate
+# rows, so refuse above this rather than stalling a request — parity with the
+# positions node ceiling (layout.py _MAX_NODES). The live corpus sits at
+# 9,282 company docs, so the default request stays under it today.
+_NEAR_DUP_MAX_ROWS = 10_000
 
-def get_graph_connection():
-    """Return the long-lived DuckDB graph connection (design §9).
 
-    Opens lazily on first call. If opening fails, caches the exception and
-    re-raises on subsequent calls WITHOUT retrying — but only for
-    _GRAPH_ERROR_TTL seconds. After the TTL elapses, the next call retries
-    connect() so transient blips auto-recover without operator action.
+def _open_graph_connection() -> "duckdb.DuckDBPyConnection":
+    """Open one read-only DuckDB connection to the graph cache.
+
+    Shared by the per-request path and the direct-call singleton path.
+    Honours the module-global error cache: a connect failure is re-raised
+    without retrying for _GRAPH_ERROR_TTL seconds (fast-fail during a burst),
+    then the next call retries so transient blips auto-recover. A successful
+    open clears any cached error.
     """
-    global _graph_con, _graph_con_error, _graph_error_at
+    global _graph_con_error, _graph_error_at
+    if (
+        _graph_con_error is not None
+        and _graph_error_at is not None
+        and time.monotonic() - _graph_error_at < _GRAPH_ERROR_TTL
+    ):
+        raise _graph_con_error
+    try:
+        from helpers.graph.query import connect as duckdb_connect
+
+        # read_only=True: every /api/graph/* handler only QUERIES the
+        # cache, and a read-write DuckDB open demands exclusivity against
+        # ALL other connections (even read-only ones — that single detail
+        # raced live-invariants against the RO-holding parallel advisory
+        # steps on 2026-08-26). connect() falls back to its RW build path
+        # automatically when the cache is cold/stale, so read-only is
+        # safe for readers and eliminates the cross-process contention.
+        con = duckdb_connect(read_only=True)
+        _graph_con_error = None
+        _graph_error_at = None
+        return con
+    except Exception as e:
+        _graph_con_error = e
+        _graph_error_at = time.monotonic()
+        app.logger.error("graph connection init failed: %s", e)
+        raise
+
+
+def get_graph_connection() -> "duckdb.DuckDBPyConnection":
+    """Return a DuckDB connection to the graph cache (design §9).
+
+    CONC-1 fix: inside a request, each request gets its OWN read-only
+    connection, stashed on flask.g and closed by the teardown hook. The old
+    process-wide singleton was shared across Flask worker threads, and DuckDB
+    does not serialise concurrent executes on one connection — so two
+    concurrent /api/graph/* requests cross-returned rows (63 wrong results +
+    126 errors in 3,000 iterations; a handler asking for the company count
+    could be handed the chatter count as well-formed JSON). Per-request
+    connections are never shared, so that class cannot occur.
+
+    Outside a request context (direct calls, tests, any non-request caller)
+    the long-lived singleton path is preserved unchanged: lazy init under
+    _graph_lock with the TTL error cache.
+    """
+    if has_request_context():
+        con = getattr(g, "_graph_con", None)
+        if con is not None:
+            return con
+        con = _open_graph_connection()
+        g._graph_con = con
+        return con
+    global _graph_con
     # Fast path: connection is live. No lock needed for the read — the worst
-    # case under a race is a thread sees None and takes the slow path, which is
-    # correct (it'll re-init under the lock below).
+    # case under a race is a thread sees None and takes the slow path, which
+    # is correct (it'll re-init under the lock below).
     if _graph_con is not None:
         return _graph_con
     with _graph_lock:
         # Re-check inside the lock — another thread may have inited.
         if _graph_con is not None:
             return _graph_con
-        # Cached error still within TTL? Re-raise without retrying.
-        if (
-            _graph_con_error is not None
-            and _graph_error_at is not None
-            and time.monotonic() - _graph_error_at < _GRAPH_ERROR_TTL
-        ):
-            raise _graph_con_error
-        # Either no cached error, or it's stale — attempt (re)connect.
-        try:
-            from helpers.graph.query import connect as duckdb_connect
-
-            # read_only=True: every /api/graph/* handler only QUERIES the
-            # cache, and a read-write DuckDB open demands exclusivity against
-            # ALL other connections (even read-only ones — that single detail
-            # raced live-invariants against the RO-holding parallel advisory
-            # steps on 2026-08-26). connect() falls back to its RW build path
-            # automatically when the cache is cold/stale, so read-only is
-            # safe for readers and eliminates the cross-process contention.
-            _graph_con = duckdb_connect(read_only=True)
-            _graph_con_error = None
-            _graph_error_at = None
-            return _graph_con
-        except Exception as e:
-            _graph_con_error = e
-            _graph_error_at = time.monotonic()
-            app.logger.error("graph connection init failed: %s", e)
-            raise
+        _graph_con = _open_graph_connection()
+        return _graph_con
 
 
 def _graph_build_etag() -> str | None:
@@ -215,8 +264,10 @@ def _graph_build_etag() -> str | None:
     The ETag is weak (``W/``) because multiple gunicorn workers may serve
     byte-different JSON (key ordering) for semantically-identical content.
 
-    Reads built_at from the live ``_graph_con`` when it's already open (the
-    common case in production). Since 2026-08-26 the singleton itself opens
+    Reads built_at from an already-open connection when one is to hand: the
+    request's own connection (CONC-1: requests no longer share the
+    singleton), else the live direct-call singleton. Otherwise it opens a
+    one-off read-only connection. Since 2026-08-26 the singleton itself opens
     read-only (deadlock fix vs parallel make runs), so even the cold-start
     fallback's separate read-only open coexists safely with it — DuckDB
     allows any number of concurrent read-only openers; it only forbids
@@ -227,9 +278,10 @@ def _graph_build_etag() -> str | None:
         return _graph_etag
     r = None
     try:
-        if _graph_con is not None:
-            # Reuse the live read-write connection (production common case).
-            r = _graph_con.execute("SELECT value FROM _build_meta WHERE key='built_at'").fetchone()
+        live = g._graph_con if (has_request_context() and hasattr(g, "_graph_con")) else _graph_con
+        if live is not None:
+            # Reuse an already-open connection (request's own, or the singleton).
+            r = live.execute("SELECT value FROM _build_meta WHERE key='built_at'").fetchone()
         else:
             # Cold start: no singleton yet, so a read-only connection is safe.
             import duckdb
@@ -260,7 +312,7 @@ def _reset_graph_connection() -> None:
     (DuckDB single-writer contract — see doc/design/graph_design.md §8) so the
     subsequent rebuild() can reopen the file read-write.
     """
-    global _graph_con, _graph_con_error, _graph_error_at, _graph_etag
+    global _graph_con, _graph_con_error, _graph_error_at, _graph_etag, _graph_near_dup_cache
     with _graph_lock:
         if _graph_con is not None:
             # Guard getattr: unit tests seed a bare object() sentinel that has
@@ -278,6 +330,20 @@ def _reset_graph_connection() -> None:
         # the rebuilt cache's built_at (Bundle C4). Without this, a refresh
         # would keep serving the old ETag and clients could get stale 304s.
         _graph_etag = None
+        # AVAIL-1: drop the near-duplicates memo so the next request
+        # recomputes against the rebuilt cache (a refresh is the only way
+        # the generation key changes).
+        _graph_near_dup_cache = OrderedDict()
+        # CONC-1: if a refresh runs inside a request that already opened its
+        # own connection, drop that too — nothing stale may survive a reset.
+        if has_request_context() and getattr(g, "_graph_con", None) is not None:
+            close = getattr(g._graph_con, "close", None)
+            if close is not None:
+                try:
+                    close()
+                except Exception as e:  # noqa: BLE001  # best-effort cleanup
+                    app.logger.warning("request graph connection close failed: %s", e)
+            g._graph_con = None
         # P1.3: also evict the module-level DuckDB cache in helpers.graph.query
         # so the next get_graph_connection() sees the fresh generation.
         try:
@@ -286,6 +352,72 @@ def _reset_graph_connection() -> None:
             clear_graph_cache()
         except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
             pass
+
+
+def _graph_near_dup_count(con: "duckdb.DuckDBPyConnection", doc_type: str) -> int | None:
+    """Candidate-row count for one doc_type (the self-join's input size).
+
+    Returns None when the view is unreadable, so the ceiling degrades open
+    rather than turning a cold cache into a 500 — the wrapper below returns
+    [] on an absent embeddings table, and that contract is preserved.
+    """
+    try:
+        row = con.execute(
+            "SELECT count(*) FROM v_note_embeddings WHERE doc_type = ?",
+            [doc_type],
+        ).fetchone()
+        return None if row is None else row[0]
+    except Exception as e:  # noqa: BLE001  # advisory count; never fatal
+        app.logger.debug("near-dup ceiling count skipped: %s", e)
+        return None
+
+
+def _cached_near_duplicates(
+    con: "duckdb.DuckDBPyConnection",
+    min_sim: float,
+    doc_type: str,
+    limit: int,
+) -> list[tuple]:
+    """Memoized, ceiling-guarded near-duplicate join (AVAIL-1 fix).
+
+    The pairwise self-join over ``v_note_embeddings`` is O(n^2) in candidate
+    rows, so it is (a) capped by a corpus ceiling that refuses rather than
+    stalls — parity with the positions node ceiling — and (b) memoized on the
+    cache generation, keyed on the same ``built_at`` the ETag uses and dropped
+    by _reset_graph_connection(). An anonymous client can no longer force
+    repeated compute: within one cache generation the endpoint is the 304 it
+    already advertised.
+
+    Raises ``ValueError`` over the ceiling — the /positions 503 contract.
+    """
+    from helpers.graph.query import near_duplicate_notes
+
+    gen = _graph_build_etag()
+    if gen is not None:
+        key = (gen, doc_type, min_sim, limit)
+        hit = _graph_near_dup_cache.get(key)
+        if hit is not None:
+            try:
+                _graph_near_dup_cache.move_to_end(key)  # LRU bump
+            except KeyError:
+                # Another worker thread evicted this entry between the get
+                # and the bump (the memo is lock-free). The value is still
+                # valid for this generation — serve it; the LRU order
+                # correction is best-effort.
+                pass
+            return hit
+    n = _graph_near_dup_count(con, doc_type)
+    if n is not None and n > _NEAR_DUP_MAX_ROWS:
+        raise ValueError(
+            f"near-duplicates corpus too large: {n:,} '{doc_type}' docs "
+            f"exceed the {_NEAR_DUP_MAX_ROWS:,}-doc compute ceiling"
+        )
+    results = near_duplicate_notes(con, min_sim=min_sim, doc_type=doc_type, limit=limit)
+    if gen is not None:
+        _graph_near_dup_cache[key] = results
+        while len(_graph_near_dup_cache) > _NEAR_DUP_CACHE_MAX:
+            _graph_near_dup_cache.popitem(last=False)  # evict oldest
+    return results
 
 
 def _resolve_entity_with_type_or_404(name: str) -> tuple[str, str]:
@@ -1656,6 +1788,27 @@ def api_stats():
 # name via _resolve_entity_or_404 before being handed to the graph layer.
 
 
+@app.teardown_request
+def _close_request_graph_connection(exc):  # noqa: ARG001  # Flask passes the exception
+    """Close the request's graph connection (CONC-1).
+
+    Each request opened its own read-only connection (get_graph_connection);
+    closing it at teardown releases the DuckDB read lock promptly, so a
+    rebuild's read-write open is not blocked by idle connections. Requests
+    that never touched the graph have nothing to close.
+    """
+    con = g._graph_con if hasattr(g, "_graph_con") else None
+    if con is None:
+        return
+    g._graph_con = None
+    close = getattr(con, "close", None)
+    if close is not None:
+        try:
+            close()
+        except Exception as e:  # noqa: BLE001  # teardown must never raise
+            app.logger.warning("request graph connection close failed: %s", e)
+
+
 @app.after_request
 def _graph_cache_headers(response):
     """Add ETag + Cache-Control to GET /api/graph/* responses (Bundle C4).
@@ -2216,8 +2369,12 @@ def api_graph_near_duplicates():
 
     graph_docs_ui_redesign S1: read-only GET over
     helpers.graph.query.near_duplicate_notes — the pairwise self-join over
-    v_note_embeddings (~1s at ~1k docs). On-demand only: the UI must not
-    prefetch this; it renders behind a loading state.
+    v_note_embeddings. On-demand only: the UI must not prefetch this; it
+    renders behind a loading state.
+
+    AVAIL-1 guards (near_duplicates_api_compute_cap.md): the join is O(n^2)
+    in candidate docs (measured 52.8 s at 9,282 company docs, 43 M pairs), so
+    it is memoized per cache generation and refused over a corpus ceiling.
 
     Query params:
       - min_sim (default 0.9): cosine threshold, 0 < v <= 1.
@@ -2226,6 +2383,8 @@ def api_graph_near_duplicates():
 
     200 with an empty `pairs` list when nothing clears the threshold or the
     embeddings table is absent/empty (wrapper degrades to []).
+    503 when the doc_type corpus exceeds the compute ceiling — the join would
+    stall; the body names the ceiling and the live count.
     """
     try:
         min_sim = float(request.args.get("min_sim", "0.9"))
@@ -2241,14 +2400,16 @@ def api_graph_near_duplicates():
     if limit < 1 or limit > 500:
         return jsonify({"error": "limit must be between 1 and 500"}), 400
     try:
-        from helpers.graph.query import near_duplicate_notes
-
-        results = near_duplicate_notes(
+        results = _cached_near_duplicates(
             get_graph_connection(),
             min_sim=min_sim,
             doc_type=doc_type,
             limit=limit,
         )
+    except ValueError as e:
+        # Corpus ceiling — refuse rather than stall the request (parity with
+        # the /positions node ceiling).
+        return jsonify({"error": str(e), "pairs": None}), 503
     except Exception as e:
         app.logger.exception("graph near-duplicates failed")
         return jsonify({"error": f"graph query failed: {e}"}), 500

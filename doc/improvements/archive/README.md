@@ -6,6 +6,13 @@ the security review lives privately under doc/local (untracked);
 commit, referenced by nothing). Entry numbers point at
 `../completed.md`. Live items live in `../pending.md`.
 
+## security/ — Security arcs over the API + ingestion surface
+
+- [`post_review_api_reaudit.md`](security/post_review_api_reaudit.md) — Security coverage expansion — availability class + cumulative coverage machinery — post-close re-audit (S1), availability review (S2, AVAIL-1), coverage ledger + validator (S3), adversarial-validation trial (S4, AVAIL-2 + CONC-1) — completed.md #247b
+- [`avail2_metric_regex_deAmbiguate.md`](security/avail2_metric_regex_deAmbiguate.md) — AVAIL-2 fix — cubic ReDoS in the metric range patterns removed at the pattern; length cap rejected on corpus measurement in favour of the adversarial fuzz guard (10,349 ms old vs ~1 ms fixed) — completed.md #250
+- [`conc1_graph_connection_isolation.md`](security/conc1_graph_connection_isolation.md) — CONC-1 fix — per-request graph connections (flask.g + teardown); shared singleton cross-return (63 wrong/3,000 -> 0) eliminated; direct-call singleton preserved — completed.md #251
+- [`near_duplicates_api_compute_cap.md`](security/near_duplicates_api_compute_cap.md) — AVAIL-1 fix — near-duplicates self-join memoized per cache generation (keyed on built_at + doc_type/min_sim/limit, dropped on refresh; 59.31 s -> 0.010 ms measured) + 10,000-doc corpus ceiling -> 503, parity with the positions node ceiling; LRU-bounded memo — completed.md #249
+
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 - [`hgx_first_scaling.md`](graph/hgx_first_scaling.md) — HGX-first scaling — h_edge/h_incidence cache (schema 15, TIER2 12), incidence-native stats section + co-membership suggestions + hyper API, S3 longest_chains cap 3000 (stride-sampled lower bounds) — D4 absorbed, igraph retired per D16 — completed.md #241
 
