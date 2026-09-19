@@ -28,6 +28,8 @@ CREATE TABLE e_jv(a_name BIGINT, b_name BIGINT, weight DOUBLE, properties VARCHA
 
 CREATE TABLE e_listed_in(company_id BIGINT, country_id BIGINT, weight DOUBLE, properties VARCHAR, source_ref VARCHAR, valid_from DATE, valid_to DATE);
 
+CREATE TABLE e_listed_on_index(company_id BIGINT, index_id BIGINT, weight DOUBLE, properties VARCHAR, source_ref VARCHAR, valid_from DATE, valid_to DATE);
+
 CREATE TABLE e_semantic_peer(a_name BIGINT, b_name BIGINT, weight DOUBLE, properties VARCHAR, source_ref VARCHAR, valid_from DATE, valid_to DATE);
 
 CREATE TABLE e_subsidiary(subsidiary_name BIGINT, parent_name BIGINT, weight DOUBLE, properties VARCHAR, source_ref VARCHAR, valid_from DATE, valid_to DATE);
@@ -45,6 +47,8 @@ CREATE TABLE v_country(id BIGINT, "name" VARCHAR);
 CREATE TABLE v_edition(id BIGINT, "name" VARCHAR);
 
 CREATE TABLE v_embeddings(company_name VARCHAR, id BIGINT, embedding FLOAT[384]);
+
+CREATE TABLE v_index(id BIGINT, "name" VARCHAR);
 
 CREATE TABLE v_institution(id BIGINT, "name" VARCHAR);
 
