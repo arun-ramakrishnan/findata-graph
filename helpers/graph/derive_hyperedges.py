@@ -1405,7 +1405,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
                     if keep:
                         qmarks = ",".join("?" * len(keep))
                         cur = conn.execute(
-                            f"DELETE FROM hyper_incidences WHERE edge_id = ? "
+                            f"DELETE FROM hyper_incidences WHERE edge_id = ? "  # noqa: S608  # ?-placeholders only, values parameterized
                             f"AND entity_name NOT IN ({qmarks})",
                             (eid, *keep),
                         )

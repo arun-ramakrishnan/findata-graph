@@ -50,6 +50,7 @@ _KNOWN_EDGE_TYPES: tuple[str, ...] = (
     "semantic_peer",  # E3: embedding cosine neighbours (Relations 2.0)
     "invested_in",  # E5: institution -> company holders (Relations 2.0)
     "listed_in",  # Country layer C1: company -> country (ticker-derived home market)
+    "listed_on_index",  # Index-membership fill: company -> index (NSE constituent-derived)
     "rated_by",  # Country layer I2: company -> rating agency (company)
     "regulated_by",  # Country layer I2: company -> institution (RBI/SEBI)
     "approved_by",  # Country layer I2: company -> institution (RBI/SEBI)
@@ -1775,7 +1776,7 @@ class DatabaseIntegrityChecker:
             .execute(
                 "SELECT COUNT(*) FROM entities WHERE entity_type IN "
                 "('company','sector','super_sector','sub_sector','theme','edition',"
-                "'institution','country')"
+                "'institution','country','index')"
             )
             .fetchone()[0]
         )
@@ -1899,13 +1900,16 @@ class DatabaseIntegrityChecker:
             # Country layer C1: country entities are bare structural rows
             # (listed_in endpoints, derived from exchange tickers) — the
             # same fileless class.
+            # Index-membership fill: index entities are constituent-set nodes
+            # (listed_on_index endpoints, derived from the NSE sidecar) — the
+            # same fileless class.
             # D19 exchange intake: companies seeded from exchange_listings
             # (ticker present, no backing note) are listings-derived rows —
             # file_path is legitimately NULL for them, same fileless class.
             # Scope: company + ticker. The junk signature (company, no path,
             # no ticker) stays counted as invalid.
             if not file_path and (
-                entity_type in ("sub_sector", "theme", "institution", "country")
+                entity_type in ("sub_sector", "theme", "institution", "country", "index")
                 or (entity_type == "company" and entity.get("ticker"))
             ):
                 results["valid_entities"] += 1

@@ -90,10 +90,11 @@ ALLOWED_CATEGORIES = (
 # Entity types that are legitimately fileless — the same exemption as
 # database_integrity_check.py: sub_sectors are intra-sector facets with no
 # dedicated note (M4), themes are cross-sector nodes whose membership lives
-# in exposed_to edges, not markdown (D4), and institutions come from the
-# yfinance holders pass (E5). An empty file_path on these types is by
-# design, so they are skipped without a warning.
-FILELESS_ENTITY_TYPES = ("sub_sector", "theme", "institution", "country")
+# in exposed_to edges, not markdown (D4), institutions come from the
+# yfinance holders pass (E5), and indices are constituent-set nodes derived
+# from the sidecar (index-membership fill). An empty file_path on these
+# types is by design, so they are skipped without a warning.
+FILELESS_ENTITY_TYPES = ("sub_sector", "theme", "institution", "country", "index")
 
 # Reverse map: lowercase sector slug (as it appears in `sector/*` tags) -> the
 # canonical PascalCase form stored in entities.sector_classification. Tags are

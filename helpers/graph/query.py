@@ -198,7 +198,8 @@ def _with_generation_cache(fn):
 # longer declared — pattern queries are plain SQL JOINs over the e_* tables.
 # The bump forces every existing .duckdb cache cold so no stale fin_graph /
 # __duckpgq_internal catalog entries survive.
-_SCHEMA_VERSION = "15"  # 15: h_edge/h_incidence materialised (D4)
+_SCHEMA_VERSION = "16"  # 16: index-membership fill — v_index / e_listed_on_index
+# 15: h_edge/h_incidence materialised (D4)
 # 14: + v_country / e_listed_in (country layer C1 — company -> country,
 # derived from exchange tickers; out-of-registry like exposed_to because
 # the endpoint kinds are mixed).
@@ -804,12 +805,14 @@ _EXTRA_MATERIALIZED = (
     "v_edition",
     "v_institution",
     "v_country",
+    "v_index",
     "v_embeddings",
     "v_note_embeddings",
     "e_belongs_to",
     "e_exposed_to",
     "e_cited_in",
     "e_listed_in",
+    "e_listed_on_index",
     "e_all_und",
     "e_dir",
     # D4 (hgx_first_scaling, 2026-09-16): the incidence star store joins
@@ -1020,7 +1023,7 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
         FROM fin.entities e
         WHERE e.entity_type IN ('company', 'sector', 'super_sector',
                                 'sub_sector', 'theme', 'edition',
-                                'institution', 'country')
+                                'institution', 'country', 'index')
         """
     )
     # Filtered projections used by edge-table JOINs (resolve by name → id).
@@ -1059,6 +1062,10 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
     # (company -> country, ticker-derived). Out-of-registry like
     # v_theme/v_edition for the same mixed-endpoint reason.
     con.execute("CREATE TABLE v_country AS SELECT id, name FROM v_node WHERE kind='country'")
+    # Index-membership fill S3: index projection — endpoint of
+    # listed_on_index (company -> index, NSE constituent-derived).
+    # Out-of-registry like v_country for the same mixed-endpoint reason.
+    con.execute("CREATE TABLE v_index AS SELECT id, name FROM v_node WHERE kind='index'")
     # P2.5: v_embeddings — vector embeddings for semantic similarity search.
     # Sourced from fin.company_embeddings (FLOAT[emb_dim]) if it exists in the
     # SQLite DB; created as an empty table with a matching schema if not (so
@@ -1527,6 +1534,25 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
         JOIN v_node dst ON dst.name = ge.target
                       AND dst.kind = 'country'
         WHERE ge.edge_type = 'listed_in'
+        """
+    )
+    # Index-membership fill S3: the listed_on_index edge (company -> index),
+    # derived from NSE index constituents (helpers/graph/derive_indices.py).
+    # Same out-of-registry reason as listed_in: mixed endpoint kinds.
+    # Created unconditionally so it exists cleanly when empty.
+    con.execute(
+        """
+        CREATE TABLE e_listed_on_index AS
+        SELECT src.id AS company_id,
+               dst.id AS index_id,
+               ge.weight, ge.properties, ge.source_ref,
+               ge.valid_from, ge.valid_to
+        FROM _stg_edges ge
+        JOIN v_node src ON src.name = ge.source
+                      AND src.kind = 'company'
+        JOIN v_node dst ON dst.name = ge.target
+                      AND dst.kind = 'index'
+        WHERE ge.edge_type = 'listed_on_index'
         """
     )
     # sql_capability_unlocks B1: whole-graph adjacency substrates for the

@@ -64,9 +64,7 @@ def test_replace_existing_value(tmp_path: Path) -> None:
     assert author_note(p, "Hydro") == "replaced"
     lines = p.read_text(encoding="utf-8").splitlines()
     assert lines.count("subsector: Hydro") == 1
-    assert not any(
-        ln.startswith("subsector:") and ln != "subsector: Hydro" for ln in lines
-    )
+    assert not any(ln.startswith("subsector:") and ln != "subsector: Hydro" for ln in lines)
 
 
 def test_no_frontmatter_is_reported(tmp_path: Path) -> None:

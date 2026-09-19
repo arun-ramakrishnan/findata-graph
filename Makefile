@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -39,6 +39,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-countries          Derive listed_in (company -> country) edges from exchange tickers (country layer C1)"
 > @echo "  derive-events            Promote relation edges + extract guidance/management events into the events timeline table"
 > @echo "  derive-hyperedges        Regroup membership dyads into hyper_edges/hyper_incidences (star incidence store)"
+> @echo "  derive-indices           Derive index entities + listed_on_index edges from NSE constituents (Wave 1; pair with graph-rebuild)"
 > @echo "  derive-insights          DRY-RUN stale-only preview of quotes/company_metrics + auto '## The Chatter' blocks (writes nothing; apply yourself — see comment above)"
 > @echo "  derive-relations         Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose"
 > @echo "  derive-themes            Derive exposed_to (company -> theme) edges from company-note prose"
@@ -73,6 +74,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  recompute-hyper          Recompute HGX hyper metrics (hy-MMSBM communities + ho/s centralities)"
 > @echo "  refresh-chain            D20 phase 3: exchanges → enrich → CIN → XBRL --new → snapshot (APPLY=1 to write)"
 > @echo "  refresh-exchanges        D19: sync exchange masters + detect new listings (lanes as args; APPLY=1 to write)"
+> @echo "  refresh-indices          Sync NSE index constituents into sources.duckdb (Wave 1 broad-based + sectoral; APPLY=1 to write)"
 > @echo "  refresh-xbrl             D20: incremental NSE XBRL sweep, unseen filings only (ARGS=--new for IPOs; APPLY=1 to write)"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
 > @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
@@ -132,6 +134,10 @@ integration:    ## Run end-to-end cross-component pipeline tests (parse_newslett
 
 refresh-exchanges:  ## D19: sync exchange masters + detect new listings (lanes as args; APPLY=1 to write)
 > .venv/bin/python3 helpers/maintenance/exchange_sync.py $(filter-out $@,$(filter-out APPLY=1,$(MAKECMDGOALS))) $(if $(APPLY),--apply)
+
+refresh-indices:  ## NSE index constituents -> sources.duckdb (Wave 1 broad-based + sectoral; APPLY=1 to write)
+> .venv/bin/python3 helpers/maintenance/index_sync.py $(if $(APPLY),--apply)
+> @echo "✓ index_constituents sidecar synced (dry-run unless APPLY=1)"
 
 refresh-xbrl:  ## D20: incremental NSE XBRL sweep — only new filings per entity (APPLY=1 to write; ARGS="--new" for fresh IPOs only)
 > .venv/bin/python3 helpers/maintenance/ingest_nse_xbrl.py $(ARGS) $(if $(APPLY),--apply)
@@ -303,6 +309,10 @@ derive-events: ## Promote relation edges + extract guidance/management events in
 derive-hyperedges: ## Regroup membership dyads into hyper_edges/hyper_incidences (sector/theme/country/group/edition)
 > python3 helpers/graph/derive_hyperedges.py --apply
 > @echo "✓ hyperedge incidence refreshed (hyper_edges + hyper_incidences)"
+
+derive-indices: ## Derive index entities + listed_on_index edges from NSE index constituents (pair with graph-rebuild)
+> python3 helpers/graph/derive_indices.py --apply
+> @echo "✓ index entities + listed_on_index edges + converged sectors refreshed (pair with graph-rebuild)"
 
 # Note-rendering path — DELIBERATELY DRY-RUN (2026-08-19): a bare `make
 # derive-insights` previews what would be written and never mutates notes

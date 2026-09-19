@@ -979,7 +979,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         print_fn(hdr)
         _evidence(e)
 
-    def ask(e: dict, note) -> dict:
+    def ask(e: dict, note) -> dict:  # noqa: C901
         rid = e["id"]
         while True:
             ans = input_fn(

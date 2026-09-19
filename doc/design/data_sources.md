@@ -53,6 +53,22 @@ Needs browser `User-Agent` + `Referer: https://www.nseindia.com/`.
 Full Emerge board list: NOT pinned (EQUITY_SME.csv 404s); SME coverage
 rides the EMERGE index list until pinned.
 
+## NSE Indices (niftyindices.com — per-index constituent CSVs)
+
+`helpers/maintenance/index_sync.py` (`make refresh-indices`) folds NSE
+Indices equity-index constituents into
+`sources.duckdb::index_constituents` (append-only,
+`PRIMARY KEY (index_name, symbol, as_of)`; `as_of` = CSV `Last-Modified`,
+the semi-annual reconstitution vintage). Wave 1 = broad-based + sectoral:
+detail pages are discovered from
+`niftyindices.com/indices/equity/{broad-based,sectoral}-indices` and each
+is scraped for its `IndexConstituent/<stem>.csv` href (stems are
+inconsistent — never guessed). Columns: `Company Name, Industry, Symbol,
+Series, ISIN Code`. The three nsearchives feeds above are the no-scrape
+lane for their indices (`index_sync.py` skips the discovered duplicate).
+Consumed by `helpers/graph/derive_indices.py` → `index` entities +
+`listed_on_index` edges (`doc/improvements/archive/graph/index_membership_fill.md`).
+
 ## BSE (api.bseindia.com needs `Referer: https://www.bseindia.com/`)
 
 | What | Value |
@@ -106,8 +122,9 @@ Asia varies (SSE/TSE/TWSE verified; TSX/KRX ride operator research).
 | Store (DuckDB, one file) | Tables/Views | Content |
 |---|---|---|
 | `memory/data/sources.duckdb` | `exchange_listings` (24,305) | LISTING-level long format: isin, name, industry, asset_type (equity/debt/cp/mf/pref), exchange (NSE/BSE), segment (main/sme), symbol, kite_tradingsymbol/token/tick/lot |
-|  | `mca_cin` (730) | entity_name → CIN + MCA name/status/class/PBA/state + provenance |
-|  | `vw_equity` / `vw_sme` / `vw_instruments` | convenience views (equity; SME listings; kite-tokened instruments) |
+|  | `mca_cin` (1,020) | entity_name → CIN + MCA name/status/class/PBA/state + provenance |
+|  | `index_constituents` (append-only) | index_name, index_slug, asset_class, symbol, isin, company_name, industry, series, as_of, fetched_at — NSE index membership per reconstitution vintage |
+|  | `vw_equity` / `vw_sme` / `vw_instruments` / `vw_index_constituent` | convenience views (equity; SME listings; kite-tokened instruments; latest constituent vintage per index) |
 
 Query directly — no load step:
 
@@ -143,9 +160,14 @@ Query pattern:
 - **D12** — CIN/NIC: sidecar → `entities.cin` + facets via
   `backfill_identifiers`; NIC seed table maps ONLY nic2008-era CINs.
 - **D14** — universe seed: `exchange_universe.parquet` equity rows minus
-  existing entities ⇒ stub companies (ticker + industry +
-  sector_classification from exchange data); ~6.6k new entities measured
-  2026-09-15.
+  existing entities ⇒ stub companies (name + ticker only). The D14 seed
+  does NOT carry `industry`/`sector_classification` — those converge later
+  from index constituents (`derive_indices.py`) and the yfinance label
+  lane. ~6.6k new entities measured 2026-09-15.
+- **Index-membership fill** — `index_sync.py` →
+  `sources.duckdb::index_constituents` → `derive_indices.py` → `index`
+  entities + `listed_on_index` edges (company → index) + converged
+  `sector_classification` (`doc/improvements/archive/graph/index_membership_fill.md`).
 - **yfinance lane** (pre-existing): tickers → industry labels via
   `helpers/core/get_tickers.py` + `helpers/maintenance/enrich_from_yfinance.py`
   — the classification-label workhorse for exchange stubs.

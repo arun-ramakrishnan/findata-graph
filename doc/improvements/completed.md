@@ -6511,3 +6511,52 @@ touched suites. Gates: `make qa` 8/10 — md-lint = pre-existing
 operator-local `security_evaluation.md` MD018 (mid-edit, not this arc);
 snapshot_check drift = the operator's parallel derive+sitting writes,
 re-converged at generation 105389 post-run. All other gates green.
+
+## 253. Index-membership fill — NSE constituents into sidecar, SQLite, and graph cache
+
+**Proposal**: `doc/improvements/archive/graph/index_membership_fill.md`
+(filed + executed 2026-09-19; plan-of-record memo
+`doc/local/evaluations/index_fill.md`).
+
+Filled the twice-deferred `listed_on_index` gap: NSE constituent CSVs
+land raw in the sidecar, project into fileless `index` entities + dyadic
+`listed_on_index` edges, and materialise in the DuckDB cache at v16.
+
+- **S1 `index_sync.py` + `make refresh-indices`**: two lanes —
+  nsearchives (three register feeds; browser UA + NSE Referer) and
+  niftyindices (listing → detail → `IndexConstituent/*.csv` href; stems
+  never guessed). Append-only `index_constituents`
+  (`(index_name, symbol, as_of)`; `as_of` = CSV `Last-Modified`) +
+  `vw_index_constituent`; added to `SOURCES_TABLES`. Wave 1 broad-based +
+  sectoral = **57 indices / 6,661 rows**; second apply inserted **0**.
+- **S2 `derive_indices.py` + `make derive-indices`**: ISIN → NSE symbol
+  resolution (fuzzy vetoed, #218); fileless `index` entities + **6,615**
+  edges; explicit NSE-industry → canonical-sector convergence fills
+  **639** empty `sector_classification` (never overwrites authored; raw
+  label stays sidecar-side); 46 unresolved →
+  `findata/Misc/index_worklist.json`, unmapped labels parked
+  (`Services` 86, `Utilities` 12).
+- **S3 cache**: `_SCHEMA_VERSION` 15→16; `v_index`, `e_listed_on_index`,
+  `v_node` kind `'index'`, `_EXTRA_MATERIALIZED`; integrity
+  `_KNOWN_EDGE_TYPES` + v_node count + fileless set; ontology
+  `edge_types` roster + `sync_tags.FILELESS_ENTITY_TYPES`; db_schema /
+  data_sources corrected (34 objects, mca_cin 730→1,020, false D14
+  "industry" claim). `make graph-rebuild` → `v_node` 6,811, `v_index` 57,
+  `e_listed_on_index` 6,615; `make integrity` rc=0.
+- **S4**: new `tests/test_index_sync.py`, `tests/test_derive_indices.py`;
+  `test_snapshot.py` extended to the 3-table sources round-trip.
+
+Eval gate: **ACCEPT** (`helpers/misc/ontology_questions.json`, 164
+questions, 0 moved). Gates: `make qa` 10/10, `make advisory` 11/11,
+`make search-fresh` fresh. `make perf` 19/22 — only
+`graph_closeness`/`graph_betweenness` timing over-budget (ignored) and
+`snapshot_check` at the pre-snapshot moment (snap rides its own db_sync
+patch).
+
+Pre-existing debt the sweep surfaced and this arc fixed (not index
+code): `app.py` UP037 ×4; audit `# noqa` for C901/S608/S101 in
+review_kit / derive_hyperedges / triage_pending_{quotes,relations} /
+seed_nic2008 / nic_scorer_bench / coverage_ledger; live-test
+reconciliation (`belongs_to` 184, Talbros customers, CONC-1 per-request
+connection test, CPU-time fuzzy-duplicates perf pin); regenerated
+`frontmatter_keys.md`.

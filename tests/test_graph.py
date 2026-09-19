@@ -274,7 +274,7 @@ class TestSectorHierarchy:
     def test_belongs_to_materialised_in_graph(self, con):
         # The e_belongs_to table must be populated (the dedicated CTAS ran).
         n = con.execute("SELECT COUNT(*) FROM e_belongs_to").fetchone()[0]
-        assert n == 183  # 42 sector->super + 141 sub->sector (D13 echo round 2, 2026-09-15)
+        assert n == 184  # 42 sector->super + 142 sub->sector (live census, 2026-09-19)
 
     def test_vertex_projections_populated(self, con):
         # The 4 entity kinds must all materialise as vertices. The live DB
@@ -328,10 +328,10 @@ class TestBundleK3CoalescedNeighbors:
 
     def test_suppliers_and_customers_outgoing_suppliesto(self, con):
         # Talbros → Tata Motors Passenger Vehicles (supplier_to). Talbros is
-        # the supplier, so it has a customer (Tata Motors PV), no suppliers.
+        # the supplier, so it has customers (Tata Motors PV + CV), no suppliers.
         s, c = suppliers_and_customers(con, "Talbros Automotive Components")
         assert s == []
-        assert c == ["Tata Motors Passenger Vehicles"]
+        assert c == ["Tata Motors Commercial Vehicles", "Tata Motors Passenger Vehicles"]
 
     def test_suppliers_and_customers_incoming_suppliesto(self, con):
         # The flip side: Tata Motors PV has Talbros as a supplier.

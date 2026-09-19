@@ -1030,7 +1030,7 @@ def roster_registry_sources() -> dict[str, set[str]]:
 
     Local imports: database_integrity_check imports CANONICAL_EVENT_TYPES
     from this module (module-level import would be circular), and its own
-    imports are light. Edge vocabulary truth is _KNOWN_EDGE_TYPES (20) —
+    imports are light. Edge vocabulary truth is _KNOWN_EDGE_TYPES (21) —
     query.py's EDGE_REGISTRY is the DuckDB-materialized SUBSET, not the
     vocabulary.
     """

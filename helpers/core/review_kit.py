@@ -202,7 +202,7 @@ class ReviewSession:
         self.print_fn = print_fn
         self.apply_flag = apply_flag
 
-    def run(self) -> dict:
+    def run(self) -> dict:  # noqa: C901  # linear stdin decision walk
         specs: list[str] = []
         decisions: list[dict] = []
 

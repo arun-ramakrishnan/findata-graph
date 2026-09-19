@@ -845,7 +845,7 @@ def latest_action_by_label(journal_path: pathlib.Path) -> dict[str, str]:
     return latest_action_by(journal_path, key_field="label")
 
 
-def _stamp_industry_code_field(text: str, code: str) -> tuple[str, bool]:
+def _stamp_industry_code_field(text: str, code: str) -> tuple[str, bool]:  # noqa: C901
     """Add/update the ``industry_code:`` frontmatter field; (text, changed).
 
     Line-level surgery mirroring enrich_from_yfinance._update_frontmatter —
@@ -1062,7 +1062,7 @@ def export_worklist(conn, out_path=None, *, journal_path: pathlib.Path | None = 
     return worklist
 
 
-def review(  # thin config over helpers.core.review_kit (S1 rehome, zero behavior change)
+def review(  # noqa: C901  # thin config over helpers.core.review_kit (S1 rehome, zero behavior change)
     conn,
     *,
     labels_filter: set[str] | None = None,

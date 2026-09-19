@@ -171,7 +171,7 @@ _NEAR_DUP_CACHE_MAX = 64
 _NEAR_DUP_MAX_ROWS = 10_000
 
 
-def _open_graph_connection() -> "duckdb.DuckDBPyConnection":
+def _open_graph_connection() -> duckdb.DuckDBPyConnection:
     """Open one read-only DuckDB connection to the graph cache.
 
     Shared by the per-request path and the direct-call singleton path.
@@ -208,7 +208,7 @@ def _open_graph_connection() -> "duckdb.DuckDBPyConnection":
         raise
 
 
-def get_graph_connection() -> "duckdb.DuckDBPyConnection":
+def get_graph_connection() -> duckdb.DuckDBPyConnection:
     """Return a DuckDB connection to the graph cache (design §9).
 
     CONC-1 fix: inside a request, each request gets its OWN read-only
@@ -354,7 +354,7 @@ def _reset_graph_connection() -> None:
             pass
 
 
-def _graph_near_dup_count(con: "duckdb.DuckDBPyConnection", doc_type: str) -> int | None:
+def _graph_near_dup_count(con: duckdb.DuckDBPyConnection, doc_type: str) -> int | None:
     """Candidate-row count for one doc_type (the self-join's input size).
 
     Returns None when the view is unreadable, so the ceiling degrades open
@@ -373,7 +373,7 @@ def _graph_near_dup_count(con: "duckdb.DuckDBPyConnection", doc_type: str) -> in
 
 
 def _cached_near_duplicates(
-    con: "duckdb.DuckDBPyConnection",
+    con: duckdb.DuckDBPyConnection,
     min_sim: float,
     doc_type: str,
     limit: int,

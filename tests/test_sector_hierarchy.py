@@ -184,7 +184,8 @@ class TestBuild:
         # NBFC/HFC/Capital_Markets/Telecom/Energy/Retail/Travel/Media/
         # Automotive additions + Hydro + Recycling), and 123 -> 141 on
         # 2026-09-15 (D13 echo round 2: +20 new nodes, skeletons pruned;
-        # live census concurs).
+        # live census concurs). 141 -> 142 reconciled 2026-09-19 (live
+        # census + build output agree on 142 sub-categories).
         n_ss = con.execute(
             "SELECT COUNT(*) FROM entities WHERE entity_type='super_sector'"
         ).fetchone()[0]
@@ -192,12 +193,12 @@ class TestBuild:
             "SELECT COUNT(*) FROM entities WHERE entity_type='sub_sector'"
         ).fetchone()[0]
         assert n_ss == 10
-        assert n_sub == 141
-        # 42 sector->super + 141 sub->sector = 183 belongs_to edges
+        assert n_sub == 142
+        # 42 sector->super + 142 sub->sector = 184 belongs_to edges
         n_bt = con.execute(
             "SELECT COUNT(*) FROM graph_edges WHERE edge_type='belongs_to'"
         ).fetchone()[0]
-        assert n_bt == 183
+        assert n_bt == 184
         con.close()
 
     def test_apply_is_idempotent(self, tmp_path):

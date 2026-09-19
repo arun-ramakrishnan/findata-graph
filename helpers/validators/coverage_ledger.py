@@ -106,7 +106,7 @@ def load_ledger(path: Path) -> list[dict]:
     return data
 
 
-def check(app_path: Path, ledger_path: Path, *, strict: bool) -> int:
+def check(app_path: Path, ledger_path: Path, *, strict: bool) -> int:  # noqa: C901
     routes = route_inventory(app_path)
     rows = load_ledger(ledger_path)
     by_surface: dict[str, list[dict]] = {}

@@ -50,7 +50,7 @@ SEED_PATH = HELPERS_DIR / "nic2008_seed.json"
 QUESTIONS_PATH = HELPERS_DIR / "ontology_questions.json"
 
 _SPEC = importlib.util.spec_from_file_location("seed_nic2008", HELPERS_DIR / "seed_nic2008.py")
-assert _SPEC is not None and _SPEC.loader is not None  # fixed repo-relative path
+assert _SPEC is not None and _SPEC.loader is not None  # noqa: S101  # fixed repo-relative path
 _sn = importlib.util.module_from_spec(_SPEC)
 sys.modules["seed_nic2008"] = _sn
 _SPEC.loader.exec_module(_sn)

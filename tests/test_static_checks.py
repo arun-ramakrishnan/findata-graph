@@ -1475,7 +1475,7 @@ def test_ontology_rosters_fail_when_gated_roster_absent(tmp_path):
     doc = tmp_path / "ontology.md"
     doc.write_text("# t — no roster blocks at all\n", encoding="utf-8")
     failures = sc.check_ontology_doc_rosters(doc)
-    assert len(failures) == 2
+    assert len(failures) == len(sc.roster_registry_sources())
     assert all("absent from the doc" in f for f in failures)
 
 

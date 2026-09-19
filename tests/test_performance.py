@@ -137,10 +137,16 @@ def test_fuzzy_duplicates_scales_quadratically_not_worse(synthetic_db):
         # skip threshold (a single synthetic-200 pass is a few hundred
         # microseconds); the same burst factor applies to both sizes, so
         # the quadratic ratio under test is unchanged.
-        t0 = time.perf_counter()
+        #
+        # CPU time, not wall-clock: the measurement runs in parallel with
+        # the rest of `make qa -n auto`, where a scheduler stall can stretch
+        # the larger run alone (observed 9.5-11.8x on an O(n^2) pass).
+        # process_time() counts only this process's CPU, so sibling-worker
+        # contention cannot skew the ratio.
+        t0 = time.process_time()
         for _ in range(10):
             checker.check_fuzzy_duplicate_names()
-        return time.perf_counter() - t0
+        return time.process_time() - t0
 
     # Time both sizes back-to-back in each round; the median round's ratio
     # is the estimate (see _median_round_ratio).

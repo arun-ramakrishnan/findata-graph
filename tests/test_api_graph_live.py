@@ -236,25 +236,41 @@ class TestGraphEndpointsLive:
         assert data["hygiene"]["orphan_edges"] == 0
 
     def test_refresh_resets_connection(self, live_client, monkeypatch):
-        # First call seeds the cache via a real connect().
+        # CONC-1: inside a request each request gets its OWN connection on
+        # flask.g (closed by the teardown hook); the module singleton
+        # _graph_con is used only OUTSIDE a request context. A successful
+        # request must therefore NOT populate the singleton.
+        from flask import g, has_request_context
+
         A._reset_graph_connection()
         r1 = live_client.get("/api/graph/peers/CEAT")
         assert r1.status_code == 200
-        assert A._graph_con is not None
+        assert A._graph_con is None  # per-request path leaves the singleton alone
 
-        # POST /refresh must (a) reset the cached connection FIRST (so the
-        # DuckDB file is free), then (b) rebuild the disk cache. We spy
-        # on rebuild() to confirm the disk-rebuild half fires AND that
-        # the connection was already None when rebuild() was called.
+        # Outside a request the singleton path still caches (and reset drops it).
+        con = A.get_graph_connection()
+        assert con is not None and A._graph_con is con
+        A._reset_graph_connection()
+        assert A._graph_con is None
+
+        # POST /refresh must (a) reset the connection FIRST (so the DuckDB file
+        # is free), then (b) rebuild the disk cache. We spy on rebuild() to
+        # confirm the disk-rebuild half fires AND that both the singleton and
+        # the request's own connection were already None when it was called.
         import helpers.graph.query as q
 
         called = {"rebuild": False, "con_was_none": False}
-        orig_rebuild = q.rebuild
 
         def spy_rebuild(*a, **kw):
             called["rebuild"] = True
-            called["con_was_none"] = A._graph_con is None
-            return orig_rebuild(*a, **kw)
+            called["con_was_none"] = A._graph_con is None and (
+                not has_request_context() or getattr(g, "_graph_con", None) is None
+            )
+            # Do NOT run the real RW rebuild here: it takes an exclusive lock
+            # that fails concurrent read-only openers in other xdist workers
+            # (flaky `test_context_pack` IOException). The real rebuild path is
+            # covered by test_graph_disk / maint tests.
+            return None
 
         monkeypatch.setattr(q, "rebuild", spy_rebuild)
         r2 = live_client.post("/api/graph/refresh")
@@ -267,7 +283,7 @@ class TestGraphEndpointsLive:
         # Next request re-opens against the freshly-rebuilt file.
         r3 = live_client.get("/api/graph/peers/CEAT")
         assert r3.status_code == 200
-        assert A._graph_con is not None
+        assert A._graph_con is None
 
     def test_graph_connection_failure_returns_500(self, live_client, monkeypatch):
         # Stub connect() to raise; first request after reset should 500 cleanly.

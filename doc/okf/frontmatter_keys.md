@@ -34,6 +34,7 @@ Source: [`frontmatter.company.v1.json`](frontmatter.company.v1.json)
 | `sources` | no | array | items: string | OKF v0.2 §5.1 — materials this concept derives from. |
 | `stale_after` | no | string | pattern `^\d{4}-\d{2}-\d{2}$` | OKF v0.2 §5.5 — absolute stale date (YYYY-MM-DD); today >= stale_after => stale. |
 | `status` | no | string | one of `draft`, `stable`, `deprecated` | OKF v0.2 §5.4 — lifecycle state; absent = stable. |
+| `subsector` | no | string? | min length 1 | Operator-authored canonical sub_sector classification (D7 authored lane, #238); case/spacing-insensitive against sub_sector entity names, wins over the derived alias mapping. Absent on un-authored notes. |
 | `tags` | yes | array | items: pattern `^[a-z0-9_]+/[a-z0-9_]+$`; min 1 item(s) | Namespaced lowercase tags (prefix/value), e.g. entity_type/company, sector/pharma, market_cap/mid_cap, geography/india. |
 | `ticker` | yes | string? | pattern `^([A-Z0-9&\-]{1,20}\.(NS/BO)/[A-Z0-9.\-]{1,10})$` | Exchange ticker, or null when unlisted. Indian: SYMBOL.NS / SYMBOL.BO (NSE/BOM). US: bare uppercase. Never the literal string 'N/A' — use null. |
 | `title` | yes | string | min length 1 | Human-readable company name (display title). |

@@ -377,7 +377,7 @@ def review(  # noqa: C901 — keypress parsing + kit wiring, split would scatter
         print_fn(f"[{idx}/{total}] `{e['id']}` {e['canonical']}  ({e.get('bucket', '?')})")
         _evidence(e)
 
-    def ask(e: dict, note) -> dict:
+    def ask(e: dict, note) -> dict:  # noqa: C901
         rid = e["id"]
         sugg = e.get("suggestions", [])
         while True:

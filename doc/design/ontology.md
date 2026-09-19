@@ -62,6 +62,7 @@ vocabulary.) Endpoint conventions and per-type semantics:
 - semantic_peer
 - invested_in
 - listed_in
+- listed_on_index
 - rated_by
 - regulated_by
 - approved_by
@@ -148,6 +149,7 @@ catch-all. ORG Membership/Post/Role activate only when that gate lifts
 - company
 - country
 - edition
+- index
 - institution
 - sector
 - sub_sector

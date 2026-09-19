@@ -391,6 +391,8 @@ def test_sources_duckdb_export_restore_roundtrip(tmp_path):
     )
     con.execute("CREATE TABLE mca_cin (entity_name VARCHAR, cin VARCHAR)")
     con.execute("INSERT INTO mca_cin VALUES ('Alpha', 'L00000KA2000PLC000001')")
+    con.execute("CREATE TABLE index_constituents (index_name VARCHAR, symbol VARCHAR, as_of DATE)")
+    con.execute("INSERT INTO index_constituents VALUES ('Nifty 50', 'RELIANCE', '2026-09-18')")
     con.execute("CREATE VIEW vw_sme AS SELECT * FROM exchange_listings WHERE segment = 'sme'")
     con.close()
 
@@ -403,16 +405,17 @@ def test_sources_duckdb_export_restore_roundtrip(tmp_path):
     assert {p.name for p in pq_dir.glob("*.parquet")} == {
         "exchange_listings.parquet",
         "mca_cin.parquet",
+        "index_constituents.parquet",
     }
 
     # verify side: row counts match live vs snapshot tree
     res = _verify_parquet_duckdb_side(pq_root, src, _logger(), subdir="sources")
-    assert res["tables_checked"] == 2 and res["mismatches"] == []
+    assert res["tables_checked"] == 3 and res["mismatches"] == []
 
     # restore into a FRESH target: schema (tables + view) replays, rows load
     tgt = tmp_path / "restored.duckdb"
     out = restore_duckdb_from_parquet(pq_dir, tgt, _logger(), schema_filename="_schema.sources.sql")
-    assert out["tables"] == {"exchange_listings": 2, "mca_cin": 1}
+    assert out["tables"] == {"exchange_listings": 2, "mca_cin": 1, "index_constituents": 1}
     rc = duckdb.connect(str(tgt), read_only=True)
     vw_row = rc.execute("SELECT COUNT(*) FROM vw_sme").fetchone()
     assert vw_row is not None and vw_row[0] == 1
