@@ -239,7 +239,7 @@ def test_app_pilot_rows_preview_monitor(monkeypatch: pytest.MonkeyPatch) -> None
     pytest repeatedly pegged the CPU). Live smoke stays manual: make search-tui."""
     pytest.importorskip("textual")
     import helpers.misc.search_tui_app as appmod
-    from textual.widgets import DataTable
+    from textual.widgets import DataTable, RichLog
 
     monkeypatch.setattr(
         appmod, "run_lane", lambda lane, q, limit, mode="hybrid": (_fake_hits(), "3 hits · fake")
@@ -254,10 +254,10 @@ def test_app_pilot_rows_preview_monitor(monkeypatch: pytest.MonkeyPatch) -> None
                 if app.query_one("#results", DataTable).row_count > 0:
                     break
             rows = app.query_one("#results", DataTable).row_count
-            first = [ln.text for ln in app.query_one("#preview").lines[:1]]
+            first = [ln.text for ln in app.query_one("#preview", RichLog).lines[:1]]
             await pilot.press("down")
             await pilot.pause(0.1)
-            second = [ln.text for ln in app.query_one("#preview").lines[:1]]
+            second = [ln.text for ln in app.query_one("#preview", RichLog).lines[:1]]
             moved = first != second
             app.action_monitor()  # direct: the "i" key is gated while typing (by design)
             await pilot.pause(0.2)
@@ -832,7 +832,8 @@ def test_report_rerun_argv() -> None:
         argv = report_rerun_argv(name)
         assert argv and len(argv) == 2
     assert report_rerun_argv("bogus") is None
-    assert report_rerun_argv("qa")[1] == "qa"
+    argv_qa = report_rerun_argv("qa")
+    assert argv_qa is not None and argv_qa[1] == "qa"
 
 
 def test_report_screen_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -1012,7 +1013,7 @@ def test_db_history_roundtrip_dedupe_cap(tmp_path: Path) -> None:
 
 
 def test_db_filter_rows_fuzzy(tmp_path: Path) -> None:
-    rows = [("alpha", 1), ("beta", 2), ("gamma", 3)]
+    rows: list[tuple[object, ...]] = [("alpha", 1), ("beta", 2), ("gamma", 3)]
     assert db_filter_rows(rows, "") == rows
     assert db_filter_rows(rows, "alp") == [("alpha", 1)]
     assert db_filter_rows(rows, "am") == [("gamma", 3)]  # subsequence, not substring

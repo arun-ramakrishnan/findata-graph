@@ -1116,6 +1116,31 @@ class TestWorklistParking:
         wl = json.loads((tmp_path / "findata" / "Misc" / "counterparty_worklist.json").read_text())
         assert wl["unresolved"] == [] and wl["count"] == 0 and wl["parked"] == 1
 
+    def test_counterparty_worklist_rewrite_when_nothing_resolves(self, conn, tmp_path, monkeypatch):
+        """Apply-mode must rewrite the worklist even with ZERO newly-resolved
+        counterparties — otherwise stale entries sit forever and fresh
+        parking never converges the file (found live 2026-09-19: the only
+        unresolved row had vanished from events, so `resolved` was empty and
+        the rewrite was skipped, leaving parked: 0 on disk)."""
+        c = TestCounterpartyResolution._events_conn(conn)
+        c.execute(
+            "UPDATE events SET counterparty = 'Zynth Industries' "
+            "WHERE counterparty = 'Beta'"  # nothing can auto-resolve now
+        )
+        c.commit()
+        monkeypatch.setattr(dh, "_REPO_ROOT", tmp_path)
+        from helpers.core.review_kit import park_items
+
+        park_items(
+            tmp_path / "outputs" / "worklist_parking" / "counterparty" / "journal.jsonl",
+            ["Ghost CP Co"],
+            key_field="name",
+        )
+        n_ok, n_bad, _ = dh.resolve_counterparties(c, dry_run=False)
+        assert (n_ok, n_bad) == (0, 2)
+        wl = json.loads((tmp_path / "findata" / "Misc" / "counterparty_worklist.json").read_text())
+        assert wl["unresolved"] == ["Zynth Industries"] and wl["count"] == 1 and wl["parked"] == 1
+
     def test_subsector_worklist_filters_parked(self, tmp_path, monkeypatch):
         monkeypatch.setattr(dh, "_REPO_ROOT", tmp_path)
         from helpers.core.review_kit import park_items

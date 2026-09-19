@@ -184,7 +184,15 @@ Crosswalks live ONLY in `concept_mappings` (D-O1).
 
 <!-- /roster -->
 
-### 2.8 CHECK-constraint enums (documented; gating deferred)
+### 2.8 CHECK-constraint enums (gated — `helpers/core/vocab.py`, #244c)
+
+Registry: `helpers/core/vocab.py` exports MATCH_TYPE_VALUES /
+IDENTIFIER_TYPE_VALUES / SOURCE_TIER_VALUES / CONCEPT_STATUS_VALUES;
+the DDL CHECK clauses (seed_concepts, backfill_identifiers,
+backfill_row_provenance) build from the same constants, so a value
+change must land in all three places at once. (Gating was deferred at
+filing, ontology_governance 244c; joined the gated rosters
+2026-09-19.)
 
 From the canonical DDL (`helpers/core/db.py`, `helpers/core/cin.py`,
 entry-234 slices):

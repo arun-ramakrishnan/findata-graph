@@ -43,6 +43,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402
 
 from helpers.core.cin import LLPIN_RE, parse_cin  # noqa: E402
 from helpers.core.db import DEFAULT_DB_PATH, connect, utc_now  # noqa: E402
+from helpers.core.vocab import IDENTIFIER_TYPE_VALUES, sql_in  # noqa: E402
 
 # entities.<col> additions (memo §6.6 landing zone). Facets are a
 # projection of cin — converge() rewrites them, never the reverse.
@@ -55,12 +56,12 @@ _ENTITIES_COLUMNS: tuple[tuple[str, str], ...] = (
     ("cin_ownership", "CHAR(3)"),
 )
 
-_REGISTRY_DDL = """
+_REGISTRY_DDL = f"""
     CREATE TABLE IF NOT EXISTS entity_identifiers (
         entity_name      TEXT NOT NULL REFERENCES entities(name)
                            ON DELETE CASCADE ON UPDATE CASCADE,
         identifier_type  TEXT NOT NULL CHECK (identifier_type IN
-                           ('cin', 'lei', 'cik', 'isin', 'llpin', 'alias')),
+                           ({sql_in(IDENTIFIER_TYPE_VALUES)})),
         identifier_value TEXT NOT NULL,
         namespace        TEXT,
         valid_from       TEXT,

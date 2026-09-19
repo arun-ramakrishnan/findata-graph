@@ -57,6 +57,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402
 
 from helpers.core.db import DEFAULT_DB_PATH, connect  # noqa: E402
+from helpers.core.vocab import CONCEPT_STATUS_VALUES, MATCH_TYPE_VALUES, sql_in  # noqa: E402
 
 # The tag namespaces that become schemes (db_schema.md roster).
 _TAG_NAMESPACES: tuple[str, ...] = (
@@ -106,8 +107,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
     pre-S1 DBs — existing rows carry 'active' by definition.
     """
     _STATUS_DDL = (
-        "status TEXT NOT NULL DEFAULT 'active' "
-        "CHECK (status IN ('candidate', 'active', 'superseded'))"
+        f"status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ({sql_in(CONCEPT_STATUS_VALUES)}))"
     )
     conn.execute(
         """
@@ -148,7 +148,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
             target_scheme  TEXT NOT NULL,
             target_concept TEXT NOT NULL,
             match_type     TEXT NOT NULL CHECK (match_type IN
-                             ('exactMatch', 'closeMatch', 'broadMatch', 'narrowMatch')),
+                             ({sql_in(MATCH_TYPE_VALUES)})),
             source_ref     TEXT NOT NULL,
             version        TEXT NOT NULL,
             {_STATUS_DDL}

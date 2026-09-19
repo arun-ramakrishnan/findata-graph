@@ -518,23 +518,27 @@ def resolve_counterparties(conn, *, dry_run: bool = True) -> tuple[int, int, lis
                     "      replace(?,'_',' ')) WHERE id = ?",
                     (cp, cp, cp, int(eid)),
                 )
-        if unresolved:
-            from helpers.core.review_kit import latest_action_by
+    # Worklist rewrite is independent of `resolved`: a run can have
+    # unresolved-only rows (nothing auto-resolves), or none at all while
+    # the stale worklist still lists entries — either way an apply must
+    # converge the file so fresh parking takes effect (S4 read-back).
+    if not dry_run:
+        from helpers.core.review_kit import latest_action_by
 
-            parked = latest_action_by(
-                _REPO_ROOT / "outputs" / "worklist_parking" / "counterparty" / "journal.jsonl",
-                key_field="name",
+        parked = latest_action_by(
+            _REPO_ROOT / "outputs" / "worklist_parking" / "counterparty" / "journal.jsonl",
+            key_field="name",
+        )
+        fresh = sorted(cp for cp in set(unresolved) if cp not in parked)
+        wl = _REPO_ROOT / "findata" / "Misc" / "counterparty_worklist.json"
+        wl.parent.mkdir(parents=True, exist_ok=True)
+        wl.write_text(
+            json.dumps(
+                {"unresolved": fresh, "count": len(fresh), "parked": len(parked)},
+                indent=1,
             )
-            fresh = sorted(cp for cp in set(unresolved) if cp not in parked)
-            wl = _REPO_ROOT / "findata" / "Misc" / "counterparty_worklist.json"
-            wl.parent.mkdir(parents=True, exist_ok=True)
-            wl.write_text(
-                json.dumps(
-                    {"unresolved": fresh, "count": len(fresh), "parked": len(parked)},
-                    indent=1,
-                )
-                + "\n"
-            )
+            + "\n"
+        )
     return len(resolved), len(unresolved), sorted(set(unresolved))
 
 

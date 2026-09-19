@@ -414,5 +414,6 @@ def test_sources_duckdb_export_restore_roundtrip(tmp_path):
     out = restore_duckdb_from_parquet(pq_dir, tgt, _logger(), schema_filename="_schema.sources.sql")
     assert out["tables"] == {"exchange_listings": 2, "mca_cin": 1}
     rc = duckdb.connect(str(tgt), read_only=True)
-    assert rc.execute("SELECT COUNT(*) FROM vw_sme").fetchone()[0] == 1
+    vw_row = rc.execute("SELECT COUNT(*) FROM vw_sme").fetchone()
+    assert vw_row is not None and vw_row[0] == 1
     rc.close()

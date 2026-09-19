@@ -113,14 +113,19 @@ revisit triggers inline; executed work is compressed to records.
   the remaining deferred levers with revisit triggers (all unmet as of
   2026-09-05). Incremental-snapshot item closed by #174.
 
-- **Ontology governance #244 deferred** (2026-09-17) — (a) Mapping
-  record glossary note (EvoOntology Mapping: term→table/column/filter/
-  grain) — trigger: a metrics Q&A lane proposal; (b) LLM-judge protocol
-  2 for the change gate (`"llm_judge"` slot reserved in the report
-  schema, aggregation from EvoOntology evaluation.py:63) — trigger: an
-  LLM-API posture (terrain C4 revival condition); (c) DDL CHECK enums
-  into the roster-drift loader table — behind shared constants for
-  match_type/identifier_type/source_tier.
+- **Ontology governance #244 deferred** (2026-09-17; (c) resolved
+  2026-09-19) — (a) Mapping record glossary note (EvoOntology Mapping:
+  term→table/column/filter/grain) — trigger: a metrics Q&A lane
+  proposal; (b) LLM-judge protocol 2 for the change gate (`"llm_judge"`
+  slot reserved in the report schema, aggregation from EvoOntology
+  evaluation.py:63) — trigger: an LLM-API posture (terrain C4 revival
+  condition); (c) DONE 2026-09-19: `helpers/core/vocab.py` exports
+  MATCH_TYPE_VALUES / IDENTIFIER_TYPE_VALUES / SOURCE_TIER_VALUES /
+  CONCEPT_STATUS_VALUES; the three DDL CHECK sites (seed_concepts,
+  backfill_identifiers, backfill_row_provenance) build their clauses
+  from it, and all four rosters are now gated in
+  `roster_registry_sources()` against the master doc (documented-only
+  exemption closed).
 - **Perf graph-leg budgets post-ingest** — RESOLVED 2026-09-19 by a 3x
   budget bump (operator decision: absorb corpus growth now, chase timing
   flakes later). graph_eigenvector and graph_link_prediction budgets
@@ -133,7 +138,9 @@ revisit triggers inline; executed work is compressed to records.
   tmpdir-hygiene arc — fixture onto pytest basetemp with a vacuumed copy,
   bench/pdf/TUI-log scratch lifecycles, gate-front `make tmp-sweep`
   (owner + 24 h + prefix guards, dry-run default).
-- **ty-tests 13 warnings** (exit-zero, non-gating; 2026-09-17) —
-  Optional-subscript/Match-None guards across test_snapshot,
-  test_mca_cin_resolve, test_search_tui et al.; the one hard error was
-  fixed at #244 close, warnings remain.
+- **ty-tests warnings** — DONE 2026-09-19: all 16 warnings cleared to
+  zero (RichLog-typed `#preview` queries + honest drive() return
+  annotations in test_search_tui, fetchone() None guards in
+  test_snapshot/test_search_tui, importlib spec asserts in
+  test_mca_cin_resolve/test_seed_nic2008, db_filter_rows row typing).
+  `make types-tests` now reports zero diagnostics.

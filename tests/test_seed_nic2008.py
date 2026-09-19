@@ -23,6 +23,7 @@ REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 HELPERS_MISC = REPO / "helpers" / "misc"
 SPEC = importlib.util.spec_from_file_location("seed_nic2008", HELPERS_MISC / "seed_nic2008.py")
+assert SPEC is not None and SPEC.loader is not None
 sn = importlib.util.module_from_spec(SPEC)
 sys.modules["seed_nic2008"] = sn
 SPEC.loader.exec_module(sn)

@@ -42,6 +42,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))  # noqa: E402
 
 from helpers.core.db import DEFAULT_DB_PATH, connect  # noqa: E402
+from helpers.core.vocab import SOURCE_TIER_VALUES, sql_in  # noqa: E402
 
 # The fact tables that carry (or will carry) agent_id + source_tier.
 FACT_TABLES: tuple[str, ...] = (
@@ -170,8 +171,7 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         if "source_tier" not in cols:
             conn.execute(
                 f"ALTER TABLE {table} ADD COLUMN source_tier TEXT "
-                f"CHECK (source_tier IN ('manual','migration','derive',"
-                f"'regulator','external'))"
+                f"CHECK (source_tier IN ({sql_in(SOURCE_TIER_VALUES)}))"
             )
     conn.commit()
 

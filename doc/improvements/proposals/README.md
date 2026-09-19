@@ -33,8 +33,12 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(None live — the last live proposal, review_kit.md, was executed
-2026-09-19 as completed.md #252.)_ Per-patch rule (2026-09-19): a
+- [`subsector_authoring_pass.md`](subsector_authoring_pass.md) —
+  Sub-sector authoring pass — resolve the 16 parked buckets via
+  SUB_SECTOR_ALIASES additions + per-note authored `subsector:`
+  (eval-gated; decision matrix inside).
+
+Per-patch rule (2026-09-19): a
 proposal's index line is added by the SAME patch that adds its file,
 so this section never references content from future patches.
 

@@ -1034,11 +1034,22 @@ def roster_registry_sources() -> dict[str, set[str]]:
     query.py's EDGE_REGISTRY is the DuckDB-materialized SUBSET, not the
     vocabulary.
     """
+    from helpers.core.vocab import (
+        CONCEPT_STATUS_VALUES,
+        IDENTIFIER_TYPE_VALUES,
+        MATCH_TYPE_VALUES,
+        SOURCE_TIER_VALUES,
+    )
     from helpers.misc.database_integrity_check import _KNOWN_EDGE_TYPES
 
     return {
         "edge_types": set(_KNOWN_EDGE_TYPES),
         "canonical_event_types": set(CANONICAL_EVENT_TYPES),
+        # ontology_governance #244c: DDL CHECK enums join the gated rosters
+        "match_type_values": set(MATCH_TYPE_VALUES),
+        "identifier_type_values": set(IDENTIFIER_TYPE_VALUES),
+        "source_tier_values": set(SOURCE_TIER_VALUES),
+        "concept_status_values": set(CONCEPT_STATUS_VALUES),
     }
 
 
@@ -1073,6 +1084,35 @@ def check_ontology_doc_rosters(doc_path: Path | None = None) -> list[str]:
     return failures
 
 
+def check_coverage_ledger() -> tuple[list[str], list[str]]:
+    """security-coverage arc (#247b S3): API-route coverage ledger enforcement.
+
+    The ledger lives in gitignored doc/local/security/ — operator-local by
+    design — so its absence (fresh clone) is an advisory skip, never a
+    failure. When present, completeness and consistency enforce as fatal
+    and fingerprint STALEs fail too (strict): a stale row means the handler
+    changed after its recorded review, which is exactly the drift this
+    check exists to catch.
+    """
+    import io
+    from contextlib import redirect_stdout
+
+    from helpers.validators.coverage_ledger import (
+        DEFAULT_APP,
+        DEFAULT_LEDGER,
+        check as ledger_check,
+    )
+
+    if not DEFAULT_LEDGER.is_file():
+        return [], ["coverage ledger absent (doc/local is untracked) — check skipped"]
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        rc = ledger_check(DEFAULT_APP, DEFAULT_LEDGER, strict=True)
+    if rc != 0:
+        return [ln for ln in buf.getvalue().splitlines() if ln.strip()], []
+    return [], []
+
+
 CHECKS = [
     ("Python syntax", check_python_syntax),
     ("JS syntax", check_js_syntax),
@@ -1095,6 +1135,9 @@ CHECKS = [
     ("Data format (parquet zstd + Arrow in flight)", check_data_format),
     # ontology_governance S0: master-doc rosters vs code registries
     ("Ontology doc rosters", check_ontology_doc_rosters),
+    # security-coverage #247b S3: API-route coverage ledger (advisory-skip
+    # when the operator-local ledger is absent)
+    ("Coverage ledger", check_coverage_ledger),
 ]
 
 
