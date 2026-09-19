@@ -4,6 +4,7 @@ type: company
 ticker: 5PAISA.NS
 sector: Capital_Markets
 industry: Capital Markets
+subsector: Brokers
 market_cap: small_cap
 normalized_name: 5paisa_Capital
 permalink: /companies/capital_markets/5paisa_capital

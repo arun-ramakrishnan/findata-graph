@@ -4,6 +4,7 @@ type: company
 ticker: JMFINANCIL.NS
 sector: NBFC
 industry: Capital Markets
+subsector: Asset_Management
 market_cap: mid_cap
 normalized_name: JM_Financial
 permalink: /companies/nbfc/jm_financial

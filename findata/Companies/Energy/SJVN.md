@@ -4,6 +4,7 @@ type: company
 ticker: SJVN.NS
 sector: Energy
 industry: Utilities - Renewable
+subsector: Hydro
 market_cap: mid_cap
 normalized_name: SJVN
 permalink: /companies/energy/sjvn

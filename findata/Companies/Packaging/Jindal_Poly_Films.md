@@ -4,6 +4,7 @@ type: company
 ticker: JINDALPOLY.NS
 sector: Packaging
 industry: Packaging & Containers
+subsector: Flexible_Packaging
 market_cap: mid_cap
 normalized_name: Jindal_Poly_Films
 permalink: /companies/packaging/jindal_poly_films

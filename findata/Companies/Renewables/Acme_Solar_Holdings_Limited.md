@@ -4,6 +4,7 @@ type: company
 ticker: ACMESOLAR.BO
 sector: Renewables
 industry: Utilities - Renewable
+subsector: Solar
 market_cap: small_cap
 normalized_name: Acme_Solar_Holdings_Limited
 permalink: /companies/renewables/acme_solar_holdings_limited

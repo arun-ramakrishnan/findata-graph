@@ -4,6 +4,7 @@ type: company
 ticker: KARURVYSYA.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: small_cap
 normalized_name: Karur_Vysya_Bank
 permalink: /companies/banking/karur_vysya_bank

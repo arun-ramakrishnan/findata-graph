@@ -4,6 +4,7 @@ type: company
 ticker: MAHABANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: mid_cap
 normalized_name: Bank_of_Maharashtra
 permalink: /companies/banking/bank_of_maharashtra

@@ -4,6 +4,7 @@ type: company
 ticker: CENTRALBK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: large_cap
 normalized_name: Central_Bank_of_India
 permalink: /companies/banking/central_bank_of_india

@@ -4,6 +4,7 @@ type: company
 ticker: SBIN.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: large_cap
 normalized_name: State_Bank_of_India
 permalink: /companies/banking/state_bank_of_india

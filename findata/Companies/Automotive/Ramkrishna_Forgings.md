@@ -4,6 +4,7 @@ type: company
 ticker: RKFORGE.NS
 sector: Automotive
 industry: Metal Fabrication
+subsector: Forge_Castings
 market_cap: mid_cap
 normalized_name: Ramkrishna_Forgings
 permalink: /companies/automotive/ramkrishna_forgings

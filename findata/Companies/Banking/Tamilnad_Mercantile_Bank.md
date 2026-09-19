@@ -4,6 +4,7 @@ type: company
 ticker: TMB.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: mid_cap
 normalized_name: Tamilnad_Mercantile_Bank
 permalink: /companies/banking/tamilnad_mercantile_bank

@@ -4,6 +4,7 @@ type: company
 ticker: FRONTSP.NS
 sector: Metals
 industry: Metal Fabrication
+subsector: Forge_Castings
 market_cap: small_cap
 normalized_name: Frontier_Springs
 permalink: /companies/metals/frontier_springs

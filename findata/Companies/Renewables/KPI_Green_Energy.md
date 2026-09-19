@@ -4,6 +4,7 @@ type: company
 ticker: KPIGREEN.NS
 sector: Renewables
 industry: Utilities - Renewable
+subsector: Solar
 market_cap: large_cap
 normalized_name: KPI_Green_Energy
 permalink: /companies/renewables/kpi_green_energy

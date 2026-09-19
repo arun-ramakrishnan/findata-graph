@@ -4,6 +4,7 @@ type: company
 ticker: BANKBARODA.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: large_cap
 normalized_name: Bank_of_Baroda
 permalink: /companies/banking/bank_of_baroda

@@ -4,6 +4,7 @@ type: company
 ticker: AXISBANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: Axis_Bank
 permalink: /companies/banking/axis_bank

@@ -4,6 +4,7 @@ type: company
 ticker: RBLBANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: mid_cap
 normalized_name: RBL_Bank
 permalink: /companies/banking/rbl_bank

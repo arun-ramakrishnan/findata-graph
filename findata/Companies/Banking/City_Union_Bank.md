@@ -4,6 +4,7 @@ type: company
 ticker: CUB.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: City_Union_Bank
 permalink: /companies/banking/city_union_bank

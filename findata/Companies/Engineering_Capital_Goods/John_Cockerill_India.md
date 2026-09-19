@@ -4,6 +4,7 @@ type: company
 ticker: COCKERILL.NS
 sector: Engineering_Capital_Goods
 industry: Metal Fabrication
+subsector: Capital_Goods
 market_cap: small_cap
 normalized_name: John_Cockerill_India
 file_path: findata/Companies/Engineering_Capital_Goods/John_Cockerill_India.md

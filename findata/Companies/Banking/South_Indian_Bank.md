@@ -4,6 +4,7 @@ type: company
 ticker: SOUTHBANK.BO
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: mid_cap
 normalized_name: South_Indian_Bank
 permalink: /companies/banking/south_indian_bank

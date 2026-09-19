@@ -4,6 +4,7 @@ type: company
 ticker: WORTHPERI.BO
 sector: Packaging
 industry: Packaging & Containers
+subsector: Rigid_Packaging
 market_cap: mid_cap
 normalized_name: Worth_Peripherals
 permalink: /companies/packaging/worth_peripherals

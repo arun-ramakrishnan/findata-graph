@@ -4,6 +4,7 @@ type: company
 ticker: KOTAKBANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: Kotak_Mahindra_Bank
 permalink: /companies/banking/kotak_mahindra_bank

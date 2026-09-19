@@ -13,6 +13,7 @@ tags:
 normalized_name: Ujjivan_Small_Finance_Bank
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: small_cap
 permalink: /companies/banking/ujjivan_small_finance_bank
 created: '2026-07-26'

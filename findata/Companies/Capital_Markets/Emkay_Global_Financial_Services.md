@@ -4,6 +4,7 @@ type: company
 ticker: EMKAY.NS
 sector: Capital_Markets
 industry: Capital Markets
+subsector: Brokers
 market_cap: micro_cap
 normalized_name: Emkay_Global_Financial_Services
 permalink: /companies/capital_markets/emkay_global_financial_services

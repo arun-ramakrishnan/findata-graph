@@ -4,6 +4,7 @@ type: company
 ticker: IDFCFIRSTB.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: Idfc_First_Bank
 permalink: /companies/banking/idfc_first_bank

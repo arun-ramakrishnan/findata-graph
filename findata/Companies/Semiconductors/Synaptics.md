@@ -10,6 +10,7 @@ tags:
 normalized_name: Synaptics
 sector: Semiconductors
 industry: Semiconductors
+subsector: Design
 market_cap: null
 permalink: /companies/semiconductors/synaptics
 created: '2026-09-14'

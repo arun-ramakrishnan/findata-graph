@@ -4,6 +4,7 @@ type: company
 ticker: ESAFSFB.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: micro_cap
 normalized_name: ESAF_Small_Finance_Bank
 permalink: /companies/banking/esaf_small_finance_bank

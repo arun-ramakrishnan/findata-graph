@@ -4,6 +4,7 @@ type: company
 ticker: DOLATALGO.NS
 sector: Capital_Markets
 industry: Capital Markets
+subsector: Brokers
 market_cap: small_cap
 normalized_name: Dolat_Algotech
 permalink: /companies/capital_markets/dolat_algotech

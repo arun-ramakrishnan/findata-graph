@@ -4,6 +4,7 @@ type: company
 ticker: TIMETECHNO.BO
 sector: Packaging
 industry: Packaging & Containers
+subsector: Rigid_Packaging
 market_cap: large_cap
 normalized_name: Time_Technoplast
 permalink: /companies/packaging/time_technoplast

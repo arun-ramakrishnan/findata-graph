@@ -4,6 +4,7 @@ type: company
 ticker: PITTIENG.NS
 sector: Engineering_Capital_Goods
 industry: Metal Fabrication
+subsector: Forge_Castings
 market_cap: small_cap
 normalized_name: Pitti_Engineering
 file_path: findata/Companies/Engineering_Capital_Goods/Pitti_Engineering.md

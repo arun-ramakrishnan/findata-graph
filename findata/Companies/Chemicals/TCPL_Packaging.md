@@ -4,6 +4,7 @@ type: company
 ticker: TCPLPACK.NS
 sector: Chemicals
 industry: Packaging & Containers
+subsector: Flexible_Packaging
 market_cap: mid_cap
 normalized_name: TCPL_Packaging
 permalink: /companies/chemicals/tcpl_packaging

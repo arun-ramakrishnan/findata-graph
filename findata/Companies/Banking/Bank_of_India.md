@@ -4,6 +4,7 @@ type: company
 ticker: BANKINDIA.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: large_cap
 normalized_name: Bank_of_India
 permalink: /companies/banking/bank_of_india

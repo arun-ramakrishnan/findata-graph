@@ -4,6 +4,7 @@ type: company
 ticker: PSB.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: mid_cap
 normalized_name: Punjab_Sind_Bank
 permalink: /companies/banking/punjab_sind_bank

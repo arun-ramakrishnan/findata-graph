@@ -4,6 +4,7 @@ type: company
 ticker: INDIANB.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: large_cap
 normalized_name: Indian_Bank
 file_path: findata/Companies/Financial_Services/Indian_Bank.md

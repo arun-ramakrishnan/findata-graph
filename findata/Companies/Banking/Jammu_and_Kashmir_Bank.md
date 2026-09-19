@@ -4,6 +4,7 @@ type: company
 ticker: J&KBANK.BO
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: small_cap
 normalized_name: Jammu_and_Kashmir_Bank
 permalink: /companies/banking/jammu_and_kashmir_bank

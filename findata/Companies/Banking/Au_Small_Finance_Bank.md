@@ -4,6 +4,7 @@ type: company
 ticker: AUBANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: Au_Small_Finance_Bank
 permalink: /companies/banking/au_small_finance_bank

@@ -4,6 +4,7 @@ type: company
 ticker: SMCGLOBAL.NS
 sector: Capital_Markets
 industry: Capital Markets
+subsector: Brokers
 market_cap: mid_cap
 normalized_name: SMC_Global
 permalink: /companies/capital_markets/smc_global

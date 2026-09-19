@@ -4,6 +4,7 @@ type: company
 ticker: IOB.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: small_cap
 normalized_name: Indian_Overseas_Bank
 permalink: /companies/banking/indian_overseas_bank

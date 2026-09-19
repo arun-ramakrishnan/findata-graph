@@ -4,6 +4,7 @@ type: company
 ticker: JSFB.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: small_cap
 normalized_name: Jana_Small_Finance_Bank
 permalink: /companies/banking/jana_small_finance_bank

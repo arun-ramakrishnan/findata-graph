@@ -4,6 +4,7 @@ type: company
 ticker: UFLEX.NS
 sector: Packaging
 industry: Packaging & Containers
+subsector: Flexible_Packaging
 market_cap: mid_cap
 normalized_name: Uflex
 file_path: findata/Companies/Packaging/Uflex_Limited.md

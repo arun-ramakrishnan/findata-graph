@@ -5,6 +5,7 @@ ticker: HUH1V.HE
 listed: true
 sector: Packaging
 industry: Packaging & Containers
+subsector: Flexible_Packaging
 market_cap: large_cap
 geography: finland
 business_model: b2b

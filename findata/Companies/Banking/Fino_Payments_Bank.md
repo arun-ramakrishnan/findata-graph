@@ -4,6 +4,7 @@ type: company
 ticker: FINOPB.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: small_cap
 normalized_name: Fino_Payments_Bank
 permalink: /companies/banking/fino_payments_bank

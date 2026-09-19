@@ -4,6 +4,7 @@ type: company
 ticker: MOTILALOFS.NS
 sector: Capital_Markets
 industry: Capital Markets
+subsector: Asset_Management
 market_cap: large_cap
 normalized_name: Motilal_Oswal_Financial_Services
 permalink: /companies/capital_markets/motilal_oswal_financial_services

@@ -4,6 +4,7 @@ type: company
 ticker: AVGO
 sector: Semiconductors
 industry: Semiconductors
+subsector: Design
 market_cap: large_cap
 normalized_name: Broadcom
 file_path: findata/Companies/Technology/Broadcom.md

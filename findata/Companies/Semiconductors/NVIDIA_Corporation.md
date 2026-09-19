@@ -4,6 +4,7 @@ type: company
 ticker: NVDA
 sector: Semiconductors
 industry: Semiconductors
+subsector: Design
 market_cap: large_cap
 normalized_name: NVIDIA_Corporation
 file_path: findata/Companies/Technology/NVIDIA_Corporation.md

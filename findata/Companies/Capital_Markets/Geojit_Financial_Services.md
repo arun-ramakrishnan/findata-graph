@@ -4,6 +4,7 @@ type: company
 ticker: GEOJITFSL.NS
 sector: Capital_Markets
 industry: Capital Markets
+subsector: Brokers
 market_cap: small_cap
 normalized_name: Geojit_Financial_Services
 permalink: /companies/capital_markets/geojit_financial_services

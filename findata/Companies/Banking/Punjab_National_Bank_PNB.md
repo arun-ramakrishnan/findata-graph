@@ -4,6 +4,7 @@ type: company
 ticker: PNB.BO
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: mid_cap
 normalized_name: Punjab_National_Bank_PNB
 permalink: /companies/banking/punjab_national_bank_pnb

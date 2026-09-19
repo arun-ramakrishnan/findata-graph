@@ -4,6 +4,7 @@ type: company
 ticker: MOLDTKPAC.NS
 sector: Chemicals
 industry: Packaging & Containers
+subsector: Rigid_Packaging
 market_cap: small_cap
 normalized_name: Mold_Tek_Packaging
 permalink: /companies/chemicals/mold_tek_packaging

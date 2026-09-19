@@ -4,6 +4,7 @@ type: company
 ticker: BANDHANBNK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: Bandhan_Bank
 permalink: /companies/banking/bandhan_bank

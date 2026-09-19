@@ -4,6 +4,7 @@ type: company
 ticker: KTKBANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: small_cap
 normalized_name: Karnataka_Bank
 permalink: /companies/banking/karnataka_bank

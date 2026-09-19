@@ -4,6 +4,7 @@ type: company
 ticker: NELCAST.NS
 sector: Engineering_Capital_Goods
 industry: Metal Fabrication
+subsector: Forge_Castings
 market_cap: micro_cap
 normalized_name: Nelcast
 permalink: /companies/engineering_capital_goods/nelcast

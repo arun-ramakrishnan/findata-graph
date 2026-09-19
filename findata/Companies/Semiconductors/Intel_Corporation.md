@@ -4,6 +4,7 @@ type: company
 ticker: INTC
 sector: Semiconductors
 industry: Semiconductors
+subsector: Design
 market_cap: large_cap
 normalized_name: Intel_Corporation
 permalink: /companies/semiconductors/intel_corporation

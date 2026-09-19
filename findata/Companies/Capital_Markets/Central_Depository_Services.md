@@ -4,6 +4,7 @@ type: company
 ticker: CDSL.NS
 sector: Capital_Markets
 industry: Capital Markets
+subsector: Depositories
 market_cap: large_cap
 normalized_name: Central_Depository_Services
 permalink: /companies/capital_markets/central_depository_services

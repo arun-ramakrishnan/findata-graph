@@ -4,6 +4,7 @@ type: company
 ticker: HUHTAMAKI.NS
 sector: Packaging
 industry: Packaging & Containers
+subsector: Rigid_Packaging
 market_cap: mid_cap
 normalized_name: Huhtamaki_India
 permalink: /companies/packaging/huhtamaki_india

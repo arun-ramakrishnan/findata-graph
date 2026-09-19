@@ -4,6 +4,7 @@ type: company
 ticker: ADANIGREEN.NS
 sector: Renewables
 industry: Utilities - Renewable
+subsector: Solar
 market_cap: large_cap
 normalized_name: Adani_Green
 permalink: /companies/renewables/adani_green

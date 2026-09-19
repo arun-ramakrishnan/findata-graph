@@ -4,6 +4,7 @@ type: company
 ticker: UNIONBANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: large_cap
 normalized_name: Union_Bank_of_India
 file_path: findata/Companies/Banking/Union_Bank_of_India.md

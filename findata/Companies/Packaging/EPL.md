@@ -4,6 +4,7 @@ type: company
 ticker: EPL.NS
 sector: Packaging
 industry: Packaging & Containers
+subsector: Flexible_Packaging
 market_cap: mid_cap
 normalized_name: EPL
 permalink: /companies/packaging/epl

@@ -4,6 +4,7 @@ type: company
 ticker: KARBON.BO
 sector: Metals
 industry: Metal Fabrication
+subsector: Forge_Castings
 market_cap: micro_cap
 normalized_name: Karbonsteel_Engineering
 file_path: findata/Companies/Metals/Karbonsteel_Engineering.md

@@ -4,6 +4,7 @@ type: company
 ticker: SURYODAY.BO
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: small_cap
 normalized_name: Suryoday_Small_Finance_Bank
 permalink: /companies/banking/suryoday_small_finance_bank

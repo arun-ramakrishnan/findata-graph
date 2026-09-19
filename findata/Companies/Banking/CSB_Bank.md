@@ -4,6 +4,7 @@ type: company
 ticker: CSBBANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: CSB_Bank
 permalink: /companies/banking/csb_bank

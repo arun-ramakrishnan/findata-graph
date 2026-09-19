@@ -4,6 +4,7 @@ type: company
 ticker: MMFL.NS
 sector: Metals
 industry: Metal Fabrication
+subsector: Forge_Castings
 market_cap: small_cap
 normalized_name: MM_Forgings
 permalink: /companies/metals/mm_forgings

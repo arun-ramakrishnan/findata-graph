@@ -4,6 +4,7 @@ type: company
 ticker: UCOBANK.BO
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: mid_cap
 normalized_name: UCO_Bank
 permalink: /companies/banking/uco_bank

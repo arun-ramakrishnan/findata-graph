@@ -4,6 +4,7 @@ type: company
 ticker: MU
 sector: Semiconductors
 industry: Semiconductors
+subsector: Memory
 market_cap: large_cap
 normalized_name: Micron_Technology
 file_path: findata/Companies/Technology/Micron_Technology.md

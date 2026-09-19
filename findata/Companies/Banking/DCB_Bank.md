@@ -4,6 +4,7 @@ type: company
 ticker: DCBBANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: DCB_Bank
 permalink: /companies/banking/dcb_bank

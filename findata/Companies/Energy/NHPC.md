@@ -4,6 +4,7 @@ type: company
 ticker: NHPC.NS
 sector: Energy
 industry: Utilities - Renewable
+subsector: Hydro
 market_cap: large_cap
 normalized_name: NHPC
 permalink: /companies/energy/nhpc

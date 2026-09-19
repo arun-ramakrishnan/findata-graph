@@ -5,6 +5,7 @@ ticker: null
 listed: false
 sector: Banking
 industry: Medical Distribution
+subsector: Cooperative_Banks
 market_cap: large_cap
 normalized_name: Cosmos_Co_operative_Bank
 permalink: /companies/banking/cosmos_co_operative_bank

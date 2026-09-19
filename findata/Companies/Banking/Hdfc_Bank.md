@@ -4,6 +4,7 @@ type: company
 ticker: HDFCBANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: Hdfc_Bank
 permalink: /companies/banking/hdfc_bank

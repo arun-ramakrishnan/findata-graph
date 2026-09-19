@@ -4,6 +4,7 @@ type: company
 ticker: AMD
 sector: Semiconductors
 industry: Semiconductors
+subsector: Design
 market_cap: large_cap
 normalized_name: Advanced_Micro_Devices
 permalink: /companies/semiconductors/advanced_micro_devices

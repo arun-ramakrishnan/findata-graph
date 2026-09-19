@@ -4,6 +4,7 @@ type: company
 ticker: ANGELONE.NS
 sector: Capital_Markets
 industry: Capital Markets
+subsector: Brokers
 market_cap: large_cap
 normalized_name: Angel_One
 permalink: /companies/capital_markets/angel_one

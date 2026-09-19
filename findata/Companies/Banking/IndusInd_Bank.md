@@ -4,6 +4,7 @@ type: company
 ticker: INDUSINDBK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: mid_cap
 normalized_name: IndusInd_Bank
 file_path: findata/Companies/Banking/IndusInd_Bank.md

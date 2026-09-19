@@ -4,6 +4,7 @@ type: company
 ticker: CANBK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Public_Sector
 market_cap: large_cap
 normalized_name: Canara_Bank
 permalink: /companies/banking/canara_bank

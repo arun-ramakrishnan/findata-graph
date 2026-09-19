@@ -4,6 +4,7 @@ type: company
 ticker: GRAVITA.NS
 sector: Metals
 industry: Metal Fabrication
+subsector: Recycling
 market_cap: small_cap
 normalized_name: Gravita_India
 file_path: findata/Companies/Consumer/Gravita_India.md

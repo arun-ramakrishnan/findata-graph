@@ -4,6 +4,7 @@ type: company
 ticker: SBCL.NS
 sector: Metals
 industry: Metal Fabrication
+subsector: Electrical_Equipment
 market_cap: mid_cap
 normalized_name: Shivalik_Bimetal_Controls
 permalink: /companies/metals/shivalik_bimetal_controls

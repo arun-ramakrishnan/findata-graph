@@ -4,6 +4,7 @@ type: company
 ticker: COSMOFIRST.NS
 sector: Chemicals
 industry: Packaging & Containers
+subsector: Flexible_Packaging
 market_cap: mid_cap
 normalized_name: Cosmo_First
 permalink: /companies/chemicals/cosmo_first

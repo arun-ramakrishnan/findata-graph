@@ -4,6 +4,7 @@ type: company
 ticker: PTCIL.NS
 sector: Defense
 industry: Metal Fabrication
+subsector: Forge_Castings
 market_cap: mid_cap
 normalized_name: PTC_Industries
 permalink: /companies/defense/ptc_industries

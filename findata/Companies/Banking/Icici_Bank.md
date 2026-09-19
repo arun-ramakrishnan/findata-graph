@@ -4,6 +4,7 @@ type: company
 ticker: ICICIBANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: Icici_Bank
 permalink: /companies/banking/icici_bank

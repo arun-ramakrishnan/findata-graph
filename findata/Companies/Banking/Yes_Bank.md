@@ -4,6 +4,7 @@ type: company
 ticker: YESBANK.NS
 sector: Banking
 industry: Banks - Regional
+subsector: Private_Sector
 market_cap: large_cap
 normalized_name: Yes_Bank
 permalink: /companies/banking/yes_bank

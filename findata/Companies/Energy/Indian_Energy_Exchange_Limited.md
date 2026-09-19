@@ -4,6 +4,7 @@ type: company
 ticker: IEX.NS
 sector: Energy
 industry: Capital Markets
+subsector: Exchanges
 market_cap: small_cap
 normalized_name: Indian_Energy_Exchange_Limited
 permalink: /companies/energy/indian_energy_exchange_limited

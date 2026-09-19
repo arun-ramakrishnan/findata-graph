@@ -4,6 +4,7 @@ type: company
 ticker: SPL.BO
 sector: Chemicals
 industry: Packaging & Containers
+subsector: Flexible_Packaging
 market_cap: micro_cap
 normalized_name: Swashthik_Plascon_Ltd
 permalink: /companies/chemicals/swashthik_plascon_ltd
