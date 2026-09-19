@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from datetime import date, timedelta
 from pathlib import Path
 from typing import cast
 
@@ -275,6 +276,9 @@ def t_snap(tmp_path: Path) -> Path:
     edition stem that never matches an edition entity (concall-title
     honest-miss), events spanning a future year and a NULL date, and
     companies whose last_updated straddles the 30-day staleness line.
+    Staleness dates are computed RELATIVE TO TODAY (2026-09-20: the
+    originally hardcoded 2026-08-20 aged past the 30-day boundary and
+    flipped S1 into stale>30d a month after the test landed — day-bomb).
     """
     con = duckdb.connect()
     try:
@@ -290,14 +294,16 @@ def t_snap(tmp_path: Path) -> Path:
             " file_path VARCHAR, last_updated VARCHAR, normalized_name VARCHAR,"
             " sector_classification VARCHAR, ticker VARCHAR)"
         )
+        fresh = (date.today() - timedelta(days=5)).isoformat() + " 09:00:00"
+        stale = (date.today() - timedelta(days=250)).isoformat() + " 09:00:00"
         con.executemany(
             "INSERT INTO entities VALUES (?, ?, ?, NULL, ?, ?, ?, NULL)",
             [
                 ("Ed_A", "edition", "2026-06-15 09:00:00", None, "Ed_A", None),
                 ("Ed_B", "edition", "2026-08-02 09:00:00", None, "Ed_B", None),
-                ("Co1", "company", "2026-01-01 09:00:00", "2026-08-20 09:00:00", "Co1", "S1"),
-                ("Co2", "company", "2026-01-01 09:00:00", "2026-08-20 09:00:00", "Co2", "S1"),
-                ("Co3", "company", "2026-01-01 09:00:00", "2026-01-05 09:00:00", "Co3", "S2"),
+                ("Co1", "company", "2026-01-01 09:00:00", fresh, "Co1", "S1"),
+                ("Co2", "company", "2026-01-01 09:00:00", fresh, "Co2", "S1"),
+                ("Co3", "company", "2026-01-01 09:00:00", stale, "Co3", "S2"),
             ],
         )
         con.execute("COPY entities TO '" + str(tmp_path / "sqlite" / "entities.parquet") + "'")

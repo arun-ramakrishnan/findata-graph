@@ -181,7 +181,14 @@ GATES: dict[str, Gate] = {
             # copy, so the live suite spreads across workers without
             # cross-process DuckDB lock collisions (serial 72.5s -> ~50s).
             # Tests asserting real-cache semantics carry `real_graph_cache`.
-            Step("live-invariants", (_PY, "-m", "pytest", "-m", "live", "-n", "auto")),
+            # --dist=loadgroup honours the modules' xdist_group markers
+            # (test_graph_stats renders print_stats once per WORKER, not
+            # once per test — under plain dist=load the marker was inert
+            # and 3 workers each paid a full render; 2026-09-20).
+            Step(
+                "live-invariants",
+                (_PY, "-m", "pytest", "-m", "live", "-n", "auto", "--dist=loadgroup"),
+            ),
             Step("frontend-check", (_MAKE, "frontend-check")),
             # md-lint was promoted to the qa gate at S5 (markdown_lint_
             # adoption) — like frontend-check it stays Node-gated via its
@@ -286,7 +293,13 @@ def overall_ok(results: list[Result]) -> bool:
     return all(r.skipped or r.rc == 0 or r.step.nonblocking for r in results)
 
 
-def table_lines(results: list[Result]) -> list[str]:
+def table_lines(
+    results: list[Result],
+    *,
+    started: str | None = None,
+    ended: str | None = None,
+    elapsed: float | None = None,
+) -> list[str]:
     lines = ["", "Step                                  Time (s)   Status", "-" * 70]
     for r in results:
         secs = f"{r.seconds:8.2f}" if r.seconds is not None else "       -"
@@ -296,10 +309,27 @@ def table_lines(results: list[Result]) -> list[str]:
     ok = sum(1 for r in results if not r.skipped and r.rc == 0)
     verdict = "PASS" if overall_ok(results) else "FAIL"
     lines.append(f"  {ok}/{len(results)} passed  ·  gate {verdict}")
+    if started or ended or elapsed is not None:
+        bits = []
+        if started:
+            bits.append(f"started {started}")
+        if ended:
+            bits.append(f"ended {ended}")
+        if elapsed is not None:
+            bits.append(f"elapsed {elapsed:.1f}s")
+        lines.append("  " + " · ".join(bits))
     return lines
 
 
-def write_report(report_path: Path, gate_name: str, results: list[Result], jobs: int = 1) -> None:
+def write_report(
+    report_path: Path,
+    gate_name: str,
+    results: list[Result],
+    jobs: int = 1,
+    *,
+    started: str | None = None,
+    elapsed: float | None = None,
+) -> None:
     """Append one markdown report block; whole-block under an exclusive flock.
 
     Parallel-safety (2026-08-25): the in-process report is written once at
@@ -318,12 +348,15 @@ def write_report(report_path: Path, gate_name: str, results: list[Result], jobs:
     """
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     jobs_str = f"  jobs={jobs}" if jobs > 1 else ""
+    started_str = f"  ·  **Started:** {started}  ·  **Elapsed:** {elapsed:.1f}s" if started else ""
     report_path.parent.mkdir(parents=True, exist_ok=True)
     with open(report_path, "a") as f:
         fcntl.flock(f.fileno(), fcntl.LOCK_EX)
         try:
             f.write(f"# make {gate_name} — gate report\n\n")
-            f.write(f"**Generated:** {ts}  ·  **Python:** {sys.version.split()[0]}{jobs_str}\n\n")
+            f.write(
+                f"**Generated:** {ts}{started_str}  ·  **Python:** {sys.version.split()[0]}{jobs_str}\n\n"
+            )
             f.write("| Step | Time (s) | Status |\n")
             f.write("|---|---|---|\n")
             for r in results:
@@ -337,6 +370,18 @@ def write_report(report_path: Path, gate_name: str, results: list[Result], jobs:
             ok = sum(1 for r in results if not r.skipped and r.rc == 0)
             verdict = "PASS" if overall_ok(results) else "FAIL"
             f.write(f"| **{ok}/{len(results)} passed** | | **gate {verdict}** |\n\n")
+            # Console summary — the perf-style pass/fail table the runner
+            # prints at the end, kept verbatim in the report too (user
+            # directive 2026-09-20: "i dont see that summary output in any
+            # of the outputs").
+            f.write("```text\n")
+            f.write(
+                "\n".join(table_lines(results, started=started, ended=ts, elapsed=elapsed)).strip(
+                    "\n"
+                )
+                + "\n"
+            )
+            f.write("```\n\n")
             for r in results:
                 if r.skipped:
                     continue
@@ -379,10 +424,14 @@ def main(argv: list[str] | None = None) -> int:
     name = rest[0]
     jobs = resolve_jobs(cli_jobs)
     print(f"(gate {name}: jobs={jobs})")
+    started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    t0 = time.perf_counter()
     results = run_gate(GATES[name], jobs)
-    print("\n".join(table_lines(results)))
+    elapsed = time.perf_counter() - t0
+    ended = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print("\n".join(table_lines(results, started=started, ended=ended, elapsed=elapsed)))
     report = REPO_ROOT / "outputs" / f"{name}_report.md"
-    write_report(report, name, results, jobs)
+    write_report(report, name, results, jobs, started=started, elapsed=elapsed)
     print(f"appended to {report.relative_to(REPO_ROOT)}")
     return 0 if overall_ok(results) else 1
 

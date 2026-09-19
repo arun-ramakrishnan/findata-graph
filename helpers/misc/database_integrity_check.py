@@ -1998,6 +1998,11 @@ class DatabaseIntegrityChecker:
         for chk in _CHECKS:
             results[chk.name] = getattr(self, chk.method)()
 
+        results["ended"] = datetime.now().isoformat()
+        results["elapsed_s"] = (
+            datetime.fromisoformat(results["ended"]) - datetime.fromisoformat(results["timestamp"])
+        ).total_seconds()
+
         self.close()  # release the memoized connection
         return results
 
@@ -2013,7 +2018,12 @@ class DatabaseIntegrityChecker:
         lines = []
         lines.append("# FinData Knowledge Graph — Database Integrity Report")
         lines.append("")
-        lines.append(f"**Generated:** {results['timestamp']}  ·  **Database:** `{self.db_path}`")
+        _meta = f"**Generated:** {results['timestamp']}  ·  **Database:** `{self.db_path}`"
+        if results.get("ended"):
+            _meta += (
+                f"  ·  **Ended:** {results['ended']}  ·  **Elapsed:** {results['elapsed_s']:.1f}s"
+            )
+        lines.append(_meta)
         lines.append("")
 
         lines.append("## RELATIONS (ERROR-level; gate-failing)")

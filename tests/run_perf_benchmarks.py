@@ -131,6 +131,10 @@ def run_one(label: str, args: list[str], budget: float) -> tuple[float, str, boo
 
 def main() -> int:
     # ── run ──
+    from datetime import datetime
+
+    started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    t0 = time.perf_counter()
     results: list[tuple[str, float, str, bool, float]] = []
     for label, args, budget in BENCHMARKS:
         print(f"  running {label:.<30s}", end="", flush=True)
@@ -171,11 +175,16 @@ def main() -> int:
     # ── append to report (markdown format) ──
     from datetime import datetime
 
+    elapsed = time.perf_counter() - t0
+    ended = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     md_lines: list[str] = []
     md_lines.append("# make perf — benchmark report")
     md_lines.append("")
-    md_lines.append(f"**Generated:** {ts}  ·  **Python:** {sys.version.split()[0]}")
+    md_lines.append(
+        f"**Generated:** {ts}  ·  **Started:** {started}  ·  **Ended:** {ended}  ·  "
+        f"**Elapsed:** {elapsed:.1f}s  ·  **Python:** {sys.version.split()[0]}"
+    )
     md_lines.append("")
     md_lines.append("| Benchmark | Time (s) | Budget | Status |")
     md_lines.append("|---|---|---|---|")

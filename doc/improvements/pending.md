@@ -140,7 +140,10 @@ revisit triggers inline; executed work is compressed to records.
   betweenness 2.23s. The same arc also excluded `listed_on_index`
   from the Onager structural projections (completed.md #254) and
   filed the persistent-cache follow-up (live proposal
-  `graph_centrality_persistent_cache.md`); original state below:
+  `graph_centrality_persistent_cache.md`). The advisory-side twin
+  (live-invariants wall 95–226s) resolved 2026-09-20 —
+  completed.md #255 (`archive/tooling/advisory_gate_perf_reports.md`);
+  original state below:
   eigenvector 0.37s, link_prediction 1.34s, closeness 2.97s,
   betweenness 2.23s.
 - **test_fuzz_shortest_path leaks a 176MB sp.db tempdir per run** —

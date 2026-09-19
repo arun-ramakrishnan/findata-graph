@@ -456,17 +456,24 @@ def _table_lines(results: list[_StepResult]) -> list[str]:
     return lines
 
 
-def _write_report(results: list[_StepResult], full: bool) -> None:
+def _write_report(
+    results: list[_StepResult],
+    full: bool,
+    *,
+    started: str | None = None,
+    elapsed: float | None = None,
+) -> None:
     """Append one markdown run record: `# make <mode>` header +
     `| step | time | status |` table, then a `## <step> (FAILED)` section
     per failed step (outputs/qa_report.md philosophy — successes stay lean,
     failures keep their evidence)."""
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    started_str = f"  ·  **Started:** {started}  ·  **Elapsed:** {elapsed:.1f}s" if started else ""
     mode = "maint-full" if full else "maint"
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with open(REPORT_PATH, "a") as f:
         f.write(f"# make {mode} — maint report\n\n")
-        f.write(f"**Generated:** {ts}  ·  **Python:** {sys.version.split()[0]}\n\n")
+        f.write(f"**Generated:** {ts}{started_str}  ·  **Python:** {sys.version.split()[0]}\n\n")
         f.write("| Step | Time (s) | Status |\n")
         f.write("|---|---|---|\n")
         for r in results:
@@ -504,6 +511,8 @@ def main(argv: list[str] | None = None) -> int:
         format=LOG_FORMAT,
     )
     logger = logging.getLogger("maint")
+    started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    t0 = time.perf_counter()
 
     # S1b: pre-warm Corpus cache once so PRE_FULL/TIER2 --corpus steps hit corpus.db (0.02s vs 0.37s walk)
     if args.full and _HAS_CORPUS and Corpus is not None:
@@ -545,7 +554,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.dry_run:
         print("\n".join(_table_lines(results)))
-        _write_report(results, args.full)
+        _write_report(
+            results,
+            args.full,
+            started=started,
+            elapsed=time.perf_counter() - t0,
+        )
         print(f"appended to {REPORT_PATH.name}")
 
     if failures:

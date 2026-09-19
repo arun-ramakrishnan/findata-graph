@@ -113,7 +113,7 @@ test:           ## pytest unit tests only (no live DB, no slow benchmarks; xdist
 # graph cache to a per-worker copy under PYTEST_XDIST_WORKER; tests that
 # must hit the real cache carry the real_graph_cache marker.
 live-invariants: ## Run ONLY the live-marked invariant tests (-m live, xdist -n auto; skip-safe on pristine clone)
-> pytest -m live -n auto
+> pytest -m live -n auto --dist=loadgroup
 > @echo "✓ live invariant tests passed"
 
 perf:           ## Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md

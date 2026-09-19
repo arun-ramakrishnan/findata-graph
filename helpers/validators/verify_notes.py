@@ -21,6 +21,7 @@ Exit: 0 if no ERRORs, else nonzero.
 import os
 import re
 import sys
+import time
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
@@ -269,6 +270,10 @@ def _industry_code_violation(title: str | None, code: str) -> str | None:
 class NotesVerifier:
     def __init__(self, project_root=None):
         self.project_root = project_root or Path(__file__).parent.parent.parent
+        # Wall-clock + monotonic anchors for the report header (Started /
+        # Elapsed; Generated stays the report write time).
+        self._started_at = datetime.now()
+        self._t0 = time.monotonic()
         # When True (worker processes), suppress progress prints to avoid
         # interleaved stdout across parallel workers.
         self.suppress_progress = False
@@ -916,6 +921,8 @@ class NotesVerifier:
             f.write("# FinData Knowledge Graph — Notes Verification Report\n\n")
             f.write(
                 f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  ·  "
+                f"**Started:** {self._started_at.strftime('%Y-%m-%d %H:%M:%S')}  ·  "
+                f"**Elapsed:** {time.monotonic() - self._t0:.1f}s  ·  "
                 f"**Project Root:** `{self.project_root}`\n\n"
             )
             f.write("| Metric | Value |\n|---|---|\n")

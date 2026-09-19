@@ -6606,3 +6606,47 @@ Gates: eval gate ACCEPT (164 questions, 0 reasons, code-only change);
 `test_centrality_projection.py` 15/15; `test_graph_disk.py` 28/28;
 graph suites 218/218; `make perf` 22/22; ruff/ty/format clean. Full
 gate run by the operator.
+
+
+## 255. Advisory gate perf + report format — tier-walk longest-chains, index-free chain views, loadgroup xdist, ended/elapsed report timestamps
+
+**Proposal**: `doc/improvements/archive/tooling/advisory_gate_perf_reports.md`
+(retrospective — operator-directed turn, filed at archival 2026-09-20).
+
+`make advisory` live-invariants regressed 60–86s → 95–226s wall. Profile:
+62.6s of a 65.1s `print_stats` render sat in `longest_chains`, 61.6s of it
+in a pure-Python comprehension that materialised ALL n² ordered pairs of
+the distance matrix (6.29M tuples at n=2,508, keeping 5). idx_fill (#253)
+had grown the edge-touched universe 1,722 → 2,508 (quadratic cost) and
+polluted the chains semantically — the #1 "chain" hopped
+`usa -[listed_in]-> Adobe` and `NIFTY SME EMERGE -[listed_on_index]->
+<constituent>`. The module's `xdist_group` marker was inert (nothing
+passed `--dist=loadgroup`), so 3 workers each paid a full render.
+
+Fixes in `helpers/graph/stats.py`: (1) tier-walk pair selection — unweighted
+BFS gives integer distances, walk d = diameter…1 lifting each tier with one
+numpy scan (canonical a<b triangle in exact mode; both orientations of a
+pair always get the same verdict in the greedy node-disjoint selection);
+(2) `listed_on_index` excluded from BOTH chain views via `_CHAIN_FORBIDDEN`,
+node universe follows (n back to 1,735 — same doctrine as #254 + louvain);
+render 61s → ~1.0s. (3) `--dist=loadgroup` on the Makefile `live-invariants`
+target and the advisory gate step — live-invariants now 227 tests in 60.4s
+stable.
+
+Report format (operator directive — ending/elapsed everywhere, console
+summary into the outputs): `run_gate_report.py` meta line gains
+`**Started:**`/`**Elapsed:**` (`**Generated:**` kept — search_tui parses
+it) and embeds the pass/fail console table verbatim in every report block;
+Started/Ended/Elapsed added to the perf, verify_notes, integrity, and
+maint report writers (yfinance enrich already logged Duration).
+
+Collateral: `test_analytics.py` day-bomb fixed (hardcoded 2026-08-20
+staleness dates crossed the 30-day boundary on 2026-09-20; fixture now
+today-relative); env trap recorded — `textual` lives in the `tui` extra
+but `search_tui.py` imports it, so the green-gate sync is
+`uv sync --extra dev --extra mojo --extra tui`; stale `__pycache__`
+purged (pre-move co_filename paths in pytest output were cosmetic).
+
+Gates: `make qa` 10/10 PASS (3296 passed, 3 pix2text skips) — full gate
+run by the operator; live-invariants 227 in 60.4s; integration 50.7s PASS;
+ruff/lint-gates clean; 224 targeted tests.

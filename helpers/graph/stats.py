@@ -62,16 +62,26 @@ def _bar(n: int, total: int, width: int = 30) -> str:
 #: taxonomy/country/theme hubs collapse distances without carrying
 #: economic signal (same exclusion family as analytics._MEMBERSHIP_TYPES).
 _CHAINS_EXCLUDE = ("part_of", "has_company", "belongs_to", "cited_in", "listed_in", "exposed_to")
+#: Index membership is forbidden in BOTH views (2026-09-20, operator
+#: sign-off): listed_on_index stars are not relationships — they collapsed
+#: the whole graph into one 2,508-node component and the "longest chains"
+#: devolved into index-roster hops (NIFTY SME EMERGE -> constituent), while
+#: the edge-touched universe the distance matrix spans grew 1,722 -> 2,508
+#: (quadratic render cost, 21s -> 61s). Same doctrine as
+#: EDGE_TYPES_EXCLUDED_FROM_CENTRALITY (graph_centrality_index_noise,
+#: completed.md #254) and the louvain amendment.
+_CHAIN_FORBIDDEN = frozenset(_CHAINS_EXCLUDE) | {"listed_on_index"}
 
 
 def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:  # noqa: C901
     """Render the longest-chains section lines (pure function of ``conn``).
 
-    Two views: ALL edges, and ACTIVITY edges only (membership stars
-    excluded). For each: component count, diameter, median distance, the
-    top-K most distant pairs, and the #1 chain hop-by-hop with the edge
-    family carrying each hop, plus the family tally across all top-K
-    chains (the capture-quality signal).
+    Two views: ALL edges (index membership excluded — see
+    _CHAIN_FORBIDDEN), and ACTIVITY edges only (membership stars excluded).
+    For each: component count, diameter, median distance, the top-K most
+    distant pairs, and the #1 chain hop-by-hop with the edge family
+    carrying each hop, plus the family tally across all top-K chains (the
+    capture-quality signal).
 
     S3 hard cap (hgx_first_scaling): diameter/distant-pairs are inherently
     pairwise questions, so this diagnostic may NEVER again dominate a
@@ -95,7 +105,8 @@ def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:
         r[0]
         for r in conn.execute(
             "SELECT name FROM entities WHERE name IN "
-            "(SELECT source FROM graph_edges UNION SELECT target FROM graph_edges) "
+            "(SELECT source FROM graph_edges WHERE edge_type != 'listed_on_index' "
+            "UNION SELECT target FROM graph_edges WHERE edge_type != 'listed_on_index') "
             "ORDER BY rowid"
         )
     ]
@@ -106,10 +117,10 @@ def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:
 
     pair_types: dict[tuple[int, int], set[str]] = {}
 
-    def _add(exclude: bool) -> csr_matrix:
+    def _add(forbidden: frozenset[str]) -> csr_matrix:
         rows_, cols_ = [], []
         for s, tgt, et in conn.execute("SELECT source, target, edge_type FROM graph_edges"):
-            if exclude and et in _CHAINS_EXCLUDE:
+            if et in forbidden:
                 continue
             i, j = idx.get(s), idx.get(tgt)
             if i is None or j is None or i == j:
@@ -124,7 +135,10 @@ def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:
     roots = np.unique(np.linspace(0, n - 1, max_exact).astype(int)) if capped else None
     n_roots = 0 if roots is None else int(len(roots))
     lines: list[str] = []
-    for label, mat in (("ALL edges", _add(False)), ("ACTIVITY edges", _add(True))):
+    for label, mat in (
+        ("ALL edges (excl. index membership)", _add(frozenset({"listed_on_index"}))),
+        ("ACTIVITY edges", _add(_CHAIN_FORBIDDEN)),
+    ):
         n_comp, comp = connected_components(mat, directed=False)
         if capped:
             dist, pred = shortest_path(
@@ -144,7 +158,6 @@ def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:
             lines.append(f"  {label}: no edges")
             continue
         diameter = int(finite.max())
-        rank = np.where(np.isfinite(dist), dist, -1)
         # Distinct-candidate selection: greedy by distance, accepting a pair
         # only while BOTH endpoints are unused (node-disjoint), so the top-K
         # are K different chains rather than one hub endpoint repeated K
@@ -155,21 +168,32 @@ def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:
         pairs: list[tuple[int, int, int, int]] = []
         seen: set[tuple[int, int]] = set()
         used: set[int] = set()
-        # Entries: (node_a, node_b, d, row_a) — node ids for names/sets,
+
+        # Candidates come tier by tier: unweighted BFS gives integer
+        # distances, so walk d = diameter … 1 and lift each tier's pairs
+        # with one numpy scan. The old approach materialised ALL n²
+        # ordered pairs in Python (np.argsort over the full rank matrix +
+        # a tuple comprehension) — 6.3M tuples for n=2,508, ~97% of a 61s
+        # render, quadratic in the edge-touched universe (2026-09-20).
+        # np.nonzero is row-major, matching the old argsort's flat-index
+        # order within a tier; both orientations of a pair always get the
+        # same verdict in the selection below (key + endpoint checks are
+        # symmetric) so exact mode scans the canonical a<b triangle only.
+        # Yields (node_a, node_b, d, row_a) — node ids for names/sets,
         # row_a (the sampled-root row, == node_a when exact) indexes
         # dist/pred, which are row-space under the cap.
-        order = [
-            (
-                int(a) if roots is None else int(roots[a]),
-                int(b),
-                int(dist[a, b]),
-                int(a),
-            )
-            for a, b in np.dstack(np.unravel_index(np.argsort(-rank.ravel()), rank.shape))[0]
-            if a != b and np.isfinite(dist[a, b])  # disconnected = never a chain
-        ]
+        def _pair_tiers():
+            for d in range(diameter, 0, -1):
+                mask = np.isfinite(dist) & (dist == d)
+                if roots is None:
+                    mask = np.triu(mask, 1)
+                if not mask.any():
+                    continue
+                for a, b in np.argwhere(mask):
+                    yield (int(a) if roots is None else int(roots[a]), int(b), d, int(a))
+
         for relax in (False, True):
-            for a, b, d, _row in order:
+            for a, b, d, _row in _pair_tiers():
                 if len(pairs) == top_k:
                     break
                 key = (a, b) if a < b else (b, a)
