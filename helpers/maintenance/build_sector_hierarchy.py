@@ -227,7 +227,14 @@ SUB_CATEGORIES: dict[str, list[str]] = {
         "Specialty Retail",
     ],
     "NBFC": ["Vehicle Loans", "Multi_Line", "Gold Loans", "Microfinance", "Credit Cards"],
-    "Media_Entertainment": ["Broadcasting", "Cinema", "Digital", "Publishing", "Advertising"],
+    "Media_Entertainment": [
+        "Broadcasting",
+        "Cinema",
+        "Digital",
+        "Gaming",
+        "Publishing",
+        "Advertising",
+    ],
     "Energy": ["Gas Distribution", "Power Generation", "Refining", "E&P", "Oilfield Services"],
     "Real_Estate": [
         "Commercial",

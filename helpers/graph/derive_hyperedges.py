@@ -109,9 +109,6 @@ COMPANY_SUB_SECTORS: dict[str, list[str]] = {
     "Computer_Hardware": [
         "DC Infotech Comm",
     ],
-    "Digital_Platforms": [
-        "Nazara Technologies",
-    ],
     "Two_Wheelers": [
         "Harley-Davidson",
     ],
@@ -121,7 +118,6 @@ COMPANY_SUB_SECTORS: dict[str, list[str]] = {
         "Dolat Algotech",
         "Emkay Global Financial Services",
         "Geojit Financial Services",
-        "Motilal Oswal Financial Services",
         "SMC Global",
         "Anand Rathi Share and Stock Brokers",
         "Yes Securities",
@@ -261,7 +257,13 @@ COMPANY_SUB_SECTORS: dict[str, list[str]] = {
         "L&T Finance",
         "Tata Capital",
         "Shriram Finance",
+    ],
+    "Asset_Management": [
         "JM Financial",
+        "Motilal Oswal Financial Services",
+    ],
+    "Gaming": [
+        "Nazara Technologies",
     ],
     "OTA": [
         "Airbnb",
@@ -862,6 +864,28 @@ SUB_SECTOR_ALIASES.update(
     }
 )
 
+# subsector_authoring_pass S1 (2026-09-19): 8 labels onto EXISTING nodes
+# — the operator-approved resolution of the 16 parked worklist buckets
+# (decision matrix in doc/improvements/proposals/subsector_authoring_pass.md).
+# The split buckets (Banks - Regional, Capital Markets, Utilities -
+# Renewable, Packaging & Containers, Metal Fabrication) and the
+# Semiconductors bucket (per-company onto the existing Design/Foundry/
+# Memory leaves — "Semiconductors" itself is the SUB_CATEGORIES PARENT,
+# not a leaf) ride the D7 authored lane instead (per-note `subsector:`
+# via author_subsector.py) — see S2.
+SUB_SECTOR_ALIASES.update(
+    {
+        "Electronic Gaming & Multimedia": "Gaming",  # NEW leaf under Media_Entertainment (Nazara)
+        "Oil & Gas Integrated": "E&P",
+        "Department Stores": "Hypermarkets",
+        "Publishing": "Publishing",
+        "Paper & Paper Products": "Paper_Products",
+        "Tools & Accessories": "Capital_Goods",
+        "Banks - Diversified": "Foreign_Banks",
+        "Electronics & Computer Distribution": "Computer_Hardware",
+    }
+)
+
 # Worklist hints for unmapped majors (suggested NEW sub_sector nodes).
 SUB_SECTOR_SUGGESTIONS: dict[str, str] = {
     "Auto Parts": "new sub_sector Auto_Ancillary",
@@ -1363,6 +1387,34 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901  # arg-dispatch CL
         )
         for hyper_type, (new_edges, new_inc) in sorted(stats.items()):
             print(f"{hyper_type:<10} {new_edges:>10} {new_inc:>15}")
+        # D7 convergence prune: sub_sector groups are FULLY recomputed each
+        # run (alias union + COMPANY_SUB_SECTORS + authored precedence), so
+        # an apply must also DROP incidences the recomputed groups no longer
+        # contain — relabeling/precedence swaps would otherwise linger
+        # forever, because the write path above is INSERT OR IGNORE.
+        pruned = 0
+        if args.apply and "sub_sector" in hyper:
+            wanted: dict[str, set[str]] = {}
+            for lbl, members in hyper["sub_sector"].items():
+                wanted.setdefault(lbl, set()).update(members)
+            with conn:
+                for eid, lbl in conn.execute(
+                    "SELECT id, label FROM hyper_edges WHERE edge_type = 'sub_sector'"
+                ).fetchall():
+                    keep = wanted.get(lbl, set())
+                    if keep:
+                        qmarks = ",".join("?" * len(keep))
+                        cur = conn.execute(
+                            f"DELETE FROM hyper_incidences WHERE edge_id = ? "
+                            f"AND entity_name NOT IN ({qmarks})",
+                            (eid, *keep),
+                        )
+                    else:
+                        cur = conn.execute("DELETE FROM hyper_incidences WHERE edge_id = ?", (eid,))
+                    pruned += cur.rowcount
+            if pruned:
+                print(f"D7 convergence prune: {pruned} stale sub_sector incidence(s) dropped")
+
         mode = "APPLY" if args.apply else "DRY-RUN (use --apply to write)"
         total_e = sum(e for e, _ in stats.values())
         total_i = sum(i for _, i in stats.values())

@@ -98,6 +98,13 @@
         }
       ]
     },
+    "subsector": {
+      "description": "Operator-authored canonical sub_sector classification (D7 authored lane, #238); case/spacing-insensitive against sub_sector entity names, wins over the derived alias mapping. Absent on un-authored notes.",
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "minLength": 1 }
+      ]
+    },
     "industry_code": {
       "description": "Coded industry \u2014 NIC-2008 5-digit sub-class primary (ontology_convention_stack S2); carry industry_label alongside. Free text until the NIC seed table ships; the pair is the migration target for industry.",
       "x-okf-version": "0.2",
