@@ -494,7 +494,7 @@ def connect(  # noqa: C901
     if rebuild or fresh:
         clear_graph_cache()
 
-    needs_build = fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path))
+    needs_build = fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path, db_path))
 
     # Cross-process readers (the make advisory parallelism): N read-only
     # openers coexist with each other; only a read-write opener excludes
@@ -526,13 +526,20 @@ def connect(  # noqa: C901
             # fail, which must not be misread as corruption and unlinked
             # mid-build (that deletion raced live builders before the
             # serialization existed).
-            if not fresh and not rebuild and duckdb_path.exists() and not _is_warm(duckdb_path):
+            if (
+                not fresh
+                and not rebuild
+                and duckdb_path.exists()
+                and not _is_warm(duckdb_path, db_path)
+            ):
                 try:
                     duckdb_path.unlink()
                     duckdb_path.with_suffix(".duckdb.wal").unlink(missing_ok=True)
                 except OSError:
                     pass
-            needs_build = fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path))
+            needs_build = (
+                fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path, db_path))
+            )
             if read_only and not needs_build:
                 con = duckdb.connect(str(duckdb_path), read_only=True)
                 _prep_graph_connection(con)
@@ -551,11 +558,21 @@ def connect(  # noqa: C901
             fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
 
 
-def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901
+def _is_warm(duckdb_path: Path, db_path: Path | None = None) -> bool:  # noqa: C901
     """True if the ``.duckdb`` file has a populated ``_build_meta`` table.
 
     Used to decide whether ``connect()`` can skip materialisation. A cold
     or partially-built file returns False; the caller rebuilds.
+
+    ``db_path`` is the SQLite source the cache was built from (what
+    ``connect()`` ATTACHes). When given, generation/embedding staleness is
+    probed against THAT file only. When None (legacy direct calls, tests),
+    the colocated ``<duckdb_path>.db`` is tried first, then the production
+    ``DB_PATH``. The colocated-first guess predates production's split
+    naming (``research.db`` -> ``graph.duckdb``): any stray empty sibling
+    ``graph.db`` silently poisons the check — read as "no generation",
+    permanently cold — and the build path then unlinks and rebuilds the
+    cache on EVERY connect (2026-09-19: every graph CLI paid ~2s for this).
     """
     try:
         con = duckdb.connect(str(duckdb_path), read_only=True)
@@ -578,17 +595,19 @@ def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901
                 # Local import: importing at module level would create a cycle.
                 from helpers.core.db import connect as _db_connect
 
-                # Candidate order: the .db COLOCATED with this .duckdb first
-                # (test/custom DBs — connect() resolves the sibling
-                # <db_path>.duckdb), then the production DB_PATH. Production
-                # is unaffected (memory/graph.db doesn't exist); colocated-
-                # first keeps tmp-fixture probes off the live research.db.
-                # The loop STOPS at the first candidate that EXISTS — a
-                # colocated db_meta without a generation row means "no
-                # generation", not "keep looking" (falling through to the
-                # live DB compares a fixture build against production's
-                # counter and always reads cold).
-                for cand in (duckdb_path.with_suffix(".db"), DB_PATH):
+                # Candidate order: the db_path the caller ATTACHed (always
+                # correct for connect(); no sibling guessing), or — for
+                # legacy direct calls — the .db COLOCATED with this .duckdb
+                # first (test/custom DBs — connect() resolves the sibling
+                # <db_path>.duckdb), then the production DB_PATH. The loop
+                # STOPS at the first candidate that EXISTS — a colocated
+                # db_meta without a generation row means "no generation",
+                # not "keep looking" (falling through to the live DB
+                # compares a fixture build against production's counter and
+                # always reads cold).
+                for cand in (
+                    (db_path,) if db_path is not None else (duckdb_path.with_suffix(".db"), DB_PATH)
+                ):
                     if not cand.exists():
                         continue
                     try:
@@ -658,7 +677,7 @@ def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901
             stored_nd = r_dims[0] if r_dims else None
             stored_nm = r_model[0] if r_model else None
             if stored_nd is not None or stored_nm is not None:
-                live_dims, live_model = _probe_note_embed_state(duckdb_path)
+                live_dims, live_model = _probe_note_embed_state(duckdb_path, db_path)
                 if str(stored_nd) != str(live_dims) or str(stored_nm) != str(live_model):
                     return False
             return True
@@ -670,19 +689,22 @@ def _is_warm(duckdb_path: Path) -> bool:  # noqa: C901
         return False
 
 
-def _probe_note_embed_state(duckdb_path: Path) -> tuple[str | None, str | None]:
+def _probe_note_embed_state(
+    duckdb_path: Path, db_path: Path | None = None
+) -> tuple[str | None, str | None]:
     """Live SQLite-side (note_embed_dims, note_embed_model) probe for _is_warm.
 
     Dims come from json-parsing the first non-empty note_search embedding
     (stored_embed_dims discipline: unparsable JSON counts as absent).
     Model comes from db_meta.note_embed_model. Both None when the DB has
-    no embeddings/no stamp. Tries the .db COLOCATED with the .duckdb
-    first, then DB_PATH — same candidate order (and for the same
-    test-isolation reason) as the generation check in _is_warm.
+    no embeddings/no stamp. ``db_path`` is the SQLite source (no sibling
+    guessing); when None, tries the .db COLOCATED with the .duckdb first,
+    then DB_PATH — same candidate order (and for the same test-isolation
+    reason) as the generation check in _is_warm.
     """
     from helpers.core.db import connect as _db_connect
 
-    for cand in (duckdb_path.with_suffix(".db"), DB_PATH):
+    for cand in (db_path,) if db_path is not None else (duckdb_path.with_suffix(".db"), DB_PATH):
         if not cand.exists():
             continue
         try:

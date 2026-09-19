@@ -135,13 +135,16 @@ def louvain_communities(
     """Louvain community detection via Onager.
 
     Returns a ``LouvainResult(labels name->community_id, modularity float)``.
+    DB path applies the index-membership exclusion (same rule as the
+    centralities — index co-membership is not a relationship; see
+    EDGE_TYPES_EXCLUDED_FROM_CENTRALITY).
     """
     own = False
     if con is None:
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        labels, modularity = onager_louvain(con, edges=edges)
+        labels, modularity = _onager_central(onager_louvain, con, edges)
     finally:
         if own:
             con.close()
@@ -155,7 +158,7 @@ def compute_louvain_modularity(con: Any | None = None) -> float:
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return onager_louvain(con)[1]
+        return _onager_central(onager_louvain, con, None)[1]
     finally:
         if own:
             con.close()
@@ -170,7 +173,7 @@ def eigenvector_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return onager_eigenvector(con, edges=edges)
+        return _onager_central(onager_eigenvector, con, edges)
     finally:
         if own:
             con.close()
@@ -208,7 +211,7 @@ def closeness_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        result = onager_closeness(con, edges=edges)
+        result = _onager_central(onager_closeness, con, edges)
     finally:
         if own:
             con.close()
@@ -234,7 +237,7 @@ def betweenness_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        bc = onager_betweenness(con, edges=edges)
+        bc = _onager_central(onager_betweenness, con, edges)
     finally:
         if own:
             con.close()
@@ -252,7 +255,7 @@ def degree_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return onager_degree(con, edges=edges)
+        return _onager_central(onager_degree, con, edges)
     finally:
         if own:
             con.close()
@@ -270,7 +273,7 @@ def harmonic_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return onager_harmonic(con, edges=edges)
+        return _onager_central(onager_harmonic, con, edges)
     finally:
         if own:
             con.close()
@@ -293,7 +296,7 @@ def katz_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return onager_katz(con, edges=edges, alpha=alpha, beta=beta)
+        return _onager_central(onager_katz, con, edges, alpha=alpha, beta=beta)
     finally:
         if own:
             con.close()
@@ -308,7 +311,7 @@ def laplacian_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return onager_laplacian(con, edges=edges)
+        return _onager_central(onager_laplacian, con, edges)
     finally:
         if own:
             con.close()
@@ -327,7 +330,7 @@ def local_reaching_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return onager_local_reaching(con, edges=edges)
+        return _onager_central(onager_local_reaching, con, edges)
     finally:
         if own:
             con.close()
@@ -346,7 +349,7 @@ def voterank_seeds(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return list(onager_voterank(con, edges=edges))
+        return list(_onager_central(onager_voterank, con, edges))
     finally:
         if own:
             con.close()
@@ -506,6 +509,47 @@ def _persist_voterank(seeds: list[str], conn: Any | None = None) -> int:
 # via the ``**_`` catch-all, keeping ``compute`` free of a long branch chain.
 def _resolve_approx(approximate: bool | None, default: bool) -> bool:
     return default if approximate is None else bool(approximate)
+
+
+# Centrality projection (graph_centrality_index_noise, 2026-09-19):
+# listed_on_index is 36% of all edges (57 star hubs, top degree 752) and
+# is a semi-annual CSV list, not an editorial relation — with it in the
+# projection NIFTY SME EMERGE ranks betweenness #2 and SME smallcaps
+# whose only graph presence is that index fill ranks #7-#10. The nine
+# Onager-backed centralities below therefore EXCLUDE it on the DB path.
+# Louvain joins the same rule (operator decision 2026-09-19: with
+# membership edges the 503-member SME EMERGE roster collapsed into ONE
+# 495-member community — the partition mirrored the index list, not
+# relationships; communities also churn wholesale every reconstitution).
+# Resolved dynamically (SELECT DISTINCT minus the exclusion) so new edge
+# types join automatically; synthetic edges= and explicit edge_types
+# bypass. pagerank/wcc/clustering are single-edge-type metrics
+# (query.py, default BelongsTo) and were never exposed to this noise.
+EDGE_TYPES_EXCLUDED_FROM_CENTRALITY = frozenset({"listed_on_index"})
+
+
+def _centrality_edge_types(con: Any) -> list[str] | None:
+    """DB-backed centrality projection: all edge types except the
+    index-membership exclusion (graph_centrality_index_noise). Falls
+    back to ``None`` (all edges) when ``fin`` is unreadable — the
+    exclusion is a semantics refinement, never a hard failure."""
+    try:
+        rows = con.execute("SELECT DISTINCT edge_type FROM fin.graph_edges").fetchall()
+    except Exception:  # noqa: S110  # best-effort: unreadable fin -> all edges
+        return None
+    types = [r[0] for r in rows if r[0] not in EDGE_TYPES_EXCLUDED_FROM_CENTRALITY]
+    return types or None
+
+
+def _onager_central(fn, con, edges, **kw):
+    """Dispatch an Onager centrality with the centrality projection rule.
+
+    DB path (``edges is None``): apply the index-noise exclusion. Synthetic
+    ``edges=`` lists pass through untouched (they define their own graph).
+    """
+    if edges is not None:
+        return fn(con, edges=edges, **kw)
+    return fn(con, edge_types=_centrality_edge_types(con), edges=edges, **kw)
 
 
 def _run_pagerank(con, *, edges, edge_label, vertex_label, **_) -> dict[str, Any]:

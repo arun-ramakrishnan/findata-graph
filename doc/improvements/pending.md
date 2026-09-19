@@ -126,13 +126,23 @@ revisit triggers inline; executed work is compressed to records.
   from it, and all four rosters are now gated in
   `roster_registry_sources()` against the master doc (documented-only
   exemption closed).
-- **Perf graph-leg budgets post-ingest** — RESOLVED 2026-09-19 by a 3x
-  budget bump (operator decision: absorb corpus growth now, chase timing
-  flakes later). graph_eigenvector and graph_link_prediction budgets
-  2.0s → 6.0s in tests/run_perf_benchmarks.py (measured 2.23–2.34s and
-  3.35–3.46s after the store tripled to ~6.2k companies via chatter
-  ingest). The investigation option stays parked here: if a future leg
-  crosses 6.0s, the right move is a measurement pass, not another bump.
+- **Perf graph-leg budgets post-ingest** — RESOLVED 2026-09-19, root
+  cause found and fixed (not corpus growth): a stray empty
+  `memory/graph.db` (4KB, zero tables) poisoned `_is_warm`'s
+  colocated-sibling guess, so every graph CLI connect unlinked and fully
+  rebuilt the ~35MB cache (~2s) before computing — eigenvector's native
+  compute is ~0.04s, its entire overage was the rebuild. Fix in
+  `helpers/graph/query.py` (`_is_warm`/`_probe_note_embed_state` take
+  the real `db_path` from `connect()`; legacy sibling guess kept only
+  for direct calls) + `test_graph_disk.py` regression test. Operator
+  waivers (2.0s → 6.0s) removed, original budgets restored: 22/22 at
+  eigenvector 0.37s, link_prediction 1.34s, closeness 2.97s,
+  betweenness 2.23s. The same arc also excluded `listed_on_index`
+  from the Onager structural projections (completed.md #254) and
+  filed the persistent-cache follow-up (live proposal
+  `graph_centrality_persistent_cache.md`); original state below:
+  eigenvector 0.37s, link_prediction 1.34s, closeness 2.97s,
+  betweenness 2.23s.
 - **test_fuzz_shortest_path leaks a 176MB sp.db tempdir per run** —
   DONE 2026-09-17 (#245; `archive/testing/tmpdir_sanitization.md`): the
   tmpdir-hygiene arc — fixture onto pytest basetemp with a vacuumed copy,

@@ -32,18 +32,19 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # notes (frontmatter.newsletter.v1.json), ~+2s of jsonschema validation.
     # 10.0s since 2026-09-14: static_checks gained the S19 data-format AST
     # guards (zstd + Arrow-in-flight scans over the helper corpus).
-    ("static_checks", ["helpers/validators/static_checks.py"], 10.0),
+    ("static_checks", ["helpers/validators/static_checks.py"], 7.0),
     ("snapshot_check", ["helpers/maintenance/snapshot_db.py", "--check"], 4.0),
     ("graph_pagerank", ["helpers/graph/algorithms.py", "pagerank", "--top", "10"], 3.0),
-    ("graph_closeness", ["helpers/graph/algorithms.py", "closeness", "--top", "10"], 4.0),
+    ("graph_closeness", ["helpers/graph/algorithms.py", "closeness", "--top", "10"], 5.0),
     ("graph_louvain", ["helpers/graph/algorithms.py", "louvain", "--top", "10"], 4.0),
     ("graph_betweenness", ["helpers/graph/algorithms.py", "betweenness", "--top", "10"], 4.0),
-    # 6.0s since 2026-09-19 (operator waiver x3): the store tripled
-    # (companies ~1.2k -> 6.2k via chatter ingest), so eigenvector runs
-    # 2.23-2.34s and link_prediction 3.35-3.46s against the old 2.0s budget.
-    # Budget bumped 2.0 -> 6.0 (3x) to absorb the corpus growth; the timing
-    # flakes are deferred, not investigated (pending.md).
-    ("graph_eigenvector", ["helpers/graph/algorithms.py", "eigenvector", "--top", "10"], 6.0),
+    # 2026-09-19 RESOLVED: the "corpus growth" slide was not corpus at all —
+    # a stray empty memory/graph.db poisoned _is_warm's colocated-sibling
+    # guess, so every graph CLI unlinked + rebuilt the cache (~2s) before
+    # computing; eigenvector's native compute is ~0.04s. Fixed in
+    # query.py (_is_warm takes the real db_path); waivers removed, original
+    # 2.0s budgets restored: eigenvector 0.37s, link_prediction 1.34s.
+    ("graph_eigenvector", ["helpers/graph/algorithms.py", "eigenvector", "--top", "10"], 2.0),
     (
         "graph_link_prediction",
         [
@@ -55,7 +56,7 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
             "jaccard",
             "--no-apply",
         ],
-        6.0,
+        2.0,
     ),
     ("graph_rebuild", ["helpers/graph/query.py", "rebuild"], 5.0),
     # sql_capability_unlocks B2 gate: BFS shortest_path steady-state
@@ -92,7 +93,7 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # script itself. Budget tightened 20s -> 7s (2026-09-01): 2.2x headroom
     # over the measured warm time while still catching regressions.
     ("pdf_pipeline_local", ["tests/bench_pdf_pipeline.py"], 7.0),
-    ("derive_insights", ["helpers/graph/derive_insights.py"], 12.0),
+    ("derive_insights", ["helpers/graph/derive_insights.py"], 7.0),
     (
         "parse_newsletter",
         ["helpers/core/parse_newsletter.py", "findata/The_Chatter/Embracing_the_Unknown.md"],

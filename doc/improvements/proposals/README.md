@@ -33,6 +33,11 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- [`graph_centrality_persistent_cache.md`](graph_centrality_persistent_cache.md) —
+  Persistent per-generation centrality cache — stamp `v_centrality_*`
+  into `graph.duckdb` at rebuild (mirrors app.py per-generation
+  semantics on disk; triggers + benchmark-honesty wiring inside);
+  follows the archived index-noise proposal (completed.md #254).
 - [`subsector_authoring_pass.md`](subsector_authoring_pass.md) —
   Sub-sector authoring pass — resolve the 16 parked buckets via
   SUB_SECTOR_ALIASES additions + per-note authored `subsector:`

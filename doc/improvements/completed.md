@@ -6560,3 +6560,49 @@ seed_nic2008 / nic_scorer_bench / coverage_ledger; live-test
 reconciliation (`belongs_to` 184, Talbros customers, CONC-1 per-request
 connection test, CPU-time fuzzy-duplicates perf pin); regenerated
 `frontmatter_keys.md`.
+
+## 254. Graph centrality index-noise — listed_on_index excluded from the Onager structural projections
+
+**Proposal**: `doc/improvements/archive/graph/graph_centrality_index_noise.md`
+(filed + executed 2026-09-19; louvain amendment same day, operator
+decision).
+
+The idx_fill arc (#253) made `listed_on_index` 36% of all edges as 57
+star hubs (top degree 752) and pulled 773 stub companies into the
+endpoint set. Measured effect on full-graph metrics: NIFTY SME EMERGE
+ranked betweenness #2, NIFTY TOTAL MARKET closeness #3, SME smallcaps
+whose only graph presence is the index filled betweenness #7–#10, and
+louvain collapsed the 503-member SME EMERGE roster into ONE
+495-member community — list membership reported as structure.
+
+- Ten Onager structural wrappers in `helpers/graph/algorithms.py`
+  (nine centralities + louvain, incl. `compute_louvain_modularity`)
+  now exclude `listed_on_index` on the DB path:
+  `EDGE_TYPES_EXCLUDED_FROM_CENTRALITY`, resolved dynamically
+  (`SELECT DISTINCT edge_type` minus the exclusion — new edge types
+  join automatically); synthetic `edges=` and explicit `edge_types`
+  bypass. pagerank/wcc/clustering unaffected (single-edge-type,
+  default `BelongsTo` — never exposed to this noise).
+- **Same arc, root cause first**: a stray empty `memory/graph.db`
+  poisoned `_is_warm`'s colocated-sibling guess — every graph CLI
+  connect unlinked + fully rebuilt the 35 MB cache (~2.07s) before
+  computing. `_is_warm`/`_probe_note_embed_state` now take the real
+  `db_path` from `connect()`; regression test with production-shaped
+  split naming. Perf: 22/22 at ORIGINAL budgets after operator waiver
+  removal (eigenvector 0.37s, link_prediction 1.34s, closeness
+  2.97→1.51s, betweenness 2.23→1.17s after the exclusion; louvain
+  0.49s).
+- Findings recap in the proposal §9 (quick reference): link
+  prediction does NOT want membership edges (hub-flood 1.000 pairs,
+  adamic-adar index-vs-index degeneration at 9.8s; signal redundant
+  behind co-mentions), O(V·(V+E)) scaling with V the lever, `directed
+  := false` dead end, `graph_metrics` keeps full-edge semantics by
+  design.
+- Follow-up filed as a live proposal:
+  `proposals/graph_centrality_persistent_cache.md` (v_centrality_* at
+  rebuild, schema 17, benchmark `--compute` honesty wiring).
+
+Gates: eval gate ACCEPT (164 questions, 0 reasons, code-only change);
+`test_centrality_projection.py` 15/15; `test_graph_disk.py` 28/28;
+graph suites 218/218; `make perf` 22/22; ruff/ty/format clean. Full
+gate run by the operator.

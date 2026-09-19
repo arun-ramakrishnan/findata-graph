@@ -199,6 +199,48 @@ class TestDiskBasics:
         c.close()
         assert _is_warm(_duckdb_for(tmp_db))
 
+    def test_stray_sibling_db_does_not_poison_warm_check(self, tmp_db, tmp_path):
+        """A stray EMPTY <duckdb>.db sibling must not force the cache cold.
+
+        Regression (2026-09-19): production names its cache graph.duckdb
+        while the SQLite source is research.db, so _is_warm's legacy
+        colocated-first guess (graph.db, then DB_PATH) read any stray
+        empty memory/graph.db as "no generation" -> permanently cold ->
+        connect()'s build path UNLINKED and fully rebuilt the cache on
+        every graph CLI invocation (~2s each, all four graph benchmarks
+        over budget). connect() now passes the real db_path down; the
+        sibling guess only applies to legacy direct calls.
+        """
+        # Production-shaped split naming: source test.db, cache graph.duckdb
+        # (different stems — the colocated guess is what misfires there).
+        duckdb_path = tmp_path / "graph.duckdb"
+        c = connect(tmp_db, duckdb_path=duckdb_path)
+        c.close()
+        assert _is_warm(duckdb_path, tmp_db), "precondition: warm cache"
+        # The poison artifact: empty file named after the CACHE (what
+        # production's memory/graph.db was — zero tables, 4KB).
+        poison = duckdb_path.with_suffix(".db")
+        assert poison != tmp_db
+        poison.write_bytes(b"")
+        assert not poison.stat().st_size
+        # With the source db_path threaded through, the poison is ignored:
+        assert _is_warm(duckdb_path, tmp_db) is True
+        # Legacy single-arg call still reads the (bogus) colocated file —
+        # documented behavior for direct calls; connect() must not use it.
+        assert _is_warm(duckdb_path) is False
+        # End to end: a warm read-only connect skips the build path even
+        # with the poison file present (mtime unchanged proves no rebuild).
+        import time as _time
+
+        m0 = duckdb_path.stat().st_mtime_ns
+        _time.sleep(0.01)
+        con = connect(tmp_db, read_only=True, duckdb_path=duckdb_path)
+        try:
+            assert duckdb_path.stat().st_mtime_ns == m0, "cache was rebuilt"
+        finally:
+            con.close()
+        assert duckdb_path.stat().st_mtime_ns == m0, "cache was rebuilt"
+
     def test_parallel_ro_connects_serialize_the_build(self, tmp_db, tmp_path):
         """N read_only connects hitting a cold cache must all succeed.
 
