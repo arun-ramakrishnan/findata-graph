@@ -74,6 +74,7 @@ commit, referenced by nothing). Entry numbers point at
 
 ## testing/ — Testing & QA — integration, stateful/relational, lint, coverage
 
+- [`test_gap_closure.md`](testing/test_gap_closure.md) — Test-gap closure from a full-suite branch-coverage run — date rot (already fixed by operator), availability hot-route budgets, first perf legs to drive the Flask request path, worker + BrokenProcessPool fallback tests, fuzz guard for the last quadratic regex — completed.md #256
 - [`integration_plan.txt`](testing/integration_plan.txt) — INTEGRATION TEST PLAN — FinData Knowledge Graph
 - [`integration_fuzz_enhancement.md`](testing/integration_fuzz_enhancement.md) — Proposal: Integration & Fuzz Test Suite Enhancement — write-side flows, sentinel machinery, query predicates — completed.md #144
 - [`stateful_relational_test_plan.txt`](testing/stateful_relational_test_plan.txt) — STATEFUL / RELATIONAL TEST PLAN — FinData Knowledge Graph — completed.md #73

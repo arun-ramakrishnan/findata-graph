@@ -59,6 +59,17 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         2.0,
     ),
     ("graph_rebuild", ["helpers/graph/query.py", "rebuild"], 5.0),
+    # test_gap_closure S3: the only legs that drive the FLASK REQUEST PATH.
+    # Every other entry invokes a helper script directly, so the gate could
+    # not see the AVAIL-1 class (a 53 s unauthenticated GET). Best-of-3 per
+    # route with a warm-up call; budgets are steady-state x ~10 (see the
+    # script for the measured baselines).
+    # Budget is the END-TO-END process cost (interpreter + Flask app +
+    # graph-layer build + 4 routes), measured 3.3 s stable 2026-09-20.
+    # The route-level budgets that catch the AVAIL-1 class live INSIDE the
+    # script (best-of-3 per route against a 0.5 s bar), so this outer
+    # budget only guards the harness itself.
+    ("route_graph_stats", ["tests/bench_routes.py"], 5.0),
     # sql_capability_unlocks B2 gate: BFS shortest_path steady-state
     # (<100ms on the default request AND the unreachable-dst full
     # component traversal, asserted inside the script).

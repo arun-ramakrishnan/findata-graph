@@ -6607,8 +6607,46 @@ Gates: eval gate ACCEPT (164 questions, 0 reasons, code-only change);
 graph suites 218/218; `make perf` 22/22; ruff/ty/format clean. Full
 gate run by the operator.
 
+## 255. Advisory gate perf + report format
+## 256. Test-gap closure — date rot, availability budgets, perf HTTP legs, worker fallback
 
-## 255. Advisory gate perf + report format — tier-walk longest-chains, index-free chain views, loadgroup xdist, ended/elapsed report timestamps
+**Proposal**: `doc/improvements/archive/testing/test_gap_closure.md`
+(filed + executed 2026-09-20).
+
+A full-suite branch-coverage run (74% over `helpers/`) surfaced five gaps;
+four were real and all five slices landed, each mutation-verified (the test
+fails when its guarded code regresses).
+
+- **S1 — date rot: no work needed.** The operator had already repaired
+  `test_analytics.py` (`abeda1d7`), where a fixture pinned to 2026-08-20
+  was compared against `now()` and rotted on 2026-09-19. The other three
+  files flagged by the scan were a false alarm — their 2026 strings are
+  historical labels, not freshness assertions.
+- **S2 — `tests/test_api_availability_budgets.py` (10 tests).** Budgets
+  for the hot routes, calibrated to the measured *cold* first call
+  (`/api/graph/stats` is 766 ms while the graph layer builds, 190 ms warm)
+  with a x5 ceiling floored at 1 s. Best-of-3 per route after an xdist run
+  showed a single-shot timing can pick up ~3x co-worker contention
+  (sector/Banking swung 269-805 ms under load). Three malicious-shape tests
+  (huge `limit`, deep `<path:>` converter, unknown analytics name) assert
+  fast failure rather than hang.
+- **S3 — `tests/bench_routes.py` + the `route_graph_stats` perf leg.** The
+  only legs driving the Flask request path; all 16 existing legs invoke
+  helper scripts directly, so the gate could not see the AVAIL-1 class (a
+  53 s unauthenticated GET). Four hot routes, best-of-3 with a warm-up call.
+- **S4 — `tests/test_workers_and_fallback.py` (6 tests).** Direct unit
+  tests for the `_extract_worker`/`_insights_worker` shims, plus the
+  `BrokenProcessPool` serial fallback exercised via a `_BoomPool` that
+  dies on construction. The 0% coverage on the workers was a
+  ProcessPoolExecutor measurement artifact, not a hole.
+- **S5 — `tests/test_fuzz_regex.py` bold-line guard.** The last
+  AVAIL-2-class pattern (`pdf_local.py:70`) sat outside any fuzz guard.
+  Min-of-3 at doubling sizes 160-1280 with a 6.0 growth ceiling — the good
+  pattern measures 4.26 max, a nested-quantifier regression 12.2.
+
+**Gates**: `make qa` 10/10 (pytest 3,314 passed), `make perf` 23/23,
+ruff/ty/format clean.
+ — tier-walk longest-chains, index-free chain views, loadgroup xdist, ended/elapsed report timestamps
 
 **Proposal**: `doc/improvements/archive/tooling/advisory_gate_perf_reports.md`
 (retrospective — operator-directed turn, filed at archival 2026-09-20).

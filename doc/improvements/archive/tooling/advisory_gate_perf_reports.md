@@ -55,8 +55,7 @@ Effect: render **61s → ~1.0s** (59×); `make live-invariants` **227 tests in
 (16 lines; components/diameter/median recomputed on the smaller universe;
 chains relationship-driven).
 
-## 3. Report format (operator directive: ending + elapsed time everywhere;
-console summary into the reports)
+## 3. Report format (operator directive: ending + elapsed time everywhere, console summary into the reports)
 
 - `run_gate_report.py`: meta line gains `**Started:**` + `**Elapsed:**`
   (`**Generated:**` kept — search_tui's `_PERF_META_RE` parses it); the

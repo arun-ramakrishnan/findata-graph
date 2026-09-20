@@ -39,7 +39,16 @@ entry number and stale DONE pointers):
   semantics on disk; triggers + benchmark-honesty wiring inside);
   follows the archived index-noise proposal (completed.md #254).
 - [`subsector_authoring_pass.md`](subsector_authoring_pass.md) —
-  Sub-sector authoring pass — resolve the 16 parked buckets via
+  Sub-sector authoring pass
+- [`_(Previously: test_gap_closure.md archived 2026-09-20 as completed.md entry
+256 — test-gap closure: the date-rot class (S1, already fixed by the
+operator), availability budgets for the hot routes (S2, 10 tests), the
+first perf legs to drive the Flask request path (S3, `bench_routes.py`),
+worker + BrokenProcessPool fallback tests (S4, 6 tests), and a fuzz guard
+for the last quadratic regex (S5). All mutation-verified; `make qa` 10/10;
+execution record in `../archive/testing/test_gap_closure.md`.)_
+e.
+ — resolve the 16 parked buckets via
   SUB_SECTOR_ALIASES additions + per-note authored `subsector:`
   (eval-gated; decision matrix inside).
 

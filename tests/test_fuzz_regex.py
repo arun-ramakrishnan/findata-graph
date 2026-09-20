@@ -37,6 +37,7 @@ from core.parse_newsletter import SECTION_RE  # noqa: E402
 from graph.derive_co_mentions import _parse_edition_number  # noqa: E402
 from graph.derive_insights import _BPS_RE, _PCT_RE  # noqa: E402
 from pdf.capture_newsletter_images import IMG_BLOCK_RE  # noqa: E402
+from pdf.pdf_local import BOLD_LINE_RE  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
@@ -255,4 +256,56 @@ def test_range_regex_adversarial_space_runs_are_linear():
     assert elapsed_ms < 500, (
         f"range patterns took {elapsed_ms:.0f} ms on a 1.6 KB space-run input; "
         "the range separator likely regained its space/\\s* overlap (AVAIL-2)"
+    )
+
+
+# ---------------------------------------------------------------------------
+# BOLD_LINE_RE (helpers/pdf/pdf_local.py:70) — the remaining quadratic shape
+# ---------------------------------------------------------------------------
+# `^(?:\*\*.+?\*\*\s*)+$` pairs a lazy `.+?` inside a repeated group with
+# an outer `+`: on a long run of bold segments the engine can re-split the
+# boundary between the `.+?` and the trailing `\s*` in O(n^2) ways. Measured
+# 2026-09-20: 0.02 ms at 10 segments -> 71 ms at 320 (quadratic, bounded).
+# This is the last AVAIL-2-class pattern outside a fuzz guard.
+
+BOLD_ALPHABET = st.characters(
+    whitelist_categories=("Ll", "Lu", "Nd"), whitelist_characters="*| 	"
+)
+
+
+@settings(deadline=500, max_examples=200)
+@given(st.text(alphabet=BOLD_ALPHABET, max_size=900))
+def test_bold_line_regex_no_catastrophic_backtracking(text):
+    r"""BOLD_LINE_RE must terminate fast on any bold-heavy input.
+
+    A regression to an ambiguous form (e.g. `\s*` folded into the class
+    as `[-\s]`, or the lazy `.+?` made greedy) turns this quadratic; a
+    genuinely cubic shape would blow the Hypothesis deadline here.
+    """
+    BOLD_LINE_RE.findall(text)
+
+
+# Deterministic adversarial case: the exact shape that makes the boundary
+# ambiguous -- many bold segments, each with content, separated by spaces.
+# Asserts SUBQUADRATIC scaling (doubling input must not quadruple cost),
+# which is the precise property the AVAIL-2 fix established for the metric
+# patterns. A cubic regression here fails the third doubling outright.
+def test_bold_line_regex_scales_subquadratically():
+    # Measured 2026-09-20 with min-of-3 samples per size: the current
+    # (correct) pattern grows ~4.2x per doubling (quadratic is 4x); a
+    # nested-quantifier regression -- `(?:.+?\s*)+` inside the group --
+    # measures 12.2x on its middle doubling. A 6.0 threshold separates them
+    # with margin for CI noise while admitting nothing superquadratic.
+    timings_ms = []
+    for n in (160, 320, 640, 1280):
+        s = ("**" + "a" * n + "** ") * n
+        best = float("inf")
+        for _ in range(3):  # min-of-3: discards scheduler/cache noise
+            t0 = time.perf_counter()
+            BOLD_LINE_RE.match(s)
+            best = min(best, (time.perf_counter() - t0) * 1000)
+        timings_ms.append(best)
+    growth = [timings_ms[i + 1] / max(timings_ms[i], 0.01) for i in range(3)]
+    assert max(growth) < 6.0, (
+        f"BOLD_LINE_RE growth superquadratic: {timings_ms} ms, ratios {growth}"
     )

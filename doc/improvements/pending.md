@@ -60,6 +60,11 @@ revisit triggers inline; executed work is compressed to records.
   #251). All three fix proposals are executed and archived under
   `archive/security/`. The coverage claim itself is
   now machine-checked: `helpers/validators/coverage_ledger.py check`.
+  Follow-up EXECUTED 2026-09-20 (completed.md #256,
+  `archive/testing/test_gap_closure.md`): the availability class now has
+  hot-route budgets + the first perf legs to drive the Flask request path,
+  the worker/`BrokenProcessPool` fallback is tested, and the last
+  quadratic regex has a fuzz guard. `make qa` 10/10.
 
 - **B2 relation sidecars** — optional tech-avenues leftover
   (`archive/tooling/tech_avenues.txt` §3): per-relation YAML sidecars with
