@@ -130,6 +130,48 @@ When you run a class for the first time, expect the finding there: every
 confirmed finding in this repo's history came from a class that had never
 been swept, not from re-sweeping a covered one.
 
+#### External candidate sources (reviewed 2026-09-19, Addendum 6)
+
+Candidate generation starts from the ledger and these external checklists.
+Each was reviewed in full and kept only if it matches an actual class in
+the table above. **Nothing here is installed or executed** — they are
+reading material that seeds candidates; the verdict contract still applies
+before anything is written down.
+
+- **[`SnailSploit/claude-red`](https://github.com/SnailSploit/claude-red)** (MIT) — 78 `SKILL.md` offensive checklists.
+  Only 4 match our surface; the other 74 target surfaces we do not have
+  (wireless, AD, mobile, IoT, EDR/C2, privesc, containers — no radio,
+  directory service, app, firmware, or Docker here):
+  - `offensive-race-condition` — the CONC-1 class (TOCTOU, single-packet,
+    last-byte sync). Deepest of the four (29 KB).
+  - `offensive-api-security` + `offensive-api-abuse` — OWASP API Top 10,
+    BOLA, mass assignment, endpoint chaining → the 38-route ledger and
+    SEC-5's authorization gap.
+  - `offensive-bug-identification` + `offensive-vuln-classes` — code-review
+    patterns and the taxonomy that seeds step 5's class selection.
+  - `offensive-reporting` — evidence discipline (we reject CVSS as the
+    *ordering*, keep it as the evidence standard).
+- **[`harsh-bothra/learn365`](https://github.com/harsh-bothra/learn365)** — 365 curated links; a bibliography, not a
+  tool. Cite under the memory-safety class for the ingestion surface:
+  days 81 (ImageMagick shell injection via PDF password), 239 (insecure
+  PDF features), 241 (XFA/XSLT callback), 242 (malicious-PDF
+  construction), 330 (EPUB reading-system exploitation).
+- **[`usestrix/strix`](https://github.com/usestrix/strix)** — reviewed and **not adopted**: it requires live
+  exploitation against a writable target plus an external LLM key, which
+  inverts the §A boundary (bounded, local, idempotent) and the SEC-7/SEC-8
+  egress posture. Its *scoping* doctrine transfers (point at the risky
+  subtree; declare trust boundaries and attacker-controlled inputs
+  explicitly because the agent cannot infer them) — use that when writing
+  `--focus` queries for the ledger.
+
+**The gap no external source fills: availability.** claude-red has zero
+content for it (grep across the whole library for
+availability/denial/DoS/ReDoS/resource/exhaustion: no hits). Offensive
+checklists are written for the attacker's win condition, and resource
+exhaustion produces a denial of service, not a takeover — so it is
+under-represented in the ecosystem. Availability stays an in-house class
+here; 2 of the 3 confirmed findings in the 2026-09-19 arc came from it.
+
 ### 6. Verified-clean needs evidence too
 
 A clean verdict is a claim. Record the method that produced it (source
