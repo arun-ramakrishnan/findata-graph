@@ -298,6 +298,10 @@ class TestGraphEndpointsLive:
         assert r.status_code == 500
         assert r.is_json
         assert "synthetic" in r.get_json()["error"]
+        # The 500 populated the TTL fast-fail cache (60s) — clear it so the
+        # synthetic error does not leak into later tests in this module
+        # (order-dependent TestCountryEndpointsLive failures, 2026-09-21).
+        A._reset_graph_connection()
 
     def test_semantic_endpoint_live(self, live_client):
         """/api/graph/semantic/<name> resolves CEAT and returns neighbours via

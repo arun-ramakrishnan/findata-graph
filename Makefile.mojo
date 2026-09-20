@@ -20,11 +20,12 @@ MOJO_SOURCES := $(wildcard $(MOJO_SRC)/*/*.mojo)
 # Vendored third-party libs live outside src/ (no main(), must not hit
 # the flat-binary build rules); their import roots join the flags only.
 MOJO_VENDOR_SRC := $(MOJO_DIR)/vendor/mojo-yaml/src
+MOJO_VENDOR_L0 := $(MOJO_DIR)/vendor/mojo-intel-gpu/src
 MOJO_TARGETS := $(addprefix $(MOJO_BIN)/,$(foreach s,$(MOJO_SOURCES),$(basename $(notdir $(s)))))
 MOJO_TESTS := $(wildcard $(MOJO_DIR)/tests/*.mojo)
 # Every src/<pkg> dir is an import root, so tests can `import <module>`
 # from any package (and packages can import each other's modules).
-MOJO_IMPORT_FLAGS := $(foreach d,$(MOJO_PACKAGES),-I $(d)) -I $(MOJO_VENDOR_SRC)
+MOJO_IMPORT_FLAGS := $(foreach d,$(MOJO_PACKAGES),-I $(d)) -I $(MOJO_VENDOR_SRC) -I $(MOJO_VENDOR_L0)
 
 .PHONY: mojo-build mojo-test mojo-bench mojo-format
 

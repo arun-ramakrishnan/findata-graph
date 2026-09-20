@@ -6688,3 +6688,47 @@ purged (pre-move co_filename paths in pytest output were cosmetic).
 Gates: `make qa` 10/10 PASS (3296 passed, 3 pix2text skips) — full gate
 run by the operator; live-invariants 227 in 60.4s; integration 50.7s PASS;
 ruff/lint-gates clean; 224 targeted tests.
+
+## 257. Skylake iGPU eval — HD 530 measured on real corpus data
+
+**Proposal**: `doc/improvements/archive/tooling/skylake_igpu_eval.md`
+(born-archived — filed retrospectively on completion, 2026-09-20).
+
+The Mojo pilot's open GPU thesis closed by measurement: every experiment
+(D/A/B/E/C/L/F-G/J-H-I) ran on real corpus assets (16,560×384 = 25.4 MB
+embed matrix, 36,582-edge graph, 24.9 MB corpus), sums verified against
+the known matrix totals, ≥100 passes per timing. Verdict: **production
+routing UNCHANGED** — nothing crosses the honest >50 MB bar — but the GPU
+is proven and banked: tuned recipe f4@group-64 = **1.89×** vs CPU simd32
+(above the 1.82× copy-ceiling), roofline confirmed (1.44× FMA-bound →
+**16.5× transcendental**, GPU wall flat = dispatch-floor-bound),
+heterogeneous CPU+GPU co-execution REFUTED on unified memory (every split
+loses to GPU-only; one shared DRAM bus, ~1.15 ms floor paid regardless),
+and `zeMemAllocShared` zero-copy ADOPTED (upload 2.12× — H2D eliminated;
+kernel wall identical to device memory). Graph/regex/hypergraph/oneDNN
+legs closed by measured gates (CSR 0.59 MB ≈ 30× below the 17 MB floor;
+oneDNN Debian build CPU-only AND Gen9 dropped upstream in v3.4).
+
+Artifacts banked in-repo: kernels + harnesses at `Mojo/src/gpu/`
+(7 .mojo + 3 .cl + 3 pinned .spv — smoke-verified `svm_real` runs from
+the main repo), patched shim vendored at `Mojo/vendor/mojo-intel-gpu/`
+(local-only per the vendor-dir convention; upstream @ ee877f6 +
+zeMemAllocShared delta), `Makefile.mojo` vendor import flag (all 7
+harnesses compile under `make mojo-build`), `bench_lquick_knn.py --n/--reps`.
+Full untracked log with harness architecture and per-run bands:
+`doc/local/perf/skylake_eval.md`. Revisit triggers: corpus ≥ ~33k chunks
+(>50 MB), ALU-heavy kernel arrival, discrete GPU (revives hetero), graph
+≥ ~2M edges.
+
+Collateral fixed in passing: live-invariants order-dependent country-test
+failures root-caused to the TTL fast-fail cache (60 s) leaking the
+synthetic connect error from `test_graph_connection_failure_returns_500`
+— the test now resets; 30/30 live tests stable in 7.8 s. Doc repairs:
+edit-clobbered `skylake_eval.md` sections restored, proposals README
+entry reconstructed (stray backtick mispairing), security eval EOF
+newline.
+
+Gates: `make qa` 10/10 PASS after the arc (operator-run; lint F841 +
+md-lint 4 violations + snapshot generation mismatch resolved in passing);
+`make advisory` — live-invariants 30/30 post-fix, lint-audit clean;
+mojo-build compiles all 7 GPU harnesses; search indexes fresh.
