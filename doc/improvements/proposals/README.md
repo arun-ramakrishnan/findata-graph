@@ -35,6 +35,23 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+_(Previously: gate_latency_followups.md archived 2026-09-21 as
+completed.md entry 262 — gate-latency bundle: syntax/chokepoint/
+data_format/sqlite/js/shebang legs gated via py/js scopes with
+scope-driven iteration; hygiene refined to in-scope staleness; dead
+import dropped. Execution record in
+`../archive/tooling/gate_latency_followups.md`.)_
+
+_(Previously: fastjsonschema_split_track.md archived 2026-09-21 as
+completed.md entry 261 — fast validation engine by default,
+`--strict` opts into jsonschema; 1456/1456 verdict agreement;
+maint-full advisory `--report` twin. Execution record in
+`../archive/tooling/fastjsonschema_split_track.md`.)_
+
+_(Previously: dirty_gated_corpus_validation.md archived 2026-09-21 as
+completed.md entry 260 — dirty-gated corpus validation with flipped
+default and maint-full backstop. Execution record in
+`../archive/tooling/dirty_gated_corpus_validation.md`.)_
 _(Previously: graph_centrality_persistent_cache.md archived 2026-09-21 as
 completed.md entry 259 — persistent per-generation centrality cache: ten
 `v_centrality_*` tables stamped into `graph.duckdb` at rebuild (schema 17);

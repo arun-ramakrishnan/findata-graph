@@ -95,8 +95,14 @@ class TestPlan:
         # snapshot so the closing capture includes them. The HGX compute
         # lanes joined 2026-09-15 (hyper_lane_wiring): they consume the
         # store derive-hyperedges just refreshed and their graph_analytics
-        # upserts land inside the same tail snapshot.
-        assert len(maint.TIER2_STEPS) == 12
+        # upserts land inside the same tail snapshot. The static-checks
+        # --full backstop joined 2026-09-21 (dirty_gated_corpus_validation
+        # default flip): the qa gate is dirty-gated now, so maint-full
+        # revalidates the whole corpus before the tail snapshot. The
+        # frontmatter --report twin joined the same day
+        # (fastjsonschema_split_track): strict-engine full detail as
+        # warnings, never blocking.
+        assert len(maint.TIER2_STEPS) == 14
 
     def test_tier2_steps_order(self):
         # Post-ingest re-derivation: the sector --check gates first
@@ -112,7 +118,10 @@ class TestPlan:
         # rendered by the last standalone derive_insights --apply, then
         # derive-hyperedges regroups membership dyads into hyper_edges,
         # the HGX lanes (hyper_lane_wiring) persist hy-MMSBM communities
-        # + ho/s centralities over that fresh store,
+        # + ho/s centralities over that fresh store, then static-checks
+        # --full revalidates the whole corpus (dirty-gating backstop),
+        # frontmatter --report prints the strict-engine full detail as
+        # warnings without blocking,
         # and re-snapshot captures the full post-ingest state.
         labels = [label for label, _ in maint.TIER2_STEPS]
         assert labels == [
@@ -127,6 +136,8 @@ class TestPlan:
             "graph-rebuild-h (refresh DuckDB cache h_edge/h_incidence — D4)",
             "hyper-communities (hy-MMSBM overlapping communities → graph_analytics)",
             "hyper-centralities (ho/s lanes → graph_analytics)",
+            "static-checks --full (full-corpus validation backstop)",
+            "frontmatter full-report (jsonschema advisory, never blocks)",
             "snapshot (re-snapshot to include recomputed analytics + events)",
         ]
 
@@ -172,7 +183,7 @@ class TestPlan:
         assert len(maint.TIER1_FULL_SKIP) == 2
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
         assert "snapshot duckdb parquet mirror (post-rebuild)" in maint.TIER1_FULL_SKIP
-        assert len(full) == 22  # 8 PRE_FULL + 14 TIER2 (seed-nic2008 S1 adds one PRE_FULL)
+        assert len(full) == 24  # 8 PRE_FULL + 16 TIER2 (seed-nic2008 S1 adds one PRE_FULL)
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [
             "snapshot (re-snapshot to include recomputed analytics + events)"
@@ -294,8 +305,8 @@ class TestDryRun:
             + [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
             + maint.TIER2_STEPS
         )
-        # 7 pre-full + 2 tier1 (snapshot elided in --full) + 12 tier2.
-        assert len(all_steps) == 22
+        # 7 pre-full + 2 tier1 (snapshot elided in --full) + 14 tier2.
+        assert len(all_steps) == 24
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
         assert "snapshot (refresh versioned snapshots)" not in output

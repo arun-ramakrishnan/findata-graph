@@ -346,7 +346,9 @@ class TestCorpusWalker:
 
     def test_synthetic_tree_reports_only_the_bad_note(self, tmp_path):
         root = self._tree(tmp_path)
-        fatal, advisory = FMS.check_frontmatter_schema(root)
+        # strict: this pins the multi-error list shape (fail-fast default
+        # reports one error per file — verdicts agree, counts don't).
+        fatal, advisory = FMS.check_frontmatter_schema(root, strict=True)
         # Bad.md carries two violations (N/A ticker + bad market_cap enum)
         assert len(fatal) == 2
         assert all("Bad.md" in e for e in fatal)
@@ -365,7 +367,8 @@ class TestCorpusWalker:
         (chatter / "image_map.md").write_text("chrome, no frontmatter\n")
         (chatter / "images").mkdir()
         (chatter / "images" / "x.md").write_text("---\nbad: [\n")
-        fatal, _ = FMS.check_frontmatter_schema(root)
+        # strict: exact-count assertion needs the multi-error engine.
+        fatal, _ = FMS.check_frontmatter_schema(root, strict=True)
         assert len(fatal) == 3  # Bad.md x2 + Flat.md namespaced-tag violation
         assert any("Flat.md" in e for e in fatal)
         assert not any("image_map" in e or "images" in e for e in fatal)
@@ -539,7 +542,10 @@ class TestOkfConformanceSweep:
     def test_cli_okf_mode_runs(self, tmp_path, capsys):
         self._vault(tmp_path)
         (tmp_path / "findata" / "The_Chatter" / "E.md").write_text("---\ntype: newsletter\n---\n")
-        rc = FMS.main(["--okf", "--root", str(tmp_path)])
+        # --full: the CLI default is dirty-gated since 2026-09-21, which
+        # would scope this tmp vault to the empty set — these tests assert
+        # whole-corpus CLI behavior, so they opt out explicitly.
+        rc = FMS.main(["--okf", "--root", str(tmp_path), "--full"])
         out = capsys.readouterr().out
         assert rc == 0
         assert "OKF census" in out and "0 fatal" in out
@@ -547,7 +553,7 @@ class TestOkfConformanceSweep:
     def test_cli_okf_mode_fatals_on_missing_type(self, tmp_path, capsys):
         self._vault(tmp_path)
         (tmp_path / "findata" / "The_Chatter" / "E.md").write_text("---\ntitle: x\n---\n")
-        rc = FMS.main(["--okf", "--root", str(tmp_path)])
+        rc = FMS.main(["--okf", "--root", str(tmp_path), "--full"])
         assert rc == 1
         assert "non-empty `type`" in capsys.readouterr().out
 
@@ -645,3 +651,64 @@ class TestProposalContract:
         text = (FMS.SCHEMA_DIR / FMS.KEY_DOC.name).read_text(encoding="utf-8")
         assert "## proposal" in text
         assert "completed_md" in text
+
+
+class TestEngineParity:
+    """fast (default) vs strict verdict agreement (fastjsonschema_split_track).
+
+    Locks the 2026-09-21 soundness result in-repo: both engines must agree
+    valid/invalid on every fixture. Only message COUNT may differ (fail-fast
+    single error vs all-errors) — no test may assert multi-error lists.
+    """
+
+    fjs = pytest.importorskip("fastjsonschema")
+
+    GOOD_COMPANY = {
+        # Trimmed Avanti_Feeds (valid under strict today — keep every
+        # required key; market_cap is a plain tier string).
+        "title": "Avanti Feeds",
+        "type": "company",
+        "ticker": "AVANTIFEED.NS",
+        "sector": "Agriculture",
+        "market_cap": "mid_cap",
+        "normalized_name": "Avanti_Feeds",
+        "permalink": "/companies/agriculture/avanti_feeds",
+        "tags": ["sector/agriculture"],
+        "created": "2025-11-16",
+        "last_modified": "2026-09-10",
+    }
+    GOOD_PROPOSAL = {
+        "title": "T",
+        "status": "proposed",
+        "filed": "2026-08-31",
+        "executed": None,
+        "completed_md": None,
+        "area": "x",
+    }
+
+    def _agree(self, fm, note_type):
+        strict = FMS.validate_frontmatter(dict(fm), note_type, engine="strict")
+        fast = FMS.validate_frontmatter(dict(fm), note_type)
+        assert (strict == []) == (fast == [])
+
+    def test_engines_agree_valid_and_broken(self):
+        cases = [
+            (self.GOOD_COMPANY, "company"),
+            (self.GOOD_PROPOSAL, "proposal"),
+            (dict(self.GOOD_COMPANY, rogue_key=1), "company"),
+            (dict(self.GOOD_PROPOSAL, rogue_key=1), "proposal"),
+            ({k: v for k, v in self.GOOD_COMPANY.items() if k != "ticker"}, "company"),
+            (dict(self.GOOD_COMPANY, title=12345), "company"),
+            (dict(self.GOOD_COMPANY, permalink="companies/energy/good"), "company"),
+            (dict(self.GOOD_PROPOSAL, status="nonsense"), "proposal"),
+        ]
+        for fm, note_type in cases:
+            self._agree(fm, note_type)
+
+    def test_fast_reports_single_error_with_key(self):
+        errs = FMS.validate_frontmatter(dict(self.GOOD_COMPANY, rogue_key=1), "company")
+        assert len(errs) == 1 and "rogue_key" in errs[0]
+        strict = FMS.validate_frontmatter(
+            dict(self.GOOD_COMPANY, rogue_key=1), "company", engine="strict"
+        )
+        assert len(strict) >= 1 and any("rogue_key" in e for e in strict)

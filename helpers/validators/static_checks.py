@@ -23,14 +23,6 @@ Usage:
 
 from __future__ import annotations
 
-try:
-    from helpers.core.corpus import Corpus  # S1b shared walk
-
-    _HAS_CORPUS = True
-except ImportError:  # pragma: no cover
-    Corpus = None  # type: ignore[assignment]
-    _HAS_CORPUS = False
-
 import ast
 import os
 import py_compile
@@ -104,6 +96,135 @@ _BINARY_SUFFIXES = {
 # Dotfiles with no suffix — Path(".coverage").suffix is "", so these need a
 # name check.
 _BINARY_NAMES = {".coverage", ".DS_Store"}
+
+
+# Dirty-gating (dirty_gated_corpus_validation, default-flipped 2026-09-21):
+# module-global scope for the three corpus legs (Findata YAML, Frontmatter
+# schema, OKF conformance). None = full run — reached only via --full or
+# when no scope is available (git absent / schemas dirty: degrade to full,
+# never to skip).
+_DIRTY_SCOPE: set[Path] | None = None
+
+# Dirty `.py` set for the code-scan legs (syntax, chokepoint,
+# data_format). None = full run — engaged alongside _DIRTY_SCOPE by
+# --dirty (default), cleared by --full.
+_DIRTY_PY_SCOPE: set[Path] | None = None
+
+# Dirty `.js` set for the JS syntax leg. None = full run. Same
+# engage/clear rhythm as the py scope.
+_DIRTY_JS_SCOPE: set[Path] | None = None
+
+# Validation engine for the schema leg (fastjsonschema_split_track):
+# False (default) = fast engine everywhere; True (--strict) = jsonschema
+# with all violations. Verdicts agree; only message count differs.
+_STRICT: bool = False
+
+# Watched corpus roots for the dirty-gated legs. Dirty paths outside these
+# never enter a leg's file set.
+_WATCHED_PREFIXES = (
+    "findata/",
+    "doc/improvements/proposals/",
+    "doc/improvements/archive/",
+)
+_SCHEMA_PREFIX = "doc/okf/"
+
+
+def _parse_porcelain(out: str) -> set[str]:
+    """Porcelain v1 lines → repo-relative paths (rename/copy: the NEW side)."""
+    rels = set()
+    for line in out.splitlines():
+        if len(line) < 4:
+            continue
+        path = line[3:]
+        if " -> " in path:  # R/C entries: `old -> new`
+            path = path.split(" -> ", 1)[1]
+        path = path.strip().strip('"')
+        if path:
+            rels.add(path)
+    return rels
+
+
+def _porcelain_rels() -> set[str] | None:
+    """Repo-relative paths from git status, or None when git is
+    absent/failing (callers degrade to full, never to skip). Untracked
+    files arrive via ``--untracked-files=all`` — no separate glob needed.
+    """
+    try:
+        proc = subprocess.run(
+            ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except FileNotFoundError, OSError, subprocess.SubprocessError:
+        return None
+    if proc.returncode != 0:
+        return None
+    return _parse_porcelain(proc.stdout)
+
+
+def _scope_from_rels(rels: set[str], suffix: str, prefixes: tuple[str, ...] | None) -> set[Path]:
+    """Repo-absolute existing files for one suffix (+ optional prefixes).
+
+    Drops deletes (no file to validate), non-matching suffixes, paths
+    outside the prefixes, and cache/venv parts.
+    """
+    scope = set()
+    for r in rels:
+        if not r.endswith(suffix):
+            continue
+        if prefixes is not None and not r.startswith(prefixes):
+            continue
+        if any(part in SKIP_DIRS for part in Path(r).parts):
+            continue
+        p = REPO_ROOT / r
+        if p.is_file():
+            scope.add(p.absolute())
+    return scope
+
+
+def get_dirty_scope() -> set[Path] | None:
+    """Git-status dirty set as repo-absolute Paths, or None for a full run.
+
+    Returns None — degrade to full, never to skip — when git is
+    absent/failing, or when a schema file under ``doc/okf/`` is dirty
+    (changed schemas invalidate the assumptions a scoped run would rest
+    on).
+    """
+    rels = _porcelain_rels()
+    if rels is None:
+        return None
+    if any(r == "doc/okf" or r.startswith(_SCHEMA_PREFIX) for r in rels):
+        return None
+    return _scope_from_rels(rels, ".md", _WATCHED_PREFIXES)
+
+
+def get_dirty_py_scope() -> set[Path] | None:
+    """Dirty ``.py`` set for the code-scan legs (syntax, chokepoint,
+    data_format), or None for a full run.
+
+    Same porcelain source as the corpus scope, but no schema rule (a
+    ``doc/okf`` change says nothing about Python files) — only git
+    failure degrades to full. Repo-wide: each leg applies its own root
+    filter (helpers/ + app.py for the scans, whole repo for syntax).
+    """
+    rels = _porcelain_rels()
+    if rels is None:
+        return None
+    return _scope_from_rels(rels, ".py", None)
+
+
+def get_dirty_js_scope() -> set[Path] | None:
+    """Dirty ``.js`` set for the JS syntax leg, or None for a full run.
+
+    Repo-wide like the py scope; the leg filters to static/ (its walk
+    root). Only git failure degrades to full.
+    """
+    rels = _porcelain_rels()
+    if rels is None:
+        return None
+    return _scope_from_rels(rels, ".js", None)
 
 
 def _is_text_candidate(p: Path) -> bool:
@@ -184,10 +305,41 @@ def _all_files():
 # --------------------------------------------------------------------------- #
 # Individual checks                                                            #
 # --------------------------------------------------------------------------- #
-def check_python_syntax() -> list[str]:
-    """py_compile every .py — surfaces syntax errors without running them."""
+def _scoped_py_files(scope: set[Path], *prefixes: str) -> list[Path]:
+    """Scope members for one leg: live `.py` files under the prefixes.
+
+    Scope-driven iteration (gate_latency_followups Slice C): no rglob,
+    so clean trees pay zero enumeration. TOCTOU-safe (rechecks is_file);
+    prefixes empty = repo-wide (syntax leg).
+    """
+    out = []
+    for p in scope:
+        if p.suffix != ".py" or not p.is_file():
+            continue
+        if any(part in SKIP_DIRS for part in p.parts):
+            continue
+        if prefixes:
+            try:
+                rel = p.relative_to(REPO_ROOT).as_posix()
+            except ValueError:
+                continue
+            if not rel.startswith(prefixes):
+                continue
+        out.append(p)
+    return sorted(out)
+
+
+def check_python_syntax(scope: set[Path] | None = None) -> list[str]:
+    """py_compile every .py — surfaces syntax errors without running them.
+
+    A scope restricts to dirty files (dirty-gating); None falls back to
+    the module-global _DIRTY_PY_SCOPE (itself None = full).
+    """
+    if scope is None:
+        scope = _DIRTY_PY_SCOPE
+    files = _scoped_py_files(scope) if scope is not None else _walk(REPO_ROOT, ".py")
     failures = []
-    for p in _walk(REPO_ROOT, ".py"):
+    for p in files:
         try:
             py_compile.compile(str(p), doraise=True)
         except py_compile.PyCompileError as e:
@@ -195,16 +347,33 @@ def check_python_syntax() -> list[str]:
     return failures
 
 
-def check_js_syntax() -> list[str]:
-    """node --check every .js under static/. Skipped if node isn't installed."""
-    if not _has_node():
-        return []  # advisory skip; not a failure
-    static = REPO_ROOT / "static"
-    if not static.is_dir():
-        return []
-    js_files = [p for p in static.rglob("*.js") if not any(part in SKIP_DIRS for part in p.parts)]
+def check_js_syntax(scope: set[Path] | None = None) -> list[str]:
+    """node --check every .js under static/. Skipped if node isn't installed.
+
+    A scope restricts to dirty files under static/ (dirty-gating); None
+    falls back to the module-global _DIRTY_JS_SCOPE (itself None = full).
+    An empty scope returns before the node probe — nothing to check.
+    """
+    if scope is None:
+        scope = _DIRTY_JS_SCOPE
+    if scope is not None:
+        # Scope-driven iteration: no static/ walk on clean trees.
+        js_files = sorted(
+            p
+            for p in scope
+            if p.suffix == ".js" and p.is_file() and _under(p, REPO_ROOT / "static")
+        )
+    else:
+        static = REPO_ROOT / "static"
+        js_files = (
+            [p for p in static.rglob("*.js") if not any(part in SKIP_DIRS for part in p.parts)]
+            if static.is_dir()
+            else []
+        )
     if not js_files:
         return []
+    if not _has_node():
+        return []  # advisory skip; not a failure
 
     def _check_one(p: Path) -> str | None:
         rc = subprocess.run(  # noqa: S603  # list-form call; shell=False (default); args are constants/controlled paths
@@ -240,7 +409,7 @@ def check_stray_artifacts() -> list[str]:
     return failures
 
 
-def check_helper_shebangs() -> list[str]:
+def check_helper_shebangs(scope: set[Path] | None = None) -> list[str]:
     """Every helpers/**/*.py must start with a shebang line.
 
     Exceptions:
@@ -248,12 +417,23 @@ def check_helper_shebangs() -> list[str]:
       - `_*`-prefixed modules are internal library modules (imported, never
         run directly) — e.g. ``helpers/graph/_edge_writer.py``. They don't
         take a shebang.
+
+    A scope restricts to dirty files (dirty-gating); None falls back to
+    the module-global _DIRTY_PY_SCOPE (itself None = full).
     """
+    if scope is None:
+        scope = _DIRTY_PY_SCOPE
     helpers = REPO_ROOT / "helpers"
     if not helpers.is_dir():
         return []
     failures = []
-    for p in helpers.rglob("*.py"):
+    if scope is not None:
+        candidates = sorted(
+            p for p in scope if p.suffix == ".py" and p.is_file() and _under(p, helpers)
+        )
+    else:
+        candidates = [p for p in helpers.rglob("*.py")]
+    for p in candidates:
         if any(part in SKIP_DIRS for part in p.parts):
             continue
         if p.name == "__init__.py":
@@ -618,16 +798,37 @@ def _check_date_one(p: Path, fm: dict) -> list[str]:
     return []
 
 
-def _iter_findata_md(root: Path):
+def _under(p: Path, root: Path) -> bool:
+    """True when p lives under root (scope-driven iteration guard)."""
+    try:
+        p.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def _iter_findata_md(root: Path, scope: set[Path] | None = None):
     """Single-walk generator: yield (path, text, frontmatter_or_None) per .md.
 
     Reads each file once and parses YAML frontmatter once, so callers don't
     repeat the I/O + parse cost. Used by the three findata YAML checks to
-    avoid 3× walks of the 1102-file corpus.
+    avoid 3× walks of the 1102-file corpus. With a scope (dirty-gating),
+    iterate scope members instead of walking — zero enumeration on clean
+    trees (gate_latency_followups Slice C); non-scope files are never
+    read. TOCTOU-safe (rechecks is_file).
     """
-    for p in root.rglob("*.md"):
-        if any(part in SKIP_DIRS for part in p.parts):
-            continue
+    if scope is not None:
+        files = sorted(
+            p
+            for p in scope
+            if p.suffix == ".md"
+            and p.is_file()
+            and _under(p, root)
+            and not any(part in SKIP_DIRS for part in p.parts)
+        )
+    else:
+        files = [p for p in root.rglob("*.md") if not any(part in SKIP_DIRS for part in p.parts)]
+    for p in files:
         try:
             text = p.read_text(encoding="utf-8", errors="replace")
         except Exception:  # noqa: S112  # best-effort; skip item on failure
@@ -635,20 +836,24 @@ def _iter_findata_md(root: Path):
         yield p, text, _parse_frontmatter(text)
 
 
-def check_findata_yaml() -> tuple[list[str], list[str]]:
+def check_findata_yaml(scope: set[Path] | None = None) -> tuple[list[str], list[str]]:
     """Combined single-walk runner for the three findata YAML checks.
 
     Replaces check_tag_canonicalization + check_permalink_sector_consistency +
     check_date_sanity in the CHECKS list so the 1102-file corpus is walked,
     read, and YAML-parsed exactly ONCE instead of three times. The individual
-    check functions remain available for tests / targeted use.
+    check functions remain available for tests / targeted use. An explicit
+    scope restricts the walk (dirty-gating); None falls back to the
+    module-global _DIRTY_SCOPE (itself None = full under default runs).
     """
+    if scope is None:
+        scope = _DIRTY_SCOPE
     fatal, advisory = [], []
     findata = REPO_ROOT / "findata"
     companies = REPO_ROOT / "findata" / "Companies"
     if not findata.is_dir():
         return fatal, advisory
-    for p, _text, fm in _iter_findata_md(findata):
+    for p, _text, fm in _iter_findata_md(findata, scope):
         if not fm:
             continue
         # tag canonicalization (all of findata)
@@ -676,7 +881,7 @@ def check_frontmatter_schema_contract() -> tuple[list[str], list[str]]:
         sys.path.insert(0, str(REPO_ROOT))
     from helpers.validators.frontmatter_schema import check_frontmatter_schema
 
-    return check_frontmatter_schema()
+    return check_frontmatter_schema(scope=_DIRTY_SCOPE, strict=_STRICT)
 
 
 def _check_archived_proposals(archive_dir: Path, fatal: list[str]) -> None:
@@ -788,7 +993,7 @@ def check_okf_conformance_contract() -> tuple[list[str], list[str]]:
         sys.path.insert(0, str(REPO_ROOT))
     from helpers.validators.frontmatter_schema import check_okf_conformance
 
-    fatal, advisory = check_okf_conformance()
+    fatal, advisory = check_okf_conformance(scope=_DIRTY_SCOPE)
     # Downgrade the §11 structural fatals to advisories for qa (see
     # docstring); the CLI --okf mode keeps them fatal for manual runs.
     for line in fatal:
@@ -832,7 +1037,7 @@ def _has_node() -> bool:
         return False
 
 
-def check_sqlite_helper_usage() -> list[str]:  # noqa: C901
+def check_sqlite_helper_usage(scope: set[Path] | None = None) -> list[str]:  # noqa: C901
     """P0: every sqlite3.connect outside helpers/core/db.py must be allowlisted.
 
     The allowlist covers legitimate ephemeral/temp DBs and the helper itself:
@@ -840,7 +1045,13 @@ def check_sqlite_helper_usage() -> list[str]:  # noqa: C901
       - helpers/maintenance/db_maint.py     (backup pairs + VACUUM/checkpoint
         isolation_level=None — 5 sites: 293, 339, 340, 435, 746)
     Any other sqlite3.connect is a violation (should use helpers.core.db.connect).
+
+    A scope restricts to dirty files (dirty-gating); None falls back to
+    the module-global _DIRTY_PY_SCOPE (itself None = full). The tests/
+    exemption, allowlist, and self-skip apply identically on both paths.
     """
+    if scope is None:
+        scope = _DIRTY_PY_SCOPE
     allowlist_prefixes = (
         "helpers/core/db.py",
         "helpers/maintenance/db_maint.py",
@@ -859,10 +1070,23 @@ def check_sqlite_helper_usage() -> list[str]:  # noqa: C901
         "helpers/graph/query.py",
     )
     failures: list[str] = []
-    for py in REPO_ROOT.rglob("*.py"):
-        if any(part in SKIP_DIRS for part in py.parts):
+    if scope is not None:
+        # Scope-driven iteration: repo-wide like the walk (the tests/
+        # exemption and allowlist filter below, exactly as the full path).
+        candidates = sorted(
+            p
+            for p in scope
+            if p.suffix == ".py" and p.is_file() and not any(part in SKIP_DIRS for part in p.parts)
+        )
+    else:
+        candidates = [
+            p for p in REPO_ROOT.rglob("*.py") if not any(part in SKIP_DIRS for part in p.parts)
+        ]
+    for py in candidates:
+        try:
+            rel = py.relative_to(REPO_ROOT).as_posix()
+        except ValueError:
             continue
-        rel = py.relative_to(REPO_ROOT).as_posix()
         # P0: only enforce helpers/ + app.py (production code); tests/ and
         # ephemeral :memory: DBs are exempt (they use sqlite3.connect intentionally)
         if rel.startswith("tests/"):
@@ -923,7 +1147,7 @@ def _flag_json_loads_on_embedding_receivers(src: str) -> list[tuple[int, str]]:
     return flagged
 
 
-def check_embedding_decode_chokepoint() -> list[str]:
+def check_embedding_decode_chokepoint(scope: set[Path] | None = None) -> list[str]:
     """Decode-class tripwire (unified_search S3): stored embeddings are
     vec_codec f32 BLOBs since embedding_blob_migration; the tolerant reader
     is helpers.core.vec_codec.load_vec. A raw json.loads on an emb/vec-named
@@ -932,7 +1156,12 @@ def check_embedding_decode_chokepoint() -> list[str]:
     2026-09-12; the embed_matrix refresh was the #224 strike). AST scan of
     production code (helpers/ + app.py); known gap, accepted: receivers
     with opaque names (e, row[0]) rely on the BLOB-seeded behavior tests.
+
+    A scope restricts to dirty files (dirty-gating); None falls back to
+    the module-global _DIRTY_PY_SCOPE (itself None = full).
     """
+    if scope is None:
+        scope = _DIRTY_PY_SCOPE
     allowlist_prefixes = (
         "helpers/core/vec_codec.py",
         # One-shot migrations read pre-blob TEXT by design.
@@ -940,12 +1169,19 @@ def check_embedding_decode_chokepoint() -> list[str]:
         "helpers/maintenance/migrate_embed_store.py",
     )
     failures: list[str] = []
-    for py in REPO_ROOT.rglob("*.py"):
-        if any(part in SKIP_DIRS for part in py.parts):
-            continue
+    if scope is not None:
+        candidates = _scoped_py_files(scope, "helpers/", "app.py")
+    else:
+        candidates = []
+        for py in REPO_ROOT.rglob("*.py"):
+            if any(part in SKIP_DIRS for part in py.parts):
+                continue
+            rel = py.relative_to(REPO_ROOT).as_posix()
+            if not (rel.startswith("helpers/") or rel == "app.py"):
+                continue
+            candidates.append(py)
+    for py in candidates:
         rel = py.relative_to(REPO_ROOT).as_posix()
-        if not (rel.startswith("helpers/") or rel == "app.py"):
-            continue
         if rel.startswith(allowlist_prefixes):
             continue
         try:
@@ -997,11 +1233,13 @@ def check_db_meta_generation():
 # Each check returns either:
 #   list[str]             -> fatal failures only
 #   (list[str], list[str]) -> (fatal, advisory). Advisory never affects exit code.
-def check_data_format() -> tuple[list[str], list[str]]:
+def check_data_format(py_scope: set[Path] | None = None) -> tuple[list[str], list[str]]:
     """S19: parquet(zstd) at rest + Arrow in flight (shrinking baselines)."""
     from helpers.validators.data_format_checks import check_data_format as _run
 
-    return _run()
+    if py_scope is None:
+        py_scope = _DIRTY_PY_SCOPE
+    return _run(py_scope)
 
 
 # --- ontology_governance S0: master-doc roster drift ----------------------- #
@@ -1142,7 +1380,45 @@ CHECKS = [
 
 
 def main(argv: list[str] | None = None) -> int:  # noqa: C901
-    # Test seam: flag-less tool — argv accepted and ignored.
+    import argparse
+
+    ap = argparse.ArgumentParser(description="Fast static checks for the FinData repo")
+    ap.add_argument(
+        "--dirty",
+        action="store_true",
+        help="run the three corpus legs over the git-status dirty set only "
+        "(the default since 2026-09-21; flag kept for explicitness)",
+    )
+    ap.add_argument(
+        "--full",
+        action="store_true",
+        help="force a full-corpus run — opts out of the dirty-gated default; "
+        "use in maint-full / release checks (the periodic full backstop)",
+    )
+    ap.add_argument(
+        "--strict",
+        action="store_true",
+        help="validate with the jsonschema engine (all violations per file; "
+        "default: fastjsonschema fail-fast — same verdicts, first error only)",
+    )
+    args = ap.parse_args(argv)
+    global _DIRTY_SCOPE, _STRICT, _DIRTY_PY_SCOPE, _DIRTY_JS_SCOPE
+    _STRICT = args.strict
+    if args.full:
+        _DIRTY_SCOPE = None
+        _DIRTY_PY_SCOPE = None
+        _DIRTY_JS_SCOPE = None
+    else:
+        # Each family degrades independently (md: git absent or schemas
+        # dirty; py/js: git absent only) — a None scope means full for
+        # that family's legs.
+        _DIRTY_SCOPE = get_dirty_scope()
+        _DIRTY_PY_SCOPE = get_dirty_py_scope()
+        _DIRTY_JS_SCOPE = get_dirty_js_scope()
+        md = "full" if _DIRTY_SCOPE is None else f"{len(_DIRTY_SCOPE)} note(s)"
+        py = "full" if _DIRTY_PY_SCOPE is None else f"{len(_DIRTY_PY_SCOPE)} python file(s)"
+        js = "full" if _DIRTY_JS_SCOPE is None else f"{len(_DIRTY_JS_SCOPE)} js file(s)"
+        print(f"  … dirty-gated: {md}, {py}, {js}")
     print("🔍 Static checks...")
     total_failures = 0
     total_advisory = 0

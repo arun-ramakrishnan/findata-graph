@@ -58,7 +58,26 @@ def _rel(p: Path) -> str:
         return str(p)
 
 
-def _iter_py() -> list[Path]:
+def _iter_py(scope: set[Path] | None = None) -> list[Path]:
+    """Files to scan: scope members when gated (no walk), else the walk.
+
+    Scope-driven iteration (gate_latency_followups Slice C): dirty files
+    under the scan roots only, live-checked (TOCTOU-safe).
+    """
+    if scope is not None:
+        out = []
+        for p in scope:
+            if p.suffix != ".py" or not p.is_file():
+                continue
+            if "__pycache__" in p.parts:
+                continue
+            try:
+                rel = p.relative_to(PROJECT_ROOT).as_posix()
+            except ValueError:
+                continue
+            if p == PROJECT_ROOT / "app.py" or rel.startswith("helpers/"):
+                out.append(p)
+        return sorted(out)
     files = []
     for root in SCAN_ROOTS:
         if root.is_file():
@@ -112,10 +131,10 @@ def _docstring_spans(tree: ast.AST) -> set[int]:
     return spans
 
 
-def scan_zstd_violations() -> dict[str, str]:  # noqa: C901 — one walk, three node kinds (call/const/fstr)
+def scan_zstd_violations(scope: set[Path] | None = None) -> dict[str, str]:  # noqa: C901 — one walk, three node kinds (call/const/fstr)
     """{site_key: description} for parquet writes missing zstd."""
     out: dict[str, str] = {}
-    for path in _iter_py():
+    for path in _iter_py(scope):
         try:
             tree = ast.parse(path.read_text(encoding="utf-8"))
         except SyntaxError:
@@ -164,10 +183,10 @@ def scan_zstd_violations() -> dict[str, str]:  # noqa: C901 — one walk, three 
     return out
 
 
-def scan_arrow_violations() -> dict[str, str]:
+def scan_arrow_violations(scope: set[Path] | None = None) -> dict[str, str]:
     """{site_key: description} for non-Arrow producers in data-lane modules."""
     out: dict[str, str] = {}
-    for path in _iter_py():
+    for path in _iter_py(scope):
         rel = _rel(path)
         if rel not in DATA_LANE_MODULES:
             continue
@@ -192,12 +211,32 @@ def scan_arrow_violations() -> dict[str, str]:
     return out
 
 
-def check_data_format() -> tuple[list[str], list[str]]:
-    """static_checks entry: (fatal, advisory)."""
+def check_data_format(scope: set[Path] | None = None) -> tuple[list[str], list[str]]:
+    """static_checks entry: (fatal, advisory).
+
+    A scope restricts the scans to dirty files (dirty-gating); None =
+    full. Baseline hygiene is enforced for entries whose file was
+    scanned this run — full runs check every entry; scoped runs check
+    only in-scope files (a key whose file wasn't scanned can't be
+    proven stale, so it defers to full runs).
+    """
     fatal: list[str] = []
     advisory: list[str] = []
-    z = scan_zstd_violations()
-    a = scan_arrow_violations()
+    z = scan_zstd_violations(scope)
+    a = scan_arrow_violations(scope)
+    if scope is None:
+        scanned: set[str] | None = None  # full run: every key checkable
+    else:
+        scanned = set()
+        for p in scope:
+            if p.suffix != ".py" or not p.is_file():
+                continue
+            try:
+                rel = p.relative_to(PROJECT_ROOT).as_posix()
+            except ValueError:
+                continue
+            if p == PROJECT_ROOT / "app.py" or rel.startswith("helpers/"):
+                scanned.add(rel)
     for key, desc in z.items():
         if key in _ZSTD_BASELINE:
             advisory.append(f"zstd baseline: {key} — {_ZSTD_BASELINE[key]}")
@@ -210,13 +249,28 @@ def check_data_format() -> tuple[list[str], list[str]]:
         else:
             fatal.append(f"{key}: {desc}")
     # Baseline hygiene: entries whose site no longer offends must be removed.
+    # A key is checkable only when its file was scanned this run (full runs
+    # scan everything; scoped runs scan the scope) — an unscanned file
+    # can't prove staleness, so its keys defer to full runs.
     for key in _ZSTD_BASELINE:
-        if key not in z:
+        if key not in z and _key_scanned(key, scanned):
             fatal.append(f"stale _ZSTD_BASELINE entry: {key} (site is clean — remove)")
     for key in _ARROW_BASELINE:
-        if key not in a:
+        if key not in a and _key_scanned(key, scanned):
             fatal.append(f"stale _ARROW_BASELINE entry: {key} (site is clean — remove)")
     return fatal, advisory
+
+
+def _key_scanned(key: str, scanned: set[str] | None) -> bool:
+    """True when a baseline key's file was scanned this run.
+
+    Keys are `{rel}:{site}` — the file part must exactly equal a scanned
+    rel (no prefix matching: `helpers/a.py` must never match
+    `helpers/a.py2`).
+    """
+    if scanned is None:
+        return True
+    return key.rsplit(":", 1)[0] in scanned
 
 
 def main(argv: list[str] | None = None) -> int:  # pragma: no cover

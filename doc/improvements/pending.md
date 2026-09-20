@@ -164,5 +164,37 @@ revisit triggers inline; executed work is compressed to records.
   rows; `derive_indices` projects fileless `index` entities + 6,615
   dyadic `listed_on_index` edges, cache v16. The induced structural
   noise (36% of all edges, 57 star hubs) is kept out of metrics by #254
-  (`EDGE_TYPES_EXCLUDED_FROM_CENTRALITY` + `_CHAIN_FORBIDDEN`). Closes
+  (`EDGE_TYPES_EXCLUDED_FROM_CENTRALITY` + `_CHAIN_FORBIDDEN`).   Closes
   future_items.md §G1/B3.
+- **Dirty-gate the remaining static_checks legs** — EXECUTED
+  2026-09-21 (archived to `archive/tooling/gate_latency_followups.md`,
+  completed.md #262). Syntax + chokepoint + data_format
+  gated via `_DIRTY_PY_SCOPE` (3.35 s → ms on small-dirty trees);
+  end-to-end `--dirty` 0.72 s vs `--full` 4.97 s best-of-3, identical
+  verdicts. Proposal lifecycle stays full (0.01 s); SQLite/ledger/JS
+  legs untouched (no file-set semantics or no prize).
+- **Kill the enumeration floor: cached corpus file list** —
+  REDIRECTED 2026-09-21, no persistent cache built (recorded in
+  completed.md #262, `archive/tooling/gate_latency_followups.md`). Scope-driven
+  iteration (legs iterate live scope members, zero rglob when scoped)
+  captures the prize (~0.22 s) with zero staleness surface; a
+  cross-run cache would save ~10 ms more for an invalidation-correctness
+  burden — declined unless a future profile says otherwise. Known
+  divergence class: gitignored files (rglob sees them, porcelain
+  doesn't); `--full` remains the arbiter.
+- **Trim gate-process import costs** — DONE 2026-09-21 (recorded in
+  completed.md #262, `archive/tooling/gate_latency_followups.md`). Slice 1
+  (empty-scope early return, ≈77 ms/run) landed earlier; slice 2
+  resolved by deletion, not lazy-loading: the `helpers.core.corpus`
+  import was dead (imported, never referenced) — removed, pinned by a
+  fresh-interpreter test. Honest correction: wall effect ≈ nil
+  (0.076 → ~0.070 s; interpreter startup dominates) — kept as
+  hygiene, not a latency win.
+- **fastjsonschema split-track — EXECUTED 2026-09-21 (archived to
+  `archive/tooling/fastjsonschema_split_track.md`, completed.md
+  #261).** Soundness: 1456/1456 corpus verdict agreement (0 FP/FN),
+  28/28 mutations both-flagged. Gate defaults to the fast engine
+  (`--strict` opts into jsonschema); schema leg 0.93 → 0.40 s
+  best-of-3, `--full` end-to-end 7.17 → 6.15 s; maint-full keeps
+  blocking `static-checks --full` + new advisory `--report` twin.
+  350 tests green, deptry clean, pin + `uv lock` landed.

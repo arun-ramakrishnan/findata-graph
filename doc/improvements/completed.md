@@ -6850,3 +6850,61 @@ over-budget legs (`graph_link_prediction` 2.09/2.0,
 code paths this arc never touched, re-measured contention-marginal on
 a loaded box — re-run when the box is quiet before considering
 waivers.
+
+## 260. Dirty-gated corpus validation — changed notes only, default flipped with backstop
+
+**Proposal**: `doc/improvements/archive/tooling/dirty_gated_corpus_validation.md`
+(filed 2026-09-21, executed 2026-09-21).
+
+Every `make qa` rewalked the 1102-file corpus unconditionally. The
+Findata YAML / frontmatter-schema / OKF legs now run over the
+git-status dirty set only (untracked via `-uall`; schema-file dirt or
+no git degrades to full, never to skip); proposal lifecycle stays
+full-run (0.01 s). S0 denominator 0.38/0.81/0.36 s → gated ≈0.05 s
+(~30×, best-of-3); end-to-end `--dirty` 4.22 s vs `--full` 5.92 s
+with identical verdicts. Default flipped on the S3 evidence;
+`maint-full` keeps a full-corpus backstop. The weakened guarantee (a
+break in a clean file goes unflagged while others are dirty) is
+documented in-test, with `--full` as the escape hatch.
+
+Gates: `make qa` 10/10; 12 deterministic tests green
+(`tests/test_dirty_scope.py`); ruff clean; search-fresh converges.
+
+## 261. Fast validation engine by default — fastjsonschema gates, jsonschema advises
+
+**Proposal**: `doc/improvements/archive/tooling/fastjsonschema_split_track.md`
+(filed 2026-09-21, executed 2026-09-21).
+
+Soundness first: 1456/1456 corpus verdict agreement (0 FP/FN) plus
+28/28 adversarial mutations flagged by both engines, so fail-fast
+costs message count only. The schema leg defaults to fastjsonschema
+(431 µs → 25 µs per validation; leg 0.93 → 0.40 s); `--strict` opts
+into jsonschema's all-violations engine on both CLIs, and `maint-full`
+gained an advisory `--report` twin (full corpus, strict engine, exit
+0 always) so full detail surfaces every ingest without blocking it.
+`fastjsonschema` pinned in pyproject (`uv lock` refreshed).
+
+Gates: `make qa` 10/10; in-repo engine-parity class green; deptry
+clean; `rogue_key errs[0]` test unmodified and passing.
+
+## 262. Gate latency follow-ups — dirty-gated .py legs, scope iteration, dead import dropped
+
+**Proposal**: `doc/improvements/archive/tooling/gate_latency_followups.md`
+(filed 2026-09-21, executed 2026-09-21).
+
+S0 ranked the remainder: data_format 1.36 s, python syntax 1.18 s,
+chokepoint 0.81 s — all per-file scans, gated via `_DIRTY_PY_SCOPE`
+(schema dirt doesn't force py-full); sqlite/js/shebang legs followed
+the same pattern. When scoped, legs iterate scope members instead of
+walking (zero rglob on clean trees; gitignored files documented as
+the divergence class, `--full` the arbiter). Baseline hygiene refined
+to in-scope staleness (full runs enforce everything); the dead
+`helpers.core.corpus` import deleted (wall effect ≈ nil —
+startup-dominated, kept as hygiene). Shakedown `--dirty` 0.52 s vs
+`--full` 5.48 s best-of-3, identical verdicts (10.5×). Ledger
+read-once attempt correctly failed to move the needle (per-route
+`get_source_segment` splits dominate) and caught a real shadowing bug,
+regression-tested.
+
+Gates: `make qa` 10/10; 376 tests green across 12 validator/maint
+suites; ruff/format/md-lint clean; search-fresh converges.

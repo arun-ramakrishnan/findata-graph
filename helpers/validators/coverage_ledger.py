@@ -57,7 +57,8 @@ def route_inventory(app_path: Path) -> dict[str, dict]:
     `@app.route("<literal>")` grep silently drops) are counted. The route
     path is the FIRST string literal of the decorator call.
     """
-    tree = ast.parse(app_path.read_text())
+    text = app_path.read_text()
+    tree = ast.parse(text)
     out: dict[str, dict] = {}
     for node in ast.walk(tree):
         if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -81,12 +82,12 @@ def route_inventory(app_path: Path) -> dict[str, dict]:
                 for el in kw.value.elts
                 if isinstance(el, ast.Constant)
             ) or ["GET"]
-            seg = ast.get_source_segment(app_path.read_text(), node)
+            seg = ast.get_source_segment(text, node)
             # Same truthiness as ``dec.lineno and seg or ""`` but type-stable:
             # hash the handler's source when the decorator has a real line,
             # else a constant empty string.
-            text = (seg or "") if dec.lineno else ""
-            fp = hashlib.sha256(text.encode()).hexdigest()[:16]
+            snippet = (seg or "") if dec.lineno else ""
+            fp = hashlib.sha256(snippet.encode()).hexdigest()[:16]
             out[path] = {
                 "handler": node.name,
                 "line": dec.lineno,

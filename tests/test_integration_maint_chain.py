@@ -434,6 +434,25 @@ def _shim_derive_cited_in(p, mp, args):
     return _rc(dci._cli(list(args)))
 
 
+def _shim_static_checks_full(p, mp, args):
+    # The --full validation backstop reads the REAL repo (not the sandbox
+    # vault, which carries intentional defects) and is covered by its own
+    # suites (test_static_checks, test_dirty_scope). The sandbox chain
+    # asserts placement (pre-snapshot) and idempotence, not verdicts —
+    # executing the real gate here would couple the chain to worktree
+    # state, so the shim passes it through as green.
+    assert args == ["--full"], args
+    return 0
+
+
+def _shim_frontmatter_report(p, mp, args):
+    # Advisory twin of the backstop above: always-rc-0 by contract, so
+    # the shim mirrors the rc without executing (same worktree-coupling
+    # reason; --report output shape is covered in test_dirty_scope).
+    assert args == ["--report"], args
+    return 0
+
+
 _SHIMS = {
     "helpers/maintenance/db_maint.py": _shim_db_maint,
     "helpers/maintenance/snapshot_db.py": _shim_snapshot,
@@ -453,6 +472,8 @@ _SHIMS = {
     "helpers/misc/seed_nic2008.py": _shim_seed_nic2008,
     "helpers/misc/backfill_identifiers.py": _shim_identifiers,
     "helpers/graph/derive_cited_in.py": _shim_derive_cited_in,
+    "helpers/validators/static_checks.py": _shim_static_checks_full,
+    "helpers/validators/frontmatter_schema.py": _shim_frontmatter_report,
     "helpers/graph/derive_hyperedges.py": _shim_derive_hyperedges,
     "helpers/graph/hyper_communities.py": _shim_hyper_communities,
     "helpers/graph/hyper_centralities.py": _shim_hyper_centralities,

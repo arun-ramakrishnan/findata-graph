@@ -374,6 +374,24 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
         "hyper-centralities (ho/s lanes → graph_analytics)",
         [sys.executable, "helpers/graph/hyper_centralities.py", "--apply"],
     ),
+    # Full-corpus validation backstop (dirty_gated_corpus_validation §5,
+    # default-flipped 2026-09-21): the qa gate is dirty-gated by default,
+    # so a break in a clean file would otherwise surface nowhere
+    # automatically. --full opts out of gating; placed before the tail
+    # snapshot so a failing corpus aborts before it gets snapshotted.
+    (
+        "static-checks --full (full-corpus validation backstop)",
+        [sys.executable, "helpers/validators/static_checks.py", "--full"],
+    ),
+    # Advisory full-report twin (fastjsonschema_split_track): the backstop
+    # above runs the fast engine (fail-fast — same file set flagged, but
+    # first error only). This step re-runs the schema sweep with the
+    # strict engine and prints ALL violations as warnings, exit 0 always:
+    # full detail surfaces every ingest without blocking it.
+    (
+        "frontmatter full-report (jsonschema advisory, never blocks)",
+        [sys.executable, "helpers/validators/frontmatter_schema.py", "--report"],
+    ),
     (
         "snapshot (re-snapshot to include recomputed analytics + events)",
         [sys.executable, "helpers/maintenance/snapshot_db.py"],

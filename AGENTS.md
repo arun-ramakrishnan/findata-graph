@@ -14,23 +14,10 @@ procedures, local notes). Query, then `Read` only the linked section:
 ```
 
 - Hits are `path:line [section] snippet`, repo-rooted → direct
-  `Read(offset=line)` target. Full sentences are safe (`--json` for
-  machine output). Covers ALL of `doc/` incl. gitignored `doc/local/`.
-- Operator doc: `doc/procedures/doc-search.md`.
-
-## script_query — the script/test/make/Mojo index
-
-Every `helpers/**` script, `tests/**` module, root `app.py`, Makefile
-target, and Mojo module is indexed by purpose, CLI flags, make wiring,
-and tests. Query BEFORE grepping — and BEFORE writing any new
-helper/test (it may already exist):
-
-```bash
-.venv/bin/python3 helpers/misc/script_query.py "audit relation diffs" --kind script
-```
-
-- Filters: `--kind script|test|make|mojo`, `--area`, `--json`.
-- Operator doc: `doc/procedures/script-search.md`.
+  `Read(offset=line)` target. Covers ALL of `doc/` incl. gitignored
+  `doc/local/`. Scripts/tests/make/Mojo have their own index —
+  `helpers/misc/script_query.py "<task>" --kind script|test|make|mojo`
+  (query BEFORE grepping or writing a new helper; it may exist).
 
 ## ripwire — structural code discovery (map-before-read)
 
@@ -41,40 +28,36 @@ eval, verb families, Mojo-lane scope there). Map before read: locate
 with ripwire, then Read only what it names.
 
 ```bash
-ripwire . --for="<task in words>"                # orient: ranked signatures
-ripwire . --callers=SYM | --impact=SYM           # callers / full blast radius
+ripwire . --for="<task in words>"        # orient: ranked signatures
+ripwire . --callers=SYM | --impact=SYM   # callers / blast radius
 ripwire . --grep=STR --grep-in=any --legend=compact  # literals — ALWAYS both flags
-ripwire . --recall="<doc question>"              # doc FIND step (closing read stays manual)
-ripwire . --mentions=SYM | --doc-drift           # doc↔code links / stale doc anchors
 ```
 
 ## witr — process discovery for long-running jobs
 
-`witr` (v0.3.3, `/usr/local/bin/witr`) explains WHY a process or
-resource is busy: ancestry (who started it), env, restarts, health,
-open files. Reach for it before `ps aux | grep` when untangling
-background jobs, DB lock clashes, or orphaned test/dev servers — and
-to confirm a PID belongs to THIS session before killing it.
+`witr` (`/usr/local/bin/witr`) explains WHY a process/resource is busy.
+Reach for it before `ps aux | grep` — DB lock clashes, orphaned
+servers, and confirming a PID is yours before killing it:
 
 ```bash
-witr d12_r2 --tree             # ancestry: systemd → prime-agent → … → python3
-witr -f memory/data/sources.duckdb      # WHO holds this file open (lock holder)
-witr -f memory/research.db --json       # same, machine-readable
-witr --pid 590092 --warnings   # suspicious env/args/parents only
-witr --port 5432 --env         # who owns a port + its environment
-witr --pid N --verbose         # memory, I/O, fd list
-witr nginx node --pid 7 --port 8080     # multiple + mixed inputs in one call
-witr bun -x                     # exact name match (no fuzzy)
-witr -c redis                   # container lookup
-witr -i                         # interactive TUI (human sessions)
+witr <job> --tree                 # ancestry chain
+witr -f memory/data/sources.duckdb  # WHO holds this file open
+witr --pid N --warnings           # suspicious env/args/parents
+witr --port 5432 --env            # who owns a port + env
 ```
 
-- Ancestry chain `prime-agent → bash → timeout → python3` = a job THIS
-  agent session launched (safe to kill at the leaf; `timeout` parents
-  reap themselves).
-- Two writers on `memory/data/sources.duckdb` or `memory/research.db`:
-  `witr -f <db>` names the holder directly — kill the stale one, then
-  rerun. If it reports another user's process, retry with `sudo witr -f`.
+- `prime-agent → bash → timeout → python3` ancestry = launched by THIS
+  session (safe to kill at the leaf). Two writers on a `.duckdb`:
+  `witr -f` names the holder — kill the stale one, rerun.
+
+## Commit messages — stg patches
+
+Patch messages follow `doc/procedures/commit-messages.md` (seed:
+`doc/templates/commit_message.md`): fill the slots in a temp file at an
+absolute path, apply with `stg edit -f <file> <patch>` — never
+`git commit`/`amend` (operator owns structure, § Rules). Subject:
+`[Findata] <area>: <imperative, ≤72ch>`; body WHY-first, WHAT slices
+with one number each, `Gates:` trailer listing only gates actually run.
 
 ## Rules
 

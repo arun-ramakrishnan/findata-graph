@@ -87,17 +87,39 @@ SCHEMA_FILES = {
 # Source trees registered above (used for chrome skipping in the corpus walk).
 _NEWSLETTER_TREES = frozenset(d for d, t in DIR_TO_TYPE.items() if t == "newsletter")
 
-_VALIDATORS: dict[str, object] = {}
+_VALIDATORS: dict[tuple[str, str], object] = {}
 
 
-def load_validator(note_type: str):
-    """Return a cached Draft 2020-12 validator for a note type."""
-    if note_type not in _VALIDATORS:
-        import jsonschema
+def _fast_engine_available() -> bool:
+    """fastjsonschema import probe (sys.modules-cached after first call)."""
+    try:
+        import fastjsonschema  # noqa: F401
 
+        return True
+    except ImportError:
+        return False
+
+
+def load_validator(note_type: str, engine: str = "fast"):
+    """Return a cached validator for a note type + engine.
+
+    engine="fast" (default): fastjsonschema compiled function —
+    fail-fast, single error. engine="strict": jsonschema Draft 2020-12 —
+    all errors path-sorted. Verdicts agree (soundness proven 2026-09-21:
+    1456/1456 corpus + 28/28 mutations); only message count differs.
+    """
+    key = (note_type, engine)
+    if key not in _VALIDATORS:
         schema = json.loads((SCHEMA_DIR / SCHEMA_FILES[note_type]).read_text())
-        _VALIDATORS[note_type] = jsonschema.Draft202012Validator(schema)
-    return _VALIDATORS[note_type]
+        if engine == "fast":
+            import fastjsonschema
+
+            _VALIDATORS[key] = fastjsonschema.compile(schema)
+        else:
+            import jsonschema
+
+            _VALIDATORS[key] = jsonschema.Draft202012Validator(schema)
+    return _VALIDATORS[key]
 
 
 def _normalize(fm: dict) -> dict:
@@ -141,11 +163,33 @@ def _normalize_nested(obj):
     return obj
 
 
-def validate_frontmatter(fm: dict, note_type: str) -> list[str]:
-    """Validate a parsed frontmatter dict; return human-readable violations."""
-    validator = load_validator(note_type)
+def validate_frontmatter(fm: dict, note_type: str, engine: str = "fast") -> list[str]:
+    """Validate a parsed frontmatter dict; return human-readable violations.
+
+    engine="fast" (default): fail-fast single error, `{path}: {message}`
+    shape preserved. engine="strict": all errors path-sorted (today's
+    behavior; `--strict`). Verdicts agree across engines; only the
+    message count differs.
+    """
+    norm = _normalize(fm)
+    if engine == "fast":
+        import fastjsonschema
+
+        validator = load_validator(note_type, "fast")
+        try:
+            validator(norm)
+            return []
+        except fastjsonschema.JsonSchemaException as e:
+            # Base-class stubs don't declare .path/.message (present at
+            # runtime on the raised subclass) — getattr keeps ty clean.
+            parts = list(getattr(e, "path", None) or [])
+            if parts and parts[0] == "data":
+                parts = parts[1:]
+            loc = "/".join(str(p) for p in parts) or "<root>"
+            return [f"{loc}: {getattr(e, 'message', 'schema violation')}"]
+    validator = load_validator(note_type, "strict")
     errs = []
-    for e in sorted(validator.iter_errors(_normalize(fm)), key=lambda e: list(e.absolute_path)):
+    for e in sorted(validator.iter_errors(norm), key=lambda e: list(e.absolute_path)):
         loc = "/".join(str(p) for p in e.absolute_path) or "<root>"
         errs.append(f"{loc}: {e.message}")
     return errs
@@ -169,21 +213,54 @@ def parse_frontmatter(path: Path) -> dict | None:
     return fm if isinstance(fm, dict) else None
 
 
-def check_frontmatter_schema(root: Path | None = None) -> tuple[list[str], list[str]]:
+def _under(p: Path, root: Path) -> bool:
+    """True when p lives under root (scope-driven iteration guard)."""
+    try:
+        p.relative_to(root)
+        return True
+    except ValueError:
+        return False
+
+
+def check_frontmatter_schema(
+    root: Path | None = None, scope: set[Path] | None = None, strict: bool = False
+) -> tuple[list[str], list[str]]:
     """Walk the schema-target directories and validate every note.
 
     Returns (fatal, advisory) per static_checks conventions. Missing
     jsonschema/schema files degrade to a single advisory so runtime
-    environments without the dev dependency stay green.
+    environments without the dev dependency stay green. A scope restricts
+    both the findata walk and the proposal units to the dirty set
+    (dirty-gating); None = full. strict=False (default) validates with
+    the fast engine; strict=True uses jsonschema (`--strict`). A missing
+    fastjsonschema degrades to strict with an advisory (minimal envs
+    stay green).
     """
     root = root or REPO_ROOT
     fatal: list[str] = []
     advisory: list[str] = []
-    try:
-        import jsonschema  # noqa: F401  # availability gate
-    except ImportError:
-        return [], ["frontmatter schema: jsonschema not installed (dev extra)"]
-    _check_proposal_units(root, fatal)
+    if scope is not None and not scope:
+        # Dirty-gating fast path (import-trim slice 1): nothing to validate.
+        # Returns BEFORE the jsonschema availability import — importing it
+        # to validate zero files costs ~59 ms per fresh process. The two
+        # advisories this skips (jsonschema-absent, missing schema files)
+        # only matter with a non-empty scope: schema changes force a full
+        # run at the builder, so a schema-affecting state never arrives
+        # here as an empty scope.
+        return fatal, advisory
+    engine = "strict" if strict else "fast"
+    if engine == "fast" and not _fast_engine_available():
+        engine = "strict"
+        advisory.append("frontmatter schema: fastjsonschema not installed — degraded to strict")
+    if engine == "strict":
+        try:
+            import jsonschema  # noqa: F401  # availability gate
+        except ImportError:
+            return [], ["frontmatter schema: jsonschema not installed (dev extra)"]
+    _check_proposal_units(root, fatal, scope, engine)
+    findata = root / "findata"
+    if not findata.is_dir():
+        return fatal, advisory
     findata = root / "findata"
     if not findata.is_dir():
         return fatal, advisory
@@ -191,7 +268,14 @@ def check_frontmatter_schema(root: Path | None = None) -> tuple[list[str], list[
         if not (SCHEMA_DIR / SCHEMA_FILES[note_type]).exists():
             advisory.append(f"frontmatter schema: {SCHEMA_FILES[note_type]} missing")
             continue
-        for p in sorted((findata / dirname).rglob("*.md")):
+        sub = findata / dirname
+        if scope is not None:
+            # Scope-driven iteration (gate_latency_followups Slice C):
+            # no rglob — clean trees enumerate nothing.
+            files = sorted(p for p in scope if p.suffix == ".md" and p.is_file() and _under(p, sub))
+        else:
+            files = sorted(sub.rglob("*.md"))
+        for p in files:
             if "images" in p.parts:
                 continue
             # Newsletter-tree chrome (image maps) is pipeline scaffolding,
@@ -202,21 +286,32 @@ def check_frontmatter_schema(root: Path | None = None) -> tuple[list[str], list[
             if fm is None:
                 fatal.append(f"{p.relative_to(root)}: no parsable frontmatter block")
                 continue
-            for err in validate_frontmatter(fm, note_type):
+            for err in validate_frontmatter(fm, note_type, engine):
                 fatal.append(f"{p.relative_to(root)}: {err}")
     return fatal, advisory
 
 
-def _check_proposal_units(root: Path, fatal: list[str]) -> None:
+def _check_proposal_units(
+    root: Path, fatal: list[str], scope: set[Path] | None = None, engine: str = "fast"
+) -> None:
     """corpus_uniformity S3: validate proposal frontmatter under
     doc/improvements — live proposals must carry the block; archived
     files with proposal headers must too; headerless archive docs stay
-    outside the contract."""
+    outside the contract. A scope restricts to dirty proposals."""
     improvements = root / "doc" / "improvements"
     if not (improvements.is_dir() and (SCHEMA_DIR / SCHEMA_FILES["proposal"]).exists()):
         return
     candidates = sorted(improvements.glob("proposals/*.md"))
     candidates += sorted(improvements.glob("archive/**/*.md"))
+    if scope is not None:
+        # Scope-driven iteration: skip the archive rglob on clean trees.
+        candidates = sorted(
+            p
+            for p in scope
+            if p.suffix == ".md"
+            and p.is_file()
+            and (_under(p, improvements / "proposals") or _under(p, improvements / "archive"))
+        )
     for p in candidates:
         if p.name == "README.md":
             continue
@@ -225,7 +320,7 @@ def _check_proposal_units(root: Path, fatal: list[str]) -> None:
             if p.parent.name == "proposals" or _has_proposal_header(p):
                 fatal.append(f"{p.relative_to(root)}: no parsable frontmatter block")
             continue
-        for err in validate_frontmatter(fm, "proposal"):
+        for err in validate_frontmatter(fm, "proposal", engine):
             fatal.append(f"{p.relative_to(root)}: {err}")
 
 
@@ -437,7 +532,9 @@ def _okf_census_note(fm: dict, rel: str, tiers: dict, stale: dict, group: str) -
             pass
 
 
-def check_okf_conformance(root: Path | None = None) -> tuple[list[str], list[str]]:
+def check_okf_conformance(
+    root: Path | None = None, scope: set[Path] | None = None
+) -> tuple[list[str], list[str]]:
     """OKF §11 conformance + producer-shape sweep over the whole vault.
 
     Walks EVERY non-reserved ``findata/**/*.md`` (newsletters included —
@@ -451,6 +548,11 @@ def check_okf_conformance(root: Path | None = None) -> tuple[list[str], list[str
       group-scoped provenance census (derived vs OCR sources: trust tiers
       + staleness per group), so the first consumer of the vocabulary
       ships with the first check.
+
+    A scope restricts the walk to the dirty set (dirty-gating); the
+    census is then computed over the subset and labelled partial — it is
+    advisory-only, so a partial census is acceptable, but it must never
+    read as a whole-corpus count.
     """
 
     root = root or REPO_ROOT
@@ -462,7 +564,12 @@ def check_okf_conformance(root: Path | None = None) -> tuple[list[str], list[str
     tiers: dict[str, dict[str, int]] = {}  # group -> tier -> count
     stale: dict[str, list[str]] = {}  # group -> past-due rel paths
     pre_rollout: list[str] = []  # newsletters predating OKF adoption (Q5)
-    for p in sorted(findata.rglob("*.md")):
+    if scope is not None:
+        # Scope-driven iteration (gate_latency_followups Slice C).
+        files = sorted(p for p in scope if p.suffix == ".md" and p.is_file() and _under(p, findata))
+    else:
+        files = sorted(findata.rglob("*.md"))
+    for p in files:
         if p.name in _OKF_RESERVED:
             continue  # OKF listing files have their own §8/§9 formats
         if p.name in _OKF_SKIP_FILES or "images" in p.parts:
@@ -492,7 +599,9 @@ def check_okf_conformance(root: Path | None = None) -> tuple[list[str], list[str
             + (f"; {n_stale} past stale_after" if n_stale else "")
             + ")"
         )
-    census = f"OKF census: {n_notes} notes — " + "; ".join(groups)
+    census = f"OKF census: {n_notes} notes" + (f" — {'; '.join(groups)}" if groups else "")
+    if scope is not None:
+        census += " (dirty subset — partial; whole-corpus census in --full runs)"
     advisory.append(census)
     return fatal, advisory
 
@@ -542,15 +651,59 @@ def main(argv: list[str] | None = None) -> int:
         "the JSON-Schema check",
     )
     ap.add_argument("--root", type=Path, default=REPO_ROOT, help="repo root (default: autodetect)")
+    ap.add_argument(
+        "--dirty",
+        action="store_true",
+        help="run the sweeps over the git-status dirty set only "
+        "(the default since 2026-09-21; flag kept for explicitness)",
+    )
+    ap.add_argument(
+        "--full",
+        action="store_true",
+        help="force a full-corpus run — opts out of the dirty-gated default",
+    )
+    ap.add_argument(
+        "--strict",
+        action="store_true",
+        help="validate with the jsonschema engine (all violations per file; "
+        "default: fastjsonschema fail-fast — same verdicts, first error only)",
+    )
+    ap.add_argument(
+        "--report",
+        action="store_true",
+        help="advisory mode for maint: full corpus (scope ignored), "
+        "violations printed as warnings, exit 0 always (never blocks); "
+        "the schema sweep uses the strict engine",
+    )
     args = ap.parse_args(argv)
     if args.emit_doc:
         KEY_DOC.write_text(emit_key_doc(), encoding="utf-8")
         print(f"wrote {KEY_DOC}")
         return 0
+    scope = None
+    if not args.full and not args.report:
+        from helpers.validators.static_checks import get_dirty_scope
+
+        scope = get_dirty_scope()
+        if scope is None:
+            print("… no dirty scope (git absent / schemas dirty) — full run")
+        else:
+            print(f"… dirty-gated: {len(scope)} file(s)")
     if args.okf:
-        fatal, advisory = check_okf_conformance(args.root)
+        fatal, advisory = check_okf_conformance(args.root, scope)
     else:
-        fatal, advisory = check_frontmatter_schema(args.root)
+        fatal, advisory = check_frontmatter_schema(
+            args.root, scope, strict=args.strict or args.report
+        )
+    if args.report:
+        for line in fatal:
+            print(f"advise {line}")
+        for line in advisory:
+            print(f"advise {line}")
+        print(
+            f"0 fatal, {len(fatal) + len(advisory)} advisory (report mode — advisory, never blocks)"
+        )
+        return 0
     n = 0
     for line in fatal:
         print(f"FATAL {line}")
