@@ -207,11 +207,27 @@ def main() -> int:
     print(table)
 
     # ── append to report (markdown format) ──
+    elapsed = time.perf_counter() - t0
+    write_report(results, started, elapsed)
+
+    return 0 if all_ok else 1
+
+
+def write_report(
+    results: list[tuple[str, float, str, bool, float]], started: str, elapsed: float
+) -> None:
+    """Append one ``#``-delimited run block to outputs/perf_report.md.
+
+    Appending (not overwriting) is the cross-report convention: the TUI
+    reports panel reads the run chain; pinned by
+    tests/test_run_perf_benchmarks.py.
+    """
     from datetime import datetime
 
-    elapsed = time.perf_counter() - t0
     ended = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    passed = sum(1 for *_, ok, _ in results if ok)
+    total = len(results)
     md_lines: list[str] = []
     md_lines.append("# make perf — benchmark report")
     md_lines.append("")
@@ -230,8 +246,6 @@ def main() -> int:
     REPORT.parent.mkdir(parents=True, exist_ok=True)
     with open(REPORT, "a") as f:
         f.write("\n".join(md_lines))
-
-    return 0 if all_ok else 1
 
 
 if __name__ == "__main__":

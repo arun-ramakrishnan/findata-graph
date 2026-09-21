@@ -37,6 +37,8 @@ from helpers.misc.search_tui import (
     parse_integrity_report,
     parse_verify_report,
     parse_report_summary,
+    parse_verify_runs,
+    report_where_label,
     db_run,
     db_complete,
     db_completions,
@@ -326,6 +328,343 @@ def test_call_chain_drill_and_back(monkeypatch: pytest.MonkeyPatch) -> None:
     assert sym_back == "iter_tree_files"
 
 
+def test_query_busy_overlay_pilot(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A1 (search_tui_ux_pass): the loading overlay rides the
+    results table while a query worker runs and clears when results land
+    (auto initial-query path)."""
+    pytest.importorskip("textual")
+    import asyncio
+    import time as _time
+
+    import helpers.misc.search_tui_app as appmod
+
+    def slow_lane(lane, q, limit, mode="hybrid"):  # noqa: ANN001, ANN202
+        _time.sleep(0.4)
+        return _fake_hits(), "3 hits · slow"
+
+    monkeypatch.setattr(appmod, "run_lane", slow_lane)
+
+    app = appmod.SearchApp("anything", "scripts", 10)
+
+    async def drive() -> tuple[bool, bool]:
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause(0.1)
+            mid = app._w_table.loading
+            for _ in range(40):
+                await pilot.pause(0.1)
+                if not app._w_table.loading:
+                    break
+            return mid, app._w_table.loading
+
+    mid, after = asyncio.run(drive())
+    assert mid, "overlay must be up while the worker runs"
+    assert not after, "overlay must clear when results land"
+
+
+def test_index_monitor_busy_frames_pilot(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A2/A3: claimed rows animate with ported FluxFrames while the
+    checker runs, the note line carries phase + elapsed, and verdicts
+    release rows and restore the hint."""
+    pytest.importorskip("textual")
+    import asyncio
+    import sys
+
+    import helpers.misc.search_tui_app as appmod
+    from textual.widgets import DataTable, Static
+
+    argv = [sys.executable, "-c", "import time; time.sleep(0.35)"]
+    monkeypatch.setattr(appmod, "index_check_argv", lambda name: argv)
+
+    app = appmod.SearchApp("", "scripts", 10)  # no auto query: monitor is the subject
+
+    async def drive() -> tuple[list[str], str, list[str], object]:
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause(0.1)
+            app.action_monitor()
+            await pilot.pause(0.3)
+            mon = app.screen
+            assert isinstance(mon, appmod.IndexMonitor)  # narrows ty (modal attrs)
+            mon.action_check_all()
+            mon._spin()  # deterministic frame write — no timer wait needed
+            table = mon.query_one("#idx-table", DataTable)
+            states = [str(table.get_row_at(i)[3]) for i in range(3)]
+            note = str(mon.query_one("#idx-note", Static).content)
+            for _ in range(80):
+                await pilot.pause(0.1)
+                if not mon._busy:
+                    break
+            final = [str(table.get_row_at(i)[3]) for i in range(3)]
+            note_after = mon.query_one("#idx-note", Static).content
+            return states, note, final, note_after
+
+    states, note, final, note_after = asyncio.run(drive())
+    frames = set(appmod.FLUX_CLASSIC)
+    assert all(s[0] in frames and "…" in s for s in states), states
+    assert "elapsed" in note, note
+    assert final == ["fresh"] * 3, final
+    assert note_after == appmod._IDX_NOTE_HINT
+
+
+def test_index_monitor_double_refresh_guard_pilot(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A4: a second R press in the same pump cycle must not double-spawn
+    rebuild workers (parallel embedder rebuilds spike RAM/CPU — the
+    sequential-by-design invariant)."""
+    pytest.importorskip("textual")
+    import asyncio
+    import sys
+
+    import helpers.misc.search_tui_app as appmod
+
+    argv = [sys.executable, "-c", "import time; time.sleep(0.35)"]
+    calls: list[str] = []
+
+    def counting_refresh(name: str) -> list[str]:
+        calls.append(name)
+        return argv
+
+    monkeypatch.setattr(appmod, "index_refresh_argv", counting_refresh)
+    monkeypatch.setattr(appmod, "index_check_argv", lambda name: argv)
+
+    app = appmod.SearchApp("", "scripts", 10)
+
+    async def drive() -> list[str]:
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause(0.1)
+            app.action_monitor()
+            await pilot.pause(0.3)
+            mon = app.screen
+            assert isinstance(mon, appmod.IndexMonitor)  # narrows ty (modal attrs)
+            mon.action_refresh_all()
+            mon.action_refresh_all()  # same pump cycle — must be a no-op
+            for _ in range(120):
+                await pilot.pause(0.1)
+                if not mon._busy:
+                    break
+            return list(calls)
+
+    assert sorted(asyncio.run(drive())) == ["docs", "notes", "scripts"]
+
+
+_VERIFY_RUNS_FIXTURE = (
+    "# FinData Knowledge Graph — Notes Verification Report\n"
+    "\n"
+    "**Generated:** 2026-09-20 09:35:20  ·  **Project Root:** `/r`\n"
+    "\n"
+    "| Metric | Value |\n"
+    "|---|---|\n"
+    "| Total Files Checked | 1233 |\n"
+    "| Errors | 0 |\n"
+    "\n"
+    "✅ All notes passed verification (no errors).\n"
+    "\n"
+    "# FinData Knowledge Graph — Notes Verification Report\n"
+    "\n"
+    "**Generated:** 2026-09-21 10:00:00  ·  **Project Root:** `/r`\n"
+    "\n"
+    "| Metric | Value |\n"
+    "|---|---|\n"
+    "| Total Files Checked | 1240 |\n"
+    "| Errors | 1 |\n"
+    "| Warnings | 2 |\n"
+    "\n"
+    "## ERROR issues (1)\n"
+    "\n"
+    "### frontmatter (1)\n"
+    "\n"
+    "- findata/A.md: missing title\n"
+)
+
+
+def test_report_where_label() -> None:
+    assert report_where_label("outputs/qa_report.md", 6098) == "qa:6098"
+    assert report_where_label("outputs/qa_report.md", None) == "qa"
+    assert (
+        report_where_label("outputs/wt/graph_algos/outputs/qa_report.md", 12) == "graph_algos/qa:12"
+    )
+    assert report_where_label("outputs/database_integrity_report.md", 3) == "integrity:3"
+
+
+def test_integrity_verdict() -> None:
+    """Colors follow the ACTUAL verdict, not the declared level: an
+    ERROR-level section with errors=0 is green; warnings>0 is yellow."""
+    from helpers.misc.search_tui import integrity_verdict
+
+    ok = integrity_verdict("ERROR", "total=11663 unknown_type=0 -> errors=0")
+    assert ok == "OK"
+    bad = integrity_verdict("ERROR", "total=10 orphaned=3 -> errors=3")
+    assert bad == "ERROR"
+    warn = integrity_verdict("WARNING", "similar_pairs=157 -> warnings=157")
+    assert warn == "WARNING"
+    snapshot = integrity_verdict("WARNING", "entity counts: company=6203, institution=207")
+    assert snapshot == "OK"  # counter-less advisory snapshot reads as OK
+
+
+def test_report_files_discovery(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Main copies first, then each outputs/wt/<name>/outputs copy."""
+    import helpers.misc.search_tui as tui
+
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "outputs" / "qa_report.md").write_text(
+        "# make qa — gate report\n", encoding="utf-8"
+    )
+    wt = tmp_path / "outputs" / "wt" / "graph_algos" / "outputs"
+    wt.mkdir(parents=True)
+    (wt / "qa_report.md").write_text("# make qa — gate report\n", encoding="utf-8")
+    (wt / "perf_report.md").write_text("# x\n", encoding="utf-8")
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    assert tui.report_files() == [
+        ("qa", "outputs/qa_report.md", "gate"),
+        ("qa", "outputs/wt/graph_algos/outputs/qa_report.md", "gate"),
+        ("perf", "outputs/wt/graph_algos/outputs/perf_report.md", "perf"),
+    ]
+
+
+def test_run_reports_lists_worktree_copies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import helpers.misc.search_tui as tui
+
+    (tmp_path / "outputs").mkdir()
+    (tmp_path / "outputs" / "qa_report.md").write_text(_GATE_TIMED_FIXTURE, encoding="utf-8")
+    wt = tmp_path / "outputs" / "wt" / "graph_algos" / "outputs"
+    wt.mkdir(parents=True)
+    (wt / "qa_report.md").write_text(_GATE_TIMED_FIXTURE, encoding="utf-8")
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    hits, status = tui._run_reports("", 50)
+    titles = [h.title for h in hits if h.kind == "overview"]
+    assert any(t.startswith("qa — ") for t in titles), titles
+    assert any(t.startswith("qa@graph_algos — ") for t in titles), titles
+    assert "qa@graph_algos" in status
+
+
+def test_parse_verify_runs() -> None:
+    """Verify history: every appended run, its metrics and its issues."""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        f.write(_VERIFY_RUNS_FIXTURE)
+        path = Path(f.name)
+    from helpers.misc.search_tui import VerifyIssue
+
+    try:
+        runs = parse_verify_runs(path)
+        assert len(runs) == 2
+        assert runs[0].timestamp == "2026-09-20 09:35:20"
+        assert (runs[0].total_files, runs[0].errors, runs[0].warnings) == (1233, 0, 0)
+        assert runs[0].issues == ()
+        assert runs[1].timestamp == "2026-09-21 10:00:00"
+        assert (runs[1].total_files, runs[1].errors, runs[1].warnings) == (1240, 1, 2)
+        assert runs[1].issues == (VerifyIssue("frontmatter", "findata/A.md: missing title"),)
+    finally:
+        path.unlink()
+
+
+def test_report_screen_tree_runs_pilot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """B2–B4: V lists the run HISTORY per report as collapsed tree nodes
+    (integration + verify included) and scopes to the row's file — a
+    worktree copy shows only its own runs."""
+    pytest.importorskip("textual")
+    import asyncio
+
+    import helpers.misc.search_tui as tui
+    import helpers.misc.search_tui_app as appmod
+    from textual.widgets import Tree
+
+    out = tmp_path / "outputs"
+    out.mkdir()
+    integ = _GATE_TIMED_FIXTURE.replace(
+        "# make qa — gate report", "# make integration — gate report"
+    )
+    (out / "integration_report.md").write_text(
+        integ
+        + integ.replace("2026-09-21 14:07:25", "2026-09-21 15:07:25").replace(
+            "2026-09-21 14:05:19", "2026-09-21 15:05:19"
+        ),
+        encoding="utf-8",
+    )
+    (out / "verify_notes_report.md").write_text(_VERIFY_RUNS_FIXTURE, encoding="utf-8")
+    wt = out / "wt" / "graph_algos" / "outputs"
+    wt.mkdir(parents=True)
+    (wt / "qa_report.md").write_text(_GATE_TIMED_FIXTURE, encoding="utf-8")
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(appmod, "REPO_ROOT", tmp_path)
+
+    app = appmod.SearchApp("", "reports", 10)
+
+    async def drive() -> tuple[list[str], list[str], bool]:
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause(0.2)
+            app.push_screen(appmod.ReportScreen())  # all report copies
+            await pilot.pause(0.4)
+            tree = app.screen.query_one("#rep-tree", Tree)
+            labels = [str(c.label) for c in tree.root.children]
+            collapsed = [c.is_expanded for c in tree.root.children]
+            # enter expands the run node under the cursor (keyboard parity
+            # with mouse: no double-toggle flash)
+            tree.cursor_line = 0
+            await pilot.press("enter")
+            await pilot.pause(0.15)
+            enter_expanded = tree.root.children[0].is_expanded
+            app.pop_screen()
+            await pilot.pause(0.1)
+            app.push_screen(appmod.ReportScreen(rel="outputs/wt/graph_algos/outputs/qa_report.md"))
+            await pilot.pause(0.4)
+            wt_tree = app.screen.query_one("#rep-tree", Tree)
+            wt_labels = [str(c.label) for c in wt_tree.root.children]
+            assert not any(collapsed), "run nodes must start collapsed"
+            return labels, wt_labels, enter_expanded
+
+    labels, wt_labels, expanded = asyncio.run(drive())
+    assert sum("integration ·" in lab for lab in labels) == 2, labels  # both runs
+    assert sum("verify ·" in lab for lab in labels) == 2, labels
+    assert len(wt_labels) == 1 and "qa@graph_algos" in wt_labels[0], wt_labels
+    assert expanded, "enter must expand the run node (auto_expand, no double toggle)"
+
+
+def test_report_rerun_busy_pilot(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """C2: the run tree carries a loading overlay while a rerun executes
+    and drops it when the rerun lands."""
+    pytest.importorskip("textual")
+    import asyncio
+    import sys
+
+    import helpers.misc.search_tui as tui
+    import helpers.misc.search_tui_app as appmod
+    from textual.widgets import Tree
+
+    out = tmp_path / "outputs"
+    out.mkdir()
+    (out / "qa_report.md").write_text(_GATE_TIMED_FIXTURE, encoding="utf-8")
+    monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(appmod, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(
+        appmod,
+        "report_rerun_argv",
+        lambda name: [sys.executable, "-c", "import time; time.sleep(0.4)"],
+    )
+
+    app = appmod.SearchApp("", "reports", 10)
+
+    async def drive() -> tuple[bool, bool]:
+        async with app.run_test(size=(120, 40)) as pilot:
+            await pilot.pause(0.2)
+            app.push_screen(appmod.ReportScreen(rel="outputs/qa_report.md"))
+            await pilot.pause(0.4)
+            mon = app.screen
+            assert isinstance(mon, appmod.ReportScreen)  # narrows ty (modal attrs)
+            mon.query_one("#rep-tree", Tree).cursor_line = 0  # a run row
+            mon.action_rerun_report()
+            await pilot.pause(0.1)
+            mid = mon.query_one("#rep-tree", Tree).loading
+            for _ in range(60):
+                await pilot.pause(0.1)
+                if not mon.query_one("#rep-tree", Tree).loading:
+                    break
+            return mid, mon.query_one("#rep-tree", Tree).loading
+
+    mid, after = asyncio.run(drive())
+    assert mid, "overlay must ride the tree while the rerun runs"
+    assert not after, "overlay must clear when the rerun lands"
+
+
 def test_int_or_none() -> None:
     assert _int_or_none("42") == 42
     assert _int_or_none(7) == 7
@@ -442,6 +781,7 @@ def test_parse_gate_report_fixture() -> None:
         assert b.gate == "qa"
         assert b.timestamp == "2026-09-17 09:18:12"
         assert b.jobs == 4
+        assert b.elapsed is None  # pre-timing header: no Elapsed field
         assert len(b.steps) == 4
         assert b.steps[0] == RunStep("lint", 0.06, "\u2713 OK")
         assert b.steps[3] == RunStep("deptry", 1.20, "\u2717 FAIL")
@@ -483,9 +823,71 @@ def test_parse_perf_report() -> None:
         b = blocks[0]
         assert b.gate == "perf:perf"
         assert b.timestamp == "2026-09-11 15:12:55"
+        assert b.elapsed is None  # pre-timing header: no Elapsed field
         assert len(b.steps) == 2
         assert b.steps[0] == RunStep("integrity_check", 0.37, "\u2713 OK")
         assert "2 benchmarks" in b.summary
+    finally:
+        path.unlink()
+
+
+_GATE_TIMED_FIXTURE = (
+    "# make qa — gate report\n"
+    "\n"
+    "**Generated:** 2026-09-21 14:07:25  ·  **Started:** 2026-09-21 14:05:19  ·  "
+    "**Elapsed:** 126.1s  ·  **Python:** 3.14.0  jobs=8\n"
+    "\n"
+    "| Step | Time (s) | Status |\n"
+    "|---|---|---|\n"
+    "| lint | 0.06 | ✓ OK |\n"
+    "| **10/10 passed** | | |\n"
+)
+
+_PERF_TIMED_FIXTURE = (
+    "# make perf — benchmark report\n"
+    "\n"
+    "**Generated:** 2026-09-21 14:35:56  ·  **Started:** 2026-09-21 14:35:20  ·  "
+    "**Ended:** 2026-09-21 14:35:56  ·  **Elapsed:** 35.4s  ·  **Python:** 3.14.0\n"
+    "\n"
+    "| Benchmark | Time (s) | Budget | Status |\n"
+    "|---|---|---|---|\n"
+    "| integrity_check | 0.77 | 2.0s | ✓ OK |\n"
+)
+
+
+def test_parse_gate_report_timed_header() -> None:
+    """Gate-latency era header: Started/Elapsed sit between Generated
+    and Python — timestamp + jobs must still parse and Elapsed lands on
+    the block (the 'unknown run' regression)."""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        f.write(_GATE_TIMED_FIXTURE)
+        path = Path(f.name)
+    try:
+        blocks = parse_gate_report(path)
+        assert len(blocks) == 1
+        b = blocks[0]
+        assert b.timestamp == "2026-09-21 14:07:25"
+        assert b.jobs == 8
+        assert b.elapsed == 126.1
+        assert "10/10 passed" in b.summary
+    finally:
+        path.unlink()
+
+
+def test_parse_perf_report_timed_header() -> None:
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False, encoding="utf-8") as f:
+        f.write(_PERF_TIMED_FIXTURE)
+        path = Path(f.name)
+    try:
+        blocks = parse_perf_report(path)
+        assert len(blocks) == 1
+        b = blocks[0]
+        assert b.timestamp == "2026-09-21 14:35:56"
+        assert b.elapsed == 35.4
     finally:
         path.unlink()
 
@@ -664,7 +1066,7 @@ def test_reports_lane_overview(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     hits, status = run_lane("reports", "", 40)
     assert {h.kind for h in hits} == {"overview"}
     assert len(hits) == 4  # only the files present (no advisory/integration/maint)
-    assert "missing" in status
+    assert all(s in status for s in ("qa", "perf", "integrity", "verify")), status
     assert all(h.line and h.line > 0 for h in hits)
     assert all(h.path.startswith("outputs/") for h in hits)
 
@@ -731,7 +1133,7 @@ def test_reports_lane_empty_root(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)  # no outputs/ at all
     hits, status = run_lane("reports", "", 40)
     assert hits == []
-    assert "missing" in status
+    assert "no report rows" in status
 
 
 # ---------------------------------------------------------------- themes
@@ -843,7 +1245,7 @@ def test_report_screen_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
 
     import helpers.misc.search_tui as tui
     import helpers.misc.search_tui_app as appmod
-    from textual.widgets import DataTable
+    from textual.widgets import Tree
 
     out = tmp_path / "outputs"
     out.mkdir()
@@ -863,10 +1265,10 @@ def test_report_screen_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
             app.action_report_screen()
             await pilot.pause(0.3)
             assert isinstance(app.screen, appmod.ReportScreen)
-            table = app.screen.query_one("#rep-table", DataTable)
-            n = table.row_count
-            assert n > 0  # 2 qa runs (2+2 steps + 2 headers) + verify run + issue
-            table.move_cursor(row=0)
+            tree = app.screen.query_one("#rep-tree", Tree)
+            n = len(tree.root.children)
+            assert n > 0  # top-level = collapsed run nodes
+            tree.cursor_line = 0
             await pilot.pause(0.2)
             detail = app.screen.query_one("#rep-detail").lines
             await pilot.press("escape")
@@ -875,7 +1277,7 @@ def test_report_screen_smoke(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
             return n, len(detail)
 
     n, detail_lines = asyncio.run(drive())
-    assert n == 8
+    assert n == 3  # 2 qa runs + 1 verify run; steps/issues nest under runs
     assert detail_lines > 0
 
 
@@ -1082,6 +1484,15 @@ def test_db_screen_pilot_tree_run_switch(tmp_path: Path, monkeypatch: pytest.Mon
     _fixture_root(tmp_path)
     monkeypatch.setattr(appmod, "REPO_ROOT", tmp_path)
     monkeypatch.setattr(tui, "REPO_ROOT", tmp_path)
+    _real_db_run = appmod.db_run
+
+    def _slow_db_run(store: str, sql: str):  # noqa: ANN001, ANN202
+        import time as _t
+
+        _t.sleep(0.4)
+        return _real_db_run(store, sql)
+
+    monkeypatch.setattr(appmod, "db_run", _slow_db_run)
     app = appmod.SearchApp("", "docs", 10)
 
     async def drive() -> tuple[int, str, bool, bool, int, int, str, str, str, bool, bool, str]:
@@ -1107,10 +1518,14 @@ def test_db_screen_pilot_tree_run_switch(tmp_path: Path, monkeypatch: pytest.Mon
             # F5 runs the editor text (real key path, not the action)
             app.screen.query_one("#db-sql", appmod.TextArea).text = "SELECT name FROM entities"
             await pilot.press("f5")
+            await pilot.pause(0.1)
+            db_mid_busy = app.screen.query_one("#db-results", DataTable).loading  # C1
             for _ in range(40):
                 await pilot.pause(0.05)
                 if app.screen.query_one("#db-results", DataTable).row_count > 0:
                     break
+            db_after_busy = app.screen.query_one("#db-results", DataTable).loading
+            assert db_mid_busy and not db_after_busy
             rows = app.screen.query_one("#db-results", DataTable).row_count
             status = app.screen.query_one("#db-status", Static).content
             # filter narrows the loaded working set (live-apply on change)

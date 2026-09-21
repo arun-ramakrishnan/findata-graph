@@ -57,7 +57,7 @@ import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace as dc_replace
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -479,6 +479,7 @@ class RunBlock:
     jobs: int | None
     steps: tuple[RunStep, ...]
     summary: str  # e.g. "8/9 passed  ·  gate FAIL"
+    elapsed: float | None = None  # run wall time (s) from **Elapsed:** header
 
 
 @dataclass(frozen=True)
@@ -492,9 +493,12 @@ class CheckRow:
 _GATE_HEADER_RE = re.compile(r"^#\s+make\s+(\S+)\s+—\s+(gate|maint)\s+report\s*$")
 _GATE_META_RE = re.compile(
     r"^\*\*Generated:\*\*\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})"
-    r"\s+·\s+\*\*Python:\*\*\s+(\S+)"
+    r"(?:.*?\*\*Python:\*\*\s+(\S+))?"
     r"(?:\s+jobs=(\d+))?"
 )
+# run wall time in the meta line (**Elapsed:** 135.6s) — present since the
+# gate-latency arcs added Started/Elapsed between Generated and Python
+_ELAPSED_RE = re.compile(r"\*\*Elapsed:\*\*\s+([\d.]+)s")
 _GATE_TABLE_SEP_RE = re.compile(r"^\|[\s\-|]+\|$")
 _GATE_TABLE_ROW_RE = re.compile(r"^\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|$")
 _PERF_TABLE_ROW_RE = re.compile(r"^\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|\s*(.+?)\s*\|$")
@@ -564,18 +568,21 @@ def parse_gate_report(path: Path) -> list[RunBlock]:
 def _build_gate_block(gate: str, lines: list[str]) -> RunBlock:
     timestamp = ""
     jobs: int | None = None
+    elapsed: float | None = None
     table_lines: list[str] = []
     for ln in lines:
         mm = _GATE_META_RE.match(ln)
         if mm:
             timestamp = mm.group(1)
             jobs = int(mm.group(3)) if mm.group(3) else None
+            em = _ELAPSED_RE.search(ln)
+            elapsed = float(em.group(1)) if em else None
             continue
         table_lines.append(ln)
     steps, summary = _parse_gate_table_block(table_lines)
     if not summary:
         summary = f"{len([s for s in steps if s.status != 'SKIP'])}/{len(steps)} passed"
-    return RunBlock(gate, timestamp, jobs, steps, summary)
+    return RunBlock(gate, timestamp, jobs, steps, summary, elapsed)
 
 
 def parse_perf_report(path: Path) -> list[RunBlock]:
@@ -598,11 +605,14 @@ def parse_perf_report(path: Path) -> list[RunBlock]:
 
 def _build_perf_block(gate: str, lines: list[str]) -> RunBlock:
     timestamp = ""
+    elapsed: float | None = None
     steps: list[RunStep] = []
     for ln in lines:
         mm = _PERF_META_RE.match(ln)
         if mm:
             timestamp = mm.group(1)
+            em = _ELAPSED_RE.search(ln)
+            elapsed = float(em.group(1)) if em else None
             continue
         m = _PERF_TABLE_ROW_RE.match(ln)
         if m:
@@ -621,7 +631,7 @@ def _build_perf_block(gate: str, lines: list[str]) -> RunBlock:
                 continue
             steps.append(RunStep(label, seconds, status))
     summary = f"{len(steps)} benchmarks" if steps else "0 benchmarks"
-    return RunBlock(f"perf:{gate}", timestamp, None, tuple(steps), summary)
+    return RunBlock(f"perf:{gate}", timestamp, None, tuple(steps), summary, elapsed)
 
 
 def parse_integrity_report(path: Path) -> list[CheckRow]:
@@ -633,6 +643,38 @@ def parse_integrity_report(path: Path) -> list[CheckRow]:
     Section headers: `## LABEL (SEVERITY ...)` — severity is the first
     word in parens (ERROR, WARNING, advisory, gate-failing).
     """
+    return _parse_integrity_chunk(Path(path).read_text(encoding="utf-8").splitlines())
+
+
+@dataclass(frozen=True)
+class IntegrityRun:
+    timestamp: str  # YYYY-MM-DD HH:MM:SS
+    rows: tuple[CheckRow, ...]
+
+
+_INTEGRITY_GEN_RE = re.compile(r"^\*\*Generated:\*\*\s+(\d{4}-\d{2}-\d{2})T?(\d{2}:\d{2}:\d{2})")
+
+
+def parse_integrity_runs(path: Path) -> list[IntegrityRun]:
+    """Every appended integrity run in file order (most recent last) —
+    the run-history twin of the latest-only ``parse_integrity_report``.
+    Timestamps normalize the writer's ISO-T format to space format."""
+    lines = Path(path).read_text(encoding="utf-8", errors="replace").splitlines()
+    starts = _report_block_starts(lines)
+    runs: list[IntegrityRun] = []
+    for bi, s in enumerate(starts):
+        chunk = lines[s : starts[bi + 1] if bi + 1 < len(starts) else len(lines)]
+        ts = ""
+        for ln in chunk:
+            m = _INTEGRITY_GEN_RE.match(ln)
+            if m:
+                ts = f"{m.group(1)} {m.group(2)}"
+                break
+        runs.append(IntegrityRun(ts, tuple(_parse_integrity_chunk(chunk))))
+    return runs
+
+
+def _parse_integrity_chunk(chunk: list[str]) -> list[CheckRow]:
     rows: list[CheckRow] = []
     current_name = ""
     current_severity = "OK"
@@ -651,9 +693,9 @@ def parse_integrity_report(path: Path) -> list[CheckRow]:
                 )
             )
 
-    for ln in Path(path).read_text(encoding="utf-8").splitlines():
+    for ln in chunk:
         if ln.startswith("# ") and not ln.startswith("##"):
-            # New run block: drop the previous run's sections, keep latest only.
+            # New run block inside a chunk: drop earlier sections (latest only).
             rows.clear()
             current_name = ""
             current_summary = ""
@@ -703,6 +745,88 @@ def parse_verify_report(path: Path) -> dict:
         if vm:
             result["verdict"] = vm.group(2)
     return result
+
+
+@dataclass(frozen=True)
+class VerifyIssue:
+    bucket: str  # ``### bucket (N)`` heading
+    detail: str  # ``- file: message``
+
+
+@dataclass(frozen=True)
+class VerifyRun:
+    timestamp: str  # YYYY-MM-DD HH:MM:SS
+    total_files: int
+    errors: int
+    warnings: int
+    issues: tuple[VerifyIssue, ...]
+
+
+_VERIFY_METRIC_ROW_RE = re.compile(r"^\|\s*(Total Files Checked|Errors|Warnings)\s*\|\s*(\d+)\s*\|")
+
+
+def parse_verify_runs(path: Path) -> list[VerifyRun]:
+    """Every appended verify run in file order (most recent last).
+
+    ``parse_verify_report`` collapses the file to the latest run's dict;
+    the report tree lists the run history, so this walks one block per
+    ``#`` header: metrics from the table, issues from the ERROR/WARNING
+    sections (bucket + item), scoped to that block.
+    """
+    lines = Path(path).read_text(encoding="utf-8", errors="replace").splitlines()
+    starts = _report_block_starts(lines)
+    runs: list[VerifyRun] = []
+    for bi, s in enumerate(starts):
+        chunk = lines[s : starts[bi + 1] if bi + 1 < len(starts) else len(lines)]
+        ts = ""
+        files = errors = warnings = 0
+        issues: list[VerifyIssue] = []
+        in_issues = False
+        bucket = ""
+        for ln in chunk:
+            g = _PERF_META_RE.match(ln)
+            if g:
+                ts = g.group(1)
+                continue
+            m = _VERIFY_METRIC_ROW_RE.match(ln)
+            if m:
+                key, val = m.group(1), int(m.group(2))
+                if key == "Total Files Checked":
+                    files = val
+                elif key == "Errors":
+                    errors = val
+                else:
+                    warnings = val
+                continue
+            if ln.startswith("## "):
+                in_issues = "ERROR" in ln.upper() or "WARNING" in ln.upper()
+                bucket = ""
+                continue
+            bm = _VERIFY_BUCKET_RE.match(ln)
+            if bm and in_issues:
+                bucket = bm.group(1)
+                continue
+            im = _VERIFY_ITEM_RE.match(ln)
+            if im and in_issues and bucket:
+                issues.append(VerifyIssue(bucket, f"{im.group(1)}: {im.group(2)}"))
+        runs.append(VerifyRun(ts, files, errors, warnings, tuple(issues)))
+    return runs
+
+
+_ERR_COUNTER_RE = re.compile(r"\berrors=(\d+)")
+_WARN_COUNTER_RE = re.compile(r"\bwarnings=(\d+)")
+
+
+def integrity_verdict(severity: str, summary: str) -> str:
+    """Actual verdict from the summary counters — sections may DECLARE an
+    ERROR level yet pass (``-> errors=0``); the panel colors the verdict,
+    not the declared level. ERROR > WARNING > OK; counter-less advisory
+    snapshots (e.g. GRAPH SUMMARY) read as OK."""
+    if any(int(n) for n in _ERR_COUNTER_RE.findall(summary)):
+        return "ERROR"
+    if any(int(n) for n in _WARN_COUNTER_RE.findall(summary)):
+        return "WARNING"
+    return "OK"
 
 
 def parse_report_summary(path: Path) -> str:
@@ -994,6 +1118,45 @@ def report_verb_for_path(rel: str) -> str | None:
     return None
 
 
+def report_files() -> list[tuple[str, str, str]]:
+    """(verb, rel, kind) for every parseable report copy: the main
+    ``outputs/<name>_report.md`` first, then each
+    ``outputs/wt/<name>/outputs/<name>_report.md`` worktree copy (listed
+    separately — the where column and ``@worktree`` display names tell
+    them apart)."""
+    files = [(n, r, k) for n, r, k in _REPORTS if (REPO_ROOT / r).exists()]
+    wt_root = REPO_ROOT / "outputs" / "wt"
+    if wt_root.is_dir():
+        for wt in sorted(p.name for p in wt_root.iterdir() if p.is_dir()):
+            files.extend(
+                (n, f"outputs/wt/{wt}/outputs/{Path(r).name}", k)
+                for n, r, k in _REPORTS
+                if (REPO_ROOT / "outputs" / "wt" / wt / "outputs" / Path(r).name).exists()
+            )
+    return files
+
+
+def _report_display(name: str, rel: str) -> str:
+    """Display name for a report copy: ``qa`` (main) / ``qa@graph_algos``
+    (worktree)."""
+    parts = PurePosixPath(rel).parts
+    if len(parts) > 3 and parts[0] == "outputs" and parts[1] == "wt":
+        return f"{name}@{parts[2]}"
+    return name
+
+
+def report_where_label(rel: str, line: int | None) -> str:
+    """Compact where-column label for report rows, differentiating main
+    vs worktree copies: ``outputs/qa_report.md:6098`` → ``qa:6098``;
+    ``outputs/wt/graph_algos/outputs/qa_report.md:6098`` →
+    ``graph_algos/qa:6098``."""
+    parts = PurePosixPath(rel).parts
+    stem = parts[-1] if parts else rel
+    verb = report_verb_for_path(stem) or stem.removesuffix("_report.md").removesuffix(".md")
+    prefix = f"{parts[2]}/" if len(parts) > 3 and parts[0] == "outputs" and parts[1] == "wt" else ""
+    return f"{prefix}{verb}" + (f":{line}" if line else "")
+
+
 def _run_gate_hits(
     name: str, rel: str, kind: str, lines: list[str], text: str, limit: int, hits: list[Hit]
 ) -> str:
@@ -1020,10 +1183,12 @@ def _run_gate_hits(
                     path=rel,
                     line=_locate_line(lines, lo, hi, s.label),
                     title=s.label,
-                    section=f"{name} · {b.timestamp or 'unknown run'}",
+                    section=f"{name} · {b.timestamp or 'unknown run'}"
+                    + (f" · {b.elapsed:.0f}s" if b.elapsed is not None else ""),
                     snippet=f"{secs} · {s.status} · run: {b.summary}".strip(" ·"),
                     lane="reports",
                     kind="step",
+                    score=b.elapsed,  # run wall time fills the score column
                 )
             )
             if len(hits) >= limit:
@@ -1102,49 +1267,45 @@ def _run_verify_hits(
 def _run_reports(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
     """Reports lane: verbs select a file, text filters rows, empty = overview."""
     verb, text = _split_report_verb(q)
-    names = [verb] if verb else [name for name, _, _ in _REPORTS]
+    files = report_files()  # main copies + each outputs/wt/<name>/outputs copy
+    if verb:
+        files = [f for f in files if f[0] == verb]
     hits: list[Hit] = []
     shown: list[str] = []
-    missing: list[str] = []
-    for name in names:
-        rel = next(rel for n, rel, _ in _REPORTS if n == name)
-        kind = next(k for n, _, k in _REPORTS if n == name)
+    for name, rel, kind in files:
+        disp = _report_display(name, rel)
         p = REPO_ROOT / rel
-        if not p.exists():
-            missing.append(name)
-            continue
         lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
         if verb is None and not text:
-            # Comprehensive view: one overview row per report.
+            # Comprehensive view: one overview row per report copy.
             summary = parse_report_summary(p)
             starts = _report_block_starts(lines)
             hits.append(
                 Hit(
                     path=rel,
                     line=(starts[-1] + 1) if starts else 1,
-                    title=f"{name} — {summary}",
+                    title=f"{disp} — {summary}",
                     section="latest run",
                     snippet=summary,
                     lane="reports",
                     kind="overview",
                 )
             )
-            shown.append(name)
+            shown.append(disp)
             continue
         if kind in ("gate", "perf"):
-            shown.append(_run_gate_hits(name, rel, kind, lines, text, limit, hits))
+            shown.append(_run_gate_hits(disp, rel, kind, lines, text, limit, hits))
         elif kind == "integrity":
-            shown.append(_run_integrity_hits(name, rel, lines, text, limit, hits))
+            shown.append(_run_integrity_hits(disp, rel, lines, text, limit, hits))
         else:
-            shown.append(_run_verify_hits(name, rel, lines, text, limit, hits))
+            shown.append(_run_verify_hits(disp, rel, lines, text, limit, hits))
         if len(hits) >= limit:
             hits = hits[:limit]
             break
     shown_s = ", ".join(s for s in shown if s)
-    missing_s = f" · missing: {','.join(missing)}" if missing else ""
     if not hits:
-        return [], f"no report rows for {q!r} ({shown_s}){missing_s}"
-    return hits, f"{len(hits)} rows · {shown_s}{missing_s}"
+        return [], f"no report rows for {q!r} ({shown_s})"
+    return hits, f"{len(hits)} rows · {shown_s}"
 
 
 # ---------------------------------------------------------------- db screen

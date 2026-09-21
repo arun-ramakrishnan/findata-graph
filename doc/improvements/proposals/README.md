@@ -35,6 +35,17 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+_(Previously: search_tui_ux_pass.md archived 2026-09-22 as
+completed.md entry 265 — search_tui UX pass: busy indicators (query
+overlay, index-monitor row spinners + elapsed note + double-`R`
+busy-guard) and the report panel overhaul (timed-header parse fix,
+worktree copies listed separately, collapsed run tree with scoped `V`,
+verify/integrity run histories, writer append-at-tail pinned by tests),
+plus DbScreen/rerun overlays and theme-aware verdict colors. Frames
+ported from ratatui-spinner `FluxFrames::CLASSIC`; zero new
+dependencies. Execution record in
+`../archive/tooling/search_tui_ux_pass.md`.)_
+
 _(Previously: snapshot_fresh_gate.md archived 2026-09-21 as
 completed.md entry 264 — snapshot freshness pre-gate:
 generation-only `--quick` over sqlite + DuckDB pairs with

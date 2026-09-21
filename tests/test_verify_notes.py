@@ -594,6 +594,24 @@ class TestTotalsAndReport:
         text = report_file.read_text()
         assert "All notes passed verification" in text
 
+    def test_generate_report_appends_run_chain(self, tmp_path):
+        """Two generate_report calls append # blocks at the tail — the
+        chain the TUI reports panel reads (search_tui_ux_pass B5)."""
+        from helpers.misc.search_tui import parse_verify_runs
+
+        f = tmp_path / "report.md"
+        v1 = make_verifier()
+        v1.stats["total_files"] = 5
+        v1.generate_report(str(f))
+        v2 = make_verifier()
+        v2.log_issue("yaml_structure", "/path/g.md", "later error")
+        v2.stats["total_files"] = 6
+        v2.generate_report(str(f))
+        runs = parse_verify_runs(f)
+        assert len(runs) == 2
+        assert runs[0].errors == 0 and runs[0].total_files == 5  # oldest first
+        assert runs[1].errors == 1 and runs[1].total_files == 6
+
 
 # ---------------------------------------------------------------------------
 # process_directory

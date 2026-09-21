@@ -41,7 +41,7 @@ prefixes are treated as plain text.
 | `h` | call chain of the selected code symbol → table rows |
 | click/enter on a chain row | drill into that caller/callee |
 | `b` | back — unwind the chain stack to the previous view |
-| `i` | index monitor (c/C deep-check, r/R rebuild, esc close) |
+| `i` | index monitor (c/C deep-check, r/R rebuild, esc close; busy indexes animate and reject double triggers) |
 | `V` | report screen — comprehensive view over `outputs/` reports |
 | `d` | database screen — schema tree + SQL + results (read-only, see below) |
 | alt+`d` | database screen from anywhere, even while typing |
@@ -53,7 +53,10 @@ prefixes are treated as plain text.
 | `q` / ctrl+c | quit |
 
 The status bar shows each index's age — the `search-fresh` contract:
-lanes are only as fresh as the last `make search-fresh APPLY=1`.
+lanes are only as fresh as the last `make search-fresh APPLY=1`. While
+a query or call-chain walk runs, the results table carries a loading
+overlay; in the index monitor, busy rows animate with an elapsed-time
+note line (frames ported from ratatui-spinner's FluxFrames).
 
 ## Database screen (`d` / alt+`d`)
 

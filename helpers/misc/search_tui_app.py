@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 
 from rich.markdown import Markdown
 from rich.markup import escape
@@ -78,12 +79,13 @@ from helpers.misc.search_tui import (
     next_theme,
     open_command,
     parse_gate_report,
-    parse_integrity_report,
+    parse_integrity_runs,
+    integrity_verdict,
     parse_perf_report,
-    parse_verify_report,
+    parse_verify_runs,
     report_rerun_argv,
     report_run_spans,
-    report_verb_for_path,
+    report_where_label,
     run_lane,
     save_theme_name,
 )
@@ -136,6 +138,15 @@ def _fmt_age(age: object) -> str:
     )
 
 
+# ratatui-spinner FluxFrames::CLASSIC ported verbatim (proposal
+# search_tui_ux_pass A2): the screen owns the clock
+# (set_interval) and renders one frame per tick, exactly like the
+# crate's application-owned tick counter.
+FLUX_CLASSIC = ("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏")
+_IDX_NOTE_HINT = "check = is the index current · rebuild = re-index it (notes writes research.db)"
+_BUSY_PHASES = ("queued", "checking", "rebuilding")
+
+
 class IndexMonitor(ModalScreen[None]):
     """search-fresh surfaced: store ages, deep checks, targeted rebuilds.
 
@@ -153,11 +164,17 @@ class IndexMonitor(ModalScreen[None]):
         ("q", "dismiss_monitor", "close"),
     ]
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._busy: dict[str, str] = {}  # index name -> busy phase
+        self._phase_t0: dict[str, float] = {}  # index name -> phase start (monotonic)
+        self._tick = 0  # animation tick, advanced only while busy
+
     def compose(self) -> ComposeResult:
         with Vertical(id="idx-box"):
             yield DataTable(id="idx-table", cursor_type="row", zebra_stripes=True)
             yield Static(
-                "check = is the index current · rebuild = re-index it (notes writes research.db)",
+                _IDX_NOTE_HINT,
                 id="idx-note",
             )
             yield Static(
@@ -176,6 +193,28 @@ class IndexMonitor(ModalScreen[None]):
         table.add_column("age", width=7)
         table.add_column("state", width=13)
         self._fill(index_rows(REPO_ROOT))
+        # animation clock (A2): advances busy rows; idle ticks early-return
+        self.set_interval(1 / 12, self._spin)
+
+    def _spin(self) -> None:
+        if not self._busy:
+            return
+        frame = FLUX_CLASSIC[self._tick % len(FLUX_CLASSIC)]
+        self._tick += 1
+        for name, phase in self._busy.items():
+            self._write_state(name, f"{frame} {phase}…")
+        self._update_note()
+
+    def _update_note(self) -> None:
+        """Live line while busy (A3): active ops + elapsed since the
+        oldest phase start; restores the static hint when idle."""
+        note = self.query_one("#idx-note", Static)
+        if not self._busy:
+            note.update(_IDX_NOTE_HINT)
+            return
+        elapsed = int(time.monotonic() - min(self._phase_t0.values()))
+        parts = [f"{phase} {name}" for name, phase in self._busy.items()]
+        note.update(f"{' · '.join(parts)} · {elapsed // 60}:{elapsed % 60:02d} elapsed")
 
     def _fill(self, rows: list[dict[str, object]]) -> None:
         table = self.query_one("#idx-table", DataTable)
@@ -197,35 +236,72 @@ class IndexMonitor(ModalScreen[None]):
             return None
         return str(row[0]) if row else None
 
-    def _set_state(self, name: str, verdict: str) -> None:
+    def _write_state(self, name: str, text: str) -> None:
         table = self.query_one("#idx-table", DataTable)
         for i in range(table.row_count):
             if str(table.get_row_at(i)[0]) == name:
-                table.update_cell_at(Coordinate(i, 3), verdict)  # type: ignore[arg-type]
+                table.update_cell_at(Coordinate(i, 3), text)  # type: ignore[arg-type]
                 break
+
+    def _set_state(self, name: str, verdict: str) -> None:
+        """Workers' single funnel: a busy phase claims the row (the _spin
+        timer owns the animated cell); a verdict releases it."""
+        if verdict in _BUSY_PHASES:
+            self._busy[name] = verdict
+            self._phase_t0[name] = time.monotonic()
+            self._update_note()
+            return
+        self._busy.pop(name, None)
+        self._phase_t0.pop(name, None)
+        self._write_state(name, verdict)
         if name == "notes":
             self.query_one("#idx-note", Static).set_classes("stale" if verdict == "STALE" else "")
+        self._update_note()
+
+    def _claim(self, names: list[str]) -> list[str]:
+        """Synchronously claim the not-busy names (A4): two presses in one
+        pump cycle must not double-spawn parallel embedder rebuilds."""
+        pending = [n for n in names if n not in self._busy]
+        for n in pending:
+            self._set_state(n, "queued")
+        return pending
 
     def action_check_one(self) -> None:
         name = self._selected_index()
-        if name is not None:
-            self._check_worker([name])
+        if name is None:
+            return
+        pending = self._claim([name])
+        if pending:
+            self._check_worker(pending)
+        else:
+            self.app.notify(f"{name} is busy — wait or close", severity="warning")
 
     def action_check_all(self) -> None:
-        self._check_worker([n for n, _, _ in INDEXES])
+        pending = self._claim([n for n, _, _ in INDEXES])
+        if pending:
+            self._check_worker(pending)
 
     def action_refresh_one(self) -> None:
         name = self._selected_index()
-        if name is not None:
-            self._refresh_worker([name])
+        if name is None:
+            return
+        pending = self._claim([name])
+        if pending:
+            self._refresh_worker(pending)
+        else:
+            self.app.notify(f"{name} is busy — wait or close", severity="warning")
 
     def action_refresh_all(self) -> None:
-        self._refresh_worker([n for n, _, _ in INDEXES])
+        pending = self._claim([n for n, _, _ in INDEXES])
+        if pending:
+            self._refresh_worker(pending)
+        else:
+            self.app.notify("all indexes busy — wait or close", severity="warning")
 
     @work(thread=True, exclusive=False)
     def _check_worker(self, names: list[str]) -> None:
         for name in names:
-            self.app.call_from_thread(self._set_state, name, "checking…")
+            self.app.call_from_thread(self._set_state, name, "checking")
             argv = index_check_argv(name)
             verdict = "no checker"
             if argv is not None:
@@ -245,7 +321,7 @@ class IndexMonitor(ModalScreen[None]):
             argv = index_refresh_argv(name)
             if argv is None:
                 continue
-            self.app.call_from_thread(self._set_state, name, "rebuilding…")
+            self.app.call_from_thread(self._set_state, name, "rebuilding")
             try:
                 subprocess.run(  # noqa: S603 — repo-local script, fixed argv
                     argv, capture_output=True, text=True, timeout=3600, cwd=REPO_ROOT
@@ -253,7 +329,7 @@ class IndexMonitor(ModalScreen[None]):
             except OSError, subprocess.TimeoutExpired:
                 self.app.call_from_thread(self._set_state, name, "rebuild FAILED")
                 continue
-            self.app.call_from_thread(self._set_state, name, "checking…")
+            self.app.call_from_thread(self._set_state, name, "checking")
             chk = index_check_argv(name)
             verdict = "fresh"
             if chk is not None:
@@ -344,14 +420,17 @@ def _sev_style(status: str) -> str:
 
 
 class ReportScreen(ModalScreen[None]):
-    """Comprehensive report view: summary table (left) + detail pane (right).
+    """Comprehensive report view: run tree (left) + detail pane (right).
 
-    Gate/perf reports list runs most-recent-first with their steps;
-    integrity/verify list the latest run's checks/issues. Enter drills
-    the selected row into the detail pane (markdown-rendered file slice);
-    ``r`` reruns the row's report; ``i`` opens the index monitor.
-    Follows the IndexMonitor skeleton; enter is stopped so the hit
-    behind the modal never opens.
+    Main and worktree report copies list as separate sources
+    (``qa`` / ``qa@graph_algos``); ``rel`` scopes the screen to one file.
+    Gate/perf runs appear most-recent-first as COLLAPSED tree nodes —
+    enter expands a run and drills the row into the detail pane
+    (markdown-rendered file slice); integrity/verify group the latest
+    run's checks/issues under one parent. ``r`` reruns the row's report
+    (main copies only — worktree copies must be rerun in their
+    worktree); ``i`` opens the index monitor. Enter is stopped so the
+    hit behind the modal never opens.
     """
 
     BINDINGS = [
@@ -361,25 +440,27 @@ class ReportScreen(ModalScreen[None]):
         ("q", "dismiss_report", "close"),
     ]
 
-    def __init__(self, report: str | None = None) -> None:
+    def __init__(self, report: str | None = None, rel: str | None = None) -> None:
         super().__init__()
         self._report = report if report in REPORT_NAMES else None
+        self._rel = rel  # scope to one file (main or worktree copy)
         self._rows: list[dict[str, object]] = []
 
     def compose(self) -> ComposeResult:
         with Vertical(id="rep-box"):
             with Horizontal(id="rep-body"):
-                yield DataTable(id="rep-table", cursor_type="row", zebra_stripes=True)
+                yield Tree("reports", id="rep-tree")
                 yield RichLog(id="rep-detail", markup=True, wrap=True, max_lines=4000, min_width=1)
-            yield Static("enter drills · r reruns report · i indexes · esc close", id="rep-keys")
+            yield Static(
+                "enter expands/drills · r reruns report · i indexes · esc close", id="rep-keys"
+            )
             yield Footer()
 
     def on_mount(self) -> None:
-        table = self.query_one("#rep-table", DataTable)
-        table.border_title = "reports — comprehensive view"
-        table.add_column("item", width=40)
-        table.add_column("severity", width=10)
-        table.add_column("summary", width=44)
+        tree = self.query_one("#rep-tree", Tree)
+        tree.border_title = "reports — runs (collapsed) · enter expands"
+        tree.show_root = False
+        tree.root.expand()
         self._fill()
 
     # -- fill ----------------------------------------------------------
@@ -393,34 +474,76 @@ class ReportScreen(ModalScreen[None]):
         from helpers.misc import search_tui as _tui
 
         self._rows = []
-        names = [self._report] if self._report else list(REPORT_NAMES)
-        for name in names:
-            rel = next(r for n, r, _ in _tui._REPORTS if n == name)
+        files = _tui.report_files()  # main copies + outputs/wt/<name>/ copies
+        if self._rel:
+            files = [f for f in files if f[1] == self._rel]
+        elif self._report:
+            files = [f for f in files if f[0] == self._report]
+        for name, rel, kind in files:
+            disp = _tui._report_display(name, rel)
             p = REPO_ROOT / rel
-            if not p.exists():
-                continue
-            kind = next(k for n, _, k in _tui._REPORTS if n == name)
             if kind in ("gate", "perf"):
-                self._fill_runs(name, rel, kind, p)
+                self._fill_runs(disp, rel, kind, p)
             elif kind == "integrity":
-                self._fill_checks(name, rel, p)
+                self._fill_checks(disp, rel, p)
             else:
-                self._fill_issues(name, rel, p)
-        table = self.query_one("#rep-table", DataTable)
-        table.clear()
-        for i, row in enumerate(self._rows):
-            style = _sev_style(str(row["sev"]))
-            item = Text(str(row["item"]))
-            if style:
-                item.stylize(style)
-            table.add_row(item, str(row["sev"]), str(row["summary"])[:44], key=str(i))
-        self._detail(f"{len(self._rows)} rows · enter drills · r reruns")
+                self._fill_issues(disp, rel, p)
+        self._render_tree()
+        self._detail(f"{len(self._rows)} rows · enter expands/drills · r reruns")
+
+    def _sev_styles(self) -> dict[str, str]:
+        """C3: severity colors resolve from the ACTIVE Textual theme's
+        design tokens (green pass / themed warn+error); static map is the
+        fallback. The loading overlay follows $primary/$boost by default."""
+        try:
+            t = self.app.current_theme
+            return {
+                "ERROR": str(t.error),
+                "FAIL": str(t.error),
+                "WARNING": str(t.warning),
+                "OK": str(t.success),
+                "SKIP": "dim",
+            }
+        except Exception:  # noqa: BLE001 — cosmetic only
+            return dict(_SEV_STYLE)
+
+    def _render_tree(self) -> None:
+        """Runs as collapsed top-level nodes; steps nested under their run;
+        integrity/verify rows grouped one parent per report copy."""
+        tree = self.query_one("#rep-tree", Tree)
+        tree.clear()
+        styles = self._sev_styles()
+        run_parent = None
+        group_parent = None
+        group_key = ""
+        for row in self._rows:
+            up = str(row["sev"]).upper()
+            style = ""
+            for key in ("ERROR", "FAIL", "WARNING", "OK", "SKIP"):
+                if key in up:
+                    style = styles[key]
+                    break
+            label = Text(str(row["item"]), style=style) if style else str(row["item"])
+            kind = str(row["kind"])
+            if kind == "run":
+                run_parent = tree.root.add(label, data=row)  # collapsed by default
+            elif kind in ("step", "issue", "check") and run_parent is not None:
+                run_parent.add(label, data=row)
+            else:  # check rows: one parent per report copy
+                key = f"{row.get('report')}/{row.get('path')}"
+                if group_parent is None or key != group_key:
+                    group_parent = tree.root.add(str(row.get("report", "report")), data=None)
+                    group_key = key
+                group_parent.add(label, data=row)
+        if tree.root.children:
+            tree.cursor_line = 0
 
     def _fill_runs(self, name: str, rel: str, kind: str, p: Path) -> None:
         parse = parse_gate_report if kind == "gate" else parse_perf_report
         for b in list(reversed(parse(p)))[:_REP_RUNS_PER_REPORT]:
+            took = f" · {b.elapsed:.0f}s" if b.elapsed is not None else ""
             self._add(
-                f"── {name} · {b.timestamp or 'unknown'} ──",
+                f"── {name} · {b.timestamp or 'unknown'}{took} ──",
                 "RUN",
                 b.summary,
                 kind="run",
@@ -429,10 +552,11 @@ class ReportScreen(ModalScreen[None]):
                 stamp=b.timestamp,
             )
             for s in b.steps:
+                secs = "" if s.seconds is None else f"{s.seconds:.2f}s · "
                 self._add(
-                    s.label,
+                    f"{s.label} · {secs}{s.status}",
                     s.status,
-                    f"{'' if s.seconds is None else f'{s.seconds:.2f}s · '}{b.summary}",
+                    b.summary,
                     kind="step",
                     report=name,
                     path=rel,
@@ -441,43 +565,71 @@ class ReportScreen(ModalScreen[None]):
                 )
 
     def _fill_checks(self, name: str, rel: str, p: Path) -> None:
-        for r in parse_integrity_report(p):
+        """Integrity history as run rows (most recent first, collapsed),
+        each run's checks nested with a compact verdict label."""
+        runs = list(reversed(parse_integrity_runs(p)))[:_REP_RUNS_PER_REPORT]
+        for run in runs:
+            verdicts = [integrity_verdict(r.severity, r.summary) for r in run.rows]
+            n_err = verdicts.count("ERROR")
+            n_warn = verdicts.count("WARNING")
+            sev = "ERROR" if n_err else ("WARNING" if n_warn else "OK")
             self._add(
-                r.name,
-                r.severity,
-                r.summary,
-                kind="check",
+                f"── {name} · {run.timestamp or 'unknown'} · {len(run.rows)} checks"
+                f" · {n_err}E/{n_warn}W ──",
+                sev,
+                f"{n_err} failing · {n_warn} warnings",
+                kind="run",
                 report=name,
                 path=rel,
-                needle=f"## {r.name}",
+                stamp=run.timestamp,
             )
+            for r, verdict in zip(run.rows, verdicts, strict=True):
+                # compact verdict: the "-> errors=N" tail when present,
+                # else the summary head — full text stays in the detail pane
+                tail = r.summary.split("-> ")[-1] if "-> " in r.summary else r.summary
+                tail = tail if len(tail) <= 56 else tail[:55] + "…"
+                self._add(
+                    f"{r.name} — {tail}",
+                    verdict,
+                    r.summary,
+                    kind="check",
+                    report=name,
+                    path=rel,
+                    stamp=run.timestamp,
+                    needle=f"## {r.name}",
+                )
 
     def _fill_issues(self, name: str, rel: str, p: Path) -> None:
-        from helpers.misc import search_tui as _tui
-
-        d = parse_verify_report(p)
-        self._add(
-            f"{name} — {d.get('total_files', 0)} files",
-            "RUN",
-            f"{d.get('errors', 0)} errors · {d.get('warnings', 0)} warnings",
-            kind="run",
-            report=name,
-            path=rel,
-            stamp="",
-        )
-        hits: list[Hit] = []
-        lines = p.read_text(encoding="utf-8", errors="replace").splitlines()
-        _tui._run_verify_hits(name, rel, lines, "", 100, hits)
-        for h in hits:
+        """Verify history as run rows (most recent first, collapsed in the
+        tree) with each run's issues nested under it."""
+        runs = list(reversed(parse_verify_runs(p)))[:_REP_RUNS_PER_REPORT]
+        for r in runs:
+            sev = (
+                "RUN"
+                if r.errors == 0 and r.warnings == 0
+                else ("WARNING" if r.errors == 0 else "ERROR")
+            )
             self._add(
-                h.title,
-                "ISSUE",
-                h.snippet,
-                kind="issue",
+                f"── {name} · {r.timestamp or 'unknown'} · {r.total_files} files"
+                f" · {r.errors}E/{r.warnings}W ──",
+                sev,
+                f"{len(r.issues)} issues",
+                kind="run",
                 report=name,
                 path=rel,
-                needle=h.snippet[:40],
+                stamp=r.timestamp,
             )
+            for iss in r.issues[:20]:
+                self._add(
+                    iss.bucket,
+                    "ISSUE",
+                    iss.detail,
+                    kind="issue",
+                    report=name,
+                    path=rel,
+                    stamp=r.timestamp,
+                    needle=iss.detail[:40],
+                )
 
     # -- detail ----------------------------------------------------------
 
@@ -515,21 +667,26 @@ class ReportScreen(ModalScreen[None]):
         return "\n".join(lines[start - 1 : end]) or "(empty section)"
 
     def _selected_row(self) -> dict[str, object] | None:
-        table = self.query_one("#rep-table", DataTable)
-        idx = table.cursor_row
-        return self._rows[idx] if 0 <= idx < len(self._rows) else None
+        tree = self.query_one("#rep-tree", Tree)
+        node = tree.cursor_node
+        if node is not None and isinstance(node.data, dict):
+            return node.data
+        return None
 
-    def on_data_table_row_highlighted(self, event: DataTable.RowHighlighted) -> None:
-        self._drill(event.cursor_row, preview_only=True)
+    def on_tree_node_highlighted(self, event: Tree.NodeHighlighted[object]) -> None:
+        if isinstance(event.node.data, dict):
+            self._drill_row(event.node.data)
 
-    def on_data_table_row_selected(self, event: DataTable.RowSelected) -> None:
+    def on_tree_node_selected(self, event: Tree.NodeSelected[object]) -> None:
         event.stop()  # enter here must NOT open the underlying hit behind the modal
-        self._drill(event.cursor_row)
+        # NOTE: Textual's auto_expand already toggles parent nodes on enter
+        # (space toggles too) — toggling here as well double-fired and the
+        # node collapsed instantly (the "flash" bug).
+        node = event.node
+        if isinstance(node.data, dict):
+            self._drill_row(node.data)
 
-    def _drill(self, idx: int, preview_only: bool = False) -> None:
-        if not (0 <= idx < len(self._rows)):
-            return
-        row = self._rows[idx]
+    def _drill_row(self, row: dict[str, object]) -> None:
         try:
             text = self._slice(
                 str(row["path"]), str(row.get("needle", "")), str(row.get("stamp", ""))
@@ -548,13 +705,27 @@ class ReportScreen(ModalScreen[None]):
 
     def action_rerun_report(self) -> None:
         row = self._selected_row()
-        name = str((row or {}).get("report", "") or self._report or "")
+        if row is None:
+            self.app.notify("select a report row first", severity="warning")
+            return
+        rel = str(row.get("path", ""))
+        if rel.startswith("outputs/wt/"):
+            # worktree copy — regenerating it from the main repo would
+            # clobber nothing but report a misleading PASS
+            self.app.notify("worktree copy — rerun from its worktree", severity="warning")
+            return
+        name = str(row.get("report", "") or self._report or "")
         argv = report_rerun_argv(name) if name else None
         if argv is None:
             self.app.notify("select a report row first", severity="warning")
             return
         self._detail(f"rerunning `{name}`…")
+        self._set_tree_loading(True)
         self._rerun_worker(name, argv)
+
+    def _set_tree_loading(self, on: bool) -> None:
+        """C2: busy overlay on the run tree while a rerun executes."""
+        self.query_one("#rep-tree", Tree).loading = on
 
     @work(thread=True, exclusive=True)
     def _rerun_worker(self, name: str, argv: list[str]) -> None:
@@ -564,11 +735,13 @@ class ReportScreen(ModalScreen[None]):
             )
             ok = r.returncode == 0
         except (OSError, subprocess.TimeoutExpired) as e:
+            self.app.call_from_thread(self._set_tree_loading, False)
             self.app.call_from_thread(self.app.notify, f"rerun failed: {e}", severity="error")
             return
         self.app.call_from_thread(self._rerun_done, name, ok)
 
     def _rerun_done(self, name: str, ok: bool) -> None:
+        self._set_tree_loading(False)
         self.app.notify(f"rerun {name}: {'PASS' if ok else 'FAIL'}")
         self._fill()
 
@@ -721,6 +894,9 @@ class DbScreen(ModalScreen[None]):
         self._hist_idx = len(self._hist)
         self._status = f"running on {self._store}…"
         self.query_one("#db-status", Static).update(self._status)
+        # C1: busy overlay over the results grid while the worker runs —
+        # same LoadingIndicator language as the main search lane (A1)
+        self.query_one("#db-results", DataTable).loading = True
         self._query_worker(self._store, sql)
 
     def on_tree_node_selected(self, event: Tree.NodeSelected) -> None:
@@ -747,6 +923,7 @@ class DbScreen(ModalScreen[None]):
         self.app.call_from_thread(self._query_done, res)
 
     def _query_done(self, res: DbResult) -> None:
+        self.query_one("#db-results", DataTable).loading = False
         if res.error is not None:
             self._res_columns, self._res_rows = [], []
             self._status = f"error · {res.error} ({res.elapsed_ms:.0f} ms)"
@@ -996,7 +1173,7 @@ class SearchApp(App[None]):
     #theme-keys { color: $text-muted; }
     ReportScreen { align: center middle; }
     #rep-box { border: round $accent; background: $surface; width: 118; height: 30; }    #rep-body { height: 1fr; }
-    #rep-table { width: 7fr; }
+    #rep-tree { width: 7fr; }
     #rep-detail { width: 5fr; }
     #rep-keys { color: $text-muted; }
     DbScreen { align: center middle; }
@@ -1182,8 +1359,15 @@ class SearchApp(App[None]):
         self._chain_sym = None
         self._terms = [t for t in re.split(r"\W+", q) if len(t) > 2]
         self._gen += 1
+        self._set_busy(True)
         self._w_status.update(f"querying {self._lane} ({self._mode})…")
         self._query_worker(q, self._lane, self._limit, self._gen, self._mode)
+
+    def _set_busy(self, on: bool) -> None:
+        """A1: LoadingIndicator overlay over the results table while a
+        worker runs; the _gen guard keeps stale applies from clearing a
+        newer query's busy state."""
+        self._w_table.loading = on
 
     @work(thread=True, exclusive=True)
     def _query_worker(self, q: str, lane: str, limit: int, gen: int, mode: str) -> None:
@@ -1200,6 +1384,7 @@ class SearchApp(App[None]):
         _evlog(f"apply gen={gen} cur={self._gen} n={len(hits)} {status[:50]}")
         if gen != self._gen:
             return  # a newer query already landed
+        self._set_busy(False)
         self._raw_status = status
         first_results = not self._hits and bool(hits)
         self._hits = hits
@@ -1213,9 +1398,13 @@ class SearchApp(App[None]):
             title_w = 40
         self._w_table.columns[self._w_title_key].width = title_w
         for i, hit in enumerate(hits):
-            where = f"{hit.path}{':' + str(hit.line) if hit.line else ''}"
-            if len(where) > 30:
-                where = "…" + where[-29:]
+            if hit.lane == "reports":
+                # compact + differentiating: qa:6098 vs graph_algos/qa:6098
+                where = report_where_label(hit.path, hit.line)
+            else:
+                where = f"{hit.path}{':' + str(hit.line) if hit.line else ''}"
+                if len(where) > 30:
+                    where = "…" + where[-29:]
             score = "" if hit.score is None else f"{hit.score:.2f}"
             # first column = the informative text: title, else the matched
             # line (literal/rg rows), else the kind
@@ -1261,7 +1450,8 @@ class SearchApp(App[None]):
                 self._chain_worker(hit.title)
                 return
             if self._lane == "reports" and hit.kind == "overview":
-                self.push_screen(ReportScreen(report_verb_for_path(hit.path)))
+                # scope to the row's file — main or a specific worktree copy
+                self.push_screen(ReportScreen(rel=hit.path))
                 return
         self._open()
 
@@ -1345,13 +1535,14 @@ class SearchApp(App[None]):
         self.push_screen(IndexMonitor())
 
     def action_report_screen(self) -> None:
-        """V: comprehensive report view (preselected when on an overview row)."""
-        preselect: str | None = None
+        """V: comprehensive report view — scoped to the selected row's file
+        when in the reports lane (main or worktree copy), else all reports."""
+        rel: str | None = None
         if self._lane == "reports":
             hit = self._selected()
-            if hit is not None and hit.kind == "overview":
-                preselect = report_verb_for_path(hit.path)
-        self.push_screen(ReportScreen(preselect))
+            if hit is not None:
+                rel = hit.path
+        self.push_screen(ReportScreen(rel=rel))
 
     def action_theme_picker(self) -> None:
         self.push_screen(ThemeScreen())
@@ -1519,6 +1710,7 @@ class SearchApp(App[None]):
             return
         self._push_view()
         self._chain_sym = sym
+        self._set_busy(True)
         self._w_status.update(f"call chain: {sym}…")
         self._chain_worker(sym)
 
@@ -1530,6 +1722,7 @@ class SearchApp(App[None]):
             import traceback
 
             _evlog(f"chain CRASH {sym}: {e}\n{traceback.format_exc()}")
+            self.call_from_thread(self._set_busy, False)
             self.call_from_thread(self.notify, f"call chain failed: {e}")
             return
         self.call_from_thread(self._show_chain, chain)

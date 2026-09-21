@@ -321,7 +321,6 @@ Deliberately NOT moved:
 - `findata/Misc/quote_triage_report.md`, `findata/Misc/_pending_triage_report.md` — pipeline state queues, not run reports.
 - `Mojo/bench/bench_report.txt` — Mojo subsystem bench, separate lane.
 - `metrics_report.txt` / `relations_report.txt` historical mentions in `doc/improvements/archive/*` and `doc/improvements/completed.md` — history, left alone.
-- `doc/local/engineering/tui_improvs.md` (other worktree) — earlier design record; this proposal is now the canonical spec.
 
 Verification (2026-09-17): 149 tests (maint/gate/search_tui/verify/integration_maint) + 137 enrich tests pass; ruff/ty/md-lint clean; `make search-fresh APPLY=1` green; live `verify_notes` + `integrity_check` runs created `outputs/` with correct headers.
 

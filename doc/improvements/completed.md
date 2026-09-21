@@ -6950,3 +6950,31 @@ Gates: `--quick` 0.57 s best-of-3 vs 7.34 s full `--check` (~13×
 faster signal), both pairs OK; 22 snapshot tests green; qa
 `snapshot-fresh` step green 1.24 s in the 14:07 run; operator ran
 `make perf` / `make advisory` manually, all clear.
+
+## 265. search_tui UX pass — busy indicators, live report panels, index-monitor feedback
+
+**Proposal**: `doc/improvements/archive/tooling/search_tui_ux_pass.md`
+(filed 2026-09-21, executed 2026-09-22).
+
+One umbrella arc over the TUI's three silent surfaces. A: query/
+call-chain busy overlay on the results table (`Widget.loading`,
+generation-guarded) + IndexMonitor row spinners (ratatui-spinner
+`FluxFrames::CLASSIC` ported verbatim; screen-owned 12 fps clock) with
+a live phase+elapsed note line and a synchronous `_claim` busy-guard —
+closing the double-`R` parallel-embedder hazard. B: report panel —
+timed headers parsed (`**Started/Elapsed**` between Generated and
+Python had blanked every new run to "unknown"; `RunBlock.elapsed`
+added), worktree copies listed separately (`qa@graph_algos`, compact
+where labels, `V` scoped to the row's file), the DataTable panel became
+a collapsed run Tree (enter expands — Textual auto_expand, no manual
+double-toggle), verify (54 runs) + integrity gained multi-run parsing,
+and writer append-at-tail is pinned by tests (perf writer extracted
+from `main`). C: DbScreen + rerun loading overlays, theme-aware
+severity colors (green pass), integrity colors from actual
+`errors=/warnings=` counters — not the declared section level.
+
+Gates: 77 targeted tests green (search_tui + append-convention +
+format-footprint); ruff + ty + md-lint + lint-audit clean; operator
+ran `make perf` OK; qa's md-lint (1 bare URL in a doc/local note) and
+pytest (ruff-format footprint on 4 touched files) fixed in the same
+arc; `make search-fresh APPLY=1` converged.
