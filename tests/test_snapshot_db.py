@@ -465,3 +465,72 @@ def test_run_snapshot_reuses_embed_store_zst_when_unchanged(tmp_path):
         assert store_zst.read_bytes() != first_bytes
     finally:
         VS.EMBED_DB_PATH = saved
+
+
+# ---------------------------------------------------------------------------
+# --quick generation freshness (snapshot_fresh_gate S1)
+# ---------------------------------------------------------------------------
+def _seed_quick_pair(tmp_path, gen="7"):
+    """Live sqlite + live duckdb + snapshot parquets, all at one generation."""
+    import duckdb
+
+    live_db = tmp_path / "live.db"
+    con = sqlite3.connect(live_db)
+    con.execute("CREATE TABLE db_meta (key TEXT, value TEXT)")
+    con.execute("INSERT INTO db_meta VALUES ('generation', ?)", (gen,))
+    con.commit()
+    con.close()
+    live_dd = tmp_path / "live.duckdb"
+    con = duckdb.connect(str(live_dd))
+    con.execute("CREATE TABLE _build_meta (key VARCHAR, value VARCHAR)")
+    con.execute("INSERT INTO _build_meta VALUES ('generation', ?)", [gen])
+    con.close()
+    snap_base = tmp_path / "snap"
+    (snap_base / "sqlite").mkdir(parents=True)
+    (snap_base / "duckdb").mkdir(parents=True)
+    con = duckdb.connect()
+    # NOTE: COPY TO cannot take a ? path parameter in this DuckDB build
+    # (silently writes nowhere) — f-string with noqa, fixture-local tmp
+    # path only (same pattern as test_analytics.py / test_snapshot.py).
+    con.execute(  # noqa: S608  # fixture-local tmp path
+        f"COPY (SELECT 'generation' AS key, '{gen}' AS value) TO '{snap_base / 'sqlite' / 'db_meta.parquet'}'"
+    )
+    con.execute(  # noqa: S608  # fixture-local tmp path
+        f"COPY (SELECT 'generation' AS key, '{gen}' AS value) TO '{snap_base / 'duckdb' / '_build_meta.parquet'}'"
+    )
+    con.close()
+    return live_db, live_dd, snap_base
+
+
+def test_quick_green_on_fresh_tree(tmp_path, caplog):
+    from helpers.maintenance.snapshot_db import _cmd_quick
+
+    live_db, live_dd, snap_base = _seed_quick_pair(tmp_path)
+    with caplog.at_level(logging.INFO, logger="snapshot_db"):
+        assert _cmd_quick(snap_base, live_db, live_dd, logging.getLogger("snapshot_db")) == 0
+    assert "sqlite generation: live=7 snapshot=7 -> OK" in caplog.text
+    assert "duckdb generation: live=7 snapshot=7 -> OK" in caplog.text
+
+
+def test_quick_fails_with_remediation_on_drift(tmp_path, caplog):
+    from helpers.maintenance.snapshot_db import _cmd_quick
+
+    live_db, live_dd, snap_base = _seed_quick_pair(tmp_path)
+    con = sqlite3.connect(live_db)
+    con.execute("UPDATE db_meta SET value='8' WHERE key='generation'")
+    con.commit()
+    con.close()
+    with caplog.at_level(logging.INFO, logger="snapshot_db"):
+        assert _cmd_quick(snap_base, live_db, live_dd, logging.getLogger("snapshot_db")) == 1
+    assert "sqlite generation: live=8 snapshot=7 -> MISMATCH" in caplog.text
+    assert "run make snapshot" in caplog.text
+
+
+def test_quick_fail_closed_on_missing_snapshot(tmp_path, caplog):
+    from helpers.maintenance.snapshot_db import _cmd_quick
+
+    live_db, live_dd, snap_base = _seed_quick_pair(tmp_path)
+    (snap_base / "sqlite" / "db_meta.parquet").unlink()
+    with caplog.at_level(logging.INFO, logger="snapshot_db"):
+        assert _cmd_quick(snap_base, live_db, live_dd, logging.getLogger("snapshot_db")) == 1
+    assert "snapshot=None" in caplog.text

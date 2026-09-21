@@ -142,6 +142,10 @@ GATES: dict[str, Gate] = {
             Step("pytest", (_PY, "-m", "pytest", "-m", "not live", "-n", "auto")),
             Step("verify_notes", (_PY, "helpers/validators/verify_notes.py")),
             Step("integrity_check", (_PY, "helpers/misc/database_integrity_check.py")),
+            # snapshot_fresh_gate: generation-only freshness first — drift
+            # fails here in ~0.3 s with the exact remediation instead of
+            # MISMATCH archaeology 7 s into snapshot_check.
+            Step("snapshot-fresh", (_PY, "helpers/maintenance/snapshot_db.py", "--quick")),
             Step("snapshot_check", (_PY, "helpers/maintenance/snapshot_db.py", "--check")),
         ),
     ),

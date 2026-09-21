@@ -151,7 +151,7 @@ def _porcelain_rels() -> set[str] | None:
     """
     try:
         proc = subprocess.run(
-            ["git", "status", "--porcelain=v1", "--untracked-files=all"],
+            ["git", "status", "--porcelain=v1", "--untracked-files=all"],  # noqa: S607  # PATH-resolved binary by design (same as node/python3 call sites)
             cwd=REPO_ROOT,
             capture_output=True,
             text=True,

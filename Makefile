@@ -82,6 +82,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  secret-scan              Incremental git-history secret scan (state under .git/secret-scan/)"
 > @echo "  snapshot                 Refresh the versioned DB snapshot"
 > @echo "  snapshot-check           Verify the snapshot round-trips against the live DB"
+> @echo "  snapshot-fresh           Generation-only snapshot freshness (fail fast on drift; fix: make snapshot)"
 > @echo "  snapshot-restore         Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)"
 > @echo "  static-checks            Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)"
 > @echo "  suggest-relations        Print link-prediction relation suggestions (C2; append with --append)"
@@ -161,6 +162,9 @@ hif-export:    ## Export the hypergraph in HIF (snapshots/hif/; SOURCES=..., OUT
 
 snapshot-check: ## Verify the snapshot round-trips against the live DB
 > python3 helpers/maintenance/snapshot_db.py --check
+
+snapshot-fresh: ## Generation-only snapshot freshness (fail fast on drift)
+> python3 helpers/maintenance/snapshot_db.py --quick
 
 snapshot-restore: ## Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)
 > python3 helpers/maintenance/snapshot_db.py --restore --force

@@ -211,6 +211,45 @@ def scan_arrow_violations(scope: set[Path] | None = None) -> dict[str, str]:
     return out
 
 
+def _scoped_scan_rels(scope: set[Path]) -> set[str]:
+    """Rels scanned this run: scope members under the scan roots.
+
+    Full runs (scope None) scan everything — represented as None by the
+    caller, meaning every baseline key is checkable.
+    """
+    scanned = set()
+    for p in scope:
+        if p.suffix != ".py" or not p.is_file():
+            continue
+        try:
+            rel = p.relative_to(PROJECT_ROOT).as_posix()
+        except ValueError:
+            continue
+        if p == PROJECT_ROOT / "app.py" or rel.startswith("helpers/"):
+            scanned.add(rel)
+    return scanned
+
+
+def _check_baseline_hygiene(
+    z: dict[str, str],
+    a: dict[str, str],
+    scanned: set[str] | None,
+    fatal: list[str],
+) -> None:
+    """Baseline hygiene: entries whose site no longer offends must be removed.
+
+    A key is checkable only when its file was scanned this run (full runs
+    scan everything; scoped runs scan the scope) — an unscanned file
+    can't prove staleness, so its keys defer to full runs.
+    """
+    for key in _ZSTD_BASELINE:
+        if key not in z and _key_scanned(key, scanned):
+            fatal.append(f"stale _ZSTD_BASELINE entry: {key} (site is clean — remove)")
+    for key in _ARROW_BASELINE:
+        if key not in a and _key_scanned(key, scanned):
+            fatal.append(f"stale _ARROW_BASELINE entry: {key} (site is clean — remove)")
+
+
 def check_data_format(scope: set[Path] | None = None) -> tuple[list[str], list[str]]:
     """static_checks entry: (fatal, advisory).
 
@@ -224,19 +263,7 @@ def check_data_format(scope: set[Path] | None = None) -> tuple[list[str], list[s
     advisory: list[str] = []
     z = scan_zstd_violations(scope)
     a = scan_arrow_violations(scope)
-    if scope is None:
-        scanned: set[str] | None = None  # full run: every key checkable
-    else:
-        scanned = set()
-        for p in scope:
-            if p.suffix != ".py" or not p.is_file():
-                continue
-            try:
-                rel = p.relative_to(PROJECT_ROOT).as_posix()
-            except ValueError:
-                continue
-            if p == PROJECT_ROOT / "app.py" or rel.startswith("helpers/"):
-                scanned.add(rel)
+    scanned = None if scope is None else _scoped_scan_rels(scope)
     for key, desc in z.items():
         if key in _ZSTD_BASELINE:
             advisory.append(f"zstd baseline: {key} — {_ZSTD_BASELINE[key]}")
@@ -248,16 +275,7 @@ def check_data_format(scope: set[Path] | None = None) -> tuple[list[str], list[s
             advisory.append(f"arrow baseline: {key} — {reason} ({exit_})")
         else:
             fatal.append(f"{key}: {desc}")
-    # Baseline hygiene: entries whose site no longer offends must be removed.
-    # A key is checkable only when its file was scanned this run (full runs
-    # scan everything; scoped runs scan the scope) — an unscanned file
-    # can't prove staleness, so its keys defer to full runs.
-    for key in _ZSTD_BASELINE:
-        if key not in z and _key_scanned(key, scanned):
-            fatal.append(f"stale _ZSTD_BASELINE entry: {key} (site is clean — remove)")
-    for key in _ARROW_BASELINE:
-        if key not in a and _key_scanned(key, scanned):
-            fatal.append(f"stale _ARROW_BASELINE entry: {key} (site is clean — remove)")
+    _check_baseline_hygiene(z, a, scanned, fatal)
     return fatal, advisory
 
 

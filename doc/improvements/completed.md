@@ -6908,3 +6908,45 @@ regression-tested.
 
 Gates: `make qa` 10/10; 376 tests green across 12 validator/maint
 suites; ruff/format/md-lint clean; search-fresh converges.
+
+## 263. Validator lint cleanup — two C901s and an S607 from the gate arcs
+
+**Proposal**: `doc/improvements/archive/tooling/validator_lint_cleanup.md`
+(filed 2026-09-21, executed 2026-09-21).
+
+The lint-audit reds were ours, not the app's: `check_data_format`
+C901 14 and `check_frontmatter_schema` C901 15, both inflated by the
+gate-latency extractions, plus an S607 on the `git status` call. S1
+split hygiene + scoped-rels out of `check_data_format`
+(`_check_baseline_hygiene`, `_scoped_scan_rels`); S2 split engine
+resolution + the per-dir walk out of `check_frontmatter_schema`
+(`_resolve_engine`, `_check_findata_dir`, also removing a duplicated
+findata-guard); S3 annotated the S607 per house pattern. Extraction
+only — verdicts untouched; the app's `search_tui_app.py` findings were
+already resolved operator-side.
+
+Gates: `ruff check --select S,UP,C901 .` 0 errors; `make lint-audit`
+green; 214 validator tests green; `make qa` pytest 10/11 with the
+single failure being the new-target help-guard (fixed with the echo
+line, guard suite 98 green since).
+
+## 264. Snapshot freshness pre-gate — fail fast on generation drift
+
+**Proposal**: `doc/improvements/archive/tooling/snapshot_fresh_gate.md`
+(filed 2026-09-21, executed 2026-09-21).
+
+Generation drift reddened two gates in one day, both diagnosed as
+generation-only (content verified OK). S1 added `--quick`:
+generation-only freshness over the sqlite pair (`db_meta`) and the
+DuckDB pair (`_build_meta`), fail-closed on missing/unreadable files,
+with a `run make snapshot` remediation pointer — and sqlite-pair
+coverage the full `--check` never had. S2 prepended a `snapshot-fresh`
+step to the qa recipe plus a `make snapshot-fresh` target. Fixture
+gotcha recorded: parameterized `COPY TO ?` silently writes nowhere
+(params leak positionally — stray files named after the values);
+fixtures use f-string + noqa per house pattern.
+
+Gates: `--quick` 0.57 s best-of-3 vs 7.34 s full `--check` (~13×
+faster signal), both pairs OK; 22 snapshot tests green; qa
+`snapshot-fresh` step green 1.24 s in the 14:07 run; operator ran
+`make perf` / `make advisory` manually, all clear.

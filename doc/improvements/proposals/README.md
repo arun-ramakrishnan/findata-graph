@@ -35,6 +35,18 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+_(Previously: snapshot_fresh_gate.md archived 2026-09-21 as
+completed.md entry 264 — snapshot freshness pre-gate:
+generation-only `--quick` over sqlite + DuckDB pairs with
+fail-closed semantics and remediation; qa `snapshot-fresh` step +
+target. Execution record in
+`../archive/tooling/snapshot_fresh_gate.md`.)_
+
+_(Previously: validator_lint_cleanup.md archived 2026-09-21 as
+completed.md entry 263 — validator lint cleanup: two C901 splits +
+S607 annotation, extraction-only. Execution record in
+`../archive/tooling/validator_lint_cleanup.md`.)_
+
 _(Previously: gate_latency_followups.md archived 2026-09-21 as
 completed.md entry 262 — gate-latency bundle: syntax/chokepoint/
 data_format/sqlite/js/shebang legs gated via py/js scopes with

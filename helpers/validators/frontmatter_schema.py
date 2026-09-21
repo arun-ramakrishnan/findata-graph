@@ -222,6 +222,63 @@ def _under(p: Path, root: Path) -> bool:
         return False
 
 
+def _resolve_engine(strict: bool) -> tuple[str, list[str]]:
+    """Pick the validation engine: fast default, strict on request.
+
+    Returns (engine, advisory). A missing fastjsonschema degrades to
+    strict with an advisory; a missing jsonschema under strict degrades
+    the whole check to a single advisory (callers return early) —
+    minimal envs stay green down every path.
+    """
+    advisory: list[str] = []
+    engine = "strict" if strict else "fast"
+    if engine == "fast" and not _fast_engine_available():
+        engine = "strict"
+        advisory.append("frontmatter schema: fastjsonschema not installed — degraded to strict")
+    if engine == "strict":
+        try:
+            import jsonschema  # noqa: F401  # availability gate
+        except ImportError:
+            return "strict", ["frontmatter schema: jsonschema not installed (dev extra)"]
+    return engine, advisory
+
+
+def _check_findata_dir(
+    findata: Path,
+    dirname: str,
+    note_type: str,
+    root: Path,
+    scope: set[Path] | None,
+    engine: str,
+    fatal: list[str],
+    advisory: list[str],
+) -> None:
+    """Validate one schema-target directory (scope-aware walk)."""
+    if not (SCHEMA_DIR / SCHEMA_FILES[note_type]).exists():
+        advisory.append(f"frontmatter schema: {SCHEMA_FILES[note_type]} missing")
+        return
+    sub = findata / dirname
+    if scope is not None:
+        # Scope-driven iteration (gate_latency_followups Slice C):
+        # no rglob — clean trees enumerate nothing.
+        files = sorted(p for p in scope if p.suffix == ".md" and p.is_file() and _under(p, sub))
+    else:
+        files = sorted(sub.rglob("*.md"))
+    for p in files:
+        if "images" in p.parts:
+            continue
+        # Newsletter-tree chrome (image maps) is pipeline scaffolding,
+        # not prose — same skip set as the OKF sweep / extract_relations.
+        if dirname in _NEWSLETTER_TREES and p.name in _OKF_SKIP_FILES:
+            continue
+        fm = parse_frontmatter(p)
+        if fm is None:
+            fatal.append(f"{p.relative_to(root)}: no parsable frontmatter block")
+            continue
+        for err in validate_frontmatter(fm, note_type, engine):
+            fatal.append(f"{p.relative_to(root)}: {err}")
+
+
 def check_frontmatter_schema(
     root: Path | None = None, scope: set[Path] | None = None, strict: bool = False
 ) -> tuple[list[str], list[str]]:
@@ -248,46 +305,16 @@ def check_frontmatter_schema(
         # run at the builder, so a schema-affecting state never arrives
         # here as an empty scope.
         return fatal, advisory
-    engine = "strict" if strict else "fast"
-    if engine == "fast" and not _fast_engine_available():
-        engine = "strict"
-        advisory.append("frontmatter schema: fastjsonschema not installed — degraded to strict")
-    if engine == "strict":
-        try:
-            import jsonschema  # noqa: F401  # availability gate
-        except ImportError:
-            return [], ["frontmatter schema: jsonschema not installed (dev extra)"]
+    engine, engine_advisory = _resolve_engine(strict)
+    advisory.extend(engine_advisory)
+    if engine == "strict" and any("not installed" in a for a in engine_advisory):
+        return [], advisory  # jsonschema absent: nothing to validate with
     _check_proposal_units(root, fatal, scope, engine)
     findata = root / "findata"
     if not findata.is_dir():
         return fatal, advisory
-    findata = root / "findata"
-    if not findata.is_dir():
-        return fatal, advisory
     for dirname, note_type in sorted(DIR_TO_TYPE.items()):
-        if not (SCHEMA_DIR / SCHEMA_FILES[note_type]).exists():
-            advisory.append(f"frontmatter schema: {SCHEMA_FILES[note_type]} missing")
-            continue
-        sub = findata / dirname
-        if scope is not None:
-            # Scope-driven iteration (gate_latency_followups Slice C):
-            # no rglob — clean trees enumerate nothing.
-            files = sorted(p for p in scope if p.suffix == ".md" and p.is_file() and _under(p, sub))
-        else:
-            files = sorted(sub.rglob("*.md"))
-        for p in files:
-            if "images" in p.parts:
-                continue
-            # Newsletter-tree chrome (image maps) is pipeline scaffolding,
-            # not prose — same skip set as the OKF sweep / extract_relations.
-            if dirname in _NEWSLETTER_TREES and p.name in _OKF_SKIP_FILES:
-                continue
-            fm = parse_frontmatter(p)
-            if fm is None:
-                fatal.append(f"{p.relative_to(root)}: no parsable frontmatter block")
-                continue
-            for err in validate_frontmatter(fm, note_type, engine):
-                fatal.append(f"{p.relative_to(root)}: {err}")
+        _check_findata_dir(findata, dirname, note_type, root, scope, engine, fatal, advisory)
     return fatal, advisory
 
 

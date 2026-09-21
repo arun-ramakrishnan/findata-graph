@@ -450,6 +450,7 @@ def verify_duckdb_snapshot(  # noqa: C901
         if snap_gen is not None or src_gen is not None:
             logger.info(
                 f"DuckDB generation: snapshot={snap_gen} source={src_gen} -> {'OK' if gen_match else 'MISMATCH'}"
+                + ("" if gen_match else " (stale snapshot — run make snapshot)")
             )
         # Match requires: identical table set, identical row counts on every
         # table, AND the snapshot's tables support pg construction, AND generation match.
@@ -1106,6 +1107,90 @@ def _cmd_restore(
     return 0
 
 
+def _read_sqlite_generation(db_path: Path) -> str | None:
+    """Live SQLite generation from db_meta (None when unreadable)."""
+    try:
+        con = connect(db_path, read_only=True)
+        try:
+            row = con.execute("SELECT value FROM db_meta WHERE key='generation'").fetchone()
+        finally:
+            con.close()
+        return row[0] if row else None
+    except Exception:
+        return None
+
+
+def _read_duckdb_generation(duckdb_path: Path) -> str | None:
+    """Live DuckDB generation from _build_meta (None when unreadable)."""
+    try:
+        import duckdb
+
+        con = duckdb.connect(str(duckdb_path), read_only=True)
+        try:
+            row = con.execute("SELECT value FROM _build_meta WHERE key='generation'").fetchone()
+        finally:
+            con.close()
+        return row[0] if row else None
+    except Exception:
+        return None
+
+
+def _read_parquet_generation(parquet_path: Path) -> str | None:
+    """Snapshot-side generation from a meta parquet (None when unreadable)."""
+    try:
+        import duckdb
+
+        con = duckdb.connect()
+        try:
+            row = con.execute(
+                "SELECT value FROM read_parquet(?) WHERE key='generation'",
+                [str(parquet_path)],
+            ).fetchone()
+        finally:
+            con.close()
+        return row[0] if row else None
+    except Exception:
+        return None
+
+
+def _cmd_quick(
+    parquet_base: Path,
+    db_path: Path,
+    duckdb_path: Path,
+    logger: logging.Logger,
+) -> int:
+    """--quick: generation-only freshness (sqlite + duckdb pairs).
+
+    O(1) point reads, no table counting: fails fast on generation drift
+    with the exact remediation instead of MISMATCH archaeology 7 s into
+    the full verify. Fail-closed — any unreadable side is stale (a
+    missing snapshot IS stale; snapshots are git-tracked, so fresh
+    clones have them).
+    """
+    ok = True
+    pairs = (
+        (
+            "sqlite",
+            _read_sqlite_generation(db_path),
+            _read_parquet_generation(parquet_base / "sqlite" / "db_meta.parquet"),
+        ),
+        (
+            "duckdb",
+            _read_duckdb_generation(duckdb_path),
+            _read_parquet_generation(parquet_base / "duckdb" / "_build_meta.parquet"),
+        ),
+    )
+    for name, live, snap in pairs:
+        match = live is not None and live == snap
+        logger.info(
+            f"{name} generation: live={live} snapshot={snap} -> {'OK' if match else 'MISMATCH'}"
+        )
+        ok = ok and match
+    if not ok:
+        logger.error("snapshot generation drift — run make snapshot to re-capture")
+    return 0 if ok else 1
+
+
 def _cmd_check(
     out_path: Path,
     db_path: Path,
@@ -1441,6 +1526,13 @@ def main(argv: list[str] | None = None) -> int:
         "--format only gates the create path.",
     )
     parser.add_argument(
+        "--quick",
+        action="store_true",
+        help="Generation-only freshness check (sqlite + duckdb pairs, "
+        "O(1) point reads): fail fast on drift with remediation instead "
+        "of the full verify. For gates and humans; fail-closed.",
+    )
+    parser.add_argument(
         "--parquet-dir",
         default=DEFAULT_PARQUET,
         help="Root dir for the Parquet snapshot (git-tracked default: snapshots/parquet).",
@@ -1507,6 +1599,8 @@ def main(argv: list[str] | None = None) -> int:
                 sources_path=sources_path,
                 with_sources=args.with_sources,
             )
+        if args.quick:
+            return _cmd_quick(parquet_base, db_path, duckdb_path, logger)
         if args.parquet_duckdb_only:
             if not duckdb_path.exists():
                 print(f"ERROR: {duckdb_path} not found", file=sys.stderr)
