@@ -3,7 +3,7 @@ title: "Skylake iGPU eval — HD 530 measured on real corpus data; routing uncha
 status: executed
 filed: "2026-09-20"
 executed: "2026-09-20"
-completed_md: 257
+completed_md: "257"
 area: "Mojo/src/gpu, Mojo/vendor/mojo-intel-gpu, Mojo/bench, doc/local/perf"
 ---
 

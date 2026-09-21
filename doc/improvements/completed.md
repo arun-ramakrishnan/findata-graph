@@ -6732,3 +6732,121 @@ Gates: `make qa` 10/10 PASS after the arc (operator-run; lint F841 +
 md-lint 4 violations + snapshot generation mismatch resolved in passing);
 `make advisory` — live-invariants 30/30 post-fix, lint-audit clean;
 mojo-build compiles all 7 GPU harnesses; search indexes fresh.
+
+## 258. Sub-sector authoring pass — the 16 parked worklist buckets resolved
+
+**Proposal**: `doc/improvements/archive/graph/subsector_authoring_pass.md`
+(filed + executed 2026-09-19; archival verification 2026-09-21).
+
+Resolved the D11 residue — 16 parked Yahoo `industry:` labels (~89
+companies with no sub_sector membership at all) — via the decision
+matrix's levers:
+
+- **S0 OKF schema**: `frontmatter.company.v1.json` gains the
+  `subsector` property (#238 landed the reader but not the schema;
+  `additionalProperties: false` would have failed every authoring
+  write).
+- **S1 aliases**: 8 `SUB_SECTOR_ALIASES` entries onto existing nodes +
+  the new Gaming leaf under Media_Entertainment (operator correction:
+  Nazara is a gaming operator, not a platform).
+  `COMPANY_SUB_SECTORS` corrections (map wins on conflict): JM
+  Financial and Motilal Oswal Financial Services → Asset_Management
+  (asset managers, not brokers); Nazara Technologies → Gaming.
+- **S2 authored sweep**: `helpers/misc/author_subsector.py` — surgical
+  frontmatter writer (insert-after-industry, idempotent,
+  body-preserving; 4 tests) — authored `subsector:` on 81 company
+  notes: 26 Private_Sector + 12 Public_Sector banks, brokers/AM/
+  exchanges/depositories, Flexible vs Rigid Packaging,
+  Forge_Castings/Non_Ferrous/Capital_Goods, Semiconductors split
+  Design ×4 / Memory / Foundry, Solar + Hydro, Paper_Products/
+  Computer_Hardware/Two_Wheelers. Five notes carry map-aligned
+  corrections (Huhtamaki India, TCPL Packaging, Gravita India,
+  Shivalik Bimetal Controls, Intel Corporation). verify_notes:
+  0 errors, 0 warnings on the touched notes.
+- **S3 eval gate**: ACCEPT — parent vs candidate over the frozen
+  164-question set, type-sub-sector declared (the Gaming entity).
+- **S4 + D7 convergence prune**: `derive_hyperedges` was INSERT-only —
+  relabeled companies kept stale sub_sector incidences forever; apply
+  now drops incidences the recomputed groups no longer contain
+  (7 stale dropped on first run). Snapshot: db_sync patch 105405,
+  all OK.
+
+Archival verification (2026-09-21, read-only re-derivation through the
+generator path): all 16 buckets discharged — 8 cleared by the S1
+aliases, 8 fully covered by the authored lane (Banks - Regional ×38,
+Packaging & Containers ×11, Capital Markets ×10, Metal Fabrication
+×10, Semiconductors ×6, Utilities - Renewable ×5, Medical Distribution,
+Recreational Vehicles: zero open members each; `unmapped_authored`
+empty; D7 authored live: 183 assignments, 182 via the map). Known
+detector behavior (recorded, not a defect): the worklist is
+label-level, so the 8 authored-covered labels still appear there and
+re-ask on future label drift — S4's reopen intent. Worklist
+regenerated at archival.
+
+Gates: eval gate ACCEPT (164 questions); verify_notes 0 errors /
+0 warnings on touched notes; snapshot OK.
+
+## 259. Persistent per-generation centrality cache — v_centrality_* stamped into graph.duckdb at rebuild
+
+**Proposal**: `doc/improvements/archive/graph/graph_centrality_persistent_cache.md`
+(filed 2026-09-19, executed 2026-09-21).
+
+Moved app.py's per-generation centrality contract onto disk: the ten
+Onager structural metrics (nine centralities + louvain) are pure
+functions of the edge set, so the rebuild computes them once and every
+later CLI/benchmark/worker/API read serves a table.
+
+- **Schema 17** (`_SCHEMA_VERSION` 16 → 17): every existing cache goes
+  cold once and rebuilds with the stamp. Ten tables registered in
+  `_EXTRA_MATERIALIZED` (drop pass + `MATERIALISED_TABLES` manifest +
+  snapshot whitelist in one place); no generation column — the
+  file-level `_build_meta` stamp is the whole invalidation contract.
+- **Build** (`query._materialise_centrality_cache`, last step of
+  `_build_graph`): computes via the existing wrappers on the build
+  connection under `with_onager_connection` + `bypass_centrality_cache`,
+  then CTASes per-metric tables. VoteRank's score column stores the
+  1-based seed rank (list-valued metric flattened order-preserving);
+  louvain's modularity rides `_build_meta.louvain_modularity` so
+  `louvain_communities` serves a complete result. Per-metric
+  best-effort: failure drops that table with a stderr warning and
+  readers fall back to compute.
+- **Write-path finding (the arc's one surprise)**: `executemany` on the
+  persistent cache costs ~4 ms/row (per-row WAL appends — 6.8 s for
+  1.7 K rows, which priced the ten-table stamp at ~60 s). Fixed with
+  the house Arrow pattern: one registered relation per table + CTAS
+  (same as `_materialise_note_embeddings`). Stamp cost measured
+  ~3.3 s; full rebuild 6.3 s wall (budget leg raised 5.0 → 8.0 s
+  accordingly).
+- **Read** (`algorithms._cached_central_scores` / `_cached_voterank` /
+  `_cached_louvain`): the ten wrappers' DB path serves a non-empty
+  table; cold/stale/older caches or unstamped metrics fall through to
+  compute exactly as before. Readers never write; the flock
+  single-writer contract is untouched; closeness's P2.3 dict stays in
+  front (a table hit now also loads the dict).
+- **Benchmark honesty**: CLI `--compute` flag (scoped via
+  `bypass_centrality_cache()`, a ContextVar context manager);
+  `run_perf_benchmarks.py` centrality legs (closeness/louvain/
+  betweenness/eigenvector) pass it so budgets keep measuring COMPUTE;
+  the cache path is asserted in tests instead.
+- Measured (live graph, generation 112779): CLI `closeness --top 10`
+  1.51 s → 0.35–0.45 s; eigenvector/louvain ~0.44 s; warm rebuild
+  6.3 s incl. stamp.
+
+Verification: new `tests/test_centrality_cache.py` 4/4 (table==compute
+equality across the family incl. voterank order + louvain
+labels/modularity; generation bump re-stamps and scores track the new
+edge set; read-only reader leaves no `.wal` and provably serves the
+table; `--compute` provably never reads the tables).
+`test_centrality_projection` + graph/disk/API/note-embedding suites
+288 passed; eval gate ACCEPT (164 questions, 0 reasons — identical-DB,
+code-only). Gates: `make qa` 8/10 — lint/md-lint/types/deptry/
+static_checks/verify_notes/integrity green; `snapshot_check` red until
+the next db_sync fold (ten new tables + pre-existing generation drift
+112775→112779); pytest 3316 passed with one contention flake
+(`test_deep_path_param_stays_bounded`, passes in isolation) — machine
+shared with a parallel operator session. `make perf` 20/23: the two
+over-budget legs (`graph_link_prediction` 2.09/2.0,
+`route_graph_stats` 5.1–6.1/5.0) are end-to-end process timings on
+code paths this arc never touched, re-measured contention-marginal on
+a loaded box — re-run when the box is quiet before considering
+waivers.

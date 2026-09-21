@@ -198,7 +198,8 @@ def _with_generation_cache(fn):
 # longer declared — pattern queries are plain SQL JOINs over the e_* tables.
 # The bump forces every existing .duckdb cache cold so no stale fin_graph /
 # __duckpgq_internal catalog entries survive.
-_SCHEMA_VERSION = "16"  # 16: index-membership fill — v_index / e_listed_on_index
+_SCHEMA_VERSION = "17"  # 17: persistent centrality cache — v_centrality_* tables
+# 16: index-membership fill — v_index / e_listed_on_index
 # 15: h_edge/h_incidence materialised (D4)
 # 14: + v_country / e_listed_in (country layer C1 — company -> country,
 # derived from exchange tickers; out-of-registry like exposed_to because
@@ -843,6 +844,21 @@ _EXTRA_MATERIALIZED = (
     # pairwise projections.
     "h_edge",
     "h_incidence",
+    # graph_centrality_persistent_cache (2026-09-21): per-metric score
+    # tables stamped by _materialise_centrality_cache at rebuild. Score
+    # tables keyed by nothing — the file-level _build_meta generation
+    # stamp is the whole invalidation contract (same reasoning that
+    # keeps v_node unkeyed).
+    "v_centrality_degree",
+    "v_centrality_closeness",
+    "v_centrality_betweenness",
+    "v_centrality_eigenvector",
+    "v_centrality_harmonic",
+    "v_centrality_katz",
+    "v_centrality_laplacian",
+    "v_centrality_local_reaching",
+    "v_centrality_voterank",
+    "v_centrality_louvain",
 )
 MATERIALISED_TABLES = frozenset(spec["table"] for spec in EDGE_REGISTRY.values()).union(
     _EXTRA_MATERIALIZED, {"_build_meta"}
@@ -873,6 +889,9 @@ def _build_graph(con: duckdb.DuckDBPyConnection) -> None:
     _materialise_edges(con)
     _materialise_hyper(con)
     _materialise_note_embeddings(con)
+    # Persistent centrality cache: last, on the fully materialised edge
+    # set (schema 17). Best-effort — see the function docstring.
+    _materialise_centrality_cache(con)
     # Phase E (duckpgq retirement): no property graph is declared any more —
     # the pattern queries are plain SQL JOINs over these materialised tables
     # and the algorithms run on onager.
@@ -1360,6 +1379,119 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
             """
         )
     return dims
+
+
+def _materialise_centrality_cache(con: duckdb.DuckDBPyConnection) -> None:  # noqa: C901
+    """Stamp the ten Onager structural metrics into per-metric tables.
+
+    graph_centrality_persistent_cache: the scores are a pure function of
+    the edge set, which only changes when the SQLite generation bumps —
+    so the rebuild (this function) computes them once and every later
+    CLI/worker/API read serves the table (algorithms._cached_central_*).
+    Mirrors app.py's per-generation contract on disk: the file-level
+    ``_build_meta`` stamp is the invalidation token, so the tables carry
+    no generation column (the same contract as ``v_node``).
+
+    VoteRank is list-valued: ``score`` stores the 1-based seed rank and
+    the reader reconstructs the order. Louvain's modularity scalar is
+    stamped into ``_build_meta`` (``louvain_modularity``) so
+    ``louvain_communities`` can serve a complete LouvainResult.
+
+    Best-effort per metric: a metric that fails to compute is DROPPED
+    (table absent) with a stderr warning and readers fall back to live
+    compute — a broken stamp must never take the whole rebuild down
+    (graph queries don't depend on these tables). Under
+    ``bypass_centrality_cache`` so the stamp itself never reads the
+    half-built tables it is replacing.
+    """
+    from helpers.graph.algorithms import (  # lazy: algorithms imports query
+        betweenness_centrality,
+        bypass_centrality_cache,
+        closeness_centrality,
+        degree_centrality,
+        eigenvector_centrality,
+        harmonic_centrality,
+        katz_centrality,
+        laplacian_centrality,
+        local_reaching_centrality,
+        louvain_communities,
+        voterank_seeds,
+    )
+    from helpers.graph.onager import with_onager_connection
+
+    score_metrics: list[tuple[str, Callable[..., dict[str, float]]]] = [
+        ("degree", degree_centrality),
+        ("closeness", closeness_centrality),
+        ("betweenness", betweenness_centrality),
+        ("eigenvector", eigenvector_centrality),
+        ("harmonic", harmonic_centrality),
+        ("katz", katz_centrality),
+        ("laplacian", laplacian_centrality),
+        ("local_reaching", local_reaching_centrality),
+    ]
+
+    def _stamp(table: str, cols: list[tuple[str, str]], rows: list[tuple]) -> None:
+        # executemany() on the persistent cache costs ~4ms/row (per-row
+        # WAL appends — measured 6.8s for 1.7K rows, which would price the
+        # ten-table stamp at ~60s); one registered Arrow relation + CTAS
+        # is the house pattern instead (same as _materialise_note_
+        # embeddings). Row lists are column-pivoted here, not at the call
+        # sites.
+        import pyarrow as _pa
+
+        types = {"VARCHAR": _pa.string(), "DOUBLE": _pa.float64(), "BIGINT": _pa.int64()}
+        con.execute(f"DROP TABLE IF EXISTS {table}")
+        if rows:
+            src = f"{table}_src"
+            con.register(
+                src,
+                _pa.table(
+                    {
+                        n: _pa.array([r[i] for r in rows], type=types[t])
+                        for i, (n, t) in enumerate(cols)
+                    }
+                ),
+            )
+            con.execute(f"CREATE TABLE {table} AS SELECT * FROM {src}")
+            con.unregister(src)
+        else:
+            con.execute(f"CREATE TABLE {table}({', '.join(f'{n} {t}' for n, t in cols)})")
+
+    _SCORE_COLS = [("name", "VARCHAR"), ("score", "DOUBLE")]
+
+    with with_onager_connection(con), bypass_centrality_cache():
+        for name, fn in score_metrics:
+            try:
+                scores = fn(con)
+                _stamp(f"v_centrality_{name}", _SCORE_COLS, list(scores.items()))
+            except Exception as e:  # noqa: BLE001  # drop + warn; readers compute
+                con.execute(f"DROP TABLE IF EXISTS v_centrality_{name}")
+                print(f"centrality cache: {name} unstamped: {e}", file=sys.stderr)
+        try:
+            seeds = voterank_seeds(con)
+            _stamp(
+                "v_centrality_voterank",
+                _SCORE_COLS,
+                [(name, float(rank)) for rank, name in enumerate(seeds, 1)],
+            )
+        except Exception as e:  # noqa: BLE001
+            con.execute("DROP TABLE IF EXISTS v_centrality_voterank")
+            print(f"centrality cache: voterank unstamped: {e}", file=sys.stderr)
+        try:
+            louvain = louvain_communities(con)
+            _stamp(
+                "v_centrality_louvain",
+                [("name", "VARCHAR"), ("community_id", "BIGINT")],
+                list(louvain.labels.items()),
+            )
+            con.execute(_BUILD_META_DDL)
+            con.execute(
+                "INSERT OR REPLACE INTO _build_meta(key, value) VALUES ('louvain_modularity', ?)",
+                (repr(louvain.modularity),),
+            )
+        except Exception as e:  # noqa: BLE001
+            con.execute("DROP TABLE IF EXISTS v_centrality_louvain")
+            print(f"centrality cache: louvain unstamped: {e}", file=sys.stderr)
 
 
 def _stage_edges(con: duckdb.DuckDBPyConnection) -> None:

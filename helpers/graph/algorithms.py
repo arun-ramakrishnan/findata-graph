@@ -50,8 +50,10 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from pathlib import Path
 from collections.abc import Callable
+from contextlib import contextmanager, nullcontext
+from contextvars import ContextVar
+from pathlib import Path
 from typing import Any, NamedTuple
 
 # Make `from helpers.* import ...` work when this file is run directly as a
@@ -144,6 +146,10 @@ def louvain_communities(
         con = duckdb_connect(read_only=True)
         own = True
     try:
+        if edges is None:
+            cached = _cached_louvain(con)
+            if cached is not None:
+                return LouvainResult(labels=cached[0], modularity=cached[1])
         labels, modularity = _onager_central(onager_louvain, con, edges)
     finally:
         if own:
@@ -173,6 +179,10 @@ def eigenvector_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
+        if edges is None:
+            cached = _cached_central_scores(con, "v_centrality_eigenvector")
+            if cached is not None:
+                return cached
         return _onager_central(onager_eigenvector, con, edges)
     finally:
         if own:
@@ -190,11 +200,14 @@ def closeness_centrality(
     computes exact closeness (it is fast enough at our scale).
 
     DB-backed results (``edges=None``) are cached per generation in the
-    query-result cache (P2.3), mirroring ``graph_metrics``: the scores are
-    a pure function of the edge set, which only changes when the SQLite
-    source bumps its generation; ``clear_graph_cache()`` (rebuild/refresh)
-    evicts the entry. Synthetic ``edges=`` calls bypass the cache — they
-    are cheap and may deliberately differ from the DB projection.
+    query-result cache (P2.3) and served from the persistent
+    ``v_centrality_closeness`` table stamped at rebuild
+    (graph_centrality_persistent_cache), mirroring ``graph_metrics``: the
+    scores are a pure function of the edge set, which only changes when
+    the SQLite source bumps its generation; ``clear_graph_cache()``
+    (rebuild/refresh) evicts the dict entry. Synthetic ``edges=`` calls
+    bypass both layers — they are cheap and may deliberately differ from
+    the DB projection.
     """
     key = None
     if edges is None:
@@ -211,6 +224,11 @@ def closeness_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
+        disk = _cached_central_scores(con, "v_centrality_closeness") if edges is None else None
+        if disk is not None:
+            if key is not None:
+                _query_cache_set(key, disk)  # table -> dict: later reads skip the SQL
+            return disk
         result = _onager_central(onager_closeness, con, edges)
     finally:
         if own:
@@ -237,7 +255,14 @@ def betweenness_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        bc = _onager_central(onager_betweenness, con, edges)
+        if edges is None:
+            cached = _cached_central_scores(con, "v_centrality_betweenness")
+            if cached is not None:
+                bc = cached
+            else:
+                bc = _onager_central(onager_betweenness, con, edges)
+        else:
+            bc = _onager_central(onager_betweenness, con, edges)
     finally:
         if own:
             con.close()
@@ -255,6 +280,10 @@ def degree_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
+        if edges is None:
+            cached = _cached_central_scores(con, "v_centrality_degree")
+            if cached is not None:
+                return cached
         return _onager_central(onager_degree, con, edges)
     finally:
         if own:
@@ -273,6 +302,10 @@ def harmonic_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
+        if edges is None:
+            cached = _cached_central_scores(con, "v_centrality_harmonic")
+            if cached is not None:
+                return cached
         return _onager_central(onager_harmonic, con, edges)
     finally:
         if own:
@@ -296,6 +329,10 @@ def katz_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
+        if edges is None:
+            cached = _cached_central_scores(con, "v_centrality_katz")
+            if cached is not None:
+                return cached
         return _onager_central(onager_katz, con, edges, alpha=alpha, beta=beta)
     finally:
         if own:
@@ -311,6 +348,10 @@ def laplacian_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
+        if edges is None:
+            cached = _cached_central_scores(con, "v_centrality_laplacian")
+            if cached is not None:
+                return cached
         return _onager_central(onager_laplacian, con, edges)
     finally:
         if own:
@@ -330,6 +371,10 @@ def local_reaching_centrality(
         con = duckdb_connect(read_only=True)
         own = True
     try:
+        if edges is None:
+            cached = _cached_central_scores(con, "v_centrality_local_reaching")
+            if cached is not None:
+                return cached
         return _onager_central(onager_local_reaching, con, edges)
     finally:
         if own:
@@ -349,6 +394,10 @@ def voterank_seeds(
         con = duckdb_connect(read_only=True)
         own = True
     try:
+        if edges is None:
+            cached = _cached_voterank(con)
+            if cached is not None:
+                return cached
         return list(_onager_central(onager_voterank, con, edges))
     finally:
         if own:
@@ -550,6 +599,77 @@ def _onager_central(fn, con, edges, **kw):
     if edges is not None:
         return fn(con, edges=edges, **kw)
     return fn(con, edge_types=_centrality_edge_types(con), edges=edges, **kw)
+
+
+# --------------------------------------------------------------------------- #
+# Persistent centrality cache (graph_centrality_persistent_cache, 2026-09-21)
+# --------------------------------------------------------------------------- #
+# query._materialise_centrality_cache stamps the ten structural metrics
+# into v_centrality_* tables at every rebuild. The DB read path below
+# serves a non-empty table; a cold/stale/older cache (table missing or
+# empty) falls through to live compute exactly as before. Readers never
+# write — the single-writer rebuild contract is untouched. ``--compute``
+# (CLI), the perf benchmarks, and the rebuild stamp itself run under
+# bypass_centrality_cache() so compute paths stay measurable.
+_BYPASS_CENTRALITY_CACHE: ContextVar[bool] = ContextVar("bypass_centrality_cache", default=False)
+
+
+@contextmanager
+def bypass_centrality_cache():
+    """Force the compute path for the cached metric family (scoped)."""
+    token = _BYPASS_CENTRALITY_CACHE.set(True)
+    try:
+        yield
+    finally:
+        _BYPASS_CENTRALITY_CACHE.reset(token)
+
+
+def _cached_central_scores(con: Any, table: str) -> dict[str, Any] | None:
+    """Serve ``{name: score}`` from a warm ``v_centrality_<metric>`` table.
+
+    None (=> compute as today) when bypassed, the table is absent (cold /
+    older cache / unstamped metric), or empty. Best-effort by design —
+    the disk layer must never make a read harder than the compute it
+    replaces.
+    """
+    if _BYPASS_CENTRALITY_CACHE.get():
+        return None
+    try:
+        rows = con.execute(f"SELECT name, score FROM {table}").fetchall()  # noqa: S608
+    except Exception:  # noqa: S110  # cold/older cache -> compute
+        return None
+    return {n: s for n, s in rows} or None
+
+
+def _cached_voterank(con: Any) -> list[str] | None:
+    """Serve the ordered VoteRank seed list (score = 1-based seed rank)."""
+    if _BYPASS_CENTRALITY_CACHE.get():
+        return None
+    try:
+        rows = con.execute(
+            "SELECT name FROM v_centrality_voterank ORDER BY score"  # noqa: S608
+        ).fetchall()
+    except Exception:  # noqa: S110
+        return None
+    return [r[0] for r in rows] or None
+
+
+def _cached_louvain(con: Any) -> tuple[dict[str, int], float] | None:
+    """Serve ``(labels, modularity)`` from the louvain table + _build_meta.
+
+    Both halves or neither: a table without the modularity stamp (or vice
+    versa) is a torn read from an older layout — compute both instead.
+    """
+    if _BYPASS_CENTRALITY_CACHE.get():
+        return None
+    try:
+        rows = con.execute("SELECT name, community_id FROM v_centrality_louvain").fetchall()
+        mod = con.execute("SELECT value FROM _build_meta WHERE key='louvain_modularity'").fetchone()
+    except Exception:  # noqa: S110
+        return None
+    if not rows or mod is None or mod[0] is None:
+        return None
+    return {n: int(c) for n, c in rows}, float(mod[0])
 
 
 def _run_pagerank(con, *, edges, edge_label, vertex_label, **_) -> dict[str, Any]:
@@ -850,6 +970,13 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         help="Retained for CLI compatibility. Onager computes exact "
         "betweenness efficiently, so this flag is a no-op.",
     )
+    p.add_argument(
+        "--compute",
+        action="store_true",
+        help="Bypass the persistent centrality cache (v_centrality_* tables "
+        "stamped at rebuild) and compute via Onager — the benchmarks run "
+        "this so their budgets keep measuring COMPUTE, not cache I/O.",
+    )
     args = p.parse_args(argv)
 
     if not args.cmd and not args.all:
@@ -884,7 +1011,10 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         # Phase 3 (graph_db_optimization): one materialisation shared by
         # every metric in this run — with_onager_connection scopes the
         # skip flag to this invocation; nothing outlives the block.
-        with with_onager_connection(duck_con):
+        # --compute additionally bypasses the persistent centrality cache
+        # so the whole run exercises the Onager compute path.
+        bypass = bypass_centrality_cache() if args.compute else nullcontext()
+        with with_onager_connection(duck_con), bypass:
             pending_writes: list[tuple[str, dict[str, Any]]] = []
             for cmd in commands:
                 if cmd == "link-predict":

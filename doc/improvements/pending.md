@@ -9,10 +9,14 @@ revisit triggers inline; executed work is compressed to records.
   #241: h_edge/h_incidence cache + SQL consumers + hyper API —
   remaining trigger: hyper-native link prediction, unstarted). D10
   stays gated on incidence density (measured 2026-09-15: group 8/k=3.8,
-  jv 6/k=2.0; hyper_edges 533 live). D11 residue: 16 unmapped industry-label buckets in
-  `findata/Misc/subsector_worklist.json` (top: Banks - Regional ×38)
-  are operator taxonomy decisions; note-level `subsector:` stays
-  0-authored (D7 lane open).
+  jv 6/k=2.0; hyper_edges 533 live). D11 residue: RESOLVED 2026-09-19
+  by the subsector authoring pass (completed.md #258,
+  `archive/graph/subsector_authoring_pass.md`) — 16 buckets → 8
+  cleared by SUB_SECTOR_ALIASES additions (incl. the Gaming leaf) +
+  8 covered by per-note authored `subsector:` (81 notes; every member
+  company resolved, `unmapped_authored` empty). The label-level
+  worklist detector still lists the 8 authored-covered labels — they
+  re-ask on future label drift by design (S4 reopen intent).
 - **Re-evaluate HNSW index macros** (deferred N5 item 5). `hnsw_index_scan`,
   `vss_match`, and `pragma_hnsw_index_info` emit empty-signature binder errors
   on the vss build (these are DuckDB extension macro names, not repo symbols —
@@ -28,21 +32,6 @@ revisit triggers inline; executed work is compressed to records.
   requires a weight column of type `BIGINT`; variants A/B produce identical
   output. Documented at `helpers/graph/onager.py:597` and graph_design.md §5.5.
   Do not wrap until a future Onager build honours the personalisation vector.
-
-- **`listed_on_index` membership edge** (deferred N5 item 7). The
-    `index_membership` column was dropped 2026-07-28; the edge was never built.
-    Requires a re-ingest pass extracting `index_membership:` from company YAML
-    frontmatter before it can be materialised. Live 2026-09-05: only 9/1,079
-    company notes carry the key — not worth the pass until coverage grows.
-    Deferred by design. REVIEWED 2026-09-09 and re-deferred: the key is a
-    DROPPED key, not a low-coverage one — `doc/okf/frontmatter.company.v1.json`
-    types it `"type": "null"` ("Dropped key (2026-07-28); tolerated as null on
-    legacy notes, absent on new ones"), so writing it would fail the OKF
-    conformance check, and all 9 notes that carry it have `null`. No pipeline
-    produces index-membership data; tickers (945/1,165 companies, 850
-    India-exchange) prove exchange listing, not index membership. Revisit only
-    if a real index-constituent data source appears. Detail in
-    `doc/local/notes/future_items.md` §G1 and `word_overlap_alias_guard.md` §7.
 
 - **Security Phase 4 (deploy-time; app confirmed NOT deployed 2026-08-17)**
   (private security review under doc/local, untracked;
@@ -144,8 +133,12 @@ revisit triggers inline; executed work is compressed to records.
   eigenvector 0.37s, link_prediction 1.34s, closeness 2.97s,
   betweenness 2.23s. The same arc also excluded `listed_on_index`
   from the Onager structural projections (completed.md #254) and
-  filed the persistent-cache follow-up (live proposal
-  `graph_centrality_persistent_cache.md`). The advisory-side twin
+  filed the persistent-cache follow-up — EXECUTED 2026-09-21 as
+  completed.md #259
+  (`archive/graph/graph_centrality_persistent_cache.md`): ten
+  `v_centrality_*` tables stamped at rebuild (schema 17), warm CLI
+  reads 0.35–0.45s, centrality perf legs now run `--compute` so
+  budgets keep measuring compute. The advisory-side twin
   (live-invariants wall 95–226s) resolved 2026-09-20 —
   completed.md #255 (`archive/tooling/advisory_gate_perf_reports.md`);
   original state below:
@@ -162,3 +155,14 @@ revisit triggers inline; executed work is compressed to records.
   test_snapshot/test_search_tui, importlib spec asserts in
   test_mca_cin_resolve/test_seed_nic2008, db_filter_rows row typing).
   `make types-tests` now reports zero diagnostics.
+- **`listed_on_index` membership edge** (deferred N5 item 7) — DONE
+  2026-09-19 (#253, `archive/graph/index_membership_fill.md`): the
+  09-09 re-deferral's revisit trigger — "a real index-constituent data
+  source appears" — fired (NSE constituent CSVs; the `index_membership`
+  frontmatter key stays dropped, the data comes from the sidecar
+  instead). `make refresh-indices` lands 57 indices / 6,661 constituent
+  rows; `derive_indices` projects fileless `index` entities + 6,615
+  dyadic `listed_on_index` edges, cache v16. The induced structural
+  noise (36% of all edges, 57 star hubs) is kept out of metrics by #254
+  (`EDGE_TYPES_EXCLUDED_FROM_CENTRALITY` + `_CHAIN_FORBIDDEN`). Closes
+  future_items.md §G1/B3.

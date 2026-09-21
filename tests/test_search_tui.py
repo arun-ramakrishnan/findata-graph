@@ -301,7 +301,7 @@ def test_call_chain_drill_and_back(monkeypatch: pytest.MonkeyPatch) -> None:
                 return
         raise AssertionError("condition never satisfied")
 
-    async def drive() -> tuple[int, str, int, str]:
+    async def drive() -> tuple[int, str | None, int, str | None]:
         app = appmod.SearchApp("iter_tree_files", "code", 10)
         async with app.run_test(size=(120, 34)) as pilot:
             await pilot.press("enter")

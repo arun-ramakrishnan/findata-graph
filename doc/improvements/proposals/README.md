@@ -33,16 +33,22 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- [`graph_centrality_persistent_cache.md`](graph_centrality_persistent_cache.md) —
-  Persistent per-generation centrality cache — stamp `v_centrality_*`
-  into `graph.duckdb` at rebuild (mirrors app.py per-generation
-  semantics on disk; triggers + benchmark-honesty wiring inside);
-  follows the archived index-noise proposal (completed.md #254).
-- [`subsector_authoring_pass.md`](subsector_authoring_pass.md) —
-  resolve the 16 parked buckets via
-  SUB_SECTOR_ALIASES additions + per-note authored `subsector:`
-  (eval-gated; decision matrix inside).
-  _(Previously: test_gap_closure.md archived 2026-09-20 as completed.md entry
+_(none)_
+
+_(Previously: graph_centrality_persistent_cache.md archived 2026-09-21 as
+completed.md entry 259 — persistent per-generation centrality cache: ten
+`v_centrality_*` tables stamped into `graph.duckdb` at rebuild (schema 17);
+Arrow-CTAS stamping after the executemany WAL finding; readers serve tables,
+`--compute` keeps benchmarks honest; warm CLI reads 0.35–0.45s. Execution
+record in `../archive/graph/graph_centrality_persistent_cache.md`.)_
+
+_(Previously: subsector_authoring_pass.md archived 2026-09-21 as
+completed.md entry 258 — sub-sector authoring pass: the 16 parked
+worklist buckets resolved via 8 SUB_SECTOR_ALIASES additions (incl.
+the Gaming leaf) + per-note authored `subsector:` on 81 company
+notes; D7 convergence prune; eval gate ACCEPT. Execution record in
+`../archive/graph/subsector_authoring_pass.md`.)_
+_(Previously: test_gap_closure.md archived 2026-09-20 as completed.md entry
   256 — test-gap closure: the date-rot class (S1, already fixed by the
   operator), availability budgets for the hot routes (S2, 10 tests), the
   first perf legs to drive the Flask request path (S3, `bench_routes.py`),

@@ -107,7 +107,8 @@ def test_fold_apply_then_rerun_is_idempotent(tmp_path):
         assert s1["indices"] == 1 and s1["rows"] == 1 and s1["inserted"] == 1
         s2 = ix.fold(con, [_batch()], "2026-09-19", apply=True)
         assert s2["inserted"] == 0
-        assert con.execute("SELECT COUNT(*) FROM index_constituents").fetchone()[0] == 1
+        n_rows = con.execute("SELECT COUNT(*) FROM index_constituents").fetchone()
+        assert n_rows is not None and n_rows[0] == 1
     finally:
         con.close()
 
@@ -127,7 +128,8 @@ def test_view_selects_latest_vintage_per_index(tmp_path):
     try:
         ix.fold(con, [_batch("2026-03-31")], "2026-04-01", apply=True)
         ix.fold(con, [_batch("2026-09-18")], "2026-09-19", apply=True)
-        assert con.execute("SELECT COUNT(*) FROM index_constituents").fetchone()[0] == 2
+        n_rows2 = con.execute("SELECT COUNT(*) FROM index_constituents").fetchone()
+        assert n_rows2 is not None and n_rows2[0] == 2
         latest = con.execute("SELECT DISTINCT as_of FROM vw_index_constituent").fetchall()
         assert [r[0].isoformat() for r in latest] == ["2026-09-18"]
     finally:

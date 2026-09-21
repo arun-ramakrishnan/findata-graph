@@ -1,15 +1,15 @@
 ---
 title: "Sub-sector authoring pass — resolve the 16 parked buckets via alias additions + per-note authored subsector:"
-status: proposed
+status: executed
 filed: "2026-09-19"
-executed: null
-completed_md: null
+executed: "2026-09-19"
+completed_md: "258"
 area: "findata/Misc (SUB_SECTOR_ALIASES), company-note frontmatter (subsector:), derive_hyperedges, ontology_eval_gate"
 ---
 
 # Sub-sector authoring pass
 
-**Date:** 2026-09-19 · **Status:** PROPOSED ·
+**Date:** 2026-09-19 · **Status:** EXECUTED 2026-09-19 ·
 **Area:** `helpers/graph/derive_hyperedges.py` (SUB_SECTOR_ALIASES),
 company-note YAML frontmatter, `helpers/core/sync_tags.py` (mirror),
 `helpers/misc/ontology_eval_gate.py` (gate)

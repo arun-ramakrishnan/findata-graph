@@ -35,16 +35,36 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     ("static_checks", ["helpers/validators/static_checks.py"], 7.0),
     ("snapshot_check", ["helpers/maintenance/snapshot_db.py", "--check"], 4.0),
     ("graph_pagerank", ["helpers/graph/algorithms.py", "pagerank", "--top", "10"], 3.0),
-    ("graph_closeness", ["helpers/graph/algorithms.py", "closeness", "--top", "10"], 5.0),
-    ("graph_louvain", ["helpers/graph/algorithms.py", "louvain", "--top", "10"], 4.0),
-    ("graph_betweenness", ["helpers/graph/algorithms.py", "betweenness", "--top", "10"], 4.0),
+    # --compute (graph_centrality_persistent_cache): the centrality legs
+    # bypass the v_centrality_* disk cache so these budgets keep
+    # measuring the Onager COMPUTE path; the cache path is smoke-tested
+    # in tests/test_centrality_cache.py instead.
+    (
+        "graph_closeness",
+        ["helpers/graph/algorithms.py", "closeness", "--top", "10", "--compute"],
+        5.0,
+    ),
+    (
+        "graph_louvain",
+        ["helpers/graph/algorithms.py", "louvain", "--top", "10", "--compute"],
+        4.0,
+    ),
+    (
+        "graph_betweenness",
+        ["helpers/graph/algorithms.py", "betweenness", "--top", "10", "--compute"],
+        4.0,
+    ),
     # 2026-09-19 RESOLVED: the "corpus growth" slide was not corpus at all —
     # a stray empty memory/graph.db poisoned _is_warm's colocated-sibling
     # guess, so every graph CLI unlinked + rebuilt the cache (~2s) before
     # computing; eigenvector's native compute is ~0.04s. Fixed in
     # query.py (_is_warm takes the real db_path); waivers removed, original
     # 2.0s budgets restored: eigenvector 0.37s, link_prediction 1.34s.
-    ("graph_eigenvector", ["helpers/graph/algorithms.py", "eigenvector", "--top", "10"], 2.0),
+    (
+        "graph_eigenvector",
+        ["helpers/graph/algorithms.py", "eigenvector", "--top", "10", "--compute"],
+        2.0,
+    ),
     (
         "graph_link_prediction",
         [
@@ -58,7 +78,10 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         ],
         2.0,
     ),
-    ("graph_rebuild", ["helpers/graph/query.py", "rebuild"], 5.0),
+    # 8.0s since 2026-09-21: the rebuild now stamps the ten v_centrality_*
+    # tables (graph_centrality_persistent_cache, ~+2.4s of Onager compute
+    # on the live graph) on top of the ~3.0s base rebuild.
+    ("graph_rebuild", ["helpers/graph/query.py", "rebuild"], 8.0),
     # test_gap_closure S3: the only legs that drive the FLASK REQUEST PATH.
     # Every other entry invokes a helper script directly, so the gate could
     # not see the AVAIL-1 class (a 53 s unauthenticated GET). Best-of-3 per

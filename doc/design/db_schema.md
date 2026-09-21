@@ -355,19 +355,21 @@ Rebuilt by `helpers/maintenance/rebuild_note_search.py`; shadow tables
 ## `memory/graph.duckdb` — DuckDB cache schema (derived)
 
 Read-side cache rebuilt from SQLite (never hand-edited; lifecycle/staleness:
-`graph_design.md` §8). 34 objects (`v_node` + 9 filtered projections + 2
-embedding tables + 12 registry `e_*` + 7 out-of-registry `e_*` +
-`h_edge`/`h_incidence` + `_build_meta`); `_build_meta.schema_version`
-= "16" — a cache stamped otherwise fails `_is_warm()` and triggers a rebuild.
+`graph_design.md` §8). 44 objects (`v_node` + 9 filtered projections + 2
+embedding tables + 10 centrality score tables + 12 registry `e_*` + 7
+out-of-registry `e_*` + `h_edge`/`h_incidence` + `_build_meta`);
+`_build_meta.schema_version`
+= "17" — a cache stamped otherwise fails `_is_warm()` and triggers a rebuild.
 
 | Object | Shape | Notes |
 |---|---|---|
 | `v_node` | `id BIGINT, name, kind, sector_classification, market_cap, ticker` | 1,685 rows, all kinds; `id` = `row_number()` at build; `market_cap` tag-derived (MIN over `entity_tags`, one row guaranteed) |
 | `v_company`(1,179) `v_country`(21) `v_sector`(42) `v_sub_sector`(100) `v_super_sector`(10) `v_theme`(12) `v_edition`(114) `v_institution`(207) `v_index`(0) | filtered copies of `v_node` | TABLES (not views), same `id` space — company-only wrappers filter on them |
 | `e_*` × 18 | two semantic int-id endpoint cols + `weight, properties, source_ref, valid_from, valid_to` | one per edge_type, mapped by `EDGE_REGISTRY` in `query.py` (e.g. `e_belongs`(company_name→sector_name), `e_has`(sector_name→company_name), `e_jv`/`e_competes`/`e_group`/`e_comention`(a_name,b_name), `e_supplier`(supplier_name,customer_name), `e_customer`(customer_name,supplier_name), `e_acquired`(acquirer_name,target_name,+`year`), `e_subsidiary`(subsidiary_name,parent_name), `e_belongs_to`(child_id,parent_id), `e_exposed_to`(company_id,theme_id)); the later types (`e_semantic_peer`, `e_invested`, `e_cited_in`, `e_listed_in`, `e_listed_on_index`, `e_dir`, `e_all_und`) share those shapes — full mapping is `EDGE_REGISTRY` in `query.py` — endpoint ids reference `v_node.id` |
-| `_build_meta` | `key, value` | schema_version, built_at, source_db, generation, duckdb_version, note_embed_dims, note_embed_model; drives `_is_warm()` (the note_embed_* pair catches same-dims model swaps) |
+| `_build_meta` | `key, value` | schema_version, built_at, source_db, generation, duckdb_version, note_embed_dims, note_embed_model, louvain_modularity; drives `_is_warm()` (the note_embed_* pair catches same-dims model swaps) |
 | `v_embeddings` | `company_name, id BIGINT, embedding FLOAT[]` | 1,165 rows; materialised by `helpers/graph/query.py` (`_materialise_embeddings`, CTAS from SQLite `company_embeddings` — embeddings.py writes the SQLite side); powers `semantic_neighbors` |
 | `v_note_embeddings` | `file_path, doc_type, title, emb FLOAT[384]` | 16,521 rows; CTAS from the `note_search` JSON column (`_materialise_note_embeddings`); powers similar-notes / notes-like wrappers |
+| `v_centrality_*` × 10 | `name, score` (`v_centrality_louvain`: `name, community_id BIGINT`) | one per Onager structural metric (degree/closeness/betweenness/eigenvector/harmonic/katz/laplacian/local_reaching/voterank/louvain), stamped at rebuild by `_materialise_centrality_cache` (`graph_centrality_persistent_cache`); no generation column — the file-level `_build_meta` stamp is the invalidation contract; VoteRank's `score` is the 1-based seed rank, louvain's modularity rides `_build_meta.louvain_modularity`; readers (`algorithms._cached_central_*`) serve non-empty tables, else compute; `--compute` bypasses |
 
 ## Constraints & integrity summary
 

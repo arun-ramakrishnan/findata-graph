@@ -1,15 +1,15 @@
 ---
 title: "Persistent per-generation centrality cache — stamp v_centrality_* into graph.duckdb at rebuild"
-status: proposed
+status: executed
 filed: "2026-09-19"
-executed: null
-completed_md: null
+executed: "2026-09-21"
+completed_md: "259"
 area: "helpers/graph/query.py (build path + schema v17), helpers/graph/algorithms.py (read path), tests, doc/design (db_schema.md)"
 ---
 
 # Persistent per-generation centrality cache — stamp `v_centrality_*` into `graph.duckdb` at rebuild
 
-**Date:** 2026-09-19 · **Status:** PROPOSED ·
+**Date:** 2026-09-19 · **Status:** EXECUTED 2026-09-21 ·
 **Area:** `helpers/graph/query.py` (rebuild path, `_SCHEMA_VERSION` 16 →
 17), `helpers/graph/algorithms.py` (nine centrality wrappers' read
 path), `tests/test_centrality_cache.py` (new), `doc/design/db_schema.md`
@@ -160,6 +160,68 @@ cheap smoke assertion in tests instead.
 - Measured baselines 2026-09-19, generation 112773: closeness 1.33s /
   betweenness 0.92s compute; connect 0.16s; CLI end-to-end 1.51s /
   1.17s.
+
+## 8. Stamped outcomes at execution (2026-09-21, generation 112779)
+
+Reference readout of what the first production stamp put in the tables
+(live data, read straight from `memory/graph.duckdb`; equality with a
+fresh `--compute` run is asserted by `tests/test_centrality_cache.py`).
+
+Universe: every score table carries exactly **1,735 rows** — the
+entities touched by non-`listed_on_index` edges, out of 6,811 `v_node`
+rows (the rest are index-only stubs and isolated notes, correctly
+unscored). Exclusion verified in-stamp: **0** `kind='index'` entities
+in any table — the #254 projection rode through, so the SME-EMERGE
+community collapse cannot recur via this cache.
+
+Leaders per metric (top 5):
+
+| metric | 1 | 2 | 3–5 (sketch) |
+|---|---|---|---|
+| degree | india 0.4902 | A_Quarter_That_Refuses_To_Behave 0.2284 | Automotive 0.0606, Technology 0.0559, Renewable_Energy 0.0513 |
+| closeness | india 0.5522 | A_Quarter… 0.4841 | Mahindra & Mahindra 0.4129, Voltas 0.4112, Ashok Leyland 0.4098 |
+| betweenness | india 0.5405 | A_Quarter… 0.1714 | Technology 0.0260, Automotive 0.0225, FMCG 0.0203 |
+| eigenvector | india 0.5132 | A_Quarter… 0.2918 | Yes Bank 0.0706, HDFC AMC 0.0699, Voltas 0.0682 |
+| harmonic | india 1206.25 | A_Quarter… 980.67 | M&M 772.98, Voltas 770.32, TCS 767.67 |
+| katz | india 1.0851 | A_Quarter… 1.0397 | Automotive 1.0105, Technology 1.0097, Renewable_Energy 1.0089 |
+| laplacian | india 749,104 | A_Quarter… 172,680 | Automotive 14,124, Technology 12,134, Renewable_Energy 10,700 |
+| local_reaching | **A_Quarter… 1233** | india 1228 | Voltas / M&M 1078, Bharat Forge 1074 |
+
+Reading: the two structural hubs dominate every metric — `india`
+(country node, 1,700 `listed_in` edges to exchange-listed companies)
+and `A_Quarter_That_Refuses_To_Behave` (edition note, 792 `cited_in`
+edges). `local_reaching` is the sole flip — the edition's 2-hop
+neighbourhood (1,233) edges out the country's (1,228). Metric-flavored
+tails: eigenvector's #3–4 are the dense Banking cluster (Yes Bank,
+HDFC AMC); closeness's are auto-sector connectors.
+
+VoteRank seed order (rank stored in `score`): india,
+A_Quarter_That_Refuses_To_Behave, Automotive, Technology, FMCG,
+Renewable_Energy, Engineering_Capital_Goods, Chemicals, Quotes,
+Banking.
+
+Louvain (modularity **0.2858**, in `_build_meta.louvain_modularity`)
+— largest ten communities, sample top-degree members:
+
+| id | size | members (sample) |
+|---|---|---|
+| 0 | 244 | Technology, Data_Center_Infrastructure, Vanguard Capital Management |
+| 1 | 158 | india, Metals, Make_In_India |
+| 2 | 120 | A_Quarter_That_Refuses_To_Behave, Pharma, Retail |
+| 3 | 115 | Automotive, CEAT, Tata Motors Passenger Vehicles |
+| 4 | 113 | Quotes, Banking, Yes Bank |
+| 5 | 103 | FMCG, Premiumization, Embracing_the_Unknown |
+| 6 | 94 | Chemicals, Premier Explosives, Beneath_the_pixels |
+| 7 | 86 | Grasim Industries, State Bank of India, Hindalco |
+| 8 | 79 | Mahindra & Mahindra, Polycab India, Bharat Forge |
+| 9 | 76 | Varun Beverages, Reliance Industries, Infosys |
+
+Community 0 is the global-tech cluster from the #215 international
+companies (Vanguard, data-center names); 4 is the quotes hub anchored
+to banks; 7–9 are India manufacturing/financial groupings.
+
+Serving effect (same stamp): warm CLI reads 0.35–0.45s across the
+family (was 1.5s+ on the compute path); full rebuild incl. stamp 6.3s.
 
 **Follows:** `../archive/graph/graph_centrality_index_noise.md` (#254, same arc). **Precedes:**
 none yet.
