@@ -5,8 +5,9 @@ move anything it shouldn't?" — ontology_governance S2. Runner:
 `helpers/misc/ontology_eval_gate.py`; frozen question set:
 `helpers/misc/ontology_questions.json` (co-located — the
 `embed_eval_questions.json` precedent: a frozen eval set lives beside
-the tool that consumes it, reviewed in patches like code). Normative
-context: `doc/design/ontology.md` §4/§6.
+the tool that consumes it, reviewed in patches like code). NIC-2008
+coding / promotion procedure: `doc/procedures/nic-coding.md`.
+Normative context: `doc/design/ontology.md` §4/§6.
 
 ## When to run (mandatory)
 

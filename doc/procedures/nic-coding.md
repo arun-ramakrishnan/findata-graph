@@ -1,4 +1,4 @@
-# NIC-2008 assessment — coding, promotion, and vintage discipline
+# NIC-2008 coding — promotion and vintage discipline
 
 The operator procedure for the vendored NIC-2008 vocabulary
 (`nic2008_seed_table`, completed.md #246): how industry labels get NIC

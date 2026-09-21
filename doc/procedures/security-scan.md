@@ -1,4 +1,4 @@
-# Security assessment — the full scan procedure
+# Security scan — the full procedure
 
 The operator procedure for a security pass over this repo: what to run,
 in what order, and how to record the result so coverage accumulates.
@@ -218,7 +218,8 @@ the finding.
 - A confirmed finding spawns its **own small fix proposal** carrying the
   regression test; the assessment changes no source.
 - md-lint clean; `make search-fresh` advisory after the edit (operator
-  applies).
+  applies). After bulk path renames in the same arc, run the reference
+  sweeps in `doc/procedures/doc-hygiene.md`.
 - **Run the coverage validator** — the completeness gate:
 
   ```bash
@@ -236,8 +237,10 @@ the finding.
 ## Pointers
 
 - Record + findings: `doc/local/security/security_evaluation.md`
-- Current fix proposals: `doc/improvements/proposals/` (the AVAIL-1 cap
-  and the coverage-expansion arc)
+- Coverage gate: `helpers/validators/coverage_ledger.py` + ledger JSON
+- Current fix proposals: `doc/improvements/proposals/` (checklist +
+  reference-rot sweeps: `doc/improvements/proposals/README.md`,
+  `doc/procedures/doc-hygiene.md`)
 - External reference (selectively imported, not adopted wholesale):
   `cloudflare/security-audit-skill` — the verdict taxonomy, the candidate
   gate, and the coverage-ledger concept are what this procedure carries

@@ -279,7 +279,7 @@ search-fresh:    ## Check ALL search indexes for staleness — doc/, script meta
 
 search-tui:      ## Full-screen search front door — docs/scripts/notes indexes + ripwire + rg lanes; enter reads markdown via glow
 >	@if [ -x .venv/bin/python3 ]; then .venv/bin/python3 helpers/misc/search_tui.py; else python3 helpers/misc/search_tui.py; fi
-> @echo "✓ search TUI exited (doc/procedures/search-tui.md)"
+> @echo "✓ search TUI exited (doc/procedures/search.md §Search TUI)"
 
 recompute-graph: ## Recompute all graph analytics and persist to graph_analytics
 > python3 helpers/graph/algorithms.py --all --apply

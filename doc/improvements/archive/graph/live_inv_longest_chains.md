@@ -90,7 +90,7 @@ long before D19; the leg was 51-122s on 09-11/12).
 
 ## 5. Deferred
 
-- **S3 SUPERSEDED 2026-09-16 by `../../proposals/hgx_first_scaling.md` S3** (absorbed,
+- **S3 SUPERSEDED 2026-09-16 by `hgx_first_scaling.md` S3** (absorbed,
   with the D4 materialisation and the first SQL-over-incidence
   consumers). Original record (D4 lane) — the dyadic
   n^2 matrix is the legacy view; hypergraph/incidence analytics scale

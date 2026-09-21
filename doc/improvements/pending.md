@@ -2,8 +2,9 @@
 
 Full annotated triage map with live-verified trigger status:
 `doc/local/notes/future_items.md` (2026-09-05). Open items below keep their
-- **§G2 word-overlap alias guard + §G3 discard-persistence noise gate** — executed as `doc/improvements/archive/graph/word_overlap_alias_guard.md` (completed.md #218, 2026-09-09).
 revisit triggers inline; executed work is compressed to records.
+
+- **§G2 word-overlap alias guard + §G3 discard-persistence noise gate** — executed as `doc/improvements/archive/graph/word_overlap_alias_guard.md` (completed.md #218, 2026-09-09).
 
 - **HGX D10 prediction/motifs lanes** (D4 EXECUTED as hgx_first_scaling
   #241: h_edge/h_incidence cache + SQL consumers + hyper API —
@@ -17,15 +18,21 @@ revisit triggers inline; executed work is compressed to records.
   company resolved, `unmapped_authored` empty). The label-level
   worklist detector still lists the 8 authored-covered labels — they
   re-ask on future label drift by design (S4 reopen intent).
-- **Re-evaluate HNSW index macros** (deferred N5 item 5). `hnsw_index_scan`,
-  `vss_match`, and `pragma_hnsw_index_info` emit empty-signature binder errors
-  on the vss build (these are DuckDB extension macro names, not repo symbols —
-  an undefined-anchor reading here is intended; re-verified on DuckDB 1.5.5 +
-  Onager 49ad15b; extension
-  binaries unchanged since 2026-08-14/09 — nothing new upstream to test).
-  Brute-force VSS works (~3ms @ 1k) so nothing is broken today; revisit via
-  quarterly `make update-extensions` (~Nov 2026) and re-test the macros
-  (graph_design.md §18.5/§5.4).
+- **Re-evaluate HNSW index macros** (deferred N5 item 5). Capability
+  UNBLOCKED, adoption DECLINED (re-verified 2026-09-22, DuckDB 1.5.5,
+  vss binary unchanged since 2026-08-09): the old "empty-signature
+  binder errors" were scalar-style mis-calls — `vss_match` is a table
+  MACRO `(table, col, query, k, metric)`, `pragma_hnsw_index_info()` a
+  table function, and `CREATE INDEX … USING HNSW` now works on-disk
+  (`SET hnsw_enable_experimental_persistence=true`) and survives
+  reopen; the planner routes `ORDER BY array_distance … LIMIT k`
+  through `HNSW_INDEX_SCAN` with exact recall (10/10 overlap vs brute).
+  Measured at note-search scale (16.5k×384): exact brute 5.2 ms, HNSW
+  scan 5.4 ms (no gain), `vss_match` macro 104 ms (worse);
+  `hnsw_index_scan` is internal-by-design (no direct bind). Brute-force
+  stays; revisit when embeddings approach ~10⁵–10⁶ vectors or a vss
+  build cuts macro overhead — plus the quarterly `make
+  update-extensions` re-check (graph_design.md §18.5/§5.4).
 
 - **Wrap `onager_ctr_personalized_pagerank`** (deferred N5 item 6). Onager bug:
   personalisation column ignored, restart node hardcoded to `node_id 1`, and it

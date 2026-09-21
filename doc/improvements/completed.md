@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
-**Generated**: 2026-08-09
-**Total completed**: 128 items
+**Generated**: 2026-09-22
+**Total completed**: 180 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -999,7 +999,9 @@ pytest**. Deleted the dead definition and ported its stronger `== 1` assertion
 **Gate:** `make lint` is green; `ruff check .` added as the first step of
 `make qa` (fastest fail) so the 166 can't regress. ruff 0.16.2 caught a prior
 real bug too (`db_maint.py` referenced `sys.stderr` with no `import sys` —
-fixed at adoption time). Full detail: `doc/improvements/archive/testing/lint_analysis.txt`.## 91. duckpgq retirement, Phase A — Onager-backed pagerank / WCC / clustering
+fixed at adoption time). Full detail: `doc/improvements/archive/testing/lint_analysis.txt`.
+
+## 91. duckpgq retirement, Phase A — Onager-backed pagerank / WCC / clustering
 
 **Date:** 2026-08-14 · **Proposal:** `doc/improvements/archive/graph/duckpgq_retirement.txt`
 
@@ -2481,23 +2483,26 @@ edge set). All four workstreams shipped the same day:
   `normalized_name`=stem repair (108 rows), PascalCase exemption.
   Known follow-up PROPOSED: `okf_sources_maintenance.md` (`sources[]`
   lifecycle + the `--stale-only` evidence hole).
-- **#135 — OKF `sources[]` maintenance at render time**
-  (`okf_sources_maintenance.md`, EXECUTED 2026-08-19).
-  Closed the lifecycle gap where `sources[]` only grew via one-off
-  backfill: `derive_insights` now SPLICES newly referenced editions into
-  `sources[]` at render time (entry builders lifted into
-  `helpers/core/edition_index.py` — `merged_sources`/`edition_source_
-  entry`/`git_add_date`, reimported by the backfill), and the
-  `--stale-only` gate re-opens when a scanned edition's stem is missing
-  from `sources[]` (§3.2b; key-figures metrics reach the splice as extra
-  stems since their blocks carry no edition reference). Render + splice
-  + gate read the same world; pinned end-to-end by convergence tests
-  (second `--stale-only` run writes 0). Perf: batch git add-dates (one
-  `git log` pass), memoized edition-string resolution, title cache —
-  derive_insights 10.97s → 3.4s (budget 4.0). Docs:
-  `markdown_parse.md` post-render chain; backfill docstring now marks
-  its reduced (bootstrap) role. Live convergence apply (52+45 notes, all
-  stem-leg) held at dry-run for the operator.
+
+## 135. OKF `sources[]` maintenance at render time
+
+**Date**: 2026-08-19 · **Proposal**: `doc/improvements/archive/okf/okf_sources_maintenance.md` (EXECUTED).
+
+Closed the lifecycle gap where `sources[]` only grew via one-off
+backfill: `derive_insights` now SPLICES newly referenced editions into
+`sources[]` at render time (entry builders lifted into
+`helpers/core/edition_index.py` — `merged_sources`/`edition_source_
+entry`/`git_add_date`, reimported by the backfill), and the
+`--stale-only` gate re-opens when a scanned edition's stem is missing
+from `sources[]` (§3.2b; key-figures metrics reach the splice as extra
+stems since their blocks carry no edition reference). Render + splice
++ gate read the same world; pinned end-to-end by convergence tests
+(second `--stale-only` run writes 0). Perf: batch git add-dates (one
+`git log` pass), memoized edition-string resolution, title cache —
+derive_insights 10.97s → 3.4s (budget 4.0). Docs:
+`markdown_parse.md` post-render chain; backfill docstring now marks
+its reduced (bootstrap) role. Live convergence apply (52+45 notes, all
+stem-leg) held at dry-run for the operator.
 
 ## 136. as_of_edition normalized to edition stems at the derive write boundary
 
@@ -4111,7 +4116,7 @@ routing rule stands with hard numbers on all three routes: Python
 parity (#180); pure Python baseline; native engine unfit. corpus_sweep
 keeps yaml + regex phases; battery/cases files unchanged.
 
-## 182
+## 182. Mojo port of `database_integrity_check.py` — full check surface
 
 **Date:** 2026-08-30 · **Type:** tooling (Mojo) ·
 **Files:** `Mojo/src/common/integrity_check.mojo` (moved from
@@ -4166,7 +4171,7 @@ TOOL, not a bench probe); `Mojo/bin/integrity_check` is on PATH.
 - **Gate unchanged**: `make qa` still runs the python checker; the port
   is bench-side + a standalone tool. Promotion is a separate decision.
 
-## 183
+## 183. Mojo port of `make graph-algos` — phase 1 bridge-driven probe
 
 **Date:** 2026-08-30 · **Type:** tooling (Mojo) ·
 **Files:** `Mojo/src/bench/graph_algos_probe.mojo` (new probe),
@@ -4217,7 +4222,7 @@ sqlite-vec vec0 KNN mirror, and a doc_search embedding scan.
   (`Mojo/src/common/graph_algos.mojo`, `python_all_metrics()` goldens) —
   is a separate future proposal.
 
-## 184
+## 184. Search freshness `--check` on all three rebuilders
 
 **Date:** 2026-08-30 · **Type:** tooling (search freshness) ·
 **Files:** `helpers/maintenance/rebuild_doc_search.py`,
@@ -4252,7 +4257,7 @@ worktree's symlink (rglob does not descend symlinked dirs, so the corpus
 was blind to it) with a `cp -rl` hardlink copy; future doc/local
 additions in main need a re-sync.
 
-## 185
+## 185. Shared `fs_walk` doc corpus walker
 
 **Date:** 2026-08-30 · **Type:** tooling (search freshness) ·
 **Files:** `helpers/core/fs_walk.py` (new), `app.py` +
@@ -4297,7 +4302,7 @@ pre-existing, not touched here.
 
 **Archival:** proposal moved to `archive/pipeline/`, `archive/README.md` pipeline index + `proposals/README.md` `_(none)_` (already), `pending.md` has no liteparse items; `embed_eval_questions.json` unchanged (no `proposals/` refs). Search indexes converged via `make search-fresh APPLY=1` + `make search-fresh` (doc/script/note 81/201/1237, 0 embed misses).
 
-## 187
+## 187. Mojo lint gates + `mojo-format` target
 
 **Date:** 2026-08-30 · **Type:** tooling (lint + perf gates) ·
 **Files:** `tests/test_lint_gates.py` (new, 3 tests), `Mojo/bench/run_bench.py`,
@@ -4342,7 +4347,7 @@ graph-algos parity 23/23 SQL + 16/16 metrics, unchanged); lint-gate tests
 3/3 in ~1.3s; ruff + ty clean on changed files; `make mojo-format` idempotent
 (second run: 0 reformatted).
 
-## 188
+## 188. Mojo doc → script_search index + query
 
 **Date:** 2026-08-30 · **Type:** tooling (search index) ·
 **Files:** `helpers/maintenance/rebuild_script_search.py`, `helpers/misc/script_query.py`,
@@ -4383,7 +4388,7 @@ never sweep the live Mojo tree); live `script_query "canonical parity
 metric" --kind mojo` ranks the probe modules; "Stopwords comptime alias"
 surfaces alias values in snippets; search-fresh green after APPLY.
 
-## 189b
+## 189b. Mojo docstring promotion — `#` prose → `##` docstrings
 
 **Date:** 2026-08-30 · **Type:** tooling (docs/search quality) ·
 **Files:** 13 × `Mojo/src/**/*.mojo` + `Mojo/tests/*.mojo` (module
@@ -4421,7 +4426,7 @@ whose answer genuinely isn't in Mojo code (e.g. community detection —
 that lives in the Onager extension / Python fixture) still surface
 nearest-neighbors, not answers.
 
-## 189
+## 189. Gate parallelism phase 2 — live-invariants xdist
 
 **Date:** 2026-08-31 · **Type:** tooling (gate parallelism) ·
 **Files:** `tests/conftest.py` (xdist per-worker cache), `pytest.ini`
@@ -4456,7 +4461,7 @@ default qa gate) stays OFF per the proposal. BFS oracle tests deliberately
 not trimmed (correctness coverage > ~4s).
 # FinData Knowledge Graph — Completed Improvements
 
-## 190
+## 190. Corpus uniformity — doc/ five-class taxonomy + template seeds
 
 **Date:** 2026-08-31 · **Type:** tooling (corpus uniformity) ·
 **Proposal:** `doc/improvements/archive/tooling/corpus_uniformity.md` ·
@@ -4492,7 +4497,7 @@ documented per-file-ignore instead); deptry `exclude` REPLACES its
 defaults (.venv got scanned) — use `extend_exclude`; `format` sorts
 BEFORE `frontend` (o < r). Proposal bold headers have four spellings —
 match both colon placements.
-## 191
+## 191. Markdown lint gate — markdownlint-cli2 adoption
 
 **Date:** 2026-09-01 · **Type:** tooling (markdown lint gate) ·
 **Proposal:** `doc/improvements/archive/tooling/markdown_lint_adoption.md` ·
@@ -4520,7 +4525,7 @@ reprint-recovery arc rebuilds them. Traps worth remembering: cli2
 misspelled; markdownlint-cli silently runs defaults on the cli2 config
 envelope; bulk markdown fixers REQUIRE a `git diff -w` audit afterward.
 
-## 192
+## 192. md-lint stale-scan cache
 
 **Date:** 2026-09-01 · **Type:** tooling (markdown lint perf) ·
 **Proposal:** `doc/improvements/archive/tooling/md_lint_cache.md` ·
@@ -4542,7 +4547,7 @@ target — wrong epoch (the search diff is drained by APPLY/maint-full,
 leaving a green-gate hole); only the content-hash mechanism is shared,
 never the epoch. 15 tests (9 original + 6 cache) with an autouse
 tmp-cache fixture; live red-path + Tier-1 verified.
-## 193
+## 193. libyaml C load/dump + regex hotspot collapse
 
 **Date:** 2026-09-01 · **Type:** tooling (perf: YAML loaders + regex volume) ·
 **Proposal:** `doc/improvements/archive/tooling/libyaml_adoption_and_regex_hotspots.md` ·
@@ -4575,7 +4580,7 @@ pdf_pipeline_local perf budget tightened 20 s → 7 s (leg re-measured at
 3.09–3.31 s; the "warm ≈7.5 s" comment was stale). 22/22 perf legs green
 after every slice.
 
-## 194
+## 194. Shared corpus walk + incremental derive
 
 **Date:** 2026-09-02 · **Type:** tooling (corpus: shared walk + incremental derive) ·
 **Proposal:** `doc/improvements/archive/tooling/shared_corpus_incremental_derive.md` ·
@@ -4583,7 +4588,7 @@ after every slice.
 
 Shared corpus and incremental derive — one walk and stale skip for `findata` (`1243 md` `5× rglob+ yaml C 1.24s` `→` `Corpus` `helpers/core/corpus.py` `0.37s` `DB` `memory/corpus.db` `28 MB` `per-file` `blake2b 8` `content_hash` `share` `note_search` `8` `mtime` `carry` `0.17s` `cached` `vs 0.82s` `cold` `1/1243` `0.23s` `vs 0.70s` `hash ==` `reuse` `sqlite` `28 MB` `vs duckdb 47 MB` `1.7×` `8.62s` `1.7×` `keep sqlite` `WAL` `sidecar` `not research.db`; `Corpus.load_shard(\"Companies\")` `1080` `vs 1243` `29MB→8MB` `10k` `250MB→68MB`; `helpers/graph/_extract_worker.py` `1182B` `pickle` `helpers.graph._extract_worker` `1.66s` `no WARNING` `vs __main__` `BrokenProcessPool→serial` `1.69s` `ThreadPool 5.3s` `GIL`; `derive_themes 0.59→0.12s` `80%` `cited_in 0.43→0.11s` `73%` `MAX(created_at)` `try` `S1c` `insights 308/343` already `S1a` `single DB` `_build_resolver_map` `1 SELECT` `2.19→2.36s` `2742 q` `S1d` `advisory` `doc/templates/python_module.py` `contract` `Corpus` `+ stale` `tests/test_corpus_advisory.py` `8+2` `WARNING` `0` `PASSED` `advisory` not `gating` `like ty-tests` `8` `rglob` `mmtime` `S1b` `consolidated` `build/load/store` one place `helpers/core/corpus.py` `DB` `per-file` `hash` `incremental` `vs max_mtime` `full`; `maint --full` pre-warm `0.15s` `PRE_FULL --corpus` `5×` `0.44+5*0.16≈1.24s` `vs 1.45s` `scale` `10k` `S1b.2-3` `now` `hash` `shard` `2 walkers` `S1b.4-6` `frontmatter-only` `Iterator` `generation` `gating` `S2` `Mojo` `defer` `§7`). Verified `static_checks Proposal lifecycle ✓` `144 passed` `deterministic` `1243` `0/1243` `parity` `6764 tags` `359` `1106` `2742 q` `88 edges`.
 
-## 195
+## 195. Corpus/embedding scale to 100M — lazy notes, flat KNN
 
 **Date:** 2026-09-02 · **Type:** tooling (corpus/embedding scalability: lazy Corpus, aligned f32 matrix, flat KNN) ·
 **Proposal:** `doc/improvements/archive/tooling/corpus_embeddings_scaling.md` ·
@@ -4593,7 +4598,7 @@ Scale corpus + embeddings to 100M elements — the S2 slices over S1's increment
 
 Same-window tail (2026-09-02→03, this branch): snapshot refresh gen `58188 → 65041` (post-#193/#194 re-derivation, operator publish flow); the legacy `/tmp/findata_corpus.pkl` fallback dropped from the Corpus cache — its findata branch returned pickle content unfiltered and its mtime-only guard let a synthetic-tree load shadow the production corpus (the DB cache is the sole fallback now); `max_real_matmul` GEMM bench (`Mojo/bench/max_real_matmul.py`) — kernel attribution fixed (n==1 matvec dispatches the CPU gemv reduce-generator, NOT `Inner_matmul_default`), `--n` batched-GEMM ladder (`9.1×` per-query at 100M n=64), measured numpy crossover: MAX wins n≈2–16, OpenBLAS sgemm wins n≥64 at every shape incl. K=768 (details: `doc/local/mojo/mojo_pilot.md` § Linalg CPU kernels).
 
-## 196
+## 196. Shared routines pass 2 + CLI guard unification
 
 **Date:** 2026-09-03 · **Type:** tooling (shared routines pass 2 + CLI guard unification) ·
 **Proposal:** `doc/improvements/archive/tooling/shared_routines_cli_guards.md` ·
@@ -4601,14 +4606,14 @@ Same-window tail (2026-09-02→03, this branch): snapshot refresh gen `58188 →
 
 Shared routines pass 2 — stale-gate helper, graph-conn adoption, `--apply` CLI guard unification. Survey-then-consolidate arc (operator-directed): 41 parsers / 216 `add_argument` census showed the shared-argparse-builder idea is a non-goal (mode flag `--limit` ×5 — skeleton similarity, not repeated work). Landed: **W6** `corpus.notes_stale_since()` collapses the three copy-pasted derive-family `--stale-only` gates (events/themes/cited_in; OSError-skip semantics now uniform); **W7** `query.connect_read_only()` — `context_pack` off the raw `duckdb.connect` (was relying on extension AUTOLOAD for the vss scalars its semantic leg needs); **W1** `--rewrite` → `--apply` in `capture_newsletter_images` incl. the hardcoded `parse_newsletter` subprocess argv, and triage's two-key `--apply-decisions --write` collapsed (`write=False` retained at library level); **W2** polarity flips to dry-run-default + `--apply` for `sync_tags`, `sync_sector_wikilinks`, `enrich_from_yfinance`, `rebuild_schema` (bare `sync_tags.py` rebuilt entity_tags silently — the operator-named gap); make/maint wiring carries the flags; `db_maint`/`maint` keep `--dry-run` plan-mode (documented deviation); **W3** `RawDescriptionHelpFormatter` on the two collapsed epilogs + `%(prog)s`; **W4** argv adoption ×14 (get_tickers got a full `cli()` extraction); **W5** `-k` help ×3 + "CLI conventions" section in `doc/procedures/maintenance.md` (`-k` = neighbors, `--limit` = row caps); **W8** `env.REPO_ROOT` export (db.py adopts; script entry points keep `parents[2]` — sys.path bootstrap chicken-and-egg; `db.utc_now()` NOT adopted at enrich call sites — formats diverge); **W9** `tests/test_cli_guards_advisory.py` census — advisory WARNING-only, 8-entry allowlist with reasons, hard assertions prune stale entries. Verified: suite 2712 passed, static_checks/lint-audit clean; follow-up same day — the two `compute_root` tests' hard-coded main-checkout name pins (`== "pdf-ocr-obsidian"`) made worktree-agnostic (`== Path(__file__).resolve().parents[1]` + `.git` exists), worktree `make qa` now 9/9 PASS; perf driver legs repaired next run — `enrich_yfinance` still passed the removed `--dry-run` (argparse rc 2 → FAIL(rc) despite in-budget time; bare run is the dry-run now) and `sync_tags` gained `--apply` so the leg keeps timing the write path its budget was calibrated on — `make perf` 22/22. Python 3.14 note: ruff format now emits PEP 758 unparenthesized multi-excepts.
 
-## 197
+## 197. Mojo bench parity gates + graph connect-seam late binding
 
 **Date:** 2026-09-03 · **Type:** tooling (Mojo bench parity gating + graph connect-seam late binding) ·
 **Status:** EXECUTED 2026-09-03 (two review-finding fixes, no proposal — single-package each)
 
 **Mojo parity gates** — closed the top integrity-port review finding: the db-access and db-integrity bench legs printed parity FAILs but always exited 0, so `run_bench.py` rc gating could never see a drift (the graph-algos leg has gated since 2026-08-30). `Mojo/src/bench/db_access_probe.mojo` counts mismatched checksums and exits 1 via the house bridge `os._exit` pattern; `Mojo/src/common/integrity_check.mojo` folds a golden-parity mismatch counter into its exit code (parity mode: any of the 89 canonical keys mismatching → EXIT 1 — the old code pinned the gap with an explicit no-op comment saying parity failures never change exit); both `run_bench.py` leg docstrings updated. Verified: binaries rebuilt, `db-access` 6/6 rc 0, `db-integrity` golden parity 89/89 rc 0; fail path then proven end-to-end by forced-mismatch drill — tampering each leg's Python oracle (`checksum_of`, `python_all_checks`) made the Mojo gate exit 1 with the PARITY FAIL banner (db-access 0/6, integrity 0/89 — with healthy data so the parity fold was the only exit trigger), and reverting restored rc 0 on both. **Graph connect-seam late binding** — root cause of the pre-existing 2026-08-30 `test_graph_stats` interference: `helpers/graph/algorithms.py` early-bound `from helpers.graph.query import connect`, and the `/api/graph/stats` route test first-imports algorithms mid-fixture — capturing the conftest `seeded_graph_sqlite_db` hermetic `connect` mock permanently; teardown restored `q.connect` but the stale binding raised `FileNotFoundError` (deleted tmp_path db) out of `graph_metrics()` for every later consumer. Fix: `algorithms.duckdb_connect` is now a call-time wrapper (`_graph_query.connect(...)`), `suggest_relations` reaches connect through the module — module-attr patches stay effective regardless of import order. 2 regression tests in `tests/test_api_graph_unit.py` (`TestGraphQuerySeamLateBinding`); pair run 97 passed with the hermetic fixture behavior retained.
 
-## 198
+## 198. CLI test seam for five out-of-census mains
 
 **Date:** 2026-09-03 · **Type:** tooling (CLI test seam for the five out-of-census mains) ·
 **Proposal:** `doc/improvements/archive/tooling/argv_seam_tail.md` ·
@@ -4616,7 +4621,7 @@ Shared routines pass 2 — stale-gate helper, graph-conn adoption, `--apply` CLI
 
 Post-#196 sweep found five bare `def main()` signatures outside the 41-parser census — none carries an `ArgumentParser` (three hand-roll `sys.argv`: `rename_entity`, `move_sector`, `embed_eval`; two flag-less: `static_checks`, `database_integrity_check`). All five took the house seam `def main(argv: list[str] | None = None)` — hand-rolled mains relocal once (`raw = sys.argv[1:] if argv is None else argv`, indices shift −1), flag-less accept-and-ignore (`database_integrity_check` keeps its `None` return); the `__main__` guards were already `sys.exit(main())`. No argparse conversion — usage/error surfaces unchanged (non-goal). Gates: new `tests/test_cli_argv_seam.py` — signature probe ×5, usage-branch invocation probes (`main([])` → rc 2) for the two hand-rolled CLIs, and a NOT-FOUND probe (rc 1 vs usage rc 2, tmp-db-pinned) proving the shifted argv reaches the SQL lookup; `embed_eval`/`static_checks`/`database_integrity_check` deliberately not invoked (their mains run full workloads). 8 tests pass; ruff clean.
 
-## 199
+## 199. utc_now unification — census disposition
 
 **Date:** 2026-09-03 · **Type:** tooling (utc_now unification — scope disposition closing the #196 W8 deferred item) ·
 **Proposal:** `doc/improvements/archive/tooling/utc_now_unification.md` ·
@@ -4624,7 +4629,7 @@ Post-#196 sweep found five bare `def main()` signatures outside the 41-parser ce
 
 Closed the #196 W8 deferred item ("why did we not adopt `db.utc_now()` at the enrich call sites?") with a census-disposition record: every non-`utc_now` timestamp producer in `helpers/` was measured and either adopted where the `db.utc_now()` docstring contract (bare DATETIME/`last_updated` columns participating in a staleness comparison vs `CURRENT_TIMESTAMP` must carry `YYYY-MM-DD HH:MM:SS`) demands it, or pinned as a documented deviation. **Adopted (2 sites, write-only audit stamps):** `enrich_relations.py:1987` → `entity_gf_map.resolved_at` and `enrich_relations.py:2528` → `entity_ticker_status.decided_at`, both `datetime.now(UTC).isoformat(timespec="seconds")` (T-separator) → `db.utc_now()` (a `utc_now` import added to the file's `helpers.core.db` import line). **Pinned (deviation):** JSON `fetched_at` payloads, report `generated:` headers (×6), vault frontmatter `fetched_at`, date-only path-identity strings, yfinance `metrics_report.txt`, the single local-time producer (`enrich_from_yfinance.py:280` `Refreshed:`), and the git_secret_scan RFC-3339-Z format — all display/self-describing/vault-bytes rows for which adoption churns bytes with zero contract benefit. **Backfill:** the 4 pre-existing rows (2 `entity_gf_map`, 2 `entity_ticker_status`, all 2026-08-25) were converted `T`→space / `+00:00`→dropped via one-shot `REPLACE` UPDATEs — the instant is unchanged (same datetime, different text encoding), the tables are write-only, and the rewrite is idempotent, so all rows (old + new) now uniformly carry the contract shape rather than leaving a mixed-shape shard (revised from an earlier no-backfill stance). Verified: `rg 'isoformat\(timespec' helpers/` dropped 10 → 8 (exactly 2), both adopt at write-only columns with no comparison, 65 targeted pytest pass, ruff clean, DB rows all carry `2026-08-25 HH:MM:SS` with 0 T-separator values remaining.
 
-## 200
+## 200. Paper-register reader consolidation
 
 **Date:** 2026-09-04 · **Type:** frontend (paper-register reader consolidation) ·
 **Proposal:** `doc/improvements/archive/ui/consolidate_frontend_reader.md` ·
@@ -4632,7 +4637,7 @@ Closed the #196 W8 deferred item ("why did we not adopt `db.utc_now()` at the en
 
 Shared reader core for the duplicated paper-register views: new `frontend/src/core/reader.ts` + `core/loadActive.ts`, rewired `entity.ts`/`views/docs.ts`/`companies.ts`/`sectors.ts`/`stats.ts`; purged ~190 lines of dead modal CSS from `static/findata.css` (deleted, not merged); head-partial (`templates/_partials/head_vendor.html`) created then reverted per operator — per-page heads stay explicit, PINNED local. Verified: `tsc`/`prettier` clean, bundles rebuilt, render-verified.
 
-## 201
+## 201. helpers/ de-dup — env.REPO_ROOT + db.connect
 
 **Date:** 2026-09-04 · **Type:** tooling (helpers/ de-dup) ·
 **Proposal:** `doc/improvements/archive/tooling/consolidate_helpers_shared_helpers.md` ·
@@ -4640,7 +4645,7 @@ Shared reader core for the duplicated paper-register views: new `frontend/src/co
 
 `helpers/core/db.py:utc_today_iso()` adopted ×5 in `enrich_relations.py`; two `_compute_root()` copies folded to `env.REPO_ROOT`; `_connect_ro()` dropped for `db.connect(..., read_only=True)` (incl. `static_checks.py:889` + allowlist recount); `git_secret_scan.py:_now_utc()` lazily delegates to `frontmatter.iso_now_utc()`; `tests/test_snapshot_db.py` + `tests/test_db_maint.py` fixed. Verified: targeted pytest green, ruff clean.
 
-## 202
+## 202. Mojo bench/common consolidation + libpython PATH fix
 
 **Date:** 2026-09-04 · **Type:** tooling (Mojo bench/common consolidation + libpython PATH fix) ·
 **Proposal:** `doc/improvements/archive/tooling/consolidate_mojo_bench_common.md` ·
@@ -4648,7 +4653,7 @@ Shared reader core for the duplicated paper-register views: new `frontend/src/co
 
 New `Mojo/src/common/cosine.mojo`, `bridge.mojo`, `list_utils.mojo` (+ smoke `main()`s); new `Mojo/bench/bridge_utils.py` + `aligned_array.py`; 5 bench `.mojo` + probes + `integrity_check` + `test_cosine.mojo` rewired, 5 Python drivers rewired. Same-day operator fix: `run_bench.py:_venv_env()` prepends `.venv/bin` to PATH — the bridge resolves libpython from PATH at runtime, so bare-driver runs aborted with `symbol not found: Py_Initialize` while venv-active runs passed. Verified: `make mojo-build`, `make mojo-test`, db-access 6/6, db-integrity 89/89, graph-algos 0 fails, cosine-knn + pool-4x pass.
 
-## 203
+## 203. tests/ fixture & scaffolding consolidation
 
 **Date:** 2026-09-04 · **Type:** testing (tests/ fixture & scaffolding consolidation) ·
 **Proposal:** `doc/improvements/archive/testing/consolidate_tests_fixtures.md` ·
@@ -4656,7 +4661,7 @@ New `Mojo/src/common/cosine.mojo`, `bridge.mojo`, `list_utils.mojo` (+ smoke `ma
 
 Batches 1–3: new `tests/schema.py` + `tests/helpers.py`, schema migrated 17 files, copy-DB migrated to `copy_production_db()` (4 files + `test_graph` 8-table subset + fuzz 9-table nuke + `keep_all=True` flag for the 2 true copy-only fixtures), Flask client migrated 14 sites/8 files. Batch 4 (sys.path strip): 78 files, 258 deletions, 0 additions, 5 pins (`helpers/core|maintenance|misc` flat imports); load-bearing root consts keep local defs. Excluded with evidence: seed consolidation (contract-pinning fixtures — ts_contract counts, entities small_cap filter, custom topologies; flask_integration closed LEFT LOCAL, taxonomy diff), `make_company_note` (dates/no-dates semantic fork), keep-list pair + graph_disk downsample + FTS-only prune (bespoke). Also fixed pre-existing `ruff format` drift (7 files) to green the gate. Verified: full suite 2726 passed, `make qa` 9/9, `make advisory` 10/10.
 
-## 204
+## 204. Vault scaling to 100M doubled rows — Phase 0
 
 **Date:** 2026-09-04 · **Type:** graph (vault scaling to 100M doubled rows — Phase 0 executed; Phases A–C trigger-gated) ·
 **Proposal:** `doc/improvements/archive/graph/vault_scaling.md` ·
@@ -4664,7 +4669,7 @@ Batches 1–3: new `tests/schema.py` + `tests/helpers.py`, schema migrated 17 fi
 
 Target decision: 100M doubled ROWS, not 100M nodes (2.24B rows breaks the frozen int32 CSR by 4.5%, ~112 GB DuckDB table — rejected with arithmetic in §1). Phase 0 landed: `tests/test_tier_tripwire_advisory.py` (corpus-advisory pattern; watches e_all_und rows vs T1 1M / T2 10M / T3 100M, notes vs Phase A ~10k, matrix MB vs Phase C; baseline at landing: 34,392 rows = 3.4% of T1, 1,241 notes = 12.4% of Phase A, density 27.7 = filing baseline) + `tests/bench_scale_bfs.py` (in-repo ladder rewrite after the /tmp wipe; deterministic hash-based synthetic graphs over the real `_materialise_walk_substrate` + `shortest_path`; T1 flag verified firing at 10M; 100M opt-in, deliberately not a perf leg). Ride-alongs fixed: `tests/helpers.py` shadowed the namespace `helpers` package on script runs (both perf bench legs FAIL(rc) — fixed by regular-package marker `helpers/__init__.py`); non-hermetic rebuild tests clobbered `memory/embed_matrix.*` via the refresh hook (conftest autouse `_embed_matrix_to_tmp`, sibling of `_embed_store_to_tmp`); `_rebuild_via_swap` left `<db>.rebuild-<pid>.tmp.build.lock` orphans (nine sprayed; temp lock joined the finally-clean — main lock persists by design); 9 uncollected test methods in `test_api_flask_integration.py` renamed `test_*` (21/21 green). Also: `memory/embed_matrix.f32` built (1,241×384 f32, 64B-aligned), perf_event_paranoid permanence via `/etc/sysctl.d/99-perf-event-paranoid.conf` = 1 (verified live). Verified: `make qa` 9/9, `make advisory` 10/10, `make perf` 22/22 (both repaired legs green), `make search-fresh` rc=0.
 
-## 205
+## 205. Backup coverage — corpus cache joins db-backup
 
 **Date:** 2026-09-04 · **Type:** database (backup coverage — corpus cache joins db-backup) ·
 **Scope:** `helpers/core/corpus.py`, `helpers/maintenance/{db_maint,snapshot_db,maint}.py`, `tests/conftest.py` ·
@@ -4672,7 +4677,7 @@ Target decision: 100M doubled ROWS, not 100M nodes (2.24B rows breaks the frozen
 
 `corpus_cache` holds path/mtime/content_hash/frontmatter_json/body/text for all 1,243 vault notes — the private-content class the git-side snapshot deliberately excludes — and nothing backed it up: it landed Sep 3 with the corpus arc (#194), after the backup machinery was designed. Wired in: public `corpus.CORPUS_DB` seam (call-time import, mirrors `vec_search.EMBED_DB_PATH` so conftest redirects hold); `db_maint._backup_corpus()` → `db-backup/corpus_backup.db.zst` (WAL-consistent sqlite online-backup + zstd, absent-state skip, same shape as `_backup_embed_store`); `snapshot_db._snapshot_corpus()` as 4th pool worker → `db-backup/corpus.snapshot.db.zst` with the D3 mtime-skip (the cache changes only when the corpus rebuilds); both sidecar workers extracted to module level (the added closure had pushed `_create_binary_snapshot` to C901 12 > 10); conftest autouse `_corpus_db_to_tmp` hermeticity pin in the same change (the same-day embed-matrix lesson). The missing copy was built immediately: 4.4 MB zst from the 29.5 MB source, round-trip verified (1,243 notes, all with bodies). Deliberately NOT added to backups, per the charter (private-or-expensive-to-rebuild state the snapshot excludes): `embed_matrix.*` (derived, one-command rebuild from note_search), `md_lint_cache.db`, fetch caches (public market data, re-fetchable). Verified: 40 snapshot/maint-chain tests + 67 wider backup-flow tests green, `make lint-audit` clean, ruff + types clean.
 
-## 206
+## 206. Maintenance runtime hardening
 
 **Date:** 2026-09-04 · **Type:** tooling (maintenance runtime hardening) ·
 **Scope:** `helpers/maintenance/{maint,db_maint}.py`, `helpers/core/{parse_newsletter,edition_index}.py`, `helpers/graph/derive_cited_in.py`, `helpers/pdf/pdf_conv_md.py`, `helpers/validators/verify_notes.py`, `doc/procedures/{maintenance,markdown_parse}.md` ·
@@ -4681,7 +4686,7 @@ Target decision: 100M doubled ROWS, not 100M nodes (2.24B rows breaks the frozen
 
 Two runtime failure classes from one ingest, five slices. (1) Interpreter doctrine: repo→repo Python subprocesses spawn via `sys.executable`, never PATH-resolved `python3` — a venv parent spawning a PATH child crashed with `ModuleNotFoundError: dotenv` (fixed 17 sites: parse_newsletter 3, maint.py 13 step defs, db_maint `_run_sync_check`; test pins updated; live-verified under a stripped PATH). (2) `derive-cited-in` joined PRE_FULL (ahead of TIER1 graph-rebuild — the paired DuckDB rebuild now happens in-run; the never-run manual `make derive-cited-in-rebuild` had let edition entities/`cited_in` edges rot). (3) The `okf_backfill` derived-mode converger joined PRE_FULL as step 2 (sync-tags → okf-backfill → rebuild-note-search → derive-cited-in; maint-full = 14 steps), killing the manual sources[] backfill — hand-written Stage-5 edition blocks have no render-time splice, and 25 straggler notes (five sessions' worth) had accumulated citation debt; doctrine carve-out: machine-owned frontmatter provenance keys (sources[]/stale_after/process:* stamps) may be converged in maint-full, bodies/rosters/chatter blocks never. (4) `pdf_conv_md.py` note title now prefers the PDF's pdfinfo Title metadata over the first-H1 heuristic (which had stamped sector headers/mastheads as titles — `FMCG`, `Consumer Durables`, `Subtext by Zerodha`, a bare stem, a company-section line; five notes repaired from the same metadata). (5) Converger semantics: `merged_sources` now converges entries for live, body-cited editions to canonical builder output (deleted/uncited stay verbatim, accepted Q2 intact); `note_title` found regexing the raw `title:` line — YAML quote characters were landing inside values as `'''…'''` soup, latent since the OKF arc, now `yaml.safe_load`-parsed with a raw fallback. First converged run healed ~348 notes (legacy shapes + quote soup); re-run reports 0 (stability test-pinned). Same-day riders in this entry's change set: Tata AutoComp/AutoComp Systems entity dedupe (keeper `Tata AutoComp` kept 15 edges incl. the retargeted `cited_in`; `taco` alias repointed + full-name alias added), 14 verify_notes advisories cleared (12× `listed: false`, Global Education ticker `GLOBAL.NS` verified against Yahoo — a fuzzy false-positive `VIRTUALG.BO` rejected, `taiwan` added to the known-good geography set per the usa/south_korea precedent), Stage-5 splice-at-write-time instruction added to markdown_parse.md (option B hygiene). Verified: 258 tests across 9 affected modules, live `make maint-full` 14/14 with okf-backfill no-op on a converged vault, `database_integrity_check` 100% + exit 0 (cache_consistency was the post-ingest FAIL-by-design until graph-rebuild), frontmatter_schema 0 fatal, verify_notes 0 errors/0 warnings, md-lint clean, search-fresh converged.
 
-## 207
+## 207. Archify diagram pipeline
 
 **Date:** 2026-09-05 · **Type:** tooling (archify diagram pipeline) ·
 **Scope:** `doc/design/diagrams/` (7 IR+HTML pairs), `doc/procedures/diagrams.md` (new), `README.md`, `docs/img/` (6 showcase PNGs), pointers in `doc/design/{architecture.md,graph_design.txt}` + `doc/procedures/{markdown_parse,maintenance,embeddings}.md` ·
@@ -4690,7 +4695,7 @@ Two runtime failure classes from one ingest, five slices. (1) Interpreter doctri
 
 Adopted archify (agent skill, MIT, fully local — one notification-only update check) as the repo's diagram tooling under a bounded doctrine: prose stays the source of truth, diagrams are per-section companions (never replacements), typed JSON IR is the committed diffable source and the ~15k-line self-contained HTML is a regenerable build artifact, and integration-suite-backed chains outrank prose-only subjects because the suite is the diagram's re-render tripwire (every diagram card cites its executable spec). Seven diagrams landed, each through the full gate chain (9-check showcase validation, SHA-pinned delivery, 4-viewport × 2-theme browser evidence, perceptual review): system_overview (storage topology, SRC evidence chips pinned to origin/main with anchors verified via `git show origin/main:<path>`), markdown_parse (ingest dataflow, 5 stages), maint_full (14-step workflow with the D1 single-snapshot elision and recovery-backup return edge), embeddings_stack (one embedder → four surfaces + pooled cache + hybrid seam, SRC-marked), relations_pipeline (two-lane extract → sidecar → triage → resolve with loop closure), derive_chain (prose → edges → events → quotes, spec = P3 suite), snapshot_lifecycle (create → verify → restore state machine, spec = A3 suite — landed with a viewport caveat: the four-band canvas saturates at ~1376px scroll height, fits broad displays ~2100px-wide class, per-viewport numbers in the proposal; user call after the per-viewport data). Candidate selection ran a 10-surface census (6 defers + 2 don't-draws with reasons: threshold tables and already-represented chains). Authoring constraints codified in the new doc/procedures/diagrams.md: ≤12 primary nodes, no sublabels at wide viewBoxes (fixed 7px font fails the 6px desktop floor — tags + cards carry that info), same-column width alignment for auto verticals, straight same-row routes, side-loop vias aligned to edge-attachment anchors, back-edge facts move to cards, overflow fixed by gap/card compaction never clipping, evidence pins always origin/main (worktree pins 404 until push and die on stack rewrites). README showcases three diagrams as light/dark `<picture>` pairs under docs/img/ (2048×1320 captures); the ASCII "How it fits together" block deliberately stays. Tooling facts: skill installed to the common store ~/.agents/skills and symlinked per skills_symlink.md; zero repo dependencies, no gates added (validation is authoring-time discipline). Verified: every landed diagram 9/9 showcase + visual-check green, make md-lint clean (fixed three latent defects the arc introduced: MD012 double-blank, MD018 line-start `#206` heading, MD034 bare URL), make advisory 10/10, search-fresh converged per edit; archival repoints 6 cross-references proposals/ → archive/tooling/.
 
-## 208
+## 208. derive_insights regex hoisting + decode-once VSS
 
 **Date:** 2026-09-05 · **Type:** graph (derive_insights regex hoisting + entity-resolution decode-once) ·
 **Scope:** `helpers/graph/derive_insights.py`, `helpers/core/get_tickers.py` ·
@@ -4699,7 +4704,7 @@ Adopted archify (agent skill, MIT, fully local — one notification-only update 
 
 JIT triage first (recorded in the proposal §0, not implemented): `derive_insights` IPC 2.1 / L1D-miss 1.4%, `extract_relations` IPC 2.6 on 2.8 CPUs — healthy retire, nothing instruction-bound; serial-worker cProfile attributes the wall to string splitting (0.89s), CSafeLoader YAML (0.54s, already C), C-engine regex (0.31s) — none `@njit`-shaped — so **no numba dependency** (stays in the vault non-goals). Slice 1: hoisted 5 inline string-pattern sites + 2 per-call `re.compile` of constant sentinel patterns to module constants (`_NUM_RE`, `_INSERT_HEADING_RE`, `_AUTO_BLOCK_RE`, `_KF_SECTION_RES` priority-ordered tuple, `_H2_RE`, `_CHATTER_H2_RE`) — dry-run output byte-identical via stash-diff, ~0.1s at noise edge. Slice 2: `_best_vss_match` scans a content-digest-cached decoded table (sha1 over raw embedding strings, `usedforsecurity=False`, evict-oldest cap 8, identical skip semantics, no new deps) instead of `ast.literal_eval` per row per ticker query — measured 1500×384: 1502.6ms → 71.2ms per repeated query (21×); 20-ticker run ~30s → ~3s. Gate fallout fixed in-change: proposal frontmatter nullable `executed`/`completed_md` keys, `dict[str, list]` cache annotation, S324. Verified: 257 tests across tickers/insights/resolver/entity suites, `make qa` 9/9, `make advisory` 10/10, search-fresh converged.
 
-## 209
+## 209. Note section search — per-H2 vectors
 
 **Date:** 2026-09-06 · **Type:** tooling (search index — note_search sectioning) ·
 **Scope:** `helpers/maintenance/rebuild_note_search.py`, `app.py` `_hybrid_search_results`, `helpers/core/vec_search.py` ·
@@ -4708,7 +4713,7 @@ JIT triage first (recorded in the proposal §0, not implemented): `derive_insigh
 
 Per-H2-section vectors for the notes surface (the docs-surface pattern applied to note_search), closing the 512-token deep-content blind spot measured at 39% of token mass beyond bge's cap (`helpers/bench/embed_token_cap.py`). S1 index shape: one row per H2 section (heading-less notes → single pooled row; company/newsletter composition preserved), composite `file_path#anchor` vec0/matrix keys, note_search_meta stays file-keyed (mtime + content-hash), vec0 mirror relocated to the shared store — 14,500 section rows over 1,242 notes. S2 fusion semantics: rows are sections but the page is NOTES — BM25 candidate page deduped via `ROW_NUMBER() OVER (PARTITION BY file_path)` (inner LIMIT 1024 caps window-function materialization at 14.5k rows), cosine leg collapsed to note-best via the composite-key KNN map, RRF k=60 unchanged; AND-first/OR-fill candidate generation (`fts_match_expr` quoting) added after section-scoping made FTS5's implicit AND starve question-shaped queries to empty pages. S3 acceptance: search hybrid 1.00 / bm25 0.93 held; deep-content probe (15 questions whose answers live past token 512) hybrid 11/15 ≥ bm25 13/15-carrying before-leg 11/15; endpoint p50 122/p95 150ms; whole-corpus KNN map ~12ms @ 14.5k rows (vec0's 4096-k cap makes the f32 matrix the permanent serving leg). §7 records the single-record disposition; phase-2 model work continued in embed_full_reembed.md (#210). Verified: eval battery, indexer/fusion test suites, search-fresh converged.
 
-## 210
+## 210. Embedding model swap + call shape — granite
 
 **Date:** 2026-09-06 · **Type:** database (embedding model swap + call shape) ·
 **Scope:** `helpers/core/local_embedder.py`, `helpers/graph/embeddings.py`, `helpers/bench/` (7 new harnesses), all four embed indexers ·
@@ -4717,7 +4722,7 @@ Per-H2-section vectors for the notes surface (the docs-surface pattern applied t
 
 The embedding-model arc, end to end. S0: llama.cpp master REJECTED at parity (0.92–1.06× interleaved, identical CPU flags) — the 0.3.35 pin stays. S1: per-text call shape LANDED (batch multi-input create_embedding pays near-max compute per text on heterogeneous sections: 2.74/s → 11.9–12.6/s, ~4.5×; vectors differ ≤1.3e-3/component, below eval resolution). S2 whole-note bake-off: every candidate lands hybrid 11/15 — a 2k window buys ZERO deep recall on whole notes; nomic/MiniLM eliminated on quality+cost (GGUFs deleted at close, harness docstrings warn against re-download), granite kept after the user's correct challenge. S2b sectioned: granite WINS deep 14/15 vs bge 11/15 under the same section composition (granite's weaker standalone cosine fuses better with BM25). Endpoint A/B (sandbox research.db + composite-id matrix): search 27/27 both, deep 14/15 vs 11/15, latency equal — v1 of the driver was DISCARDED for serving granite queries against the bge matrix, yielding the load-bearing discovery that a model swap must rewrite column + embed_matrix + vec0 TOGETHER (the rebuild machinery does; column surgery does not). S6 SWAP EXECUTED: granite-embedding-97m-r2 (sha-pinned mykor Q8_0, 384d, ctx 2048, SYMMETRIC — no prefixes either side), `_SECTION_EMBED_CAP` 8000, serial per-text rebuilds (notes 14,500 / docs 981 / scripts 326 rows), companies via --clear + --model (1,079) + graph-rebuild (vss reads the DuckDB cache — refresh or serve stale-model vectors); bge cache cohort 20,322 preserved = instant rollback (revert constants + rebuild). Post-swap live: search 27/27, deep 14/15, docs 17/18, vss 12/12, neighbors 3/10→6/10 after S7, p50 155/p95 193ms (+27% = the 97M query cost). S7 companies base experiment (user-directed): window hypothesis DEAD (trunc2000 ≡ full 13/30), content hypothesis WINS — `_get_company_text` now embeds name + sector + first-`##`-section body (`_overview_body`, cap 1500; repopulate ~2m at 8.4/s vs ~10m), neighbors 6/10 live matching the probe prediction exactly, vss 12/12 held; degenerate-base lesson recorded (cut-at-first-heading yields empty bodies → sector-token string-matching; probe refuses body-empty bases). Standing doctrine recorded in-proposal §6b (10 deferred items: multilingual queries, sub-H2 tail, vec0 cap, hybrid tuning, per-surface routing, from_note_search cleanup, llama.cpp reopen triggers, 32k non-goal, S4 screen). Ops lessons banked: serial per-text everywhere (pool×4 parity-or-worse under load, twice), launch-verify-60s, unbuffered logs, model-keyed probe scratchs, rebuild meters + [surface] tags. Verified: qa 9/9 (2,527 tests), advisory, embed_eval battery, deep probe, search-fresh converged.
 
-## 211
+## 211. Scan/render/VSS micro-perf
 
 **Date:** 2026-09-07 · **Type:** graph (scan/render/VSS micro-perf) ·
 **Scope:** `helpers/graph/derive_insights.py`, `helpers/core/get_tickers.py` ·
@@ -4726,7 +4731,7 @@ The embedding-model arc, end to end. S0: llama.cpp master REJECTED at parity (0.
 
 Three residual hot spots after #208, all measured first. S1: `iter_company_sections` built newline offsets with a pure-Python char loop (~0.9ms/file, ~70% of serial scan) — replaced with C-speed `str.count` per yielded section (arithmetic identity: match starts point at `#`, never `\n`; bisect oracle kept in tests). Serial scan 1612→923ms, parallel(4) 717→401ms; pool stays, <8-file serial threshold stays. S2: every rendered note's frontmatter was yaml-parsed twice (gate + splice) — one shared parse via `_load_frontmatter` + `_UNSET` sentinel on both render paths, halving the ~0.5s YAML cost with zero semantic change (frontmatter-region invariant pinned by fuzz test; regex pre-checks explicitly rejected per the #206 quote-soup lesson). S3: every VSS fire re-fetched 9.2 MB + re-digested + Python-looped the dots (~62ms around the 71ms granite embed) — fetch-once float64 run index built in `main()`, threaded as `index=` through display/resolve/vss_match, guarded by a COUNT/MAX(rowid) end-of-run tripwire (concurrent-writer audit: writers are maint-only CLI commands, no cron, no call edges — overlap needs two simultaneous manual runs, SQLite serializes writes). Non-model fire 55.5→0.7ms. Verified: stash-diff dry-run byte-identical (2777/1532/310/9), wall 1.74→1.24s, 221 targeted tests (bisect-oracle, shared-parse equivalence, FM-bytes invariant, index parity + tripwire), qa 9/9, advisory 10/10, perf 22/22, search-fresh converged. Gate fallout in-change: ty narrowing on the fm union, C901 vss_match extraction, S101 assert→RuntimeError, pre-existing parquet_textconv format/None-guard.
 
-## 212
+## 212. get_tickers Yahoo robustness
 
 **Date:** 2026-09-07 · **Type:** tooling (get_tickers Yahoo robustness) ·
 **Scope:** `helpers/core/get_tickers.py` ·
@@ -4735,7 +4740,7 @@ Three residual hot spots after #208, all measured first. S1: `iter_company_secti
 
 Trigger: `--detailed HDFCBANK.NS` 404'd one fundamentals module and dropped all fifteen sections. S1: `_yf()` per-property guard — each of the 15 yfinance accesses degrades to None independently with one stderr line naming property + symbol (only Ticker-construction failure is still total). S2: dead-endpoint replacements against pinned yfinance 1.7.0 — `earnings` + `quarterly_earnings` both derived from Net Income rows (`_net_income_series`; live smoke caught that quarterly_earnings funnels into the same dead property one level down), `fund_holders` → `mutualfund_holders` chain, yfinance's own ERROR logger set to CRITICAL at import (it printed every swallowed 404 raw with no context). S3: `dividends` + `splits` captured and rendered detailed-only (`actions` verified a strict superset — skipped, no dup); estimate family excluded as data-thin for Indian names. 404 verdict recorded: Yahoo data absence, not rate limiting — no retries. DuckDB/sqlite-vec for the CLI considered and rejected (0.7ms numpy already; import weight; .so fragility; vec tables can't live in research.db). Verified: 8 stubbed tests (404 injection, derivation, name chain, warnings-as-errors, S3 render/skip), live `--detailed RELIANCE.NS` renders all sections with empty stderr, qa 9/9, advisory 10/10, perf 22/22, search-fresh converged. Gate fallout in-change: S112 noqa on the series prober (house precedent).
 
-## 213
+## 213. Measured nav-tooling swap — ripwire adoption
 
 **Date:** 2026-09-07 → 08 · **Type:** tooling (measured nav-tooling swap) ·
 **Scope:** `AGENTS.md`, `codebase-memory-cli` skill surface ·
@@ -4765,7 +4770,7 @@ the proposal, ranked-recall spot-checks on this repo, AGENTS.md remap +
 archived tooling index, search-fresh converged. #213 archival recorded
 here (file had moved + frontmatter already flipped in the adoption patch).
 
-## 214
+## 214. Derive render pass + VSS query core
 
 **Date:** 2026-09-08 · **Type:** graph/tooling (derive render pass + VSS query core) ·
 **Scope:** `helpers/graph/derive_insights.py` (+`_insights_worker.py`), `helpers/core/vss_index.py` (new), `helpers/core/get_tickers.py`, `helpers/core/stable_write.py`, `helpers/maintenance/rebuild_{note,doc,script}_search.py`, `tests/`, `findata/` note renders ·
@@ -4810,7 +4815,7 @@ plain-CLI incumbent; measured 2.93 s). Verified: qa 9/9, perf 22/22,
 advisory 10/10, dry-run baselines byte-identical across runs
 (vault == --corpus).
 
-## 215
+## 215. Quote capture coverage — markdown→notes funnel
 
 **Date:** 2026-09-07 → 08 · **Type:** graph/validators (quote capture coverage) ·
 **Scope:** `helpers/graph/derive_insights.py`, `helpers/validators/quote_coverage_audit.py` (new), `helpers/graph/triage_pending_quotes.py` (new), `helpers/misc/database_integrity_check.py`, `findata/` sector + company notes ·
@@ -4849,7 +4854,7 @@ catch-all doctrine + the 2026-09-07 supersession amendment (Quotes as
 capture post-audit (cap-trap + catch-all converge), suites + live smoke
 green, search-fresh converged; #215 archival recorded here.
 
-## 216
+## 216. Code duplication consolidation — ripwire --clones map to shared scaffolds
 
 Code duplication consolidation — ripwire `--clones` map to shared
 scaffolds (proposal: `archive/tooling/code_duplication_consolidation.md`,
@@ -5018,7 +5023,7 @@ wrong thing (81.1% carry a ticker = exchange listing, not index).
 `make search-fresh APPLY=1` fresh — all green on the first run.
 `make qa` pytest: 2654 passed, 3 skipped.
 
-## 219
+## 219. Country layer + institution counterparties — listed_in edges and regulator/rating lanes
 
 **Country layer + institution counterparties — listed_in edges and regulator/rating lanes**
 

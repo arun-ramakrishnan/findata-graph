@@ -1,3 +1,12 @@
+---
+title: "Integration & Fuzz Test Suite Enhancement — write-side flows, sentinel machinery, query predicates"
+status: executed
+filed: '2026-08-21'
+executed: '2026-08-22'
+completed_md: '144'
+area: "tests/ (integration + fuzz suites, conftest markers)"
+---
+
 # Proposal: Integration & Fuzz Test Suite Enhancement — write-side flows, sentinel machinery, query predicates
 
 Created: 2026-08-21

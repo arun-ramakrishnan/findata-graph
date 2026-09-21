@@ -3,8 +3,11 @@
 How the repo's two embedding surfaces are populated, refreshed, and
 re-applied after a model or corpus change. Companion procedure to
 `doc/improvements/archive/database/local_embeddings.md` (design + implementation
-log). All commands assume the repo venv (`make` prepends `.venv/bin`; for
-direct shell runs use `.venv/bin/python3`).
+log). Freshness `--check` / query / TUI live in
+`doc/procedures/search.md` — this file owns the **write** path (model
+apply, note_search rebuild as a write step, cost table). All commands
+assume the repo venv (`make` prepends `.venv/bin`; for direct shell runs
+use `.venv/bin/python3`).
 
 > **Diagram:** `../design/diagrams/embeddings_stack.{json,html}` — the
 > one-embedder/four-surfaces topology with the pooled cache and query

@@ -1,3 +1,12 @@
+---
+title: "Technology avenues — databases, YAML richness, graph, MCP exposure"
+status: executed
+filed: '2026-08-17'
+executed: '2026-08-18'
+completed_md: '124'
+area: "helpers/note_search (sqlite-vec KNN), helpers/okf + schema gates, helpers/graph (link-pred suggestions), parquet analytics, Makefile (advisory/live-invariants)"
+---
+
 # PROPOSAL: Technology avenues — databases, YAML richness, graph, MCP exposure
 Status:    CLOSED & ARCHIVED 2026-08-18 — every avenue resolved. Lifecycle:
            triaged 2026-08-17 (user decisions: Obsidian NOT a use case,

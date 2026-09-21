@@ -10,7 +10,8 @@ between dry-run and canonical apply (ontology_governance S2). On Status
 EXECUTED, move it to
 `../archive/<topic>/` and add the `../completed.md` entry in the same
 change — and update any `embed_eval_questions.json` labels referencing
-the old path (see `doc/procedures/doc-search.md` §Corpus lifecycle).
+the old path (see `doc/procedures/search.md` §Corpus lifecycle;
+reference-rot sweeps: `doc/procedures/doc-hygiene.md`).
 
 Full archival checklist (extended 2026-08-26 after finding a duplicate
 entry number and stale DONE pointers):

@@ -16,10 +16,10 @@ commit, referenced by nothing). Entry numbers point at
 ## graph/ — Graph layer — algorithms, DuckPGQ retirement, Onager, knowledge-model design
 - [`hgx_first_scaling.md`](graph/hgx_first_scaling.md) — HGX-first scaling — h_edge/h_incidence cache (schema 15, TIER2 12), incidence-native stats section + co-membership suggestions + hyper API, S3 longest_chains cap 3000 (stride-sampled lower bounds) — D4 absorbed, igraph retired per D16 — completed.md #241
 
-- [`graph_algos.txt`](graph/graph_algos.txt) — Proposal: Expand graph-algorithm coverage via Onager — link prediction,
+- [`graph_algos.md`](graph/graph_algos.md) — Proposal: Expand graph-algorithm coverage via Onager — link prediction, graph metrics, and additional centralities — completed.md #94, #95, #96
 - [`graph_improvs.md`](graph/graph_improvs.md) — Graph Algorithm Improvements — coverage gaps & DuckDB extension surface
-- [`graph_pending.txt`](graph/graph_pending.txt) — Graph Pending Items — Deferred (P2.2, P3.2, P3.3)
-- [`duckpgq_retirement.txt`](graph/duckpgq_retirement.txt) — Proposal: Retire duckpgq — consolidate on Onager + plain SQL — completed.md #73, #92
+- [`graph_pending.md`](graph/graph_pending.md) — Graph Pending Items — Deferred (P2.2, P3.2, P3.3)
+- [`duckpgq_retirement.md`](graph/duckpgq_retirement.md) — Proposal: Retire duckpgq — consolidate on Onager + plain SQL — completed.md #91, #92
 - [`networkx_duckpgq_gap_plan.md`](graph/networkx_duckpgq_gap_plan.md) — NETWORKX -> DUCKPGQ GAP ANALYSIS & DEPENDENCY PLAN
 - [`hierarchy_design_roadmap.md`](graph/hierarchy_design_roadmap.md) — Hierarchy Design Roadmap — enriching the notes ↔ DB ↔ graph knowledge model
 - [`hybrid_graph_onager_igraph.md`](graph/hybrid_graph_onager_igraph.md) — Proposal: hybrid graph compute — Onager default + igraph second engine (bridge ROUTING: Leiden, weighted centralities/paths, maxflow/mincut, louvain-compare; seeded Leiden, dry-run default, `--apply` via write_analytics); S1–S7 landed pilot-gated, integration DEFERRED (D15 — EasyGraph C++ re-test closed the engine question: NO Easy-Graph) — completed.md #230
@@ -65,13 +65,15 @@ commit, referenced by nothing). Entry numbers point at
 - [`embed_store_consolidation.md`](database/embed_store_consolidation.md) — Proposal: Single embed store — consolidate the vector sidecars (pooled content-hash cache + note_search vec0 mirror in one SQLite file; backup streams collapse to two artifacts) — completed.md #166
 - [`maint_full_single_snapshot.md`](database/maint_full_single_snapshot.md) — Proposal: maint-full single snapshot + zstd parquet codec — elide the TIER1 snapshot in --full (artifacts always overwritten by the TIER2 tail), gzip→zstd SQLite parquet export, embed-store gz reuse — completed.md #174
 - [`embed_full_reembed.md`](database/embed_full_reembed.md) — Proposal: Full re-embed readiness → the granite swap — per-text call shape (~4.5×), llama.cpp runtime A/B (rejected at parity), whole-note bake-off + sectioned granite WIN (deep 14/15 vs bge 11/15), endpoint A/B, S6 swap executed (all four surfaces + rollback cohort), S7 companies overview base (neighbors 6/10), 10-item deferred doctrine — completed.md #210
+- [`snapshot_parallel_and_compressed_backups.md`](database/snapshot_parallel_and_compressed_backups.md) — Parallel per-DB snapshot + zstd-compressed recovery backups — completed.md #175
+- [`zstd_binary_backups.md`](database/zstd_binary_backups.md) — zstd binary backups — `.gz` → `.zst` for db-backup/ recovery artifacts — completed.md #176
 
 ## okf/ — OKF v0.2 — provenance vocabulary, activation, sources maintenance, read-side
 
 - [`okf_adoption.md`](okf/okf_adoption.md) — Proposal: Adopt OKF v0.2 Provenance Vocabulary in Note Frontmatter — completed.md #130, #133
 - [`okf_activation.md`](okf/okf_activation.md) — Proposal: Activating OKF Metadata — Coverage Analytics, Source-Driven Incremental Derivation, ` — completed.md #134
-- [`okf_readside.md`](okf/okf_readside.md) — Proposal: OKF Read-Side — Per-Claim Footnotes + verify Helper — completed.md #136, #137
-- [`okf_sources_maintenance.md`](okf/okf_sources_maintenance.md) — Proposal: OKF `sources[]` Maintenance at Render Time — completed.md #134
+- [`okf_readside.md`](okf/okf_readside.md) — Proposal: OKF Read-Side — Per-Claim Footnotes + verify Helper — completed.md #137, #136
+- [`okf_sources_maintenance.md`](okf/okf_sources_maintenance.md) — Proposal: OKF `sources[]` Maintenance at Render Time — completed.md #135
 - [`newsletter_notes_adoption.md`](okf/newsletter_notes_adoption.md) — Proposal: Namespaced Tags, Validation & Tag Sync for Source Newsletter Notes — completed.md #132
 
 ## testing/ — Testing & QA — integration, stateful/relational, lint, coverage
@@ -126,7 +128,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`perf_optimization.md`](tooling/perf_optimization.md) — Perf optimization plan — `make perf` hotspots: link-prediction, extract_relations, pdf layout-off — completed.md #163
 - [`mojo_regex_via_python_interop.md`](tooling/mojo_regex_via_python_interop.md) — Mojo regex via the Python `regex` bridge — 51-case file-driven battery, ~2.5% overhead on real work — completed.md #180
 - [`temporal_analytics.md`](tooling/temporal_analytics.md) — Proposal: Temporal Analytics — REPORT=temporal — completed.md #150
-- [`tech_avenues.txt`](tooling/tech_avenues.txt) — PROPOSAL: Technology avenues — databases, YAML richness, graph, MCP exposure
+- [`tech_avenues.md`](tooling/tech_avenues.md) — PROPOSAL: Technology avenues — databases, YAML richness, graph, MCP exposure — completed.md #124–#129
 - [`docs_consistency_audit.md`](tooling/docs_consistency_audit.md) — Documentation consistency pass — README/procedures/schema/Makefile-guidance repairs vs code+DB ground truth (R/M/S/F/D/E/P/U findings) — completed.md #167
 - [`graph_docs_ui_polish.md`](tooling/graph_docs_ui_polish.md) — Proposal: Lens + Reading Room UI polish — graph widget overhaul, edge-filter rendering policy, Desk-register buttons, reader width/focus — completed.md #168
 - [`parallel_cold_embed.md`](tooling/parallel_cold_embed.md) — Proposal: parallel cold embed — pinned spawn pool (4×1T) for the bge-small llama.cpp path; cold note_search 16m13s → 6m01s, cold company → 4m46s; measured-not-adopted record (packing/threads/EPP/unpinned-collapse) + deferred-scale triggers — completed.md #173
@@ -143,10 +145,18 @@ commit, referenced by nothing). Entry numbers point at
 - [`archify_diagram_pipeline.md`](tooling/archify_diagram_pipeline.md) — Proposal: Archify diagram pipeline — evidence-marked diagrams as per-section companions (7 landed: topology, ingest, maint-full, embeddings, relations, derive chain, snapshot lifecycle), origin/main SRC pins, census-gated selection, viewport caveat on the lifecycle — completed.md #207
 - [`ripwire_adoption.md`](tooling/ripwire_adoption.md) — Measured nav-tooling swap — offline `ripwire` (no daemon/API key) wins the Python structural-discovery surface vs codebase-memory-mcp; AGENTS.md query-don't-scan doctrine, ripwire ↔ rg floor ↔ doc/script_query division of labor, Mojo W1–W2 gated probe bounded (tree-sitter 773 ERROR/MISSING) — completed.md #213
 - [`cli_param_bundling_doc_anchor_repair.md`](tooling/cli_param_bundling_doc_anchor_repair.md) — #216 follow-up — 5 spec dataclasses close the 8 params/verbosity debt rows (orchestrator configs; `_check_title_unquoted` variant derived from note type), quality-baseline sidecar sha≠HEAD self-heal law, selected doc-drift surface to 0 rot + 1 annotation, first expanded-corpus relation harvest (2 stubs → 4 edges, queue 0/0) — completed.md #217
+- [`script_metadata_search.md`](tooling/script_metadata_search.md) — Script metadata search (`script_search`) — find helpers/tests by purpose — completed.md #154
+- [`mojo_db_integrity_port.md`](tooling/mojo_db_integrity_port.md) — Mojo port of `database_integrity_check.py` — full check surface — completed.md #182
+- [`mojo_graph_algos_port.md`](tooling/mojo_graph_algos_port.md) — Mojo port of `make graph-algos` — phase 1: bridge-driven probe — completed.md #183
+- [`mojo_doc_script_search.md`](tooling/mojo_doc_script_search.md) — Mojo doc → script_search: store, process, embed the Mojo API surface — completed.md #187
+- [`mojo_docstring_promotion.md`](tooling/mojo_docstring_promotion.md) — Mojo docstring promotion — `#` prose → `##` docstrings — completed.md #188
+- [`archify_diagram_refresh.md`](tooling/archify_diagram_refresh.md) — Archify diagram refresh — evidence backfill, staleness repair, quote_capture S9 — completed.md #220
+- [`archify_c4_coverage_stock.md`](tooling/archify_c4_coverage_stock.md) — Archify C4 coverage on stock schema — external actors + first sequence diagram — completed.md #232
+- [`search_tui_enhancements.md`](tooling/search_tui_enhancements.md) — Search TUI enhancements — themes + report lane — completed.md #243
 
 ## ui/ — Frontend & templates — reader, paper register, findata views
 
-- [`graph_docs_ui_redesign.md`](ui/graph_docs_ui_redesign.md) — Graph docs UI redesign
+- [`graph_docs_ui_redesign.md`](ui/graph_docs_ui_redesign.md) — Graph docs UI redesign — completed.md #145
 - [`consolidate_frontend_reader.md`](ui/consolidate_frontend_reader.md) — Proposal: paper-register reader consolidation — entity.ts/docs.ts shared core (`reader.ts` + `loadActive.ts`), modal CSS purge, head partial reverted (per-page heads stay explicit) — completed.md #200
 - [`graph_rendering_overhaul.md`](ui/graph_rendering_overhaul.md) — Proposal: graph canvas measured head-to-head (cytoscape LOD / sigma.js / precomputed layout) → sigma.js v3 WebGL swap seeded by server-side FA2 sidecar (`graph_layout.json` hash-gate, `/api/graph/positions`); cytoscape retired; 59.9 FPS / 18 MB @ 2x vs 1.2 FPS / 417 MB baseline (desktop GPU) — completed.md #225
 - [`prefab_ui_flask_views.md`](ui/prefab_ui_flask_views.md) — Proposal: adopt Prefab (`prefab-ui`) for Python-composed Flask views — S0 spike, /v2/stats pilot, /v2/companies + /v2/sectors tables, /v2/docs + /v2/search + /v2/entity (Form Enter-commit, click-to-reader); S4 keeps dual-URL (/findata authoritative), descopes graph-table mirrors, defers pagination — completed.md #226

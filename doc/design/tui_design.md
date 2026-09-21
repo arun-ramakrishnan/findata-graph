@@ -151,7 +151,7 @@ fallback). `t` cycles, `T` opens the picker.
 
 - `make search-tui` (venv-first recipe), `pyproject.toml` `tui` extra
   (`textual>=8.2`, `rich>=15`), operator doc
-  `doc/procedures/search-tui.md`, README section with screenshots.
+  `doc/procedures/search.md` §Search TUI, README section with screenshots.
 - `SearchApp(query, lane, limit)` CLI: `-q/--query`, `--lane`
   (choices follow `LANES`), `--limit` (default 40).
 
@@ -185,7 +185,7 @@ fallback). `t` cycles, `T` opens the picker.
 
 ## Related
 
-- `doc/procedures/search-tui.md` — operator manual (lanes, keys, launch)
+- `doc/procedures/search.md` §Search TUI — operator manual (lanes, keys, launch)
 - `doc/improvements/archive/tooling/search_tui_enhancements.md` — enhancement spec + execution log (`completed.md` #243)
 - `doc/templates/report.md` — the report format contract writers follow
 - `doc/improvements/archive/tooling/search_tui.md` — original build proposal

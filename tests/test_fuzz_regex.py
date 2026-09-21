@@ -299,13 +299,20 @@ def test_bold_line_regex_scales_subquadratically():
     timings_ms = []
     for n in (160, 320, 640, 1280):
         s = ("**" + "a" * n + "** ") * n
+        BOLD_LINE_RE.match(s)  # warm-up: first timed hit pays import/cache costs
         best = float("inf")
-        for _ in range(3):  # min-of-3: discards scheduler/cache noise
+        for _ in range(5):  # min-of-5: discards scheduler/cache noise
             t0 = time.perf_counter()
             BOLD_LINE_RE.match(s)
             best = min(best, (time.perf_counter() - t0) * 1000)
         timings_ms.append(best)
     growth = [timings_ms[i + 1] / max(timings_ms[i], 0.01) for i in range(3)]
+    # First doubling starts from a sub-ms baseline under xdist and can
+    # ratio-inflate (2026-09-22: 0.36→4.44 ms = 12.3x while middle/last
+    # ratios stayed at the calibrated ~4.2x / ~2.9x). Warm-up + min-of-5
+    # plus a floor on the denominator keeps the middle-doubling
+    # discriminator (nested-quantifier regression = 12.2x there) without
+    # flakes from a cold first sample.
     assert max(growth) < 6.0, (
         f"BOLD_LINE_RE growth superquadratic: {timings_ms} ms, ratios {growth}"
     )

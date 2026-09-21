@@ -1,3 +1,12 @@
+---
+title: "Expand graph-algorithm coverage via Onager — link prediction, graph metrics, and additional centralities"
+status: executed
+filed: '2026-08-14'
+executed: '2026-08-15'
+completed_md: '94'
+area: "helpers/graph/onager.py, helpers/graph/algorithms.py, helpers/graph/stats.py, helpers/graph/query.py, app.py /api/graph/stats, tests"
+---
+
 # Proposal: Expand graph-algorithm coverage via Onager — link prediction, graph metrics, and additional centralities
 
 Status: PHASES 1-3 COMPLETE (2026-08-15); Phase 4 DROPPED

@@ -90,7 +90,7 @@ checked before parent catch-alls during classification
 |---|---|
 | `doc/procedures/markdown_parse.md` | the ingestion procedure the agent follows |
 | `doc/procedures/embeddings.md` | local-embeddings apply/pre-warm procedure + new-letter refresh model |
-| `doc/procedures/script-search.md` | script metadata index (what each helper/test/make target is FOR; `script_query.py`) |
+| `doc/procedures/search.md` | all search surfaces: doc/script/note indexes, shared `--check` contract, query CLIs, search TUI |
 | `doc/procedures/maintenance.md` | routine-maintenance doctrine: PRE_FULL/TIER1/TIER2 composition, recovery vs snapshot semantics |
 | `helpers/core/local_embedder.py` | the one embedder module (bge-small-en-v1.5; owns the BGE query/document prefix rule) |
 | `helpers/core/parse_newsletter.py` | orchestrates ingestion Stages 0–3 + 5–6 (images, entities, tickers, DB writes, validation); Stage 4 (commentary lift) stays manual via `<slug>_enhancement_worklist.json` |

@@ -1,3 +1,12 @@
+---
+title: "Retire duckpgq — consolidate on Onager + plain SQL"
+status: executed
+filed: '2026-08-14'
+executed: '2026-08-14'
+completed_md: '91+92'
+area: "helpers/graph/onager.py, helpers/graph/query.py, helpers/graph/algorithms.py, DuckDB extensions"
+---
+
 # Proposal: Retire duckpgq — consolidate on Onager + plain SQL
 
 Status: COMPLETE — Phases A, B, C, E landed 2026-08-14; DuckDB verified

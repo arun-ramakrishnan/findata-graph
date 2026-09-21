@@ -172,7 +172,7 @@ Three content-addressable indexes, each SQLite FTS5 (BM25) + local
 
 Freshness is gated: `make search-fresh` (exit 1 on drift, `APPLY=1` to
 refresh) and three advisory-gate rows. Operators:
-`doc/procedures/{doc-search,script-search,embeddings}.md`.
+`doc/procedures/{search,embeddings}.md`.
 
 ### Search TUI — `make search-tui`
 
@@ -250,8 +250,8 @@ Insights). Note `tags:` are mirrored into `entity_tags` by
 | [`doc/design/graph_design.md`](doc/design/graph_design.md) | graph engine, algorithm catalog, decision log |
 | [`doc/procedures/markdown_parse.md`](doc/procedures/markdown_parse.md) | the newsletter ingestion procedure |
 | [`doc/procedures/embeddings.md`](doc/procedures/embeddings.md) | local embeddings & note-search: apply procedure, pre-warm, refresh model |
-| [`doc/procedures/doc-search.md`](doc/procedures/doc-search.md) | the doc/ knowledge index: build, refresh, query (API + CLI) |
-| [`doc/procedures/script-search.md`](doc/procedures/script-search.md) | the code-surface index: script/test/make metadata search |
+| [`doc/procedures/search.md`](doc/procedures/search.md) | all search surfaces: doc/script/note indexes, `--check` contract, query CLIs, search TUI |
+| [`doc/procedures/doc-hygiene.md`](doc/procedures/doc-hygiene.md) | reference & index breakage sweeps (link rot, archive-index gaps, header drift) |
 | [`doc/improvements/`](doc/improvements/) | numbered completion log + archived proposals |
 
 ## Provenance
