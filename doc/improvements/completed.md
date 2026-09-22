@@ -7092,3 +7092,36 @@ Execution record: `archive/pipeline/bse_shareholding_rss.md`.
   on the Onager bug.
 
 Execution record: `archive/graph/pagerank_graph_enhancements.md`.
+
+## 271. Centrality rebuild contract — stamp on demand, keep the rebuild data-only
+
+- `_build_graph` data-only by default: data stages unchanged, the ten
+  `v_centrality_*` tables DROPPED (a stamp belongs to one edge set);
+  `stamp_centrality=True` keeps the pre-split one-shot. Threaded
+  keyword-only through `connect`/`rebuild`/`fresh_rebuild`/
+  `_rebuild_via_swap` — every existing caller now data-only.
+- Explicit stamp lane: public `query.stamp_centrality_cache()`, CLI
+  `query.py stamp-centrality` (+ `rebuild --stamp-centrality`), Makefile
+  `stamp-centrality`, wired into `make maint` (step 3b, after
+  graph-rebuild). `POST /api/graph/refresh` now ~3s instead of ~6 min.
+- Measured: live rebuild **369.9s → 3.19s** (99.5% was the BFS-family
+  stamp: harmonic 192.1s / closeness 183.4s / betweenness 87.7s over
+  26,120 nodes); stamp lane at scale **5m59s**; warm centrality read
+  **0.017s** vs ~183s compute; 21,453 rows per table.
+- Contract hole found on the first full stamp run: a concurrent
+  data-only rebuild swaps the cache file mid-stamp and the stamp dies
+  silently on the orphaned inode (the connect flock serialises the
+  open, not the minutes-long compute). Fixed with an inode guard + one
+  retry in `stamp_centrality_cache` (regression
+  `test_stamp_detects_concurrent_swap`).
+- Tests re-pinned: generation bump now asserts DROP + fallback ==
+  fresh compute; one-shot and stamp-lane tests added; `_build_graph`
+  spies kwarg-tolerant. Adjacent fixes: `/api/graph/stats`
+  orphan_companies re-scoped to note-backed companies (VIGIL's ~25K
+  noteless counter-parties were permanently tripping the == 0 pin) and
+  the refresh-shp Makefile help-ordering miss.
+- Follow-up scoped (NOT executed here): company-source-restricted exact
+  closeness/harmonic (~130× less BFS work; the actual kill for the
+  6-min stamp), then 2-core folding for betweenness. perf doc §B2.
+
+Execution record: `archive/graph/centrality_rebuild_contract.md`.

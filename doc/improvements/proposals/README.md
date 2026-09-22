@@ -52,6 +52,15 @@ valid_from 6,615/6,615 + as-of ranking); S4 scoped for future source
 arcs, S5 parked on the Onager bug. Execution record in
 `../archive/graph/pagerank_graph_enhancements.md`.)_
 
+_(Previously: centrality_rebuild_contract.md archived 2026-09-23 as
+completed.md entry 271 — centrality rebuild contract: rebuild data-only
+(v_centrality_* dropped; 369.9s → 3.19s), explicit stamp lane
+(make stamp-centrality; 5m59s at scale, warm reads 0.017s), stamp-vs-
+rebuild swap race guarded with an inode check + retry; follow-up
+company-source restriction for the BFS family scoped in perf §B2.
+Execution record in
+`../archive/graph/centrality_rebuild_contract.md`.)_
+
 _(Previously: ownership_ingestion_nse_shp.md archived 2026-09-22 as
 completed.md entry 267 — NSE shareholding XBRL lane: RSS→XBRL fetch +
 in-bse-shp parser, 38 holder entities (30 person-kind, first in
@@ -74,7 +83,6 @@ per-filing HTML, col35 promoter-group tags restore the signal NSE
 masks; 5 filings / 44 edges / 21 promoter-tagged holders live; no
 history endpoint on either exchange. Execution record in
 `../archive/pipeline/bse_shareholding_rss.md`.)_
-
 
 _(Previously: search_tui_ux_pass.md archived 2026-09-22 as
 completed.md entry 265 — search_tui UX pass: busy indicators (query

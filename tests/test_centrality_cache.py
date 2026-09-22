@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Persistent centrality cache (graph_centrality_persistent_cache, 2026-09-21).
 
-The four contracts from the proposal's §4, against a small synthetic
-SQLite source built through the full ``query.connect()`` materialisation
-(including the ``_materialise_centrality_cache`` stamp):
+Contracts against a small synthetic SQLite source built through the full
+``query.connect()`` materialisation. Since centrality_rebuild_contract
+(2026-09-22) the rebuild itself is DATA-ONLY — the stamp is the explicit
+``stamp_centrality_cache()`` lane — so:
 
-  (a) warm rebuild -> wrappers serve table contents equal to fresh compute
-  (b) generation bump -> rebuild re-stamps (scores track the new edge set)
+  (a) stamp lane -> wrappers serve table contents equal to fresh compute
+  (b) generation bump -> the implicit rebuild DROPS v_centrality_* (no
+      stale scores over the new edge set); reads fall back to live
+      compute and track the new edge set
+  (b2) rebuild(stamp_centrality=True) still one-shot stamps (maintenance)
   (c) read-only reader never writes (no ``.wal`` appears)
   (d) ``--compute`` bypass recomputes and does not read the table
 
@@ -133,8 +137,9 @@ def cache_db(tmp_path):
     db = tmp_path / "unit_graph.db"
     _build_sqlite(db)
     gq.clear_graph_cache()
-    con = gq.connect(db_path=db)  # cold build incl. the centrality stamp
+    con = gq.connect(db_path=db)  # cold build — data-only since the contract split
     con.close()
+    gq.stamp_centrality_cache(db_path=db)  # the explicit lane (tested implicitly)
     gq.clear_graph_cache()
     yield db
     gq.clear_graph_cache()
@@ -178,11 +183,13 @@ def test_warm_tables_equal_fresh_compute(cache_db):
         con.close()
 
 
-def test_generation_bump_restamps(cache_db):
-    """(b) a generation bump invalidates the warm file; the rebuild re-stamps.
+def test_generation_bump_invalidates_stamp(cache_db):
+    """(b) a generation bump invalidates the warm file; the implicit rebuild
+    is DATA-ONLY — the stale stamp is DROPPED (a stamp belongs to one edge
+    set), and reads fall back to live compute over the new edges.
 
     C1-C5 shortcut added: the path middle C3 loses betweenness to the
-    endpoints — the re-stamped scores must track the new edge set.
+    endpoints — the fallback scores must track the new edge set.
     """
     con = gq.connect(db_path=cache_db, read_only=True)
     try:
@@ -192,17 +199,94 @@ def test_generation_bump_restamps(cache_db):
     _build_sqlite(cache_db, generation=2, extra_edges=[("C1", "C5", "competes_with")])
     assert not gq._is_warm(cache_db.with_suffix(".duckdb"), cache_db)
     gq.clear_graph_cache()
-    con = gq.connect(db_path=cache_db)  # stale -> rebuild + re-stamp
+    con = gq.connect(db_path=cache_db)  # stale -> data-only rebuild, no stamp
     try:
         gen_row = con.execute("SELECT value FROM _build_meta WHERE key='generation'").fetchone()
         assert gen_row is not None and gen_row[0] == "2"
-        after = alg.betweenness_centrality(con)  # table path on the new stamp
+        # the stamp is gone: every v_centrality_* table absent
+        tables = {
+            r[0]
+            for r in con.execute(  # noqa: S608  # constant list
+                "SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'v_centrality_%'"
+            ).fetchall()
+        }
+        assert not tables, f"data-only rebuild must drop the stale stamp, found {tables}"
+        after = alg.betweenness_centrality(con)  # fallback: live compute
         with alg.bypass_centrality_cache():
             fresh = alg.betweenness_centrality(con)
-        assert after == fresh  # re-stamp tracked the new edge set
+        assert after == fresh  # fallback == fresh compute (same edge set)
         assert after != before  # ...and the edge set really changed scores
     finally:
         con.close()
+
+
+def test_rebuild_stamp_centrality_true_one_shot(cache_db):
+    """(b2) rebuild(stamp_centrality=True) keeps the pre-split one-shot:
+    tables present after the rebuild, equal to fresh compute."""
+    gq.rebuild(db_path=cache_db, stamp_centrality=True)
+    con = gq.connect(db_path=cache_db, read_only=True)
+    try:
+        rows = con.execute("SELECT name, score FROM v_centrality_degree").fetchall()  # noqa: S608
+        assert rows, "one-shot rebuild must stamp v_centrality_degree"
+        with alg.bypass_centrality_cache():
+            fresh = alg.degree_centrality(con)
+        assert dict(rows) == fresh
+    finally:
+        con.close()
+
+
+def test_stamp_centrality_cache_recreates_tables(cache_db):
+    """The explicit lane re-creates what a data-only rebuild dropped."""
+    gq.rebuild(db_path=cache_db)  # data-only: tables gone
+    con = gq.connect(db_path=cache_db, read_only=True)
+    try:
+        n = con.execute(  # noqa: S608  # constant list
+            "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE 'v_centrality_%'"
+        ).fetchone()[0]
+        assert n == 0
+    finally:
+        con.close()
+    gq.stamp_centrality_cache(db_path=cache_db)
+    con = gq.connect(db_path=cache_db, read_only=True)
+    try:
+        n = con.execute(  # noqa: S608  # constant list
+            "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE 'v_centrality_%'"
+        ).fetchone()[0]
+        assert n == 10, f"stamp lane must re-create all ten tables, found {n}"
+        with alg.bypass_centrality_cache():
+            fresh = alg.closeness_centrality(con)
+        served = alg.closeness_centrality(con)
+        assert served == fresh
+    finally:
+        con.close()
+
+
+def test_stamp_detects_concurrent_swap(cache_db, monkeypatch):
+    """A rebuild that swaps the cache file mid-stamp must be detected:
+    the stamp retries on the new inode instead of silently dying on the
+    orphaned one (observed live 2026-09-23: 6-min stamp, exit 0, zero
+    tables)."""
+    real = gq._materialise_centrality_cache
+    fired = {"raced": False}
+
+    def racing_stamp(con):
+        if not fired["raced"]:
+            fired["raced"] = True
+            # concurrent data-only rebuild swaps the file under us
+            gq.rebuild(db_path=cache_db)
+        return real(con)
+
+    monkeypatch.setattr(gq, "_materialise_centrality_cache", racing_stamp)
+    gq.stamp_centrality_cache(db_path=cache_db)  # retries, then succeeds
+    con = gq.connect(db_path=cache_db, read_only=True)
+    try:
+        n = con.execute(  # noqa: S608  # constant list
+            "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE 'v_centrality_%'"
+        ).fetchone()[0]
+        assert n == 10, f"restamp after swap must land all ten tables, found {n}"
+    finally:
+        con.close()
+    assert fired["raced"]
 
 
 def test_read_only_reader_never_writes(cache_db, monkeypatch):

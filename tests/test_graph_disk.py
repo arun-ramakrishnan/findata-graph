@@ -170,9 +170,9 @@ class TestDiskBasics:
 
         orig = q._build_graph
 
-        def spy(con):
+        def spy(con, **kwargs):
             called["count"] += 1
-            return orig(con)
+            return orig(con, **kwargs)
 
         monkeypatch.setattr(q, "_build_graph", spy)
 
@@ -356,9 +356,9 @@ class TestRebuild:
 
         orig = q._build_graph
 
-        def spy(con):
+        def spy(con, **kwargs):
             called["count"] += 1
-            return orig(con)
+            return orig(con, **kwargs)
 
         monkeypatch.setattr(q, "_build_graph", spy)
 
@@ -535,11 +535,11 @@ class TestBuildMeta:
         called = {"count": 0}
         orig = q._build_graph
 
-        def spy(con):
+        def spy(con, **kwargs):
             called["count"] += 1
             # Real build uses the monkeypatched schema_version when
             # _mark_warm runs, so we let it proceed.
-            return orig(con)
+            return orig(con, **kwargs)
 
         monkeypatch.setattr(q, "_build_graph", spy)
         c2 = connect(tmp_db)

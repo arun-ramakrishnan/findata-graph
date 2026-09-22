@@ -360,6 +360,19 @@ rm note) are mechanical; see git history for worked examples.
   `check_cache_consistency` (per-table counts; runs in `make qa`). Rejected
   alternatives: row-count compare (misses renames), generation counter
   (touches every writer).
+- **Centrality stamp (centrality_rebuild_contract, 2026-09-22):** the
+  rebuild is DATA-ONLY (~2–3s at 56k edges) and DROPS the ten
+  `v_centrality_*` tables — a stamp belongs to one edge set, and the
+  BFS-family stamp (closeness/harmonic/betweenness, all-pairs over 26k
+  nodes) costs minutes. Readers fall back to live compute when the
+  tables are absent (algorithms `_cached_central_*`). Re-stamp
+  explicitly: `make stamp-centrality` /
+  `python3 helpers/graph/query.py stamp-centrality` /
+  `query.stamp_centrality_cache()` — wired into `make maint`;
+  `rebuild(stamp_centrality=True)` keeps the old one-shot. First
+  centrality read after a data-only rebuild pays live compute (~3 min
+  for the BFS family on the live graph) — that is the documented price
+  until the stamp lane runs.
 - **Concurrency:** DuckDB allows one RW or many RO connections — never both.
   `/api/graph/refresh` rebuilds + resets the Flask connection in one call.
 - **Snapshots/maintenance:** `make snapshot` snapshots both SQLite and

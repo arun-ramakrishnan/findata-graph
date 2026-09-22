@@ -2667,11 +2667,16 @@ def api_graph_stats():
                             THEN 1 ELSE 0 END) AS orphan_companies
                 FROM entities
                 WHERE entity_type = 'company'
-                  -- D19 exchange intake (2026-09-16): listings-derived
-                  -- companies (pathless + ticker'd) are sectorless by
-                  -- design until a note exists — same fileless class the
-                  -- integrity checker exempts; mirrors its scope exactly.
-                  AND NOT (file_path IS NULL AND ticker IS NOT NULL AND ticker <> '')
+                  -- Orphan counting is scoped to NOTE-BACKED companies: a
+                  -- company with a note must have a part_of home (that is
+                  -- the hygiene signal). Fileless companies are by-design
+                  -- intake classes exempted wholesale — D19 listings
+                  -- (2026-09-16, pathless + ticker'd) and the ~25K VIGIL
+                  -- counter-party companies (related_party_groups_vigil,
+                  -- 2026-09-22, homed by same_group/subsidiary_of/jv/
+                  -- supplier relations instead of notes); mirrors the
+                  -- integrity checker's scope exactly.
+                  AND file_path IS NOT NULL
             )
             SELECT
                 ci.orphan_companies,
@@ -3399,6 +3404,12 @@ def api_graph_refresh():
     mid-write) returns 500 with the error in the body — the connection is
     still reset, so the next request will trigger a cold rebuild, but the
     operator gets an honest failure signal rather than a false success.
+
+    Data-only since centrality_rebuild_contract (2026-09-22): the ten
+    v_centrality_* tables are dropped, not re-stamped — centrality
+    reads fall back to live compute until the explicit
+    ``make stamp-centrality`` lane runs. (This is what keeps refresh
+    fast: the BFS-family stamp costs minutes at the 56k-edge scale.)
     """
     _reset_graph_connection()
     try:

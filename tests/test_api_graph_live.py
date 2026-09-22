@@ -231,6 +231,10 @@ class TestGraphEndpointsLive:
         assert data["edges"]["total"] > 1000
         assert "competes_with" in data["edges"]["by_type"]
         # Live DB is post-Phase-3 cleanup — hygiene counters all 0.
+        # (orphan_companies == 0 since the counter was re-scoped to
+        # note-backed companies: fileless entities — D19 listings + the
+        # ~25K VIGIL counter-party companies — are by-design classes,
+        # homed by relations/listings instead of notes.)
         assert data["hygiene"]["orphan_companies"] == 0
         assert data["hygiene"]["self_loops"] == 0
         assert data["hygiene"]["orphan_edges"] == 0

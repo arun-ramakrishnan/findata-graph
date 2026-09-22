@@ -68,15 +68,21 @@ class TestPlan:
             "derive-cited-in (project OKF sources[] into edition entities + cited_in edges)",
         ]
 
-    def test_tier1_has_four_steps(self):
-        assert len(maint.TIER1_STEPS) == 4
+    def test_tier1_has_five_steps(self):
+        # 5 since centrality_rebuild_contract (2026-09-23): stamp-centrality
+        # joined as step 3b — the graph-rebuild is data-only and drops the
+        # v_centrality_* tables, so the stamp is its own explicit step.
+        assert len(maint.TIER1_STEPS) == 5
 
     def test_tier1_steps_order(self):
         # The order is load-bearing:
         #   1. db_maint compacts SQLite first
         #   2. snapshot reflects the compacted state
         #   3. graph-rebuild produces a DuckDB cache matching the snapshot
-        #   4. the duckdb parquet mirror re-exports AFTER the rebuild
+        #      (data-only since centrality_rebuild_contract)
+        #   3b. stamp-centrality re-stamps v_centrality_* on the rebuilt
+        #      cache (BFS family costs minutes; never the implicit rebuild)
+        #   4. the duckdb parquet mirror re-exports AFTER the rebuild+stamp
         #      (step 2's export predates the rebuilt cache; without step 4
         #      the mirror runs one rebuild stale — snapshot_db --check fails)
         labels = [label for label, _ in maint.TIER1_STEPS]
@@ -84,6 +90,7 @@ class TestPlan:
             "db_maint (VACUUM/ANALYZE/REINDEX/integrity)",
             "snapshot (refresh versioned snapshots)",
             "graph-rebuild (refresh DuckDB cache)",
+            "stamp-centrality (re-stamp v_centrality_* tables)",
             "snapshot duckdb parquet mirror (post-rebuild)",
         ]
 
@@ -173,17 +180,24 @@ class TestPlan:
         # --full composes PRE_FULL + TIER1-minus-skip + TIER2: the mid-run
         # snapshot's artifacts are unconditionally overwritten by the TIER2
         # tail snapshot, so exactly ONE snapshot runs at the end
-        # (maint_full_single_snapshot.md D1). Plain maint keeps all 4 TIER1
+        # (maint_full_single_snapshot.md D1). Plain maint keeps all 5 TIER1
         # steps and never runs PRE_FULL. 21 steps since D4 h_*
         # materialisation joined TIER2 (hgx_first_scaling, 2026-09-16);
-        # the post-rebuild duckdb parquet mirror (TIER1 step 4) joins the
+        # the post-rebuild duckdb parquet mirror (TIER1 step 5) joins the
         # elision — the tail snapshot re-exports it after TIER2 rebuilds.
+        # 25 since centrality_rebuild_contract (2026-09-23) added
+        # stamp-centrality to TIER1 — but it JOINS the elision (the
+        # TIER2 tail's data-only rebuilds would drop the stamp), so the
+        # --full composition count is unchanged; the stamp rides plain
+        # maint only.
         skipped = [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
         full = maint.PRE_FULL_STEPS + skipped + maint.TIER2_STEPS
-        assert len(maint.TIER1_FULL_SKIP) == 2
+        assert len(maint.TIER1_FULL_SKIP) == 3
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
         assert "snapshot duckdb parquet mirror (post-rebuild)" in maint.TIER1_FULL_SKIP
-        assert len(full) == 24  # 8 PRE_FULL + 16 TIER2 (seed-nic2008 S1 adds one PRE_FULL)
+        assert (
+            len(full) == 24
+        )  # 8 PRE_FULL + 16 TIER1/TIER2 joins (seed-nic2008 S1); stamp-centrality is elided
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [
             "snapshot (re-snapshot to include recomputed analytics + events)"
@@ -392,7 +406,7 @@ class TestReport:
         assert "# make maint — maint report" in text
         assert "db_maint (VACUUM/ANALYZE/REINDEX/integrity)" in text
         assert "✓ OK" in text
-        assert "4/4 steps ok" in text
+        assert "5/5 steps ok" in text
         assert "PASS" in text
         assert "FAILED" not in text  # successes stay lean: no output tails
 

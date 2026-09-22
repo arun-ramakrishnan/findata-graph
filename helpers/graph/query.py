@@ -439,6 +439,7 @@ def connect(  # noqa: C901
     rebuild: bool = False,
     fresh: bool = False,
     read_only: bool = False,
+    stamp_centrality: bool = False,
 ) -> duckdb.DuckDBPyConnection:
     """Open a DuckDB connection with the property graph ready to query.
 
@@ -459,6 +460,11 @@ def connect(  # noqa: C901
             rebuild from scratch. Use after DuckDB version bumps or
             materialisation-schema changes.
         read_only: Open the cache file cross-process-safe read-only.
+        stamp_centrality: When this connect builds (cold/explicit
+            rebuild), also stamp the ten v_centrality_* tables — the
+            pre-2026-09-22 one-shot behaviour. No effect on a warm
+            cache; the always-available stamp lane is
+            :func:`stamp_centrality_cache`.
             DuckDB allows any NUMBER of read-only openers across
             processes but a single read-write one — so pure readers
             (algorithms --compute, suggest_relations) pass True and never
@@ -562,7 +568,7 @@ def connect(  # noqa: C901
             _attach_sqlite(con, db_path)
 
             if needs_build:
-                _build_graph(con)
+                _build_graph(con, stamp_centrality=stamp_centrality)
                 _mark_warm(con, db_path)
             return con
         finally:
@@ -875,13 +881,24 @@ MATERIALISED_TABLES = frozenset(spec["table"] for spec in EDGE_REGISTRY.values()
 )
 
 
-def _build_graph(con: duckdb.DuckDBPyConnection) -> None:
+def _build_graph(con: duckdb.DuckDBPyConnection, *, stamp_centrality: bool = False) -> None:
     """Materialise vertices + edges + declare the property graph.
 
     On a warm file this is skipped (see ``connect``). When called directly
     by ``rebuild=True``/``fresh=True`` paths, the caller has already
     dropped the old materialised tables (fresh) or will truncate them
     in-place (rebuild via DROP+CREATE).
+
+    centrality_rebuild_contract (2026-09-22): data-only by default — the
+    ten ``v_centrality_*`` tables are DROPPED, not re-stamped (the
+    BFS-family stamp costs minutes at the 56k-edge scale while the data
+    stages stay ~2s, and every implicit rebuild was paying it). A stamp
+    belongs to exactly one edge set, so serving the previous
+    generation's scores over new edges would be wrong; absence already
+    means "compute on demand" for every reader
+    (algorithms._cached_central_*). Stamping is the explicit
+    :func:`stamp_centrality_cache` lane (``make stamp-centrality``);
+    pass ``stamp_centrality=True`` for the old one-shot behaviour.
     """
     # rebuild=True path: drop existing materialised tables so CREATE
     # TABLE AS SELECT doesn't fail on the warm file. fresh=True path:
@@ -899,9 +916,13 @@ def _build_graph(con: duckdb.DuckDBPyConnection) -> None:
     _materialise_edges(con)
     _materialise_hyper(con)
     _materialise_note_embeddings(con)
-    # Persistent centrality cache: last, on the fully materialised edge
-    # set (schema 17). Best-effort — see the function docstring.
-    _materialise_centrality_cache(con)
+    # centrality_rebuild_contract: last, on the fully materialised edge
+    # set — but only on the explicit stamp lane. Data-only rebuilds
+    # drop the stale stamp instead (see the docstring).
+    for t in _CENTRALITY_TABLES:
+        con.execute(f"DROP TABLE IF EXISTS {t}")
+    if stamp_centrality:
+        _materialise_centrality_cache(con)
     # Phase E (duckpgq retirement): no property graph is declared any more —
     # the pattern queries are plain SQL JOINs over these materialised tables
     # and the algorithms run on onager.
@@ -914,7 +935,9 @@ def _resolve_duckdb_path(db_path: Path) -> Path:
     return db_path.with_suffix(".duckdb")
 
 
-def _rebuild_via_swap(db_path: Path | str = DB_PATH, *, fresh: bool) -> None:
+def _rebuild_via_swap(
+    db_path: Path | str = DB_PATH, *, fresh: bool, stamp_centrality: bool = False
+) -> None:
     """Build the cache into a temp sibling, then atomically swap it in.
 
     Deadlock fix (2026-08-26, second instance): rebuilding IN PLACE needs
@@ -944,7 +967,13 @@ def _rebuild_via_swap(db_path: Path | str = DB_PATH, *, fresh: bool) -> None:
     tmp_wal.unlink(missing_ok=True)
     tmp_lock.unlink(missing_ok=True)
     try:
-        c = connect(db_path=db_path, duckdb_path=tmp, rebuild=True, fresh=fresh)
+        c = connect(
+            db_path=db_path,
+            duckdb_path=tmp,
+            rebuild=True,
+            fresh=fresh,
+            stamp_centrality=stamp_centrality,
+        )
         c.close()
         # Clean close leaves no WAL behind; refuse to swap otherwise.
         if tmp_wal.exists():
@@ -956,7 +985,7 @@ def _rebuild_via_swap(db_path: Path | str = DB_PATH, *, fresh: bool) -> None:
         tmp_lock.unlink(missing_ok=True)
 
 
-def rebuild(db_path: Path | str = DB_PATH) -> None:
+def rebuild(db_path: Path | str = DB_PATH, *, stamp_centrality: bool = False) -> None:
     """Rebuild materialised tables (drop + recreate + redeclare).
 
     Use after any SQLite-side change to ``entities`` or ``graph_edges``
@@ -968,21 +997,82 @@ def rebuild(db_path: Path | str = DB_PATH) -> None:
     requires an exclusive lock on the live cache, so it cannot deadlock
     against concurrent read-only holders (app server, parallel gate
     steps).
+
+    Data-only since centrality_rebuild_contract (2026-09-22): the
+    ``v_centrality_*`` tables are dropped, not re-stamped (stale scores
+    over a new edge set would be wrong; readers fall back to live
+    compute). Re-stamp explicitly with :func:`stamp_centrality_cache`
+    / ``make stamp-centrality``, or pass ``stamp_centrality=True`` for
+    the old one-shot behaviour.
     """
     # Drop stale cached results so the next query re-reads post-rebuild.
     clear_graph_cache()
-    _rebuild_via_swap(db_path, fresh=False)
+    _rebuild_via_swap(db_path, fresh=False, stamp_centrality=stamp_centrality)
 
 
-def fresh_rebuild(db_path: Path | str = DB_PATH) -> None:
+def fresh_rebuild(db_path: Path | str = DB_PATH, *, stamp_centrality: bool = False) -> None:
     """Drop the ``.duckdb`` file entirely and rebuild from scratch.
 
     Use after DuckDB/Onager version bumps, materialisation-schema
     changes (bump ``_SCHEMA_VERSION``), or to recover from corruption.
-    Idempotent. Same atomic temp-swap strategy as :func:`rebuild`.
+    Idempotent. Same atomic temp-swap strategy as :func:`rebuild`, and
+    the same data-only default (see :func:`rebuild`).
     """
     clear_graph_cache()
-    _rebuild_via_swap(db_path, fresh=True)
+    _rebuild_via_swap(db_path, fresh=True, stamp_centrality=stamp_centrality)
+
+
+def stamp_centrality_cache(
+    db_path: Path | str = DB_PATH,
+    duckdb_path: Path | str | None = None,
+) -> None:
+    """(Re-)stamp the ten ``v_centrality_*`` tables on the graph cache.
+
+    centrality_rebuild_contract: the explicit stamp lane. ``rebuild()``
+    is data-only and drops the previous stamp, so this is how the
+    tables come back — ``make stamp-centrality`` (wired into ``make
+    maint``) or ``python3 helpers/graph/query.py stamp-centrality``.
+
+    A cold cache is built first (data-only), then stamped: one call
+    fully warms the cache. The connect() is read-write and therefore
+    flock-serialized cross-process like every writer; in-flight readers
+    keep serving the old tables until they close (stale-by-one-stamp,
+    the documented refresh contract).
+    """
+    clear_graph_cache()
+    # stamp_centrality_cache can lose a RACE with a concurrent rebuild:
+    # rebuild() swaps a fresh data-only file in via os.replace, the stamping
+    # connection keeps writing to the ORPHANED inode, and the tables die with
+    # it (observed live 2026-09-23: 6-min stamp, exit 0, zero tables). The
+    # connect() flock does not help — it serialises the OPEN, not the stamp's
+    # minutes-long compute window. Guard: remember the file's inode, compare
+    # after the stamp; a changed inode means a swap happened mid-stamp, so
+    # retry once on the new file (idempotent) and hard-fail if it swaps twice.
+    resolved = (
+        duckdb_path
+        if duckdb_path is not None
+        else (DUCKDB_PATH if Path(db_path) == DB_PATH else Path(db_path).with_suffix(".duckdb"))
+    )
+    resolved = Path(resolved)
+    for _attempt in (1, 2):
+        inode_before = resolved.stat().st_ino if resolved.exists() else None
+        con = connect(db_path=db_path, duckdb_path=duckdb_path)
+        try:
+            _materialise_centrality_cache(con)
+        finally:
+            con.close()
+        inode_after = resolved.stat().st_ino if resolved.exists() else None
+        if inode_before == inode_after:
+            return
+        print(
+            f"centrality stamp: cache file was rebuilt concurrently "
+            f"({resolved}); restamping on the new file",
+            file=sys.stderr,
+        )
+    raise RuntimeError(
+        f"centrality stamp lost the concurrent-rebuild race twice on {resolved}; "
+        "rerun stamp-centrality when the rebuild traffic settles"
+    )
 
 
 def update_extensions() -> list[tuple[str, str]]:
@@ -1390,6 +1480,23 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
             """
         )
     return dims
+
+
+# centrality_rebuild_contract: the ten stamped tables. A data-only
+# rebuild drops exactly these (a stamp belongs to one edge set);
+# stamp_centrality_cache() re-creates them.
+_CENTRALITY_TABLES = (
+    "v_centrality_degree",
+    "v_centrality_closeness",
+    "v_centrality_betweenness",
+    "v_centrality_eigenvector",
+    "v_centrality_harmonic",
+    "v_centrality_katz",
+    "v_centrality_laplacian",
+    "v_centrality_local_reaching",
+    "v_centrality_voterank",
+    "v_centrality_louvain",
+)
 
 
 def _materialise_centrality_cache(con: duckdb.DuckDBPyConnection) -> None:  # noqa: C901
@@ -3751,13 +3858,27 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     sp.add_argument("--doc-type", default="company")
     sp.add_argument("--limit", type=int, default=100)
 
-    sub.add_parser(
+    sp = sub.add_parser(
         "rebuild",
         help="Rebuild materialised tables in-place (run after parse_newsletter --apply / derive-relations)",
     )
-    sub.add_parser(
+    sp.add_argument(
+        "--stamp-centrality",
+        action="store_true",
+        help="Also re-stamp the ten v_centrality_* tables (default: drop them; use stamp-centrality later instead)",
+    )
+    sp = sub.add_parser(
         "fresh",
         help="Drop the .duckdb file and rebuild from scratch (use after version bumps or corruption)",
+    )
+    sp.add_argument(
+        "--stamp-centrality",
+        action="store_true",
+        help="Also re-stamp the ten v_centrality_* tables",
+    )
+    sub.add_parser(
+        "stamp-centrality",
+        help="Re-stamp the ten v_centrality_* tables on the warm cache (centrality_rebuild_contract explicit lane)",
     )
     sub.add_parser(
         "update-extensions", help="Check installed DuckDB extensions for updates and install them"
@@ -3767,12 +3888,26 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
 
     # rebuild / fresh / update-extensions don't need a query connection.
     if args.cmd == "rebuild":
-        rebuild()
-        print(f"✓ DuckDB graph rebuilt ({DUCKDB_PATH})", file=sys.stderr)
+        rebuild(stamp_centrality=args.stamp_centrality)
+        note = (
+            " (+ centrality stamp)"
+            if args.stamp_centrality
+            else " (data-only; v_centrality_* dropped)"
+        )
+        print(f"✓ DuckDB graph rebuilt ({DUCKDB_PATH}){note}", file=sys.stderr)
         return 0
     if args.cmd == "fresh":
-        fresh_rebuild()
-        print(f"✓ DuckDB graph rebuilt from scratch ({DUCKDB_PATH})", file=sys.stderr)
+        fresh_rebuild(stamp_centrality=args.stamp_centrality)
+        note = (
+            " (+ centrality stamp)"
+            if args.stamp_centrality
+            else " (data-only; v_centrality_* dropped)"
+        )
+        print(f"✓ DuckDB graph rebuilt from scratch ({DUCKDB_PATH}){note}", file=sys.stderr)
+        return 0
+    if args.cmd == "stamp-centrality":
+        stamp_centrality_cache()
+        print(f"✓ centrality cache stamped ({DUCKDB_PATH})", file=sys.stderr)
         return 0
     if args.cmd == "update-extensions":
         changed = update_extensions()

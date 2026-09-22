@@ -65,7 +65,8 @@ placement invariant).
 |---|---|
 | `db_maint` | VACUUM/ANALYZE/REINDEX/integrity; takes the `db-backup/*_backup.*.zst` recovery copies (pre-VACUUM) |
 | `snapshot` | versioned snapshots (post-mutation) — **elided in `--full`** (`TIER1_FULL_SKIP`), the TIER2 tail re-snapshots everything |
-| `graph-rebuild` | DuckDB cache from the snapshotted SQLite |
+| `graph-rebuild` | DuckDB cache from the snapshotted SQLite — data-only since centrality_rebuild_contract: drops the `v_centrality_*` tables |
+| `stamp-centrality` | re-stamps the ten `v_centrality_*` tables (centrality_rebuild_contract explicit lane; BFS family costs minutes at 56k edges, so it never rides the implicit rebuild) |
 
 The recovery copy is the **POST-index-refresh / PRE-data-derivation /
 pre-VACUUM** restore point. The data-writing derivations (analytics,

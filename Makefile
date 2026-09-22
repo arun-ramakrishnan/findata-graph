@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants stamp-centrality
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -49,7 +49,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  frontend-check           Type-check + prettier format-check the TypeScript frontend (fast, needs Bun)"
 > @echo "  fuzz                     Run Hypothesis property-based tests (deterministic seed for reproducibility)"
 > @echo "  graph-algos              Smoke test the Onager algorithm layer (all 14 metrics, no writes)"
-> @echo "  graph-rebuild            Rebuild the disk-based DuckDB cache from SQLite (run after parse_newsletter --apply / derive-relations)"
+> @echo "  graph-rebuild            Rebuild the disk-based DuckDB cache from SQLite, data-only (run after parse_newsletter --apply / derive-relations)"
 > @echo "  graph-smoke              Quick smoke test of the graph query layer (sector-of + neighbors)"
 > @echo "  graph-stats              Print a one-shot summary of the graph state (entities, edges, sectors, hygiene)"
 > @echo "  hif-export               Export the hypergraph in HIF to snapshots/hif/ (rides make snapshot; SOURCES=... to override)"
@@ -75,8 +75,8 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  refresh-chain            D20 phase 3: exchanges → enrich → CIN → XBRL --new → snapshot (APPLY=1 to write)"
 > @echo "  refresh-exchanges        D19: sync exchange masters + detect new listings (lanes as args; APPLY=1 to write)"
 > @echo "  refresh-indices          Sync NSE index constituents into sources.duckdb (Wave 1 broad-based + sectoral; APPLY=1 to write)"
-> @echo "  refresh-vigil            VIGIL bulk: RPT group/supply + ratings -> edges (APPLY=1 to write; weekly)"
 > @echo "  refresh-shp              NSE shareholding-pattern RSS -> invested_in edges (APPLY=1 to write; quarterly cadence, weekly poll)"
+> @echo "  refresh-vigil            VIGIL bulk: RPT group/supply + ratings -> edges (APPLY=1 to write; weekly)"
 > @echo "  refresh-xbrl             D20: incremental NSE XBRL sweep, unseen filings only (ARGS=--new for IPOs; APPLY=1 to write)"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
 > @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
@@ -86,6 +86,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  snapshot-check           Verify the snapshot round-trips against the live DB"
 > @echo "  snapshot-fresh           Generation-only snapshot freshness (fail fast on drift; fix: make snapshot)"
 > @echo "  snapshot-restore         Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)"
+> @echo "  stamp-centrality         Re-stamp the ten v_centrality_* tables (explicit lane; graph-rebuild drops them; maint runs it after graph-rebuild)"
 > @echo "  static-checks            Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)"
 > @echo "  suggest-relations        Print link-prediction relation suggestions (C2; append with --append)"
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
@@ -182,7 +183,7 @@ snapshot-restore: ## Rebuild memory/ DBs from the git-tracked Parquet snapshot (
 > python3 helpers/maintenance/snapshot_db.py --restore --force
 > @echo "✓ Live DBs rebuilt from snapshots/parquet/"
 
-maint:          ## Routine maintenance: db_maint + snapshot + graph-rebuild (always-safe)
+maint:          ## Routine maintenance: db_maint + snapshot + graph-rebuild + stamp-centrality (always-safe)
 > python3 helpers/maintenance/maint.py
 > @echo "✓ Routine maintenance complete"
 
@@ -259,7 +260,11 @@ graph-algos:    ## Smoke test the Onager algorithm layer (all 14 metrics, no wri
 
 graph-rebuild:  ## Rebuild the disk-based DuckDB cache from SQLite (run after parse_newsletter --apply / derive-relations)
 > python3 helpers/graph/query.py rebuild
-> @echo "✓ DuckDB graph cache rebuilt (memory/graph.duckdb)"
+> @echo "✓ DuckDB graph cache rebuilt, data-only (memory/graph.duckdb; v_centrality_* dropped — run stamp-centrality to re-stamp)"
+
+stamp-centrality: ## Re-stamp the ten v_centrality_* tables on the warm cache (centrality_rebuild_contract explicit lane; BFS family costs minutes at 56k edges)
+> python3 helpers/graph/query.py stamp-centrality
+> @echo "✓ Centrality cache stamped (v_centrality_* tables warm)"
 
 near-duplicates: ## Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY — triage by hand, remediation is user-held)
 > python3 helpers/graph/query.py near-duplicates --min-sim 0.9

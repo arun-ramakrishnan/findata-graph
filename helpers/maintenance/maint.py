@@ -69,7 +69,9 @@ Chains the maintenance steps in the right order, in THREE blocks:
                              (private note bodies — snapshot-excluded, so
                              db-backup is its only copy).
     3. ``query.py rebuild`` — rebuild the DuckDB cache from the just-
-                             snapshotted SQLite so the cache matches.
+                             snapshotted SQLite so the cache matches. Data-only since the
+                             centrality_rebuild_contract — step 3b's stamp
+                             below re-stamps v_centrality_*.
     3b. ``snapshot_db.py --parquet-duckdb-only`` — re-export the duckdb
                              parquet mirror AFTER the rebuild (step 2's
                              export predates it; without this the mirror
@@ -249,6 +251,10 @@ TIER1_STEPS: list[tuple[str, list[str]]] = [
         [sys.executable, "helpers/maintenance/snapshot_db.py"],
     ),
     ("graph-rebuild (refresh DuckDB cache)", [sys.executable, "helpers/graph/query.py", "rebuild"]),
+    (
+        "stamp-centrality (re-stamp v_centrality_* tables)",
+        [sys.executable, "helpers/graph/query.py", "stamp-centrality"],
+    ),
     # graph-rebuild refreshes memory/graph.duckdb AFTER step 2 exported the
     # duckdb parquet mirror — without this tail step the mirror runs one
     # rebuild stale and snapshot_db.py --check fails after any graph
@@ -414,6 +420,11 @@ TIER1_FULL_SKIP: frozenset[str] = frozenset(
         # (step 10) AFTER its own graph rebuilds, so a mid-run mirror
         # export would be unconditionally overwritten anyway.
         "snapshot duckdb parquet mirror (post-rebuild)",
+        # stamp-centrality joins too (centrality_rebuild_contract): the
+        # TIER2 graph rebuilds are data-only and DROP v_centrality_* —
+        # a mid-run stamp would be ~6 min of work the tail erases. The
+        # stamp re-warms on the next plain maint / stamp-centrality run.
+        "stamp-centrality (re-stamp v_centrality_* tables)",
     }
 )
 

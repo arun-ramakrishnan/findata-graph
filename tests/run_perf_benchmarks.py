@@ -22,7 +22,12 @@ REPORT = REPO_ROOT / "outputs" / "perf_report.md"
 
 # Each entry: (label, args, budget_seconds).
 BENCHMARKS: list[tuple[str, list[str], float]] = [
-    ("integrity_check", ["helpers/misc/database_integrity_check.py"], 2.0),
+    # 10.0s since 2026-09-23: the VIGIL intake (26K entities / 57K
+    # relations, plus the relation-homed load) puts the checker at ~4.7s
+    # measured; the 2.0s budget was calibrated on the notes-era db.
+    # Optimization slice (batching the per-entity loop) is optional perf-arc
+    # work — re-tighten if it lands.
+    ("integrity_check", ["helpers/misc/database_integrity_check.py"], 10.0),
     ("verify_notes", ["helpers/validators/verify_notes.py"], 3.0),
     # --apply (2026-09-03): guard unification made the bare run a dry-run
     # report; the leg times the write path it has always timed (and the 2.0s
@@ -39,6 +44,12 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # bypass the v_centrality_* disk cache so these budgets keep
     # measuring the Onager COMPUTE path; the cache path is smoke-tested
     # in tests/test_centrality_cache.py instead.
+    # DELIBERATELY RED at VIGIL scale (26,120 nodes / 56,014 edges):
+    # measured 156.8s / 128.8s cold against the pre-VIGIL 5.0s budget.
+    # Operator call (2026-09-23): do NOT raise — minutes-scale cold
+    # centrality is not acceptable; the red leg is the tracker. Fix is
+    # L1a (company-source-restricted closeness/harmonic, ~130x less BFS
+    # work) in the perf arc; warm serve is 0.017s and tested separately.
     (
         "graph_closeness",
         ["helpers/graph/algorithms.py", "closeness", "--top", "10", "--compute"],
@@ -49,6 +60,9 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         ["helpers/graph/algorithms.py", "louvain", "--top", "10", "--compute"],
         4.0,
     ),
+    # DELIBERATELY RED at VIGIL scale: measured 48.9s / 37.2s cold against
+    # the pre-VIGIL 4.0s budget — same operator call as closeness. Fix is
+    # L1b (2-core folding) in the perf arc.
     (
         "graph_betweenness",
         ["helpers/graph/algorithms.py", "betweenness", "--top", "10", "--compute"],
@@ -65,6 +79,12 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         ["helpers/graph/algorithms.py", "eigenvector", "--top", "10", "--compute"],
         2.0,
     ),
+    # DELIBERATELY RED at VIGIL scale: measured 57.0s / 52.9s against the
+    # pre-VIGIL 2.0s budget — same operator call as closeness. The jaccard
+    # candidate space blew up with the widened symmetric types
+    # (competes_with 3,578 + jv_with 1,070 + co_mention). Fix is L1c
+    # (candidate pruning: 2-hop join with degree caps / top-K early exit)
+    # in the perf arc.
     (
         "graph_link_prediction",
         [
@@ -78,9 +98,11 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
         ],
         2.0,
     ),
-    # 8.0s since 2026-09-21: the rebuild now stamps the ten v_centrality_*
-    # tables (graph_centrality_persistent_cache, ~+2.4s of Onager compute
-    # on the live graph) on top of the ~3.0s base rebuild.
+    # Back to ~3.0s since centrality_rebuild_contract (2026-09-22): the
+    # rebuild is data-only again — the ten v_centrality_* tables are
+    # dropped, not stamped (the stamp is the explicit stamp-centrality
+    # lane; its BFS family costs minutes at the 56k-edge scale). The 8.0s
+    # budget stays as a regression ceiling, not the expectation.
     ("graph_rebuild", ["helpers/graph/query.py", "rebuild"], 8.0),
     # test_gap_closure S3: the only legs that drive the FLASK REQUEST PATH.
     # Every other entry invokes a helper script directly, so the gate could
@@ -96,7 +118,13 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # sql_capability_unlocks B2 gate: BFS shortest_path steady-state
     # (<100ms on the default request AND the unreachable-dst full
     # component traversal, asserted inside the script).
-    ("shortest_path_bfs", ["tests/bench_shortest_path.py"], 5.0),
+    # 10.0s since 2026-09-23: the inner per-case budgets (100ms default /
+    # 250ms unreachable) are the real gate and PASS comfortably at VIGIL
+    # scale (12ms / 76ms measured). The outer budget only covers process +
+    # connect + best-of-3 harness cost, which hit 8.17s when scheduled
+    # right after the minutes-scale --compute legs (page-cache/scheduler
+    # pressure). Headroom for that adjacency, no semantics change.
+    ("shortest_path_bfs", ["tests/bench_shortest_path.py"], 10.0),
     (
         "extract_relations",
         [

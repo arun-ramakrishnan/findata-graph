@@ -166,7 +166,10 @@ Open items below keep their revisit triggers inline; executed work is compressed
   (`archive/graph/graph_centrality_persistent_cache.md`): ten
   `v_centrality_*` tables stamped at rebuild (schema 17), warm CLI
   reads 0.35–0.45s, centrality perf legs now run `--compute` so
-  budgets keep measuring compute. The advisory-side twin
+  budgets keep measuring compute. SUPERSEDED-in-part 2026-09-23 by
+  completed.md #271 (centrality_rebuild_contract): the rebuild is
+  data-only and DROPS the tables (BFS family = minutes at 56k edges);
+  stamping is the explicit stamp-centrality lane. The advisory-side twin
   (live-invariants wall 95–226s) resolved 2026-09-20 —
   completed.md #255 (`archive/tooling/advisory_gate_perf_reports.md`);
   original state below:
