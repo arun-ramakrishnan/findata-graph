@@ -61,8 +61,8 @@ Open items below keep their revisit triggers inline; executed work is compressed
   "Personalization node 1 not found". Contract note: named args required,
   weight col must be `BIGINT`, pers col `DOUBLE` strictly positive (zeros
   rejected). Wrap path + projection ladder tracked in
-  `proposals/pagerank_graph_enhancements.md` (S5 watch; filed
-  2026-09-22).
+  `archive/graph/pagerank_graph_enhancements.md` (S5 watch; proposal
+  executed 2026-09-22 as completed.md #270 — S5 stayed parked).
 
 - **Security Phase 4 (deploy-time; app confirmed NOT deployed 2026-08-17)**
   (private security review under doc/local, untracked;

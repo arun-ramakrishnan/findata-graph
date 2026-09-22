@@ -353,14 +353,48 @@ def derive_edges(citations, n_quotes: dict[tuple[str, str], int]):
 
 
 def apply_edges(edges, *, conn=None, dry_run: bool = True) -> int:
-    """Insert ``cited_in`` edges (INSERT OR IGNORE; idempotent)."""
-    return apply_typed_edges(
+    """Insert ``cited_in`` edges (INSERT OR IGNORE; idempotent).
+
+    pagerank_graph_enhancements S2: after insert, backfill
+    ``weight = n_quotes + 1`` from the properties JSON (idempotent
+    UPDATE; the +1 keeps 0-quote citations at unit weight). Existing
+    rows are refreshed too, so the pass is safe to re-run.
+    """
+    inserted = apply_typed_edges(
         edges,
         edge_type=EDGE_TYPE,
         symmetric=0,
         conn=conn,
         dry_run=dry_run,
     )
+    if not dry_run:
+        backfill_weights(conn=conn)
+    return inserted
+
+
+def backfill_weights(*, conn=None) -> int:
+    """Set ``cited_in`` edge weights from ``properties.n_quotes`` (+1).
+
+    Idempotent: derives purely from properties, so re-running converges.
+    Returns the number of rows updated.
+    """
+    own = conn is None
+    if own:
+        conn = connect()
+    try:
+        cur = conn.execute(
+            "UPDATE graph_edges SET weight = CAST(json_extract(properties, '$.n_quotes') AS REAL) + 1.0 "  # noqa: S608  # literal schema identifiers only
+            "WHERE edge_type = 'cited_in' "
+            "AND json_extract(properties, '$.n_quotes') IS NOT NULL "
+            "AND (weight IS NULL OR weight != CAST(json_extract(properties, '$.n_quotes') AS REAL) + 1.0)"
+        )
+        n = cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
+        if own:
+            conn.commit()
+        return n
+    finally:
+        if own:
+            conn.close()
 
 
 _ARGS = dcli.DeriveArgsSpec(

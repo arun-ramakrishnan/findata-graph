@@ -952,9 +952,9 @@ class TestGraphDbOptimization:
         calls = {"n": 0}
         real = ong._materialize_from_db
 
-        def counting(con, edge_types):
+        def counting(con, edge_types, as_of=None):
             calls["n"] += 1
-            return real(con, edge_types)
+            return real(con, edge_types, as_of=as_of)
 
         monkeypatch.setattr(ong, "_materialize_from_db", counting)
         con = algos.duckdb_connect(read_only=True)

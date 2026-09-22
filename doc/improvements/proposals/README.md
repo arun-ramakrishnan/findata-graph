@@ -43,14 +43,15 @@ and the DuckDB vss HNSW trial concluded/declined (scan recall 35–57%,
 +75% disk). Execution record in
 `../archive/graph/note_knn_distance_ranking.md`.)_
 
-- [`pagerank_graph_enhancements.md`](pagerank_graph_enhancements.md) —
-  PageRank upgrade ladder: S1 economic projection (current default runs
-  over `belongs_to` alone — 184 of 18,291 edges, 60% membership
-  structure), S2 weight carry-through via the igraph lane (84% of edges
-  are unit-weight; Onager ignores weights), S3 temporal backfill
-  (valid_from 100% missing except invested_in; as-of ranks), S4
-  new-source scoping for the ~5% economic tail, S5 personalized-pgr
-  watch (Onager bug). Filed 2026-09-22, status proposed.
+_(Previously: pagerank_graph_enhancements.md archived 2026-09-22 as
+completed.md entry 270 — PageRank S1 economic projection (0/10 top-10
+overlap vs the membership view), S2 weight carry-through re-scoped to
+onager's native weight consumption (distinct pagerank_weighted metric,
+cited_in n_quotes+1 backfill), S3 temporal backfill (listed_on_index
+valid_from 6,615/6,615 + as-of ranking); S4 scoped for future source
+arcs, S5 parked on the Onager bug. Execution record in
+`../archive/graph/pagerank_graph_enhancements.md`.)_
+
 _(Previously: ownership_ingestion_nse_shp.md archived 2026-09-22 as
 completed.md entry 267 — NSE shareholding XBRL lane: RSS→XBRL fetch +
 in-bse-shp parser, 38 holder entities (30 person-kind, first in

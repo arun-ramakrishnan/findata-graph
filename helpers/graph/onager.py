@@ -101,26 +101,42 @@ def _where(edge_types: list[str] | None) -> tuple[str, list[str]]:
 # the pandas-importing binding path entirely. Non-matching names fall back
 # to parameter binding (correctness over speed).
 _IDENT_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
-def _where_inline(edge_types: list[str] | None) -> str:
+def _where_inline(edge_types: list[str] | None, as_of: str | None = None) -> str:
     """Literal-inlined variant of :func:`_where` (no param binding).
 
     Returns "" for no filter. Raises ValueError on anything that does not
     look like a bare snake_case identifier — callers never pass arbitrary
     user text here (CLI --edge-type values are validated upstream), but the
     check makes inlining unconditionally safe.
+
+    ``as_of`` (S3 temporal): appends an as-of validity filter — an edge is
+    valid at date D when it starts on/before D (or has no start) and ends
+    after D (or has no end). Must be a bare ISO date (YYYY-MM-DD); validated
+    before inlining for the same reason as edge types.
     """
-    if not edge_types:
+    if not edge_types and as_of is None:
         return ""
-    for t in edge_types:
+    for t in edge_types or []:
         if not _IDENT_RE.match(t):
             raise ValueError(f"edge type not a bare identifier: {t!r} — refusing to inline")
-    lst = ", ".join(f"'{t}'" for t in edge_types)
-    return f" WHERE edge_type IN ({lst})"
+    if as_of is not None and not _DATE_RE.match(as_of):
+        raise ValueError(f"as_of not a bare ISO date: {as_of!r} — refusing to inline")
+    parts = []
+    if edge_types:
+        lst = ", ".join(f"'{t}'" for t in edge_types)
+        parts.append(f"edge_type IN ({lst})")
+    if as_of is not None:
+        parts.append(f"(valid_from IS NULL OR valid_from <= DATE '{as_of}')")
+        parts.append(f"(valid_to IS NULL OR valid_to > DATE '{as_of}')")
+    return " WHERE " + " AND ".join(parts)
 
 
-def _materialize_from_db(con: duckdb.DuckDBPyConnection, edge_types: list[str] | None) -> bool:
+def _materialize_from_db(
+    con: duckdb.DuckDBPyConnection, edge_types: list[str] | None, as_of: str | None = None
+) -> bool:
     """Build ``_onager_int`` (name -> int id) and ``_onager_e`` (remapped
     edges) directly from ``fin.graph_edges`` using SQL.
 
@@ -130,7 +146,7 @@ def _materialize_from_db(con: duckdb.DuckDBPyConnection, edge_types: list[str] |
     # Inlined literals, not bound params: duckdb's python client imports
     # pandas (~0.5s fixed cost) on the first parameterized execute. See
     # _where_inline above.
-    where = _where_inline(edge_types)
+    where = _where_inline(edge_types, as_of)
     con.execute(
         f"""
         CREATE OR REPLACE TEMP TABLE _onager_int AS
@@ -183,7 +199,9 @@ _BATCH_CTX = threading.local()
 
 
 def _batch_sig(
-    edge_types: list[str] | None, edges: list[tuple[int, int, float]] | None
+    edge_types: list[str] | None,
+    edges: list[tuple[int, int, float]] | None,
+    as_of: str | None = None,
 ) -> str | None:
     """Signature of a materialisation, or ``None`` when batching is inactive.
 
@@ -205,7 +223,7 @@ def _batch_sig(
         gen = _current_generation_for_cache()
     except Exception:  # noqa: S110  # best-effort; absence just widens the key
         gen = None
-    payload = repr((str(gen), sorted(edge_types or [])))
+    payload = repr((str(gen), sorted(edge_types or []), as_of))
     # usedforsecurity=False: cache-key fingerprint, not security.
     return "db:" + hashlib.sha1(payload.encode(), usedforsecurity=False).hexdigest()
 
@@ -225,6 +243,7 @@ def _ensure_materialized(
     con: duckdb.DuckDBPyConnection,
     edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
+    as_of: str | None = None,
 ) -> bool:
     """Materialise ``_onager_e`` (+ ``_onager_int`` on the DB path), or skip.
 
@@ -236,13 +255,13 @@ def _ensure_materialized(
     schema (hex literal; no parameter binding, so the pandas-importing
     binding path is never touched) and is dropped when the block exits.
     """
-    sig = _batch_sig(edge_types, edges)
+    sig = _batch_sig(edge_types, edges, as_of)
     if sig is not None:
         state = _sig_state(con, sig)
         if state is not None:
             return state
     if edges is None:
-        ok = _materialize_from_db(con, edge_types)
+        ok = _materialize_from_db(con, edge_types, as_of)
     else:
         _materialize_edges(con, edges)
         ok = True
@@ -305,16 +324,20 @@ def _onager_named(
     col: str,
     extra: str = "",
     params: list[Any] | None = None,
+    weighted: bool = True,
 ) -> dict[str, float]:
     """Run an Onager table function and map integer node_ids back to names.
 
     ``extra`` appends named-function parameters (e.g. ``", alpha => $1"``)
     bound from ``params`` — Onager's non-table parameters are named-only.
+    ``weighted=False`` passes unit weights regardless of what the
+    materialisation carries (S2 unweighted contract).
     """
+    wcol = "weight" if weighted else "1.0 AS weight"
     rows = con.execute(
         f"""
         SELECT i.name, out.{col}
-        FROM {fn}((SELECT src, dst, weight FROM _onager_e){extra}) out
+        FROM {fn}((SELECT src, dst, {wcol} FROM _onager_e){extra}) out
         JOIN _onager_int i ON i.nid = out.node_id
         """,  # noqa: S608
         params or [],
@@ -328,10 +351,12 @@ def _onager_int(
     col: str,
     extra: str = "",
     params: list[Any] | None = None,
+    weighted: bool = True,
 ) -> dict[int, float]:
     """Run an Onager table function, returning int node_id -> value."""
+    wcol = "weight" if weighted else "1.0 AS weight"
     rows = con.execute(
-        f"SELECT node_id, {col} FROM {fn}((SELECT src, dst, weight FROM _onager_e){extra})",  # noqa: S608
+        f"SELECT node_id, {col} FROM {fn}((SELECT src, dst, {wcol} FROM _onager_e){extra})",  # noqa: S608
         params or [],
     ).fetchall()
     return {int(r[0]): r[1] for r in rows}
@@ -450,22 +475,31 @@ def onager_pagerank(
     con: duckdb.DuckDBPyConnection | None = None,
     edge_types: list[str] | None = None,
     edges: list[tuple[int, int, float]] | None = None,
+    weighted: bool = True,
+    as_of: str | None = None,
 ) -> dict[Any, float]:
     """PageRank -> name->score or int->score.
 
     Replaces the duckpgq-native ``pagerank(fin_graph, ...)`` wrapper. The
     score scale differs slightly from duckpgq's (different normalisation);
     the node ranking is preserved (verified on the live graph, 2026-08-14).
+
+    ``weighted=False`` passes unit weights regardless of what the
+    materialisation carries — the pagerank_graph_enhancements S2
+    contract: the plain ``pagerank`` metric ignores weights,
+    ``pagerank_weighted`` consumes them. Verified 2026-09-22: onager's
+    pagerank IS weight-sensitive (9:1 weighted star -> 0.371 vs 0.075
+    leaf scores), contrary to the pre-S2 census note.
     """
     con, owns = _prepare(con)
     try:
         if edges is None:
-            if not _ensure_materialized(con, edge_types):
+            if not _ensure_materialized(con, edge_types, as_of=as_of):
                 return {}
-            res = _onager_named(con, "onager_ctr_pagerank", "rank")
+            res = _onager_named(con, "onager_ctr_pagerank", "rank", weighted=weighted)
         else:
             _ensure_materialized(con, edges=edges)
-            res = _onager_int(con, "onager_ctr_pagerank", "rank")
+            res = _onager_int(con, "onager_ctr_pagerank", "rank", weighted=weighted)
     finally:
         if owns:
             con.close()
@@ -617,6 +651,30 @@ DEFAULT_PREDICTION_EDGE_TYPES = [
     "jv_with",
     "competes_with",
     "same_group",
+]
+
+# pagerank_graph_enhancements S1: the ECONOMIC projection — every
+# non-membership edge type, i.e. competition, news/research co-occurrence,
+# and the ownership/supply/ratings mass the data lanes landed (2026-09-22:
+# subsidiary_of 11.3k, same_group 9.8k, supplier_to 15.5k, invested_in 755,
+# rated_by 216). Membership stars (listed_on_index, listed_in, part_of,
+# has_company, belongs_to) are excluded by design: PageRank over them
+# measures index membership, not economic centrality.
+ECONOMIC_EDGE_TYPES = [
+    "competes_with",
+    "cited_in",
+    "co_mentioned_in",
+    "invested_in",
+    "subsidiary_of",
+    "same_group",
+    "jv_with",
+    "supplier_to",
+    "customer_of",
+    "acquired",
+    "semantic_peer",
+    "rated_by",
+    "regulated_by",
+    "approved_by",
 ]
 
 

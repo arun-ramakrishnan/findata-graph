@@ -73,6 +73,7 @@ from helpers.graph.query import (  # noqa: E402
     _query_cache_set,
     clustering_coefficient as _graph_clustering,
     pagerank as _graph_pagerank,
+    pagerank_weighted as _graph_pagerank_weighted,
     weakly_connected_components as _graph_wcc,
 )
 from helpers.graph import query as _graph_query  # noqa: E402
@@ -672,10 +673,35 @@ def _cached_louvain(con: Any) -> tuple[dict[str, int], float] | None:
     return {n: int(c) for n, c in rows}, float(mod[0])
 
 
-def _run_pagerank(con, *, edges, edge_label, vertex_label, **_) -> dict[str, Any]:
+def _run_pagerank(con, *, edges, edge_label, vertex_label, as_of=None, **_) -> dict[str, Any]:
     if edges is not None:
-        return onager_pagerank(con, edges=edges)
-    return {n: s for n, s in _graph_pagerank(con, edge_label=edge_label, vertex_label=vertex_label)}
+        return onager_pagerank(con, edges=edges, weighted=False)
+    return {
+        n: s
+        for n, s in _graph_pagerank(
+            con, edge_label=edge_label, vertex_label=vertex_label, as_of=as_of
+        )
+    }
+
+
+def _run_pagerank_weighted(
+    con, *, edges, edge_label, vertex_label, as_of=None, **_
+) -> dict[str, Any]:
+    """pagerank_graph_enhancements S2: weighted variant over the same
+    projection — consumes carried edge weights (cited_in n_quotes+1,
+    invested_in stakes, competes_with similarity).
+
+    ``as_of`` (S3): restricts the projection to edges valid at that date
+    (NULL valid_from counts as always-valid; valid_to must be after D).
+    """
+    if edges is not None:
+        return onager_pagerank(con, edges=edges, weighted=True)
+    return {
+        n: s
+        for n, s in _graph_pagerank_weighted(
+            con, edge_label=edge_label, vertex_label=vertex_label, as_of=as_of
+        )
+    }
 
 
 def _run_wcc(con, *, edges, edge_label, vertex_label, **_) -> dict[str, Any]:
@@ -732,6 +758,7 @@ def _run_local_reaching(con, *, edges, **_) -> dict[str, Any]:
 
 _METRIC_DISPATCH: dict[str, Callable[..., dict[str, Any]]] = {
     "pagerank": _run_pagerank,
+    "pagerank_weighted": _run_pagerank_weighted,
     "weakly_connected_component": _run_wcc,
     "local_clustering_coefficient": _run_clustering,
     "louvain_community": _run_louvain,
@@ -755,6 +782,7 @@ def compute(
     vertex_label: str = "Entity",
     top_k: int | None = None,
     approximate: bool | None = None,
+    as_of: str | None = None,
 ) -> dict[str, Any]:
     """Compute a single graph metric and return {entity_name: value}.
 
@@ -832,6 +860,7 @@ def write_analytics(metric: str, values: dict[str, Any], conn: Any | None = None
 _METRIC_TO_ANALYTICS_NAME = {
     "degree": "degree_centrality",
     "pagerank": "pagerank",
+    "pagerank-weighted": "pagerank_weighted",
     "betweenness": "betweenness_centrality",
     "louvain": "louvain_community",
     "wcc": "weakly_connected_component",
@@ -910,6 +939,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         choices=[
             "degree",
             "pagerank",
+            "pagerank-weighted",
             "betweenness",
             "louvain",
             "wcc",
@@ -945,11 +975,18 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         help="edge label (default: BelongsTo). Used by pagerank/wcc/clustering.",
     )
     p.add_argument(
+        "--as-of",
+        default=None,
+        help="Temporal validity filter (S3): rank over edges valid at this ISO "
+        "date (YYYY-MM-DD). Edges with NULL valid_from count as always-valid; "
+        "applies to pagerank / pagerank-weighted.",
+    )
+    p.add_argument(
         "--all",
         action="store_true",
-        help="Run all metrics (degree, pagerank, betweenness, louvain, wcc, "
-        "clustering, closeness, eigenvector, harmonic, katz, laplacian, "
-        "local-reaching) plus link-predict and voterank.",
+        help="Run all metrics (degree, pagerank, pagerank-weighted, betweenness, "
+        "louvain, wcc, clustering, closeness, eigenvector, harmonic, katz, "
+        "laplacian, local-reaching) plus link-predict and voterank.",
     )
     write_flags = p.add_mutually_exclusive_group()
     write_flags.add_argument(
@@ -987,6 +1024,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     cmd_to_metric = {
         "degree": "degree_centrality",
         "pagerank": "pagerank",
+        "pagerank-weighted": "pagerank_weighted",
         "betweenness": "betweenness_centrality",
         "louvain": "louvain_community",
         "wcc": "weakly_connected_component",
@@ -1017,6 +1055,14 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         with with_onager_connection(duck_con), bypass:
             pending_writes: list[tuple[str, dict[str, Any]]] = []
             for cmd in commands:
+                # pagerank_graph_enhancements S1: the persisted `pagerank`
+                # metric runs over the ECONOMIC projection (non-membership
+                # types); pass --edge-label to override for a legacy view.
+                pr_label = (
+                    "Economic"
+                    if cmd in ("pagerank", "pagerank-weighted") and args.edge_label == "BelongsTo"
+                    else args.edge_label
+                )
                 if cmd == "link-predict":
                     print(f"\nlink-predict (method={args.method}):")
                     edge_types = (
@@ -1085,11 +1131,13 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 if cmd == "louvain":
                     louvain_modularity = louvain_communities(duck_con).modularity
                 try:
+                    as_of = args.as_of if cmd in ("pagerank", "pagerank-weighted") else None
                     result = compute(
                         metric,
                         con=duck_con,
-                        edge_label=args.edge_label,
+                        edge_label=pr_label,
                         top_k=args.top,
+                        as_of=as_of,
                     )
                     print("  [via onager]", file=sys.stderr)
                 except Exception as e:

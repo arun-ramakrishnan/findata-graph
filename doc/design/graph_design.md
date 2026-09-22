@@ -237,9 +237,52 @@ default dry-run): per-node candidate lists
 
 ### 5.5 Cross-cutting conventions
 
-Unweighted (weights ignored by all onager metrics); undirected with
+Unweighted by default (weights ignored by all onager metrics except
+pagerank-weighted, S2); undirected with
 reverse/duplicate rows deduped; `{}`/`[]` on empty edge sets; company-only
 rows where the historical contract demands (some metrics 1165 rows vs 1648).
+
+Weight carry-through (pagerank_graph_enhancements S2, 2026-09-22): the
+pre-S2 census note "onager ignores weights" was WRONG — `onager_ctr_pagerank`
+consumes the materialised weight column (verified: 9:1 weighted star gives
+0.371 vs 0.075 leaf scores). Contract since S2: the plain `pagerank` metric
+passes unit weights (`onager_pagerank(weighted=False)`); the distinct
+`pagerank_weighted` metric consumes carried weights — cited_in carries
+`n_quotes + 1` (backfilled at derive time by `derive_cited_in.backfill_weights`,
+live range 1.0–44.0), invested_in carries stake %, competes_with carries
+similarity. co_mentioned_in has NO recoverable per-pair count in the store
+(properties hold only the latest edition; the UNIQUE constraint collapses
+cross-edition history) — unit weights, derive-time gap noted. Scale
+heterogeneity (stakes ≤100 vs similarity ≤0.914) is carried raw; the
+weighted top-10 overlaps the unweighted 10/10 (weights refine, do not
+distort — evaluated live 2026-09-22).
+
+Temporal as-of projection (pagerank_graph_enhancements S3, 2026-09-22):
+``listed_on_index.valid_from`` is backfilled from ``properties.as_of``
+(6,615/6,615 rows, the constituents-CSV snapshot date; wired into
+``derive_indices.backfill_validity``) — joining ``invested_in`` (filing
+dates, 799/799) as the only fully dated types. ``onager_pagerank(as_of=D)``
+filters the projection to edges valid at D (NULL ``valid_from`` =
+always-valid; ``valid_to`` must be after D); ISO dates are validated before
+SQL inlining. Surface: ``query.pagerank(as_of=...)`` /
+``pagerank_weighted(as_of=...)`` and ``algorithms.py pagerank --as-of``.
+Live semantics check: invested_in edges valid 799 today vs 91 at 2025-06-30
+— the filter genuinely excludes later filings; the Economic top-8 is
+stable across D (structural edges are undated and dominate), which is the
+honest current-state reading.
+
+Pagerank projection (pagerank_graph_enhancements S1, 2026-09-22): the
+persisted `pagerank` metric runs over the **ECONOMIC projection** —
+`onager.ECONOMIC_EDGE_TYPES`, every non-membership edge type
+(competes_with, cited_in, co_mentioned_in, invested_in, subsidiary_of,
+same_group, jv_with, supplier_to, customer_of, acquired, semantic_peer,
+rated_by, regulated_by, approved_by) — so the rank measures economic
+centrality, not index-membership degree. `query.pagerank` defaults to
+`edge_label="Economic"`; the CLI maps the default to it (explicit
+`--edge-label` overrides); the legacy membership view stays available as
+`BelongsTo`. On the live 56k-edge graph the two projections share 0/10
+of their top-10 (Economic: Reliance, M&M, JSW Energy, Wipro, Infosys;
+BelongsTo: membership-star artifacts).
 **Do not wrap `onager_ctr_personalized_pagerank`**: its personalisation
 column is ignored, the restart node is hardcoded to node_id 1, and it errors
 without one (Onager bug, documented in onager.py — revisit on a future
@@ -252,9 +295,9 @@ D-O1…O6): `doc/design/ontology.md` — the master reference.
 
 ### 5.6 Persistence & refresh
 
-`make recompute-graph` → `--all --apply`: the 14 dyadic metrics (12
-dispatch metrics at up to 1,684 rows + link_prediction 835, voterank 15;
-2026-09-14). Node metrics store
+`make recompute-graph` → `--all --apply`: the 15 dyadic metrics (12
+dispatch metrics + `pagerank_weighted` + link_prediction + voterank;
+2026-09-22). Node metrics store
 `{"value": X}` (louvain adds `"community"`+`"modularity"`; wcc
 `"componentId"`). UPSERT on metric-first PK; recompute replaces wholesale.
 `make qa` warns when `computed_at` < `max(entities.last_updated)` (advisory).

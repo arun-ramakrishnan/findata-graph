@@ -214,3 +214,33 @@ def test_write_worklist(tmp_path):
     assert data["count"] == 1
     assert data["constituents"][0]["symbol"] == "NOPE"
     assert data["unmapped_industries"] == {"Services": ["Mystery Co"]}
+
+
+# --------------------------------------------------------------------------- #
+# S3: listed_on_index valid_from backfill
+# --------------------------------------------------------------------------- #
+class TestBackfillValidity:
+    def _edges_conn(self):
+        conn = _conn()
+        conn.executemany(
+            "INSERT INTO graph_edges (source, target, edge_type, properties, source_ref) "
+            "VALUES (?, 'Nifty 50', 'listed_on_index', ?, 'derive:indices:nse-constituents')",
+            [
+                ("Reliance Industries", json.dumps({"as_of": "2026-09-18", "symbol": "RELIANCE"})),
+                ("TCS", json.dumps({"symbol": "TCS"})),  # no as_of -> untouched
+            ],
+        )
+        conn.commit()
+        return conn
+
+    def test_backfill_sets_valid_from_from_as_of(self):
+        conn = self._edges_conn()
+        n = di.backfill_validity(conn=conn)
+        assert n == 1
+        rows = conn.execute(
+            "SELECT source, valid_from FROM graph_edges WHERE edge_type='listed_on_index' ORDER BY source"
+        ).fetchall()
+        assert rows == [("Reliance Industries", "2026-09-18"), ("TCS", None)]
+        # idempotent: converged -> 0 updates
+        assert di.backfill_validity(conn=conn) == 0
+        conn.close()

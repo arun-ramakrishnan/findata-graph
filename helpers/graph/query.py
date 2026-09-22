@@ -3568,7 +3568,10 @@ def _company_names(con: duckdb.DuckDBPyConnection) -> set[str]:
 
 
 def pagerank(
-    con: duckdb.DuckDBPyConnection, edge_label: str = "BelongsTo", vertex_label: str = "Entity"
+    con: duckdb.DuckDBPyConnection,
+    edge_label: str = "Economic",
+    vertex_label: str = "Entity",
+    as_of: str | None = None,
 ) -> list[tuple[str, float]]:
     """PageRank over the graph (Onager-backed).
 
@@ -3576,12 +3579,51 @@ def pagerank(
     Only company names are returned (sector vertices are filtered out,
     matching the previous duckpgq-native implementation).
 
-    ``edge_label`` is a property-graph label (e.g. 'BelongsTo', 'CompetesWith',
-    'BelongsToHierarchy', 'ExposedTo'); it is resolved to the underlying
-    graph_edges.edge_type. ``vertex_label`` is accepted for signature
-    compatibility and ignored (Onager has no property-graph vertex labels).
+    ``edge_label`` is a property-graph label (e.g. 'Economic', 'BelongsTo',
+    'CompetesWith'); it is resolved to the underlying graph_edges
+    edge_type(s). The default ``'Economic'`` (pagerank_graph_enhancements
+    S1) runs over ``onager.ECONOMIC_EDGE_TYPES`` — every non-membership
+    type — so the rank measures economic centrality; ``'BelongsTo'`` (the
+    pre-S1 default) stays available as the legacy membership view.
+    ``vertex_label`` is accepted for signature compatibility and ignored
+    (Onager has no property-graph vertex labels).
     """
-    scores = onager_pagerank(con, edge_types=[_label_to_edge_type(edge_label)])
+    from helpers.graph.onager import ECONOMIC_EDGE_TYPES  # noqa: PLC0415
+
+    if edge_label == "Economic":
+        scores = onager_pagerank(con, edge_types=ECONOMIC_EDGE_TYPES, weighted=False, as_of=as_of)
+    else:
+        scores = onager_pagerank(
+            con, edge_types=[_label_to_edge_type(edge_label)], weighted=False, as_of=as_of
+        )
+    companies = _company_names(con)
+    rows = [(name, float(score)) for name, score in scores.items() if name in companies]
+    rows.sort(key=lambda kv: kv[1], reverse=True)
+    return rows
+
+
+def pagerank_weighted(
+    con: duckdb.DuckDBPyConnection,
+    edge_label: str = "Economic",
+    vertex_label: str = "Entity",
+    as_of: str | None = None,
+) -> list[tuple[str, float]]:
+    """Weighted PageRank over the ECONOMIC projection (S2).
+
+    Same projection and shape as :func:`pagerank` but consumes the
+    carried edge weights (cited_in ``n_quotes + 1``, invested_in stakes,
+    competes_with similarity) instead of unit weights. Persisted under
+    the distinct metric name ``pagerank_weighted`` so weighted and
+    unweighted outputs can be evaluated side by side.
+    """
+    from helpers.graph.onager import ECONOMIC_EDGE_TYPES  # noqa: PLC0415
+
+    if edge_label == "Economic":
+        scores = onager_pagerank(con, edge_types=ECONOMIC_EDGE_TYPES, weighted=True, as_of=as_of)
+    else:
+        scores = onager_pagerank(
+            con, edge_types=[_label_to_edge_type(edge_label)], weighted=True, as_of=as_of
+        )
     companies = _company_names(con)
     rows = [(name, float(score)) for name, score in scores.items() if name in companies]
     rows.sort(key=lambda kv: kv[1], reverse=True)

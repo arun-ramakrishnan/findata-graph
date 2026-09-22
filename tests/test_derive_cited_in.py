@@ -39,6 +39,7 @@ def _schema_sql():
         properties TEXT NOT NULL DEFAULT '{}',
         source_ref TEXT,
         symmetric INTEGER DEFAULT 0,
+        weight REAL,
         UNIQUE(source, target, edge_type)
     );
     CREATE TABLE quotes(
@@ -219,3 +220,28 @@ def test_create_entities_refuses_non_edition_collision(tmp_path):
     )
     with pytest.raises(RuntimeError, match="collide with existing"):
         dc.create_edition_entities(con, editions, apply=True)
+
+
+def test_apply_edges_backfills_weights(tmp_path):
+    """S2: apply_edges carries n_quotes+1 as edge weight; idempotent."""
+    vault = _make_vault(tmp_path)
+    editions = dc.edition_notes(vault)
+    con = sqlite3.connect(":memory:")
+    con.executescript(_schema_sql())
+    con.execute(
+        "INSERT INTO entities VALUES ('Alpha Co','company',NULL,"
+        "'findata/Companies/Agri/Alpha_Co.md',NULL)"
+    )
+    dc.create_edition_entities(con, editions, apply=True)
+    stems = {e["stem"] for e in editions}
+    citations, _ = dc.extract_citations(vault, PATH_TO_NAME, stems)
+    edges = dc.derive_edges(citations, {})
+    assert dc.apply_edges(edges, conn=con, dry_run=False) == 3
+    rows = con.execute(
+        "SELECT source, target, weight FROM graph_edges WHERE edge_type='cited_in' ORDER BY target"
+    ).fetchall()
+    # derive_edges(citations, {}) -> n_quotes defaults to 0 -> weight 1.0 each
+    assert all(w == 1.0 for _, _, w in rows), rows
+    # rerun: no inserts, weights unchanged (idempotent)
+    assert dc.apply_edges(edges, conn=con, dry_run=False) == 0
+    assert con.execute("SELECT COUNT(*) FROM graph_edges WHERE weight=1.0").fetchone()[0] == 3

@@ -153,6 +153,33 @@ def _build_resolver(entities: list[tuple], exchange_rows: list[tuple]):
     return company_for
 
 
+def backfill_validity(*, conn=None) -> int:
+    """Set ``listed_on_index.valid_from`` from ``properties.as_of`` (S3).
+
+    Idempotent UPDATE; leaves rows without an as_of untouched. Mirrors the
+    invested_in in-tree pattern (filing date as validity start).
+    """
+    own = conn is None
+    if own:
+        from helpers.core.db import connect  # noqa: PLC0415
+
+        conn = connect()
+    try:
+        cur = conn.execute(
+            "UPDATE graph_edges SET valid_from = json_extract(properties, '$.as_of') "  # noqa: S608  # literal schema identifiers only
+            "WHERE edge_type = 'listed_on_index' "
+            "AND json_extract(properties, '$.as_of') IS NOT NULL "
+            "AND (valid_from IS NULL OR valid_from != json_extract(properties, '$.as_of'))"
+        )
+        n = cur.rowcount if cur.rowcount is not None and cur.rowcount >= 0 else 0
+        if own:
+            conn.commit()
+        return n
+    finally:
+        if own:
+            conn.close()
+
+
 def resolve(
     constituents: list[dict], entities: list[tuple], exchange_rows: list[tuple]
 ) -> tuple[list[tuple], list[str], list[dict], dict[str, list[str]]]:

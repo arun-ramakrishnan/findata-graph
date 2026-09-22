@@ -7062,3 +7062,33 @@ Execution record: `archive/pipeline/related_party_groups_vigil.md`.
   wave via weekly polling (refresh-shp polls --rss --bse-rss).
 
 Execution record: `archive/pipeline/bse_shareholding_rss.md`.
+
+## 270. PageRank graph enhancements — projection, weights, temporal backfill
+
+- S1 economic projection: `onager.ECONOMIC_EDGE_TYPES` (14 non-membership
+  types); `query.pagerank` default label `Economic`; recompute dispatch
+  maps its default there (--all and single command). Acceptance: 0/10
+  top-10 overlap vs the legacy BelongsTo membership view (Economic:
+  Reliance, M&M, JSW Energy, Wipro, Infosys; legacy: membership-star
+  artifacts); persisted metric recomputed + verified.
+- S2 weight carry-through, RE-SCOPED (no igraph): the filed premise
+  "Onager cannot take weights" was wrong — `onager_ctr_pagerank`
+  consumes the weight column (verified: 9:1 weighted star → 0.371 vs
+  0.075). `onager_pagerank(weighted=...)` switch; plain pagerank keeps
+  unit weights; new distinct `pagerank_weighted` metric consumes
+  carried weights — cited_in backfills n_quotes+1 at derive time (live
+  1.0–44.0), invested_in carries stakes, competes_with similarity.
+  Weighted vs unweighted top-10: 10/10, one rank swap. co_mentioned_in
+  stays unit (no per-pair count survives the store — derive-time gap
+  documented).
+- S3 temporal: listed_on_index.valid_from backfilled from
+  properties.as_of (6,615/6,615, `derive_indices.backfill_validity`);
+  as-of filter (valid_from/valid_to window, NULL = always-valid)
+  threaded through materialisation + batch signature; surfaced as
+  `pagerank(as_of=...)` and CLI `--as-of`. Live: invested_in valid 799
+  today vs 91 at 2025-06-30; Economic top-8 stable across D.
+- 241 targeted tests green; `make static-checks` clean; graph_design.md
+  §5.5/§5.6 updated; S4 stays scoped for future source arcs, S5 parked
+  on the Onager bug.
+
+Execution record: `archive/graph/pagerank_graph_enhancements.md`.

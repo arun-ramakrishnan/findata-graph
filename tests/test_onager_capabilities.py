@@ -670,3 +670,140 @@ def test_onager_louvain_labels_canonical_across_edge_order():
     # Canonical numbering: larger community first -> clique is 0, pair is 1.
     assert {n for n, c in labels_a.items() if c == 0} == {0, 1, 2, 3}
     assert {n for n, c in labels_a.items() if c == 1} == {10, 20}
+
+
+# --------------------------------------------------------------------------- #
+# pagerank_graph_enhancements S1: the ECONOMIC projection
+# --------------------------------------------------------------------------- #
+from helpers.graph.onager import ECONOMIC_EDGE_TYPES  # noqa: E402
+
+
+def test_economic_projection_excludes_membership_types():
+    membership = {"listed_on_index", "listed_in", "part_of", "has_company", "belongs_to"}
+    assert not membership & set(ECONOMIC_EDGE_TYPES)
+    # the ownership/supply/ratings mass the data lanes landed is included
+    for etype in (
+        "competes_with",
+        "cited_in",
+        "invested_in",
+        "subsidiary_of",
+        "same_group",
+        "supplier_to",
+        "rated_by",
+    ):
+        assert etype in ECONOMIC_EDGE_TYPES
+
+
+def test_query_pagerank_default_label_is_economic():
+    """S1: query.pagerank() defaults to the Economic projection; the
+    legacy membership view stays available as 'BelongsTo'."""
+    from helpers.graph import query as gq
+
+    assert gq.pagerank.__defaults__[0] == "Economic"
+
+
+def test_economic_projection_multi_type_union(synth_db):
+    """The economic list materialises as one union projection and ranks
+    the economic hub above the membership leaves (the S1 motivation in
+    miniature: same fixture, different edge slices, different winner)."""
+    # add an economic hub: CompanyD competes_with A/B/C (synth_db is a path)
+    sdb = sqlite3.connect(synth_db)
+    sdb.execute("INSERT OR IGNORE INTO entities(name, entity_type) VALUES ('CompanyD', 'company')")
+    for leaf in ("CompanyA", "CompanyB", "CompanyC"):
+        sdb.execute(
+            "INSERT OR IGNORE INTO graph_edges(source, target, edge_type, source_ref) "
+            "VALUES (?, 'CompanyD', 'competes_with', 'test:s1')",
+            (leaf,),
+        )
+    sdb.commit()
+    sdb.close()
+    con = _duckdb_over(synth_db)
+    try:
+        eco = onager_mod.onager_pagerank(con, edge_types=["competes_with", "cited_in"])
+        mem = onager_mod.onager_pagerank(con, edge_types=["part_of"])
+    finally:
+        con.close()
+    # membership star: the sector hub wins; economic slice: CompanyD wins
+    assert mem["SectorA"] > mem["CompanyA"]
+    assert eco["CompanyD"] > eco["CompanyA"]
+    assert abs(sum(eco.values()) - 1.0) < 1e-6
+
+
+# --------------------------------------------------------------------------- #
+# pagerank_graph_enhancements S2: weight carry-through
+# --------------------------------------------------------------------------- #
+def test_onager_pagerank_unweighted_switch():
+    """weighted=False zeroes carried weights: the 9:1 weighted star
+    collapses to equal leaves; weighted=True separates them (onager IS
+    weight-sensitive — verified live 2026-09-22)."""
+    edges = [(0, 1, 9.0), (0, 2, 1.0), (3, 0, 1.0)]
+    unw = onager_mod.onager_pagerank(edges=edges, weighted=False)
+    wtd = onager_mod.onager_pagerank(edges=edges, weighted=True)
+    assert abs(unw[1] - unw[2]) < 1e-12  # unit weights -> symmetric leaves
+    assert wtd[1] > wtd[2]  # 9:1 carried -> leaf1 dominates
+
+
+def test_query_pagerank_weighted_distinct_surface():
+    """pagerank_weighted is a distinct query surface (S2 contract:
+    weighted vs unweighted are different metrics, both persisted)."""
+    from helpers.graph import query as gq
+
+    assert callable(gq.pagerank_weighted)
+    assert gq.pagerank_weighted.__defaults__[0] == "Economic"
+    # and it is wired as a dispatch metric + CLI command
+    from helpers.graph import algorithms as alg
+
+    assert "pagerank_weighted" in alg._METRIC_DISPATCH
+
+
+# --------------------------------------------------------------------------- #
+# pagerank_graph_enhancements S3: temporal as-of projection
+# --------------------------------------------------------------------------- #
+def test_where_inline_as_of_filter():
+    """as_of appends a validity window; NULL valid_from counts as
+    always-valid; bad dates and bad identifiers are refused."""
+    w = onager_mod._where_inline(["competes_with"], as_of="2026-06-30")
+    assert "edge_type IN ('competes_with')" in w
+    assert "(valid_from IS NULL OR valid_from <= DATE '2026-06-30')" in w
+    assert "(valid_to IS NULL OR valid_to > DATE '2026-06-30')" in w
+    # no filters -> empty
+    assert onager_mod._where_inline(None) == ""
+    # injection-shaped as_of refused
+    import pytest
+
+    with pytest.raises(ValueError, match="bare ISO date"):
+        onager_mod._where_inline(["competes_with"], as_of="2026-06-30'; DROP TABLE x")
+    with pytest.raises(ValueError, match="bare identifier"):
+        onager_mod._where_inline(["competes_with; DROP"])
+
+
+def test_onager_pagerank_as_of_excludes_future_edges(synth_db):
+    """An edge starting after D is excluded at D; an undated edge is
+    always valid."""
+    sdb = sqlite3.connect(synth_db)
+    sdb.execute("INSERT OR IGNORE INTO entities(name, entity_type) VALUES ('CompanyD', 'company')")
+    # undated edge: CompanyC <-> CompanyD (always valid)
+    sdb.execute(
+        "INSERT OR IGNORE INTO graph_edges(source, target, edge_type, source_ref, valid_from) "
+        "VALUES ('CompanyC', 'CompanyD', 'competes_with', 'test:s3', NULL)"
+    )
+    # future-dated edge: CompanyA <-> CompanyD from 2026-09-01
+    sdb.execute(
+        "INSERT OR IGNORE INTO graph_edges(source, target, edge_type, source_ref, valid_from) "
+        "VALUES ('CompanyA', 'CompanyD', 'competes_with', 'test:s3', '2026-09-01')"
+    )
+    sdb.commit()
+    sdb.close()
+    con = _duckdb_over(synth_db)
+    try:
+        before = onager_mod.onager_pagerank(con, edge_types=["competes_with"], as_of="2026-06-30")
+        after = onager_mod.onager_pagerank(con, edge_types=["competes_with"], as_of="2026-12-31")
+    finally:
+        con.close()
+    # before D: the future-dated A-D edge is excluded, so CompanyA has no
+    # competes_with edge at all and never enters the projection
+    assert "CompanyA" not in before
+    assert before["CompanyD"] == pytest.approx(before["CompanyC"])  # 2-node symmetric
+    # after D: the edge is live -> CompanyA joins and takes hub rank from D
+    assert "CompanyA" in after
+    assert len(after) == 3
