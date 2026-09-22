@@ -335,16 +335,23 @@ class TestBundleK3CoalescedNeighbors:
 
     def test_suppliers_and_customers_incoming_suppliesto(self, con):
         # The flip side: Tata Motors PV has Talbros as a supplier.
+        # VIGIL RPT lanes (completed.md #268) added the group's related-
+        # party supply declarations on top of the notes-derived rows, so
+        # equality pins no longer hold for RPT-heavy filers — assert the
+        # notes-derived supplier stays a SUPPLIER and never leaks into
+        # the customer side (the K3 direction semantics under test).
         s, c = suppliers_and_customers(con, "Tata Motors Passenger Vehicles")
-        assert s == ["Talbros Automotive Components"]
-        assert c == []
+        assert "Talbros Automotive Components" in s
+        assert "Talbros Automotive Components" not in c
 
     def test_suppliers_and_customers_outgoing_customerof(self, con):
         # GAIL → Indian Oil (customer_of). customer_of is customer→supplier,
-        # so GAIL (the source) has Indian Oil as a supplier.
+        # so GAIL (the source) has Indian Oil as a supplier. VIGIL RPT
+        # lanes add group declarations around both companies, so this is
+        # a membership/direction pin, not an equality pin.
         s, c = suppliers_and_customers(con, "GAIL India")
-        assert s == ["Indian Oil Corporation"]
-        assert c == []
+        assert "Indian Oil Corporation" in s
+        assert "Indian Oil Corporation" not in c
 
     def test_suppliers_and_customers_unknown_company_returns_empty(self, con):
         s, c = suppliers_and_customers(con, "NoSuch Company XYZ")
@@ -647,18 +654,25 @@ class TestPhase2Edges:
 
     def test_jv_partners_returns_venture(self, con):
         partners = jv_partners(con, "Jio Financial Services")
-        # 3 partners: Allianz, BlackRock + Mastercard (foreign-entity stub
-        # from the 2026-08-11 H4 follow-up — "third-party products launched
-        # in partnership with Mastercard for a closed-user group").
-        assert len(partners) == 3
+        # 3 notes-derived partners: Allianz, BlackRock + Mastercard
+        # (foreign-entity stub from the 2026-08-11 H4 follow-up —
+        # "third-party products launched in partnership with Mastercard
+        # for a closed-user group"). VIGIL RPT (completed.md #268) adds
+        # the JV entities THEMSELVES as counter-parties (Allianz Jio
+        # Reinsurance, Jio BlackRock Asset Management, Jio Blackrock
+        # Mutual Fund) — no 'venture' property annotation, so ''.
         partner_names = [p for p, _ in partners]
         assert "BlackRock" in partner_names
         assert "Allianz" in partner_names
         assert "Mastercard" in partner_names
+        assert "Allianz Jio Reinsurance" in partner_names
+        assert "Jio BlackRock Asset Management" in partner_names
+        assert "Jio Blackrock Mutual Fund" in partner_names
+        assert len(partners) == 6
         # Venture name should be present in the tuple
         ventures = [v for _, v in partners]
-        assert any("JioBlackRock AMC" == v for v in ventures)
-        assert any("Allianz Jio Reinsurance" == v for v in ventures)
+        assert "JioBlackRock AMC" in ventures
+        assert "Allianz Jio Reinsurance" in ventures
 
     def test_group_siblings_returns_muthoot_group(self, con):
         sibs = group_siblings(con, "Muthoot Finance")
@@ -1081,7 +1095,16 @@ class TestFindCycles:
         # 2-cycle-or-longer assertion fails on legitimate structure).
         # The rows themselves are Aug-2026 bge-small artifacts (model
         # since superseded) — purge/rebuild is a data call, not tested.
-        skip_labels = {"SemanticPeer"}
+        # The VIGIL two-way lanes (completed.md #268) are skipped for the
+        # same structural reason: supplier_to, subsidiary_of and jv_with
+        # store EXPLICIT both-direction rows by convention ("two-way,
+        # amounts in properties"), so every mutual pair is a 2-cycle and
+        # every connected triangle a 3-cycle — mirrors the
+        # database_integrity_check _TWO_WAY_TYPES whitelist. SameGroup
+        # deliberately STAYS asserted: it is symmetric-declared and
+        # stored single-row-per-pair (alphabetical), so a doubled row —
+        # the original G3 bug class — still trips this invariant.
+        skip_labels = {"SemanticPeer", "JvWith", "SuppliesTo", "SubsidiaryOf"}
         for label in sorted(EDGE_REGISTRY_BY_LABEL):
             if label in skip_labels:
                 continue

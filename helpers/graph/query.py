@@ -286,6 +286,12 @@ EDGE_REGISTRY: dict[str, dict[str, str]] = {
         "dst": "customer_name",
         "src_kind": "company",
         "dst_kind": "company",
+        # related_party_groups_vigil: RPT supply lanes can have an
+        # institution endpoint (rating agencies, trusts — e.g. "CRISIL
+        # Ratings -> CRISIL"). Same mixed-kind treatment as invested_in.
+        # Comma-joined string so every values()-str consumer stays typed.
+        "src_kinds": "company,institution",
+        "dst_kinds": "company,institution",
         "label": "SuppliesTo",
     },
     "customer_of": {
@@ -310,6 +316,10 @@ EDGE_REGISTRY: dict[str, dict[str, str]] = {
         "dst": "parent_name",
         "src_kind": "company",
         "dst_kind": "company",
+        # related_party_groups_vigil: group parents can be institutions
+        # ("CRISIL Ratings subsidiary_of CRISIL"). Comma-joined (see above).
+        "src_kinds": "company,institution",
+        "dst_kinds": "company,institution",
         "label": "SubsidiaryOf",
     },
     "co_mentioned_in": {
@@ -1064,7 +1074,8 @@ def _materialise_vertices(con: duckdb.DuckDBPyConnection) -> None:
         FROM fin.entities e
         WHERE e.entity_type IN ('company', 'sector', 'super_sector',
                                 'sub_sector', 'theme', 'edition',
-                                'institution', 'country', 'index')
+                                'institution', 'country', 'index',
+                                'person')
         """
     )
     # Filtered projections used by edge-table JOINs (resolve by name → id).
@@ -1571,9 +1582,31 @@ def _materialise_edges(con: duckdb.DuckDBPyConnection) -> None:
                        ge.valid_from, ge.valid_to
                 FROM _stg_edges ge
                 JOIN v_node src ON src.name = ge.source
-                              AND src.kind IN ('institution', 'company')
+                              AND src.kind IN ('institution', 'company', 'person')
                 JOIN v_node dst ON dst.name = ge.target
                               AND dst.kind = 'company'
+                WHERE ge.edge_type = '{etype}'
+                """
+            )
+            continue
+        if "src_kinds" in spec:
+            # VIGIL relation lanes (2026-09-22): mixed company/institution
+            # endpoints, resolved against v_node with a kind IN filter —
+            # the invested_in (E5) pattern generalised to the registry.
+            _sk = ", ".join(f"'{k.strip()}'" for k in spec["src_kinds"].split(","))
+            _dk = ", ".join(f"'{k.strip()}'" for k in spec["dst_kinds"].split(","))
+            con.execute(
+                f"""
+                CREATE TABLE {spec["table"]} AS
+                SELECT src.id AS {spec["src"]},
+                       dst.id AS {spec["dst"]},
+                       ge.weight, ge.properties, ge.source_ref,
+                       ge.valid_from, ge.valid_to
+                FROM _stg_edges ge
+                JOIN v_node src ON src.name = ge.source
+                              AND src.kind IN ({_sk})
+                JOIN v_node dst ON dst.name = ge.target
+                              AND dst.kind IN ({_dk})
                 WHERE ge.edge_type = '{etype}'
                 """
             )
@@ -2308,8 +2341,14 @@ def find_cycles(
     Relevant for sanity-checking edges that are logically directed but could
     be mistakenly doubled: ``same_group``, ``co_mentioned_in`` are declared
     ``symmetric=1`` and stored as one directed row per pair (alphabetical),
-    so they should produce NO cycles. ``acquired`` / ``subsidiary_of`` are
-    strictly acyclic by definition — any cycle here is a data bug.
+    so they should produce NO cycles. ``acquired`` is strictly acyclic by
+    definition — any cycle here is a data bug. The VIGIL two-way lanes
+    (2026-09-22, completed.md #268) are the documented exception:
+    ``supplier_to`` / ``subsidiary_of`` / ``jv_with`` store EXPLICIT
+    both-direction rows ("two-way, amounts in properties"), so mutual
+    pairs and triangles are storage convention, not bugs — the
+    live-invariants acyclicity test skips those labels (and SemanticPeer)
+    instead of asserting on them.
 
     Args:
       max_hops: cycle length cap (2..max_hops). Default 4 keeps the walk

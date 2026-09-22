@@ -7001,3 +7001,64 @@ arc; `make search-fresh APPLY=1` converged.
   p50 ~34 ms live.
 
 Execution record: `archive/graph/note_knn_distance_ranking.md`.
+
+## 267. Ownership ingestion — NSE shareholding-pattern XBRL lane
+
+- `helpers/maintenance/shareholding_sync.py`: RSS discovery
+  (`Shareholding_Pattern.xml`) → open-archives XBRL fetch
+  (`SHP_*_WEB.xml`, zstd cache) → in-bse-shp parser
+  (`D_<Cat>_ContextN` names pair with `<Cat>_ContextN` numerics;
+  fractions → percent).
+- Live first run: 38 holder entities (30 `person` — first person-kind in
+  the store), 40 `invested_in` edges (TSF Investments 27.81% → Wheels
+  India etc.), `source_tier='regulator'`, upsert-latest semantics over
+  shp_filings/shp_holders.
+- Negative finding: PAN + TypeOfPromoterShareholding are MASKED in the
+  public feed — promoter members unflagged, so the landed edge type is
+  invested_in, not promoter_of; holder identity is name-based
+  (case-insensitive uppercase-key dedup).
+- `person` kind wired into v_node; invested_in mixed-kind JOIN;
+  ontology entity_types roster updated; Makefile `refresh-shp` wired
+  into refresh-chain.
+
+Execution record: `archive/pipeline/ownership_ingestion_nse_shp.md`.
+
+## 268. Related-party groups — VIGIL bulk RPT dataset
+
+- VIGIL discovered + reverse-engineered: bulk API
+  `api.tigzig.com/vigil/v1/download/{table}?format=csv.gz` (CC0, no
+  auth, found in the site JS bundle); all 7 tables documented in
+  data_sources.md (rpt_transactions 356,473 / credit_ratings 13,746 /
+  insider_trading 40,210 / sast 13,041 / pledges 1,540 / encumbrance
+  1,966 / surveillance 637).
+- `helpers/maintenance/related_party_sync.py` (3 passes: --group /
+  --supply-chain / --ratings): subsidiary_of 68 → 11,348, same_group
+  37 → 9,781, jv_with → 994, supplier_to 8 → 15,533 (two-way, amounts
+  in properties), rated_by 3 → 216 (+6 agency institutions); graph
+  18,291 → 56,014 edges; companies 6,203 → 25,206; ~19K subsidiary
+  counter-party entities created (CHECK-safe `_safe_display` scrubber,
+  converged after 3 waves; TVS Singapore tree spot-checked).
+- Negative result recorded: the "BSE corporate group repository" does
+  not exist (BSE GROUP = trading segments A/B/X/T/Z, verified against
+  ListofScripData 5,042 rows).
+- Makefile `refresh-vigil` (weekly) wired into refresh-chain.
+
+Execution record: `archive/pipeline/related_party_groups_vigil.md`.
+
+## 269. BSE shareholding RSS — second SHP discovery stream
+
+- `shareholding_sync.py --bse-rss`: BSE RSS feed
+  (`ShareholdingPattern_Feed.aspx`) + per-filing server-rendered HTML
+  (`SHPXBRLDataXML/<scrip>_<ts>_SP.html`, Referer lane), HTML tables
+  t0/t2/t3 parsed, `source` column added to shp_filings, BSE_ filing-id
+  namespace.
+- The HTML col35 category tags (incl. 'Promoter Group') restore the
+  promoter signal NSE masks — landed as holder category properties,
+  enabling promoter-family aggregation without promoter_of edges.
+- Live first run: 5 filings, 44 edges, 29 entities, 21 promoter-tagged
+  holders; BSE-only listings routed to the NOTLISTED worklist.
+- Negative result: no history endpoint on either exchange — historical
+  backfill stays closed; coverage completes with the quarterly filing
+  wave via weekly polling (refresh-shp polls --rss --bse-rss).
+
+Execution record: `archive/pipeline/bse_shareholding_rss.md`.

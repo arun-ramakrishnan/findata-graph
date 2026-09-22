@@ -53,6 +53,31 @@ Needs browser `User-Agent` + `Referer: https://www.nseindia.com/`.
 Full Emerge board list: NOT pinned (EQUITY_SME.csv 404s); SME coverage
 rides the EMERGE index list until pinned.
 
+### Shareholding-pattern filings (open, no bot wall — verified 2026-09-22; NSE + BSE dual stream)
+
+- **BSE mirror** (bse_shareholding_rss.md): RSS at
+  `bseindia.com/Data/XML/ShareholdingPattern_Feed.aspx` (latest ~5,
+  same-day) → per-filing server-rendered HTML at
+  `/XBRLFILES/SHPXBRLDataXML/<scrip>_<ts>_SP.html` (~600 KB, full
+  pattern). The filing header carries the **NSE Symbol cross-ref**
+  natively, and the named-holder table carries category tags incl.
+  **'Promoter Group'** — the membership signal NSE's XBRL masks.
+  Historical backfill: no endpoint (latest-only stream).
+
+- Index: `nsearchives.nseindia.com/content/RSS/Shareholding_Pattern.xml`
+  (200 application/xml, same-day items; description already carries
+  `PR_AND_PRGRP` / `PUBLIC_VAL` / as-of + revision dates).
+- Data: `nsearchives.nseindia.com/corporate/xbrl/SHP_*_WEB.xml` — joint
+  BSE+NSE `in-bse-shp` taxonomy (SHP V1.2), per-holder stakes with
+  native periods. PAN and `TypeOfPromoterShareholding` are masked in the
+  public feed (all rows `******`) — promoter members are NOT flagged,
+  so the lane derives holder `invested_in` edges + shared-corporate
+  `same_group` pairs (helpers/maintenance/shareholding_sync.py), not
+  member-level `promoter_of`.
+- Cadence: quarterly + event-driven revisions; the RSS is the
+  incremental window only — bulk backfill beyond it needs a
+  filings-search lane (main-site is bot-walled).
+
 ## NSE Indices (niftyindices.com — per-index constituent CSVs)
 
 `helpers/maintenance/index_sync.py` (`make refresh-indices`) folds NSE
@@ -78,6 +103,41 @@ Consumed by `helpers/graph/derive_indices.py` → `index` entities +
 | SME board | NOT in this API (`Group=SME` → 0 rows; `MT` group 128 = migrated-to-main) |
 | Official SME list | `https://www.bsesme.com/corpoaratefilings/ScripsList.aspx?expandable=0` — SSR HTML table, 582 scrips: code \| ticker \| name \| status \| group \| face value \| ISIN \| **industry** (the `corpoaratefilings` typo in the path is real) |
 | Dead | `bseindia.com/sensex/IndicesWatch_Weight.aspx?iname=SMEIPO` → redirects to the SPA homepage |
+
+## VIGIL bulk datasets (api.tigzig.com/vigil/v1 — free, no auth, CC0)
+
+LODR/SEBI disclosure datasets republished in analyzable form by TigZig
+(VIGIL). Compilation licensed CC0; underlying data stays public
+records — republished, not authoritative. No login, no API key; 30
+req/min on the query API; bulk CSV/Parquet/SQLite downloads.
+
+- **API base**: `https://api.tigzig.com/vigil/v1` (docs at `/docs`,
+  catalog at `/downloads/manifest`).
+- **Named-query REST** (display feed): `POST
+  vigil.tigzig.com/api/data` body `{"query": <name>, "params": {...}}`
+  — e.g. `rpt_section` with `{"symbol": "TVSMOTOR"}`; queries are a
+  fixed registry (arbitrary SQL rejected), display-capped at 10 rows.
+- **Bulk downloads** (the ingestion path):
+  `/download/{table}?format=csv.gz|csv.zip|parquet|sqlite`, plus
+  `/download/all?format=sqlite` (7 tables, 18.1 MB, 427,613 rows).
+  Manifest carries per-table row counts, sizes, `generated_at`
+  (daily-updated).
+
+| Table | Rows | csv.gz | Graph use |
+|---|---|---|---|
+| `rpt_transactions` | 356,473 | 8.6 MB | LANDED (`related_party_sync.py`, `make refresh-vigil`): `subsidiary_of` / `same_group` / `jv_with` group structure + sale/purchase rows → `supplier_to` with amounts (relationship free text + `rel_group` categories; `xbrl_url` per row links the source nsearchives filing) |
+| `credit_ratings` | 13,746 | 604.9 KB | LANDED: `rated_by` edges, latest rating per (company, agency) |
+| `insider_trading` | 40,210 | 2.0 MB | person×company event data (unfiled) |
+| `sast_disclosures` | 13,041 | 798.1 KB | takeover/trigger disclosures (unfiled) |
+| `pledge_data` | 1,540 | 130.0 KB | promoter pledges (unfiled) |
+| `encumbrance_events` | 1,966 | 120.9 KB | encumbrance timeline (unfiled) |
+| `surveillance_flags` | 637 | 4.5 KB | exchange surveillance (unfiled) |
+
+Verified 2026-09-22 (manifest rows above). Negative result recorded in
+the same pass: there is **no "BSE corporate group repository"** — BSE
+`GROUP` in `ListofScripData` is the trading segment (A/B/X/T/Z...), and
+company pages carry no corporate-group row. VIGIL's RPT table is the
+working equivalent for group structure.
 
 ## Zerodha / Kite (cross-check + optional candles)
 

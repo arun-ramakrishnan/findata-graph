@@ -150,6 +150,7 @@ catch-all. ORG Membership/Post/Role activate only when that gate lifts
 - edition
 - index
 - institution
+- person
 - sector
 - sub_sector
 - super_sector

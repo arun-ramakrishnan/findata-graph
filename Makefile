@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -75,6 +75,8 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  refresh-chain            D20 phase 3: exchanges → enrich → CIN → XBRL --new → snapshot (APPLY=1 to write)"
 > @echo "  refresh-exchanges        D19: sync exchange masters + detect new listings (lanes as args; APPLY=1 to write)"
 > @echo "  refresh-indices          Sync NSE index constituents into sources.duckdb (Wave 1 broad-based + sectoral; APPLY=1 to write)"
+> @echo "  refresh-vigil            VIGIL bulk: RPT group/supply + ratings -> edges (APPLY=1 to write; weekly)"
+> @echo "  refresh-shp              NSE shareholding-pattern RSS -> invested_in edges (APPLY=1 to write; quarterly cadence, weekly poll)"
 > @echo "  refresh-xbrl             D20: incremental NSE XBRL sweep, unseen filings only (ARGS=--new for IPOs; APPLY=1 to write)"
 > @echo "  script-search-rebuild    Rebuild the script metadata index (script_search sidecar; query via helpers/misc/script_query.py)"
 > @echo "  search-fresh             Check ALL search indexes for staleness — doc/, script metadata, note embeddings (every check runs even if one fails; exit 1 on drift; APPLY=1 refreshes them instead; also run by make advisory)"
@@ -143,8 +145,18 @@ refresh-indices:  ## NSE index constituents -> sources.duckdb (Wave 1 broad-base
 refresh-xbrl:  ## D20: incremental NSE XBRL sweep — only new filings per entity (APPLY=1 to write; ARGS="--new" for fresh IPOs only)
 > .venv/bin/python3 helpers/maintenance/ingest_nse_xbrl.py $(ARGS) $(if $(APPLY),--apply)
 
-refresh-chain:  ## D20 phase 3: post-refresh hook chain — exchanges → enrich → CIN web → XBRL --new → snapshot (APPLY=1 to write)
+refresh-vigil:  ## VIGIL bulk lanes: RPT group/supply + credit ratings -> sources.duckdb + edges (APPLY=1 to write)
+> .venv/bin/python3 helpers/maintenance/related_party_sync.py --download --ratings-download $(if $(APPLY),--apply)
+> @echo "✓ VIGIL rpt_transactions + credit_ratings synced (dry-run unless APPLY=1)"
+
+refresh-shp:  ## NSE shareholding-pattern RSS lane -> sources.duckdb + invested_in edges (APPLY=1 to write)
+> .venv/bin/python3 helpers/maintenance/shareholding_sync.py --rss --bse-rss $(if $(APPLY),--apply)
+> @echo "✓ shareholding filings synced (dry-run unless APPLY=1)"
+
+refresh-chain:  ## D20 phase 3: post-refresh hook chain — exchanges → vigil → shp → enrich → CIN web → XBRL --new → snapshot (APPLY=1 to write; all lanes incremental/idempotent)
 > .venv/bin/python3 helpers/maintenance/exchange_sync.py $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/related_party_sync.py --download --ratings-download $(if $(APPLY),--apply)
+> .venv/bin/python3 helpers/maintenance/shareholding_sync.py --rss --bse-rss $(if $(APPLY),--apply)
 > .venv/bin/python3 helpers/maintenance/enrich_from_yfinance.py $(if $(APPLY),--apply)
 > .venv/bin/python3 helpers/maintenance/mca_cin_resolve.py ingest-web --no-revalidate $(if $(APPLY),--apply)
 > .venv/bin/python3 helpers/maintenance/ingest_nse_xbrl.py --new $(if $(APPLY),--apply)

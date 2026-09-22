@@ -51,13 +51,29 @@ and the DuckDB vss HNSW trial concluded/declined (scan recall 35–57%,
   (valid_from 100% missing except invested_in; as-of ranks), S4
   new-source scoping for the ~5% economic tail, S5 personalized-pgr
   watch (Onager bug). Filed 2026-09-22, status proposed.
-- [`ownership_ingestion_nse_shp.md`](ownership_ingestion_nse_shp.md) —
-  ownership edges from NSE shareholding XBRL: RSS discovery + open
-  archives fetch (verified 2026-09-22), in-bse-shp parser (PAN holder
-  identity, stake %, native periods), `promoter_of` edges + same_group
-  derivation + ontology rosters; feeds the pagerank economic projection.
-  Filed 2026-09-22, status proposed. Prerequisite arc — execute before
-  `pagerank_graph_enhancements.md`.
+_(Previously: ownership_ingestion_nse_shp.md archived 2026-09-22 as
+completed.md entry 267 — NSE shareholding XBRL lane: RSS→XBRL fetch +
+in-bse-shp parser, 38 holder entities (30 person-kind, first in
+store), 40 invested_in regulator-tier edges, upsert-latest
+shp_filings/shp_holders; PAN masking means invested_in, not
+promoter_of. Execution record in
+`../archive/pipeline/ownership_ingestion_nse_shp.md`.)_
+
+_(Previously: related_party_groups_vigil.md archived 2026-09-22 as
+completed.md entry 268 — VIGIL bulk RPT lane: 3 sync passes over the
+reverse-engineered CC0 bulk API; subsidiary_of 11,348 / same_group
+9,781 / jv_with 994 / supplier_to 15,533 / rated_by 216; graph
+18,291→56,014 edges with ~19K counter-party entities; BSE
+group-repository claim falsified. Execution record in
+`../archive/pipeline/related_party_groups_vigil.md`.)_
+
+_(Previously: bse_shareholding_rss.md archived 2026-09-22 as
+completed.md entry 269 — BSE SHP second discovery stream: open RSS +
+per-filing HTML, col35 promoter-group tags restore the signal NSE
+masks; 5 filings / 44 edges / 21 promoter-tagged holders live; no
+history endpoint on either exchange. Execution record in
+`../archive/pipeline/bse_shareholding_rss.md`.)_
+
 
 _(Previously: search_tui_ux_pass.md archived 2026-09-22 as
 completed.md entry 265 — search_tui UX pass: busy indicators (query

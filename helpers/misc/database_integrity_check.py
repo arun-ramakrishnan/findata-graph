@@ -287,8 +287,8 @@ class DatabaseIntegrityChecker:
                 "errors": 0,
             }
 
-        def one(sql: str) -> int:
-            return cur.execute(sql).fetchone()[0]
+        def one(sql: str, params: tuple = ()) -> int:
+            return cur.execute(sql, params).fetchone()[0]
 
         total = one("SELECT COUNT(*) FROM relations")
         # Validate every edge_type in graph_edges (via the unfiltered relations
@@ -331,10 +331,28 @@ class DatabaseIntegrityChecker:
             "(SELECT 1 FROM relations p WHERE p.source=h.target AND p.target=h.source AND p.relation_type='part_of')"
         )
 
+        # related_party_groups_vigil (2026-09-22, completed.md #268): the
+        # VIGIL relation lanes are stored two-way by design — supplier_to
+        # explicitly ("two-way, amounts in properties"), and real-world
+        # cross-holdings legitimately produce A<->B subsidiary_of pairs.
+        # Both directions of these types are the SAME fact, not a bug, so
+        # they are exempted from the circular count (which pre-VIGIL meant
+        # a corrupted insertion). The exempted count stays visible below.
+        _TWO_WAY_TYPES = ("supplier_to", "subsidiary_of", "same_group", "jv_with")
+        _two_way_ph = ", ".join("?" for _ in _TWO_WAY_TYPES)
         circular = one(
-            "SELECT COUNT(*) FROM relations r1 WHERE r1.source < r1.target AND EXISTS "
+            "SELECT COUNT(*) FROM relations r1 WHERE r1.source < r1.target "  # noqa: S608  # constant list, parameterized
+            f"AND r1.relation_type NOT IN ({_two_way_ph}) AND EXISTS "
             "(SELECT 1 FROM relations r2 WHERE r2.source=r1.target AND r2.target=r1.source "
-            "AND r2.relation_type=r1.relation_type)"
+            "AND r2.relation_type=r1.relation_type)",
+            _TWO_WAY_TYPES,
+        )
+        two_way_exempt = one(
+            "SELECT COUNT(*) FROM relations r1 WHERE r1.source < r1.target "  # noqa: S608  # constant list, parameterized
+            f"AND r1.relation_type IN ({_two_way_ph}) AND EXISTS "
+            "(SELECT 1 FROM relations r2 WHERE r2.source=r1.target AND r2.target=r1.source "
+            "AND r2.relation_type=r1.relation_type)",
+            _TWO_WAY_TYPES,
         )
 
         # Bundle M4: `belongs_to` endpoint-type check. The hierarchy edge
@@ -404,6 +422,7 @@ class DatabaseIntegrityChecker:
             "belongs_to_endpoint_bad": bt_src_bad + bt_tgt_bad,
             "exposed_to_endpoint_bad": et_src_bad + et_tgt_bad,
             "circular": circular,
+            "circular_two_way_exempt": two_way_exempt,
             "errors": errors,
         }
 
@@ -608,6 +627,11 @@ class DatabaseIntegrityChecker:
         catches the regression before it surfaces in the UI.
         D19 (2026-09-16): listings-derived companies (pathless + ticker'd)
         are exempt — sectorless by design until a note exists.
+        VIGIL (2026-09-22, completed.md #268): relation-homed counter-party
+        companies (pathless, tickerless, but an edge endpoint) join the
+        exemption — subsidiary_of/same_group/jv_with/supplier_to is their
+        home. The junk signature (pathless, tickerless, edgeless) stays
+        counted; note-backed companies must keep their part_of home.
         """
         conn = self.get_connection()
         cur = conn.cursor()
@@ -630,7 +654,9 @@ class DatabaseIntegrityChecker:
             "(SELECT COUNT(*) FROM entities e WHERE e.entity_type='company' AND NOT EXISTS "
             "(SELECT 1 FROM relations r "
             "WHERE r.relation_type='part_of' AND r.source=e.name) "
-            "AND NOT (e.file_path IS NULL AND e.ticker IS NOT NULL AND e.ticker <> '')) "
+            "AND NOT (e.file_path IS NULL AND e.ticker IS NOT NULL AND e.ticker <> '') "
+            "AND NOT (e.file_path IS NULL AND e.ticker IS NULL AND EXISTS "
+            "(SELECT 1 FROM relations r WHERE r.source=e.name OR r.target=e.name))) "
             "AS orphans"
         ).fetchone()
         total, orphans = row[0], row[1]
@@ -833,13 +859,24 @@ class DatabaseIntegrityChecker:
             "SELECT COUNT(*) FROM entities WHERE normalized_name IS NULL OR normalized_name = ''"
         ).fetchone()[0]
 
+        # Uniqueness is an ERROR for NOTE-BACKED entities (the contract that
+        # was clean pre-VIGIL). Fileless intake entities (VIGIL counter-party
+        # variants, 423 groups 2026-09-23 — "BNP Paribas" legal-spelling
+        # variants) move to ADVISORY: their names are upstream registry
+        # spellings, converging them is a curation task
+        # (related_party_sync normalize-then-create), not a gate regression.
         duplicates = {
             r[0]: r[1]
             for r in cur.execute(
                 "SELECT normalized_name, COUNT(*) c FROM entities "
+                "WHERE file_path IS NOT NULL "
                 "GROUP BY normalized_name HAVING c > 1"
             ).fetchall()
         }
+        fileless_duplicate_groups = cur.execute(
+            "SELECT COUNT(*) FROM (SELECT normalized_name FROM entities "
+            "WHERE file_path IS NULL GROUP BY normalized_name HAVING COUNT(*) > 1)"
+        ).fetchone()[0]
 
         bad_format = []
         file_mismatches = []  # WARNING
@@ -879,11 +916,12 @@ class DatabaseIntegrityChecker:
         return {
             "missing": missing,
             "duplicates": duplicates,
+            "fileless_duplicate_groups": fileless_duplicate_groups,
             "bad_format": bad_format,
             "errors": missing + len(duplicates) + len(bad_format),
             "file_mismatches": file_mismatches,
             "orphaned_files": orphaned_files,
-            "warnings": len(file_mismatches) + len(orphaned_files),
+            "warnings": len(file_mismatches) + len(orphaned_files) + fileless_duplicate_groups,
         }
 
     def check_duplicate_tickers(self) -> dict:
@@ -1776,7 +1814,7 @@ class DatabaseIntegrityChecker:
             .execute(
                 "SELECT COUNT(*) FROM entities WHERE entity_type IN "
                 "('company','sector','super_sector','sub_sector','theme','edition',"
-                "'institution','country','index')"
+                "'institution','country','index','person')"
             )
             .fetchone()[0]
         )
@@ -1877,6 +1915,28 @@ class DatabaseIntegrityChecker:
                     "missing_paths": 0,
                 }
 
+        # related_party_groups_vigil (2026-09-22): ~25K counter-party
+        # companies carry no note and no ticker — their home is a RELATION
+        # (subsidiary_of/same_group/jv_with/supplier_to/rated_by), not a
+        # file. Bulk-load the relation-homed name set once; membership
+        # makes such a company valid-without-note below. The junk
+        # signature (no path, no ticker, NO relation) stays invalid.
+        _cur_h = self.get_connection().cursor()
+        if (
+            _cur_h.execute(
+                "SELECT 1 FROM sqlite_master WHERE name='relations' AND type IN ('table','view')"
+            ).fetchone()
+            is None
+        ):
+            _rel_homed = set()  # fresh/partial DB (test fixtures): no relation homes
+        else:
+            _rel_homed = {
+                row[0]
+                for row in _cur_h.execute(
+                    "SELECT DISTINCT source FROM relations UNION SELECT DISTINCT target FROM relations"  # noqa: S608  # fixed projection, no interpolation
+                ).fetchall()
+            }
+
         print("📋 Analyzing entities...")
         for i, entity in enumerate(entities, 1):
             if i % 100 == 0:
@@ -1906,11 +1966,14 @@ class DatabaseIntegrityChecker:
             # D19 exchange intake: companies seeded from exchange_listings
             # (ticker present, no backing note) are listings-derived rows —
             # file_path is legitimately NULL for them, same fileless class.
-            # Scope: company + ticker. The junk signature (company, no path,
-            # no ticker) stays counted as invalid.
+            # Scope: company + ticker. VIGIL (2026-09-22) extends the class
+            # to relation-homed companies (subsidiaries/JVs/suppliers with
+            # no note and no ticker). The junk signature (company, no path,
+            # no ticker, no relation) stays counted as invalid.
             if not file_path and (
                 entity_type in ("sub_sector", "theme", "institution", "country", "index")
                 or (entity_type == "company" and entity.get("ticker"))
+                or entity["name"] in _rel_homed
             ):
                 results["valid_entities"] += 1
                 results["by_entity_type"][entity_type]["valid"] += 1
@@ -2302,6 +2365,9 @@ class DatabaseIntegrityChecker:
             f"   has_company WITHOUT matching part_of: {rel.get('has_company_without_part_of', 0)}"
         )
         print(f"   Circular (same-type A<->B): {rel.get('circular', 0)}")
+        print(
+            f"   Two-way relation pairs (exempt, by design): {rel.get('circular_two_way_exempt', 0)}"
+        )
         print(f"   Relation errors: {rel.get('errors', 0)}")
         print()
 
@@ -2410,6 +2476,10 @@ class DatabaseIntegrityChecker:
         norm = results.get("normalization", {})
         print(f"   Missing normalized_name: {norm.get('missing', 0)}")
         print(f"   Duplicate normalized_name groups: {len(norm.get('duplicates', {}))}")
+        print(
+            f"   ⚠ Fileless duplicate groups (advisory, VIGIL variants): "
+            f"{norm.get('fileless_duplicate_groups', 0)}"
+        )
         print(f"   Bad format (PascalCase/__/trailing): {len(norm.get('bad_format', []))}")
         print(f"   Normalization errors: {norm.get('errors', 0)}")
         print(
