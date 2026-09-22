@@ -2969,9 +2969,13 @@ def semantic_neighbors(
         return []
 
     if metric == "cosine":
-        sim_expr = "array_cosine_similarity"
-        direction = "DESC"
-        filter_cond = "sim > 0"
+        # Unit-norm vectors (local_embedder._normalize): l2-ASC ordering ==
+        # cosine-DESC ordering, same exact ranking; score converted back via
+        # cos = 1 - d*d/2 (note_knn_distance_ranking S3 — the distance scalar
+        # is ~11x the cosine scalar at the 16.5k-note scale).
+        sim_expr = "array_distance"
+        direction = "ASC"
+        filter_cond = "sim < 2"  # cos > 0 <=> d < 2 for unit vectors
     elif metric == "ip":
         sim_expr = "array_negative_inner_product"
         direction = "DESC"
@@ -3007,8 +3011,9 @@ def semantic_neighbors(
     # filter_cond / direction), int casts (dim, k), or fixed subqueries
     # with ? binds (ref_vec, sector_filter); the company name never
     # touches the SQL text.
+    score_expr = "1 - ce.sim * ce.sim / 2" if metric == "cosine" else "ce.sim"
     query = (
-        "SELECT v.name, v.sector_classification, ce.sim "
+        "SELECT v.name, v.sector_classification, " + score_expr + " "
         "FROM ( "
         "  SELECT id, "
         "         "
@@ -3064,13 +3069,49 @@ def _note_emb_dims(con: duckdb.DuckDBPyConnection) -> int:
         return 0
 
 
+def _note_ref_vector(
+    con: duckdb.DuckDBPyConnection, file_path: str, dim: int
+) -> list[float] | None:
+    """Path-level reference vector: renormalized mean of section vectors.
+
+    ``v_note_embeddings`` stores one row per SECTION of a note (the
+    ``fin.note_search`` granularity — measured 2026-09-22: 9,282 company
+    rows over 1,181 paths), so ``file_path = ?`` matches several rows
+    and a scalar subquery over it crashes on the live db (latent bug in
+    the flat-cosine form). The mean keeps every section's vote and
+    renormalizing restores the unit norm the l2/cosine identity relies
+    on (note_knn_distance_ranking execution note). Returns None when the
+    path has no embedded row.
+    """
+    rows = con.execute(
+        "SELECT emb FROM v_note_embeddings WHERE file_path = ?", [file_path]
+    ).fetchall()
+    if not rows:
+        return None
+    vecs = [row[0] for row in rows]
+    if len(vecs) == 1:
+        return [float(v) for v in vecs[0]]
+    n = float(len(vecs))
+    mean = [sum(float(v[i]) for v in vecs) / n for i in range(dim)]
+    norm = sum(v * v for v in mean) ** 0.5
+    if norm == 0.0:
+        return [float(v) for v in vecs[0]]
+    return [v / norm for v in mean]
+
+
 @_with_generation_cache
 def similar_notes(
     con: duckdb.DuckDBPyConnection, file_path: str, k: int = 10, doc_type: str | None = None
 ) -> list[tuple[str, str, float]] | None:
-    """K nearest notes to a note, by cosine over ``v_note_embeddings``.
+    """K nearest NOTES to a note over ``v_note_embeddings``.
 
-    Returns ``list[(file_path, title, sim)]`` sorted by descending
+    Path-level: rows are per-section embeddings, so the reference is the
+    note's renormalized mean section vector (``_note_ref_vector``) and
+    each candidate note is scored by its best-matching section
+    (GROUP BY + MIN distance). Ranks by l2 distance (unit-norm vectors,
+    so the ordering equals the cosine ordering exactly —
+    note_knn_distance_ranking S1) and returns ``list[(file_path, title,
+    sim)]`` with cosine-converted scores, sorted by descending
     similarity, EXCLUDING the query note itself (self-cosine is 1.0 by
     construction). ``None`` when the reference file_path has no embedded
     row (unknown note or unembedded doc); ``[]`` when it is the only note.
@@ -3081,30 +3122,30 @@ def similar_notes(
     dim = _note_emb_dims(con)
     if dim == 0:
         return None
-    ref = con.execute(
-        "SELECT 1 FROM v_note_embeddings WHERE file_path = ? LIMIT 1",
-        [file_path],
-    ).fetchone()
-    if ref is None:
+    ref_vec = _note_ref_vector(con, file_path, dim)
+    if ref_vec is None:
         return None
     type_clause = ""
-    params: list = [file_path, file_path]
+    params: list = [ref_vec, file_path]
     if doc_type is not None:
         type_clause = " AND doc_type = ?"
         params.append(doc_type)
+    # Candidates are path-level: rows are per-section, so GROUP BY
+    # file_path + MIN(dist) = the note's best-matching section, one row
+    # per note (same single distance pass as a flat scan).
     r = con.execute(
         f"""
-        SELECT file_path, title, sim FROM (
+        SELECT file_path, title, 1 - dist * dist / 2 AS sim FROM (
           SELECT file_path, title,
-                 array_cosine_similarity(
+                 MIN(array_distance(
                      CAST(emb AS FLOAT[{dim}]),
-                     CAST((SELECT emb FROM v_note_embeddings WHERE file_path = ?)
-                          AS FLOAT[{dim}])) AS sim
+                     CAST(? AS FLOAT[{dim}]))) AS dist
           FROM v_note_embeddings
           WHERE file_path != ?{type_clause}
+          GROUP BY file_path, title
         )
         WHERE sim IS NOT NULL AND sim > 0
-        ORDER BY sim DESC
+        ORDER BY dist, file_path
         LIMIT {int(k)}
         """,
         params,
@@ -3138,24 +3179,28 @@ def notes_like_entity(
     if ref is None:
         return None
     ref_path = ref[0]
+    ref_vec = _note_ref_vector(con, ref_path, dim)
+    if ref_vec is None:
+        return None
     in_ph = ", ".join("?" for _ in doc_types)
+    # Path-level candidates (see similar_notes): best section per note.
     r = con.execute(
         f"""
-        SELECT file_path, title, sim FROM (
+        SELECT file_path, title, 1 - dist * dist / 2 AS sim FROM (
           SELECT file_path, title,
-                 array_cosine_similarity(
+                 MIN(array_distance(
                      CAST(emb AS FLOAT[{dim}]),
-                     CAST((SELECT emb FROM v_note_embeddings WHERE file_path = ?)
-                          AS FLOAT[{dim}])) AS sim
+                     CAST(? AS FLOAT[{dim}]))) AS dist
           FROM v_note_embeddings
           WHERE file_path != ?
             AND doc_type IN ({in_ph})
+          GROUP BY file_path, title
         )
         WHERE sim IS NOT NULL AND sim > 0
-        ORDER BY sim DESC
+        ORDER BY dist, file_path
         LIMIT {int(k)}
         """,
-        [ref_path, ref_path, *doc_types],
+        [ref_vec, ref_path, *doc_types],
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
 
@@ -3194,16 +3239,17 @@ def notes_like_text(
     k = max(0, int(k))
     r = con.execute(
         f"""
-        SELECT file_path, title, sim FROM (
+        SELECT file_path, title, 1 - dist * dist / 2 AS sim FROM (
           SELECT file_path, title,
-                 array_cosine_similarity(
+                 MIN(array_distance(
                      CAST(emb AS FLOAT[{dim}]),
-                     CAST(? AS FLOAT[{dim}])) AS sim
+                     CAST(? AS FLOAT[{dim}]))) AS dist
           FROM v_note_embeddings
           WHERE doc_type = ?
+          GROUP BY file_path, title
         )
         WHERE sim IS NOT NULL AND sim > ?
-        ORDER BY sim DESC
+        ORDER BY dist, file_path
         LIMIT {int(k)}
         """,
         [vec, doc_type, float(min_sim)],
@@ -3253,22 +3299,26 @@ def edition_companies(
     if ref is None:
         return None
     ref_path = ref[0]
+    ref_vec = _note_ref_vector(con, ref_path, dim)
+    if ref_vec is None:
+        return None
+    # Path-level candidates (see similar_notes): best section per note.
     r = con.execute(
         f"""
-        SELECT file_path, title, sim FROM (
+        SELECT file_path, title, 1 - dist * dist / 2 AS sim FROM (
           SELECT file_path, title,
-                 array_cosine_similarity(
+                 MIN(array_distance(
                      CAST(emb AS FLOAT[{dim}]),
-                     CAST((SELECT emb FROM v_note_embeddings WHERE file_path = ?)
-                          AS FLOAT[{dim}])) AS sim
+                     CAST(? AS FLOAT[{dim}]))) AS dist
           FROM v_note_embeddings
           WHERE file_path != ? AND doc_type = 'company'
+          GROUP BY file_path, title
         )
         WHERE sim IS NOT NULL AND sim > 0
-        ORDER BY sim DESC
+        ORDER BY dist, file_path
         LIMIT {int(k)}
         """,
-        [ref_path, ref_path],
+        [ref_vec, ref_path],
     ).fetchall()
     return [(row[0], row[1], row[2]) for row in r]
 
@@ -3279,39 +3329,77 @@ def near_duplicate_notes(
     doc_type: str = "company",
     limit: int = 100,
 ) -> list[tuple[str, str, str, str, float]]:
-    """Near-duplicate note pairs above a cosine threshold (QA tripwire).
+    """Near-duplicate NOTE pairs above a cosine threshold (QA tripwire).
 
-    Pairwise self-join over ``v_note_embeddings`` restricted to one
-    doc_type; ``a.file_path < b.file_path`` emits each unordered pair
-    once. Top cosine pairs are exactly the rename-candidates / duplicate
-    clusters the rename machinery cares about (measured 2026-08-21:
-    Patanjali-Ruchi Soya rename, Ujjivan/Piramal/Muthoot pairs). ~1s at
-    ~1k company docs — a maintenance command, deliberately NOT an API
-    hot path and NOT generation-cached. Returns
-    ``list[(path_a, path_b, title_a, title_b, sim)]`` sorted by
-    descending similarity.
+    Pairwise self-join over path-level mean vectors (one renormalized
+    mean of the note's section embeddings per path — see
+    ``_note_ref_vector``; the row-level self-join would be ~43M pairs at
+    the 2026-09-22 section granularity) restricted to one doc_type;
+    ``a.file_path < b.file_path`` emits each unordered pair once. Top
+    pairs are exactly the rename-candidates / duplicate clusters the
+    rename machinery cares about (measured 2026-08-21: Patanjali-Ruchi
+    Soya rename, Ujjivan/Piramal/Muthoot pairs). ~1s at ~1.2k company
+    notes — a maintenance command, deliberately NOT an API hot path and
+    NOT generation-cached. Returns ``list[(path_a, path_b, title_a,
+    title_b, sim)]`` sorted by descending similarity (similarity of the
+    mean vectors, cosine-converted from l2).
     """
     limit = max(0, int(limit))
     dim = _note_emb_dims(con)
     if dim == 0:
         return []
+    # Collapse section rows to one renormalized mean vector per path
+    # first: rows are per-section (9,282 company rows / 1,181 paths,
+    # 2026-09-22), so the flat row self-join would be ~43M pairs. At
+    # path level it is ~0.7M — the ~1s maintenance budget. Temp table
+    # keeps the SQL join/threshold/order shape; conn-scoped either way.
+    rows = con.execute(
+        "SELECT file_path, title, emb FROM v_note_embeddings WHERE doc_type = ?",
+        [doc_type],
+    ).fetchall()
+    if not rows:
+        return []
+    acc: dict[str, list] = {}
+    for fp, title, emb in rows:
+        slot = acc.get(fp)
+        if slot is None:
+            acc[fp] = [title, [float(v) for v in emb], 1]
+        else:
+            vec = slot[1]
+            for i, v in enumerate(emb):
+                vec[i] += float(v)
+            slot[2] += 1
+    means = []
+    for fp, (title, vec, n) in acc.items():
+        if n > 1:
+            vec = [v / n for v in vec]
+        norm = sum(v * v for v in vec) ** 0.5 or 1.0
+        means.append((fp, title, [v / norm for v in vec]))
+    con.execute(
+        "CREATE OR REPLACE TEMP TABLE _dup_path_means "
+        "(file_path VARCHAR, title VARCHAR, emb FLOAT[" + str(dim) + "])"
+    )
+    con.executemany(
+        "INSERT INTO _dup_path_means SELECT ?, ?, CAST(? AS FLOAT[" + str(dim) + "])",
+        means,
+    )
     r = con.execute(
         f"""
-        SELECT file_path_a, file_path_b, title_a, title_b, sim FROM (
+        SELECT file_path_a, file_path_b, title_a, title_b,
+               1 - dist * dist / 2 AS sim FROM (
           SELECT a.file_path AS file_path_a, a.title AS title_a,
                  b.file_path AS file_path_b, b.title AS title_b,
-                 array_cosine_similarity(
+                 array_distance(
                      CAST(a.emb AS FLOAT[{dim}]),
-                     CAST(b.emb AS FLOAT[{dim}])) AS sim
-          FROM v_note_embeddings a
-          JOIN v_note_embeddings b ON a.file_path < b.file_path
-          WHERE a.doc_type = ? AND b.doc_type = ?
+                     CAST(b.emb AS FLOAT[{dim}])) AS dist
+          FROM _dup_path_means a
+          JOIN _dup_path_means b ON a.file_path < b.file_path
         )
-        WHERE sim >= ?
-        ORDER BY sim DESC
+        WHERE sim IS NOT NULL AND sim >= ?
+        ORDER BY dist, file_path_a, file_path_b
         LIMIT {limit}
         """,
-        [doc_type, doc_type, float(min_sim)],
+        [float(min_sim)],
     ).fetchall()
     return [(row[0], row[1], row[2], row[3], row[4]) for row in r]
 

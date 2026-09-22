@@ -153,8 +153,10 @@ def test_notes_like_text_min_sim_monotone(emb_con, lo, hi):
     paths_lo = {r[0] for r in res_lo}
     paths_hi = {r[0] for r in res_hi}
     assert paths_hi <= paths_lo
-    assert all(r[2] >= b - 1e-9 for r in res_hi)
-    assert all(r[2] >= a - 1e-9 for r in res_lo)
+    # l2->cosine conversion carries ~1 float32 ulp (~6e-8): 1e-9 slack
+    # is below the conversion noise floor, 1e-6 is above it.
+    assert all(r[2] >= b - 1e-6 for r in res_hi)
+    assert all(r[2] >= a - 1e-6 for r in res_lo)
 
 
 @_SETTINGS

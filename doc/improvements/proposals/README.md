@@ -34,7 +34,30 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+_(Previously: note_knn_distance_ranking.md archived 2026-09-22 as
+completed.md entry 266 — note-KNN cosine→l2 distance swap at all six
+query.py KNN sites (scores still cosine-scaled via 1 − d²/2),
+per-path section semantics with renormalized-mean reference vectors,
+near-duplicate pair space 43M→0.7M, 11× claim corrected to ~1.2–1.3×,
+and the DuckDB vss HNSW trial concluded/declined (scan recall 35–57%,
++75% disk). Execution record in
+`../archive/graph/note_knn_distance_ranking.md`.)_
+
+- [`pagerank_graph_enhancements.md`](pagerank_graph_enhancements.md) —
+  PageRank upgrade ladder: S1 economic projection (current default runs
+  over `belongs_to` alone — 184 of 18,291 edges, 60% membership
+  structure), S2 weight carry-through via the igraph lane (84% of edges
+  are unit-weight; Onager ignores weights), S3 temporal backfill
+  (valid_from 100% missing except invested_in; as-of ranks), S4
+  new-source scoping for the ~5% economic tail, S5 personalized-pgr
+  watch (Onager bug). Filed 2026-09-22, status proposed.
+- [`ownership_ingestion_nse_shp.md`](ownership_ingestion_nse_shp.md) —
+  ownership edges from NSE shareholding XBRL: RSS discovery + open
+  archives fetch (verified 2026-09-22), in-bse-shp parser (PAN holder
+  identity, stake %, native periods), `promoter_of` edges + same_group
+  derivation + ontology rosters; feeds the pagerank economic projection.
+  Filed 2026-09-22, status proposed. Prerequisite arc — execute before
+  `pagerank_graph_enhancements.md`.
 
 _(Previously: search_tui_ux_pass.md archived 2026-09-22 as
 completed.md entry 265 — search_tui UX pass: busy indicators (query

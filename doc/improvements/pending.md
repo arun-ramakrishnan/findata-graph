@@ -17,27 +17,52 @@ Open items below keep their revisit triggers inline; executed work is compressed
   company resolved, `unmapped_authored` empty). The label-level
   worklist detector still lists the 8 authored-covered labels — they
   re-ask on future label drift by design (S4 reopen intent).
-- **Re-evaluate HNSW index macros** (deferred N5 item 5). Capability
-  UNBLOCKED, adoption DECLINED (re-verified 2026-09-22, DuckDB 1.5.5,
-  vss binary unchanged since 2026-08-09): the old "empty-signature
-  binder errors" were scalar-style mis-calls — `vss_match` is a table
-  MACRO `(table, col, query, k, metric)`, `pragma_hnsw_index_info()` a
-  table function, and `CREATE INDEX … USING HNSW` now works on-disk
-  (`SET hnsw_enable_experimental_persistence=true`) and survives
-  reopen; the planner routes `ORDER BY array_distance … LIMIT k`
-  through `HNSW_INDEX_SCAN` with exact recall (10/10 overlap vs brute).
-  Measured at note-search scale (16.5k×384): exact brute 5.2 ms, HNSW
-  scan 5.4 ms (no gain), `vss_match` macro 104 ms (worse);
-  `hnsw_index_scan` is internal-by-design (no direct bind). Brute-force
-  stays; revisit when embeddings approach ~10⁵–10⁶ vectors or a vss
-  build cuts macro overhead — plus the quarterly `make
-  update-extensions` re-check (graph_design.md §18.5/§5.4).
+
+- **Re-evaluate HNSW index macros** (deferred N5 item 5). UNBLOCKED
+  then DECLINED on quality+perf — full-scale trial 2026-09-22, DuckDB
+  1.5.5, vss binary unchanged since 2026-08-09. Capability: the old
+  "empty-signature binder errors" were scalar-style mis-calls —
+  `vss_match` is a table MACRO `(table, col, query, k, metric)`,
+  `pragma_hnsw_index_info()` a table function, `hnsw_index_scan` is
+  internal-by-design; `CREATE INDEX … USING HNSW` works on-disk
+  (`hnsw_enable_experimental_persistence=true`) and survives reopen,
+  and the planner DOES route `ORDER BY array_distance … LIMIT k`
+  through `HNSW_INDEX_SCAN` (the 2026-08 "DuckDB does not auto-use"
+  claim is falsified). BUT: `USING HNSW (emb COSINE)` still fails
+  (`opclass not supported` — the original embed_store_consolidation
+  blocker, unchanged), the index carries +75% db size (37→65 MB on
+  v_note_embeddings), and recall is broken on this build — exact-vs-ANN
+  overlap@10 only ~57% on the real 16.5k corpus, 41% @50k and 35% @100k
+  synthetic, flat across `hnsw_ef_search` 50→400. Speed: no win —
+  16.5k: brute l2 3.7 ms ≈ HNSW 3.9 ms (production brute cosine 40 ms —
+  the cosine-vs-l2 gap is the real cost; vectors are unit-norm so l2
+  ordering ≡ cosine); 50k: 9.7 ≈ 9.7 ms; 100k: 12.3 vs 9.7 ms;
+  200k: 10.7 vs 11.1 ms; build time grows 5→61→144→311 s (db 710 MB
+  at 200k, +75% over vectors). Actionable without any index: ordering
+  `similar_notes`-style queries by `array_distance` instead of
+  `array_cosine_similarity` is ~11× on the same exact results (unit
+  norm). Brute-force stays the shipped path; revisit when a vss build
+  fixes the COSINE opclass or scan recall, or vectors approach 10⁶ —
+  plus the quarterly `make update-extensions` re-check
+  (graph_design.md §18.5/§5.4). The actionable swap EXECUTED and
+  archived 2026-09-22 as completed.md #266
+  (`archive/graph/note_knn_distance_ranking.md`) — with the 11× figure
+  corrected to ~1.2–1.3× (the trial's 3.7 ms was HNSW-index-routed;
+  true brute l2 is 26–27 ms vs cosine 35.5 ms).
 
 - **Wrap `onager_ctr_personalized_pagerank`** (deferred N5 item 6). Onager bug:
   personalisation column ignored, restart node hardcoded to `node_id 1`, and it
   requires a weight column of type `BIGINT`; variants A/B produce identical
-  output. Documented at `helpers/graph/onager.py:597` and graph_design.md §5.5.
+  output. Documented at `helpers/graph/onager.py:836` and graph_design.md §5.5.
   Do not wrap until a future Onager build honours the personalisation vector.
+  Re-probed 2026-09-22 (same build): both bugs live — pers→node2×100 vs
+  pers→node4×100 byte-identical (neither equals plain pagerank, so restart is
+  hardcoded to node 1), and any projection without `node_id 1` errors
+  "Personalization node 1 not found". Contract note: named args required,
+  weight col must be `BIGINT`, pers col `DOUBLE` strictly positive (zeros
+  rejected). Wrap path + projection ladder tracked in
+  `proposals/pagerank_graph_enhancements.md` (S5 watch; filed
+  2026-09-22).
 
 - **Security Phase 4 (deploy-time; app confirmed NOT deployed 2026-08-17)**
   (private security review under doc/local, untracked;

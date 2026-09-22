@@ -6978,3 +6978,26 @@ format-footprint); ruff + ty + md-lint + lint-audit clean; operator
 ran `make perf` OK; qa's md-lint (1 bare URL in a doc/local note) and
 pytest (ruff-format footprint on 4 touched files) fixed in the same
 arc; `make search-fresh APPLY=1` converged.
+
+## 266. note-KNN distance ranking — cosine to l2 swap after the HNSW trial
+
+- All six `query.py` KNN rankings swapped `array_cosine_similarity` →
+  `array_distance` on unit-norm vectors (identical ordering, no index
+  dependency), scores converted back with `1 − d²/2` so callers see the
+  cosine scale.
+- Path-level semantics fix that fell out of the swap:
+  `v_note_embeddings` is per-SECTION (9,282 company rows / 1,181
+  paths) — the latent multi-row scalar-subquery crash fixed via a
+  `_note_ref_vector` renormalized-mean reference + `GROUP BY MIN(dist)`
+  best-section candidates; tie-break `ORDER BY dist, file_path`.
+- `near_duplicate_notes` per-path temp table collapsed the pairwise
+  space 43M → 0.7M.
+- The 11× claim in §3a corrected to ~1.2–1.3×: the trial's 3.67 ms was
+  HNSW-index-routed; true brute is 26–27 ms vs cosine 35.5 ms.
+- DuckDB vss HNSW trial CONCLUDED and declined: scan recall 35–57%,
+  +28 MB on a 37 MB db (+75%), recall decline explained by top-band
+  concentration + disconnected `ef_search` knob; brute stays.
+- Acceptance: 30/30 overlap vs cosine ranking, 9.7e-08 score delta,
+  p50 ~34 ms live.
+
+Execution record: `archive/graph/note_knn_distance_ranking.md`.
