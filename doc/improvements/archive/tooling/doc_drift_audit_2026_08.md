@@ -69,7 +69,7 @@ harness), `Makefile.mojo`, make targets `mojo-build`/`mojo-bench`/
   (headings run `## 169` → `## 173`; `rg -n "mojo" doc/improvements/completed.md`
   = 0 hits) despite the `(#171)` subject ref, which by repo convention is a
   run-log ref.
-- Findings log exists only in gitignored `doc/local/mojo_pilot.md`. The
+- Findings log exists only in archived `parallel_cold_embed.md` §7. The
   archived `parallel_cold_embed.md` carries the *deferred-scale* Mojo
   record (revisit triggers), which mitigates but does not document the
   shipped pilot.
@@ -157,9 +157,9 @@ standalone `doc/procedures/note-search.md` if the user prefers symmetry.
   `snapshots/parquet/duckdb/_build_meta.parquet` now carries
   `source_db = memory/research.db` (repo-relative). Historical blobs still
   carry the absolute path inside old `_build_meta.parquet` history (per the
-  commit message) — relevant to the identity-scrub playbook
-  (`doc/local/git_identity_scrub.md`), which can be updated to record that
-  the forward leak is closed and only history remains.
+  commit message) — relevant to the identity-scrub playbook (the memo is
+  gitignored and currently missing; it can be recreated to record that
+  the forward leak is closed and only history remains).
 
 ### Checked clean (no action)
 
@@ -278,7 +278,7 @@ snapshot-provenance item above is unaffected.
 | 6 | Backfill `## 170` (Chatter #83 ingest) — optional | same | 10 min |
 | 7 | `snapshot_db` codec wording | `README.md:79` | 2 min |
 | 8 | note-search `--check` doc block | `doc/procedures/doc-search.md` | 15 min |
-| 9 | Update `doc/local/git_identity_scrub.md`: forward source_db leak closed (118efc89), history-only residue remains | `doc/local/` (gitignored) | 5 min |
+| 9 | Recreate `doc/local/git_identity_scrub.md` (gitignored) then update it: forward source_db leak closed (118efc89), history-only residue remains | `doc/local/` (gitignored) | 10 min |
 | 10 | Name the empty stgit patch subjects `maint_optimizations` + `backup_enhancements` before push (F10, supersedes the cca89918 item) | user action (`stg edit <patch> -f <msgfile>`) | user |
 | 11 | zstd/`.zst` rename sweep — all 12 F7 rows; README:98-99 and doc-search.md:96 must become working `zstd -dc` restore lines, not just rebranding | F7 table | 20 min |
 | 12 | README procedures index: add `maintenance.md` (`:142` list + `:196-197` table; optional `:175` note) | F8 | 5 min |

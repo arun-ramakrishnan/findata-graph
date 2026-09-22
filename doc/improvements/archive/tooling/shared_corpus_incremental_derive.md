@@ -37,7 +37,7 @@ doc/improvements/archive/ for real examples). Rules:
 
 The `findata` corpus (`1243 md` / `1244 files` `1102` with frontmatter) is walked **five times** per `maint --full` — `verify_notes` `0.43s`, `frontmatter_schema` `0.77s`, `sync_tags` `0.28s`, `derive_themes` `0.51s`, `derive_insights` `2.19s` — each `sorted(rglob("*.md"))` + `read_text` + `yaml_safe_load` (`CSafeLoader` `~10×` only in `static_checks`). `static_checks` already collapsed `3→1` walk `~5s→2.42s`; the `5×` replay remains (`~4.3s` of YAML re-parse). `S0` `perf stat -d` `paranoid=4` blocked `IPC/cache` but `cProfile` showed hot is `yaml` `1.24s` + `jsonschema` `1.02s` + `re.search` `0.29s`/`56522` + `iter_company_sections` `0.78s` — Python `GIL`-held loops, not `SIMD`/`HITM`, so `ThreadPool 4` lost (`2.54s` vs `1.99s`) and `ProcessPool` pickle `__main__` crashed to serial `1.69s`.
 
-Trigger: `S0` wall `verify 0.43s / frontmatter 0.77s / static_checks 2.37s / sync 0.28s / themes 0.51s / insights 2.19s` and the `5×` `rglob` inventory `doc/local/perf_skills.md:12-13` (user request to examine all corpus scanners before Mojo).
+Trigger: `S0` wall `verify 0.43s / frontmatter 0.77s / static_checks 2.37s / sync 0.28s / themes 0.51s / insights 2.19s` and the `5×` `rglob` inventory `doc/local/perf/perf_skills.md:12-13` (user request to examine all corpus scanners before Mojo).
 
 ## 2. Evidence (measured 2026-09-02, this box `i5-6500 4c no-HT`)
 
@@ -126,7 +126,7 @@ Alternatives considered: `ProcessPool 4` `derive_insights` `GIL` `ThreadPool` lo
 
 | Run | Command | Result | Notes |
 |---|---|---|---|
-| 2026-09-02 | `perf stat -d wall` `verify 0.43s frontmatter 0.77s static_checks 2.37s sync 0.28s themes 0.51s insights 2.19s` `paranoid=4` `No supported events` `cProfile` `iter_company_sections 0.78s` `extract_metrics 0.74s` `yaml 0.42s` `re.search 0.29s/56522` `static_checks yaml 1.24s validate 1.02s` | `S0` `doc/local/perf_skills.md:13` `fs_walk 1244 0.003s read_text 200 0.023s` `CSafeLoader 10×` `GIL` `yaml` | `linux-perf` `Part 1` `paranoid=4` `Flow A/B` blocked `fallback cProfile` `performance-patterns` `no SIMD/HITM` |
+| 2026-09-02 | `perf stat -d wall` `verify 0.43s frontmatter 0.77s static_checks 2.37s sync 0.28s themes 0.51s insights 2.19s` `paranoid=4` `No supported events` `cProfile` `iter_company_sections 0.78s` `extract_metrics 0.74s` `yaml 0.42s` `re.search 0.29s/56522` `static_checks yaml 1.24s validate 1.02s` | `S0` `doc/local/perf/perf_skills.md:13` `fs_walk 1244 0.003s read_text 200 0.023s` `CSafeLoader 10×` `GIL` `yaml` | `linux-perf` `Part 1` `paranoid=4` `Flow A/B` blocked `fallback cProfile` `performance-patterns` `no SIMD/HITM` |
 | 2026-09-02 | `python3 helpers/graph/derive_insights.py findata --stale-only` `ThreadPool 4` | `2.54-2.74s` `2.07s scan +2.52s wait` vs `1.99s` serial `2.36s` `+1 DB` kept | `GIL` `iter_company_sections` Python loops `re C` not enough `S1a` `§14` `144 passed` |
 | 2026-09-02 | `python3 helpers/graph/extract_relations.py` `112` `ThreadPool 4` | `5.3-7.9s` vs `1.69s` `serial fallback` `GIL` `re` | reverted to `ProcessPool` `§14` |
 | 2026-09-02 | `Corpus.load findata workers=1` `1243` `0.37s` `cold 0.44s` `cached 0.15s` `pickle 0.16s` `workers=4` `0.48s` `max_mtime 0.003s` | `§15` `by_path` `absolute/relative` fallback `0 tags→6764` fixed | `/tmp/findata_corpus.pkl` `use_cache=True` `clear_cache()` |

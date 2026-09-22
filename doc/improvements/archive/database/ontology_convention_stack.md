@@ -18,8 +18,8 @@ area: "doc/design + helpers (validators, graph, maintenance) — schema-conventi
 
 ## 1. Motivation
 
-The ontology assessment (source memo: doc/local/engineering/ontology_assessment.md,
-verified + amended in its §10, 2026-09-14) settled the strategic verdict:
+The ontology assessment (verified + amended in its §10, 2026-09-14)
+settled the strategic verdict:
 adopt SKOS, W3C ORG, PROV-O Starting Point, and the W3C n-ary Pattern 1 as
 **pure table/field conventions** on the existing SQLite + DuckDB + OKF
 Markdown stack — no RDF store, no SHACL execution, no OWL imports. FIBO

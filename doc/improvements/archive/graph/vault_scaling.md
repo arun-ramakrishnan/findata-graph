@@ -17,9 +17,7 @@ area: "helpers/core/corpus, helpers/graph/query + rebuild, Mojo/src/bench (new b
 gated (operator decision 2026-09-04) · **Forecast:** 100M doubled rows is
 a REAL growth target, not a stress ceiling.
 **Area:** corpus layer · graph substrate + query + rebuild · similarity.
-Folded from: `doc/local/perf/perf_investigations.md` §1/§5/§8 +
-former `doc/local/graph_scaling.md` (deleted on fold 2026-09-04 —
-those sections now point here).
+Folded from: `doc/local/perf/perf_investigations.md` §1/§5/§8
 
 ## 1. Growth model
 

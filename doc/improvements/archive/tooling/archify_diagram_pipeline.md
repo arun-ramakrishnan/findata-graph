@@ -14,7 +14,7 @@ S8 landed with viewport caveat — completed.md #207) · **Trigger:** user go af
 (`doc/local/evaluations/archify_eval.md` — storage-topology system-overview passed the
 full 9-check showcase gate, browser evidence, and perceptual review; user
 verdict: "looks fantastic"). · **Skill:** `archify` (installed
-`~/.agents/skills/archify`, symlinked per `doc/local/skills_symlink.md`;
+`~/.agents/skills/archify`, symlinked per operator setup;
 eval + trial record in `doc/local/evaluations/archify_eval.md`).
 
 ## Scope / Motivation

@@ -16,8 +16,8 @@ third-engine bridge lane, if ever)
 ## 1. Verdict summary
 
 The operator's source build unlocked EasyGraph's C++ backend (pybind11
-branch, Python 3.11 AND 3.14 — build recipe + run log:
-`doc/local/easy_graph_run.txt`; condensed: graph_layer.md re-test
+branch, Python 3.11 AND 3.14 — build recipe + run log folded into the
+proposal appendix; condensed: graph_layer.md re-test
 section). The speed is real (cpp pagerank 0.105s on the full
 1648n/19261e graph, ~2x Onager's loop; louvain 0.014s at Q=0.48 — the
 best modularity in the entire engine eval) and the licence is friendlier
@@ -91,8 +91,7 @@ Structural blockers beyond the matrix:
 Not replacing Onager prod lanes. Not displacing igraph lanes EasyGraph
 cannot serve. No venv/pyproject dependency before revival + gate.
 
-## Appendix — full re-test run log (verbatim, folded from
-`doc/local/easy_graph_run.txt` on archival 2026-09-12)
+## Appendix — full re-test run log (verbatim, on archival 2026-09-12)
 
 ### Goal
 

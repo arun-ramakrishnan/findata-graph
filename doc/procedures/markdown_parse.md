@@ -135,7 +135,7 @@ python3 helpers/pdf/pdf_conv_md.py <source.pdf> <output_dir> --engine paddle
 
 After every conversion the script **self-verifies** (skip with `--no-verify`): per-page coverage of the `.json` vs the PDF text layer, document coverage of the `.md`, md↔json page consistency, a ≥3-digit number audit, and wikilink integrity. The verdict prints with the summary (WARN passes — it flags e.g. a lost number-range dash; FAIL exits 1) and the full manifest lands beside the note as `<stem>.verify.json` (sha256 of source + md, engine, per-page metrics).
 
-Local-engine fidelity (7-PDF trial, `doc/local/local_pdf_engine_trial.md`): word recall 96–98.6% vs the reference notes; residual diffs are dropped footer ads, reference OCR artifacts, and two minor glyph quirks (`seri`, `Ufex`). Known-good heading contract: company sections come out as `## Name | Cap | Sector` (wrapper-stripped, sector-glue split, bold-body headings rescued) — `parse_newsletter.py` sees the same sections as for Paddle-derived notes.
+Local-engine fidelity (7-PDF trial, measured inline below): word recall 96–98.6% vs the reference notes; residual diffs are dropped footer ads, reference OCR artifacts, and two minor glyph quirks (`seri`, `Ufex`). Known-good heading contract: company sections come out as `## Name | Cap | Sector` (wrapper-stripped, sector-glue split, bold-body headings rescued) — `parse_newsletter.py` sees the same sections as for Paddle-derived notes.
 
 Outputs (written under the user-chosen `<output_dir>`, e.g. `findata/The_Chatter/` for a Chatter edition):
 

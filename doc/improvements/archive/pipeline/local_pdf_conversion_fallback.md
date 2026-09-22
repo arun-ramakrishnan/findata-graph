@@ -31,7 +31,7 @@ for structure — only a layout-aware structure→markdown converter.
 | **pymupdf4llm** (PyMuPDF, MIT) | **Chosen.** 7.9s for the 22-page Marico PDF; per-page chunks; images extracted to disk (`write_images=True`); works with Tesseract absent (it OCRs only embedded raster fragments — our path does not rely on it); pure-Python install, no service. |
 | pdfplumber / pdfminer | text+tables primitives only; we would own heading logic and image extraction. More work, no better fit. |
 | docling / marker | heavyweight model dependencies; unnecessary for born-digital PDFs. |
-| pdfmux 1.8.7 | **Rejected** (eval 2026-08-26): builds on pymupdf4llm but pins it <1.0 (downgrade conflict), extracts NO images (figure pipeline needs `write_images`), loose PASS verification; content identical to direct pymupdf4llm on the 7-PDF corpus. Trial: `doc/local/local_pdf_engine_trial.md` §pdfmux. |
+| pdfmux 1.8.7 | **Rejected** (eval 2026-08-26): builds on pymupdf4llm but pins it <1.0 (downgrade conflict), extracts NO images (figure pipeline needs `write_images`), loose PASS verification; content identical to direct pymupdf4llm on the 7-PDF corpus. Trial: §pdfmux. |
 
 Parity check that matters: Paddle's PP-StructureV3 produced **0 pipe
 tables** for all 7 PDFs (tables are rendered as images in these
@@ -125,7 +125,6 @@ content lost: residual diffs are footer ads (dropped per Q2), Paddle
 OCR errors where local is more accurate (pixel-verified: `effi ciency`
 splits ×~40, phantom digit `70` vs the PDF's `7`), and two minor local
 artifacts (`seri`, one lost dash). Details:
-`doc/local/local_pdf_engine_trial.md` (private).
 
 ## Risks
 

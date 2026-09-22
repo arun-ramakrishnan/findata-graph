@@ -21,7 +21,7 @@ area: "database — helpers/misc (seed), helpers/core/cin.py (cross-check), inte
 §7: "NIC-2008 seed-table builder (own slice, with filling
 industry_code)"); first named consumer of the #244 concept-lifecycle
 promote lane (`ontology_governance.md` S1). DDL per the assessment memo
-§6.5 (`doc/local/engineering/ontology_assessment.md:343`).
+§6.5.
 
 ## 1. Motivation
 

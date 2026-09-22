@@ -620,9 +620,9 @@ browser-verified (screenshots `gui-test-screenshots/s4_1_rank.png`,
      (auto-zeroed by the tokens.css media query); the one JS smooth
      scroll now falls back to `auto` under
      `prefers-reduced-motion: reduce`.
-- **DOMPurify injected-payload proof (§8)**: a temporary
-  `doc/local/xss_selftest_s7.md` (gitignored path; vault untouched)
-  carrying `<script>`, `img onerror`, `javascript:` links and an
+- **DOMPurify injected-payload proof (§8)**: a temporary gitignored
+  file (vault untouched) carrying `<script>`, `img onerror`, `javascript:`
+  links and an
   inline-handler span rendered in the Reading Room with 0 script
   elements, 0 onerror attributes, 0 javascript: hrefs, 0 handler
   attributes — and the safe paragraph intact. File deleted after the

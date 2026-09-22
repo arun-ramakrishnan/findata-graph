@@ -10,8 +10,8 @@ area: helpers/pdf/
 # LiteParse PDF engine promotion — non-OCR default, gap-fill before cutover
 
 **Status:** EXECUTED 2026-09-01 (same day — Slices 0–2: 11-doc pool + liteparse_engine + image/bbox sidecars + pix2text opt-in, easyocr removed; completed.md #186)
-**Scope:** `helpers/pdf/`, `pyproject.toml`, `doc/local/perf_skills.md:9.1`, `doc/local/local_pdf_engine_trial.md`
-**Follows:** `archive/pipeline/local_pdf_conversion_fallback.md` (#156), `doc/local/perf_skills.md:9.1` trial
+**Scope:** `helpers/pdf/`, `pyproject.toml`, `doc/local/perf/perf_skills.md:9.1`
+**Follows:** `archive/pipeline/local_pdf_conversion_fallback.md` (#156), `doc/local/perf/perf_skills.md:9.1` trial
 
 ## Motivation
 
@@ -95,7 +95,7 @@ Keep `helpers/pdf/pdf_conv_md.py` pages shape unchanged (`[{markdown:{text,image
 
 ## Pending slices (this work)
 
-**Slice 0 — done:** proposal filed, `uv pip uninstall markitdown pypdf pdfplumber reportlab pypdfium2 easyocr` (keep `liteparse 2.0.0` + `pix2text 1.1.7`), `~/.agents/skills/pdf` removed (`14` now), `doc/local/skills_symlink.md` updated, `helpers/pdf/liteparse_post.py` (166 L) + `helpers/pdf/liteparse_markdown.py` (103 L) + `helpers/pdf/pix2text_markdown.py` (70 L) + `tests/data/ocr_samples/` `4` PDFs/PNGs added to `liteparse_pdf_engine` patch (renamed from `skills`).
+**Slice 0 — done:** proposal filed, `uv pip uninstall markitdown pypdf pdfplumber reportlab pypdfium2 easyocr` (keep `liteparse 2.0.0` + `pix2text 1.1.7`), `~/.agents/skills/pdf` removed (`14` now), `helpers/pdf/liteparse_post.py` (166 L) + `helpers/pdf/liteparse_markdown.py` (103 L) + `helpers/pdf/pix2text_markdown.py` (70 L) + `tests/data/ocr_samples/` `4` PDFs/PNGs added to `liteparse_pdf_engine` patch (renamed from `skills`).
 
 **Slice 1 — gap-fill and OCR eval (done 2026-09-01):**
 * Keep `pdf_local` primary (no change) per review — **accepted**: `lite no-ocr` `96.04%` raw / `96.02%` with post is `20.5×` bbox sidecar, not replacement. Gate `≥97.5%` not met, so no cutover; `pdf_local` `pymupdf4llm 1.28.2` stays primary for born-digital (7 `Reports/*.pdf` all `PASS` `99.7–99.9%` doc coverage, lowest `72–94%` via `auto`).
@@ -109,7 +109,7 @@ Keep `helpers/pdf/pdf_conv_md.py` pages shape unchanged (`[{markdown:{text,image
 * `helpers/pdf/pdf_conv_md.py` `auto` chain now `pdf_local (~2s born-digital primary) → liteparse OCR Tesseract 0.16–0.30s (scanned) → pix2text mfd-1.5 formula opt-in 2–7s (MPLBACKEND=agg) → Paddle PP-StructureV3 last`. `lite` (`0.10s 20.5× no-ocr`) available as explicit `--engine lite` bbox sidecar but not as markdown primary — `pdf_local` stays primary (Slice 1 gap accepted). Image sidecar verified: `SBI lite` 3 images, `mixed_table` 1 image, both `PASS`.
 * `pyproject.toml` already lists `liteparse` + `pix2text` (confirmed Slice 1); `pdf_local.py` kept unchanged per review (deprecation deferred one release).
 * Tests: `tests/test_liteparse_engine.py` (7: labels, nocr born-digital, ocr scanned 333 chars, refusal, image sidecar, bbox sidecar, 28p Reports) + `tests/test_pix2text_markdown.py` (5: MPLBACKEND=agg, page_texts, model-gated) — `23` total PASS with `test_liteparse_markdown`/`test_pdf_*`.
-* Docs: `doc/procedures/markdown_parse.md` PDF→Markdown section updated to `auto` chain with `lite OCR`/`pix2text`/`Paddle` + `lite` sidecar note + `TESSDATA_PREFIX`/`MPLBACKEND` flags; `doc/local/local_pdf_engine_trial.md` addendum below for 11-doc pool (7 born-digital + 4 scanned, 12 tiny OCR samples). `doc/local/perf_skills.md:9` engine ordering already covers `liteparse 2.0.0` trial (no change needed — addendum references it).
+* Docs: `doc/procedures/markdown_parse.md` PDF→Markdown section updated to `auto` chain with `lite OCR`/`pix2text`/`Paddle` + `lite` sidecar note + `TESSDATA_PREFIX`/`MPLBACKEND` flags; addendum below for 11-doc pool (7 born-digital + 4 scanned, 12 tiny OCR samples). `doc/local/perf/perf_skills.md:9` engine ordering already covers `liteparse 2.0.0` trial (no change needed — addendum references it).
 
 **Out of scope:** `markitdown` (`6.9s` no headings) not adopted; `pypdf/pdfplumber` remain `pdf` skill reference only for `merge/split/table` tasks (skill removed); `easyocr` removed; `Borosil/Max_Life` `Reports/*.pdf` restored to `11`-doc pool per your larger dataset request.
 

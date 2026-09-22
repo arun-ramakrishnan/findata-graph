@@ -35,8 +35,7 @@ as a replacement for the first and a partial replacement for the second,
 head-to-head on this repo, before adopting anything. User directive
 (2026-09-07): record the evaluation, run the loop, study the result,
 scope the Mojo gap. This proposal is that record plus the adoption
-slices it justifies. Scratch log `doc/local/ripwire_eval.txt` was folded
-here in full and removed.
+slices it justifies. Scratch log was folded here in full and removed.
 
 ## 1. What was reviewed (source, not marketing)
 
@@ -207,7 +206,7 @@ as follow-up only on go.
 Only after S1–S4 exits are green — removal is the end state, not a
 cleanup done early. Retire (S2) becomes remove:
 
-1. **Unlink the skill** per `doc/local/skills_symlink.md` (source-of-truth
+1. **Unlink the skill** (source-of-truth
    discipline): delete `codebase-memory-cli` from the common store
    `~/.agents/skills`, then remove its link from each harness dir
    (`~/.claude/skills`, `~/.config/opencode/skills`,
@@ -376,9 +375,8 @@ gates and `make search-fresh APPLY=1`.
   **zero**.
 - **Skill unlinked:** `~/.agents/skills/codebase-memory-cli` (store)
   deleted; symlink removed from all four harness dirs; counts verified
-  16 → 15 in all five dirs; `doc/local/skills_symlink.md` §1/§6 +
-  header updated with the removal and its reason. `doc/local/
-  codebase-memory-mcp.md` carries a RETIRED banner (fallback mechanics
+  16 → 15 in all five dirs; header updated with the removal and its reason.
+  `codebase-memory-mcp.md` carries a RETIRED banner (fallback mechanics
   preserved: `index_status` gate, never trust a zero). Explicitly
   untouched per §6: the installed binary (`~/.local/bin/ripwire` is the
   ADOPTION install, not the legacy one), the on-disk graph DB, and the

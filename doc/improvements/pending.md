@@ -1,8 +1,7 @@
 # Pending improvements
 
-Full annotated triage map with live-verified trigger status:
-`doc/local/notes/future_items.md` (2026-09-05). Open items below keep their
-revisit triggers inline; executed work is compressed to records.
+Full annotated triage map with live-verified trigger status.
+Open items below keep their revisit triggers inline; executed work is compressed to records.
 
 - **§G2 word-overlap alias guard + §G3 discard-persistence noise gate** — executed as `doc/improvements/archive/graph/word_overlap_alias_guard.md` (completed.md #218, 2026-09-09).
 
@@ -66,13 +65,10 @@ revisit triggers inline; executed work is compressed to records.
   (`archive/tooling/tech_avenues.txt` §3): per-relation YAML sidecars with
   provenance (edge_type, counterparties, as_of, confidence, source permalink).
   The only unblocked medium item anywhere in the backlog — but the driver is
-  weak while `findata/_pending_relations.txt` stays near-empty (see
-  `doc/local/notes/future_items.md` §D for the queue run book).
+  weak while `findata/_pending_relations.txt` stays near-empty (queue
+  run book: derive-triage-relations cycle below).
 
-- **OpenViking context-server pilot DEFERRED** (2026-08-20; proposal with
-  full fact-check at `doc/local/openviking_pilot_proposal.md`). The gap
-  it targeted — real semantic embeddings — closed in-house (#141, bge-small-en).
-  Revive only for the context-server differentiators (L0/L1 hierarchy,
+- **OpenViking context-server pilot DEFERRED** (2026-08-20; gap targeted real semantic embeddings — closed in-house #141, bge-small-en). Revive only for the context-server differentiators (L0/L1 hierarchy,
   automatic memory extraction, retrieval traces); the labeled eval set
   transfers verbatim. Known-if-revived: default embedder is Chinese-tuned
   with a one-model registry (swap needs `model_path` + explicit `dimension` +
@@ -171,8 +167,8 @@ revisit triggers inline; executed work is compressed to records.
   rows; `derive_indices` projects fileless `index` entities + 6,615
   dyadic `listed_on_index` edges, cache v16. The induced structural
   noise (36% of all edges, 57 star hubs) is kept out of metrics by #254
-  (`EDGE_TYPES_EXCLUDED_FROM_CENTRALITY` + `_CHAIN_FORBIDDEN`).   Closes
-  future_items.md §G1/B3.
+(`EDGE_TYPES_EXCLUDED_FROM_CENTRALITY` + `_CHAIN_FORBIDDEN`).   Closes
+   listed_on_index.
 - **Dirty-gate the remaining static_checks legs** — EXECUTED
   2026-09-21 (archived to `archive/tooling/gate_latency_followups.md`,
   completed.md #262). Syntax + chokepoint + data_format

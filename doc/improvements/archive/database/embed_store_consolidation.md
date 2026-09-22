@@ -220,8 +220,8 @@ every backup stream must remember; documented cold-restore surface grows.
 Not acceptable given two catches in one week.
 
 ### B. External vector DB (Chroma / LanceDB / Qdrant) — REJECTED
-Re-litigates settled calls: Chroma assessed 2026-08, status quo retained
-(`doc/local/chromadb_assessment.md`); OpenViking pilot deferred
+Re-litigates settled calls: Chroma assessed 2026-08, status quo retained;
+OpenViking pilot deferred
 (doc/local fact-check); HNSW is a documented non-goal of the local-embeddings
 arc ("brute-force is ~3ms at this scale",
 `archive/database/local_embeddings.md:62-71`). Zero-egress rule forbids cloud
@@ -257,8 +257,7 @@ notes where brute-force stops being ms-scale AND upstream vss ships a working
 COSINE opclass on our pin; or a need for filtered-ANN joins that SQLite-side
 Python scoring can't express; or Quack reaching production (DuckDB v2.0,
 fall 2026 — dissolves the single-writer blocker for new designs, leaving
-only blockers 1/3). Full evidence + addendum:
-`doc/local/duckdb_vector_search_assessment.md`.
+only blockers 1/3).
 
 ### D. Single consolidated SQLite embed store — CHOSEN
 One file owns all sqlite-vec sidecar state. Scope variants:

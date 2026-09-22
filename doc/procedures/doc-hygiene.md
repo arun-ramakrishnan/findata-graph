@@ -26,11 +26,12 @@ batch of proposal archival, or at arc end when a sweep turns up rot.
 | Structural tear | A list bullet or record line spliced into the middle of a paragraph (live files: `pending.md`, READMEs) | Manual read of the head + a split-sentence heuristic |
 | Stale path | **Live** doc points at `improvements/proposals/<file>` that now lives under `archive/`; **or** an archive file's still-load-bearing pointer (supersession, cross-ref) still aims at `proposals/` instead of the archived sibling | Path inventory (live + archive) |
 | Missing frontmatter | Legacy archive `.md` has no YAML `---` block (no `status` / `completed_md` for the lifecycle checker to see) | Frontmatter presence census |
+| Orphaned local ref | A `doc/local/` path is referenced from a git-tracked doc but the file no longer exists (common when local notes are deleted without cleaning up back-references) | Path existence (below) |
 
 Historical narrative inside `completed.md` and `archive/**` that *records*
 an old path is fine — only **live** operators (`pending.md`, `proposals/
 README.md`, `archive/README.md`, design docs, `AGENTS.md`, procedure docs)
-and **load-bearing archive cross-refs** (supersession notes, “see also”
+and **load-bearing archive cross-refs** (supersession notes, "see also"
 pointers a reader would follow) must resolve.
 
 ## Commands
@@ -182,6 +183,20 @@ is `status: executed` + `executed` + `completed_md`; live
 `proposals/*.md` (README excluded) stay `status: proposed` with null
 executed/completed_md.
 
+### 6. Orphaned local doc references
+
+```bash
+# doc/local/ paths in live docs that no longer exist
+# (completed.md historical references excepted)
+rg -o 'doc/local/[A-Za-z0-9_./-]+\.(?:md|txt)' \
+  doc --glob '*.md' \
+  | rg -o 'doc/local/[A-Za-z0-9_./-]+\.(?:md|txt)' \
+  | sort -u | while IFS= read -r p; do
+    echo "$p" | rg -q 'completed\.md' && continue
+    [ -f "$p" ] || echo "ORPHAN_LOCAL_REF $p"
+  done
+```
+
 ## Remediation Map (advisory only)
 
 **Not part of this procedure.** Findings above are report-only; apply
@@ -200,6 +215,7 @@ Nothing here is executed by the sweep.
 | Stale path (live) | Repoint to `archive/<topic>/…`. Leave `completed.md` prose that quotes the old path as history unless it is the *only* pointer a reader would follow. |
 | Stale path (archive cross-ref) | Repoint the supersession/see-also to the archived sibling (often same directory: `hgx_first_scaling.md`, not `../../proposals/…`). |
 | Missing frontmatter | Optionally backfill `--- title/status/executed/completed_md/area ---` to match the completed.md entry so the lifecycle checker sees the file; not qa-blocking today. |
+| Orphaned local ref | Either restore the local note or remove the dangling reference from the live doc. **Rule: when deleting a `doc/local/` note, always sweep for back-references first.** |
 | After an approved fix | `make search-fresh APPLY=1`, then plain `make search-fresh` (rc=0). Doc-only edits do not need full `make qa` unless code touched — but md-lint + static checks are cheap and worth a local run. |
 
 ## Out of scope

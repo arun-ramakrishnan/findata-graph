@@ -20,7 +20,7 @@ interim state of the same day).
 - The Mojo subsystem (`Mojo/`) needed regex. The community `mojo-regex`
   conda package (prefix.dev/modular-community) is **dead**: it pins
   `max >=25.4,<26.0` with no candidates, and the whole pixi/conda route is
-  dead (see `doc/local/mojo_pilot.md` §pixi/conda route: DEAD). A native-Mojo
+   dead (see a native-Mojo
   regex via that lib is therefore unavailable.
 - Deferred item: obtain regex capability in Mojo.
 
@@ -152,7 +152,5 @@ Expected: **51/51 direct-vs-python checks passed**; pure-python
 ~99k calls/s, mojo-bridge ~97k calls/s (100,000 case calls each side).
 
 ## References
-- `doc/local/mojo_pilot.md` §pixi/conda route: DEAD (mojo-regex conda dead)
-- `doc/local/mojo_build_recipe.md` (deferred rattler-build — regex now
-  sourced via Python, excluded from any conda packaging plan)
+
 - `Mojo/src/bench/analyzer.mojo:155` (precedent: `Python.import_module("numpy")`)

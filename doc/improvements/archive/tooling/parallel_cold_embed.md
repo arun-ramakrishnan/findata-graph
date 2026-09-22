@@ -179,9 +179,7 @@ From the 2026-08-29 repo-wide "where does the time go" review
 - `doc/procedures/embeddings.md` §Cost reference (16m13s / ~15–20 min
   rows this proposal targets)
 - completed.md #124 (A1 sqlite-vec KNN), #166 (embed store consolidation —
-  pooled cache this hooks into), #164 (note_search drift checks)
-- `doc/local/mojo_pilot.md` §migration verdict (why no runtime Mojo; the
-  SIMD KNN numbers behind the deferred escape-hatch row)
+   pooled cache this hooks into), #124 (note_search drift checks)
 - Bench evidence inlined in §2; throwaway harnesses (spawn Pool, pinned
   initializer, per-doc latency print) — ~40 lines, reproduced in the
   parity test rather than kept as scripts.

@@ -19,8 +19,8 @@ completed.md entry 253 ·
 `helpers/graph/derive_indices.py` + `query.py`,
 `doc/design/{ontology,db_schema,data_sources}.md`, `tests/`
 
-> Plan-of-record: `doc/local/evaluations/index_fill.md` (2026-09-19,
-> second-session reviewed; §13 resolves the storage and hyperedge
+> Plan-of-record: (2026-09-19, second-session reviewed; §13 resolves the
+> storage and hyperedge
 > questions). This proposal converts that memo into independently
 > landable slices; it does not re-derive the analysis.
 

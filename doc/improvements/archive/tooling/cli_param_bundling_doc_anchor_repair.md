@@ -141,7 +141,7 @@ S1 first (code), S2 after (docs), S3 last (corpus) — independent, landable sep
 - **Dataclass over-abstraction** — a wrong shared config beats a low score; mitigation: dataclasses only for the two orchestrators, param-reduction license for the 6–7 tier, callables stay fields.
 - **Caller churn in tests** — `default_db` zero-arg-callable contract and module-global passthrough (`BACKUP_DIR`, `_pseudo_warned`) must hold; mitigation: keep constructor signatures backward-compatible where tests monkeypatch, run the 22 touched suites from #216.
 - **Drift re-rot** — line anchors rot again on next edit; mitigation: prefer symbol-only refs where the lane supports them, no archive edits.
-- **Harvest re-entry** — accepted/discarded rows refill the queue on the next full-corpus extract unless aliased, stubbed, or noise-gated; mitigation: persist aliases in the same pass, stub genuinely-missing entities, triage promptly after each derive run (future_items §D/H1).
+- **Harvest re-entry** — accepted/discarded rows refill the queue on the next full-corpus extract unless aliased, stubbed, or noise-gated; mitigation: persist aliases in the same pass, stub genuinely-missing entities, triage promptly after each derive run.
 
 ## 6. Non-goals
 

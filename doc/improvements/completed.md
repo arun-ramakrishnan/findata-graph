@@ -3383,8 +3383,7 @@ of the content-hash embed cache, with `<main>_vec.db` naming re-derived in
 four backup sites — two consecutive backup-stream catches in one week were
 structural fallout. Consolidation target confirmed necessary by a fresh
 DuckDB 1.5.5 probe (`no such module: vec0` persists on ATTACH catalog scans),
-and by the MotherDuck-series / Quack assessments
-(`doc/local/duckdb_vector_search_assessment.md`: external vector DBs,
+and by the MotherDuck-series / Quack assessments (external vector DBs,
 engine swap, and Quack-beta all rejected with evidence; revisit triggers
 recorded).
 
@@ -3897,8 +3896,7 @@ node projected with cited_in edges, sector rosters refreshed.
 
 **Date**: 2026-08-27 (`caad4bcd`; entry backfilled 2026-08-29 per the
 doc-drift audit — the arc had zero doc/improvements footprint).
-**Proposal**: none — pilot. Findings log: gitignored
-`doc/local/mojo_pilot.md`; deferred-scale record in the archived
+**Proposal**: none — pilot. Findings log: gitignored; deferred-scale record in the archived
 `parallel_cold_embed.md` §7.
 
 Context: every production numeric path is already native (sqlite-vec
@@ -4289,8 +4287,8 @@ pre-existing, not touched here.
 
 ## 186. LiteParse PDF engine promotion — OCR fallback + bbox sidecar (Slices 0–2)
 
-**Date:** 2026-09-01 · **Type:** pipeline (PDF) · **Proposal:** `doc/improvements/archive/pipeline/liteparse_pdf_engine.md` (filed 2026-09-01, Slices 0–2 executed same day) · **Follows:** `archive/pipeline/local_pdf_conversion_fallback.md` (#156), `doc/local/perf_skills.md:9.1` trial
-**Files:** `helpers/pdf/liteparse_engine.py` (new, 280 L, mirrors `pdf_local.convert` shape — `convert(pdf, img_dir, ocr=False|True)` + `get_bbox_sidecar()` + `pymupdf` image sidecar `≥150px & 8192B`), `helpers/pdf/liteparse_post.py` (166 L, port of `pdf_local` normalizations — tried, hurt `98.26%→91.33%` so not applied to raw `lite` text), `helpers/pdf/liteparse_markdown.py` (103 L → 135 L, `ocr_enabled=True` `Tesseract 5.5.0` `eng 4.0M` `TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata`, `_looks_like_company_heading` `| Cap`/`Sector+Company`, per-page `page_texts` for `verify_extraction`), `helpers/pdf/pix2text_markdown.py` (70 L → 95 L, `pix2text 1.1.7` `mfd-1.5` `MPLBACKEND=agg` forced even under `matplotlib_inline`, `page_texts`), `helpers/pdf/pdf_conv_md.py` (`--engine auto` now `pdf_local (~2s born-digital primary) → liteparse OCR 0.16–0.30s (scanned) → pix2text 2–7s LaTeX formula opt-in (<50 chars) → Paddle PP-StructureV3` last; explicit `--engine lite` `0.10s 20.5×` bbox sidecar, `--engine lite-ocr`/`pix2text` force), `pyproject.toml` (`liteparse` + `pix2text` already declared), `tests/test_liteparse_markdown.py` (new, 11), `tests/test_pix2text_markdown.py` (new, 5), `tests/test_liteparse_engine.py` (new, 7), `doc/procedures/markdown_parse.md` (PDF→Markdown `auto` chain + engine flags), `doc/local/local_pdf_engine_trial.md` (addendum: 11-doc pool 7 born-digital + 4 scanned `REFUSED ✓` + 12 tiny OCR samples)
+**Date:** 2026-09-01 · **Type:** pipeline (PDF) · **Proposal:** `doc/improvements/archive/pipeline/liteparse_pdf_engine.md` (filed 2026-09-01, Slices 0–2 executed same day) · **Follows:** `archive/pipeline/local_pdf_conversion_fallback.md` (#156), `doc/local/perf/perf_skills.md:9.1` trial
+**Files:** `helpers/pdf/liteparse_engine.py` (new, 280 L, mirrors `pdf_local.convert` shape — `convert(pdf, img_dir, ocr=False|True)` + `get_bbox_sidecar()` + `pymupdf` image sidecar `≥150px & 8192B`), `helpers/pdf/liteparse_post.py` (166 L, port of `pdf_local` normalizations — tried, hurt `98.26%→91.33%` so not applied to raw `lite` text), `helpers/pdf/liteparse_markdown.py` (103 L → 135 L, `ocr_enabled=True` `Tesseract 5.5.0` `eng 4.0M` `TESSDATA_PREFIX=/usr/share/tesseract-ocr/5/tessdata`, `_looks_like_company_heading` `| Cap`/`Sector+Company`, per-page `page_texts` for `verify_extraction`), `helpers/pdf/pix2text_markdown.py` (70 L → 95 L, `pix2text 1.1.7` `mfd-1.5` `MPLBACKEND=agg` forced even under `matplotlib_inline`, `page_texts`), `helpers/pdf/pdf_conv_md.py` (`--engine auto` now `pdf_local (~2s born-digital primary) → liteparse OCR 0.16–0.30s (scanned) → pix2text 2–7s LaTeX formula opt-in (<50 chars) → Paddle PP-StructureV3` last; explicit `--engine lite` `0.10s 20.5×` bbox sidecar, `--engine lite-ocr`/`pix2text` force), `pyproject.toml` (`liteparse` + `pix2text` already declared), `tests/test_liteparse_markdown.py` (new, 11), `tests/test_pix2text_markdown.py` (new, 5), `tests/test_liteparse_engine.py` (new, 7), `doc/procedures/markdown_parse.md` (PDF→Markdown `auto` chain + engine flags)` `REFUSED ✓` + 12 tiny OCR samples)
 
 **Slice 0 — proposal + cleanup:** filed `liteparse_pdf_engine` proposal (11-doc pool, pix2text opt-in, easyocr removed), `uv pip uninstall markitdown pypdf pdfplumber reportlab pypdfium2 easyocr` (keep `liteparse 2.0.0` + `pix2text 1.1.7`), `~/.agents/skills/pdf` removed (`14` now), `helpers/pdf/liteparse_post.py`/`liteparse_markdown.py`/`pix2text_markdown.py` + `tests/data/ocr_samples/` 4 PDFs/PNGs (`handwritten_formula`, `printed_math`, `mixed_table_formula`, `scanned_benchmark` 0-char, `pdf_local` `REFUSED ✓`).
 
@@ -4726,7 +4724,7 @@ The embedding-model arc, end to end. S0: llama.cpp master REJECTED at parity (0.
 
 **Date:** 2026-09-07 · **Type:** graph (scan/render/VSS micro-perf) ·
 **Scope:** `helpers/graph/derive_insights.py`, `helpers/core/get_tickers.py` ·
-**Status:** EXECUTED 2026-09-06/07 (filed + implemented 09-06 from `doc/local/perf/perf_eval.md`, gates 09-07) ·
+**Status:** EXECUTED 2026-09-06/07 (filed + implemented 09-06, gates 09-07) ·
 **Proposal:** `doc/improvements/archive/graph/scan_render_vss_microperf.md`
 
 Three residual hot spots after #208, all measured first. S1: `iter_company_sections` built newline offsets with a pure-Python char loop (~0.9ms/file, ~70% of serial scan) — replaced with C-speed `str.count` per yielded section (arithmetic identity: match starts point at `#`, never `\n`; bisect oracle kept in tests). Serial scan 1612→923ms, parallel(4) 717→401ms; pool stays, <8-file serial threshold stays. S2: every rendered note's frontmatter was yaml-parsed twice (gate + splice) — one shared parse via `_load_frontmatter` + `_UNSET` sentinel on both render paths, halving the ~0.5s YAML cost with zero semantic change (frontmatter-region invariant pinned by fuzz test; regex pre-checks explicitly rejected per the #206 quote-soup lesson). S3: every VSS fire re-fetched 9.2 MB + re-digested + Python-looped the dots (~62ms around the 71ms granite embed) — fetch-once float64 run index built in `main()`, threaded as `index=` through display/resolve/vss_match, guarded by a COUNT/MAX(rowid) end-of-run tripwire (concurrent-writer audit: writers are maint-only CLI commands, no cron, no call edges — overlap needs two simultaneous manual runs, SQLite serializes writes). Non-model fire 55.5→0.7ms. Verified: stash-diff dry-run byte-identical (2777/1532/310/9), wall 1.74→1.24s, 221 targeted tests (bisect-oracle, shared-parse equivalence, FM-bytes invariant, index parity + tripwire), qa 9/9, advisory 10/10, perf 22/22, search-fresh converged. Gate fallout in-change: ty narrowing on the fm union, C901 vss_match extraction, S101 assert→RuntimeError, pre-existing parquet_textconv format/None-guard.
@@ -4976,7 +4974,7 @@ current. Touched-suite pre-verification during the slices (282 + 93 +
 **Status**: COMPLETE
 **Proposal**: `doc/improvements/archive/graph/word_overlap_alias_guard.md` (filed 2026-09-09)
 
-Two hygiene pick-ups from `doc/local/notes/future_items.md` (§G2, §G3), both
+Two hygiene pick-ups (§G2, §G3), both
 newly unlocked by the #215/#217 arcs. No machinery behavior change.
 
 ### S1 — word-overlap alias guard (G2)
@@ -5665,8 +5663,7 @@ full scale, and reconciled the result with the igraph handover plan.
 
 **Measured**: 3.14 build in minutes on 4 cores (gcc 15.2); cpp BC(w)
 0.29–0.38s but untrustworthy; run log folded verbatim into the proposal
-appendix; the gitignored `doc/local/easy_graph_run.txt` copy was
-removed after folding).
+appendix; the gitignored run-log copy was removed after folding).
 
 ## 232. Archify C4 coverage on stock schema — external actors + first
 sequence diagram
@@ -5780,8 +5777,7 @@ green (up to 66 tests per lane, logged in the proposal appendix).
 
 **Proposal**:
 `doc/improvements/archive/database/ontology_convention_stack.md`
-(filed + executed + archived 2026-09-14; source memo
-`doc/local/engineering/ontology_assessment.md` §10, binding). Schema
+(filed + executed + archived 2026-09-14; source memo §10, binding). Schema
 arc — conventions, not runtimes: no RDF store, no SHACL, no OWL;
 SQLite schema v7→v11, DuckDB cache unchanged.
 
@@ -6520,8 +6516,7 @@ re-converged at generation 105389 post-run. All other gates green.
 ## 253. Index-membership fill — NSE constituents into sidecar, SQLite, and graph cache
 
 **Proposal**: `doc/improvements/archive/graph/index_membership_fill.md`
-(filed + executed 2026-09-19; plan-of-record memo
-`doc/local/evaluations/index_fill.md`).
+(filed + executed 2026-09-19; plan-of-record memo).
 
 Filled the twice-deferred `listed_on_index` gap: NSE constituent CSVs
 land raw in the sidecar, project into fileless `index` entities + dyadic

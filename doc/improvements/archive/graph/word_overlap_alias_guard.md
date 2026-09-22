@@ -11,7 +11,7 @@ area: "helpers/graph"
 
 **Date:** 2026-09-09 · **Status:** PROPOSED · **Area:** helpers/graph (`triage_pending_relations.py`, `suggest_relations.py`, `extract_relations.py`)
 
-Two pick-ups from `doc/local/notes/future_items.md` (§G2, §G3), both newly
+Two pick-ups (§G2, §G3), both newly
 unlocked by the #215/#217 arcs. One hygiene slice (G2) and one operational
 slice (G3); no machinery behavior change.
 
@@ -22,8 +22,8 @@ slice (G3); no machinery behavior change.
 
 **G2 — word-overlap alias guard (small hygiene).** The `suggest_relations` /
     `triage_pending_relations` alias-candidate bucket is a known
-    false-positive source. `doc/local/notes/future_items.md` §G2 records the evidence
-    doubling: after the 09-05 trio (20 Microns → Micron,
+    false-positive source. The evidence doubling — after the 09-05 trio
+    (20 Microns → Micron,
     Sailing_the_Tide → SAIL, Manufacturing), #217's S3 rejected two more
     word-overlap alias FPs (Circle, American_Express hints). Known misfire
     taxonomy: edition-note entity, sector, different real company,
@@ -42,7 +42,7 @@ slice (G3); no machinery behavior change.
 
 | Check | Result | Verdict |
 |---|---|---|
-| `doc/local/notes/future_items.md` §G2 | 5 word-overlap alias FPs across two runs | taxonomy is real, not theoretical |
+| G2 evidence (09-05 + #217 S3) | 5 word-overlap alias FPs across two runs | taxonomy is real, not theoretical |
 | `triage_pending_relations.py` `_bucket()` | `alias_candidate` returned when `fuzzy_match` resolves to a DIFFERENT existing name, `method != "spellfix"` | the only path that emits the bucket |
 | `--report` render | alias_candidate rows printed with `(method, score)` detail, no confirm/verify prompt | operator has no signal the suggestion is word-overlap-only |
 | #217 S3 | 0 aliases persisted (all alias_candidate hints were FPs) | manual triage already rejects them, but only by eyeball |
@@ -82,7 +82,7 @@ Rejected: full B2 sidecars (revisit only if accepted edges become annoying to au
 
 ## 6. Non-goals
 
-- B2 relation sidecars (future_items §A2) — separate arc.
+- B2 relation sidecars — separate arc (pending.md).
 - Archive doc-drift outside the selected surface.
 - Any change to extractor patterns, predictor thresholds, or `--apply-decisions` semantics.
 - Cold-embed §7 GPU levers, vault_scaling T1, Security Phase 4, MCP server / OpenViking (all trigger-gated or operator-parked).

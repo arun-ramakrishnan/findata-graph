@@ -21,8 +21,7 @@ adopted as **pure table/field conventions** on SQLite + OKF Markdown —
 no RDF store, no SHACL/ShEx execution, no OWL imports. FIBO (MIT) and
 schema.org (CC-BY-SA) are cited glossaries for borrowed names; GICS is
 proprietary (opaque mapping target only); GDM/OXL are confabulations
-(never cite). Full research record:
-`doc/local/engineering/ontology_assessment.md`; execution history:
+(never cite). Full research record: `doc/improvements/` (proposals), `completed.md` (run log); execution history:
 `doc/improvements/archive/database/ontology_convention_stack.md`
 (#234); citations and licenses: `doc/reference/ontology_glossary.md`.
 
@@ -289,7 +288,7 @@ table (extend in the same change as any new artifact):
 | Which hyperedge types / roles? | `derive_hyperedges.py` registries (§2.4, §2.5) |
 | What does an extractor write? | The extractor module's docstring |
 | License/attribution for a borrowed name? | `doc/reference/ontology_glossary.md` |
-| Why was X decided? | `doc/local/engineering/ontology_assessment.md` (record), `doc/improvements/` (proposals), `completed.md` (run log) |
+| Why was X decided? | Design decision records (`doc/improvements/` proposals, `completed.md` run log) |
 | Is the derived cache fresh? | `memory/graph.duckdb` `_SCHEMA_VERSION` + snapshot manifest (not this doc) |
 
 ## 6. Governance of this document

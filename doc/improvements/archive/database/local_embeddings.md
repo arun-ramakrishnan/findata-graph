@@ -16,8 +16,7 @@ area: 'helpers/core/local_embedder.py'
 **Author:** Agent analysis (user-directed)
 **Builds on:** completed.md #141 (real-API embedding path removed as
 dead code), the A1 hybrid-ranking work (`vec_search.py`), and the
-2026-08-20 OpenViking pilot analysis (deferred —
-`doc/local/openviking_pilot_proposal.md`).
+2026-08-20 OpenViking pilot analysis (deferred).
 **Scope:** new `helpers/core/local_embedder.py`, three consumer modules
 (`helpers/graph/embeddings.py`, `helpers/maintenance/rebuild_note_search.py`,
 `helpers/core/get_tickers.py`), tests, one dependency addition, snapshot
