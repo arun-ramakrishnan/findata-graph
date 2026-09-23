@@ -266,3 +266,27 @@ def _render_fm(fm: dict) -> str:
     from helpers.core.frontmatter import render_frontmatter, stringify_dates
 
     return render_frontmatter(stringify_dates(fm))
+
+
+def test_sync_sector_skips_fileless_companies(tmp_path):
+    """VIGIL counter-party rows have NULL file_path (no note to link):
+    the roster must skip them, not crash, and report the skip count."""
+    db = tmp_path / "t.db"
+    con = sqlite3.connect(str(db))
+    con.row_factory = sqlite3.Row  # production connect() sets this; rows index by name
+    con.execute(
+        "CREATE TABLE entities (name TEXT, entity_type TEXT, "
+        "sector_classification TEXT, file_path TEXT)"
+    )
+    con.executemany(
+        "INSERT INTO entities VALUES (?, 'company', 'Banking', ?)",
+        [("Noted Co", "findata/Companies/Noted_Co.md"), ("Ghost Co", None)],
+    )
+    con.commit()
+    sector = tmp_path / "Banking.md"
+    sector.write_text("# Banking\n\n## Newsletter synthesis\n\nX\n", encoding="utf-8")
+    changed, n, skipped = ssw.sync_sector(con, sector, "Banking", dry_run=False)
+    con.close()
+    assert (changed, n, skipped) == (True, 1, 1)
+    text = sector.read_text(encoding="utf-8")
+    assert "Noted_Co" in text and "Ghost Co" not in text

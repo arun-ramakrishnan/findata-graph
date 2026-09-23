@@ -87,11 +87,14 @@ def _company_title(file_path: str) -> str:
     return Path(file_path).stem.replace("_", " ")
 
 
-def _companies_for_sector(conn, sector_classification: str) -> list[tuple[str, str, str]]:
-    """Return ``(name, stem, title)`` for every company in the sector, sorted by name.
+def _companies_for_sector(conn, sector_classification: str) -> tuple[list[tuple[str, str, str]], int]:
+    """Return ``((name, stem, title) list, fileless_skipped)`` for a sector.
 
     ``stem`` is the filename basename (Obsidian's link TARGET); ``title`` is
-    the YAML display text (used after the ``|`` in the wikilink).
+    the YAML display text (used after the ``|`` in the wikilink). Rows with
+    no ``file_path`` (legitimately fileless entities — VIGIL counter-party
+    rows with no backing note) are SKIPPED, not crashed on: there is no
+    note to link to. The skip count is returned for the run summary.
     """
     rows = conn.execute(
         "SELECT name, file_path FROM entities "
@@ -99,7 +102,14 @@ def _companies_for_sector(conn, sector_classification: str) -> list[tuple[str, s
         "ORDER BY name",
         (sector_classification,),
     ).fetchall()
-    return [(r["name"], Path(r["file_path"]).stem, _company_title(r["file_path"])) for r in rows]
+    companies: list[tuple[str, str, str]] = []
+    skipped = 0
+    for r in rows:
+        if not r["file_path"]:
+            skipped += 1
+            continue
+        companies.append((r["name"], Path(r["file_path"]).stem, _company_title(r["file_path"])))
+    return companies, skipped
 
 
 def _render_section(companies: list[tuple[str, str, str]], sector_name: str) -> str:
@@ -171,10 +181,10 @@ def _replace_or_insert(text: str, new_section: str) -> tuple[str, bool]:
 
 def sync_sector(
     conn, sector_path: Path, sector_classification: str, *, dry_run: bool
-) -> tuple[bool, int]:
-    """Sync one sector file. Returns ``(changed, company_count)``."""
+) -> tuple[bool, int, int]:
+    """Sync one sector file. Returns ``(changed, company_count, fileless_skipped)``."""
     sector_name = sector_path.stem
-    companies = _companies_for_sector(conn, sector_classification)
+    companies, skipped = _companies_for_sector(conn, sector_classification)
     new_section = _render_section(companies, sector_name)
 
     text = sector_path.read_text(encoding="utf-8")
@@ -182,7 +192,7 @@ def sync_sector(
 
     if changed and not dry_run:
         sector_path.write_text(new_text, encoding="utf-8")
-    return changed, len(companies)
+    return changed, len(companies), skipped
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -213,6 +223,7 @@ def main(argv: list[str] | None = None) -> int:
     conn = connect(DB_PATH)
     stale = 0
     total_companies = 0
+    total_skipped = 0
     sectors_processed = 0
     try:
         targets = sorted(SECTORS_DIR.glob("*.md"))
@@ -229,21 +240,24 @@ def main(argv: list[str] | None = None) -> int:
             # Default is a dry-run report; --apply writes. --check keeps its
             # advisory-gate contract (dry-run + rc 1 on stale) for maint.
             dry_run = not args.apply
-            changed, n = sync_sector(conn, sp, sp.stem, dry_run=dry_run)
+            changed, n, skipped = sync_sector(conn, sp, sp.stem, dry_run=dry_run)
             total_companies += n
+            total_skipped += skipped
             sectors_processed += 1
             marker = (
                 "STALE"
                 if (changed and args.check)
                 else ("would update (dry-run)" if changed else "ok")
             )
+            skip_note = f" (-{skipped} fileless)" if skipped else ""
             if changed and args.check:
                 stale += 1
-            print(f"  {sp.stem:<32} {n:>3} companies  [{marker}]")
+            print(f"  {sp.stem:<32} {n:>3} companies{skip_note}  [{marker}]")
     finally:
         conn.close()
 
-    print(f"\n{sectors_processed} sector(s) processed, {total_companies} company links total.")
+    print(f"\n{sectors_processed} sector(s) processed, {total_companies} company links total, "
+          f"{total_skipped} fileless skipped (no note to link).")
     if not args.apply:
         print("DRY-RUN: no sector notes written. Pass --apply to write.")
     if args.check:

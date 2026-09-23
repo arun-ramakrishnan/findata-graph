@@ -40,26 +40,6 @@ CREATE TABLE h_edge(id BIGINT, edge_type VARCHAR, "label" VARCHAR, weight DOUBLE
 
 CREATE TABLE h_incidence(edge_id BIGINT, entity_name VARCHAR, weight DOUBLE, direction VARCHAR, "role" VARCHAR, valid_from DATE, valid_to DATE);
 
-CREATE TABLE v_centrality_betweenness("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_closeness("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_degree("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_eigenvector("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_harmonic("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_katz("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_laplacian("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_local_reaching("name" VARCHAR, score DOUBLE);
-
-CREATE TABLE v_centrality_louvain("name" VARCHAR, community_id BIGINT);
-
-CREATE TABLE v_centrality_voterank("name" VARCHAR, score DOUBLE);
-
 CREATE TABLE v_company(id BIGINT, "name" VARCHAR, sector_classification VARCHAR, market_cap VARCHAR, ticker VARCHAR);
 
 CREATE TABLE v_country(id BIGINT, "name" VARCHAR);
