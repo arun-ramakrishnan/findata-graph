@@ -129,7 +129,7 @@ class TestDuckdbSnapshotCycle:
         assert "e_competes" in result["source_tables"]
 
     @staticmethod
-    def _stamp_central_tables(con: "duckdb.DuckDBPyConnection", n: int = 21453) -> None:
+    def _stamp_central_tables(con: duckdb.DuckDBPyConnection, n: int = 21453) -> None:
         """Minimal stand-in for stamp_centrality_cache: the ten ephemeral
         score tables (S4, graph_perf_l1_bfs_scale). Row counts only —
         verify checks counts, not score schemas."""

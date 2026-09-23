@@ -357,8 +357,8 @@ def verify_duckdb_snapshot(  # noqa: C901
             try:
                 if t == "_build_meta" and STAMP_OWNED_META_KEYS:
                     ph = ", ".join("?" for _ in STAMP_OWNED_META_KEYS)
-                    _row = con.execute(  # noqa: S608  # parameterized; identifier is schema-constant
-                        f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({ph})",
+                    _row = con.execute(
+                        f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({ph})",  # noqa: S608  # parameterized; schema-constant
                         tuple(STAMP_OWNED_META_KEYS),
                     ).fetchone()
                 else:
@@ -904,7 +904,7 @@ def _verify_parquet_duckdb_side(
                     try:
                         if stamp_meta:
                             _row = con.execute(
-                                f"SELECT COUNT(*) FROM _build_meta WHERE {meta_sql}",
+                                f"SELECT COUNT(*) FROM _build_meta WHERE {meta_sql}",  # noqa: S608  # parameterized; schema-constant
                                 tuple(STAMP_OWNED_META_KEYS),
                             ).fetchone()
                         else:
@@ -1141,7 +1141,7 @@ def restore_duckdb_from_parquet(
     return {"target": str(target), "tables": restored}
 
 
-def _cmd_restore(
+def _cmd_restore(  # noqa: C901  # restore orchestrator: arg branches mirror _cmd_backup
     db_path: Path,
     duckdb_path: Path,
     parquet_sqlite_dir: Path,

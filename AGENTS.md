@@ -1,31 +1,27 @@
 # Instructions for LLM/agent sessions
 
-Query, don't scan — the doc corpus and the code surface are both
-content-addressable. Grep and wholesale reads are the fallback.
+Query, don't scan — docs and code are content-addressable; grep and
+wholesale reads are the fallback.
 
-## doc_query — the `doc/` knowledge index
+## doc_query — `doc/` knowledge index
 
-Design/decision/history questions are answered by the index (~380
-sections: architecture, archived proposals, completed.md run log,
-procedures, local notes). Query, then `Read` only the linked section:
+Design/decision/history questions. Query, then Read only the linked
+section (`path:line [section] snippet` hits; covers all `doc/` incl.
+gitignored `doc/local/`):
 
 ```bash
 .venv/bin/python3 helpers/misc/doc_query.py "why did we not adopt langgraph" --limit 5
 ```
 
-- Hits are `path:line [section] snippet`, repo-rooted → direct
-  `Read(offset=line)` target. Covers ALL of `doc/` incl. gitignored
-  `doc/local/`. Scripts/tests/make/Mojo have their own index —
-  `helpers/misc/script_query.py "<task>" --kind script|test|make|mojo`
-  (query BEFORE grepping or writing a new helper; it may exist).
+Scripts/tests/make/Mojo have their own index:
+`helpers/misc/script_query.py "<task>" --kind script|test|make|mojo` —
+query BEFORE grepping or writing a new helper; it may exist.
 
 ## ripwire — structural code discovery (map-before-read)
 
-Symbols, callers, blast radius, doc ranking: the offline `ripwire`
-binary (no daemon, no API key; adopted per
-doc/improvements/archive/tooling/ripwire_adoption.md — head-to-head
-eval, verb families, Mojo-lane scope there). Map before read: locate
-with ripwire, then Read only what it names.
+Symbols, callers, blast radius. Offline binary (eval:
+doc/improvements/archive/tooling/ripwire_adoption.md). Locate, then Read
+only what it names.
 
 ```bash
 ripwire . --for="<task in words>"        # orient: ranked signatures
@@ -33,64 +29,61 @@ ripwire . --callers=SYM | --impact=SYM   # callers / blast radius
 ripwire . --grep=STR --grep-in=any --legend=compact  # literals — ALWAYS both flags
 ```
 
-## witr — process discovery for long-running jobs
+## witr — process discovery (`/usr/local/bin/witr`)
 
-`witr` (`/usr/local/bin/witr`) explains WHY a process/resource is busy.
-Reach for it before `ps aux | grep` — DB lock clashes, orphaned
-servers, and confirming a PID is yours before killing it:
-
-```bash
-witr <job> --tree                 # ancestry chain
-witr -f memory/data/sources.duckdb  # WHO holds this file open
-witr --pid N --warnings           # suspicious env/args/parents
-witr --port 5432 --env            # who owns a port + env
-```
-
-- `prime-agent → bash → timeout → python3` ancestry = launched by THIS
-  session (safe to kill at the leaf). Two writers on a `.duckdb`:
-  `witr -f` names the holder — kill the stale one, rerun.
+WHY a process/resource is busy — before `ps aux | grep`. Full usage:
+`man witr`. Session-specific: `prime-agent → bash → timeout → python3`
+ancestry = THIS session (safe to kill the leaf); `.duckdb` two-writers —
+`witr -f <db>` names the holder.
 
 ## Commit messages — stg patches
 
-Patch messages follow `doc/procedures/commit-messages.md` (seed:
-`doc/templates/commit_message.md`): fill the slots in a temp file at an
-absolute path, apply with `stg edit -f <file> <patch>` — never
-`git commit`/`amend` (operator owns structure, § Rules). Subject:
-`[Findata] <area>: <imperative, ≤72ch>`; body WHY-first, WHAT slices
-with one number each, `Gates:` trailer listing only gates actually run.
+Follow `doc/procedures/commit-messages.md` exactly: seed template →
+fill slots → `stg edit -f <file> <patch>`. All format detail lives
+there; the never-`git commit`/`amend` rule is § Rules.
+
+## gate_query — search the gate-run corpus
+
+`outputs/*_report.md` (main + `outputs/wt/<name>/outputs/`) indexed by
+`helpers/misc/gate_query.py` (DuckDB, incremental) — query BEFORE
+tailing reports (`gate_query` = `.venv/bin/python3 helpers/misc/gate_query.py`):
+
+```bash
+gate_query latest                     # newest run digest (default gate: qa)
+gate_query latest --gate all          # newest run PER GATE, one line each
+gate_query failures [--full]          # newest failed run: legs/tests + err heads
+gate_query failures --recent 15       # failure landscape across runs
+gate_query recent --gate qa --last 10 --tests   # history: PASS/FAIL + failed ids
+gate_query latest -wt graph_algos     # worktree copies (-wt = --wt)
+gate_query timing --leg graph_l1_betweenness --last 10
+```
 
 ## Rules
 
-- **Stale index?** The CLI warns and still answers (script_query may
-  exit 1 with the build command). Rebuild via
-  `helpers/maintenance/rebuild_{doc,script}_search.py` (warm ≈ instant;
-  content-hash embed cache).
+- **Stale index?** CLI warns and still answers (script_query may exit 1
+  with the build command). Rebuild:
+  `helpers/maintenance/rebuild_{doc,script}_search.py` (warm ≈ instant).
 - Never read `doc/improvements/completed.md` (166 KB) or 40 KB archived
   proposals wholesale — query first.
-- Division of labor: doc_query/script_query answer INTENT; STRUCTURE
-  (symbols, callers) is `ripwire` (§ above), `rg` the fallback; Mojo
-  language/API questions go to the **Mojo docs MCP, never web fetchers**.
+- doc_query/script_query = INTENT; STRUCTURE = `ripwire`, `rg` fallback;
+  Mojo language/API → **Mojo docs MCP, never web fetchers**.
 
 ## Gates & hygiene
 
-- **Keep the session todo list current** — mark items completed the
-  moment they land, add blockers/follow-ups as they emerge. A stale
-  list actively misleads the operator.
-- Blocking: `make qa` — ruff, **md-lint** (markdownlint-cli2; Node-gated,
-  skips without Node), types, deptry, static_checks, pytest,
-  verify_notes, integrity, snapshot. Non-blocking sweep: `make advisory`.
-- Markdown is lint-only: NEVER run markdownlint `--fix` over
-  `findata/**` (writer-owned vault, sentinel machinery). `doc/` is the
-  remediable surface.
-- After editing `doc/**`, the `Makefile`, or helper docstrings:
-  `make search-fresh` checks all three indexes (doc, script,
-  note). Index checks are advisory, never qa-gated.
-- Full gates ONCE per arc, at the end, with the user's go. The user
-  stages and commits — leave the tree dirty.
-- **No patch/commit lifecycle ops.** Never `stg new`/`push`/`pop`/
-  `delete`/`squash`, never `git commit`/`amend`/`rebase` — the operator
-  owns patch structure (2026-09-11: agent-created archival patch had to
-  be manually squashed). Edit files and `stg refresh` into the CURRENT
-  top patch only (scoped pathspec when the tree holds unrelated dirt).
-- Use `.venv/bin/python3` explicitly in non-interactive shells (examples
-  above do).
+- **Keep the session todo list current** — a stale list misleads.
+- Blocking: `make qa` — ruff, **md-lint** (markdownlint-cli2,
+  Node-gated), types, deptry, static_checks, pytest, verify_notes,
+  integrity, snapshot. Non-blocking: `make advisory`.
+- Markdown lint-only: NEVER `markdownlint --fix` on `findata/**`
+  (writer-owned vault). `doc/` is remediable.
+- After editing `doc/**`, `Makefile`, or helper docstrings:
+  `make search-fresh` (advisory, never qa-gated).
+- Full gates ONCE per arc, on the user's go. After fixes, re-run ONLY
+  the failed legs (their individual make targets), not the whole gate.
+  The user stages and commits — leave the tree dirty.
+- **No patch/commit lifecycle ops.** Never `stg
+  new`/`push`/`pop`/`delete`/`squash`, never
+  `git commit`/`amend`/`rebase` — the operator owns patch structure.
+  Edit files; `stg refresh` into the CURRENT top patch only (scoped
+  pathspec when the tree holds unrelated dirt).
+- Use `.venv/bin/python3` explicitly in non-interactive shells.

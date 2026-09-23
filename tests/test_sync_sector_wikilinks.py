@@ -188,7 +188,7 @@ def test_sync_sector_writes_complete_section(tmp_sector_db):
     db_path, sector_file = tmp_sector_db
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    changed, n = sync_sector(conn, sector_file, "Test", dry_run=False)
+    changed, n, fileless = sync_sector(conn, sector_file, "Test", dry_run=False)
     assert changed
     assert n == 2  # Acme + Beta are in "Test"; Gamma is in "Other".
     text = sector_file.read_text(encoding="utf-8")
@@ -205,7 +205,7 @@ def test_sync_sector_is_idempotent(tmp_sector_db):
     conn.row_factory = sqlite3.Row
     sync_sector(conn, sector_file, "Test", dry_run=False)
     # Second run: no change.
-    changed, n = sync_sector(conn, sector_file, "Test", dry_run=False)
+    changed, n, fileless = sync_sector(conn, sector_file, "Test", dry_run=False)
     assert not changed
     assert n == 2
     conn.close()
@@ -216,7 +216,7 @@ def test_sync_sector_check_mode_does_not_write(tmp_sector_db):
     original = sector_file.read_text(encoding="utf-8")
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
-    changed, n = sync_sector(conn, sector_file, "Test", dry_run=True)
+    changed, n, fileless = sync_sector(conn, sector_file, "Test", dry_run=True)
     assert changed  # reports stale
     assert n == 2
     # File untouched.

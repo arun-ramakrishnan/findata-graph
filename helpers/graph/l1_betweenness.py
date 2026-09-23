@@ -151,7 +151,7 @@ def peel_two_core(indptr: np.ndarray, indices: np.ndarray, n: int) -> tuple[np.n
     return mask, removed
 
 
-def tree_components(
+def tree_components(  # noqa: C901  # peel/classify ladder — proven vs brute force (test_l1_betweenness)
     removed: set[int],
     adj_sets: dict[int, set[int]],
     core: set[int],
@@ -370,7 +370,7 @@ def tree_node_scores(
 # --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
-def compute(
+def compute(  # noqa: C901  # fold orchestrator — exact vs fresh-Onager parity (graph_divisor §10)
     db_path: str | Path = DEFAULT_DB_PATH,
     jobs: int = 1,
 ) -> tuple[dict[str, float], dict]:

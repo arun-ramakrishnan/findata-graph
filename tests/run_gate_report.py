@@ -70,6 +70,49 @@ _TY = shutil.which("ty") or "ty"
 _DEPTRY = shutil.which("deptry") or "deptry"
 _MAKE = shutil.which("make") or "make"
 
+
+def _git(*args: str) -> str | None:
+    """One git query, None on any failure — report metadata must never gate."""
+    try:
+        out = subprocess.run(  # noqa: S603  # PATH-resolved git, fixed args (house pattern)
+            ("git", *args),  # noqa: S607
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+    except OSError, subprocess.TimeoutExpired:
+        return None
+    return out.stdout.strip() or None
+
+
+def _git_worktree_name() -> str:
+    """``''`` for the main checkout; ``<name>`` for a linked worktree."""
+    git_dir = _git("rev-parse", "--absolute-git-dir")
+    common = _git("rev-parse", "--git-common-dir")
+    if not git_dir or not common:
+        return ""
+    git_p, common_p = Path(git_dir).resolve(), Path(common).resolve()
+    return "" if git_p == common_p else git_p.name
+
+
+def _outputs_root() -> Path:
+    """outputs/ of the MAIN checkout — a linked worktree files its report
+    copies under ``<main>/outputs/wt/<name>/outputs/`` (the layout
+    search_tui lane 6 and gate_query already enumerate)."""
+    wt = _git_worktree_name()
+    if not wt:
+        return REPO_ROOT / "outputs"
+    common = Path(_git("rev-parse", "--git-common-dir")).resolve()  # <main>/.git
+    return common.parent / "outputs" / "wt" / wt / "outputs"
+
+
+OUTPUTS_ROOT = _outputs_root()
+# gate_run_search S1: per-gate junitxml for pytest legs — machine-ground
+# per-test outcomes + durations for the outputs/gate_runs.duckdb index
+# (helpers/misc/gate_query.py); xdist merges worker shards into one file.
+_JUNIT_DIR = OUTPUTS_ROOT / ".junit"
+_JUNIT_DIR.mkdir(parents=True, exist_ok=True)
+
 _TAIL_LINES = 60  # lines appended to the report per step
 # ty-tests digest budget: concise diagnostics are 1 line each; 120 covers
 # the worst historical burst (91 diagnostics, 2026-08-25) with margin.
@@ -139,7 +182,20 @@ GATES: dict[str, Gate] = {
             # The suite is the qa critical path (113s serial -> ~65s on 4
             # workers, 2026-08-31 shakedown: 2423 passed, no shared-state
             # breakage).
-            Step("pytest", (_PY, "-m", "pytest", "-m", "not live", "-n", "auto")),
+            Step(
+                "pytest",
+                (
+                    _PY,
+                    "-m",
+                    "pytest",
+                    "-m",
+                    "not live",
+                    "-n",
+                    "auto",
+                    "--junitxml",
+                    str(_JUNIT_DIR / "qa.junit.xml"),
+                ),
+            ),
             Step("verify_notes", (_PY, "helpers/validators/verify_notes.py")),
             Step("integrity_check", (_PY, "helpers/misc/database_integrity_check.py")),
             # snapshot_fresh_gate: generation-only freshness first — drift
@@ -152,7 +208,19 @@ GATES: dict[str, Gate] = {
     "integration": Gate(
         steps=(
             Step(
-                "pytest-integration", (_PY, "-m", "pytest", "-m", "integration", "-v", "-n", "auto")
+                "pytest-integration",
+                (
+                    _PY,
+                    "-m",
+                    "pytest",
+                    "-m",
+                    "integration",
+                    "-v",
+                    "-n",
+                    "auto",
+                    "--junitxml",
+                    str(_JUNIT_DIR / "integration.junit.xml"),
+                ),
             ),
         ),
     ),
@@ -191,7 +259,18 @@ GATES: dict[str, Gate] = {
             # and 3 workers each paid a full render; 2026-09-20).
             Step(
                 "live-invariants",
-                (_PY, "-m", "pytest", "-m", "live", "-n", "auto", "--dist=loadgroup"),
+                (
+                    _PY,
+                    "-m",
+                    "pytest",
+                    "-m",
+                    "live",
+                    "-n",
+                    "auto",
+                    "--dist=loadgroup",
+                    "--junitxml",
+                    str(_JUNIT_DIR / "advisory.junit.xml"),
+                ),
             ),
             Step("frontend-check", (_MAKE, "frontend-check")),
             # md-lint was promoted to the qa gate at S5 (markdown_lint_
@@ -353,14 +432,21 @@ def write_report(
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     jobs_str = f"  jobs={jobs}" if jobs > 1 else ""
     started_str = f"  ·  **Started:** {started}  ·  **Elapsed:** {elapsed:.1f}s" if started else ""
+    sha = _git("rev-parse", "--short", "HEAD")
+    commit_str = f"  ·  **Commit:** {sha}" if sha else ""
+    wt = _git_worktree_name()
+    wt_str = f"  ·  **Worktree:** {wt}" if wt else ""
+    rc = 0 if overall_ok(results) else 1
     report_path.parent.mkdir(parents=True, exist_ok=True)
     with open(report_path, "a") as f:
         fcntl.flock(f.fileno(), fcntl.LOCK_EX)
         try:
             f.write(f"# make {gate_name} — gate report\n\n")
             f.write(
-                f"**Generated:** {ts}{started_str}  ·  **Python:** {sys.version.split()[0]}{jobs_str}\n\n"
+                f"**Generated:** {ts}{started_str}  ·  **Python:** {sys.version.split()[0]}{jobs_str}"
+                f"{commit_str}{wt_str}\n\n"
             )
+            f.write(f"**Exit:** {rc}\n\n")  # gate_run_search: machine-readable verdict
             f.write("| Step | Time (s) | Status |\n")
             f.write("|---|---|---|\n")
             for r in results:
@@ -434,9 +520,13 @@ def main(argv: list[str] | None = None) -> int:
     elapsed = time.perf_counter() - t0
     ended = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print("\n".join(table_lines(results, started=started, ended=ended, elapsed=elapsed)))
-    report = REPO_ROOT / "outputs" / f"{name}_report.md"
+    report = OUTPUTS_ROOT / f"{name}_report.md"
     write_report(report, name, results, jobs, started=started, elapsed=elapsed)
-    print(f"appended to {report.relative_to(REPO_ROOT)}")
+    try:
+        shown = report.relative_to(REPO_ROOT)
+    except ValueError:  # linked-worktree copy lives in the MAIN repo tree
+        shown = report
+    print(f"appended to {shown}")
     return 0 if overall_ok(results) else 1
 
 

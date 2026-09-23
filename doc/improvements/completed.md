@@ -7205,6 +7205,45 @@ r=0.9996 vs fresh Onager; proposal §4 corrected).
 
 Execution record: `archive/graph/scipy_katz_exact_solve.md`.
 
+## 282. gate_query — gate-run report search index + CLI
+
+**Proposal**: `doc/improvements/archive/tooling/gate_run_search.md`
+(filed 2026-09-23, executed + archived 2026-09-24 — verdict:
+**EXECUTED**). WHY: prompts running make qa/advisory burned tokens
+locating the latest run and failure context inside append-only report
+files (qa_report 432 KB, integrity 22 MB), and the per-leg timings the
+reports already carried were unqueryable. Reports stay the source of
+truth; a derived DuckDB index (`outputs/gate_runs.duckdb`) makes them
+one-command searchable.
+
+- `helpers/misc/gate_query.py`: latest/recent/failures/tests/timing/
+  grep/rotate/refresh — byte-offset incremental refresh commits only
+  complete run blocks (trailing half-written run stays pending);
+  144-run corpus indexed in one full pass, ms-scale increments after
+  each gate; junitxml ingest with -ra-fallback dedupe.
+- run_gate_report.py: `--junitxml` on all 3 pytest legs
+  (qa/integration/advisory; xdist merges) + **Commit**/**Worktree**/
+  **Exit:** meta lines; linked worktrees file report copies under the
+  MAIN repo's `outputs/wt/<name>/outputs/`. First real gate run
+  validated the chain (3,471 junit rows ingested; exit/verdict
+  backfill live).
+- Rotation: byte-exact run prefixes -> `outputs/archives/<stem>/*.zst`
+  (stdlib compression.zstd, PEP 784); keep last 30 runs / rotate past
+  8 MB, dry-run default; offsets stay valid inside decompressed
+  archives (archived runs keep full-context reads).
+- Worktree copies namespaced; `-wt` alias; `--gate` defaults to qa
+  (`all` = newest run PER gate). AGENTS.md gained the gate_query
+  section + whole-file token optimization (6,093 -> 3,739 chars).
+- lint-audit: all 9 S/UP/C901 findings dispositioned — sync_sector
+  3-tuple test unpacks fixed (c777fa9b follow-through), justified
+  noqas on proven orchestrators (l1_betweenness fold, snapshot_db
+  restore), trailing-f-string S608 placement.
+
+Gates: make qa 11/11, make perf 23/23, make search-fresh APPLY=1,
+make lint-audit clean, make types-tests warnings-only.
+
+Execution record: `archive/tooling/gate_run_search.md`.
+
 ## 281. SciPy eigsh eigenvector — lane implemented
 
 **Proposal**: `doc/improvements/archive/graph/scipy_eigenvector_eigsh.md`

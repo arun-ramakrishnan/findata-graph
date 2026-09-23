@@ -169,6 +169,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`archify_diagram_refresh.md`](tooling/archify_diagram_refresh.md) — Archify diagram refresh — evidence backfill, staleness repair, quote_capture S9 — completed.md #220
 - [`archify_c4_coverage_stock.md`](tooling/archify_c4_coverage_stock.md) — Archify C4 coverage on stock schema — external actors + first sequence diagram — completed.md #232
 - [`search_tui_enhancements.md`](tooling/search_tui_enhancements.md) — Search TUI enhancements — themes + report lane — completed.md #243
+- [`gate_run_search.md`](tooling/gate_run_search.md) — gate_query — DuckDB index + CLI over the append-only gate-run reports (byte-offset incremental refresh, junitxml ingest, zstd rotation to outputs/archives) — completed.md #282
 
 ## ui/ — Frontend & templates — reader, paper register, findata views
 

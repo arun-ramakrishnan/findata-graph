@@ -87,7 +87,9 @@ def _company_title(file_path: str) -> str:
     return Path(file_path).stem.replace("_", " ")
 
 
-def _companies_for_sector(conn, sector_classification: str) -> tuple[list[tuple[str, str, str]], int]:
+def _companies_for_sector(
+    conn, sector_classification: str
+) -> tuple[list[tuple[str, str, str]], int]:
     """Return ``((name, stem, title) list, fileless_skipped)`` for a sector.
 
     ``stem`` is the filename basename (Obsidian's link TARGET); ``title`` is
@@ -256,8 +258,10 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         conn.close()
 
-    print(f"\n{sectors_processed} sector(s) processed, {total_companies} company links total, "
-          f"{total_skipped} fileless skipped (no note to link).")
+    print(
+        f"\n{sectors_processed} sector(s) processed, {total_companies} company links total, "
+        f"{total_skipped} fileless skipped (no note to link)."
+    )
     if not args.apply:
         print("DRY-RUN: no sector notes written. Pass --apply to write.")
     if args.check:

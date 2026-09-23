@@ -3,6 +3,14 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **gate_query test-run search — EXECUTED 2026-09-24 (#282)**
+  (`archive/tooling/gate_run_search.md`): DuckDB index + CLI over the
+  append-only gate reports — latest-run digest, failed-test details
+  (junitxml-backed), timing-vs-budget history, byte-offset incremental
+  refresh, zstd rotation into `outputs/archives/`. Solves the
+  prompts-parsing-huge-gate-output problem; writer enhancements land in
+  `tests/run_gate_report.py` (junitxml, Commit/Worktree/Exit meta).
+
 - **scipy routing dispatch — FILED + WIRED 2026-09-23**
   (`proposals/scipy_routing_dispatch.md`, implemented in the
   `scipy_algos` patch): SCIPY-routed closeness/harmonic DB-backed

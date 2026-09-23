@@ -34,8 +34,8 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none — the graph perf arc fully archived 2026-09-23 as completed.md
-#277–281; see the Previously chain below.)_
+_(none — the gate_run_search arc archived 2026-09-24 as completed.md
+entry 282; see the Previously chain below.)_
 
 _(Previously: graph_perf_l1_bfs_scale.md archived 2026-09-23 as
 completed.md entry 277 — VIGIL-scale BFS-family perf: restricted-source
@@ -49,6 +49,12 @@ completed.md entry 278 — BSD-native scipy second lane (S1 dijkstra
 carrier; S2 Katz+eigsh implemented; S3/S4 children deferred with
 triggers; §7 27-public surface accounting). Execution record in
 `../archive/graph/scipy_graph_bridge.md`.)_
+
+_(Previously: gate_run_search.md archived 2026-09-24 as completed.md
+entry #282 — gate_query DuckDB index + CLI over the gate-run corpus
+(latest/failures/recent/timing/rotate), junitxml + Commit/Worktree/
+Exit meta lines, zstd rotation to outputs/archives. Execution record
+in `../archive/tooling/gate_run_search.md`.)_
 
 _(Previously: scipy_routing_dispatch.md archived 2026-09-23 as
 completed.md entry 279 — ROUTING wired into dispatch (S1+S3 flips,

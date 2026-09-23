@@ -100,7 +100,7 @@ def test_toy_core_trees_and_special_component() -> None:
 
 def test_random_graphs_exact_vs_brute_force() -> None:
     """Seeded random graphs: the fold must equal unfolded Brandes exactly."""
-    rng = random.Random(7)
+    rng = random.Random(7)  # noqa: S311  # seeded test-data generation, not crypto
     for _trial in range(8):
         n = rng.randint(8, 14)
         p = rng.uniform(0.15, 0.45)
