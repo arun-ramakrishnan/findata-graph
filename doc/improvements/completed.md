@@ -7125,3 +7125,161 @@ Execution record: `archive/graph/pagerank_graph_enhancements.md`.
   6-min stamp), then 2-core folding for betweenness. perf doc §B2.
 
 Execution record: `archive/graph/centrality_rebuild_contract.md`.
+
+## 277. Graph perf L1 — BFS-family centrality and link prediction at VIGIL scale
+
+**Proposal**: `doc/improvements/archive/graph/graph_perf_l1_bfs_scale.md`
+(filed + executed 2026-09-23 — verdict: **EXECUTED**, all legs green).
+The VIGIL intake blew three cold `--compute` legs 12–31× vs pre-VIGIL
+budgets (closeness 156.8 s, link_prediction 57.0 s, betweenness 48.9 s).
+
+- L1a: company-source-restricted scipy `dijkstra(indices=contract)`
+  (route (d)) — 156.8 s → 2.9 s wall 4-way (6.5 s single), parity
+  r=0.9571 vs stamp; owns L1's route via `scipy_graph_bridge.md` S1.
+- L1b: 2-core folding + analytic trees + exact core Brandes — 48.9 s →
+  3.3–3.9 s; exactness proven (toy harness, fresh-bypass parity
+  r=1.000000, operator countersign on the restamped generation).
+- L1c: SQL 2-hop candidate join — 61 s → 0.65 s exact (top-10
+  bit-identical); hub cap 512 + per-lo top-K.
+- S4: snapshot manifest centrality-awareness (v_centrality_* EPHEMERAL).
+- S5: budgets re-baselined to VIGIL scale; perf gate 23/23 green.
+
+Execution record: `archive/graph/graph_perf_l1_bfs_scale.md`.
+
+## 278. SciPy graph bridge — BSD-native analytics second lane
+
+**Proposal**: `doc/improvements/archive/graph/scipy_graph_bridge.md`
+(filed + executed 2026-09-23 — verdict: **EXECUTED**).
+Standing second lane (`helpers/graph/scipy_bridge.py`, scipy 1.18.1
+already a declared dependency, BSD — the license-clean route (d)).
+
+- S1 shipped: restricted-source `dijkstra` closeness+harmonic lane
+  (fused derive, fork split, dry-run default, `--apply` UPSERT).
+- S2 implemented: Katz exact-solve + eigsh eigenvector lanes
+  (completed.md #280–281).
+- S2/S3/S4 remainder filed as per-algo children; five deferred +
+  archived with triggers (completed.md #272–276).
+- §7: full 27-public `csgraph` surface accounting (owned-elsewhere /
+  converters / no-consumer-recorded — nothing silently owed).
+
+Execution record: `archive/graph/scipy_graph_bridge.md`.
+
+## 279. ROUTING dispatch — wire the scipy lane into algorithms.py
+
+**Proposal**: `doc/improvements/archive/graph/scipy_routing_dispatch.md`
+(filed + executed 2026-09-23 — verdict: **EXECUTED**).
+The `ROUTING` table becomes the dispatch: `_run_closeness` /
+`_run_harmonic` → scipy lane, `_run_betweenness` → L1b fold
+(S3 flip on the §8.3 countersign); synthetic `edges=` and
+`ONAGER_DEFAULT` paths untouched; low-level full-population
+functions untouched (query.py path intact).
+
+- Five-route program closed: closeness/harmonic exact + applied,
+  betweenness exact + applied, pref-attach guarded + exact top-K
+  heap (0.83 s vs a 10+ min kill; p/s alias resurrection fixed),
+  stamp diet (census → skip-3 → seven tables in ~8 s),
+  hop metrics measured + closed (0.76 s).
+- Fail-loud doctrine: pre-flight asserts with slow-path costs,
+  no silent engine fallback, destructive-op preambles
+  (rebuild/fresh/stamp/restore).
+- Convention fork recorded as pending (served vs stamp universe;
+  ×1.2383 underived) — reconciliation explicitly out of scope.
+- Gate: `make qa` 11/11, `make perf` 23/23 at close.
+
+Execution record: `archive/graph/scipy_routing_dispatch.md`.
+
+## 280. SciPy Katz exact-solve — lane implemented
+
+**Proposal**: `doc/improvements/archive/graph/scipy_katz_exact_solve.md`
+(filed + executed 2026-09-23 — verdict: **EXECUTED**).
+`spsolve(I − αA)` over the unweighted ex-index CSR — measured, not
+assumed (weighted solves par worse, r=0.92, than unweighted,
+r=0.9996 vs fresh Onager; proposal §4 corrected).
+
+- Admissibility guard refuses α ≥ 0.99/λmax naming the bound;
+  near-critical demo on the 200-leaf star (Onager raises there per
+  the pinned test, solve returns exact with restored spread).
+- Absolute note: maxdiff 7.6e-3 (C++ iteration tolerance; the
+  single-iteration theory died at 5.7e-2). Opt-in lane + `--apply`;
+  no dispatch flip. Applied + verified (1,734 rows).
+
+Execution record: `archive/graph/scipy_katz_exact_solve.md`.
+
+## 281. SciPy eigsh eigenvector — lane implemented
+
+**Proposal**: `doc/improvements/archive/graph/scipy_eigenvector_eigsh.md`
+(filed + executed 2026-09-23 — verdict: **EXECUTED**).
+ARPACK dominant eigenvector (explicit tol, L2 unit-norm, dominant
+node sign-positive); `ArpackNoConvergence` raises loud (never a
+silent partial vector).
+
+- Robustness case found by hunting: P100 slow-mixing path (Onager's
+  fixed 100-iteration loop raises, ARPACK converges; barbell
+  converges on both, so P100 it is). Live agreement r > 0.999.
+- Filed hand oracle corrected in-test (2/√5 satisfies the eigen
+  equation but breaks unit norm; correct 1/√2 + 1/√8 pinned).
+- Opt-in lane + `--apply`; no dispatch flip. Applied + verified
+  (1,734 rows).
+
+Execution record: `archive/graph/scipy_eigenvector_eigsh.md`.
+
+## 272. SciPy personalized PageRank — filed DEFERRED, archived
+
+**Proposal**: `doc/improvements/archive/graph/scipy_personalized_pagerank.md`
+(filed 2026-09-23, archived 2026-09-23 — verdict: **DEFERRED**, no code).
+Child of the scipy_algos umbrella (S2): exact one-solve pPR
+(`spsolve(I − αP, (1−α)v)`) resurrecting the Onager-dropped lane
+(restart-hardcoded bug).
+
+**Trigger for revival**: a named consumer — the engine eval says
+revisit only "if personalized-PR becomes a must" (no must today);
+`pending.md` N5-item-6 defers the Onager wrap on the same grounds.
+No incumbent to par against (acceptance: seed-concentration check +
+toy dense-inversion oracle + missing-seed error).
+
+## 273. SciPy maximum flow — filed DEFERRED, archived
+
+**Proposal**: `doc/improvements/archive/graph/scipy_maximum_flow.md`
+(filed 2026-09-23, archived 2026-09-23 — verdict: **DEFERRED**, no code).
+Child of the scipy_algos umbrella (S3): Dinic (`maximum_flow`) + min-cut
+edge listing replacing the retired igraph seat; dry-run only (an s-t
+pair has no per-entity metric shape).
+
+**Trigger for revival**: a named s-t question (bottleneck/narrow-channel
+detector); acceptance pattern recorded (hand-verified toy maxflow 6 =
+mincut + one live s-t pair < 2 s).
+
+## 274. SciPy minimum spanning tree — filed DEFERRED, archived
+
+**Proposal**: `doc/improvements/archive/graph/scipy_minimum_spanning_tree.md`
+(filed 2026-09-23, archived 2026-09-23 — verdict: **DEFERRED**, no code).
+Child of the scipy_algos umbrella (S3): Kruskal-family MST over the
+weighted CSR (forest-aware: component count reported); wires the
+deferred Onager-MST need.
+
+**Trigger for revival**: the need un-deferred (algos record: "no
+consumer today"); acceptance pattern recorded (Kruskal toy oracle +
+live smoke timing). Guard note added at archival: cap edge-list
+output (~1k + totals) — a 22k-node forest listing is its own blowup.
+
+## 275. SciPy Yen K-shortest paths — filed DEFERRED, archived
+
+**Proposal**: `doc/improvements/archive/graph/scipy_yen_k_shortest.md`
+(filed 2026-09-23, archived 2026-09-23 — verdict: **DEFERRED**, no code).
+Child of the scipy_algos umbrella (S3): K simple shortest paths
+(neither SQL nor Onager can express); opt-in, explicitly no consumer yet.
+
+**Trigger for revival**: first consumer. Guard note added at archival:
+bound K (default 5, max 25 — cost ≈ K Dijkstras); unbounded K refused.
+
+## 276. SciPy sparse link-prediction kernel — filed DEFERRED, archived
+
+**Proposal**: `doc/improvements/archive/graph/scipy_link_prediction_kernel.md`
+(filed 2026-09-23, archived 2026-09-23 — verdict: **DEFERRED**, no code).
+Child of the scipy_algos umbrella (S4, conditional): sparse A² +
+degree-vector scores (common-neighbors / jaccard / adamic-adar /
+preferential-attachment / resource-allocation) with numpy mechanics
+fixed (`intersect1d` joins, `argpartition` top-K, `bincount` sums).
+
+**Trigger for revival**: SQL L1c stalls (not met: SQL delivered exact
+at 0.65 s — the S4 that proved itself unnecessary).

@@ -17,10 +17,16 @@ NetworkX was retired earlier (2026-08-14 consolidation).
 | local_clustering_coefficient   | Onager        |
 | shortest_path (single label)   | BFS over e_all_und |
 | louvain_community              | Onager        |
-| betweenness_centrality         | Onager        |
+| betweenness_centrality         | l1b-fold (ROUTING) |
 | degree_centrality             | Onager        |
-| closeness_centrality           | Onager        |
+| closeness_centrality           | scipy (ROUTING) |
 | eigenvector_centrality         | Onager        |
+
+DB-backed `closeness_centrality` / `harmonic_centrality` calls through
+``compute()`` route to the scipy lane
+(``helpers/graph/scipy_bridge.py`` — the ROUTING table is the single
+source of truth); the low-level functions above stay Onager,
+full-population, and synthetic-``edges=`` calls never route.
 
 Onager needs no property graph and stores nothing of its own: it reads the
 ``graph_edges`` table, projected as plain ``(src, dst, weight)`` integer
@@ -109,6 +115,7 @@ from helpers.graph.onager import (  # noqa: E402
     onager_pagerank,
     with_onager_connection,
     DEFAULT_PREDICTION_EDGE_TYPES,
+    PREF_ATTACH_STORE_CAP,
 )
 
 PROJECT_ROOT = _PROJECT_ROOT
@@ -460,6 +467,7 @@ def link_prediction(
     *,
     method: str = "jaccard",
     top: int | None = None,
+    allow_all_pairs: bool = False,
 ) -> list[tuple[str, str, float]]:
     """Rank candidate (missing) edges by neighbourhood similarity.
 
@@ -473,7 +481,8 @@ def link_prediction(
     (co_mentioned_in, jv_with, competes_with, same_group) so predictions
     are not dominated by trivial sector co-occurrence (proposal risk #1).
     ``method``: jaccard | adamic-adar | common-neighbors | pref-attach |
-    resource-alloc.
+    resource-alloc. ``allow_all_pairs`` gates the ``pref-attach`` DB path
+    (all-pairs extension — refused without it, see onager_link_prediction).
 
     Deliberately NOT in ``_METRIC_DISPATCH``: that registry serves the
     node-keyed ``{entity_name: value}`` contract; link prediction is
@@ -487,7 +496,9 @@ def link_prediction(
         con = duckdb_connect(read_only=True)
         own = True
     try:
-        return onager_link_prediction(con, edge_types=edge_types, method=method, top=top)
+        return onager_link_prediction(
+            con, edge_types=edge_types, method=method, top=top, allow_all_pairs=allow_all_pairs
+        )
     finally:
         if own:
             con.close()
@@ -518,6 +529,8 @@ def _persist_link_prediction(
     values: dict[str, dict[str, Any]] = {}
 
     def _node_row(name: str) -> dict[str, Any]:
+        # Any (not dict[str, dict[str, Any]]): ["candidates"] is a list;
+        # the narrower annotation makes ty reject .append below.
         return values.setdefault(
             name, {"method": method, "edge_types": projection, "candidates": []}
         )
@@ -525,6 +538,12 @@ def _persist_link_prediction(
     for a, b, score in pairs:
         _node_row(a)["candidates"].append({"name": b, "score": score})
         _node_row(b)["candidates"].append({"name": a, "score": score})
+    if method == "pref-attach":
+        # Unbounded pref-attach output (~243M pairs) is infeasible by
+        # nature: persist per-node top-100 (API serves top<=100; pairs
+        # arrive globally score-ordered so per-node lists are pre-sorted).
+        for row in values.values():
+            del row["candidates"][PREF_ATTACH_STORE_CAP:]
     if not values:
         return 0
     return write_analytics("link_prediction", values, conn=conn)
@@ -631,15 +650,35 @@ def _cached_central_scores(con: Any, table: str) -> dict[str, Any] | None:
     None (=> compute as today) when bypassed, the table is absent (cold /
     older cache / unstamped metric), or empty. Best-effort by design —
     the disk layer must never make a read harder than the compute it
-    replaces.
+    replaces. On a miss for a historically slow table, say what comes
+    next (and its lane alternative) instead of hanging silently.
     """
     if _BYPASS_CENTRALITY_CACHE.get():
         return None
     try:
         rows = con.execute(f"SELECT name, score FROM {table}").fetchall()  # noqa: S608
     except Exception:  # noqa: S110  # cold/older cache -> compute
+        _advise_slow_miss(table)
+        return None
+    if not rows:
+        _advise_slow_miss(table)
         return None
     return {n: s for n, s in rows} or None
+
+
+#: Stamp-miss advisories for historically slow tables (costs measured
+#: 2026-09-23 at VIGIL scale). Fast tables miss silently — nothing to say.
+_SLOW_TABLE_HINTS = {
+    "v_centrality_closeness": "fresh Onager closeness ≈150-163 s cold; the scipy lane serves it in ~6 s (algorithms.py closeness)",
+    "v_centrality_harmonic": "fresh Onager harmonic ≈192 s cold; the scipy lane serves it in ~6 s (algorithms.py harmonic)",
+    "v_centrality_betweenness": "fresh Onager betweenness ≈40-50 s cold; the L1b fold lane serves it in ~8 s (algorithms.py betweenness)",
+}
+
+
+def _advise_slow_miss(table: str) -> None:
+    hint = _SLOW_TABLE_HINTS.get(table)
+    if hint is not None:
+        print(f"centrality cache: {table} absent — {hint}", file=sys.stderr)
 
 
 def _cached_voterank(con: Any) -> list[str] | None:
@@ -722,7 +761,12 @@ def _run_louvain(con, *, edges, **_) -> dict[str, Any]:
     return louvain_communities(con, edges=edges).labels
 
 
-def _run_betweenness(con, *, edges, top_k, approximate, **_) -> dict[str, Any]:
+def _run_betweenness(con, *, edges, top_k, approximate, db_path=None, **_) -> dict[str, Any]:
+    if edges is None and _l1b_routed():
+        result = _run_l1b_lane(db_path)
+        if top_k is not None and top_k > 0:
+            result = dict(sorted(result.items(), key=lambda kv: kv[1], reverse=True)[:top_k])
+        return result
     return betweenness_centrality(
         con, top_k=top_k, approximate=_resolve_approx(approximate, True), edges=edges
     )
@@ -732,7 +776,129 @@ def _run_degree(con, *, edges, **_) -> dict[str, Any]:
     return degree_centrality(con, edges=edges)
 
 
-def _run_closeness(con, *, edges, approximate, **_) -> dict[str, Any]:
+def _scipy_routed(metric: str) -> bool:
+    """True when ROUTING assigns ``metric`` to the scipy lane.
+
+    The table (``helpers/graph/scipy_bridge.py``) is the single source of
+    truth — never a second list here. Imported lazily: scipy/numpy import
+    cost must not land on the ``app.py``/``query.py`` import chains, and
+    the lane keeps its ``algorithms`` import function-local, so no cycle.
+    """
+    from helpers.graph import scipy_bridge as _sb
+
+    return _sb.ROUTING.get(metric) == "SCIPY"
+
+
+def _l1b_routed() -> bool:
+    """True when ROUTING assigns betweenness to the L1b fold lane.
+
+    Separate from ``_scipy_routed`` because the owner value differs
+    (``L1B_FOLD``) and the lane lives in ``l1_betweenness``, not the
+    bridge. Flipped 2026-09-23 on the §8.3 countersign (toy harness +
+    fresh-bypass parity both exact); the table stays the single source
+    of truth — reverting the value restores the Onager path.
+    """
+    from helpers.graph import scipy_bridge as _sb
+
+    return _sb.ROUTING.get("betweenness_centrality") == "L1B_FOLD"
+
+
+def _run_l1b_lane(db_path: str | Path | None = None) -> dict[str, float]:
+    """Serve betweenness from the L1b 2-core fold (contract population).
+
+    Same fail-loud posture as ``_run_scipy_lane``: pre-flight asserts
+    fire before compute with the slow-path cost stated (fresh Onager
+    betweenness measured 40-50 s cold at VIGIL scale), drift raises
+    ``KeyError`` (UPSERT never deletes — skipping would serve stale
+    rows), and no silent Onager fallback exists. Normalization mirrors
+    the lane's own apply path (unordered raw over ``(n-1)(n-2)/2``,
+    ``n`` = ex-index endpoints).
+    """
+    from helpers.graph import l1_betweenness as _l1b
+
+    db = _l1b.DEFAULT_DB_PATH if db_path is None else db_path
+    try:
+        scores, info = _l1b.compute(db, jobs=1)
+    except ImportError as e:
+        raise RuntimeError(
+            "l1b fold lane unavailable (import failed); refusing Onager "
+            f"fallthrough (fresh betweenness ≈40-50 s cold): {e}"
+        ) from e
+    if not scores:
+        raise ValueError(
+            "l1b fold lane: empty projection; refusing to persist zeros "
+            "(an empty write would poison the contract-shaped tables)"
+        )
+    scon = connect(str(db), read_only=True, row_factory=None)
+    try:
+        contract = [
+            r[0]
+            for r in scon.execute(
+                "SELECT DISTINCT entity_name FROM graph_analytics WHERE metric = ?",
+                (_l1b.BETWEENNESS_METRIC,),
+            ).fetchall()
+        ]
+    finally:
+        scon.close()
+    if not contract:
+        raise ValueError(
+            "l1b fold lane: empty company contract; refusing to compute "
+            "against nothing (check the graph_analytics betweenness rows)"
+        )
+    missing = [c for c in contract if c not in scores]
+    if missing:
+        raise KeyError(
+            f"contract names missing from the fold projection: {missing[:5]}... "
+            "(rebuild the contract or check edge ingest — UPSERT never "
+            "deletes, so skipping would serve stale rows indefinitely)"
+        )
+    norm = (info["endpoints"] - 1) * (info["endpoints"] - 2) / 2.0
+    return {name: scores[name] / norm for name in contract}
+
+
+def _run_scipy_lane(metric: str, db_path: str | Path | None = None) -> dict[str, float]:
+    """Serve a SCIPY-routed metric from the bridge (contract population).
+
+    Pre-flight asserts fire BEFORE any compute, and every message states
+    the slow-path cost it saves (fresh Onager closeness measured
+    150-163 s cold at VIGIL scale; harmonic ~192 s stamp-share): a
+    missing lane dependency, an empty projection, or a drifting
+    contract raises immediately. No silent engine fallback — a failed
+    fast leg must fail, never degrade into a silent 150 s run (the CLI
+    reports FAIL and continues with the remaining legs).
+    """
+    from helpers.graph import scipy_bridge as _sb
+
+    db = _sb.DEFAULT_DB_PATH if db_path is None else db_path
+    try:
+        A, names = _sb.load_projection(db)
+    except ImportError as e:
+        raise RuntimeError(
+            "scipy lane unavailable (scipy/numpy import failed); refusing "
+            f"Onager fallthrough (fresh closeness ≈150-163 s cold): {e}"
+        ) from e
+    if A.shape[0] == 0:
+        raise ValueError(
+            "scipy lane: empty projection; refusing to persist zeros "
+            "(an empty write would poison the contract-shaped tables)"
+        )
+    contract = _sb.contract_sources(db)
+    if not contract:
+        raise ValueError(
+            "scipy lane: empty company contract; refusing to compute "
+            "against nothing (check the graph_analytics closeness rows)"
+        )
+    # KeyError on drift (names the missing name + the fix); UPSERT never
+    # deletes, so silently skipping would serve stale rows indefinitely.
+    src = _sb.source_positions(contract, names)
+    clo, harm = _sb.compute(A, src, jobs=1)
+    out = clo if metric == _sb.CLOSINESS_METRIC else harm
+    return {name: float(v) for name, v in zip(contract, out.tolist())}
+
+
+def _run_closeness(con, *, edges, approximate=None, db_path=None, **_) -> dict[str, Any]:
+    if edges is None and _scipy_routed("closeness_centrality"):
+        return _run_scipy_lane("closeness_centrality", db_path)
     return closeness_centrality(con, approximate=_resolve_approx(approximate, False), edges=edges)
 
 
@@ -740,7 +906,9 @@ def _run_eigenvector(con, *, edges, **_) -> dict[str, Any]:
     return eigenvector_centrality(con, edges=edges)
 
 
-def _run_harmonic(con, *, edges, **_) -> dict[str, Any]:
+def _run_harmonic(con, *, edges, db_path=None, approximate=None, **_) -> dict[str, Any]:
+    if edges is None and _scipy_routed("harmonic_centrality"):
+        return _run_scipy_lane("harmonic_centrality", db_path)
     return harmonic_centrality(con, edges=edges)
 
 
@@ -783,11 +951,17 @@ def compute(
     top_k: int | None = None,
     approximate: bool | None = None,
     as_of: str | None = None,
+    db_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Compute a single graph metric and return {entity_name: value}.
 
     All metrics are computed directly from the DuckDB connection via
-    Onager — no in-memory NetworkX graph is built. ``con`` is a DuckDB
+    Onager — no in-memory NetworkX graph is built — EXCEPT metrics the
+    ROUTING table (``helpers/graph/scipy_bridge.py``) assigns to a lane
+    (``closeness_centrality`` / ``harmonic_centrality`` → scipy bridge,
+    ``betweenness_centrality`` → L1b fold): their DB-backed path runs
+    the lane over SQLite ``graph_edges`` and returns the
+    persisted-contract population. ``con`` is a DuckDB
     connection from ``helpers.graph.query.connect()``; if omitted, a fresh one
     is opened and closed.
 
@@ -803,6 +977,9 @@ def compute(
     top_k : optional cap on returned nodes (betweenness_centrality).
     approximate : accepted for API compatibility; ignored by Onager except
         where noted (closeness defaults to False, betweenness to True).
+    db_path : SQLite store for SCIPY-routed lanes (default: the live
+        ``memory/research.db``); tests pass tmp stores. Ignored by
+        Onager-backed metrics.
     """
     own = con is None
     if own:
@@ -818,6 +995,8 @@ def compute(
             vertex_label=vertex_label,
             top_k=top_k,
             approximate=approximate,
+            as_of=as_of,
+            db_path=db_path,
         )
     finally:
         if own:
@@ -963,6 +1142,11 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         help="Link-prediction similarity measure (link-predict command).",
     )
     p.add_argument(
+        "--allow-all-pairs",
+        action="store_true",
+        help="permit pref-attach (exact top-K heap over the all-pairs space); refused without it.",
+    )
+    p.add_argument(
         "--edge-types",
         default=None,
         help="Comma-separated edge_type projection for link-predict (default: "
@@ -1011,7 +1195,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "--compute",
         action="store_true",
         help="Bypass the persistent centrality cache (v_centrality_* tables "
-        "stamped at rebuild) and compute via Onager — the benchmarks run "
+        "stamped at rebuild) and compute via Onager — or via the owning "
+        "lane per ROUTING for routed metrics — the benchmarks run "
         "this so their budgets keep measuring COMPUTE, not cache I/O.",
     )
     args = p.parse_args(argv)
@@ -1065,6 +1250,12 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 )
                 if cmd == "link-predict":
                     print(f"\nlink-predict (method={args.method}):")
+                    if args.method == "pref-attach" and not args.allow_all_pairs:
+                        p.error(
+                            "pref-attach enumerates the all-pairs space "
+                            "(~243M pairs at VIGIL scale); refused — re-run "
+                            "with --allow-all-pairs for the exact top-K heap"
+                        )
                     edge_types = (
                         [t.strip() for t in args.edge_types.split(",") if t.strip()]
                         if args.edge_types
@@ -1072,8 +1263,17 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                     )
                     try:
                         # Full ranked list: --top caps the DISPLAY, persistence
-                        # keeps every positive-score candidate.
-                        pairs = link_prediction(duck_con, edge_types=edge_types, method=args.method)
+                        # keeps every positive-score candidate — except
+                        # pref-attach, whose unbounded output (~243M pairs)
+                        # is infeasible by nature: it computes top=args.top
+                        # (exact heap) and persists per-node top-100.
+                        pairs = link_prediction(
+                            duck_con,
+                            edge_types=edge_types,
+                            method=args.method,
+                            top=args.top if args.method == "pref-attach" else None,
+                            allow_all_pairs=args.allow_all_pairs,
+                        )
                     except Exception as e:
                         print(f"  FAIL: {type(e).__name__}: {str(e)[:150]}", file=sys.stderr)
                         continue
@@ -1139,7 +1339,12 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                         top_k=args.top,
                         as_of=as_of,
                     )
-                    print("  [via onager]", file=sys.stderr)
+                    via = "  [via onager]"
+                    if _scipy_routed(metric):
+                        via = "  [via scipy (ROUTING)]"
+                    elif metric == "betweenness_centrality" and _l1b_routed():
+                        via = "  [via l1b-fold (ROUTING)]"
+                    print(via, file=sys.stderr)
                 except Exception as e:
                     print(f"  FAIL: {type(e).__name__}: {str(e)[:150]}", file=sys.stderr)
                     continue

@@ -34,24 +34,37 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- **scipy_graph_bridge.md** (filed 2026-09-23) — SciPy graph bridge:
-  BSD-native analytics second lane (`scipy.sparse.csgraph` +
-  `sparse.linalg`, already a declared dependency). S1 carries L1a
-  (`dijkstra(indices=contract)`: 2.87 s cold 4-way / 6.49 s single,
-  parity r=0.96 vs the live stamp); S2 exact-solve gap-fills (Katz,
-  personalized PageRank, `eigsh` eigenvector); S3 resurrected/new
-  lanes (max-flow, MST, Yen K-shortest); S4 conditional sparse
-  link-pred kernel. Non-goals: Brandes, Louvain/Leiden, all-pairs
-  diameter, HGX for dyadic lanes. Owns L1's route (d).
-- **graph_perf_l1_bfs_scale.md** (filed 2026-09-23) — Graph perf L1 at
-  VIGIL scale: L1a company-source-restricted closeness/harmonic (exact;
-  1,734 persisted-contract sources vs 26,120 walked), L1b betweenness
-  2-core folding, L1c link-prediction candidate pruning, S4 snapshot
-  manifest centrality-awareness, S5 gate re-tightening + cold-lane
-  policy. Three `make perf` legs are DELIBERATELY RED (operator call
-  2026-09-23: closeness 156.8s, link_prediction 57.0s, betweenness
-  48.9s vs pre-VIGIL budgets) until S1-S3 land — the red legs are the
-  tracker; revisit table in proposal §2.
+_(none — the graph perf arc fully archived 2026-09-23 as completed.md
+#277–281; see the Previously chain below.)_
+
+_(Previously: graph_perf_l1_bfs_scale.md archived 2026-09-23 as
+completed.md entry 277 — VIGIL-scale BFS-family perf: restricted-source
+scipy route (156.8 s → 2.9 s), 2-core fold betweenness exact
+(48.9 s → 3.3 s), SQL 2-hop link-pred (61 s → 0.65 s), snapshot
+ephemerality, re-baselined budgets; perf gate 23/23. Execution record
+in `../archive/graph/graph_perf_l1_bfs_scale.md`.)_
+
+_(Previously: scipy_graph_bridge.md archived 2026-09-23 as
+completed.md entry 278 — BSD-native scipy second lane (S1 dijkstra
+carrier; S2 Katz+eigsh implemented; S3/S4 children deferred with
+triggers; §7 27-public surface accounting). Execution record in
+`../archive/graph/scipy_graph_bridge.md`.)_
+
+_(Previously: scipy_routing_dispatch.md archived 2026-09-23 as
+completed.md entry 279 — ROUTING wired into dispatch (S1+S3 flips,
+five-route program, pref-attach guard+heap, stamp diet, destructive
+preambles; convention fork pending). Execution record in
+`../archive/graph/scipy_routing_dispatch.md`.)_
+
+_(Previously: scipy_katz_exact_solve.md archived 2026-09-23 as
+completed.md entry 280 — exact-solve Katz lane (unweighted finding,
+admissibility guard, star demo, live parity; applied). Execution
+record in `../archive/graph/scipy_katz_exact_solve.md`.)_
+
+_(Previously: scipy_eigenvector_eigsh.md archived 2026-09-23 as
+completed.md entry 281 — eigsh robustness lane (P100 case, star
+correction, live agreement; applied). Execution record in
+`../archive/graph/scipy_eigenvector_eigsh.md`.)_
 
 _(Previously: note_knn_distance_ranking.md archived 2026-09-22 as
 completed.md entry 266 — note-KNN cosine→l2 distance swap at all six

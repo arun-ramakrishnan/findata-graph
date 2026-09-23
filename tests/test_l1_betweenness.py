@@ -8,10 +8,13 @@ correlation could not see; only node-exact comparison catches it.
 """
 
 import random
+import sqlite3
 from collections import deque
+from pathlib import Path
 
 import pytest
 
+from helpers.graph import algorithms as alg
 from helpers.graph import l1_betweenness as lb
 
 
@@ -139,3 +142,89 @@ def test_index_only_isolates_excluded_from_divisor() -> None:
     # five endpoints loaded; ex-index endpoints = {0,1,2} -> n = 3
     assert info["endpoints"] == 3
     assert scores["3"] == 0.0 and scores["4"] == 0.0
+
+
+# --------------------------------------------------------------------------- #
+# ROUTING dispatch (scipy_routing_dispatch S3 — L1B_FOLD flip): algorithms.py
+# serves the fold on the DB-backed path. Evidence for the flip itself lives
+# in the proposal §8.3 (toy harness + fresh-bypass countersign, both exact).
+# --------------------------------------------------------------------------- #
+_PATH4 = [("a", "b"), ("b", "c"), ("c", "d")]
+_CONTRACT4 = ["c", "b"]  # deliberately not sorted order
+
+
+@pytest.fixture()
+def bstore(tmp_path: Path) -> Path:
+    spath = tmp_path / "b.db"
+    scon = sqlite3.connect(str(spath))
+    scon.execute("CREATE TABLE graph_edges (source VARCHAR, target VARCHAR, edge_type VARCHAR)")
+    scon.executemany("INSERT INTO graph_edges VALUES (?, ?, 'cited_in')", _PATH4)
+    scon.execute(
+        "CREATE TABLE graph_analytics (entity_name VARCHAR, metric VARCHAR, "
+        "value VARCHAR, PRIMARY KEY (metric, entity_name))"
+    )
+    scon.executemany(
+        "INSERT INTO graph_analytics VALUES (?, 'betweenness_centrality', '0.0')",
+        [(n,) for n in _CONTRACT4],
+    )
+    scon.commit()
+    scon.close()
+    return spath
+
+
+def test_dispatch_betweenness_tmpstore(bstore):
+    got = alg._run_betweenness(None, edges=None, top_k=None, approximate=None, db_path=bstore)
+    assert set(got) == set(_CONTRACT4)  # contract population, not full graph
+    # P4 interior nodes: unordered raw 2 each, norm (4-1)(4-2)/2 = 3
+    assert got["b"] == pytest.approx(2.0 / 3.0)
+    assert got["c"] == pytest.approx(2.0 / 3.0)
+
+
+def test_dispatch_betweenness_top_k_preserved(bstore):
+    got = alg._run_betweenness(None, edges=None, top_k=1, approximate=None, db_path=bstore)
+    assert len(got) == 1  # same top-k slicing the Onager path applies
+
+
+def test_dispatch_betweenness_drift_fails_loud(bstore):
+    scon = sqlite3.connect(str(bstore))
+    scon.execute("INSERT INTO graph_analytics VALUES ('ghost', 'betweenness_centrality', '0.0')")
+    scon.commit()
+    scon.close()
+    with pytest.raises(KeyError, match="ghost"):
+        alg._run_betweenness(None, edges=None, top_k=None, approximate=None, db_path=bstore)
+
+
+def test_dispatch_betweenness_synthetic_stays_onager():
+    edges = [(0, 1, 1.0), (1, 2, 1.0), (2, 3, 1.0)]
+    via_dispatch = alg._run_betweenness(None, edges=edges, top_k=None, approximate=None)
+    direct = alg.betweenness_centrality(None, edges=edges)
+    assert via_dispatch == direct  # same Onager path, not the lane
+    assert set(via_dispatch) == {0, 1, 2, 3}  # full population, int ids
+
+
+def test_dispatch_live_betweenness_exact_vs_incumbents():
+    import json as _json
+
+    def _val(s):
+        try:
+            return float(s)
+        except ValueError:
+            return float(_json.loads(s)["value"])
+
+    got = alg._run_betweenness(None, edges=None, top_k=None, approximate=None)
+    scon = sqlite3.connect("memory/research.db")
+    try:
+        inc = {
+            r[0]: _val(r[1])
+            for r in scon.execute(
+                "SELECT entity_name, value FROM graph_analytics "
+                "WHERE metric='betweenness_centrality'"
+            ).fetchall()
+        }
+    finally:
+        scon.close()
+    assert set(got) == set(inc) and len(got) == 1734
+    # 1e-12, not 0.0: Brandes accumulation order differs between jobs=1
+    # here and the --jobs 4 the rows were written with (1-ulp dust);
+    # anything bigger is a real value divergence.
+    assert max(abs(got[k] - inc[k]) for k in inc) < 1e-12

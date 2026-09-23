@@ -1,13 +1,15 @@
 ---
 title: "Graph perf L1 — BFS-family centrality and link prediction at VIGIL scale"
-status: proposed
+status: executed
 filed: "2026-09-23"
 area: "helpers/graph"
-executed:
-completed_md:
+executed: "2026-09-23"
+completed_md: "277"
 ---
 
 # Graph perf L1 — BFS-family centrality and link prediction at VIGIL scale
+
+**Date:** 2026-09-23 · **Status:** EXECUTED — archived 2026-09-23
 
 ## 1. TL;DR
 

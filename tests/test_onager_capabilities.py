@@ -381,6 +381,92 @@ def test_link_prediction_pref_attach_hub_pairs():
     assert [(a, b, s) for a, b, s in pairs] == [(1, 3, 2.0), (1, 4, 2.0)]
 
 
+def test_link_prediction_pref_attach_heap_matches_extension(tmp_path):
+    """Exactness: the pruned top-K heap must equal the raw all-pairs
+    extension on the same graph — same pairs, scores, and trim.
+    Fixture deliberately includes a self-loop and a duplicate row
+    (both present live); comparison is order-insensitive with a
+    separate sortedness check, since nid orderings can differ."""
+    import random
+
+    rng = random.Random(11)  # noqa: S311  # seeded determinism for fixtures, not crypto
+    n = 130
+    pairs = set()
+    for i in range(1, 20):
+        pairs.add((0, i))  # hub 0
+    while len(pairs) < 400:
+        a, b = rng.randrange(n), rng.randrange(n)
+        if a != b:
+            pairs.add((min(a, b), max(a, b)))
+    dup = sorted(pairs)[0]
+    db = tmp_path / "pa_big.db"
+    scon = sqlite3.connect(str(db))
+    scon.execute("CREATE TABLE graph_edges (source TEXT, target TEXT, edge_type TEXT, weight REAL)")
+    scon.executemany(
+        "INSERT INTO graph_edges VALUES (?, ?, ?, ?)",
+        [(str(a), str(b), "competes_with", 1.0) for a, b in pairs]
+        + [("5", "5", "competes_with", 1.0)]  # self-loop
+        + [(str(dup[0]), str(dup[1]), "competes_with", 1.0)],  # duplicate
+    )
+    scon.commit()
+    scon.close()
+    con = duckdb.connect()
+    con.execute(f"ATTACH '{db}' AS fin (TYPE sqlite, READ_ONLY)")
+    try:
+        heap_rows = onager_mod.onager_link_prediction(
+            con, method="pref-attach", allow_all_pairs=True, top=40
+        )
+    finally:
+        con.close()
+    ext_rows = onager_mod.onager_link_prediction(
+        edges=[(a, b, 1.0) for a, b in pairs] + [(5, 5, 1.0), (dup[0], dup[1], 1.0)],
+        method="pref-attach",
+        top=40,
+    )
+    heap_set = {(a, b, s) for a, b, s in heap_rows}
+    ext_set = {(str(a), str(b), s) for a, b, s in ext_rows}
+    assert heap_set == ext_set
+    assert [(s, a, b) for a, b, s in heap_rows] == sorted(
+        [(s, a, b) for a, b, s in heap_rows], key=lambda t: (-t[0], t[1], t[2])
+    )
+
+
+def test_link_prediction_pref_attach_db_path_names(tmp_path):
+    """DB path returns NAME-keyed pairs (regression: the shared
+    {name_joins} used the 2-hop branch's `s` alias while the pref-attach
+    branch aliases its subquery `p` — Binder Error on every DB call)."""
+    db = tmp_path / "pa.db"
+    scon = sqlite3.connect(str(db))
+    scon.execute("CREATE TABLE graph_edges (source TEXT, target TEXT, edge_type TEXT, weight REAL)")
+    scon.executemany(
+        "INSERT INTO graph_edges VALUES (?, ?, 'competes_with', 1.0)",
+        [("h", "a"), ("h", "b"), ("h", "c"), ("h", "d"), ("c", "d")],
+    )
+    scon.commit()
+    scon.close()
+    con = duckdb.connect()
+    con.execute(f"ATTACH '{db}' AS fin (TYPE sqlite, READ_ONLY)")
+    try:
+        rows = onager_mod.onager_link_prediction(con, method="pref-attach", allow_all_pairs=True)
+    finally:
+        con.close()
+    assert rows == [
+        ("a", "c", 2.0),
+        ("a", "d", 2.0),
+        ("b", "c", 2.0),
+        ("b", "d", 2.0),
+        ("a", "b", 1.0),
+    ]
+
+
+def test_link_prediction_pref_attach_db_path_refused_without_flag():
+    # The all-pairs extension (~485M pair scans at VIGIL scale) must fail
+    # loud on the DB path — no connection is even opened (guard fires
+    # before _prepare). Synthetic edges= calls stay ungated (above).
+    with pytest.raises(RuntimeError, match="allow_all_pairs"):
+        onager_mod.onager_link_prediction(method="pref-attach")
+
+
 def test_link_prediction_chain_top_limits_and_sorts():
     # Chain 0-1-2-3-4-5: pairs two hops apart share exactly one neighbour.
     edges = [(i, i + 1, 1.0) for i in range(5)]
@@ -392,21 +478,24 @@ def test_link_prediction_chain_top_limits_and_sorts():
     # Descending score; ties broken by ascending node order (deterministic).
     assert top2[0][:2] < top2[1][:2]
 
+
 def test_link_prediction_hub_cap_drops_hub_only_signal_pairs():
     """S3 hub-side cap: a pair whose ONLY shared neighbour is a capped hub
     drops from the candidates; the default cap (512 > live max degree 304)
     keeps it. Shared-only-hub pair (a,b): jaccard = 1/(2+2-1) = 1/3."""
     edges = [
-        (10, 11, 1.0), (11, 10, 1.0),   # hub 10 - a(11)
-        (10, 12, 1.0), (12, 10, 1.0),   # hub 10 - b(12)
-        (11, 13, 1.0), (13, 11, 1.0),   # a's private neighbour
-        (12, 14, 1.0), (14, 12, 1.0),   # b's private neighbour
+        (10, 11, 1.0),
+        (11, 10, 1.0),  # hub 10 - a(11)
+        (10, 12, 1.0),
+        (12, 10, 1.0),  # hub 10 - b(12)
+        (11, 13, 1.0),
+        (13, 11, 1.0),  # a's private neighbour
+        (12, 14, 1.0),
+        (14, 12, 1.0),  # b's private neighbour
     ]
     kept = onager_mod.onager_link_prediction(edges=edges, method="jaccard")
     assert (11, 12, round(1 / 3, 6)) in [(a, b, round(s, 6)) for a, b, s in kept]
-    dropped = onager_mod.onager_link_prediction(
-        edges=edges, method="jaccard", hub_degree_cap=1
-    )
+    dropped = onager_mod.onager_link_prediction(edges=edges, method="jaccard", hub_degree_cap=1)
     assert (11, 12) not in [(a, b) for a, b, _s in dropped]
 
 
@@ -419,7 +508,6 @@ def test_link_prediction_sql_path_jaccard_triangle_chain():
     # (0,2): N(0)={1}, N(2)={1,3} -> 1/2. (2,4): both degree-2 -> 1/3.
     assert got[(0, 2)] == 0.5
     assert got[(2, 4)] == round(1 / 3, 6)
-
 
 
 def test_link_prediction_empty_edges():

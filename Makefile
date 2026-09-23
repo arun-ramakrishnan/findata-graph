@@ -86,7 +86,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  snapshot-check           Verify the snapshot round-trips against the live DB"
 > @echo "  snapshot-fresh           Generation-only snapshot freshness (fail fast on drift; fix: make snapshot)"
 > @echo "  snapshot-restore         Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)"
-> @echo "  stamp-centrality         Re-stamp the ten v_centrality_* tables (explicit lane; graph-rebuild drops them; maint runs it after graph-rebuild)"
+> @echo "  stamp-centrality         Re-stamp v_centrality_* tables (explicit lane; lane-served metrics skipped per ROUTING; graph-rebuild drops them; maint runs it after graph-rebuild)"
 > @echo "  static-checks            Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)"
 > @echo "  suggest-relations        Print link-prediction relation suggestions (C2; append with --append)"
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
@@ -262,9 +262,9 @@ graph-rebuild:  ## Rebuild the disk-based DuckDB cache from SQLite (run after pa
 > python3 helpers/graph/query.py rebuild
 > @echo "✓ DuckDB graph cache rebuilt, data-only (memory/graph.duckdb; v_centrality_* dropped — run stamp-centrality to re-stamp)"
 
-stamp-centrality: ## Re-stamp the ten v_centrality_* tables on the warm cache (centrality_rebuild_contract explicit lane; BFS family costs minutes at 56k edges)
+stamp-centrality: ## Re-stamp v_centrality_* tables on the warm cache (lane-served metrics skipped per ROUTING; centrality_rebuild_contract explicit lane)
 > python3 helpers/graph/query.py stamp-centrality
-> @echo "✓ Centrality cache stamped (v_centrality_* tables warm)"
+> @echo "✓ Centrality cache stamped (v_centrality_* tables warm; lane-served metrics skipped)"
 
 near-duplicates: ## Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY — triage by hand, remediation is user-held)
 > python3 helpers/graph/query.py near-duplicates --min-sim 0.9

@@ -45,7 +45,6 @@ Write surface: ``graph_analytics`` (the contract's home), UPSERT via
 from __future__ import annotations
 
 import argparse
-import sqlite3
 import sys
 import time
 from collections import defaultdict, deque
@@ -60,6 +59,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 DEFAULT_DB_PATH = _PROJECT_ROOT / "memory" / "research.db"
 
 from helpers.core.forkmap import fork_map  # noqa: E402  # needs the shim above
+from helpers.core.db import connect  # noqa: E402  # needs the shim above
 
 BETWEENNESS_METRIC = "betweenness_centrality"
 
@@ -77,7 +77,7 @@ INDEX_NOISE = frozenset({"listed_on_index"})
 
 def load_projection(db_path: str | Path = DEFAULT_DB_PATH):
     """Sorted endpoint names + deduped undirected edge pairs (dense ids)."""
-    con = sqlite3.connect(str(db_path))
+    con = connect(str(db_path), read_only=True, row_factory=None)
     try:
         rows = con.execute("SELECT source, target, edge_type FROM graph_edges").fetchall()
     finally:
@@ -397,7 +397,7 @@ def compute(
 
     # attachment weights (multiple trees may share an attachment)
     kw = np.zeros(n, dtype=float)
-    att_trees: dict[int, list[int]] = defaultdict(list)
+    att_trees: dict[int, list[tuple[int, set[int]]]] = defaultdict(list)
     for tree in folded:
         att = next(m for x in tree for m in adj_sets[x] if m in core_set)
         k = len(tree)
@@ -547,7 +547,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[{BETWEENNESS_METRIC}] top {min(args.top, len(scores))} (normalized)")
     for name, s in ranked:
         print(f"  {name}: {s / norm:.6f}")
-    scon = sqlite3.connect(str(args.db))
+    scon = connect(str(args.db), row_factory=None)
     try:
         contract = [
             r[0]

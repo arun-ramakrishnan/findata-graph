@@ -466,6 +466,17 @@ class TestFreshRebuild:
         finally:
             c2.close()
 
+    def test_destructive_lanes_announce_target(self, tmp_db, capsys):
+        # Cost-and-consequence preamble: names the target and states the
+        # SQLite source of truth is untouched (unskippable — lives in the
+        # lane function, not the CLI wrapper).
+        from helpers.graph.query import rebuild as _rebuild
+
+        _rebuild(db_path=tmp_db)
+        err = capsys.readouterr().err
+        assert "destructive op" in err and str(tmp_db) in err
+        assert "source of truth untouched" in err
+
 
 # --------------------------------------------------------------------------- #
 # TestBuildMeta                                                                #

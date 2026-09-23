@@ -98,6 +98,14 @@ _SCORE_TABLES = [
     "local_reaching",
 ]
 
+#: Metrics whose DB-backed path is served by a lane, not the
+#: stamp (scipy_routing_dispatch): the stamp==fresh-compute invariant
+#: below does not apply to them — lanes serve the persisted-contract
+#: population while the stamp holds the full Onager population, by design.
+from helpers.graph import scipy_bridge as _sb  # noqa: E402
+
+_LANE_ROUTED = {m for m, o in _sb.ROUTING.items() if o in ("SCIPY", "L1B_FOLD")}
+
 
 def _build_sqlite(
     db_path, generation: int = 1, extra_edges: list[tuple[str, str, str]] | None = None
@@ -150,6 +158,14 @@ def test_warm_tables_equal_fresh_compute(cache_db):
     con = gq.connect(db_path=cache_db, read_only=True)
     try:
         for metric in _SCORE_TABLES:
+            if f"{metric}_centrality" in _LANE_ROUTED:
+                # Diet: lane-served metrics are NOT stamped — assert the
+                # table is absent (not stale): readers compute on demand.
+                with pytest.raises(duckdb.CatalogException):
+                    con.execute(
+                        f"SELECT name, score FROM v_centrality_{metric}"  # noqa: S608
+                    ).fetchall()
+                continue
             table = dict(
                 con.execute(
                     f"SELECT name, score FROM v_centrality_{metric}"  # noqa: S608  # constant list
@@ -249,10 +265,25 @@ def test_stamp_centrality_cache_recreates_tables(cache_db):
     gq.stamp_centrality_cache(db_path=cache_db)
     con = gq.connect(db_path=cache_db, read_only=True)
     try:
-        n = con.execute(  # noqa: S608  # constant list
-            "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE 'v_centrality_%'"
-        ).fetchone()[0]
-        assert n == 10, f"stamp lane must re-create all ten tables, found {n}"
+        names = {
+            r[0]
+            for r in con.execute(  # noqa: S608  # constant list
+                "SELECT table_name FROM information_schema.tables WHERE table_name LIKE 'v_centrality_%'"
+            ).fetchall()
+        }
+        # Diet (scipy_routing_dispatch §8 item 4): the seven Onager-native
+        # tables stamp; lane-served closeness/harmonic/betweenness are
+        # absent by design (reverting a ROUTING value resumes its stamp —
+        # update this set then).
+        assert names == {
+            "v_centrality_degree",
+            "v_centrality_eigenvector",
+            "v_centrality_katz",
+            "v_centrality_laplacian",
+            "v_centrality_local_reaching",
+            "v_centrality_voterank",
+            "v_centrality_louvain",
+        }, f"unexpected stamped set: {sorted(names)}"
         with alg.bypass_centrality_cache():
             fresh = alg.closeness_centrality(con)
         served = alg.closeness_centrality(con)
@@ -283,7 +314,7 @@ def test_stamp_detects_concurrent_swap(cache_db, monkeypatch):
         n = con.execute(  # noqa: S608  # constant list
             "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE 'v_centrality_%'"
         ).fetchone()[0]
-        assert n == 10, f"restamp after swap must land all ten tables, found {n}"
+        assert n == 7, f"restamp after swap must land seven tables (diet), found {n}"
     finally:
         con.close()
     assert fired["raced"]
@@ -338,3 +369,24 @@ def test_compute_flag_bypasses_table_read(cache_db, monkeypatch, capsys):
     assert not calls, "--compute must not read the v_centrality_* tables"
     out = capsys.readouterr().out
     assert "C3" in out  # compute actually produced the path-middle leader
+
+
+def test_slow_table_miss_advises_lane(capsys):
+    """A stamp miss on a historically slow table names the cost and the
+    lane alternative (fail-loud instead of a silent 150 s hang)."""
+    con = duckdb.connect()
+    try:
+        assert alg._cached_central_scores(con, "v_centrality_closeness") is None
+    finally:
+        con.close()
+    err = capsys.readouterr().err
+    assert "scipy lane" in err and "150-163 s" in err
+
+
+def test_fast_table_miss_stays_silent(capsys):
+    con = duckdb.connect()
+    try:
+        assert alg._cached_central_scores(con, "v_centrality_degree") is None
+    finally:
+        con.close()
+    assert capsys.readouterr().err == ""

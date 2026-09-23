@@ -40,6 +40,7 @@ from __future__ import annotations
 
 import contextlib
 import hashlib
+import heapq
 import re
 import threading
 from typing import Any
@@ -655,6 +656,86 @@ _LINK_METHODS: dict[str, tuple[str, str]] = {
 #: least one UNCAPPED shared neighbour); only hub-only-signal pairs drop.
 LP_HUB_DEGREE_CAP = 512
 
+#: pref-attach compute floor: the exact top-K heap serves K = top, or this
+#: floor when the caller leaves top unbounded (persistence fans out
+#: per-node top-100, which needs global headroom; display caps
+#: separately). The unbounded all-pairs output (~243M pairs at VIGIL
+#: scale) stays infeasible by nature — no engine fixes output size.
+PREF_ATTACH_COMPUTE_FLOOR = 5000
+
+#: pref-attach persistence: per-node candidate cap (the API serves
+#: top<=100; the old "persist every positive pair" is ~243M rows for
+#: pref-attach — infeasible by nature, not by engine). Pairs arrive
+#: globally score-ordered, so per-node lists are pre-sorted before trim.
+PREF_ATTACH_STORE_CAP = 100
+
+
+def _sym_degrees(
+    con: duckdb.DuckDBPyConnection,
+) -> tuple[dict[Any, int], set[tuple[Any, Any]]]:
+    """Symmetrised deduped degrees + unordered existing-edge set over
+    ``_onager_e`` (the same degree definition the 2-hop SQL uses)."""
+    deg = {
+        r[0]: r[1]
+        for r in con.execute(
+            "SELECT a, COUNT(*) FROM ("
+            "SELECT DISTINCT src AS a, dst AS b FROM _onager_e "
+            "UNION "
+            "SELECT DISTINCT dst AS a, src AS b FROM _onager_e"
+            ") GROUP BY a"
+        ).fetchall()
+    }
+    edge_set = set()
+    for a, b in con.execute("SELECT DISTINCT src, dst FROM _onager_e").fetchall():
+        if a != b:
+            edge_set.add((a, b) if a < b else (b, a))
+    return deg, edge_set
+
+
+def _pref_attach_topk(con: duckdb.DuckDBPyConnection, top: int) -> list[tuple[Any, Any, float]]:
+    """Exact top-K preferential-attachment pairs (degree-product scores).
+
+    score(a,b) = deg(a)*deg(b) factors, so the top-K never needs the full
+    pair space: nodes in degree-desc order, nested loop over a running
+    min-heap keyed (score, -lo, -hi) — inner breaks when d[i]*d[j] drops
+    strictly below the heap minimum (later j only score lower, and the
+    minimum only rises), outer breaks on d[i]*d[i+1] likewise. Ties
+    expand (only strictly-smaller prunes), then trim by (score DESC, lo,
+    hi) — identical to the extension's ORDER BY. Degrees come from the
+    symmetrised deduped projection (the same definition the 2-hop SQL
+    uses); existing edges and non-positive scores excluded. Complexity
+    follows the pruned prefix, not the pair space (ms-scale at VIGIL
+    scale for bounded K; the raw extension it replaces measured 10+ min
+    / 8GB+ on 2026-09-23).
+    """
+    deg, edge_set = _sym_degrees(con)
+    names = {r[0]: r[1] for r in con.execute("SELECT nid, name FROM _onager_int").fetchall()}
+    order = sorted(deg, key=lambda v: (-deg[v], v))
+    dd = [deg[v] for v in order]
+    m = len(order)
+    heap: list[tuple[int, int, int, int, int]] = []
+    for i in range(m):
+        if len(heap) >= top and i + 1 < m and dd[i] * dd[i + 1] < heap[0][0]:
+            break
+        for j in range(i + 1, m):
+            s = dd[i] * dd[j]
+            if len(heap) >= top and s < heap[0][0]:
+                break
+            if s <= 0:
+                continue
+            a, b = order[i], order[j]
+            lo, hi = (a, b) if a < b else (b, a)
+            if (lo, hi) in edge_set:
+                continue
+            key = (s, -lo, -hi)
+            if len(heap) >= top and key <= heap[0][:3]:
+                continue
+            heapq.heappush(heap, (s, -lo, -hi, lo, hi))
+            if len(heap) > top:
+                heapq.heappop(heap)
+    kept = sorted(heap, key=lambda e: (-e[0], e[3], e[4]))[:top]
+    return [(names[lo], names[hi], float(s)) for s, _nl, _nh, lo, hi in kept]
+
 
 DEFAULT_PREDICTION_EDGE_TYPES = [
     "co_mentioned_in",
@@ -695,6 +776,7 @@ def onager_link_prediction(
     method: str = "jaccard",
     top: int | None = None,
     hub_degree_cap: int | None = LP_HUB_DEGREE_CAP,
+    allow_all_pairs: bool = False,
 ) -> list[tuple[Any, Any, float]]:
     """Rank candidate (missing) edges by neighbourhood similarity.
 
@@ -708,7 +790,10 @@ def onager_link_prediction(
     ``edge_types=None`` (DB path) projects ``DEFAULT_PREDICTION_EDGE_TYPES``
     — the non-membership types — so scores are not dominated by trivial
     sector co-occurrence. ``method`` is one of the ``_LINK_METHODS`` keys;
-    ``top`` caps the returned list.
+    ``top`` caps the returned list. ``allow_all_pairs`` gates the
+    ``pref-attach`` DB path (the all-pairs extension: ~485M pair scans,
+    ~60 s at VIGIL scale — refused without it); synthetic ``edges=``
+    calls are the caller's explicit graph and are never gated.
 
     This function is pure/read-only: persistence lives one layer up
     (``algorithms._persist_link_prediction``, opt-in ``--apply`` in the
@@ -718,6 +803,14 @@ def onager_link_prediction(
         raise ValueError(
             f"unknown link-prediction method: {method!r} (choose from {sorted(_LINK_METHODS)})"
         )
+    if method == "pref-attach" and edges is None and not allow_all_pairs:
+        raise RuntimeError(
+            "pref-attach enumerates the all-pairs space (~243M pairs at "
+            "VIGIL scale) — refused without explicit consent. Pass "
+            "allow_all_pairs=True (CLI: --allow-all-pairs) for the exact "
+            "top-K heap (pruned degree-ordered scan, ms-scale for bounded "
+            "top; unbounded output stays infeasible by nature)."
+        )
     con, owns = _prepare(con)
     try:
         if edges is None:
@@ -726,18 +819,31 @@ def onager_link_prediction(
                 return []
             endpoints = "i1.name, i2.name"
             name_joins = "JOIN _onager_int i1 ON i1.nid = s.lo JOIN _onager_int i2 ON i2.nid = s.hi"
+            # pref-attach branch aliases its pair subquery `p`, not `s`
+            # (the 2-hop branch below uses `s`) — same joins, own alias.
+            pairs_joins = (
+                "JOIN _onager_int i1 ON i1.nid = p.lo JOIN _onager_int i2 ON i2.nid = p.hi"
+            )
         else:
             _ensure_materialized(con, edges=edges)
             endpoints = "s.lo, s.hi"
             name_joins = ""
+            pairs_joins = ""
         legacy_endpoints = endpoints.replace("s.", "p.")
         # int(top) validated before interpolation; LIMIT cannot bind a ?.
         limit = f" LIMIT {int(top)}" if top is not None else ""
         if method == "pref-attach":
             # No shared-neighbour requirement -> a 2-hop candidate join
             # would CHANGE semantics (score = deg product is nonzero for any
-            # co-degree pair). Stays on the all-pairs extension; not
-            # perf-gated and rarely used (S3, graph_perf_l1).
+            # co-degree pair). Consented calls take the exact top-K heap
+            # (degree-ordered pruning — same pairs and order as the raw
+            # extension, which measured 10+ min / 8GB+ on 2026-09-23 and
+            # now serves synthetic-only paths); unbounded output stays
+            # infeasible by nature, so top resolves to
+            # PREF_ATTACH_COMPUTE_FLOOR when the caller leaves it open.
+            if edges is None:
+                return _pref_attach_topk(con, top if top is not None else PREF_ATTACH_COMPUTE_FLOOR)
+            fn, col = _LINK_METHODS[method]
             fn, col = _LINK_METHODS[method]
             rows = con.execute(
                 f"""
@@ -748,7 +854,7 @@ def onager_link_prediction(
                 )
                 SELECT {legacy_endpoints}, p.score
                 FROM pairs p
-                {name_joins}
+                {pairs_joins}
                 WHERE p.score > 0
                   AND NOT EXISTS (
                       SELECT 1 FROM _onager_e ee
@@ -776,9 +882,7 @@ def onager_link_prediction(
             cap = LP_HUB_DEGREE_CAP if hub_degree_cap is None else int(hub_degree_cap)
             # per-lo retention: top-K output can hold at most K pairs of any
             # one lo; unlimited ranking (top=None) keeps everything.
-            topk_filter = (
-                f"rn <= {int(top)}" if top is not None else "TRUE"
-            )
+            topk_filter = f"rn <= {int(top)}" if top is not None else "TRUE"
             rows = con.execute(
                 f"""
                 WITH sym AS (

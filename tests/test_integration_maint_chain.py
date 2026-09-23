@@ -354,6 +354,13 @@ def _shim_embeddings(p, mp, args):
 def _shim_algorithms(p, mp, args):
     mp.setattr(alg, "duckdb_connect", lambda *a, **k: query.connect(p.db))
     mp.setattr(alg, "connect", lambda *a, **k: db_connect(str(p.db)))
+    # Pin engine routing off: this chain tests orchestration hermetically
+    # on synth data, and the lanes only know the live SQLite store (their
+    # hermetic coverage lives in tmp-store dispatch tests + live parity
+    # tests). Without this, routed legs read live populations and write
+    # them into the synth DB (FK failure).
+    mp.setattr(alg, "_scipy_routed", lambda metric: False)
+    mp.setattr(alg, "_l1b_routed", lambda: False)
     return _rc(alg._cli(list(args)))
 
 

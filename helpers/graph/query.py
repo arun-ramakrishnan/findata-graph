@@ -461,8 +461,9 @@ def connect(  # noqa: C901
             materialisation-schema changes.
         read_only: Open the cache file cross-process-safe read-only.
         stamp_centrality: When this connect builds (cold/explicit
-            rebuild), also stamp the ten v_centrality_* tables — the
-            pre-2026-09-22 one-shot behaviour. No effect on a warm
+            rebuild), also stamp v_centrality_* tables (lane-served
+            metrics skipped per ROUTING) — the pre-2026-09-22 one-shot
+            behaviour. No effect on a warm
             cache; the always-available stamp lane is
             :func:`stamp_centrality_cache`.
             DuckDB allows any NUMBER of read-only openers across
@@ -885,9 +886,7 @@ MATERIALISED_TABLES = frozenset(spec["table"] for spec in EDGE_REGISTRY.values()
 # them by design (absence == "compute on demand" for every reader), so
 # snapshot verification tolerates one-side absence instead of demanding
 # them. Present-on-both still verifies counts.
-EPHEMERAL_TABLES = frozenset(
-    t for t in _EXTRA_MATERIALIZED if t.startswith("v_centrality_")
-)
+EPHEMERAL_TABLES = frozenset(t for t in _EXTRA_MATERIALIZED if t.startswith("v_centrality_"))
 # _build_meta keys owned by the explicit stamp lane
 # (stamp_centrality_cache); excluded from snapshot verification — an
 # 8-vs-7 key diff across a rebuild/stamp boundary is contract-legal
@@ -999,6 +998,22 @@ def _rebuild_via_swap(
         tmp_lock.unlink(missing_ok=True)
 
 
+def _announce_destructive_op(
+    action: str, target: Path | str, consequence: str, cost: str, undo: str
+) -> None:
+    """Cost-and-consequence preamble for destructive lanes (unskippable —
+    it lives in the lane function, not the CLI wrapper, so no caller
+    bypasses it). Informative, never blocking: these lanes are already
+    explicit (dedicated commands/targets); the preamble cures the
+    wrong-terminal class without breaking automation. Tests assert its
+    presence, never its absence (stderr noise is fine)."""
+    print(
+        f"destructive op: {action} -> {target} | {consequence} | cost: {cost} | undo: {undo}",
+        file=sys.stderr,
+        flush=True,
+    )
+
+
 def rebuild(db_path: Path | str = DB_PATH, *, stamp_centrality: bool = False) -> None:
     """Rebuild materialised tables (drop + recreate + redeclare).
 
@@ -1015,10 +1030,17 @@ def rebuild(db_path: Path | str = DB_PATH, *, stamp_centrality: bool = False) ->
     Data-only since centrality_rebuild_contract (2026-09-22): the
     ``v_centrality_*`` tables are dropped, not re-stamped (stale scores
     over a new edge set would be wrong; readers fall back to live
-    compute). Re-stamp explicitly with :func:`stamp_centrality_cache`
+    compute).     Re-stamp explicitly with :func:`stamp_centrality_cache`
     / ``make stamp-centrality``, or pass ``stamp_centrality=True`` for
     the old one-shot behaviour.
     """
+    _announce_destructive_op(
+        "rebuild materialised tables",
+        db_path,
+        "drops + recreates e_*/v_* tables; v_centrality_* dropped, not re-stamped",
+        "~2-3 s data-only",
+        "re-derivable (SQLite source of truth untouched); re-stamp for centrality",
+    )
     # Drop stale cached results so the next query re-reads post-rebuild.
     clear_graph_cache()
     _rebuild_via_swap(db_path, fresh=False, stamp_centrality=stamp_centrality)
@@ -1032,6 +1054,13 @@ def fresh_rebuild(db_path: Path | str = DB_PATH, *, stamp_centrality: bool = Fal
     Idempotent. Same atomic temp-swap strategy as :func:`rebuild`, and
     the same data-only default (see :func:`rebuild`).
     """
+    _announce_destructive_op(
+        "fresh rebuild (delete + recreate the .duckdb file)",
+        db_path,
+        "live cache file replaced; v_centrality_* dropped, not re-stamped",
+        "~2-3 s data-only",
+        "re-derivable (SQLite source of truth untouched); re-stamp for centrality",
+    )
     clear_graph_cache()
     _rebuild_via_swap(db_path, fresh=True, stamp_centrality=stamp_centrality)
 
@@ -1040,7 +1069,15 @@ def stamp_centrality_cache(
     db_path: Path | str = DB_PATH,
     duckdb_path: Path | str | None = None,
 ) -> None:
-    """(Re-)stamp the ten ``v_centrality_*`` tables on the graph cache.
+    """(Re-)stamp the ``v_centrality_*`` tables on the graph cache.
+
+    Lane-served metrics (ROUTING: closeness/harmonic → scipy bridge,
+    betweenness → L1b fold) are SKIPPED — and any stale table from an
+    older stamp is dropped: their served universe comes from the lanes,
+    and stamping the Onager scale would fork values while costing the
+    whole minutes-scale share of this job (~400 s of 5-6 min). The
+    other seven stamp natively fast. Reverting a ROUTING value resumes
+    its stamp with no other change.
 
     centrality_rebuild_contract: the explicit stamp lane. ``rebuild()``
     is data-only and drops the previous stamp, so this is how the
@@ -1053,6 +1090,13 @@ def stamp_centrality_cache(
     keep serving the old tables until they close (stale-by-one-stamp,
     the documented refresh contract).
     """
+    _announce_destructive_op(
+        "re-stamp centrality tables",
+        db_path,
+        "drops + restamps seven Onager-native v_centrality_* tables (lane-served skipped per ROUTING)",
+        "seconds post-diet (was minutes pre-diet)",
+        "idempotent re-stamp; pre-stamp state unrecoverable (stamps are cache, not source)",
+    )
     clear_graph_cache()
     # stamp_centrality_cache can lose a RACE with a concurrent rebuild:
     # rebuild() swaps a fresh data-only file in via os.replace, the stamping
@@ -1550,6 +1594,15 @@ def _materialise_centrality_cache(con: duckdb.DuckDBPyConnection) -> None:  # no
         voterank_seeds,
     )
     from helpers.graph.onager import with_onager_connection
+    from helpers.graph import scipy_bridge as _sb
+
+    #: Metrics compute() serves from a lane (scipy_routing_dispatch S1/S3):
+    #: stamping their Onager full-pop scale would fork values against the
+    #: served universe AND cost the whole minutes-scale share of this job
+    #: (~400 s of 5-6 min at VIGIL scale). Skipped — readers compute on
+    #: demand (ephemerality). Single source of truth: the ROUTING table
+    #: (reverting a value resumes its stamp).
+    _LANE_SERVED = {m for m, o in _sb.ROUTING.items() if o in ("SCIPY", "L1B_FOLD")}
 
     score_metrics: list[tuple[str, Callable[..., dict[str, float]]]] = [
         ("degree", degree_centrality),
@@ -1593,6 +1646,15 @@ def _materialise_centrality_cache(con: duckdb.DuckDBPyConnection) -> None:  # no
 
     with with_onager_connection(con), bypass_centrality_cache():
         for name, fn in score_metrics:
+            if f"{name}_centrality" in _LANE_SERVED:
+                # Lane-served: skip (see _LANE_SERVED above) — and make
+                # sure no stale table lingers from an older stamp.
+                con.execute(f"DROP TABLE IF EXISTS v_centrality_{name}")
+                print(
+                    f"centrality cache: {name} skipped (lane-served)",
+                    file=sys.stderr,
+                )
+                continue
             try:
                 scores = fn(con)
                 _stamp(f"v_centrality_{name}", _SCORE_COLS, list(scores.items()))
@@ -3879,7 +3941,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     sp.add_argument(
         "--stamp-centrality",
         action="store_true",
-        help="Also re-stamp the ten v_centrality_* tables (default: drop them; use stamp-centrality later instead)",
+        help="Also re-stamp v_centrality_* tables (lane-served metrics skipped; default: drop them; use stamp-centrality later instead)",
     )
     sp = sub.add_parser(
         "fresh",
@@ -3888,11 +3950,11 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     sp.add_argument(
         "--stamp-centrality",
         action="store_true",
-        help="Also re-stamp the ten v_centrality_* tables",
+        help="Also re-stamp v_centrality_* tables (lane-served metrics skipped)",
     )
     sub.add_parser(
         "stamp-centrality",
-        help="Re-stamp the ten v_centrality_* tables on the warm cache (centrality_rebuild_contract explicit lane)",
+        help="Re-stamp v_centrality_* tables on the warm cache (lane-served metrics skipped per ROUTING; centrality_rebuild_contract explicit lane)",
     )
     sub.add_parser(
         "update-extensions", help="Check installed DuckDB extensions for updates and install them"

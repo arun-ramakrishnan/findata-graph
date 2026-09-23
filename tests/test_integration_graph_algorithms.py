@@ -27,17 +27,34 @@ pytestmark = [pytest.mark.integration]
 # NOTE: this module no longer depends on NetworkX. The Onager-backed
 # compute() path is exercised here against the seeded synth_db (the
 # synth_db fixture redirects both algos.connect and algos.duckdb_connect to
-# the synthetic graph). NetworkX was removed (2026-08-14); the nx-comparison
+# the synthetic graph) — EXCEPT metrics ROUTING assigns to a lane
+# (scipy_routing_dispatch): those tests call the low-level Onager
+# functions directly, since compute() now serves the lane on the
+# DB-backed path. NetworkX was removed (2026-08-14); the nx-comparison
 # assertions that existed historically are gone with it.
 
 # Import algorithms module so we can monkeypatch its `connect` reference.
 import helpers.graph.algorithms as algos  # noqa: E402
 from helpers.graph.algorithms import (  # noqa: E402
+    betweenness_centrality,
+    closeness_centrality,
     compute,
+    harmonic_centrality,
     write_analytics,
     _wrap_for_analytics,
     _format_value,
 )
+from helpers.graph import scipy_bridge as _sb  # noqa: E402
+
+#: Metrics compute() serves from a lane instead of Onager (single source
+#: of truth: the ROUTING table). Tests below that pin Onager-on-synth
+#: behavior call the low-level functions for these metrics directly.
+_ROUTED = {m for m, o in _sb.ROUTING.items() if o in ("SCIPY", "L1B_FOLD")}
+_ONAGER_FN = {
+    "betweenness_centrality": betweenness_centrality,
+    "closeness_centrality": closeness_centrality,
+    "harmonic_centrality": harmonic_centrality,
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -219,7 +236,9 @@ class TestComputeWriteReadRoundTrip:
         ],
     )
     def test_scalar_metric_round_trip(self, synth_db, metric, analytics_name):
-        result = compute(metric)
+        # Lane-routed metrics: pin the Onager path directly (compute()
+        # serves the lane on the DB-backed path since the S3 flip).
+        result = _ONAGER_FN[metric]() if metric in _ROUTED else compute(metric)
         assert len(result) > 0, f"compute({metric}) returned empty dict"
 
         # Write to graph_analytics
@@ -254,13 +273,13 @@ class TestComputeWriteReadRoundTrip:
     def test_betweenness_centrality_values_nonzero(self, synth_db):
         """CompanyB is the bridge between A and C; it should have the highest
         betweenness."""
-        result = compute("betweenness_centrality")
+        result = betweenness_centrality()
         # CompanyB is on the path A-B-C, so it has non-zero betweenness
         assert result["CompanyB"] > 0
 
     def test_closeness_centrality_in_range(self, synth_db):
         """Closeness is always in [0, 1]."""
-        result = compute("closeness_centrality")
+        result = closeness_centrality()
         for name, val in result.items():
             assert 0.0 <= val <= 1.0, f"{name} closeness {val} out of [0,1]"
 
@@ -326,7 +345,7 @@ class TestWriteAnalyticsUpsert:
     def test_write_multiple_metrics(self, synth_db):
         """Writing different metrics should not interfere."""
         deg = compute("degree_centrality")
-        btw = compute("betweenness_centrality")
+        btw = betweenness_centrality()
         write_analytics("degree_centrality", deg)
         write_analytics("betweenness_centrality", btw)
 
@@ -406,7 +425,7 @@ class TestMutationRecompute:
 
     def test_betweenness_changes_after_adding_edge(self, synth_db):
         """Adding a shortcut edge changes betweenness."""
-        result_before = compute("betweenness_centrality")
+        result_before = betweenness_centrality()
 
         # Connect CompanyD directly to CompanyC (bridge between sectors)
         conn = sqlite3.connect(str(synth_db))
@@ -421,7 +440,7 @@ class TestMutationRecompute:
         conn.commit()
         conn.close()
 
-        result_after = compute("betweenness_centrality")
+        result_after = betweenness_centrality()
         # At least one node should have different betweenness
         diffs = {n for n in result_before if result_before[n] != result_after[n]}
         assert len(diffs) > 0, "betweenness should change after adding an edge"
@@ -644,7 +663,7 @@ class TestPhase3Centralities:
     def test_harmonic_across_components(self, synth_db):
         # Unreachable nodes contribute 0 (unlike closeness, harmonic is
         # well-defined on disconnected graphs).
-        res = algos.compute("harmonic_centrality")
+        res = harmonic_centrality()
         assert res == {
             "CompanyA": pytest.approx(2.5),  # SectorA+B at 1, C at 2
             "CompanyB": pytest.approx(3.0),  # SectorA+A+C at 1
@@ -813,6 +832,49 @@ class TestLinkPrediction:
         assert rc == 0
         assert "link-predict (method=jaccard)" in out.out
         assert "CompanyA" in out.out and "CompanyC" in out.out
+
+    def test_cli_link_predict_pref_attach_refused_without_flag(self, synth_db, capsys):
+        # All-pairs extension: argparse hard-fails (rc 2) BEFORE any compute.
+        with pytest.raises(SystemExit) as exc:
+            algos._cli(["link-predict", "--top", "2", "--method", "pref-attach"])
+        assert exc.value.code == 2
+        assert "allow-all-pairs" in capsys.readouterr().err
+
+    def test_persist_pref_attach_truncates_per_node(self, synth_db):
+        # Unbounded pref-attach output is infeasible by nature: persistence
+        # keeps per-node top-100 (API serves top<=100); other methods keep
+        # every positive-score candidate, unchanged.
+        import json as _json
+
+        pairs = [("hub", f"n{i}", float(1000 - i)) for i in range(150)]
+        n = algos._persist_link_prediction(
+            pairs, "pref-attach", None, conn=sqlite3.connect(str(synth_db))
+        )
+        assert n == 151
+        row = (
+            sqlite3.connect(str(synth_db))
+            .execute(
+                "SELECT value FROM graph_analytics WHERE metric='link_prediction'"
+                " AND entity_name='hub'"
+            )
+            .fetchone()[0]
+        )
+        cands = _json.loads(row)["candidates"]
+        assert len(cands) == 100
+        assert cands[0]["score"] == pytest.approx(1000.0)
+        assert cands[-1]["score"] == pytest.approx(901.0)
+
+        pairs2 = [("hub2", f"m{i}", float(150 - i)) for i in range(150)]
+        algos._persist_link_prediction(pairs2, "jaccard", None, conn=sqlite3.connect(str(synth_db)))
+        row2 = (
+            sqlite3.connect(str(synth_db))
+            .execute(
+                "SELECT value FROM graph_analytics WHERE metric='link_prediction'"
+                " AND entity_name='hub2'"
+            )
+            .fetchone()[0]
+        )
+        assert len(_json.loads(row2)["candidates"]) == 150  # jaccard uncapped
 
     def test_cli_link_predict_is_dry_run_by_default(self, synth_db, capsys):
         # D13 (reverses the 2026-08-14 open-question #2 answer): the bare

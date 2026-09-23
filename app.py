@@ -2463,6 +2463,25 @@ def api_graph_suggestions():
                 ],
             }
         ), 400
+    if method == "pref-attach":
+        # The all-pairs space (~243M pairs at VIGIL scale) must never be
+        # enumerated behind a read-only request (AVAIL precedent):
+        # refused — use a 2-hop method, or run pref-attach via the CLI
+        # (--allow-all-pairs, exact top-K heap). Kept in valid_methods
+        # above so the unknown-method error still advertises the full set.
+        return jsonify(
+            {
+                "error": "pref-attach enumerates the all-pairs space; "
+                "refused on the request path — use a 2-hop method or run "
+                "the CLI with --allow-all-pairs",
+                "valid_methods": [
+                    "jaccard",
+                    "adamic-adar",
+                    "common-neighbors",
+                    "resource-alloc",
+                ],
+            }
+        ), 400
     try:
         top = int(request.args.get("top", "25"))
     except ValueError:

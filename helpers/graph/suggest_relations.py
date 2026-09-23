@@ -207,11 +207,14 @@ def suggest_relations(
     min_score: float = 0.3,
     companies_only: bool = True,
     existing_pairs: set[frozenset[str]] | None = None,
+    allow_all_pairs: bool = False,
 ) -> list[Suggestion]:
     """Predict missing relations and format them as review-queue entries.
 
     Pulls a headroom candidate list from ``link_prediction`` (top*8, so the
     filters can discard most of it) and returns at most ``top`` Suggestions.
+    ``allow_all_pairs`` gates the ``pref-attach`` DB path (refused without
+    it — see onager_link_prediction).
     """
     own = False
     if con is None:
@@ -227,7 +230,13 @@ def suggest_relations(
             # pairwise ranking — see _co_membership_pairs.
             raw = _co_membership_pairs(con, top=max(top * 8, top))
         else:
-            raw = link_prediction(con, edge_types=edge_types, method=method, top=max(top * 8, top))
+            raw = link_prediction(
+                con,
+                edge_types=edge_types,
+                method=method,
+                top=max(top * 8, top),
+                allow_all_pairs=allow_all_pairs,
+            )
     finally:
         if own:
             con.close()
@@ -292,6 +301,11 @@ def main(argv: list[str] | None = None) -> int:
         help="jaccard | adamic-adar | common-neighbors | pref-attach | resource-alloc",
     )
     p.add_argument(
+        "--allow-all-pairs",
+        action="store_true",
+        help="permit pref-attach (exact top-K heap over the all-pairs space); refused without it",
+    )
+    p.add_argument(
         "--edge-types",
         default=None,
         help="comma-separated projection types (default: non-membership set)",
@@ -325,6 +339,7 @@ def main(argv: list[str] | None = None) -> int:
         top=args.top,
         min_score=args.min_score,
         companies_only=not args.all_kinds,
+        allow_all_pairs=args.allow_all_pairs,
     )
     if args.append:
         n = append_suggestions(suggestions, path=args.out)

@@ -473,9 +473,7 @@ def verify_duckdb_snapshot(  # noqa: C901
         # legitimately predates them. A one-side-only ephemeral is exempt
         # from the set/count comparison; present-on-both still must match.
         ephemeral_drift = sorted(
-            t
-            for t in EPHEMERAL_TABLES
-            if (t in snap_counts) != (t in src_counts)
+            t for t in EPHEMERAL_TABLES if (t in snap_counts) != (t in src_counts)
         )
         if ephemeral_drift:
             logger.info(
@@ -768,7 +766,8 @@ def export_parquet_duckdb(
     if pruned:
         logger.info(
             "Parquet DuckDB: pruned %d stale manifest file(s) for dropped tables: %s",
-            len(pruned), ", ".join(sorted(pruned)),
+            len(pruned),
+            ", ".join(sorted(pruned)),
         )
 
     logger.info(
@@ -1164,6 +1163,17 @@ def _cmd_restore(
     if with_sources and sources_path is not None and sources_path.exists() and not force:
         logger.error(f"Refusing to overwrite existing {sources_path} — pass --force")
         return 1
+    targets = [str(db_path)]
+    if with_duckdb:
+        targets.append(str(duckdb_path))
+    if with_sources and sources_path is not None:
+        targets.append(str(sources_path))
+    logger.warning(
+        "destructive op: restore live DBs from Parquet snapshot -> %s | "
+        "live state since the snapshot is LOST | undo: none — snapshot "
+        "the live DBs first if unsure (make snapshot)",
+        ", ".join(targets),
+    )
     if parquet_sqlite_dir.exists():
         restore_sqlite_from_parquet(parquet_sqlite_dir, db_path, logger)
     else:

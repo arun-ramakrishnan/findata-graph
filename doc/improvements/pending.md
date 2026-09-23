@@ -3,6 +3,59 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **scipy routing dispatch — FILED + WIRED 2026-09-23**
+  (`proposals/scipy_routing_dispatch.md`, implemented in the
+  `scipy_algos` patch): SCIPY-routed closeness/harmonic DB-backed
+  calls now serve the ~6 s bridge lane through `compute()` — no
+  silent Onager fallthrough (failures fail loud, naming the avoided
+  150-192 s cost); 29/29 lane/fold/cache tests green. §8 five-route
+  blowup program: route 1 (closeness/harmonic) DONE; route 2
+  (betweenness `L1B_FOLD`) EVIDENCE-COMPLETE + COUNTERSIGNED per the
+  §8.3 re-grade (stored rows == fixed fold, constant settled-divisor
+  ratio 230,083,426, 0/1,382 mismatch) AND the 2026-09-23 fresh-Onager
+  bypass re-run on the restamped generation (flat 1.000000 at rtol
+  1e-9 over all 1,924 both-positive nodes, r=1.0, max 0.4380 both
+  engines, zero positive-only disagreements) — the one-line dispatch
+  flip is ready on operator call; route
+  3 (pref-attach ~485M pairs) OPEN — scoped top-K over degree
+  vectors is the leading option (no shared-neighbor join needed);
+  route 4 (stamp job 5-6 min) needs the full-pop stamp reader
+  census; route 5 (hop metrics) LEAVE.
+
+- **scipy_algos umbrella batch — FILED 2026-09-23, five children
+  DEFERRED + ARCHIVED 2026-09-23** (completed.md #272–276; triggers
+  recorded in each record): `personalized_pagerank` (no consumer),
+  `maximum_flow` (no s-t question), `minimum_spanning_tree` (need
+  still deferred), `yen_k_shortest` (no consumer),
+  `link_prediction_kernel` (SQL L1c delivered exact at 0.65 s).
+  Implemented from the batch: Katz exact-solve + eigsh eigenvector
+  lanes (`helpers/graph/scipy_bridge.py`, opt-in, no dispatch flip).
+  (children of `archive/graph/scipy_graph_bridge.md`, umbrella patch
+  `scipy_algos`): Katz (exact solve retires the 1e-4 alpha pin;
+  near-critical alpha restores the flattened spread),
+  personalized PageRank — archived (restart-hardcoded bug),
+  eigenvector eigsh (robust fallback where Onager
+  hits "Convergence failed after 100 iterations"; Onager stays
+  default), maximum flow — archived (Dinic, retired igraph seat,
+  dry-run only — s-t has no per-entity metric shape),
+  minimum spanning tree — archived (deferred need wired; Kruskal toy
+  oracle), Yen K-shortest — archived (new capability, opt-in, no
+  consumer yet). Full 27-public csgraph surface accounting added as
+  the umbrella's §7 footnotes (owned-elsewhere / converters /
+  no-consumer-recorded dispositions, nothing else silently owed).
+
+- **Served-vs-stamp convention fork (closeness/harmonic) — OPEN,
+  reconcile later**: served `graph_analytics` rows live in the lane
+  universe (all-edges projection, `(N-1)/sum`), while `v_centrality_*`
+  stamps live in the Onager universe (ex-index projection + an
+  underived ×1.2383 global rescale, rank-exact r=1.0 — dead theories:
+  formula, edge set, N, weights, directedness, staleness all
+  checked). Current posture (scipy_routing_dispatch §2): wire the
+  served universe, preserve bit-exact, do not move served absolutes
+  on an underived constant. **Trigger for reconciliation**: Onager
+  C++ source access, or a cross-generation experiment pinning the
+  constant to a projection/parameter.
+
 - **graph_perf_l1 S1 write-surface call — RESOLVED 2026-09-23**: the
   restricted-source lane writes `graph_analytics` (the contract's own
   home; write_analytics UPSERT, --apply); the v_centrality_* stamp
@@ -186,12 +239,14 @@ Open items below keep their revisit triggers inline; executed work is compressed
   original state below:
   eigenvector 0.37s, link_prediction 1.34s, closeness 2.97s,
   betweenness 2.23s. FOLLOW-UP FILED 2026-09-23:
-  `proposals/graph_perf_l1_bfs_scale.md` — first perf run at VIGIL
+  `archive/graph/graph_perf_l1_bfs_scale.md` — first perf run at VIGIL
   scale blew the three cold `--compute` legs 12-31x (closeness 156.8s,
   link_prediction 57.0s, betweenness 48.9s); budgets deliberately left
   RED as the tracker; slices L1a source-restricted closeness/harmonic,
   L1b 2-core betweenness, L1c link-pred candidate pruning, snapshot
-  manifest ephemerality, gate re-tightening.
+  manifest ephemerality, gate re-tightening. CLOSED 2026-09-23
+  (completed.md #277 — all legs green: centrality 2.66/5.0,
+  betweenness 3.67/8.0, link-prediction 2.08/4.0; perf gate 23/23).
 - **test_fuzz_shortest_path leaks a 176MB sp.db tempdir per run** —
   DONE 2026-09-17 (#245; `archive/testing/tmpdir_sanitization.md`): the
   tmpdir-hygiene arc — fixture onto pytest basetemp with a vacuumed copy,
