@@ -3,6 +3,17 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **graph_perf_l1 S1 write-surface call — RESOLVED 2026-09-23**: the
+  restricted-source lane writes `graph_analytics` (the contract's own
+  home; write_analytics UPSERT, --apply); the v_centrality_* stamp
+  keeps full-walk semantics. Implementation:
+  `helpers/graph/scipy_bridge.py` (scipy route (d), owned by
+  scipy_graph_bridge.md; 2.9 s wall both metrics; contract alive in
+  research.db, mirrored at
+  snapshots/parquet/sqlite/). See the §3 surface note in
+  graph_perf_l1_bfs_scale.md. (An earlier "orphan parquet" reading of
+  the sqlite mirror was wrong — corrected 2026-09-23.)
+
 - **§G2 word-overlap alias guard + §G3 discard-persistence noise gate** — executed as `doc/improvements/archive/graph/word_overlap_alias_guard.md` (completed.md #218, 2026-09-09).
 
 - **HGX D10 prediction/motifs lanes** (D4 EXECUTED as hgx_first_scaling
@@ -174,7 +185,13 @@ Open items below keep their revisit triggers inline; executed work is compressed
   completed.md #255 (`archive/tooling/advisory_gate_perf_reports.md`);
   original state below:
   eigenvector 0.37s, link_prediction 1.34s, closeness 2.97s,
-  betweenness 2.23s.
+  betweenness 2.23s. FOLLOW-UP FILED 2026-09-23:
+  `proposals/graph_perf_l1_bfs_scale.md` — first perf run at VIGIL
+  scale blew the three cold `--compute` legs 12-31x (closeness 156.8s,
+  link_prediction 57.0s, betweenness 48.9s); budgets deliberately left
+  RED as the tracker; slices L1a source-restricted closeness/harmonic,
+  L1b 2-core betweenness, L1c link-pred candidate pruning, snapshot
+  manifest ephemerality, gate re-tightening.
 - **test_fuzz_shortest_path leaks a 176MB sp.db tempdir per run** —
   DONE 2026-09-17 (#245; `archive/testing/tmpdir_sanitization.md`): the
   tmpdir-hygiene arc — fixture onto pytest basetemp with a vacuumed copy,

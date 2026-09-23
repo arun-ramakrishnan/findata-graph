@@ -646,6 +646,16 @@ _LINK_METHODS: dict[str, tuple[str, str]] = {
 # Default projection for candidate-edge prediction: the NON-membership edge
 # types (proposal risk #1 — predicting over membership/hierarchy edges is
 # trivially sector co-occurrence). Callers override with edge_types=[...].
+#: Hub-side degree cap for the SQL 2-hop candidate join (graph_perf_l1 S3).
+#: Shared-neighbour rows whose shared node has degree > cap are skipped: a
+#: high-degree shared neighbour carries almost no discriminative signal
+#: (every candidate pair shares the hub) while its star join is the
+#: quadratic term. The four shared-neighbour methods remain EXACT in their
+#: candidate set at any cap for scores that matter (score > 0 requires at
+#: least one UNCAPPED shared neighbour); only hub-only-signal pairs drop.
+LP_HUB_DEGREE_CAP = 512
+
+
 DEFAULT_PREDICTION_EDGE_TYPES = [
     "co_mentioned_in",
     "jv_with",
@@ -684,6 +694,7 @@ def onager_link_prediction(
     edges: list[tuple[int, int, float]] | None = None,
     method: str = "jaccard",
     top: int | None = None,
+    hub_degree_cap: int | None = LP_HUB_DEGREE_CAP,
 ) -> list[tuple[Any, Any, float]]:
     """Rank candidate (missing) edges by neighbourhood similarity.
 
@@ -707,7 +718,6 @@ def onager_link_prediction(
         raise ValueError(
             f"unknown link-prediction method: {method!r} (choose from {sorted(_LINK_METHODS)})"
         )
-    fn, col = _LINK_METHODS[method]
     con, owns = _prepare(con)
     try:
         if edges is None:
@@ -715,36 +725,127 @@ def onager_link_prediction(
             if not _ensure_materialized(con, types):
                 return []
             endpoints = "i1.name, i2.name"
-            name_joins = "JOIN _onager_int i1 ON i1.nid = p.lo JOIN _onager_int i2 ON i2.nid = p.hi"
+            name_joins = "JOIN _onager_int i1 ON i1.nid = s.lo JOIN _onager_int i2 ON i2.nid = s.hi"
         else:
             _ensure_materialized(con, edges=edges)
-            endpoints = "p.lo, p.hi"
+            endpoints = "s.lo, s.hi"
             name_joins = ""
-        # Canonicalise pair direction in SQL: onager emits each unordered
-        # pair exactly once but in NO guaranteed direction (verified live
-        # 2026-08-14 — (hi, lo) on some layouts, (lo, hi) on others), so we
-        # normalise with LEAST/GREATEST and DISTINCT rather than filtering.
+        legacy_endpoints = endpoints.replace("s.", "p.")
         # int(top) validated before interpolation; LIMIT cannot bind a ?.
         limit = f" LIMIT {int(top)}" if top is not None else ""
-        rows = con.execute(
-            f"""
-            WITH pairs AS (
-                SELECT DISTINCT LEAST(node1, node2) AS lo, GREATEST(node1, node2) AS hi,
-                       {col} AS score
-                FROM {fn}((SELECT src, dst, weight FROM _onager_e))
+        if method == "pref-attach":
+            # No shared-neighbour requirement -> a 2-hop candidate join
+            # would CHANGE semantics (score = deg product is nonzero for any
+            # co-degree pair). Stays on the all-pairs extension; not
+            # perf-gated and rarely used (S3, graph_perf_l1).
+            fn, col = _LINK_METHODS[method]
+            rows = con.execute(
+                f"""
+                WITH pairs AS (
+                    SELECT DISTINCT LEAST(node1, node2) AS lo, GREATEST(node1, node2) AS hi,
+                           {col} AS score
+                    FROM {fn}((SELECT src, dst, weight FROM _onager_e))
+                )
+                SELECT {legacy_endpoints}, p.score
+                FROM pairs p
+                {name_joins}
+                WHERE p.score > 0
+                  AND NOT EXISTS (
+                      SELECT 1 FROM _onager_e ee
+                      WHERE (ee.src = p.lo AND ee.dst = p.hi)
+                         OR (ee.src = p.hi AND ee.dst = p.lo))
+                ORDER BY p.score DESC, p.lo, p.hi
+                {limit}
+                """  # noqa: S608  # parameterized; interpolated parts are schema-constant identifiers / validated int
+            ).fetchall()
+        else:
+            # S3 (graph_perf_l1): SQL-side 2-hop candidate join over the
+            # materialised projection — jaccard / adamic-adar /
+            # common-neighbors / resource-alloc are all zero iff the pair
+            # shares a neighbour, so the 2-hop candidate set is EXACT (the
+            # all-pairs extension scanned ~485M pairs for 633k real
+            # candidates; 61 s -> sub-second, measured 2026-09-23).
+            # DISTINCT sym: the arcs may arrive bidirectional (tests feed
+            # both directions); degrees must count each neighbour once.
+            wexpr, sexpr = {
+                "jaccard": ("1.0", "a.cn::DOUBLE / (da.d + dh2.d - a.cn)"),
+                "adamic-adar": ("(1.0 / ln(ds.d))", "a.wsum"),
+                "common-neighbors": ("1.0", "a.cn::DOUBLE"),
+                "resource-alloc": ("(1.0::DOUBLE / ds.d)", "a.wsum"),
+            }[method]
+            cap = LP_HUB_DEGREE_CAP if hub_degree_cap is None else int(hub_degree_cap)
+            # per-lo retention: top-K output can hold at most K pairs of any
+            # one lo; unlimited ranking (top=None) keeps everything.
+            topk_filter = (
+                f"rn <= {int(top)}" if top is not None else "TRUE"
             )
-            SELECT {endpoints}, p.score
-            FROM pairs p
-            {name_joins}
-            WHERE p.score > 0
-              AND NOT EXISTS (
-                  SELECT 1 FROM _onager_e ee
-                  WHERE (ee.src = p.lo AND ee.dst = p.hi)
-                     OR (ee.src = p.hi AND ee.dst = p.lo))
-            ORDER BY p.score DESC, p.lo, p.hi
-            {limit}
-            """  # noqa: S608  # parameterized; interpolated parts are schema-constant identifiers / validated int
-        ).fetchall()
+            rows = con.execute(
+                f"""
+                WITH sym AS (
+                    SELECT DISTINCT src AS a, dst AS b FROM _onager_e
+                    UNION
+                    SELECT DISTINCT dst AS a, src AS b FROM _onager_e
+                ),
+                deg AS (SELECT a, count(*) AS d FROM sym GROUP BY a),
+                cand AS (
+                    SELECT s1.a AS lo, s2.a AS hi, s1.b AS shared
+                    FROM sym s1
+                    JOIN sym s2 ON s2.b = s1.b AND s1.a < s2.a
+                    JOIN deg dh ON dh.a = s1.b
+                    WHERE dh.d <= {cap}
+                ),
+                agg AS (
+                    SELECT c.lo, c.hi,
+                           count(c.shared) AS cn,
+                           sum({wexpr}) AS wsum
+                    FROM cand c
+                    JOIN deg ds ON ds.a = c.shared
+                    GROUP BY c.lo, c.hi
+                ),
+                scored AS (
+                    SELECT a.lo AS lo, a.hi AS hi,
+                           {sexpr} AS score
+                    FROM agg a
+                    JOIN deg da ON da.a = a.lo
+                    JOIN deg dh2 ON dh2.a = a.hi
+                ),
+                -- canonical existing-edge set: the correlated NOT-EXISTS
+                -- with an OR defeats DuckDB's decorrelation and turns the
+                -- filter into a nested loop (4.9 s of the old 5.0 s run).
+                ex AS (
+                    SELECT DISTINCT LEAST(src, dst) AS lo, GREATEST(src, dst) AS hi
+                    FROM _onager_e
+                ),
+                clean AS (
+                    SELECT sc.lo, sc.hi, sc.score
+                    FROM scored sc
+                    WHERE sc.score > 0
+                      AND NOT EXISTS (
+                          SELECT 1 FROM ex WHERE ex.lo = sc.lo AND ex.hi = sc.hi)
+                )
+                -- top-K early exit (S3): any global top-K pair is within its
+                -- lo's top-K under the SAME ordering key, so pruning here is
+                -- exact for the final LIMIT and keeps one hub-lo tie cluster
+                -- from fanning the anti-join/name steps out to ~500k rows.
+                , ranked AS (
+                    SELECT lo, hi, score,
+                           row_number() OVER (
+                               PARTITION BY lo
+                               ORDER BY score DESC, hi
+                           ) AS rn
+                    FROM clean
+                ),
+                kept AS (
+                    SELECT lo, hi, score FROM ranked
+                    WHERE {topk_filter}
+                )
+                SELECT {endpoints}, s.score
+                FROM kept s
+                {name_joins}
+                ORDER BY s.score DESC, s.lo, s.hi
+                {limit}
+                """  # noqa: S608  # parameterized; interpolated parts are constants / validated int
+            ).fetchall()
     finally:
         if owns:
             con.close()

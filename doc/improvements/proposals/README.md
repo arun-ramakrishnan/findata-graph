@@ -34,6 +34,25 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
+- **scipy_graph_bridge.md** (filed 2026-09-23) — SciPy graph bridge:
+  BSD-native analytics second lane (`scipy.sparse.csgraph` +
+  `sparse.linalg`, already a declared dependency). S1 carries L1a
+  (`dijkstra(indices=contract)`: 2.87 s cold 4-way / 6.49 s single,
+  parity r=0.96 vs the live stamp); S2 exact-solve gap-fills (Katz,
+  personalized PageRank, `eigsh` eigenvector); S3 resurrected/new
+  lanes (max-flow, MST, Yen K-shortest); S4 conditional sparse
+  link-pred kernel. Non-goals: Brandes, Louvain/Leiden, all-pairs
+  diameter, HGX for dyadic lanes. Owns L1's route (d).
+- **graph_perf_l1_bfs_scale.md** (filed 2026-09-23) — Graph perf L1 at
+  VIGIL scale: L1a company-source-restricted closeness/harmonic (exact;
+  1,734 persisted-contract sources vs 26,120 walked), L1b betweenness
+  2-core folding, L1c link-prediction candidate pruning, S4 snapshot
+  manifest centrality-awareness, S5 gate re-tightening + cold-lane
+  policy. Three `make perf` legs are DELIBERATELY RED (operator call
+  2026-09-23: closeness 156.8s, link_prediction 57.0s, betweenness
+  48.9s vs pre-VIGIL budgets) until S1-S3 land — the red legs are the
+  tracker; revisit table in proposal §2.
+
 _(Previously: note_knn_distance_ranking.md archived 2026-09-22 as
 completed.md entry 266 — note-KNN cosine→l2 distance swap at all six
 query.py KNN sites (scores still cosine-scaled via 1 − d²/2),

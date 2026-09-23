@@ -329,7 +329,12 @@ def verify_duckdb_snapshot(  # noqa: C901
     # Defer the duckdb + EDGE_REGISTRY imports until the snapshot exists;
     # the SQLite-only verify path never pays this cost.
     import duckdb
-    from helpers.graph.query import EDGE_REGISTRY, MATERIALISED_TABLES
+    from helpers.graph.query import (
+        EDGE_REGISTRY,
+        EPHEMERAL_TABLES,
+        MATERIALISED_TABLES,
+        STAMP_OWNED_META_KEYS,
+    )
 
     # Canonical list of materialised tables to verify: the manifest
     # frozenset verbatim, sorted for deterministic output. (Was: a
@@ -343,11 +348,21 @@ def verify_duckdb_snapshot(  # noqa: C901
     def _count_tables(con: duckdb.DuckDBPyConnection) -> dict[str, int]:
         """Return ``{table_name: row_count}`` for every materialised table
         that exists in ``con``. Missing tables are omitted from the dict;
-        the caller's set comparison flags missing-table regressions."""
+        the caller's set comparison flags missing-table regressions.
+        ``_build_meta`` counts only keys the materialisation owns (S4,
+        graph_perf_l1_bfs_scale): the centrality stamp's extra key is
+        contract-legal drift on either side, not staleness."""
         counts: dict[str, int] = {}
         for t in materialised_tables:
             try:
-                _row = con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                if t == "_build_meta" and STAMP_OWNED_META_KEYS:
+                    ph = ", ".join("?" for _ in STAMP_OWNED_META_KEYS)
+                    _row = con.execute(  # noqa: S608  # parameterized; identifier is schema-constant
+                        f"SELECT COUNT(*) FROM _build_meta WHERE key NOT IN ({ph})",
+                        tuple(STAMP_OWNED_META_KEYS),
+                    ).fetchone()
+                else:
+                    _row = con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
                 counts[t] = _row[0] if _row is not None else 0
             except duckdb.Error:
                 # Table absent or schema-mismatched — leave it out so the
@@ -452,10 +467,29 @@ def verify_duckdb_snapshot(  # noqa: C901
                 f"DuckDB generation: snapshot={snap_gen} source={src_gen} -> {'OK' if gen_match else 'MISMATCH'}"
                 + ("" if gen_match else " (stale snapshot — run make snapshot)")
             )
+        # S4 (graph_perf_l1_bfs_scale): the ten v_centrality_* tables are
+        # ephemeral in the snapshot contract — a data-only rebuild drops
+        # them (absence == "compute on demand") and a pre-stamp snapshot
+        # legitimately predates them. A one-side-only ephemeral is exempt
+        # from the set/count comparison; present-on-both still must match.
+        ephemeral_drift = sorted(
+            t
+            for t in EPHEMERAL_TABLES
+            if (t in snap_counts) != (t in src_counts)
+        )
+        if ephemeral_drift:
+            logger.info(
+                "Ephemeral centrality tables absent on one side "
+                "(contract-legal; make stamp-centrality restores them): %s",
+                ", ".join(ephemeral_drift),
+            )
+        cmp_snap = {t: c for t, c in snap_counts.items() if t not in ephemeral_drift}
+        cmp_src = {t: c for t, c in src_counts.items() if t not in ephemeral_drift}
         # Match requires: identical table set, identical row counts on every
-        # table, AND the snapshot's tables support pg construction, AND generation match.
-        same_tables = set(snap_counts) == set(src_counts)
-        same_counts = snap_counts == src_counts
+        # (non-exempt) table, AND the snapshot's tables support pg
+        # construction, AND generation match.
+        same_tables = set(cmp_snap) == set(cmp_src)
+        same_counts = cmp_snap == cmp_src
         ok = same_tables and same_counts and snap_pg_ok and gen_match
 
         result.update(source_tables=src_counts, match=ok)
@@ -467,9 +501,9 @@ def verify_duckdb_snapshot(  # noqa: C901
         snap_edges = sum(c for t, c in snap_counts.items() if t.startswith("e_"))
         src_edges = sum(c for t, c in src_counts.items() if t.startswith("e_"))
         diffs = {
-            t: f"{snap_counts.get(t, 'absent')}/{src_counts.get(t, 'absent')}"
+            t: f"{cmp_snap.get(t, 'absent')}/{cmp_src.get(t, 'absent')}"
             for t in materialised_tables
-            if snap_counts.get(t) != src_counts.get(t)
+            if cmp_snap.get(t) != cmp_src.get(t)
         }
         suffix = f" DIFFS={diffs}" if diffs else ""
         pg_flag = "ok" if snap_pg_ok else "BAD"
@@ -718,6 +752,25 @@ def export_parquet_duckdb(
     finally:
         con.close()
 
+    # S4 prune (graph_perf_l1_bfs_scale): a table the live DB dropped —
+    # the ten ephemeral v_centrality_* after a data-only rebuild — must
+    # not linger as a stale git-tracked parquet, or --restore would
+    # resurrect last generation's scores over a new edge set. Prune
+    # manifest-scoped files that this export did not write; files outside
+    # the manifest keep the stray-table warning's remit, not silent rm.
+    exported = set(results)
+    pruned = []
+    for stale in sorted(out_dir.glob("*.parquet")):
+        if stale.stem in exported or stale.stem not in manifest:
+            continue
+        stale.unlink()
+        pruned.append(stale.name)
+    if pruned:
+        logger.info(
+            "Parquet DuckDB: pruned %d stale manifest file(s) for dropped tables: %s",
+            len(pruned), ", ".join(sorted(pruned)),
+        )
+
     logger.info(
         f"Parquet DuckDB export: {len(results)} tables, {total_bytes:,} bytes total → {out_dir}"
     )
@@ -835,21 +888,48 @@ def _verify_parquet_duckdb_side(
         if duckdb_pq_dir.exists():
             import duckdb
 
+            from helpers.graph.query import EPHEMERAL_TABLES, STAMP_OWNED_META_KEYS
+
             con = duckdb.connect(str(duckdb_path), read_only=True)
             try:
                 pq_files = sorted(duckdb_pq_dir.glob("*.parquet"))
                 for pf in pq_files:
                     tname = pf.stem
+                    # S4 (graph_perf_l1_bfs_scale): _build_meta counts only
+                    # materialisation-owned keys — the centrality stamp's
+                    # extra key is contract-legal drift on either side.
+                    stamp_meta = tname == "_build_meta" and bool(STAMP_OWNED_META_KEYS)
+                    if stamp_meta:
+                        ph = ", ".join("?" for _ in STAMP_OWNED_META_KEYS)
+                        meta_sql = f"key NOT IN ({ph})"  # noqa: S608  # parameterized; identifier is schema-constant
                     try:
-                        _row = con.execute(
-                            f"SELECT COUNT(*) FROM {tname}"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-                        ).fetchone()
+                        if stamp_meta:
+                            _row = con.execute(
+                                f"SELECT COUNT(*) FROM _build_meta WHERE {meta_sql}",
+                                tuple(STAMP_OWNED_META_KEYS),
+                            ).fetchone()
+                        else:
+                            _row = con.execute(
+                                f"SELECT COUNT(*) FROM {tname}"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                            ).fetchone()
                         src_cnt = _row[0] if _row is not None else 0
                     except Exception:  # noqa: S112  # best-effort; skip item on failure
+                        if tname in EPHEMERAL_TABLES:
+                            logger.info(
+                                "Parquet verify: ephemeral %s absent on the live side "
+                                "(contract-legal; make stamp-centrality restores it)",
+                                tname,
+                            )
                         continue  # table may not exist in this version
-                    _row = con.execute(
-                        f"SELECT COUNT(*) FROM '{pf}'"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
-                    ).fetchone()
+                    if stamp_meta:
+                        _row = con.execute(
+                            f"SELECT COUNT(*) FROM '{pf}' WHERE {meta_sql}",  # noqa: S608  # literal parquet path + parameterized keys
+                            tuple(STAMP_OWNED_META_KEYS),
+                        ).fetchone()
+                    else:
+                        _row = con.execute(
+                            f"SELECT COUNT(*) FROM '{pf}'"  # noqa: S608  # parameterized; interpolated parts are `?`-clauses / schema-constant identifiers
+                        ).fetchone()
                     snap_cnt = _row[0] if _row is not None else 0
                     result["tables_checked"] += 1
                     if src_cnt != snap_cnt:

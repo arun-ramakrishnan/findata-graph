@@ -880,6 +880,20 @@ MATERIALISED_TABLES = frozenset(spec["table"] for spec in EDGE_REGISTRY.values()
     _EXTRA_MATERIALIZED, {"_build_meta"}
 )
 
+# S4 (graph_perf_l1_bfs_scale, 2026-09-23): the ten stamped score tables
+# are EPHEMERAL in the snapshot contract — the data-only rebuild drops
+# them by design (absence == "compute on demand" for every reader), so
+# snapshot verification tolerates one-side absence instead of demanding
+# them. Present-on-both still verifies counts.
+EPHEMERAL_TABLES = frozenset(
+    t for t in _EXTRA_MATERIALIZED if t.startswith("v_centrality_")
+)
+# _build_meta keys owned by the explicit stamp lane
+# (stamp_centrality_cache); excluded from snapshot verification — an
+# 8-vs-7 key diff across a rebuild/stamp boundary is contract-legal
+# drift, not staleness.
+STAMP_OWNED_META_KEYS = frozenset({"louvain_modularity"})
+
 
 def _build_graph(con: duckdb.DuckDBPyConnection, *, stamp_centrality: bool = False) -> None:
     """Materialise vertices + edges + declare the property graph.

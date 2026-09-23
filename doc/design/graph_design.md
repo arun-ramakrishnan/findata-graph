@@ -372,7 +372,12 @@ rm note) are mechanical; see git history for worked examples.
   `rebuild(stamp_centrality=True)` keeps the old one-shot. First
   centrality read after a data-only rebuild pays live compute (~3 min
   for the BFS family on the live graph) — that is the documented price
-  until the stamp lane runs.
+  until the stamp lane runs. Snapshot contract (graph_perf_l1_bfs_scale
+  S4, 2026-09-23): `snapshot-check` treats the ten tables — and the
+  stamp's `louvain_modularity` `_build_meta` key — as EPHEMERAL:
+  absent on either side is contract-legal, present-on-both must match
+  counts. Parquet export prunes stale `v_centrality_*.parquet` so
+  `--restore` cannot resurrect last generation's scores.
 - **Concurrency:** DuckDB allows one RW or many RO connections — never both.
   `/api/graph/refresh` rebuilds + resets the Flask connection in one call.
 - **Snapshots/maintenance:** `make snapshot` snapshots both SQLite and

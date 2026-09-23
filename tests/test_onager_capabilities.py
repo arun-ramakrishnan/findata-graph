@@ -392,6 +392,35 @@ def test_link_prediction_chain_top_limits_and_sorts():
     # Descending score; ties broken by ascending node order (deterministic).
     assert top2[0][:2] < top2[1][:2]
 
+def test_link_prediction_hub_cap_drops_hub_only_signal_pairs():
+    """S3 hub-side cap: a pair whose ONLY shared neighbour is a capped hub
+    drops from the candidates; the default cap (512 > live max degree 304)
+    keeps it. Shared-only-hub pair (a,b): jaccard = 1/(2+2-1) = 1/3."""
+    edges = [
+        (10, 11, 1.0), (11, 10, 1.0),   # hub 10 - a(11)
+        (10, 12, 1.0), (12, 10, 1.0),   # hub 10 - b(12)
+        (11, 13, 1.0), (13, 11, 1.0),   # a's private neighbour
+        (12, 14, 1.0), (14, 12, 1.0),   # b's private neighbour
+    ]
+    kept = onager_mod.onager_link_prediction(edges=edges, method="jaccard")
+    assert (11, 12, round(1 / 3, 6)) in [(a, b, round(s, 6)) for a, b, s in kept]
+    dropped = onager_mod.onager_link_prediction(
+        edges=edges, method="jaccard", hub_degree_cap=1
+    )
+    assert (11, 12) not in [(a, b) for a, b, _s in dropped]
+
+
+def test_link_prediction_sql_path_jaccard_triangle_chain():
+    """SQL 2-hop path on a chain: two-hop pairs share exactly one neighbour
+    (jaccard 1/3 for mid-chain degree-2 endpoints)."""
+    edges = [(i, i + 1, 1.0) for i in range(6)]
+    pairs = onager_mod.onager_link_prediction(edges=edges, method="jaccard")
+    got = {(a, b): round(s, 6) for a, b, s in pairs}
+    # (0,2): N(0)={1}, N(2)={1,3} -> 1/2. (2,4): both degree-2 -> 1/3.
+    assert got[(0, 2)] == 0.5
+    assert got[(2, 4)] == round(1 / 3, 6)
+
+
 
 def test_link_prediction_empty_edges():
     assert onager_mod.onager_link_prediction(edges=[]) == []

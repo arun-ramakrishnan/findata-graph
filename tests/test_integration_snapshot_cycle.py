@@ -128,6 +128,110 @@ class TestDuckdbSnapshotCycle:
         assert "e_competes" not in result["tables"]
         assert "e_competes" in result["source_tables"]
 
+    @staticmethod
+    def _stamp_central_tables(con: "duckdb.DuckDBPyConnection", n: int = 21453) -> None:
+        """Minimal stand-in for stamp_centrality_cache: the ten ephemeral
+        score tables (S4, graph_perf_l1_bfs_scale). Row counts only —
+        verify checks counts, not score schemas."""
+        for name in (
+            "v_centrality_degree",
+            "v_centrality_closeness",
+            "v_centrality_betweenness",
+            "v_centrality_eigenvector",
+            "v_centrality_harmonic",
+            "v_centrality_katz",
+            "v_centrality_laplacian",
+            "v_centrality_local_reaching",
+            "v_centrality_voterank",
+            "v_centrality_louvain",
+        ):
+            con.execute(
+                f"CREATE OR REPLACE TABLE {name} AS "  # noqa: S608  # identifier from the ephemeral manifest constant
+                "SELECT 'n' || i AS id, i * 1.0 AS score FROM range(?) t(i)",
+                [n],
+            )
+
+    def test_rebuild_dropped_centrality_tables_verify_green(self, cycle):
+        """S4 acceptance: snapshot_check stays green when the data-only
+        rebuild has dropped the centrality tables the snapshot still
+        carries (the 2026-09-23 perf-gate failure: v_centrality_*
+        21453/absent). Absence == compute-on-demand, not snapshot drift."""
+        db, ddb = cycle
+        out = db.parent / "snap.duckdb.zst"
+        con = duckdb.connect(str(ddb))
+        self._stamp_central_tables(con)
+        con.close()
+        create_duckdb_snapshot(ddb, out, _log)
+        # Simulate the data-only rebuild: drop the stamp's tables, keep
+        # generation (a plain rebuild re-stamps the same SQLite generation).
+        con = duckdb.connect(str(ddb))
+        con.execute("DROP TABLE v_centrality_degree")
+        con.close()
+        result = verify_duckdb_snapshot(out, ddb, _log)
+        assert result["match"] is True
+        assert result["tables"]["v_centrality_degree"] == 21453
+        assert "v_centrality_degree" not in result["source_tables"]
+
+    def test_ephemeral_present_on_both_count_drift_still_fails(self, cycle):
+        """Ephemerality exempts one-side ABSENCE only: a present-on-both
+        ephemeral whose counts disagree is real drift and must fail."""
+        db, ddb = cycle
+        out = db.parent / "snap.duckdb.zst"
+        con = duckdb.connect(str(ddb))
+        self._stamp_central_tables(con, n=100)
+        con.close()
+        create_duckdb_snapshot(ddb, out, _log)
+        # Re-stamp on the live side at a different scale (stale snapshot
+        # over a re-stamped file) — both sides present, counts disagree.
+        con = duckdb.connect(str(ddb))
+        self._stamp_central_tables(con, n=200)
+        con.close()
+        result = verify_duckdb_snapshot(out, ddb, _log)
+        assert result["match"] is False
+
+    def test_export_prunes_dropped_ephemeral_parquet(self, cycle, tmp_path):
+        """S4 prune: after a data-only rebuild drops the centrality tables,
+        a fresh parquet export must DELETE the stale v_centrality_*.parquet
+        files — a lingering file would let --restore resurrect last
+        generation's scores over a new edge set."""
+        db, ddb = cycle
+        out_dir = tmp_path / "pq" / "duckdb"
+        con = duckdb.connect(str(ddb))
+        self._stamp_central_tables(con, n=5)
+        con.close()
+        export_parquet_duckdb(ddb, out_dir, _log)
+        assert (out_dir / "v_centrality_degree.parquet").exists()
+        # Data-only rebuild: drop the stamp's tables, re-export.
+        con = duckdb.connect(str(ddb))
+        con.execute("DROP TABLE v_centrality_degree")
+        con.close()
+        export_parquet_duckdb(ddb, out_dir, _log)
+        assert not (out_dir / "v_centrality_degree.parquet").exists()
+        # Manifest tables the live DB still owns are untouched.
+        assert (out_dir / "v_node.parquet").exists()
+        # A stray non-manifest file is NOT the prune's remit (stays).
+        stray = out_dir / "scratch_bench.parquet"
+        stray.write_bytes(b"parquet-ish")
+        export_parquet_duckdb(ddb, out_dir, _log)
+        assert stray.exists()
+
+    def test_stamp_meta_key_not_counted(self, cycle):
+        """S4: _build_meta's louvain_modularity key is stamp-owned — an
+        8-vs-7 key diff across a rebuild/stamp boundary must not fail the
+        verify (the '_build_meta 8/7' half of the perf-gate failure)."""
+        db, ddb = cycle
+        out = db.parent / "snap.duckdb.zst"
+        create_duckdb_snapshot(ddb, out, _log)
+        con = duckdb.connect(str(ddb))
+        con.execute(
+            "INSERT OR REPLACE INTO _build_meta(key, value) VALUES ('louvain_modularity', '0.5')"
+        )
+        con.close()
+        result = verify_duckdb_snapshot(out, ddb, _log)
+        assert result["match"] is True
+        # Both sides report the required-key count only (7 base keys).
+        assert result["tables"]["_build_meta"] == result["source_tables"]["_build_meta"]
+
     def test_generation_drift_flagged(self, cycle):
         """Counts identical but the source generation moved (a rebuild ran
         without re-snapshotting) -> match False. The O(1) staleness check
