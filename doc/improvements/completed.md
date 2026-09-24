@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
-**Generated**: 2026-09-22
-**Total completed**: 180 items
+**Generated**: 2026-09-24
+**Total completed**: 182 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -7243,6 +7243,48 @@ Gates: make qa 11/11, make perf 23/23, make search-fresh APPLY=1,
 make lint-audit clean, make types-tests warnings-only.
 
 Execution record: `archive/tooling/gate_run_search.md`.
+
+## 283. Reuse one SciPy dijkstra pass across routed centrality metrics
+
+**Proposal**: `doc/improvements/archive/graph/scipy_all_pair_reuse.md`
+(filed + executed 2026-09-24 — verdict: **EXECUTED**).
+The SciPy bridge already computed closeness and harmonic from one distance
+matrix, but `--all` invoked it once per metric and repeated the same dijkstra
+work. `_run_scipy_lane_pair()` now computes both once; the CLI reuses that
+pair through the existing `ROUTING` switch for the duration of one invocation.
+No persistent or cross-generation cache was introduced, and standalone
+`compute()` behavior is unchanged.
+
+- Live 1,734-company contract: two full routed calls at 7.082 s median each
+  (14.164 s combined) became one pair at 7.261 s median, saving 6.903 s.
+- SciPy remains the selected engine for both metrics; flipping either routing
+  value bypasses pair reuse.
+- Empty projection, empty contract, import failure, and contract-drift behavior
+  remains fail-loud before compute.
+- Targeted Ruff, format, `ty`, Markdown lint, search freshness, and 93 tests
+  passed; full gate remains operator-owned before check-in.
+
+Execution record: `archive/graph/scipy_all_pair_reuse.md`.
+
+## 284. Restore the QA critical path — isolate live graph checks
+
+**Proposal**: `doc/improvements/archive/graph/qa_live_test_isolation.md`
+(filed + executed 2026-09-24 — verdict: **EXECUTED**).
+The `92cbf6eb` SciPy arc introduced three live-database parity tests without
+`@pytest.mark.live` and caused the synthetic `--all` persistence test to
+route through the live SciPy/L1B lanes. The corporate-intake refresh had also
+tripled graph edges, making that accidental live work expensive.
+
+- Marked the three genuine live checks for advisory `live-invariants`.
+- Isolated the synthetic CLI test with deterministic routed-lane outputs.
+- Added a marker regression check.
+- The isolated `--all` test fell from 16.68s after pair reuse (39.15s before
+  pair reuse) to 0.46s; affected not-live tests passed 100/100 with three
+  live tests deselected.
+- Ruff, format, proposal lifecycle, Markdown lint, and search freshness
+  passed; full QA remains operator-owned after patch refresh.
+
+Execution record: `archive/graph/qa_live_test_isolation.md`.
 
 ## 281. SciPy eigsh eigenvector — lane implemented
 

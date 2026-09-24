@@ -3,6 +3,13 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **QA live-test isolation — EXECUTED 2026-09-24 (#284)**
+  (`archive/graph/qa_live_test_isolation.md`): `gate_query` history
+  identified the run-34→37 pytest jump (116.64s → 155.62s). Three live
+  parity tests were moved to advisory `live-invariants`; the synthetic
+  `--all` test now stubs routed lanes and runs in 0.46s instead of 16.68s
+  after pair reuse (39.15s before it).
+
 - **gate_query test-run search — EXECUTED 2026-09-24 (#282)**
   (`archive/tooling/gate_run_search.md`): DuckDB index + CLI over the
   append-only gate reports — latest-run digest, failed-test details
@@ -11,24 +18,17 @@ Open items below keep their revisit triggers inline; executed work is compressed
   prompts-parsing-huge-gate-output problem; writer enhancements land in
   `tests/run_gate_report.py` (junitxml, Commit/Worktree/Exit meta).
 
-- **scipy routing dispatch — FILED + WIRED 2026-09-23**
-  (`proposals/scipy_routing_dispatch.md`, implemented in the
-  `scipy_algos` patch): SCIPY-routed closeness/harmonic DB-backed
-  calls now serve the ~6 s bridge lane through `compute()` — no
-  silent Onager fallthrough (failures fail loud, naming the avoided
-  150-192 s cost); 29/29 lane/fold/cache tests green. §8 five-route
-  blowup program: route 1 (closeness/harmonic) DONE; route 2
-  (betweenness `L1B_FOLD`) EVIDENCE-COMPLETE + COUNTERSIGNED per the
-  §8.3 re-grade (stored rows == fixed fold, constant settled-divisor
-  ratio 230,083,426, 0/1,382 mismatch) AND the 2026-09-23 fresh-Onager
-  bypass re-run on the restamped generation (flat 1.000000 at rtol
-  1e-9 over all 1,924 both-positive nodes, r=1.0, max 0.4380 both
-  engines, zero positive-only disagreements) — the one-line dispatch
-  flip is ready on operator call; route
-  3 (pref-attach ~485M pairs) OPEN — scoped top-K over degree
-  vectors is the leading option (no shared-neighbor join needed);
-  route 4 (stamp job 5-6 min) needs the full-pop stamp reader
-  census; route 5 (hop metrics) LEAVE.
+- **scipy routing dispatch — EXECUTED 2026-09-23; pair-reuse follow-up
+  EXECUTED 2026-09-24 (#283)**
+  (`archive/graph/scipy_routing_dispatch.md`,
+  `archive/graph/scipy_all_pair_reuse.md`): all five
+  routes are closed. SCIPY serves closeness/harmonic, `L1B_FOLD` serves
+  betweenness, pref-attach has the consent gate plus exact bounded top-K
+  heap, routed metrics are skipped by the centrality stamp lane, and hop
+  metrics are closed under their measured/cache-backed path. The follow-up
+  makes `--all` compute the closeness/harmonic dijkstra pair once instead
+  of once per metric: 14.16 s median became 7.26 s, saving 6.90 s with
+  invocation-scoped reuse and no persistent cache surface.
 
 - **scipy_algos umbrella batch — FILED 2026-09-23, five children
   DEFERRED + ARCHIVED 2026-09-23** (completed.md #272–276; triggers
