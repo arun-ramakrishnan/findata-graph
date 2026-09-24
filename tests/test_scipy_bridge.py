@@ -235,6 +235,7 @@ def test_dispatch_synthetic_edges_stay_onager():
     assert set(via_dispatch) == {0, 1, 2, 3, 4}  # full population, int ids
 
 
+@pytest.mark.live
 def test_dispatch_live_closeness_exact_vs_incumbents():
     import json as _json
 
@@ -365,6 +366,7 @@ def test_eigenvector_onager_failure_case():
     assert np.all(np.isfinite(v)) and np.linalg.norm(v) == pytest.approx(1.0)
 
 
+@pytest.mark.live
 def test_exact_lanes_live_parity_vs_fresh():
     # Katz r ~ 1.0 + eigenvector r ~ 1.0 vs fresh Onager (same
     # generation); absolute tolerance (not bit-exact): the C++ stops at
@@ -431,3 +433,16 @@ def test_eigenvector_cli_apply_tmpstore(tmp_path):
     ).fetchone()[0]
     scon.close()
     assert n == 4
+
+
+def test_live_parity_checks_are_classified():
+    from tests import test_l1_betweenness
+
+    checks = (
+        test_dispatch_live_closeness_exact_vs_incumbents,
+        test_exact_lanes_live_parity_vs_fresh,
+        test_l1_betweenness.test_dispatch_live_betweenness_exact_vs_incumbents,
+    )
+    assert all(
+        any(mark.name == "live" for mark in getattr(check, "pytestmark", ())) for check in checks
+    )

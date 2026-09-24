@@ -200,6 +200,7 @@ def test_dispatch_betweenness_synthetic_stays_onager():
     assert set(via_dispatch) == {0, 1, 2, 3}  # full population, int ids
 
 
+@pytest.mark.live
 def test_dispatch_live_betweenness_exact_vs_incumbents():
     import json as _json
 

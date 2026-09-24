@@ -769,11 +769,37 @@ class TestPhase3Centralities:
         )
         assert rows == 0
 
-    def test_cli_all_applies_phase3_metrics(self, synth_db, capsys):
+    def test_cli_all_applies_phase3_metrics(self, synth_db, capsys, monkeypatch):
         # `make recompute-graph` (--all --apply) must persist the new
         # node-keyed metrics plus voterank alongside the originals.
+        pair_calls = 0
+        l1b_calls = 0
+        routed_values = {
+            "CompanyA": 1.0,
+            "CompanyB": 1.0,
+            "CompanyC": 1.0,
+            "CompanyD": 1.0,
+        }
+
+        def fake_pair(*args, **kwargs):
+            nonlocal pair_calls
+            pair_calls += 1
+            return {
+                "closeness_centrality": routed_values,
+                "harmonic_centrality": routed_values,
+            }
+
+        def fake_l1b(*args, **kwargs):
+            nonlocal l1b_calls
+            l1b_calls += 1
+            return routed_values
+
+        monkeypatch.setattr(algos, "_run_scipy_lane_pair", fake_pair)
+        monkeypatch.setattr(algos, "_run_l1b_lane", fake_l1b)
         rc = algos._cli(["--all", "--apply"])
         assert rc == 0
+        assert pair_calls == 1
+        assert l1b_calls == 1
         conn = sqlite3.connect(str(synth_db))
         metrics = {
             r[0] for r in conn.execute("SELECT DISTINCT metric FROM graph_analytics").fetchall()
