@@ -816,7 +816,9 @@ def test_query_pagerank_default_label_is_economic():
     legacy membership view stays available as 'BelongsTo'."""
     from helpers.graph import query as gq
 
-    assert gq.pagerank.__defaults__[0] == "Economic"
+    defaults = gq.pagerank.__defaults__
+    assert defaults is not None
+    assert defaults[0] == "Economic"
 
 
 def test_economic_projection_multi_type_union(synth_db):
@@ -866,7 +868,9 @@ def test_query_pagerank_weighted_distinct_surface():
     from helpers.graph import query as gq
 
     assert callable(gq.pagerank_weighted)
-    assert gq.pagerank_weighted.__defaults__[0] == "Economic"
+    defaults = gq.pagerank_weighted.__defaults__
+    assert defaults is not None
+    assert defaults[0] == "Economic"
     # and it is wired as a dispatch metric + CLI command
     from helpers.graph import algorithms as alg
 

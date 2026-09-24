@@ -256,9 +256,11 @@ def test_stamp_centrality_cache_recreates_tables(cache_db):
     gq.rebuild(db_path=cache_db)  # data-only: tables gone
     con = gq.connect(db_path=cache_db, read_only=True)
     try:
-        n = con.execute(  # noqa: S608  # constant list
+        row = con.execute(  # noqa: S608  # constant list
             "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE 'v_centrality_%'"
-        ).fetchone()[0]
+        ).fetchone()
+        assert row is not None
+        n = row[0]
         assert n == 0
     finally:
         con.close()
@@ -311,9 +313,11 @@ def test_stamp_detects_concurrent_swap(cache_db, monkeypatch):
     gq.stamp_centrality_cache(db_path=cache_db)  # retries, then succeeds
     con = gq.connect(db_path=cache_db, read_only=True)
     try:
-        n = con.execute(  # noqa: S608  # constant list
+        row = con.execute(  # noqa: S608  # constant list
             "SELECT count(*) FROM information_schema.tables WHERE table_name LIKE 'v_centrality_%'"
-        ).fetchone()[0]
+        ).fetchone()
+        assert row is not None
+        n = row[0]
         assert n == 7, f"restamp after swap must land seven tables (diet), found {n}"
     finally:
         con.close()

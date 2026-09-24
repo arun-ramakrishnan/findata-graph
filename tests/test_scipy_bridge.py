@@ -181,6 +181,22 @@ def test_dispatch_harmonic_tmpstore(store):
     assert got["e"] == pytest.approx(1.0)
 
 
+def test_dispatch_pair_uses_one_scipy_kernel(store, monkeypatch):
+    calls = 0
+    real_compute = sb.compute
+
+    def counted_compute(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return real_compute(*args, **kwargs)
+
+    monkeypatch.setattr(sb, "compute", counted_compute)
+    got = alg._run_scipy_lane_pair(store)
+    assert calls == 1
+    assert got[sb.CLOSINESS_METRIC]["a"] == pytest.approx(4.0 / 3.0)
+    assert got[sb.HARMONIC_METRIC]["a"] == pytest.approx(1.5)
+
+
 def test_dispatch_compute_plumbs_db_path(store):
     got = alg.compute("harmonic_centrality", edges=None, db_path=store)
     assert set(got) == set(_CONTRACT)

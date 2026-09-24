@@ -48,13 +48,13 @@ def _brandes_unordered(n: int, adj: list[list[int]]) -> list[float]:
     return [u / 2 for u in U]
 
 
-def _run_lane(n: int, edges: list[tuple[int, int]]) -> dict[str, float]:
-    lb_orig = lb.load_projection
-    lb.load_projection = lambda *a, **k: ([str(i) for i in range(n)], list(edges))
-    try:
-        scores, _info = lb.compute("unused", jobs=1)
-    finally:
-        lb.load_projection = lb_orig
+def _run_lane(
+    n: int, edges: list[tuple[int, int]], monkeypatch: pytest.MonkeyPatch
+) -> dict[str, float]:
+    monkeypatch.setattr(
+        lb, "load_projection", lambda *a, **k: ([str(i) for i in range(n)], list(edges))
+    )
+    scores, _info = lb.compute("unused", jobs=1)
     return scores
 
 
@@ -66,16 +66,16 @@ def _adj(n: int, edges: list[tuple[int, int]]) -> list[list[int]]:
     return adj
 
 
-def _assert_exact(n: int, edges: list[tuple[int, int]]) -> None:
+def _assert_exact(n: int, edges: list[tuple[int, int]], monkeypatch: pytest.MonkeyPatch) -> None:
     truth = _brandes_unordered(n, _adj(n, edges))
-    scores = _run_lane(n, edges)
+    scores = _run_lane(n, edges, monkeypatch)
     for i in range(n):
         assert scores[str(i)] == pytest.approx(truth[i], abs=1e-9), (
             f"node {i}: lane {scores[str(i)]} vs truth {truth[i]}"
         )
 
 
-def test_toy_core_trees_and_special_component() -> None:
+def test_toy_core_trees_and_special_component(monkeypatch: pytest.MonkeyPatch) -> None:
     """4-cycle core + leaf trees + a multi-node tree + a zero-attachment
     forest component: every node exact, including the closed-form internals."""
     edges = [
@@ -95,10 +95,10 @@ def test_toy_core_trees_and_special_component() -> None:
         (12, 13),  # non-trivial tree (internals)
         (14, 15),  # zero-attachment special comp
     ]
-    _assert_exact(16, edges)
+    _assert_exact(16, edges, monkeypatch)
 
 
-def test_random_graphs_exact_vs_brute_force() -> None:
+def test_random_graphs_exact_vs_brute_force(monkeypatch: pytest.MonkeyPatch) -> None:
     """Seeded random graphs: the fold must equal unfolded Brandes exactly."""
     rng = random.Random(7)  # noqa: S311  # seeded test-data generation, not crypto
     for _trial in range(8):
@@ -107,20 +107,22 @@ def test_random_graphs_exact_vs_brute_force() -> None:
         edges = sorted((a, b) for a in range(n) for b in range(a + 1, n) if rng.random() < p)
         if not edges:
             continue
-        _assert_exact(n, edges)
+        _assert_exact(n, edges, monkeypatch)
 
 
-def test_normalization_matches_incumbent_scale() -> None:
+def test_normalization_matches_incumbent_scale(monkeypatch: pytest.MonkeyPatch) -> None:
     """Documented divisor: raw * 2/((n-1)(n-2)) over the ex-index endpoints
     (here: no index noise, so n = all endpoints). Path P4 center = 2/3."""
     edges = [(0, 1), (1, 2), (2, 3)]
-    scores = _run_lane(4, edges)
+    scores = _run_lane(4, edges, monkeypatch)
     norm = (4 - 1) * (4 - 2) / 2.0
     assert scores["1"] / norm == pytest.approx(2 / 3)
     assert scores["0"] == 0.0
 
 
-def test_index_only_isolates_excluded_from_divisor() -> None:
+def test_index_only_isolates_excluded_from_divisor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """An endpoint whose only edge is listed_on_index has no path in the
     projection: it must not enter the normalization n."""
     rows = [
@@ -133,12 +135,8 @@ def test_index_only_isolates_excluded_from_divisor() -> None:
     proj_edges = sorted(
         tuple(sorted((int(r[0]), int(r[1])))) for r in rows if r[2] != "listed_on_index"
     )
-    lb_orig = lb.load_projection
-    lb.load_projection = lambda *a, **k: (names, proj_edges)
-    try:
-        scores, info = lb.compute("unused", jobs=1)
-    finally:
-        lb.load_projection = lb_orig
+    monkeypatch.setattr(lb, "load_projection", lambda *a, **k: (names, proj_edges))
+    scores, info = lb.compute("unused", jobs=1)
     # five endpoints loaded; ex-index endpoints = {0,1,2} -> n = 3
     assert info["endpoints"] == 3
     assert scores["3"] == 0.0 and scores["4"] == 0.0

@@ -856,8 +856,10 @@ def _run_l1b_lane(db_path: str | Path | None = None) -> dict[str, float]:
     return {name: scores[name] / norm for name in contract}
 
 
-def _run_scipy_lane(metric: str, db_path: str | Path | None = None) -> dict[str, float]:
-    """Serve a SCIPY-routed metric from the bridge (contract population).
+def _run_scipy_lane_pair(
+    db_path: str | Path | None = None,
+) -> dict[str, dict[str, float]]:
+    """Serve both SCIPY-routed metrics from one bridge computation.
 
     Pre-flight asserts fire BEFORE any compute, and every message states
     the slow-path cost it saves (fresh Onager closeness measured
@@ -892,8 +894,14 @@ def _run_scipy_lane(metric: str, db_path: str | Path | None = None) -> dict[str,
     # deletes, so silently skipping would serve stale rows indefinitely.
     src = _sb.source_positions(contract, names)
     clo, harm = _sb.compute(A, src, jobs=1)
-    out = clo if metric == _sb.CLOSINESS_METRIC else harm
-    return {name: float(v) for name, v in zip(contract, out.tolist())}
+    return {
+        _sb.CLOSINESS_METRIC: {name: float(v) for name, v in zip(contract, clo.tolist())},
+        _sb.HARMONIC_METRIC: {name: float(v) for name, v in zip(contract, harm.tolist())},
+    }
+
+
+def _run_scipy_lane(metric: str, db_path: str | Path | None = None) -> dict[str, float]:
+    return _run_scipy_lane_pair(db_path)[metric]
 
 
 def _run_closeness(con, *, edges, approximate=None, db_path=None, **_) -> dict[str, Any]:
@@ -1239,6 +1247,7 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         bypass = bypass_centrality_cache() if args.compute else nullcontext()
         with with_onager_connection(duck_con), bypass:
             pending_writes: list[tuple[str, dict[str, Any]]] = []
+            scipy_results: dict[str, dict[str, float]] = {}
             for cmd in commands:
                 # pagerank_graph_enhancements S1: the persisted `pagerank`
                 # metric runs over the ECONOMIC projection (non-membership
@@ -1332,13 +1341,18 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                     louvain_modularity = louvain_communities(duck_con).modularity
                 try:
                     as_of = args.as_of if cmd in ("pagerank", "pagerank-weighted") else None
-                    result = compute(
-                        metric,
-                        con=duck_con,
-                        edge_label=pr_label,
-                        top_k=args.top,
-                        as_of=as_of,
-                    )
+                    if args.all and _scipy_routed(metric):
+                        if not scipy_results:
+                            scipy_results = _run_scipy_lane_pair()
+                        result = scipy_results[metric]
+                    else:
+                        result = compute(
+                            metric,
+                            con=duck_con,
+                            edge_label=pr_label,
+                            top_k=args.top,
+                            as_of=as_of,
+                        )
                     via = "  [via onager]"
                     if _scipy_routed(metric):
                         via = "  [via scipy (ROUTING)]"

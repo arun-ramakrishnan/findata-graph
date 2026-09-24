@@ -162,13 +162,13 @@ ROUTING values other than `SCIPY` keep the existing path:
 - **Module header table.** The engine map (`:13-23`) lists
   `closeness_centrality`/`harmonic_centrality` as Onager — updated
   to scipy with the ROUTING pointer.
-- **`--all` pays the lane twice** (2026-09-23 late note):
-  `_run_scipy_lane` computes BOTH closeness and harmonic per call and
-  returns one, so an `--all` run executes the dijkstra pass once per
-  metric (~5-6 s each) instead of sharing one pass. Still ~28x under
-  the Onager fresh path it replaces; a per-process memo keyed on the
-  projection identity (or a combined handler) is the deferred
-  optimization, deliberately not in this proposal's slices.
+- **`--all` reuses one SciPy lane pass** (resolved 2026-09-24):
+  `_run_scipy_lane_pair` computes closeness and harmonic together, and the
+  `--all` loop reuses that invocation-scoped result for both routed metrics.
+  The reuse never outlives one CLI run, so there is no cross-generation cache
+  surface. Live measurement before the change was 7.08 s median for each full
+  routed call (14.16 s combined); after it was 7.26 s for the pair, saving
+  6.90 s while preserving the pre-flight drift and empty-input failures.
 
 ## 6. Slices
 

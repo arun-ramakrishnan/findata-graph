@@ -102,7 +102,10 @@ def _outputs_root() -> Path:
     wt = _git_worktree_name()
     if not wt:
         return REPO_ROOT / "outputs"
-    common = Path(_git("rev-parse", "--git-common-dir")).resolve()  # <main>/.git
+    common_path = _git("rev-parse", "--git-common-dir")
+    if common_path is None:
+        return REPO_ROOT / "outputs"
+    common = Path(common_path).resolve()
     return common.parent / "outputs" / "wt" / wt / "outputs"
 
 
