@@ -102,14 +102,37 @@ def test_retain_test_artifacts_copies_current_run_files(tmp_path, monkeypatch):
     (live / "qa.junit.xml").write_text("<testsuites/>")
     (live / "qa.metadata.json").write_text('{"schema":"test-metadata.v1"}')
     (live / "qa.metadata.gw0.json").write_text('{"schema":"test-metadata.v1"}')
+    (live / "qa.gate-artifacts.json").write_text('{"schema":"gate-artifact.v1","artifacts":[]}')
+    native_names = (
+        "coverage.json",
+        "coverage.xml",
+        "eslint.json",
+        "frontend.json",
+        "integrity.json",
+        "perf.json",
+        "perf.jsonl",
+        "prettier.json",
+        "ruff.json",
+        "secret-scan.json",
+        "security.sarif",
+        "snapshot.json",
+        "tsc.json",
+        "ty.json",
+    )
+    for name in native_names:
+        (live / f"qa.{name}").write_text("{}")
     relative = rgr.retain_test_artifacts("qa", "run-1", datetime.now())
     retained = artifacts / "qa" / "run-1"
     assert relative == ".artifacts/qa/run-1"
-    assert sorted(path.name for path in retained.iterdir()) == [
-        "qa.junit.xml",
-        "qa.metadata.gw0.json",
-        "qa.metadata.json",
-    ]
+    assert sorted(path.name for path in retained.iterdir()) == sorted(
+        [
+            "gate-artifacts.json",
+            "qa.junit.xml",
+            "qa.metadata.gw0.json",
+            "qa.metadata.json",
+            *native_names,
+        ]
+    )
 
 
 def test_main_rejects_unknown_gate(capsys):

@@ -13,7 +13,11 @@ the two prompts actually ask:
                 (--gate defaults to qa; --gate all = newest run PER gate)
     recent      last N runs of a gate, PASS/FAIL each (--tests for ids)
     failures    failed legs + failed test node_ids + error heads
-    tests       full per-test rows for a run (junitxml-backed)
+    tests       full per-test rows for a run (junitxml-backed), or history
+                 by --node/--marker/--slowest
+    compare     compare two indexed runs
+    clusters    group recurring normalized test failures
+    artifacts   read-only generic gate artifact records
     timing      per-leg timing history vs budget
     grep        keyword over failure text
     rotate      archive run prefixes to outputs/archives/*.zst (dry-run default;
@@ -64,6 +68,7 @@ ROOT = Path(os.environ.get("GATE_QUERY_ROOT", _DEFAULT_ROOT))
 DB_PATH = Path(os.environ.get("GATE_QUERY_DB", ROOT / "gate_runs.duckdb"))
 ERR_CAP = 16_000  # per-test err_blob cap
 TEST_ARTIFACT_SCHEMA = "test-facts.v1"
+ARTIFACT_SCHEMA = "gate-artifact.v1"
 
 _STARTED_RE = re.compile(r"\*\*Started:\*\*\s+([\d: -]+)")
 _COMMIT_RE = re.compile(r"\*\*Commit:\*\*\s*([0-9a-f]+)")
@@ -122,6 +127,19 @@ CREATE TABLE IF NOT EXISTS tests (
     err_head TEXT,
     err_blob TEXT
 );
+CREATE TABLE IF NOT EXISTS artifacts (
+    run_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    target TEXT NOT NULL,
+    status TEXT NOT NULL,
+    duration_s DOUBLE,
+    message TEXT,
+    fingerprint TEXT,
+    metadata_json TEXT,
+    schema TEXT NOT NULL,
+    source_rel TEXT,
+    source_offset UBIGINT
+);
 CREATE TABLE IF NOT EXISTS test_facts (
     run_id INTEGER NOT NULL,
     leg TEXT NOT NULL,
@@ -142,6 +160,8 @@ CREATE TABLE IF NOT EXISTS test_facts (
 ALTER TABLE test_facts ADD COLUMN IF NOT EXISTS phase_seconds_json TEXT;
 CREATE INDEX IF NOT EXISTS test_facts_node_idx ON test_facts(node_id, run_id);
 CREATE INDEX IF NOT EXISTS test_facts_error_idx ON test_facts(error_fingerprint, run_id);
+CREATE INDEX IF NOT EXISTS artifacts_kind_target_idx ON artifacts(kind, target, run_id);
+CREATE INDEX IF NOT EXISTS artifacts_status_idx ON artifacts(status, run_id);
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS artifact_schema TEXT;
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS artifact_dir TEXT;
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS artifact_state TEXT;
@@ -280,20 +300,6 @@ def _error_fingerprint(blob: str) -> str | None:
     return hashlib.sha256(text[:ERR_CAP].encode()).hexdigest()[:16]
 
 
-def _retained_artifact_junit(
-    gate: str, wt: str, artifact_dir: str | None
-) -> tuple[Path | None, str]:
-    if not artifact_dir:
-        return None, "not_collected"
-    worktree_root = ROOT / f"wt/{wt}/outputs" if wt else ROOT
-    base = (worktree_root / artifact_dir).resolve()
-    root = ROOT.resolve()
-    if root != base and root not in base.parents:
-        return None, "invalid"
-    junit = base / f"{gate}.junit.xml"
-    return (junit, "retained") if junit.exists() else (None, "missing")
-
-
 def _test_metadata_by_node(
     junit: Path, run_start: datetime | None, run_gen: datetime | None
 ) -> dict[str, dict]:
@@ -408,7 +414,404 @@ def _junit_rows(
     return junit, rows
 
 
-# ---------------------------------------------------------------- refresh
+def _artifact_kind(label: str, report_kind: str) -> str | None:
+    if label == "pytest":
+        return None
+    if report_kind == "perf":
+        return "perf"
+    return {
+        "lint": "ruff",
+        "md-lint": "search",
+        "types": "ty",
+        "deptry": "security",
+        "static_checks": "integrity",
+        "verify_notes": "integrity",
+        "integrity_check": "integrity",
+        "snapshot-fresh": "integrity",
+        "snapshot_check": "integrity",
+        "tmp-sweep": "search",
+    }.get(label)
+
+
+def _artifact_base(wt: str, artifact_dir: str | None) -> Path | None:
+    if not artifact_dir:
+        return None
+    worktree_root = ROOT / f"wt/{wt}/outputs" if wt else ROOT
+    base = (worktree_root / artifact_dir).resolve()
+    root = ROOT.resolve()
+    if root != base and root not in base.parents:
+        return None
+    return base
+
+
+def _retained_artifact_junit(
+    gate: str, wt: str, artifact_dir: str | None
+) -> tuple[Path | None, str]:
+    base = _artifact_base(wt, artifact_dir)
+    if base is None:
+        return None, "not_collected" if not artifact_dir else "invalid"
+    junit = base / f"{gate}.junit.xml"
+    return (junit, "retained") if junit.exists() else (None, "missing")
+
+
+def _artifact_record(
+    kind: str,
+    target: str,
+    status: str,
+    path: Path,
+    schema: str,
+    *,
+    duration_s: float | None = None,
+    message: str | None = None,
+    fingerprint: str | None = None,
+    metadata: dict | None = None,
+) -> dict:
+    return {
+        "kind": kind,
+        "target": target[:500],
+        "status": status,
+        "duration_s": duration_s,
+        "message": message[:400] if message else None,
+        "fingerprint": fingerprint,
+        "metadata_json": json.dumps(metadata or {}, separators=(",", ":")),
+        "schema": schema,
+        "source_rel": str(path),
+        "source_offset": None,
+    }
+
+
+def _diagnostic_artifact_records(path: Path, kind: str, raw: object, schema: str) -> list[dict]:
+    if not isinstance(raw, list):
+        return []
+    if not raw:
+        return [
+            {
+                "kind": kind,
+                "target": kind,
+                "status": "pass",
+                "duration_s": None,
+                "message": None,
+                "fingerprint": None,
+                "metadata_json": json.dumps({"adapter": f"{kind}-json", "diagnostics": 0}),
+                "schema": schema,
+                "source_rel": str(path),
+                "source_offset": None,
+            }
+        ]
+    records = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        code = str(
+            item.get("code") or item.get("rule") or item.get("ruleId") or item.get("id") or ""
+        )
+        target = str(
+            item.get("filename")
+            or item.get("path")
+            or item.get("file")
+            or item.get("uri")
+            or item.get("target")
+            or kind
+        )[:500]
+        message = str(item.get("message") or item.get("description") or "")[:400]
+        severity = str(item.get("severity") or item.get("level") or "error").lower()
+        status = (
+            "fail"
+            if severity in {"error", "fatal", "failure"}
+            else ("warn" if severity in {"warning", "warn"} else "info")
+        )
+        records.append(
+            {
+                "kind": kind,
+                "target": target,
+                "status": status,
+                "duration_s": None,
+                "message": message or None,
+                "fingerprint": _error_fingerprint(f"{code}\n{message}\n{target}"),
+                "metadata_json": json.dumps(
+                    {"adapter": f"{kind}-json", "code": code or None, "severity": severity},
+                    separators=(",", ":"),
+                ),
+                "schema": schema,
+                "source_rel": str(path),
+                "source_offset": None,
+            }
+        )
+    return records
+
+
+def _native_artifact_records(base: Path) -> list[dict]:
+    records = []
+    for kind, filename in (("ruff", "ruff.json"), ("ty", "ty.json")):
+        path = base / filename
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text())
+        except OSError, json.JSONDecodeError:
+            continue
+        raw = payload.get("diagnostics", []) if isinstance(payload, dict) else payload
+        if not isinstance(raw, list):
+            continue
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            code = str(item.get("code") or item.get("rule") or item.get("id") or "")
+            target = str(
+                item.get("filename")
+                or item.get("path")
+                or item.get("file")
+                or item.get("target")
+                or kind
+            )[:500]
+            message = str(item.get("message") or item.get("description") or "")[:400]
+            severity = str(item.get("severity") or item.get("level") or "error").lower()
+            status = (
+                "fail"
+                if severity in {"error", "fatal", "failure"}
+                else ("warn" if severity in {"warning", "warn"} else "info")
+            )
+            records.append(
+                {
+                    "kind": kind,
+                    "target": target,
+                    "status": status,
+                    "duration_s": None,
+                    "message": message or None,
+                    "fingerprint": _error_fingerprint(f"{code}\n{message}\n{target}"),
+                    "metadata_json": json.dumps(
+                        {
+                            "adapter": f"{kind}-json",
+                            "code": code or None,
+                            "severity": severity,
+                        },
+                        separators=(",", ":"),
+                    ),
+                    "schema": f"{kind}-json.v1",
+                    "source_rel": str(path),
+                    "source_offset": None,
+                }
+            )
+        if not raw:
+            records.append(
+                {
+                    "kind": kind,
+                    "target": kind,
+                    "status": "pass",
+                    "duration_s": None,
+                    "message": None,
+                    "fingerprint": None,
+                    "metadata_json": json.dumps({"adapter": f"{kind}-json", "diagnostics": 0}),
+                    "schema": f"{kind}-json.v1",
+                    "source_rel": str(path),
+                    "source_offset": None,
+                }
+            )
+    for filename in ("coverage.json", "coverage.xml"):
+        path = base / filename
+        if not path.exists():
+            continue
+        fail_under = None
+        try:
+            if filename.endswith(".xml"):
+                root = ET.parse(path).getroot()
+                line_rate = float(root.get("line-rate", "0"))
+                branch_rate = float(root.get("branch-rate", "0"))
+                percent = line_rate * 100
+                message = f"line {percent:.2f}% · branch {branch_rate * 100:.2f}%"
+                status = "pass"
+            else:
+                payload = json.loads(path.read_text())
+                totals = payload.get("totals", payload) if isinstance(payload, dict) else {}
+                percent = float(totals.get("percent", totals.get("line_percent", 0)))
+                fail_under = totals.get("fail_under")
+                message = f"line coverage {percent:.2f}%"
+                status = "pass"
+        except ET.ParseError, OSError, TypeError, ValueError, json.JSONDecodeError:
+            continue
+        if fail_under is not None:
+            try:
+                if percent < float(fail_under):
+                    status = "fail"
+            except TypeError, ValueError:
+                pass
+        records.append(
+            _artifact_record(
+                "coverage",
+                "total",
+                status,
+                path,
+                "coverage-json.v1" if filename.endswith(".json") else "coverage-xml.v1",
+                message=message,
+                metadata={"adapter": "coverage", "percent": percent},
+            )
+        )
+    for filename in ("perf.json", "perf.jsonl"):
+        path = base / filename
+        if not path.exists():
+            continue
+        try:
+            if filename.endswith(".jsonl"):
+                payload = [
+                    json.loads(line) for line in path.read_text().splitlines() if line.strip()
+                ]
+            else:
+                payload = json.loads(path.read_text())
+        except OSError, json.JSONDecodeError:
+            continue
+        raw = (
+            payload.get("benchmarks", payload.get("results", []))
+            if isinstance(payload, dict)
+            else payload
+        )
+        if not isinstance(raw, list):
+            raw = [payload] if isinstance(payload, dict) else []
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            target = str(item.get("name") or item.get("bench") or item.get("target") or "benchmark")
+            try:
+                duration = float(item.get("seconds", item.get("duration_s", item.get("time", 0))))
+            except TypeError, ValueError:
+                duration = None
+            budget = item.get("budget_s", item.get("budget"))
+            status = str(item.get("status", "pass")).lower()
+            if status not in {"pass", "fail", "warn", "info"}:
+                status = "pass"
+            try:
+                threshold = float(budget)
+            except TypeError, ValueError:
+                threshold = None
+            if (
+                status == "pass"
+                and threshold is not None
+                and duration is not None
+                and duration > threshold
+            ):
+                status = "fail"
+            records.append(
+                _artifact_record(
+                    "perf",
+                    target,
+                    status,
+                    path,
+                    "perf-json.v1",
+                    duration_s=duration,
+                    message=str(item.get("message") or "")[:400] or None,
+                    fingerprint=_error_fingerprint(f"{target}\n{item.get('message', '')}"),
+                    metadata={"adapter": "perf", "budget_s": budget},
+                )
+            )
+        if not raw:
+            records.append(_artifact_record("perf", "perf", "pass", path, "perf-json.v1"))
+    for filename in ("integrity.json", "snapshot.json"):
+        path = base / filename
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text())
+        except OSError, json.JSONDecodeError:
+            continue
+        raw = payload.get("checks", [payload]) if isinstance(payload, dict) else payload
+        if not isinstance(raw, list):
+            raw = [raw]
+        for item in raw:
+            if not isinstance(item, dict):
+                continue
+            target = str(item.get("name") or item.get("check") or filename.removesuffix(".json"))
+            ok = item.get("ok", item.get("valid", item.get("passed")))
+            status = str(item.get("status", "pass" if ok is not False else "fail")).lower()
+            if status not in {"pass", "fail", "warn", "info"}:
+                status = "pass"
+            message = str(item.get("message") or item.get("summary") or "")[:400] or None
+            records.append(
+                _artifact_record(
+                    "integrity",
+                    target,
+                    status,
+                    path,
+                    "integrity-json.v1",
+                    message=message,
+                    fingerprint=_error_fingerprint(message or target),
+                    metadata={"adapter": "integrity"},
+                )
+            )
+    for filename in ("security.sarif", "secret-scan.json"):
+        path = base / filename
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text())
+        except OSError, json.JSONDecodeError:
+            continue
+        if filename.endswith(".sarif"):
+            raw = []
+            if isinstance(payload, dict):
+                for run in payload.get("runs", []):
+                    if isinstance(run, dict):
+                        raw.extend(run.get("results", []))
+        else:
+            raw = payload.get("findings", payload) if isinstance(payload, dict) else payload
+        records.extend(
+            _diagnostic_artifact_records(
+                path,
+                "security",
+                raw if isinstance(raw, list) else [],
+                "sarif.v1" if filename.endswith(".sarif") else "secret-scan-json.v1",
+            )
+        )
+    for filename in ("frontend.json", "tsc.json", "eslint.json", "prettier.json"):
+        path = base / filename
+        if not path.exists():
+            continue
+        try:
+            payload = json.loads(path.read_text())
+        except OSError, json.JSONDecodeError:
+            continue
+        raw = (
+            payload.get("diagnostics", payload.get("results", payload))
+            if isinstance(payload, dict)
+            else payload
+        )
+        records.extend(_diagnostic_artifact_records(path, "frontend", raw, "frontend-json.v1"))
+    return records
+
+
+def _retained_artifact_records(wt: str, artifact_dir: str | None) -> list[dict]:
+    base = _artifact_base(wt, artifact_dir)
+    if base is None:
+        return []
+    records = []
+    manifest = base / "gate-artifacts.json"
+    if manifest.exists():
+        try:
+            payload = json.loads(manifest.read_text())
+        except OSError, json.JSONDecodeError:
+            payload = None
+        raw = payload.get("artifacts", []) if isinstance(payload, dict) else payload
+        default_schema = payload.get("schema") if isinstance(payload, dict) else None
+        for item in raw if isinstance(raw, list) else []:
+            if not isinstance(item, dict) or not item.get("kind") or not item.get("target"):
+                continue
+            if item.get("status") not in {"pass", "fail", "warn", "info"}:
+                continue
+            records.append(
+                {
+                    "kind": str(item["kind"]),
+                    "target": str(item["target"]),
+                    "status": item["status"],
+                    "duration_s": item.get("duration_s"),
+                    "message": str(item["message"])[:400] if item.get("message") else None,
+                    "fingerprint": item.get("fingerprint")
+                    or _error_fingerprint(str(item.get("message", ""))),
+                    "metadata_json": json.dumps(item.get("metadata") or {}, separators=(",", ":")),
+                    "schema": item.get("schema") or default_schema or ARTIFACT_SCHEMA,
+                    "source_rel": str(manifest),
+                    "source_offset": None,
+                }
+            )
+    records.extend(_native_artifact_records(base))
+    return records
 
 
 def refresh(con, *, full: bool = False, root: Path | None = None) -> dict:
@@ -522,6 +925,52 @@ def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete
         con.execute(
             "INSERT INTO legs VALUES (?, ?, ?, ?, ?)",
             [run_id, s.label, s.seconds, s.status, err_head],
+        )
+    con.execute("DELETE FROM artifacts WHERE run_id = ?", [run_id])
+    for s in rb.steps:
+        artifact_kind = _artifact_kind(s.label, kind)
+        if artifact_kind is None:
+            continue
+        message = _leg_err_head(lines, s.label) if "FAIL" in s.status else None
+        status = "fail" if "FAIL" in s.status else ("info" if "SKIP" in s.status else "pass")
+        con.execute(
+            """INSERT INTO artifacts
+               (run_id, kind, target, status, duration_s, message, fingerprint,
+                metadata_json, schema, source_rel, source_offset)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [
+                run_id,
+                artifact_kind,
+                s.label,
+                status,
+                s.seconds,
+                message,
+                _error_fingerprint(message or ""),
+                json.dumps({"adapter": "gate-report-leg", "leg": s.label}, separators=(",", ":")),
+                ARTIFACT_SCHEMA,
+                rel,
+                boff,
+            ],
+        )
+    for artifact in _retained_artifact_records(run_wt, meta.get("artifacts")):
+        con.execute(
+            """INSERT INTO artifacts
+               (run_id, kind, target, status, duration_s, message, fingerprint,
+                metadata_json, schema, source_rel, source_offset)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [
+                run_id,
+                artifact["kind"],
+                artifact["target"],
+                artifact["status"],
+                artifact["duration_s"],
+                artifact["message"],
+                artifact["fingerprint"],
+                artifact["metadata_json"],
+                artifact["schema"],
+                artifact["source_rel"],
+                artifact["source_offset"],
+            ],
         )
     con.execute("DELETE FROM bench WHERE run_id = ?", [run_id])
     if kind == "perf":
@@ -639,6 +1088,74 @@ def _run_digest(con, r: dict, max_legs: int = 24) -> str:
         out.append("  tests: " + ", ".join(f"{n} {o}" for o, n in ntests))
     if bad:
         out.append("  FAILED LEGS: " + ", ".join(lg[0] for lg in bad))
+    return "\n".join(out)
+
+
+def cmd_artifacts(con, args) -> str:
+    where = ["1 = 1"]
+    params: list = []
+    if args.run is not None:
+        where.append("a.run_id = ?")
+        params.append(args.run)
+    if args.kind:
+        where.append("a.kind = ?")
+        params.append(args.kind)
+    if args.status:
+        where.append("a.status = ?")
+        params.append(args.status)
+    if args.gate:
+        where.append("r.gate = ?")
+        params.append(args.gate)
+    if args.wt:
+        where.append("r.wt = ?")
+        params.append(args.wt)
+    rows = con.execute(
+        f"""SELECT a.run_id, r.gate, r.wt, r.started_at, a.kind, a.target, a.status,
+                          a.duration_s, a.message, a.fingerprint, a.metadata_json, a.schema,
+                          a.source_rel, a.source_offset
+             FROM artifacts a JOIN runs r USING (run_id)
+             WHERE {" AND ".join(where)}
+             ORDER BY r.started_at DESC, a.kind, a.target LIMIT ?""",
+        [*params, args.last],
+    ).fetchall()
+    names = [
+        "run_id",
+        "gate",
+        "wt",
+        "started_at",
+        "kind",
+        "target",
+        "status",
+        "duration_s",
+        "message",
+        "fingerprint",
+        "metadata_json",
+        "schema",
+        "source_rel",
+        "source_offset",
+    ]
+    records = []
+    for row in rows:
+        record = dict(zip(names, row, strict=True))
+        raw_metadata = record.pop("metadata_json")
+        try:
+            record["metadata"] = json.loads(raw_metadata or "{}")
+        except json.JSONDecodeError:
+            record["metadata"] = {"raw": raw_metadata}
+        records.append(record)
+    if args.json:
+        return json.dumps(records, default=str, sort_keys=True)
+    if not records:
+        return "no matching artifacts (optional artifact outputs are not collected)"
+    out = [f"{len(records)} artifact record(s)"]
+    for record in records:
+        duration = f" {record['duration_s']:.2f}s" if record["duration_s"] is not None else ""
+        scope = f"@{record['wt']}" if record["wt"] else ""
+        message = f" — {record['message'].splitlines()[0]}" if record["message"] else ""
+        out.append(
+            f"  run {record['run_id']} {record['gate']}{scope} {record['kind']} "
+            f"{record['target']} {record['status']}{duration}{message}"
+        )
     return "\n".join(out)
 
 
@@ -815,56 +1332,500 @@ def _full_tail(r: dict) -> list[str]:
     return ["--- full block tail (last 60 lines) ---"] + blob.splitlines()[-60:]
 
 
-def cmd_tests(con, args) -> str:
-    q = "SELECT node_id, outcome, seconds, err_head FROM tests WHERE run_id = ?"
-    args_list: list = [args.run]
-    if args.outcome != "all":
-        q += " AND outcome = ?"
-        args_list.append(args.outcome)
-    rows = con.execute(q + " LIMIT 200", args_list).fetchall()
+def _run_record(con, run_id: int, gate: str | None = None) -> dict | None:
+    query = "SELECT * FROM runs WHERE run_id = ?"
+    params: list = [run_id]
+    if gate:
+        query += " AND gate = ?"
+        params.append(gate)
+    row = con.execute(query, params).fetchone()
+    if row is None:
+        return None
+    return dict(zip([column[0] for column in con.description], row))
+
+
+def _compare_facts(con, run_id: int) -> dict[str, dict]:
+    rows = con.execute(
+        """SELECT node_id, leg, file, outcome, seconds, phase, phase_seconds_json,
+                  markers_json, file_line, error_fingerprint, worker
+           FROM test_facts WHERE run_id = ? ORDER BY node_id""",
+        [run_id],
+    ).fetchall()
+    names = [
+        "leg",
+        "file",
+        "outcome",
+        "seconds",
+        "phase",
+        "phase_seconds_json",
+        "markers_json",
+        "file_line",
+        "error_fingerprint",
+        "worker",
+    ]
+    return {row[0]: dict(zip(names, row[1:], strict=True)) | {"node_id": row[0]} for row in rows}
+
+
+def _pct_delta(before: float | None, after: float | None) -> float | None:
+    if before in (None, 0) or after is None:
+        return None
+    return (after - before) / before * 100
+
+
+def _compare_payload(con, run_a: int, run_b: int, gate: str | None = None) -> dict:
+    left = _run_record(con, run_a, gate)
+    right = _run_record(con, run_b, gate)
+    if left is None or right is None:
+        missing = run_a if left is None else run_b
+        return {"error": f"run {missing} not found"}
+    leg_rows = {}
+    for label, record in (("a", left), ("b", right)):
+        leg_rows[label] = {
+            row[0]: {"seconds": row[1], "status": row[2]}
+            for row in con.execute(
+                "SELECT leg, seconds, status FROM legs WHERE run_id = ?", [record["run_id"]]
+            ).fetchall()
+        }
+    leg_names_a, leg_names_b = set(leg_rows["a"]), set(leg_rows["b"])
+    leg_changes = []
+    for leg in sorted(leg_names_a & leg_names_b):
+        before = leg_rows["a"][leg]
+        after = leg_rows["b"][leg]
+        if before != after:
+            leg_changes.append(
+                {
+                    "leg": leg,
+                    "before": before,
+                    "after": after,
+                    "delta_s": (
+                        after["seconds"] - before["seconds"]
+                        if after["seconds"] is not None and before["seconds"] is not None
+                        else None
+                    ),
+                    "delta_pct": _pct_delta(before["seconds"], after["seconds"]),
+                }
+            )
+    facts_a, facts_b = _compare_facts(con, run_a), _compare_facts(con, run_b)
+    failed_a = {node for node, fact in facts_a.items() if fact["outcome"] in ("failed", "error")}
+    failed_b = {node for node, fact in facts_b.items() if fact["outcome"] in ("failed", "error")}
+    outcome_changes = []
+    for node in sorted(facts_a.keys() & facts_b.keys()):
+        before, after = facts_a[node], facts_b[node]
+        if before["outcome"] != after["outcome"]:
+            outcome_changes.append(
+                {
+                    "node_id": node,
+                    "before": before["outcome"],
+                    "after": after["outcome"],
+                    "before_seconds": before["seconds"],
+                    "after_seconds": after["seconds"],
+                    "delta_s": (
+                        after["seconds"] - before["seconds"]
+                        if after["seconds"] is not None and before["seconds"] is not None
+                        else None
+                    ),
+                }
+            )
+    warnings = []
+    for key, label in (
+        ("gate", "gate"),
+        ("wt", "worktree"),
+        ("python_ver", "Python version"),
+        ("jobs", "job count"),
+        ("commit_sha", "source commit"),
+    ):
+        if left.get(key) != right.get(key):
+            warnings.append(f"{label} differs: {left.get(key)!r} -> {right.get(key)!r}")
+    if left.get("complete") != right.get("complete"):
+        warnings.append("run completeness differs")
+    if leg_names_a != leg_names_b:
+        warnings.append("gate shape differs: leg labels are not identical")
+    if len(facts_a) != len(facts_b):
+        warnings.append(f"test count differs: {len(facts_a)} -> {len(facts_b)}")
+    for label, record in (("a", left), ("b", right)):
+        record["test_count"] = con.execute(
+            "SELECT COUNT(*) FROM test_facts WHERE run_id = ?", [record["run_id"]]
+        ).fetchone()[0]
+    return {
+        "run_a": left,
+        "run_b": right,
+        "legs": {
+            "added": sorted(leg_names_b - leg_names_a),
+            "removed": sorted(leg_names_a - leg_names_b),
+            "changed": leg_changes,
+        },
+        "tests": {
+            "added": sorted(facts_b.keys() - facts_a.keys()),
+            "removed": sorted(facts_a.keys() - facts_b.keys()),
+            "failed_added": sorted(failed_b - failed_a),
+            "failed_removed": sorted(failed_a - failed_b),
+            "failed_persisting": sorted(failed_a & failed_b),
+            "outcome_changes": outcome_changes,
+        },
+        "warnings": warnings,
+    }
+
+
+def cmd_compare(con, args) -> str:
+    payload = _compare_payload(con, args.run_a, args.run_b, args.gate)
+    if "error" in payload:
+        return payload["error"]
     if args.json:
-        return json.dumps(
-            [dict(zip(("node_id", "outcome", "seconds", "err_head"), r)) for r in rows]
+        return json.dumps(payload, default=str, sort_keys=True)
+    left, right = payload["run_a"], payload["run_b"]
+    out = [
+        f"compare run {left['run_id']} -> {right['run_id']} ({left['gate']} -> {right['gate']})",
+        f"  metadata: commit {left.get('commit_sha')} -> {right.get('commit_sha')}, "
+        f"elapsed {left.get('elapsed_s')}s -> {right.get('elapsed_s')}s",
+    ]
+    changed = payload["legs"]["changed"]
+    out.append(f"  legs: {len(changed)} changed")
+    for change in changed:
+        out.append(
+            f"    {change['leg']}: {change['before']['seconds']}s {change['before']['status']} -> "
+            f"{change['after']['seconds']}s {change['after']['status']} "
+            f"({change['delta_s']:+.2f}s)"
+            if change["delta_s"] is not None
+            else f"    {change['leg']}: {change['before']['status']} -> {change['after']['status']}"
         )
-    return (
-        "\n".join(
-            f"{o.upper():7s} {n} ({s:.2f}s)" if s else f"{o.upper():7s} {n}" for n, o, s, _e in rows
+    for key, label in (
+        ("failed_added", "failed added"),
+        ("failed_removed", "failed removed"),
+        ("failed_persisting", "failed persisting"),
+    ):
+        values = payload["tests"][key]
+        if values:
+            out.append(f"  {label}: {', '.join(values)}")
+    changes = payload["tests"]["outcome_changes"]
+    if changes:
+        out.append(f"  outcome changes: {len(changes)}")
+        for change in changes:
+            out.append(f"    {change['node_id']}: {change['before']} -> {change['after']}")
+    if payload["warnings"]:
+        out.append("  warnings:")
+        out.extend(f"    {warning}" for warning in payload["warnings"])
+    return "\n".join(out)
+
+
+def _test_history_rows(con, args) -> tuple[list[dict], str]:
+    where = ["1 = 1"]
+    params: list = []
+    if getattr(args, "gate", None):
+        where.append("r.gate = ?")
+        params.append(args.gate)
+    if getattr(args, "wt", ""):
+        where.append("r.wt = ?")
+        params.append(args.wt)
+    if args.node:
+        where.append("tf.node_id = ?")
+        params.append(args.node)
+        metric = "node history"
+        order = "r.started_at DESC"
+    elif args.marker:
+        where.append("tf.markers_json LIKE ?")
+        params.append(f'%"{args.marker}"%')
+        metric = f"marker={args.marker}"
+        order = "r.started_at DESC, tf.seconds DESC NULLS LAST"
+    elif args.slowest:
+        metric = "slowest serial testcase seconds (not wall time)"
+        order = "tf.seconds DESC NULLS LAST, r.started_at DESC"
+    else:
+        return [], "specify --run, --node, --marker, or --slowest"
+    query = f"""SELECT r.run_id, r.gate, r.wt, r.started_at, r.commit_sha, r.python_ver,
+                         r.jobs, tf.node_id, tf.file, tf.outcome, tf.seconds, tf.phase,
+                         tf.phase_seconds_json, tf.markers_json, tf.file_line,
+                         tf.error_fingerprint, tf.worker
+                  FROM test_facts tf JOIN runs r USING (run_id)
+                  WHERE {" AND ".join(where)} ORDER BY {order} LIMIT ?"""
+    params.append(args.last)
+    names = [
+        "run_id",
+        "gate",
+        "wt",
+        "started_at",
+        "commit_sha",
+        "python_ver",
+        "jobs",
+        "node_id",
+        "file",
+        "outcome",
+        "seconds",
+        "phase",
+        "phase_seconds_json",
+        "markers_json",
+        "file_line",
+        "error_fingerprint",
+        "worker",
+    ]
+    rows = []
+    for row in con.execute(query, params).fetchall():
+        record = dict(zip(names, row, strict=True))
+        for key, default in (("phase_seconds_json", "{}"), ("markers_json", "[]")):
+            try:
+                record[key.removesuffix("_json")] = json.loads(record[key] or default)
+            except json.JSONDecodeError:
+                record[key.removesuffix("_json")] = default
+        rows.append(record)
+    return rows, metric
+
+
+def cmd_tests(con, args) -> str:
+    if args.run is not None:
+        q = "SELECT node_id, outcome, seconds, err_head FROM tests WHERE run_id = ?"
+        args_list: list = [args.run]
+        if args.outcome != "all":
+            q += " AND outcome = ?"
+            args_list.append(args.outcome)
+        rows = con.execute(q + " LIMIT 200", args_list).fetchall()
+        if args.json:
+            return json.dumps(
+                [dict(zip(("node_id", "outcome", "seconds", "err_head"), r)) for r in rows]
+            )
+        return (
+            "\n".join(
+                f"{o.upper():7s} {n} ({s:.2f}s)" if s else f"{o.upper():7s} {n}"
+                for n, o, s, _e in rows
+            )
+            or "no test rows (junit absent and no failures text-parsed)"
         )
-        or "no test rows (junit absent and no failures text-parsed)"
-    )
+    rows, metric = _test_history_rows(con, args)
+    if args.json:
+        return json.dumps(rows, default=str, sort_keys=True)
+    if not rows:
+        return f"no test history for {metric}"
+    out = [metric]
+    for row in rows:
+        duration = f" ({row['seconds']:.2f}s)" if row["seconds"] is not None else ""
+        markers = ",".join(row["markers"])
+        marker_text = f" markers={markers}" if markers else ""
+        scope = f"@{row['wt']}" if row["wt"] else ""
+        out.append(
+            f"  run {row['run_id']} {row['gate']}{scope} {row['started_at']} "
+            f"{row['outcome']} {row['node_id']}{duration}{marker_text}"
+        )
+    return "\n".join(out)
+
+
+def _cluster_payload(con, args) -> list[dict]:
+    where = [
+        "tf.error_fingerprint IS NOT NULL",
+        "tf.error_fingerprint != ''",
+        "tf.outcome IN ('failed', 'error')",
+    ]
+    params: list = []
+    if args.fingerprint:
+        where.append("tf.error_fingerprint = ?")
+        params.append(args.fingerprint)
+    if args.last:
+        where.append("r.run_id IN (SELECT run_id FROM runs ORDER BY started_at DESC LIMIT ?)")
+        params.append(args.last)
+    names = [
+        "fingerprint",
+        "run_id",
+        "gate",
+        "wt",
+        "started_at",
+        "commit_sha",
+        "node_id",
+        "outcome",
+        "err_head",
+        "src_rel",
+        "header_offset",
+        "junit_path",
+    ]
+    grouped: dict[str, dict] = {}
+    for row in con.execute(
+        f"""SELECT tf.error_fingerprint, r.run_id, r.gate, r.wt, r.started_at,
+                   r.commit_sha, tf.node_id, tf.outcome, tf.err_head, r.src_rel,
+                   r.header_offset, r.junit_path
+            FROM test_facts tf JOIN runs r USING (run_id)
+            WHERE {" AND ".join(where)} ORDER BY r.started_at, r.run_id, tf.node_id""",
+        params,
+    ).fetchall():
+        record = dict(zip(names, row, strict=True))
+        fingerprint = record["fingerprint"]
+        cluster = grouped.setdefault(
+            fingerprint,
+            {
+                "fingerprint": fingerprint,
+                "first_seen": record["started_at"],
+                "last_seen": record["started_at"],
+                "run_ids": set(),
+                "distinct_commits": set(),
+                "distinct_worktrees": set(),
+                "affected_node_ids": set(),
+                "representative_error_head": None,
+                "transitions": [],
+                "sources": [],
+                "history": [],
+            },
+        )
+        cluster["last_seen"] = record["started_at"]
+        cluster["run_ids"].add(record["run_id"])
+        cluster["distinct_commits"].add(record["commit_sha"] or "")
+        cluster["distinct_worktrees"].add(record["wt"] or "")
+        cluster["affected_node_ids"].add(record["node_id"])
+        if not cluster["representative_error_head"] and record["err_head"]:
+            cluster["representative_error_head"] = record["err_head"][:400]
+        prior = next(
+            (item for item in reversed(cluster["history"]) if item["node_id"] == record["node_id"]),
+            None,
+        )
+        if prior and prior["outcome"] != record["outcome"]:
+            cluster["transitions"].append(
+                {
+                    "node_id": record["node_id"],
+                    "from": prior["outcome"],
+                    "to": record["outcome"],
+                    "at": record["started_at"],
+                }
+            )
+        cluster["history"].append(
+            {
+                "run_id": record["run_id"],
+                "node_id": record["node_id"],
+                "outcome": record["outcome"],
+                "started_at": record["started_at"],
+            }
+        )
+        source = {
+            "run_id": record["run_id"],
+            "report": record["src_rel"],
+            "report_offset": record["header_offset"],
+            "junit": record["junit_path"],
+        }
+        if source not in cluster["sources"]:
+            cluster["sources"].append(source)
+    for cluster in grouped.values():
+        cluster["run_count"] = len(cluster.pop("run_ids"))
+        cluster["distinct_commits"] = len(cluster["distinct_commits"])
+        cluster["distinct_worktrees"] = len(cluster["distinct_worktrees"])
+        cluster["affected_node_ids"] = sorted(cluster["affected_node_ids"])
+    return sorted(grouped.values(), key=lambda item: item["last_seen"], reverse=True)
+
+
+def cmd_clusters(con, args) -> str:
+    clusters = _cluster_payload(con, args)
+    if args.json:
+        return json.dumps(clusters, default=str, sort_keys=True)
+    if not clusters:
+        return "no recurring normalized failures"
+    out = [f"{len(clusters)} normalized failure cluster(s)"]
+    for cluster in clusters:
+        out.append(
+            f"  {cluster['fingerprint']}  runs={cluster['run_count']}  "
+            f"commits={cluster['distinct_commits']}  worktrees={cluster['distinct_worktrees']}"
+        )
+        out.append(
+            f"    {cluster['first_seen']} -> {cluster['last_seen']}  "
+            f"nodes={', '.join(cluster['affected_node_ids'])}"
+        )
+        if cluster["transitions"]:
+            transitions = ", ".join(
+                f"{item['node_id']} {item['from']}->{item['to']}" for item in cluster["transitions"]
+            )
+            out.append(f"    transitions: {transitions}")
+        if cluster["representative_error_head"]:
+            out.append(
+                f"    representative: {cluster['representative_error_head'].splitlines()[0]}"
+            )
+    return "\n".join(out)
+
+
+def _percentile(values: list[float], fraction: float) -> float:
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * fraction
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * (position - lower)
+
+
+def _test_phase_totals(con, run_ids: list[int]) -> dict[str, float]:
+    if not run_ids:
+        return {}
+    placeholders = ",".join("?" for _ in run_ids)
+    totals = {"total": 0.0, "setup": 0.0, "call": 0.0, "teardown": 0.0}
+    for seconds, phase_json in con.execute(
+        f"""SELECT seconds, phase_seconds_json FROM test_facts
+            WHERE run_id IN ({placeholders})""",
+        run_ids,
+    ).fetchall():
+        if seconds is not None:
+            totals["total"] += seconds
+        try:
+            phases = json.loads(phase_json or "{}")
+        except json.JSONDecodeError:
+            phases = {}
+        for phase in ("setup", "call", "teardown"):
+            value = phases.get(phase, {}).get("seconds")
+            if isinstance(value, (int, float)):
+                totals[phase] += value
+    return totals
 
 
 def cmd_timing(con, args) -> str:
+    pass_only = getattr(args, "pass_only", False)
+    status_clause = (
+        " AND b.status NOT LIKE '%FAIL%' AND b.status NOT LIKE '%SKIP%'" if pass_only else ""
+    )
     rows = con.execute(
-        """SELECT r.started_at, b.seconds, b.budget_s, b.status, r.wt
-           FROM bench b JOIN runs r USING (run_id)
-           WHERE b.bench = ? ORDER BY r.started_at DESC LIMIT ?""",
+        f"""SELECT r.run_id, r.started_at, b.seconds, b.budget_s, b.status, r.wt
+            FROM bench b JOIN runs r USING (run_id)
+            WHERE b.bench = ?{status_clause} ORDER BY r.started_at DESC LIMIT ?""",
         [args.leg, args.last],
     ).fetchall()
     if not rows:
+        leg_clause = (
+            " AND l.status NOT LIKE '%FAIL%' AND l.status NOT LIKE '%SKIP%'" if pass_only else ""
+        )
         rows = con.execute(
-            """SELECT r.started_at, l.seconds, NULL, l.status, r.wt
-               FROM legs l JOIN runs r USING (run_id)
-               WHERE l.leg = ? ORDER BY r.started_at DESC LIMIT ?""",
+            f"""SELECT r.run_id, r.started_at, l.seconds, NULL, l.status, r.wt
+                FROM legs l JOIN runs r USING (run_id)
+                WHERE l.leg = ?{leg_clause} ORDER BY r.started_at DESC LIMIT ?""",
             [args.leg, args.last],
         ).fetchall()
     if not rows:
         return f"no history for leg {args.leg!r}"
     out = [f"{args.leg} — last {len(rows)} runs (newest first)"]
-    for started, secs, budget, status, wt in rows:
+    for _, started, secs, budget, status, wt in rows:
         b = f" / budget {budget}s" if budget else ""
         out.append(f"  {started}{'@' + wt if wt else '':14s} {secs:7.2f}s{b}  {status}")
-    import statistics as _st
-
-    meds = _st.median(r[1] for r in rows)
-    out.append(
-        f"  median {meds:.2f}s"
-        + (
-            f", latest {rows[0][1]:.2f}s ({(rows[0][1] / budget - 1) * 100:+.0f}% vs budget)"
-            if budget
-            else ""
+    values = [row[2] for row in rows if row[2] is not None]
+    if values:
+        out.append(
+            f"  stats: min {min(values):.2f}s · p25 {_percentile(values, 0.25):.2f}s · "
+            f"median {_percentile(values, 0.5):.2f}s · p75 {_percentile(values, 0.75):.2f}s · "
+            f"max {max(values):.2f}s"
         )
-    )
+    budget = rows[0][3]
+    if budget:
+        out.append(
+            f"  latest budget utilization: {rows[0][2] / budget * 100:.1f}% "
+            f"({rows[0][2]:.2f}s / {budget:.2f}s)"
+        )
+    run_ids = [row[0] for row in rows]
+    phase_totals = _test_phase_totals(con, run_ids)
+    if phase_totals["total"]:
+        out.append(
+            "  test phases (serial testcase seconds; not wall time): "
+            f"total {phase_totals['total']:.2f}s · setup {phase_totals['setup']:.2f}s · "
+            f"call {phase_totals['call']:.2f}s · teardown {phase_totals['teardown']:.2f}s"
+        )
+    if getattr(args, "critical_path", False):
+        placeholders = ",".join("?" for _ in run_ids)
+        critical = con.execute(
+            f"""SELECT r.run_id, r.started_at, tf.node_id, tf.worker, tf.seconds
+                FROM test_facts tf JOIN runs r USING (run_id)
+                WHERE tf.run_id IN ({placeholders})
+                ORDER BY tf.seconds DESC NULLS LAST LIMIT 10""",
+            run_ids,
+        ).fetchall()
+        out.append("  critical-path candidates (serial testcase seconds; not wall time):")
+        out.extend(
+            f"    run {run_id} {started} {seconds:.2f}s worker {worker or 'unknown'} {node}"
+            for run_id, started, node, worker, seconds in critical
+            if seconds is not None
+        )
     return "\n".join(out)
 
 
@@ -961,7 +1922,10 @@ def _build_parser() -> argparse.ArgumentParser:
         ("latest", "digest of the newest run"),
         ("recent", "last N runs of a gate, PASS/FAIL each (--tests for node ids)"),
         ("failures", "failed legs/tests of the newest (or given) run"),
-        ("tests", "per-test rows for a run"),
+        ("tests", "per-test rows for a run, or historical node/marker/slowest queries"),
+        ("compare", "compare two indexed runs"),
+        ("clusters", "group recurring normalized test failures"),
+        ("artifacts", "read-only generic gate artifact records"),
         ("timing", "leg timing history vs budget"),
         ("grep", "keyword over indexed failure text"),
         ("rotate", "archive old runs to outputs/archives (zstd)"),
@@ -1008,13 +1972,42 @@ def _build_parser() -> argparse.ArgumentParser:
                 action="store_true",
                 help="list failed test node ids under each failed run",
             )
+        if name == "compare":
+            sp.add_argument("run_a", type=int)
+            sp.add_argument("run_b", type=int)
+            sp.add_argument("--gate", default=None, help="require both runs to use this gate")
+            sp.add_argument("--json", action="store_true")
+        if name == "clusters":
+            sp.add_argument("--fingerprint", default=None, help="restrict to one fingerprint")
+            sp.add_argument("--last", type=int, default=0, help="inspect only the last N runs")
+            sp.add_argument("--json", action="store_true")
+        if name == "artifacts":
+            sp.add_argument("--run", type=int, default=None, help="restrict to one run")
+            sp.add_argument("--kind", default=None, help="filter by artifact kind")
+            sp.add_argument("--status", default=None, choices=("pass", "fail", "warn", "info"))
+            sp.add_argument("--gate", default=None, help="optional gate filter")
+            sp.add_argument("-wt", "--wt", default="", metavar="NAME", help="worktree filter")
+            sp.add_argument("--last", type=int, default=50, help="maximum records")
+            sp.add_argument("--json", action="store_true")
         if name == "tests":
-            sp.add_argument("--run", type=int, required=True)
+            sp.add_argument("--run", type=int, default=None, help="show one run (legacy mode)")
+            sp.add_argument("--node", help="show history for one node ID")
+            sp.add_argument("--marker", help="show history for one pytest marker")
+            sp.add_argument("--slowest", action="store_true", help="rank serial testcase seconds")
+            sp.add_argument("--last", type=int, default=10, help="history rows or runs to inspect")
+            sp.add_argument("--gate", default=None, help="optional gate filter")
+            sp.add_argument("-wt", "--wt", default="", metavar="NAME", help="worktree filter")
             sp.add_argument("--outcome", default="all")
             sp.add_argument("--json", action="store_true")
         if name == "timing":
             sp.add_argument("--leg", required=True)
             sp.add_argument("--last", type=int, default=20)
+            sp.add_argument("--pass-only", action="store_true", help="exclude failed/skipped runs")
+            sp.add_argument(
+                "--critical-path",
+                action="store_true",
+                help="show slowest indexed testcase candidates",
+            )
         if name == "grep":
             sp.add_argument("substr")
             sp.add_argument("--limit", type=int, default=25)
@@ -1045,6 +2038,9 @@ def main(argv: list[str] | None = None) -> int:
             "recent": cmd_recent,
             "failures": cmd_failures,
             "tests": cmd_tests,
+            "compare": cmd_compare,
+            "clusters": cmd_clusters,
+            "artifacts": cmd_artifacts,
             "timing": cmd_timing,
             "grep": cmd_grep,
             "rotate": cmd_rotate,

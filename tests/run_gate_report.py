@@ -200,6 +200,7 @@ GATES: dict[str, Gate] = {
                     str(_JUNIT_DIR / "qa.junit.xml"),
                     "--test-metadata-manifest",
                     str(_JUNIT_DIR / "qa.metadata.json"),
+                    "tests",
                 ),
             ),
             Step("verify_notes", (_PY, "helpers/validators/verify_notes.py")),
@@ -228,6 +229,7 @@ GATES: dict[str, Gate] = {
                     str(_JUNIT_DIR / "integration.junit.xml"),
                     "--test-metadata-manifest",
                     str(_JUNIT_DIR / "integration.metadata.json"),
+                    "tests",
                 ),
             ),
         ),
@@ -280,6 +282,7 @@ GATES: dict[str, Gate] = {
                     str(_JUNIT_DIR / "advisory.junit.xml"),
                     "--test-metadata-manifest",
                     str(_JUNIT_DIR / "advisory.metadata.json"),
+                    "tests",
                 ),
             ),
             Step("frontend-check", (_MAKE, "frontend-check")),
@@ -429,6 +432,28 @@ def retain_test_artifacts(gate_name: str, run_id: str, started: datetime) -> str
     for source in sources:
         if source.exists() and source.stat().st_mtime >= cutoff:
             shutil.copy2(source, destination / source.name)
+    manifest = _JUNIT_DIR / f"{gate_name}.gate-artifacts.json"
+    if manifest.exists() and manifest.stat().st_mtime >= cutoff:
+        shutil.copy2(manifest, destination / "gate-artifacts.json")
+    for filename in (
+        "coverage.json",
+        "coverage.xml",
+        "eslint.json",
+        "frontend.json",
+        "integrity.json",
+        "perf.json",
+        "perf.jsonl",
+        "prettier.json",
+        "ruff.json",
+        "secret-scan.json",
+        "security.sarif",
+        "snapshot.json",
+        "tsc.json",
+        "ty.json",
+    ):
+        native = _JUNIT_DIR / f"{gate_name}.{filename}"
+        if native.exists() and native.stat().st_mtime >= cutoff:
+            shutil.copy2(native, destination / filename)
     return str(destination.relative_to(OUTPUTS_ROOT))
 
 

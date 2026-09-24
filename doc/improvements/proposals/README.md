@@ -34,8 +34,15 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none — the test_data_items arc archived 2026-09-24 as
-completed.md entry 285; see the Previously chain below.)_
+_(none — the gate_query_improvements and test_data_items arcs archived
+2026-09-24 as completed.md entries 286 and 285; see the Previously chain
+below.)_
+
+_(Previously: gate_query_improvements.md archived 2026-09-24 as
+completed.md entry 286 — historical comparison, test history, failure
+clusters, generic/native artifacts, timing/critical-path views, and an
+end-to-end CLI example. Execution record in
+`../archive/tooling/gate_query_improvements.md`.)_
 
 _(Previously: test_data_items.md archived 2026-09-24 as completed.md entry
 285 — normalized test facts, immutable artifacts, xdist-safe metadata, and

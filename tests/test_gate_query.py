@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -90,6 +90,26 @@ JUNIT = """<testsuites><testsuite tests="2" failures="1">
   <testcase classname="tests.test_x" name="test_bad" time="1.50">
     <failure message="assert 1 == 2">assert 1 == 2
  + where 1 = f()</failure>
+  </testcase>
+</testsuite></testsuites>"""
+
+JUNIT_HISTORY_A = """<testsuites><testsuite tests="3" failures="1">
+  <testcase classname="tests.test_history" name="test_stable" time="1.0">
+    <properties><property name="pytest.mark.integration" value=""/></properties>
+  </testcase>
+  <testcase classname="tests.test_history" name="test_fail" time="2.0">
+    <failure message="assert 1 == 2">old failure</failure>
+  </testcase>
+  <testcase classname="tests.test_history" name="test_removed" time="1.0"/>
+</testsuite></testsuites>"""
+
+JUNIT_HISTORY_B = """<testsuites><testsuite tests="3" failures="1">
+  <testcase classname="tests.test_history" name="test_stable" time="3.0">
+    <properties><property name="pytest.mark.integration" value=""/></properties>
+  </testcase>
+  <testcase classname="tests.test_history" name="test_fail" time="2.0"/>
+  <testcase classname="tests.test_history" name="test_added" time="4.0">
+    <failure message="new failure">new failure</failure>
   </testcase>
 </testsuite></testsuites>"""
 
@@ -429,6 +449,316 @@ def test_timing_history(corpus):
     args = SimpleNamespace(leg="graph_l1_betweenness", last=10)
     out = gq.cmd_timing(con, args)
     assert "4.00s" in out and "median" in out and "budget 8.0s" in out
+    con.close()
+
+
+def test_compare_and_historical_test_queries(corpus):
+    now = datetime.now()
+    gen_a = (now - timedelta(minutes=2)).strftime(gq._TS_FMT)
+    gen_b = (now - timedelta(minutes=1)).strftime(gq._TS_FMT)
+    retained_a = corpus / ".artifacts" / "qa" / "run-a"
+    retained_b = corpus / ".artifacts" / "qa" / "run-b"
+    _write(retained_a / "qa.junit.xml", JUNIT_HISTORY_A)
+    _write(retained_b / "qa.junit.xml", JUNIT_HISTORY_B)
+    block_a = _gate_block(gen_a, gen_a).replace(
+        "**Python:** 3.14.0",
+        "**Python:** 3.14.0  ·  **Artifacts:** .artifacts/qa/run-a",
+    )
+    block_b = (
+        _gate_block(gen_b, gen_b)
+        .replace(
+            "**Python:** 3.14.0",
+            "**Python:** 3.14.0  ·  **Artifacts:** .artifacts/qa/run-b",
+        )
+        .replace("| pytest | 42.00 | ✓ OK |", "| pytest | 63.00 | ✓ OK |")
+    )
+    _write(corpus / "qa_report.md", block_a + block_b)
+    con = gq.connect()
+    gq.refresh(con)
+    run_a, run_b = con.execute("SELECT run_id FROM runs ORDER BY started_at").fetchall()
+    payload = json.loads(
+        gq.cmd_compare(
+            con,
+            SimpleNamespace(run_a=run_a[0], run_b=run_b[0], gate="qa", json=True),
+        )
+    )
+    assert payload["legs"]["changed"][0]["delta_s"] == 21.0
+    assert payload["tests"]["failed_added"] == ["tests/test_history.py::test_added"]
+    assert payload["tests"]["failed_removed"] == ["tests/test_history.py::test_fail"]
+    assert payload["tests"]["outcome_changes"][0]["node_id"] == "tests/test_history.py::test_fail"
+    assert "outcome changes" in gq.cmd_compare(
+        con,
+        SimpleNamespace(run_a=run_a[0], run_b=run_b[0], gate="qa", json=False),
+    )
+    legacy = json.loads(gq.cmd_tests(con, SimpleNamespace(run=run_a[0], outcome="all", json=True)))
+    assert len(legacy) == 3
+    history_args = SimpleNamespace(
+        run=None,
+        node="tests/test_history.py::test_stable",
+        marker=None,
+        slowest=False,
+        last=10,
+        gate="qa",
+        wt="",
+        json=True,
+        outcome="all",
+    )
+    history = json.loads(gq.cmd_tests(con, history_args))
+    assert [row["outcome"] for row in history] == ["passed", "passed"]
+    assert history[0]["markers"] == ["integration"]
+    history_args.node = None
+    history_args.marker = "integration"
+    marker_rows = json.loads(gq.cmd_tests(con, history_args))
+    assert len(marker_rows) == 2
+    history_args.marker = None
+    history_args.slowest = True
+    history_args.json = False
+    slowest = gq.cmd_tests(con, history_args)
+    assert "serial testcase seconds (not wall time)" in slowest
+    con.close()
+
+
+def test_failure_clusters_use_normalized_fingerprints(corpus):
+    now = datetime.now()
+    gen_a = (now - timedelta(minutes=2)).strftime(gq._TS_FMT)
+    gen_b = (now - timedelta(minutes=1)).strftime(gq._TS_FMT)
+    for run, generated in (("run-a", gen_a), ("run-b", gen_b)):
+        _write(corpus / ".artifacts" / "qa" / run / "qa.junit.xml", JUNIT_FACTS)
+        block = _gate_block(generated, generated).replace(
+            "**Python:** 3.14.0",
+            f"**Python:** 3.14.0  ·  **Artifacts:** .artifacts/qa/{run}",
+        )
+        _write(corpus / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    clusters = json.loads(
+        gq.cmd_clusters(
+            con,
+            SimpleNamespace(fingerprint=None, last=10, json=True),
+        )
+    )
+    failure_cluster = next(
+        cluster for cluster in clusters if len(cluster["affected_node_ids"]) == 2
+    )
+    assert failure_cluster["run_count"] == 2
+    assert failure_cluster["distinct_commits"] == 1
+    assert len(failure_cluster["sources"]) == 2
+    assert all(source["junit"] for source in failure_cluster["sources"])
+    selected = json.loads(
+        gq.cmd_clusters(
+            con,
+            SimpleNamespace(fingerprint=failure_cluster["fingerprint"], last=10, json=True),
+        )
+    )
+    assert len(selected) == 1
+    assert "normalized failure cluster" in gq.cmd_clusters(
+        con,
+        SimpleNamespace(fingerprint=None, last=10, json=False),
+    )
+    con.close()
+
+
+def test_timing_reports_budget_stats_and_serial_phases(corpus):
+    now = datetime.now().strftime(gq._TS_FMT)
+    retained = corpus / ".artifacts" / "qa" / "run-1"
+    _write(retained / "qa.junit.xml", JUNIT_FACTS)
+    _write(
+        retained / "qa.metadata.json",
+        json.dumps(
+            {
+                "schema": "test-metadata.v1",
+                "tests": [
+                    {
+                        "node_id": "tests/test_facts.py::test_pass",
+                        "phases": {
+                            "setup": {"seconds": 0.2, "outcome": "passed"},
+                            "call": {"seconds": 0.3, "outcome": "passed"},
+                            "teardown": {"seconds": 0.1, "outcome": "passed"},
+                        },
+                    }
+                ],
+            }
+        ),
+    )
+    block = _gate_block(now, now).replace(
+        "**Python:** 3.14.0",
+        "**Python:** 3.14.0  ·  **Artifacts:** .artifacts/qa/run-1",
+    )
+    _write(corpus / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    out = gq.cmd_timing(
+        con,
+        SimpleNamespace(
+            leg="pytest",
+            last=10,
+            pass_only=False,
+            critical_path=True,
+        ),
+    )
+    assert "stats:" in out and "p25" in out and "p75" in out
+    assert "test phases (serial testcase seconds; not wall time)" in out
+    assert "critical-path candidates" in out
+    con.close()
+
+
+def test_generic_artifact_records_include_report_legs_and_manifest(corpus):
+    now = datetime.now().strftime(gq._TS_FMT)
+    artifact_dir = ".artifacts/qa/run-1"
+    retained = corpus / artifact_dir
+    _write(
+        retained / "ruff.json",
+        json.dumps(
+            [
+                {
+                    "filename": "helpers/example.py",
+                    "code": "F401",
+                    "message": "unused import",
+                    "severity": "error",
+                }
+            ]
+        ),
+    )
+    _write(
+        retained / "ty.json",
+        json.dumps({"diagnostics": [{"path": "app.py", "message": "unknown type"}]}),
+    )
+    _write(
+        retained / "gate-artifacts.json",
+        json.dumps(
+            {
+                "schema": gq.ARTIFACT_SCHEMA,
+                "artifacts": [
+                    {
+                        "kind": "ruff",
+                        "target": "helpers/example.py",
+                        "status": "warn",
+                        "message": "optional diagnostic",
+                        "metadata": {"adapter": "test"},
+                    }
+                ],
+            }
+        ),
+    )
+    block = _gate_block(now, now, fail=True).replace(
+        "**Python:** 3.14.0",
+        f"**Python:** 3.14.0  ·  **Artifacts:** {artifact_dir}",
+    )
+    _write(corpus / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    rows = con.execute(
+        "SELECT kind, target, status, schema, source_rel FROM artifacts ORDER BY kind, target"
+    ).fetchall()
+    assert ("integrity", "static_checks", "fail", gq.ARTIFACT_SCHEMA, "qa_report.md") in rows
+    assert (
+        "ruff",
+        "helpers/example.py",
+        "warn",
+        gq.ARTIFACT_SCHEMA,
+        str(retained / "gate-artifacts.json"),
+    ) in rows
+    assert (
+        "ruff",
+        "helpers/example.py",
+        "fail",
+        "ruff-json.v1",
+        str(retained / "ruff.json"),
+    ) in rows
+    assert (
+        "ty",
+        "app.py",
+        "fail",
+        "ty-json.v1",
+        str(retained / "ty.json"),
+    ) in rows
+    args = SimpleNamespace(
+        run=None,
+        kind=None,
+        status=None,
+        gate="qa",
+        wt="",
+        last=10,
+        json=True,
+    )
+    records = json.loads(gq.cmd_artifacts(con, args))
+    assert len(records) == 5
+    assert {record["metadata"].get("adapter") for record in records} == {
+        "gate-report-leg",
+        "test",
+        "ruff-json",
+        "ty-json",
+    }
+    args.json = False
+    assert "artifact record" in gq.cmd_artifacts(con, args)
+    con.close()
+
+
+def test_native_artifact_adapters_cover_remaining_formats(corpus):
+    now = datetime.now().strftime(gq._TS_FMT)
+    artifact_dir = ".artifacts/qa/run-native"
+    retained = corpus / artifact_dir
+    _write(retained / "coverage.json", json.dumps({"totals": {"percent": 80, "fail_under": 90}}))
+    _write(retained / "coverage.xml", "<coverage>")
+    _write(
+        retained / "perf.json",
+        json.dumps(
+            {
+                "benchmarks": [
+                    {"name": "small", "seconds": 1, "budget_s": 2},
+                    {"name": "slow", "seconds": 3, "budget_s": 2},
+                ]
+            }
+        ),
+    )
+    _write(
+        retained / "integrity.json",
+        json.dumps({"checks": [{"name": "foreign_keys", "ok": False, "summary": "orphan row"}]}),
+    )
+    _write(
+        retained / "security.sarif",
+        json.dumps(
+            {
+                "runs": [
+                    {
+                        "results": [
+                            {
+                                "ruleId": "SQL001",
+                                "uri": "app.py",
+                                "message": {"text": "unsafe query"},
+                            }
+                        ]
+                    }
+                ]
+            }
+        ),
+    )
+    _write(retained / "secret-scan.json", "[]")
+    _write(
+        retained / "frontend.json",
+        json.dumps(
+            {"diagnostics": [{"file": "app.ts", "message": "implicit any", "severity": "warning"}]}
+        ),
+    )
+    block = _gate_block(now, now).replace(
+        "**Python:** 3.14.0",
+        f"**Python:** 3.14.0  ·  **Artifacts:** {artifact_dir}",
+    )
+    _write(corpus / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    rows = con.execute(
+        "SELECT kind, target, status, schema, duration_s FROM artifacts ORDER BY kind, target"
+    ).fetchall()
+    assert ("coverage", "total", "fail", "coverage-json.v1", None) in rows
+    assert ("perf", "small", "pass", "perf-json.v1", 1.0) in rows
+    assert ("perf", "slow", "fail", "perf-json.v1", 3.0) in rows
+    assert ("integrity", "foreign_keys", "fail", "integrity-json.v1", None) in rows
+    assert ("security", "app.py", "fail", "sarif.v1", None) in rows
+    assert ("security", "security", "pass", "secret-scan-json.v1", None) in rows
+    assert ("frontend", "app.ts", "warn", "frontend-json.v1", None) in rows
+    assert not any(row[3] == "coverage-xml.v1" for row in rows)
+    assert len(rows) == 8
     con.close()
 
 

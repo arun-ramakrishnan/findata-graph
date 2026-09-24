@@ -3,6 +3,13 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **gate_query historical/artifact intelligence — EXECUTED 2026-09-24 (#286)**
+  (`archive/tooling/gate_query_improvements.md`): added run comparison,
+  historical test queries, failure clustering, generic/native artifact
+  ingestion, timing/critical-path views, and an end-to-end CLI example.
+  Full-QA fixes covered xdist custom-option registration in QA/integration/
+  advisory and the scheduler-sensitive regex guard.
+
 - **test_data normalization — EXECUTED 2026-09-24 (#285)**
   (`archive/testing/test_data_items.md`): `gate_query` now retains immutable
   per-run JUnit/manifest artifacts, indexes 15-field normalized test facts with
