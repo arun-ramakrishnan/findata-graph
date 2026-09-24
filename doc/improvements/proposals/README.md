@@ -85,7 +85,6 @@ entry number and stale DONE pointers):
   review (~4–5 s estimate re-measured at ~13 s; graph_analytics
   65k → 193k rows). Follows #283 (pair reuse), #277 (fold lane),
   #279 (ROUTING).
-
 _(Previously: gate_report_quality_traces.md archived 2026-09-25 as
 completed.md entry 288 — gate report quality traces: incremental refresh
 diagnostics, pending-tail/parser warnings, structured advisory warning capture,

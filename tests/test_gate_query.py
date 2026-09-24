@@ -196,6 +196,26 @@ def test_pending_tail_not_indexed(corpus):
     con.close()
 
 
+def test_refresh_reports_parser_errors(corpus, monkeypatch):
+    _write(corpus / "qa_report.md", _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
+    monkeypatch.setattr(gq, "_parse_block", lambda *_: None)
+    con = gq.connect()
+    counts = gq.refresh(con)
+    assert counts["runs"] == 0 and counts["parse_errors"] == 1
+    con.close()
+
+
+def test_main_warns_when_report_tail_is_pending(corpus, capsys):
+    rep = corpus / "qa_report.md"
+    _write(rep, _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
+    _write(rep, "# make qa — gate report\n\n**Generated:** partial")
+
+    assert gq.main(["latest"]) == 0
+    captured = capsys.readouterr()
+    assert "incomplete trailing run" in captured.err
+    assert "09:59:50" in captured.out
+
+
 def test_latest_and_failures(corpus):
     rep = corpus / "qa_report.md"
     _write(rep, _gate_block("2026-09-23 10:00:00", "2026-09-23 09:59:50"))
@@ -210,6 +230,44 @@ def test_latest_and_failures(corpus):
     )
     fails = gq.cmd_failures(con, args2)
     assert "LEG FAIL: pytest" in fails and "LEG FAIL: static_checks" in fails
+    con.close()
+
+
+def test_warning_lines_are_indexed_as_warn_artifacts(corpus):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    block = _gate_block(now, now) + (
+        "\n## ty-tests (OK)\n\n"
+        "helpers/example.py:12:5: warning[unresolved] advisory diagnostic\n"
+        "WARNING: retained advisory warning\n"
+        "UserWarning: deprecated fixture\n"
+    )
+    _write(corpus / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    records = json.loads(
+        gq.cmd_artifacts(
+            con,
+            SimpleNamespace(
+                run=None,
+                kind=None,
+                status="warn",
+                gate="qa",
+                wt="",
+                last=10,
+                json=True,
+            ),
+        )
+    )
+    assert len(records) == 3
+    assert {record["message"] for record in records} == {
+        "helpers/example.py:12:5: warning[unresolved] advisory diagnostic",
+        "WARNING: retained advisory warning",
+        "UserWarning: deprecated fixture",
+    }
+    digest = gq.cmd_latest(con, SimpleNamespace(wt="", gate="qa", run=None, json=False))
+    assert "warnings: 3" in digest
+    recent = gq.cmd_recent(con, SimpleNamespace(wt="", gate="qa", last=10, tests=False))
+    assert "warnings=3" in recent
     con.close()
 
 
@@ -386,6 +444,9 @@ def test_retained_worktree_artifact_rebuilds_test_facts(corpus):
     assert row[:3] == ("graph_algos", artifact_dir, "retained")
     assert str(retained / "qa.junit.xml") in row[3]
     assert one(con, "SELECT COUNT(*) FROM test_facts")[0] == 5
+    digest = gq.cmd_latest(con, SimpleNamespace(wt="graph_algos", gate="qa", run=None, json=False))
+    assert "artifacts: retained" in digest
+    assert "junit=" in digest and "qa.junit.xml" in digest
     con.execute("DELETE FROM test_facts")
     gq.refresh(con, full=True)
     assert one(con, "SELECT COUNT(*) FROM test_facts")[0] == 5

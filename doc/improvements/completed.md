@@ -7428,3 +7428,26 @@ Execution record: `archive/tooling/gate_query_improvements.md`.
   SciPy tests: 39 passed.
 
 Execution record: `archive/graph/scipy_st_lanes_routing_switch.md`.
+
+## 288. Gate report quality traces — warnings, artifacts, and parser diagnostics
+
+**Proposal**: `doc/improvements/archive/tooling/gate_report_quality_traces.md`
+(filed + executed 2026-09-25 — verdict: **EXECUTED**).
+
+- Kept `gate_query` incremental refresh as the default and surfaced
+  incomplete trailing blocks and parser rejections instead of silently
+  returning an older or empty view.
+- Indexed advisory warning lines as bounded `kind=warning`,
+  `status=warn` artifacts with source offsets; `latest`, `recent`, and
+  `failures` now expose warning counts without changing gate verdicts.
+- Added retained artifact-directory and JUnit-path traces to human output;
+  the existing writer's `**Artifacts:**`, JUnit/metadata/native-artifact
+  retention, and tail budgets remain covered.
+- Hardened JUnit parsing against filesystem errors and added focused
+  parser, warning, artifact, and writer regression coverage.
+- Full derived-index refresh: 13 files, 161 runs, 0 pending tails, 0
+  parser errors. Focused tests: 50 passed; lint, types, markdown lint,
+  static checks, and diff checks passed. Full QA and search-fresh APPLY
+  were parked by the operator.
+
+Execution record: `archive/tooling/gate_report_quality_traces.md`.

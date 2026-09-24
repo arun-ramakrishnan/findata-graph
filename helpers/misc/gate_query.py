@@ -77,6 +77,12 @@ _EXIT_RE = re.compile(r"\*\*Exit:\*\*\s*(\d+)")
 _ARTIFACTS_RE = re.compile(r"\*\*Artifacts:\*\*\s+(\S+)")
 _SUMMARY_ROW_RE = re.compile(r"^\|\s*\*\*", re.MULTILINE)
 _FAILED_LINE_RE = re.compile(r"^(FAILED|ERROR)\s+(\S+)")
+_WARNING_RE = re.compile(
+    r"(?:\b(?:UserWarning|DeprecationWarning|FutureWarning|PendingDeprecationWarning|"
+    r"RuntimeWarning|SyntaxWarning|ResourceWarning|PytestWarning|ImportWarning)\s*:|"
+    r":\d+(?::\d+)?:\s+warning(?:\[[^\]]+\])?\s+|^(?:warning|warn)\s*:)",
+    re.IGNORECASE,
+)
 _TS_FMT = "%Y-%m-%d %H:%M:%S"
 
 SCHEMA = """
@@ -288,6 +294,34 @@ def _leg_err_head(lines: list[str], label: str) -> str | None:
     return text[:2000] or None
 
 
+def _warning_records(lines: list[str], rel: str, offset: int) -> list[dict]:
+    current_leg = ""
+    records: list[dict] = []
+    for line in lines:
+        if line.startswith("## ") and " (" in line:
+            current_leg = line[3:].split(" (", 1)[0]
+            continue
+        message = line.strip()
+        if not current_leg or not message or not _WARNING_RE.search(message):
+            continue
+        records.append(
+            {
+                "kind": "warning",
+                "target": current_leg,
+                "status": "warn",
+                "message": message[:400],
+                "fingerprint": _error_fingerprint(message),
+                "metadata_json": json.dumps(
+                    {"adapter": "gate-report-warning", "leg": current_leg}, separators=(",", ":")
+                ),
+                "schema": "gate-warning.v1",
+                "source_rel": rel,
+                "source_offset": offset,
+            }
+        )
+    return records
+
+
 def _error_fingerprint(blob: str) -> str | None:
     if not blob:
         return None
@@ -345,7 +379,7 @@ def _junit_facts(
         return None, []
     try:
         root = ET.parse(junit).getroot()  # noqa: S314
-    except ET.ParseError:
+    except ET.ParseError, OSError:
         return None, []
     metadata = _test_metadata_by_node(junit, run_start, run_gen)
     facts: list[dict] = []
@@ -817,7 +851,7 @@ def _retained_artifact_records(wt: str, artifact_dir: str | None) -> list[dict]:
 def refresh(con, *, full: bool = False, root: Path | None = None) -> dict:
     """Incremental byte-offset index of every report copy. Returns counts."""
     root = root or ROOT
-    counts = {"files": 0, "runs": 0, "skipped_pending": 0}
+    counts = {"files": 0, "runs": 0, "skipped_pending": 0, "parse_errors": 0}
     for gate, path, wt, _kind in report_copies(root):
         try:
             raw = path.read_bytes()
@@ -849,6 +883,7 @@ def refresh(con, *, full: bool = False, root: Path | None = None) -> dict:
                 break  # pending tail: do not advance offset past it
             rb = _parse_block(gate, kind, lines)
             if rb is None:
+                counts["parse_errors"] += 1
                 new_off = eoff
                 continue
             meta = _extra_meta(lines)
@@ -927,6 +962,25 @@ def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete
             [run_id, s.label, s.seconds, s.status, err_head],
         )
     con.execute("DELETE FROM artifacts WHERE run_id = ?", [run_id])
+    for warning in _warning_records(lines, rel, boff):
+        con.execute(
+            """INSERT INTO artifacts
+               (run_id, kind, target, status, duration_s, message, fingerprint,
+                metadata_json, schema, source_rel, source_offset)
+               VALUES (?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?)""",
+            [
+                run_id,
+                warning["kind"],
+                warning["target"],
+                warning["status"],
+                warning["message"],
+                warning["fingerprint"],
+                warning["metadata_json"],
+                warning["schema"],
+                warning["source_rel"],
+                warning["source_offset"],
+            ],
+        )
     for s in rb.steps:
         artifact_kind = _artifact_kind(s.label, kind)
         if artifact_kind is None:
@@ -1062,6 +1116,22 @@ def _pick_run(con, run: int | None, wt: str, gate: str | None, only_failed: bool
     return dict(zip(cols, rows[0]))
 
 
+def _artifact_trace(r: dict) -> str:
+    parts = [r.get("artifact_state") or "not_collected"]
+    if r.get("artifact_dir"):
+        parts.append(f"dir={r['artifact_dir']}")
+    if r.get("junit_path"):
+        parts.append(f"junit={r['junit_path']}")
+    return " · ".join(parts)
+
+
+def _warning_count(con, run_id: int) -> int:
+    return con.execute(
+        "SELECT COUNT(*) FROM artifacts WHERE run_id = ? AND kind = 'warning' AND status = 'warn'",
+        [run_id],
+    ).fetchone()[0]
+
+
 def _run_digest(con, r: dict, max_legs: int = 24) -> str:
     bad = [
         lg
@@ -1082,6 +1152,9 @@ def _run_digest(con, r: dict, max_legs: int = 24) -> str:
     out.append(
         f"  summary: {r['summary']}" + (f"  commit {r['commit_sha']}" if r["commit_sha"] else "")
     )
+    out.append(f"  artifacts: {_artifact_trace(r)}")
+    warning_count = _warning_count(con, r["run_id"])
+    out.append(f"  warnings: {warning_count} (see: gate_query artifacts --status warn)")
     for leg, secs, status in legs:
         out.append(f"  {leg:.<34s} {secs if secs is not None else '—':>7}  {status}")
     if ntests:
@@ -1172,9 +1245,11 @@ def cmd_latest(con, args) -> str:
         for g in gates:
             r = _pick_run(con, None, args.wt, g)
             if r:
+                warnings = _warning_count(con, r["run_id"])
+                warning_suffix = f"  warnings={warnings}" if warnings else ""
                 out.append(
                     f"  {r['gate']:12s} run {r['run_id']}  {r['started_at']}  "
-                    f"exit {r['exit_code']}  {r['summary']}"
+                    f"exit {r['exit_code']}  {r['summary']}{warning_suffix}"
                 )
         return "\n".join(out)
     r = _pick_run(con, args.run, args.wt, gate)
@@ -1203,6 +1278,9 @@ def cmd_failures(con, args) -> str:
     lines = [
         f"run {r['run_id']}  {r['gate']}{'@' + r['wt'] if r['wt'] else ''}  started {r['started_at']}  exit {r['exit_code']}"
     ]
+    lines.append(f"  artifacts: {_artifact_trace(r)}")
+    warning_count = _warning_count(con, r["run_id"])
+    lines.append(f"  warnings: {warning_count} (see: gate_query artifacts --status warn)")
     if not tests and not bad_legs:
         lines.append("  no failures in this run")
     leg_heads = {
@@ -1261,11 +1339,14 @@ def cmd_recent(con, args) -> str:
             [r["run_id"]],
         ).fetchall()
         status = "FAIL" if (bad_legs or failed) else "PASS"
+        warnings = _warning_count(con, r["run_id"])
         wt = f"@{r['wt']}" if r["wt"] else ""
         line = (
             f"  run {r['run_id']}  {r['gate']}{wt}  {r['started_at']}  "
             f"exit {r['exit_code']}  {status}"
         )
+        if warnings:
+            line += f"  warnings={warnings}"
         if bad_legs:
             line += f"  legs: {', '.join(bad_legs)}"
         if failed:
@@ -1902,7 +1983,10 @@ def cmd_rotate(con, args) -> str:
 
 def cmd_refresh(con, args) -> str:
     counts = refresh(con, full=args.full)
-    return f"indexed: {counts['files']} files, {counts['runs']} new runs, {counts['skipped_pending']} pending tails"
+    return (
+        f"indexed: {counts['files']} files, {counts['runs']} new runs, "
+        f"{counts['skipped_pending']} pending tails, {counts['parse_errors']} parse errors"
+    )
 
 
 # ---------------------------------------------------------------- main
@@ -2032,7 +2116,18 @@ def main(argv: list[str] | None = None) -> int:
     con = connect()
     try:
         if args.cmd != "refresh":
-            refresh(con)
+            counts = refresh(con)
+            if counts["skipped_pending"]:
+                print(
+                    "WARNING: gate report has an incomplete trailing run; it is not indexed yet. "
+                    "Retry after the gate finishes.",
+                    file=sys.stderr,
+                )
+            if counts["parse_errors"]:
+                print(
+                    f"WARNING: gate report parser rejected {counts['parse_errors']} block(s).",
+                    file=sys.stderr,
+                )
         fn = {
             "latest": cmd_latest,
             "recent": cmd_recent,
