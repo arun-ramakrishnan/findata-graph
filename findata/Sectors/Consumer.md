@@ -96,7 +96,7 @@ The Consumer sector is a broad category encompassing companies that produce good
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 43 company note(s) in Consumer. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 44 company note(s) in Consumer. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Bajaj_Electricals|Bajaj Electricals]]
 - [[Bata_BN_BV|Bata (BN) BV]]
@@ -124,6 +124,7 @@ The Consumer sector is a broad category encompassing companies that produce good
 - [[Meller]]
 - [[Nike]]
 - [[Organic_Recycling_Systems|Organic Recycling Systems]]
+- [[P_N_Gadgil_Jewellers|P N Gadgil Jewellers]]
 - [[PC_Jeweller|PC Jeweller Limited]]
 - [[PNGS_Reva_Diamond_Jewellery|PNGS Reva Diamond Jewellery]]
 - [[RBZ_Jewellers|RBZ Jewellers]]

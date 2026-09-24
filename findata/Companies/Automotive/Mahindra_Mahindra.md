@@ -25,7 +25,7 @@ created: '2026-01-10'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:46Z'
+  at: '2026-09-24T18:47:30Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -92,7 +92,7 @@ Mahindra Mahindra Limited (M&M) is a prominent Indian automobile manufacturing c
 - **(other)**: 25%
 - **(other)**: 8.7%
 - **(other)**: 70%
-- **(other)**: 10, 12%
+- **(other)**: 12%
 
 <!-- END auto key figures -->
 

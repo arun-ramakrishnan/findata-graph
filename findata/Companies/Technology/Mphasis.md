@@ -17,11 +17,11 @@ tags:
 - business_model/b2b
 - risk_investment/growth
 created: '2026-02-12'
-last_modified: '2026-09-10'
+last_modified: '2026-09-25'
 generated:
   by: derive_insights.py/v1
   at: '2026-09-07T12:07:48Z'
-stale_after: '2027-02-11'
+stale_after: '2027-03-23'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -39,6 +39,10 @@ sources:
   resource: /findata/Points_And_Figures/Depth_in_the_Deck.md
   title: 'Points & Figures: Depth in the Deck'
   last_modified: '2026-08-15'
+- id: MazDock_Mphasis_Redington
+  resource: /findata/The_Chatter/MazDock_Mphasis_Redington.md
+  title: 'The Chatter: SEBI Chairman, Mazagon Dock Shipbuilders, Mphasis, Redington & More'
+  last_modified: '2026-09-24'
 ---
 
 # Mphasis Limited
@@ -151,3 +155,20 @@ _Source: yfinance | Refreshed: 2026-08-10_
 > — Nitin Rakesh, CEO
 
 *Source: The Chatter — Infosys Adani Power*
+
+## The Chatter — MazDock Mphasis Redington
+
+**Macro frozen, execution-led thesis:** Nitin Rakesh says the macro (geopolitics, rates, inflation) hasn't improved but hasn't meaningfully deteriorated in 12–18 months; performance is driven by micro-level execution — deal flow, account-level activity, pipeline closures — with no change to standing since the earnings commentary six weeks ago.
+
+**Three-vector capital deployment:** Capital goes to (1) internal IP & platform build (proprietary platform + assets announced in Q1, combining IP, platforms and re-skilled teams), and (3) contract acquisitions to expand wallet share or enter new enterprise clients — a disciplined playbook without excessive operational risk; no "big bang" M&A is being actively pursued.
+
+**Growth is overwhelmingly organic:** Contract acquisitions are deal-structuring mechanisms (a vendor-consolidation playbook), a very small percentage of revenue — the bulk of guided revenue growth is organic.
+
+**BFSI stays structurally strong:** Rate-sensitive mortgages face headwinds, but elevated yields boost large banks' net interest income and keep their balance sheets healthy; BFS clients are early adopters of the AI cycle, driving modernisation opportunities.
+
+**AI adoption gap is the opportunity:** Tool development has outpaced enterprise adoption by a wide margin; enterprises are focused on building the underlying software, physical and intellectual infrastructure to deploy AI at scale — which aligns with Mphasis' platform-first strategy.
+
+> "While the macro hasn't improved, it hasn't meaningfully deteriorated either. Our performance thesis is driven primarily by micro-level execution—focusing on deal flow, account-level activity, and pipeline closures across specific verticals and clients."
+> — Nitin Rakesh, CEO
+
+*Source: The Chatter — MazDock Mphasis Redington*

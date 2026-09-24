@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Fork-context pool map for numpy-array lanes.
 
 The two L1 lanes (scipy_bridge, l1_betweenness) fan large-array work out

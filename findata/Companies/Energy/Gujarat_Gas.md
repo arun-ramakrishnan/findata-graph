@@ -18,7 +18,7 @@ created: '2026-09-07'
 last_modified: '2026-09-07'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T15:46:30Z'
+  at: '2026-09-24T18:47:30Z'
 stale_after: '2027-02-11'
 sources:
 - id: Havells_Ambuja_Cipla
@@ -50,7 +50,6 @@ City gas distribution company.
 - **(other)**: 70%
 - **(other)**: 60%
 - **(other)**: 39%
-- **(other)**: 60 70%
 
 <!-- END auto key figures -->
 <!-- BEGIN auto chatter block (derive_insights.py) -->

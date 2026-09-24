@@ -8,7 +8,7 @@ tags:
 - entity_type/super_sector
 - super_sector/quotes
 created: '2026-09-07'
-last_modified: '2026-09-08'
+last_modified: '2026-09-25'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
   resource: /findata/The_Chatter/A_Quarter_That_Refuses_To_Behave.md
@@ -286,10 +286,18 @@ sources:
   resource: /findata/The_Chatter/Solar_Ind_PhonePe_Coforge.md
   title: 'The Chatter: Solar Industries, PhonePe, Coforge, Senco & More'
   last_modified: '2026-09-17'
+- id: Maruti_Hy-Tech_Symbiotec
+  resource: /findata/The_Chatter/Maruti_Hy-Tech_Symbiotec.md
+  title: 'The Chatter: Maruti Suzuki, Uday Kotak, Hy-Tech, Symbiotec & More'
+  last_modified: '2026-09-24'
+- id: MazDock_Mphasis_Redington
+  resource: /findata/The_Chatter/MazDock_Mphasis_Redington.md
+  title: 'The Chatter: SEBI Chairman, Mazagon Dock Shipbuilders, Mphasis, Redington & More'
+  last_modified: '2026-09-24'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-17T02:59:45Z'
-stale_after: '2027-03-16'
+  at: '2026-09-24T18:47:29Z'
+stale_after: '2027-03-23'
 ---
 # Quotes
 
@@ -65083,34 +65091,6 @@ these s…"
 > "Three things have happened during this quarter - (I) increased competitive intensity in FMCG space has impacted our gross margins; (II) surge in wages of entry level positions due to demand / supply mismatch of skilled workforce; and (III) continued investments $i$ improving o…"
 > — Mr. Neville Noronha, CEO \& MD [^chatter-Risks_Rewards_and_Revelations]
 
-- *[Indian Hotels Company]*
-
-- **## Indian Hotels Company Strong demand growth continues to outpace new hotel supply, driving industryleading RevPAR growth**
-
-> "The hospitality cycle remains firmly in an up-swing. Industry-wide in FY-25, room-nig sold grew about 6 percent while available supply increased 'under 3 percent'. That gap matters: demand keeps outrunning new rooms, which is why RevPAR at IHCL rose 12 percent for the full yea…"
-> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
-
-- *[Indian Hotels Company]*
-
-- **Selective approach to new hotel expansions, focusing only on asset-light or strategi projects offering high returns**
-
-> "Pure green-field—buying land, securing approvals, building from scratch—still does no clear our IRR hurdle in most metros. Where it works is when land comes on a long lease favourable terms or when it leverages state-driven tourism hubs like Ekta Nagar (Gujara there we expect …"
-> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
-
-- *[Indian Hotels Company]*
-
-- **Increased willingness of Indian consumers to pay premium prices boosts IHCL's profitability**
-
-> "Indian consumers have become far more willing to pay for premium experiences; we no estimate 'well north of a million' people who will spend materially on hotels and restaurants. That lets us push rate-led RevPAR-flow-through on rate increases can be $\&$ 90 percent-while occu…"
-> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
-
-- *[Indian Hotels Company]*
-
-- **Leisure tourism recovery lagging; IHCL invests actively to accelerate broader forei; tourist arrivals**
-
-> "Technically, foreign tourist arrivals are not yet back to pre-Covid, so we now talk about 'foreign arrivals' more broadly. Business-related inflows-from global capability centres auto OEMs, post-G20 follow-ups-are rising steadily, but pure leisure remains below 20 IHCL is spen…"
-> — Punit Chhatwal, MD \& CEO [^chatter-Risks_Rewards_and_Revelations]
-
 - *[R R Kabel]*
 
 - **# R R Kabel Shift towards premium and mid-premium segments driving better pricing and red $_{t}$ warranty expenses**
@@ -113317,3 +113297,39 @@ Currently, spot prices are 145 per kg for fishmeal."
 > — Sanjay Malhotra, Governor, Reserve Bank of India
 
 *Source: The Chatter — KEI Ind Cochin Ship*
+
+## The Chatter — MazDock Mphasis Redington
+
+**Bond market at scale:** Corporate bonds outstanding have grown from ~₹20 trillion (FY16) to ₹61 trillion (end-Aug 2026), with ₹4.3+ trillion raised in FY27 so far; the EBP threshold has been lowered, retail incentives permitted in public debt issues, and minimum investment sizes for privately placed bonds reduced.
+
+**Efficiency + protection agenda:** Proposed relaxation of the mandatory merchant banker for small-value debt private placements (cost/delay reduction with investor protection retained), a standardised colour-coded Credit Risk-o-Meter for debt securities, and Advertisement Code changes for Online Bond Platform Providers.
+
+**Tokenisation pilot:** SEBI has piloted issuing corporate bonds as native digital tokens on a private, permissioned DLT network operated by the depositories — part of making the bond market deeper, more efficient and more accessible without weakening safeguards.
+
+**AIF/REIT/InvIT plumbing:** Cumulative AIF commitments ~₹17 lakh crore with ~₹7.1 trillion invested (July 2026); Large-Value Fund minimum cut from ₹70 crore to ₹25 crore; 6 REITs + 27 InvITs have mobilised ₹2+ lakh crore over seven years with ~₹9.2 lakh crore AUM (FY26); REITs reclassified as equity for mutual-fund investment; municipal bonds remain small (22 ULBs, ₹4,500+ crore via 31 issuances) pending creditworthiness and disclosure improvements.
+
+**The 'capital engine' frame:** Chairman Pandey's synthesis — the securities market should become a continuous capital engine for infrastructure: mobilise capital to build, provide the right form of capital as projects develop, unlock capital from mature assets, and redeploy it — with a review of the Accredited Investor Framework proposed to widen domestic and foreign risk capital.
+
+> "If we do this well, the securities market becomes more than a financing channel. It becomes a continuous capital engine for infrastructure."
+> — Shri Tuhin Kanta Pandey, Chairman, SEBI
+
+*Source: The Chatter — MazDock Mphasis Redington*
+
+## The Chatter — Maruti Hy-Tech Symbiotec
+
+**"A sense of paranoia" about the world:** Uday Kotak warns against declaring victory early — military wars, financial wars, tariff wars and bond vigilantes raising global rates are all still live; India must stand together on macroeconomic resilience.
+
+**Fiscal consolidation call:** India's consolidated fiscal deficit above 7% is higher than the US (~6%), the world's most leveraged state — "we need to get tighter" despite state and centre pressures.
+
+**Guard against excessive financialisation:** As India transitions to market-based financing, the purpose of capital markets — liquidity and price discovery for capital formation — must not get lost to volumes and trading.
+
+**India's scale gap, quantified:** The US is 70% of global market capitalisation; Nvidia alone has more profit than all listed Indian companies combined and more than India's total market cap — the yardstick for how far Indian capital markets must go.
+
+**Gold imports as the current-account puzzle:** With oil ~$90, FY27 estimates are a $60 billion current account deficit against $88–90 billion of gold imports; Kotak recommends a specialised committee to financialise unproductive household gold.
+
+**Regulation vs development; sovereignty risks:** Regulators must balance guardrails with market development (highway rule: quick accident retrieval, not stopping cars). Western tech giants' control of mobile ecosystems, platforms and AI infrastructure is a modern East-India-Company-style sovereignty risk; India must produce goods and services the world wants, and incumbent conglomerates must move from the "Vishnu mode" of comfortable growth to the "Brahma mode" of creative destruction.
+
+> "I genuinely believe we as one India need to sit together and stand with a sense of paranoia, because it is truly a very fragile world out there."
+> — Uday Kotak, Founder & Non-Executive Director, Kotak Mahindra Bank Limited
+
+*Source: The Chatter — Maruti Hy-Tech Symbiotec*

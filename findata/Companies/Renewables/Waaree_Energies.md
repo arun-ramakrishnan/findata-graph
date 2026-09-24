@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:46Z'
+  at: '2026-09-24T18:47:30Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -187,7 +187,6 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 - **revenue**: INR 47,000 crores (March 2026)
 - **margin**: 300-350 bps
-- **margin**: 300 t 350 basis points
 - **capex**: ₹25,000 crore (FY27)
 - **(other)**: 280 GW
 - **(other)**: 500 GW

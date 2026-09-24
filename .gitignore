@@ -60,9 +60,11 @@ findata/Misc/_pending_relations.txt
 .serena
 .agent
 .clavix
+.commandcode
 .opencode
 .vibe
 .zcode
+.zcodeignore
 .chrome-profile
 .codemachine/
 .agents/

@@ -20,7 +20,7 @@ created: '2026-01-25'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:46Z'
+  at: '2026-09-24T18:47:30Z'
 stale_after: '2027-02-11'
 sources:
 - id: Jio_Financial_Wipro_Polycab
@@ -95,7 +95,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 - **growth**: 15-20% (FY27)
 - **capex**: 80-90% (FY28)
-- **(other)**: 15 16%
+- **(other)**: 16%
 - **(other)**: 8-10%
 - **(other)**: 18.5%
 - **(other)**: ₹1,000 crore

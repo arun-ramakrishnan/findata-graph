@@ -20,7 +20,7 @@ created: '2026-01-14'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-24T18:47:30Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -137,7 +137,7 @@ Source: Points & Figures: Weight in the Whispers, Edition #14, Zerodha Chatter, 
 - **(other)**: 100%
 - **(other)**: 95%
 - **(other)**: 20-25%
-- **(other)**: 20 25%
+- **(other)**: 25%
 
 <!-- END auto key figures -->
 

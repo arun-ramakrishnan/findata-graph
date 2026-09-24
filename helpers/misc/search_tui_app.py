@@ -208,6 +208,8 @@ class IndexMonitor(ModalScreen[None]):
     def _update_note(self) -> None:
         """Live line while busy (A3): active ops + elapsed since the
         oldest phase start; restores the static hint when idle."""
+        if not self.is_mounted:
+            return
         note = self.query_one("#idx-note", Static)
         if not self._busy:
             note.update(_IDX_NOTE_HINT)
@@ -237,6 +239,8 @@ class IndexMonitor(ModalScreen[None]):
         return str(row[0]) if row else None
 
     def _write_state(self, name: str, text: str) -> None:
+        if not self.is_mounted:
+            return
         table = self.query_one("#idx-table", DataTable)
         for i in range(table.row_count):
             if str(table.get_row_at(i)[0]) == name:
@@ -246,6 +250,8 @@ class IndexMonitor(ModalScreen[None]):
     def _set_state(self, name: str, verdict: str) -> None:
         """Workers' single funnel: a busy phase claims the row (the _spin
         timer owns the animated cell); a verdict releases it."""
+        if not self.is_mounted:
+            return
         if verdict in _BUSY_PHASES:
             self._busy[name] = verdict
             self._phase_t0[name] = time.monotonic()
@@ -344,6 +350,8 @@ class IndexMonitor(ModalScreen[None]):
             self.app.call_from_thread(self._reload_ages)
 
     def _reload_ages(self) -> None:
+        if not self.is_mounted:
+            return
         rows = index_rows(REPO_ROOT)
         table = self.query_one("#idx-table", DataTable)
         for i, row in enumerate(rows):

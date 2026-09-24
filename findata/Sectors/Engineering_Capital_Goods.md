@@ -180,7 +180,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 80 company note(s) in Engineering_Capital_Goods. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 81 company note(s) in Engineering_Capital_Goods. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[AB_Volvo|AB Volvo]]
 - [[ABB_India|ABB India]]
@@ -212,6 +212,7 @@ The Engineering & Capital Goods sector in India encompasses industrial equipment
 - [[Havells_India|Havells India]]
 - [[Hind_Rectifiers|Hind Rectifiers]]
 - [[Hitachi_Energy_India|Hitachi Energy India]]
+- [[Hy_Tech_Engineers|Hy-Tech Engineers]]
 - [[Hyosung]]
 - [[Inox_India|Inox India]]
 - [[JD_Cables|JD Cables]]

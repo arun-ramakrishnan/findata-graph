@@ -40,7 +40,7 @@ Spun out of [[Healthcare]] in the 2026 sector-rebalancing pass.
 
 ## All Companies (auto)
 
-<!-- Auto-generated from the SQLite source of truth. 49 company note(s) in Pharma. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
+<!-- Auto-generated from the SQLite source of truth. 50 company note(s) in Pharma. Do not edit by hand — re-run `python3 helpers/maintenance/sync_sector_wikilinks.py` to refresh. Curated highlights live in the editorial sections above. -->
 
 - [[Aarti_Drugs|Aarti Drugs]]
 - [[Aarti_Pharmalabs|Aarti Pharmalabs]]
@@ -86,6 +86,7 @@ Spun out of [[Healthcare]] in the 2026 sector-rebalancing pass.
 - [[Sequent_Scientific|Sequent Scientific]]
 - [[Strides_Pharma_Science|Strides Pharma Science]]
 - [[Sun_Pharmaceutical_Industries|Sun Pharmaceutical Industries]]
+- [[Symbiotec_Pharmalab|Symbiotec Pharmalab]]
 - [[Syngene_International|Syngene International]]
 - [[Torrent_Pharmaceuticals|Torrent Pharmaceuticals]]
 - [[Veeda_Clinical_Research|Veeda Clinical Research]]

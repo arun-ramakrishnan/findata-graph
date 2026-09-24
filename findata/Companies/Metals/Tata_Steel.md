@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:45Z'
+  at: '2026-09-24T18:47:30Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -63,7 +63,7 @@ Tata Steel is a globally diversified steel producer with integrated operations f
 - **ebitda_margin**: 80 bps
 - **growth**: 300 basis points
 - **debt**: 50%
-- **debt**: 2021 t 18%
+- **debt**: 18%
 - **market_share**: 15-20%
 - **(other)**: 40%
 - **(other)**: 8%
