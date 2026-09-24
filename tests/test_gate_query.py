@@ -7,6 +7,7 @@ and drives the CLI functions directly.
 
 from __future__ import annotations
 
+import json
 import os
 import time
 from datetime import datetime
@@ -16,6 +17,7 @@ import pytest
 from types import SimpleNamespace
 
 from helpers.misc import gate_query as gq
+from tests import conftest as test_conftest
 
 
 @pytest.fixture()
@@ -27,6 +29,33 @@ def corpus(tmp_path, monkeypatch):
     monkeypatch.setattr(gq, "ROOT", root)
     monkeypatch.setattr(gq, "DB_PATH", root / "gate_runs.duckdb")
     return root
+
+
+def test_connect_migrates_existing_test_facts(corpus):
+    con = gq.duckdb.connect(str(corpus / "gate_runs.duckdb"))
+    con.execute(
+        """CREATE TABLE test_facts (
+            run_id INTEGER NOT NULL,
+            leg TEXT NOT NULL,
+            node_id TEXT NOT NULL,
+            file TEXT,
+            outcome TEXT NOT NULL,
+            seconds DOUBLE,
+            phase TEXT,
+            markers_json TEXT,
+            file_line INTEGER,
+            err_head TEXT,
+            err_blob TEXT,
+            error_fingerprint TEXT,
+            worker TEXT,
+            artifact_schema TEXT NOT NULL
+        )"""
+    )
+    con.close()
+    con = gq.connect()
+    columns = {row[1] for row in con.execute("PRAGMA table_info('test_facts')").fetchall()}
+    assert "phase_seconds_json" in columns
+    con.close()
 
 
 GATE_BLOCK = """# make qa — gate report
@@ -61,6 +90,28 @@ JUNIT = """<testsuites><testsuite tests="2" failures="1">
   <testcase classname="tests.test_x" name="test_bad" time="1.50">
     <failure message="assert 1 == 2">assert 1 == 2
  + where 1 = f()</failure>
+  </testcase>
+</testsuite></testsuites>"""
+
+JUNIT_FACTS = """<testsuites><testsuite tests="5" failures="2" errors="1">
+  <testcase classname="tests.test_facts" name="test_pass" time="0.10">
+    <properties>
+      <property name="pytest.mark.live" value=""/>
+      <property name="worker" value="gw2"/>
+      <property name="line" value="42"/>
+    </properties>
+  </testcase>
+  <testcase classname="tests.test_facts" name="test_fail_a" time="1.50">
+    <failure message="assert 1 == 2">/tmp/pytest-of-a/test.txt line 10 after 0.1s</failure>
+  </testcase>
+  <testcase classname="tests.test_facts" name="test_fail_b" time="1.50">
+    <failure message="assert 1 == 2">/tmp/pytest-of-b/test.txt line 10 after 0.2s</failure>
+  </testcase>
+  <testcase classname="tests.test_facts" name="test_skip" time="0.01">
+    <skipped message="skip"/>
+  </testcase>
+  <testcase classname="tests.test_facts" name="test_error" time="0.20">
+    <error message="boom">ValueError: boom</error>
   </testcase>
 </testsuite></testsuites>"""
 
@@ -155,6 +206,199 @@ def test_junit_ingestion_and_fallback(corpus):
     rows = con.execute("SELECT node_id, outcome FROM tests WHERE outcome != 'passed'").fetchall()
     assert ("tests/test_x.py::test_bad", "failed") in rows
     # -ra fallback line from the report text also lands (legacy blocks)
+    con.close()
+
+
+def test_test_metadata_writer_emits_phases_and_markers(tmp_path, monkeypatch):
+    monkeypatch.delenv("PYTEST_XDIST_WORKER", raising=False)
+    manifest = tmp_path / "qa.metadata.json"
+    config = SimpleNamespace(getoption=lambda name: str(manifest))
+    session = SimpleNamespace(config=config)
+    monkeypatch.setattr(test_conftest, "_test_metadata_items", {})
+    monkeypatch.setattr(test_conftest, "_test_metadata_reports", {})
+    node_id = "tests/test_x.py::test_a"
+    monkeypatch.setitem(
+        test_conftest._test_metadata_items,
+        node_id,
+        {
+            "node_id": node_id,
+            "file": "tests/test_x.py",
+            "file_line": 12,
+            "markers": ["live"],
+        },
+    )
+    monkeypatch.setitem(
+        test_conftest._test_metadata_reports,
+        node_id,
+        {"call": {"seconds": 0.25, "outcome": "passed"}},
+    )
+    test_conftest._write_test_metadata(session)
+    payload = json.loads(manifest.read_text())
+    assert payload["schema"] == "test-metadata.v1"
+    assert payload["tests"][0]["markers"] == ["live"]
+    assert payload["tests"][0]["phases"]["call"]["seconds"] == 0.25
+
+
+def test_test_metadata_writer_filters_unexecuted_xdist_items(tmp_path, monkeypatch):
+    monkeypatch.setenv("PYTEST_XDIST_WORKER", "gw0")
+    manifest = tmp_path / "qa.metadata.json"
+    config = SimpleNamespace(getoption=lambda name: str(manifest))
+    session = SimpleNamespace(config=config)
+    monkeypatch.setattr(test_conftest, "_test_metadata_items", {})
+    monkeypatch.setattr(test_conftest, "_test_metadata_reports", {})
+    monkeypatch.setitem(
+        test_conftest._test_metadata_items,
+        "tests/test_x.py::test_run",
+        {
+            "node_id": "tests/test_x.py::test_run",
+            "file": "tests/test_x.py",
+            "file_line": 1,
+            "markers": [],
+        },
+    )
+    monkeypatch.setitem(
+        test_conftest._test_metadata_items,
+        "tests/test_x.py::test_other_worker",
+        {
+            "node_id": "tests/test_x.py::test_other_worker",
+            "file": "tests/test_x.py",
+            "file_line": 2,
+            "markers": [],
+        },
+    )
+    monkeypatch.setitem(
+        test_conftest._test_metadata_reports,
+        "tests/test_x.py::test_run",
+        {"call": {"seconds": 0.1, "outcome": "passed"}},
+    )
+    test_conftest._write_test_metadata(session)
+    worker_path = tmp_path / "qa.metadata.gw0.json"
+    payload = json.loads(worker_path.read_text())
+    assert payload["worker"] == "gw0"
+    assert [item["node_id"] for item in payload["tests"]] == ["tests/test_x.py::test_run"]
+
+
+def test_junit_facts_normalize_metadata_and_fingerprints(corpus):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    _write(corpus / "qa_report.md", _gate_block(now, now, fail=True))
+    _write(corpus / ".junit" / "qa.junit.xml", JUNIT_FACTS)
+    _write(
+        corpus / ".junit" / "qa.metadata.json",
+        json.dumps(
+            {
+                "schema": "test-metadata.v1",
+                "worker": "gw2",
+                "tests": [
+                    {
+                        "node_id": "tests/test_facts.py::test_pass",
+                        "file": "tests/test_facts.py",
+                        "file_line": 42,
+                        "markers": ["live"],
+                        "phases": {
+                            "setup": {"seconds": 0.01, "outcome": "passed"},
+                            "call": {"seconds": 0.09, "outcome": "passed"},
+                        },
+                        "worker": "gw2",
+                    }
+                ],
+            }
+        ),
+    )
+    con = gq.connect()
+    gq.refresh(con)
+    rows = con.execute(
+        "SELECT node_id, file, outcome, phase, phase_seconds_json, markers_json, file_line, "
+        "worker, error_fingerprint, artifact_schema FROM test_facts ORDER BY node_id"
+    ).fetchall()
+    assert len(rows) == 5
+    passed = next(row for row in rows if row[0].endswith("::test_pass"))
+    assert passed[1] == "tests/test_facts.py"
+    assert passed[2] == "passed"
+    assert passed[3] == "total"
+    assert json.loads(passed[4])["call"]["seconds"] == 0.09
+    assert passed[5] == '["live"]'
+    assert passed[6] == 42
+    assert passed[7] == "gw2"
+    assert passed[9] == gq.TEST_ARTIFACT_SCHEMA
+    failed = [row for row in rows if row[0].endswith(("::test_fail_a", "::test_fail_b"))]
+    assert failed[0][8] == failed[1][8]
+    assert all(row[8] for row in failed)
+    assert one(con, "SELECT artifact_schema FROM runs")[0] == gq.TEST_ARTIFACT_SCHEMA
+    con.close()
+
+
+def test_retained_worktree_artifact_rebuilds_test_facts(corpus):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    artifact_dir = ".artifacts/qa/run-1"
+    wt_root = corpus / "wt" / "graph_algos" / "outputs"
+    retained = wt_root / artifact_dir
+    _write(retained / "qa.junit.xml", JUNIT_FACTS)
+    _write(
+        retained / "qa.metadata.json",
+        json.dumps(
+            {
+                "schema": "test-metadata.v1",
+                "worker": "gw1",
+                "tests": [
+                    {
+                        "node_id": "tests/test_facts.py::test_pass",
+                        "file": "tests/test_facts.py",
+                        "file_line": 42,
+                        "markers": ["integration"],
+                        "phases": {"call": {"seconds": 0.1, "outcome": "passed"}},
+                        "worker": "gw1",
+                    }
+                ],
+            }
+        ),
+    )
+    block = _gate_block(now, now).replace(
+        "**Python:** 3.14.0",
+        f"**Python:** 3.14.0  ·  **Artifacts:** {artifact_dir}  ·  **Worktree:** graph_algos",
+    )
+    _write(wt_root / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    row = one(
+        con,
+        "SELECT wt, artifact_dir, artifact_state, junit_path FROM runs",
+    )
+    assert row[:3] == ("graph_algos", artifact_dir, "retained")
+    assert str(retained / "qa.junit.xml") in row[3]
+    assert one(con, "SELECT COUNT(*) FROM test_facts")[0] == 5
+    con.execute("DELETE FROM test_facts")
+    gq.refresh(con, full=True)
+    assert one(con, "SELECT COUNT(*) FROM test_facts")[0] == 5
+    con.close()
+
+
+def test_missing_retained_artifact_is_explicit(corpus):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    block = _gate_block(now, now).replace(
+        "**Python:** 3.14.0",
+        "**Python:** 3.14.0  ·  **Artifacts:** .artifacts/qa/missing",
+    )
+    _write(corpus / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    assert one(con, "SELECT artifact_state FROM runs")[0] == "missing"
+    assert one(con, "SELECT COUNT(*) FROM test_facts")[0] == 0
+    con.close()
+
+
+def test_corrupt_retained_artifact_is_explicit(corpus):
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    artifact_dir = ".artifacts/qa/corrupt"
+    _write(corpus / artifact_dir / "qa.junit.xml", "<testsuites>")
+    block = _gate_block(now, now).replace(
+        "**Python:** 3.14.0",
+        f"**Python:** 3.14.0  ·  **Artifacts:** {artifact_dir}",
+    )
+    _write(corpus / "qa_report.md", block)
+    con = gq.connect()
+    gq.refresh(con)
+    assert one(con, "SELECT artifact_state FROM runs")[0] == "corrupt"
+    assert one(con, "SELECT COUNT(*) FROM test_facts")[0] == 0
     con.close()
 
 

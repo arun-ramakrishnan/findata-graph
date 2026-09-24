@@ -6,6 +6,7 @@ two validators can be exercised deterministically, isolated from the live
 memory/research.db / findata vault.
 """
 
+import json
 import os
 import sqlite3
 import sys
@@ -592,6 +593,87 @@ def bare_client():
 # .wal/.build.lock/rebuild temporaries) are removed at session finish.
 
 
+_TEST_METADATA_SCHEMA = "test-metadata.v1"
+_test_metadata_enabled = False
+_test_metadata_items: dict[str, dict] = {}
+_test_metadata_reports: dict[str, dict[str, dict]] = {}
+
+
+def pytest_addoption(parser):
+    group = parser.getgroup("findata-test-metadata")
+    group.addoption("--test-metadata-manifest", action="store", default=None)
+
+
+def _test_metadata_target(config):
+    raw = config.getoption("--test-metadata-manifest")
+    if not raw:
+        return None
+    target = Path(raw)
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    if worker:
+        target = target.with_name(f"{target.stem}.{worker}{target.suffix}")
+    return target
+
+
+def pytest_collection_modifyitems(config, items):
+    global _test_metadata_enabled
+    target = _test_metadata_target(config)
+    if target is None:
+        return
+    _test_metadata_enabled = True
+    _test_metadata_items.clear()
+    _test_metadata_reports.clear()
+    for item in items:
+        source = Path(str(item.path))
+        try:
+            source = source.resolve().relative_to(REPO_ROOT)
+        except ValueError:
+            source = source.resolve()
+        _test_metadata_items[item.nodeid] = {
+            "node_id": item.nodeid,
+            "file": str(source),
+            "file_line": item.location[1] + 1,
+            "markers": sorted({marker.name for marker in item.iter_markers()}),
+        }
+
+
+def pytest_runtest_logreport(report):
+    if not _test_metadata_enabled:
+        return
+    phases = _test_metadata_reports.setdefault(report.nodeid, {})
+    phases[report.when] = {
+        "seconds": float(report.duration),
+        "outcome": report.outcome,
+    }
+
+
+def _write_test_metadata(session):
+    target = _test_metadata_target(session.config)
+    if target is None:
+        return
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    tests = []
+    for node_id, item in _test_metadata_items.items():
+        phases = _test_metadata_reports.get(node_id, {})
+        if worker and not phases:
+            continue
+        tests.append(
+            {
+                **item,
+                "phases": phases,
+                "worker": worker,
+            }
+        )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(
+            {"schema": _TEST_METADATA_SCHEMA, "worker": worker, "tests": tests},
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+
 def pytest_configure(config):
     worker = os.environ.get("PYTEST_XDIST_WORKER")
     if not worker:
@@ -624,6 +706,7 @@ def _real_graph_cache_optout(request):
 
 
 def pytest_sessionfinish(session, exitstatus):
+    _write_test_metadata(session)
     worker = os.environ.get("PYTEST_XDIST_WORKER")
     if not worker:
         return

@@ -7286,6 +7286,27 @@ tripled graph edges, making that accidental live work expensive.
 
 Execution record: `archive/graph/qa_live_test_isolation.md`.
 
+## 285. Normalize test result data for historical debugging
+
+**Proposal**: `doc/improvements/archive/testing/test_data_items.md`
+(filed + executed 2026-09-24 — verdict: **EXECUTED**).
+
+- Added the 15-field `test_facts` index with JUnit outcomes, phase timings,
+  markers, source locations, bounded diagnostics, stable error fingerprints,
+  worker identity, and artifact schema.
+- Added immutable per-run JUnit/manifest retention for main and worktree
+  outputs, explicit artifact states, and rebuildable `refresh --full` ingestion.
+- Added xdist-safe metadata manifests based on executed phase reports; tests
+  outside the run window and unexecuted collected shards are not attributed.
+- Added migration handling for existing DuckDB schemas missing newly added
+  test-fact columns.
+- Focused checks passed: Ruff, format, `ty`, Markdown lint, 25 targeted tests,
+  and the full non-live suite (`make test`: 3476 passed, 3 skipped). The first
+  full QA run exposed and then cleared the migration and xdist-test isolation
+  failures; all other full-QA legs had passed.
+
+Execution record: `archive/testing/test_data_items.md`.
+
 ## 281. SciPy eigsh eigenvector — lane implemented
 
 **Proposal**: `doc/improvements/archive/graph/scipy_eigenvector_eigsh.md`

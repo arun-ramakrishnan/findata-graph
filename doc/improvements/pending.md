@@ -3,6 +3,13 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **test_data normalization — EXECUTED 2026-09-24 (#285)**
+  (`archive/testing/test_data_items.md`): `gate_query` now retains immutable
+  per-run JUnit/manifest artifacts, indexes 15-field normalized test facts with
+  phase/marker/worker/fingerprint metadata, handles missing/corrupt artifacts,
+  and rebuilds retained facts through `refresh --full`. Existing DuckDB schemas
+  migrate additively; the non-live suite passed 3476 tests with 3 skips.
+
 - **QA live-test isolation — EXECUTED 2026-09-24 (#284)**
   (`archive/graph/qa_live_test_isolation.md`): `gate_query` history
   identified the run-34→37 pytest jump (116.64s → 155.62s). Three live

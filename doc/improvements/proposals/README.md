@@ -34,8 +34,17 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none — the qa_live_test_isolation arc archived 2026-09-24 as
-completed.md entry 284; see the Previously chain below.)_
+_(none — the test_data_items arc archived 2026-09-24 as
+completed.md entry 285; see the Previously chain below.)_
+
+_(Previously: test_data_items.md archived 2026-09-24 as completed.md entry
+285 — normalized test facts, immutable artifacts, xdist-safe metadata, and
+rebuildable ingestion. Execution record in
+`../archive/testing/test_data_items.md`.)_
+
+_(Previously: qa_live_test_isolation.md archived 2026-09-24 as
+completed.md entry 284 — restored the QA critical path by isolating live
+graph checks. Execution record in `../archive/graph/qa_live_test_isolation.md`.)_
 
 _(Previously: scipy_all_pair_reuse.md archived 2026-09-24 as
 completed.md entry 283 — ROUTING-gated SciPy closeness/harmonic pair

@@ -115,6 +115,7 @@ OUTPUTS_ROOT = _outputs_root()
 # (helpers/misc/gate_query.py); xdist merges worker shards into one file.
 _JUNIT_DIR = OUTPUTS_ROOT / ".junit"
 _JUNIT_DIR.mkdir(parents=True, exist_ok=True)
+_ARTIFACT_ROOT = OUTPUTS_ROOT / ".artifacts"
 
 _TAIL_LINES = 60  # lines appended to the report per step
 # ty-tests digest budget: concise diagnostics are 1 line each; 120 covers
@@ -197,6 +198,8 @@ GATES: dict[str, Gate] = {
                     "auto",
                     "--junitxml",
                     str(_JUNIT_DIR / "qa.junit.xml"),
+                    "--test-metadata-manifest",
+                    str(_JUNIT_DIR / "qa.metadata.json"),
                 ),
             ),
             Step("verify_notes", (_PY, "helpers/validators/verify_notes.py")),
@@ -223,6 +226,8 @@ GATES: dict[str, Gate] = {
                     "auto",
                     "--junitxml",
                     str(_JUNIT_DIR / "integration.junit.xml"),
+                    "--test-metadata-manifest",
+                    str(_JUNIT_DIR / "integration.metadata.json"),
                 ),
             ),
         ),
@@ -273,6 +278,8 @@ GATES: dict[str, Gate] = {
                     "--dist=loadgroup",
                     "--junitxml",
                     str(_JUNIT_DIR / "advisory.junit.xml"),
+                    "--test-metadata-manifest",
+                    str(_JUNIT_DIR / "advisory.metadata.json"),
                 ),
             ),
             Step("frontend-check", (_MAKE, "frontend-check")),
@@ -407,6 +414,24 @@ def table_lines(
     return lines
 
 
+def retain_test_artifacts(gate_name: str, run_id: str, started: datetime) -> str | None:
+    junit = _JUNIT_DIR / f"{gate_name}.junit.xml"
+    cutoff = started.timestamp() - 2
+    if not junit.exists() or junit.stat().st_mtime < cutoff:
+        return None
+    destination = _ARTIFACT_ROOT / gate_name / run_id
+    destination.mkdir(parents=True, exist_ok=True)
+    sources = [
+        junit,
+        _JUNIT_DIR / f"{gate_name}.metadata.json",
+        *sorted(_JUNIT_DIR.glob(f"{gate_name}.metadata.*.json")),
+    ]
+    for source in sources:
+        if source.exists() and source.stat().st_mtime >= cutoff:
+            shutil.copy2(source, destination / source.name)
+    return str(destination.relative_to(OUTPUTS_ROOT))
+
+
 def write_report(
     report_path: Path,
     gate_name: str,
@@ -415,6 +440,7 @@ def write_report(
     *,
     started: str | None = None,
     elapsed: float | None = None,
+    artifact_dir: str | None = None,
 ) -> None:
     """Append one markdown report block; whole-block under an exclusive flock.
 
@@ -437,6 +463,7 @@ def write_report(
     started_str = f"  ·  **Started:** {started}  ·  **Elapsed:** {elapsed:.1f}s" if started else ""
     sha = _git("rev-parse", "--short", "HEAD")
     commit_str = f"  ·  **Commit:** {sha}" if sha else ""
+    artifacts_str = f"  ·  **Artifacts:** {artifact_dir}" if artifact_dir else ""
     wt = _git_worktree_name()
     wt_str = f"  ·  **Worktree:** {wt}" if wt else ""
     rc = 0 if overall_ok(results) else 1
@@ -447,7 +474,7 @@ def write_report(
             f.write(f"# make {gate_name} — gate report\n\n")
             f.write(
                 f"**Generated:** {ts}{started_str}  ·  **Python:** {sys.version.split()[0]}{jobs_str}"
-                f"{commit_str}{wt_str}\n\n"
+                f"{commit_str}{artifacts_str}{wt_str}\n\n"
             )
             f.write(f"**Exit:** {rc}\n\n")  # gate_run_search: machine-readable verdict
             f.write("| Step | Time (s) | Status |\n")
@@ -517,14 +544,25 @@ def main(argv: list[str] | None = None) -> int:
     name = rest[0]
     jobs = resolve_jobs(cli_jobs)
     print(f"(gate {name}: jobs={jobs})")
-    started = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    started_dt = datetime.now()
+    started = started_dt.strftime("%Y-%m-%d %H:%M:%S")
+    run_id = started_dt.strftime("%Y%m%dT%H%M%S-%f")
     t0 = time.perf_counter()
     results = run_gate(GATES[name], jobs)
     elapsed = time.perf_counter() - t0
     ended = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print("\n".join(table_lines(results, started=started, ended=ended, elapsed=elapsed)))
+    artifact_dir = retain_test_artifacts(name, run_id, started_dt)
     report = OUTPUTS_ROOT / f"{name}_report.md"
-    write_report(report, name, results, jobs, started=started, elapsed=elapsed)
+    write_report(
+        report,
+        name,
+        results,
+        jobs,
+        started=started,
+        elapsed=elapsed,
+        artifact_dir=artifact_dir,
+    )
     try:
         shown = report.relative_to(REPO_ROOT)
     except ValueError:  # linked-worktree copy lives in the MAIN repo tree

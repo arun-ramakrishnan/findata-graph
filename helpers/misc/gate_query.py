@@ -41,6 +41,7 @@ Root override for tests: env ``GATE_QUERY_ROOT`` (default: this repo's
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -62,11 +63,13 @@ _DEFAULT_ROOT = REPO_ROOT / "outputs"
 ROOT = Path(os.environ.get("GATE_QUERY_ROOT", _DEFAULT_ROOT))
 DB_PATH = Path(os.environ.get("GATE_QUERY_DB", ROOT / "gate_runs.duckdb"))
 ERR_CAP = 16_000  # per-test err_blob cap
+TEST_ARTIFACT_SCHEMA = "test-facts.v1"
 
 _STARTED_RE = re.compile(r"\*\*Started:\*\*\s+([\d: -]+)")
 _COMMIT_RE = re.compile(r"\*\*Commit:\*\*\s*([0-9a-f]+)")
 _WT_RE = re.compile(r"\*\*Worktree:\*\*\s*(\S+)")
 _EXIT_RE = re.compile(r"\*\*Exit:\*\*\s*(\d+)")
+_ARTIFACTS_RE = re.compile(r"\*\*Artifacts:\*\*\s+(\S+)")
 _SUMMARY_ROW_RE = re.compile(r"^\|\s*\*\*", re.MULTILINE)
 _FAILED_LINE_RE = re.compile(r"^(FAILED|ERROR)\s+(\S+)")
 _TS_FMT = "%Y-%m-%d %H:%M:%S"
@@ -89,10 +92,14 @@ CREATE TABLE IF NOT EXISTS runs (
     summary TEXT,
     header_offset UBIGINT NOT NULL,
     nbytes UBIGINT,
-    junit_path TEXT,
-    arch_path TEXT,
-    complete BOOLEAN NOT NULL DEFAULT TRUE
-);
+     junit_path TEXT,
+     arch_path TEXT,
+     artifact_schema TEXT,
+     artifact_dir TEXT,
+     artifact_state TEXT,
+     complete BOOLEAN NOT NULL DEFAULT TRUE
+ );
+
 CREATE TABLE IF NOT EXISTS legs (
     run_id INTEGER NOT NULL,
     leg TEXT NOT NULL,
@@ -115,6 +122,29 @@ CREATE TABLE IF NOT EXISTS tests (
     err_head TEXT,
     err_blob TEXT
 );
+CREATE TABLE IF NOT EXISTS test_facts (
+    run_id INTEGER NOT NULL,
+    leg TEXT NOT NULL,
+    node_id TEXT NOT NULL,
+    file TEXT,
+    outcome TEXT NOT NULL,
+    seconds DOUBLE,
+    phase TEXT,
+    phase_seconds_json TEXT,
+    markers_json TEXT,
+    file_line INTEGER,
+    err_head TEXT,
+    err_blob TEXT,
+    error_fingerprint TEXT,
+    worker TEXT,
+    artifact_schema TEXT NOT NULL
+);
+ALTER TABLE test_facts ADD COLUMN IF NOT EXISTS phase_seconds_json TEXT;
+CREATE INDEX IF NOT EXISTS test_facts_node_idx ON test_facts(node_id, run_id);
+CREATE INDEX IF NOT EXISTS test_facts_error_idx ON test_facts(error_fingerprint, run_id);
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS artifact_schema TEXT;
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS artifact_dir TEXT;
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS artifact_state TEXT;
 ALTER TABLE legs ADD COLUMN IF NOT EXISTS err_head TEXT;
 CREATE TABLE IF NOT EXISTS parse_state (
     src_rel TEXT PRIMARY KEY,
@@ -198,6 +228,7 @@ def _extra_meta(lines: list[str]) -> dict:
             ("started", _STARTED_RE),
             ("commit", _COMMIT_RE),
             ("wt", _WT_RE),
+            ("artifacts", _ARTIFACTS_RE),
             ("exit", _EXIT_RE),
         ):
             if key not in out and (m := rx.search(ln)):
@@ -237,36 +268,144 @@ def _leg_err_head(lines: list[str], label: str) -> str | None:
     return text[:2000] or None
 
 
-def _junit_rows(
-    gate: str, wt: str, run_start: datetime | None, run_gen: datetime | None
-) -> tuple[str | None, list[tuple]]:
-    """Per-test rows from outputs/.junit/<gate>.junit.xml when its mtime
-    falls inside the run window; else (None, [])."""
-    junit = ROOT / ".junit" / f"{gate}.junit.xml"
-    if not junit.exists() or wt:
+def _error_fingerprint(blob: str) -> str | None:
+    if not blob:
+        return None
+    text = re.sub(r"/tmp/pytest-of-[^\s'\"]+", "<tmp>", blob)
+    text = re.sub(r"/tmp/[^\s'\"]+", "<tmp>", text)
+    text = re.sub(r"0x[0-9a-fA-F]+", "<addr>", text)
+    text = re.sub(r"\b\d+(?:\.\d+)?s\b", "<duration>", text)
+    text = re.sub(r"\b\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}\b", "<time>", text)
+    text = re.sub(r"line \d+", "line <line>", text)
+    return hashlib.sha256(text[:ERR_CAP].encode()).hexdigest()[:16]
+
+
+def _retained_artifact_junit(
+    gate: str, wt: str, artifact_dir: str | None
+) -> tuple[Path | None, str]:
+    if not artifact_dir:
+        return None, "not_collected"
+    worktree_root = ROOT / f"wt/{wt}/outputs" if wt else ROOT
+    base = (worktree_root / artifact_dir).resolve()
+    root = ROOT.resolve()
+    if root != base and root not in base.parents:
+        return None, "invalid"
+    junit = base / f"{gate}.junit.xml"
+    return (junit, "retained") if junit.exists() else (None, "missing")
+
+
+def _test_metadata_by_node(
+    junit: Path, run_start: datetime | None, run_gen: datetime | None
+) -> dict[str, dict]:
+    lo = run_start or run_gen or datetime.fromtimestamp(junit.stat().st_mtime)
+    hi = run_gen or datetime.fromtimestamp(junit.stat().st_mtime)
+    base_name = junit.name.removesuffix(".junit.xml")
+    base = junit.with_name(f"{base_name}.metadata.json")
+    candidates = [base, *sorted(junit.parent.glob(f"{base_name}.metadata.*.json"))]
+    out: dict[str, dict] = {}
+    for path in candidates:
+        if not path.exists():
+            continue
+        mtime = datetime.fromtimestamp(path.stat().st_mtime)
+        if not (lo - timedelta(seconds=120) <= mtime <= hi + timedelta(seconds=300)):
+            continue
+        try:
+            payload = json.loads(path.read_text())
+        except OSError, json.JSONDecodeError:
+            continue
+        if payload.get("schema") != "test-metadata.v1":
+            continue
+        for item in payload.get("tests", []):
+            if isinstance(item, dict) and item.get("node_id"):
+                out[item["node_id"]] = item
+    return out
+
+
+def _junit_facts(
+    gate: str,
+    wt: str,
+    run_start: datetime | None,
+    run_gen: datetime | None,
+    junit: Path | None = None,
+) -> tuple[str | None, list[dict]]:
+    retained = junit is not None
+    junit = junit or ROOT / ".junit" / f"{gate}.junit.xml"
+    if not junit.exists() or (wt and not retained):
         return None, []
     mtime = datetime.fromtimestamp(junit.stat().st_mtime)
     lo = run_start or (run_gen or mtime)
     hi = run_gen or mtime
     if not (lo - timedelta(seconds=120) <= mtime <= hi + timedelta(seconds=300)):
         return None, []
-    rows: list[tuple] = []
     try:
-        root = ET.parse(junit).getroot()  # noqa: S314 — our own pytest output, trusted
+        root = ET.parse(junit).getroot()
     except ET.ParseError:
         return None, []
+    metadata = _test_metadata_by_node(junit, run_start, run_gen)
+    facts: list[dict] = []
     for case in root.iter("testcase"):
         cls = case.get("classname", "")
         name = case.get("name", "")
         node = cls.replace(".", "/") + ".py::" + name if cls else name
-        secs = float(case.get("time") or 0)
+        meta = metadata.get(node, {})
+        try:
+            secs = float(case.get("time") or 0)
+        except ValueError:
+            secs = None
         kid = next((c for c in case if c.tag in ("failure", "error", "skipped")), None)
         outcome = {"failure": "failed", "error": "error", "skipped": "skipped"}.get(
             kid.tag if kid is not None else "", "passed"
         )
         blob = "" if kid is None else ((kid.get("message") or "") + "\n" + (kid.text or "")).strip()
-        rows.append((node, outcome, secs, blob[:400], blob[:ERR_CAP]))
-    return str(junit), rows
+        props = {
+            p.get("name", ""): p.get("value", "") for p in case.findall("./properties/property")
+        }
+        markers = sorted(
+            {name.removeprefix("pytest.mark.") for name in props if name.startswith("pytest.mark.")}
+            | set(meta.get("markers") or [])
+        )
+        line = props.get("line") or props.get("lineno")
+        try:
+            file_line = int(line) if line else None
+        except ValueError:
+            file_line = None
+        if file_line is None:
+            file_line = meta.get("file_line")
+        facts.append(
+            {
+                "node_id": node,
+                "file": node.split("::", 1)[0],
+                "outcome": outcome,
+                "seconds": secs,
+                "phase": "total",
+                "phase_seconds": meta.get("phases") or {},
+                "markers": markers,
+                "file_line": file_line,
+                "err_head": blob[:400] or None,
+                "err_blob": blob[:ERR_CAP] or None,
+                "error_fingerprint": _error_fingerprint(blob),
+                "worker": props.get("worker") or props.get("xdist_worker") or meta.get("worker"),
+                "artifact_schema": TEST_ARTIFACT_SCHEMA,
+            }
+        )
+    return str(junit), facts
+
+
+def _junit_rows(
+    gate: str, wt: str, run_start: datetime | None, run_gen: datetime | None
+) -> tuple[str | None, list[tuple]]:
+    junit, facts = _junit_facts(gate, wt, run_start, run_gen)
+    rows = [
+        (
+            fact["node_id"],
+            fact["outcome"],
+            fact["seconds"],
+            fact["err_head"] or "",
+            fact["err_blob"] or "",
+        )
+        for fact in facts
+    ]
+    return junit, rows
 
 
 # ---------------------------------------------------------------- refresh
@@ -327,7 +466,23 @@ def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete
     gen = _ts(rb.timestamp) or datetime.now()
     started = _ts(meta.get("started")) or gen
     pyv = next((ln.split("**Python:**")[-1].strip() for ln in lines if "**Python:**" in ln), None)
-    junit_path, jrows = _junit_rows(gate, wt, started, gen)
+    run_wt = meta.get("wt", wt) or wt
+    retained_junit, artifact_state = _retained_artifact_junit(gate, run_wt, meta.get("artifacts"))
+    junit_path, jfacts = _junit_facts(gate, run_wt, started, gen, retained_junit)
+    if retained_junit is not None and junit_path is None:
+        artifact_state = "corrupt"
+    elif not meta.get("artifacts") and junit_path is not None:
+        artifact_state = "live"
+    jrows = [
+        (
+            fact["node_id"],
+            fact["outcome"],
+            fact["seconds"],
+            fact["err_head"] or "",
+            fact["err_blob"] or "",
+        )
+        for fact in jfacts
+    ]
     exit_code = (
         int(meta["exit"])
         if "exit" in meta
@@ -336,8 +491,9 @@ def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete
     run_id = con.execute(
         """INSERT INTO runs (src_rel, wt, gate, started_at, generated_at, elapsed_s,
                              jobs, python_ver, commit_sha, patch_name, exit_code, summary,
-                             header_offset, nbytes, junit_path, arch_path, complete)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?) RETURNING run_id""",
+                             header_offset, nbytes, junit_path, arch_path, artifact_schema,
+                             artifact_dir, artifact_state, complete)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?) RETURNING run_id""",
         [
             rel,
             meta.get("wt", wt) or wt,
@@ -354,6 +510,9 @@ def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete
             boff,
             nbytes,
             junit_path,
+            TEST_ARTIFACT_SCHEMA if junit_path else None,
+            meta.get("artifacts"),
+            artifact_state,
             complete,
         ],
     ).fetchone()[0]
@@ -377,6 +536,34 @@ def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete
         con.execute(
             "INSERT INTO tests VALUES (?, ?, ?, ?, ?, ?, ?)",
             [run_id, "pytest", node, outcome, secs, ehead, eblob],
+        )
+    con.execute("DELETE FROM test_facts WHERE run_id = ?", [run_id])
+    for fact in jfacts:
+        con.execute(
+            """INSERT INTO test_facts
+               (run_id, leg, node_id, file, outcome, seconds, phase, phase_seconds_json,
+                markers_json, file_line, err_head, err_blob, error_fingerprint, worker,
+                artifact_schema)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [
+                run_id,
+                "pytest",
+                fact["node_id"],
+                fact["file"],
+                fact["outcome"],
+                fact["seconds"],
+                fact["phase"],
+                json.dumps(fact["phase_seconds"], separators=(",", ":"))
+                if fact["phase_seconds"]
+                else None,
+                json.dumps(fact["markers"], separators=(",", ":")) if fact["markers"] else None,
+                fact["file_line"],
+                fact["err_head"],
+                fact["err_blob"],
+                fact["error_fingerprint"],
+                fact["worker"],
+                fact["artifact_schema"],
+            ],
         )
     if junit_path is not None:
         return run_id  # junit ingested — the -ra text fallback would double-count

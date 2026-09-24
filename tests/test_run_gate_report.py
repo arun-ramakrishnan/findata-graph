@@ -7,6 +7,7 @@ Exercises the runner mechanics against fake steps only — the real gates
 from __future__ import annotations
 
 import sys
+from datetime import datetime
 
 from tests import run_gate_report as rgr
 
@@ -77,7 +78,7 @@ def test_report_contents(tmp_path):
         rgr.Result(rgr.Step("skipped", ("x",)), skipped=True),
     ]
     report = tmp_path / "qa_report.md"
-    rgr.write_report(report, "qa", results)
+    rgr.write_report(report, "qa", results, artifact_dir=".artifacts/qa/run-1")
     text = report.read_text()
 
     assert "# make qa " in text
@@ -88,6 +89,27 @@ def test_report_contents(tmp_path):
     assert "boom-line" in text  # failing step tail kept
     assert "FAILED" in text and "(OK)" in text  # per-step status markers
     assert "| Step | Time (s) | Status |" in text
+    assert "**Artifacts:** .artifacts/qa/run-1" in text
+
+
+def test_retain_test_artifacts_copies_current_run_files(tmp_path, monkeypatch):
+    live = tmp_path / ".junit"
+    artifacts = tmp_path / ".artifacts"
+    monkeypatch.setattr(rgr, "OUTPUTS_ROOT", tmp_path)
+    monkeypatch.setattr(rgr, "_JUNIT_DIR", live)
+    monkeypatch.setattr(rgr, "_ARTIFACT_ROOT", artifacts)
+    live.mkdir()
+    (live / "qa.junit.xml").write_text("<testsuites/>")
+    (live / "qa.metadata.json").write_text('{"schema":"test-metadata.v1"}')
+    (live / "qa.metadata.gw0.json").write_text('{"schema":"test-metadata.v1"}')
+    relative = rgr.retain_test_artifacts("qa", "run-1", datetime.now())
+    retained = artifacts / "qa" / "run-1"
+    assert relative == ".artifacts/qa/run-1"
+    assert sorted(path.name for path in retained.iterdir()) == [
+        "qa.junit.xml",
+        "qa.metadata.gw0.json",
+        "qa.metadata.json",
+    ]
 
 
 def test_main_rejects_unknown_gate(capsys):
