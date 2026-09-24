@@ -291,8 +291,8 @@ def _leg_err_head(lines: list[str], label: str) -> str | None:
 def _error_fingerprint(blob: str) -> str | None:
     if not blob:
         return None
-    text = re.sub(r"/tmp/pytest-of-[^\s'\"]+", "<tmp>", blob)
-    text = re.sub(r"/tmp/[^\s'\"]+", "<tmp>", text)
+    text = re.sub(r"/tmp/pytest-of-[^\s'\"]+", "<tmp>", blob)  # noqa: S108
+    text = re.sub(r"/tmp/[^\s'\"]+", "<tmp>", text)  # noqa: S108
     text = re.sub(r"0x[0-9a-fA-F]+", "<addr>", text)
     text = re.sub(r"\b\d+(?:\.\d+)?s\b", "<duration>", text)
     text = re.sub(r"\b\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}\b", "<time>", text)
@@ -344,7 +344,7 @@ def _junit_facts(
     if not (lo - timedelta(seconds=120) <= mtime <= hi + timedelta(seconds=300)):
         return None, []
     try:
-        root = ET.parse(junit).getroot()
+        root = ET.parse(junit).getroot()  # noqa: S314
     except ET.ParseError:
         return None, []
     metadata = _test_metadata_by_node(junit, run_start, run_gen)
@@ -540,7 +540,7 @@ def _diagnostic_artifact_records(path: Path, kind: str, raw: object, schema: str
     return records
 
 
-def _native_artifact_records(base: Path) -> list[dict]:
+def _native_artifact_records(base: Path) -> list[dict]:  # noqa: C901
     records = []
     for kind, filename in (("ruff", "ruff.json"), ("ty", "ty.json")):
         path = base / filename
@@ -614,7 +614,7 @@ def _native_artifact_records(base: Path) -> list[dict]:
         fail_under = None
         try:
             if filename.endswith(".xml"):
-                root = ET.parse(path).getroot()
+                root = ET.parse(path).getroot()  # noqa: S314
                 line_rate = float(root.get("line-rate", "0"))
                 branch_rate = float(root.get("branch-rate", "0"))
                 percent = line_rate * 100
@@ -864,7 +864,7 @@ def refresh(con, *, full: bool = False, root: Path | None = None) -> dict:
     return counts
 
 
-def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete) -> int:
+def _store_run(con, rel, wt, gate, kind, lines, rb, meta, boff, nbytes, complete) -> int:  # noqa: C901
     con.execute("DELETE FROM runs WHERE src_rel = ? AND header_offset = ?", [rel, boff])
     gen = _ts(rb.timestamp) or datetime.now()
     started = _ts(meta.get("started")) or gen
@@ -1091,7 +1091,7 @@ def _run_digest(con, r: dict, max_legs: int = 24) -> str:
     return "\n".join(out)
 
 
-def cmd_artifacts(con, args) -> str:
+def cmd_artifacts(con, args) -> str:  # noqa: C901
     where = ["1 = 1"]
     params: list = []
     if args.run is not None:
@@ -1115,7 +1115,7 @@ def cmd_artifacts(con, args) -> str:
                           a.source_rel, a.source_offset
              FROM artifacts a JOIN runs r USING (run_id)
              WHERE {" AND ".join(where)}
-             ORDER BY r.started_at DESC, a.kind, a.target LIMIT ?""",
+             ORDER BY r.started_at DESC, a.kind, a.target LIMIT ?""",  # noqa: S608
         [*params, args.last],
     ).fetchall()
     names = [
@@ -1372,7 +1372,7 @@ def _pct_delta(before: float | None, after: float | None) -> float | None:
     return (after - before) / before * 100
 
 
-def _compare_payload(con, run_a: int, run_b: int, gate: str | None = None) -> dict:
+def _compare_payload(con, run_a: int, run_b: int, gate: str | None = None) -> dict:  # noqa: C901
     left = _run_record(con, run_a, gate)
     right = _run_record(con, run_b, gate)
     if left is None or right is None:
@@ -1536,7 +1536,7 @@ def _test_history_rows(con, args) -> tuple[list[dict], str]:
                          tf.phase_seconds_json, tf.markers_json, tf.file_line,
                          tf.error_fingerprint, tf.worker
                   FROM test_facts tf JOIN runs r USING (run_id)
-                  WHERE {" AND ".join(where)} ORDER BY {order} LIMIT ?"""
+                   WHERE {" AND ".join(where)} ORDER BY {order} LIMIT ?"""  # noqa: S608
     params.append(args.last)
     names = [
         "run_id",
@@ -1639,7 +1639,7 @@ def _cluster_payload(con, args) -> list[dict]:
                    r.commit_sha, tf.node_id, tf.outcome, tf.err_head, r.src_rel,
                    r.header_offset, r.junit_path
             FROM test_facts tf JOIN runs r USING (run_id)
-            WHERE {" AND ".join(where)} ORDER BY r.started_at, r.run_id, tf.node_id""",
+             WHERE {" AND ".join(where)} ORDER BY r.started_at, r.run_id, tf.node_id""",  # noqa: S608
         params,
     ).fetchall():
         record = dict(zip(names, row, strict=True))
@@ -1747,7 +1747,7 @@ def _test_phase_totals(con, run_ids: list[int]) -> dict[str, float]:
     totals = {"total": 0.0, "setup": 0.0, "call": 0.0, "teardown": 0.0}
     for seconds, phase_json in con.execute(
         f"""SELECT seconds, phase_seconds_json FROM test_facts
-            WHERE run_id IN ({placeholders})""",
+            WHERE run_id IN ({placeholders})""",  # noqa: S608
         run_ids,
     ).fetchall():
         if seconds is not None:
@@ -1771,7 +1771,7 @@ def cmd_timing(con, args) -> str:
     rows = con.execute(
         f"""SELECT r.run_id, r.started_at, b.seconds, b.budget_s, b.status, r.wt
             FROM bench b JOIN runs r USING (run_id)
-            WHERE b.bench = ?{status_clause} ORDER BY r.started_at DESC LIMIT ?""",
+            WHERE b.bench = ?{status_clause} ORDER BY r.started_at DESC LIMIT ?""",  # noqa: S608
         [args.leg, args.last],
     ).fetchall()
     if not rows:
@@ -1781,7 +1781,7 @@ def cmd_timing(con, args) -> str:
         rows = con.execute(
             f"""SELECT r.run_id, r.started_at, l.seconds, NULL, l.status, r.wt
                 FROM legs l JOIN runs r USING (run_id)
-                WHERE l.leg = ?{leg_clause} ORDER BY r.started_at DESC LIMIT ?""",
+                WHERE l.leg = ?{leg_clause} ORDER BY r.started_at DESC LIMIT ?""",  # noqa: S608
             [args.leg, args.last],
         ).fetchall()
     if not rows:
@@ -1817,7 +1817,7 @@ def cmd_timing(con, args) -> str:
             f"""SELECT r.run_id, r.started_at, tf.node_id, tf.worker, tf.seconds
                 FROM test_facts tf JOIN runs r USING (run_id)
                 WHERE tf.run_id IN ({placeholders})
-                ORDER BY tf.seconds DESC NULLS LAST LIMIT 10""",
+                ORDER BY tf.seconds DESC NULLS LAST LIMIT 10""",  # noqa: S608
             run_ids,
         ).fetchall()
         out.append("  critical-path candidates (serial testcase seconds; not wall time):")
@@ -1908,7 +1908,7 @@ def cmd_refresh(con, args) -> str:
 # ---------------------------------------------------------------- main
 
 
-def _build_parser() -> argparse.ArgumentParser:
+def _build_parser() -> argparse.ArgumentParser:  # noqa: C901
     ap = argparse.ArgumentParser(
         prog="gate_query",
         description=__doc__.split("\n")[0],

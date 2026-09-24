@@ -45,6 +45,14 @@ against live Onager (r=0.92) than unweighted (r=0.9996) — Onager's
 pinned Katz/eigenvector are effectively unweighted at 1e-4 scale, so
 the lane is too. Both stay ONAGER_DEFAULT (opt-in lanes + tests, no
 dispatch flip).
+
+s-t lanes (2026-09-24, scipy_st_lanes_routing_switch): Yen K-shortest
+(``csgraph.yen``) and max-flow (``csgraph.maximum_flow``) between two
+named entities — neither SQL nor Onager can express them. Read-only (an
+s-t pair has no per-entity metric shape, so no ``--apply``); registered in
+ROUTING and guarded by ``LANE_BUDGETS``: a lane that overruns its
+wall-clock budget raises, so a slow lane cannot silently blow the caller's
+runtime. The ROUTING switch owns lane TIME as well as ownership.
 """
 
 from __future__ import annotations
@@ -57,8 +65,12 @@ import time
 from pathlib import Path
 
 import numpy as np
-from scipy.sparse import csr_matrix, identity
-from scipy.sparse.csgraph import dijkstra
+from scipy.sparse import csr_array, csr_matrix, identity
+from scipy.sparse.csgraph import (
+    dijkstra,
+    maximum_flow as csgraph_maximum_flow,
+    yen as csgraph_yen,
+)
 from scipy.sparse.linalg import ArpackNoConvergence, eigsh, spsolve
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -79,10 +91,29 @@ EIGSH_TOL = 1e-10
 #: spectral radius (at the radius Katz is undefined, not slow).
 KATZ_RADIUS_MARGIN = 0.99
 
+#: s-t lanes (no per-entity metric shape — CLI/route output only).
+YEN_LANE = "yen_k_shortest"
+MAXFLOW_LANE = "maximum_flow"
+#: Yen K bound: cost is ~K Dijkstras, so unbounded K is refused (fail
+#: loud, same posture as the pref-attach all-pairs gate).
+YEN_K_DEFAULT = 5
+YEN_K_MAX = 25
+#: Wall-clock budgets (seconds) for the s-t lanes. A lane that overruns
+#: its budget raises instead of returning a slow result — the ROUTING
+#: switch owns lane TIME as well as ownership (2026-09-24). Budgets are
+#: the measured live values (yen ~0.03 s, max-flow ~0.02 s) x ~100
+#: headroom: the guard catches super-linear decay at future scale, it is
+#: not a millisecond shaver.
+LANE_BUDGETS: dict[str, float] = {
+    YEN_LANE: 5.0,
+    MAXFLOW_LANE: 5.0,
+}
+
 
 #: Lane ownership — Onager keeps the healthy SQL lanes; scipy owns the
-#: restricted-source BFS family (this module); betweenness is the L1b
-#: 2-core fold (helpers/graph/l1_betweenness.py — no Brandes in scipy).
+#: restricted-source BFS family (this module) and the s-t lanes (Yen /
+#: max-flow — no Onager/SQL equivalent); betweenness is the L1b 2-core
+#: fold (helpers/graph/l1_betweenness.py — no Brandes in scipy).
 ROUTING: dict[str, str] = {
     "closeness_centrality": "SCIPY",
     "harmonic_centrality": "SCIPY",
@@ -93,6 +124,8 @@ ROUTING: dict[str, str] = {
     "eigenvector_centrality": "ONAGER_DEFAULT",
     "louvain_community": "ONAGER_DEFAULT",
     "link_prediction": "ONAGER_DEFAULT",
+    YEN_LANE: "SCIPY",
+    MAXFLOW_LANE: "SCIPY",
 }
 
 
@@ -281,6 +314,201 @@ def eigenvector_scores(A: csr_matrix) -> np.ndarray:
     return v
 
 
+def _assert_scipy_lane(lane: str) -> None:
+    """Refuse to run a lane the ROUTING switch does not own.
+
+    The table is the single source of truth (same discipline as
+    ``algorithms._scipy_routed``): a lane whose owner is not ``SCIPY``
+    must not run here — there is no silent fallback in either direction.
+    """
+    owner = ROUTING.get(lane)
+    if owner != "SCIPY":
+        raise RuntimeError(
+            f"lane {lane!r} is not routed to SCIPY (ROUTING says {owner!r}); "
+            "refusing to run — the ROUTING switch is the single source of truth"
+        )
+
+
+def _assert_budget(lane: str, elapsed: float) -> None:
+    """Fail loud when a lane overruns its wall-clock budget.
+
+    The ROUTING switch owns lane TIME as well as ownership: a slow lane
+    raises instead of returning (on the CLI path, instead of the caller
+    silently absorbing minutes). Budgets are re-baselined only with a
+    fresh measurement — see ``LANE_BUDGETS``.
+    """
+    budget = LANE_BUDGETS[lane]
+    if elapsed > budget:
+        raise RuntimeError(
+            f"{lane} lane exceeded its {budget:.1f}s wall-clock budget "
+            f"({elapsed:.2f}s); refusing the slow result — re-baseline "
+            "LANE_BUDGETS with a measurement, do not raise it blindly"
+        )
+
+
+def load_capacity_projection(
+    db_path: str | Path = DEFAULT_DB_PATH,
+    *,
+    unweighted: bool = False,
+) -> tuple[csr_array, list[str]]:
+    """Directed integer capacity CSR from SQLite ``graph_edges``.
+
+    Undirected edges are modelled as two opposite arcs of equal capacity
+    (scipy's ``maximum_flow`` is directed-only); unordered pairs are
+    deduped first so a stored reverse duplicate does not double the
+    capacity. Capacities are ``max(1, round(weight))`` (integer-only, a
+    scipy requirement), or 1 in ``unweighted`` mode (edge-disjoint count).
+    """
+    con = connect(db_path, read_only=True, row_factory=None)
+    try:
+        rows = con.execute("SELECT source, target, weight FROM graph_edges").fetchall()
+    finally:
+        con.close()
+    names = sorted({s for s, _, _ in rows} | {t for _, t, _ in rows})
+    pos = {n: i for i, n in enumerate(names)}
+    caps: dict[tuple[int, int], int] = {}
+    for s, t, w in rows:
+        if s == t:
+            continue
+        key = (min(pos[s], pos[t]), max(pos[s], pos[t]))
+        cap = 1 if unweighted else max(1, int(round(float(w if w is not None else 1.0))))
+        caps[key] = max(caps.get(key, 0), cap)
+    r: list[int] = []
+    c: list[int] = []
+    v: list[int] = []
+    for (a, b), cap in caps.items():
+        r.extend((a, b))
+        c.extend((b, a))
+        v.extend((cap, cap))
+    A = csr_array(
+        (np.array(v, dtype=np.int64), (np.array(r), np.array(c))),
+        shape=(len(names), len(names)),
+    )
+    return A.tocsr(), names
+
+
+def yen_paths(
+    A: csr_matrix,
+    names: list[str],
+    source: str,
+    sink: str,
+    k: int = YEN_K_DEFAULT,
+    *,
+    directed: bool = False,
+    unweighted: bool = True,
+) -> list[tuple[float, list[str]]]:
+    """K shortest SIMPLE paths (Yen) between two named entities.
+
+    Returns ``[(cost, [name, ...]), ...]`` ranked by cost, first == the
+    Dijkstra answer. Pre-flight: ROUTING owns the lane, ``k`` is bounded
+    (``YEN_K_MAX`` — cost is ~K Dijkstras), and both endpoints resolve.
+    """
+    _assert_scipy_lane(YEN_LANE)
+    if not isinstance(k, int) or not (1 <= k <= YEN_K_MAX):
+        raise ValueError(
+            f"Yen k must be an int in [1, {YEN_K_MAX}], got {k!r} — unbounded "
+            "K is refused (cost is ~K Dijkstras)"
+        )
+    pos = {n: i for i, n in enumerate(names)}
+    for label, node in (("source", source), ("sink", sink)):
+        if node not in pos:
+            raise KeyError(f"Yen {label} {node!r} not in the projection")
+    if source == sink:
+        raise ValueError("Yen source and sink must differ")
+    src, dst = pos[source], pos[sink]
+    t0 = time.perf_counter()
+    dists, preds = csgraph_yen(
+        A, src, dst, k, directed=directed, return_predecessors=True, unweighted=unweighted
+    )
+    _assert_budget(YEN_LANE, time.perf_counter() - t0)
+    out: list[tuple[float, list[str]]] = []
+    for i, dist in enumerate(dists):
+        seq = [dst]
+        cur = dst
+        for _ in range(A.shape[0]):
+            if cur == src:
+                break
+            cur = int(preds[i, cur])
+            if cur < 0:
+                break
+            seq.append(cur)
+        seq.reverse()
+        out.append((float(dist), [names[j] for j in seq]))
+    return out
+
+
+def max_flow(
+    cap: csr_array,
+    names: list[str],
+    source: str,
+    sink: str,
+) -> tuple[int, list[tuple[str, str, int]]]:
+    """Max-flow value + min-cut arc listing between two named entities.
+
+    The cut is the certificate, not a by-product: when no augmenting path
+    remains, the nodes still reachable from the source in the RESIDUAL
+    graph (capacity − flow) form one side of a minimum cut, and the
+    crossing arcs ARE the bottleneck. Returns ``(value, [(u, v, cap), ...])``.
+    """
+    _assert_scipy_lane(MAXFLOW_LANE)
+    pos = {n: i for i, n in enumerate(names)}
+    for label, node in (("source", source), ("sink", sink)):
+        if node not in pos:
+            raise KeyError(f"max-flow {label} {node!r} not in the projection")
+    if source == sink:
+        raise ValueError("max-flow source and sink must differ")
+    src, dst = pos[source], pos[sink]
+    t0 = time.perf_counter()
+    res = csgraph_maximum_flow(cap, src, dst)
+    _assert_budget(MAXFLOW_LANE, time.perf_counter() - t0)
+    resid = (cap - res.flow).tocsr()
+    resid.eliminate_zeros()
+    reachable = {src}
+    stack = [src]
+    while stack:
+        u = stack.pop()
+        for v in resid.indices[resid.indptr[u] : resid.indptr[u + 1]]:
+            v = int(v)
+            if v not in reachable:
+                reachable.add(v)
+                stack.append(v)
+    cap_csr = cap.tocsr()
+    cut: list[tuple[str, str, int]] = []
+    for u in reachable:
+        for idx in range(cap_csr.indptr[u], cap_csr.indptr[u + 1]):
+            v = int(cap_csr.indices[idx])
+            if v not in reachable and cap_csr.data[idx] > 0:
+                cut.append((names[u], names[v], int(cap_csr.data[idx])))
+    return int(res.flow_value), sorted(cut)
+
+
+def _run_yen_lane(args: argparse.Namespace) -> int:
+    """CLI: Yen K-shortest between two named entities (read-only)."""
+    if not args.source or not args.sink:
+        raise SystemExit("yen requires --source and --sink")
+    A, names = load_projection(args.db)
+    paths = yen_paths(A, names, args.source, args.sink, args.k, directed=args.directed)
+    print(f"yen {args.source} -> {args.sink}: {len(paths)} path(s) (k={args.k})")
+    for cost, seq in paths:
+        print(f"  cost={cost:.0f} len={len(seq)}: {' -> '.join(seq)}")
+    return 0
+
+
+def _run_max_flow_lane(args: argparse.Namespace) -> int:
+    """CLI: max-flow value + min-cut between two named entities (read-only)."""
+    if not args.source or not args.sink:
+        raise SystemExit("max-flow requires --source and --sink")
+    cap, names = load_capacity_projection(args.db, unweighted=args.unweighted)
+    value, cut = max_flow(cap, names, args.source, args.sink)
+    print(f"max-flow {args.source} -> {args.sink}: value={value}")
+    print(f"  min-cut: {len(cut)} arc(s)")
+    for a, b, c in cut[:50]:
+        print(f"    {a} -> {b} (cap {c})")
+    if len(cut) > 50:
+        print(f"    ... {len(cut) - 50} more")
+    return 0
+
+
 def _run_exact_lane(args: argparse.Namespace, scon) -> int:
     """Katz / eigenvector exact lanes (S2): full-vector solve, contract persist.
 
@@ -332,16 +560,19 @@ def _run_exact_lane(args: argparse.Namespace, scon) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:  # noqa: C901
     ap = argparse.ArgumentParser(
-        description="scipy bridge: L1a closeness/harmonic + exact Katz/eigenvector lanes (dry-run by default)"
+        description="scipy bridge: L1a closeness/harmonic + exact Katz/eigenvector + "
+        "s-t lanes (yen/max-flow); dry-run by default"
     )
     ap.add_argument(
         "command",
-        choices=["closeness-harmonic", "katz", "eigenvector", "routing"],
+        choices=["closeness-harmonic", "katz", "eigenvector", "yen", "max-flow", "routing"],
         help="closeness-harmonic = the L1a lane; katz = exact Katz solve "
         "(--alpha, guarded); eigenvector = ARPACK dominant eigenvector "
         "(katz/eigenvector ignore --jobs: single-process solves); "
+        "yen = K shortest simple paths (--source/--sink/--k); "
+        "max-flow = Dinic value + min-cut (--source/--sink); "
         "routing = print ROUTING",
     )
     ap.add_argument(
@@ -372,11 +603,31 @@ def main(argv: list[str] | None = None) -> int:
         "perf leg passes --jobs 4 when the budget demands it)",
     )
     ap.add_argument("--db", default=str(DEFAULT_DB_PATH))
+    ap.add_argument("--source", default=None, help="s-t lanes: source entity name")
+    ap.add_argument("--sink", default=None, help="s-t lanes: sink entity name")
+    ap.add_argument(
+        "--k",
+        type=int,
+        default=YEN_K_DEFAULT,
+        help=f"Yen K (1..{YEN_K_MAX}; cost is ~K Dijkstras)",
+    )
+    ap.add_argument(
+        "--directed", action="store_true", help="yen: directed graph (default: undirected)"
+    )
+    ap.add_argument(
+        "--unweighted",
+        action="store_true",
+        help="max-flow: unit capacities (edge-disjoint count) instead of rounded weights",
+    )
     args = ap.parse_args(argv)
 
     if args.command == "routing":
         print(json.dumps(ROUTING, indent=1))
         return 0
+    if args.command == "yen":
+        return _run_yen_lane(args)
+    if args.command == "max-flow":
+        return _run_max_flow_lane(args)
 
     from helpers.graph.algorithms import write_analytics
 

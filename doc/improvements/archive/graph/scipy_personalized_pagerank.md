@@ -88,5 +88,47 @@ incumbent (restart vector hardcoded in the extension).
 - No incumbent contract means no migration story: the metric name is
   new, first write creates it.
 
+## 7. Structural finding (2026-09-24) — why this lane stays deferred
+
+Re-measured on the live graph (22,046 nodes / 57,581 edges; scipy 1.18.1)
+while evaluating whether to un-defer. Two independent reasons to keep it
+parked, and the SECOND is the one we keep re-deriving:
+
+1. **Onager bug (the filed reason).** `onager_ctr_personalized_pagerank`
+   ignores its personalization column and hardcodes the restart to
+   `node_id 1` (`onager.py:1099`, `graph_design.md:286`,
+   `pending.md` N5-6). scipy sidesteps this — but not the next one.
+
+2. **Graph structure makes PPR degenerate (the real blocker).** The graph
+   is star-dominated and leaf-heavy: **84.5% of nodes are degree-1 leaves**
+   (`deg1=18,639 / 22,046`), `degmax=850`, and the top hubs are
+   membership/country nodes (`india` 850, NIFTY indices ~500-750) before
+   any company. A random walk with the standard damping cannot propagate:
+
+   | Seed | seed_mass | hop-1 mass | hop≥2 mass |
+   |---|---|---|---|
+   | Infosys (ex-index CSR) | 0.416 | 0.400 | 0.184 |
+   | Wipro (ex-index CSR) | 0.455 | 0.416 | — |
+   | Infosys (company-only subgraph) | 0.443 | 0.419 | 0.137 |
+
+   ~82% of the mass sits on the seed + its direct neighbours; the
+   post-seed top-10 is hub-contaminated (`india`, `NIFTY TOTAL MARKET`, a
+   note hub). Stripping non-company hubs removes the *contamination*
+   (Reliance/Wipro/HCL/TCS rise) but not the *localization* (hop≥2 still
+   only 0.14). In short: **PPR on this graph is a 1-hop ego ranking**,
+   which `GET /api/graph/neighbors` already serves cheaper.
+
+**Implementation trap (record so nobody re-discovers it):** the equation
+printed in §2 (`x = (I − αP)⁻¹(1−α)v`) is transposed. The correct
+stationary form is `x = αPᵀx + (1−α)v`, i.e. solve `(I − αPᵀ)`. Using
+`(I − αP)` with `P = D⁻¹A` does not normalise (`sum(x) ≈ 127`, not 1) —
+it is the wrong eigenvector orientation.
+
+**Verdict:** stays DEFERRED. Revival requires BOTH a named consumer that
+wants more than the 1-hop ego bundle AND a projection that fixes the
+localization (hub-stripped / per-sector subgraph), not merely a working
+solver. The scipy one-solve itself is cheap (0.22-0.29 s) and correct —
+the blocker is the graph, not the engine.
+
 Parent: `doc/improvements/archive/graph/scipy_graph_bridge.md`; spike
 `/tmp/graph_spike.txt`; lane `helpers/graph/scipy_bridge.py`.

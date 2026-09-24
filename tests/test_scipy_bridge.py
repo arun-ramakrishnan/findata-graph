@@ -160,8 +160,20 @@ def test_routing_command(capsys):
 # --------------------------------------------------------------------------- #
 def test_routing_table_covers_known_metrics():
     routed = {m for m, o in sb.ROUTING.items() if o == "SCIPY"}
-    assert routed == {"closeness_centrality", "harmonic_centrality"}
-    assert set(sb.ROUTING) <= set(alg._METRIC_DISPATCH) | {"link_prediction"}
+    assert routed == {
+        "closeness_centrality",
+        "harmonic_centrality",
+        sb.YEN_LANE,
+        sb.MAXFLOW_LANE,
+    }
+    # metric lanes must be dispatchable; the s-t lanes are CLI commands, not metrics
+    assert set(sb.ROUTING) <= set(alg._METRIC_DISPATCH) | {
+        "link_prediction",
+        sb.YEN_LANE,
+        sb.MAXFLOW_LANE,
+    }
+    assert sb.YEN_LANE not in alg._METRIC_DISPATCH
+    assert sb.MAXFLOW_LANE not in alg._METRIC_DISPATCH
     assert set(sb.ROUTING.values()) <= {"SCIPY", "ONAGER_DEFAULT", "L1B_FOLD"}
 
 
@@ -446,3 +458,157 @@ def test_live_parity_checks_are_classified():
     assert all(
         any(mark.name == "live" for mark in getattr(check, "pytestmark", ())) for check in checks
     )
+
+
+# --------------------------------------------------------------------------- #
+# s-t lanes (scipy_st_lanes_routing_switch): ROUTING switch + wall-clock
+# budget guard; toy oracles from the archived Yen / max-flow proposals.
+# --------------------------------------------------------------------------- #
+def _undirected_csr(n: int, edges: list[tuple[int, int, float]]):
+    from scipy.sparse import csr_matrix as _csr
+
+    r = [a for a, _, _ in edges] + [b for _, b, _ in edges]
+    c = [b for _, b, _ in edges] + [a for a, _, _ in edges]
+    v = [w for _, _, w in edges] * 2
+    return _csr((v, (r, c)), shape=(n, n))
+
+
+def test_s_t_lanes_registered_and_budgeted():
+    assert sb.ROUTING[sb.YEN_LANE] == "SCIPY"
+    assert sb.ROUTING[sb.MAXFLOW_LANE] == "SCIPY"
+    # the s-t lanes carry wall-clock budgets (switch owns lane TIME); the
+    # closeness/harmonic lanes keep their `make perf` budgets instead.
+    assert {sb.YEN_LANE, sb.MAXFLOW_LANE} <= set(sb.LANE_BUDGETS)
+    # budgets only exist for lanes the switch actually owns
+    assert set(sb.LANE_BUDGETS) <= {m for m, o in sb.ROUTING.items() if o == "SCIPY"}
+
+
+def test_yen_toy_oracle():
+    # Archived scipy_yen_k_shortest.md §2: 0-1(1),1-2(2),2-4(1),0-3(2),3-2(2),1-3(3)
+    names = ["n0", "n1", "n2", "n3", "n4"]
+    A = _undirected_csr(5, [(0, 1, 1), (1, 2, 2), (2, 4, 1), (0, 3, 2), (3, 2, 2), (1, 3, 3)])
+    paths = sb.yen_paths(A, names, "n0", "n4", k=3, unweighted=False)
+    costs = [c for c, _ in paths]
+    assert costs == [4.0, 5.0, 7.0]
+    assert paths[0][1] == ["n0", "n1", "n2", "n4"]
+    assert paths[1][1] == ["n0", "n3", "n2", "n4"]
+    assert paths[2][1] == ["n0", "n1", "n3", "n2", "n4"]
+    for _, seq in paths:
+        assert len(seq) == len(set(seq))  # simple paths
+    assert costs == sorted(costs)  # nondecreasing
+
+
+def test_maxflow_toy_oracle_clrs():
+    # Archived scipy_maximum_flow.md §2: maxflow 23 = mincut.
+    from scipy.sparse import csr_array
+
+    nodes = ["s", "v1", "v2", "v3", "v4", "t"]
+    idx = {n: i for i, n in enumerate(nodes)}
+    edges = [
+        ("s", "v1", 16),
+        ("s", "v2", 13),
+        ("v2", "v1", 4),
+        ("v1", "v3", 12),
+        ("v3", "v2", 9),
+        ("v2", "v4", 14),
+        ("v4", "v3", 7),
+        ("v3", "t", 20),
+        ("v4", "t", 4),
+    ]
+    cap = csr_array(
+        (
+            np.array([c for _, _, c in edges], dtype=np.int64),
+            (
+                np.array([idx[a] for a, _, _ in edges]),
+                np.array([idx[b] for _, b, _ in edges]),
+            ),
+        ),
+        shape=(6, 6),
+    )
+    value, cut = sb.max_flow(cap, nodes, "s", "t")
+    assert value == 23
+    assert sum(c for _, _, c in cut) == 23  # cut capacity == max flow
+    assert ("v1", "v3", 12) in cut
+    assert ("v4", "v3", 7) in cut
+    assert ("v4", "t", 4) in cut
+
+
+def test_capacity_projection_dedupes_reverse_edges_and_weights(store):
+    con = sqlite3.connect(str(store))
+    con.executemany(
+        "INSERT INTO graph_edges VALUES (?, ?, ?)",
+        [
+            ("b", "a", 4.0),
+            ("b", "a", 2.0),
+            ("a", "b", 3.0),
+            ("c", "d", 2.6),
+        ],
+    )
+    con.commit()
+    con.close()
+
+    weighted, names = sb.load_capacity_projection(store)
+    pos = {name: i for i, name in enumerate(names)}
+    assert weighted[pos["a"], pos["b"]] == 4
+    assert weighted[pos["b"], pos["a"]] == 4
+    assert weighted[pos["c"], pos["d"]] == 3
+
+    unit, unit_names = sb.load_capacity_projection(store, unweighted=True)
+    unit_pos = {name: i for i, name in enumerate(unit_names)}
+    assert unit[unit_pos["a"], unit_pos["b"]] == 1
+    assert unit[unit_pos["c"], unit_pos["d"]] == 1
+
+
+def test_yen_k_and_endpoint_guards():
+    A = _undirected_csr(3, [(0, 1, 1), (1, 2, 1)])
+    names = ["a", "b", "c"]
+    with pytest.raises(ValueError, match="unbounded"):
+        sb.yen_paths(A, names, "a", "c", k=sb.YEN_K_MAX + 1)
+    with pytest.raises(ValueError, match="differ"):
+        sb.yen_paths(A, names, "a", "a", k=1)
+    with pytest.raises(KeyError, match="ghost"):
+        sb.yen_paths(A, names, "a", "ghost", k=1)
+
+
+def test_budget_guard_raises(monkeypatch):
+    A = _undirected_csr(3, [(0, 1, 1), (1, 2, 1)])
+    monkeypatch.setitem(sb.LANE_BUDGETS, sb.YEN_LANE, 0.0)
+    with pytest.raises(RuntimeError, match="wall-clock budget"):
+        sb.yen_paths(A, ["a", "b", "c"], "a", "c", k=1)
+
+
+def test_switch_guard_raises(monkeypatch):
+    from scipy.sparse import csr_array
+
+    monkeypatch.setitem(sb.ROUTING, sb.MAXFLOW_LANE, "ONAGER_DEFAULT")
+    cap = csr_array((np.ones(2, dtype=np.int64), ([0, 1], [1, 2])), shape=(3, 3))
+    with pytest.raises(RuntimeError, match="not routed to SCIPY"):
+        sb.max_flow(cap, ["a", "b", "c"], "a", "c")
+
+
+def test_s_t_cli_yen_and_max_flow(store, capsys):
+    assert sb.main(["yen", "--db", str(store), "--source", "a", "--sink", "c", "--k", "1"]) == 0
+    yen_output = capsys.readouterr().out
+    assert "yen a -> c: 1 path(s) (k=1)" in yen_output
+    assert "a -> b -> c" in yen_output
+
+    assert sb.main(["max-flow", "--db", str(store), "--source", "a", "--sink", "c"]) == 0
+    max_flow_output = capsys.readouterr().out
+    assert "max-flow a -> c: value=1" in max_flow_output
+    assert "min-cut:" in max_flow_output
+
+
+def test_s_t_cli_budget_guard(store, monkeypatch):
+    monkeypatch.setitem(sb.LANE_BUDGETS, sb.YEN_LANE, 0.0)
+    with pytest.raises(RuntimeError, match="wall-clock budget"):
+        sb.main(["yen", "--db", str(store), "--source", "a", "--sink", "c", "--k", "1"])
+
+
+@pytest.mark.live
+def test_s_t_lanes_live_under_budget():
+    A, names = sb.load_projection()
+    paths = sb.yen_paths(A, names, "Infosys", "Wipro", k=5)
+    assert paths and paths[0][1] == ["Infosys", "Wipro"]
+    cap, cnames = sb.load_capacity_projection()
+    value, cut = sb.max_flow(cap, cnames, "Infosys", "Wipro")
+    assert value > 0 and cut

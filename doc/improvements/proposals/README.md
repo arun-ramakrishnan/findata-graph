@@ -34,9 +34,18 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none — the gate_query_improvements and test_data_items arcs archived
-2026-09-24 as completed.md entries 286 and 285; see the Previously chain
-below.)_
+_(none)_
+
+_(Previously: scipy_st_lanes_routing_switch.md archived 2026-09-24 as
+completed.md entry 287 — SciPy s-t lanes (Yen / max-flow) behind the
+ROUTING switch with wall-clock budget guards; un-deferred
+`scipy_yen_k_shortest` (#275) and `scipy_maximum_flow` (#273), while
+PPR/MST/A² stayed deferred. Execution record in
+`../archive/graph/scipy_st_lanes_routing_switch.md`.)_
+
+_(Previously: the gate_query_improvements and test_data_items arcs
+archived 2026-09-24 as completed.md entries 286 and 285; see the
+Previously chain below.)_
 
 _(Previously: gate_query_improvements.md archived 2026-09-24 as
 completed.md entry 286 — historical comparison, test history, failure

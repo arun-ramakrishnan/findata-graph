@@ -7409,3 +7409,22 @@ at 0.65 s — the S4 that proved itself unnecessary).
   lint, search freshness, and `git diff --check` passed.
 
 Execution record: `archive/tooling/gate_query_improvements.md`.
+
+## 287. SciPy s-t lanes — ROUTING ownership + wall-clock budget guards
+
+**Proposal**: `doc/improvements/archive/graph/scipy_st_lanes_routing_switch.md`
+(filed + executed 2026-09-24 — verdict: **EXECUTED**).
+
+- Implemented opt-in Yen K-shortest and Dinic max-flow/min-cut lanes,
+  registered as SCIPY-owned in `ROUTING`; neither enters the node-keyed
+  metric dispatcher.
+- Added post-hoc wall-clock budget guards, endpoint/preflight checks, CLI
+  coverage, and capacity-projection tests for reverse-edge dedupe and
+  weighted/unit modes.
+- Clarified that `ROUTING` is an ownership/dispatch table rather than the
+  full 27-public SciPy surface; converters, `test`, and
+  `NegativeCycleError` remain N/A support entries.
+- Full QA: 11/11 legs passed; 3,490 tests passed, 3 skipped. Focused
+  SciPy tests: 39 passed.
+
+Execution record: `archive/graph/scipy_st_lanes_routing_switch.md`.

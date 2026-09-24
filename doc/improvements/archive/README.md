@@ -31,6 +31,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`qa_live_test_isolation.md`](graph/qa_live_test_isolation.md) — Proposal: restore QA critical path by moving live parity checks to advisory and isolating the synthetic `--all` test from routed live lanes — completed.md #284
 - [`scipy_katz_exact_solve.md`](graph/scipy_katz_exact_solve.md) — Proposal: Katz exact-solve lane (unweighted finding, admissibility guard, star demo, live parity) — completed.md #280
 - [`scipy_eigenvector_eigsh.md`](graph/scipy_eigenvector_eigsh.md) — Proposal: eigsh robustness lane (P100 case, star correction, live agreement) — completed.md #281
+- [`scipy_st_lanes_routing_switch.md`](graph/scipy_st_lanes_routing_switch.md) — Proposal: SciPy Yen / max-flow opt-in lanes behind the ROUTING switch with wall-clock budget guards; CLI and projection coverage — completed.md #287
 - [`scipy_personalized_pagerank.md`](graph/scipy_personalized_pagerank.md) — Proposal: scipy exact-solve personalized PageRank (S2 child) — filed DEFERRED: no consumer, revisit if it becomes a must — completed.md #272
 - [`scipy_maximum_flow.md`](graph/scipy_maximum_flow.md) — Proposal: scipy Dinic max-flow + min-cut listing (S3 child) — filed DEFERRED: no s-t question ordered — completed.md #273
 - [`scipy_minimum_spanning_tree.md`](graph/scipy_minimum_spanning_tree.md) — Proposal: scipy MST over weighted CSR (S3 child) — filed DEFERRED: need still deferred — completed.md #274

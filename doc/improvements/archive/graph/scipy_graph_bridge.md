@@ -207,15 +207,18 @@ house rule.
 
 Full survey of `scipy.sparse.csgraph` (1.18.1, 27 publics) against the
 engine record — disposition per public, so the child proposals below are
-the complete list of NEW work and nothing else is silently owed:
+the complete list of NEW work and nothing else is silently owed. `ROUTING`
+is a project ownership/dispatch table, not a 27-name implementation
+registry; this section is accounting, not a scaffold queue.
 
 - **Shipped (S1, this proposal)**: `dijkstra` — the L1a carrier lane.
-- **Child proposals (S2/S3, patch `scipy_algos`)**: `yen`
-  (`../archive/graph/scipy_yen_k_shortest.md`), `maximum_flow` (`../archive/graph/scipy_maximum_flow.md`),
-  `minimum_spanning_tree` (`../archive/graph/scipy_minimum_spanning_tree.md`); plus the
-  `sparse.linalg` gap-fills `spsolve`/`eigsh`
-  (`scipy_katz_exact_solve.md`, `../archive/graph/scipy_personalized_pagerank.md`,
-  `scipy_eigenvector_eigsh.md`).
+- **Child work (S2/S3, patch `scipy_algos`)**: `yen`
+  (`../archive/graph/scipy_yen_k_shortest.md`) and `maximum_flow`
+  (`../archive/graph/scipy_maximum_flow.md`) are un-deferred and implemented;
+  `minimum_spanning_tree` (`../archive/graph/scipy_minimum_spanning_tree.md`)
+  remains deferred. The `sparse.linalg` gap-fills `spsolve`/`eigsh` are
+  implemented in `scipy_katz_exact_solve.md` and
+  `scipy_eigenvector_eigsh.md`; personalized PageRank remains deferred.
 - **Deferred (S4)**: `A^2`-pattern link-prediction kernel
   (`../archive/graph/scipy_link_prediction_kernel.md`; trigger not met).
 - **Owned by Onager/SQL — no scipy lane needed**:
@@ -228,10 +231,10 @@ the complete list of NEW work and nothing else is silently owed:
   family), `breadth_first_order` / `breadth_first_tree` /
   `depth_first_order` / `depth_first_tree` (traversals; no named gap —
   Onager/SQL territory).
-- **Converters/test scaffolding, not algorithms**:
+- **Non-algorithm support surface — N/A for project work**:
   `csgraph_from_dense`, `csgraph_from_masked`, `csgraph_masked_from_dense`,
-  `csgraph_to_dense`, `csgraph_to_masked`, `test`, `NegativeCycleError`
-  (exception class).
+  `csgraph_to_dense`, `csgraph_to_masked`, `test` (SciPy's test object),
+  and `NegativeCycleError` (an exception for negative-weight routines).
 - **No consumer recorded** (surveyed, deliberately not sliced — file a
   child proposal first if a need appears): `maximum_bipartite_matching`,
   `min_weight_full_bipartite_matching`, `structural_rank`,

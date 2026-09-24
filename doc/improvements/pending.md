@@ -46,23 +46,31 @@ Open items below keep their revisit triggers inline; executed work is compressed
 
 - **scipy_algos umbrella batch — FILED 2026-09-23, five children
   DEFERRED + ARCHIVED 2026-09-23** (completed.md #272–276; triggers
-  recorded in each record): `personalized_pagerank` (no consumer),
-  `maximum_flow` (no s-t question), `minimum_spanning_tree` (need
-  still deferred), `yen_k_shortest` (no consumer),
+  recorded in each record): `personalized_pagerank` (no consumer —
+  **structural blocker now recorded**: leaf-heavy/star-dominated graph
+  makes PPR a 1-hop ego rank; see `scipy_personalized_pagerank.md` §7,
+  do not re-litigate on solver grounds),
+  `maximum_flow` (**un-deferred + implemented 2026-09-24** via
+  `archive/graph/scipy_st_lanes_routing_switch.md`), `minimum_spanning_tree`
+  (need still deferred), `yen_k_shortest` (**un-deferred + implemented
+  2026-09-24** via the same proposal),
   `link_prediction_kernel` (SQL L1c delivered exact at 0.65 s).
   Implemented from the batch: Katz exact-solve + eigsh eigenvector
-  lanes (`helpers/graph/scipy_bridge.py`, opt-in, no dispatch flip).
+  lanes (`helpers/graph/scipy_bridge.py`, opt-in, no dispatch flip) +
+  the two s-t lanes (Yen / max-flow) behind the ROUTING switch with
+  wall-clock budget guards.
   (children of `archive/graph/scipy_graph_bridge.md`, umbrella patch
   `scipy_algos`): Katz (exact solve retires the 1e-4 alpha pin;
   near-critical alpha restores the flattened spread),
   personalized PageRank — archived (restart-hardcoded bug),
   eigenvector eigsh (robust fallback where Onager
   hits "Convergence failed after 100 iterations"; Onager stays
-  default), maximum flow — archived (Dinic, retired igraph seat,
-  dry-run only — s-t has no per-entity metric shape),
-  minimum spanning tree — archived (deferred need wired; Kruskal toy
-  oracle), Yen K-shortest — archived (new capability, opt-in, no
-  consumer yet). Full 27-public csgraph surface accounting added as
+  default), maximum flow — **un-deferred 2026-09-24** (Dinic, retired
+  igraph seat, read-only — s-t has no per-entity metric shape; ROUTING
+  switch + budget guard), minimum spanning tree — archived (deferred
+  need wired; Kruskal toy oracle), Yen K-shortest — **un-deferred
+  2026-09-24** (new capability, opt-in; ROUTING switch + budget guard).
+  Full 27-public csgraph surface accounting added as
   the umbrella's §7 footnotes (owned-elsewhere / converters /
   no-consumer-recorded dispositions, nothing else silently owed).
 
@@ -141,6 +149,9 @@ Open items below keep their revisit triggers inline; executed work is compressed
   requires a weight column of type `BIGINT`; variants A/B produce identical
   output. Documented at `helpers/graph/onager.py:836` and graph_design.md §5.5.
   Do not wrap until a future Onager build honours the personalisation vector.
+  Even a fixed build does not unblock the lane: the scipy exact-solve
+  measured the graph-structure degeneracy (PPR ≈ 1-hop ego rank on the
+  leaf-heavy graph) — see `archive/graph/scipy_personalized_pagerank.md` §7.
   Re-probed 2026-09-22 (same build): both bugs live — pers→node2×100 vs
   pers→node4×100 byte-identical (neither equals plain pagerank, so restart is
   hardcoded to node 1), and any projection without `node_id 1` errors

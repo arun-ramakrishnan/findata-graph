@@ -11,6 +11,13 @@ completed_md: "275"
 
 **Date:** 2026-09-23 · **Status:** DEFERRED — archived 2026-09-23
 
+> **Un-deferred 2026-09-24** by
+> `doc/improvements/archive/graph/scipy_st_lanes_routing_switch.md`
+> (implemented in `helpers/graph/scipy_bridge.py` as `yen_paths` / the
+> `yen` CLI command, registered in the ROUTING switch with a wall-clock
+> budget guard). This record stays as the filed DEFERRED rationale and the
+> acceptance design.
+
 Child of `scipy_graph_bridge.md` (S3, third item). Implementation
 lands in the umbrella patch `scipy_algos`.
 

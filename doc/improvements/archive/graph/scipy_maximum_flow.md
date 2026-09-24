@@ -11,6 +11,13 @@ completed_md: "273"
 
 **Date:** 2026-09-23 · **Status:** DEFERRED — archived 2026-09-23
 
+> **Un-deferred 2026-09-24** by
+> `doc/improvements/archive/graph/scipy_st_lanes_routing_switch.md`
+> (implemented in `helpers/graph/scipy_bridge.py` as `max_flow` /
+> `load_capacity_projection` / the `max-flow` CLI command, registered in the
+> ROUTING switch with a wall-clock budget guard). This record stays as the
+> filed DEFERRED rationale and the acceptance design.
+
 Child of `scipy_graph_bridge.md` (S3, first item). Implementation lands
 in the umbrella patch `scipy_algos`.
 
