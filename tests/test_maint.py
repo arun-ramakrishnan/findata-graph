@@ -109,7 +109,7 @@ class TestPlan:
         # frontmatter --report twin joined the same day
         # (fastjsonschema_split_track): strict-engine full detail as
         # warnings, never blocking.
-        assert len(maint.TIER2_STEPS) == 14
+        assert len(maint.TIER2_STEPS) == 17
 
     def test_tier2_steps_order(self):
         # Post-ingest re-derivation: the sector --check gates first
@@ -138,6 +138,9 @@ class TestPlan:
             "rebuild-doc-search (refresh doc/ FTS+embeddings sidecar index)",
             "recompute-graph (refresh analytics in graph_analytics)",
             "derive-insights (capture concall quotes + magnitudes into DB; --no-notes)",
+            "sync-coverage-tags (converge edition company tags from quote coverage)",
+            "sync-tags (rebuild entity_tags + note_tags after coverage convergence)",
+            "fold-identifiers (fold exchange ISIN/CIK into entity_identifiers)",
             "derive-events (refresh events timeline from note prose + edges)",
             "derive-hyperedges (regroup membership dyads into hyper_edges; --roles = S4 facets)",
             "graph-rebuild-h (refresh DuckDB cache h_edge/h_incidence — D4)",
@@ -195,9 +198,7 @@ class TestPlan:
         assert len(maint.TIER1_FULL_SKIP) == 3
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
         assert "snapshot duckdb parquet mirror (post-rebuild)" in maint.TIER1_FULL_SKIP
-        assert (
-            len(full) == 24
-        )  # 8 PRE_FULL + 16 TIER1/TIER2 joins (seed-nic2008 S1); stamp-centrality is elided
+        assert len(full) == 27
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [
             "snapshot (re-snapshot to include recomputed analytics + events)"
@@ -319,8 +320,7 @@ class TestDryRun:
             + [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
             + maint.TIER2_STEPS
         )
-        # 7 pre-full + 2 tier1 (snapshot elided in --full) + 14 tier2.
-        assert len(all_steps) == 24
+        assert len(all_steps) == 27
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
         assert "snapshot (refresh versioned snapshots)" not in output

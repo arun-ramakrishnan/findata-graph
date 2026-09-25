@@ -347,6 +347,18 @@ TIER2_STEPS: list[tuple[str, list[str]]] = [
         ],
     ),
     (
+        "sync-coverage-tags (converge edition company tags from quote coverage)",
+        [sys.executable, "helpers/maintenance/sync_coverage_tags.py", "--apply"],
+    ),
+    (
+        "sync-tags (rebuild entity_tags + note_tags after coverage convergence)",
+        [sys.executable, "helpers/core/sync_tags.py", "--corpus", "--apply"],
+    ),
+    (
+        "fold-identifiers (fold exchange ISIN/CIK into entity_identifiers)",
+        [sys.executable, "helpers/maintenance/fold_identifiers.py", "--apply"],
+    ),
+    (
         "derive-events (refresh events timeline from note prose + edges)",
         [sys.executable, "helpers/graph/derive_events.py", "--corpus", "--apply"],
     ),
