@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: No_shortcuts_here
@@ -125,7 +125,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "At the EBITDA percentage level more or less it should be similar to what it was in quan four. We are expecting that if raw material prices hold at these levels, we should be able hold up at those levels in terms of EBITDA margin."
 
-- **## Abhijit Roy, MD & CEO The company anticipates that total revenue will grow in the double digits, supported by recent price hikes and soli…**
+- **Abhijit Roy, MD & CEO The company anticipates that total revenue will grow in the double digits, supported by recent price hikes and soli…**
 
 > "Because of price increases we will have a double-digit value growth and possibly a mid high single-digit volume growth. As of now we should have somewhere around the high single-digit mark in terms of volume growth and double-digit value growth."
 > — Abhijit Roy, MD & CEO [^chatter-Titan_Dixon_Cipla]

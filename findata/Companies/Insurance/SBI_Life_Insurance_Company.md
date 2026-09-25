@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -148,11 +148,11 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "So, product mix, as far as you were talking about non-par growth, so I would like to highlight that on IRP basis, the growth in pure non-par products, excluding protection, i 10%. Protection has grown by 44%. The numbers of non-par could have been better, but during the quarte…"
 
-- **## Amit Jhingran, Managing Director and CEO The primary sales channel through SBI branches is showing improved momentum after some earlier c…**
+- **Amit Jhingran, Managing Director and CEO The primary sales channel through SBI branches is showing improved momentum after some earlier c…**
 
 > "Within the channel mix, different channels have their seasonality and third quarter specifically has always been very good for SBI Life. There is some good traction being seen in the SBI also of late and we are very sure that in the 4th Quarter also, we will be able to maintai…"
 
-- **## Amit Jhingran, Managing Director and CEO A drop in long-term policy renewals was expected because of the specific group of policies sold…**
+- **Amit Jhingran, Managing Director and CEO A drop in long-term policy renewals was expected because of the specific group of policies sold…**
 
 > "Only the 61st month persistency which has come down, which previously also we have communicated that this is the COVID cohort, which is going to hit this year. This is going to be the last cohort, which we are expecting. 25 th month and the 37th month, it is just marginal, whi…"
 > — Amit Jhingran, Managing Director and CEO [^chatter-Reliance_PayTM_Nykaa]
@@ -161,7 +161,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "And what we are saying that the impact that we are going to get on the new business or account of GST,150 basis points will get offset mostly by the better product mix in term the line of business and within the product and different kind of products.And that will mostly offse…"
 
-- **## Prithesh Chaubey, President and Appointed Actuary Customers are increasingly choosing pure insurance over plans that return their premium…**
+- **Prithesh Chaubey, President and Appointed Actuary Customers are increasingly choosing pure insurance over plans that return their premium…**
 
 > "For the same sum assured, TROP has a higher premium than pure protection. Here our mix is improving in favor of pure protection. So, the premium is going down for the same sum assured."
 > — Amit Jhingran, Managing Director and CEO [^chatter-Reliance_PayTM_Nykaa]

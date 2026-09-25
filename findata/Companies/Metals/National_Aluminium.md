@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Frameworks_&_Forecasts
@@ -89,7 +89,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "This year is Rs.1,700 crores. '25, '26 around Rs.1,700 crores capex. I think Rs.600 crores Rs.700 crores in MR that is additional modification and replacement project and the res bigger projects."
 
-- **## Abhay Kumar Behuria, Director (Finance) NALCO currently avoids hedging due to its strong balance sheet, but may consider in FY27-28 to pr…**
+- **Abhay Kumar Behuria, Director (Finance) NALCO currently avoids hedging due to its strong balance sheet, but may consider in FY27-28 to pr…**
 
 > "No. We have not adopted hedging mechanism now because we don't think our model o business, if you see alumina and metal both. So this hedging, we don't feel this is require now, but we don't have any commitment... So if the situation comes up to '27, '28, when capex plan will …"
 > — Abhay Kumar Behuria, Director (Finance) [^chatter-Frameworks_&_Forecasts]

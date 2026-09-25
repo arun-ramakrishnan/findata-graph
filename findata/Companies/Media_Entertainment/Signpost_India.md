@@ -20,7 +20,7 @@ created: '2026-07-03'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -82,7 +82,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Digital revenue rose from 700 crores in 2024 to 1,220 crores in 2025,now accounting for 18% of total OOH revenue-a share expected to reach 25% by 2028.The installed base digital screens crossed 223,000 in 2025,a 21% growth in a single year."
 
-- **## Syed Haseeb Arfat, Chief Business Officer To address high receivables, the company is moving toward billing for partial campaign completi…**
+- **Syed Haseeb Arfat, Chief Business Officer To address high receivables, the company is moving toward billing for partial campaign completi…**
 
 > "We have pushed for milestone-based billing. Whatever compliance we get from a specific region or city, those funds will be clocked into the account immediately rather than wait for a full check. This is a measured approach."
 

@@ -19,7 +19,7 @@ created: '2026-07-03'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -158,7 +158,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "We've been discussing with customers... for some customers we could refer to the previous month so that we can shorten the time lag."
 
-- **## Manabu Chikumoto, President & CEO Operational productivity helped offset inflationary energy costs in the industrial ga business.**
+- **Manabu Chikumoto, President & CEO Operational productivity helped offset inflationary energy costs in the industrial ga business.**
 
 > "Earnings increased due to cost reductions driven by productivity improvement initiative across each region."
 > — Minoru Kida, CFO [^chatter-Nvidia_Samsung_Cloudflare]

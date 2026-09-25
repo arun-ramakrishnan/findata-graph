@@ -22,7 +22,7 @@ created: '2026-06-17'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Tailwinds_building
@@ -92,7 +92,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "So we are reducing our intensity on working capital required for exports by doing factoring, which I mentioned in my speech. So the idea is to sell our receivables and take this off our books. Cost is maybe 0.5 percentage in terms of cost since factoring will be more expensive…"
 
-- **## Akshay Pitti, Managing Director and Chief Executive Officer The Data Center segment is a rapidly growing market, with revenue contributio…**
+- **Akshay Pitti, Managing Director and Chief Executive Officer The Data Center segment is a rapidly growing market, with revenue contributio…**
 
 > "Data Center segment showed particularly encouraging momentum with revenue contribution increasing from 2.7% in the previous quarter to 3.7% in Q3 FY '26. This reinforces our confidence in the segment's potential to grow faster than the broader indu over the medium term."
 > — Akshay Pitti, Managing Director and Chief Executive Officer [^chatter-Tailwinds_building]

@@ -19,7 +19,7 @@ created: '2026-07-17'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -83,15 +83,15 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Second, our public deposit franchise crossed 100 crores. While this number may not be big, considering that we just recently started scaling up on this and recently launched our online FD module, this is a significant achievement. This is important also from the fact that it g…"
 
-- **## Mathews Markose, CEO The company is shifting away from co-lending models to focus on growing its own balance sheet. This transition incre…**
+- **Mathews Markose, CEO The company is shifting away from co-lending models to focus on growing its own balance sheet. This transition incre…**
 
 > "Parallelly, our own retail portfolio has been considerably increasing. We reached 84% which means our co-lending book has been steadily declining. That is a conscious call th we took. If you compare year-over-year, last year in Q1, we had about 120 crores of disbursement throu…"
 
-- **## Mathews Markose, CEO The firm is heavily investing in AI technology to handle debt recovery and customer operations. Successful automatio…**
+- **Mathews Markose, CEO The firm is heavily investing in AI technology to handle debt recovery and customer operations. Successful automatio…**
 
 > "Our entire red bucket collection is being done by AI bots. This month, our resolution w AI bots on the red bucket was as high as 55%, and we will continue to expand there. Oth use cases of AI have been in our welcome calling, our audit and compliance, and our automatic ticket …"
 
-- **## Mathews Markose, CEO Management has opted to take a proactive impairment charge to build a buffer aga potential economic stress. This ind…**
+- **Mathews Markose, CEO Management has opted to take a proactive impairment charge to build a buffer aga potential economic stress. This ind…**
 
 > "We engaged EY to help revise our ECL model. In Note Number 5, we have taken an additional 2.5 crore impairment because we want to anticipate macroeconomic factors. Even though the GNPA on the 14-month book went down from 3% to 1%, we kept that 2 crore as an additional impairme…"
 > — Ramandeep Gil, CFO [^chatter-Jio_Financial_Wipro_Polycab]

@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -122,7 +122,7 @@ especially in the foundries where there is restriction of the LPG and the gas su
 
 > "The only concern is the commodity prices, which I did not mention earlier. But with th market geopolitical situation, we would there is a chances of the spike in commodity pri And this is something which we will have, we are watching very carefully and that may b the only, let…"
 
-- **## Rajeev Jain, Managing Director KSB typically achieves better margins on exports compared to domestic sales, benefiting from higher intern…**
+- **Rajeev Jain, Managing Director KSB typically achieves better margins on exports compared to domestic sales, benefiting from higher intern…**
 
 > "Yes. I would say it has to be from a related party transaction. It has to be and but, yes, price levels are much better outside than in India, I would say, definitely. And plus, when you get a lot of when the currency depreciates, it gives us also an advantage to be competitiv…"
 > — Rajeev Jain, Managing Director [^chatter-Swiggy_Hyundai_Shree_Cement]

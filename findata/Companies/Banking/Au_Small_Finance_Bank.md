@@ -20,7 +20,7 @@ created: '2025-11-22'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:46Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -170,7 +170,7 @@ we are leverag…"
 
 > "After the MFIN guidelines, the industry has reached a stage where a lot of discipline has come into the field and that is why you will see more players falling in line and positive traction. In fact, MFIN has also projected about 17-18% growth. We are just following it and it …"
 
-- **## Vivek Tripathi, Executive Director and Chief Credit Officer The bank expects the transition to new credit loss accounting rules (ECL) to…**
+- **Vivek Tripathi, Executive Director and Chief Credit Officer The bank expects the transition to new credit loss accounting rules (ECL) to…**
 
 > "What I can tell you confidently is that the historical trends of our LGDs, especially on core asset classes, are very low. That gives us enough comfort to say that the impact would be neutral; we do not expect a significant additional hit on the balance sheet. Closer to the en…"
 > — Vivek Tripathi, Executive Director and Chief Credit Officer [^chatter-IDFC_Tata_Consumer]

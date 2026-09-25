@@ -21,7 +21,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -416,7 +416,7 @@ However, the interest currently is largely global, as many countries already hav
 
 > "We also did already the first provision for the New Labour Code. So therefore, product going forward, further localization... we see a good margin development."
 
-- **## Karin Gilges, Chief Financial Officer Bosch is focusing its electric vehicle strategy on e-axles, which are high-value integrated drive s…**
+- **Karin Gilges, Chief Financial Officer Bosch is focusing its electric vehicle strategy on e-axles, which are high-value integrated drive s…**
 
 > "From the portfolio of Bosch Limited, we will strongly aim to begin in e-axles and that would be the biggest component that comes into an electric vehicle."
 > — Guruprasad Mudlapur, Managing Director and Chief Technology Officer [^chatter-Threads_in_the_data]

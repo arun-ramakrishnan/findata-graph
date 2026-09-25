@@ -19,7 +19,7 @@ created: '2026-07-03'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -73,11 +73,11 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "This year witnessed significant structural changes across the credit card ecosystem in India. First, a broad transition from unlimited lounge access models to spend-based acc frameworks. Second, a meaningful transformation in how banks are redesigning their customer value prop…"
 
-- **## Liberatha Kallat, Chairperson and Managing Director The company is evolving from a simple lounge aggregator into a comprehensive lifestyl…**
+- **Liberatha Kallat, Chairperson and Managing Director The company is evolving from a simple lounge aggregator into a comprehensive lifestyl…**
 
 > "Today, we are not just enabling lounge access; we are powering end-to-end customer engagement for our partners through a diversified, technology-led ecosystem spanning travel, lifestyle, wellness, and curated experiences. A defining highlight of this transformation has been th…"
 
-- **## Liberatha Kallat, Chairperson and Managing Director The acquisition of 10-11 Hospitality allows Dreamfolks to own and operate its own rai…**
+- **Liberatha Kallat, Chairperson and Managing Director The acquisition of 10-11 Hospitality allows Dreamfolks to own and operate its own rai…**
 
 > "First, we acquired 10-11 Hospitality in November 2025. This acquisition provides direct ownership and operational control over premium railway lounge infrastructure, enhancing service quality, improving unit economics, and reducing reliance on third-party operator"
 > — Liberatha Kallat, Chairperson and Managing Director [^chatter-Asian_Paints_NMDC_IndiGo]
@@ -86,11 +86,11 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Transaction volumes from our global lounge program have exhibited a strong growth of 140% year-on-year, validating the strength of our international strategy and the quality our platform. Moreover, our global lounge network now covers over 1,000 airport touchpoints."
 
-- **## Liberatha Kallat, Chairperson and Managing Director Dreamfolks is launching a direct-to-consumer membership program to diversify its reve…**
+- **Liberatha Kallat, Chairperson and Managing Director Dreamfolks is launching a direct-to-consumer membership program to diversify its reve…**
 
 > "An important chapter of the year has been our entry into the D2C segment through Dreamfolks Club 2.0, our enhanced membership platform. This offering has evolved from an airport-centric proposition into a comprehensive travel and lifestyle membership encompassing global lounge…"
 
-- **## Liberatha Kallat, Chairperson and Managing Director Management is focusing on increasing business with current clients rather than just s…**
+- **Liberatha Kallat, Chairperson and Managing Director Management is focusing on increasing business with current clients rather than just s…**
 
 > "One of our key priorities this year has been to deepen engagement with our existing banking and card network partners rather than simply pursuing new client acquisition. I believe that the strength of our existing relationships represents a significant untapped potential."
 > — Liberatha Kallat, Chairperson and Managing Director [^chatter-Asian_Paints_NMDC_IndiGo]
@@ -99,7 +99,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "While near-term profitability has been affected by the structural transition in our domestic business, which used to contribute more than 90%, we believe with the rapid adoption of new-age lifestyle services and deeper integration in the global and railway lounge business segm…"
 
-- **## Liberatha Kallat, Chairperson and Managing Director The company is making progress in securing international clients in key markets like…**
+- **Liberatha Kallat, Chairperson and Managing Director The company is making progress in securing international clients in key markets like…**
 
 > "To answer your question, I may not be able to specifically tell you who the clients are, but we do have many clients; otherwise, this 140% growth would not have come. The Middle East and Southeast Asia definitely remain our focus. You will soon hear from us when we sign the co…"
 > — Liberatha Kallat, Chairperson and Managing Director [^chatter-Asian_Paints_NMDC_IndiGo]

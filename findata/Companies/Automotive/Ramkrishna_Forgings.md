@@ -20,7 +20,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-21'
 sources:
 - id: RBI_3M_Blue_Star_KFin
@@ -87,7 +87,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Ramkrishna Forgings has prominently been in the CV (Commercial Vehicle) space in a very strong way. Today, we are suppliers to all the truck and CV brands across the globe, well as the Tier-1s who are serving the North American and other markets. So we have already done a lot …"
 
-- **## Milesh Gandhi, Whole Time Director Management is setting realistic timelines for its new ventures, noting that aerospace contributions ar…**
+- **Milesh Gandhi, Whole Time Director Management is setting realistic timelines for its new ventures, noting that aerospace contributions ar…**
 
 > "Let me start with aerospace. Aerospace is a journey that takes time because of validation and various other processes. That journey has already started for us, and we are on the verge of receiving orders, but it will take at least 2 to 3 years down the line before revenue take…"
 > — Milesh Gandhi, Whole Time Director [^chatter-RBI_3M_Blue_Star_KFin]
@@ -111,7 +111,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "First, regarding debt: our heavy capex phase is over, and current expenditure is largely routine maintenance capex. In Q1, we reduced debt by at least 100 crore, and for the financial year, we are targeting around 500 crore in debt reduction."
 
-- **## Milesh Gandhi, Whole Time Director Strong demand in the North American heavy truck market is providing a major boost to the company's ord…**
+- **Milesh Gandhi, Whole Time Director Strong demand in the North American heavy truck market is providing a major boost to the company's ord…**
 
 > "The biggest driver is the strong Class-8 truck market in North America, which we serve. Order bookings in the first 7 months alone reached 223,000 trucks, compared to 218,000 trucks for the entire 12 months of last year. So demand is very strong, and we have robust order sched…"
 > — Milesh Gandhi, Whole Time Director [^chatter-RBI_3M_Blue_Star_KFin]

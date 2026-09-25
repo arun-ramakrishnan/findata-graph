@@ -19,7 +19,7 @@ created: '2026-06-30'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -90,19 +90,19 @@ _Source: yfinance | Refreshed: 2026-08-11_
 
 > "The US business delivered 7% constant currency growth with what I believe is the sever consecutive quarter of share growth. In the non-branded business, as coffee prices came down in line with expectations, we saw it declining 7%. If I take constant currency, it wadown by 10%."
 
-- **## — Sunil D'Souza, Managing Director and CEO The 'growth' segment has reached a critical scale, now contributing over 30% of the India busi…**
+- **— Sunil D'Souza, Managing Director and CEO The 'growth' segment has reached a critical scale, now contributing over 30% of the India busi…**
 
 > "In terms of growth, I think this was the best-ever quarter for the growth businesses for 1 and they now account for more than one-third of the India business. Sampann grew 58% and it was broad-based volume growth. RTD revenue was up 41% with robust volume growth."
 
-- **## — Sunil D'Souza, Managing Director and CEO The company is targeting niche, high-trust categories rather than competing in the mass edible…**
+- **— Sunil D'Souza, Managing Director and CEO The company is targeting niche, high-trust categories rather than competing in the mass edible…**
 
 > "We decided to get into cold-pressed oils because we saw a consumer trust deficit regard whether oils were refined or cold-pressed. Putting the Tata brand name on it worked we and we figured we could drive growth with margins. In the base edible oil segment, our current hypothe…"
 
-- **## — Sunil D'Souza, Managing Director and CEO Input costs for tea are rising, particularly at the lower end of the market. Investors should…**
+- **— Sunil D'Souza, Managing Director and CEO Input costs for tea are rising, particularly at the lower end of the market. Investors should…**
 
 > "Overall, we are seeing about 7-10% inflation for now, but the peak cropping season has just started. Right now, the crop seems quite good in Assam. We saw inflation more at the bottom end of the portfolio. We are not yet through a significant portion of our buying."
 
-- **## — Sunil D'Souza, Managing Director and CEO The Sampann brand has achieved a massive turnaround, shifting from losses to healthy double-di…**
+- **— Sunil D'Souza, Managing Director and CEO The Sampann brand has achieved a massive turnaround, shifting from losses to healthy double-di…**
 
 > "In Sampann, we moved from a negative 5% margin in 2020 to closing in on 12%. This quarter had 150-200 bps of margin expansion year-over-year. The most critical piece is operating leverage."
 

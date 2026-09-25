@@ -19,7 +19,7 @@ created: '2026-07-17'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -98,7 +98,7 @@ Piramal Finance Limited is a diversified non-banking financial company (NBFC) an
 
 > "The legacy book has now fallen below 2% of our overall AUM and should fall to around 1.5% by the end of the year. At that point, it will become too small to report separately."
 
-- **## Jairam Sridharan, Managing Director Management expects the legacy portfolio to stop weighing on profitability, with the potential to beco…**
+- **Jairam Sridharan, Managing Director Management expects the legacy portfolio to stop weighing on profitability, with the potential to beco…**
 
 > "I don't believe there will be any incremental P&L impact from this portfolio. If anythin things should turn positive next year."
 > — Jairam Sridharan, Managing Director [^chatter-Jio_Financial_Wipro_Polycab]

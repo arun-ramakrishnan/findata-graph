@@ -19,7 +19,7 @@ created: '2025-12-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Playing_the_Long_Game
@@ -283,7 +283,7 @@ Enhanced with comprehensive technology sector analysis, cloud computing market d
 
 > "Sustained strong demand for AI and rising usage of public cloud drove Alibaba’s uh clo 34% revenue growth this quarter, while revenue from external customers accelerated by 29%. AI related products continued to post tripledigit year-over-year growth for the nine consecutive qu…"
 
-- **####### 12/12/25, 7:32 PM The Chatter: Playing the Long Game - The Chatter by Zerodha — Eddie Wu, Chairman Alibaba Cloud is rapidly gaining…**
+- **12/12/25, 7:32 PM The Chatter: Playing the Long Game - The Chatter by Zerodha — Eddie Wu, Chairman Alibaba Cloud is rapidly gaining…**
 
 > "Alibaba cloud is gaining market share across multiple segments. In the hybrid cloud market, Alibaba Cloud has become a key player, growing more than 20% year-over-year, outpacing the industry and steadily expanding market share. Our financial cloud business also growing faster…"
 > — Eddie Wu, Chairman [^chatter-Playing_the_Long_Game]

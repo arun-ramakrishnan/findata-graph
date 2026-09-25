@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -177,11 +177,11 @@ Capex will increase in 2026 compared to the current year, but a significant pick
 
 > "We continued adding products as more BS-VI vehicles required repairs. In bearings and industrial solutions, we had significant wins in ball bearings, needle roller bearings for the wheelers."
 
-- **## Harsha Kadam, Managing Director and Chief Executive Officer The company has successfully sourced 78% of its requirements locally while ma…**
+- **Harsha Kadam, Managing Director and Chief Executive Officer The company has successfully sourced 78% of its requirements locally while ma…**
 
 > "Localization reached 78% in the last quarter. Our plants are running above 85% capac utilization. We enter 2026 with positive traction and a focus on cost management."
 
-- **## Harsha Kadam, Managing Director and Chief Executive Officer The company is positioning itself to supply parts for both fully electric and…**
+- **Harsha Kadam, Managing Director and Chief Executive Officer The company is positioning itself to supply parts for both fully electric and…**
 
 > "While battery electric vehicles see an upswing, we also see traction in hybrid technolog We believe both will coexist."
 > — Harsha Kadam, Managing Director and Chief Executive Officer [^chatter-Patience_and_payoff]

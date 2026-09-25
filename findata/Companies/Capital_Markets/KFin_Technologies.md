@@ -21,7 +21,7 @@ created: '2026-06-17'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-21'
 sources:
 - id: RBI_3M_Blue_Star_KFin
@@ -113,11 +113,11 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 2018 but becam…"
 
-- **## Vivek Mathur, CFO The company emphasises that it operates as a professionally managed entity despit its private equity promoter backgroun…**
+- **Vivek Mathur, CFO The company emphasises that it operates as a professionally managed entity despit its private equity promoter backgroun…**
 
 > "It is already a company run by an independent board of directors and professional management. There are only two General Atlantic directors on the board who participa committee meetings, while day-to-day affairs are handled by management. There is no dependence on General Atla…"
 
-- **## Vivek Mathur, CFO Management clarifies that the promoter's holding is through evergreen funds, which offers more flexibility in timing th…**
+- **Vivek Mathur, CFO Management clarifies that the promoter's holding is through evergreen funds, which offers more flexibility in timing th…**
 
 > "They hold evergreen funds, so divestment timing is up to them. Their stated position is that they are long-term players and continue as promoters. That is a question best direct to General Atlantic, but in our discussions, they remain fully supportive."
 > — Vivek Mathur, CFO [^chatter-RBI_3M_Blue_Star_KFin]
@@ -126,7 +126,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Deals remain active in the pipeline. Overall, including the Ascent acquisition, our revenue remains at an 18% to 20% CAGR. We have seen strong wins across verticals. For instance, non-domestic mutual fund revenue in Q1 expanded significantly year-on-year International business…"
 
-- **## Vivek Mathur, CFO KFintech is aggressively launching global platforms to capture high-value international mandates, particularly in pensi…**
+- **Vivek Mathur, CFO KFintech is aggressively launching global platforms to capture high-value international mandates, particularly in pensi…**
 
 > "We have also developed our platform business, launching the global wealth platform, global pension platform, and mFund for global fund administration. The primary window for participating in major international RFPs is between January and March, which should open up larger man…"
 > — Vivek Mathur, CFO [^chatter-RBI_3M_Blue_Star_KFin]
@@ -135,7 +135,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "There are two key factors. First, mark-to-market dynamics in domestic mutual funds moderated as investor focus temporarily shifted toward gold, silver, and commodity ETI over the last 6 to 9 months. However, SIP inflows remain robust at over 31,000 crore monthly, reflecting st…"
 
-- **## Vivek Mathur, CFO The company maintains a dominant 80% share of mainboard IPO issue value, positioning it as a primary beneficiary of the…**
+- **Vivek Mathur, CFO The company maintains a dominant 80% share of mainboard IPO issue value, positioning it as a primary beneficiary of the…**
 
 > "Second, regarding Issuer Solutions and IPOs: while geopolitical uncertainty deferred so activity earlier, momentum has returned. We hold a two-thirds market share in mainboard IPOs and handle 80% of mainboard issue value. While lower corporate action activity (dividends, bonus…"
 > — Vivek Mathur, CFO [^chatter-RBI_3M_Blue_Star_KFin]

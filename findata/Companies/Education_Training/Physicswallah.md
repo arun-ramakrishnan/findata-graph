@@ -19,7 +19,7 @@ created: '2025-12-20'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -162,7 +162,7 @@ Rapid growth in new exam categories signifies successful business diversificatio
 
 > "Where is all this coming from? Because there are a lot of kids in India who do not have access to a good quality teacher. Meaning, of those ~ 25 crores kids, we are having less than ~ 2% market share. So with the smartphone penetration, with the Internet penetration, we are ex…"
 
-- **############### 12/19/25, 9:13 PM The Chatter: The Pivot Quarter - The Chatter by Zerodha — Prateek Boob, Whole Time Director Physicswallah’…**
+- **12/19/25, 9:13 PM The Chatter: The Pivot Quarter - The Chatter by Zerodha — Prateek Boob, Whole Time Director Physicswallah’…**
 
 > "In offline, we go with the experience story and the result story. And at this ARPU of IIT-NEET is 60,000, our picture becomes fair. We can see the split of that that ~ 35% which the teacher cost, teacher cost should be less than ~ 35%. The rental should be less than ~ % - 14%.…"
 > — Alakh Pandey, Chief Executive Officer and Whole Time Director [^chatter-The_Pivot_Quarter_output]

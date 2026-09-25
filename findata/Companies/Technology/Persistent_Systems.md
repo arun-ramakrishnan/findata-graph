@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -145,7 +145,7 @@ market for ne…"
 
 > "The fact is that there are more PE-owned companies in the US today than public companies. In the enterprise software space over the last 5 years, many companies have been taken private. If we can partner with the PEs and their portfolio companies to improve their margins using…"
 
-- **## Sandeep Kalra, Executive Director and Chief Executive Officer Persistent spends roughly $8 million to $9 million annually on developing i…**
+- **Sandeep Kalra, Executive Director and Chief Executive Officer Persistent spends roughly $8 million to $9 million annually on developing i…**
 
 > "As far as the capitalization spend we do on our main data systems, that ranges around  million to 9 million dollars a year. You can assume our own developed IP is getting a low attention and momentum in terms of the benefits provided to clients."
 > — Sandeep Kalra, Executive Director and Chief Executive Officer [^chatter-HDFC_Groww_Havells]
@@ -239,7 +239,7 @@ market for ne…"
 
 > "We have been heavily investing into developing new AI tools, productivity tools, SASV4 platform, iAura, etc. As a result of that, you’re seeing the increment that is happening on the intangible assets... The good part is we are also being able to link and generate reven out of…"
 
-- **## Vinit Teredesai, Executive Director and Chief Financial Officer Management believes their early focus on AI gives them a structural advan…**
+- **Vinit Teredesai, Executive Director and Chief Financial Officer Management believes their early focus on AI gives them a structural advan…**
 
 > "Today, we have a head start. And we believe with our continued investment, we should able to manage our competitive differentiation... we have won significant deals. Those should fuel more deals, showcasing these deals with other customers."
 > — Sandeep Kalra, Executive Director and Chief Executive Officer [^chatter-Reading_the_terrain]

@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -205,21 +205,21 @@ Beyond this, many states have deficits. Bihar has…"
 
 > "We are expanding our area of focus beyond the Indian territory. We will evaluate inter projects in thermal, hydro, and transmission sectors and invest in attractive opportunities that qualify. We have recently incorporated an SPV in Bhutan setting up a 570-megawatt hydro power…"
 
-- **## S. B. Khyalia, Chief Executive Officer The company is strategically positioning itself for future growth by exploring nuc power projects…**
+- **S. B. Khyalia, Chief Executive Officer The company is strategically positioning itself for future growth by exploring nuc power projects…**
 
 > "We are also aligning ourselves to the emerging long-term opportunities in the power se such as nuclear power. We have incorporated several SPVs in India for investment in
 
 nuclear power projects. We are identifying sites for these projects and seeking necessary approvals."
 
-- **## S. B. Khyalia, Chief Executive Officer Outstanding payments from Bangladesh have decreased with regular collections, an expert has been a…**
+- **S. B. Khyalia, Chief Executive Officer Outstanding payments from Bangladesh have decreased with regular collections, an expert has been a…**
 
 > "As regards to collection is concerned, the outstanding has gone down. And therefore, we are getting regular payments from the Bangladesh. As regards to the other issue probably which you are asking or seeking details about the undisputed amount and its regulation process. So a…"
 
-- **## S. B. Khyalia, Chief Executive Officer Adani Power is not facing domestic coal shortages, and while imported coal prices impacted by geop…**
+- **S. B. Khyalia, Chief Executive Officer Adani Power is not facing domestic coal shortages, and while imported coal prices impacted by geop…**
 
 > "So far, there is no coal shortage that we are facing, since the domestic coal supply is not directly impacted by the geopolitical issue and the production of coal in India is sufficient So, we are not really having any issue as far as domestic coal availability is concerned. A…"
 
-- **## S. B. Khyalia, Chief Executive Officer There are significant PPA opportunities in the market, with approximately 13 GV bids and an additi…**
+- **S. B. Khyalia, Chief Executive Officer There are significant PPA opportunities in the market, with approximately 13 GV bids and an additi…**
 
 > "Upcoming PPAs in the market, we have almost 13 gigawatt. Particularly, it is from Utt Pradesh, Rajasthan, Uttarakhand, West Bengal, and Gujarat. There are PPA bids in the market for 13.8 gigawatt Further, Gujarat has also issued the latest bidding document of another 4,000 meg…"
 > — Dilip Jha, Chief Financial Officer [^chatter-Meesho_Marico_Bajaj]
@@ -228,11 +228,11 @@ nuclear power projects. We are identifying sites for these projects and seeking 
 
 > "But we feel, we are of the view that when more and more renewables will get added, the prices of merchant are bound to go down. So that is the risk which we are trying to mitigate by signing long-term PPAs more and more. So, risk is visible."
 
-- **## S. B. Khyalia, Chief Executive Officer Adani Power aims to achieve INR50,000 crore in EBITDA conservatively by FY 2 potentially even by 2…**
+- **S. B. Khyalia, Chief Executive Officer Adani Power aims to achieve INR50,000 crore in EBITDA conservatively by FY 2 potentially even by 2…**
 
 > "So, Bharat Bhai, we should be in a position to achieve INR50,000 crore conservatively FY 2031. If what we have planned today, if we could achieve that and let's say, no issues arise during this period related to like what presently we have et cetera. In that case, we touch thi…"
 
-- **## S. B. Khyalia, Chief Executive Officer The company sees significant long-term strategic opportunities in India's nuc energy sector, align…**
+- **S. B. Khyalia, Chief Executive Officer The company sees significant long-term strategic opportunities in India's nuc energy sector, align…**
 
 > "But strategically, if you see as a country target for nuclear energy going from 9 gigawat 100-gigawatt addition is there. So maybe we will have a huge opportunity of the area or
 

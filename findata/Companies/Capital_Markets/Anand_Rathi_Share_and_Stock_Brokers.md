@@ -19,7 +19,7 @@ created: '2026-06-29'
 last_modified: '2026-06-29'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:46Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -69,21 +69,21 @@ Anand Rathi Share & Stock Brokers Ltd. is a full-service financial services firm
 
 > "The steady rise in demat accounts from 15.14 crore in March 2024 to 22.2 crore by February 2026 clearly reflects sustained retail participation and deep market penetration Similarly, Assets Under Management (AUM) in the mutual fund industry rose from 65.7 lakh crore as of Marc…"
 
-- **## Pradeep Gupta, Chairman and Managing Director Recent regulatory changes by SEBI are designed to protect investors and re market leverage…**
+- **Pradeep Gupta, Chairman and Managing Director Recent regulatory changes by SEBI are designed to protect investors and re market leverage…**
 
 > "SEBI has been proactive in introducing a series of regulatory measures aimed at strengthening risk management frameworks, curbing excessive leverage, enhancing investment protection, and improving the ease of doing business in capital market transactions. While some of these r…"
 
-- **## Pradeep Gupta, Chairman and Managing Director The company is intentionally diversifying its income to rely less on vola stockbroking fees…**
+- **Pradeep Gupta, Chairman and Managing Director The company is intentionally diversifying its income to rely less on vola stockbroking fees…**
 
 > "Our strategic direction remains clear and unchanged. As guided earlier, we are fully focused on maintaining a balanced revenue mix with a targeted revenue split of 50:50 between non-broking and broking segments and growing both segments at a steady rate. This approach is centr…"
 
-- **## Pradeep Gupta, Chairman and Managing Director The addition of insurance distribution provides the company with a new stream high-margin,…**
+- **Pradeep Gupta, Chairman and Managing Director The addition of insurance distribution provides the company with a new stream high-margin,…**
 
 > "We received the corporate agency license to distribute insurance products in the same financial year. Since then, we have commenced distribution of both life and health insurance products to our clients, green-lighting a huge source of fee-based income for the company. Lastly,…"
 
 > "Our distribution income for FY26 amounted to 1,129 million, reflecting a strong year- year growth of about 44.1%. This growth reflects improved cross-selling across our client base as per our focused approach to grow our distribution business. Our objective is to address the b…"
 
-- **## Pradeep Gupta, Chairman and Managing Director The company prioritizes cash-market investing over speculative derivatives tradin encourage…**
+- **Pradeep Gupta, Chairman and Managing Director The company prioritizes cash-market investing over speculative derivatives tradin encourage…**
 
 > "Within the broking segment, we continue to maintain a healthy balance between equity cash, equity derivatives, and other segments. This reflects our philosophy of encouraging investment-focused approach among our clients rather than speculative trading. For the year FY26, the …"
 > — Rupkishore Guthran, Whole Time Director [^chatter-TCS_ICICI_Pru_HDB_Financials]
@@ -102,11 +102,11 @@ Anand Rathi Share & Stock Brokers Ltd. is a full-service financial services firm
 
 > "In our group, we have a wealth management company separate from this company. This company is by and large focusing on broking and distribution of products. Having said that as a philosophy, we are addressing all the investment needs of a specific customer by providing various…"
 
-- **## Pradeep Gupta, Chairman and Managing Director The company is digitizing its services to match the personal touch of a phys advisor, with…**
+- **Pradeep Gupta, Chairman and Managing Director The company is digitizing its services to match the personal touch of a phys advisor, with…**
 
 > "Regarding our technology side, we are strengthening that platform every day, trying to provide it in such a way that all the deliveries available from a relationship manager in the marketplace are available on our digital platform. Our broking platform is already there which w…"
 
-- **## Pradeep Gupta, Chairman and Managing Director The company uses an internal committee to strictly screen which stocks can be use collatera…**
+- **Pradeep Gupta, Chairman and Managing Director The company uses an internal committee to strictly screen which stocks can be use collatera…**
 
 > "First, we always ensure that we operate in a business where customer interest is protect at the first level. Second, we are conservative in our approach toward risk management. simple example is our MTF product. On the regulatory side, a basket is defined, and we
 

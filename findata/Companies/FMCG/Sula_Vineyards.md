@@ -19,7 +19,7 @@ created: '2025-12-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:46Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Playing_the_Long_Game
@@ -115,7 +115,7 @@ Sula Vineyards Limited is the largest wine producer and seller in India, dominat
 > "The biggest bright spot is our Wine Tourism business, which delivered yet another record quarter in Q2, reporting 8% growth in Q2 and 15% growth in H1. In an exciting development here, we have just launched our third resort, The Haven by Sula near our Y Winery in Nashik. This …"
 > — Rajeev Samant, Founder and Chief Executive Officer [^chatter-Playing_the_Long_Game]
 
-- **####### 12/12/25, 7:32 PM The Chatter: Playing the Long Game - The Chatter by Zerodha Maharashtra, their most crucial market is recovering a…**
+- **12/12/25, 7:32 PM The Chatter: Playing the Long Game - The Chatter by Zerodha Maharashtra, their most crucial market is recovering a…**
 
 > "In other good news, Maharashtra, our most important market, after going through a pre-challenging phase over the last 12 months has shown signs of decent recovery coming back to growth in Q2, which bodes very well for H2 as well as the coming years."
 > — Rajeev Samant, Founder and Chief Executive Officer [^chatter-Playing_the_Long_Game]
@@ -151,7 +151,7 @@ https://th…"
 
 > "Given that duties are expected to come down and the minimum import price is expected come down, we are now actively exploring to once again step back in and expand our imported wine distribution business."
 
-- **####### 12/12/25, 7:32 PM The Chatter: Playing the Long Game - The Chatter by Zerodha — Rajeev Samant, Founder and Chief Executive Officer A…**
+- **12/12/25, 7:32 PM The Chatter: Playing the Long Game - The Chatter by Zerodha — Rajeev Samant, Founder and Chief Executive Officer A…**
 
 > "The second key factor was change in the sourcing model for Wine Tourism... This change is why the gross margin by around 400 basis points, does not affect Gross Profit or EBITDA at an absolute level as the increase in cost of goods sold is offset by a corresponding increase in…"
 > — Abhishek Kapoor, Chief Financial Officer [^chatter-Playing_the_Long_Game]

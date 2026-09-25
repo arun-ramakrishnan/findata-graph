@@ -19,7 +19,7 @@ created: '2026-07-05'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T15:38:15Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -79,15 +79,15 @@ The Chatter — Global Chatter: Micron, SpaceX, Palantir & More
 
 > "If you want to know how this came together from my perspective, there were a lot of technical issues—who controls the models, who controls the weights, who controls the value of your business. We're sitting on critical infrastructure across America, Ukraine and Israel. Everyon…"
 
-- **## Alex Karp, CEO, Palantir Karp explained why Palantir's ontology layer is critical for deploying AI in regulate environments.**
+- **Alex Karp, CEO, Palantir Karp explained why Palantir's ontology layer is critical for deploying AI in regulate environments.**
 
 > "When youre using large language models, everyone technical realizes they're a critical resource. To make them valuable in an enterprise, battlefield, regulated or manufacturer context, you have to have what's called an application layer. We have this thing called ontology that…"
 
-- **## Alex Karp, CEO, Palantir Karp argued that enterprise customers increasingly fear losing proprietary information when using foundation mod…**
+- **Alex Karp, CEO, Palantir Karp argued that enterprise customers increasingly fear losing proprietary information when using foundation mod…**
 
 > "Something has gone completely wrong. The basic view among enterprises in this country 'I'm going to waste my time with tokens, I'm going to get no value, and they're going to give my IP.'"
 
-- **## Alex Karp, CEO, Palantir Responding to criticism that he was targeting OpenAI and Anthropic, Karp emphasized customer trust.**
+- **Alex Karp, CEO, Palantir Responding to criticism that he was targeting OpenAI and Anthropic, Karp emphasized customer trust.**
 
 > "This is reporting. I've literally called these people against my own interest because I'm profiting from this. The reality is you may not like us at my former schools, Harvard or Berkeley, but enterprises in this country trust and love us, especially the ones involved in criti…"
 > — Alex Karp, CEO, Palantir [^chatter-Micron_SpaceX_Palantir]
@@ -141,7 +141,7 @@ The Chatter — Global Chatter: Micron, SpaceX, Palantir & More
 
 > "Every enterprise I deal with is livid. They're saying, 'I'm paying for tokens that create new value. These people are stealing the weights and the alpha of my business.' These models have been irresponsibly oversold. The sales pitch is that they're dangerous for everyone, some…"
 
-- **## Alex Karp, CEO, Palantir Asked whether dissatisfaction with Frontier Labs is benefiting Palantir commercia**
+- **Alex Karp, CEO, Palantir Asked whether dissatisfaction with Frontier Labs is benefiting Palantir commercia**
 
 > "I'm not here to talk about what happens to other businesses. What I can tell you is that our business we have more demand than we can supply. We have more business than we execute. If you look at our financials, you can see exactly where we're headed."
 > — Alex Karp, CEO, Palantir [^chatter-Micron_SpaceX_Palantir]

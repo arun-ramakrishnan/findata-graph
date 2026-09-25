@@ -21,7 +21,7 @@ created: '2026-06-17'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Tailwinds_building
@@ -73,11 +73,11 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Shahzad, the geographies that we work in, whether it is Middle East or Africa, for them water treatment is not an option. It cannot be dependent on whether the oil prices go up come down. That may give them a fillip to do more, but they will have to still do the basic water tr…"
 
-- **## Skandaprasad S. Seetharaman, Group Chief Financial Officer International projects offer faster execution timelines and significantly bett…**
+- **Skandaprasad S. Seetharaman, Group Chief Financial Officer International projects offer faster execution timelines and significantly bett…**
 
 > "See, generally, international orders are a little faster than the Indian orders. On a broad basis, you could take about 2.5 to 3 years as the general timeline for a large EPC project course, it depends project by project, what scope it is, what kind of project it is, size of t…"
 
-- **## Skandaprasad S. Seetharaman, Group Chief Financial Officer The domestic order book is expected to pick up significantly in early next yea…**
+- **Skandaprasad S. Seetharaman, Group Chief Financial Officer The domestic order book is expected to pick up significantly in early next yea…**
 
 > "As far as India order backlog is concerned, we have a healthy position as of now. And going forward, as I told earlier, many of the prospects almost on the verge of conclusion. And as I told you, Rs. 3,000 crores of order is already in visibility. As far as pipeline is
 

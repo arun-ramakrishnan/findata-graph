@@ -21,7 +21,7 @@ created: '2026-06-17'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -154,11 +154,11 @@ significant work to make it more appealing to Gen Z, and a new refresh is coming
 
 > "Our strategy is to have "horses for courses"different brands standing for sharp propositions. Depending on how consumer sentiments change-whether toward natural hydration, or actives—we will change our investment gears using the right brand chassis Right now, there is a strong…"
 
-- **## Varun Alagh, Co-Founder, Chairman and Chief Executive Officer Honasa projects Mamaearth to achieve a double-digit CAGR over the next five…**
+- **Varun Alagh, Co-Founder, Chairman and Chief Executive Officer Honasa projects Mamaearth to achieve a double-digit CAGR over the next five…**
 
 > "We are fairly confident of delivering a double-digit CAGR on the brand over the next 5 years. We see a lot of share gain opportunities across our focus categories, such as face wash, shampoo, and other categories of interest. We also see distribution gain opportunities, given …"
 
-- **## Varun Alagh, Co-Founder, Chairman and Chief Executive Officer The Derma Co's strong performance is attributed to timely recognition of th…**
+- **Varun Alagh, Co-Founder, Chairman and Chief Executive Officer The Derma Co's strong performance is attributed to timely recognition of th…**
 
 > "The Derma Co... has benefited from being in the actives segment, which we recognized the right time. By executing correctly and finding the right fundamentals based on what we learned from Mamaearth, we have been able to scale that brand strongly. We double down on talking abo…"
 > — Varun Alagh, Co-Founder, Chairman and Chief Executive Officer [^chatter-Tata_Steel_LIC]

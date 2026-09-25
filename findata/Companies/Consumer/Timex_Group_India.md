@@ -19,7 +19,7 @@ created: '2026-07-04'
 last_modified: '2026-07-04'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -63,7 +63,7 @@ Timex Group India — watches & accessories brand (small cap). Imported premium 
 
 > "All our luxury and fashion brands are imported from our subsidiaries because the curre volume in those brands does not justify local manufacturing. You need a width of 250 to 350 SKUs per brand, and until you sell half a million units per brand, local supply chain not benefici…"
 
-- **## Deepak Chhabra, Managing Director E-commerce has rapidly become a major revenue driver, growing from a negligible share to nearly half of…**
+- **Deepak Chhabra, Managing Director E-commerce has rapidly become a major revenue driver, growing from a negligible share to nearly half of…**
 
 > "Four years ago, online was only 5%. Today it is 40%. We use four models. 1P (First Part involves selling directly to portals like Flipkart, Amazon, and Myntra. This is our biggest contribution because it is operationally easy."
 > — Deepak Chhabra, Managing Director [^chatter-Bajaj_Mahindra_Persistent]

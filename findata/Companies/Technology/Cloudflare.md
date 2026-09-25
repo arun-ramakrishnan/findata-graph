@@ -19,7 +19,7 @@ created: '2026-07-03'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T16:45:46Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -164,7 +164,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Traditional CDNs chased things that drove lots of bandwidth—video streaming, live events... We never saw ourselves that way."
 
-- **## Matthew Prince, Chief Executive Officer AI agents generate transactional and API-heavy traffic, which Cloudflare believes i economically…**
+- **Matthew Prince, Chief Executive Officer AI agents generate transactional and API-heavy traffic, which Cloudflare believes i economically…**
 
 > "We wanted to get in front of the most essential traffic: APIs and applications."
 > — Matthew Prince, Chief Executive Officer [^chatter-Nvidia_Samsung_Cloudflare]

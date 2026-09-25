@@ -20,7 +20,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -131,7 +131,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Over a period of two months, we have taken a price increase of 12% in the case of sanitaryware and 16% in the case of faucetware... Brass prices have increased nearly 29% 30% year-on-year."
 
-- **## Deepak Chaudhary, VP Finance & Investor Relations Elevated brass prices and trade discounts continue to weigh on profitability despite pr…**
+- **Deepak Chaudhary, VP Finance & Investor Relations Elevated brass prices and trade discounts continue to weigh on profitability despite pr…**
 
 > "EBITDA margins stood at 15.2% in Q4 FY26 as compared to 18.3% in Q4 FY25. This decline was primarily driven by continued pressure on gross margins led by elevated bras input costs and higher trade discounts."
 > — Vikas Kothari, CFO [^chatter-Titan_Dixon_Cipla]

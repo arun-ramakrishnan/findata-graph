@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Tata_Steel_LIC
@@ -85,21 +85,21 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "The actual mining will be close to about 4 to 4.25 million tons this year. With a 1.5 million portion being Banded Magnetite Quartzite where the recovery will be less than 50% about 0.75-0.8 million tons of iron ore will be wasted as tailings. So the actual iron ore mining pro…"
 
-- **## Abhishek Agrawal, Executive Director Higher diesel prices are currently inflating transportation costs and pressuring short term mining m…**
+- **Abhishek Agrawal, Executive Director Higher diesel prices are currently inflating transportation costs and pressuring short term mining m…**
 
 > "This year, because of the diesel escalation and the shortage all over because of the war, transportation cost is already up by 200-250 rupees. We have started talking to the transporters as we want to convert the entire fleet to EV trucks to have a substantial save on the dies…"
 
-- **## Abhishek Agrawal, Executive Director The company has set a target to quintuple its revenue in less than five years through massive new bu…**
+- **Abhishek Agrawal, Executive Director The company has set a target to quintuple its revenue in less than five years through massive new bu…**
 
 > "If you see the Battery Energy Storage System, which is about 20 gigawatt-hours considering about 16 gigawatt-hours from there, we see a top line of about 15,000 crores
 
 From the new steel plant, we see a top line of about 6,000 crores. From the CRM, we see top line of about 3,…"
 
-- **## Abhishek Agrawal, Executive Director While the battery storage business has lower percentage margins than iron ore, its massive scale is…**
+- **Abhishek Agrawal, Executive Director While the battery storage business has lower percentage margins than iron ore, its massive scale is…**
 
 > "A 4-4.5 lakh rupees per megawatt-hour margin on a 16 gigawatt-hour line comes to about 700-800 crores if everything goes well. Still, if you consider a very conservative figure of 8% on 80 lakhs per megawatt-hour, we do about 4 lakh rupees of net margin, and based that, you ca…"
 
-- **## Abhishek Agrawal, Executive Director Management has designed supply contracts to protect the company from volatile lithium and raw materi…**
+- **Abhishek Agrawal, Executive Director Management has designed supply contracts to protect the company from volatile lithium and raw materi…**
 
 > "The way we have priced the entire supply of cells is index-based, where we have captured few important components which contribute to the manufacturing. If the market goes up the supplier will pass on the price to us, and if the market goes down, it will be vice versa Ultimate…"
 > — Abhishek Agrawal, Executive Director [^chatter-Tata_Steel_LIC]

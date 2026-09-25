@@ -20,7 +20,7 @@ created: '2025-01-24'
 last_modified: '2026-07-29'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Closing_the_Year_Without_Closure
@@ -310,7 +310,7 @@ Enhanced with comprehensive textiles sector analysis, denim market dynamics, cap
 
 > "Denim-to-non-denim conversion won't require more than about ₹10 crore capex, and the capex will be funded by selling machines that are not required. So there won't be infusion of new funds, selling some machines, buying some. This transition can be done without new funding."
 
-- **########### 12/27/25, 12:26 PM The Chatter: Closing the Year Without Closure — Jaimin Kailash Gupta, Chairman &amp; Managing Director The jo…**
+- **12/27/25, 12:26 PM The Chatter: Closing the Year Without Closure — Jaimin Kailash Gupta, Chairman &amp; Managing Director The jo…**
 
 > "Because we are doing job work, working capital requirement is limited. Our raw material investment is mainly colours and chemicals; the core raw material is supplied by the customer. To achieve about ₹100 crore annual revenue, working capital required is around ₹15 – ₹20 crore…"
 > — Jaimin Kailash Gupta, Chairman &amp; Managing Director [^chatter-Closing_the_Year_Without_Closure]

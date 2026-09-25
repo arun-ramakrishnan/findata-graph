@@ -19,7 +19,7 @@ created: '2025-12-05'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T15:38:16Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -60,11 +60,11 @@ Groww (Billionbrains Garage Ventures; NSE: GROWW), founded in 2017 in Bengaluru,
 
 > "Secondly, we will continue compounding our existing businesses and growing market share, which we have been continuously doing. Thirdly, we see this year the inflection point for how AI will start impacting things, and we look at it in two ways. One is how we can improve the c…"
 
-- **## Lalit Keshre, Co-founder and CEO Muted market conditions have prompted a shift in how new users enter the platform moving from direct sto…**
+- **Lalit Keshre, Co-founder and CEO Muted market conditions have prompted a shift in how new users enter the platform moving from direct sto…**
 
 > "Markets have not been doing so great since September 2024. Since then, we have seen that the acquisition funnel has shifted more towards mutual funds and ETF products. Hence, the way customers are actually getting introduced to the capita market has become slightly different."
 
-- **## Ishan Bansal, Co-founder and CFO Increased market volatility and the launch of new trading tools have significantly boosted the company's…**
+- **Ishan Bansal, Co-founder and CFO Increased market volatility and the launch of new trading tools have significantly boosted the company's…**
 
 > "First, with the new customers coming to the derivatives market, we are driving some benefits from new initiatives, including 9:15. But a large part of this is com
 

@@ -19,7 +19,7 @@ created: '2026-07-04'
 last_modified: '2026-07-04'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -62,7 +62,7 @@ RBM Infracon — small-cap construction & engineering (oil & gas infrastructure,
 
 > "We have concluded an order worth 1.3 million Omani Rial with Acme Cleantech Energy for a green ammonia and green hydrogen project at the Duqm refinery in Oman. We are forming a JV with a local partner in Oman in the next few days. We are expecting a few more packages from this…"
 
-- **## Aditya Jaybajrang Mani, Whole-Time Director The ONGC contract features a profit-sharing model where RBM retains a massive share of all pr…**
+- **Aditya Jaybajrang Mani, Whole-Time Director The ONGC contract features a profit-sharing model where RBM retains a massive share of all pr…**
 
 > "For the incremental production from new wells, our commitment is 78 cubic meters. Af meeting that top-up of 78 cubic meters per month—which is about 550 barrels—any production above that is considered incremental. On that incremental part, 34% goes to ONGC and 66% belongs to us."
 > — Jaybajrang Mani, Managing Director [^chatter-Reliance_Vedanta_Gillette]

@@ -20,7 +20,7 @@ created: '2026-06-24'
 last_modified: '2026-06-24'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Half_a_century_in
@@ -64,7 +64,7 @@ NOCIL is India's largest manufacturer of rubber chemicals, supplying critical ad
 
 > "To address the price dumping, as stated in our previous call, we have filed antidumping petitions on select key products with the Government of India. Seeing merit in our submissions, the authorities have initiated detailed investigations, and we expect the outcome of these pr…"
 
-- **## V.S. Anand, Managing Director The investigation into anti-dumping duties is reaching its final stage with a decisio expected shortly. Thi…**
+- **V.S. Anand, Managing Director The investigation into anti-dumping duties is reaching its final stage with a decisio expected shortly. Thi…**
 
 > "As per the protocol and the statute, they have taken a 3-month extension as it is available on the DGTR website. So, we hope that in the next 1.5, 2 months, they should conclude findings."
 > — P. Srinivasan, Chief Financial Officer [^chatter-Half_a_century_in]

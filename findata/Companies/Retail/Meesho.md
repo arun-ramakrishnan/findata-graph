@@ -17,7 +17,7 @@ created: '2026-06-30'
 last_modified: '2026-07-26'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -116,7 +116,7 @@ Meesho (Fashnear Technologies — filed for IPO; HQ Bengaluru) is a leading Indi
 
 Meesho…"
 
-- **## Vidit Aatrey, Chairman, Managing Director and Chief Executive Officer Meesho emphasizes that contribution margin is the most relevant met…**
+- **Vidit Aatrey, Chairman, Managing Director and Chief Executive Officer Meesho emphasizes that contribution margin is the most relevant met…**
 
 > "From our business standpoint, the right number to consider from a trajectory standpoint contribution margin. As I was explaining earlier regarding prepaid versus cash on deliver orders, if you start getting a higher mix of prepaid orders, which is fundamentally good for the pl…"
 > — Dhiresh Bansal, Chief Financial Officer [^chatter-Meesho_Marico_Bajaj]
@@ -125,11 +125,11 @@ Meesho…"
 
 > "I don't have the specific number of frequency off the top of my head but in general as u mature on the platform their frequency in a 3-year time period starts going up to 15 tim or more, so I would suspect for the FY24 and before cohort it will be a similar number."
 
-- **## Vidit Aatrey, Chairman, Managing Director and Chief Executive Officer Customer acquisition cost (CAC) has decreased due to technological…**
+- **Vidit Aatrey, Chairman, Managing Director and Chief Executive Officer Customer acquisition cost (CAC) has decreased due to technological…**
 
 > "The CAC reduction is happening due to the investments that we've done historically in terms of technology, in terms of improving the value proposition from a price perspective well. In fact, as you go deeper into India, on a like-for-like basis, CACs only go up because you hav…"
 
-- **## Vidit Aatrey, Chairman, Managing Director and Chief Executive Officer While BNPL is in its nascent stage, the primary driver for the redu…**
+- **Vidit Aatrey, Chairman, Managing Director and Chief Executive Officer While BNPL is in its nascent stage, the primary driver for the redu…**
 
 > "I think BNPL is still fairly early in its life cycle. Right now the key initiatives that we've had within our prepaid products, which is payment before delivery, the cost of prepaid orders coming down and us passing consequently some of them back to our consumers with better p…"
 > — Dhiresh Bansal, Chief Financial Officer [^chatter-Meesho_Marico_Bajaj]

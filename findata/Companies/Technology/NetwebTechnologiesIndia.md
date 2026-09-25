@@ -20,7 +20,7 @@ created: '2026-01-25'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Weights_and_Measures
@@ -99,7 +99,7 @@ Tier-1 leaders: TCS, Infosys, Wipro, HCL Tech. Mid-cap: Coforge, LTIMindtree, Te
 > "As many of you may be aware, the global supply chain, particularly for the flash memory and storage, is experiencing a strong demand by the rapid acceleration of AI adoption worldwide. This surge has led to industry wide price increases along with tighter availability. However…"
 > — Sanjay Lodha, Chairman and Managing Director [^chatter-Weights_and_Measures]
 
-- **########## 1/23/26, 8:51 PM The Chatter: Weights and Measures - The Chatter by Zerodha The AI system segment significantly contributed to Q3…**
+- **1/23/26, 8:51 PM The Chatter: Weights and Measures - The Chatter by Zerodha The AI system segment significantly contributed to Q3…**
 
 > "So, there is a hedging policy very well adopted and to talk about it, we also have forward contract as on December end which close to like cover our 60% of our payables pertaining to the import payables. So, we are very well monitoring the situation on currency and do the effe…"
 > — Ankit Kumar Singhal, Chief Financial Officer [^chatter-Weights_and_Measures]

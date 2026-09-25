@@ -21,7 +21,7 @@ created: '2026-06-20'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:48Z'
+  at: '2026-09-25T18:25:46Z'
 stale_after: '2027-02-11'
 sources:
 - id: Threads_in_the_data
@@ -165,7 +165,7 @@ Elgi operates within the [[Engineering_Capital_Goods]] sector, in the industrial
 
 > "Our challenges have been inventory all over the world. There have been different challenges, while there has been optimism in the market, but the actual result has been r as optimistic as one will expect. So there is an inventory problem."
 
-- **## Jairam Varadaraj, Managing Director Current inventory levels are excessive at six months, and the company aims to redu them to an optimal…**
+- **Jairam Varadaraj, Managing Director Current inventory levels are excessive at six months, and the company aims to redu them to an optimal…**
 
 > "So, to answer your question, 6 months is excessive inventory, right? When you have a le time of shipment of about two and a half months, your inventory should be only about the three and a half months, right? So that's really where we are headed."
 > — Jairam Varadaraj, Managing Director [^chatter-Bets and blueprints]

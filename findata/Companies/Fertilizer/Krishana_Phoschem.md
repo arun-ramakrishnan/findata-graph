@@ -20,7 +20,7 @@ created: '2026-01-14'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-24T18:47:30Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -161,11 +161,11 @@ Source: Points & Figures: Weight in the Whispers, Edition #14, Zerodha Chatter, 
 
 > "As a result, integrated players with diversified product portfolios are structurally better positioned to navigate input volatility while capturing evolving demand patterns."
 
-- **## Praveen Oswal, Managing Director The company successfully completed a major capacity expansion, increasing NPK DAP capacity by 50% and to…**
+- **Praveen Oswal, Managing Director The company successfully completed a major capacity expansion, increasing NPK DAP capacity by 50% and to…**
 
 > "During the year, we successfully completed a significant capacity expansion. NPK and DAP capacity was enhanced by 50% to 4,95,000 metric tons per annum, and existing SS capacity stands at 1,20,000 metric tons per annum, taking total phosphatic fertilizer capacity to 6,15,000 m…"
 
-- **## Praveen Oswal, Managing Director The company secured a 10-year green ammonia agreement, enhancing future suj security, supporting decarbo…**
+- **Praveen Oswal, Managing Director The company secured a 10-year green ammonia agreement, enhancing future suj security, supporting decarbo…**
 
 > "As part of our long-term sustainability strategy, Krishna Phoschem Limited has entered into a 10-year green ammonia agreement under India's National Green Hydrogen Mission for 70,000 metric tons per annum. This initiative enhances supply security, supports decarbonization, and…"
 > — Praveen Oswal, Managing Director [^chatter-TCS_ICICI_Pru_HDB_Financials]
@@ -174,15 +174,15 @@ Source: Points & Figures: Weight in the Whispers, Edition #14, Zerodha Chatter, 
 
 > "The 140 crore population of India needs to be fed. Unlike consumer items, you cannot compromise on agricultural output. Farmers must produce, and they need fertilizers. Domestically manufactured products will not face demand pressure. Even if demand we to drop hypothetically, …"
 
-- **## Praveen Oswal, Managing Director The company plans to protect margins by passing on reasonable price increase customers, anticipating a s…**
+- **Praveen Oswal, Managing Director The company plans to protect margins by passing on reasonable price increase customers, anticipating a s…**
 
 > "We are currently working on how to protect our margins. Reasonable price increases will be passed on to the customer because the subsidy has already been announced. While we expect some downturn in the first quarter, we will be able to pass on price hikes to customers after that."
 
-- **## Praveen Oswal, Managing Director Green ammonia supply is 3 years away, but current domestic ammonia supply been restored, easing immediat…**
+- **Praveen Oswal, Managing Director Green ammonia supply is 3 years away, but current domestic ammonia supply been restored, easing immediat…**
 
 > "Regarding green ammonia, that will be available after 3 years. For the time being, we re on standard ammonia. Recently, supply to domestic ammonia manufacturing has been restored to 100%, and we expect supply to ease out in the next 7 days. Further signing of green ammonia agr…"
 
-- **## Praveen Oswal, Managing Director Krishna Phoschem is one of only three major players in India with access to h grade rock phosphate, indi…**
+- **Praveen Oswal, Managing Director Krishna Phoschem is one of only three major players in India with access to h grade rock phosphate, indi…**
 
 > "As far as high-grade rock phosphate is concerned, there are only three major players in India. One is the Government of Rajasthan, another is Madras Agrochemical, and the th is Krishna Phoschem Limited. It is not easily available to anyone else."
 > — Praveen Oswal, Managing Director [^chatter-TCS_ICICI_Pru_HDB_Financials]

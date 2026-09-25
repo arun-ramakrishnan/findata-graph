@@ -19,7 +19,7 @@ created: '2025-12-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-08T07:35:28Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Frameworks_&_Forecasts
@@ -220,7 +220,7 @@ the motorcycle ma…"
 
 > "Styrene prices started going up again in January due to geopolitical situations. We do not expect styrene costs to stay down. Regarding ASP, we focus on both price increases and product mix. Product mix is a much bigger lever for us. Moving a consumer from a 1,000 rupee helmet…"
 
-- **## Manish Mehta, Chief Financial Officer Studds is diversifying its revenue streams by expanding into sporting helmets, including a deal wit…**
+- **Manish Mehta, Chief Financial Officer Studds is diversifying its revenue streams by expanding into sporting helmets, including a deal wit…**
 
 > "Yes. We have two other segments. One is sporting helmets; we have signed a deal with Decathlon, and pilot production will begin this quarter. Decathlon sells about 7 million units globally and is moving some production from China to India. Secondly, accessories like jackets, g…"
 > — Siddharth Bhushan Khurana, Managing Director [^chatter-Frameworks_&_Forecasts]

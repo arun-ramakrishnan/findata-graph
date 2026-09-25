@@ -19,7 +19,7 @@ created: '2026-07-05'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T15:38:16Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -106,7 +106,7 @@ The Chatter — Global Chatter: Micron, SpaceX, Palantir & More
 
 > "We have seen a declining trend in labour inflation. You need to keep in mind that prici is driven by both food inflation and labour inflation. At this stage, it is fair to expect something quite similar for the beginning of next year, with perhaps some small pressure food infl…"
 
-- **## — Sébastien de Tramasure, Chief Financial Officer Management shared its expectations for customer retention and commented on the latest e…**
+- **— Sébastien de Tramasure, Chief Financial Officer Management shared its expectations for customer retention and commented on the latest e…**
 
 > "Based on what we see today, we should land broadly in line with last year, around the retention level. Specifically in U.S.Education, the selling season should be slightly better than last year, but still disappointing. This remains a key focus area. We have new leadership in …"
 
@@ -118,7 +118,7 @@ The Chatter — Global Chatter: Micron, SpaceX, Palantir & More
 
 > "Healthcare & Seniors continues to trend very well. Organic growth was 7.8% in Q3, broadly in line with Q2. The underlying trend remains strong, although we do expect sor annualization effects in Q4."
 
-- **## — Sébastien de Tramasure, Chief Financial Officer On a follow-up question, management confirmed there had been no change to the assumptio…**
+- **— Sébastien de Tramasure, Chief Financial Officer On a follow-up question, management confirmed there had been no change to the assumptio…**
 
 > "If you look at the bridge we presented at the half-year results, it is exactly the same. Th has been no significant change in the different levers supporting the margin outlook."
 

@@ -19,7 +19,7 @@ created: '2025-11-16'
 last_modified: '2026-09-10'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T15:38:16Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: A_Quarter_That_Refuses_To_Behave
@@ -168,7 +168,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Cutting margins to deliver growth on non-par might not be accurate for shareholders. We focus on absolute VNB rather than pushing a particular product for growth."
 
-- **## Anoop Bagchi, MD and CEO The 18% cost reduction from GST changes is being directly passed to policyhold making protection much more affor…**
+- **Anoop Bagchi, MD and CEO The 18% cost reduction from GST changes is being directly passed to policyhold making protection much more affor…**
 
 > "We have innovated and created new propositions, but the biggest tailwind has been the GST reform. This is felt most in retail protection because the 18% cost reduction is passed to the customer. This benefit is available for both new and existing customers paying renewals."
 > — Anoop Bagchi, MD and CEO [^chatter-TCS_ICICI_Pru_HDB_Financials]

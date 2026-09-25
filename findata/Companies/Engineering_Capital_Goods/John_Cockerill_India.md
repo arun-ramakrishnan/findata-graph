@@ -21,7 +21,7 @@ created: '2026-06-24'
 last_modified: '2026-06-24'
 generated:
   by: derive_insights.py/v1
-  at: '2026-09-07T12:07:49Z'
+  at: '2026-09-25T18:25:47Z'
 stale_after: '2027-02-11'
 sources:
 - id: Threads_in_the_data
@@ -94,7 +94,7 @@ _Source: yfinance | Refreshed: 2026-08-10_
 
 > "Yes. We are aiming for double-digit profit in over five years. And for sure for the consolidated new entity, we are looking for increase in absolute value. There we will see big difference."
 
-- **## Francois David Martino, Chairman The consolidation grants JCIL direct access to advanced upstream and downstream technologies, including…**
+- **Francois David Martino, Chairman The consolidation grants JCIL direct access to advanced upstream and downstream technologies, including…**
 
 > "The consolidation of the entities is supporting John Cockerill India Limited to have direct access to technologies which the entity was enjoying in a collaboration way with the other entities of the group, but also has access to new technologies. And these technologies are fro…"
 > — Francois David Martino, Chairman [^chatter-Threads_in_the_data]
