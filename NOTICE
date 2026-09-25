@@ -1,0 +1,21 @@
+FinData Knowledge Graph
+Copyright (C) 2026 FinData contributors
+
+This program is free software: you can redistribute it and/or modify it
+under the terms of the GNU Affero General Public License as published by the
+Free Software Foundation, either version 3 of the License, or (at your option)
+any later version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU Affero General Public License for more
+details.
+
+The corresponding source for a network deployment must be made available as
+required by AGPL-3.0 section 13. See LICENSE and the deployment runbook for
+the source-offer procedure.
+
+Third-party notices and the first-party/third-party asset boundary are recorded
+in THIRD_PARTY_LICENSES.md. The source-derived corpus, external documents,
+images, model weights, generated databases, snapshots, and other external
+assets are not relicensed by this notice.

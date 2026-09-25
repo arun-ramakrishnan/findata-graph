@@ -240,6 +240,14 @@ Insights). Note `tags:` are mirrored into `entity_tags` by
 `business_model/`, `risk_investment/`, `investment_theme/`). Canonical sectors are defined by
 `findata/Sectors/` (42). Full spec: [`doc/design/findata.md`](doc/design/findata.md).
 
+## License
+
+First-party source is licensed under [AGPL-3.0-or-later](LICENSE). Commercial
+use is permitted; AGPL's network-use provision requires the corresponding
+source for modified network deployments. Third-party dependencies and
+source-derived assets retain their own rights and are inventoried in
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
 ## Documentation
 
 | Doc | Scope |
@@ -251,6 +259,7 @@ Insights). Note `tags:` are mirrored into `entity_tags` by
 | [`doc/procedures/markdown_parse.md`](doc/procedures/markdown_parse.md) | the newsletter ingestion procedure |
 | [`doc/procedures/embeddings.md`](doc/procedures/embeddings.md) | local embeddings & note-search: apply procedure, pre-warm, refresh model |
 | [`doc/procedures/search.md`](doc/procedures/search.md) | all search surfaces: doc/script/note indexes, `--check` contract, query CLIs, search TUI |
+| [`doc/procedures/agpl_source_offer.md`](doc/procedures/agpl_source_offer.md) | AGPL network source-offer and release checklist |
 | [`doc/procedures/doc-hygiene.md`](doc/procedures/doc-hygiene.md) | reference & index breakage sweeps (link rot, archive-index gaps, header drift) |
 | [`doc/improvements/`](doc/improvements/) | numbered completion log + archived proposals |
 

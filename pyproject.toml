@@ -2,6 +2,8 @@
 name = "findata-knowledge-graph"
 version = "0.2.0"
 description = "FinData knowledge graph: SQLite + DuckDB graph layer and Flask API over a parsed newsletter/markdown corpus."
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
 requires-python = ">=3.14"
 
 # Runtime dependencies — migrated from requirements.txt (2026-08-13).

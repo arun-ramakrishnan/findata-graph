@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants stamp-centrality
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants stamp-centrality
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -87,7 +87,8 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  snapshot-fresh           Generation-only snapshot freshness (fail fast on drift; fix: make snapshot)"
 > @echo "  snapshot-restore         Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)"
 > @echo "  stamp-centrality         Re-stamp v_centrality_* tables (explicit lane; lane-served metrics skipped per ROUTING; graph-rebuild drops them; maint runs it after graph-rebuild)"
-> @echo "  static-checks            Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)"
+> @echo "  license-check            Verify AGPL metadata, root license, and third-party inventory"
+> @echo "  static-checks            Fast static checks (syntax, shebangs, YAML, artifacts, merge markers, license metadata)"
 > @echo "  suggest-relations        Print link-prediction relation suggestions (C2; append with --append)"
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
 > @echo "  sync-tags                Rebuild entity_tags from note YAML (mirrors entity_type/sector/market_cap/subsector)"
@@ -100,8 +101,12 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  update-extensions        Update all installed DuckDB extensions to latest (weekly cadence)"
 
 
-static-checks:  ## Fast static checks (syntax, shebangs, YAML, artifacts, merge markers)
+static-checks:  ## Fast static checks (syntax, shebangs, YAML, artifacts, merge markers, license metadata)
 > python3 helpers/validators/static_checks.py
+> python3 helpers/misc/license_check.py
+
+license-check:  ## Verify AGPL metadata, root license, and third-party inventory
+> python3 helpers/misc/license_check.py
 
 tmp-sweep:      ## Reap this repo's /tmp residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)
 > python3 helpers/maintenance/tmp_sweep.py $(if $(APPLY),--apply,)
