@@ -34,49 +34,11 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- **agpl_license_migration.md** — filed 2026-09-25. Priority-0 operator
-  push: adopt `AGPL-3.0-or-later` for first-party code, inventory
-  third-party/data boundaries, document network source obligations, and
-  compatibility-gate python-igraph. Commercial use remains permitted; the
-  proposal is not a non-commercial license and does not relicense the corpus.
-- **coverage_tags_editions.md** — filed 2026-09-25. Edition `company/`
-  coverage tags: quotes→note-YAML converger over 98 The_Chatter
-  editions (1,286 measured edition↔entity pairs, 727 entities) — the
-  newsletter-adoption S5 deferral, five weeks past its trigger. Schema
-  pre-allows the tag vocabulary; sync-tags/entity_tags consumers
-  already live. Tier-1 item 1 of the pending-items survey.
-- **granite_reprobe_multilingual.md** — filed 2026-09-25. Granite
-  re-probe as a decision gate: run the 15-question deep-probe harness
-  against recorded S7 baselines; hybrid tuning (bm25 column weighting,
-  cosine co-equal) fires only on measured fact-query loss; plus a
-  `--questions` flag and an authored 10–15 Hinglish/Hindi set for the
-  multilingual capability probe (4 ms warm embed measured). Tier-1
-  item 2.
-- **search_tui_semantic_notes.md** — filed 2026-09-25. TUI semantic
-  notes lane: cosine leg over the f32 serving matrix (16,586×384,
-  25.5 MB memmap; embed_query 4 ms warm) fused with bm25 via RRF k=60
-  to match the API hybrid; staleness-guarded fallback, pre-warm at
-  mount. Tier-1 item 3.
 - **wikidata_qid_crosswalk.md** — filed 2026-09-25. Wikidata QID
   crosswalk: politeness-cached fetch lane → sidecar parquet (mca_cin
   pattern) → `concept_mappings` SKOS rows (no schema change) → E3
   same-QID suppression constraining semantic_peer; retires the stale
   bge label on the live granite producer. Tier-1 item 4.
-- **identifier_fold_validation.md** — filed 2026-09-25. Bulk identifier
-  fold: exchange ISIN/CIK into `entity_identifiers` (registry 0 rows
-  today; measured 5,773 direct NSE+BSE ticker→ISIN matches) + three
-  WARNING-tier validation blocks (per-type format, window overlap,
-  NULL hygiene). Store-only, idempotent converger into maint-full;
-  un-defers the crosswalk-fill and validation rows of the 2026-09-15
-  endpoint evaluation (Tier-2 item 5 of the pending-items survey).
-- **person_resolver_lane.md** — filed 2026-09-25. Person nodes (D6)
-  first slices: name resolver with hard person↔HUF↔trust class
-  constraint (30 SHP stubs, dedupe via the owned rename tool),
-  holder-category normalization (60+ raw spellings), prose
-  management_change FP fixes (5 → 3 audited), and a trigger-gated SHP
-  holder-change diff slice (≥10 diffable symbols; today 1). No new
-  edge types — person `invested_in` edges already live (#267).
-  Tier-2 item 6 of the pending-items survey.
 - **recompute_graph_parallel_fanout.md** — filed 2026-09-25. Parallel
   recompute-graph fan-out: the L1B fold and scipy pair lanes run on
   worker threads beside the sequential cheap lanes (`--jobs N`, default
@@ -85,6 +47,41 @@ entry number and stale DONE pointers):
   review (~4–5 s estimate re-measured at ~13 s; graph_analytics
   65k → 193k rows). Follows #283 (pair reuse), #277 (fold lane),
   #279 (ROUTING).
+_(Previously: search_tui_semantic_notes.md archived 2026-09-25 as
+completed.md entry 294 — notes lane now fuses BM25 with cached f32 cosine
+via RRF60; stale-matrix fallback and pre-warm landed; 20-query warm median
+62.7 ms. Execution record in `../archive/tooling/search_tui_semantic_notes.md`.)_
+
+_(Previously: person_resolver_lane.md archived 2026-09-25 as
+completed.md entry 293 — person/HUF/trust resolver, 65-category SHP map,
+20 artifact rows skipped, and management-change audit reduced 5→3; S4
+holder-change machinery remains trigger-gated. Execution record in
+`../archive/graph/person_resolver_lane.md`.)_
+
+_(Previously: identifier_fold_validation.md archived 2026-09-25 as
+completed.md entry 292 — 5,776 exchange ISIN rows folded into the registry,
+with ambiguity/ownership guards, optional CIK support, format/overlap/NULL
+validation, and idempotent maint wiring. Execution record in
+`../archive/database/identifier_fold_validation.md`.)_
+
+_(Previously: agpl_license_migration.md archived 2026-09-25 as
+completed.md entry 291 — AGPL-3.0-or-later adopted for first-party code with
+third-party/asset boundaries, source-offer runbook, metadata checks, and
+python-igraph compatibility gating. Execution record in
+`../archive/tooling/agpl_license_migration.md`.)_
+
+_(Previously: coverage_tags_editions.md archived 2026-09-25 as
+completed.md entry 290 — edition company coverage tags converged from
+1,286 quote pairs to 91 changed The_Chatter notes and 1,380 note_tags rows;
+three reruns were idempotent and the 164-question ontology gate accepted.
+Execution record in `../archive/okf/coverage_tags_editions.md`.)_
+
+_(Previously: granite_reprobe_multilingual.md archived 2026-09-25 as
+completed.md entry 289 — granite re-probe and multilingual capability gate;
+hybrid 12/15 versus BM25 14/15, tuning experiments reverted, multilingual
+results recorded without auto-wiring. Execution record in
+`../archive/database/granite_reprobe_multilingual.md`.)_
+
 _(Previously: gate_report_quality_traces.md archived 2026-09-25 as
 completed.md entry 288 — gate report quality traces: incremental refresh
 diagnostics, pending-tail/parser warnings, structured advisory warning capture,

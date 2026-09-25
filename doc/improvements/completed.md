@@ -7451,3 +7451,130 @@ Execution record: `archive/graph/scipy_st_lanes_routing_switch.md`.
   were parked by the operator.
 
 Execution record: `archive/tooling/gate_report_quality_traces.md`.
+
+## 289. Granite re-probe + multilingual capability gate
+
+**Proposal**: `doc/improvements/archive/database/granite_reprobe_multilingual.md`
+(filed + executed 2026-09-25 — verdict: **EXECUTED**).
+
+- Re-ran the 15-question English deep probe against the live granite index:
+  BM25 `14/15`, hybrid `12/15`, pre-sectioning `9/15`; the two-point hybrid
+  deficit kept the conditional tuning gate open.
+- Tested title/section BM25 weighting and cosine candidate-union fusion
+  independently; both failed to beat the `12/15` hybrid baseline and were
+  reverted, so no retrieval behavior change shipped.
+- Added `--questions PATH` to `note_deep_probe.py` and authored a
+  12-question Hinglish/Hindi probe; results are recorded in the local
+  evidence note with no API/TUI auto-wiring.
+- Full QA reached `10/11`: the timing-budget fuzzy-match test exceeded its
+  3x parallel-load allowance. The three failed tests were rerun individually
+  and passed `3/3`; the timing test was left unchanged under the no-perf
+  directive. Markdown lint, static checks, lint, types, and search freshness
+  passed.
+
+Execution record: `archive/database/granite_reprobe_multilingual.md`.
+
+## 290. Edition coverage tags — quotes→company/ note YAML converger
+
+**Proposal**: `doc/improvements/archive/okf/coverage_tags_editions.md`
+(filed + executed 2026-09-25 — verdict: **EXECUTED**).
+
+- Added `sync_coverage_tags.py` with dry-run, apply, and check modes;
+  qualifying company quote pairs resolve to lowercase `company/<slug>` tags
+  while non-company, missing-entity, missing-edition, and invalid-slug cases
+  are reported and excluded.
+- Applied the converger to `91` The Chatter edition notes from `1,142`
+  qualifying company pairs; `sync_tags` rebuilt `1,380` `note_tags` rows
+  across `119` source notes.
+- Three consecutive post-apply dry-runs reported zero changes; the frozen
+  ontology gate accepted `164/164` questions with zero regressions.
+- `verify_notes`, frontmatter/static checks, Markdown lint, Ruff, ty, and
+  search freshness passed. Full QA was `10/11` because the parallel timing
+  test exceeded its 3x allowance; its isolated rerun passed under the
+  operator's no-perf disposition.
+
+Execution record: `archive/okf/coverage_tags_editions.md`.
+
+## 291. AGPL license migration and GPL component compatibility
+
+**Proposal**: `doc/improvements/archive/tooling/agpl_license_migration.md`
+(filed + executed 2026-09-25 — verdict: **EXECUTED**).
+
+- Adopted `AGPL-3.0-or-later` for first-party Python, frontend, and project
+  code; commercial use remains permitted and the source/network obligations
+  are explicit.
+- Added the canonical `LICENSE`, `NOTICE`, `THIRD_PARTY_LICENSES.md`, SPDX
+  metadata, a source-offer runbook, and `make license-check` enforcement.
+- Kept source-derived newsletters, PDFs, images, models, databases, snapshots,
+  and external materials outside the blanket first-party grant.
+- Left python-igraph as an optional compatibility-gated candidate; no
+  dependency, graph algorithm, or Onager default changed.
+- Operator accepted the legal/ownership gate for this arc. Focused metadata,
+  static, Markdown, lint, type, and search-fresh checks passed.
+
+Execution record: `archive/tooling/agpl_license_migration.md`.
+
+## 292. Bulk identifier fold and validation ladder
+
+**Proposal**: `doc/improvements/archive/database/identifier_fold_validation.md`
+(filed + executed 2026-09-25 — verdict: **EXECUTED**).
+
+- Added `fold_identifiers.py` with exchange-suffix resolution, unsuffixed
+  ambiguity guards, optional SEC CIK JSON input, and store-only
+  `INSERT OR IGNORE` writes.
+- Projected `5,778` direct candidates from `20,270` exchange rows; canonical
+  apply added `5,776` ISIN rows, skipped two values already owned by other
+  entities, and reported zero ambiguity. Three subsequent applies wrote zero
+  and `--check` found no candidates.
+- Extended WARNING-tier identifier checks with ISIN check-digit, CIK, LEI,
+  LLPIN, validity-window overlap, and empty-value hygiene checks; existing
+  dangling-entity and inversion checks remain intact.
+- Added `make fold-identifiers` and an idempotent maint-full step after tag
+  convergence. No entities were created and no schema/version bump landed.
+- Ontology gate accepted `164/164`; database integrity, 106 focused tests,
+  static checks, Markdown lint, Ruff, ty, and search freshness passed. The
+  no-perf/full-QA disposition recorded the prior `10/11` timing-only result.
+
+Execution record: `archive/database/identifier_fold_validation.md`.
+
+## 293. Person/HUF/trust resolver and SHP category normalization
+
+**Proposal**: `doc/improvements/archive/graph/person_resolver_lane.md`
+(filed + executed 2026-09-25 — verdict: **EXECUTED**).
+
+- Added conservative person/HUF/trust classification, deterministic name
+  keys, hard-class fuzzy resolution, and dedupe reporting. Existing SHP
+  person stubs are resolved before insertion without cross-class merges.
+- Classified all `333` SHP holder rows across `65` raw categories; skipped
+  `20` artifact rows. Mapped classes: institution `183`, company `12`,
+  person `61`, promoter `16`, promoter_group `32`, public `9`.
+- Added narrow acquisition-sense and mode-sense filters plus person-quarter
+  dedupe for management changes. The live ARM-2 audit reduced from `5` to
+  `3` rows; canonical apply removed `2` stale events and retained `1,440`
+  derived events.
+- S4 holder-change machinery remains deferred until at least `10` symbols
+  have repeat filings; current trigger remains `1`.
+- Ontology gate accepted `164/164`; 53 focused tests, static checks,
+  Markdown lint, Ruff, ty, and search freshness passed under the no-perf
+  disposition.
+
+Execution record: `archive/graph/person_resolver_lane.md`.
+
+## 294. Search TUI semantic notes lane
+
+**Proposal**: `doc/improvements/archive/tooling/search_tui_semantic_notes.md`
+(filed + executed 2026-09-25 — verdict: **EXECUTED**).
+
+- Added cached f32 cosine retrieval for the notes lane and RRF fusion with
+  BM25 at `k=60`; the existing `bm25` mode remains lexical-only.
+- Added row-count/dimension parity checks with explicit BM25 fallback when
+  the matrix is stale, plus a Textual background embedder warmup.
+- Reduced the ordinary-query path by caching the validated matrix/embedder,
+  bounding snippet content, and reusing a per-thread read-only notes
+  connection. A 20-query warm benchmark measured median `62.7 ms`
+  (min `29.7 ms`, max `117.7 ms`).
+- No API, schema, model, or matrix-format change landed. 75 TUI tests,
+  static checks, Markdown lint, Ruff, ty, and search freshness passed under
+  the no-perf disposition.
+
+Execution record: `archive/tooling/search_tui_semantic_notes.md`.
