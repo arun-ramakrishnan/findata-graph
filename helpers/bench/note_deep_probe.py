@@ -24,6 +24,7 @@ Usage:
     python3 helpers/bench/note_deep_probe.py --json out # machine-readable
 """
 
+import argparse
 import json
 import math
 import re
@@ -175,8 +176,21 @@ def _cosine(a: list[float], b: list[float]) -> float:
     return dot / (na * nb) if na and nb else 0.0
 
 
-def run() -> int:  # noqa: C901  # bench script: one straight-line report
-    questions = json.loads(QUESTIONS_PATH.read_text(encoding="utf-8"))["questions"]
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--questions",
+        type=Path,
+        default=QUESTIONS_PATH,
+        help="question JSON path (default: note_deep_probe_questions.json)",
+    )
+    parser.add_argument("--json", type=Path, help="write machine-readable results")
+    return parser.parse_args(argv)
+
+
+def run(argv: list[str] | None = None) -> int:  # noqa: C901  # bench script: one straight-line report
+    args = _parse_args(argv)
+    questions = json.loads(args.questions.read_text(encoding="utf-8"))["questions"]
 
     # --- AFTER legs: the live endpoint ------------------------------------ #
     import app as A
@@ -226,13 +240,18 @@ def run() -> int:  # noqa: C901  # bench script: one straight-line report
 
     def before_top5(query: str) -> list[str]:
         qv = q_vecs[query]
+        from helpers.maintenance.rebuild_doc_search import fts_match_expr
+
+        expr = fts_match_expr(query)
+        if not expr:
+            return []
         # BM25 candidate page (rank-sorted), then GLOBAL cosine ranks over the
         # whole legacy corpus — the A1 semantics the endpoint ran with.
         page = [
             r[0]
             for r in lconn.execute(
                 "SELECT file_path FROM note_search WHERE note_search MATCH ? ORDER BY rank LIMIT ?",
-                (query, PAGE),
+                (expr, PAGE),
             )
         ]
         sims = sorted(
@@ -309,8 +328,8 @@ def run() -> int:  # noqa: C901  # bench script: one straight-line report
         f"hybrid endpoint p50 {p50:.0f}ms p95 {p95:.0f}ms (n={len(samples)})"
     )
 
-    if "--json" in sys.argv:
-        out = Path(sys.argv[sys.argv.index("--json") + 1])
+    if args.json is not None:
+        out = args.json
         out.write_text(
             json.dumps(
                 {
