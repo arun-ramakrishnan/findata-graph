@@ -1277,6 +1277,16 @@ class SearchApp(App[None]):
                 f"key {event.key!r} focused={type(self.focused).__name__ if self.focused else None}"
             )
 
+    @work(thread=True, exclusive=True, group="notes-prewarm")
+    def _prewarm_notes(self) -> None:
+        try:
+            from helpers.maintenance.rebuild_note_search import query_embedder
+
+            embed_query, _dims = query_embedder()
+            embed_query("warm")
+        except Exception:
+            return
+
     async def on_mount(self) -> None:
         _cap_evlog()
         _evlog(f"mount build={BUILD_STAMP} pid={os.getpid()}")
@@ -1310,6 +1320,7 @@ class SearchApp(App[None]):
         self._register_themes()
         self._apply_theme(load_theme_name(), persist=False)
         self._mounted = True
+        self._prewarm_notes()
         if self._initial_query:
             self._start_query()
 

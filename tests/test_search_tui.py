@@ -19,6 +19,7 @@ pytestmark = pytest.mark.xdist_group("search_tui")
 from helpers.misc.search_tui import (
     Hit,
     _int_or_none,
+    _rrf_note_hits,
     editor_chain,
     fts_safe,
     index_ages,
@@ -211,7 +212,33 @@ def test_notes_query_ranks_by_bm25(tmp_path: Path) -> None:
     assert "mojo" in hits[0].snippet or hits[0].snippet == ""
 
 
+def test_rrf_note_hits_unions_lexical_and_semantic_candidates():
+    lexical = [Hit(path="a.md", line=None, lane="notes"), Hit(path="b.md", line=None, lane="notes")]
+    semantic = [
+        Hit(path="c.md", line=None, score=0.9, lane="notes"),
+        Hit(path="b.md", line=None, score=0.8, lane="notes"),
+    ]
+    fused = _rrf_note_hits(lexical, semantic, 3)
+    assert {hit.path for hit in fused} == {"a.md", "b.md", "c.md"}
+    assert fused[0].path == "b.md"
+
+
+def test_notes_lane_falls_back_when_semantic_matrix_is_stale(monkeypatch):
+    import helpers.misc.search_tui as st
+
+    monkeypatch.setattr(
+        st, "notes_query", lambda *_args: [Hit(path="a.md", line=None, lane="notes")]
+    )
+    monkeypatch.setattr(st, "_semantic_note_hits", lambda *_args: (None, "matrix stale"))
+    hits, status = st.run_lane("notes", "query", 10, "hybrid")
+    assert [hit.path for hit in hits] == ["a.md"]
+    assert "fallback" in status and "matrix stale" in status
+    hits, status = st.run_lane("notes", "query", 10, "bm25")
+    assert "bm25" in status and "fallback" not in status
+
+
 def test_fts_safe_degrades_bad_syntax() -> None:
+    assert fts_safe("plain query") == "plain query"
     assert fts_safe('plain"query') != 'plain"query'
     assert "OR" in fts_safe('we "ird bro ken')
 

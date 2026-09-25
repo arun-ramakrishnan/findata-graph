@@ -9,7 +9,7 @@ lane  source   backend
 ===== ======== =====================================================
 1     docs     helpers/misc/doc_query.py (FTS5 + embeddings, --json)
 2     scripts  helpers/misc/script_query.py (--json; make/test/mojo too)
-3     notes    note_search FTS5 in memory/research.db (bm25-ranked)
+3     notes    note_search FTS5 + f32 cosine (RRF hybrid; bm25 toggle)
  4     code     ripwire --for= (verbs: callers:/impact:/grep:/recall:)
  5     literal  rg (gitignore-aware, no color, path:line:text rows)
  6     reports  outputs/*_report.md (verbs: qa:/advisory:/integration:/
@@ -48,14 +48,18 @@ from __future__ import annotations
 import argparse
 import html
 import json
+from functools import lru_cache
 import os
 import re
 import shutil
 import sqlite3
 import subprocess
 import sys
+import threading
 import time
 from collections.abc import Callable
+
+import numpy as np
 from dataclasses import dataclass, replace as dc_replace
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -65,6 +69,9 @@ LANES: tuple[str, ...] = ("docs", "scripts", "notes", "code", "literal", "report
 DEFAULT_LIMIT = 40
 RG_ROW_CAP = 300
 _SUB_TIMEOUT = 90  # ripwire walks the tree; doc/script CLIs embed queries.
+_NOTES_RRF_K = 60
+_NOTES_SEMANTIC_CANDIDATES = 40
+_NOTES_CONNECTIONS = threading.local()
 
 # ---------------------------------------------------------------------------
 # Hit model + lane adapters (terminal-free, unit-tested)
@@ -257,6 +264,8 @@ def ripwire_argv(query: str) -> list[str]:
 
 def fts_safe(query: str) -> str:
     """Make a raw query safe for an FTS5 MATCH, degrading to OR-tokens."""
+    if re.fullmatch(r"[\w']+(?:\s+[\w']+)*", query.strip(), re.UNICODE):
+        return query
     from helpers.core.db import connect as _db_connect
 
     try:
@@ -272,35 +281,129 @@ def fts_safe(query: str) -> str:
         return " OR ".join(f'"{t}"' for t in toks)
 
 
+def _query_snippet(content: str, query: str) -> str:
+    tokens = re.findall(r"[\w']+", query.casefold())
+    if not tokens or not content:
+        return ""
+    words = content.split()
+    lowered = [word.casefold() for word in words]
+    position = next(
+        (i for token in tokens for i, word in enumerate(lowered) if token in word),
+        0,
+    )
+    start = max(0, position - 8)
+    return " ".join(words[start : start + 32])
+
+
 def notes_query(db_path: Path, query: str, limit: int) -> list[Hit]:
     """Keyword search over note_search (bm25-ranked, porter tokens)."""
     from helpers.core.db import connect as _db_connect
 
-    conn = _db_connect(db_path, read_only=True, wal=False)
-    try:
-        rows = conn.execute(
-            "SELECT file_path, title, section_title, anchor,"
-            " snippet(note_search, 4, '»', '«', '…', 16),"
-            " bm25(note_search)"
-            " FROM note_search WHERE note_search MATCH ?"
-            " ORDER BY bm25(note_search) LIMIT ?",
-            (fts_safe(query), limit),
-        ).fetchall()
-    finally:
-        conn.close()
+    key = str(db_path.resolve())
+    conn = getattr(_NOTES_CONNECTIONS, "conn", None)
+    if getattr(_NOTES_CONNECTIONS, "key", None) != key:
+        if conn is not None:
+            conn.close()
+        conn = _db_connect(db_path, read_only=True, wal=False)
+        _NOTES_CONNECTIONS.conn = conn
+        _NOTES_CONNECTIONS.key = key
+    assert conn is not None
+    rows = conn.execute(
+        "SELECT file_path, title, section_title, anchor, substr(content, 1, 4000) AS content,"
+        " bm25(note_search)"
+        " FROM note_search WHERE note_search MATCH ?"
+        " ORDER BY bm25(note_search) LIMIT ?",
+        (fts_safe(query), limit),
+    ).fetchall()
     return [
         Hit(
             path=r[0].removeprefix("/"),
             line=_int_or_none(r[3]),
             title=r[1] or "",
             section=r[2] or "",
-            snippet=(r[4] or "").strip(),
+            snippet=_query_snippet(r[4] or "", query).strip(),
             score=-r[5] if r[5] is not None else None,
             lane="notes",
             kind="note",
         )
         for r in rows
     ]
+
+
+def _rrf_note_hits(bm25_hits: list[Hit], semantic_hits: list[Hit], limit: int) -> list[Hit]:
+    semantic_scores = {hit.path: (hit.score or 0.0) for hit in semantic_hits}
+    semantic_order = sorted(semantic_scores, key=lambda path: semantic_scores[path], reverse=True)
+    semantic_rank = {path: rank for rank, path in enumerate(semantic_order)}
+    bm25_rank = {hit.path: rank for rank, hit in enumerate(bm25_hits)}
+    paths = list(dict.fromkeys([hit.path for hit in bm25_hits] + semantic_order))
+    fused: list[tuple[float, str, Hit]] = []
+    by_path = {hit.path: hit for hit in bm25_hits + semantic_hits}
+    for path in paths:
+        score = 0.0
+        if path in bm25_rank:
+            score += 1.0 / (_NOTES_RRF_K + bm25_rank[path] + 1)
+        if path in semantic_rank:
+            score += 1.0 / (_NOTES_RRF_K + semantic_rank[path] + 1)
+        fused.append((score, path, dc_replace(by_path[path], score=score)))
+    fused.sort(key=lambda item: (-item[0], item[1]))
+    return [hit for _score, _path, hit in fused[:limit]]
+
+
+@lru_cache(maxsize=4)
+def _load_notes_matrix(db_path: str):
+    from helpers.core.db import connect as _db_connect
+    from helpers.core.embed_matrix import EmbedMatrixStore
+    from helpers.maintenance.rebuild_note_search import stored_embed_dims
+
+    conn = _db_connect(db_path, read_only=True, wal=False)
+    try:
+        row_count = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
+        dims = stored_embed_dims(conn)
+    finally:
+        conn.close()
+    matrix = EmbedMatrixStore().load()
+    if int(matrix.meta["count"]) != row_count:
+        raise RuntimeError("matrix stale — run rebuild-note-search")
+    if dims is not None and int(dims) != int(matrix.meta["dims"]):
+        raise RuntimeError("matrix dimensions stale — run rebuild-note-search")
+    return matrix
+
+
+@lru_cache(maxsize=1)
+def _notes_query_embedder():
+    from helpers.maintenance.rebuild_note_search import query_embedder
+
+    return query_embedder()
+
+
+def _semantic_note_hits(db_path: Path, query: str, limit: int) -> tuple[list[Hit] | None, str]:
+    try:
+        matrix = _load_notes_matrix(str(db_path))
+        embed_query, _dims = _notes_query_embedder()
+        query_vector = embed_query(query)
+        raw_hits = matrix.top_k(
+            np.asarray(query_vector), max(limit * 4, _NOTES_SEMANTIC_CANDIDATES)
+        )
+        best: dict[str, Hit] = {}
+        for key, score in raw_hits:
+            path, _separator, anchor = key.partition("#")
+            previous = best.get(path)
+            if previous is None or score > (previous.score or 0.0):
+                best[path] = Hit(
+                    path=path.removeprefix("/"),
+                    line=_int_or_none(anchor),
+                    title="",
+                    section="",
+                    snippet="",
+                    score=score,
+                    lane="notes",
+                    kind="note",
+                )
+        return sorted(best.values(), key=lambda hit: (-(hit.score or 0.0), hit.path)), ""
+    except RuntimeError as exc:
+        return None, str(exc)
+    except (OSError, ValueError, KeyError, TypeError, ImportError, AttributeError) as exc:
+        return None, f"semantic notes unavailable: {type(exc).__name__}"
 
 
 def _run(argv: list[str]) -> str:
@@ -346,10 +449,16 @@ def _run_notes(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str
     if not db.exists():
         return [], "memory/research.db missing"
     try:
-        hits = notes_query(db, q, limit)
+        bm25_hits = notes_query(db, q, limit)
     except sqlite3.Error as e:  # pragma: no cover - defensive
         return [], f"note_search error: {e}"
-    return hits, f"{len(hits)} hits · note_search bm25"
+    if mode == "bm25":
+        return bm25_hits, f"{len(bm25_hits)} hits · note_search bm25"
+    semantic_hits, reason = _semantic_note_hits(db, q, limit)
+    if semantic_hits is None:
+        return bm25_hits, f"{len(bm25_hits)} hits · note_search bm25 fallback · {reason}"
+    fused = _rrf_note_hits(bm25_hits, semantic_hits, limit)
+    return fused, f"{len(fused)} hits · note_search hybrid · RRF{_NOTES_RRF_K}"
 
 
 def _run_code(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
