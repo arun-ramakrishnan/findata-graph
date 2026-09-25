@@ -7578,3 +7578,41 @@ Execution record: `archive/graph/person_resolver_lane.md`.
   the no-perf disposition.
 
 Execution record: `archive/tooling/search_tui_semantic_notes.md`.
+
+## 295. Parallel recompute-graph fan-out
+
+**Proposal**: `doc/improvements/archive/graph/recompute_graph_parallel_fanout.md`
+(filed + executed 2026-09-25 — verdict: **EXECUTED**).
+
+- Added the common asynchronous `ForkPool` path for L1B betweenness, the
+  shared SciPy closeness/harmonic pair, link prediction, and voterank.
+  Link-prediction workers return temporary zstd Parquet artifacts rather
+  than large Python IPC payloads.
+- Preserved canonical output order, fail-loud lane semantics, sequential
+  cheap-lane ownership of the main DuckDB connection, and CLI default
+  `--jobs 1`; `make recompute-graph` now passes `--jobs 4`.
+- Five isolated jobs-4 dry-runs had exact parity with jobs-1 and median
+  `12.10 s` wall. Two `make maint-full` runs passed `27/27`; recompute
+  measured `26.27 s` and `27.92 s`, with idempotent second-run writes.
+- The isolated fan-out meets the operator-approved 15 s ceiling; the full
+  apply-path timing remains recorded as a follow-up optimization.
+
+Execution record: `archive/graph/recompute_graph_parallel_fanout.md`.
+
+## 296. Wikidata QID crosswalk
+
+**Proposal**: `doc/improvements/archive/database/wikidata_qid_crosswalk.md`
+(filed + executed 2026-09-25 — verdict: **EXECUTED / PARKED**).
+
+- Implemented identifier-first Wikidata SPARQL lookup using ISIN `P946`,
+  ticker `P249`, and LEI `P1278`, with exact-label fallback, serialized
+  caching, manual precedence, and a dry-run-default parquet sidecar.
+- Implemented idempotent SKOS convergence (`exactMatch` active,
+  `closeMatch` candidate) and same-QID semantic-peer suppression with live
+  embedding-model provenance.
+- Five focused Wikidata/E3 tests passed. A 25-company live sample was
+  throttled; two close suggestions were recorded, no exact mappings were
+  accepted, and no database mappings were applied. The live fetch is parked
+  for a future controlled retry.
+
+Execution record: `archive/database/wikidata_qid_crosswalk.md`.

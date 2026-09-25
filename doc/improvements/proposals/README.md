@@ -34,19 +34,20 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-- **wikidata_qid_crosswalk.md** — filed 2026-09-25. Wikidata QID
-  crosswalk: politeness-cached fetch lane → sidecar parquet (mca_cin
-  pattern) → `concept_mappings` SKOS rows (no schema change) → E3
-  same-QID suppression constraining semantic_peer; retires the stale
-  bge label on the live granite producer. Tier-1 item 4.
-- **recompute_graph_parallel_fanout.md** — filed 2026-09-25. Parallel
-  recompute-graph fan-out: the L1B fold and scipy pair lanes run on
-  worker threads beside the sequential cheap lanes (`--jobs N`, default
-  1), projected recompute-graph step 34.4 s → ≤ 15 s under -j4.
-  Un-defers the 2026-08-29 deferred fan-out row of the cold-embed perf
-  review (~4–5 s estimate re-measured at ~13 s; graph_analytics
-  65k → 193k rows). Follows #283 (pair reuse), #277 (fold lane),
-  #279 (ROUTING).
+_(none)_
+
+_(Previously: wikidata_qid_crosswalk.md archived 2026-09-25 as
+completed.md entry 296 — S1-S3 implemented with identifier-first SPARQL,
+cached sidecar, dry-run SKOS convergence, and same-QID E3 suppression;
+live fetch parked after throttling, with no database mappings applied.
+Execution record in `../archive/database/wikidata_qid_crosswalk.md`.)_
+
+_(Previously: recompute_graph_parallel_fanout.md archived 2026-09-25 as
+completed.md entry 295 — common ForkPool fan-out, async process futures,
+Arrow/zstd link artifact, and four-worker Makefile wiring; two maint-full
+runs passed 27/27 with idempotent second-run writes. Execution record in
+`../archive/graph/recompute_graph_parallel_fanout.md`.)_
+
 _(Previously: search_tui_semantic_notes.md archived 2026-09-25 as
 completed.md entry 294 — notes lane now fuses BM25 with cached f32 cosine
 via RRF60; stale-matrix fallback and pre-warm landed; 20-query warm median
