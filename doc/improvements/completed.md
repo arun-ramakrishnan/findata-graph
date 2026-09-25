@@ -1,7 +1,7 @@
 <!-- markdownlint-disable MD041 -- first line is intentionally bold metadata, not a heading -->
 
 **Generated**: 2026-09-24
-**Total completed**: 182 items
+**Total completed**: 183 items
 
 > **Note:** Full implementation details, code references, and rationale are in the `doc/improvements/archive/` subdirectory. This file is a summary view.
 
@@ -7616,3 +7616,32 @@ Execution record: `archive/graph/recompute_graph_parallel_fanout.md`.
   for a future controlled retry.
 
 Execution record: `archive/database/wikidata_qid_crosswalk.md`.
+
+## 297. Agent trace store — behavioral-telemetry DuckDB with per-harness loaders
+
+**Proposal**: `doc/improvements/archive/tooling/agent_traces_store.md`
+(filed + executed 2026-09-25 — verdict: **EXECUTED**).
+
+- `bench_data/code/agent_traces.py`: `load zcode|opencode|prime|all
+  [--days|--full]` + `report [--range] [--json]` over the new
+  `memory/data/agent_traces.duckdb` (~127k rows first full load;
+  idempotent windowed replace keyed on LOCAL day, Arrow register +
+  insert-select bulk writes, read-only sources).
+- S3 dedupe correction: oc/zcode session ids never overlap (`ses_` vs
+  `sess_`) — provider-keyed exclusion of the 4 `zai-coding-plan`
+  sessions, asserted via `skipped_zai_sessions` in `load_log`.
+- S4 prime-rlm loader: 93 assistant requests all with usage+cost (zero
+  failed calls); `rlm-ledger` + warn/error logs → `fact_event`;
+  missing-usage = failed-call signal encoded.
+- Lane 4 legs: model latency/TTFT percentiles, tool economics, agentic
+  depth, error taxonomy, top turns, file-edit hotspots,
+  reasoning/output ratio, context lifecycle, delegation,
+  spend-per-tool-hour (ATTACH bridge to `model_usage.duckdb`).
+- Findings recorded: recovery feeds (`prime_sessions_backup/`,
+  `telemetry_backup/`) GONE from disk — loaders keep globs; the 22M-token
+  top turn is cumulative per-request context reprocessing (49.4% cache
+  reads), not a runaway.
+- Verification: full/incremental reload idempotency, ruff + markdownlint
+  clean; design record `doc/local/engineering/capture_traces.md` §5–§6.
+
+Execution record: `archive/tooling/agent_traces_store.md`.
