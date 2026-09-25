@@ -24,6 +24,33 @@ from collections.abc import Callable, Sequence
 from typing import Any
 
 
+class ForkPool:
+    def __init__(self, jobs: int):
+        self._ctx = mp.get_context("fork")
+        self._pool = self._ctx.Pool(max(1, int(jobs)))
+
+    def submit(self, worker: Callable[..., Any], arg: Any) -> Any:
+        return self._pool.apply_async(worker, (arg,))
+
+    def collect(self, futures: Sequence[Any]) -> list[Any]:
+        self._pool.close()
+        self._pool.join()
+        return [future.get() for future in futures]
+
+    def terminate(self) -> None:
+        self._pool.terminate()
+        self._pool.join()
+
+    def __enter__(self) -> "ForkPool":
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:
+        if exc_type is None:
+            self.collect([])
+        else:
+            self.terminate()
+
+
 def fork_map(
     worker: Callable[..., Any],
     chunks: Sequence[Any],

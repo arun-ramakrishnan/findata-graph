@@ -24,7 +24,7 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants stamp-centrality
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants stamp-centrality
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
@@ -44,6 +44,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-relations         Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose"
 > @echo "  derive-themes            Derive exposed_to (company -> theme) edges from company-note prose"
 > @echo "  derive-themes-rebuild    derive-themes + graph-rebuild — the paired run themes require (writes edges, then rebuilds the DuckDB cache to match)"
+> @echo "  fold-identifiers         Fold exchange ISIN/CIK values into the entity identifier registry"
 > @echo "  format                   Normalize Python formatting repo-wide (ruff format; fix for the test_lint_gates.py format gate)"
 > @echo "  frontend                 Build the TypeScript frontend bundle into static/findata.bundle.js (needs Bun)"
 > @echo "  frontend-check           Type-check + prettier format-check the TypeScript frontend (fast, needs Bun)"
@@ -55,6 +56,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  hif-export               Export the hypergraph in HIF to snapshots/hif/ (rides make snapshot; SOURCES=... to override)"
 > @echo "  install-dev              Install dev dependencies (uv sync; prunes undeclared packages)"
 > @echo "  integration              Run end-to-end cross-component pipeline tests (parse_newsletter, API bridge, etc.; appends outputs/integration_report.md)"
+> @echo "  license-check            Verify AGPL metadata, root license, and third-party inventory"
 > @echo "  lint                     Run ruff linter (replaces flake8)"
 > @echo "  lint-audit               Run ruff S/UP/C901 audits (security + modernization + complexity) — Bandit/Refurb/Radon equivs"
 > @echo "  live-invariants          Run ONLY the live-marked invariant tests (-m live, xdist -n auto; skip-safe on pristine clone)"
@@ -87,9 +89,9 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  snapshot-fresh           Generation-only snapshot freshness (fail fast on drift; fix: make snapshot)"
 > @echo "  snapshot-restore         Rebuild memory/ DBs from the git-tracked Parquet snapshot (clobbers live DBs)"
 > @echo "  stamp-centrality         Re-stamp v_centrality_* tables (explicit lane; lane-served metrics skipped per ROUTING; graph-rebuild drops them; maint runs it after graph-rebuild)"
-> @echo "  license-check            Verify AGPL metadata, root license, and third-party inventory"
 > @echo "  static-checks            Fast static checks (syntax, shebangs, YAML, artifacts, merge markers, license metadata)"
 > @echo "  suggest-relations        Print link-prediction relation suggestions (C2; append with --append)"
+> @echo "  sync-coverage-tags       Converge The Chatter company/<slug> tags from quote coverage"
 > @echo "  sync-sector-links        WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)"
 > @echo "  sync-tags                Rebuild entity_tags from note YAML (mirrors entity_type/sector/market_cap/subsector)"
 > @echo "  test                     pytest unit tests only (no live DB, no slow benchmarks)"
@@ -229,6 +231,10 @@ sync-tags:      ## Rebuild entity_tags from note YAML (mirrors entity_type/secto
 > python3 helpers/core/sync_tags.py --apply
 > @echo "✓ entity_tags synced from notes"
 
+sync-coverage-tags: ## Converge The Chatter company/<slug> tags from quote coverage
+> python3 helpers/maintenance/sync_coverage_tags.py --apply
+> @echo "✓ edition coverage tags synced from quotes"
+
 sync-sector-links: ## WRITE the auto company index into sector notes (explicit; maint-full only checks staleness)
 > python3 helpers/maintenance/sync_sector_wikilinks.py --apply
 > @echo "✓ sector wikilinks synced from DB"
@@ -304,7 +310,7 @@ search-tui:      ## Full-screen search front door — docs/scripts/notes indexes
 > @echo "✓ search TUI exited (doc/procedures/search.md §Search TUI)"
 
 recompute-graph: ## Recompute all graph analytics and persist to graph_analytics
-> python3 helpers/graph/algorithms.py --all --apply
+> python3 helpers/graph/algorithms.py --all --jobs 4 --apply
 > @echo "✓ graph_analytics refreshed (degree, pagerank, betweenness, louvain, ..., link_prediction)"
 
 recompute-hyper: ## Recompute HGX hyper metrics (hy-MMSBM communities + ho/s centralities) into graph_analytics
@@ -407,6 +413,10 @@ frontend-check: ## Type-check + prettier format-check the TypeScript frontend (f
 > cd frontend && bun x tsc --noEmit
 > cd frontend && bun x prettier --check src types
 > @echo "✓ frontend type-check + prettier passed (strict)"
+
+fold-identifiers: ## Fold exchange ISIN/CIK values into the entity identifier registry
+> python3 helpers/maintenance/fold_identifiers.py --apply
+> @echo "✓ identifier registry folded from exchange sources"
 
 format:         ## Normalize Python formatting repo-wide (ruff format; fix for the test_lint_gates.py format gate)
 > ruff format .

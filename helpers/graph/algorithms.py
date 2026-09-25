@@ -56,6 +56,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import tempfile
 from collections.abc import Callable
 from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
@@ -70,6 +71,7 @@ if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
 from helpers.core.db import connect  # noqa: E402
+from helpers.core.forkmap import ForkPool  # noqa: E402
 
 # Metric wrappers from query.py — Onager-backed since Phase A of the
 # duckpgq-retirement proposal (formerly duckpgq-native):
@@ -900,6 +902,57 @@ def _run_scipy_lane_pair(
     }
 
 
+def _run_heavy_chunk(task: tuple[str, Any]) -> Any:
+    kind, payload = task
+    if kind == "l1b":
+        return _run_l1b_lane()
+    if kind == "scipy":
+        return _run_scipy_lane_pair()
+    if kind == "voterank":
+        return voterank_seeds()
+    if kind == "link-predict":
+        method, edge_types, top, allow_all_pairs, output_path = payload
+        pairs = link_prediction(
+            edge_types=edge_types,
+            method=method,
+            top=top,
+            allow_all_pairs=allow_all_pairs,
+        )
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        pq.write_table(
+            pa.table(
+                {
+                    "source": [pair[0] for pair in pairs],
+                    "target": [pair[1] for pair in pairs],
+                    "score": [pair[2] for pair in pairs],
+                }
+            ),
+            output_path,
+            compression="zstd",
+        )
+        return {"path": output_path, "rows": len(pairs)}
+    raise ValueError(f"unknown heavy lane: {kind}")
+
+
+def _read_link_prediction_artifact(
+    path: str, limit: int | None = None
+) -> list[tuple[str, str, float]]:
+    import pyarrow.parquet as pq
+
+    parquet = pq.ParquetFile(path)
+    if limit is not None:
+        batch = next(
+            parquet.iter_batches(batch_size=limit, columns=["source", "target", "score"]),
+            None,
+        )
+        rows = batch.to_pylist() if batch is not None else []
+    else:
+        rows = parquet.read().to_pylist()
+    return [(row["source"], row["target"], float(row["score"])) for row in rows]
+
+
 def _run_scipy_lane(metric: str, db_path: str | Path | None = None) -> dict[str, float]:
     return _run_scipy_lane_pair(db_path)[metric]
 
@@ -1174,6 +1227,12 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "applies to pagerank / pagerank-weighted.",
     )
     p.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="Parallel heavy lanes for --all (default: 1; >=2 runs L1B fold and SciPy pair in worker processes).",
+    )
+    p.add_argument(
         "--all",
         action="store_true",
         help="Run all metrics (degree, pagerank, pagerank-weighted, betweenness, "
@@ -1208,6 +1267,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         "this so their budgets keep measuring COMPUTE, not cache I/O.",
     )
     args = p.parse_args(argv)
+    if args.jobs < 1:
+        p.error("--jobs must be at least 1")
 
     if not args.cmd and not args.all:
         p.error("either a command or --all is required")
@@ -1237,6 +1298,18 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
     # Open one DuckDB connection for all metrics in this run. Every metric
     # is Onager-backed (post-duckpgq-retirement); connect() loads sqlite/vss
     # and onager.py loads onager per call.
+    parallel_artifact_dir = (
+        tempfile.TemporaryDirectory(prefix="recompute-graph-")
+        if args.all and args.jobs > 1
+        else None
+    )
+    artifact_path = (
+        str(Path(parallel_artifact_dir.name) / "link_predict.parquet")
+        if parallel_artifact_dir is not None
+        else None
+    )
+    fork_pool = ForkPool(args.jobs) if args.all and args.jobs > 1 else None
+    heavy_futures: dict[str, Any] = {}
     duck_con = duckdb_connect(read_only=True)
     try:
         # Phase 3 (graph_db_optimization): one materialisation shared by
@@ -1248,6 +1321,42 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
         with with_onager_connection(duck_con), bypass:
             pending_writes: list[tuple[str, dict[str, Any]]] = []
             scipy_results: dict[str, dict[str, float]] = {}
+            link_artifact: dict[str, Any] | None = None
+            link_total: int | None = None
+            if fork_pool is not None:
+                if "betweenness" in commands and _l1b_routed():
+                    heavy_futures["l1b"] = fork_pool.submit(_run_heavy_chunk, ("l1b", None))
+                if any(
+                    _scipy_routed(cmd_to_metric[cmd]) for cmd in commands if cmd in cmd_to_metric
+                ):
+                    heavy_futures["scipy"] = fork_pool.submit(_run_heavy_chunk, ("scipy", None))
+                if (
+                    "link-predict" in commands
+                    and artifact_path is not None
+                    and not (args.method == "pref-attach" and not args.allow_all_pairs)
+                ):
+                    edge_types = (
+                        [t.strip() for t in args.edge_types.split(",") if t.strip()]
+                        if args.edge_types
+                        else None
+                    )
+                    heavy_futures["link"] = fork_pool.submit(
+                        _run_heavy_chunk,
+                        (
+                            "link-predict",
+                            (
+                                args.method,
+                                edge_types,
+                                args.top if args.method == "pref-attach" else None,
+                                args.allow_all_pairs,
+                                artifact_path,
+                            ),
+                        ),
+                    )
+                if "voterank" in commands:
+                    heavy_futures["voterank"] = fork_pool.submit(
+                        _run_heavy_chunk, ("voterank", None)
+                    )
             for cmd in commands:
                 # pagerank_graph_enhancements S1: the persisted `pagerank`
                 # metric runs over the ECONOMIC projection (non-membership
@@ -1271,18 +1380,23 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                         else None
                     )
                     try:
-                        # Full ranked list: --top caps the DISPLAY, persistence
-                        # keeps every positive-score candidate — except
-                        # pref-attach, whose unbounded output (~243M pairs)
-                        # is infeasible by nature: it computes top=args.top
-                        # (exact heap) and persists per-node top-100.
-                        pairs = link_prediction(
-                            duck_con,
-                            edge_types=edge_types,
-                            method=args.method,
-                            top=args.top if args.method == "pref-attach" else None,
-                            allow_all_pairs=args.allow_all_pairs,
-                        )
+                        if link_artifact is None and "link" in heavy_futures:
+                            link_artifact = heavy_futures.pop("link").get()
+                        if link_artifact is not None:
+                            pairs = _read_link_prediction_artifact(
+                                link_artifact["path"],
+                                None if args.apply else (args.top if args.top is not None else 20),
+                            )
+                            link_total = int(link_artifact["rows"])
+                        else:
+                            pairs = link_prediction(
+                                duck_con,
+                                edge_types=edge_types,
+                                method=args.method,
+                                top=args.top if args.method == "pref-attach" else None,
+                                allow_all_pairs=args.allow_all_pairs,
+                            )
+                            link_total = len(pairs)
                     except Exception as e:
                         print(f"  FAIL: {type(e).__name__}: {str(e)[:150]}", file=sys.stderr)
                         continue
@@ -1293,9 +1407,10 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                         print("  (no candidate pairs with a positive score)")
                     for a, b, s in shown:
                         print(f"  {a:36} {b:36} {s:.6f}")
-                    if len(pairs) > len(shown):
+                    total_pairs = link_total if link_total is not None else len(pairs)
+                    if total_pairs > len(shown):
                         print(
-                            f"  ... ({len(pairs)} candidate pairs total, showing {len(shown)})",
+                            f"  ... ({total_pairs} candidate pairs total, showing {len(shown)})",
                             file=sys.stderr,
                         )
                     if not args.apply:
@@ -1313,7 +1428,8 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                 if cmd == "voterank":
                     print("\nvoterank (seed set, in seed order):")
                     try:
-                        seeds = voterank_seeds(duck_con)
+                        future = heavy_futures.pop("voterank", None)
+                        seeds = future.get() if future is not None else voterank_seeds(duck_con)
                     except Exception as e:
                         print(f"  FAIL: {type(e).__name__}: {str(e)[:150]}", file=sys.stderr)
                         continue
@@ -1341,9 +1457,20 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                     louvain_modularity = louvain_communities(duck_con).modularity
                 try:
                     as_of = args.as_of if cmd in ("pagerank", "pagerank-weighted") else None
-                    if args.all and _scipy_routed(metric):
+                    if args.all and metric == "betweenness_centrality" and "l1b" in heavy_futures:
+                        result = heavy_futures.pop("l1b").get()
+                        if args.top is not None and args.top > 0:
+                            result = dict(
+                                sorted(result.items(), key=lambda kv: kv[1], reverse=True)[
+                                    : args.top
+                                ]
+                            )
+                    elif args.all and _scipy_routed(metric):
                         if not scipy_results:
-                            scipy_results = _run_scipy_lane_pair()
+                            future = heavy_futures.pop("scipy", None)
+                            scipy_results = (
+                                future.get() if future is not None else _run_scipy_lane_pair()
+                            )
                         result = scipy_results[metric]
                     else:
                         result = compute(
@@ -1391,6 +1518,10 @@ def _cli(argv: list[str] | None = None) -> int:  # noqa: C901
                     )
     finally:
         duck_con.close()
+        if fork_pool is not None:
+            fork_pool.terminate()
+        if parallel_artifact_dir is not None:
+            parallel_artifact_dir.cleanup()
 
     return 0
 
