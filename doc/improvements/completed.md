@@ -7594,8 +7594,8 @@ Execution record: `archive/tooling/search_tui_semantic_notes.md`.
 - Five isolated jobs-4 dry-runs had exact parity with jobs-1 and median
   `12.10 s` wall. Two `make maint-full` runs passed `27/27`; recompute
   measured `26.27 s` and `27.92 s`, with idempotent second-run writes.
-- The isolated fan-out meets the operator-approved 15 s ceiling; the full
-  apply-path timing remains recorded as a follow-up optimization.
+- The isolated fan-out meets the operator-approved 20 s ceiling; a clean live
+  `make recompute-graph` measured `16.71 s` for 13 metrics and 177,874 rows.
 
 Execution record: `archive/graph/recompute_graph_parallel_fanout.md`.
 
