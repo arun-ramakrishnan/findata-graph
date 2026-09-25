@@ -648,6 +648,18 @@ EMBEDDINGS_SOURCE_REF_PREFIX = "embeddings:bge-small:v1"
 EMBEDDINGS_REPORT_PATH = PROJECT_ROOT / "outputs" / "relations_report.md"
 
 
+def _active_qids(conn: sqlite3.Connection) -> dict[str, str]:
+    try:
+        rows = conn.execute(
+            "SELECT source_concept, target_concept FROM concept_mappings "
+            "WHERE source_scheme='findata:entity' AND target_scheme='wikidata:qid' "
+            "AND status='active'"
+        ).fetchall()
+    except sqlite3.OperationalError:
+        return {}
+    return {str(source): str(target) for source, target in rows if source and target}
+
+
 def _semantic_pair_for_company(
     company: str,
     gq: object,
@@ -690,8 +702,8 @@ def build_semantic_peer_edges(  # noqa
 
     For each company, take its top-k cosine neighbours (semantic_neighbors),
     filter by threshold, then canonicalise (a <= b) and de-dupe symmetrically
-    keeping the highest cosine per unordered pair. Weight is fixed 0.5 per
-    proposal §5; source_ref is embeddings:bge-small:v1:<date>.
+    keeping the highest cosine per unordered pair. Same-QID pairs are
+    suppressed before triage; source_ref uses the live embedding model.
     """
     try:
         n = conn.execute("SELECT COUNT(*) FROM company_embeddings").fetchone()[0]
@@ -706,9 +718,12 @@ def build_semantic_peer_edges(  # noqa
         ]
         log.info("company_embeddings: %d rows, models=%s", n, models)
     except Exception as e:
+        models = []
         log.debug("failed to fetch embedding models: %s", e)
     today = utc_today_iso()
-    source_ref = f"{EMBEDDINGS_SOURCE_REF_PREFIX}:{today}"
+    embedding_model = models[0] if len(models) == 1 else "unknown"
+    source_prefix = f"embeddings:{embedding_model}"
+    source_ref = f"{source_prefix}:{today}"
     try:
         import helpers.graph.query as gq
     except Exception as e:
@@ -732,15 +747,21 @@ def build_semantic_peer_edges(  # noqa
             if prev is None or props["cosine"] > prev["cosine"]:
                 pair_to_props[pair] = props
     edges: list[tuple[str, str, float, str, dict]] = []
+    qids = _active_qids(conn)
+    suppressed = 0
     for (a, b), props in sorted(pair_to_props.items()):
+        if qids.get(a) and qids.get(a) == qids.get(b):
+            suppressed += 1
+            continue
         edges.append((a, b, 0.5, source_ref, props))
     try:
         dcon.close()  # type: ignore[attr-defined]
     except Exception as e:
         log.debug("failed to close DuckDB connection: %s", e)
     log.info(
-        "semantic_peer candidates: %d pairs (k=%d, threshold=%.3f, %d companies)",
+        "semantic_peer candidates: %d pairs (%d same-QID suppressed, k=%d, threshold=%.3f, %d companies)",
         len(edges),
+        suppressed,
         k,
         threshold,
         len(companies),
@@ -770,8 +791,8 @@ def apply_semantic_peer_edges(
         return len(fresh)
     with conn:
         conn.execute(
-            "DELETE FROM graph_edges WHERE edge_type='semantic_peer' AND source_ref LIKE ?",
-            (f"{EMBEDDINGS_SOURCE_REF_PREFIX}:%",),
+            "DELETE FROM graph_edges WHERE edge_type='semantic_peer' "
+            "AND source_ref LIKE 'embeddings:%'"
         )
         inserted = 0
         for source, target, weight, source_ref, props in edges:
@@ -807,17 +828,17 @@ def run_embeddings_pass(
         applied,
         "would insert" if dry_run else "inserted",
     )
-    # Append a small report section to the shared relations_report.md
     try:
         today = utc_today_iso()
+        source_prefix = edges[0][3].rsplit(":", 1)[0] if edges else EMBEDDINGS_SOURCE_REF_PREFIX
         lines = [
             "",
-            f"## semantic_peer  # E3 embeddings:bge-small:v1 (k={k}, threshold={threshold})",
+            f"## semantic_peer  # E3 {source_prefix} (k={k}, threshold={threshold})",
             f"  generated: {datetime.now(UTC).isoformat(timespec='seconds')}",
             f"  mode: {mode}",
             f"  candidates: {len(edges)}",
             f"  {'would_insert' if dry_run else 'inserted'}: {applied}",
-            f"  source_ref prefix: {EMBEDDINGS_SOURCE_REF_PREFIX}:{today}",
+            f"  source_ref prefix: {source_prefix}:{today}",
         ]
         # Sample 5 highest-cosine pairs for spot-check
         if edges:
