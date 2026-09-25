@@ -28,6 +28,7 @@ DERIVED_TABLES = (
     "quotes",
     "company_metrics",
     "company_embeddings",
+    "entity_identifiers",
     "note_search",
     "note_search_meta",
     "hyper_incidences",

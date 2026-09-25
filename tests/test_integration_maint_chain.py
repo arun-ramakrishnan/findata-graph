@@ -50,10 +50,12 @@ from helpers.graph import hyper_centralities as hcen  # noqa: E402
 from helpers.graph import hyper_communities as hcom  # noqa: E402
 from helpers.maintenance import build_sector_hierarchy as bsh  # noqa: E402
 from helpers.maintenance import db_maint  # noqa: E402
+from helpers.maintenance import fold_identifiers as fi  # noqa: E402
 from helpers.maintenance import maint  # noqa: E402
 from helpers.maintenance import rebuild_doc_search as rds  # noqa: E402
 from helpers.maintenance import rebuild_note_search as rns  # noqa: E402
 from helpers.maintenance import snapshot_db  # noqa: E402
+from helpers.maintenance import sync_coverage_tags as sct  # noqa: E402
 from helpers.maintenance import sync_sector_wikilinks as ssw  # noqa: E402
 from helpers.misc import backfill_identifiers as bi  # noqa: E402
 from helpers.misc import backfill_okf_provenance as bf  # noqa: E402
@@ -150,6 +152,9 @@ class _MaintProject:
         dst.execute("DELETE FROM company_metrics WHERE entity NOT IN (SELECT name FROM keep)")
         dst.execute(
             "DELETE FROM company_embeddings WHERE company_name NOT IN (SELECT name FROM keep)"
+        )
+        dst.execute(
+            "DELETE FROM entity_identifiers WHERE entity_name NOT IN (SELECT name FROM keep)"
         )
         dst.execute("DELETE FROM graph_analytics")  # recomputed by the chain
         dst.execute("DELETE FROM events")  # recomputed by the chain
@@ -316,6 +321,10 @@ def _shim_sync_tags(p, mp, args):
     return _rc(st.main())
 
 
+def _shim_sync_coverage_tags(p, mp, args):
+    return _rc(sct.main(["--db", str(p.db), "--root", str(p.vault), *args]))
+
+
 def _shim_sector_links(p, mp, args):
     mp.setattr(ssw, "DB_PATH", p.db)
     mp.setattr(ssw, "SECTORS_DIR", p.vault / "Sectors")
@@ -435,6 +444,10 @@ def _shim_identifiers(p, mp, args):
     return _rc(bi.main(["--db", str(p.db), *args]))
 
 
+def _shim_fold_identifiers(p, mp, args):
+    return _rc(fi.main(["--db", str(p.db), *args]))
+
+
 def _shim_derive_cited_in(p, mp, args):
     mp.setattr(dci, "_REPO_ROOT", p.root)
     mp.setattr(dci, "connect", lambda *a, **k: db_connect(str(p.db)))
@@ -465,6 +478,7 @@ _SHIMS = {
     "helpers/maintenance/snapshot_db.py": _shim_snapshot,
     "helpers/graph/query.py": _shim_graph_rebuild,
     "helpers/core/sync_tags.py": _shim_sync_tags,
+    "helpers/maintenance/sync_coverage_tags.py": _shim_sync_coverage_tags,
     "helpers/maintenance/sync_sector_wikilinks.py": _shim_sector_links,
     "helpers/maintenance/build_sector_hierarchy.py": _shim_hierarchy,
     "helpers/maintenance/rebuild_note_search.py": _shim_note_search,
@@ -478,6 +492,7 @@ _SHIMS = {
     "helpers/misc/seed_concepts.py": _shim_seed_concepts,
     "helpers/misc/seed_nic2008.py": _shim_seed_nic2008,
     "helpers/misc/backfill_identifiers.py": _shim_identifiers,
+    "helpers/maintenance/fold_identifiers.py": _shim_fold_identifiers,
     "helpers/graph/derive_cited_in.py": _shim_derive_cited_in,
     "helpers/validators/static_checks.py": _shim_static_checks_full,
     "helpers/validators/frontmatter_schema.py": _shim_frontmatter_report,
