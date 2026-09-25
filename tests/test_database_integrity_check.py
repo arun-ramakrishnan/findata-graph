@@ -1053,7 +1053,7 @@ class TestCheckIdentifiers:
             [
                 ("Real Co", "lei", "A" * 20, "manual", None, None),
                 ("Ghost Co", "cik", "123456", "manual", None, None),  # dangling
-                ("Real Co", "isin", "INE123A01024", "manual", "2021-01-01", "2019-01-01"),
+                ("Real Co", "isin", "US0378331005", "manual", "2021-01-01", "2019-01-01"),
             ],
         )
         conn.commit()
@@ -1063,6 +1063,28 @@ class TestCheckIdentifiers:
         assert r["registry"]["dangling_entity"] == 1
         assert r["registry"]["window_inversion"] == 1
         assert r["warnings"] == 2
+
+    def test_registry_format_overlap_and_null_hygiene(self, tmp_path):
+        db_path = self._db(tmp_path)
+        self._insert_entity(db_path, name="Real Co")
+        conn = sqlite3.connect(db_path)
+        conn.executemany(
+            "INSERT INTO entity_identifiers (entity_name, identifier_type, "
+            "identifier_value, source_ref, valid_from, valid_to) VALUES (?,?,?,?,?,?)",
+            [
+                ("Real Co", "isin", "BAD", "manual", None, None),
+                ("Real Co", "alias", "", "manual", None, None),
+                ("Real Co", "lei", "A" * 20, "manual", "2020-01-01", "2022-01-01"),
+                ("Real Co", "lei", "B" * 20, "manual", "2021-01-01", "2023-01-01"),
+            ],
+        )
+        conn.commit()
+        conn.close()
+        result = self._checker(tmp_path).check_identifiers()
+        assert result["registry"]["format_errors"] == 1
+        assert result["registry"]["window_overlap"] == 1
+        assert result["registry"]["null_hygiene"] == 1
+        assert result["warnings"] == 3
 
     def test_pre_s3_schema_skips(self, tmp_path):
         db_path = tmp_path / "pre.db"

@@ -119,6 +119,57 @@ _CHECKS: tuple[Check, ...] = (
 )
 
 
+def _identifier_format_ok(identifier_type: str, value: str) -> bool:
+    value = value.strip().upper()
+    if identifier_type == "cik":
+        return bool(re.fullmatch(r"\d{1,10}", value))
+    if identifier_type == "lei":
+        return bool(re.fullmatch(r"[A-Z0-9]{20}", value))
+    if identifier_type == "llpin":
+        from helpers.core.cin import LLPIN_RE
+
+        return bool(LLPIN_RE.fullmatch(value))
+    if identifier_type != "isin":
+        return True
+    if not re.fullmatch(r"[A-Z]{2}[A-Z0-9]{9}\d", value):
+        return False
+    digits = "".join(str(ord(char) - 55) if char.isalpha() else char for char in value)
+    total = 0
+    for index, char in enumerate(reversed(digits)):
+        digit = int(char)
+        if index % 2:
+            digit *= 2
+            if digit > 9:
+                digit -= 9
+        total += digit
+    return total % 10 == 0
+
+
+def _registry_hygiene(cur: sqlite3.Cursor) -> dict[str, int]:
+    format_errors = 0
+    null_hygiene = 0
+    for identifier_type, value in cur.execute(
+        "SELECT identifier_type, identifier_value FROM entity_identifiers"
+    ):
+        if value is None or not value.strip():
+            null_hygiene += 1
+        elif not _identifier_format_ok(identifier_type, value):
+            format_errors += 1
+    window_overlap = cur.execute(
+        "SELECT COUNT(*) FROM entity_identifiers a "
+        "JOIN entity_identifiers b ON a.entity_name=b.entity_name "
+        "AND a.identifier_type=b.identifier_type AND a.rowid < b.rowid "
+        "WHERE a.valid_from IS NOT NULL AND a.valid_to IS NOT NULL "
+        "AND b.valid_from IS NOT NULL AND b.valid_to IS NOT NULL "
+        "AND a.valid_from <= b.valid_to AND a.valid_to >= b.valid_from"
+    ).fetchone()[0]
+    return {
+        "format_errors": format_errors,
+        "window_overlap": window_overlap,
+        "null_hygiene": null_hygiene,
+    }
+
+
 class DatabaseIntegrityChecker:
     def __init__(
         self,
@@ -1507,6 +1558,7 @@ class DatabaseIntegrityChecker:
                 "SELECT COUNT(*) FROM entity_identifiers WHERE valid_from IS NOT NULL "
                 "AND valid_to IS NOT NULL AND valid_from > valid_to"
             ).fetchone()[0]
+            registry.update(_registry_hygiene(cur))
 
         warnings = (
             malformed
@@ -1517,6 +1569,9 @@ class DatabaseIntegrityChecker:
             + state_geography_mismatch
             + registry.get("dangling_entity", 0)
             + registry.get("window_inversion", 0)
+            + registry.get("format_errors", 0)
+            + registry.get("window_overlap", 0)
+            + registry.get("null_hygiene", 0)
         )
         return {
             "cin_entities": len(rows),
