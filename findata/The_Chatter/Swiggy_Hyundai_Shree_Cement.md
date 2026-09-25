@@ -6,8 +6,28 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/au_small_finance_bank
+- company/canara_bank
+- company/ceat
+- company/hyundai_motor_india_limited
+- company/ksb
+- company/moil
+- company/power_grid_corporation_of_india
+- company/rail_vikas_nigam
+- company/saudi_aramco
+- company/shree_cement
+- company/shree_digvijay_cement
+- company/suzlon_energy
+- company/swiggy
+- company/torrent_power
+- company/tvs_motor_company
+- company/uno_minda
+- company/varun_beverages
+- company/voltas
+- company/yes_bank
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

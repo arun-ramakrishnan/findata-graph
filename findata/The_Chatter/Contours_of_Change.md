@@ -6,8 +6,34 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/acrysil
+- company/barbeque_nation_hospitality
+- company/colgate_palmolive_company
+- company/delhivery
+- company/dlf_limited
+- company/emcure_pharmaceuticals
+- company/entertainment_network_india
+- company/eureka_forbes_ltd
+- company/fortis_healthcare
+- company/geojit_financial_services
+- company/grasim_industries
+- company/interglobe_aviation
+- company/ircon_international
+- company/kaveri_seeds
+- company/kddl
+- company/mankind_pharma
+- company/max_healthcare_institute
+- company/mps
+- company/one_mobikwik_systems
+- company/power_grid_corporation_of_india
+- company/prince_pipes_and_fittings
+- company/solar_industries
+- company/teamlease_services
+- company/vrl_logistics
+- company/zen_technologies
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Contours of Change 
 

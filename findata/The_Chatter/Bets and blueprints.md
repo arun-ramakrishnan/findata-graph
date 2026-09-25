@@ -6,8 +6,26 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/apollo_hospitals
+- company/britannia_industries
+- company/divis_laboratories
+- company/eicher_motors
+- company/elgi_equipments
+- company/engineers_india
+- company/ge_power_india
+- company/grasim_industries
+- company/hindustan_unilever
+- company/info_edge
+- company/infosys
+- company/irctc
+- company/krbl
+- company/marico
+- company/narayana_hrudayalaya
+- company/petronet_lng
+- company/torrent_pharmaceuticals
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

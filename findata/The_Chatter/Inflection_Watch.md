@@ -6,8 +6,25 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/apollo_hospitals
+- company/avanti_feeds
+- company/bharat_electronics
+- company/biocon
+- company/brookfield_india_reit
+- company/cipla_limited
+- company/federal_bank
+- company/gujarat_fluorochemicals
+- company/hindustan_aeronautics
+- company/ifb_industries
+- company/indraprastha_gas
+- company/lupin_limited
+- company/ntpc
+- company/pi_industries
+- company/reliance_industries
+- company/wockhardt_limited
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Inflection Watch 
 

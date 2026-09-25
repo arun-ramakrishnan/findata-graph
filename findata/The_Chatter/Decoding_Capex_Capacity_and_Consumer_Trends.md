@@ -6,8 +6,28 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/ambuja_cement
+- company/centum_electronics
+- company/chalet_hotels
+- company/eicher_motors
+- company/equitas_small_finance_bank
+- company/grasim_industries
+- company/info_edge
+- company/jpmorgan_chase
+- company/kaynes_technologies
+- company/lemon_tree_hotels
+- company/marriott_international
+- company/maruti_suzuki_india
+- company/onesource_specialty_pharma
+- company/pg_electroplast
+- company/radico_khaitan
+- company/tvs_motor_company
+- company/uber
+- company/uno_minda
+- company/v2_retail
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Decoding Capex, Capacity, and Consumer Trends 
 

@@ -6,8 +6,13 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/nvidia_corporation
+- company/palantir_technologies
+- company/sodexo
+- company/spacex
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

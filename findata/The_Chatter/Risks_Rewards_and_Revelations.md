@@ -6,8 +6,19 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/ccl_products
+- company/godrej_agrovet
+- company/godrej_properties
+- company/hind_rectifiers
+- company/idfc_first_bank
+- company/kotak_mahindra_bank
+- company/onesource_specialty_pharma
+- company/sportking_india
+- company/tatva_chintan_pharma_chem
+- company/ultratech_cement
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Risks, Rewards, and Revelation 
 

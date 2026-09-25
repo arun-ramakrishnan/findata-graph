@@ -2,8 +2,13 @@
 type: newsletter
 title: 'The Chatter: SEBI Chairman, Maruti Suzuki, Lumino, Indian Bank & More'
 tags:
-- series/the_chatter
+- company/indian_bank
+- company/lumino_industries
+- company/maruti_suzuki_india
+- company/united_breweries
+- company/zen_technologies
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-08T11:30:06Z'
@@ -13,6 +18,7 @@ sources:
   title: 'The Chatter: SEBI Chairman, Maruti Suzuki, Lumino, Indian Bank & More'
   author: process:pdf_conv_md
   last_modified: '2026-09-07'
+---
 ---
 
 9/7/26, 11:45 AM The Chatter: SEBI Chairman, Maruti Suzuki, Lumino, Indian Bank & More

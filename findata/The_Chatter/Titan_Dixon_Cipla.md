@@ -6,8 +6,19 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/berger_paints_india
+- company/cera_sanitaryware
+- company/cipla_limited
+- company/dixon_technologies
+- company/jsw_steel
+- company/muthoot_finance
+- company/pngs_reva_diamond_jewellery
+- company/shree_renuka_sugars
+- company/tata_consumer_products
+- company/voltas
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

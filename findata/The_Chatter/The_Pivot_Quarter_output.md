@@ -6,8 +6,23 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/ashok_leyland
+- company/bharat_forge
+- company/canarys_automation
+- company/fujiyama_power_systems
+- company/kaynes_technologies
+- company/kirloskar_pneumatic_company
+- company/physicswallah
+- company/rulka_electricals
+- company/schaeffler_india
+- company/sona_blw_precision_forgings
+- company/tube_investments_of_india
+- company/uno_minda
+- company/vedanta_ltd
+- company/welspun_corp_ltd
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 12/19/25, 9:13 PM
 The Chatter: The Pivot Quarter - The Chatter by Zerodha

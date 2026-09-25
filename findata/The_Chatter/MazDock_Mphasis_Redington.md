@@ -2,8 +2,13 @@
 type: newsletter
 title: 'The Chatter: SEBI Chairman, Mazagon Dock Shipbuilders, Mphasis, Redington & More'
 tags:
-- series/the_chatter
+- company/mazagon_dock_shipbuilders
+- company/mphasis
+- company/p_n_gadgil_jewellers
+- company/redington
+- company/tvs_supply_chain_solutions
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-24T18:34:09Z'
@@ -13,6 +18,7 @@ sources:
   title: 'The Chatter: SEBI Chairman, Mazagon Dock Shipbuilders, Mphasis, Redington & More'
   author: process:pdf_conv_md
   last_modified: '2026-09-19'
+---
 ---
 
 9/19/26, 10:32 PM The Chatter: SEBI Chairman, Mazagon Dock Shipbuilders, Mphasis, Redington & More

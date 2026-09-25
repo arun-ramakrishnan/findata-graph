@@ -6,8 +6,15 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/broadcom
+- company/coforge
+- company/ksh_international
+- company/mahindra_mahindra
+- company/raymond_lifestyle
+- company/vidya_wires
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 1/10/26, 9:12 AM
 The Chatter: Talking Points - The Chatter by Zerodha

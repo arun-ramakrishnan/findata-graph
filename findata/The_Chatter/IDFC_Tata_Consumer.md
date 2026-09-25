@@ -6,8 +6,15 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/au_small_finance_bank
+- company/bank_of_india
+- company/dodla_dairy_limited
+- company/dr_lal_pathlabs
+- company/idfc_first_bank
+- company/tata_consumer_products
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

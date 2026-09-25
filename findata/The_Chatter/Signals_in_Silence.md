@@ -6,8 +6,36 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/aarti_pharmalabs
+- company/bank_of_baroda
+- company/bmw
+- company/ethos
+- company/exide_industries
+- company/hero_motocorp
+- company/hugo_boss
+- company/hyundai_motor_india_limited
+- company/jsw_energy
+- company/jubilant_foodworks
+- company/kaynes_technologies
+- company/kei_industries
+- company/mahanagar_gas
+- company/page_industries
+- company/patanjali_foods
+- company/pidilite_industries
+- company/piramal_enterprises
+- company/route_mobile
+- company/sapphire_foods_india
+- company/satin_creditcare
+- company/saudi_aramco
+- company/suryoday_small_finance_bank
+- company/tata_power
+- company/tencent
+- company/torrent_power
+- company/welspun_enterprises
+- company/westlife_foodworld
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Signals in Silence 
 

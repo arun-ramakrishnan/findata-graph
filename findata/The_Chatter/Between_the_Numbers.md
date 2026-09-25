@@ -6,8 +6,29 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/advanced_micro_devices
+- company/allcargo_logistics
+- company/arman_financial_services
+- company/brigade_enterprises
+- company/cello_world
+- company/cipla_limited
+- company/cochin_shipyard
+- company/eureka_forbes_ltd
+- company/greenlam_industries
+- company/hindware_home_innovation
+- company/hpl_electric_and_power
+- company/indian_oil_corporation
+- company/indiqube_spaces
+- company/matrimony_com
+- company/mcdonalds
+- company/muthoot_finance
+- company/senco_gold
+- company/titagarh_rail_systems
+- company/usha_martin
+- company/zydus_lifesciences
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Between the Numbers 
 

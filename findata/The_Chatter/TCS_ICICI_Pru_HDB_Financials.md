@@ -6,8 +6,19 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/anand_rathi_share_and_stock_brokers
+- company/anand_rathi_wealth
+- company/baba_jewellers
+- company/bosch
+- company/hdb_financial_services
+- company/icici_lombard_general_insurance
+- company/icici_prudential_asset_management_company
+- company/icici_prudential_life_insurance
+- company/krishana_phoschem
+- company/tejas_networks
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

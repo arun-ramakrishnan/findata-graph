@@ -6,8 +6,43 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/aarti_industries
+- company/adani_green
+- company/anheuser_busch_inbev
+- company/apcotex_industries
+- company/bharat_forge
+- company/blue_star
+- company/canara_bank
+- company/cg_power
+- company/chambal_fertilisers_and_chemicals
+- company/coinbase
+- company/dilip_buildcon
+- company/escorts_kubota
+- company/ferrari
+- company/hester_biosciences
+- company/housing_and_urban_development_corporation
+- company/kalyan_jewellers
+- company/maersk
+- company/muthoot_microfin
+- company/novo_nordisk
+- company/polycab_india
+- company/radico_khaitan
+- company/sg_finserve
+- company/shopify
+- company/siemens_energy
+- company/symphony
+- company/tata_chemicals
+- company/union_bank_of_india
+- company/united_breweries
+- company/unitedspirits
+- company/vedant_fashions
+- company/voltas
+- company/waaree_energies
+- company/wonderla_holidays
+- company/zee_entertainment_enterprises
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Embracing the Unknown 
 

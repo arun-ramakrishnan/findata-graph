@@ -6,8 +6,26 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/amara_raja_energy_and_mobility
+- company/ashok_leyland
+- company/bank_of_baroda
+- company/bharat_forge
+- company/blackbuck
+- company/hindalco
+- company/honasa_consumer
+- company/mahindra_mahindra
+- company/muthoot_finance
+- company/ongc
+- company/pitti_engineering
+- company/pvr_inox
+- company/quality_power_electrical_equipments
+- company/samvardhana_motherson_international
+- company/state_bank_of_india
+- company/tata_motors_passenger_vehicles
+- company/va_tech_wabag
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

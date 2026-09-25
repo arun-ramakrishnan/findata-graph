@@ -6,8 +6,20 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/bajaj_finance
+- company/bandhan_bank
+- company/hindustan_zinc
+- company/infosys
+- company/mindspace_business_parks_reit
+- company/motherson_sumi_wiring_india
+- company/piramal_finance
+- company/reliance_industries
+- company/sun_pharmaceutical_industries
+- company/tata_capital
+- company/varun_beverages
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

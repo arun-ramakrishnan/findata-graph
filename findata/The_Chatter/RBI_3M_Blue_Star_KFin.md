@@ -2,8 +2,13 @@
 type: newsletter
 title: 'The Chatter: RBI Deputy Governor, 3M, Blue Star, KFin Technologies, & More'
 tags:
-- series/the_chatter
+- company/blue_star
+- company/heg
+- company/kfin_technologies
+- company/ramkrishna_forgings
+- company/three_m_india
 - publisher/zerodha
+- series/the_chatter
 sources:
 - id: RBI_3M_Blue_Star_KFin
   resource: /Reports/RBI_3M_Blue_Star_KFin.pdf
@@ -14,6 +19,7 @@ generated:
   by: process:okf_backfill
   at: '2026-08-25T00:00:00Z'
 stale_after: '2027-02-21'
+---
 ---
 <div align="center">
 

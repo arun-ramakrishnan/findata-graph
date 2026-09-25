@@ -6,8 +6,27 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/adani_green
+- company/apple
+- company/bajaj_auto
+- company/bharti_airtel
+- company/britannia_industries
+- company/dalmia_bharat
+- company/dixon_technologies
+- company/emami
+- company/godrej_properties
+- company/interglobe_aviation
+- company/jk_cement
+- company/macrotech_developers
+- company/mankind_pharma
+- company/motilal_oswal_financial_services
+- company/prestige_estates_projects
+- company/tata_power
+- company/tesla
+- company/varun_beverages
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Making It Work 
 

@@ -2,8 +2,11 @@
 type: newsletter
 title: 'The Chatter: RBI Governor, RBI Deputy Governor, KEI Industries, Cochin Shipyard & More'
 tags:
-- series/the_chatter
+- company/cochin_shipyard
+- company/kei_industries
+- company/symphony
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-17T02:19:44Z'
@@ -13,6 +16,7 @@ sources:
   title: 'The Chatter: RBI Governor, RBI Deputy Governor, KEI Industries, Cochin Shipyard & More'
   author: process:pdf_conv_md
   last_modified: '2026-09-14'
+---
 ---
 
 9/14/26, 5:31 PM The Chatter: RBI Governor, RBI Deputy Governor, KEI Industries, Cochin Shipyard & More

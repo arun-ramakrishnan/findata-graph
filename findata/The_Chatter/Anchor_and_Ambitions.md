@@ -6,8 +6,25 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/asian_paints
+- company/axis_bank
+- company/bajaj_consumer_care
+- company/balkrishna_industries_limited
+- company/creditaccess_grameen
+- company/dlf_limited
+- company/hdfc_bank
+- company/icici_bank
+- company/indiamart_intermesh
+- company/kotak_mahindra_bank
+- company/multi_commodity_exchange_of_india_mcx
+- company/premier_energies
+- company/tata_capital
+- company/ultratech_cement
+- company/vishal_mega_mart
+- company/wework_india_management
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

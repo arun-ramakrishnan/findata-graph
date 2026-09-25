@@ -6,8 +6,22 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/alibaba_group
+- company/creative_graphics_solutions_india
+- company/dave_and_busters_entertainment
+- company/dcm_shriram
+- company/deepak_nitrite
+- company/emerald_tyre_manufacturers
+- company/greenlam_industries
+- company/jain_resource_recycling
+- company/purple_united_sales
+- company/racl_geartech
+- company/studds_accessories
+- company/sula_vineyards
+- company/tenneco_clean_air_india
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 12/12/25, 7:32 PM
 The Chatter: Playing the Long Game - The Chatter by Zerodha

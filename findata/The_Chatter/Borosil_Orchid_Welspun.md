@@ -2,8 +2,13 @@
 type: newsletter
 title: 'The Chatter: Borosil, Orchid, Welspun, KRN , & More'
 tags:
-- series/the_chatter
+- company/borosil
+- company/khazanchi_jewellers
+- company/krn_heat_exchanger
+- company/orchid_pharma
+- company/racl_geartech
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-08-28T13:01:59Z'
@@ -13,6 +18,7 @@ sources:
   title: 'The Chatter: Borosil, Orchid, Welspun, KRN , & More'
   author: process:pdf_conv_md
   last_modified: '2026-08-28'
+---
 ---
 
 8/28/26, 1:38 PM The Chatter: Borosil, Orchid, Welspun, KRN, & More

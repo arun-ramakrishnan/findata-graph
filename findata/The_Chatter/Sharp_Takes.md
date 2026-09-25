@@ -6,8 +6,26 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/campus_activewear
+- company/company20_microns
+- company/cummins_india
+- company/cyient
+- company/eid_parry
+- company/flair_writing_industries
+- company/general_insurance_corp_india
+- company/heidelbergcement_india
+- company/irctc
+- company/linc_pen_and_plastics
+- company/medplus_health_services
+- company/monte_carlo_fashions
+- company/ola_electric_mobility
+- company/suzlon_energy
+- company/tbo_tek
+- company/tvs_supply_chain_solutions
+- company/unitedspirits
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Sharp Takes 
 

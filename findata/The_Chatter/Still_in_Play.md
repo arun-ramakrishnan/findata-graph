@@ -6,8 +6,21 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/allcargo_global
+- company/anand_rathi_wealth
+- company/angel_one
+- company/dixon_technologies
+- company/hcl_technologies
+- company/heritage_foods
+- company/kei_industries
+- company/ltm
+- company/reliance_industries
+- company/tata_technologies
+- company/tech_mahindra
+- company/wipro
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Still in Play 
 

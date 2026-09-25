@@ -2,8 +2,29 @@
 type: newsletter
 permalink: the-chatter/the-chatter-scaling-through-slowdowns-output
 tags:
-- series/the_chatter
+- company/au_small_finance_bank
+- company/dixon_technologies
+- company/eternal_limited
+- company/general_motors
+- company/havells_india
+- company/heineken_holding
+- company/hermes_international
+- company/icici_bank
+- company/jsw_energy
+- company/jsw_steel
+- company/kajaria_ceramics
+- company/l_t_technology_services
+- company/manorama_industries
+- company/nestle_india
+- company/polycab_india
+- company/rallis_india
+- company/reliance_industries
+- company/sobha
+- company/south_indian_bank
+- company/tata_technologies
+- company/tips_music
 - publisher/zerodha
+- series/the_chatter
 visibility: public
 language: en
 last_updated: '2025-10-25'
@@ -12,6 +33,7 @@ generated:
   by: process:okf_backfill
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
+---
 ---
 
 # The Chatter: Scaling Through Slowdowns 

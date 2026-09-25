@@ -6,8 +6,29 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/acutaas_chemicals
+- company/aelea_commodities
+- company/can_fin_homes
+- company/hindustan_unilever
+- company/indian_oil_corporation
+- company/intel_corporation
+- company/jana_small_finance_bank
+- company/jindal_steel
+- company/l_oreal
+- company/mangalore_refinery_and_petrochemicals
+- company/mattel
+- company/onward_technologies
+- company/psp_projects
+- company/samsung_sdi_co
+- company/shilchar_technologies
+- company/steel_authority_of_india
+- company/vardhmantextiles
+- company/varun_beverages
+- company/waaree_energies
+- company/yash_highvoltage
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Known Unknowns 
 

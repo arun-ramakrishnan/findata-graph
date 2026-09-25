@@ -2,8 +2,13 @@
 type: newsletter
 title: 'The Chatter: Milky Mist, Bluestone, Leap India, Avanti & More'
 tags:
-- series/the_chatter
+- company/avanti_feeds
+- company/bluestone_jewellery_and_lifestyle
+- company/leap_india
+- company/milky_mist_dairy_food
+- company/precision_camshafts
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-04T17:19:42Z'
@@ -13,6 +18,7 @@ sources:
   title: 'The Chatter: Milky Mist, Bluestone, Leap India, Avanti & More'
   author: process:pdf_conv_md
   last_modified: '2026-09-03'
+---
 ---
 
 9/3/26, 10:10 PM The Chatter: Milky Mist, Bluestone, Leap India, Avanti & More

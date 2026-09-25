@@ -2,8 +2,12 @@
 type: newsletter
 title: 'The Chatter: Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More'
 tags:
-- series/the_chatter
+- company/gokaldas_exports
+- company/hexaware_technologies
+- company/max_financial_services
+- company/tata_consultancy_services
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-08-31T03:37:56Z'
@@ -13,6 +17,7 @@ sources:
   title: 'The Chatter: Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More'
   author: process:pdf_conv_md
   last_modified: '2026-08-29'
+---
 ---
 
 8/29/26, 10:04 PM The Chatter: Dr. Rohit on Indian Energy, TCS, Max Life, Tempsens & More

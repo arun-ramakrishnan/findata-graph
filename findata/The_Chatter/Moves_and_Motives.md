@@ -6,8 +6,33 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/all_time_plastics
+- company/apollo_hospitals
+- company/avanti_feeds
+- company/biocon
+- company/bluestone_jewellery_and_lifestyle
+- company/dr_reddys_laboratories
+- company/ems
+- company/ghcl
+- company/gitlab
+- company/hero_motocorp
+- company/jindal_steel
+- company/jos_alukkas
+- company/kei_industries
+- company/mtar_technologies
+- company/olectra_greentech
+- company/oracle_corporation
+- company/rbz_jewellers
+- company/salesforce
+- company/sammaan_capital
+- company/sri_lotus_developers_realty
+- company/suprajit_engineering
+- company/texmaco_rail_and_engineering
+- company/vikram_solar
+- company/vinfast_auto
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Moves and Motives 
 

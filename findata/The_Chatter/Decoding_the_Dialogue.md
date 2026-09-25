@@ -6,8 +6,30 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/aditya_birla_fashion_and_retail
+- company/awfis_space_solutions
+- company/balkrishna_industries_limited
+- company/cms_info_systems
+- company/dodla_dairy_limited
+- company/finolex_industries
+- company/freightos
+- company/gensol_engineering
+- company/gopal_snacks
+- company/indigo_paints
+- company/mahindra_mahindra
+- company/mercedes_benz_group
+- company/metro_brands
+- company/mtar_technologies
+- company/nestle_india
+- company/procter_gamble_company
+- company/schneider_electric_infrastructure
+- company/sony_group
+- company/stovekraft_limited
+- company/talbros_automotive_components
+- company/thomas_cook_india
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Decoding the Dialogue 
 

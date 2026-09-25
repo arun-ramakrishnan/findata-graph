@@ -12,8 +12,14 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-09'
 tags:
-- series/the_chatter
+- company/amara_raja_energy_and_mobility
+- company/bosch
+- company/epack_durable
+- company/manappuram_finance
+- company/zydus_lifesciences
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 ![[images/Bosch_Amara_Zydus_p1_img1.jpeg]]
 

@@ -6,8 +6,25 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/abb_india
+- company/apex_frozen_foods_ltd
+- company/bajaj_auto
+- company/cie_automotive_india
+- company/glottis
+- company/gmr_airports
+- company/godavari_biorefineries
+- company/idfc_first_bank
+- company/infosys
+- company/itc
+- company/jindal_steel
+- company/premier_explosives
+- company/sanofi_india
+- company/schaeffler_india
+- company/skp_bearing_industries
+- company/sun_pharmaceutical_industries
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

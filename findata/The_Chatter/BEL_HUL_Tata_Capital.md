@@ -6,8 +6,14 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/bharat_electronics
+- company/hindustan_unilever
+- company/suzlon_energy
+- company/tata_capital
+- company/ttk_prestige
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 ![[images/BEL_HUL_Tata_Capital_p1_img1.jpeg]]
 

@@ -6,8 +6,20 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/360_one_wam
+- company/5paisa_capital
+- company/angel_one
+- company/ceat
+- company/icici_lombard_general_insurance
+- company/jio_financial_services
+- company/muthoot_capital_services
+- company/piramal_finance
+- company/polycab_india
+- company/wework_india_management
+- company/wipro
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

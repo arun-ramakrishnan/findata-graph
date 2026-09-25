@@ -6,8 +6,24 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/adani_power
+- company/aditya_birla_real_estate
+- company/bajaj_auto
+- company/bharat_forge
+- company/bse
+- company/dr_lal_pathlabs
+- company/garware_hi_tech_films
+- company/godrej_consumer_products
+- company/lloyds_metals_energy
+- company/mahindra_mahindra
+- company/marico
+- company/meesho
+- company/polycab_india
+- company/raymond_realty
+- company/shoppers_stop
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 ![[images/Meesho_Marico_Bajaj_p1_img1.jpeg]]
 

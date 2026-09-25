@@ -6,8 +6,18 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/amagi_media_labs
+- company/cmr_green_technologies
+- company/hfcl
+- company/indian_bank
+- company/kaynes_technologies
+- company/nbcc_india
+- company/premier_explosives
+- company/rishabh_instruments
+- company/tata_consultancy_services
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

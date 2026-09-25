@@ -6,8 +6,24 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/antony_waste_handling_cell
+- company/bajaj_finance
+- company/container_corporation_of_india
+- company/cummins_india
+- company/delhivery
+- company/finolex_industries
+- company/medplus_health_services
+- company/national_aluminium
+- company/ntpc
+- company/pg_electroplast
+- company/rr_kabel
+- company/sbi_cards_and_payment_services
+- company/steel_authority_of_india
+- company/studds_accessories
+- company/tata_power
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

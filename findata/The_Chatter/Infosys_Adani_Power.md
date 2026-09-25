@@ -6,8 +6,21 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/adani_power
+- company/coromandel_international
+- company/go_digit_general_insurance_company
+- company/infosys
+- company/interglobe_aviation
+- company/meesho
+- company/motilal_oswal_financial_services
+- company/mphasis
+- company/spandana_sphoorty_financial
+- company/srf
+- company/suryoday_small_finance_bank
+- company/ujjivan_small_finance_bank
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 ![[images/Infosys_Adani_Power_p1_img1.jpeg]]
 

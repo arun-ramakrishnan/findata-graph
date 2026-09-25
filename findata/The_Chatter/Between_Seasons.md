@@ -6,8 +6,28 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/akzo_nobel_india
+- company/axis_bank
+- company/bajaj_finserv
+- company/bharti_airtel
+- company/divis_laboratories
+- company/hcl_technologies
+- company/hdfc_bank
+- company/hindustan_unilever
+- company/icici_bank
+- company/infosys
+- company/ion_exchange
+- company/jsw_steel
+- company/maruti_suzuki_india
+- company/nuvama_wealth
+- company/power_grid_corporation_of_india
+- company/state_bank_of_india
+- company/tata_consultancy_services
+- company/wipro
+- company/yatra_online
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Between Seasons 
 

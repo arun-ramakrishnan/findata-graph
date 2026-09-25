@@ -6,8 +6,22 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/5paisa_capital
+- company/astra_microwave_products
+- company/baazar_style_retail
+- company/balaji_telefilms
+- company/digitide_solutions
+- company/gail_india
+- company/hindustan_aeronautics
+- company/indigrid
+- company/jsw_infrastructure
+- company/niit_learning_systems
+- company/sanathan_textiles
+- company/signature_global
+- company/thomas_cook_india
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Moving Pieces 
 

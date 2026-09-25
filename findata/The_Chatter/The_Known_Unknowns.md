@@ -6,8 +6,25 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/alphabet
+- company/d_b_corp
+- company/dr_reddys_laboratories
+- company/eternal_limited
+- company/havells_india
+- company/icici_bank
+- company/infobeans_technologies
+- company/l_t_finance
+- company/le_travenues_technology_limited
+- company/lt_foods
+- company/meta
+- company/microsoft
+- company/netflix
+- company/polycab_india
+- company/spotify
+- company/ultratech_cement
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: The Known Unknowns 
 

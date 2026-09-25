@@ -6,8 +6,28 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/ahluwalia_contracts
+- company/astra_microwave_products
+- company/campus_activewear
+- company/cummins_india
+- company/deepak_nitrite
+- company/embassy_office_parks
+- company/everest_kanto_cylinder
+- company/finolex_cables
+- company/garden_reach_shipbuilders_and_engineers
+- company/glenmark_pharmaceuticals
+- company/harley_davidson
+- company/inox_wind
+- company/irctc
+- company/mandb_engineering
+- company/multi_commodity_exchange_of_india_mcx
+- company/rir_power_electronics
+- company/sarveshwar_foods
+- company/td_power_systems
+- company/western_carriers_india
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Underneath the Noise 
 

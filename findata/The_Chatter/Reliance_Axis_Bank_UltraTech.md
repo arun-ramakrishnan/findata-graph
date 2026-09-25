@@ -6,8 +6,18 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/axis_bank
+- company/can_fin_homes
+- company/havells_india
+- company/oberoi_realty
+- company/one_97_communications_paytm
+- company/rallis_india
+- company/reliance_industries
+- company/tata_power
+- company/ultratech_cement
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

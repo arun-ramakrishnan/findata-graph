@@ -6,8 +6,33 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/abb_india
+- company/adani_enterprises
+- company/astral_pipes
+- company/belrise_industries
+- company/bharti_hexacom
+- company/crisil
+- company/dixon_technologies
+- company/eicher_motors
+- company/fabtech_technologies
+- company/fsn_e_commerce
+- company/gail_india
+- company/gillette
+- company/hdfc_amc
+- company/hindustan_zinc
+- company/info_edge
+- company/jio_financial_services
+- company/marvel_decor
+- company/nippon_life_amc
+- company/ongc
+- company/p_g_hygiene_and_healthcare
+- company/rec
+- company/sheela_foam
+- company/upl
+- company/vodafone_idea
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Management in Motion 
 

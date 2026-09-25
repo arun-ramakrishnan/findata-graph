@@ -6,8 +6,21 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/bharti_airtel
+- company/cyber_media_research_and_services
+- company/dollar_industries
+- company/indegene
+- company/one_mobikwik_systems
+- company/pace_digitek
+- company/pvr_inox
+- company/reliance_consumer_products
+- company/saatvik_green_energy
+- company/tata_consultancy_services
+- company/tata_elxsi
+- company/yes_bank
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Doubling Down 
 

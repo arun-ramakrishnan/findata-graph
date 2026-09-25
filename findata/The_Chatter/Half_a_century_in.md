@@ -6,8 +6,22 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/amagi_media_labs
+- company/carraro_india
+- company/dollar_industries
+- company/finolex_cables
+- company/juniper_hotels
+- company/nocil
+- company/oracle_corporation
+- company/orkla_india
+- company/oswal_pumps
+- company/precision_camshafts
+- company/shadowfax_technologies
+- company/talbros_automotive_components
+- company/yatra_online
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

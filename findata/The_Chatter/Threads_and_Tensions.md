@@ -6,8 +6,15 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/bank_of_america
+- company/delta_air_lines
+- company/hcl_technologies
+- company/infosys
+- company/tata_elxsi
+- company/union_bank_of_india
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 1/16/26, 8:02 PM
 The Chatter: Threads and Tensions - The Chatter by Zerodha

@@ -2,8 +2,13 @@
 type: newsletter
 title: 'The Chatter: Solar Industries, PhonePe, Coforge, Senco & More'
 tags:
-- series/the_chatter
+- company/coforge
+- company/iol_chemicals_and_pharmaceuticals
+- company/phonepe
+- company/senco_gold
+- company/solar_industries
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-17T02:19:47Z'
@@ -13,6 +18,7 @@ sources:
   title: 'The Chatter: Solar Industries, PhonePe, Coforge, Senco & More'
   author: process:pdf_conv_md
   last_modified: '2026-09-16'
+---
 ---
 
 9/16/26, 6:14 PM The Chatter: Solar Industries, PhonePe, Coforge, Senco & More

@@ -2,8 +2,11 @@
 type: newsletter
 title: 'The Chatter: Maruti Suzuki, Uday Kotak, Hy-Tech, Symbiotec & More'
 tags:
-- series/the_chatter
+- company/hy_tech_engineers
+- company/skyways_air_services
+- company/symbiotec_pharmalab
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-24T18:34:01Z'
@@ -13,6 +16,7 @@ sources:
   title: 'The Chatter: Maruti Suzuki, Uday Kotak, Hy-Tech, Symbiotec & More'
   author: process:pdf_conv_md
   last_modified: '2026-09-24'
+---
 ---
 
 9/24/26, 7:32 AM The Chatter: Maruti Suzuki, Uday Kotak, Hy-Tech, Symbiotec & More

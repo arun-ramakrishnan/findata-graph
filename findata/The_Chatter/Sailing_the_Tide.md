@@ -6,8 +6,25 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/cartrade_tech
+- company/dhanuka_agritech
+- company/indian_energy_exchange_limited
+- company/larsen_and_toubro
+- company/mold_tek_packaging
+- company/netgear
+- company/ntpc
+- company/pb_fintech
+- company/premier_energies
+- company/rec
+- company/sanofi_india
+- company/shell
+- company/shriram_finance
+- company/starbucks
+- company/td_power_systems
+- company/urban_company
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Sailing the Tide 
 

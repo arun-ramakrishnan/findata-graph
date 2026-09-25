@@ -6,8 +6,27 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/ashapura_minechem
+- company/bectors_food_specialities
+- company/crocs
+- company/dabur_india
+- company/ganesha_ecosphere
+- company/hanesbrands
+- company/jbm_auto
+- company/krispy_kreme
+- company/magma_fincorp
+- company/micron_technology
+- company/mishra_dhatu_nigam_midhani
+- company/muthoot_finance
+- company/ntpc
+- company/precision_camshafts
+- company/rain_industries
+- company/sharda_cropchem
+- company/tci_express
+- company/virgin_galactic
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Between Headwinds and Tailwinds 
 

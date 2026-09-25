@@ -12,8 +12,14 @@ generated:
   at: '2026-08-16T00:00:00Z'
 stale_after: '2027-02-12'
 tags:
-- series/the_chatter
+- company/apollo_hospitals
+- company/canara_bank
+- company/irctc
+- company/solar_industries
+- company/wockhardt_limited
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: RBI's Governor, Canara Bank, IRCTC, & More  
 

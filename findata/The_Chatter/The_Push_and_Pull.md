@@ -6,8 +6,30 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/aditya_birla_fashion_and_retail
+- company/ashok_leyland
+- company/borosil
+- company/dbs_group
+- company/fsn_e_commerce
+- company/hindustan_oil_exploration_company
+- company/kanpur_plastipack
+- company/khadim_india
+- company/kilburn_engineering
+- company/nvidia_corporation
+- company/orient_green_power
+- company/patanjali_foods
+- company/precision_camshafts
+- company/racl_geartech
+- company/sony_group
+- company/styrenix_performance_materials
+- company/tilaknagar_industries
+- company/unitedspirits
+- company/vedant_fashions
+- company/vodafone_idea
+- company/waaree_energies
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: The Push and Pull 
 

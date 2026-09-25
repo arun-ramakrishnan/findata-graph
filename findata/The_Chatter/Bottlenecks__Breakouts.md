@@ -6,8 +6,22 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/allcargo_logistics
+- company/ashapura_minechem
+- company/basf_india
+- company/exide_industries
+- company/foxconn
+- company/gabriel_india
+- company/gmr_airports
+- company/jd_cables
+- company/lg_electronics_india
+- company/mahindra_epc_irrigation
+- company/paradeep_parivahan
+- company/solarium_green_energy
+- company/titagarh_rail_systems
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: Bottlenecks \& Breakouts 
 

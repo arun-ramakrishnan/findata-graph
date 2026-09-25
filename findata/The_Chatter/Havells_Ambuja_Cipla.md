@@ -6,8 +6,17 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/blue_star
+- company/cipla_limited
+- company/endurance_technologies
+- company/epl
+- company/gujarat_gas
+- company/havells_india
+- company/pajson_agro_india
+- company/srf
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 <div align="center">
 

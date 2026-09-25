@@ -6,8 +6,26 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/credo_brands_marketing
+- company/godrej_industries
+- company/hatsun_agro_products
+- company/heritage_foods
+- company/indian_energy_exchange_limited
+- company/jupiter_wagons
+- company/just_dial
+- company/motherson_sumi_wiring_india
+- company/netflix
+- company/nike
+- company/oberoi_realty
+- company/power_finance_corporation
+- company/prestige_estates_projects
+- company/pvr_inox
+- company/scoda_tubes
+- company/shriram_finance
+- company/usha_martin
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: On Record 
 

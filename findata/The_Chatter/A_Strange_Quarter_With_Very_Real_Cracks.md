@@ -6,8 +6,27 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/arvind_limited
+- company/avanti_feeds
+- company/dr_lal_pathlabs
+- company/esaf_small_finance_bank
+- company/garware_hi_tech_films
+- company/hero_motocorp
+- company/kellton_tech_solutions
+- company/krsnaa_diagnostics
+- company/lumax_auto_technologies
+- company/metropolis_healthcare
+- company/nvidia_corporation
+- company/olectra_greentech
+- company/pi_industries
+- company/quality_power_electrical_equipments
+- company/senco_gold
+- company/tata_steel
+- company/uflex
+- company/vijaya_diagnostic_centre
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: A Strange Quarter With Very Real Cracks 
 

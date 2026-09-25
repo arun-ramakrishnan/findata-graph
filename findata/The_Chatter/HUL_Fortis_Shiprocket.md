@@ -2,8 +2,13 @@
 type: newsletter
 title: 'The Chatter: HUL, Fortis, Shiprocket & More'
 tags:
-- series/the_chatter
+- company/arcil
+- company/fortis_healthcare
+- company/hindustan_unilever
+- company/sandhar_technologies
+- company/shiprocket
 - publisher/zerodha
+- series/the_chatter
 generated:
   by: pdf_conv_md.py/pymupdf4llm-1.28.2
   at: '2026-09-17T02:19:34Z'
@@ -13,6 +18,7 @@ sources:
   title: 'The Chatter: HUL, Fortis, Shiprocket & More'
   author: process:pdf_conv_md
   last_modified: '2026-09-11'
+---
 ---
 
 9/11/26, 10:51 PM The Chatter: HUL, Fortis, Shiprocket & More

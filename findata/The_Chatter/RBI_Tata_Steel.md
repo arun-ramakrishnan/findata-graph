@@ -6,8 +6,14 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/eicher_motors
+- company/hexaware_technologies
+- company/laurus_labs
+- company/mahindra_mahindra
+- company/tata_steel
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 ![[images/RBI_Tata_Steel_p1_img1.jpeg]]
 

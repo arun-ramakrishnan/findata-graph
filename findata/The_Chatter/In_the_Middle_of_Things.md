@@ -6,8 +6,26 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-11'
 tags:
-- series/the_chatter
+- company/5paisa_capital
+- company/anand_rathi_wealth
+- company/arisinfra_solutions
+- company/awl_agri_business
+- company/bansal_wire_industries
+- company/belrise_industries
+- company/elecon_engineering
+- company/glenmark_pharmaceuticals
+- company/gtpl_hathway
+- company/hdfc_bank
+- company/icici_lombard_general_insurance
+- company/lemon_tree_hotels
+- company/ola_electric_mobility
+- company/rallis_india
+- company/tata_consultancy_services
+- company/tata_elxsi
+- company/tejas_networks
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 # The Chatter: In the Middle of Things 
 

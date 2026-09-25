@@ -12,8 +12,14 @@ generated:
   at: '2026-08-15T00:00:00Z'
 stale_after: '2027-02-02'
 tags:
-- series/the_chatter
+- company/dlf_limited
+- company/fsn_e_commerce
+- company/inox_india
+- company/marico
+- company/uno_minda
 - publisher/zerodha
+- series/the_chatter
+---
 ---
 ![[images/Marico_DLF_BSE_p1_img1.jpeg]]
 
