@@ -435,6 +435,67 @@ class TestCurationSafety:
             assert " **…" not in b
             assert b.rstrip().endswith("…**")
 
+    def test_section_markers_deduped_per_distinct_heading(self):
+        """One `- *[Section]*` marker per DISTINCT heading per block — not
+        one per quote (render-hygiene S1; the 2026-09-25 flush showed 7
+        identical markers in a row). A single heading covering the whole
+        block needs no marker at all."""
+        shared = dict(heading="SEBI Chairman Address | Reforms")
+        quotes = [
+            di.Quote(
+                entity="X",
+                quote_text=f"quote {i}",
+                paraphrase=f"point {i}",
+                as_of_edition="Ed",
+                properties=dict(shared),
+            )
+            for i in range(3)
+        ] + [
+            di.Quote(
+                entity="X",
+                quote_text="other quote",
+                paraphrase="other point",
+                as_of_edition="Ed",
+                properties={"heading": "RBI Address | Macro"},
+            )
+        ]
+        block = di.render_chatter_block("Ed", quotes)
+        markers = [ln for ln in block.splitlines() if re.fullmatch(r"- \*\[.*\]\*", ln)]
+        assert len(markers) == 2
+        assert markers[0] == "- *[SEBI Chairman Address | Reforms]*"
+        # Single-heading block keeps its one marker: for sector/catch-all
+        # rows the marker is the only provenance (quote_capture_s4 pins).
+        solo = di.render_chatter_block("Ed", quotes[:3])
+        assert [ln for ln in solo.splitlines() if re.fullmatch(r"- \*\[.*\]\*", ln)] == [
+            "- *[SEBI Chairman Address | Reforms]*"
+        ]
+        # Byte-stable re-render.
+        assert di.render_chatter_block("Ed", quotes) == block
+
+    def test_hash_leading_paraphrase_stripped(self):
+        """A paraphrase captured from a markdown subheading must not render
+        as a live heading inside the bullet (render-hygiene S2; 14 cases
+        in the 2026-09-25 flush)."""
+        q = di.Quote(
+            entity="Marico",
+            quote_text="quote text",
+            paraphrase="###### Q3 and Q4 FY26 may see a pickup in bank credit",
+            as_of_edition="Marico DLF BSE",
+        )
+        block = di.render_chatter_block("Marico DLF BSE", [q])
+        assert not [ln for ln in block.splitlines() if re.match(r"- \*\*#{1,6}\s", ln)]
+        assert "- **Q3 and Q4 FY26 may see a pickup in bank credit**" in block
+        # All-hashes paraphrase carries no content: no bullet, quote survives.
+        q_empty = di.Quote(
+            entity="Marico",
+            quote_text="quote text",
+            paraphrase="###",
+            as_of_edition="Marico DLF BSE",
+        )
+        block_empty = di.render_chatter_block("Marico DLF BSE", [q_empty])
+        assert not [ln for ln in block_empty.splitlines() if ln.startswith("- **")]
+        assert '"quote text"' in block_empty
+
     def test_sentinel_wrapped_auto_block_is_refreshed(self):
         """A previously-auto-generated block (sentinel-wrapped) IS replaced on
         re-run — that's the refresh contract."""

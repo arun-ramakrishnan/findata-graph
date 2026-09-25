@@ -87,6 +87,9 @@ def test_source_positions_missing_name_raises(store):
         sb.source_positions(["a", "ghost"], names)
 
 
+# jobs=2 fork-splits by design (fork_map CoW); the 3.14 fork-after-threads
+# notice is expected here, not a regression signal.
+@pytest.mark.filterwarnings("ignore:This process .* is multi-threaded.*:DeprecationWarning")
 def test_compute_jobs1_matches_jobs2(store):
     A, names = sb.load_projection(store)
     src = sb.source_positions(_CONTRACT, names)

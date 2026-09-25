@@ -1629,24 +1629,35 @@ def render_chatter_block(
         f"wrapped block is refreshed on each `--apply` run of this script). -->"
     )
     lines.append("")
+    # Render hygiene (derive_insights_render_hygiene S1): section-context
+    # markers orient triage once per distinct heading — not once per quote.
+    # No single-heading skip: for sector/catch-all rows the marker is the
+    # only provenance (quote_capture_s4 TestSectorRender pins this) — even
+    # a lone heading carries information the block heading lacks.
+    emitted_headings: set[str] = set()
     for q in quotes:
         # S4 provenance: sector/catch-all rows carry their raw source
         # heading so triage = read the note, decide the real home.
         sec_heading = q.properties.get("heading") if q.properties else None
-        if sec_heading:
+        if sec_heading and sec_heading not in emitted_headings:
             # MD037 guard: literal asterisks in heading text would pair with
             # the emphasis wrap (catch-all key-figure lines carry `Label:**`).
             safe_heading = sec_heading.replace("*", "")
             lines.append(f"- *[{safe_heading}]*")
             lines.append("")
+            emitted_headings.add(sec_heading)
         if q.paraphrase:
             # Ellipsis INSIDE the emphasis: the [:140] cut can land on a
             # space, and `text **…` detaches the closing marker (broken
             # emphasis, md-lint MD037); `text…**` always closes cleanly.
             p_text = q.paraphrase[:140].rstrip()
             p_text = p_text.replace("*", "\\*")  # inner `**` breaks the wrap
-            lines.append(f"- **{p_text}…**" if len(q.paraphrase) > 140 else f"- **{p_text}**")
-            lines.append("")
+            # Render hygiene (S2): a paraphrase captured from a markdown
+            # subheading would render as a live heading inside the bullet.
+            p_text = p_text.lstrip("#").lstrip()
+            if p_text:
+                lines.append(f"- **{p_text}…**" if len(q.paraphrase) > 140 else f"- **{p_text}**")
+                lines.append("")
         # Quote block (Obsidian blockquote).
         quote_display = q.quote_text if len(q.quote_text) <= 280 else (q.quote_text[:277] + "…")
         lines.append(f'> "{quote_display}"')

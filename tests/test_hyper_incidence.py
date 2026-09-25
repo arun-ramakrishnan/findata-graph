@@ -515,6 +515,9 @@ class TestConsumer:
         strip = lambda rs: [{k: v for k, v in r.items() if k != "fit_s"} for r in rs]  # noqa: E731
         assert strip(rows) == strip(rows2)
 
+    # HGX divide/invalid RuntimeWarnings are this degeneracy's expected
+    # side effect (pinned behavior, not a regression signal).
+    @pytest.mark.filterwarnings("ignore::RuntimeWarning")
     def test_fit_breaks_on_singleton(self):
         """The measured failure shape: singleton hyperedges NaN the EM.
 

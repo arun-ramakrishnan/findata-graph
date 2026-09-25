@@ -36,6 +36,13 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+_(Previously: derive_insights_render_hygiene.md archived 2026-09-25 as
+completed.md entry 298 — section-context markers deduped per distinct
+heading and `#`-lead paraphrases stripped in render_chatter_block; S1–S3
+landed with regression tests; 275-note apply net −1,196 lines with zero
+hand-content loss; historical scrub left opt-in. Execution record in
+`../archive/graph/derive_insights_render_hygiene.md`.)_
+
 _(Previously: wikidata_qid_crosswalk.md archived 2026-09-25 as
 completed.md entry 296 — S1-S3 implemented with identifier-first SPARQL,
 cached sidecar, dry-run SKOS convergence, and same-QID E3 suppression;

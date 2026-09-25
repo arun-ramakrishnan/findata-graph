@@ -7645,3 +7645,27 @@ Execution record: `archive/database/wikidata_qid_crosswalk.md`.
   clean; design record `doc/local/engineering/capture_traces.md` §5–§6.
 
 Execution record: `archive/tooling/agent_traces_store.md`.
+
+## 298. derive_insights render hygiene — dedupe section markers, strip heading-bleed paraphrases
+
+**Proposal**: `doc/improvements/archive/graph/derive_insights_render_hygiene.md`
+(filed + executed 2026-09-25 — verdict: **EXECUTED**).
+
+- S1: `- *[Section]*` context markers deduped to one per distinct heading
+  per block (no single-heading skip — the S4 sector test proved the lone
+  marker is the only provenance); S2: paraphrase lead
+  `lstrip("#")` kills the heading-bleed bullet class (incl. the
+  hash-space variant found live in Ashok Leyland).
+- Measured trigger: 14 bleeds + 165 repeated markers in the 481-note
+  2026-09-25 flush (commit `b9a8cd1a`); corpus render simulation post-fix
+  over all 8,518 quotes / 1,292 blocks: 0 bleed, 0 repeats, 200-block
+  re-render stable.
+- S3 regression tests in `tests/test_derive_insights.py` (dedupe +
+  strip + all-hashes fallback); 275-note `--apply --stale-only` net
+  −1,196 lines, zero hand-content loss (0 deleted edition headings,
+  sentinels balanced in all 484 notes), follow-up dry-run 0 writes
+  (queue converged, no churn loop).
+- S4 historical scrub explicitly NOT run (opt-in; live junk now only
+  shrinks on contact — curator owns the rest).
+
+Execution record: `archive/graph/derive_insights_render_hygiene.md`.
