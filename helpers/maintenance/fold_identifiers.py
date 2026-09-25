@@ -96,7 +96,7 @@ def _listing_candidates(
     return values, len(values) > 1
 
 
-def build_candidates(
+def build_candidates(  # noqa: C901
     conn: sqlite3.Connection,
     listings: list[tuple[str, str, str]],
     cik_rows: list[tuple[str, str]],

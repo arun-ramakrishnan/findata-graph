@@ -41,7 +41,7 @@ class ForkPool:
         self._pool.terminate()
         self._pool.join()
 
-    def __enter__(self) -> "ForkPool":
+    def __enter__(self) -> ForkPool:
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:

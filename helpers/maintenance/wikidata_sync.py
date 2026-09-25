@@ -13,8 +13,9 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from datetime import UTC, datetime
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
@@ -78,7 +79,7 @@ def _sparql_json(query: str, *, cache: dict[str, dict[str, Any]], cache_path: Pa
     if key in cache:
         return cache[key]
     url = f"{API_URL}?{urllib.parse.urlencode({'query': query, 'format': 'json'})}"
-    request = urllib.request.Request(
+    request = urllib.request.Request(  # noqa: S310
         url,
         headers={
             "User-Agent": USER_AGENT,
@@ -87,7 +88,7 @@ def _sparql_json(query: str, *, cache: dict[str, dict[str, Any]], cache_path: Pa
     )
     for attempt in range(5):
         try:
-            with urllib.request.urlopen(request, timeout=60) as response:
+            with urllib.request.urlopen(request, timeout=60) as response:  # noqa: S310
                 payload = json.loads(response.read())
             break
         except urllib.error.HTTPError as exc:

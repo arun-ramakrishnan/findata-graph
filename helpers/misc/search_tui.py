@@ -307,7 +307,8 @@ def notes_query(db_path: Path, query: str, limit: int) -> list[Hit]:
         conn = _db_connect(db_path, read_only=True, wal=False)
         _NOTES_CONNECTIONS.conn = conn
         _NOTES_CONNECTIONS.key = key
-    assert conn is not None
+    if conn is None:
+        raise RuntimeError("notes connection was not initialized")
     rows = conn.execute(
         "SELECT file_path, title, section_title, anchor, substr(content, 1, 4000) AS content,"
         " bm25(note_search)"
