@@ -20,7 +20,7 @@ harmonic 192.1 s, closeness 183.4 s, betweenness 87.7 s — the BFS
 family alone. Every SQLite-side write bumps the generation, so every
 next `connect()` pays the stamp again under the build flock; parallel
 gate steps queue behind it (evidence: 2026-09-22 session, collected in
-`doc/local/perf/perf_graph_scale.md` §A-§C).
+`doc/local/perf/graph_scaling.md` Part 1 §A-§C).
 
 This proposal splits the contract: **rebuild = data only** (~2 s,
 back under the 5 s vault-scaling budget); the centrality stamp becomes
@@ -66,7 +66,7 @@ scoped as a follow-up.
   tables; reads serve them warm.
 - Updated `tests/test_centrality_cache.py` contracts (b) and the
   fixture stamp path; targeted tests green; `make static-checks` clean.
-- `doc/local/perf/perf_graph_scale.md` §B verdict updated; graph_design
+- `doc/local/perf/graph_scaling.md` Part 1 §B verdict updated; graph_design
   persistence section updated.
 
 ## 6. Execution addendum (2026-09-22)
@@ -102,7 +102,7 @@ per the lifecycle convention until archival).
   tables died silently. Fixed with an inode guard + one retry in
   `stamp_centrality_cache` (regression:
   `test_stamp_detects_concurrent_swap`) and re-run clean (see
-  `doc/local/perf/perf_graph_scale.md` §B/§C).
+  `doc/local/perf/graph_scaling.md` Part 1 §B/§C).
 - Adjacent fix (pre-existing live-db failure exposed by the run):
   `/api/graph/stats` `orphan_companies` re-scoped to note-backed
   companies (fileless = by-design intake classes: D19 listings + ~25K

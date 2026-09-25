@@ -569,7 +569,7 @@ def connect(  # noqa: C901
             _attach_sqlite(con, db_path)
 
             if needs_build:
-                _build_graph(con, stamp_centrality=stamp_centrality)
+                _build_graph(con, stamp_centrality=stamp_centrality, db_path=db_path)
                 _mark_warm(con, db_path)
             return con
         finally:
@@ -886,7 +886,13 @@ MATERIALISED_TABLES = frozenset(spec["table"] for spec in EDGE_REGISTRY.values()
 # them by design (absence == "compute on demand" for every reader), so
 # snapshot verification tolerates one-side absence instead of demanding
 # them. Present-on-both still verifies counts.
-EPHEMERAL_TABLES = frozenset(t for t in _EXTRA_MATERIALIZED if t.startswith("v_centrality_"))
+EPHEMERAL_TABLES = frozenset(t for t in _EXTRA_MATERIALIZED if t.startswith("v_centrality_")) | {
+    # scipy_exact_universe S6 all-universe stamp tables (drop at rebuild,
+    # absent-OK in the snapshot manifest, present-on-both must match):
+    "v_centrality_closeness_full",
+    "v_centrality_harmonic_full",
+    "v_graph_structure",
+}
 # _build_meta keys owned by the explicit stamp lane
 # (stamp_centrality_cache); excluded from snapshot verification — an
 # 8-vs-7 key diff across a rebuild/stamp boundary is contract-legal
@@ -894,7 +900,12 @@ EPHEMERAL_TABLES = frozenset(t for t in _EXTRA_MATERIALIZED if t.startswith("v_c
 STAMP_OWNED_META_KEYS = frozenset({"louvain_modularity"})
 
 
-def _build_graph(con: duckdb.DuckDBPyConnection, *, stamp_centrality: bool = False) -> None:
+def _build_graph(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    stamp_centrality: bool = False,
+    db_path: Path | str | None = None,
+) -> None:
     """Materialise vertices + edges + declare the property graph.
 
     On a warm file this is skipped (see ``connect``). When called directly
@@ -935,7 +946,7 @@ def _build_graph(con: duckdb.DuckDBPyConnection, *, stamp_centrality: bool = Fal
     for t in _CENTRALITY_TABLES:
         con.execute(f"DROP TABLE IF EXISTS {t}")
     if stamp_centrality:
-        _materialise_centrality_cache(con)
+        _materialise_centrality_cache(con, db_path=db_path)
     # Phase E (duckpgq retirement): no property graph is declared any more —
     # the pattern queries are plain SQL JOINs over these materialised tables
     # and the algorithms run on onager.
@@ -1093,8 +1104,9 @@ def stamp_centrality_cache(
     _announce_destructive_op(
         "re-stamp centrality tables",
         db_path,
-        "drops + restamps seven Onager-native v_centrality_* tables (lane-served skipped per ROUTING)",
-        "seconds post-diet (was minutes pre-diet)",
+        "drops + restamps seven Onager-native v_centrality_* tables plus the "
+        "three S6 all-universe tables (lane-served skipped per ROUTING)",
+        "tens of seconds post-S6 (27.5 s measured 2026-09-26; was minutes pre-diet)",
         "idempotent re-stamp; pre-stamp state unrecoverable (stamps are cache, not source)",
     )
     clear_graph_cache()
@@ -1116,7 +1128,7 @@ def stamp_centrality_cache(
         inode_before = resolved.stat().st_ino if resolved.exists() else None
         con = connect(db_path=db_path, duckdb_path=duckdb_path)
         try:
-            _materialise_centrality_cache(con)
+            _materialise_centrality_cache(con, db_path=db_path)
         finally:
             con.close()
         inode_after = resolved.stat().st_ino if resolved.exists() else None
@@ -1542,7 +1554,9 @@ def _materialise_note_embeddings(con: duckdb.DuckDBPyConnection) -> int:
 
 # centrality_rebuild_contract: the ten stamped tables. A data-only
 # rebuild drops exactly these (a stamp belongs to one edge set);
-# stamp_centrality_cache() re-creates them.
+# stamp_centrality_cache() re-creates them. S6 adds the three
+# all-universe tables (full-walk centralities + structure scalars) to
+# the same drop/ephemeral contract.
 _CENTRALITY_TABLES = (
     "v_centrality_degree",
     "v_centrality_closeness",
@@ -1554,10 +1568,15 @@ _CENTRALITY_TABLES = (
     "v_centrality_local_reaching",
     "v_centrality_voterank",
     "v_centrality_louvain",
+    "v_centrality_closeness_full",
+    "v_centrality_harmonic_full",
+    "v_graph_structure",
 )
 
 
-def _materialise_centrality_cache(con: duckdb.DuckDBPyConnection) -> None:  # noqa: C901
+def _materialise_centrality_cache(
+    con: duckdb.DuckDBPyConnection, db_path: Path | str | None = None
+) -> None:  # noqa: C901
     """Stamp the ten Onager structural metrics into per-metric tables.
 
     graph_centrality_persistent_cache: the scores are a pure function of
@@ -1686,6 +1705,43 @@ def _materialise_centrality_cache(con: duckdb.DuckDBPyConnection) -> None:  # no
         except Exception as e:  # noqa: BLE001
             con.execute("DROP TABLE IF EXISTS v_centrality_louvain")
             print(f"centrality cache: louvain unstamped: {e}", file=sys.stderr)
+        # scipy_exact_universe S6: the all-universe lane is stamped by
+        # DEFAULT — the pre-lane surfaces were NULL (structure) and
+        # unserved (full-walk centralities), so defaulting protects no
+        # existing behaviour; one shared dijkstra pass yields both
+        # (~40 s at the 22k-node live scale; the old full stamp cost
+        # ~6 min). Compute-only contract: these tables never feed the
+        # 1,734-row lane-served graph_analytics contract.
+        try:
+            from helpers.graph import scipy_bridge as _sb_full
+
+            A_fu, names_fu = _sb_full.load_projection(
+                str(db_path) if db_path else _sb_full.DEFAULT_DB_PATH
+            )
+            fu = _sb_full.full_universe_stats(A_fu, jobs=4)
+            _stamp(
+                "v_centrality_closeness_full",
+                _SCORE_COLS,
+                list(zip(names_fu, map(float, fu["closeness"]))),
+            )
+            _stamp(
+                "v_centrality_harmonic_full",
+                _SCORE_COLS,
+                list(zip(names_fu, map(float, fu["harmonic"]))),
+            )
+            _stamp(
+                "v_graph_structure",
+                [("metric", "VARCHAR"), ("value", "DOUBLE")],
+                [(k, float(v)) for k, v in fu["structure"].items()],
+            )
+        except Exception as e:  # noqa: BLE001  # drop + warn; advisory lane
+            for t in (
+                "v_centrality_closeness_full",
+                "v_centrality_harmonic_full",
+                "v_graph_structure",
+            ):
+                con.execute(f"DROP TABLE IF EXISTS {t}")
+            print(f"centrality cache: all-universe unstamped: {e}", file=sys.stderr)
 
 
 def _stage_edges(con: duckdb.DuckDBPyConnection) -> None:

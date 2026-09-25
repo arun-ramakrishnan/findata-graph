@@ -41,18 +41,29 @@ POSITIONS_PATH = _REPO_ROOT / "memory" / "graph_layout.json"
 
 # Mirror of the S0 harness params (graph_measure.mjs lane 1) so the server
 # engine and the measured browser FA2 stay comparable.
-ENGINE = "fa2-numpy"
+ENGINE = "fa2-anchored-numpy"
 ENGINE_PARAMS: dict[str, Any] = {
     "iterations": 600,
     "scaling_ratio": 10.0,
     "gravity": 1.0,
     "slow_down": 2.0,
     "seed": 42,
+    # Sampled-anchor repulsion (layout_anchored_lift 2026-09-26): each node
+    # repels against a fixed seeded subset of M anchors instead of all n —
+    # O(n*M) per iteration instead of O(n^2). Measured at 22,054 incident
+    # nodes: 7.34 s/iter full (73 min/600) -> 0.134 s/iter at M=1024
+    # (1.3 min/600); stress-vs-graph-distances parity with the full solve
+    # at 1.6k nodes (7.94M vs 7.90M, same pair set). Anchor set is fixed
+    # for the whole solve (sorted, seeded) — deterministic given the edge
+    # set, which is the sidecar's cross-visit stability contract.
+    "anchor_samples": 1024,
 }
 
-# O(n^2) chunked repulsion: at ~8k nodes the snapshot-time job starts to
-# dominate a refresh unacceptably — refuse loudly instead of stalling it.
-_MAX_NODES = 8000
+# Anchored cost is O(n * anchor_samples) per iteration: 50k nodes ≈ 3 min
+# for the full 600-iteration solve. Refuse loudly above that instead of
+# stalling a refresh (the old O(n^2) engine capped at 8,000 — the anchored
+# engine moved the ceiling 6.25x out at comparable wall time).
+_MAX_NODES = 50_000
 _CHUNK = 256
 
 
@@ -82,17 +93,26 @@ def compute_positions_fa2(  # noqa: C901  (fallback chain: cached → components
     gravity: float = ENGINE_PARAMS["gravity"],
     slow_down: float = ENGINE_PARAMS["slow_down"],
     seed: int = ENGINE_PARAMS["seed"],
+    anchor_samples: int = ENGINE_PARAMS["anchor_samples"],
 ) -> dict[str, list[int]]:
     """Deterministic ForceAtlas2 positions for the whole-graph cloud.
 
-    Vectorized numpy, chunked O(n^2) repulsion (no Barnes-Hut at cloud
-    scale), multigraph edges aggregated into pair weights, node radii from
-    a sqrt-degree curve so hubs push neighbours apart (FA2 adjustSizes
-    behaviour). Returns ``{node_id: [x, y]}`` with rounded ints, centred
-    and normalized to a stable output radius.
+    Vectorized numpy, chunked repulsion against a fixed seeded ANCHOR
+    SUBSET (sampled-anchor FA2 — O(n*M) per iteration; layout_anchored_lift
+    2026-09-26; was full O(n^2), 73 min at 22k nodes, ceiling 8k), multigraph
+    edges aggregated into pair weights, node radii from a sqrt-degree curve
+    so hubs push neighbours apart (FA2 adjustSizes behaviour). Returns
+    ``{node_id: [x, y]}`` with rounded ints, centred and normalized to a
+    stable output radius.
+
+    Repulsion micro-optimizations (same physics, one-pass arithmetic):
+    one reciprocal of d² feeds both the inverse-square term and the
+    overlap term; the distance sqrt runs only on the overlap-masked
+    subset (overlap > 0 requires d < s_i + s_j, rare at cloud scale).
 
     Raises ValueError above ``_MAX_NODES`` (refresh hook logs and skips;
-    the endpoint surfaces 503) — grow into Barnes-Hut before lifting it.
+    the endpoint surfaces 503 and the client renders its own
+    components/concentric fallback).
     """
     n = len(nodes)
     if n == 0:
@@ -143,26 +163,63 @@ def compute_positions_fa2(  # noqa: C901  (fallback chain: cached → components
     force_prev = np.zeros((n, 2), dtype=np.float32)
     eps = np.float32(1e-4)
 
+    # Sampled-anchor repulsion: each iteration draws a fresh seeded anchor
+    # subset. Per-iteration resampling (vs one fixed set) is what breaks
+    # co-location symmetry — two nodes that collapse onto each other feel
+    # identical forces until one of them serves as the other's anchor
+    # (expected 600*M/n times per solve). M >= n degenerates to the exact
+    # full-repulsion engine.
+    m = min(max(1, anchor_samples), n)
+    anchored = m < n
+    rng_anchor = np.random.default_rng(seed + 1)
+    anchor_idx = np.sort(rng_anchor.choice(n, size=m, replace=False)) if anchored else None
+    apos = pos[anchor_idx] if anchored else pos
+    asizes = sizes[anchor_idx] if anchored else sizes
+    buf = np.empty((_CHUNK, m), dtype=np.float32)
+
     # Repulsion is linear in the separation vector:
     #   F_i = Σ_j f_ij (pos_i − pos_j) = (Σ_j f_ij) pos_i − (f @ pos)
-    # so the (chunk, n, 2) delta tensor collapses into two BLAS matmuls
+    # so the (chunk, m, 2) delta tensor collapses into two BLAS matmuls
     # (distances via |a|²+|b|²−2ab) — exact same physics, matmul-bound
-    # instead of allocation-bound (130 s → ~10 s at the 1.6k/19k scale).
+    # instead of allocation-bound. One reciprocal of d² feeds both the
+    # inverse-square factor and the overlap term; the distance sqrt runs
+    # only on the overlap-masked subset.
     for _ in range(iterations):
+        if anchored:
+            anchor_idx = np.sort(rng_anchor.choice(n, size=m, replace=False))
+            apos = pos[anchor_idx]
+            asizes = sizes[anchor_idx]
         force = np.zeros((n, 2), dtype=np.float32)
         sq = (pos * pos).sum(-1)
+        sqm = (apos * apos).sum(-1)
+        row_sq = sq[:, None]
         for lo in range(0, n, _CHUNK):
             hi = min(lo + _CHUNK, n)
-            block = pos[lo:hi]
-            d2 = sq[lo:hi, None] + sq[None, :] - 2.0 * (block @ pos.T)
+            np.multiply(pos[lo:hi] @ apos.T, -2.0, out=buf[: hi - lo])
+            buf[: hi - lo] += sqm[None, :]
+            buf[: hi - lo] += row_sq[lo:hi]
+            d2 = buf[: hi - lo]
             np.maximum(d2, eps, out=d2)
-            d = np.sqrt(d2)
-            factor = (k * k) / d2
-            factor[np.arange(hi - lo), np.arange(lo, hi)] = 0.0  # no self-repulsion
-            overlap = (sizes[lo:hi, None] + sizes[None, :]) - d
-            np.clip(overlap, 0.0, None, out=overlap)
-            factor += overlap * (k / d2) * 8.0
-            force[lo:hi] = block * factor.sum(-1)[:, None] - factor @ pos
+            s_sum = sizes[lo:hi, None] + asizes[None, :]
+            inv = 1.0 / d2
+            factor = (k * k) * inv
+            rows = np.arange(hi - lo)
+            if anchor_idx is None:
+                factor[rows, np.arange(lo, hi)] = 0.0  # no self-repulsion
+            else:
+                cols = np.searchsorted(anchor_idx, np.arange(lo, hi))
+                ok = anchor_idx[np.clip(cols, 0, m - 1)] == np.arange(lo, hi)
+                if ok.any():
+                    factor[rows[ok], cols[ok]] = 0.0
+            # overlap needs true distance, but only where it can bite:
+            # d < s_i+s_j  <=>  d² < (s_i+s_j)²
+            omask = d2 < (s_sum * s_sum)
+            if omask.any():
+                d_masked = np.sqrt(d2[omask])
+                ov = s_sum[omask] - d_masked
+                np.clip(ov, 0.0, None, out=ov)
+                factor[omask] += ov * (k * 8.0) * inv[omask]
+            force[lo:hi] = pos[lo:hi] * factor.sum(-1)[:, None] - factor @ apos
 
         # Attraction along weighted unique pairs: F = w * d^2 / k toward
         # the neighbour (opposes the separation direction). bincount

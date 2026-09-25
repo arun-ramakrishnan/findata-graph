@@ -2733,9 +2733,25 @@ def api_graph_stats():
     except Exception:
         structure = None
 
+    # scipy_exact_universe S6: exact all-sources scalars from the stamp
+    # (v_graph_structure, refreshed by make stamp-centrality). The Onager
+    # `structure` block serves NULL diameter/radius/APL on the
+    # disconnected live graph; these are the stamped exact values.
+    # Advisory and fully degradable — absent stamp -> null key.
+    structure_exact = None
+    try:
+        rows = (
+            get_graph_connection().execute("SELECT metric, value FROM v_graph_structure").fetchall()
+        )
+        if rows:
+            structure_exact = {m: v for m, v in rows}
+    except Exception:
+        structure_exact = None
+
     return jsonify(
         {
             "structure": structure,
+            "structure_exact": structure_exact,
             "entities": {
                 "total": sum(entity_counts.values()),
                 "by_type": entity_counts,

@@ -41,7 +41,7 @@ names (d)+parallel as its primary and consumes this lane.
 Live: 22,046 endpoint nodes / 57,581 sqlite edges / 115,162 doubled
 rows; contract 1,734 company sources, all resolving. Full record in
 `/tmp/graph_spike.txt`; query-class map in
-`doc/local/perf/perf_graph_scale.md` §F.
+`doc/local/perf/graph_scaling.md` Part 1 §F.
 
 | Op | scipy (measured) | Incumbent |
 |---|---|---|

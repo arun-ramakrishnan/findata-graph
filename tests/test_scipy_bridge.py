@@ -615,3 +615,72 @@ def test_s_t_lanes_live_under_budget():
     cap, cnames = sb.load_capacity_projection()
     value, cut = sb.max_flow(cap, cnames, "Infosys", "Wipro")
     assert value > 0 and cut
+
+
+# --- scipy_exact_universe: structure lane + all-universe centralities ---
+
+
+def test_structure_stats_golden(store):
+    """P3 (a-b-c) + isolated pair (d-e): exact scalars, giant-comp radius."""
+    s = sb.structure_stats(sb.load_projection(store)[0], jobs=2)
+    assert s["components"] == 2
+    assert s["largest_component"] == 3
+    assert s["diameter"] == 2
+    # radius = min ecc over the GIANT component (node b, ecc 1) — the
+    # d-e pair's ecc 1 must NOT pin the global radius (it does under a
+    # naive global min: the degenerate-radius defect).
+    assert s["radius"] == 1
+    # ordered finite pairs: 6 within the path (1+2+1+2+1+1) + 1 pair x2
+    # directions in the isolated pair = 8; sum = 6+2 = 8 -> APL 1.25.
+    assert s["reachable_pairs"] == 8
+    assert abs(s["avg_path_length"] - 1.25) < 1e-12
+
+
+def test_fused_derive_counts_wasserman_faust(store):
+    """counts feed the WF factor: full-reach rows scale by 1.0, the
+    2-node pair stops exploding (raw clo 4 -> 0.25)."""
+    A, names = sb.load_projection(store)
+    clo, harm, counts = sb.compute(A, np.arange(A.shape[0]), jobs=1, return_counts=True)
+    pos = {n: i for i, n in enumerate(names)}
+    assert counts[pos["d"]] == 2
+    wf = clo * ((counts - 1.0) / (A.shape[0] - 1)) ** 2
+    assert abs(wf[pos["a"]] - 1 / 3) < 1e-12  # r=3, sum=3: (2/4)*(2/3)
+    assert abs(wf[pos["d"]] - 0.25) < 1e-12  # raw 4.0 -> 4.0 * (1/4)^2
+
+
+def test_closeness_harmonic_all_universe_refuses_apply(store):
+    with pytest.raises(ValueError, match="refuses --apply"):
+        sb.main(
+            [
+                "closeness-harmonic",
+                "--universe",
+                "all",
+                "--apply",
+                "--db",
+                str(store),
+                "--metrics",
+                "closeness",
+            ]
+        )
+
+
+def test_closeness_harmonic_all_universe_dryrun(store, capsys):
+    rc = sb.main(
+        [
+            "closeness-harmonic",
+            "--universe",
+            "all",
+            "--db",
+            str(store),
+            "--metrics",
+            "closeness",
+            "--top",
+            "5",
+        ]
+    )
+    assert rc == 0
+    captured = capsys.readouterr()
+    assert "sources: 5 (all)" in captured.err
+    out = captured.out
+    assert "compute-only" in out
+    assert "b: 0.500000" in out  # WF top: center of the path component

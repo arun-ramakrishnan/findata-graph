@@ -118,7 +118,7 @@ Slices (S0+S1 landed as measurement; S2+S3 are the build):
 
 Proposal lifecycle gating (0.01 s, excluded); the default flip (separate
 decision on S3 evidence); `fastjsonschema` migration; embed-delta (a)
-and pool-granularity (c) from `doc/local/perf/perf_investigations.md`
+and pool-granularity (c) from `doc/local/perf/graph_scaling.md` Part 2 §9
 §9 (separate arcs); any change to what the checks *assert* (this arc
 changes only the file set each run examines).
 

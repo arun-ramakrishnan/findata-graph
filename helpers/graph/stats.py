@@ -73,7 +73,9 @@ _CHAINS_EXCLUDE = ("part_of", "has_company", "belongs_to", "cited_in", "listed_i
 _CHAIN_FORBIDDEN = frozenset(_CHAINS_EXCLUDE) | {"listed_on_index"}
 
 
-def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:  # noqa: C901
+def longest_chains(
+    conn, top_k: int = 5, *, max_exact: int = 3000, exact: bool = False
+) -> list[str]:  # noqa: C901
     """Render the longest-chains section lines (pure function of ``conn``).
 
     Two views: ALL edges (index membership excluded — see
@@ -90,10 +92,63 @@ def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:
     of roots (O(sample*n) memory, not O(n^2)); sampled lines are labeled
     and distances read as lower bounds. Below the cap: exact, unchanged.
     Component counts stay exact either way (O(n+m)).
+
+    ``exact=True`` (scipy_exact_universe S2, opt-in — never the gate
+    path) lifts the sample to ALL roots: distances become exact, the
+    SAMPLED note disappears. Cost at the 21,461-root live set: ~80 s
+    dijkstra + ~6 GB peak per projection (full dist float64 +
+    predecessors int32, in-process — the 14 GB box holds it; measured
+    2026-09-26). The old ``triu_indices`` finite-stats pass (3.7 GB of
+    index arrays at 21k, an OOM-shaped leftover from the 1.7k era) is
+    replaced by a chunked integer histogram — identical median/diameter/
+    ties, O(chunk*n) memory.
     """
     import numpy as np
     from scipy.sparse import csr_matrix
     from scipy.sparse.csgraph import connected_components, shortest_path
+
+    def _dist_stats(dist: "np.ndarray") -> tuple[int, float, int, int]:
+        """(diameter, median, ordered ties at diameter, finite count).
+
+        Chunked row scan — ordered-pair integer histogram; no triu
+        materialization. The median replicates np.median over the
+        ordered finite distances exactly (mean of the two middle order
+        statistics), so the rendered :.0f output is byte-identical to
+        the old materialized path. Ties are ORDERED; on a symmetric
+        square matrix (exact mode) the caller halves them for canonical
+        (a<b) counting.
+        """
+        hist = None
+        for lo in range(0, dist.shape[0], 512):
+            sub = dist[lo : lo + 512]
+            vals = sub[np.isfinite(sub) & (sub > 0)]
+            if not vals.size:
+                continue
+            ints = vals.astype(np.int64)
+            chunk_hist = np.bincount(ints)
+            if hist is None:
+                hist = chunk_hist
+            elif chunk_hist.size > hist.size:
+                hist = np.concatenate(
+                    [hist, np.zeros(chunk_hist.size - hist.size, dtype=hist.dtype)]
+                )
+                hist += chunk_hist
+            else:
+                hist[: chunk_hist.size] += chunk_hist
+        if hist is None:
+            return 0, 0.0, 0, 0
+        nz = np.nonzero(hist)[0]
+        diameter = int(nz.max())
+        total = int(hist[nz].sum())
+        k1 = (total - 1) // 2
+        k2 = total // 2
+        cum = np.cumsum(hist)
+
+        def _order_stat(k: int) -> int:
+            return int(np.searchsorted(cum, k + 1, side="left"))
+
+        median = (_order_stat(k1) + _order_stat(k2)) / 2.0
+        return diameter, median, int(hist[diameter]), total
 
     # Node universe = entities touched by at least one graph_edge.
     # Isolated entities (e.g. D19 exchange stubs: pathless, ticker-only,
@@ -131,7 +186,7 @@ def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:
             pair_types.setdefault(key, set()).add(et)
         return csr_matrix((np.ones(len(rows_), dtype=np.int8), (rows_, cols_)), shape=(n, n))
 
-    capped = n > max_exact
+    capped = (n > max_exact) and not exact
     roots = np.unique(np.linspace(0, n - 1, max_exact).astype(int)) if capped else None
     n_roots = 0 if roots is None else int(len(roots))
     lines: list[str] = []
@@ -148,16 +203,14 @@ def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:
                 return_predecessors=True,
                 indices=roots,
             )
-            finite = dist[np.isfinite(dist)]
+            diameter, median, ties, _total = _dist_stats(dist)
         else:
             dist, pred = shortest_path(mat, method="D", unweighted=True, return_predecessors=True)
-            iu = np.triu_indices(n, 1)
-            finite = dist[iu]
-            finite = finite[np.isfinite(finite)]
-        if not len(finite):
+            diameter, median, ties, _total = _dist_stats(dist)
+            ties //= 2  # symmetric square → canonical (a<b) pair count
+        if _total == 0:
             lines.append(f"  {label}: no edges")
             continue
-        diameter = int(finite.max())
         # Distinct-candidate selection: greedy by distance, accepting a pair
         # only while BOTH endpoints are unused (node-disjoint), so the top-K
         # are K different chains rather than one hub endpoint repeated K
@@ -206,11 +259,6 @@ def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:
                 pairs.append((a, b, d, _row))
             if len(pairs) == top_k:
                 break
-        if capped:
-            ties = int((dist[np.isfinite(dist)] == diameter).sum())
-        else:
-            ties = int((dist[iu] == diameter).sum())
-
         cap_note = (
             f" | SAMPLED {n_roots}/{n} roots (cap {max_exact}): "
             f"d >= {diameter}, distances are lower bounds"
@@ -219,7 +267,7 @@ def longest_chains(conn, top_k: int = 5, *, max_exact: int = 3000) -> list[str]:
         )
         lines.append(
             f"  {label}: {n_comp} components | diameter {diameter} "
-            f"({ties} pairs at d={diameter}) | median dist {np.median(finite):.0f}"
+            f"({ties} pairs at d={diameter}) | median dist {median:.0f}"
             f"{cap_note}"
         )
         family_tally: dict[str, int] = {}
@@ -325,7 +373,7 @@ def hyper_structure_lines(conn, top_k: int = 5) -> list[str]:
     return lines
 
 
-def print_stats() -> int:  # noqa: C901
+def print_stats(exact_chains: bool = False) -> int:  # noqa: C901
     # --- Distributions: sourced from the checker (single source of truth) ---
     checker = DatabaseIntegrityChecker()
     try:
@@ -394,6 +442,31 @@ def print_stats() -> int:  # noqa: C901
                     f"   radius {metrics['radius']}"
                     f"   avg path length {_fmt(metrics['avg_path_length'])}"
                 )
+        # scipy_exact_universe S6: exact structure scalars from the stamp
+        # (all-sources scipy pass; the Onager row above serves NULL on the
+        # disconnected live graph). Best-effort — absent stamp prints the
+        # advisory, never fails stats.
+        try:
+            import duckdb as _dq
+
+            _gcon = _dq.connect(str(_PROJECT_ROOT / "memory" / "graph.duckdb"), read_only=True)
+            try:
+                rows = _gcon.execute("SELECT metric, value FROM v_graph_structure").fetchall()
+            finally:
+                _gcon.close()
+            if rows:
+                st = {m: v for m, v in rows}
+                print(
+                    f"  exact (stamped): diameter {int(st['diameter'])}"
+                    f"   radius {int(st['radius'])}"
+                    f"   avg path length {st['avg_path_length']:.4f}"
+                    f"   components {int(st['components'])}"
+                    f"   largest {int(st['largest_component'])}"
+                )
+            else:
+                print("  exact (stamped): absent — run make stamp-centrality")
+        except Exception as e:  # noqa: BLE001  # advisory; never fail stats
+            print(f"  exact (stamped): unavailable ({type(e).__name__})")
 
     # --- Longest chains (capture quality across domains) ---
     # Advisory + best-effort like the sections around it: the chain reader
@@ -401,7 +474,7 @@ def print_stats() -> int:  # noqa: C901
     print(_hr("Longest chains — capture quality across domains", "-"))
     _conn = connect()
     try:
-        for _line in longest_chains(_conn):
+        for _line in longest_chains(_conn, exact=exact_chains):
             print(_line)
     except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
         print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
@@ -569,4 +642,15 @@ def print_stats() -> int:  # noqa: C901
 
 
 if __name__ == "__main__":
-    sys.exit(print_stats())
+    import argparse
+
+    _ap = argparse.ArgumentParser(description="FinData graph stats render")
+    _ap.add_argument(
+        "--exact-chains",
+        action="store_true",
+        help="longest chains over ALL roots, exact distances (scipy_exact_universe "
+        "S2; ~4-5 min and ~6 GB peak at the live 21.5k-root set — never the "
+        "gate path; the default stays a 3,000-root stride sample)",
+    )
+    _args = _ap.parse_args()
+    sys.exit(print_stats(exact_chains=_args.exact_chains))

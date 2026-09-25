@@ -276,7 +276,8 @@ def test_stamp_centrality_cache_recreates_tables(cache_db):
         # Diet (scipy_routing_dispatch §8 item 4): the seven Onager-native
         # tables stamp; lane-served closeness/harmonic/betweenness are
         # absent by design (reverting a ROUTING value resumes its stamp —
-        # update this set then).
+        # update this set then). S6: the two _full tables join the stamp
+        # (all-universe, default per the NULL/unserved policy).
         assert names == {
             "v_centrality_degree",
             "v_centrality_eigenvector",
@@ -285,6 +286,8 @@ def test_stamp_centrality_cache_recreates_tables(cache_db):
             "v_centrality_local_reaching",
             "v_centrality_voterank",
             "v_centrality_louvain",
+            "v_centrality_closeness_full",
+            "v_centrality_harmonic_full",
         }, f"unexpected stamped set: {sorted(names)}"
         with alg.bypass_centrality_cache():
             fresh = alg.closeness_centrality(con)
@@ -302,12 +305,12 @@ def test_stamp_detects_concurrent_swap(cache_db, monkeypatch):
     real = gq._materialise_centrality_cache
     fired = {"raced": False}
 
-    def racing_stamp(con):
+    def racing_stamp(con, db_path=None):
         if not fired["raced"]:
             fired["raced"] = True
             # concurrent data-only rebuild swaps the file under us
             gq.rebuild(db_path=cache_db)
-        return real(con)
+        return real(con, db_path=db_path)
 
     monkeypatch.setattr(gq, "_materialise_centrality_cache", racing_stamp)
     gq.stamp_centrality_cache(db_path=cache_db)  # retries, then succeeds
@@ -318,7 +321,10 @@ def test_stamp_detects_concurrent_swap(cache_db, monkeypatch):
         ).fetchone()
         assert row is not None
         n = row[0]
-        assert n == 7, f"restamp after swap must land seven tables (diet), found {n}"
+        assert n == 9, (
+            "restamp after swap must land the seven diet tables + the two "
+            f"S6 all-universe tables, found {n}"
+        )
     finally:
         con.close()
     assert fired["raced"]
@@ -394,3 +400,30 @@ def test_fast_table_miss_stays_silent(capsys):
     finally:
         con.close()
     assert capsys.readouterr().err == ""
+
+
+def test_all_universe_tables_stamped(cache_db):
+    """scipy_exact_universe S6: the stamp also materialises the
+    all-universe tables by DEFAULT (the pre-lane surfaces were NULL /
+    unserved — defaulting protects no existing behaviour)."""
+    con = gq.connect(db_path=cache_db, read_only=True)
+    try:
+        structure = dict(con.execute("SELECT metric, value FROM v_graph_structure").fetchall())
+        clo_full = dict(
+            con.execute(
+                "SELECT name, score FROM v_centrality_closeness_full"  # noqa: S608
+            ).fetchall()
+        )
+        harm_full = dict(
+            con.execute(
+                "SELECT name, score FROM v_centrality_harmonic_full"  # noqa: S608
+            ).fetchall()
+        )
+    finally:
+        con.close()
+    assert {"diameter", "radius", "avg_path_length", "components"} <= set(structure)
+    assert set(clo_full) == set(harm_full)
+    # WF closeness is bounded: a full-reach row keeps the raw value, a
+    # 2-node pair cannot explode past it.
+    assert all(0.0 <= v <= max(clo_full.values()) for v in clo_full.values())
+    assert all(v >= 0.0 for v in harm_full.values())

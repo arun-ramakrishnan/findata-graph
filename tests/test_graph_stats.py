@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import contextlib
 import io
+import sqlite3
+from pathlib import Path
 
 import pytest
 
@@ -14,7 +16,7 @@ import pytest
 pytestmark = [pytest.mark.live, pytest.mark.xdist_group("graph_stats_render")]
 
 
-from helpers.graph.stats import print_stats  # noqa: E402
+from helpers.graph.stats import longest_chains, print_stats  # noqa: E402
 from helpers.graph import stats  # noqa: E402
 
 
@@ -118,3 +120,47 @@ def test_bar_zero_total():
     """_bar with total=0 returns empty bar."""
     result = stats._bar(0, 0)
     assert result == "[" + " " * 30 + "] 0"
+
+
+class TestLongestChainsExact:
+    """scipy_exact_universe S2: exact=True lifts the root sample; the
+    default path stays sampled (gate-safe)."""
+
+    @staticmethod
+    def _chain_db(tmp_path: Path, n: int = 40) -> "sqlite3.Connection":
+        import sqlite3
+
+        conn = sqlite3.connect(str(tmp_path / "chains.db"))
+        conn.execute("CREATE TABLE entities (name VARCHAR, entity_type VARCHAR)")
+        conn.executemany(
+            "INSERT INTO entities VALUES (?, 'company')", [(f"n{i}",) for i in range(n)]
+        )
+        conn.execute(
+            "CREATE TABLE graph_edges (source VARCHAR, target VARCHAR, "
+            "edge_type VARCHAR, source_ref VARCHAR)"
+        )
+        conn.executemany(
+            "INSERT INTO graph_edges VALUES (?, ?, 'subsidiary_of', 'test')",
+            [(f"n{i}", f"n{i + 1}") for i in range(n - 1)],
+        )
+        conn.commit()
+        return conn
+
+    def test_exact_matches_default_below_cap(self, tmp_path: Path):
+        conn = self._chain_db(tmp_path)
+        default_lines = longest_chains(conn)
+        exact_lines = longest_chains(conn, exact=True)
+        conn.close()
+        assert default_lines == exact_lines, "below the cap exact is a no-op"
+
+    def test_exact_lifts_the_sample(self, tmp_path: Path):
+        conn = self._chain_db(tmp_path, n=60)
+        capped = longest_chains(conn, max_exact=10)
+        exact = longest_chains(conn, max_exact=10, exact=True)
+        conn.close()
+        assert any("SAMPLED 10/60" in ln for ln in capped)
+        assert not any("SAMPLED" in ln for ln in exact)
+        d_capped = int(capped[0].split("diameter ")[1].split(" ")[0])
+        d_exact = int(exact[0].split("diameter ")[1].split(" ")[0])
+        assert d_exact >= d_capped, "exact diameter is an upper bound of the sample"
+        assert d_exact == 59, "a 60-node path has diameter 59 when exact"

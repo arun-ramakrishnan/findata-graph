@@ -49,7 +49,7 @@ dependencies = [
     # avoid large nvidia/CUDA deps; file kept for reference only.
     "requests",
     "pymupdf4llm",
-    "pymupdf",  # imported directly (Pixmap/text-layer guard), not just transitively
+    "pymupdf", # imported directly (Pixmap/text-layer guard), not just transitively
     "liteparse",
     # sqlite-vec vector index for note_search hybrid ranking (A1,
     # helpers/core/vec_search.py). Loaded per-connection exactly like
@@ -82,12 +82,20 @@ dependencies = [
     "regex",
     # OCR Dependency
     "matplotlib",
+    # Second dyadic graph engine (helpers/graph/igraph_bridge.py, restored
+    # D17 2026-09-26): GPL-2.0-or-later is integration-clean under the
+    # AGPL-3.0-or-later repo license — the D14/D16 pilot-venv split is
+    # retired. Covers Leiden, weighted centralities, weighted shortest
+    # path, maxflow/mincut where Onager is unweighted-only or absent.
+    # Eval: doc/local/evaluations/graph_layer.md.
+    "igraph",
     # Hypergraph analytics tier (helpers/graph/hyper_communities.py —
     # hypergraph_incidence_hyx proposal 2026-09-13): hy-MMSBM overlapping
-    # communities over the hyper_edges/hyper_incidences star store. BSD-3
-    # (unlike GPL igraph's pilot-venv split), pure-Python; dep delta vs the
-    # pre-proposal venv is scipy + tqdm only (networkx/numpy/pandas were
-    # already present). Eval: doc/local/evaluations/hyper_graph_assessment.md.
+    # communities over the hyper_edges/hyper_incidences star store. BSD-3,
+    # pure-Python; dep delta vs the pre-proposal venv is scipy + tqdm only
+    # (networkx/numpy/pandas were already present). Holds the higher-order
+    # seat alongside igraph's dyadic-weighted seat (D17: both seats live).
+    # Eval: doc/local/evaluations/hyper_graph_assessment.md.
     "hypergraphx",
     # Sparse all-pairs BFS for the longest-chains section of
     # helpers/graph/stats.py (direct import; was only a transitive

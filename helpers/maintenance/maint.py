@@ -434,8 +434,10 @@ TIER1_FULL_SKIP: frozenset[str] = frozenset(
         "snapshot duckdb parquet mirror (post-rebuild)",
         # stamp-centrality joins too (centrality_rebuild_contract): the
         # TIER2 graph rebuilds are data-only and DROP v_centrality_* —
-        # a mid-run stamp would be ~6 min of work the tail erases. The
-        # stamp re-warms on the next plain maint / stamp-centrality run.
+        # a mid-run stamp would be seconds of work the tail erases
+        # (post-diet cost: ~3 s measured 2026-09-26; the ~6 min figure
+        # predates the scipy_routing_dispatch lane skips). The stamp
+        # re-warms on the next plain maint / stamp-centrality run.
         "stamp-centrality (re-stamp v_centrality_* tables)",
     }
 )

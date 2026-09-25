@@ -36,6 +36,20 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+_(Previously: scipy_exact_universe.md archived 2026-09-26 as
+completed.md entry 300 — three scipy lanes (exact all-roots chains
+119-133 s; structure scalars 9/5/4.046 in 36-42 s; full-walk WF
+centralities 38.8 s) plus S6 default-serving via the switching policy
+(D18): the all-universe tables stamp by default, stamp wall 2.75 s →
+27.5 s. Execution record in `../archive/graph/scipy_exact_universe.md`.)_
+
+_(Previously: layout_anchored_lift.md archived 2026-09-26 as
+completed.md entry 299 — sampled-anchor FA2 (`fa2-anchored-numpy`,
+M=1024, per-iteration resampling) lifted the positions ceiling
+8,000 → 50,000; live 22,054-node solve 80.9 s (was ~73 min projected,
+503 before); operator visual shakedown PASSED. Execution record in
+`../archive/graph/layout_anchored_lift.md`.)_
+
 _(Previously: derive_insights_render_hygiene.md archived 2026-09-25 as
 completed.md entry 298 — section-context markers deduped per distinct
 heading and `#`-lead paraphrases stripped in render_chatter_block; S1–S3

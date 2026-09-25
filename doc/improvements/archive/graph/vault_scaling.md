@@ -17,7 +17,7 @@ area: "helpers/core/corpus, helpers/graph/query + rebuild, Mojo/src/bench (new b
 gated (operator decision 2026-09-04) · **Forecast:** 100M doubled rows is
 a REAL growth target, not a stress ceiling.
 **Area:** corpus layer · graph substrate + query + rebuild · similarity.
-Folded from: `doc/local/perf/perf_investigations.md` §1/§5/§8
+Folded from: `doc/local/perf/graph_scaling.md` Part 2 §1/§5/§8
 
 ## 1. Growth model
 
@@ -165,7 +165,7 @@ only session/graph caching. Caveats travel along: num_threads crash
 (leave alone), shape-keyed JIT (~30 s cold), DRAM-bound ±20% bands.
 ON HOLD to T2/T3: f16/int8 quantization, usearch/HNSW past ~1M vectors,
 parallel-accumulator on row_cosine (needs counter-unlock proof first —
-perf_investigations §4; paranoid permanence landed 2026-09-04:
+graph_scaling.md Part 2 §4; paranoid permanence landed 2026-09-04:
 /etc/sysctl.d/99-perf-event-paranoid.conf = 1, counters verified
 live),
 get_tickers `_best_vss_match` (folds into batched work, not standalone).
@@ -200,7 +200,7 @@ still 1.9 MB and Phase C unneeded, and vice versa.
   MB against the tier thresholds, so §1's "record the actual driver" is
   a measurement, not a discipline (advisory, never rc 1).
 
-## 8. Non-goals (closed — see perf_investigations.md DONE/CLOSED log)
+## 8. Non-goals (closed — see graph_scaling.md Part 2 DONE/CLOSED log)
 
 Recursive CTE · bidir-as-primary · Mojo-over-bridge · liteparse/PDF
 re-review · chonkie/stringzilla/polars-class deps · iGPU device code

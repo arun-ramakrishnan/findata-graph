@@ -16,7 +16,7 @@ area: "helpers/graph/derive_insights.py, helpers/core/get_tickers.py"
 **Date:** 2026-09-06 · **Status:** PROPOSED · **Mode:** filed first,
 implement later (operator decision 2026-09-06).
 **Area:** derive_insights scan + render · get_tickers VSS fallback.
-**Follows:** `doc/local/perf/perf_evaluations.md` (2026-09-06 measurement pass) ·
+**Follows:** `doc/local/perf/graph_scaling.md` Part 3 (2026-09-06 measurement pass) ·
 `../archive/graph/derive_insights_perf.md` (#208 — regex hoisting +
 decode-once VSS; its benches still stand: the granite swap d596f0bb
 touched neither derive_insights.py nor get_tickers.py).
@@ -243,7 +243,7 @@ All three slices landed + shakedown, same day as filing.
   (RuntimeError instead); pre-existing parquet_textconv format drift
   + ty fetchone-None (one line each); doc/script index rebuild.
 All 2026-09-06, this box (i5-6500 4C/4T, perf_event_paranoid=1);
-full context in `doc/local/perf/perf_evaluations.md`.
+full context in `doc/local/perf/graph_scaling.md` Part 3.
 
 | Run | Command / measure | Result | Notes |
 |---|---|---|---|

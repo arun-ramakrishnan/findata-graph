@@ -14,7 +14,7 @@ completed_md: "277"
 ## 1. TL;DR
 
 The VIGIL intake tripled the graph (18,291 → 56,014 edges, 26,120
-nodes; perf_investigations §10d). Layer 0 already removed the rebuild
+nodes; graph_scaling.md Part 2 §10d). Layer 0 already removed the rebuild
 cost (centrality_rebuild_contract #271: 369.9 s → 3.19 s data-only,
 explicit stamp lane, warm reads 0.017 s). The first `make perf` run at
 the new scale (2026-09-23 00:52) shows the remaining debt: the three
@@ -67,7 +67,7 @@ with per-leg scaling classes.
 
 Cold closeness/harmonic/betweenness are all-pairs-shortest-path
 derived: O(V*(V+E)) per metric. The 2026-09-22 stage profile
-(perf_graph_scale §A/§B) is unchanged in shape — harmonic 192.1 s,
+(graph_scaling.md Part 1 §A/§B) is unchanged in shape — harmonic 192.1 s,
 closeness 183.4 s, betweenness 87.7 s of the old ~465 s stamp; tonight
 the same three are 128.8-156.8 s (closeness), 52.9-57.0 s
 (link_prediction), 37.2-48.9 s (betweenness) standalone because the
@@ -244,7 +244,7 @@ when the file was in-tree.
   govern; any wider promotion is its own proposal).
 - Sampling / approximate centralities (rejected in the centrality
   arc — the persisted contract is exact).
-- Layout `_MAX_NODES` cloud-endpoint ceiling (perf_graph_scale §2a,
+- Layout `_MAX_NODES` cloud-endpoint ceiling (graph_scaling.md Part 1 §2a,
   separate track).
 
 ## 6. Risks

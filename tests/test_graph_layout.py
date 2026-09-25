@@ -71,6 +71,28 @@ class TestComputePositionsFa2:
         with pytest.raises(ValueError, match="ceiling"):
             compute_positions_fa2(many, [], iterations=1)
 
+    def test_anchored_subset_deterministic_and_distinct(self):
+        """Above anchor_samples the seeded anchor subset kicks in — the
+        solve stays deterministic and nodes still land apart (the
+        layout_anchored_lift engine contract)."""
+        n = 600  # > default anchor_samples? no — pass a small M explicitly
+        nodes = [f"n{i}" for i in range(n)]
+        edges = [(f"n{i}", f"n{(i * 7 + 3) % n}", "competes_with") for i in range(n)]
+        p1 = compute_positions_fa2(nodes, edges, iterations=600, anchor_samples=256)
+        p2 = compute_positions_fa2(nodes, edges, iterations=600, anchor_samples=256)
+        assert p1 == p2, "anchored solve must be deterministic given the edge set"
+        coords = {tuple(v) for v in p1.values()}
+        assert len(coords) == n, "anchor sampling must not collapse distinct nodes"
+
+    def test_anchors_degenerate_to_full_when_m_ge_n(self):
+        """anchor_samples >= n must still produce a valid (full-repulsion)
+        layout — the M >= n degenerate path."""
+        nodes = [f"n{i}" for i in range(40)]
+        edges = [(f"n{i}", f"n{(i + 1) % 40}", "competes_with") for i in range(40)]
+        p1 = compute_positions_fa2(nodes, edges, iterations=30, anchor_samples=100)
+        assert set(p1) == set(nodes)
+        assert len({tuple(v) for v in p1.values()}) == 40
+
 
 class TestHashGate:
     def _tiny_db(self, tmp_path: Path) -> Path:
@@ -169,7 +191,7 @@ class TestPositionsEndpoint:
             assert r1.status_code == 200
             body = r1.get_json()
             assert set(body["positions"]) == {"Alpha", "Beta", "Gamma"}
-            assert body["engine"] == "fa2-numpy"
+            assert body["engine"] == "fa2-anchored-numpy"
             assert body["recomputed"] is True
             assert r1.headers.get("ETag"), "/api/graph/* ETag policy applies"
             assert r1.headers["Cache-Control"] == "no-cache"

@@ -188,11 +188,207 @@ def source_positions(contract: list[str], names: list[str]) -> np.ndarray:
     return np.array([pos[n] for n in contract], dtype=np.int64)
 
 
-def fused_derive(D: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _structure_worker(payload: tuple) -> tuple[float, float, float, int]:
+    """Dijkstra over one source shard, reduced to four scalars.
+
+    Module-level for the fork pool. Returns (shard diameter, shard min
+    eccentricity over GIANT-COMPONENT rows with >=1 finite reach, finite-
+    pair distance sum, finite-pair count) — ordered pairs, self excluded.
+    The parent combines shards into exact diameter / radius / average
+    path length without ever assembling the n×n matrix
+    (scipy_exact_universe S1). Radius restricted to the largest
+    component: the global min-eccentricity is degenerate on a
+    disconnected graph (any 2-node isolated pair pins it to 1).
+    """
+    A, lo, hi, comp, giant = payload
+    D = dijkstra(A, directed=False, indices=np.arange(lo, hi), unweighted=True)
+    finite = np.isfinite(D)
+    D[~finite] = 0.0  # unreachable -> 0; excluded from sums, invisible to max
+    # self pairs (diagonal) are not graph pairs — ROWS are shard-local,
+    # COLUMNS stay global, so the diagonal sits at (j, lo+j):
+    local = np.arange(hi - lo)
+    D[local, np.arange(lo, hi)] = 0.0
+    finite[local, np.arange(lo, hi)] = False
+    row_max = D.max(axis=1)
+    has_reach = finite.any(axis=1)
+    ecc = row_max[has_reach]
+    giant_rows = (comp[lo:hi] == giant) & has_reach
+    ecc_giant = row_max[giant_rows]
+    return (
+        float(ecc.max()) if ecc.size else 0.0,
+        float(ecc_giant.min()) if ecc_giant.size else float("inf"),
+        float(D[finite].sum()),
+        int(finite.sum()),
+    )
+
+
+def _full_universe_worker(payload: tuple) -> tuple:
+    """One sharded dijkstra pass -> WF centralities + structure scalars.
+
+    Module-level for the fork pool. Returns (clo_wf chunk, harm chunk,
+    (shard diameter, shard min giant-comp ecc, finite-pair sum,
+    finite-pair count)) — the structure scalars ride the SAME distance
+    matrix as the centralities, so the stamp's all-universe addition
+    costs one pass, not two (scipy_exact_universe S6). Diagonal:
+    excluded from structure sums/counts; INCLUDED in the WF reach count
+    r (the (r-1)/(N-1) convention counts self).
+    """
+    A, lo, hi, comp, giant, n_all = payload
+    D = dijkstra(A, directed=False, indices=np.arange(lo, hi), unweighted=True)
+    finite = np.isfinite(D)
+    D[~finite] = 0.0
+    local = np.arange(hi - lo)
+    D[local, np.arange(lo, hi)] = 0.0
+    finite[local, np.arange(lo, hi)] = False
+    # centralities (diagonal excluded from sums, included in r):
+    r = finite.sum(axis=1) + 1  # restore the self count for WF
+    sum_d = D.sum(axis=1)
+    N = n_all
+    clo_wf = np.where(
+        sum_d > 0,
+        (N - 1) / np.where(sum_d > 0, sum_d, 1.0) * ((r - 1.0) / (N - 1.0)) ** 2,
+        0.0,
+    )
+    harm = np.where(D > 0, 1.0 / np.where(D > 0, D, 1.0), 0.0).sum(axis=1)
+    # structure scalars:
+    row_max = D.max(axis=1)
+    has_reach = finite.any(axis=1)
+    ecc = row_max[has_reach]
+    giant_rows = (comp[lo:hi] == giant) & has_reach
+    ecc_giant = row_max[giant_rows]
+    scalars = (
+        float(ecc.max()) if ecc.size else 0.0,
+        float(ecc_giant.min()) if ecc_giant.size else float("inf"),
+        float(D[finite].sum()),
+        int(finite.sum()),
+    )
+    return clo_wf.astype(np.float64), harm.astype(np.float64), scalars
+
+
+def full_universe_stats(A: csr_matrix, jobs: int = 4) -> dict[str, object]:
+    """One-pass all-universe lane: WF closeness/harmonic + structure scalars.
+
+    The stamped-default form of S3+S1 (scipy_exact_universe S6): a single
+    sharded dijkstra from EVERY node yields
+    ``{"closeness": {name: v}, "harmonic": {name: v}, "structure": {...}}``
+    where closeness is Wasserman-Faust scaled (full-reach rows keep the
+    raw contract values), harmonic is raw stamp semantics, and structure
+    carries diameter / radius (giant-component convention) / APL /
+    component counts. Names order matches ``load_projection``.
+    """
+    from scipy.sparse.csgraph import connected_components
+
+    n = A.shape[0]
+    if n == 0:
+        return {
+            "closeness": {},
+            "harmonic": {},
+            "structure": {
+                "diameter": 0,
+                "radius": 0,
+                "avg_path_length": 0.0,
+                "reachable_pairs": 0,
+                "components": 0,
+                "largest_component": 0,
+            },
+        }
+    n_comp, comp = connected_components(A, directed=False)
+    sizes = np.bincount(comp, minlength=n_comp)
+    giant = int(sizes.argmax())
+    bounds = [
+        (i * n // jobs, (i + 1) * n // jobs)
+        for i in range(jobs)
+        if i * n // jobs < (i + 1) * n // jobs
+    ]
+    parts = fork_map(
+        _full_universe_worker,
+        [(A, lo, hi, comp, giant, n) for lo, hi in bounds],
+        jobs,
+    )
+    clo = np.concatenate([p[0] for p in parts])
+    harm = np.concatenate([p[1] for p in parts])
+    diameter = max(p[2][0] for p in parts)
+    radius_vals = [p[2][1] for p in parts if p[2][3] > 0]
+    radius = min(radius_vals) if radius_vals else 0.0
+    total_sum = sum(p[2][2] for p in parts)
+    total_cnt = sum(p[2][3] for p in parts)
+    return {
+        "closeness": clo,
+        "harmonic": harm,
+        "structure": {
+            "diameter": int(diameter),
+            "radius": int(radius),
+            "avg_path_length": (total_sum / total_cnt) if total_cnt else 0.0,
+            "reachable_pairs": total_cnt,
+            "components": int(n_comp),
+            "largest_component": int(sizes[giant]),
+        },
+    }
+
+
+def structure_stats(A: csr_matrix, jobs: int = 4) -> dict[str, float | int]:
+    """Exact diameter / radius / average path length over the whole CSR.
+
+    Unweighted multi-source dijkstra from EVERY node, sharded across the
+    house fork pool; workers reduce to scalars so the parent never holds
+    an n×n distance matrix (peak ≈ jobs × shard-chunk). APL is the mean
+    over reachable ORDERED pairs (accumulated across all components; self
+    pairs excluded). Diameter is the global max; RADIUS is the min
+    eccentricity over the LARGEST component — the global min is
+    degenerate on a disconnected graph (any 2-node isolated pair pins it
+    to 1; measured live 2026-09-26).
+
+    Replaces the graph_metrics NULL-on-disconnected serving (the Onager
+    component-check skipped all-pairs; 106 live components meant these
+    three were never served). Opt-in lane — not in ROUTING, not gated.
+    """
+    from scipy.sparse.csgraph import connected_components
+
+    n = A.shape[0]
+    if n == 0:
+        return {
+            "diameter": 0,
+            "radius": 0,
+            "avg_path_length": 0.0,
+            "reachable_pairs": 0,
+            "components": 0,
+            "largest_component": 0,
+        }
+    n_comp, comp = connected_components(A, directed=False)
+    sizes = np.bincount(comp, minlength=n_comp)
+    giant = int(sizes.argmax())
+    bounds = [
+        (i * n // jobs, (i + 1) * n // jobs)
+        for i in range(jobs)
+        if i * n // jobs < (i + 1) * n // jobs
+    ]
+    parts = fork_map(_structure_worker, [(A, lo, hi, comp, giant) for lo, hi in bounds], jobs)
+    diameter = max(p[0] for p in parts)
+    radius_vals = [p[1] for p in parts if p[3] > 0]
+    radius = min(radius_vals) if radius_vals else 0.0
+    total_sum = sum(p[2] for p in parts)
+    total_cnt = sum(p[3] for p in parts)
+    return {
+        "diameter": int(diameter),
+        "radius": int(radius),
+        "avg_path_length": (total_sum / total_cnt) if total_cnt else 0.0,
+        "reachable_pairs": total_cnt,
+        "components": int(n_comp),
+        "largest_component": int(sizes[giant]),
+    }
+
+
+def fused_derive(D: np.ndarray, return_counts: bool = False):
     """Closeness + harmonic from one distance matrix (one memory pass).
 
     - closeness: (N-1) / sum(reachable distances); 0 for unreachable rows
     - harmonic: sum(1/d) over finite positive distances (raw, stamp semantics)
+
+    ``return_counts=True`` additionally returns the per-row finite-reach
+    count r (self included) — the Wasserman-Faust factor for the
+    all-universe lane: scale = (r-1)/(N-1), 1.0 for full-reach rows, so
+    CONTRACT parity is untouched while disconnected tiny-component rows
+    stop exploding (a 2-node pair would otherwise score N-1).
     """
     N = D.shape[1]
     F = np.isfinite(D)
@@ -200,12 +396,14 @@ def fused_derive(D: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     sum_d = M.sum(axis=1)
     clo = (N - 1) / np.where(sum_d == 0, np.inf, sum_d)
     harm = np.where(M > 0, 1.0 / np.where(M == 0, np.inf, M), 0.0).sum(axis=1)
+    if return_counts:
+        return clo, harm, F.sum(axis=1)
     return clo, harm
 
 
-def _worker(chunk: np.ndarray, A: csr_matrix) -> tuple[np.ndarray, np.ndarray]:
+def _worker(chunk: np.ndarray, A: csr_matrix, return_counts: bool = False):
     D = dijkstra(A, directed=False, indices=chunk, unweighted=True)
-    return fused_derive(D)
+    return fused_derive(D, return_counts=return_counts)
 
 
 def compute(
@@ -213,17 +411,23 @@ def compute(
     src: np.ndarray,
     *,
     jobs: int = 1,
-) -> tuple[np.ndarray, np.ndarray]:
+    return_counts: bool = False,
+):
     """Multi-source dijkstra, optionally fork-split (CoW inherits the CSR).
 
     Row order of the outputs matches ``src`` order (pool.map preserves it) —
     i.e. contract order. ``jobs=1`` stays in-process (deterministic; the
     default per scipy_graph_bridge §5 — the split is a budget lever).
+    ``return_counts`` adds the per-row finite-reach count (Wasserman-Faust
+    input for the all-universe lane); default keeps the 2-tuple contract.
     """
     chunks = np.array_split(src, jobs)
-    parts = fork_map(partial(_worker, A=A), chunks, jobs)
+    parts = fork_map(partial(_worker, A=A, return_counts=return_counts), chunks, jobs)
     clo = np.concatenate([p[0] for p in parts])
     harm = np.concatenate([p[1] for p in parts])
+    if return_counts:
+        counts = np.concatenate([p[2] for p in parts])
+        return clo, harm, counts
     return clo, harm
 
 
@@ -567,13 +771,32 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     )
     ap.add_argument(
         "command",
-        choices=["closeness-harmonic", "katz", "eigenvector", "yen", "max-flow", "routing"],
+        choices=[
+            "closeness-harmonic",
+            "katz",
+            "eigenvector",
+            "yen",
+            "max-flow",
+            "structure",
+            "routing",
+        ],
         help="closeness-harmonic = the L1a lane; katz = exact Katz solve "
         "(--alpha, guarded); eigenvector = ARPACK dominant eigenvector "
         "(katz/eigenvector ignore --jobs: single-process solves); "
         "yen = K shortest simple paths (--source/--sink/--k); "
         "max-flow = Dinic value + min-cut (--source/--sink); "
+        "structure = exact diameter/radius/APL over every node "
+        "(scipy_exact_universe S1, opt-in); "
         "routing = print ROUTING",
+    )
+    ap.add_argument(
+        "--universe",
+        choices=["contract", "all"],
+        default="contract",
+        help="closeness-harmonic source set: contract (default, the "
+        "persisted 1,734-row company surface) or all (every endpoint, "
+        "the old full-walk stamp semantics, ~36 s at live scale; "
+        "compute-only — --apply is refused, it would fork the contract)",
     )
     ap.add_argument(
         "--metrics",
@@ -639,21 +862,43 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
     t0 = time.perf_counter()
     A, names = load_projection(args.db)
     contract = contract_sources(args.db)
-    src = source_positions(contract, names)
+    if args.universe == "all":
+        if args.apply:
+            scon.close()
+            raise ValueError(
+                "closeness-harmonic --universe all refuses --apply: writing "
+                f"all {A.shape[0]} endpoints into the {len(contract)}-row "
+                "contract metrics would fork the lane-served universe "
+                "(scipy_exact_universe S3). Compute-only by design."
+            )
+        src = np.arange(A.shape[0], dtype=np.int64)
+        src_names = names
+    else:
+        src = source_positions(contract, names)
+        src_names = contract
     t_build = time.perf_counter() - t0
     print(
-        f"CSR: n={A.shape[0]} nnz={A.nnz} | contract sources: {len(src)} | build {t_build:.2f}s",
+        f"CSR: n={A.shape[0]} nnz={A.nnz} | sources: {len(src)} ({args.universe}) | build {t_build:.2f}s",
         file=sys.stderr,
         flush=True,
     )
 
     t0 = time.perf_counter()
-    clo, harm = compute(A, src, jobs=args.jobs)
+    if args.universe == "all":
+        # Wasserman-Faust scaling: full-reach rows (factor 1.0) keep the
+        # exact contract values; disconnected tiny-component rows stop
+        # exploding (a 2-node pair would otherwise score N-1 raw).
+        # clo_wf = ((r-1)/(N-1)) * ((r-1)/sum_d), with
+        # sum_d = (N-1)/clo_raw  =>  clo_wf = clo_raw * (r-1)^2/(N-1)^2.
+        clo, harm, counts = compute(A, src, jobs=args.jobs, return_counts=True)
+        clo = clo * ((counts - 1.0) / (A.shape[0] - 1)) ** 2
+    else:
+        clo, harm = compute(A, src, jobs=args.jobs)
     t_compute = time.perf_counter() - t0
     print(f"compute ({args.jobs}-job): {t_compute:.2f}s", file=sys.stderr, flush=True)
 
     if args.metrics in ("closeness", "both"):
-        clo_map = dict(zip(contract, clo))
+        clo_map = dict(zip(src_names, clo))
         ranked = sorted(clo_map.items(), key=lambda kv: kv[1], reverse=True)[: args.top]
         print(f"[{CLOSINESS_METRIC}] top {min(args.top, len(clo_map))}")
         for name, score in ranked:
@@ -664,9 +909,14 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             )
             print(f"applied {n} rows under {CLOSINESS_METRIC!r}")
         else:
-            print(f"dry-run: would write {len(clo_map)} rows under {CLOSINESS_METRIC!r}")
+            note = (
+                "compute-only (dry-run, not written)"
+                if args.universe == "all"
+                else "dry-run: would write"
+            )
+            print(f"{note} {len(clo_map)} rows under {CLOSINESS_METRIC!r}")
     if args.metrics in ("harmonic", "both"):
-        harm_map = dict(zip(contract, harm))
+        harm_map = dict(zip(src_names, harm))
         ranked = sorted(harm_map.items(), key=lambda kv: kv[1], reverse=True)[: args.top]
         print(f"[{HARMONIC_METRIC}] top {min(args.top, len(harm_map))}")
         for name, score in ranked:
@@ -677,7 +927,12 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
             )
             print(f"applied {n} rows under {HARMONIC_METRIC!r}")
         else:
-            print(f"dry-run: would write {len(harm_map)} rows under {HARMONIC_METRIC!r}")
+            note = (
+                "compute-only (dry-run, not written)"
+                if args.universe == "all"
+                else "dry-run: would write"
+            )
+            print(f"{note} {len(harm_map)} rows under {HARMONIC_METRIC!r}")
     scon.close()
     return 0
 

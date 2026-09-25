@@ -7669,3 +7669,61 @@ Execution record: `archive/tooling/agent_traces_store.md`.
   shrinks on contact — curator owns the rest).
 
 Execution record: `archive/graph/derive_insights_render_hygiene.md`.
+
+## 299. Layout anchored lift — sampled-anchor FA2 and the 50k ceiling
+
+**Proposal**: `doc/improvements/archive/graph/layout_anchored_lift.md`
+(filed + executed 2026-09-26 — verdict: **EXECUTED**; operator visual
+shakedown PASSED same day).
+
+- Trigger: the corporate-intake arcs left `/api/graph/positions` 503ing
+  at 22,054 incident nodes against the `_MAX_NODES = 8,000` refusal —
+  the whole-graph cloud's deterministic cross-visit coordinates were
+  dark, clients silently on their components/concentric fallback.
+- Engine: sampled-anchor FA2 (`fa2-anchored-numpy`, M=1024, per-iteration
+  seeded resampling) — O(n·M)/iter instead of O(n²). Measured: 7.34 s/iter
+  full (~73 min projected solve) → 0.134 s/iter; **live solve 80.9 s**,
+  byte-identical determinism, 98.1% distinct int coordinates. Micro-opts
+  (single d² reciprocal, overlap-masked sqrt) contributed 1.64×; the
+  fork pool measured NEGATIVE (payload pickle > compute) — serial shipped.
+- Defect found + fixed in-trial: FIXED anchor sets never break
+  co-location symmetry (293/600 distinct on an adversarial cycle graph);
+  per-iteration resampling restores 600/600. Stress-vs-graph-distances
+  parity with the full solve at 1.6k (±11% band).
+- Ceiling 8,000 → 50,000 (~3 min solve class); engine rename drives the
+  sidecar's one-time recompute; tests 9/9 (anchored determinism,
+  degenerate M≥n path, ceiling refusal, engine pin).
+
+Execution record: `archive/graph/layout_anchored_lift.md`.
+
+## 300. Scipy exact universe — all-roots chains, structure scalars, full-walk centralities
+
+**Proposal**: `doc/improvements/archive/graph/scipy_exact_universe.md`
+(filed + executed 2026-09-26 — verdict: **EXECUTED**; S6 default-serving
+per the operator's switching-policy ruling, recorded as D18).
+
+- Three lanes off the scipy source-linearity (1,734 src → 2.9 s):
+  S1 `structure` — exact diameter 9 / radius 5 (giant-component
+  convention) / APL 4.046 in 36-42 s, 0.09 GB sharded scalar-reduce
+  (replaces the NULL-on-disconnected serving); S2 `longest_chains
+  exact=True` / `--exact-chains` — all 21,461 roots exact in 119-133 s,
+  7.9-9.8 GB (replaces the 3,000-root lower-bound sample; diameter 13
+  confirmed but 621 canonical d=13 pairs and DIFFERENT top chains);
+  S3 `closeness-harmonic --universe all` — 22,054 nodes, WF-scaled,
+  38.8 s, compute-only (apply refused: contract fork guard).
+- S6 default-serving (switching policy: NULL/unserved surfaces default,
+  only gate-budget replacements stay opt-in — D18): one shared
+  all-sources dijkstra in `stamp_centrality_cache` stamps
+  `v_centrality_closeness_full` / `v_centrality_harmonic_full` /
+  `v_graph_structure`; stamp wall 2.75 s → **27.5 s** (0.28 GB), all
+  three tables ephemeral in the snapshot contract. Consumers: stats.py
+  exact-structure line + `/api/graph/stats` `structure_exact`.
+- Defects caught by the measured-pipeline pass: degenerate global-min
+  radius (2-node pair pins 1); raw closeness explodes tiny components
+  (22,053.0) → Wasserman-Faust in the all-universe path only (contract
+  parity verified); shard diagonal zeroing must use GLOBAL column
+  indices (job-count-invariance golden caught it). 93 tests green
+  across the five touched suites; gate paths untouched (16.3 s sampled
+  chains default preserved).
+
+Execution record: `archive/graph/scipy_exact_universe.md`.
