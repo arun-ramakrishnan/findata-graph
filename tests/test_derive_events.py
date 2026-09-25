@@ -179,6 +179,24 @@ class TestManagementPrecision:
         assert ev.properties.get("role") == "CEO"
         assert "John Furner" in ev.properties.get("person", "")
 
+    def test_acquisition_sense_does_not_trigger_management_change(self):
+        body = (
+            "- TCS takes over Porsche's automotive-consulting arm MHP; CEO K Krithivasan commented."
+        )
+        assert de._extract_management("Tata Consultancy Services", body, "findata/Test.md") == []
+
+    def test_mode_sense_does_not_trigger_management_change(self):
+        body = "- IndiGo is evolving from a pure low-cost carrier into a hybrid model; incoming CEO noted."
+        assert de._extract_management("Interglobe Aviation", body, "findata/Test.md") == []
+
+    def test_management_dedupes_same_person_quarter(self):
+        body = (
+            "- Ashish Dash takes over as CEO in April 2027.\n"
+            "- Ashish Dash takes over as CEO in April 2027, per the board quote."
+        )
+        events = de._extract_management("Infosys", body, "findata/Test.md")
+        assert len(events) == 1
+
     def test_incoming_md_triggers_management_change(self):
         body = "- Riya Sen, incoming MD, will join the board next month."
         events = de._extract_management("Test Co", body, "findata/Test.md")

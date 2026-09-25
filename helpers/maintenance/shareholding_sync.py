@@ -592,9 +592,29 @@ def _normalize(name: str) -> str:
         return "_".join(" ".join(n.split()).split())
 
 
-def _holder_kind(category: str) -> str:
-    if any(p in category for p in _PERSON_CATEGORIES):
+def classify_holder_category(category: str) -> str:
+    value = re.sub(r"[^a-z0-9]+", " ", category.casefold()).strip()
+    if any(token in value for token in ("shareholdingpattern", "detailsofsharesheldby", "total")):
+        return "artifact"
+    if "promoter" in value:
+        return "promoter_group" if "group" in value else "promoter"
+    if any(token in value for token in ("individual", "huf", "person", "managerial")):
         return "person"
+    if any(token in value for token in ("corporate", "company", "body")):
+        return "company"
+    if "public" in value:
+        return "public"
+    return "institution"
+
+
+def _holder_kind(category: str) -> str:
+    holder_class = classify_holder_category(category)
+    if holder_class in {"person", "promoter", "promoter_group"}:
+        return "person"
+    if holder_class == "company":
+        return "company"
+    if holder_class == "artifact":
+        return "artifact"
     return "institution"
 
 
@@ -641,6 +661,8 @@ def build_candidates(
             key = norm.upper()  # filings mix 'MANOJ B GANDHI' and
             # 'Manoj B Gandhi' — dedup case-insensitively, keep display
             kind = _holder_kind(category)
+            if kind == "artifact":
+                continue
             # corporate holders reconcile to existing company entities
             if category == _CORPORATE_CATEGORY or key in normalized:
                 kind = "company" if key in normalized else kind
@@ -649,6 +671,7 @@ def build_candidates(
                     "holder": name,
                     "holder_norm": key,
                     "holder_kind": kind,
+                    "holder_class": classify_holder_category(category),
                     "category": category,
                     "target": target,
                     "stake_pct": pct,
@@ -684,7 +707,19 @@ def apply_candidates(
     the parity numbers without touching the store.
     """
     norm_to_name = norm_to_name or {}
+    from helpers.core.person_names import classify_person_name, resolve_person
+
     existing_entities = {r[0] for r in conn.execute("SELECT name FROM entities").fetchall()}
+    existing_people = [
+        (r[0], classify_person_name(r[0]))
+        for r in conn.execute("SELECT name FROM entities WHERE entity_type='person'")
+    ]
+    resolved_people = {}
+    for c in candidates:
+        if c["holder_kind"] == "person":
+            match, _score = resolve_person(c["holder"], existing_people)
+            if match:
+                resolved_people[c["holder_norm"]] = match
     existing_edges = {
         (r[0], r[1])
         for r in conn.execute(
@@ -694,11 +729,16 @@ def apply_candidates(
     new_entities = {
         c["holder_norm"]: (c["holder"], c["holder_kind"])
         for c in candidates
-        if c["holder_kind"] != "company" and c["holder"] not in existing_entities
+        if c["holder_kind"] != "company"
+        and c["holder"] not in existing_entities
+        and c["holder_norm"] not in resolved_people
     }
     # canonical entity name when reconciled, display name when new
     resolved_source = {
-        c["holder_norm"]: norm_to_name.get(c["holder_norm"], c["holder"]) for c in candidates
+        c["holder_norm"]: resolved_people.get(
+            c["holder_norm"], norm_to_name.get(c["holder_norm"], c["holder"])
+        )
+        for c in candidates
     }
     fresh = sum(
         1

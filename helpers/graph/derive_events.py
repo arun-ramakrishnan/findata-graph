@@ -154,6 +154,17 @@ _APPOINTED_TITLE_ATTR = re.compile(
     r"\bappointed\s+(actuary|auditor|receiver|liquidator|trustee)s?\b",
     re.IGNORECASE,
 )
+_ACQUISITION_SENSE_RE = re.compile(
+    r"\b(?:takes over|took over|acquires?|acquired|acquisition|purchases?|purchased|buys?|bought)\b"
+    r".*\b(?:arm|business|unit|contract|stake|assets?)\b",
+    re.IGNORECASE,
+)
+_MODE_SENSE_RE = re.compile(
+    r"\b(?:evolv(?:e|es|ed|ing)|shift(?:s|ed|ing)?|transition(?:s|ed|ing)?|"
+    r"transform(?:s|ed|ing)?|pivot(?:s|ed|ing)?)\b.*\b(?:from|into|to)\b"
+    r".*\b(?:model|business|strategy|carrier|operations?)\b",
+    re.IGNORECASE,
+)
 # Executive titles. Kept explicit (not free-text) to avoid matching "chairman
 # of the audit committee said" boilerplate without a change verb.
 _TITLE_RE = re.compile(
@@ -344,6 +355,8 @@ def _iter_bullets(body: str):
     # Also yield sentence-split prose (management changes often run in
     # multi-clause sentences inside ## The Chatter that aren't bullets).
     for line in lines:
+        if _ACQUISITION_SENSE_RE.search(line) or _MODE_SENSE_RE.search(line):
+            continue
         for sentence in _SENTENCE_SPLIT_RE.split(line.strip()):
             sentence = sentence.strip()
             if len(sentence) < 25 or sentence in seen:
@@ -419,6 +432,8 @@ def _extract_management(
             continue
         if not _CHANGE_VERB_RE.search(window):
             continue
+        if _ACQUISITION_SENSE_RE.search(window) or _MODE_SENSE_RE.search(window):
+            continue
         # Reject "Appointed Actuary / Auditor / ..." — a role-title adjective,
         # not a management change (a real attribution-line false positive).
         if _APPOINTED_TITLE_ATTR.search(window):
@@ -461,11 +476,51 @@ def _dedup(events: list[Event]) -> list[Event]:
     first (longest quote) occurrence. ``entity`` is fixed per call so it isn't
     in the key.
     """
+    from helpers.core.person_names import person_name_key
+
+    def event_key(ev: Event) -> tuple:
+        if ev.event_type == "management_change" and ev.properties.get("person"):
+            period = ev.period or ev.event_date or ""
+            year_match = re.search(r"20\d{2}", period)
+            month_match = re.search(
+                r"jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|"
+                r"\b(?:0?[1-9]|1[0-2])[-/]",
+                period,
+                re.IGNORECASE,
+            )
+            quarter = "unknown"
+            if year_match:
+                month = 1
+                if month_match:
+                    token = month_match.group(0).lower()
+                    names = (
+                        "jan",
+                        "feb",
+                        "mar",
+                        "apr",
+                        "may",
+                        "jun",
+                        "jul",
+                        "aug",
+                        "sep",
+                        "oct",
+                        "nov",
+                        "dec",
+                    )
+                    if token[:3] in names:
+                        month = names.index(token[:3]) + 1
+                    else:
+                        digits = re.search(r"\d+", token)
+                        month = int(digits.group()) if digits else 1
+                quarter = f"{year_match.group()}Q{(month - 1) // 3 + 1}"
+            return (ev.event_type, person_name_key(ev.properties["person"]), quarter)
+        return (ev.event_type, ev.period, ev.magnitude)
+
     out: list[Event] = []
     seen: set[tuple] = set()
     # Prefer the occurrence with the longest source_quote (richest audit trail).
     for ev in sorted(events, key=lambda e: len(e.source_quote or ""), reverse=True):
-        key = (ev.event_type, ev.period, ev.magnitude)
+        key = event_key(ev)
         if key in seen:
             continue
         seen.add(key)

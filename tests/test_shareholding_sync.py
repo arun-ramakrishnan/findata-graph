@@ -303,6 +303,13 @@ class TestSameGroup:
         assert pairs == [("Wheels India", "Wheels Two", "TSF INVESTMENTS LIMITED")]
 
 
+def test_holder_category_classifier_covers_person_company_and_artifact():
+    assert ss.classify_holder_category("IndividualsOrHUF") == "person"
+    assert ss.classify_holder_category("BodiesCorporate") == "company"
+    assert ss.classify_holder_category("Promoter Group") == "promoter_group"
+    assert ss.classify_holder_category("ShareholdingPattern") == "artifact"
+
+
 def test_normalize_strips_suffixes_and_collapses_whitespace():
     # case-preserving (house normalized_name style); the uppercase-folded
     # dedup key is built by callers (build_candidates holder_norm)
