@@ -7933,3 +7933,82 @@ consumer-gated by design).
   compressed 141 → 100 lines.
 
 Execution record: `archive/tooling/convo_search.md`.
+
+## 305. Chain-tally determinism — count-ranked renders made byte-stable, and a guard that caught its own author
+
+**Proposal**: `doc/improvements/archive/tooling/chain_tally_determinism.md`
+(filed 2026-09-26, executed 2026-09-27; S1-S3 all landed).
+
+- The defect: tally lines ranked with `sorted(d.items(),
+  key=lambda kv: -kv[1])` tie on equal counts and render in dict
+  iteration order, which varies with `PYTHONHASHSEED` — proven on `HEAD`
+  by rendering the `stats` report under multiple seeds and diffing (the
+  chains tally at `stats.py:347` flipped family order seed to seed).
+- The fix: a name tiebreak — `key=lambda kv: (-kv[1], kv[0])` — applied
+  at all 18 call shapes in 14 files (`stats.py`, `algorithms.py`,
+  `hyper_centralities.py`, `derive_hyperedges.py`, `hyper_communities.py`,
+  `sync_tags.py`, `prefab_views.py`, `seed_nic2008.py`,
+  `enrich_relations.py`, `geo_converge.py`, `gc_embed_cache.py`,
+  `note_query.py`, `convo_query.py`). Order-only: the multiset of
+  (family, count) pairs is unchanged, no count drifts.
+- The prevention (S3): `check_bare_negated_sort_keys` in
+  `static_checks.py` — an AST scan (regexes miss multi-line lambdas)
+  rejecting `sorted(<mapping>.items(), …)` whose key lambda is a bare
+  unary-minus field, scoped to production (`helpers/` + `app.py`) and
+  dirty-gated like the sqlite/chokepoint legs. Five tests in
+  `tests/test_static_checks.py` pin it, including the synthetic bad-key
+  rejection and a live-repo-green assertion.
+- The guard's first full-repo run caught a 19th site no audit had:
+  `check_dead_c901_noqa`'s own advisory render
+  (`static_checks.py:1400`) used the bare `-kv[1]` shape for its
+  hidden-functions listing — nondeterministic advisory output inside the
+  very file that polices determinism. Fixed with the same tiebreak.
+- Shakedown: `tests/test_graph_stats.py` + `tests/test_hyper_incidence.py`
+  green (both pin `longest_chains` output); `make static-checks` green
+  with the new leg registered; types via `ty` (mypy absent in this
+  checkout).
+
+Execution record: `archive/tooling/chain_tally_determinism.md`.
+
+## 306. C901 complexity debt — six heavy hitters split parity-green, the 11-19 band cleared, argparse adjudicated; D1 deferred
+
+**Proposal**: `doc/improvements/archive/graph/c901_complexity_debt.md`
+(filed 2026-09-26, executed 2026-09-27 as S2-S5; D1 remainder archived
+as **deferred** — the first proposal to use the new status).
+
+- The defect this proposal banked: 99 `# noqa: C901` suppressions fully
+  masked the complexity budget — `lint-audit` reported 0 findings while
+  99 functions sat over threshold, so nothing forced a split ever again.
+- S2, the six domain-logic heavy hitters, split extraction-only with
+  parity proven under pinned `PYTHONHASHSEED`: `_resolve_ladder` (20→5
+  helpers), `extract_theme_membership` (23→3), `extract_citations`
+  (21→2), `extract_relations` (51→9), `print_stats` (27→4), and
+  `l1_betweenness.compute` (27→5). Suppressions deleted where the split
+  landed; rationale comments moved with the code.
+- S3, argparse fan-out: keep verdicts recorded for five `_cli`/`main`
+  sites (`query.py` 47, `algorithms.py` 39, `extract_relations.py` 34,
+  `derive_insights.py` 21, `igraph_bridge.py` 15) — argparse fan-out is
+  flat data, not branching logic; ruled keep twice now.
+- S4, the 11-19 band: fourteen sites split (`_is_warm`, `_fuzzy`,
+  `_expand_paths`, `_split_sections`, `apply_edges`, `connect`,
+  `tree_components`, `_structural_boundaries`, `_label_from_window`
+  (table-driven), `extract_metrics`, `cached_embed_batch`,
+  `_harvest_zcode_file`, `rebuild`, `fuse`).
+- S5, suppression hygiene: 0 stale function-level anchors; two misplaced
+  noqas re-anchored to their `def` lines; 5 file-level blankets kept
+  with rulings recorded in the proposal.
+- D1 deferred with recorded verdicts: 86 functions remain over
+  threshold — argparse fan-out (ruled keep), maintenance scripts and
+  bench probes (acceptable population), and domain logic needing
+  per-function parity harnesses before any split (`review` 37/46 in
+  triage_pending_*, `check_integrity` 13, `rebuild_note_search`). The
+  `check_dead_c901_noqa` advisory leg regenerates the census
+  dynamically, so the deferred population cannot silently drift.
+- The split protocol earned its keep once: an extraction typo
+  (`_GENERIC_ACQUIRED_TARGETS` for the original's
+  `_GENERIC_ACquired_TARGETS`) sat as a latent NameError through green
+  tests until the `ty` pass caught it — types are now part of the split
+  protocol, not just parity.
+
+Execution record: `archive/graph/c901_complexity_debt.md` (status:
+deferred; D1 slice inside).

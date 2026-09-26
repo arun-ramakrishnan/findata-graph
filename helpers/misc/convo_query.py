@@ -86,7 +86,9 @@ class ConvoConnections:
 
 def connect(db_path: Path) -> ConvoConnections:
     con = duckdb.connect(str(db_path), read_only=True)
-    sconn = sqlite3.connect(f"file:{db_path.parent / FTS_DB_NAME}?mode=ro", uri=True)
+    sconn = sqlite3.connect(  # noqa: S608  # FTS sidecar is a plain sqlite file, read-only URI
+        f"file:{db_path.parent / FTS_DB_NAME}?mode=ro", uri=True
+    )
     return ConvoConnections(con, sconn)
 
 
@@ -124,7 +126,7 @@ def _cos_hits(con: ConvoConnections, query: str, limit: int, dims: int) -> list[
     # _PSEUDO_DIMS for the degraded path) — a hardcoded 384 breaks pseudo mode.
     cast = f"FLOAT[{int(dims)}]"
     rows = con.ddb.execute(
-        "SELECT harness, part_id, array_cosine_similarity("
+        "SELECT harness, part_id, array_cosine_similarity("  # noqa: S608  # cast width is int(dims) from the stored index; vector + limit are bound
         f"embedding::{cast}, ?::{cast}) s "
         "FROM convo_search WHERE embedding IS NOT NULL "
         "ORDER BY s DESC LIMIT ?",
@@ -147,7 +149,7 @@ def _fetch_rows(con: ConvoConnections, keys: list[Key]) -> dict[Key, dict]:
     where = " OR ".join(["(harness = ? AND part_id = ?)"] * len(keys))
     params = [v for k in keys for v in k]
     rows = con.ddb.execute(
-        "SELECT harness, session_id, part_id, file_path, row_no, ts, role, "
+        "SELECT harness, session_id, part_id, file_path, row_no, ts, role, "  # noqa: S608  # where is a fixed OR-pattern of bound placeholders; all values parameterized
         "agent, model, part_type, text_len, snippet FROM convo_search "
         f"WHERE {where}",
         params,
@@ -198,7 +200,7 @@ def _apply_prior(
         if allowed is not None and ptype not in allowed and role not in allowed:
             continue
         out.append((key, score * _prior_for(role, ptype)))
-    return sorted(out, key=lambda kv: -kv[1])
+    return sorted(out, key=lambda kv: (-kv[1], kv[0]))
 
 
 def search(
@@ -224,7 +226,7 @@ def search(
         mode = "bm25"
     else:
         cos = _cos_hits(con, query, pool, dims)
-        ranked = sorted(_rrf(fts, cos).items(), key=lambda kv: -kv[1])
+        ranked = sorted(_rrf(fts, cos).items(), key=lambda kv: (-kv[1], kv[0]))
         mode = "hybrid"
     ranked = _apply_prior(con, ranked, kinds)
     if harness:

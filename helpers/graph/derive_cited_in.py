@@ -241,6 +241,42 @@ def _note_frontmatter(p: Path) -> dict:
     return _loads_fm(fm_text)
 
 
+def _resolve_citation_entity(
+    note_path: Path, vault: Path, path_to_name: dict[str, str]
+) -> str | None:
+    """Resolve the entity display name from a note path via the file_path join.
+
+    The join key carries the vault name, exactly as the walk path builds it.
+    Returns None when the note has no entity row.
+    """
+    vault_rel = f"{vault.name}/{note_path.relative_to(vault).as_posix()}"
+    return path_to_name.get(vault_rel)
+
+
+def _collect_note_citations(
+    sources: list,
+    entity: str,
+    edition_stems: set[str],
+    stats: dict,
+    citations: list[tuple[str, str, str]],
+) -> None:
+    """Collect valid citations from a note's sources[] into ``citations``.
+
+    Updates ``stats`` in place for skipped PDFs and unknown edition IDs.
+    """
+    for s in sources:
+        if not isinstance(s, dict) or not s.get("id"):
+            continue
+        resource = s.get("resource", "")
+        if resource.startswith("/Reports/"):
+            stats["skipped_pdf"] += 1
+            continue
+        if s["id"] not in edition_stems:
+            stats["unknown_id"] += 1
+            continue
+        citations.append((entity, s["id"], resource))
+
+
 def extract_citations(
     vault: Path,
     path_to_name: dict[str, str],
@@ -280,7 +316,7 @@ def extract_citations(
                 continue
             fm = note.frontmatter or {}
             sources = fm.get("sources")
-            if not isinstance(sources, list):  # noqa: C901
+            if not isinstance(sources, list):
                 continue
             # rel is vault-relative (<tree>/...); the join key carries the
             # vault name, exactly as the walk path below builds it.
@@ -289,17 +325,7 @@ def extract_citations(
             entity = path_to_name.get(vault_rel) or path_to_name.get(rel)
             if entity is None:
                 continue
-            for s in sources:
-                if not isinstance(s, dict) or not s.get("id"):
-                    continue
-                resource = s.get("resource", "")
-                if resource.startswith("/Reports/"):
-                    stats["skipped_pdf"] += 1
-                    continue
-                if s["id"] not in edition_stems:
-                    stats["unknown_id"] += 1
-                    continue
-                citations.append((entity, s["id"], resource))
+            _collect_note_citations(sources, entity, edition_stems, stats, citations)
         return citations, stats
     for tree in DERIVED_TREES:
         for p in sorted((vault / tree).rglob("*.md")):
@@ -307,20 +333,10 @@ def extract_citations(
             sources = fm.get("sources")
             if not isinstance(sources, list):
                 continue
-            entity = path_to_name.get(f"{vault.name}/{p.relative_to(vault).as_posix()}")
+            entity = _resolve_citation_entity(p, vault, path_to_name)
             if entity is None:
                 continue
-            for s in sources:
-                if not isinstance(s, dict) or not s.get("id"):
-                    continue
-                resource = s.get("resource", "")
-                if resource.startswith("/Reports/"):
-                    stats["skipped_pdf"] += 1
-                    continue
-                if s["id"] not in edition_stems:
-                    stats["unknown_id"] += 1
-                    continue
-                citations.append((entity, s["id"], resource))
+            _collect_note_citations(sources, entity, edition_stems, stats, citations)
     return citations, stats
 
 

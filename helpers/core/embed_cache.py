@@ -188,6 +188,47 @@ class CachedEmbed:
         return vec
 
 
+def _embed_misses_chunked(
+    conn,
+    uniq_hashes: list[str],
+    uniq_texts: list[str],
+    model_label: str,
+    embed_missing: Callable[[list[str]], list[list[float]]],
+    source: str,
+) -> tuple[list[list[float]], int]:
+    """Embed unique misses in chunks, persisting each chunk to the cache.
+    Returns (vectors, dirty_count)."""
+    chunk = 512
+    new_vecs: list[list[float]] = []
+    dirty = 0
+    t0 = time.perf_counter()
+    for off in range(0, len(uniq_texts), chunk):
+        part = embed_missing(uniq_texts[off : off + chunk])
+        if len(part) != len(uniq_texts[off : off + chunk]):
+            raise ValueError(
+                f"batch embedder returned {len(part)} vectors for "
+                f"{len(uniq_texts[off : off + chunk])} texts"
+            )
+        new_vecs.extend(part)
+        done = min(off + chunk, len(uniq_texts))
+        try:
+            conn.executemany(
+                f"INSERT OR REPLACE INTO {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
+                "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
+                [
+                    (h, model_label, pack_f32(v), source)
+                    for h, v in zip(uniq_hashes[off:done], new_vecs[off:done])
+                ],  # fmt: skip
+            )
+            conn.commit()
+            dirty += done - off
+        except Exception:  # noqa: S110  # cache write fails -> vectors still returned
+            pass
+        rate = done / (time.perf_counter() - t0)
+        _progress(f"{_tag(source, model_label)} {done}/{len(uniq_texts)} unique ({rate:.1f}/s)")
+    return new_vecs, dirty
+
+
 def cached_embed_batch(
     conn,
     texts: list[str],
@@ -208,9 +249,8 @@ def cached_embed_batch(
     rebuild_note_search --check lesson). The cache is content-addressed, so
     committing early is safe even if the caller's write later fails.
     """
-    # every key is present on EVERY return path (the no-sidecar degrade
-    # below included) — callers assert the whole dict
     stats = {"hits": 0, "misses": 0, "unique_misses": 0, "dirty": 0}
+    # unique_misses is always present (callers assert the whole dict)
     try:
         from helpers.core.vec_search import _attach_vec_db
 
@@ -219,8 +259,6 @@ def cached_embed_batch(
     except Exception:  # noqa: S110  # no sidecar -> embed uncached
         vecs = embed_missing(texts)
         stats["misses"] = len(texts)
-        # no cache means no dedup pass: every text costs its own call, so
-        # unique == misses here (reporting 0 would understate the work)
         stats["unique_misses"] = len(texts)
         return vecs, stats
     if purge_foreign:
@@ -232,8 +270,6 @@ def cached_embed_batch(
                 flush=True,
             )
 
-    # One bulk load of this model's cache slice (a few thousand rows at
-    # most — note_search + company texts) beats N point SELECTs.
     cached: dict[str, str] = {
         row[0]: row[1]
         for row in conn.execute(
@@ -247,67 +283,25 @@ def cached_embed_batch(
     vecs: list[list[float] | None] = []
     for h in hashes:
         raw = cached.get(h)
-        vec = load_vec(raw) if raw else None  # corrupted row -> miss
+        vec = load_vec(raw) if raw else None
         vecs.append(vec)
     stats["hits"] = sum(v is not None for v in vecs)
 
     miss_idx = [i for i, v in enumerate(vecs) if v is None]
     stats["misses"] = len(miss_idx)
     if miss_idx:
-        # Dedup WITHIN the call: one model call per distinct digest. The
-        # per-text EmbedCache path dedupes for free (it commits as it goes),
-        # but this bulk path only sees rows committed by EARLIER calls — so
-        # a corpus repeating the same short text thousands of times paid one
-        # model call per copy (convo: 14,375 identical rows in one rebuild).
         uniq_first: dict[str, int] = {}
         for i in miss_idx:
             uniq_first.setdefault(hashes[i], i)
         uniq_hashes = list(uniq_first)
         uniq_texts = [texts[uniq_first[h]] for h in uniq_hashes]
         stats["unique_misses"] = len(uniq_texts)
-        # Chunked ONLY for live progress (the "long jobs read as stuck"
-        # lesson, 2026-09-05) — embed_missing loops per-text inside each
-        # chunk (S1 shape), so chunking never reintroduces batch decodes.
-        # stderr + flush survive block-buffered log redirection.
-        chunk = 512
-        new_vecs: list[list[float]] = []
-        dirty = 0
-        t0 = time.perf_counter()
-        for off in range(0, len(uniq_texts), chunk):
-            part = embed_missing(uniq_texts[off : off + chunk])
-            if len(part) != len(uniq_texts[off : off + chunk]):
-                # A short/long reply would silently shift vectors onto the
-                # wrong texts below — fail loudly instead.
-                raise ValueError(
-                    f"batch embedder returned {len(part)} vectors for "
-                    f"{len(uniq_texts[off : off + chunk])} texts"
-                )
-            new_vecs.extend(part)
-            done = min(off + chunk, len(uniq_texts))
-            # Persist EVERY chunk, not once at the end. A single 50k-row
-            # commit at the tail means a crash two hours in loses every
-            # vector (2026-09-27 cold run); per-chunk commits cap the loss
-            # at one chunk and keep the run resumable. Best-effort — a
-            # failed write still returns the vectors.
-            try:
-                conn.executemany(
-                    f"INSERT OR REPLACE INTO {EMBED_CACHE_TABLE} "  # noqa: S608  # constant table name
-                    "(text_hash, model, embedding, source) VALUES (?, ?, ?, ?)",
-                    [
-                        (h, model_label, pack_f32(v), source)
-                        for h, v in zip(uniq_hashes[off:done], new_vecs[off:done])
-                    ],
-                )
-                conn.commit()  # persist NOW (pre-warm lesson; see docstring)
-                dirty += done - off
-            except Exception:  # noqa: S110  # cache write fails -> vectors still returned
-                pass
-            rate = done / (time.perf_counter() - t0)
-            _progress(f"{_tag(source, model_label)} {done}/{len(uniq_texts)} unique ({rate:.1f}/s)")
+        new_vecs, dirty = _embed_misses_chunked(
+            conn, uniq_hashes, uniq_texts, model_label, embed_missing, source
+        )
         by_hash = dict(zip(uniq_hashes, new_vecs))
         for i in miss_idx:
             vecs[i] = by_hash[hashes[i]]
         stats["dirty"] = dirty
 
-    # All slots are filled by here (hits from cache, misses embedded).
     return [v for v in vecs if v is not None], stats

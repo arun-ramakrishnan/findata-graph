@@ -1495,3 +1495,60 @@ def test_ontology_rosters_fail_when_gated_roster_absent(tmp_path):
 def test_ontology_rosters_live_doc_is_green():
     """The shipped doc/design/ontology.md matches the code registries."""
     assert sc.check_ontology_doc_rosters() == []
+
+
+# --------------------------------------------------------------------------- #
+# Bare negated sort keys (chain_tally_determinism S3)                         #
+# --------------------------------------------------------------------------- #
+
+
+def test_bare_negated_sort_key_rejected(tmp_path, monkeypatch):
+    """The proven flake shape: -kv[1] alone ties in PYTHONHASHSEED order."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/graph/tally.py",
+        "def render(counts):\n    return sorted(counts.items(), key=lambda kv: -kv[1])\n",
+    )
+    fatal = sc.check_bare_negated_sort_keys()
+    assert len(fatal) == 1
+    assert "tally.py:2" in fatal[0]
+    assert "tiebreak" in fatal[0]
+
+
+def test_negated_sort_key_with_name_tiebreak_passes(tmp_path, monkeypatch):
+    """The deterministic shape S1/S2 landed across the 18 tally sites."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/graph/tally.py",
+        "def render(counts):\n    return sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))\n",
+    )
+    assert sc.check_bare_negated_sort_keys() == []
+
+
+def test_bare_negated_sort_scoped_to_items_calls(tmp_path, monkeypatch):
+    """Single-field sorts of unique keys (no .items()) are out of scope."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "helpers/graph/tally.py",
+        "def render(pairs):\n    return sorted(pairs, key=lambda kv: -kv[1])\n",
+    )
+    assert sc.check_bare_negated_sort_keys() == []
+
+
+def test_bare_negated_sort_ignores_tests(tmp_path, monkeypatch):
+    """Production scope only (helpers/ + app.py), matching the chokepoint leg."""
+    _seed_py(
+        monkeypatch,
+        tmp_path,
+        "tests/test_tally.py",
+        "def render(counts):\n    return sorted(counts.items(), key=lambda kv: -kv[1])\n",
+    )
+    assert sc.check_bare_negated_sort_keys() == []
+
+
+def test_bare_negated_sort_live_repo_is_green():
+    """The shipped tree carries no bare -kv[1] tally renders."""
+    assert sc.check_bare_negated_sort_keys() == []

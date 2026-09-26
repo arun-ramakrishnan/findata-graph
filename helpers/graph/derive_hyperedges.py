@@ -963,7 +963,7 @@ def derive_sub_sectors(
             msg = f"S11 stale alias: industry {label!r} -> {target!r} not an entity"
             raise ValueError(msg)
         groups.setdefault(target, set()).update(members)
-    unmapped.sort(key=lambda x: -x[1])
+    unmapped.sort(key=lambda x: (-x[1], x[0]))
 
     unmapped_authored: list[tuple[str, int]] = []
     if authored and sub_sector_entities:
@@ -980,7 +980,7 @@ def derive_sub_sectors(
                 for members_of in groups.values():
                     members_of.discard(m)  # authored is canonical: exclusive
                 groups[canonical].add(m)
-        unmapped_authored.sort(key=lambda x: -x[1])
+        unmapped_authored.sort(key=lambda x: (-x[1], x[0]))
     return groups, unmapped, unmapped_authored
 
 

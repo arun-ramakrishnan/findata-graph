@@ -283,7 +283,7 @@ def _cli(argv: list[str] | None = None) -> int:
         )
     )
     for metric, values in res.items():
-        ranked = sorted(values.items(), key=lambda kv: -kv[1])[: args.top]
+        ranked = sorted(values.items(), key=lambda kv: (-kv[1], kv[0]))[: args.top]
         print(f"  {metric} (top {args.top}):")
         for name, v in ranked:
             print(f"    {name:44} {v:.6f}")

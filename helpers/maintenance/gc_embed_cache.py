@@ -277,7 +277,7 @@ def summary(out: dict) -> str:
         f"embed_cache: {out['cache_rows']} rows / {out['store_mib']} MiB "
         f"— live {out['live']}, DEAD {out['dead']}"
     ]
-    for src, n in sorted(out["by_source"].items(), key=lambda kv: -kv[1]):
+    for src, n in sorted(out["by_source"].items(), key=lambda kv: (-kv[1], kv[0])):
         d = out["dead_by_source"].get(src, 0)
         ref = out["referenced_by_source"].get(src, 0)
         lines.append(f"  {str(src):10} {n:>7} rows  referenced {ref:>7}  dead {d:>7}")

@@ -209,7 +209,7 @@ def _block_report(
         block_key = int(payload["block"])
         blocks.setdefault(block_key, []).append(entity)
     lines = [f"blocks: {len(blocks)} (K={next(iter(memberships.values()))['k']})"]
-    for b in sorted(blocks, key=lambda x: -len(blocks[x])):
+    for b in sorted(blocks, key=lambda x: (-len(blocks[x]), x)):
         members_b = blocks[b]
         cats = Counter(c for m in members_b for c in label_of.get(m, [])).most_common(
             per_block_cats

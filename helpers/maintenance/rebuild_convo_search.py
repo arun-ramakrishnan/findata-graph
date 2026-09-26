@@ -373,6 +373,109 @@ class _Phases:
         return out
 
 
+def _rebuild_check_mode(db_path: Path, files: list[Path], timer: _Phases) -> dict:
+    """Check mode: report corpus-vs-index drift without writing."""
+    current = {str(f.relative_to(REPO)): _file_hash(f) for f in files}
+    if not db_path.exists():
+        diff = {"new": sorted(current), "changed": [], "deleted": []}
+    else:
+        con = duckdb.connect(str(db_path), read_only=True)
+        try:
+            diff = _diff(current, _strip_prefix(_stored_hashes(con)))
+        finally:
+            con.close()
+    stale = {
+        "stale_new": diff["new"],
+        "stale_changed": diff["changed"],
+        "stale_deleted": diff["deleted"],
+    }
+    timer.mark("check")
+    return {
+        "indexed": 0,
+        "mode": "check",
+        "index_stale": bool(diff["new"] or diff["changed"] or diff["deleted"]),
+        "timings": timer.as_dict(),
+        **stale,
+    }
+
+
+def _rebuild_full_mode(
+    con, files: list[Path], stored: dict, timer: _Phases
+) -> tuple[list[dict], dict, list[tuple[str, str]], dict]:
+    """Full rebuild mode: read all files, diff, and prepare rows."""
+    target = _read_files(files)
+    current = {rel: h for rel, (h, _rows) in target.items()}
+    diff = _diff(current, stored)
+    con.execute("DELETE FROM convo_search")
+    con.execute("DELETE FROM convo_meta")
+    drop_keys: list[tuple[str, str]] = []
+    keep = [r for _h, rr in target.values() for r in rr]
+    return keep, current, drop_keys, diff
+
+
+def _rebuild_incremental_mode(
+    con, files: list[Path], stored: dict, timer: _Phases
+) -> tuple[list[dict], dict, list[tuple[str, str]], dict]:
+    """Incremental rebuild mode: delta-only processing."""
+    current = {str(f.relative_to(REPO)): _file_hash(f) for f in files}
+    diff = _diff(current, stored)
+    wanted = set(diff["new"]) | set(diff["changed"])
+    target = _read_files([f for f in files if str(f.relative_to(REPO)) in wanted])
+    drop_keys: list[tuple[str, str]] = []
+    keep: list[dict] = []
+    for rel in sorted(diff["deleted"]):
+        con.execute("DELETE FROM convo_search WHERE file_path = ?", [rel])
+    for rel, (_h, file_rows) in target.items():
+        if rel not in stored:
+            keep.extend(file_rows)
+            continue
+        seen = _indexed_state(con, rel)
+        new_keys = {(r["harness"], r["part_id"]): r for r in file_rows}
+        rewritten: set[tuple[str, str]] = set()
+        for key, was in seen.items():
+            row = new_keys.get(key)
+            if row is None:
+                drop_keys.append(key)
+            elif was != (row["snippet"], row["text_len"], row["row_no"]):
+                drop_keys.append(key)
+                rewritten.add(key)
+        keep.extend(r for key, r in new_keys.items() if key not in seen or key in rewritten)
+    return keep, current, drop_keys, diff
+
+
+def _rebuild_embed_and_persist(
+    con,
+    rows: list[dict],
+    drop_keys: list[tuple[str, str]],
+    current: dict,
+    incremental: bool,
+    timer: _Phases,
+) -> tuple[dict, str, int]:
+    """Embed rows, persist to DuckDB and FTS, return (cstats, model_label, dims)."""
+    vecs, cstats, dims, model_label = _embed([r["snippet"] for r in rows])
+    timer.mark("embed")
+    if drop_keys:
+        _delete_duckdb_keys(con, drop_keys)
+    timer.mark("duckdb_delete")
+    if rows:
+        _bulk_insert(con, rows, vecs)
+    timer.mark("duckdb_insert")
+    from helpers.core.db import connect as db_connect
+
+    sconn = db_connect(_FTS_DB_PATH)
+    try:
+        _fts_sync(sconn, drop_keys, rows, full=not incremental)
+    finally:
+        sconn.close()
+    timer.mark("fts_sync")
+    con.executemany(
+        "INSERT OR REPLACE INTO convo_meta VALUES (?, ?)",
+        [(f"file:{rel}", h) for rel, h in current.items()]
+        + [("embed_model", model_label), ("embed_dims", str(dims))],
+    )
+    return cstats, model_label, dims
+
+
 def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dict:
     """The S2 core. ``--check`` (write=False) never resolves the embedder."""
     db_path = Path(db_path)
@@ -383,28 +486,7 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dic
 
     files = _corpus_files()
     if not write:
-        current = {str(f.relative_to(REPO)): _file_hash(f) for f in files}
-        if not db_path.exists():
-            diff = {"new": sorted(current), "changed": [], "deleted": []}
-        else:
-            con = duckdb.connect(str(db_path), read_only=True)
-            try:
-                diff = _diff(current, _strip_prefix(_stored_hashes(con)))
-            finally:
-                con.close()
-        stale = {
-            "stale_new": diff["new"],
-            "stale_changed": diff["changed"],
-            "stale_deleted": diff["deleted"],
-        }
-        timer.mark("check")
-        return {
-            "indexed": 0,
-            "mode": "check",
-            "index_stale": bool(diff["new"] or diff["changed"] or diff["deleted"]),
-            "timings": timer.as_dict(),
-            **stale,
-        }
+        return _rebuild_check_mode(db_path, files, timer)
 
     con = duckdb.connect(str(db_path))
     try:
@@ -412,81 +494,14 @@ def rebuild(db_path: Path, write: bool = True, incremental: bool = False) -> dic
         con.execute(CONVO_META_DDL)
         stored = _strip_prefix(_stored_hashes(con))
         if incremental:
-            current = {str(f.relative_to(REPO)): _file_hash(f) for f in files}
-            diff = _diff(current, stored)
-            wanted = set(diff["new"]) | set(diff["changed"])
-            target = _read_files([f for f in files if str(f.relative_to(REPO)) in wanted])
-            # DELTA-ONLY (T8): the corpus writer rewrites whole session files
-            # but only ever APPENDS parts, so a changed file's already-indexed
-            # rows are still valid. Deleting and reinserting them made the
-            # cost scale with FILE size — re-tokenizing 6.9k unchanged
-            # snippets took 11 s for a 3-part delta. Compare against what is
-            # actually stored: insert what is new (or whose text changed),
-            # drop what disappeared, touch nothing else.
-            drop_keys: list[tuple[str, str]] = []
-            keep: list[dict] = []
-            # a DELETED file goes wholesale (one statement, 0.04 s); a
-            # CHANGED file only loses the keys the delta logic flags below
-            for rel in sorted(diff["deleted"]):
-                con.execute("DELETE FROM convo_search WHERE file_path = ?", [rel])
-            for rel, (_h, file_rows) in target.items():
-                if rel not in stored:
-                    keep.extend(file_rows)  # new file: everything is new
-                    continue
-                seen = _indexed_state(con, rel)
-                new_keys = {(r["harness"], r["part_id"]): r for r in file_rows}
-                rewritten: set[tuple[str, str]] = set()
-                for key, was in seen.items():
-                    row = new_keys.get(key)
-                    if row is None:
-                        drop_keys.append(key)  # the part is gone
-                    elif was != (row["snippet"], row["text_len"], row["row_no"]):
-                        # text rewritten (newest-source-wins) OR the row moved
-                        # (harness compaction shifted every later row_no) —
-                        # either way the old vector + FTS row must go and
-                        # the new one must land
-                        drop_keys.append(key)
-                        rewritten.add(key)
-                keep.extend(r for key, r in new_keys.items() if key not in seen or key in rewritten)
+            keep, current, drop_keys, diff = _rebuild_incremental_mode(con, files, stored, timer)
         else:
-            target = _read_files(files)
-            current = {rel: h for rel, (h, _rows) in target.items()}
-            diff = _diff(current, stored)
-            con.execute("DELETE FROM convo_search")
-            con.execute("DELETE FROM convo_meta")
-            drop_keys = []
-            keep = [r for _h, rr in target.values() for r in rr]
+            keep, current, drop_keys, diff = _rebuild_full_mode(con, files, stored, timer)
 
         timer.mark("hash+read")
         rows = keep
-        vecs, cstats, dims, model_label = _embed([r["snippet"] for r in rows])
-        timer.mark("embed")
-
-        # Deleted files went wholesale above; a changed file loses only the
-        # flagged keys. (Deleting the whole changed file would throw away
-        # exactly the rows delta-only decided to keep.)
-        if drop_keys:
-            _delete_duckdb_keys(con, drop_keys)
-        timer.mark("duckdb_delete")
-        if rows:
-            _bulk_insert(con, rows, vecs)
-        timer.mark("duckdb_insert")
-
-        from helpers.core.db import connect as db_connect
-
-        # house connect(): the FTS sidecar is a plain SQLite file, and the
-        # project standard is that DB access goes through this helper
-        sconn = db_connect(_FTS_DB_PATH)
-        try:
-            _fts_sync(sconn, drop_keys, rows, full=not incremental)
-        finally:
-            sconn.close()
-        timer.mark("fts_sync")
-
-        con.executemany(
-            "INSERT OR REPLACE INTO convo_meta VALUES (?, ?)",
-            [(f"file:{rel}", h) for rel, h in current.items()]
-            + [("embed_model", model_label), ("embed_dims", str(dims))],
+        cstats, model_label, dims = _rebuild_embed_and_persist(
+            con, rows, drop_keys, current, incremental, timer
         )
         total_row = con.execute("SELECT COUNT(*) FROM convo_search").fetchone()
         total = total_row[0] if total_row else 0

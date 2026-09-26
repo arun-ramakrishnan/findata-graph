@@ -885,8 +885,9 @@ def check_frontmatter_schema_contract() -> tuple[list[str], list[str]]:
 
 
 def _check_archived_proposals(archive_dir: Path, fatal: list[str]) -> None:
-    """Archived proposals must be status: executed with dates + number;
-    a header without frontmatter means an un-backfilled proposal."""
+    """Archived proposals must be status: executed (or deferred, when a
+    deferred remainder is tracked inside the archived copy) with dates +
+    number; a header without frontmatter means an un-backfilled proposal."""
     if str(REPO_ROOT) not in sys.path:
         sys.path.insert(0, str(REPO_ROOT))
     from helpers.validators.frontmatter_schema import (
@@ -907,9 +908,9 @@ def _check_archived_proposals(archive_dir: Path, fatal: list[str]) -> None:
                     f"present but no frontmatter block (backfill it)"
                 )
             continue
-        if fm.get("status") != "executed":
+        if fm.get("status") not in ("executed", "deferred"):
             fatal.append(
-                f"archive/{p.relative_to(archive_dir)}: archived proposal must be status: executed"
+                f"archive/{p.relative_to(archive_dir)}: archived proposal must be status: executed (or deferred)"
             )
         if fm.get("executed") is None or fm.get("completed_md") is None:
             fatal.append(
@@ -1068,6 +1069,17 @@ def check_sqlite_helper_usage(scope: set[Path] | None = None) -> list[str]:  # n
         # target — a house connect() cannot express "the ATTACH target of
         # this duckdb connection"). SELECTs only, no writes.
         "helpers/graph/query.py",
+        # Desktop fixture generator: mode=ro URI on a path-walk-located
+        # research.db, mirroring the Rust data layer's shapes. Standalone
+        # by design (no helpers import in the Tauri test subtree); SELECTs
+        # only, never the writer path.
+        "findata-graph-desktop/src-vue/test/make_fixtures.py",
+        # Read-only mode=ro URI open of a SIDECAR file (the convo FTS5
+        # sidecar). connect() would open it read-write and CREATE an empty
+        # db when the sidecar is missing — mode=ro must fail loudly instead
+        # of leaving a phantom 0-byte index behind. (Mirrors the pytest
+        # allowlist in tests/test_static_checks.py.)
+        "helpers/misc/convo_query.py",
     )
     failures: list[str] = []
     if scope is not None:
@@ -1230,6 +1242,253 @@ def check_db_meta_generation():
         return [f"{db}: check failed: {e}"]
 
 
+# --- C901 suppression integrity (c901_complexity_debt S1) ------------------ #
+#
+# A C901 suppression is a *claim* that a function is too complex to split
+# cleanly. Three ways that claim rots, all invisible to `make lint-audit`
+# (which only asks "is every finding suppressed?"):
+#
+#   1. MISPLACED  the comment sits on some other line (a signature's closing
+#                 paren, a decorator) so ruff never honours it, while the
+#                 author believes the function is annotated.
+#   2. STALE      the anchor is honoured, but the function is now under the
+#                 mccabe threshold -- the split happened, the noqa survived.
+#   3. BLANKET    a file-scope `ruff: noqa` naming C901 hides N functions at
+#                 once and cannot be counted by reading the file.
+#
+# Detection strips every C901 suppression into a temp mirror of the tree,
+# re-runs ruff so the real complexity numbers surface, then compares against
+# where the suppressions actually sit. Advisory only: reporting the drift is
+# the goal, blocking `make qa` on it would only teach authors to add noqas.
+
+_C901_DIRECTIVE_RE = re.compile(r"noqa:\s*([A-Z]+\d+(?:\s*,\s*[A-Z]+\d+)*)")
+_C901_FILE_NOQA_RE = re.compile(r"ruff:\s*noqa:[^\n]*\bC901\b")
+# Directive-shaped text quoted in prose is a mention, not a suppression. Ruff
+# tolerates it silently; this check must not report the house's own rationale.
+_PROSE_TAIL_RE = re.compile(r"^[`*_'\"]")
+
+
+def _is_c901_directive(text: str) -> bool:
+    """True if ``text`` is a real noqa directive naming C901.
+
+    Anchors on the directive grammar (``noqa: <codes>``) and rejects a
+    trailing prose tail, so documentation *about* suppressions does not get
+    counted as one -- otherwise this check reports itself.
+    """
+    m = _C901_DIRECTIVE_RE.search(text)
+    if not m:
+        return False
+    if "C901" not in {c.strip() for c in m.group(1).split(",")}:
+        return False
+    return not _PROSE_TAIL_RE.match(text[m.end() :].lstrip())
+
+
+def _c901_comment_lines(path: Path) -> dict[int, str]:
+    """C901 suppression comments in ``path`` keyed by line number.
+
+    Tokenize (not substring search) so a `noqa: C901` quoted inside a
+    docstring -- e.g. the rationale note in backfill_quotes_attribution.py --
+    is not mistaken for a live suppression.
+    """
+    import tokenize
+
+    found: dict[int, str] = {}
+    try:
+        with open(path, "rb") as fh:
+            for tok in tokenize.tokenize(fh.readline):
+                if tok.type != tokenize.COMMENT:
+                    continue
+                if _is_c901_directive(tok.string) or _C901_FILE_NOQA_RE.search(tok.string):
+                    found[tok.start[0]] = tok.string
+    except SyntaxError, tokenize.TokenError, UnicodeDecodeError, OSError:
+        return {}
+    return found
+
+
+def _def_lines(src: str) -> dict[str, set[int]]:
+    """Function name -> line numbers of its ``def`` statement.
+
+    Ruff anchors a function-level suppression on the ``def`` line, so this is
+    the only place a well-placed ``# noqa: C901`` can live.
+    """
+    import ast
+
+    try:
+        tree = ast.parse(src)
+    except SyntaxError:
+        return {}
+    out: dict[str, set[int]] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            out.setdefault(node.name, set()).add(node.lineno)
+    return out
+
+
+def _strip_c901(src: str, comment_lines: dict[int, str]) -> str:
+    """Neutralise C901 suppressions in ``src`` (comment tokens -> plain text).
+
+    Works from COMMENT token positions rather than line regexes so inline
+    suppressions survive the rewrite in valid Python.
+    """
+    out = src
+    for lineno in sorted(comment_lines, reverse=True):
+        lines = out.splitlines(keepends=True)
+        target = lines[lineno - 1]
+        stripped = _C901_DIRECTIVE_RE.sub("c901-swept", target, count=1)
+        if stripped == target:
+            stripped = _C901_FILE_NOQA_RE.sub("c901-swept", target, count=1)
+        lines[lineno - 1] = stripped
+        out = "".join(lines)
+    return out
+
+
+def _ruff_c901_findings(root: Path) -> dict[str, dict[str, int]]:
+    """Run ruff's C901 over ``root``; return {relpath: {funcname: complexity}}."""
+    try:
+        proc = subprocess.run(  # noqa: S603  # sys.executable is absolute, fixed argv, no shell
+            [
+                sys.executable,
+                "-m",
+                "ruff",
+                "check",
+                "--isolated",
+                "--select",
+                "C901",
+                "--no-cache",
+                "--output-format",
+                "concise",
+                str(root),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=180,
+            check=False,
+        )
+    except (subprocess.TimeoutExpired, OSError) as e:
+        raise RuntimeError(f"ruff C901 sweep failed to run: {e}") from e
+
+    found: dict[str, dict[str, int]] = {}
+    for line in proc.stdout.splitlines():
+        m = re.match(r"^(.+?):\d+:\d+: C901 `([^`]+)` is too complex \((\d+)", line)
+        if not m:
+            continue
+        rel = str(Path(m.group(1)).resolve().relative_to(root.resolve()))
+        found.setdefault(rel, {})[m.group(2)] = int(m.group(3))
+    return found
+
+
+def _c901_suppression_targets() -> list[Path]:
+    """Repo .py files carrying at least one C901 suppression."""
+    out: list[Path] = []
+    for path in REPO_ROOT.rglob("*.py"):
+        if any(part in SKIP_DIRS for part in path.parts):
+            continue
+        if _c901_comment_lines(path):
+            out.append(path)
+    return out
+
+
+def _c901_notes_for_file(
+    rel: Path, defs: dict[str, set[int]], live: dict[str, int]
+) -> tuple[list[str], int]:
+    """Drift notes for one file, plus its file-level blanket count."""
+    notes: list[str] = []
+    placed: set[str] = set()
+    blankets = 0
+    for lineno, text in sorted(_c901_comment_lines(REPO_ROOT / rel).items()):
+        if _C901_FILE_NOQA_RE.search(text):
+            blankets += 1
+            hidden = ", ".join(
+                f"{k} {v}" for k, v in sorted(live.items(), key=lambda kv: (-kv[1], kv[0]))
+            )
+            notes.append(
+                f"  file-level blanket: hides {len(live)} function(s) ({hidden or 'none'})"
+            )
+            continue
+        owners = [n for n, ls in defs.items() if lineno in ls]
+        if not owners:
+            owner = _enclosing_function(REPO_ROOT / rel, lineno)
+            notes.append(
+                f"  misplaced: {rel}:{lineno} {text.strip()!r} is not a def line"
+                + (f" (inside {owner})" if owner else "")
+            )
+            continue
+        placed.update(owners)
+    for name in sorted(placed - set(live)):
+        notes.append(f"  stale: {rel} {name!r} carries noqa: C901 but is under threshold")
+    return notes, blankets
+
+
+def check_dead_c901_noqa() -> tuple[list[str], list[str]]:
+    """c901_complexity_debt S1: report C901 suppressions that no longer hold.
+
+    Advisory. Returns ([], findings) so the drift is visible in every
+    `make static-checks` run without gating the QA leg.
+    """
+    import tempfile
+
+    targets = _c901_suppression_targets()
+    if not targets:
+        return [], []
+
+    rels = [p.relative_to(REPO_ROOT) for p in targets]
+    defs = {
+        rel: _def_lines((REPO_ROOT / rel).read_text(encoding="utf-8", errors="replace"))
+        for rel in rels
+    }
+
+    with tempfile.TemporaryDirectory(prefix="c901-sweep-") as tmp:
+        root = Path(tmp)
+        for rel in rels:
+            path = REPO_ROOT / rel
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (root / rel).write_text(
+                _strip_c901(
+                    path.read_text(encoding="utf-8", errors="replace"), _c901_comment_lines(path)
+                ),
+                encoding="utf-8",
+            )
+        try:
+            stripped = _ruff_c901_findings(root)
+        except RuntimeError as e:
+            return [], [str(e)]
+
+    advisory: list[str] = []
+    blankets = 0
+    for rel in sorted(rels, key=str):
+        notes, count = _c901_notes_for_file(rel, defs[rel], stripped.get(str(rel), {}))
+        blankets += count
+        if notes:
+            advisory.append(f"{rel}: C901 suppression drift")
+            advisory.extend(notes)
+
+    if blankets:
+        advisory.insert(0, f"C901 file-level blanket suppressions: {blankets}")
+    advisory.append(
+        f"c901-swept {len(rels)} file(s); {sum(len(v) for v in stripped.values())} function(s) over threshold"
+    )
+    return [], advisory
+
+
+def _enclosing_function(path: Path, lineno: int) -> str | None:
+    """Name of the innermost function whose body covers ``lineno``, if any."""
+    import ast
+
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+    except SyntaxError, OSError:
+        return None
+    best: tuple[int, str] | None = None
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        end = getattr(node, "end_lineno", node.lineno) or node.lineno
+        if node.lineno <= lineno <= end:
+            if best is None or node.lineno > best[0]:
+                best = (node.lineno, node.name)
+    return best[1] if best else None
+
+
 # Each check returns either:
 #   list[str]             -> fatal failures only
 #   (list[str], list[str]) -> (fatal, advisory). Advisory never affects exit code.
@@ -1240,6 +1499,81 @@ def check_data_format(py_scope: set[Path] | None = None) -> tuple[list[str], lis
     if py_scope is None:
         py_scope = _DIRTY_PY_SCOPE
     return _run(py_scope)
+
+
+# --- chain_tally_determinism S3: bare negated sort keys over .items() ------- #
+
+
+def _is_items_call(node: ast.expr) -> bool:
+    """True for ``<mapping>.items()`` call expressions."""
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "items"
+        and not node.args
+        and not node.keywords
+    )
+
+
+def check_bare_negated_sort_keys(scope: set[Path] | None = None) -> list[str]:
+    """chain_tally_determinism S3: reject tally renders with hash-order ties.
+
+    ``sorted(d.items(), key=lambda kv: -kv[1])`` sorts by count only; equal
+    counts tie and render in dict iteration order, which varies with
+    PYTHONHASHSEED (the proven stats-report flake). The deterministic shape
+    adds a key tiebreak: ``key=lambda kv: (-kv[1], kv[0])``.
+
+    AST scan (regexes miss multi-line lambdas). Scope: sorts whose FIRST
+    positional is a ``<mapping>.items()`` call — single-field sorts of
+    unique keys elsewhere are out of scope by proposal. A key lambda whose
+    body is a bare unary minus (no tuple) is the violation.
+
+    A scope restricts to dirty files (dirty-gating); None falls back to
+    the module-global _DIRTY_PY_SCOPE (itself None = full).
+    """
+    if scope is None:
+        scope = _DIRTY_PY_SCOPE
+    if scope is not None:
+        candidates = _scoped_py_files(scope, "helpers/", "app.py")
+    else:
+        candidates = [
+            p
+            for p in REPO_ROOT.rglob("*.py")
+            if not any(part in SKIP_DIRS for part in p.parts)
+            and p.relative_to(REPO_ROOT).as_posix().startswith(("helpers/", "app.py"))
+        ]
+    failures: list[str] = []
+    for py in sorted(candidates, key=str):
+        try:
+            tree = ast.parse(py.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:  # noqa: S110  # syntax leg owns the report
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or _target_name(node.func) != "sorted":
+                continue
+            if not node.args or not _is_items_call(node.args[0]):
+                continue
+            key = next((kw for kw in node.keywords if kw.arg == "key"), None)
+            if key is None or not isinstance(key.value, ast.Lambda):
+                continue
+            body = key.value.body
+            if isinstance(body, ast.UnaryOp) and isinstance(body.op, ast.USub):
+                rel = py.relative_to(REPO_ROOT).as_posix()
+                failures.append(
+                    f"{rel}:{node.lineno}: sorted(<dict>.items(), key=…) with a bare "
+                    "negated field ties render in PYTHONHASHSEED order — add a name "
+                    "tiebreak: key=lambda kv: (-kv[1], kv[0])"
+                )
+    return failures
+
+
+def _target_name(func: ast.expr) -> str | None:
+    """``sorted``/``x.sorted`` → 'sorted'; anything else → None-ish id."""
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return None
 
 
 # --- ontology_governance S0: master-doc roster drift ----------------------- #
@@ -1373,6 +1707,11 @@ CHECKS = [
     ("Data format (parquet zstd + Arrow in flight)", check_data_format),
     # ontology_governance S0: master-doc rosters vs code registries
     ("Ontology doc rosters", check_ontology_doc_rosters),
+    # c901_complexity_debt S1: suppressions that no longer suppress anything
+    # (advisory — surfaces drift, never gates the QA leg)
+    ("Dead C901 noqas", check_dead_c901_noqa),
+    # chain_tally_determinism S3: bare -kv[1] sort keys tie in hash order
+    ("Bare negated sort keys", check_bare_negated_sort_keys),
     # security-coverage #247b S3: API-route coverage ledger (advisory-skip
     # when the operator-local ledger is absent)
     ("Coverage ledger", check_coverage_ledger),

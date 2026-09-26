@@ -213,11 +213,49 @@ def create_theme_entities(conn, *, apply: bool = True) -> int:
 # --------------------------------------------------------------------------- #
 # Stage 2 — scan notes, derive membership                                     #
 # --------------------------------------------------------------------------- #
+def _resolve_theme_company_name(note: Path, path_to_name: dict[str, str] | None) -> str | None:
+    """Resolve the company display name via the file_path join.
+
+    Entity names use spaces, stems use underscores. The DB file_path is
+    stored repo-relative (findata/Companies/...), so resolve the note
+    the same way. If no map is given, fall back to the stem (test use).
+    Returns None when the note is outside the repo root and no map constrains it.
+    """
+    try:
+        rel = note.resolve().relative_to(_REPO_ROOT).as_posix()
+    except ValueError:
+        rel = note.stem
+    if path_to_name is not None:
+        return path_to_name.get(rel)
+    return note.stem
+
+
+def _extract_theme_scan_text(text: str) -> str:
+    """Chatter-block scoping: prefer the sentinel-wrapped auto chatter block
+    (concall prose) when present — that is where The_Chatter richness lives.
+    Fallback to full body for notes without chatter."""
+    m_chatter = re.search(
+        r"<!-- BEGIN auto chatter block.*?-->(.*?)<!-- END auto chatter block -->",
+        text,
+        flags=re.S | re.I,
+    )
+    return m_chatter.group(1).lower() if m_chatter else _strip_frontmatter(text).lower()
+
+
+def _match_theme_aliases(scan_text: str) -> dict[str, list[str]]:
+    """Collect matched aliases per theme for one note."""
+    matched: dict[str, list[str]] = defaultdict(list)
+    for theme, alias in _THEME_ALIAS_PAIRS:
+        if alias in scan_text:
+            matched[theme].append(alias)
+    return dict(matched)
+
+
 def extract_theme_membership(
     root: Path = COMPANIES_DIR,
     path_to_name: dict[str, str] | None = None,
     corpus: Corpus | None = None,  # S1b: pre-loaded Corpus (shared across maint --full)
-):  # noqa: C901
+):
     """Scan company notes and return ``(company_name, theme, matched_aliases)``.
 
     Args:
@@ -259,38 +297,13 @@ def extract_theme_membership(
                 continue
             note = note_obj.path
             text = note_obj.text
-            # need to handle try/except for OSError already done
-            # Resolve company as before but using note path
-            try:
-                rel = (
-                    note.resolve().relative_to(_REPO_ROOT).as_posix()
-                    if note.is_absolute()
-                    else note.as_posix()
-                )
-            except ValueError:
-                rel = note.stem
-            company = None
-            if path_to_name is not None:
-                company = path_to_name.get(rel)
-            else:
-                company = note.stem
+            company = _resolve_theme_company_name(note, path_to_name)
             if company is None:
                 continue
-            m_chatter = re.search(
-                r"<!-- BEGIN auto chatter block.*?-->(.*?)<!-- END auto chatter block -->",
-                text,
-                flags=re.S | re.I,
-            )
-            scan_text = (
-                m_chatter.group(1).lower() if m_chatter else _strip_frontmatter(text).lower()
-            )
+            scan_text = _extract_theme_scan_text(text)
             if not scan_text:
                 continue
-            matched: dict[str, list[str]] = defaultdict(list)
-            for theme, alias in _THEME_ALIAS_PAIRS:
-                if alias in scan_text:
-                    matched[theme].append(alias)
-            for theme, aliases in matched.items():
+            for theme, aliases in _match_theme_aliases(scan_text).items():
                 yield company, theme, sorted(set(aliases))
         return
     for note in sorted(root.rglob("*.md")):
@@ -298,38 +311,13 @@ def extract_theme_membership(
             text = note.read_text(encoding="utf-8")
         except OSError:
             continue
-        # Resolve the company display name via the file_path join (robust:
-        # entity names use spaces, stems use underscores). The DB file_path is
-        # stored repo-relative (findata/Companies/...), so resolve the note
-        # the same way. If no map is given, fall back to the stem (test use).
-        try:
-            rel = note.resolve().relative_to(_REPO_ROOT).as_posix()
-        except ValueError:
-            # note is outside the repo root (e.g. a tmp_path in tests) —
-            # fall back to the stem when no map constrains it.
-            rel = note.stem
-        company = None
-        if path_to_name is not None:
-            company = path_to_name.get(rel)
-        else:
-            company = note.stem
+        company = _resolve_theme_company_name(note, path_to_name)
         if company is None:
             continue
-        # Chatter-block scoping: prefer the sentinel-wrapped auto chatter block (concall prose) when present — that is where The_Chatter richness lives. Fallback to full body for notes without chatter.
-        m_chatter = re.search(
-            r"<!-- BEGIN auto chatter block.*?-->(.*?)<!-- END auto chatter block -->",
-            text,
-            flags=re.S | re.I,
-        )
-        scan_text = m_chatter.group(1).lower() if m_chatter else _strip_frontmatter(text).lower()
+        scan_text = _extract_theme_scan_text(text)
         if not scan_text:
             continue
-        # Collect matched aliases per theme for this note.
-        matched: dict[str, list[str]] = defaultdict(list)
-        for theme, alias in _THEME_ALIAS_PAIRS:
-            if alias in scan_text:
-                matched[theme].append(alias)
-        for theme, aliases in matched.items():
+        for theme, aliases in _match_theme_aliases(scan_text).items():
             yield company, theme, sorted(set(aliases))
 
 

@@ -72,6 +72,78 @@ state expected absences: `note_search_content` / `v_note_embeddings` are
 untracked (`aa499829`), so their non-appearance in a db_sync patch is
 correct, not data loss.
 
+## Inspecting stack state
+
+`git log` and `git show` are the wrong tools for a stgit stack. They show
+raw commits and cannot say whether a commit is an **applied** patch, an
+**unapplied** one, or a **hidden** one — and a plain `git commit` made on
+top of a stack does not appear in `stg series` at all. Reach for `stg`:
+
+| Need | Command |
+|---|---|
+| current patch, name only | `stg top` |
+| applied / unapplied / hidden | `stg series -A` / `-U` / `-H` |
+| whole stack with ids and subjects | `stg series -id` (`-i` id, `-d` description) |
+| full diff of the current patch | `stg show` |
+| stat only | `stg show -s` |
+| a specific patch or commit | `stg show <patch-or-commit-id>` (`-p` long form) |
+| another branch's stack | any of the above plus `-b <branch>` |
+
+`stg series -id` is the one to run first: one line per patch carrying
+marker, id, name and subject, so the whole stack — and which messages are
+still unwritten — reads at a glance.
+
+`stg series` prints **bottom to top**; `--reverse` gives the familiar
+stack order. Markers: `>` topmost applied, `+` applied but not top, `-`
+unapplied, `!` hidden, `*` empty (with `--empty`).
+
+Read the whole state, not just the top, and **name the patch you mean**.
+Verified 2026-09-27: `stg top` reported `parity_harness` mid-session and
+`convo_search` minutes later with no local edits, because a concurrent
+session had pushed its patch onto the same stack. So bare `stg top` and
+bare `stg show` resolve to the *topmost* patch, which may not be yours —
+`stg show <patch>` is the safe form.
+
+Three consequences of a shared stack:
+
+- **Address patches by name; the id is a refresh artifact.** `stg refresh`
+  rewrites a patch, so a sha is disposable the moment anyone refreshes —
+  `parity_harness` passed through `6c5eba47`, `53adf2d7`, `a6d919ed`,
+  `13f62612` and `9b8e233f` in one session. Never hold a hash as your
+  handle. Reach for `stg id <patch>` or `stg series -i` only when you
+  genuinely need the sha (feeding it to another tool, cross-checking a
+  log). An id that has stopped resolving is not a "stray raw commit above
+  the stack" — it is a superseded patch, so re-resolve by name before
+  concluding anything about the tree.
+- **A refresh shows you patches that are not yours, including one it
+  invents.** `stg refresh` never edits the target in place: per
+  `man stg-refresh` it "first creates a new temporary patch with your
+  updates, and then merges that patch into the patch you asked to have
+  refreshed", and that patch is named `refresh-temp`. So refreshing a
+  patch that is **not** the topmost one — this repo's `parity_harness`
+  sits under a peer's `convo_search` — prints a burst of markers:
+
+      > refresh-temp (new)
+      - convo_search..refresh-temp
+      > refresh-temp
+      - refresh-temp
+      # refresh-temp
+      & parity_harness
+      > convo_search
+
+  That block is the operation's own progress log, **not** a series
+  listing, and `&` / `#` there are not the `stg series` state markers
+  (`>` topmost applied, `+` applied, `-` unapplied, `!` hidden). So: read
+  no structure into those lines, and re-read `stg series -id` *after* the
+  operation rather than during it. The man page also warns that a
+  non-topmost refresh "can have conflicts; in that case, the temporary
+  patch will be left for you to take care of, for example with
+  `stg squash`" — a `refresh-temp` that survives the command is that
+  leftover awaiting you, not new work and not a patch to keep.
+- **Stay out of patches you do not own.** `stg refresh`, `stg edit` and
+  `stg pop` on someone else's patch will collide with their session. Read
+  with `stg show`/`stg series`; write only to your own.
+
 ## Worked examples
 
 | Commit | Pattern it exemplifies |

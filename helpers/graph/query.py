@@ -433,7 +433,53 @@ def connect_read_only(
     return con
 
 
-def connect(  # noqa: C901
+def _open_read_only_connection(duckdb_path: Path, db_path: Path) -> duckdb.DuckDBPyConnection:
+    """Open a read-only connection to a warm cache."""
+    con = duckdb.connect(str(duckdb_path), read_only=True)
+    _prep_graph_connection(con)
+    _attach_sqlite(con, db_path)
+    return con
+
+
+def _build_graph_connection(
+    duckdb_path: Path,
+    db_path: Path,
+    fresh: bool,
+    rebuild: bool,
+    stamp_centrality: bool,
+) -> duckdb.DuckDBPyConnection:
+    """Build or open a read-write connection, serialized cross-process."""
+    lock_path = Path(str(duckdb_path) + ".build.lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(lock_path, "w") as lf:
+        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
+        try:
+            if (
+                not fresh
+                and not rebuild
+                and duckdb_path.exists()
+                and not _is_warm(duckdb_path, db_path)
+            ):
+                try:
+                    duckdb_path.unlink()
+                    duckdb_path.with_suffix(".duckdb.wal").unlink(missing_ok=True)
+                except OSError:
+                    pass
+            needs_build = (
+                fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path, db_path))
+            )
+            con = duckdb.connect(str(duckdb_path))
+            _prep_graph_connection(con)
+            _attach_sqlite(con, db_path)
+            if needs_build:
+                _build_graph(con, stamp_centrality=stamp_centrality, db_path=db_path)
+                _mark_warm(con, db_path)
+            return con
+        finally:
+            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+
+
+def connect(
     db_path: Path | str = DB_PATH,
     duckdb_path: Path | str | None = None,
     rebuild: bool = False,
@@ -489,9 +535,6 @@ def connect(  # noqa: C901
     if not db_path.exists():
         raise FileNotFoundError(f"SQLite DB not found: {db_path}")
 
-    # Resolve duckdb_path with the test-isolation fallback: production
-    # paths share memory/graph.duckdb; test/custom SQLite paths get a
-    # colocated .duckdb file so parallel tests don't race on one file.
     if duckdb_path is None:
         if db_path == DB_PATH:
             duckdb_path = DUCKDB_PATH
@@ -499,84 +542,99 @@ def connect(  # noqa: C901
             duckdb_path = db_path.with_suffix(".duckdb")
     duckdb_path = Path(duckdb_path)
 
-    # `fresh` drops the file entirely (schema bumps, corruption recovery).
     if fresh and duckdb_path.exists():
         duckdb_path.unlink()
         duckdb_path.with_suffix(".duckdb.wal").unlink(missing_ok=True)
 
-    # When rebuilding, bust the in-process query-result cache first — a
-    # caller that queried on an earlier connection would otherwise be served
-    # results keyed to the pre-rebuild generation. The rebuild()/
-    # fresh_rebuild() wrappers already do this; replicate it here so direct
-    # connect(rebuild=True)/connect(fresh=True) callers are safe too.
     if rebuild or fresh:
         clear_graph_cache()
 
     needs_build = fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path, db_path))
 
-    # Cross-process readers (the make advisory parallelism): N read-only
-    # openers coexist with each other; only a read-write opener excludes
-    # everyone. Cold/stale cache falls through to the RW path below.
     if read_only and not needs_build:
-        con = duckdb.connect(str(duckdb_path), read_only=True)
-        _prep_graph_connection(con)
-        _attach_sqlite(con, db_path)
-        return con
+        return _open_read_only_connection(duckdb_path, db_path)
 
-    # Build path, serialized cross-process (2026-08-26): the cold/stale
-    # fallback predates gate parallelism — under `make advisory` (jobs=4)
-    # suggest-relations / graph-algos / analytics can ALL see needs_build
-    # simultaneously, and N read-write builders race on the .wal lock
-    # ("Could not set lock on file ...wal: Conflicting lock"). An flock on
-    # a sidecar lockfile admits ONE builder; everyone else waits, then
-    # re-checks under the lock — a warmed cache downgrades read_only
-    # callers straight back to the read-only open, so the steady state
-    # (N readers, zero writers) is unchanged.
-    lock_path = Path(str(duckdb_path) + ".build.lock")
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(lock_path, "w") as lf:
-        fcntl.flock(lf.fileno(), fcntl.LOCK_EX)
-        try:
-            # If the file exists but is corrupted/warm-check failed, treat
-            # it as cold: delete it so duckdb.connect() doesn't raise
-            # IOException. Runs UNDER the flock deliberately — a parallel
-            # builder holding the .duckdb makes _is_warm's read-only probe
-            # fail, which must not be misread as corruption and unlinked
-            # mid-build (that deletion raced live builders before the
-            # serialization existed).
-            if (
-                not fresh
-                and not rebuild
-                and duckdb_path.exists()
-                and not _is_warm(duckdb_path, db_path)
-            ):
+    return _build_graph_connection(duckdb_path, db_path, fresh, rebuild, stamp_centrality)
+
+
+def _check_generation_staleness(con, duckdb_path: Path, db_path: Path | None) -> bool:
+    """Check generation staleness — compare SQLite generation vs DuckDB
+    _build_meta.generation. Returns True if stale (needs rebuild)."""
+    duck_gen = None
+    try:
+        gr = con.execute("SELECT value FROM _build_meta WHERE key='generation'").fetchone()
+        duck_gen = int(gr[0]) if gr and gr[0] is not None else None
+    except Exception:
+        duck_gen = None
+    sqlite_gen = None
+    try:
+        from helpers.core.db import connect as _db_connect
+
+        for cand in (
+            (db_path,) if db_path is not None else (duckdb_path.with_suffix(".db"), DB_PATH)
+        ):
+            if not cand.exists():
+                continue
+            try:
+                _scon = _db_connect(str(cand))
                 try:
-                    duckdb_path.unlink()
-                    duckdb_path.with_suffix(".duckdb.wal").unlink(missing_ok=True)
-                except OSError:
-                    pass
-            needs_build = (
-                fresh or rebuild or not (duckdb_path.exists() and _is_warm(duckdb_path, db_path))
-            )
-            if read_only and not needs_build:
-                con = duckdb.connect(str(duckdb_path), read_only=True)
-                _prep_graph_connection(con)
-                _attach_sqlite(con, db_path)
-                return con
-
-            con = duckdb.connect(str(duckdb_path))
-            _prep_graph_connection(con)
-            _attach_sqlite(con, db_path)
-
-            if needs_build:
-                _build_graph(con, stamp_centrality=stamp_centrality, db_path=db_path)
-                _mark_warm(con, db_path)
-            return con
-        finally:
-            fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+                    _row = _scon.execute(
+                        "SELECT value FROM db_meta WHERE key='generation'"
+                    ).fetchone()
+                    if _row is not None:
+                        sqlite_gen = int(_row[0])
+                finally:
+                    _scon.close()
+            except Exception:  # noqa: S110  # best-effort; unreadable/no db_meta → no generation
+                pass
+            break
+    except Exception:
+        sqlite_gen = None
+    if duck_gen is None or sqlite_gen is None:
+        if duck_gen is None and sqlite_gen is None:
+            return False
+        return True
+    return duck_gen != sqlite_gen
 
 
-def _is_warm(duckdb_path: Path, db_path: Path | None = None) -> bool:  # noqa: C901
+def _check_duckdb_version_drift(con) -> bool:
+    """Check DuckDB version drift — rebuild if updated. Returns True if stale."""
+    try:
+        _row = con.execute("SELECT version()").fetchone()
+        cur_duckdb = _row[0] if _row is not None else None
+        r_duck = con.execute("SELECT value FROM _build_meta WHERE key='duckdb_version'").fetchone()
+        stored_duck = r_duck[0] if r_duck else None
+        if (
+            stored_duck is not None
+            and cur_duckdb is not None
+            and str(stored_duck) != str(cur_duckdb)
+        ):
+            return True
+    except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
+        pass
+    return False
+
+
+def _check_note_embed_drift(con, duckdb_path: Path, db_path: Path | None) -> bool:
+    """Check note-embedding drift — dims change or model-label change must
+    force cold. Returns True if stale."""
+    try:
+        r_dims = con.execute("SELECT value FROM _build_meta WHERE key='note_embed_dims'").fetchone()
+        r_model = con.execute(
+            "SELECT value FROM _build_meta WHERE key='note_embed_model'"
+        ).fetchone()
+    except Exception:
+        r_dims = r_model = None
+    stored_nd = r_dims[0] if r_dims else None
+    stored_nm = r_model[0] if r_model else None
+    if stored_nd is not None or stored_nm is not None:
+        live_dims, live_model = _probe_note_embed_state(duckdb_path, db_path)
+        if str(stored_nd) != str(live_dims) or str(stored_nm) != str(live_model):
+            return True
+    return False
+
+
+def _is_warm(duckdb_path: Path, db_path: Path | None = None) -> bool:
     """True if the ``.duckdb`` file has a populated ``_build_meta`` table.
 
     Used to decide whether ``connect()`` can skip materialisation. A cold
@@ -598,112 +656,16 @@ def _is_warm(duckdb_path: Path, db_path: Path | None = None) -> bool:  # noqa: C
             r = con.execute("SELECT value FROM _build_meta WHERE key='schema_version'").fetchone()
             if r is None or r[0] != _SCHEMA_VERSION:
                 return False
-            # P0: generation staleness — compare SQLite generation vs
-            # DuckDB _build_meta.generation. Missing generation in either
-            # store means cold (needs rebuild) so old caches auto-refresh.
-            duck_gen = None
-            try:
-                gr = con.execute("SELECT value FROM _build_meta WHERE key='generation'").fetchone()
-                duck_gen = int(gr[0]) if gr and gr[0] is not None else None
-            except Exception:
-                duck_gen = None
-            # Read SQLite generation via helper (tolerate missing table)
-            sqlite_gen = None
-            try:
-                # Local import: importing at module level would create a cycle.
-                from helpers.core.db import connect as _db_connect
-
-                # Candidate order: the db_path the caller ATTACHed (always
-                # correct for connect(); no sibling guessing), or — for
-                # legacy direct calls — the .db COLOCATED with this .duckdb
-                # first (test/custom DBs — connect() resolves the sibling
-                # <db_path>.duckdb), then the production DB_PATH. The loop
-                # STOPS at the first candidate that EXISTS — a colocated
-                # db_meta without a generation row means "no generation",
-                # not "keep looking" (falling through to the live DB
-                # compares a fixture build against production's counter and
-                # always reads cold).
-                for cand in (
-                    (db_path,) if db_path is not None else (duckdb_path.with_suffix(".db"), DB_PATH)
-                ):
-                    if not cand.exists():
-                        continue
-                    try:
-                        _scon = _db_connect(str(cand))
-                        try:
-                            _row = _scon.execute(
-                                "SELECT value FROM db_meta WHERE key='generation'"
-                            ).fetchone()
-                            if _row is not None:
-                                sqlite_gen = int(_row[0])
-                        finally:
-                            _scon.close()
-                    except Exception:  # noqa: S110  # best-effort; unreadable/no db_meta → no generation
-                        pass
-                    break
-            except Exception:
-                sqlite_gen = None
-            # If either side has no generation yet, treat as cold so we rebuild and stamp it
-            if duck_gen is None or sqlite_gen is None:
-                # Old cache without generation OR SQLite without db_meta → needs rebuild
-                # But don't force rebuild if both are None (pre-migration, no counter yet) — still warm for old behavior
-                if duck_gen is None and sqlite_gen is None:
-                    pass  # fall through to version check
-                else:
-                    return False
-            elif duck_gen != sqlite_gen:
+            if _check_generation_staleness(con, duckdb_path, db_path):
                 return False
-            # P3.4 (Phase E): check DuckDB version drift — rebuild if updated.
-            # The duckpgq_version half was removed with the duckpgq
-            # retirement; a stale duckpgq_version key in an old cache file is
-            # ignored (harmless — schema_version "9" already forces those
-            # files cold).
-            try:
-                _row = con.execute("SELECT version()").fetchone()
-                cur_duckdb = _row[0] if _row is not None else None
-                r_duck = con.execute(
-                    "SELECT value FROM _build_meta WHERE key='duckdb_version'"
-                ).fetchone()
-                stored_duck = r_duck[0] if r_duck else None
-                if (
-                    stored_duck is not None
-                    and cur_duckdb is not None
-                    and str(stored_duck) != str(cur_duckdb)
-                ):
-                    return False
-            except Exception:  # noqa: S110  # best-effort; ignore failure (cleanup/optional read)
-                pass
-            # sql_capability_unlocks A1: note-embedding drift — a dims change
-            # (model swap to a different vector size) or a model-label change
-            # (same-dims swap, e.g. MiniLM-384 -> bge-384, which dims alone
-            # cannot see) must force cold: a warm v_note_embeddings would
-            # keep serving zip-truncated or cross-model cosines. Stamps are
-            # written by _mark_warm; the live side is probed SQLite-side
-            # (dims from the first non-empty note_search embedding JSON,
-            # model from db_meta.note_embed_model — stamped by
-            # rebuild_note_search's apply path). Skipped entirely when no
-            # stamp exists AND the live side has no embeddings either.
-            try:
-                r_dims = con.execute(
-                    "SELECT value FROM _build_meta WHERE key='note_embed_dims'"
-                ).fetchone()
-                r_model = con.execute(
-                    "SELECT value FROM _build_meta WHERE key='note_embed_model'"
-                ).fetchone()
-            except Exception:
-                r_dims = r_model = None
-            stored_nd = r_dims[0] if r_dims else None
-            stored_nm = r_model[0] if r_model else None
-            if stored_nd is not None or stored_nm is not None:
-                live_dims, live_model = _probe_note_embed_state(duckdb_path, db_path)
-                if str(stored_nd) != str(live_dims) or str(stored_nm) != str(live_model):
-                    return False
+            if _check_duckdb_version_drift(con):
+                return False
+            if _check_note_embed_drift(con, duckdb_path, db_path):
+                return False
             return True
         finally:
             con.close()
     except duckdb.Error:
-        # File doesn't exist, isn't a DuckDB file, or _build_meta is
-        # missing — all mean "cold, needs build".
         return False
 
 

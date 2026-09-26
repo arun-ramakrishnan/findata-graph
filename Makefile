@@ -71,6 +71,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  mojo-format                 Normalize Mojo/src + Mojo/tests with \`mojo format\` (fix for the tests/test_lint_gates.py format gate)"
 > @echo "  mojo-test                Run Mojo/tests/*.mojo test suites via mojo run (machinery in Makefile.mojo)"
 > @echo "  near-duplicates          Report near-duplicate note pairs above cosine 0.9 (rename tripwire; READ-ONLY)"
+> @echo "  parity                   Byte-compare registered refactor targets against REF (default HEAD) across pinned hash seeds (warns; STRICT=1 to gate)"
 > @echo "  perf                     Run wall-clock perf benchmarks, print timing table, and append to outputs/perf_report.md"
 > @echo "  qa                       Run lint + markdown lint + types + deptry + static + pytest + notes + integrity + snapshot in PARALLEL (default 4 jobs; override: make qa -j N; run-all — failures reported at the end; appends outputs/qa_report.md)"
 > @echo "  quote-coverage           S0 quote capture coverage audit (advisory, read-only; per-note 95% tripwire + watchlist + salvage measurement)"
@@ -111,6 +112,13 @@ static-checks:  ## Fast static checks (syntax, shebangs, YAML, artifacts, merge 
 
 license-check:  ## Verify AGPL metadata, root license, and third-party inventory
 > python3 helpers/misc/license_check.py
+
+# c901_complexity_debt S1. NOT part of `make qa`: parity is only meaningful
+# against a ref, so it is a refactor-time check, not a tree-state gate.
+# House ruling: it WARNS on divergence and does not assert -- a false
+# positive would only teach people to skip it. STRICT=1 to gate instead.
+parity:         ## Byte-compare registered refactor targets against REF (default HEAD) across pinned hash seeds (warns; STRICT=1 to gate)
+> python3 helpers/misc/parity_harness.py $(if $(REF),--ref $(REF),) $(if $(STRICT),--strict,)
 
 tmp-sweep:      ## Reap this repo's /tmp residue (scratch DBs, stale bench dirs, TUI log) — 24h age guard, dry-run by default; APPLY=1 removes (proposal: tmpdir_sanitization)
 > python3 helpers/maintenance/tmp_sweep.py $(if $(APPLY),--apply,)

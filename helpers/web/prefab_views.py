@@ -106,7 +106,7 @@ def _shape_counts(counts: dict[str, int]) -> list[dict[str, Any]]:
     total = sum(counts.values()) or 1
     return [
         {"name": name, "n": n, "pct": f"{100 * n / total:.1f}%"}
-        for name, n in sorted(counts.items(), key=lambda kv: -kv[1])
+        for name, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
     ]
 
 

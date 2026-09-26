@@ -172,7 +172,7 @@ def semantic_hits(db_path: Path, query: str, limit: int) -> tuple[list[dict], st
                 best[k] = float(score)
         return [
             {"path": p, "line": _anchor_line(a), "score": s}
-            for (p, a), s in sorted(best.items(), key=lambda kv: -kv[1])[:limit]
+            for (p, a), s in sorted(best.items(), key=lambda kv: (-kv[1], kv[0]))[:limit]
         ], ""
     except RuntimeError as exc:
         return [], str(exc)
@@ -188,6 +188,25 @@ def rrf(*ranked: list[tuple[Key, float]]) -> dict[Key, float]:
     return fused
 
 
+def _fuse_key(h: dict) -> Key:
+    return (h["path"], str(h.get("line") or ""))
+
+
+def _fuse_line_key(k: Key, per_note: bool) -> Key:
+    return (k[0], "") if per_note else k
+
+
+def _fuse_borrow_prose(rows: dict[Key, dict], base: dict, lk: Key, per_note: bool) -> dict:
+    """per_note collapse may have kept a semantic key whose bm25 twin
+    has a different anchor — borrow that row's prose if it exists."""
+    if not per_note or base.get("head"):
+        return base
+    for k, h in rows.items():
+        if _fuse_line_key(k, per_note) == lk and h.get("head"):
+            return dict(h)
+    return base
+
+
 def fuse(bm25: list[dict], semantic: list[dict], limit: int, per_note: bool = False) -> list[dict]:
     """RRF the two legs. Keys are (path, anchor) — one note has many
     sections, so per-SECTION is the default.
@@ -197,38 +216,22 @@ def fuse(bm25: list[dict], semantic: list[dict], limit: int, per_note: bool = Fa
     sections of the same file), so the difference is a flag rather than
     two implementations.
     """
-
-    def _key(h: dict) -> Key:
-        return (h["path"], str(h.get("line") or ""))
-
-    # bm25 rows are built FIRST so they win the dict slot for a shared key:
-    # they carry the prose, the semantic rows carry only path/line/score.
     rows: dict[Key, dict] = {}
     for h in semantic:
-        rows[_key(h)] = h
+        rows[_fuse_key(h)] = h
     for h in bm25:
-        rows[_key(h)] = h
-    scores = rrf([(_key(h), 0.0) for h in bm25], [(_key(h), 0.0) for h in semantic])
-
-    def _line_key(k: Key) -> Key:
-        return (k[0], "") if per_note else k
+        rows[_fuse_key(h)] = h
+    scores = rrf([(_fuse_key(h), 0.0) for h in bm25], [(_fuse_key(h), 0.0) for h in semantic])
 
     best: dict[Key, tuple[float, Key]] = {}
     for key, score in scores.items():
-        lk = _line_key(key)
+        lk = _fuse_line_key(key, per_note)
         if lk not in best or score > best[lk][0]:
             best[lk] = (score, key)
     ordered = sorted(best.items(), key=lambda kv: (-kv[1][0], kv[0]))
     out = []
     for _lk, (score, key) in ordered[:limit]:
-        base = dict(rows.get(key, {}))
-        if not base.get("head"):
-            # per_note collapse may have kept a semantic key whose bm25 twin
-            # has a different anchor — borrow that row's prose if it exists
-            for k, h in rows.items():
-                if _line_key(k) == _lk and h.get("head"):
-                    base = dict(h)
-                    break
+        base = _fuse_borrow_prose(rows, dict(rows.get(key, {})), _lk, per_note)
         base["score"] = round(score, 6)
         out.append(base)
     return out

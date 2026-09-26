@@ -498,7 +498,7 @@ def write_report(
             f.write("| (none) |  |\n")
         f.write("\n## industries\n\n")
         f.write("| Companies | Industry |\n|---|---|\n")
-        for ind, n in sorted(industries.items(), key=lambda kv: -kv[1]):
+        for ind, n in sorted(industries.items(), key=lambda kv: (-kv[1], kv[0])):
             f.write(f"| {n} | {ind} |\n")
         f.write(f"\n## competes_with candidates (total={len(n_edges)})\n\n")
         if applied is not None:

@@ -529,7 +529,38 @@ def _is_prose_heading(raw: str) -> bool:
     return words[0].lower() in _PROSE_START or (r[:1].islower() and not r[:1].isdigit())
 
 
-def _structural_boundaries(  # noqa: C901
+def _is_non_structural_heading(raw: str, lower: str) -> bool:
+    """Check if a heading is non-structural (marker, speaker, prose, attribution,
+    role heading, or newsletter chrome)."""
+    if _is_marker_heading(raw) or _is_speaker_heading(raw) or _is_prose_heading(raw):
+        return True
+    if _ATTR_DASH_RE.match(raw) or _ATTR_DASH_CAP_RE.match(raw):
+        return True
+    if _ROLE_HEADING_RE.match(lower):
+        return True
+    if lower.startswith(
+        ("comment", "discussion", "don't", "share this", "subscribe", "about ", "welcome")
+    ):
+        return True
+    return False
+
+
+def _classify_bare_heading(raw: str, known_bare: set[str] | None) -> str | None:
+    """Classify a bare heading (no cap token/pipe) as a known company name
+    (g4sec Class C) or None for sector."""
+    if known_bare:
+        bare = _canonicalize(raw)
+        if (
+            bare
+            and len(bare) >= 3
+            and bare.lower() in known_bare
+            and bare.lower() not in _JUNK_CANONICALS
+        ):
+            return bare
+    return None
+
+
+def _structural_boundaries(
     content: str, known_bare: set[str] | None = None
 ) -> list[tuple[int, int, str | None, str]]:
     """Classify headings into STRUCTURAL boundaries (S4 refactor: shared by
@@ -556,43 +587,16 @@ def _structural_boundaries(  # noqa: C901
         lower = raw.lower()
         has_cap = any(tok in lower for tok in _CAP_TOKENS)
         has_pipe = "|" in raw
-        # Sub-headings inside a concall block: ## [Concall] and the whole
-        # marker family (## [Transcript], bare ## Concall, ## — Attribution,
-        # ## Management, ## Name, Title speaker headings, prose sub-headings).
-        # These are NOT structural boundaries (S1, quote_capture_coverage).
-        if _is_marker_heading(raw) or _is_speaker_heading(raw) or _is_prose_heading(raw):
-            continue
-        if _ATTR_DASH_RE.match(raw) or _ATTR_DASH_CAP_RE.match(raw):
-            # An attribution heading like "## — Saugata Gupta, MD & CEO".
-            continue
-        # Bare role heading "## Management" / "## Management, Executive".
-        if _ROLE_HEADING_RE.match(lower):
-            continue
-        # Newsletter chrome (## Comments, ## Discussion, ## Don't have a...).
-        if lower.startswith(
-            ("comment", "discussion", "don't", "share this", "subscribe", "about ", "welcome")
-        ):
+        if _is_non_structural_heading(raw, lower):
             continue
         if not (has_cap or has_pipe):
-            # g4sec Class C: bare heading that exactly names a known
-            # company/alias routes as a company region (`# Google`, `# SBI`).
-            if known_bare:
-                bare = _canonicalize(raw)
-                if (
-                    bare
-                    and len(bare) >= 3
-                    and bare.lower() in known_bare
-                    and bare.lower() not in _JUNK_CANONICALS
-                ):
-                    structural.append((m.start(), idx, bare, raw))
-                    continue
-            # Sector heading (FMCG) — structural boundary.
-            structural.append((m.start(), idx, None, raw))
+            bare = _classify_bare_heading(raw, known_bare)
+            structural.append((m.start(), idx, bare, raw))
             continue
         canonical = _canonicalize(raw)
         if not canonical or len(canonical) < 3:
             continue
-        if canonical.lower() in _JUNK_CANONICALS:  # "Initiatives" class (S2)
+        if canonical.lower() in _JUNK_CANONICALS:
             continue
         structural.append((m.start(), idx, canonical, raw))
     return structural
@@ -957,7 +961,189 @@ _LINE_EMPH_RE = re.compile(r"^\s*_(.+)_\s*$")
 _CURLY_QUOTES = {"“": '"', "”": '"', "„": '"', "‟": '"'}
 
 
-def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagnostic line (ruff-format split)
+def _close_quote_same_line(open_line: str, stripped: str) -> tuple[list[str], bool, tuple | None]:
+    """Try to close the quote on the same line. Returns (quote_lines, closed, close_attr)."""
+    if stripped.endswith('"') and len(stripped) > 1 and stripped.count('"') == 2:
+        return [open_line], True, None
+    if open_line.count('"') >= 2:
+        p = open_line.rfind('"')
+        rest = open_line[p + 1 :].strip()
+        if not rest or _attrish_line(rest):
+            close_attr = None
+            if rest:
+                close_attr = _parse_attribution(rest.lstrip("-–—").strip()) or _parse_attribution(
+                    rest
+                )
+            return [open_line[: p + 1]], True, close_attr
+    return [open_line], False, None
+
+
+def _close_quote_inline_attr(
+    open_line: str, quote_lines: list[str], close_attr: tuple | None
+) -> tuple[list[str], bool, tuple | None]:
+    """S3b (g4sec Class A): inline attribution tail with a lost closing quote."""
+    if close_attr is not None:
+        return quote_lines, False, close_attr
+    dash = max(open_line.rfind("—"), open_line.rfind("–"), open_line.rfind(" - "))
+    if dash > 40:
+        tail = open_line[dash:].strip().lstrip("-–— ").rstrip('"').strip()
+        if tail and len(tail) <= 60:
+            parsed = _parse_attribution(tail)
+            if parsed is not None:
+                return [open_line[:dash].rstrip(" -–—").rstrip('"')], True, parsed
+    return quote_lines, False, close_attr
+
+
+def _close_quote_multiline(
+    lines: list[str], quote_lines: list[str], i: int
+) -> tuple[list[str], bool, int | None, tuple | None, int]:
+    """Close a quote run across multiple lines."""
+    j = i + 1
+    closed = False
+    resume_at: int | None = None
+    close_attr: tuple | None = None
+    while j < len(lines):
+        nxt = lines[j].rstrip()
+        ns = nxt.strip()
+        if _attrish_line(ns):
+            closed = True
+            close_attr = _parse_attribution(ns.lstrip("-–—").strip()) or _parse_attribution(ns)
+            break
+        if (ns.startswith('"') and len(ns) > 20) or ns in ("---", "***", "___"):
+            resume_at = j
+            break
+        quote_lines.append(nxt)
+        if nxt.endswith('"'):
+            closed = True
+            break
+        j += 1
+    return quote_lines, closed, resume_at, close_attr, j
+
+
+def _close_quote_run(
+    lines: list[str], open_line: str, i: int
+) -> tuple[list[str], bool, int | None, tuple | None, int]:
+    """Close a quote run starting at line i. Returns (quote_lines, closed,
+    resume_at, close_attr, j)."""
+    stripped = lines[i].strip()
+    quote_lines, closed, close_attr = _close_quote_same_line(open_line, stripped)
+    if not closed:
+        quote_lines, closed, close_attr = _close_quote_inline_attr(
+            open_line, quote_lines, close_attr
+        )
+    if not closed:
+        quote_lines, closed, resume_at, close_attr, j = _close_quote_multiline(
+            lines, quote_lines, i
+        )
+    else:
+        resume_at = None
+        j = i
+    return quote_lines, closed, resume_at, close_attr, j
+
+
+def _create_quote(
+    section: CompanySection,
+    edition_title: str,
+    source_stem: str,
+    quote_text: str,
+    paraphrase: str | None,
+    speaker_name: str | None,
+    speaker_title: str | None,
+) -> Quote:
+    """Create a Quote from extracted components."""
+    return Quote(
+        entity=section.canonical_name,
+        quote_text=quote_text,
+        paraphrase=paraphrase,
+        speaker_name=speaker_name,
+        speaker_title=speaker_title,
+        as_of_edition=edition_title,
+        source_ref=f"{QUOTES_PREFIX}{source_stem}:{section.heading_line}",
+    )
+
+
+def _is_quote_open(lines: list[str], i: int, open_line: str) -> bool:
+    """Check if a line opens a quote (is_open or short_with_attr)."""
+    is_open = open_line.startswith('"') and len(open_line) > 40
+    if is_open:
+        return True
+    if open_line.startswith('"') and len(open_line) > 20:
+        _, attr_probe = _find_attribution(lines, i + 1)
+        return attr_probe is not None
+    return False
+
+
+def _accumulate_paraphrase(paraphrase_lines: list[str], stripped: str) -> None:
+    """Accumulate paraphrase text from a non-quote line."""
+    acc = _LEADING_MARKER_RE.sub("", stripped) or stripped
+    if acc and not acc.startswith(("!", "<", "http", "www.")):
+        if acc not in ("---", "***", "___"):
+            if not _CONCALL_SUBHEADING_RE.match(acc):
+                paraphrase_lines.append(acc)
+
+
+def _extract_quotes_from_lines(
+    lines: list[str],
+    section: CompanySection,
+    edition_title: str,
+    source_stem: str,
+) -> list[Quote]:
+    """Walk lines and extract every (paraphrase → quote → attribution) unit.
+
+    Restricted to the marker block if present (skip the business descriptor).
+    """
+    quotes: list[Quote] = []
+    paraphrase_lines: list[str] = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        open_line = _LEADING_MARKER_RE.sub("", stripped)
+        if _is_quote_open(lines, i, open_line):
+            quote_lines, closed, resume_at, close_attr, j = _close_quote_run(lines, open_line, i)
+            quote_text = "\n".join(quote_lines).strip().strip('"').strip()
+            paraphrase = "\n".join(paraphrase_lines).strip() or None
+            if paraphrase:
+                paraphrase = _PARAPHRASE_WS_RE.sub(" ", paraphrase)
+            if close_attr is not None:
+                attr = close_attr
+                attr_idx = j
+            elif resume_at is not None:
+                attr_idx, attr = -1, None
+            else:
+                attr_idx, attr = _find_attribution(lines, j + 1)
+            if attr is not None:
+                speaker_name, speaker_title = attr
+            else:
+                speaker_name, speaker_title = None, None
+            if len(quote_text) < 30 and speaker_name is None and speaker_title is None:
+                paraphrase_lines = []
+                i = j + 1
+                continue
+            quotes.append(
+                _create_quote(
+                    section,
+                    edition_title,
+                    source_stem,
+                    quote_text,
+                    paraphrase,
+                    speaker_name,
+                    speaker_title,
+                )
+            )
+            i = (
+                resume_at
+                if resume_at is not None
+                else ((attr_idx + 1) if attr_idx >= 0 else (j + 1))
+            )
+            paraphrase_lines = []
+        else:
+            _accumulate_paraphrase(paraphrase_lines, stripped)
+            i += 1
+    return quotes
+
+
+def extract_quotes(
     section: CompanySection,
     edition_title: str,
     source_stem: str,
@@ -969,9 +1155,6 @@ def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagno
     quote (or section start) and this quote is the paraphrase. The attribution
     is found via ``_find_attribution`` immediately after the closing quote.
     """
-    quotes: list[Quote] = []
-    # Restrict to the marker block if present (skip the business descriptor):
-    # first family marker wins ([Concall], [Transcript], bare `## Concall`, …).
     body = section.body
     for hm in _HEADING_RE.finditer(body):
         if _is_marker_heading(hm.group(2).strip()):
@@ -979,8 +1162,6 @@ def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagno
             break
 
     lines = body.splitlines()
-    # Unwrap per-line emphasis and normalize typographic quotes (see
-    # _LINE_EMPH_RE) so local-engine quotes anchor on ASCII `"`.
     for idx, ln in enumerate(lines):
         if ln.strip() != "___":
             m = _LINE_EMPH_RE.match(ln)
@@ -990,145 +1171,7 @@ def extract_quotes(  # noqa: C901  # noqa anchor moved to the statement's diagno
             for curly, ascii_q in _CURLY_QUOTES.items():
                 ln = ln.replace(curly, ascii_q)
         lines[idx] = ln
-    paraphrase_lines: list[str] = []
-    i = 0
-    while i < len(lines):
-        line = lines[i]
-        stripped = line.strip()
-        # S3 (quote_capture_coverage): strip leading list/quote markers
-        # before the quote test — pinned order strip -> quote-test ->
-        # attribution-test, so `- "quoted…"` bullets open and
-        # `- Name, Title` attributions are never misread as quotes.
-        open_line = _LEADING_MARKER_RE.sub("", stripped)
-        is_open = open_line.startswith('"') and len(open_line) > 40
-        # Sub-40 openings are admitted ONLY with an attribution in the
-        # 3-line window (precision rule; `"Yes"` + name still cannot capture).
-        short_with_attr = False
-        if not is_open and open_line.startswith('"') and len(open_line) > 20:
-            _, attr_probe = _find_attribution(lines, i + 1)
-            short_with_attr = attr_probe is not None
-        if is_open or short_with_attr:
-            quote_lines = [open_line]
-            j = i
-            closed = False
-            resume_at: int | None = None
-            close_attr: tuple | None = None
-            # Same-line close (legacy shape, exactly 2 quotes)?
-            if stripped.endswith('"') and len(stripped) > 1 and stripped.count('"') == 2:
-                closed = True  # single-line quote
-            elif open_line.count('"') >= 2:
-                # S3 splice: close at the last `"` when the remainder parses
-                # as an attribution (`…for NAND." Jaejune Kim, EVP`) — the
-                # guarded form; a naive anchor here LOST rows in the trial.
-                p = open_line.rfind('"')
-                rest = open_line[p + 1 :].strip()
-                if not rest or _attrish_line(rest):
-                    quote_lines = [open_line[: p + 1]]
-                    closed = True
-                    if rest:
-                        close_attr = _parse_attribution(
-                            rest.lstrip("-–—").strip()
-                        ) or _parse_attribution(rest)
-            if not closed:
-                # S3b (g4sec Class A): inline attribution tail with a lost
-                # closing quote — `"…text — Name, Title` (no terminal `"`).
-                # Strip the tail when it parses as an attribution; the quote
-                # closes on its own line and the run never starts.
-                if close_attr is None:
-                    dash = max(open_line.rfind("—"), open_line.rfind("–"), open_line.rfind(" - "))
-                    if dash > 40:
-                        tail = open_line[dash:].strip().lstrip("-–— ").rstrip('"').strip()
-                        if tail and len(tail) <= 60:
-                            parsed = _parse_attribution(tail)
-                            if parsed is not None:
-                                quote_lines = [open_line[:dash].rstrip(" -–—").rstrip('"')]
-                                closed = True
-                                close_attr = parsed
-            if not closed:
-                j = i + 1
-                while j < len(lines):
-                    nxt = lines[j].rstrip()
-                    ns = nxt.strip()
-                    if _attrish_line(ns):
-                        # S3 splice: an attribution-shaped line terminates a
-                        # runaway run (lost mid-line closer upstream) instead
-                        # of swallowing the next quote as quote text.
-                        closed = True
-                        close_attr = _parse_attribution(
-                            ns.lstrip("-–—").strip()
-                        ) or _parse_attribution(ns)
-                        break
-                    # S3b (g4sec Class A): a new quote opening or a hard
-                    # rule terminates the run UNCLOSED — emit what we have
-                    # and resume AT the line (never absorb or skip a quote).
-                    if (ns.startswith('"') and len(ns) > 20) or ns in ("---", "***", "___"):
-                        resume_at = j
-                        break
-                    quote_lines.append(nxt)
-                    if nxt.endswith('"'):
-                        closed = True
-                        break
-                    j += 1
-            quote_text = "\n".join(quote_lines).strip().strip('"').strip()
-            paraphrase = "\n".join(paraphrase_lines).strip() or None
-            # Collapse whitespace in the paraphrase for cleaner storage.
-            if paraphrase:
-                paraphrase = _PARAPHRASE_WS_RE.sub(" ", paraphrase)
-            # Attribution: from the splice remainder, else after the close.
-            if close_attr is not None:
-                attr = close_attr
-                attr_idx = j
-            elif resume_at is not None:
-                # Stopped at a new quote opening / hard rule: do NOT search
-                # forward across it (that skipped unprocessed quotes).
-                attr_idx, attr = -1, None
-            else:
-                attr_idx, attr = _find_attribution(lines, j + 1)
-            if attr is not None:
-                speaker_name, speaker_title = attr
-            else:
-                speaker_name, speaker_title = None, None
-            # Skip attribution-only / empty quotes; sub-40 admissions carry
-            # their attribution (the <30 floor holds only for anonymous).
-            if len(quote_text) < 30 and speaker_name is None and speaker_title is None:
-                paraphrase_lines = []
-                i = j + 1
-                continue
-            quotes.append(
-                Quote(
-                    entity=section.canonical_name,
-                    quote_text=quote_text,
-                    paraphrase=paraphrase,
-                    speaker_name=speaker_name,
-                    speaker_title=speaker_title,
-                    as_of_edition=edition_title,
-                    source_ref=f"{QUOTES_PREFIX}{source_stem}:{section.heading_line}",
-                )
-            )
-            # Reset paraphrase accumulator; resume after the attribution (if any)
-            # or after the closing quote. A resume_at boundary (new quote
-            # opening / hard rule) resumes AT that line so it is processed next.
-            i = (
-                resume_at
-                if resume_at is not None
-                else ((attr_idx + 1) if attr_idx >= 0 else (j + 1))
-            )
-            paraphrase_lines = []
-        else:
-            # Accumulate paraphrase (skip blank headings, OCR garble, image
-            # embeds, and stray horizontal rules that leak in from the source).
-            # S3: leading list/quote markers are stripped from accumulated
-            # paraphrase text as well.
-            # NOTE: every branch here MUST fall through to `i += 1` at the
-            # bottom — an early `continue` without advancing i is an infinite
-            # loop (the line that triggered it is re-read forever).
-            acc = _LEADING_MARKER_RE.sub("", stripped) or stripped
-            if acc and not acc.startswith(("!", "<", "http", "www.")):
-                if acc not in ("---", "***", "___"):
-                    if not _CONCALL_SUBHEADING_RE.match(acc):
-                        paraphrase_lines.append(acc)
-            i += 1
-    return quotes
+    return _extract_quotes_from_lines(lines, section, edition_title, source_stem)
 
 
 # --- magnitude extraction --------------------------------------------------
@@ -1208,29 +1251,27 @@ _NON_FINANCIAL_CONTEXT = re.compile(
 )
 
 
-def _label_from_window(w: str) -> str | None:  # noqa: C901
+_METRIC_LABEL_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (_L_REVENUE, "revenue"),
+    (_L_PROFIT, "profit"),
+    (_L_CAPEX, "capex"),
+    (_L_AUM, "aum"),
+    (_L_ORDER, "order_book"),
+    (_L_GROWTH, "growth"),
+    (_L_MKT_SHARE, "market_share"),
+    (_L_STAKE, "stake"),
+    (_L_DEBT, "debt"),
+]
+
+
+def _label_from_window(w: str) -> str | None:
     """Classify a lowered text window to a metric label. Returns None if no
     metric noun is present."""
     if _L_MARGIN.search(w):
         return "ebitda_margin" if _L_EBITDA.search(w) else "margin"
-    if _L_REVENUE.search(w):
-        return "revenue"
-    if _L_PROFIT.search(w):
-        return "profit"
-    if _L_CAPEX.search(w):
-        return "capex"
-    if _L_AUM.search(w):
-        return "aum"
-    if _L_ORDER.search(w):
-        return "order_book"
-    if _L_GROWTH.search(w):
-        return "growth"
-    if _L_MKT_SHARE.search(w):
-        return "market_share"
-    if _L_STAKE.search(w):
-        return "stake"
-    if _L_DEBT.search(w):
-        return "debt"
+    for pat, label in _METRIC_LABEL_PATTERNS:
+        if pat.search(w):
+            return label
     return None
 
 
@@ -1290,7 +1331,59 @@ def _unit_of(value_raw: str) -> str | None:
     return None
 
 
-def extract_metrics(  # noqa: C901  # noqa anchor moved to the statement's diagnostic line (ruff-format split)
+def _create_metric(
+    section: CompanySection,
+    edition_title: str,
+    source_stem: str,
+    sentence: str,
+    value_raw: str,
+    m: re.Match,
+) -> Metric:
+    """Create a Metric from a matched financial figure."""
+    unit = _unit_of(value_raw)
+    period_m = _FY_RE.search(sentence) or _MONTH_YEAR_RE.search(sentence)
+    period = period_m.group(0).strip() if period_m else None
+    return Metric(
+        entity=section.canonical_name,
+        value_raw=value_raw,
+        metric_label=_classify_metric(sentence, value_raw, m.start()),
+        value_num=_parse_value_num(value_raw, unit),
+        unit=unit,
+        period=period,
+        as_of_edition=edition_title,
+        source_quote=sentence,
+        source_ref=f"{METRICS_PREFIX}{source_stem}:{section.heading_line}",
+    )
+
+
+def _extract_metrics_from_sentence(
+    section: CompanySection,
+    edition_title: str,
+    source_stem: str,
+    sentence: str,
+    seen_spans: set[tuple[str, str]],
+) -> list[Metric]:
+    """Extract metrics from a single sentence."""
+    metrics: list[Metric] = []
+    for pat in (_INR_RE, _USD_RE, _BPS_RE, _PCT_RE, _GW_MW_RE, _MULTIPLE_RE):
+        for m in pat.finditer(sentence):
+            value_raw = m.group(0).strip()
+            if pat is _MULTIPLE_RE:
+                ctx_start = max(0, m.start() - 25)
+                ctx_end = min(len(sentence), m.end() + 25)
+                if not _MULTIPLE_CONTEXT_RE.search(sentence[ctx_start:ctx_end]):
+                    continue
+            key = (value_raw, sentence[:60])
+            if key in seen_spans:
+                continue
+            seen_spans.add(key)
+            metrics.append(
+                _create_metric(section, edition_title, source_stem, sentence, value_raw, m)
+            )
+    return metrics
+
+
+def extract_metrics(
     section: CompanySection,
     edition_title: str,
     source_stem: str,
@@ -1306,7 +1399,6 @@ def extract_metrics(  # noqa: C901  # noqa anchor moved to the statement's diagn
     concall_m = _CONCALL_HEADING_RE.search(body)
     if concall_m:
         body = body[concall_m.end() :]
-    # Split into sentence-ish windows (newlines first, then sentence boundaries).
     seen_spans: set[tuple[str, str]] = set()
     for line in body.splitlines():
         line = line.strip()
@@ -1316,40 +1408,13 @@ def extract_metrics(  # noqa: C901  # noqa anchor moved to the statement's diagn
             sentence = sentence.strip()
             if len(sentence) < 12:
                 continue
-            # Reject non-financial contexts (counts, employees, stores).
             if _NON_FINANCIAL_CONTEXT.search(sentence):
                 continue
-            for pat in (_INR_RE, _USD_RE, _BPS_RE, _PCT_RE, _GW_MW_RE, _MULTIPLE_RE):
-                for m in pat.finditer(sentence):
-                    value_raw = m.group(0).strip()
-                    # Multiples need a ratio-context gate (debt/EBITDA/equity/...)
-                    # to exclude figurative "Nx" uses ("100x demand", "3x growth").
-                    if pat is _MULTIPLE_RE:
-                        ctx_start = max(0, m.start() - 25)
-                        ctx_end = min(len(sentence), m.end() + 25)
-                        if not _MULTIPLE_CONTEXT_RE.search(sentence[ctx_start:ctx_end]):
-                            continue
-                    # De-dup identical (value, sentence) within one section.
-                    key = (value_raw, sentence[:60])
-                    if key in seen_spans:
-                        continue
-                    seen_spans.add(key)
-                    unit = _unit_of(value_raw)
-                    period_m = _FY_RE.search(sentence) or _MONTH_YEAR_RE.search(sentence)
-                    period = period_m.group(0).strip() if period_m else None
-                    metrics.append(
-                        Metric(
-                            entity=section.canonical_name,
-                            value_raw=value_raw,
-                            metric_label=_classify_metric(sentence, value_raw, m.start()),
-                            value_num=_parse_value_num(value_raw, unit),
-                            unit=unit,
-                            period=period,
-                            as_of_edition=edition_title,
-                            source_quote=sentence,
-                            source_ref=f"{METRICS_PREFIX}{source_stem}:{section.heading_line}",
-                        )
-                    )
+            metrics.extend(
+                _extract_metrics_from_sentence(
+                    section, edition_title, source_stem, sentence, seen_spans
+                )
+            )
     return metrics
 
 
@@ -1946,7 +2011,7 @@ def _paths_by_entity(conn, entities: list[str]) -> dict[str, str]:
     return {r["name"]: r["file_path"] for r in rows}
 
 
-def render_notes(  # noqa: C901  # noqa anchor moved to the statement's diagnostic line (ruff-format split)
+def render_notes(  # noqa: C901
     quotes_by_entity_edition: dict,
     *,
     dry_run: bool = True,
@@ -2710,29 +2775,30 @@ def _merged_quote_aliases() -> dict[str, str]:
     return dict(merged)
 
 
-def _resolve_ladder(  # noqa: C901
-    name: str, resolver_map: dict[str, str]
-) -> tuple[str | None, str, list[str]]:
-    """Resolve a section canonical via the S2 tier ladder.
-
-    Returns ``(entity, tier, suggestions)``. ``tier`` names the winning tier
-    (exact/unescape/strip/qualifier/symbol/alias) or ``miss``. Suggestions
-    are ranked fuzzy candidates for the worklist — never auto-applied.
-    """
-    exact, t2_keys, t3_keys = _candidate_keys(name)
-    # T1 exact.
+def _resolve_exact_tiers(
+    exact: str, t2_keys: list[str], t3_keys: list[str], resolver_map: dict[str, str]
+) -> tuple[str | None, str]:
+    """T1-T3: exact, unescape/fold, structural strips."""
     if exact in resolver_map:
-        return resolver_map[exact], "exact", []
-    # T2 unescape/fold (candidate-only: raw missed first).
+        return resolver_map[exact], "exact"
     for k in t2_keys:
         if k in resolver_map:
-            return resolver_map[k], "unescape", []
-    # T3 structural strips (trailing-sep, pipe-I, parenthetical).
+            return resolver_map[k], "unescape"
     for k in t3_keys:
         if k in resolver_map:
-            return resolver_map[k], "strip", []
-    # T4 qualifier strips (query-side) + entity-side extensions — the latter
-    # only on a UNIQUE hit (multi-hit = ambiguity, never guessed).
+            return resolver_map[k], "strip"
+    return None, ""
+
+
+def _resolve_qualifier_tier(
+    exact: str, t2_keys: list[str], t3_keys: list[str], resolver_map: dict[str, str]
+) -> tuple[str | None, str, list[str]]:
+    """T4 qualifier strips (query-side) + entity-side extensions.
+
+    Entity-side only on a UNIQUE hit (multi-hit = ambiguity, never guessed).
+    Returns (entity, tier, suggestions) — suggestions non-empty only on
+    multi-hit ambiguity.
+    """
     for k in (exact, *t2_keys, *t3_keys):
         q_hits = [v for v in _qualifier_variants(k, resolver_map)[:2] if v in resolver_map]
         if len(q_hits) == 1:
@@ -2742,18 +2808,35 @@ def _resolve_ladder(  # noqa: C901
             return resolver_map[e_hits[0]], "qualifier", []
         if len(e_hits) > 1:
             return None, "miss", sorted({resolver_map[v] for v in e_hits})
-    # T5 symbol fold (& <-> and), both directions.
+    return None, "", []
+
+
+def _resolve_symbol_tier(
+    exact: str, t2_keys: list[str], t3_keys: list[str], resolver_map: dict[str, str]
+) -> tuple[str | None, str]:
+    """T5 symbol fold (& <-> and), both directions."""
     for k in (exact, *t2_keys, *t3_keys):
         for v in _symbol_variants(k):
             if v in resolver_map:
-                return resolver_map[v], "symbol", []
-    # T6 vetted aliases (exact long-form/abbrev mappings) + user-approved
-    # file aliases (triage_pending_quotes output).
+                return resolver_map[v], "symbol"
+    return None, ""
+
+
+def _resolve_alias_tier(
+    exact: str, t2_keys: list[str], t3_keys: list[str], resolver_map: dict[str, str]
+) -> tuple[str | None, str]:
+    """T6 vetted aliases (exact long-form/abbrev mappings) + user-approved
+    file aliases (triage_pending_quotes output)."""
     alias_map = _merged_quote_aliases()
     for k in (exact, *t2_keys, *t3_keys):
         if k in alias_map and alias_map[k].lower() in resolver_map:
-            return resolver_map[alias_map[k].lower()], "alias", []
-    # Miss -> ranked fuzzy suggestions (token-set jaccard), never applied.
+            return resolver_map[alias_map[k].lower()], "alias"
+    return None, ""
+
+
+def _fuzzy_suggestions(name: str, resolver_map: dict[str, str]) -> list[str]:
+    """Miss -> ranked fuzzy suggestions (token-set jaccard), never applied."""
+    exact = _ascii_fold(name).lower().strip()
     qwords = set(exact.replace("&", " ").split())
     scored = []
     for ent_key, ent in resolver_map.items():
@@ -2768,7 +2851,30 @@ def _resolve_ladder(  # noqa: C901
     for _, ent in scored[:3]:
         if ent not in suggestions:
             suggestions.append(ent)
-    return None, "miss", suggestions
+    return suggestions
+
+
+def _resolve_ladder(name: str, resolver_map: dict[str, str]) -> tuple[str | None, str, list[str]]:
+    """Resolve a section canonical via the S2 tier ladder.
+
+    Returns ``(entity, tier, suggestions)``. ``tier`` names the winning tier
+    (exact/unescape/strip/qualifier/symbol/alias) or ``miss``. Suggestions
+    are ranked fuzzy candidates for the worklist — never auto-applied.
+    """
+    exact, t2_keys, t3_keys = _candidate_keys(name)
+    entity, tier = _resolve_exact_tiers(exact, t2_keys, t3_keys, resolver_map)
+    if entity is not None:
+        return entity, tier, []
+    entity, tier, sugg = _resolve_qualifier_tier(exact, t2_keys, t3_keys, resolver_map)
+    if entity is not None or sugg:
+        return entity, tier, sugg
+    entity, tier = _resolve_symbol_tier(exact, t2_keys, t3_keys, resolver_map)
+    if entity is not None:
+        return entity, tier, []
+    entity, tier = _resolve_alias_tier(exact, t2_keys, t3_keys, resolver_map)
+    if entity is not None:
+        return entity, tier, []
+    return None, "miss", _fuzzy_suggestions(name, resolver_map)
 
 
 def _extract_sections(

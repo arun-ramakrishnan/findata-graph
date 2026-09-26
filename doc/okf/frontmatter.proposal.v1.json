@@ -23,9 +23,10 @@
     "status": {
       "enum": [
         "proposed",
-        "executed"
+        "executed",
+        "deferred"
       ],
-      "description": "'proposed' while in proposals/; 'executed' once archived (directory agreement enforced by static_checks)."
+      "description": "'proposed' while in proposals/; 'executed' once archived; 'deferred' once archived with a deferred remainder tracked in the archived copy (directory agreement enforced by static_checks)."
     },
     "filed": {
       "$ref": "#/$defs/isoDate",

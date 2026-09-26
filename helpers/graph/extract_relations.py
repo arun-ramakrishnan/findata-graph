@@ -443,26 +443,21 @@ class EntityResolver:
         # 3. Fuzzy.
         return self._fuzzy(m)
 
-    def _fuzzy(self, mention: str) -> str | None:  # noqa: C901
-        ct = _tokens(mention)
-        if not ct:
-            return None
-        # Single distinctive token: look for an entity with that token as
-        # its ONLY distinctive token (e.g. "BlackRock" -> "BlackRock").
-        if len(ct) == 1:
-            tok = next(iter(ct))
-            for n, et in self._name_tokens:
-                if len(et) == 1 and tok in et:
-                    return n
-            return None
-        # Multi-token: need subset match on distinctive tokens. Use the reverse
-        # token index to gather only candidates sharing ≥1 token, then score.
-        # The old loop scanned all N entities and re-tokenized each on every
-        # call; this is O(candidates) with pre-tokenized sets.
+    def _fuzzy_single_token(self, ct: frozenset[str]) -> str | None:
+        """Single distinctive token: look for an entity with that token as
+        its ONLY distinctive token (e.g. "BlackRock" -> "BlackRock")."""
+        tok = next(iter(ct))
+        for n, et in self._name_tokens:
+            if len(et) == 1 and tok in et:
+                return n
+        return None
+
+    def _fuzzy_multi_token(self, mention: str, ct: frozenset[str]) -> str | None:
+        """Multi-token: need subset match on distinctive tokens. Use the reverse
+        token index to gather only candidates sharing ≥1 token, then score."""
         distinctive = ct - _GENERIC_WORDS
         if not distinctive:
             return None  # mention is all generic words; too ambiguous
-        # Gather candidate names that share at least one token with the mention.
         candidates: set[str] = set()
         for t in ct:
             candidates.update(self._by_token.get(t, ()))
@@ -486,6 +481,14 @@ class EntityResolver:
         if best is not None and len(tied) > 1:
             self.ambiguous_log.append((mention, sorted(tied)))
         return best
+
+    def _fuzzy(self, mention: str) -> str | None:
+        ct = _tokens(mention)
+        if not ct:
+            return None
+        if len(ct) == 1:
+            return self._fuzzy_single_token(ct)
+        return self._fuzzy_multi_token(mention, ct)
 
 
 # --------------------------------------------------------------------------- #
@@ -1152,7 +1155,60 @@ _CAP_TOKEN_RE = re.compile(
 )
 
 
-def _split_sections(content: str) -> list[tuple[str, int, int, int]]:  # noqa: C901
+def _collect_heading_candidates(content: str) -> list[tuple[int, int, str]]:
+    """Collect all heading candidates in document order."""
+    raw_matches: list[tuple[int, int, str]] = []
+    for m in SECTION_HEADING_RE.finditer(content):
+        heading_text = m.group(1).split("|")[0].strip().rstrip("-·")
+        heading_text = _HEADING_LEGAL_SUFFIX_RE.sub("", heading_text).strip()
+        heading_text = heading_text.strip("[]")
+        if not heading_text or len(heading_text) < 3:
+            continue
+        if not _HEADING_START_RE.match(heading_text):
+            continue
+        if heading_text.lower() in _NEWSLETTER_CHROME:
+            continue
+        if _looks_like_speaker(heading_text):
+            continue
+        raw_matches.append((m.start(), m.end(), heading_text))
+    return raw_matches
+
+
+def _classify_company_headings(content: str, raw_matches: list[tuple[int, int, str]]) -> list[int]:
+    """Classify each heading as company / sub-section. Only pipe-separated
+    or cap-token-bearing headings are company sections."""
+    company_indices: list[int] = []
+    for i, (hs, _he, _text) in enumerate(raw_matches):
+        line_start = hs
+        while line_start < len(content) and content[line_start] in " \t\n":
+            line_start += 1
+        line_end = content.find("\n", line_start)
+        line = content[line_start : line_end if line_end != -1 else len(content)]
+        if _PIPE_SEP_RE.search(line) or _CAP_TOKEN_RE.search(line):
+            company_indices.append(i)
+    return company_indices
+
+
+def _build_sections(
+    content: str,
+    raw_matches: list[tuple[int, int, str]],
+    company_indices: list[int],
+) -> list[tuple[str, int, int, int]]:
+    """Build section 4-tuples from classified company heading indices."""
+    sections: list[tuple[str, int, int, int]] = []
+    for ci, idx in enumerate(company_indices):
+        heading_start, heading_end, heading_text = raw_matches[idx]
+        nl_pos = content.find("\n", heading_end)
+        body_start = (nl_pos + 1) if nl_pos != -1 else heading_end
+        if ci + 1 < len(company_indices):
+            body_end = raw_matches[company_indices[ci + 1]][0]
+        else:
+            body_end = len(content)
+        sections.append((heading_text, heading_start, body_start, body_end))
+    return sections
+
+
+def _split_sections(content: str) -> list[tuple[str, int, int, int]]:
     """Split a newsletter into (heading_name, heading_start_pos, body_start_pos, body_end_pos) sections.
 
     Only *company* sections are returned; sub-headings within a company
@@ -1168,49 +1224,9 @@ def _split_sections(content: str) -> list[tuple[str, int, int, int]]:  # noqa: C
       - body_start_pos: char offset of the first char AFTER the heading line.
       - body_end_pos: char offset of the next COMPANY heading (or EOF).
     """
-    # All heading candidates in document order.
-    raw_matches: list[tuple[int, int, str]] = []  # (heading_start, heading_end, text)
-    for m in SECTION_HEADING_RE.finditer(content):
-        heading_text = m.group(1).split("|")[0].strip().rstrip("-·")
-        heading_text = _HEADING_LEGAL_SUFFIX_RE.sub("", heading_text).strip()
-        # Strip surrounding [] brackets (e.g. "[Concall]").
-        heading_text = heading_text.strip("[]")
-        if not heading_text or len(heading_text) < 3:
-            continue
-        if not _HEADING_START_RE.match(heading_text):
-            continue
-        if heading_text.lower() in _NEWSLETTER_CHROME:
-            continue
-        if _looks_like_speaker(heading_text):
-            continue
-        raw_matches.append((m.start(), m.end(), heading_text))
-
-    # Classify each heading as company / sub-section. Only pipe-separated
-    # or cap-token-bearing headings are company sections.
-    company_indices: list[int] = []
-    for i, (hs, _he, _text) in enumerate(raw_matches):
-        # m.start() can land on the leading '\n' (because SECTION_HEADING_RE
-        # uses ^...$ with re.MULTILINE and the '\n' is part of the match).
-        # Advance past any whitespace to find the first '#' of the heading.
-        line_start = hs
-        while line_start < len(content) and content[line_start] in " \t\n":
-            line_start += 1
-        line_end = content.find("\n", line_start)
-        line = content[line_start : line_end if line_end != -1 else len(content)]
-        if _PIPE_SEP_RE.search(line) or _CAP_TOKEN_RE.search(line):
-            company_indices.append(i)
-
-    sections: list[tuple[str, int, int, int]] = []
-    for ci, idx in enumerate(company_indices):
-        heading_start, heading_end, heading_text = raw_matches[idx]
-        nl_pos = content.find("\n", heading_end)
-        body_start = (nl_pos + 1) if nl_pos != -1 else heading_end
-        if ci + 1 < len(company_indices):
-            body_end = raw_matches[company_indices[ci + 1]][0]
-        else:
-            body_end = len(content)
-        sections.append((heading_text, heading_start, body_start, body_end))
-    return sections
+    raw_matches = _collect_heading_candidates(content)
+    company_indices = _classify_company_headings(content, raw_matches)
+    return _build_sections(content, raw_matches, company_indices)
 
 
 def _looks_like_speaker(heading: str) -> bool:
@@ -1801,7 +1817,306 @@ def extract_relations(
     source_entity_override: str | None = ...,
     return_groups: Literal[True] = ...,
 ) -> tuple[dict[str, list[Edge]], list[Unresolved], dict[str, set[str]]]: ...
-def extract_relations(  # noqa: C901
+def _extract_target_mention(m: re.Match, edge_type: str) -> tuple[str, float | None]:
+    """Extract and clean the target mention from a pattern match.
+
+    Two-group patterns: (a) customer_of (parens form vs is/are form — pick
+    whichever matched); (b) G2 stake patterns (group 1 = percentage,
+    group 2 = the mention; detected by group 1 being fully numeric).
+    Returns (target_mention, stake_pct).
+    """
+    stake_pct: float | None = None
+    if edge_type == "customer_of" and m.group(2):
+        target_mention = m.group(2).strip()
+    elif (
+        m.lastindex is not None
+        and m.lastindex >= 2
+        and m.group(1) is not None
+        and m.group(2) is not None
+        and re.fullmatch(r"\d{1,3}(?:\.\d+)?", m.group(1))
+    ):
+        stake_pct = float(m.group(1))
+        target_mention = m.group(2).strip()
+    else:
+        target_mention = m.group(1).strip()
+    if edge_type == "subsidiary_of" and stake_pct is not None and stake_pct < 50:
+        return "", None
+    target_mention = _TRAILING_JUNK_RE.sub("", target_mention).strip(" .,;:")
+    if not target_mention or len(target_mention) < 2:
+        return "", None
+    return target_mention, stake_pct
+
+
+def _is_generic_acquired(target_mention: str) -> bool:
+    """Check if an acquired target is a generic false positive."""
+    lower_mention = f" {target_mention.lower().strip()} "
+    return any(g.strip() in lower_mention for g in _GENERIC_ACquired_TARGETS)
+
+
+def _is_generic_supplier_customer(target_mention: str) -> bool:
+    """Check if a supplier_to/customer_of target is a generic false positive."""
+    stripped_lower = target_mention.lower().strip()
+    if stripped_lower in _GENERIC_SUPPLIER_TARGETS:
+        return True
+    first_word = stripped_lower.split()[0] if stripped_lower else ""
+    if first_word in _GENERIC_SUPPLIER_TARGETS:
+        return True
+    if first_word in ("the", "its", "our", "their"):
+        return True
+    return False
+
+
+def _is_generic_competitor(target_mention: str, body: str, m: re.Match) -> bool:
+    """Check if a competes_with target is a generic false positive."""
+    stripped_lower = target_mention.lower().strip()
+    if stripped_lower in _GENERIC_COMPETITOR_TARGETS:
+        return True
+    first_word = stripped_lower.split()[0] if stripped_lower else ""
+    if first_word in _GENERIC_COMPETITOR_TARGETS:
+        return True
+    if first_word in ("the", "its", "our", "their", "other", "many", "some"):
+        return True
+    window = body[max(0, m.start() - 60) : m.start()].lower()
+    if any(p in window for p in _COMPETES_GROUPING_PREFIXES):
+        return True
+    return False
+
+
+def _is_generic_target(target_mention: str, edge_type: str, body: str, m: re.Match) -> bool:
+    """Check if a target is a generic false positive (should be skipped)."""
+    if edge_type == "acquired":
+        return _is_generic_acquired(target_mention)
+    if edge_type in ("supplier_to", "customer_of"):
+        return _is_generic_supplier_customer(target_mention)
+    if edge_type == "competes_with":
+        return _is_generic_competitor(target_mention, body, m)
+    return False
+
+
+def _resolve_list_chunks(
+    target_mention: str,
+    edge_type: str,
+    source_entity: str,
+    resolver: EntityResolver,
+    body: str,
+    m: re.Match,
+    edition_title: str,
+    newsletter_type: str,
+    doc_type: str,
+    source_ref_default: str,
+    symmetric: bool,
+    direction: str,
+) -> tuple[list[Edge], bool]:
+    """Resolve list-shaped mentions for customer_of / competes_with.
+
+    Emits one edge per resolvable chunk. Returns (edges, emitted_any).
+    """
+    if edge_type not in ("customer_of", "competes_with"):
+        return [], False
+    raw = _LIST_CHUNK_SPLIT_RE.split(target_mention)
+    chunks = [c.strip() for c in raw if c.strip()]
+    if len(chunks) <= 1:
+        return [], False
+    edges: list[Edge] = []
+    for chunk in chunks:
+        chunk_clean = _LEADING_CONJ_RE.sub("", chunk)
+        chunk_clean = _TRAILING_NUM_UNIT_RE.sub("", chunk_clean)
+        words = chunk_clean.split()
+        kept: list[str] = []
+        for w in words:
+            if w and not w[0].isupper():
+                break
+            kept.append(w)
+        chunk_clean = " ".join(kept).strip(" .,;:")
+        if len(chunk_clean) < 2:
+            continue
+        chunk_entity = resolver.resolve(chunk_clean)
+        if chunk_entity is None or chunk_entity == source_entity:
+            continue
+        if direction == "forward":
+            csrc, ctgt = source_entity, chunk_entity
+        else:
+            csrc, ctgt = chunk_entity, source_entity
+        if symmetric and csrc > ctgt:
+            csrc, ctgt = ctgt, csrc
+        edges.append(
+            Edge(
+                source=csrc,
+                target=ctgt,
+                edge_type=edge_type,
+                properties=_make_properties(
+                    edition_title,
+                    newsletter_type,
+                    doc_type,
+                    _extract_quote_around(body, m.start()),
+                ),
+                source_ref=source_ref_default,
+                symmetric=symmetric,
+            )
+        )
+    return edges, bool(edges)
+
+
+def _should_skip_unresolved(target_mention: str, edge_type: str, source_entity: str) -> bool:
+    """Check noise gate and G3 discard gate for unresolved targets."""
+    if noise_target(target_mention):
+        return True
+    if (
+        edge_type,
+        source_entity,
+        _norm_target_lower(target_mention),
+    ) in _noise_overrides():
+        return True
+    return False
+
+
+def _create_relation_edge(
+    source_entity: str,
+    target_entity: str,
+    edge_type: str,
+    symmetric: bool,
+    direction: str,
+    body: str,
+    m: re.Match,
+    edition_title: str,
+    newsletter_type: str,
+    doc_type: str,
+    source_ref_default: str,
+    stake_pct: float | None,
+) -> Edge:
+    """Create an Edge with direction, symmetric ordering, and temporal extraction."""
+    if direction == "forward":
+        src, tgt = source_entity, target_entity
+    else:
+        src, tgt = target_entity, source_entity
+    if symmetric and src > tgt:
+        src, tgt = tgt, src
+    quote = _extract_quote_around(body, m.start())
+    year: int | None = None
+    iso_date: str | None = None
+    if edge_type in _EDGE_TYPES_WITH_PROSE_YEAR_EXTRACTION:
+        year, iso_date = _extract_year_from_context(
+            quote,
+            edition_label=edition_title,
+        )
+    _props = _make_properties(
+        edition_title,
+        newsletter_type,
+        doc_type,
+        quote,
+        year,
+    )
+    if edge_type == "jv_with":
+        _venture = capture_venture_name(quote)
+        if _venture:
+            _props["venture"] = _venture
+    edge = Edge(
+        source=src,
+        target=tgt,
+        edge_type=edge_type,
+        properties=_props,
+        source_ref=source_ref_default,
+        symmetric=symmetric,
+        valid_from=iso_date,
+    )
+    if stake_pct is not None:
+        edge.properties["stake_pct"] = stake_pct
+    return edge
+
+
+def _dedup_edges(edges_by_type: dict[str, list[Edge]]) -> None:
+    """Dedup edges within each type (preserve first occurrence's properties)."""
+    for et, edges in edges_by_type.items():
+        seen: set[tuple[str, str]] = set()
+        deduped: list[Edge] = []
+        for e in edges:
+            key = (e.source, e.target)
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(e)
+        edges_by_type[et] = deduped
+
+
+def _process_pattern_matches(
+    body: str,
+    source_entity: str,
+    resolver: EntityResolver,
+    edition_title: str,
+    newsletter_type: str,
+    doc_type: str,
+    source_ref_default: str,
+    edges_by_type: dict[str, list[Edge]],
+    unresolved: list[Unresolved],
+) -> None:
+    """Process all pattern matches for one section body."""
+    for pat, edge_type, symmetric, direction in PATTERNS:
+        for m in pat.finditer(body):
+            target_mention, stake_pct = _extract_target_mention(m, edge_type)
+            if not target_mention:
+                continue
+            if _is_generic_target(target_mention, edge_type, body, m):
+                continue
+
+            list_edges, emitted_any = _resolve_list_chunks(
+                target_mention,
+                edge_type,
+                source_entity,
+                resolver,
+                body,
+                m,
+                edition_title,
+                newsletter_type,
+                doc_type,
+                source_ref_default,
+                symmetric,
+                direction,
+            )
+            if emitted_any:
+                edges_by_type.setdefault(edge_type, []).extend(list_edges)
+                continue
+
+            if edge_type in INSTITUTION_LANES:
+                target_entity = resolve_institution(target_mention) or resolver.resolve(
+                    target_mention
+                )
+            else:
+                target_entity = resolver.resolve(target_mention)
+            if target_entity is None:
+                if _should_skip_unresolved(target_mention, edge_type, source_entity):
+                    continue
+                unresolved.append(
+                    Unresolved(
+                        edge_type=edge_type,
+                        source=source_entity,
+                        target_mention=target_mention,
+                        quote=_extract_quote_around(body, m.start()),
+                        edition=edition_title,
+                        direction=direction,
+                    )
+                )
+                continue
+            if target_entity == source_entity:
+                continue
+
+            edge = _create_relation_edge(
+                source_entity,
+                target_entity,
+                edge_type,
+                symmetric,
+                direction,
+                body,
+                m,
+                edition_title,
+                newsletter_type,
+                doc_type,
+                source_ref_default,
+                stake_pct,
+            )
+            edges_by_type.setdefault(edge_type, []).append(edge)
+
+
+def extract_relations(
     content: str,
     *,
     edition_title: str,
@@ -1852,270 +2167,37 @@ def extract_relations(  # noqa: C901
         source_ref_default = (
             f"derive:relations:company_note:{source_entity_override or edition_title}"
         )
-        # Build a single synthetic "section" covering the whole body. The
-        # body is the file content with YAML front matter stripped.
         body = _strip_yaml_front_matter(content)
         source_entity = source_entity_override or _resolve_h1_title(body, resolver)
         if source_entity is None:
             return edges_by_type, unresolved
         sections: list[tuple[str, str]] = [(source_entity, body)]
-        # company_note = True disables group-clustering across sections
-        # (the whole file is one company, so there's nothing to cluster).
     else:
         source_ref_default = f"derive:relations:{newsletter_type}"
-        # Resolve each heading to a known entity; sections whose heading
-        # doesn't resolve are kept with source_entity=None so they can
-        # still contribute to group-clustering (but produce no anchored
-        # edges, matching pre-refactor behavior).
         sections = []
         for heading_name, _hs, body_start, body_end in _split_sections(content):
             resolved = resolver.resolve(heading_name)
             body = content[body_start:body_end]
             sections.append((resolved, body))
-            # Even unresolved headings contribute group context (so we can
-            # cluster resolved entities that share a group with an
-            # as-yet-unresolved sibling).
             if resolved is None:
                 _capture_groups(body, "", None, group_to_companies)
 
     for source_entity, body in sections:
         if source_entity is None:
-            # Heading couldn't be resolved — can't anchor edges. Group
-            # context already captured above.
             continue
-        # Same-group capture (a company may belong to multiple groups; we
-        # record all). Harmless for company notes (single section).
         _capture_groups(body, "", source_entity, group_to_companies)
+        _process_pattern_matches(
+            body,
+            source_entity,
+            resolver,
+            edition_title,
+            newsletter_type,
+            doc_type,
+            source_ref_default,
+            edges_by_type,
+            unresolved,
+        )
 
-        # Per-pattern scan.
-        for pat, edge_type, symmetric, direction in PATTERNS:
-            for m in pat.finditer(body):
-                # Two-group patterns: (a) customer_of (parens form vs is/are
-                # form — pick whichever matched); (b) G2 stake patterns
-                # (group 1 = percentage, group 2 = the mention; detected by
-                # group 1 being fully numeric).
-                stake_pct: float | None = None
-                if edge_type == "customer_of" and m.group(2):
-                    target_mention = m.group(2).strip()
-                elif (
-                    m.lastindex is not None
-                    and m.lastindex >= 2
-                    and m.group(1) is not None
-                    and m.group(2) is not None
-                    and re.fullmatch(r"\d{1,3}(?:\.\d+)?", m.group(1))
-                ):
-                    stake_pct = float(m.group(1))
-                    target_mention = m.group(2).strip()
-                else:
-                    target_mention = m.group(1).strip()
-                if edge_type == "subsidiary_of" and stake_pct is not None and stake_pct < 50:
-                    # G2 holds-below-50%: passive holding, not a subsidiary.
-                    # Tier C drop (see PATTERNS comment).
-                    continue
-                # Strip trailing articles / whitespace junk.
-                target_mention = _TRAILING_JUNK_RE.sub("", target_mention).strip(" .,;:")
-                if not target_mention or len(target_mention) < 2:
-                    continue
-
-                # Skip obvious generic-target false positives.
-                lower_mention = f" {target_mention.lower().strip()} "
-                if edge_type == "acquired":
-                    if any(g.strip() in lower_mention for g in _GENERIC_ACquired_TARGETS):
-                        continue
-                if edge_type in ("supplier_to", "customer_of"):
-                    stripped_lower = target_mention.lower().strip()
-                    # Reject exact-match generic targets.
-                    if stripped_lower in _GENERIC_SUPPLIER_TARGETS:
-                        continue
-                    # Reject targets that START with a generic word ("OEMs and the ...",
-                    # "the automotive industry", "auto makers", etc.).
-                    first_word = stripped_lower.split()[0] if stripped_lower else ""
-                    if first_word in _GENERIC_SUPPLIER_TARGETS:
-                        continue
-                    # Reject "the X" / "its X" patterns outright.
-                    if first_word in ("the", "its", "our", "their"):
-                        continue
-                if edge_type == "competes_with":
-                    # competes_with generic targets are NOT sidecarred — the
-                    # prose ("competes with peers", "competition from Chinese
-                    # imports") carries no resolvable entity, so the sidecar
-                    # would just fill with noise. Drop silently.
-                    stripped_lower = target_mention.lower().strip()
-                    if stripped_lower in _GENERIC_COMPETITOR_TARGETS:
-                        continue
-                    first_word = stripped_lower.split()[0] if stripped_lower else ""
-                    if first_word in _GENERIC_COMPETITOR_TARGETS:
-                        continue
-                    if first_word in ("the", "its", "our", "their", "other", "many", "some"):
-                        continue
-                    # Reject SECTOR-GROUPING contexts. The pattern's
-                    # fixed-width lookbehind catches "alongside peers"; the
-                    # longer grouping phrases ("grouped with peers such as",
-                    # "mentioned alongside peers like") are checked here by
-                    # scanning a 60-char window before the match start.
-                    # These describe sector classification, not direct
-                    # competition (e.g. "Bharti Airtel grouped with peers
-                    # such as Pace Digitek").
-                    window = body[max(0, m.start() - 60) : m.start()].lower()
-                    if any(p in window for p in _COMPETES_GROUPING_PREFIXES):
-                        continue
-
-                target_entity = None
-                # List-shaped mentions (comma or " and "/" or " conjunction)
-                # for customer_of / competes_with: resolve per-chunk instead
-                # of letting the fuzzy matcher collapse the whole list to the
-                # first entity. customer_of: "major customers (IOCL 1.5 MMSCMD,
-                # BPCI 0.8 MMSCMD)". competes_with: "peers like Tata Motors,
-                # Ashok Leyland, and Eicher Motors" (Pattern A captures the
-                # whole list span). Emits one edge per resolvable chunk.
-                if edge_type in ("customer_of", "competes_with"):
-                    raw = _LIST_CHUNK_SPLIT_RE.split(target_mention)
-                    chunks = [c.strip() for c in raw if c.strip()]
-                else:
-                    chunks = []
-                if len(chunks) > 1:
-                    emitted_any = False
-                    for chunk in chunks:
-                        # Strip leading conjunction ("and Britannia" →
-                        # "Britannia") and trailing lowercase words
-                        # ("Ashok Leyland dominate the CV market" →
-                        # "Ashok Leyland") — proper-noun company names
-                        # are Capitalised throughout, so the first
-                        # lowercase word marks the end of the name.
-                        chunk_clean = _LEADING_CONJ_RE.sub("", chunk)
-                        chunk_clean = _TRAILING_NUM_UNIT_RE.sub("", chunk_clean)
-                        # Truncate at first lowercase word (heuristic for
-                        # trailing prose bleed in Pattern A's wide capture).
-                        words = chunk_clean.split()
-                        kept: list[str] = []
-                        for w in words:
-                            if w and not w[0].isupper():
-                                break
-                            kept.append(w)
-                        chunk_clean = " ".join(kept).strip(" .,;:")
-                        if len(chunk_clean) < 2:
-                            continue
-                        chunk_entity = resolver.resolve(chunk_clean)
-                        if chunk_entity is None or chunk_entity == source_entity:
-                            continue
-                        emitted_any = True
-                        if direction == "forward":
-                            csrc, ctgt = source_entity, chunk_entity
-                        else:
-                            csrc, ctgt = chunk_entity, source_entity
-                        if symmetric and csrc > ctgt:
-                            csrc, ctgt = ctgt, csrc
-                        edges_by_type.setdefault(edge_type, []).append(
-                            Edge(
-                                source=csrc,
-                                target=ctgt,
-                                edge_type=edge_type,
-                                properties=_make_properties(
-                                    edition_title,
-                                    newsletter_type,
-                                    doc_type,
-                                    _extract_quote_around(body, m.start()),
-                                ),
-                                source_ref=source_ref_default,
-                                symmetric=symmetric,
-                            )
-                        )
-                    # Only skip the sidecar if we emitted at least one edge.
-                    # Otherwise, fall through so the unresolved whole-mention
-                    # is recorded for human triage.
-                    if emitted_any:
-                        continue
-                elif edge_type in INSTITUTION_LANES:
-                    # Pattern-scoped institution resolution (I1): the exact
-                    # allowlist wins; anything else falls through to the
-                    # company resolver (rated_by agencies are companies).
-                    target_entity = resolve_institution(target_mention) or resolver.resolve(
-                        target_mention
-                    )
-                else:
-                    target_entity = resolver.resolve(target_mention)
-                if target_entity is None:
-                    # Write-time noise gate: countries / generic phrases /
-                    # mangled fragments never reach the triage queue (the
-                    # measured ~35-row class of the 2026-08-25 backlog).
-                    if noise_target(target_mention):
-                        continue
-                    # G3 discard gate: triples the operator explicitly
-                    # rejected during triage never re-enter the sidecar —
-                    # plain discards persist, so the queue stops re-filling
-                    # with rows already adjudicated.
-                    if (
-                        edge_type,
-                        source_entity,
-                        _norm_target_lower(target_mention),
-                    ) in _noise_overrides():
-                        continue
-                    # Sidecar for human review.
-                    unresolved.append(
-                        Unresolved(
-                            edge_type=edge_type,
-                            source=source_entity,
-                            target_mention=target_mention,
-                            quote=_extract_quote_around(body, m.start()),
-                            edition=edition_title,
-                            direction=direction,
-                        )
-                    )
-                    continue
-                if target_entity == source_entity:
-                    continue  # self-edge; skip
-
-                # Direction.
-                if direction == "forward":
-                    src, tgt = source_entity, target_entity
-                else:
-                    src, tgt = target_entity, source_entity
-
-                # Symmetric canonical ordering.
-                if symmetric and src > tgt:
-                    src, tgt = tgt, src
-
-                quote = _extract_quote_around(body, m.start())
-                # Temporal extraction: try to pull a year/month from the
-                # surrounding prose so we can populate `valid_from` (DB
-                # column) and `properties.year` (filter). Currently only
-                # fires for `acquired` (see
-                # `_EDGE_TYPES_WITH_PROSE_YEAR_EXTRACTION` docstring for
-                # why non-acquired edge types are excluded).
-                year: int | None = None
-                iso_date: str | None = None
-                if edge_type in _EDGE_TYPES_WITH_PROSE_YEAR_EXTRACTION:
-                    year, iso_date = _extract_year_from_context(
-                        quote,
-                        edition_label=edition_title,
-                    )
-                _props = _make_properties(
-                    edition_title,
-                    newsletter_type,
-                    doc_type,
-                    quote,
-                    year,
-                )
-                if edge_type == "jv_with":
-                    _venture = capture_venture_name(quote)
-                    if _venture:
-                        _props["venture"] = _venture
-                edge = Edge(
-                    source=src,
-                    target=tgt,
-                    edge_type=edge_type,
-                    properties=_props,
-                    source_ref=source_ref_default,
-                    symmetric=symmetric,
-                    valid_from=iso_date,
-                )
-                if stake_pct is not None:
-                    edge.properties["stake_pct"] = stake_pct
-                edges_by_type.setdefault(edge_type, []).append(edge)
-
-    # Derive same_group edges from companies that share a group. Only
-    # meaningful for newsletters (multiple sections); company notes have
-    # one section so no pairs to cluster.
     if doc_type != "company":
         same_group_edges = _derive_same_group(
             group_to_companies,
@@ -2126,22 +2208,9 @@ def extract_relations(  # noqa: C901
         if same_group_edges:
             edges_by_type["same_group"] = same_group_edges
 
-    # Dedup edges within each type (preserve first occurrence's properties).
-    for et, edges in edges_by_type.items():
-        seen: set[tuple[str, str]] = set()
-        deduped: list[Edge] = []
-        for e in edges:
-            key = (e.source, e.target)
-            if key in seen:
-                continue
-            seen.add(key)
-            deduped.append(e)
-        edges_by_type[et] = deduped
+    _dedup_edges(edges_by_type)
 
     if return_groups:
-        # D6 (jv_promoter_capture_upgrade): the per-file group map rides out
-        # so the CLI can accumulate it across files (cross-note promoter
-        # groups) — company notes populate this map today, then discard it.
         return edges_by_type, unresolved, group_to_companies
     return edges_by_type, unresolved
 
@@ -2292,7 +2361,56 @@ def _load_existing_edges(conn) -> set[tuple[str, str, str]]:
     }
 
 
-def apply_edges(  # noqa: C901
+def _insert_edge_batch(
+    conn,
+    edges: Iterable[Edge],
+    dry_run: bool,
+    existing: set[tuple[str, str, str]] | None,
+) -> tuple[int, int, int]:
+    """Insert a batch of edges, returning (inserted, skipped_fk, skipped_suppressed)."""
+    inserted = 0
+    skipped_fk = 0
+    skipped_suppressed = 0
+    with conn:
+        for e in edges:
+            if (e.source, e.target, e.edge_type) in _SUPPRESSED_EDGES:
+                skipped_suppressed += 1
+                continue
+            if dry_run:
+                if (e.source, e.target, e.edge_type) not in (existing or set()):
+                    inserted += 1
+                continue
+            props_json = json.dumps(e.properties, ensure_ascii=False, sort_keys=True)
+            try:
+                cur = conn.execute(
+                    """
+                    INSERT OR IGNORE INTO graph_edges
+                        (source, target, edge_type, properties, source_ref,
+                         symmetric, valid_from)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        e.source,
+                        e.target,
+                        e.edge_type,
+                        props_json,
+                        e.source_ref,
+                        1 if e.symmetric else 0,
+                        e.valid_from,
+                    ),
+                )
+                inserted += cur.rowcount
+            except Exception as exc:
+                print(
+                    f"warning: skipped edge {e.source} → {e.target} "
+                    f"({e.edge_type}): {type(exc).__name__}: {exc}",
+                    file=sys.stderr,
+                )
+                skipped_fk += 1
+    return inserted, skipped_fk, skipped_suppressed
+
+
+def apply_edges(
     edges: Iterable[Edge],
     *,
     conn=None,
@@ -2326,60 +2444,12 @@ def apply_edges(  # noqa: C901
     own_conn = conn is None
     if own_conn:
         conn = connect()
-    inserted = 0
-    skipped_fk = 0
-    skipped_suppressed = 0
     try:
-        # Bundle U3: in dry-run mode, bulk-fetch the set of existing
-        # (source, target, edge_type) triples ONCE instead of firing a
-        # per-edge SELECT (was N round-trips for N edges; now 1). The set
-        # is checked in-memory during the loop.
         if dry_run and existing is None:
             existing = _load_existing_edges(conn)
-
-        # Bundle U2: wrap the loop in `with conn:` for atomic commit/rollback.
-        # An FK error mid-batch no longer leaves prior INSERTs committed.
-        with conn:
-            for e in edges:
-                # Hard-coded suppressions (mis-attributed edges that have been
-                # hand-corrected to a different source).
-                if (e.source, e.target, e.edge_type) in _SUPPRESSED_EDGES:
-                    skipped_suppressed += 1
-                    continue
-                if dry_run:
-                    if (e.source, e.target, e.edge_type) not in (existing or set()):
-                        inserted += 1
-                    continue
-                props_json = json.dumps(e.properties, ensure_ascii=False, sort_keys=True)
-                try:
-                    cur = conn.execute(
-                        """
-                        INSERT OR IGNORE INTO graph_edges
-                            (source, target, edge_type, properties, source_ref,
-                             symmetric, valid_from)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            e.source,
-                            e.target,
-                            e.edge_type,
-                            props_json,
-                            e.source_ref,
-                            1 if e.symmetric else 0,
-                            e.valid_from,
-                        ),
-                    )
-                    inserted += cur.rowcount
-                except Exception as exc:
-                    # FK violation, CHECK constraint, or any other integrity
-                    # error: log and continue. Don't abort the batch — the
-                    # caller can fix the missing entity and re-run (idempotent).
-                    print(
-                        f"warning: skipped edge {e.source} → {e.target} "
-                        f"({e.edge_type}): {type(exc).__name__}: {exc}",
-                        file=sys.stderr,
-                    )
-                    skipped_fk += 1
+        inserted, skipped_fk, skipped_suppressed = _insert_edge_batch(
+            conn, edges, dry_run, existing
+        )
     finally:
         if own_conn:
             conn.close()
@@ -2518,7 +2588,49 @@ def _extract_batch_arg(args: tuple[list[str], list[str]]):
     return _extract_batch(args[0], args[1])
 
 
-def _expand_paths(  # noqa: C901
+def _resolve_path_arg(arg: str, project_root: Path) -> Path | None:
+    """Resolve a single path arg to an absolute Path, or None if not found."""
+    p = Path(arg)
+    if not p.is_absolute():
+        p = (project_root / arg).resolve()
+    else:
+        p = p.resolve()
+    if not p.exists():
+        print(f"warning: path not found, skipping: {p}", file=sys.stderr)
+        return None
+    return p
+
+
+def _scan_directory(p: Path, seen: set[Path], out: list[Path]) -> None:
+    """Recursively scan a directory for .md files, skipping excluded files."""
+    for md in sorted(p.rglob("*.md")):
+        if md.name in _NEWSLETTER_SKIP_FILES:
+            continue
+        rel_parts = md.relative_to(p).parts
+        if "images" in rel_parts:
+            continue
+        resolved = md.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            out.append(resolved)
+
+
+def _include_file(p: Path, project_root: Path, seen: set[Path], out: list[Path]) -> None:
+    """Include a single file if not excluded and not already seen."""
+    if p.name in _NEWSLETTER_SKIP_FILES:
+        return
+    try:
+        rel = p.relative_to(project_root)
+        if "images" in rel.parts:
+            return
+    except ValueError:
+        pass
+    if p not in seen:
+        seen.add(p)
+        out.append(p)
+
+
+def _expand_paths(
     raw_args: list[str],
     *,
     project_root: Path = _REPO_ROOT,
@@ -2549,39 +2661,13 @@ def _expand_paths(  # noqa: C901
     seen: set[Path] = set()
     out: list[Path] = []
     for arg in raw_args:
-        p = Path(arg)
-        if not p.is_absolute():
-            p = (project_root / arg).resolve()
-        else:
-            p = p.resolve()
-        if not p.exists():
-            print(f"warning: path not found, skipping: {p}", file=sys.stderr)
+        p = _resolve_path_arg(arg, project_root)
+        if p is None:
             continue
         if p.is_dir():
-            for md in sorted(p.rglob("*.md")):
-                if md.name in _NEWSLETTER_SKIP_FILES:
-                    continue
-                rel_parts = md.relative_to(p).parts
-                # Skip files inside an `images/` subdir.
-                if "images" in rel_parts:
-                    continue
-                resolved = md.resolve()
-                if resolved not in seen:
-                    seen.add(resolved)
-                    out.append(resolved)
+            _scan_directory(p, seen, out)
         elif p.is_file():
-            if p.name in _NEWSLETTER_SKIP_FILES:
-                continue
-            # Defensive: skip files under `images/` even if passed directly.
-            try:
-                rel = p.relative_to(project_root)
-                if "images" in rel.parts:
-                    continue
-            except ValueError:
-                pass
-            if p not in seen:
-                seen.add(p)
-                out.append(p)
+            _include_file(p, project_root, seen, out)
     return out
 
 

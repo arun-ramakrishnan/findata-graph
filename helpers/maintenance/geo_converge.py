@@ -241,7 +241,7 @@ def main(argv: list[str] | None = None) -> int:
         f"notes={len(notes)} skipped_no_entity={skipped} changed={len(changed)} ({mode})",
         file=sys.stderr,
     )
-    for kind, n in sorted(kinds.items(), key=lambda kv: -kv[1]):
+    for kind, n in sorted(kinds.items(), key=lambda kv: (-kv[1], kv[0])):
         print(f"  {n:4d}  {kind}", file=sys.stderr)
 
     shown = changed if args.verbose else changed[:12]

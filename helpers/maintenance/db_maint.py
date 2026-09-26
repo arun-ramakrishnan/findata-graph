@@ -513,7 +513,7 @@ class DBMaintainer:
         self._log(logging.INFO, f"convo corpus ({len(files)} parquet) backed up to {zst_path(dst)}")
         return size
 
-    def _backup_memory_sidecars(self) -> int:
+    def _backup_memory_sidecars(self) -> int:  # noqa: C901  # maintenance population, keep per archived c901_complexity_debt D1 verdict
         """Catch-all: every ``memory/`` + ``memory/data/`` file WITHOUT its
         own registration goes into one tar.zst.
 

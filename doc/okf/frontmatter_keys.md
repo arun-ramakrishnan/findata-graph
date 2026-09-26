@@ -110,5 +110,5 @@ Source: [`frontmatter.proposal.v1.json`](frontmatter.proposal.v1.json)
 | `completed_md` | yes | string? | pattern `^\d+[a-z]?(?:\+\d+[a-z]?)?$` | The completed.md entry number as a string ('189'; suffix form '105b' for resolved duplicate numbers; '145+146' when one proposal spans several entries). Null while proposed. |
 | `executed` | yes | ? | — | Null while proposed; the execution date once archived. |
 | `filed` | yes | string | pattern `^\d{4}-\d{2}-\d{2}$` | ISO calendar date (YYYY-MM-DD). NOTE: unquoted YAML dates are auto-parsed into date objects by PyYAML; the validator normalizes these to ISO strings before checking. |
-| `status` | yes | string | one of `proposed`, `executed` | 'proposed' while in proposals/; 'executed' once archived (directory agreement enforced by static_checks). |
+| `status` | yes | string | one of `proposed`, `executed`, `deferred` | 'proposed' while in proposals/; 'executed' once archived; 'deferred' once archived with a deferred remainder tracked in the archived copy (directory agreement enforced by static_checks). |
 | `title` | yes | string | min length 1 | From the # heading; imperative, names the mechanism. |

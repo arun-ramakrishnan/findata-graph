@@ -34,8 +34,9 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — the last live proposal was archived 2026-09-27 (completed.md
-entry 304); see the Previously chain below for its record.
+_(none)_ — the last live proposals were archived 2026-09-27
+(c901_complexity_debt as completed.md entry 306, chain_tally_determinism
+as entry 305); see the Previously chain below for their records.
 
 _(Previously: convo_search.md archived 2026-09-27 as completed.md entry 304
 — the harnesses' own deleted history made queryable: 141-file parquet corpus
@@ -47,6 +48,33 @@ inspection (45-82 min row-bind insert → 2 min via Arrow; a 68.8 ms/key FTS
 delete loop → 8.6 s incremental; delta-only indexing), plus a compaction
 guard so a harness row-shift can never leave a pointer resolving to the wrong
 part. Execution record in `../archive/tooling/convo_search.md`.)_
+
+_(Previously: c901_complexity_debt.md archived 2026-09-27 as
+completed.md entry 306 — the complexity budget was fully masked: 99
+`# noqa: C901` suppressions across 52 files hid 99 over-threshold
+functions from `lint-audit`. Executed S2-S5: six domain-logic heavy
+hitters split extraction-only with parity proven under pinned
+`PYTHONHASHSEED` (`_resolve_ladder` 20, `extract_theme_membership` 23,
+`extract_citations` 21, `extract_relations` 51, `print_stats` 27,
+`l1_betweenness.compute` 27), the argparse cluster adjudicated keep with
+rationales (second ruling), fourteen 11-19-band sites split, suppression
+hygiene swept to 0 stale anchors. Archived as **deferred** — the first
+proposal with the status — because D1's 86-function remainder
+(interactive review, check_integrity, rebuild_note_search) needs
+per-function parity harnesses before any split; verdicts and population
+recorded in the archived copy, census kept dynamic by the
+`check_dead_c901_noqa` advisory leg.)_
+
+_(Previously: chain_tally_determinism.md archived 2026-09-27 as
+completed.md entry 305 — count-ranked tallies sorted by `-kv[1]` alone
+rendered equal-count entries in `PYTHONHASHSEED` order (proven on
+`HEAD`); 18 sites in 14 files fixed with the `(-kv[1], kv[0])` name
+tiebreak, plus the S3 AST guard in `static_checks.py` whose first
+full-repo run caught a 19th site inside `check_dead_c901_noqa`'s own
+advisory render. It landed in the same arc as c901's S2-S5 despite the
+filing note to keep the `stats.py` surfaces separate — the tally edits
+are one-liners on lines the split did not move, flagged to the operator
+at staging time.)_
 
 _(Previously: trace_analyzer_legs.md archived 2026-09-26 as
 completed.md entry 303 — trace-analyzer coverage: 39 populated columns in

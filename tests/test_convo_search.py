@@ -307,9 +307,9 @@ def test_embed_cache_gc_evicts_dead_keeps_live(tmp_path, monkeypatch):
     assert applied["deleted"] == 1
     left = dict(
         sqlite3.connect(store)
-        .execute(f"SELECT text_hash, source FROM {CACHE_TABLE_BARE}")
+        .execute(f"SELECT text_hash, source FROM {CACHE_TABLE_BARE}")  # noqa: S608  # constant table name from the module under test
         .fetchall()
-    )  # noqa: S608
+    )
     assert set(left.values()) == {"doc", "note", "company"}, (
         "the unverified trial lane must survive; only provably dead rows go"
     )

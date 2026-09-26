@@ -497,10 +497,10 @@ def main(argv: list[str] | None = None) -> int:  # noqa: C901
                     cats[cat] = cats.get(cat, 0) + 1
                     if t.startswith("sector/"):
                         sectors[t] = sectors.get(t, 0) + 1
-                for cat, cnt in sorted(cats.items(), key=lambda kv: -kv[1]):
+                for cat, cnt in sorted(cats.items(), key=lambda kv: (-kv[1], kv[0])):
                     print(f"  {cat:14s} {cnt:5d}")
                 print("\n=== top sectors (projected) ===")
-                for tag, cnt in sorted(sectors.items(), key=lambda kv: -kv[1])[:12]:
+                for tag, cnt in sorted(sectors.items(), key=lambda kv: (-kv[1], kv[0]))[:12]:
                     print(f"  {cnt:4d}  {tag}")
             _print_warnings(missing_files, no_tags, unknown_sectors, geo_slop_rows)
             return 0

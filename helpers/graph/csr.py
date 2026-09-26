@@ -143,7 +143,42 @@ def load(
     return manifest, offsets, neighbors, names, fresh
 
 
-def bfs_path(  # noqa: C901
+def _claim_parents(
+    frontier: list[int],
+    offsets: np.ndarray,
+    neighbors: np.ndarray,
+    parent: np.ndarray,
+) -> dict[int, int]:
+    """MIN-claimant discovery for one BFS level (see ``bfs_path``).
+
+    Each newly discovered node claims the MINIMUM discoverer id in this
+    level — the recorded vault_scaling B-B rule; first-claim order was
+    retracted. Collecting the whole level's claims BEFORE any is written
+    to ``parent`` is what makes the outcome depend only on the parent
+    tree rather than on scan order.
+    """
+    claims: dict[int, int] = {}
+    for u in frontier:
+        for v in neighbors[int(offsets[u]) : int(offsets[u + 1])]:
+            v = int(v)
+            if parent[v] != -1:
+                continue
+            prev = claims.get(v)
+            if prev is None or u < prev:
+                claims[v] = u
+    return claims
+
+
+def _walk_to_src(parent: np.ndarray, node: int, src: int) -> list[int]:
+    """Predecessor walk from ``node`` back to ``src``, then reversed."""
+    path = [node]
+    while path[-1] != src:
+        path.append(int(parent[path[-1]]))
+    path.reverse()
+    return path
+
+
+def bfs_path(
     offsets: np.ndarray,
     neighbors: np.ndarray,
     src: int,
@@ -153,12 +188,11 @@ def bfs_path(  # noqa: C901
     """Reference level-BFS over the CSR (parity oracle for the Mojo lane).
 
     Returns the node-id path ``[src, ..., dst]`` or None when unreachable
-    (or farther than ``max_hops``). Parent rule: per level, each newly
-    discovered node claims the MINIMUM discoverer id (MIN-claimant — the
-    recorded vault_scaling B-B rule; first-claim order was retracted).
-    The path therefore depends only on the parent tree, making the engine
-    lanes (Python top-down, Mojo bottom-up) exactly parity-equal.
-    Deterministic run to run: neighbor scans are ascending-sorted.
+    (or farther than ``max_hops``). The per-level parent rule
+    (MIN-claimant) lives in :func:`_claim_parents`; the path therefore
+    depends only on the parent tree, making the engine lanes (Python
+    top-down, Mojo bottom-up) exactly parity-equal. Deterministic run to
+    run: neighbor scans are ascending-sorted.
     """
     n = len(offsets) - 1
     if not (0 <= src < n and 0 <= dst < n):
@@ -170,24 +204,12 @@ def bfs_path(  # noqa: C901
     frontier = [src]
     level = 0
     while frontier and (max_hops is None or level < max_hops):
-        claims: dict[int, int] = {}
-        for u in frontier:
-            for v in neighbors[int(offsets[u]) : int(offsets[u + 1])]:
-                v = int(v)
-                if parent[v] != -1:
-                    continue
-                prev = claims.get(v)
-                if prev is None or u < prev:
-                    claims[v] = u
+        claims = _claim_parents(frontier, offsets, neighbors, parent)
         if not claims:
             return None
         if dst in claims:
             parent[dst] = claims[dst]
-            path = [dst]
-            while path[-1] != src:
-                path.append(int(parent[path[-1]]))
-            path.reverse()
-            return path
+            return _walk_to_src(parent, dst, src)
         for v, u in claims.items():
             parent[v] = u
         frontier = sorted(claims)

@@ -1131,7 +1131,9 @@ def _print_result(
         for cid in result.values():
             buckets[cid] = buckets.get(cid, 0) + 1
         print(f"weakly connected components: {len(buckets)}")
-        for cid, size in sorted(buckets.items(), key=lambda kv: -kv[1])[: max(top or 10, 10)]:
+        for cid, size in sorted(buckets.items(), key=lambda kv: (-kv[1], kv[0]))[
+            : max(top or 10, 10)
+        ]:
             print(f"  component {cid}: {size} nodes")
         return
     if cmd == "louvain":
@@ -1141,7 +1143,9 @@ def _print_result(
         print(f"communities: {len(buckets2)}")
         if modularity is not None:
             print(f"modularity: {modularity:.6f}")
-        for label, size in sorted(buckets2.items(), key=lambda kv: -kv[1])[: max(top or 10, 10)]:
+        for label, size in sorted(buckets2.items(), key=lambda kv: (-kv[1], kv[0]))[
+            : max(top or 10, 10)
+        ]:
             print(f"  community {label}: {size} nodes")
         return
     ranked = sorted(result.items(), key=lambda kv: kv[1], reverse=True)

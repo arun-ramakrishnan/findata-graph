@@ -1119,7 +1119,7 @@ def review(  # noqa: C901  # thin config over helpers.core.review_kit (S1 rehome
         if not cin:
             print_fn("     (no CIN evidence among members)")
             return
-        for code, slot in sorted(cin.items(), key=lambda kv: -kv[1]["count"]):
+        for code, slot in sorted(cin.items(), key=lambda kv: (-kv[1]["count"], kv[0])):
             vc = slot["vintage_counts"]
             flag = "*" if slot["nic2008"] else " "
             print_fn(

@@ -151,7 +151,21 @@ def peel_two_core(indptr: np.ndarray, indices: np.ndarray, n: int) -> tuple[np.n
     return mask, removed
 
 
-def tree_components(  # noqa: C901  # peel/classify ladder — proven vs brute force (test_l1_betweenness)
+def _classify_component(
+    comp: set[int], adj_sets: dict[int, set[int]], core: set[int]
+) -> tuple[set[int], int] | None:
+    """Classify a tree component: folded (single attachment), special
+    (zero attachment), or bridge (multi-attachment, not analytic).
+    Returns (comp, size) for specials, (comp, -1) for bridges, None for folded."""
+    atts = {m for x in comp for m in adj_sets[x] if m in core}
+    if len(atts) == 1:
+        return None
+    if not atts:
+        return comp, len(comp)
+    return comp, -1
+
+
+def tree_components(
     removed: set[int],
     adj_sets: dict[int, set[int]],
     core: set[int],
@@ -184,16 +198,11 @@ def tree_components(  # noqa: C901  # peel/classify ladder — proven vs brute f
                     seen.add(m)
                     comp.add(m)
                     q.append(m)
-        atts = {m for x in comp for m in adj_sets[x] if m in core}
-        if len(atts) == 1:
+        result = _classify_component(comp, adj_sets, core)
+        if result is None:
             folded.append(comp)
-        elif not atts:
-            specials.append((comp, len(comp)))
         else:
-            # multiple attachments into the SAME core component: impossible
-            # to peel (cycle); multiple core components: bridge — keep both
-            # forms out of the analytic fold by joining the Brandes graph.
-            specials.append((comp, -1))
+            specials.append(result)
     return folded, specials
 
 
@@ -370,7 +379,126 @@ def tree_node_scores(
 # --------------------------------------------------------------------------- #
 # driver
 # --------------------------------------------------------------------------- #
-def compute(  # noqa: C901  # fold orchestrator — exact vs fresh-Onager parity (graph_divisor §10)
+def _compute_attachment_weights(
+    folded: list, adj_sets: dict[int, set[int]], core_set: set[int], n: int
+) -> tuple[np.ndarray, dict[int, list[tuple[int, set[int]]]]]:
+    """Compute attachment weights and group trees by attachment node."""
+    kw = np.zeros(n, dtype=float)
+    att_trees: dict[int, list[tuple[int, set[int]]]] = defaultdict(list)
+    for tree in folded:
+        att = next(m for x in tree for m in adj_sets[x] if m in core_set)
+        k = len(tree)
+        kw[att] += k
+        att_trees[att].append((k, tree))
+    return kw, att_trees
+
+
+def _compute_same_attachment_pairs(
+    att_trees: dict[int, list[tuple[int, set[int]]]], raw: np.ndarray
+) -> None:
+    """Same-attachment cross-tree pairs: their only intermediate is the
+    attachment itself (leaf->a->leaf); k_i*k_j over tree pairs at a.
+    (Same-TREE pairs belong to the closed form below.)"""
+    for att, ktree_list in att_trees.items():
+        pair_same = 0.0
+        run = 0
+        for k, _ in ktree_list:
+            pair_same += run * k
+            run += k
+        raw[att] += pair_same
+
+
+def _compute_tree_internal_scores(
+    att_trees: dict[int, list[tuple[int, set[int]]]],
+    adj_sets: dict[int, set[int]],
+    comp: np.ndarray,
+    comp_sizes: list[int],
+    raw: np.ndarray,
+) -> None:
+    """Tree-internal scores (closed form; raw[m] starts at 0 for tree nodes —
+    no Brandes source/target path between core nodes passes through them)."""
+    for att, ktree_list in att_trees.items():
+        n_up_world = comp_sizes[int(comp[att])]
+        for k, tree in ktree_list:
+            root = next(x for x in tree if att in adj_sets[x])
+            parent: dict[int, int] = {root: -1}
+            children: dict[int, list[int]] = defaultdict(list)
+            order: list[int] = [root]
+            q = deque([root])
+            while q:
+                x = q.popleft()
+                for m in adj_sets[x]:
+                    if m in tree and m not in parent:
+                        parent[m] = x
+                        children[x].append(m)
+                        order.append(m)
+                        q.append(m)
+            subtree = {m: 1 for m in tree}
+            for m in reversed(order):
+                if parent[m] != -1:
+                    subtree[parent[m]] += subtree[m]
+            for m, s in tree_node_scores(tree, root, n_up_world, children, order, subtree).items():
+                raw[m] += s
+
+
+def _score_special_tree(
+    tree: set[int],
+    root: int,
+    sp_size: int,
+    adj_sets: dict[int, set[int]],
+    raw: np.ndarray,
+) -> None:
+    """Score one special-component tree (closed form)."""
+    parent: dict[int, int] = {root: -1}
+    children: dict[int, list[int]] = defaultdict(list)
+    order = [root]
+    q = deque([root])
+    while q:
+        x = q.popleft()
+        for m in adj_sets[x]:
+            if m in tree and m not in parent:
+                parent[m] = x
+                children[x].append(m)
+                order.append(m)
+                q.append(m)
+    if len(order) != len(tree):
+        raise ValueError("special comp tree split is not a tree")
+    subtree = {m: 1 for m in tree}
+    for m in reversed(order):
+        if parent[m] != -1:
+            subtree[parent[m]] += subtree[m]
+    for m, sc in tree_node_scores(tree, root, sp_size, children, order, subtree).items():
+        raw[m] += sc
+
+
+def _compute_special_component_scores(
+    specials: list,
+    adj_sets: dict[int, set[int]],
+    raw: np.ndarray,
+) -> None:
+    """Zero-attachment forest components: betweenness is internal-only —
+    the same closed form per tree, world = the forest's own size."""
+    for sp_comp, sp_size in specials:
+        if sp_size <= 0:
+            continue  # multi-attachment bridge comp: not analytic (documented)
+        seen_sp: set[int] = set()
+        for start in sp_comp:
+            if start in seen_sp:
+                continue
+            tree = {start}
+            q = deque([start])
+            seen_sp.add(start)
+            while q:
+                x = q.popleft()
+                for m in adj_sets[x]:
+                    if m in sp_comp and m not in seen_sp:
+                        seen_sp.add(m)
+                        tree.add(m)
+                        q.append(m)
+            _score_special_tree(tree, start, sp_size, adj_sets, raw)
+
+
+def compute(
     db_path: str | Path = DEFAULT_DB_PATH,
     jobs: int = 1,
 ) -> tuple[dict[str, float], dict]:
@@ -395,14 +523,7 @@ def compute(  # noqa: C901  # fold orchestrator — exact vs fresh-Onager parity
 
     folded, specials = tree_components(removed, adj_sets, core_set)
 
-    # attachment weights (multiple trees may share an attachment)
-    kw = np.zeros(n, dtype=float)
-    att_trees: dict[int, list[tuple[int, set[int]]]] = defaultdict(list)
-    for tree in folded:
-        att = next(m for x in tree for m in adj_sets[x] if m in core_set)
-        k = len(tree)
-        kw[att] += k
-        att_trees[att].append((k, tree))
+    kw, att_trees = _compute_attachment_weights(folded, adj_sets, core_set, n)
 
     is_core = np.zeros(n, dtype=bool)
     is_core[core] = True
@@ -415,82 +536,9 @@ def compute(  # noqa: C901  # fold orchestrator — exact vs fresh-Onager parity
     # _brandes_chunk).
     raw = U / 2.0 + TU + KK / 2.0
 
-    # same-attachment cross-tree pairs: their only intermediate is the
-    # attachment itself (leaf->a->leaf); k_i*k_j over tree pairs at a.
-    # (Same-TREE pairs belong to the closed form below.)
-    for att, ktree_list in att_trees.items():
-        pair_same = 0.0
-        run = 0
-        for k, _ in ktree_list:
-            pair_same += run * k
-            run += k
-        raw[att] += pair_same
-
-    # tree-internal scores (closed form; raw[m] starts at 0 for tree nodes —
-    # no Brandes source/target path between core nodes passes through them)
-    for att, ktree_list in att_trees.items():
-        n_up_world = comp_sizes[int(comp[att])]
-        for k, tree in ktree_list:
-            root = next(x for x in tree if att in adj_sets[x])
-            parent: dict[int, int] = {root: -1}
-            children: dict[int, list[int]] = defaultdict(list)
-            order: list[int] = [root]
-            q = deque([root])
-            while q:
-                x = q.popleft()
-                for m in adj_sets[x]:
-                    if m in tree and m not in parent:
-                        parent[m] = x
-                        children[x].append(m)
-                        order.append(m)
-                        q.append(m)
-            subtree = {m: 1 for m in tree}
-            for m in reversed(order):
-                if parent[m] != -1:
-                    subtree[parent[m]] += subtree[m]
-            for m, s in tree_node_scores(tree, root, n_up_world, children, order, subtree).items():
-                raw[m] += s
-
-    # zero-attachment forest components: betweenness is internal-only —
-    # the same closed form per tree, world = the forest's own size.
-    for sp_comp, sp_size in specials:
-        if sp_size <= 0:
-            continue  # multi-attachment bridge comp: not analytic (documented)
-        seen_sp: set[int] = set()
-        for start in sp_comp:
-            if start in seen_sp:
-                continue
-            tree = {start}
-            q = deque([start])
-            seen_sp.add(start)
-            while q:
-                x = q.popleft()
-                for m in adj_sets[x]:
-                    if m in sp_comp and m not in seen_sp:
-                        seen_sp.add(m)
-                        tree.add(m)
-                        q.append(m)
-            root = start
-            parent: dict[int, int] = {root: -1}
-            children: dict[int, list[int]] = defaultdict(list)
-            order = [root]
-            q = deque([root])
-            while q:
-                x = q.popleft()
-                for m in adj_sets[x]:
-                    if m in tree and m not in parent:
-                        parent[m] = x
-                        children[x].append(m)
-                        order.append(m)
-                        q.append(m)
-            if len(order) != len(tree):
-                raise ValueError("special comp tree split is not a tree")
-            subtree = {m: 1 for m in tree}
-            for m in reversed(order):
-                if parent[m] != -1:
-                    subtree[parent[m]] += subtree[m]
-            for m, sc in tree_node_scores(tree, root, sp_size, children, order, subtree).items():
-                raw[m] += sc
+    _compute_same_attachment_pairs(att_trees, raw)
+    _compute_tree_internal_scores(att_trees, adj_sets, comp, comp_sizes, raw)
+    _compute_special_component_scores(specials, adj_sets, raw)
 
     # n for the divisor = endpoints of the ex-index projection (index-only
     # isolates have no path in the projection and contribute nothing).

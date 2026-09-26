@@ -480,8 +480,8 @@ def _zc_content(content: object) -> str:
     return ""
 
 
-def _harvest_zcode_file(files: list[Path], sid: str, src_tag: str) -> list[dict]:
-    """One zcode session: fullest request = final context; responses by id."""
+def _zcode_best_and_resps(files: list[Path]) -> tuple[dict | None, dict]:
+    """Find the fullest request and collect responses by id."""
     best, best_n, resps = None, -1, {}
     for f in files:
         for line in open(f, errors="replace"):
@@ -501,29 +501,39 @@ def _harvest_zcode_file(files: list[Path], sid: str, src_tag: str) -> list[dict]
                     r.get("reasoningText") or "",
                     r.get("model") or d.get("model") or "",
                 )
+    return best, resps
+
+
+def _zcode_req_rows(best: dict, sid: str, src_tag: str) -> list[dict]:
+    """Build request-message rows from the fullest request."""
     rows = []
-    if best:
-        rid = best.get("requestId") or "req"
-        ts = _iso_ms(best.get("startedAt") or best.get("completedAt"))
-        for i, m in enumerate((best.get("request") or {}).get("messages") or []):
-            text = _zc_content(m.get("content"))
-            if not text:
-                continue
-            rows.append(
-                _row(
-                    f"zc:{sid}:{i}",
-                    rid,
-                    sid,
-                    ts,
-                    m.get("role", ""),
-                    "zcode",
-                    best.get("model") or "",
-                    "req-msg",
-                    text,
-                    {"messageOffset": (best.get("request") or {}).get("messageOffset")},
-                    f"zcode:{src_tag}",
-                )
+    rid = best.get("requestId") or "req"
+    ts = _iso_ms(best.get("startedAt") or best.get("completedAt"))
+    for i, m in enumerate((best.get("request") or {}).get("messages") or []):
+        text = _zc_content(m.get("content"))
+        if not text:
+            continue
+        rows.append(
+            _row(
+                f"zc:{sid}:{i}",
+                rid,
+                sid,
+                ts,
+                m.get("role", ""),
+                "zcode",
+                best.get("model") or "",
+                "req-msg",
+                text,
+                {"messageOffset": (best.get("request") or {}).get("messageOffset")},
+                f"zcode:{src_tag}",
             )
+        )
+    return rows
+
+
+def _zcode_resp_rows(resps: dict, sid: str, src_tag: str) -> list[dict]:
+    """Build response and reasoning rows from collected responses."""
+    rows = []
     for rid, (started, text, reasoning, model) in resps.items():
         ts = _iso_ms(started)
         if text:
@@ -558,6 +568,16 @@ def _harvest_zcode_file(files: list[Path], sid: str, src_tag: str) -> list[dict]
                     f"zcode:{src_tag}",
                 )
             )
+    return rows
+
+
+def _harvest_zcode_file(files: list[Path], sid: str, src_tag: str) -> list[dict]:
+    """One zcode session: fullest request = final context; responses by id."""
+    best, resps = _zcode_best_and_resps(files)
+    rows = []
+    if best:
+        rows.extend(_zcode_req_rows(best, sid, src_tag))
+    rows.extend(_zcode_resp_rows(resps, sid, src_tag))
     return rows
 
 

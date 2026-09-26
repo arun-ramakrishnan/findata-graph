@@ -30,6 +30,7 @@ except ImportError:  # pragma: no cover
 
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(_PROJECT_ROOT) not in sys.path:
@@ -72,8 +73,157 @@ _CHAINS_EXCLUDE = ("part_of", "has_company", "belongs_to", "cited_in", "listed_i
 #: completed.md #254) and the louvain amendment.
 _CHAIN_FORBIDDEN = frozenset(_CHAINS_EXCLUDE) | {"listed_on_index"}
 
+# `numpy` / `scipy` stay lazily imported inside the helpers that use them —
+# they are only needed once a render is actually requested. They appear at
+# module scope only inside string annotations, so guard them under
+# TYPE_CHECKING to let static tools resolve the names without forcing a
+# runtime import (same lazy-import discipline as maintenance/snapshot_db.py).
+if TYPE_CHECKING:
+    import numpy as np
+    from scipy.sparse import csr_matrix
 
-def longest_chains(  # noqa: C901
+
+def _chain_dist_stats(dist: np.ndarray) -> tuple[int, float, int, int]:
+    """(diameter, median, ordered ties at diameter, finite count).
+
+    Chunked row scan — ordered-pair integer histogram; no triu
+    materialization. The median replicates np.median over the
+    ordered finite distances exactly (mean of the two middle order
+    statistics), so the rendered :.0f output is byte-identical to
+    the old materialized path. Ties are ORDERED; on a symmetric
+    square matrix (exact mode) the caller halves them for canonical
+    (a<b) counting.
+    """
+    import numpy as np
+
+    hist = None
+    for lo in range(0, dist.shape[0], 512):
+        sub = dist[lo : lo + 512]
+        vals = sub[np.isfinite(sub) & (sub > 0)]
+        if not vals.size:
+            continue
+        ints = vals.astype(np.int64)
+        chunk_hist = np.bincount(ints)
+        if hist is None:
+            hist = chunk_hist
+        elif chunk_hist.size > hist.size:
+            hist = np.concatenate([hist, np.zeros(chunk_hist.size - hist.size, dtype=hist.dtype)])
+            hist += chunk_hist
+        else:
+            hist[: chunk_hist.size] += chunk_hist
+    if hist is None:
+        return 0, 0.0, 0, 0
+    nz = np.nonzero(hist)[0]
+    diameter = int(nz.max())
+    total = int(hist[nz].sum())
+    k1 = (total - 1) // 2
+    k2 = total // 2
+    cum = np.cumsum(hist)
+
+    def _order_stat(k: int) -> int:
+        return int(np.searchsorted(cum, k + 1, side="left"))
+
+    median = (_order_stat(k1) + _order_stat(k2)) / 2.0
+    return diameter, median, int(hist[diameter]), total
+
+
+def _chain_edge_matrix(
+    conn,
+    idx: dict[str, int],
+    n: int,
+    forbidden: frozenset[str],
+    pair_types: dict[tuple[int, int], set[str]],
+) -> csr_matrix:
+    """Symmetric adjacency over the edge-touched universe, minus
+    ``forbidden`` families; records each pair's family set into
+    ``pair_types`` in place (caller reads it after the loop)."""
+    import numpy as np
+    from scipy.sparse import csr_matrix
+
+    rows_, cols_ = [], []
+    for s, tgt, et in conn.execute("SELECT source, target, edge_type FROM graph_edges"):
+        if et in forbidden:
+            continue
+        i, j = idx.get(s), idx.get(tgt)
+        if i is None or j is None or i == j:
+            continue
+        rows_ += [i, j]
+        cols_ += [j, i]
+        key = (i, j) if i < j else (j, i)
+        pair_types.setdefault(key, set()).add(et)
+    return csr_matrix((np.ones(len(rows_), dtype=np.int8), (rows_, cols_)), shape=(n, n))
+
+
+def _chain_pair_tiers(dist, diameter: int, roots):
+    """Yield (node_a, node_b, d, row_a) candidate pairs tier by tier.
+
+    Candidates come tier by tier: unweighted BFS gives integer
+    distances, so walk d = diameter … 1 and lift each tier's pairs
+    with one numpy scan. The old approach materialised ALL n²
+    ordered pairs in Python (np.argsort over the full rank matrix +
+    a tuple comprehension) — 6.3M tuples for n=2,508, ~97% of a 61s
+    render, quadratic in the edge-touched universe (2026-09-20).
+    np.nonzero is row-major, matching the old argsort's flat-index
+    order within a tier; both orientations of a pair always get the
+    same verdict in the selection below (key + endpoint checks are
+    symmetric) so exact mode scans the canonical a<b triangle only.
+    Yields (node_a, node_b, d, row_a) — node ids for names/sets,
+    row_a (the sampled-root row, == node_a when exact) indexes
+    dist/pred, which are row-space under the cap.
+    """
+    import numpy as np
+
+    for d in range(diameter, 0, -1):
+        mask = np.isfinite(dist) & (dist == d)
+        if roots is None:
+            mask = np.triu(mask, 1)
+        if not mask.any():
+            continue
+        for a, b in np.argwhere(mask):
+            yield (int(a) if roots is None else int(roots[a]), int(b), d, int(a))
+
+
+def _select_chain_pairs(dist, diameter: int, roots, top_k: int) -> list[tuple[int, int, int, int]]:
+    """Pick the top-K distinct distant pairs, node-disjoint first.
+
+    Distinct-candidate selection: greedy by distance, accepting a pair
+    only while BOTH endpoints are unused (node-disjoint), so the top-K
+    are K different chains rather than one hub endpoint repeated K
+    times (the naive top-5 at the diameter was Food_Processing -> five
+    different holders — one chain shape, five times). If the graph
+    cannot supply K disjoint pairs, a relaxed second pass fills the
+    remainder allowing reuse, never repeating an accepted pair.
+    """
+    pairs: list[tuple[int, int, int, int]] = []
+    seen: set[tuple[int, int]] = set()
+    used: set[int] = set()
+    for relax in (False, True):
+        for a, b, d, _row in _chain_pair_tiers(dist, diameter, roots):
+            if len(pairs) == top_k:
+                break
+            key = (a, b) if a < b else (b, a)
+            if key in seen:
+                continue
+            if not relax and (a in used or b in used):
+                continue
+            seen.add(key)
+            used.update((a, b))
+            pairs.append((a, b, d, _row))
+        if len(pairs) == top_k:
+            break
+    return pairs
+
+
+def _chain_path(pred, row: int, a: int, b: int) -> list[int]:
+    """Walk predecessors from ``b`` back to ``a`` (inclusive), hop order."""
+    path, cur = [b], b
+    while cur != a and pred[row, cur] >= 0:
+        cur = int(pred[row, cur])
+        path.append(cur)
+    return path
+
+
+def longest_chains(
     conn, top_k: int = 5, *, max_exact: int = 3000, exact: bool = False
 ) -> list[str]:
     """Render the longest-chains section lines (pure function of ``conn``).
@@ -104,51 +254,7 @@ def longest_chains(  # noqa: C901
     ties, O(chunk*n) memory.
     """
     import numpy as np
-    from scipy.sparse import csr_matrix
     from scipy.sparse.csgraph import connected_components, shortest_path
-
-    def _dist_stats(dist: np.ndarray) -> tuple[int, float, int, int]:
-        """(diameter, median, ordered ties at diameter, finite count).
-
-        Chunked row scan — ordered-pair integer histogram; no triu
-        materialization. The median replicates np.median over the
-        ordered finite distances exactly (mean of the two middle order
-        statistics), so the rendered :.0f output is byte-identical to
-        the old materialized path. Ties are ORDERED; on a symmetric
-        square matrix (exact mode) the caller halves them for canonical
-        (a<b) counting.
-        """
-        hist = None
-        for lo in range(0, dist.shape[0], 512):
-            sub = dist[lo : lo + 512]
-            vals = sub[np.isfinite(sub) & (sub > 0)]
-            if not vals.size:
-                continue
-            ints = vals.astype(np.int64)
-            chunk_hist = np.bincount(ints)
-            if hist is None:
-                hist = chunk_hist
-            elif chunk_hist.size > hist.size:
-                hist = np.concatenate(
-                    [hist, np.zeros(chunk_hist.size - hist.size, dtype=hist.dtype)]
-                )
-                hist += chunk_hist
-            else:
-                hist[: chunk_hist.size] += chunk_hist
-        if hist is None:
-            return 0, 0.0, 0, 0
-        nz = np.nonzero(hist)[0]
-        diameter = int(nz.max())
-        total = int(hist[nz].sum())
-        k1 = (total - 1) // 2
-        k2 = total // 2
-        cum = np.cumsum(hist)
-
-        def _order_stat(k: int) -> int:
-            return int(np.searchsorted(cum, k + 1, side="left"))
-
-        median = (_order_stat(k1) + _order_stat(k2)) / 2.0
-        return diameter, median, int(hist[diameter]), total
 
     # Node universe = entities touched by at least one graph_edge.
     # Isolated entities (e.g. D19 exchange stubs: pathless, ticker-only,
@@ -172,27 +278,16 @@ def longest_chains(  # noqa: C901
 
     pair_types: dict[tuple[int, int], set[str]] = {}
 
-    def _add(forbidden: frozenset[str]) -> csr_matrix:
-        rows_, cols_ = [], []
-        for s, tgt, et in conn.execute("SELECT source, target, edge_type FROM graph_edges"):
-            if et in forbidden:
-                continue
-            i, j = idx.get(s), idx.get(tgt)
-            if i is None or j is None or i == j:
-                continue
-            rows_ += [i, j]
-            cols_ += [j, i]
-            key = (i, j) if i < j else (j, i)
-            pair_types.setdefault(key, set()).add(et)
-        return csr_matrix((np.ones(len(rows_), dtype=np.int8), (rows_, cols_)), shape=(n, n))
-
     capped = (n > max_exact) and not exact
     roots = np.unique(np.linspace(0, n - 1, max_exact).astype(int)) if capped else None
     n_roots = 0 if roots is None else int(len(roots))
     lines: list[str] = []
     for label, mat in (
-        ("ALL edges (excl. index membership)", _add(frozenset({"listed_on_index"}))),
-        ("ACTIVITY edges", _add(_CHAIN_FORBIDDEN)),
+        (
+            "ALL edges (excl. index membership)",
+            _chain_edge_matrix(conn, idx, n, frozenset({"listed_on_index"}), pair_types),
+        ),
+        ("ACTIVITY edges", _chain_edge_matrix(conn, idx, n, _CHAIN_FORBIDDEN, pair_types)),
     ):
         n_comp, comp = connected_components(mat, directed=False)
         if capped:
@@ -203,62 +298,15 @@ def longest_chains(  # noqa: C901
                 return_predecessors=True,
                 indices=roots,
             )
-            diameter, median, ties, _total = _dist_stats(dist)
+            diameter, median, ties, _total = _chain_dist_stats(dist)
         else:
             dist, pred = shortest_path(mat, method="D", unweighted=True, return_predecessors=True)
-            diameter, median, ties, _total = _dist_stats(dist)
+            diameter, median, ties, _total = _chain_dist_stats(dist)
             ties //= 2  # symmetric square → canonical (a<b) pair count
         if _total == 0:
             lines.append(f"  {label}: no edges")
             continue
-        # Distinct-candidate selection: greedy by distance, accepting a pair
-        # only while BOTH endpoints are unused (node-disjoint), so the top-K
-        # are K different chains rather than one hub endpoint repeated K
-        # times (the naive top-5 at the diameter was Food_Processing -> five
-        # different holders — one chain shape, five times). If the graph
-        # cannot supply K disjoint pairs, a relaxed second pass fills the
-        # remainder allowing reuse, never repeating an accepted pair.
-        pairs: list[tuple[int, int, int, int]] = []
-        seen: set[tuple[int, int]] = set()
-        used: set[int] = set()
-
-        # Candidates come tier by tier: unweighted BFS gives integer
-        # distances, so walk d = diameter … 1 and lift each tier's pairs
-        # with one numpy scan. The old approach materialised ALL n²
-        # ordered pairs in Python (np.argsort over the full rank matrix +
-        # a tuple comprehension) — 6.3M tuples for n=2,508, ~97% of a 61s
-        # render, quadratic in the edge-touched universe (2026-09-20).
-        # np.nonzero is row-major, matching the old argsort's flat-index
-        # order within a tier; both orientations of a pair always get the
-        # same verdict in the selection below (key + endpoint checks are
-        # symmetric) so exact mode scans the canonical a<b triangle only.
-        # Yields (node_a, node_b, d, row_a) — node ids for names/sets,
-        # row_a (the sampled-root row, == node_a when exact) indexes
-        # dist/pred, which are row-space under the cap.
-        def _pair_tiers():
-            for d in range(diameter, 0, -1):
-                mask = np.isfinite(dist) & (dist == d)
-                if roots is None:
-                    mask = np.triu(mask, 1)
-                if not mask.any():
-                    continue
-                for a, b in np.argwhere(mask):
-                    yield (int(a) if roots is None else int(roots[a]), int(b), d, int(a))
-
-        for relax in (False, True):
-            for a, b, d, _row in _pair_tiers():
-                if len(pairs) == top_k:
-                    break
-                key = (a, b) if a < b else (b, a)
-                if key in seen:
-                    continue
-                if not relax and (a in used or b in used):
-                    continue
-                seen.add(key)
-                used.update((a, b))
-                pairs.append((a, b, d, _row))
-            if len(pairs) == top_k:
-                break
+        pairs = _select_chain_pairs(dist, diameter, roots, top_k)
         cap_note = (
             f" | SAMPLED {n_roots}/{n} roots (cap {max_exact}): "
             f"d >= {diameter}, distances are lower bounds"
@@ -277,20 +325,14 @@ def longest_chains(  # noqa: C901
                 f"[comp {int((comp == comp[a]).sum())} nodes]"
             )
             # reconstruct this chain and tally the families carrying its hops
-            path, cur = [b], b
-            while cur != a and pred[row, cur] >= 0:
-                cur = int(pred[row, cur])
-                path.append(cur)
+            path = _chain_path(pred, row, a, b)
             for u, v in zip(path, path[1:]):
                 key = (u, v) if u < v else (v, u)
                 for fam in pair_types.get(key, {"?"}):
                     family_tally[fam] = family_tally.get(fam, 0) + 1
         if pairs:
             a, b, _d, row = pairs[0]
-            path, cur = [b], b
-            while cur != a and pred[row, cur] >= 0:
-                cur = int(pred[row, cur])
-                path.append(cur)
+            path = _chain_path(pred, row, a, b)
             hops = []
             for u, v in zip(path, path[1:]):
                 key = (u, v) if u < v else (v, u)
@@ -298,7 +340,7 @@ def longest_chains(  # noqa: C901
                 hops.append(f"{names[u]} -[{fams}]-> {names[v]}")
             lines.append(f"    #1 chain ({len(path) - 1} hops): " + "; ".join(hops))
         tally = ", ".join(
-            f"{k} x{v}" for k, v in sorted(family_tally.items(), key=lambda kv: -kv[1])
+            f"{k} x{v}" for k, v in sorted(family_tally.items(), key=lambda kv: (-kv[1], kv[0]))
         )
         lines.append(f"    chain composition across top-{len(pairs)}: {tally}")
     return lines
@@ -364,7 +406,10 @@ def hyper_structure_lines(conn, top_k: int = 5) -> list[str]:
         "  capture-quality family tally (top-"
         + str(top_k)
         + "): "
-        + (", ".join(f"{k} {v}" for k, v in sorted(tally.items(), key=lambda x: -x[1])) or "—")
+        + (
+            ", ".join(f"{k} {v}" for k, v in sorted(tally.items(), key=lambda x: (-x[1], x[0])))
+            or "—"
+        )
     )
     if blocks and blocks[0]:
         lines.append(
@@ -373,36 +418,8 @@ def hyper_structure_lines(conn, top_k: int = 5) -> list[str]:
     return lines
 
 
-def print_stats(exact_chains: bool = False) -> int:  # noqa: C901
-    # --- Distributions: sourced from the checker (single source of truth) ---
-    checker = DatabaseIntegrityChecker()
-    try:
-        gs = checker.check_graph_summary()
-    finally:
-        checker.close()
-
-    ec = gs["entity_counts"]
-    xec = gs["edge_counts"]
-    n_entities = sum(ec.values())
-    n_companies = ec.get("company", 0)
-    n_sectors = ec.get("sector", 0)
-    n_edges = sum(xec.values())
-
-    print(_hr("FinData Graph — Stats"))
-    print(f"\nEntities: {n_entities}  (companies: {n_companies}, sectors: {n_sectors})")
-    print(f"Edges:    {n_edges}  across graph_edges")
-
-    print("\nEdge-type breakdown:")
-    max_n = max(xec.values(), default=1)
-    for etype, n in xec.items():
-        print(f"  {etype:20} {_bar(n, max_n)}")
-
-    # --- Structure (Onager whole-graph metrics, Phase 2 of the
-    # graph_algos proposal) ---
-    # Unweighted, over the FULL edge set (all types); the node set is the
-    # edge endpoints (isolated entities have no edges). Sub-second on the
-    # live graph. Degrades gracefully — the SQLite-side summary above stays
-    # authoritative if the Onager layer is unavailable.
+def _print_structure_metrics() -> None:
+    """Print Onager whole-graph metrics and exact stamped structure scalars."""
     print(_hr("Structure (Onager, full edge set)", "-"))
     try:
         from helpers.graph.algorithms import graph_metrics
@@ -442,10 +459,6 @@ def print_stats(exact_chains: bool = False) -> int:  # noqa: C901
                     f"   radius {metrics['radius']}"
                     f"   avg path length {_fmt(metrics['avg_path_length'])}"
                 )
-        # scipy_exact_universe S6: exact structure scalars from the stamp
-        # (all-sources scipy pass; the Onager row above serves NULL on the
-        # disconnected live graph). Best-effort — absent stamp prints the
-        # advisory, never fails stats.
         try:
             import duckdb as _dq
 
@@ -468,99 +481,10 @@ def print_stats(exact_chains: bool = False) -> int:  # noqa: C901
         except Exception as e:  # noqa: BLE001  # advisory; never fail stats
             print(f"  exact (stamped): unavailable ({type(e).__name__})")
 
-    # --- Longest chains (capture quality across domains) ---
-    # Advisory + best-effort like the sections around it: the chain reader
-    # needs scipy (declared dep) and reads straight from SQLite.
-    print(_hr("Longest chains — capture quality across domains", "-"))
-    _conn = connect()
-    try:
-        for _line in longest_chains(_conn, exact=exact_chains):
-            print(_line)
-    except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
-        print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
-    finally:
-        _conn.close()
 
-    # --- Hypergraph structure (D4 first SQL-over-incidence consumer) ---
-    # Incidence-native: block/hyperedge structure straight from the star
-    # store — O(|incidences|), no pairwise materialisation. Advisory +
-    # best-effort like the sections around it.
-    print(_hr("Hypergraph structure (incidence SQL)", "-"))
-    _hconn = connect()
-    try:
-        for _line in hyper_structure_lines(_hconn):
-            print(_line)
-    except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
-        print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
-    finally:
-        _hconn.close()
-
-    # --- Sector size distribution ---
-    print(_hr("Sectors by member count", "-"))
-    ss = gs["sector_size_summary"]
-    largest = gs["largest_sectors"]
-    smallest = gs["smallest_sectors"]
-    if ss["sector_count"]:
-        print(
-            f"  {ss['sector_count']} sectors  "
-            f"(min={ss['min']}, median={ss['median']}, "
-            f"max={ss['max']}, mean={ss['mean']})"
-        )
-        print("\n  Top 10 largest:")
-        for s in largest:
-            print(f"    {s['n']:4}  {s['sector']}")
-        print("\n  Bottom 5 smallest:")
-        for s in smallest:
-            print(f"    {s['n']:4}  {s['sector']}")
-
-    # --- Market cap distribution ---
-    print(_hr("Market cap distribution", "-"))
-    for m in gs["market_cap_distribution"]:
-        print(f"  {m['tier']:15} {m['n']}")
-
-    # --- Country census (country layer C1 / #219; exposure S5) ---
-    # DuckDB-side (e_listed_in x v_country x v_company). Degrades
-    # gracefully when the graph cache is absent — the SQLite-side
-    # sections above stay authoritative.
-    print(_hr("Countries by listing count", "-"))
-    try:
-        from helpers.graph.query import DUCKDB_PATH, connect_read_only
-
-        _dcon = connect_read_only(DUCKDB_PATH)
-        try:
-            _rows = _dcon.execute(
-                """
-                SELECT c."name", COUNT(*)
-                FROM e_listed_in e
-                JOIN v_country c ON c.id = e.country_id
-                GROUP BY 1 ORDER BY 2 DESC
-                """
-            ).fetchall()
-            _row = _dcon.execute(
-                """
-                SELECT COUNT(*)
-                FROM e_listed_in e
-                JOIN v_company v ON v.id = e.company_id
-                WHERE v.market_cap IS NULL
-                """
-            ).fetchone()
-            _unbucketed = _row[0] if _row else 0
-        finally:
-            _dcon.close()
-        _total = sum(n for _, n in _rows)
-        for _name, _n in _rows:
-            print(f"  {_name:20} {_n:5}  {_bar(_n, _total)}")
-        if _unbucketed:
-            print(f"  listed without a cap bucket: {_unbucketed}")
-    except Exception as e:  # noqa: BLE001  # census is best-effort by design
-        print(f"  (graph cache unavailable: {e})")
-
-    # --- Data hygiene ---
-    # These mirror ERROR-level checks in the integrity gate (orphan
-    # companies, self-loops, orphan edges); reprinted here for the
-    # human-readable snapshot. Sourced directly from SQLite (cheap,
-    # and keeps this printer independent of the full check_integrity()
-    # pipeline for a quick `make graph-stats`).
+def _print_data_hygiene(n_companies: int) -> None:
+    """Print data hygiene checks: orphan companies, self-loops, orphan edges,
+    analytics freshness, and notes-on-disk count."""
     print(_hr("Data hygiene", "-"))
     conn = connect()
     try:
@@ -594,7 +518,6 @@ def print_stats(exact_chains: bool = False) -> int:  # noqa: C901
         print(f"  Self-loops in graph_edges:        {n_self_loops} (should be 0)")
         print(f"  Orphan edges (FK violation):      {n_orphan_edges} (should be 0)")
 
-        # --- Analytics freshness (cache, not data integrity) ---
         print(_hr("graph_analytics", "-"))
         ga_metrics = conn.execute(
             "SELECT metric, COUNT(*) AS n, MAX(computed_at) AS last_at "
@@ -624,7 +547,6 @@ def print_stats(exact_chains: bool = False) -> int:  # noqa: C901
             else:
                 print("\n  ✓ fresh (analytics computed at/after most recent entity update)")
 
-        # --- Notes on disk ---
         notes_dir = _PROJECT_ROOT / "findata" / "Companies"
         if notes_dir.is_dir():
             n_notes = sum(1 for _ in notes_dir.rglob("*.md"))
@@ -636,6 +558,119 @@ def print_stats(exact_chains: bool = False) -> int:  # noqa: C901
                 print(f"  ✓ {n_companies} company entities match")
     finally:
         conn.close()
+
+
+def _print_distributions(gs: dict) -> None:
+    """Print sector size and market cap distributions."""
+    print(_hr("Sectors by member count", "-"))
+    ss = gs["sector_size_summary"]
+    largest = gs["largest_sectors"]
+    smallest = gs["smallest_sectors"]
+    if ss["sector_count"]:
+        print(
+            f"  {ss['sector_count']} sectors  "
+            f"(min={ss['min']}, median={ss['median']}, "
+            f"max={ss['max']}, mean={ss['mean']})"
+        )
+        print("\n  Top 10 largest:")
+        for s in largest:
+            print(f"    {s['n']:4}  {s['sector']}")
+        print("\n  Bottom 5 smallest:")
+        for s in smallest:
+            print(f"    {s['n']:4}  {s['sector']}")
+
+    print(_hr("Market cap distribution", "-"))
+    for m in gs["market_cap_distribution"]:
+        print(f"  {m['tier']:15} {m['n']}")
+
+
+def _print_country_census() -> None:
+    """Print country listing census from DuckDB (best-effort)."""
+    print(_hr("Countries by listing count", "-"))
+    try:
+        from helpers.graph.query import DUCKDB_PATH, connect_read_only
+
+        _dcon = connect_read_only(DUCKDB_PATH)
+        try:
+            _rows = _dcon.execute(
+                """
+                SELECT c."name", COUNT(*)
+                FROM e_listed_in e
+                JOIN v_country c ON c.id = e.country_id
+                GROUP BY 1 ORDER BY 2 DESC
+                """
+            ).fetchall()
+            _row = _dcon.execute(
+                """
+                SELECT COUNT(*)
+                FROM e_listed_in e
+                JOIN v_company v ON v.id = e.company_id
+                WHERE v.market_cap IS NULL
+                """
+            ).fetchone()
+            _unbucketed = _row[0] if _row else 0
+        finally:
+            _dcon.close()
+        _total = sum(n for _, n in _rows)
+        for _name, _n in _rows:
+            print(f"  {_name:20} {_n:5}  {_bar(_n, _total)}")
+        if _unbucketed:
+            print(f"  listed without a cap bucket: {_unbucketed}")
+    except Exception as e:  # noqa: BLE001  # census is best-effort by design
+        print(f"  (graph cache unavailable: {e})")
+
+
+def print_stats(exact_chains: bool = False) -> int:
+    # --- Distributions: sourced from the checker (single source of truth) ---
+    checker = DatabaseIntegrityChecker()
+    try:
+        gs = checker.check_graph_summary()
+    finally:
+        checker.close()
+
+    ec = gs["entity_counts"]
+    xec = gs["edge_counts"]
+    n_entities = sum(ec.values())
+    n_companies = ec.get("company", 0)
+    n_sectors = ec.get("sector", 0)
+    n_edges = sum(xec.values())
+
+    print(_hr("FinData Graph — Stats"))
+    print(f"\nEntities: {n_entities}  (companies: {n_companies}, sectors: {n_sectors})")
+    print(f"Edges:    {n_edges}  across graph_edges")
+
+    print("\nEdge-type breakdown:")
+    max_n = max(xec.values(), default=1)
+    for etype, n in xec.items():
+        print(f"  {etype:20} {_bar(n, max_n)}")
+
+    _print_structure_metrics()
+
+    # --- Longest chains (capture quality across domains) ---
+    print(_hr("Longest chains — capture quality across domains", "-"))
+    _conn = connect()
+    try:
+        for _line in longest_chains(_conn, exact=exact_chains):
+            print(_line)
+    except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
+        print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
+    finally:
+        _conn.close()
+
+    # --- Hypergraph structure (D4 first SQL-over-incidence consumer) ---
+    print(_hr("Hypergraph structure (incidence SQL)", "-"))
+    _hconn = connect()
+    try:
+        for _line in hyper_structure_lines(_hconn):
+            print(_line)
+    except Exception as e:  # noqa: BLE001  # advisory section; never fail stats
+        print(f"  (unavailable: {type(e).__name__}: {str(e)[:120]})")
+    finally:
+        _hconn.close()
+
+    _print_distributions(gs)
+    _print_country_census()
+    _print_data_hygiene(n_companies)
 
     print()  # trailing newline
     return 0
