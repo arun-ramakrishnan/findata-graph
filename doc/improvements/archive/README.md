@@ -188,6 +188,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`gate_run_search.md`](tooling/gate_run_search.md) — gate_query — DuckDB index + CLI over the append-only gate-run reports (byte-offset incremental refresh, junitxml ingest, zstd rotation to outputs/archives) — completed.md #282
 - [`gate_query_improvements.md`](tooling/gate_query_improvements.md) — Historical comparison, test history, failure clusters, generic/native artifact ingestion, timing/critical-path views, and end-to-end CLI example — completed.md #286
 - [`gate_report_quality_traces.md`](tooling/gate_report_quality_traces.md) — Gate report quality traces: incremental refresh diagnostics, pending-tail/parser warnings, structured advisory warning capture, JUnit/artifact visibility, and writer-contract coverage — completed.md #288
+- [`gate_index_grammar_coverage.md`](tooling/gate_index_grammar_coverage.md) — Gate index grammar coverage: integrity/verify titles never match the block grammar → offsets stuck at 0, O(corpus) rescan per invocation (1.29 s measured); diagnosis banked, S1–S3 designed, not adopted — completed.md #302
 - [`agpl_license_migration.md`](tooling/agpl_license_migration.md) — AGPL-3.0-or-later first-party code grant, third-party/asset boundary, source-offer runbook, metadata enforcement, and python-igraph compatibility gate — completed.md #291
 
 ## ui/ — Frontend & templates — reader, paper register, findata views

@@ -3,6 +3,19 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **gate_query integrity/verify grammar gap — DIAGNOSED + DESIGNED, not adopted 2026-09-26 (#302)**
+  (`archive/tooling/gate_index_grammar_coverage.md`): the integrity and verify
+  report titles never match the `# make <target> — gate report` block grammar,
+  so parse offsets stay 0 and every gate_query invocation (main() auto-refresh)
+  rescans them in full: 47.3 of 48.9 MB corpus bytes (integrity 45.5 MB / 116
+  runs + wt 1.77 MB / 65 + verify 37 KB / 102), refresh 1.29 s median vs 0.20 s
+  import-only, per-run integrity growth 16 KB → 735 KB ≈ +9.5 MB/day, rotate
+  structurally blind (zero runs rows). S1–S3 designed in the proposal
+  (search_tui grammar reuse → index both gates, rotate catch-up, loud
+  zero-block warning; projected ≤ 0.35 s). Revisit when refresh wall crosses
+  tolerance (weeks at current growth) or integrity/verify runs are needed in
+  gate_query answers.
+
 - **gate_query historical/artifact intelligence — EXECUTED 2026-09-24 (#286)**
   (`archive/tooling/gate_query_improvements.md`): added run comparison,
   historical test queries, failure clustering, generic/native artifact

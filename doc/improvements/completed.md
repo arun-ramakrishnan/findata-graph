@@ -7759,3 +7759,32 @@ per the ladder's own build-early aim).
   first-claim vs MIN-claimant parent divergence.
 
 Execution record: `archive/graph/csr_substrate.md`.
+
+## 302. Gate index grammar coverage — grammar-gap diagnosis banked; S1–S3 designed, not adopted
+
+**Proposal**: `doc/improvements/archive/tooling/gate_index_grammar_coverage.md`
+(born-archived — filed + concluded 2026-09-26; verdict: **CONCLUDED
+WITHOUT IMPLEMENTATION** at operator review; diagnosis + design banked).
+
+- Root cause (measured, this box): `gate_query refresh` advances byte
+  offsets only past blocks matching the `# make <target> — gate|bench
+  report` grammar; the integrity and verify writers emit different H1
+  titles, so 3 of 13 report copies yield zero blocks and store
+  `parse_offset = 0` back every refresh — silently (0 runs / 0 errors /
+  0 pending). `main()` auto-refreshes before every subcommand, so all
+  of them pay the rescan.
+- Cost: refresh 1.29 s median vs 0.20 s import-only; `_split_blocks`
+  1.52 M `re.match` calls, 0.55 s on the 45.5 MB file alone. Corpus:
+  integrity 45.5 MB / 116 runs + wt copy 1.77 MB / 65 + verify 37 KB /
+  102 = 47.3 of 48.9 MB bytes (97%), zero integrity/verify rows in
+  `runs`. Growth accelerating: per-run integrity section 16 KB →
+  735 KB (~13 runs/day ≈ +9.5 MB/day); `rotate` structurally blind
+  (cut points come from the `runs` table — zero rows for these files).
+- Banked design: S1 search_tui grammar reuse (title regexes + chunk
+  parsers) → index both gates, sections/buckets → legs, kind-aware
+  pending-tail; S2 rotate catch-up (45.5 MB → ~22 MB); S3 loud
+  zero-block invariant. Projected steady state ≤ 0.35 s per invocation.
+- Revisit trigger: pending.md (refresh wall crossing tolerance, or
+  integrity/verify visibility needed in gate_query answers).
+
+Execution record: `archive/tooling/gate_index_grammar_coverage.md`.

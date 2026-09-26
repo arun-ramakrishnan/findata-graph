@@ -36,6 +36,14 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+_(Previously: gate_index_grammar_coverage.md archived 2026-09-26 as
+completed.md entry 302 — born-archived diagnosis arc: integrity/verify
+report titles never match the block grammar, so parse offsets stay 0
+and every gate_query invocation rescans 97% of corpus bytes (1.29 s
+measured); S1–S3 design banked, not adopted, revisit trigger in
+pending.md. Record in
+`../archive/tooling/gate_index_grammar_coverage.md`.)_
+
 _(Previously: csr_substrate.md archived 2026-09-26 as completed.md
 entry 301 — T1 unlocked early per the build-early aim: CSR substrate
 (0.17 s build, 22,054n/115,264 rows, generation-gated) + Mojo BFS
