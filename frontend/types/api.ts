@@ -394,6 +394,9 @@ export interface GraphStructure {
 export interface GraphStatsResponse {
     /** null when the Onager/DuckDB layer is unavailable (degradable). */
     structure: GraphStructure | null;
+    /** exact all-sources scalars from the v_graph_structure stamp
+     *  (scipy_exact_universe S6); null when unstamped (degradable). */
+    structure_exact: Record<string, number> | null;
     entities: {
         total: number;
         by_type: Record<string, number>;

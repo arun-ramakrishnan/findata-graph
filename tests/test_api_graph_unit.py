@@ -30,7 +30,15 @@ class TestGraphStats:
         assert r.status_code == 200
         data = r.get_json()
         # Top-level keys present.
-        assert set(data) == {"entities", "edges", "hygiene", "sectors", "staleness", "structure"}
+        assert set(data) == {
+            "entities",
+            "edges",
+            "hygiene",
+            "sectors",
+            "staleness",
+            "structure",
+            "structure_exact",
+        }
         # entities sub-shape: 4 companies + 2 sectors (Banking, Technology).
         assert data["entities"]["total"] == 6
         assert data["entities"]["by_type"]["company"] == 4
@@ -1343,7 +1351,7 @@ class TestNearDuplicatesAVAIL1:
 
         monkeypatch.setattr(A, "get_graph_connection", lambda: object())
         monkeypatch.setattr(A, "_graph_build_etag", lambda: 'W/"graph-2026-07-22"')
-        monkeypatch.setattr(A, "_graph_near_dup_count", lambda con, dt: count)
+        monkeypatch.setattr(A, "_graph_near_dup_path_count", lambda con, dt: count)
         A._graph_near_dup_cache.clear()
         calls = {"n": 0}
 

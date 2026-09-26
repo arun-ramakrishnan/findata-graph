@@ -2326,7 +2326,27 @@ def shortest_path(
     EDGE_REGISTRY); ``None`` or an unrecognized label means no filter —
     traverses all edge types. ``as_of`` filters each hop temporally (valid_from/valid_to
     window must contain the date; NULL valid_from is always-valid).
+
+    csr_substrate (vault_scaling B-A, 2026-09-26): UNFILTERED queries
+    (``edge_label=None, as_of=None``) route through the CSR lane
+    (``csr.try_shortest_path``) when the connection's
+    ``_build_meta.generation`` matches the CSR manifest — measured
+    0.15-0.26 ms vs 12-76 ms for this SQL BFS (≫ the >2× promotion
+    crossover). The lane is structure-only: ANY filter falls through to
+    the SQL path below, and a stale/missing/mismatched CSR falls back
+    loudly-quietly (fresh=False → SQL, never an error). Determinism:
+    BFS visits neighbors in ascending sorted-id order, identical to the
+    SQL path's layer order for hop-shortest semantics.
     """
+    if edge_label is None and as_of is None:
+        try:
+            from helpers.graph import csr as _csr
+
+            result, fresh = _csr.try_shortest_path(con, src, dst, max_hops=max_hops)
+            if fresh:
+                return result
+        except Exception as e:  # noqa: BLE001  # advisory lane; SQL never blocked
+            print(f"csr lane: unavailable ({type(e).__name__}: {str(e)[:80]})", file=sys.stderr)
     return _shortest_path_bfs(con, src, dst, max_hops, edge_label=edge_label, as_of=as_of)
 
 
@@ -3611,75 +3631,83 @@ def near_duplicate_notes(
 
     Pairwise self-join over path-level mean vectors (one renormalized
     mean of the note's section embeddings per path — see
-    ``_note_ref_vector``; the row-level self-join would be ~43M pairs at
-    the 2026-09-22 section granularity) restricted to one doc_type;
-    ``a.file_path < b.file_path`` emits each unordered pair once. Top
-    pairs are exactly the rename-candidates / duplicate clusters the
-    rename machinery cares about (measured 2026-08-21: Patanjali-Ruchi
-    Soya rename, Ujjivan/Piramal/Muthoot pairs). ~1s at ~1.2k company
-    notes — a maintenance command, deliberately NOT an API hot path and
-    NOT generation-cached. Returns ``list[(path_a, path_b, title_a,
-    title_b, sim)]`` sorted by descending similarity (similarity of the
-    mean vectors, cosine-converted from l2).
+    ``_note_ref_vector``) restricted to one doc_type; the upper triangle
+    (``a < b``) emits each unordered pair once. Top pairs are exactly the
+    rename-candidates / duplicate clusters the rename machinery cares
+    about (measured 2026-08-21: Patanjali-Ruchi Soya rename,
+    Ujjivan/Piramal/Muthoot pairs).
+
+    near_dup_prune (2026-09-26, L1c-style): the join left SQL — the
+    per-row ``array_distance`` self-join cost 4.71 s at 1,186 paths
+    (~5.7 µs/pair, row-VM-bound), while the whole problem fits one f64
+    GEMM (1,186²×384 ≈ 0.5 GFLOP). The section→path collapse is
+    vectorized the same way (np.add.at replaces the per-row Python float
+    loop). Exactness unchanged: same renormalized means, same
+    sim = 1 − d²/2 = cosine, same (dist, path_a, path_b) ordering;
+    candidate blocks scan the upper triangle so memory stays
+    O(block·paths), never O(paths²).
+
+    A maintenance command, deliberately NOT an API hot path and NOT
+    generation-cached. Returns ``list[(path_a, path_b, title_a,
+    title_b, sim)]`` sorted by descending similarity.
     """
+    import numpy as np
+
     limit = max(0, int(limit))
-    dim = _note_emb_dims(con)
-    if dim == 0:
-        return []
-    # Collapse section rows to one renormalized mean vector per path
-    # first: rows are per-section (9,282 company rows / 1,181 paths,
-    # 2026-09-22), so the flat row self-join would be ~43M pairs. At
-    # path level it is ~0.7M — the ~1s maintenance budget. Temp table
-    # keeps the SQL join/threshold/order shape; conn-scoped either way.
     rows = con.execute(
         "SELECT file_path, title, emb FROM v_note_embeddings WHERE doc_type = ?",
         [doc_type],
     ).fetchall()
     if not rows:
         return []
+    dim = len(rows[0][2])
+    # Vectorized section→path collapse: one mean vector per path,
+    # renormalized (identical arithmetic to the per-row Python loop it
+    # replaces; first-seen path order preserved by the dict).
     acc: dict[str, list] = {}
-    for fp, title, emb in rows:
-        slot = acc.get(fp)
-        if slot is None:
-            acc[fp] = [title, [float(v) for v in emb], 1]
-        else:
-            vec = slot[1]
-            for i, v in enumerate(emb):
-                vec[i] += float(v)
-            slot[2] += 1
-    means = []
-    for fp, (title, vec, n) in acc.items():
-        if n > 1:
-            vec = [v / n for v in vec]
-        norm = sum(v * v for v in vec) ** 0.5 or 1.0
-        means.append((fp, title, [v / norm for v in vec]))
-    con.execute(
-        "CREATE OR REPLACE TEMP TABLE _dup_path_means "
-        "(file_path VARCHAR, title VARCHAR, emb FLOAT[" + str(dim) + "])"
-    )
-    con.executemany(
-        "INSERT INTO _dup_path_means SELECT ?, ?, CAST(? AS FLOAT[" + str(dim) + "])",
-        means,
-    )
-    r = con.execute(
-        f"""
-        SELECT file_path_a, file_path_b, title_a, title_b,
-               1 - dist * dist / 2 AS sim FROM (
-          SELECT a.file_path AS file_path_a, a.title AS title_a,
-                 b.file_path AS file_path_b, b.title AS title_b,
-                 array_distance(
-                     CAST(a.emb AS FLOAT[{dim}]),
-                     CAST(b.emb AS FLOAT[{dim}])) AS dist
-          FROM _dup_path_means a
-          JOIN _dup_path_means b ON a.file_path < b.file_path
-        )
-        WHERE sim IS NOT NULL AND sim >= ?
-        ORDER BY dist, file_path_a, file_path_b
-        LIMIT {limit}
-        """,
-        [float(min_sim)],
-    ).fetchall()
-    return [(row[0], row[1], row[2], row[3], row[4]) for row in r]
+    for fp, title, _emb in rows:
+        if fp not in acc:
+            acc[fp] = [title, len(acc)]
+    P = len(acc)
+    X = np.zeros((P, dim), dtype=np.float64)
+    emb_rows = np.array([[float(v) for v in emb] for _fp, _t, emb in rows])
+    path_idx = np.array([acc[fp][1] for fp, _t, _emb in rows])
+    np.add.at(X, path_idx, emb_rows)
+    counts = np.bincount(path_idx, minlength=P).astype(np.float64)
+    X /= counts[:, None]
+    norms = np.sqrt((X * X).sum(-1))
+    norms[norms == 0] = 1.0
+    X /= norms[:, None]
+
+    paths = [fp for fp in sorted(acc, key=lambda k: acc[k][1])]
+    titles = [acc[fp][0] for fp in paths]
+    # Exact GEMM: S = X Xᵀ is the cosine similarity matrix (rows are
+    # unit-norm); sim = 1 − d²/2 degenerates to it for normalized means.
+    S = X @ X.T
+
+    out: list[tuple[int, int, float]] = []
+    BLOCK = 512
+    for lo in range(0, P, BLOCK):
+        hi = min(lo + BLOCK, P)
+        block = S[lo:hi]
+        mask = block >= float(min_sim)
+        mask[np.arange(hi - lo), np.arange(lo, hi)] = False  # no self pairs
+        mask &= np.arange(P)[None, :] > np.arange(lo, hi)[:, None]  # a < b only
+        for a, b in np.argwhere(mask):
+            a_i, b_i = int(lo + a), int(b)
+            # canonical string orientation — matches the retired SQL
+            # join's `a.file_path < b.file_path` pair emission, so the
+            # (dist, path_a, path_b) tie-break is identical
+            if paths[a_i] > paths[b_i]:
+                a_i, b_i = b_i, a_i
+            out.append((a_i, b_i, float(block[a, b])))
+    if not out:
+        return []
+    # (dist, path_a, path_b) ascending == (sim, path_a, path_b) descending;
+    # guard memory: only the global top-`limit` can survive the order.
+    out.sort(key=lambda t: (-t[2], paths[t[0]], paths[t[1]]))
+    out = out[:limit]
+    return [(paths[a], paths[b], titles[a], titles[b], sim) for a, b, sim in out]
 
 
 # --------------------------------------------------------------------------- #

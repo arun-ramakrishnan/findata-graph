@@ -20,6 +20,39 @@ def test_mplbackend_is_agg():
         pass
 
 
+def test_mplbackend_is_agg_clean_interpreter():
+    """Worker-order-independent backend proof (near_dup/CSR distribution
+    shift exposed the latent order dependency: hypergraphx — imported by
+    sibling hyper tests in the same xdist worker — imports matplotlib
+    before pix2text_markdown's setdefault can run, pinning tkagg for the
+    whole worker process). The backend contract is per-INTERPRETER, so
+    verify it in a clean subprocess: fresh import -> Agg, unconditionally.
+    """
+    import subprocess
+    import sys
+
+    repo = Path(__file__).resolve().parents[1]
+    code = (
+        "import sys; sys.path.insert(0, '.')\n"
+        "import os\n"
+        "os.environ.pop('MPLBACKEND', None)\n"
+        "import helpers.pdf.pix2text_markdown\n"
+        "import matplotlib\n"
+        "assert os.environ.get('MPLBACKEND') == 'agg', os.environ.get('MPLBACKEND')\n"
+        "print(matplotlib.get_backend())\n"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", code],
+        capture_output=True,
+        text=True,
+        cwd=str(repo),
+        timeout=120,
+    )
+    assert proc.returncode == 0, proc.stderr[-500:]
+    backend = proc.stdout.strip().lower()
+    assert "agg" in backend, backend
+
+
 def test_mplbackend_inline_forced_to_agg(monkeypatch):
     # Simulate the inline backend being set before import — reload should fix it
     monkeypatch.setenv("MPLBACKEND", "module://matplotlib_inline.backend_inline")

@@ -124,22 +124,19 @@ def load_projection(
 ) -> list[tuple[str, str, str, float]]:
     """Load ``(source, target, edge_type, weight)`` rows from graph_edges.
 
-    ``edge_types=None`` = FULL projection (all types). Uses
-    ``helpers.core.db.connect()`` when available, else plain sqlite3
-    against ``db_path``/``DEFAULT_DB_PATH`` (keeps /tmp/venv_igraph working
-    without dotenv).
+    ``edge_types=None`` = FULL projection (all types). Routes through
+    ``helpers.core.db.connect()`` (FK enforcement + WAL guarantees) —
+    the D17 restoration retired the pilot-era plain-sqlite3 fallback
+    (igraph lives in the main venv now, so the dotenv-less excuse is
+    void), and the B2 allowlist guard rejects raw connects anyway.
     """
-    if db_path is None:
-        try:
-            from helpers.core.db import connect as _connect
+    from helpers.core.db import connect as _connect
 
-            con = _connect()
-        except Exception:
-            con = sqlite3.connect(str(DEFAULT_DB_PATH))
-            con.row_factory = sqlite3.Row
-    else:
-        con = sqlite3.connect(str(db_path))
-        con.row_factory = sqlite3.Row
+    con = _connect(
+        db_path=str(db_path) if db_path is not None else str(DEFAULT_DB_PATH),
+        read_only=True,
+        row_factory=sqlite3.Row,
+    )
     try:
         if edge_types:
             ph = ",".join("?" for _ in edge_types)

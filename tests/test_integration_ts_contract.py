@@ -571,7 +571,15 @@ class TestGraphStatsContract:
         # GraphStatsResponse has inline object types ({...}) whose fields the
         # flattened key-parser also picks up, so assert the top level + each
         # declared nested block explicitly.
-        assert set(data) == {"structure", "entities", "edges", "sectors", "hygiene", "staleness"}
+        assert set(data) == {
+            "structure",
+            "structure_exact",
+            "entities",
+            "edges",
+            "sectors",
+            "hygiene",
+            "staleness",
+        }
         assert set(data["entities"]) == {"total", "by_type"}
         assert set(data["edges"]) == {"total", "by_type"}
         assert set(data["sectors"]) == {"count", "top", "size_distribution"}

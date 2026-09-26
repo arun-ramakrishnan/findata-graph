@@ -164,11 +164,14 @@ _graph_etag: str | None = None
 # memory one (each entry holds up to `limit` rows).
 _graph_near_dup_cache: OrderedDict[tuple, list] = OrderedDict()
 _NEAR_DUP_CACHE_MAX = 64
-# Corpus ceiling for the self-join: the join's cost is quadratic in candidate
-# rows, so refuse above this rather than stalling a request — parity with the
-# positions node ceiling (layout.py _MAX_NODES). The live corpus sits at
-# 9,282 company docs, so the default request stays under it today.
-_NEAR_DUP_MAX_ROWS = 10_000
+# Corpus ceiling for the self-join: the join is quadratic in PATHS (one
+# mean vector per note file), so the ceiling counts DISTINCT paths — the
+# near_dup_prune rewrite (2026-09-26) moved the join to a numpy GEMM
+# (1.65 s at 1,186 paths, was 4.71 s SQL over the same data) and the old
+# section-row ceiling was measuring the wrong axis anyway (9,930 sections
+# ≠ 1,186 paths). 10,000 paths ≈ 3.3 s projected GEMM (measured scaling),
+# parity with the positions ceiling posture: refuse rather than stall.
+_NEAR_DUP_MAX_PATHS = 10_000
 
 
 def _open_graph_connection() -> duckdb.DuckDBPyConnection:
@@ -354,16 +357,19 @@ def _reset_graph_connection() -> None:
             pass
 
 
-def _graph_near_dup_count(con: duckdb.DuckDBPyConnection, doc_type: str) -> int | None:
-    """Candidate-row count for one doc_type (the self-join's input size).
+def _graph_near_dup_path_count(con: duckdb.DuckDBPyConnection, doc_type: str) -> int | None:
+    """Candidate-PATH count for one doc_type (the self-join's input size).
 
-    Returns None when the view is unreadable, so the ceiling degrades open
-    rather than turning a cold cache into a 500 — the wrapper below returns
-    [] on an absent embeddings table, and that contract is preserved.
+    The join is quadratic in paths (one mean vector per note file), not
+    in section rows — near_dup_prune 2026-09-26 moved the ceiling to the
+    true axis. Returns None when the view is unreadable, so the ceiling
+    degrades open rather than turning a cold cache into a 500 — the
+    wrapper below returns [] on an absent embeddings table, and that
+    contract is preserved.
     """
     try:
         row = con.execute(
-            "SELECT count(*) FROM v_note_embeddings WHERE doc_type = ?",
+            "SELECT count(DISTINCT file_path) FROM v_note_embeddings WHERE doc_type = ?",
             [doc_type],
         ).fetchone()
         return None if row is None else row[0]
@@ -406,11 +412,11 @@ def _cached_near_duplicates(
                 # correction is best-effort.
                 pass
             return hit
-    n = _graph_near_dup_count(con, doc_type)
-    if n is not None and n > _NEAR_DUP_MAX_ROWS:
+    n = _graph_near_dup_path_count(con, doc_type)
+    if n is not None and n > _NEAR_DUP_MAX_PATHS:
         raise ValueError(
-            f"near-duplicates corpus too large: {n:,} '{doc_type}' docs "
-            f"exceed the {_NEAR_DUP_MAX_ROWS:,}-doc compute ceiling"
+            f"near-duplicates corpus too large: {n:,} '{doc_type}' paths "
+            f"exceed the {_NEAR_DUP_MAX_PATHS:,}-path compute ceiling"
         )
     results = near_duplicate_notes(con, min_sim=min_sim, doc_type=doc_type, limit=limit)
     if gen is not None:

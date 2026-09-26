@@ -327,11 +327,15 @@ class TestBundleK3CoalescedNeighbors:
         assert ("in", "Automotive", "HasCompany") in n
 
     def test_suppliers_and_customers_outgoing_suppliesto(self, con):
-        # Talbros → Tata Motors Passenger Vehicles (supplier_to). Talbros is
-        # the supplier, so it has customers (Tata Motors PV + CV), no suppliers.
+        # Talbros → Tata Motors (supplier_to). Talbros is the supplier, so
+        # it has Tata customers, no suppliers. The corporate-intake lanes
+        # added 'TATA MOTORS' (group-level entity) alongside the canonical
+        # PV/CV filers, so — same class as the RPT pins below — this is a
+        # MEMBERSHIP pin, not an equality pin.
         s, c = suppliers_and_customers(con, "Talbros Automotive Components")
         assert s == []
-        assert c == ["Tata Motors Commercial Vehicles", "Tata Motors Passenger Vehicles"]
+        assert "Tata Motors Commercial Vehicles" in c
+        assert "Tata Motors Passenger Vehicles" in c
 
     def test_suppliers_and_customers_incoming_suppliesto(self, con):
         # The flip side: Tata Motors PV has Talbros as a supplier.

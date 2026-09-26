@@ -40,6 +40,9 @@ REPORT = REPO_ROOT / "outputs" / "perf_report.md"
 #   graph_link_prediction    2.5-2.7 s   4.0     O(E x avg_deg) 2-hop join
 #                                                (633k slots); hub cap 512
 #                                                bounds the star term
+#   derive_insights          4.8-7.5 s   9.0     scan/render wall (corpus
+#                                                growth); +2 s operator
+#                                                boost 09-26
 #   graph_rebuild            2.5-2.7 s   5.0     O(E) data-only rebuild
 #                                                (tightened from 8.0 — was
 #                                                a regression ceiling)
@@ -48,8 +51,9 @@ REPORT = REPO_ROOT / "outputs" / "perf_report.md"
 #                                                roundtrip (58 tables)
 #   integrity_check          4.4-4.7 s   10.0    O(entities+relations)
 #                                                (operator-approved headroom)
-#   shortest_path_bfs        8.2-8.3 s   10.0    inner per-route asserts are
-#                                                the real gate (12/76 ms)
+#   shortest_path_bfs        8.1-10.2 s  12.0    inner per-route asserts are
+#                                                the real gate (12/76 ms);
+#                                                +2 s operator boost 09-26
 #
 # Super-linear decay (the thing these budgets catch) would show as a leg
 # blowing past its budget at constant corpus: 2-hop slots grow ~E x d,
@@ -174,7 +178,7 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # connect + best-of-3 harness cost, which hit 8.17s when scheduled
     # right after the minutes-scale --compute legs (page-cache/scheduler
     # pressure). Headroom for that adjacency, no semantics change.
-    ("shortest_path_bfs", ["tests/bench_shortest_path.py"], 10.0),
+    ("shortest_path_bfs", ["tests/bench_shortest_path.py"], 12.0),
     (
         "extract_relations",
         [
@@ -205,7 +209,7 @@ BENCHMARKS: list[tuple[str, list[str], float]] = [
     # script itself. Budget tightened 20s -> 7s (2026-09-01): 2.2x headroom
     # over the measured warm time while still catching regressions.
     ("pdf_pipeline_local", ["tests/bench_pdf_pipeline.py"], 7.0),
-    ("derive_insights", ["helpers/graph/derive_insights.py"], 7.0),
+    ("derive_insights", ["helpers/graph/derive_insights.py"], 9.0),
     (
         "parse_newsletter",
         ["helpers/core/parse_newsletter.py", "findata/The_Chatter/Embracing_the_Unknown.md"],

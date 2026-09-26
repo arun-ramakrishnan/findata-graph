@@ -36,6 +36,13 @@ entry number and stale DONE pointers):
 
 _(none)_
 
+_(Previously: csr_substrate.md archived 2026-09-26 as completed.md
+entry 301 — T1 unlocked early per the build-early aim: CSR substrate
+(0.17 s build, 22,054n/115,264 rows, generation-gated) + Mojo BFS
+(2.7-3× on long-hop) + query.shortest_path CSR lane for unfiltered
+queries (0.08-0.26 ms vs 12-76 ms SQL). Execution record in
+`../archive/graph/csr_substrate.md`.)_
+
 _(Previously: scipy_exact_universe.md archived 2026-09-26 as
 completed.md entry 300 — three scipy lanes (exact all-roots chains
 119-133 s; structure scalars 9/5/4.046 in 36-42 s; full-walk WF

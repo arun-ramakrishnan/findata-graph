@@ -7727,3 +7727,35 @@ per the operator's switching-policy ruling, recorded as D18).
   chains default preserved).
 
 Execution record: `archive/graph/scipy_exact_universe.md`.
+
+## 301. CSR substrate + Mojo BFS — T1 unlocked early (build-early aim)
+
+**Proposal**: `doc/improvements/archive/graph/csr_substrate.md`
+(filed + executed 2026-09-26 — verdict: **EXECUTED**; operator-directed
+unlock of the vault_scaling T1 ladder ahead of the ~1M-row trigger,
+per the ladder's own build-early aim).
+
+- B-A substrate: `helpers/graph/csr.py` — frozen binary layout
+  (int32 LE offsets/neighbors, both directions, sorted slices),
+  sorted-name deterministic ids, sha256 manifest carrying
+  `db_meta.generation`, byte-identical rebuilds (0.17 s live build,
+  22,054 nodes / 115,264 directed rows), mmap loader with
+  generation-gate freshness → DuckDB fallback doctrine.
+- B-B Mojo BFS: `Mojo/src/bench/bfs_csr.mojo` (Mojo 1.1, def-only) —
+  files-in/paths-out, exit 0/2/1, Beamer direction switch, BOTH modes
+  two-phase MIN-claimant so parent trees (and paths) are identical to
+  the Python oracle across modes; the parity gate caught the
+  first-claim vs MIN-claimant divergence empirically before the
+  doctrine check did.
+- Promotion (measured crossover, ≫2×): `query.shortest_path` routes
+  UNFILTERED queries through the CSR lane gated on the connection's
+  `_build_meta.generation` matching the manifest (tmp fixtures and
+  cross-store calls fail the match → SQL fallback — no cross-db
+  contamination). Crossover: Python-CSR 0.08 ms 1-hop (startup-free);
+  Mojo 10-15 ms long-hop vs 32-39 ms Python (2.7-3×) — Python serves
+  the default path, Mojo owns long-hop/batch.
+- Defects caught: shard-column diagonal indexing (job-count-invariance
+  golden), fixed-anchor co-location, and here the parity gate caught
+  first-claim vs MIN-claimant parent divergence.
+
+Execution record: `archive/graph/csr_substrate.md`.
