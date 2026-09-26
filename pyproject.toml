@@ -165,8 +165,13 @@ ignore = ["E501"]
 # every such line would be pure noise, so these files opt out of E402 instead.
 # Scope is deliberately narrow (only files that actually bootstrap) so a real
 # late-import bug elsewhere still gets caught.
+# tests/**: S101 asserts are the contract; S311 — seeded random.Random(7) is a
+# determinism fixture (same rule as hyper_scale_bench.py below, seed=7), never a
+# crypto context; S603 — tests deliberately shell out to repo-local binaries
+# (Mojo lanes) and to a clean-interpreter python for backend-order proofs, all
+# with argv built from known paths, never untrusted input.
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["E402", "S101"]
+"tests/**/*.py" = ["E402", "S101", "S311", "S603"]
 "doc/templates/test_module.py" = ["S101"]  # test SEED — asserts are the contract (same rationale as tests/**)
 # query.py composes parameterized SQL by purpose — every S608 there is the
 # same reviewed pattern (interpolations are ?-clause builders / constant

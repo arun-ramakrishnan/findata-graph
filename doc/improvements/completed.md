@@ -7788,3 +7788,85 @@ WITHOUT IMPLEMENTATION** at operator review; diagnosis + design banked).
   integrity/verify visibility needed in gate_query answers).
 
 Execution record: `archive/tooling/gate_index_grammar_coverage.md`.
+
+## 303. Trace-analyzer coverage — 10 legs + `--legs`, zcode cost materialized, and a token-convention bug that was inflating every cross-source total
+
+**Proposal**: `doc/improvements/archive/tooling/trace_analyzer_legs.md`
+(filed + executed 2026-09-26; S11 concluded as *documentation plus one schema
+addition*, not a data-recovery project).
+
+- Origin: a schema-vs-usage census found 39 populated columns in zero report
+  SQL, two wholly unread tables (`fact_log`, `load_log`), and a hole where
+  plan-routing dimensions and cost never intersect — zcode carried
+  `provider`/`variant` on 3079/3079 rows and `cost_usd` on none. S1–S10 landed
+  as 10 report legs plus a `--legs` filter; the census now reads 29 of those
+  39 (111 populated columns store-wide, 90 read, 21 unread).
+- **`store_range` was short twice.** The first fix unioned
+  `fact_file_edit`/`fact_event`/`dim_session` as the acceptance criterion
+  named them (default start 2026-09-11 → 2026-09-05) but still omitted
+  `fact_log` (2026-08-27 → 09-25, 3743 rows) and `load_log` (via
+  `started_at`), so **no range spec could reach the 527 `ai.provider` failures
+  and 1419 resolver warnings S1 exists to report**. Default start is now
+  **2026-08-27**. A criterion that enumerates tables is always weaker than
+  "every table that can date a row".
+- **The rate table exposed a token-convention bug worth more than the leg.**
+  S5 needed fresh/cached prices, and the two harnesses disagree on what
+  `input` means: zcode's `provider_total_tokens == input + output` (input
+  **inclusive** of cache reads, verified 3160/3160) while opencode's
+  `total == input + output + reasoning + cache.read` (input **exclusive**,
+  2672/2672). Both were written into `input` + `cache_read` as if disjoint, so
+  every cross-source token sum double-counted zcode's cached context and
+  billed it at the uncached rate (~5.4x for glm-5.3). The tell was already in
+  the review's own numbers — `main_turn` 746.1M was inclusive while `subagent`
+  2.7M was fresh-only, three buckets on two bases.
+- Two invariants confirm the fix, neither constructed for it. The **subset
+  property**: `mu`'s zai rows are the quota-wide Zhipu API, so each harness
+  must be a subset; treating raw `input` as fresh violated
+  `mu.fresh_in >= local fresh` on **9/10** shared days, and after
+  normalization it holds **9/11** (misses = the documented current-day Zhipu
+  low-read transient). The **cost ratio**: per-day totals went from store
+  $386.64 vs `mu` $206.75 (**1.87x — local spend exceeding the entire
+  account**) to store **$71.5712** vs **$206.7506** (**0.346x — a proper
+  subset**). The rate table reproduces `mu`'s zai cost to **$0.000000**.
+- **Acceptance criterion 3 was wrong and was rewritten.** It said S2's zcode
+  per-day totals should "match `mu.fact_usage`". They cannot: `mu` is
+  quota-wide, the store is the local harness. The verified criterion is the
+  subset property plus a stated ratio, with different day boundaries
+  (API server-side UTC vs machine clock) as the reason per-day figures
+  shuffle. Left as written, it would have failed correct code.
+- S5's gate question resolved **provider-side**: zcode `reasoning_tokens` is 0
+  in 3160/3160 source rows and 0/400 sampled `raw_usage_json` payloads carry
+  any reasoning key, so no loader change can recover it. `variant` is
+  nonetheless fully populated (high 1752 / max 1396 / low 7 / disabled 5) —
+  the effort ladder has cost and latency but permanently no reasoning signal.
+- Two design corrections: the `not-materialized` sentinel could not live inside
+  the cost column (DuckDB binds the branch to DOUBLE and rejects the string),
+  so `cost_coverage` is a separate column; and S8's NULL bucket is not
+  "unattributed" but a different taxonomy (`query_source` is zcode-only), now
+  named `(no query_source)` with a `sources` column. `plan_routing` was
+  likewise scoped to zcode after finding `provider` holds a **plan** for zcode
+  and a **model vendor** for opencode/prime — one column, two taxonomies.
+- S11 concluded **without a join**: 6 of 7 dead columns are empty at the source
+  (`reasoning_tokens`, `cache_creation_input_tokens`, `retry_count`,
+  `retryable`, `attempt_index`, `context_exceeded` all 1-distinct-zero;
+  zcode `session.summary_*` NULL 0/20), so the two causes separate into
+  *provider-absent* (document or drop — a leg printing them would report "not
+  extracted" as "did not happen") and *provider-partial* (`error_message`,
+  16/3160 non-null), the sole recoverable item and a **schema addition**,
+  not a loader fix. `fact_event.trace_id` is a third case where a join is the
+  wrong tool: those rows are opencode/prime while `model_usage.trace_id` is
+  zcode, so no key is shared. Deferring S11 was correct — the evidence pass it
+  required is what showed there is almost nothing to recover.
+- Verified: ruff clean; text + `--json` smoke across `--range 2d`/`3d`/`30d`/
+  `all` (20 JSON keys, 19 legs); acceptance values reproduced live (S1 527 /
+  1419 / 3743; S6 93 / 96 disjoint, union 189; S2 3160/3160 zcode requests
+  priced, 0 negatives; S8 383,519,628 / 460,185,231 / 2,686,020 / 2,542,800 /
+  3,160; S7 request-derived cost now complete where the session figure is
+  `not-materialized` for all 20 zcode sessions). `make qa` was **not** the
+  gate — `bench_data/code/agent_traces.py` is git-ignored, so the repo gate
+  cannot see it; `md-lint` and `static_checks` were run and are clean.
+- S7's request aggregate re-keyed on `(source, session_id)` (no collision
+  exists today — hardening against a silent merge), and the
+  `where.replace('day', 's.day')` string surgery removed.
+
+Execution record: `archive/tooling/trace_analyzer_legs.md`.

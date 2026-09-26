@@ -63,6 +63,7 @@ from functools import partial
 import sys
 import time
 from pathlib import Path
+from typing import TypedDict
 
 import numpy as np
 from scipy.sparse import csr_array, csr_matrix, identity
@@ -265,24 +266,42 @@ def _full_universe_worker(payload: tuple) -> tuple:
     return clo_wf.astype(np.float64), harm.astype(np.float64), scalars
 
 
-def full_universe_stats(A: csr_matrix, jobs: int = 4) -> dict[str, object]:
+class FullUniverseStats(TypedDict):
+    """Return shape of :func:`full_universe_stats`.
+
+    ``closeness``/``harmonic`` are POSITIONAL ARRAYS, not name-keyed dicts —
+    they align with ``load_projection``'s name order, which is the contract
+    (results row i belongs to contract name i). Callers zip them against
+    that name list; the earlier docstring claimed dicts and the
+    ``dict[str, object]`` annotation hid the shape from the type checker,
+    which is how the stamp lane in ``query.py`` ended up passing ``object`` to
+    ``map(float, ...)``.
+    """
+
+    closeness: np.ndarray
+    harmonic: np.ndarray
+    structure: dict[str, float | int]
+
+
+def full_universe_stats(A: csr_matrix, jobs: int = 4) -> FullUniverseStats:
     """One-pass all-universe lane: WF closeness/harmonic + structure scalars.
 
     The stamped-default form of S3+S1 (scipy_exact_universe S6): a single
     sharded dijkstra from EVERY node yields
-    ``{"closeness": {name: v}, "harmonic": {name: v}, "structure": {...}}``
+    ``{"closeness": <array>, "harmonic": <array>, "structure": {...}}``
     where closeness is Wasserman-Faust scaled (full-reach rows keep the
     raw contract values), harmonic is raw stamp semantics, and structure
     carries diameter / radius (giant-component convention) / APL /
-    component counts. Names order matches ``load_projection``.
+    component counts. Both arrays are positional and align with
+    ``load_projection``'s name order; see :class:`FullUniverseStats`.
     """
     from scipy.sparse.csgraph import connected_components
 
     n = A.shape[0]
     if n == 0:
         return {
-            "closeness": {},
-            "harmonic": {},
+            "closeness": np.empty(0, dtype=np.float64),
+            "harmonic": np.empty(0, dtype=np.float64),
             "structure": {
                 "diameter": 0,
                 "radius": 0,

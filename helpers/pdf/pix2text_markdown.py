@@ -29,13 +29,24 @@ else:
 try:
     import matplotlib  # noqa: E402  # must be after MPLBACKEND fix
 
-    # If matplotlib was already imported with the inline backend, switch
-    # before any figure is created. `force=True` is available on Matplotlib
-    # >=3.6; fallback to `use` without force for older installs.
-    if matplotlib.get_backend().startswith("module://matplotlib_inline"):
+    # MPLBACKEND is read ONCE, at matplotlib's first import. If anything in
+    # this process imported matplotlib earlier, the env fix above is cosmetic
+    # and the resolved backend stays whatever that first import chose. Two
+    # ways that happens here: a GUI-capable default (this box resolves
+    # `tkagg` when a display is reachable), and xdist workers being shared —
+    # hypergraphx, imported by sibling hyper tests, imports matplotlib before
+    # this module's `setdefault` can run. Correct the RESOLVED backend, not
+    # just the inline case, or the headless contract breaks silently and only
+    # shows up as a GUI attempt deep inside Pix2Text.
+    #
+    # Compare against "agg" EXACTLY: `get_backend()` lowercases to `tkagg` /
+    # `qtagg` / `webagg`, and a substring test passes all of them. Global by
+    # design — Pix2Text needs Agg, and a figure-free import of this helper is
+    # the last cheap moment to switch.
+    if matplotlib.get_backend().lower() != "agg":
         try:
             matplotlib.use("Agg", force=True)  # type: ignore[call-arg]
-        except TypeError:
+        except TypeError:  # matplotlib < 3.6 has no force= kwarg
             matplotlib.use("Agg")
 except Exception:  # noqa: S110  # intentional no-log — matplotlib missing is expected in headless env
     pass  # matplotlib not installed or backend switch failed — Pix2Text will handle

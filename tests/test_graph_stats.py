@@ -127,7 +127,7 @@ class TestLongestChainsExact:
     default path stays sampled (gate-safe)."""
 
     @staticmethod
-    def _chain_db(tmp_path: Path, n: int = 40) -> "sqlite3.Connection":
+    def _chain_db(tmp_path: Path, n: int = 40) -> sqlite3.Connection:
         import sqlite3
 
         conn = sqlite3.connect(str(tmp_path / "chains.db"))

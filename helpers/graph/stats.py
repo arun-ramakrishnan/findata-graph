@@ -73,9 +73,9 @@ _CHAINS_EXCLUDE = ("part_of", "has_company", "belongs_to", "cited_in", "listed_i
 _CHAIN_FORBIDDEN = frozenset(_CHAINS_EXCLUDE) | {"listed_on_index"}
 
 
-def longest_chains(
+def longest_chains(  # noqa: C901
     conn, top_k: int = 5, *, max_exact: int = 3000, exact: bool = False
-) -> list[str]:  # noqa: C901
+) -> list[str]:
     """Render the longest-chains section lines (pure function of ``conn``).
 
     Two views: ALL edges (index membership excluded — see
@@ -107,7 +107,7 @@ def longest_chains(
     from scipy.sparse import csr_matrix
     from scipy.sparse.csgraph import connected_components, shortest_path
 
-    def _dist_stats(dist: "np.ndarray") -> tuple[int, float, int, int]:
+    def _dist_stats(dist: np.ndarray) -> tuple[int, float, int, int]:
         """(diameter, median, ordered ties at diameter, finite count).
 
         Chunked row scan — ordered-pair integer histogram; no triu

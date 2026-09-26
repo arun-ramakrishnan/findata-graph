@@ -3,6 +3,28 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
+- **trace-analyzer coverage — EXECUTED 2026-09-26 (#303)**
+  (`archive/tooling/trace_analyzer_legs.md`): 10 legs + `--legs` landed
+  (`reliability`, `spend`, `side_effects`, `load_health`, `plan_routing`,
+  `failure_forensics`, `session_economics`, `overhead_tax`, `turn_quality`,
+  `store_range`); census now reads 29 of the original 39 columns (111
+  populated store-wide, 90 read, 21 unread) and S1 surfaces the orphaned
+  `fact_log` (527 prime "provider stream failure" + 1419 model-resolution
+  warnings). S5 materialized zcode cost from the existing price table
+  (3160/3160 requests priced, $71.5713) and, in doing so, exposed a token
+  convention bug — zcode's `input` is inclusive of cache reads, opencode's is
+  exclusive — that had been double-counting every cross-source token total
+  and billing zcode's cache at the uncached rate; the subset invariant
+  against `mu` went from violated on 9/10 days to holding on 9/11, and the
+  local/quota-wide cost ratio from an impossible 1.87x to 0.346x. Lane-4's
+  open question (§6 of `doc/local/engineering/capture_traces.md`) also
+  settled: the 22M-token turn is 134 sequential requests summed, not a
+  context overrun. S11 concluded with no join — 6 of 7 dead columns are
+  empty at the source, and the one genuinely partial column
+  (`error_message`, 16/3160) needs a schema addition, not a loader fix.
+  **Open follow-up:** add `error_message` to the request schema, and decide
+  per provider-absent column whether to document or drop it.
+
 - **gate_query integrity/verify grammar gap — DIAGNOSED + DESIGNED, not adopted 2026-09-26 (#302)**
   (`archive/tooling/gate_index_grammar_coverage.md`): the integrity and verify
   report titles never match the `# make <target> — gate report` block grammar,

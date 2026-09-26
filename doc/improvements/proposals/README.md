@@ -34,7 +34,17 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_
+_(none — trace_analyzer_legs.md archived 2026-09-26 as completed.md entry
+303: 10 legs + `--legs`, zcode cost materialized, and the token-convention fix
+that stopped cross-source totals double-counting zcode's cache. Record in
+`../archive/tooling/trace_analyzer_legs.md`.)_
+
+_(Previously: trace_analyzer_legs.md archived 2026-09-26 as
+completed.md entry 303 — trace-analyzer coverage: 39 populated columns in
+zero report SQL, two unread tables (`fact_log`, `load_log`), and the
+plan-routing/cost intersection hole; 11 slices, S1 `reliability` first.
+Filed 2026-09-26; review-assessed execute-ready same day. Evidence in
+`doc/local/engineering/capture_traces.md` §9.)_
 
 _(Previously: gate_index_grammar_coverage.md archived 2026-09-26 as
 completed.md entry 302 — born-archived diagnosis arc: integrity/verify

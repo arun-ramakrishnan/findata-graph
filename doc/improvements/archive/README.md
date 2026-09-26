@@ -190,6 +190,7 @@ commit, referenced by nothing). Entry numbers point at
 - [`gate_report_quality_traces.md`](tooling/gate_report_quality_traces.md) — Gate report quality traces: incremental refresh diagnostics, pending-tail/parser warnings, structured advisory warning capture, JUnit/artifact visibility, and writer-contract coverage — completed.md #288
 - [`gate_index_grammar_coverage.md`](tooling/gate_index_grammar_coverage.md) — Gate index grammar coverage: integrity/verify titles never match the block grammar → offsets stuck at 0, O(corpus) rescan per invocation (1.29 s measured); diagnosis banked, S1–S3 designed, not adopted — completed.md #302
 - [`agpl_license_migration.md`](tooling/agpl_license_migration.md) — AGPL-3.0-or-later first-party code grant, third-party/asset boundary, source-offer runbook, metadata enforcement, and python-igraph compatibility gate — completed.md #291
+- [`trace_analyzer_legs.md`](tooling/trace_analyzer_legs.md) — Proposal: Trace-analyzer coverage — 10 legs + `--legs` (reliability, spend, side_effects, load_health, plan_routing, failure_forensics, session_economics, overhead_tax, turn_quality, store_range); zcode cost materialized from the rate table (3160/3160 priced) after finding zcode's `input` is cache-inclusive and opencode's is not, which had inflated every cross-source token total; `store_range` union corrected twice to reach `fact_log`; S11 concluded as docs + one schema addition (6 of 7 dead columns empty at source) — completed.md #303
 
 ## ui/ — Frontend & templates — reader, paper register, findata views
 

@@ -143,7 +143,7 @@ def load(
     return manifest, offsets, neighbors, names, fresh
 
 
-def bfs_path(
+def bfs_path(  # noqa: C901
     offsets: np.ndarray,
     neighbors: np.ndarray,
     src: int,
