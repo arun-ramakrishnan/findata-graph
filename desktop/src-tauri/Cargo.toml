@@ -1,0 +1,18 @@
+[package]
+name = "findata-graph"
+version = "0.1.0"
+description = "findata-graph desktop viewer (Tauri)"
+edition = "2021"
+
+[workspace]
+members = ["core"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+findata-core = { path = "core" }
+tauri-plugin-opener = "^2"

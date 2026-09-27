@@ -8048,3 +8048,50 @@ inside; second use of the status).
 Execution record: `archive/testing/pytest_tmpfs_amplification.md` (§D2
 deferred: module/class-scoped production copies — copy_production_db
 consumers + three inline integration backups; trigger inside).
+
+## 308. Tauri desktop full app — accepted demo to 14 commands, docs/metrics/time-travel/hypergraph/hybrid/bundling
+
+**Proposal**: `doc/improvements/archive/ui/findata_graph_desktop.md`
+(filed 2026-09-27, executed 2026-09-28; S8 hygiene inside).
+
+- S1 tracked the 71M baseline (`git add desktop/`, `.gitignore` holds
+  `target/`/`node_modules`/`dist`), fixtures-freshness README note,
+  cargo 11/11 twice + npm build + 3/3 harness renders re-proved.
+- S2 docs browser: `note_search` holds 0 `doc/%` rows and the disk-walk
+  interim died on review — docs search is sqlite-embedded in the
+  `doc_search` sidecar, so `browse_docs` reads it (244 files, FTS MATCH,
+  missing sidecar hard-errors). Residence kept: sidecar stays out of
+  `research.db`, `doc/local/` plaintext never enters the snapshot.
+- S3 metrics/rank: `entity_metrics` + `metric_values` mirror the Flask
+  `/api/graph/metrics` scalar/label/payload split with no hardcoded
+  allowlist (generic `$.value` parse); Note/Metrics rail tabs, log-scaled
+  cloud rank tint. Two data findings: 12 NULL-label guidance rows →
+  `label: Option` (writer-side archived deferred as
+  `archive/pipeline/company_metrics_null_labels.md`, same entry);
+  fixture tint unioned with
+  ego nodes for deterministic overlap.
+- S4 Chronoscope: `normalise_as_of` mirrors Flask shapes byte-for-byte,
+  single static SQL with NULL-bound params, per-`as_of` cloud cache,
+  header scrubber. CEAT@2022 drops Camso + 2026 listings, pinned.
+- S5 hypergraph: `entity_hyperedges` (edge-level validity; incidences
+  undated), NotePanel chips + paint-time halo overlay. S6 opener
+  (`opener:allow-open-url`) + deb 5.1M / AppImage 86M + release binary
+  pixel-proven under xvfb. S7 hybrid (stored-vectors option ii):
+  `similar_notes` + PRF `search_hybrid` (RRF K=60, same shape as
+  `search()`). S8 `vue-tsc` checkJs zero-baseline — caught a real bug
+  (`openEntityNote` used-but-never-imported, dead since S3).
+- Recorded deviations: S6 adds no core fn (no new core test; cargo
+  regression instead); Svelte rejected (docs list Vue first-class);
+  DuckDB rejected twice (sidecar FTS + JSON/BLOB vectors cover search);
+  `tauri.conf.json` split-base quirk documented (commands↔`desktop/`,
+  dist↔`src-tauri/`).
+- Outcome: 14 commands, 20 core tests green twice, 9 smoke scenarios,
+  ruff + md-lint + `make typecheck` clean; full `make qa` run 549
+  triaged (md-lint + footprint fixed in-arc, pytest leg 3609 green on
+  re-run; snapshot-fresh drift exogenous — parallel-session writes,
+  left for the operator).
+
+Execution record: `archive/ui/findata_graph_desktop.md` (S7 option i
+bundled-GGUF query embedding + S8 follow-ups live on as accepted
+future work) + `archive/pipeline/company_metrics_null_labels.md`
+(archived **deferred** — `guidance_*` backfill trigger inside).

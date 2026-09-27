@@ -1069,11 +1069,11 @@ def check_sqlite_helper_usage(scope: set[Path] | None = None) -> list[str]:  # n
         # target — a house connect() cannot express "the ATTACH target of
         # this duckdb connection"). SELECTs only, no writes.
         "helpers/graph/query.py",
-        # Desktop fixture generator: mode=ro URI on a path-walk-located
-        # research.db, mirroring the Rust data layer's shapes. Standalone
-        # by design (no helpers import in the Tauri test subtree); SELECTs
-        # only, never the writer path.
-        "findata-graph-desktop/src-vue/test/make_fixtures.py",
+        # Desktop fixture generator: mode=ro URI on path-walk-located
+        # research.db + the doc_search sidecar, mirroring the Rust data
+        # layer's shapes. Standalone by design (no helpers import in the
+        # Tauri test subtree); SELECTs only, never the writer path.
+        "desktop/src-vue/test/make_fixtures.py",
         # Read-only mode=ro URI open of a SIDECAR file (the convo FTS5
         # sidecar). connect() would open it read-write and CREATE an empty
         # db when the sidecar is missing — mode=ro must fail loudly instead

@@ -1,0 +1,16 @@
+{
+  // S8: checkJs over the existing JS — safety without a TS migration.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowJs": true,
+    "checkJs": true,
+    "strict": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src/**/*.js", "src/**/*.vue", "test/**/*.js", "test/**/*.d.ts", "index.html"],
+  "exclude": ["node_modules", "dist"]
+}

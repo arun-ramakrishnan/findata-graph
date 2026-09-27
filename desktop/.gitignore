@@ -1,0 +1,4 @@
+src-tauri/target/
+src-vue/node_modules/
+src-vue/dist/
+src-tauri/gen/schemas/

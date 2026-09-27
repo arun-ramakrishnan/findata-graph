@@ -34,7 +34,13 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none)_ — the last live proposals were archived 2026-09-27
+_(none — `company_metrics_null_labels` archived deferred 2026-09-28
+as completed.md entry 308; `findata_graph_desktop` archived executed
+the same day.)_
+
+The last live proposals were archived 2026-09-28
+(`findata_graph_desktop` as completed.md entry 308 — Tauri desktop
+demo-to-full-app, S1–S8) and 2026-09-27
 (c901_complexity_debt as completed.md entry 306, chain_tally_determinism
 as entry 305; pytest_tmpfs_amplification followed the same day as entry
 307, born-executed); see the Previously chain below for their records.
