@@ -705,6 +705,24 @@ def _real_graph_cache_optout(request):
     gq.DUCKDB_PATH = redirected
 
 
+def pytest_unconfigure(config):
+    """Keep-1 pytest run roots (tests/_tmp_hygiene.py): gate_query owns
+    run history (junit + artifacts retained per run), so stale /tmp
+    roots are pure tmpfs ballast. Quiet-window + current-run guards
+    keep concurrent live runs untouched. Best-effort by design.
+    """
+    try:
+        factory = getattr(config, "_tmp_path_factory", None)
+        base = getattr(factory, "_basetemp", None)
+        if base is None:
+            return
+        from tests._tmp_hygiene import prune_old_pytest_roots
+
+        prune_old_pytest_roots(base)
+    except Exception:  # noqa: S110  # hygiene must never fail a run
+        pass
+
+
 def pytest_sessionfinish(session, exitstatus):
     _write_test_metadata(session)
     worker = os.environ.get("PYTEST_XDIST_WORKER")

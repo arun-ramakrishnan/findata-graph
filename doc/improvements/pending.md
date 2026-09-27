@@ -3,22 +3,19 @@
 Full annotated triage map with live-verified trigger status.
 Open items below keep their revisit triggers inline; executed work is compressed to records.
 
-- **pytest tmpfs amplification — DEFERRED 2026-09-27 (parity_harness arc)**
-  Live-invariants runs materialize ~1.9 GB of the 308 MB production DB per
-  run, ~6×, inside the 7.1 GB tmpfs at `/tmp`: (a) `_trimmed_template` in
-  `tests/test_graph_disk.py` is session-scoped but xdist gives each worker
-  its own session → one 308 MB `template.db` per worker; (b)
-  `built_cache` in `tests/test_db_maint_duckdb.py` is module-scoped yet
-  replicated per worker (test.db 322 MB + test.duckdb 42 MB ×3); (c)
-  backup tests leave another ~518 MB when the run fails (retention
-  policy `failed`). pytest keeps the last 3 roots → 5.7 GB → tmpfs full
-  → `disk I/O error` cascades that masquerade as test failures (advisory
-  run 547: 65 failed tests, all environmental). Fix directions: share one
-  template across workers (basetemp parent + file lock), or repoint
-  `--basetemp` to disk-backed storage (`.artifacts/`, 35 GB free on `/`).
-  **Revisit trigger:** any live-invariants/advisory failure whose errors
-  are `disk I/O error` / quota in `/tmp`, or before touching
-  `_trimmed_template`/`built_cache` fixtures.
+- **production-DB copies in tests (§D2) — DEFERRED 2026-09-27
+  (pytest_tmpfs_amplification #307)**: the per-test/per-worker copiers
+  are fixed and guarded (shared trimmed template, `backup_sidecars=False`,
+  keep-1 roots — see `archive/testing/pytest_tmpfs_amplification.md`);
+  the module/class-scoped population remains:
+  `copy_production_db` consumers (`test_fuzz_shortest_path` 1×~308 MB
+  vacuumed copy/worker, `test_graph` module copy, the two integration
+  CLIs) plus inline backups in three `test_integration_*` files —
+  integration-gate only, 1× per scope. Move onto a shared full-corpus
+  pruned template (same S1 mechanism) only if: quota/disk-I/O errors
+  recur in /tmp, or a new full-corpus fixture is about to be added. The
+  guard allowlist in `tests/test_static_checks.py`
+  (`_PRODUCTION_COPY_ALLOWLIST`) is the burn-down list.
 
 - **trace-analyzer coverage — EXECUTED 2026-09-26 (#303)**
   (`archive/tooling/trace_analyzer_legs.md`): 10 legs + `--legs` landed

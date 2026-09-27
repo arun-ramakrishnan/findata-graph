@@ -12,7 +12,7 @@ backups to ``tmp_path`` for isolation.
 
 from __future__ import annotations
 
-import sqlite3
+import shutil
 from pathlib import Path
 
 import pytest
@@ -47,16 +47,18 @@ def built_cache(tmp_path_factory) -> Path:
     backup don't change row counts, so sharing one cache across tests keeps
     every assertion intact (test_backup_overwrites_existing already runs
     m.run() twice against the same cache).
+
+    Built from the SHARED trimmed production template
+    (tests/_tmp_hygiene.py) instead of a per-worker full 308 MB sqlite
+    backup: the assertions are relative (backup == source counts, > 0),
+    which the downsampled corpus satisfies; the DuckDB cache
+    materialisation stays per-worker (single-writer file).
     """
     tmp = tmp_path_factory.mktemp("dbmaint")
     out = tmp / "test.db"
-    src = sqlite3.connect(str(SQLITE_DB))
-    dst = sqlite3.connect(str(out))
-    try:
-        src.backup(dst)
-    finally:
-        dst.close()
-        src.close()
+    from tests._tmp_hygiene import trimmed_template
+
+    shutil.copyfile(trimmed_template(tmp_path_factory), out)
     from helpers.graph.query import connect
 
     c = connect(out)
@@ -89,6 +91,7 @@ class TestDuckDBBackup:
             backup_path=tmp_path / "sqlite_backup.db",
             duckdb_path=tmp_duckdb,
             duckdb_backup_path=tmp_path / "graph_backup.duckdb",
+            backup_sidecars=False,
         )
         r = m.run()
         assert r["status"] == "complete"
@@ -106,6 +109,7 @@ class TestDuckDBBackup:
             backup_path=tmp_path / "sqlite_backup.db",
             duckdb_path=tmp_duckdb,
             duckdb_backup_path=tmp_path / "graph_backup.duckdb",
+            backup_sidecars=False,
         )
         m.run()
         backup_path = tmp_path / "graph_backup_roundtrip.duckdb"
@@ -138,6 +142,7 @@ class TestDuckDBBackup:
             backup_path=tmp_path / "sqlite_backup.db",
             duckdb_path=tmp_duckdb,
             duckdb_backup_path=tmp_path / "graph_backup.duckdb",
+            backup_sidecars=False,
         )
         m.run()
         first_size = backup_zst.stat().st_size
@@ -166,7 +171,8 @@ class TestDuckDBBackup:
             db_path=tmp_sqlite,
             backup_path=tmp_path / "sqlite_backup.db",
             duckdb_path=tmp_duckdb,
-            duckdb_backup_path=None,  # explicitly None
+            duckdb_backup_path=None,
+            backup_sidecars=False,  # explicitly None
         )
         r = m.run()
         assert r["status"] == "complete"
@@ -185,6 +191,7 @@ class TestDryRunIncludesDuckDBBackup:
             backup_path=tmp_path / "sqlite_backup.db",
             duckdb_path=tmp_duckdb,
             duckdb_backup_path=tmp_path / "graph_backup.duckdb",
+            backup_sidecars=False,
             dry_run=True,
         )
         r = m.run()
@@ -205,6 +212,7 @@ class TestDryRunIncludesDuckDBBackup:
             backup_path=tmp_path / "sqlite_backup.db",
             duckdb_path=tmp_path / "nonexistent.duckdb",
             duckdb_backup_path=tmp_path / "graph_backup.duckdb",
+            backup_sidecars=False,
             dry_run=True,
         )
         r = m.run()

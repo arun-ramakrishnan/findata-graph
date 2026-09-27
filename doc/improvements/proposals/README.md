@@ -36,7 +36,21 @@ entry number and stale DONE pointers):
 
 _(none)_ — the last live proposals were archived 2026-09-27
 (c901_complexity_debt as completed.md entry 306, chain_tally_determinism
-as entry 305); see the Previously chain below for their records.
+as entry 305; pytest_tmpfs_amplification followed the same day as entry
+307, born-executed); see the Previously chain below for their records.
+
+_(Previously: pytest_tmpfs_amplification.md archived 2026-09-27 as
+completed.md entry 307 — 65 advisory-run test failures that were all
+`Disk quota exceeded` noise, traced to ~6 production-DB materialisations
+per live-invariants run (per-worker session-scoped templates, per-worker
+308 MB backups, and `DBMaintainer.run()` silently copying the production
+sidecar world into every test's tmp). Executed: one flock-shared trimmed
+template per run (`tests/_tmp_hygiene.py`), keep-1 pytest root retention
+(gate_query owns run history), `backup_sidecars=False` test knob + two
+guards whose allowlist is the deferred inventory. live-invariants green
+with an empty pytest tmp afterwards; db_maint trio 105 s → 20.6 s.
+Archived **deferred**: the module/class-scoped production copies
+(§D2) move only on recurrence or new full-corpus fixtures.)_
 
 _(Previously: convo_search.md archived 2026-09-27 as completed.md entry 304
 — the harnesses' own deleted history made queryable: 141-file parquet corpus

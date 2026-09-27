@@ -84,7 +84,7 @@ class TestDBMaintainerSettings:
         conn = sqlite3.connect(str(db_path))
         conn.execute("CREATE TABLE x (a)")
         conn.commit()
-        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
+        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db", backup_sidecars=False)
         result = maint.settings(conn)
         conn.close()
         assert isinstance(result, dict)
@@ -96,7 +96,7 @@ class TestDBMaintainerSettings:
         conn = sqlite3.connect(str(db_path))
         conn.execute("CREATE TABLE x (a)")
         conn.commit()
-        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
+        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db", backup_sidecars=False)
         result = maint.settings(conn)
         conn.close()
         # synchronous should be a string label, not a raw int
@@ -113,7 +113,7 @@ class TestDBMaintainerMetrics:
         conn.execute("CREATE TABLE x (a)")
         conn.execute("INSERT INTO x VALUES (1)")
         conn.commit()
-        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
+        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db", backup_sidecars=False)
         result = maint.metrics(conn)
         conn.close()
         assert "file_size" in result
@@ -127,7 +127,7 @@ class TestDBMaintainerMetrics:
         conn = sqlite3.connect(str(db_path))
         conn.execute("CREATE TABLE x (a)")
         conn.commit()
-        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
+        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db", backup_sidecars=False)
         result = maint.metrics(conn)
         conn.close()
         assert result["pages"] > 0
@@ -143,7 +143,7 @@ class TestDBMaintainerStatStaleness:
         conn = sqlite3.connect(str(db_path))
         conn.execute("CREATE TABLE x (a)")
         conn.commit()
-        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
+        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db", backup_sidecars=False)
         result = maint.stat_staleness(conn)
         conn.close()
         # No ANALYZE run yet → empty dict
@@ -160,7 +160,7 @@ class TestDBMaintainerIndexReport:
         conn.execute("CREATE TABLE x (a TEXT PRIMARY KEY, b TEXT)")
         conn.execute("CREATE INDEX idx_b ON x(b)")
         conn.commit()
-        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
+        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db", backup_sidecars=False)
         result = maint.index_report(conn)
         conn.close()
         assert isinstance(result, list)
@@ -176,7 +176,7 @@ class TestDBMaintainerIndexReport:
         conn.execute("INSERT INTO entities VALUES ('A')")
         conn.execute("INSERT INTO entities VALUES ('B')")
         conn.commit()
-        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
+        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db", backup_sidecars=False)
         result = maint.index_report(conn)
         conn.close()
         ent = next(e for e in result if e["table"] == "entities")
@@ -288,7 +288,7 @@ class TestBackupVec:
         conn.close()
 
         backup = tmp_path / "backup.db"
-        maint = DBMaintainer(db_path, backup_path=backup)
+        maint = DBMaintainer(db_path, backup_path=backup, backup_sidecars=False)
         size = maint._backup_embed_store()
         assert size > 0
         twin_zst = tmp_path / "backup_vec.db.zst"
@@ -302,7 +302,7 @@ class TestBackupVec:
     def test_absent_sidecar_skips_cleanly(self, tmp_path, capsys):
         db_path = tmp_path / "test.db"
         self._mkdb(db_path)
-        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
+        maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db", backup_sidecars=False)
         assert maint._backup_embed_store() == 0
         assert not (tmp_path / "backup_vec.db.zst").exists()
 
@@ -328,7 +328,7 @@ class TestBackupVec:
         saved = VS.EMBED_DB_PATH
         VS.EMBED_DB_PATH = store
         try:
-            maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db")
+            maint = DBMaintainer(db_path, backup_path=tmp_path / "backup.db", backup_sidecars=False)
             assert maint._backup_embed_store() > 0
         finally:
             VS.EMBED_DB_PATH = saved

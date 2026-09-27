@@ -8012,3 +8012,39 @@ as **deferred** — the first proposal to use the new status).
 
 Execution record: `archive/graph/c901_complexity_debt.md` (status:
 deferred; D1 slice inside).
+
+## 307. pytest tmpfs amplification — 65 phantom gate failures traced to six production copies per run
+
+**Proposal**: `doc/improvements/archive/testing/pytest_tmpfs_amplification.md`
+(filed + executed 2026-09-27, archived **deferred** — §D2 population
+inside; second use of the status).
+
+- The strike: advisory run 547 failed 65 tests, every one
+  `Errno 122 Disk quota exceeded` / `disk I/O error` — while `df` showed
+  gigabytes free (tmpfs free ≠ user quota). A live-invariants run
+  materialised ~1.9 GB of the 308 MB production DB ~6×: per-worker
+  trimmed templates (session scope = worker scope under xdist),
+  per-worker 308 MB sqlite backups in db_maint, backup-test residue —
+  ×3 retained roots ≈ 5.7 GB of a 7.1 GB tmpfs.
+- The invisible amplifier: `DBMaintainer.run()` copied the PRODUCTION
+  sidecar world (convo_search index 181 MB + FTS, embed store, corpora,
+  memory/ tar) into each test's tmp — several hundred MB per call, not
+  visible in any fixture.
+- S1 `tests/_tmp_hygiene.py`: one flock-protected, atomically-published
+  trimmed template per run, shared across workers (xdist run-root
+  scoping; single-process runs build locally). S2 keep-1 root retention
+  at `pytest_unconfigure` (30-min quiet window incl. worker dirs;
+  concurrent runs untouched) — gate_query owns run history, stale roots
+  are ballast. S3 `DBMaintainer(backup_sidecars=False)` + 16 call-site
+  updates; hermetic sidecar-coverage module keeps the default.
+- Guards: no test file may combine `sqlite3.connect` with `.backup(`
+  outside the shared-template owner; every test `DBMaintainer(` must
+  carry `backup_sidecars=False`. The allowlist IS the deferred
+  inventory.
+- Outcome: live-invariants green with `/tmp/pytest-of-arun` empty after
+  the run (tmpfs 29%); db_maint trio 105 s → 20.6 s; 138 tests green
+  across touched modules; lint/format/types/static-checks green.
+
+Execution record: `archive/testing/pytest_tmpfs_amplification.md` (§D2
+deferred: module/class-scoped production copies — copy_production_db
+consumers + three inline integration backups; trigger inside).

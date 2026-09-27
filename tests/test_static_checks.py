@@ -7,6 +7,7 @@ the check under test flags the intended defect and passes when clean.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 from pathlib import Path
 
@@ -1552,3 +1553,81 @@ def test_bare_negated_sort_ignores_tests(tmp_path, monkeypatch):
 def test_bare_negated_sort_live_repo_is_green():
     """The shipped tree carries no bare -kv[1] tally renders."""
     assert sc.check_bare_negated_sort_keys() == []
+
+
+# --------------------------------------------------------------------------- #
+# Large production-data copies in tests (tmpfs amplification, 2026-09-27)    #
+# --------------------------------------------------------------------------- #
+
+_SANCTIONED_TEMPLATE_OWNER = "tests/_tmp_hygiene.py"
+# tests that EXIST to cover the sidecar backups, hermetically (REPO and
+# store roots retargeted to tmp via monkeypatch — no production reads).
+_SIDECAR_BACKUP_COVERAGE_ALLOWLIST = {"test_db_maint_convo.py"}
+# copy_production_db lives here and serves module/class-scoped fixtures
+# (fuzz shortest_path 1x/worker, test_graph, the integration CLIs) —
+# known debt, deferred with sizes in doc/improvements/pending.md
+# ("production-DB copies in tests"); convert to a shared pruned template
+# only if the deferred trigger fires. The test_integration_* entries
+# carry the same pattern inline (module/class-scoped production backups
+# for the integration gate). test_static_checks.py only mentions the
+# pattern in this guard's own text. New test FILES must not add
+# sqlite3.connect + .backup() of their own.
+_PRODUCTION_COPY_ALLOWLIST = {
+    "helpers.py",
+    "test_integration_maint_chain.py",
+    "test_integration_near_duplicates.py",
+    "test_integration_note_writers.py",
+    "test_static_checks.py",  # this guard's own text
+}
+
+
+def _tests_dir() -> Path:
+    return Path(__file__).resolve().parent
+
+
+def test_no_production_db_backups_in_tests():
+    """The only sanctioned production-DB copy in tests is the shared
+    template builder (sqlite3.connect(production) + .backup(...) there).
+
+    The lesson: a session/module-scoped fixture that backs up the
+    production DB per xdist worker materialised ~6x 308 MB per
+    live-invariants run and filled the tmpfs — 65 gate failures that
+    looked like code. Route through tests/_tmp_hygiene.trimmed_template.
+    """
+    for py in sorted(_tests_dir().glob("*.py")):
+        rel = f"tests/{py.name}"
+        if rel == _SANCTIONED_TEMPLATE_OWNER or py.name == "conftest.py":
+            continue
+        if py.name in _PRODUCTION_COPY_ALLOWLIST:
+            continue
+        text = py.read_text(encoding="utf-8", errors="replace")
+        has_connect = "sqlite3.connect" in text
+        has_backup = re.search(r"\.backup\(", text) is not None
+        assert not (has_connect and has_backup), (
+            f"{rel}: copies a sqlite DB inside a test — production-sized "
+            "materialisations per worker are the tmpfs-amplification bug. "
+            "Build from the shared trimmed template "
+            "(tests._tmp_hygiene.trimmed_template) instead."
+        )
+
+
+def test_dbmaintainer_constructions_opt_out_of_sidecar_backups():
+    """Every DBMaintainer( in tests must pass backup_sidecars=False.
+
+    run() otherwise copies the PRODUCTION sidecar world (embed store,
+    note corpus, convo_search index pair, convo corpus tar, memory/
+    catch-all — hundreds of MB) into pytest basetemp. The one exception
+    is the module whose subject IS the sidecar coverage, hermetic via
+    monkeypatched roots.
+    """
+    call_re = re.compile(r"DBMaintainer\((?:[^()]|\([^()]*\))*\)", re.DOTALL)
+    for py in sorted(_tests_dir().glob("*.py")):
+        if py.name in _SIDECAR_BACKUP_COVERAGE_ALLOWLIST:
+            continue
+        text = py.read_text(encoding="utf-8", errors="replace")
+        for i, call in enumerate(call_re.findall(text)):
+            assert "backup_sidecars=False" in call, (
+                f"tests/{py.name}: DBMaintainer construction #{i + 1} lacks "
+                "backup_sidecars=False — run() would copy the production "
+                "sidecar world into pytest tmp."
+            )

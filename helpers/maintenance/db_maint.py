@@ -102,6 +102,7 @@ class DBMaintainer:
         logger: logging.Logger | None = None,
         duckdb_path: Path | None = None,
         duckdb_backup_path: Path | None = None,
+        backup_sidecars: bool = True,
     ):
         self.db_path = db_path
         self.backup_path = backup_path
@@ -115,6 +116,13 @@ class DBMaintainer:
         # copy taken BEFORE any mutation so VACUUM corruption is
         # recoverable. Distinct from snapshot_db.py's gzipped snapshot.
         self.duckdb_backup_path = duckdb_backup_path
+        # Production sidecar backups (embed store, note corpus, the
+        # convo_search index pair, convo corpus tar, memory/ catch-all)
+        # copy HUNDREDS OF MB of rebuildable production state per run.
+        # Tests run against tmp copies and must not drag that world into
+        # pytest basetemp (the tmpfs-amplification lesson, 2026-09-27) —
+        # they pass backup_sidecars=False; production keeps the default.
+        self.backup_sidecars = backup_sidecars
 
     def _log(self, level: int, msg: str) -> None:
         if self.logger:
@@ -691,11 +699,12 @@ class DBMaintainer:
 
             self._log(logging.INFO, f"Backing up to {self.backup_path}")
             backup_size = self._backup(conn)
-            self._backup_embed_store()
-            self._backup_corpus()
-            self._backup_convo_search()
-            self._backup_convo_corpus()
-            self._backup_memory_sidecars()
+            if self.backup_sidecars:
+                self._backup_embed_store()
+                self._backup_corpus()
+                self._backup_convo_search()
+                self._backup_convo_corpus()
+                self._backup_memory_sidecars()
 
             # P2.5: incremental vacuum when auto_vacuum==INCREMENTAL and freelist exists.
             # Full VACUUM rewrites 31 MB file (~0.6s); incremental_vacuum reclaims only freelist pages (~0.1s).
