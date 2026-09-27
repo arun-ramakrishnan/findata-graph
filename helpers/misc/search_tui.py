@@ -10,9 +10,11 @@ lane  source   backend
 1     docs     helpers/misc/doc_query.py (FTS5 + embeddings, --json)
 2     scripts  helpers/misc/script_query.py (--json; make/test/mojo too)
 3     notes    note_search FTS5 + f32 cosine (RRF hybrid; bm25 toggle)
- 4     code     ripwire --for= (verbs: callers:/impact:/grep:/recall:)
- 5     literal  rg (gitignore-aware, no color, path:line:text rows)
- 6     reports  outputs/*_report.md (verbs: qa:/advisory:/integration:/
+4     convo    helpers/misc/convo_query.py (FTS5 + cosine, RRF; corpus
+              pointers file.parquet:<row>, --json)
+5     code     ripwire --for= (verbs: callers:/impact:/grep:/recall:)
+6     literal  rg (gitignore-aware, no color, path:line:text rows)
+7     reports  outputs/*_report.md (verbs: qa:/advisory:/integration:/
               maint:/perf:/integrity:/verify:; empty query = per-report overview)
  ===== ======== =====================================================
 
@@ -48,30 +50,25 @@ from __future__ import annotations
 import argparse
 import html
 import json
-from functools import lru_cache
 import os
 import re
 import shutil
 import sqlite3
 import subprocess
 import sys
-import threading
 import time
 from collections.abc import Callable
 
-import numpy as np
 from dataclasses import dataclass, replace as dc_replace
 from pathlib import Path, PurePosixPath
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-LANES: tuple[str, ...] = ("docs", "scripts", "notes", "code", "literal", "reports")
+LANES: tuple[str, ...] = ("docs", "scripts", "notes", "convo", "code", "literal", "reports")
 DEFAULT_LIMIT = 40
 RG_ROW_CAP = 300
 _SUB_TIMEOUT = 90  # ripwire walks the tree; doc/script CLIs embed queries.
 _NOTES_RRF_K = 60
-_NOTES_SEMANTIC_CANDIDATES = 40
-_NOTES_CONNECTIONS = threading.local()
 
 # ---------------------------------------------------------------------------
 # Hit model + lane adapters (terminal-free, unit-tested)
@@ -263,22 +260,15 @@ def ripwire_argv(query: str) -> list[str]:
 
 
 def fts_safe(query: str) -> str:
-    """Make a raw query safe for an FTS5 MATCH, degrading to OR-tokens."""
-    if re.fullmatch(r"[\w']+(?:\s+[\w']+)*", query.strip(), re.UNICODE):
-        return query
-    from helpers.core.db import connect as _db_connect
+    """Make a raw query safe for an FTS5 MATCH, degrading to OR-tokens.
 
-    try:
-        probe = _db_connect(":memory:", wal=False)
-        probe.execute("CREATE VIRTUAL TABLE t USING fts5(x)")
-        probe.execute("SELECT * FROM t WHERE t MATCH ?", (query,))
-        probe.close()
-        return query
-    except sqlite3.OperationalError:
-        toks = re.findall(r"[\w']+", query)
-        if not toks:
-            return '""'
-        return " OR ".join(f'"{t}"' for t in toks)
+    The canonical implementation lives in ``note_query`` (the
+    shell-facing query surface for the same index) — this lane defers to
+    it so the two can never drift.
+    """
+    from helpers.misc.note_query import fts_safe as _fts_safe
+
+    return _fts_safe(query)
 
 
 def _query_snippet(content: str, query: str) -> str:
@@ -295,116 +285,75 @@ def _query_snippet(content: str, query: str) -> str:
     return " ".join(words[start : start + 32])
 
 
+def _note_hit(r: dict) -> Hit:
+    """Core dict (note_query) → TUI row. The only notes logic left here."""
+    return Hit(
+        path=r.get("path", ""),
+        line=_int_or_none(r.get("line")),
+        title=r.get("title") or "",
+        section=r.get("section") or "",
+        snippet=r.get("head") or "",
+        score=r.get("score"),
+        lane="notes",
+        kind="note",
+    )
+
+
 def notes_query(db_path: Path, query: str, limit: int) -> list[Hit]:
-    """Keyword search over note_search (bm25-ranked, porter tokens)."""
+    """Lexical leg over note_search (bm25, porter tokens).
+
+    Core lives in ``note_query`` — this lane only maps rows to ``Hit``.
+    """
     from helpers.core.db import connect as _db_connect
-
-    key = str(db_path.resolve())
-    conn = getattr(_NOTES_CONNECTIONS, "conn", None)
-    if getattr(_NOTES_CONNECTIONS, "key", None) != key:
-        if conn is not None:
-            conn.close()
-        conn = _db_connect(db_path, read_only=True, wal=False)
-        _NOTES_CONNECTIONS.conn = conn
-        _NOTES_CONNECTIONS.key = key
-    if conn is None:
-        raise RuntimeError("notes connection was not initialized")
-    rows = conn.execute(
-        "SELECT file_path, title, section_title, anchor, substr(content, 1, 4000) AS content,"
-        " bm25(note_search)"
-        " FROM note_search WHERE note_search MATCH ?"
-        " ORDER BY bm25(note_search) LIMIT ?",
-        (fts_safe(query), limit),
-    ).fetchall()
-    return [
-        Hit(
-            path=r[0].removeprefix("/"),
-            line=_int_or_none(r[3]),
-            title=r[1] or "",
-            section=r[2] or "",
-            snippet=_query_snippet(r[4] or "", query).strip(),
-            score=-r[5] if r[5] is not None else None,
-            lane="notes",
-            kind="note",
-        )
-        for r in rows
-    ]
-
-
-def _rrf_note_hits(bm25_hits: list[Hit], semantic_hits: list[Hit], limit: int) -> list[Hit]:
-    semantic_scores = {hit.path: (hit.score or 0.0) for hit in semantic_hits}
-    semantic_order = sorted(semantic_scores, key=lambda path: semantic_scores[path], reverse=True)
-    semantic_rank = {path: rank for rank, path in enumerate(semantic_order)}
-    bm25_rank = {hit.path: rank for rank, hit in enumerate(bm25_hits)}
-    paths = list(dict.fromkeys([hit.path for hit in bm25_hits] + semantic_order))
-    fused: list[tuple[float, str, Hit]] = []
-    by_path = {hit.path: hit for hit in bm25_hits + semantic_hits}
-    for path in paths:
-        score = 0.0
-        if path in bm25_rank:
-            score += 1.0 / (_NOTES_RRF_K + bm25_rank[path] + 1)
-        if path in semantic_rank:
-            score += 1.0 / (_NOTES_RRF_K + semantic_rank[path] + 1)
-        fused.append((score, path, dc_replace(by_path[path], score=score)))
-    fused.sort(key=lambda item: (-item[0], item[1]))
-    return [hit for _score, _path, hit in fused[:limit]]
-
-
-@lru_cache(maxsize=4)
-def _load_notes_matrix(db_path: str):
-    from helpers.core.db import connect as _db_connect
-    from helpers.core.embed_matrix import EmbedMatrixStore
-    from helpers.maintenance.rebuild_note_search import stored_embed_dims
+    from helpers.misc import note_query as nq
 
     conn = _db_connect(db_path, read_only=True, wal=False)
     try:
-        row_count = conn.execute("SELECT COUNT(*) FROM note_search").fetchone()[0]
-        dims = stored_embed_dims(conn)
+        rows = nq.bm25_hits(conn, query, limit)
     finally:
         conn.close()
-    matrix = EmbedMatrixStore().load()
-    if int(matrix.meta["count"]) != row_count:
-        raise RuntimeError("matrix stale — run rebuild-note-search")
-    if dims is not None and int(dims) != int(matrix.meta["dims"]):
-        raise RuntimeError("matrix dimensions stale — run rebuild-note-search")
-    return matrix
+    return [_note_hit(r) for r in rows]
 
 
-@lru_cache(maxsize=1)
-def _notes_query_embedder():
-    from helpers.maintenance.rebuild_note_search import query_embedder
+def _rrf_note_hits(bm25_hits: list[Hit], semantic_hits: list[Hit], limit: int) -> list[Hit]:
+    """Fuse the two notes legs, one row per NOTE (the lane's display).
 
-    return query_embedder()
+    The lane shows a single best section per note; the CLI's default is
+    per section. Same fusion, different collapse — hence ``per_note``.
+    """
+    from helpers.misc import note_query as nq
+
+    fused = nq.fuse(
+        [
+            {
+                "path": h.path,
+                "line": h.line,
+                "title": h.title,
+                "section": h.section,
+                "head": h.snippet,
+                "score": h.score,
+            }
+            for h in bm25_hits
+        ],
+        [{"path": h.path, "line": h.line, "score": h.score} for h in semantic_hits],
+        limit,
+        per_note=True,
+    )
+    return [_note_hit(r) for r in fused]
 
 
 def _semantic_note_hits(db_path: Path, query: str, limit: int) -> tuple[list[Hit] | None, str]:
-    try:
-        matrix = _load_notes_matrix(str(db_path))
-        embed_query, _dims = _notes_query_embedder()
-        query_vector = embed_query(query)
-        raw_hits = matrix.top_k(
-            np.asarray(query_vector), max(limit * 4, _NOTES_SEMANTIC_CANDIDATES)
-        )
-        best: dict[str, Hit] = {}
-        for key, score in raw_hits:
-            path, _separator, anchor = key.partition("#")
-            previous = best.get(path)
-            if previous is None or score > (previous.score or 0.0):
-                best[path] = Hit(
-                    path=path.removeprefix("/"),
-                    line=_int_or_none(anchor),
-                    title="",
-                    section="",
-                    snippet="",
-                    score=score,
-                    lane="notes",
-                    kind="note",
-                )
-        return sorted(best.values(), key=lambda hit: (-(hit.score or 0.0), hit.path)), ""
-    except RuntimeError as exc:
-        return None, str(exc)
-    except (OSError, ValueError, KeyError, TypeError, ImportError, AttributeError) as exc:
-        return None, f"semantic notes unavailable: {type(exc).__name__}"
+    """Semantic leg over the note matrix. ``(None, reason)`` = degrade.
+
+    Core lives in ``note_query`` (which owns the staleness gate and the
+    cached matrix load).
+    """
+    from helpers.misc import note_query as nq
+
+    rows, reason = nq.semantic_hits(db_path, query, limit)
+    if not rows and reason:
+        return None, reason
+    return [_note_hit(r) for r in rows], reason
 
 
 def _run(argv: list[str]) -> str:
@@ -518,12 +467,53 @@ def _run_literal(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], s
     return [], "no matches"
 
 
+def parse_convo_json(raw: str, limit: int) -> list[Hit]:
+    """Normalize ``convo_query.py --json`` output into hits.
+
+    convo hits are POINTERS into the corpus, not text files: ``path`` is
+    the ``file.parquet:<row_no>`` pointer and ``line`` stays None.
+    """
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return []
+    hits = []
+    for r in (data.get("results") or [])[:limit]:
+        pointer = r.get("pointer", "")
+        hits.append(
+            Hit(
+                path=pointer,
+                line=None,
+                title=f"{r.get('harness', '?')}/{r.get('role') or '-'} {r.get('ts', '')[:16]}",
+                section=r.get("part_type", ""),
+                snippet=_strip_marks(r.get("head", "")),
+                score=r.get("score"),
+                lane="convo",
+                kind="conversation",
+            )
+        )
+    return hits
+
+
+def _run_convo(q: str, limit: int, mode: str = "hybrid") -> tuple[list[Hit], str]:
+    argv = [sys.executable, "helpers/misc/convo_query.py", q, "--limit", str(limit)]
+    if mode == "bm25":
+        argv.append("--bm25")
+    argv.append("--json")
+    raw = _run(argv)
+    if not raw.strip():
+        return [], "convo_search index missing/stale — make convo-fresh APPLY=1"
+    hits = parse_convo_json(raw, limit)
+    return hits, f"{len(hits)} hits · convo_search {mode}"
+
+
 _LaneRunner = Callable[[str, int, str], tuple[list[Hit], str]]
 
 _LANE_RUNNERS: dict[str, _LaneRunner] = {
     "docs": _run_docs,
     "scripts": _run_scripts,
     "notes": _run_notes,
+    "convo": _run_convo,
     "code": _run_code,
     "literal": _run_literal,
     # reports adapters live below (beside the other parse_*); resolve late.
@@ -1836,6 +1826,7 @@ def index_ages(root: Path) -> str:
         ("docs", "memory/doc_search.db"),
         ("scripts", "memory/script_search.db"),
         ("notes", "memory/research.db"),
+        ("convo", "memory/convo_search.duckdb"),
     ):
         f = root / rel
         if f.exists():

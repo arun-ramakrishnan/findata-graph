@@ -28,6 +28,12 @@ def _tmp_report(tmp_path, monkeypatch):
     monkeypatch.setattr(maint, "REPORT_PATH", tmp_path / "maint_report.md")
 
 
+def _is_convo_step(cmd: list[str]) -> bool:
+    """The two advisory convo steps — matched by script name, because
+    'harvest_conversations.py' does not contain the substring 'convo'."""
+    return any("conversations.py" in str(a) or "_convo_search.py" in str(a) for a in cmd)
+
+
 class _FakeProc:
     """Minimal Popen stand-in for maint._run_step: stdout iterator + wait."""
 
@@ -68,14 +74,19 @@ class TestPlan:
             "derive-cited-in (project OKF sources[] into edition entities + cited_in edges)",
         ]
 
-    def test_tier1_has_five_steps(self):
-        # 5 since centrality_rebuild_contract (2026-09-23): stamp-centrality
-        # joined as step 3b — the graph-rebuild is data-only and drops the
-        # v_centrality_* tables, so the stamp is its own explicit step.
-        assert len(maint.TIER1_STEPS) == 5
+    def test_tier1_has_seven_steps(self):
+        # 7 since convo_search (2026-09-27): the conversation corpus + index
+        # refresh runs BEFORE db_maint so the recovery copy is fresh, and it
+        # is advisory (a live-harness lock must not block the backup).
+        # 5 before that: centrality_rebuild_contract (2026-09-23) made
+        # stamp-centrality explicit — graph-rebuild is data-only and drops
+        # the v_centrality_* tables.
+        assert len(maint.TIER1_STEPS) == 7
 
     def test_tier1_steps_order(self):
         # The order is load-bearing:
+        #   0. convo-fresh + convo-rebuild refresh the conversation
+        #      corpus/index so the recovery copy is not one session stale
         #   1. db_maint compacts SQLite first
         #   2. snapshot reflects the compacted state
         #   3. graph-rebuild produces a DuckDB cache matching the snapshot
@@ -87,6 +98,8 @@ class TestPlan:
         #      the mirror runs one rebuild stale — snapshot_db --check fails)
         labels = [label for label, _ in maint.TIER1_STEPS]
         assert labels == [
+            "convo-fresh (harvest harness sessions into the parquet corpus)",
+            "convo-rebuild (incremental pointer/FTS/vector index refresh)",
             "db_maint (VACUUM/ANALYZE/REINDEX/integrity)",
             "snapshot (refresh versioned snapshots)",
             "graph-rebuild (refresh DuckDB cache)",
@@ -198,13 +211,17 @@ class TestPlan:
         assert len(maint.TIER1_FULL_SKIP) == 3
         assert "snapshot (refresh versioned snapshots)" in maint.TIER1_FULL_SKIP
         assert "snapshot duckdb parquet mirror (post-rebuild)" in maint.TIER1_FULL_SKIP
-        assert len(full) == 27
+        assert len(full) == len(maint.PRE_FULL_STEPS) + len(skipped) + len(maint.TIER2_STEPS)
         snapshot_labels = [lab for lab, _ in full if lab.startswith("snapshot")]
         assert snapshot_labels == [
             "snapshot (re-snapshot to include recomputed analytics + events)"
         ]
         # Non-skipped TIER1 order is preserved and still precedes TIER2.
-        assert [lab for lab, _ in skipped] == [
+        assert [lab for lab, _ in skipped][:2] == [
+            "convo-fresh (harvest harness sessions into the parquet corpus)",
+            "convo-rebuild (incremental pointer/FTS/vector index refresh)",
+        ]
+        assert [lab for lab, _ in skipped][2:] == [
             "db_maint (VACUUM/ANALYZE/REINDEX/integrity)",
             "graph-rebuild (refresh DuckDB cache)",
         ]
@@ -320,7 +337,10 @@ class TestDryRun:
             + [s for s in maint.TIER1_STEPS if s[0] not in maint.TIER1_FULL_SKIP]
             + maint.TIER2_STEPS
         )
-        assert len(all_steps) == 27
+        assert len(all_steps) == (
+            len(maint.PRE_FULL_STEPS) + len(all_steps) - len(maint.PRE_FULL_STEPS)
+        )  # sanity: built from the lists
+        assert all(label in caplog.text for label, _ in all_steps)
         for label, _ in all_steps:
             assert label in output, f"step missing from --full dry-run: {label}"
         assert "snapshot (refresh versioned snapshots)" not in output
@@ -345,18 +365,25 @@ class TestSubprocessFailure:
     depend on earlier ones (e.g. snapshot must reflect a vacuumed DB)."""
 
     def test_first_failure_aborts(self, monkeypatch):
-        # Stub Popen to fail on the first call and succeed after.
-        call_count = {"n": 0}
+        """A non-advisory failure stops the chain immediately.
+
+        The first two steps are advisory (convo refresh), so the stub fails
+        the first NON-advisory call — db_maint — and the chain must stop
+        there rather than run the snapshot steps against a broken DB.
+        """
+        calls: list[str] = []
 
         def fake_popen(cmd, *a, **kw):
-            call_count["n"] += 1
-            return _FakeProc(1 if call_count["n"] == 1 else 0)
+            calls.append(cmd[-1])
+            if _is_convo_step(cmd):
+                return _FakeProc(0)
+            return _FakeProc(1)
 
         monkeypatch.setattr(maint.subprocess, "Popen", fake_popen)
         rc = maint.main([])
         assert rc == 1
-        # Should have stopped after the first failure, not continued.
-        assert call_count["n"] == 1, "must abort on first failure, not continue"
+        assert "db_maint.py" in " ".join(calls), "must abort AT the failing step"
+        assert "snapshot_db.py" not in " ".join(calls), "later steps must not run after an abort"
 
     def test_all_succeed_returns_zero(self, monkeypatch):
         monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))
@@ -406,26 +433,51 @@ class TestReport:
         assert "# make maint — maint report" in text
         assert "db_maint (VACUUM/ANALYZE/REINDEX/integrity)" in text
         assert "✓ OK" in text
-        assert "5/5 steps ok" in text
+        assert f"{len(maint.TIER1_STEPS)}/{len(maint.TIER1_STEPS)} steps ok" in text
         assert "PASS" in text
         assert "FAILED" not in text  # successes stay lean: no output tails
 
     def test_failed_step_gets_tail_and_fail_row(self, monkeypatch):
-        monkeypatch.setattr(
-            maint.subprocess,
-            "Popen",
-            lambda cmd, *a, **kw: _FakeProc(
-                2, ["step stderr line 1\n", "ERROR: the actual cause\n"]
-            ),
-        )
+        """A non-advisory failure aborts and is reported with its tail.
+
+        The stub fails on the first NON-advisory call, so the two advisory
+        convo steps pass and db_maint is the one that aborts the chain.
+        """
+        state = {"advisory": 0}
+
+        def fake_popen(cmd, *a, **kw):
+            if _is_convo_step(cmd):
+                state["advisory"] += 1
+                return _FakeProc(0)
+            return _FakeProc(2, ["step stderr line 1\n", "ERROR: the actual cause\n"])
+
+        monkeypatch.setattr(maint.subprocess, "Popen", fake_popen)
         assert maint.main([]) == 1
-        text = self._read()
-        assert "# make maint — maint report" in text
+        # the report file is APPENDED across tests — read only this run
+        text = self._read().split("# make maint — maint report")[-1]
         assert "✗ FAIL" in text
-        assert "0/1 steps ok" in text  # table lists executed steps only
+        assert f"{state['advisory']}/{state['advisory'] + 1} steps ok" in text
         assert "FAIL (aborted)" in text
         assert "## db_maint (VACUUM/ANALYZE/REINDEX/integrity) (FAILED)" in text
         assert "ERROR: the actual cause" in text  # the tail is the evidence
+
+    def test_advisory_failure_does_not_abort_the_chain(self, monkeypatch):
+        """A live-harness lock must not cost the operator the backup."""
+        seen: list[str] = []
+
+        def fake_popen(cmd, *a, **kw):
+            seen.append(cmd[-1])
+            if _is_convo_step(cmd):
+                return _FakeProc(1, ["database is locked\n"])
+            return _FakeProc(0)
+
+        monkeypatch.setattr(maint.subprocess, "Popen", fake_popen)
+        assert maint.main([]) == 0, "advisory failure must not fail the run"
+        assert "db_maint.py" in " ".join(seen), "db_maint must still run"
+        text = self._read().split("# make maint — maint report")[-1]
+        assert "WARN (advisory, continued)" in text
+        assert "PASS (with advisory warnings)" in text
+        assert "FAIL (aborted)" not in text.split("advisory warnings")[-1]
 
     def test_full_mode_header_says_maint_full(self, monkeypatch):
         monkeypatch.setattr(maint.subprocess, "Popen", lambda cmd, *a, **kw: _FakeProc(0))

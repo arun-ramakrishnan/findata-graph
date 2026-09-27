@@ -7870,3 +7870,66 @@ addition*, not a data-recovery project).
   `where.replace('day', 's.day')` string surgery removed.
 
 Execution record: `archive/tooling/trace_analyzer_legs.md`.
+
+## 304. Convo search — the harnesses' own deleted history, made queryable (and three performance defects found on the way)
+
+**Proposal**: `doc/improvements/archive/tooling/convo_search.md`
+(filed + executed 2026-09-27; S1-S4 landed, S5 recall augmentation left
+consumer-gated by design).
+
+- Origin: an operator directive, not a defect. The three harnesses delete,
+  rotate or purge their own conversation history — opencode's db shrank
+  825 → 216 MB between snapshots, prime purges sessions after upload, zcode
+  rotates rollouts. The most valuable memory in the repo (user inputs, model
+  reasoning, decisions, discarded options) existed nowhere queryable, and the
+  pre-redaction event backup plus the timeshift window were the only copies.
+  Mandate: own an extracted corpus, never read live harness dbs at query time.
+- Corpus (S1, `harvest_conversations.py`): 141 session parquet files
+  (zstd, Arrow) under `memory/data/harness/<harness>/conversations/`,
+  96,907 rows / 35 MB from 72 MB of text, cold run 17m52s across three
+  harnesses and seven timeshift snapshots; incremental 1.8-12.3 s
+  (active session only). Watermarks stage until the parquet flush
+  succeeds — the first cold run crashed mid-write and had already marked
+  immutable sources quiet, which would have silently skipped them forever.
+- Index (S2, `rebuild_convo_search.py`): `memory/convo_search.duckdb`
+  holds POINTERS (`file_path`, `row_no`) + an 8 KiB snippet + a 384-d
+  granite vector per row; lexical search in a `convo_search_fts.db` FTS5
+  sidecar; 53,423 rows, every one vectored, FTS in lockstep, every
+  pointer resolving to its own row, `(harness, part_id)` unique.
+  Corpus is the archive of record; the index never holds a payload.
+- Query (S3, `convo_query.py` + search_tui lane 4): hybrid RRF over both
+  legs, `--harness`, `--kinds`, `--expand POINTER`. All six trial
+  known-answer queries retrieve the right material — including the
+  reasoning behind `HIF_SOURCES ?= sector,sub_sector,group,jv`, which is
+  in no doc, note or code comment anywhere in the repo, and which came
+  out of a prime-rlm session the harness no longer holds.
+- Freshness (S4): `make convo-fresh` (check exits 1, `APPLY=1` refreshes),
+  in the advisory sweep, never in `make qa`. Incremental apply 10.2 s.
+- Three performance defects, all found by measurement rather than
+  inspection (§4.6 of the proposal): T6's 52.7k row-by-row binds
+  (45-82 min → 2 min via Arrow bulk load), T8's per-key FTS delete
+  (68.8 ms/key — `harness`/`part_id` are UNINDEXED, so every statement
+  full-scanned 53k rows; 3m24s → 8.6 s with chunked statements), and
+  delta-only indexing so a changed session file costs its delta rather
+  than its size. Phase timings are now first-class output on both
+  freshness targets.
+- Correctness guards that earned their keep: composite
+  `(harness, part_id)` keys end to end; a full rebuild clears the FTS
+  sidecar instead of duplicating it; `row_no` in the change fingerprint
+  so a harness COMPACTION (which re-shifts every later row while the text
+  is unchanged) cannot leave pointers resolving to the wrong part — the
+  guard test was verified to fail when `row_no` is removed.
+- Hygiene: T3 `gc_embed_cache.py` (2,503 dead rows, 181.2 → 168.5 MiB)
+  reproduces each builder's COMPOSED embed text — hashing the stored
+  column made 23,595 LIVE rows look dead, and the coverage gate caught it
+  before anything was deleted. T5 registers the convo artifacts in
+  `db-backup/` with a logged deny-list (secrets, transient, duplicates,
+  oversize), and the `maint` chain now refreshes the corpus+index as
+  ADVISORY steps so a live-harness lock cannot cost the operator a backup.
+- Also in this change: `note_query.py` — the notes index had no CLI at
+  all, its query legs living inside the TUI; the core moved out and the
+  lane became a `Hit`-mapping adapter. `AGENTS.md` now leads with an
+  intent→index table covering all five indexes and four query CLIs,
+  compressed 141 → 100 lines.
+
+Execution record: `archive/tooling/convo_search.md`.

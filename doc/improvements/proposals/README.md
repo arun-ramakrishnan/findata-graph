@@ -34,10 +34,19 @@ entry number and stale DONE pointers):
 
 ## Current live proposals
 
-_(none — trace_analyzer_legs.md archived 2026-09-26 as completed.md entry
-303: 10 legs + `--legs`, zcode cost materialized, and the token-convention fix
-that stopped cross-source totals double-counting zcode's cache. Record in
-`../archive/tooling/trace_analyzer_legs.md`.)_
+_(none)_ — the last live proposal was archived 2026-09-27 (completed.md
+entry 304); see the Previously chain below for its record.
+
+_(Previously: convo_search.md archived 2026-09-27 as completed.md entry 304
+— the harnesses' own deleted history made queryable: 141-file parquet corpus
+(96,907 rows) unioned from opencode/prime-rlm/zcode + seven timeshift
+snapshots, a pointer/snippet/vector index (53,423 rows) with an FTS5 sidecar,
+hybrid RRF query + search_tui lane 4, and `make convo-fresh` in the advisory
+sweep. Three performance defects surfaced by measurement rather than
+inspection (45-82 min row-bind insert → 2 min via Arrow; a 68.8 ms/key FTS
+delete loop → 8.6 s incremental; delta-only indexing), plus a compaction
+guard so a harness row-shift can never leave a pointer resolving to the wrong
+part. Execution record in `../archive/tooling/convo_search.md`.)_
 
 _(Previously: trace_analyzer_legs.md archived 2026-09-26 as
 completed.md entry 303 — trace-analyzer coverage: 39 populated columns in

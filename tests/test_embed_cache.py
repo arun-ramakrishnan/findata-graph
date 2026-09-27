@@ -38,7 +38,7 @@ class TestCachedEmbedBatch:
         conn = _conn(tmp_path)
         fn, calls = _fake_embed()
         vecs, st = cached_embed_batch(conn, ["aa", "bbb"], "m1", fn)
-        assert st == {"hits": 0, "misses": 2, "dirty": 2}
+        assert st == {"hits": 0, "misses": 2, "unique_misses": 2, "dirty": 2}
         assert calls == [["aa", "bbb"]]  # ONE batch call for all misses
         assert [v[0] for v in vecs] == [2.0, 3.0]
         assert len(_cache_rows(conn)) == 2
@@ -48,7 +48,7 @@ class TestCachedEmbedBatch:
         fn, calls = _fake_embed()
         v1, _ = cached_embed_batch(conn, ["aa", "bbb"], "m1", fn)
         v2, st = cached_embed_batch(conn, ["aa", "bbb"], "m1", fn)
-        assert st == {"hits": 2, "misses": 0, "dirty": 0}
+        assert st == {"hits": 2, "misses": 0, "unique_misses": 0, "dirty": 0}
         assert len(calls) == 1  # still only the cold call
         assert v1 == v2  # cache round-trips vectors faithfully
 
@@ -76,7 +76,7 @@ class TestCachedEmbedBatch:
         fn, calls = _fake_embed()
         vecs, st = cached_embed_batch(conn, [], "m1", fn)
         assert vecs == []
-        assert st == {"hits": 0, "misses": 0, "dirty": 0}
+        assert st == {"hits": 0, "misses": 0, "unique_misses": 0, "dirty": 0}
         assert calls == []
 
     def test_short_embedder_reply_raises(self, tmp_path):
@@ -100,7 +100,7 @@ class TestCachedEmbedBatch:
         conn = _conn(tmp_path)
         fn, calls = _fake_embed()
         vecs, st = cached_embed_batch(conn, ["aa"], "m1", fn)
-        assert st == {"hits": 0, "misses": 1, "dirty": 0}
+        assert st == {"hits": 0, "misses": 1, "unique_misses": 1, "dirty": 0}
         assert calls == [["aa"]]  # still embedded, just uncached
         assert vecs == [[2.0, 1.0]]
 

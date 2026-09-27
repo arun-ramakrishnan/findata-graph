@@ -1228,9 +1228,10 @@ class SearchApp(App[None]):
         ("1", "lane('docs')", "docs"),
         ("2", "lane('scripts')", "scripts"),
         ("3", "lane('notes')", "notes"),
-        ("4", "lane('code')", "code"),
-        ("5", "lane('literal')", "rg"),
-        ("6", "lane('reports')", "reports"),
+        ("4", "lane('convo')", "convo"),
+        ("5", "lane('code')", "code"),
+        ("6", "lane('literal')", "rg"),
+        ("7", "lane('reports')", "reports"),
         ("escape", "blur_to_results", "to results"),
     ]
 
@@ -1257,7 +1258,7 @@ class SearchApp(App[None]):
         yield Header(show_clock=False, name=f"search_tui · build {BUILD_STAMP} · pid {os.getpid()}")
         yield Input(
             value=self._initial_query,
-            placeholder="query — pick a lane (tabs / 1-6), type, press enter · verbs: callers: impact: grep: recall: qa: perf: · d database",
+            placeholder="query — pick a lane (tabs / 1-7), type, press enter · verbs: callers: impact: grep: recall: qa: perf: · d database",
             id="query",
         )
         yield Tabs(id="lanes")
@@ -1497,6 +1498,11 @@ class SearchApp(App[None]):
             f"{':' + str(hit.line) if hit.line else ''}"
             f"  [dim]{escape(hit.section)}[/]"
         )
+        if hit.kind == "conversation":
+            # corpus pointer: the body lives in the parquet row, not a text
+            # file — expand through convo_query rather than opening anything
+            self._preview_convo(log, hit)
+            return
         p = REPO_ROOT / hit.path
         file_ok = p.exists() and p.is_file()
         if hit.snippet and not file_ok:
@@ -1529,6 +1535,28 @@ class SearchApp(App[None]):
             return
         for n in range(lo, hi + 1):
             log.write(self._hit_line(n, lines[n - 1], is_hit=(n == hit.line)))
+        log.scroll_to(y=0, animate=False)
+
+    def _preview_convo(self, log, hit: Hit) -> None:
+        """Render a convo corpus pointer's full body in the log pane."""
+        from helpers.misc import convo_query as cq
+
+        try:
+            rec = cq.expand(hit.path)
+        except (ValueError, OSError, IndexError, ImportError) as exc:
+            log.write(f"\n[red]pointer unreadable: {escape(str(exc))}[/]")
+            return
+        pane_w = max(log.container_size.width - 2, 20)
+        log.write("")
+        log.write(
+            f"[dim]{escape(rec['harness'])}/{escape(rec['part_type'])}/"
+            f"{escape(rec['role'] or '-')} {escape(str(rec['ts']))} "
+            f"session={escape(rec['session_id'])} len={rec['text_len']}[/]"
+        )
+        log.write("")
+        log.write(Markdown(rec["text"], code_theme="ansi_dark"), width=pane_w)
+        if rec["truncated"]:
+            log.write("\n[dim][truncated at 4000 chars][/dim]")
         log.scroll_to(y=0, animate=False)
 
     # -- actions ---------------------------------------------------------
@@ -1621,6 +1649,11 @@ class SearchApp(App[None]):
     def _open(self, force_editor: bool = False) -> None:
         hit = self._selected()
         if hit is None:
+            return
+        if hit.kind == "conversation":
+            # a corpus pointer is not an editable file — the body is already
+            # rendered by _preview_convo; copying the pointer is the action
+            self._copy(with_line=False)
             return
         cmd = open_command(hit, REPO_ROOT, force_editor=force_editor)
         if cmd is None:

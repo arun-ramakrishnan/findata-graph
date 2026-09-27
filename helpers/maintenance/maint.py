@@ -51,6 +51,13 @@ Chains the maintenance steps in the right order, in THREE blocks:
 
   TIER1 (``make maint``; always-safe housekeeping):
 
+    0. ``harvest_conversations.py`` + ``rebuild_convo_search.py
+       --incremental`` — refresh the harness conversation corpus and its
+       pointer index so the recovery copy below captures a fresh one
+       rather than one trailing the live opencode session. ADVISORY: a
+       locked harness db or a live rebuild logs a warning and the chain
+       continues, because the index is rebuildable from the corpus while
+       the backup is not.
     1. ``db_maint.py``     — VACUUM/ANALYZE/REINDEX/integrity on SQLite +
                              CHECKPOINT/VACUUM on the DuckDB cache.
                              Produces ``db-backup/*_backup.*.zst``: the
@@ -241,7 +248,38 @@ PRE_FULL_STEPS: list[tuple[str, list[str]]] = [
     ),
 ]
 
+# Steps whose failure is a WARNING, not an abort. The chain stops on the
+# first failure so later steps never run against a broken predecessor — but
+# these two read LIVE external stores (the harness dbs, and a DuckDB that a
+# running rebuild may hold), so a transient lock must not cost you the
+# backup. Label-keyed on purpose: the step tuples stay (label, cmd) so the
+# ordering assertions in tests/test_maint.py keep their shape.
+_ADVISORY_STEPS: frozenset[str] = frozenset(
+    {
+        "convo-fresh (harvest harness sessions into the parquet corpus)",
+        "convo-rebuild (incremental pointer/FTS/vector index refresh)",
+    }
+)
+
+
 TIER1_STEPS: list[tuple[str, list[str]]] = [
+    # Conversation corpus + pointer index refresh, BEFORE db_maint so the
+    # recovery copy captures a freshly-harvested index rather than one that
+    # trails the live opencode session (the sources are LIVE stores, so this
+    # is a no-op only in the pathological case). Both steps are ADVISORY
+    # (see _ADVISORY_STEPS): a locked harness db or a live rebuild must not
+    # block the backup — the corpus is the source of truth and the index is
+    # rebuildable from it, whereas the backup is the thing you cannot
+    # recreate after the fact. Costs ~15 s (harvest 12 s + incremental
+    # re-index of the active session).
+    (
+        "convo-fresh (harvest harness sessions into the parquet corpus)",
+        [sys.executable, "helpers/maintenance/harvest_conversations.py"],
+    ),
+    (
+        "convo-rebuild (incremental pointer/FTS/vector index refresh)",
+        [sys.executable, "helpers/maintenance/rebuild_convo_search.py", "--incremental"],
+    ),
     (
         "db_maint (VACUUM/ANALYZE/REINDEX/integrity)",
         [sys.executable, "helpers/maintenance/db_maint.py"],
@@ -481,6 +519,26 @@ def _run_step(label: str, cmd: list[str], dry_run: bool, logger: logging.Logger)
     return _StepResult(label, rc, time.perf_counter() - t0, list(capture))
 
 
+def _step_status(r: _StepResult) -> str:
+    """`✓ OK` / `✗ FAIL` / `✗ WARN (advisory, continued)` — one definition,
+    so the console table and the markdown report can never disagree."""
+    if r.rc == 0:
+        return "✓ OK"
+    if r.label in _ADVISORY_STEPS:
+        return "✗ WARN (advisory, continued)"
+    return "✗ FAIL"
+
+
+def _verdict(results: list[_StepResult]) -> str:
+    """PASS / PASS-with-advisory-warnings / FAIL — an advisory step that
+    failed did not stop the chain, so it must not read as an abort."""
+    if all(r.rc == 0 for r in results):
+        return "PASS"
+    if any(r.rc != 0 and r.label not in _ADVISORY_STEPS for r in results):
+        return "FAIL (aborted)"
+    return "PASS (with advisory warnings)"
+
+
 def _table_lines(results: list[_StepResult]) -> list[str]:
     """Perf-style summary table (console + report). Labels longer than
     the 56-char column widen the whole table instead of overflowing it
@@ -489,12 +547,16 @@ def _table_lines(results: list[_StepResult]) -> list[str]:
     width = max(56, max((len(r.label) for r in results), default=0))
     lines = ["", "Step" + " " * (width - 2) + "Time (s)   Status", "-" * (width + 32)]
     for r in results:
-        flag = "✓" if r.rc == 0 else "✗"
-        status = "OK" if r.rc == 0 else "FAIL"
+        flag, _, status = _step_status(r).partition(" ")
         lines.append(f"  {r.label:.<{width}s} {r.seconds:8.2f}   {flag} {status}")
-    lines.append("-" * (width + 32))
+    lines.append("-" * (width + 44))
     ok = sum(1 for r in results if r.rc == 0)
-    verdict = "PASS" if all(r.rc == 0 for r in results) else "FAIL (aborted)"
+    if all(r.rc == 0 for r in results):
+        verdict = "PASS"
+    elif any(r.rc != 0 and r.label not in _ADVISORY_STEPS for r in results):
+        verdict = "FAIL (aborted)"
+    else:
+        verdict = "PASS (with advisory warnings)"
     lines.append(f"  {ok}/{len(results)} steps ok  ·  maint {verdict}")
     return lines
 
@@ -520,15 +582,15 @@ def _write_report(
         f.write("| Step | Time (s) | Status |\n")
         f.write("|---|---|---|\n")
         for r in results:
-            flag = "✓ OK" if r.rc == 0 else "✗ FAIL"
-            f.write(f"| {r.label} | {r.seconds:.2f} | {flag} |\n")
+            f.write(f"| {r.label} | {r.seconds:.2f} | {_step_status(r)} |\n")
         ok = sum(1 for r in results if r.rc == 0)
-        verdict = "PASS" if all(r.rc == 0 for r in results) else "FAIL (aborted)"
+        verdict = _verdict(results)
         f.write(f"| **{ok}/{len(results)} steps ok** | | **maint {verdict}** |\n\n")
         for r in results:
             if r.rc == 0:
                 continue
-            f.write(f"## {r.label} (FAILED)\n\n")
+            tail_header = "ADVISORY (chain continued)" if r.label in _ADVISORY_STEPS else "FAILED"
+            f.write(f"## {r.label} ({tail_header})\n\n")
             f.write("\n".join(r.tail[-_TAIL_LINES:]) + "\n\n")
 
 
@@ -588,6 +650,12 @@ def main(argv: list[str] | None = None) -> int:
         result = _run_step(label, cmd, args.dry_run, logger)
         results.append(result)
         if result.rc != 0:
+            if label in _ADVISORY_STEPS:
+                # Advisory step: record and continue. Losing a fresh convo
+                # index is recoverable (rebuild from the corpus); losing the
+                # backup is not.
+                logger.warning("advisory step failed, continuing: %s (rc=%d)", label, result.rc)
+                continue
             failures += 1
             # Stop on first failure — later steps may depend on earlier
             # ones (e.g. snapshot must reflect a vacuumed DB; graph-rebuild

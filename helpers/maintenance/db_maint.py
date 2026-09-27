@@ -308,11 +308,16 @@ class DBMaintainer:
 
     def _sqlite_zstd_backup(self, src: Path, dst: Path, *, label: str) -> int:
         """WAL-consistent sqlite online-backup → zstd. Shared tail of the
-        paired store backups (embed store, corpus cache — S7,
-        code_duplication_consolidation); the resolution logic that picks
-        ``src``/``dst`` stays with each caller."""
+        paired store backups (embed store, corpus cache, convo FTS sidecar
+        — S7, code_duplication_consolidation); the resolution logic that
+        picks ``src``/``dst`` stays with each caller."""
         from helpers.core.zstd_io import compress_file, zst_path
 
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            self._log(logging.WARNING, f"cannot create backup dir ({e}); {label} backup skipped")
+            return 0
         zst_dst = zst_path(dst)
         with tempfile.NamedTemporaryFile(
             suffix=".db", dir=self.backup_path.parent, delete=False
@@ -382,23 +387,23 @@ class DBMaintainer:
         dst = self.backup_path.parent / "corpus_backup.db"
         return self._sqlite_zstd_backup(src, dst, label="Corpus cache")
 
-    def _backup_duckdb(self) -> int:
-        """Pre-mutation recovery copy of the DuckDB cache file,
-        stored zstd-compressed (``<duckdb_backup_path>.zst``).
+    def _duckdb_zstd_backup(self, src: Path, dst: Path, label: str) -> int:
+        """Checkpoint-then-copy one DuckDB file into ``<dst>.zst``.
 
-        DuckDB doesn't expose an online-backup API like SQLite's
-        ``conn.backup()``, but the canonical safe pattern is:
-        open read-only, force CHECKPOINT (flushes the WAL into the
-        main file), close, then ``shutil.copy2`` the file. With no
-        writer active and the WAL merged, the file is quiescent.
+        DuckDB has no online-backup API, so the canonical safe pattern
+        is: open read-only, force CHECKPOINT (flushes the WAL into the
+        main file), close, then copy the quiescent file. With no writer
+        active and the WAL merged, the copy is consistent.
 
         Version-sensitive assumption: read-only CHECKPOINT relies on
-        DuckDB ≥ 1.5 allowing a reader connection to flush the WAL. The
-        fallback (catch duckdb.Error → copy file as-is) degrades
-        gracefully if a bump rejects it. See doc/design/graph_design.md §9.3
+        DuckDB >= 1.5 allowing a reader connection to flush the WAL; the
+        fallback (catch duckdb.Error -> copy as-is) degrades gracefully
+        if a bump rejects it. See doc/design/graph_design.md §9.3
         (Bundle O3) for the full caveat + how to re-test on pin bumps.
 
-        See https://ducklake.select/docs/stable/duckdb/guides/backups_and_recovery.html
+        A file another process holds open (a running rebuild) raises
+        IOException on connect — that is a normal "busy", logged and
+        skipped, never a backup failure.
         """
         import shutil
 
@@ -407,36 +412,251 @@ class DBMaintainer:
         except ImportError:
             self._log(logging.WARNING, "duckdb not installed; skipping DuckDB backup")
             return 0
-        # Open read-only and CHECKPOINT so the WAL is merged into the
-        # main .duckdb file before we copy it. read-only CHECKPOINT is
-        # supported on DuckDB 1.5+ (it flushes the WAL even from a
-        # reader connection). Re-test on pin bumps — see §17.11 (O3).
+        if not src.exists():
+            self._log(logging.INFO, f"{label} absent — backup skipped ({src})")
+            return 0
         try:
-            con = duckdb.connect(str(self.duckdb_path), read_only=True)
+            con = duckdb.connect(str(src), read_only=True)
             try:
                 con.execute("CHECKPOINT;")
             except duckdb.Error as e:
                 self._log(logging.WARNING, f"read-only CHECKPOINT failed ({e}); copying as-is")
             finally:
                 con.close()
-        except duckdb.Error as e:
-            self._log(logging.WARNING, f"read-only connect failed ({e}); copying file as-is")
-        src = self.duckdb_path
-        bp = self.duckdb_backup_path
-        if src is None or bp is None:
+        except (duckdb.Error, OSError) as e:
+            self._log(logging.WARNING, f"{label} busy/unreadable ({e}); backup skipped")
             return 0
         from helpers.core.zstd_io import compress_file, zst_path
 
-        zst_bp = zst_path(bp)
-        with tempfile.NamedTemporaryFile(suffix=".duckdb", dir=bp.parent, delete=False) as tf:
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            self._log(logging.WARNING, f"cannot create backup dir ({e}); {label} backup skipped")
+            return 0
+        zst_dst = zst_path(dst)
+        with tempfile.NamedTemporaryFile(suffix=src.suffix, dir=dst.parent, delete=False) as tf:
             tmp_path = Path(tf.name)
         try:
             shutil.copy2(src, tmp_path)
-            if zst_bp.exists():
-                zst_bp.unlink()
-            return compress_file(tmp_path, zst_bp)
+            if zst_dst.exists():
+                zst_dst.unlink()
+            size = compress_file(tmp_path, zst_dst)
+            self._log(logging.INFO, f"{label} backed up to {zst_dst}")
+            return size
         finally:
             tmp_path.unlink(missing_ok=True)
+
+    def _backup_convo_search(self) -> int:
+        """Recovery copies of the convo_search index pair.
+
+        ``memory/convo_search.duckdb`` (pointers + snippets + vectors)
+        and its FTS5 sidecar ``memory/convo_search_fts.db`` are both
+        rebuildable from the corpus — but the rebuild is not free: a cold
+        run embeds 50k+ texts and the pool lane took 2h10m on 2026-09-27.
+        A restored corpus + a restored embed_store already avoids the
+        re-embed, so these copies are the second line of defence against
+        losing the derived pair outright (operator decision: 2h+ runs are
+        worth a backup). Skipped silently while a rebuild holds the lock.
+        """
+        from helpers.maintenance.rebuild_convo_search import (
+            FTS_DB_NAME,
+            REPO,
+        )
+
+        idx = REPO / "memory/convo_search.duckdb"
+        total = self._duckdb_zstd_backup(
+            idx, self.backup_path.parent / "convo_search_backup.duckdb", label="convo_search index"
+        )
+        fts = idx.parent / FTS_DB_NAME
+        if fts.exists() and fts.stat().st_size:
+            total += self._sqlite_zstd_backup(
+                fts,
+                self.backup_path.parent / "convo_search_fts_backup.db",
+                label="convo_search FTS sidecar",
+            )
+        return total
+
+    def _backup_convo_corpus(self) -> int:
+        """Tar+zstd copy of the harvested conversation corpus.
+
+        ``memory/data/harness/<harness>/conversations/*.parquet`` is the
+        archive of record for harness history the harnesses themselves
+        delete (opencode purges sessions, prime purges sessions, zcode
+        rotates rollouts). The parquet corpus is derived from harness
+        sources, but those sources are exactly what disappears, and the
+        timeshift window is finite — so unlike the index this artifact
+        has no rebuild path. One tar.zst, ~10 MB for ~35 MB of parquet.
+        """
+        import tarfile
+
+        from helpers.core.zstd_io import zst_path
+        from helpers.maintenance.harvest_conversations import CORPUS_ROOT
+
+        root = Path(CORPUS_ROOT)
+        files = sorted(root.glob("*/conversations/*.parquet"))
+        if not files:
+            self._log(logging.INFO, f"convo corpus empty — backup skipped ({root})")
+            return 0
+        dst = self.backup_path.parent / "convo_corpus_backup.tar"
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            self._log(logging.WARNING, f"cannot create backup dir ({e}); corpus backup skipped")
+            return 0
+        from compression import zstd
+
+        with zstd.open(zst_path(dst), "wb") as raw:
+            with tarfile.open(fileobj=raw, mode="w|") as tar:  # streaming, no temp tar
+                for f in files:
+                    tar.add(f, arcname=str(f.relative_to(root.parent)))
+        size = zst_path(dst).stat().st_size
+        self._log(logging.INFO, f"convo corpus ({len(files)} parquet) backed up to {zst_path(dst)}")
+        return size
+
+    def _backup_memory_sidecars(self) -> int:
+        """Catch-all: every ``memory/`` + ``memory/data/`` file WITHOUT its
+        own registration goes into one tar.zst.
+
+        Operator thesis (2026-09-27): at bare minimum everything under
+        ``memory/`` and ``memory/data/`` belongs in ``db-backup/``. The
+        big artifacts each have a bespoke routine above (research,
+        graph, embed_store, corpus, doc/script search, sources, agent
+        traces, model_usage, convo index pair + corpus) because their
+        engines need WAL-consistent or checkpointed copies. What is left
+        is a long tail of derived matrices, layout JSON, fetch caches,
+        worklists and raw ingest drops (~44 MB raw) that nobody had
+        registered — a coverage gap, not a judgement.
+
+        Two deny-lists, both deliberate and both logged so the skip is
+        auditable rather than silent:
+
+        - SECRETS never enter a backup: ``.env``, service-account JSON,
+          anything matching key/credential/token/secret. ``memory/``
+          holds live GCP credentials, and a blanket tar would multiply
+          them.
+        - Transient files are not state: ``*-wal``, ``*-shm``,
+          ``*.lock``. The WAL is already merged by the online-backup /
+          checkpoint routines of the artifacts that own one.
+        """
+        import re
+        import tarfile
+
+        from compression import zstd
+
+        from helpers.core.zstd_io import zst_path
+
+        mem = self.db_path.parent
+        data_dir = mem / "data"
+        # already covered by a dedicated routine (relative to memory/)
+        covered = {
+            "research.db",
+            "graph.duckdb",
+            "embed_store.db",
+            "corpus.db",
+            "doc_search.db",
+            "script_search.db",
+            "convo_search.duckdb",
+            "convo_search_fts.db",
+            "data/sources.duckdb",
+            "data/agent_traces.duckdb",
+            "data/model_usage.duckdb",
+            "data/harness",
+        }
+        secret_re = re.compile(
+            r"(^\.env$)|(svc_account)|(credential)|(secret)|(token)|(\.key$)|(\.pem$)",
+            re.IGNORECASE,
+        )
+        transient_suffixes = ("-wal", "-shm", ".lock", ".tmp")
+        # A catch-all must not become a way to tar a data lake: one huge
+        # drop (model weights, a raw ingest) is LOGGED as a coverage gap
+        # and left out, never silently archived and never a failure.
+        max_file_bytes = 512 * 2**20
+
+        def _skip(rel: str, size: int) -> str | None:
+            if rel in covered:
+                return "covered"
+            if secret_re.search(Path(rel).name):
+                return "secret"
+            if rel.endswith(transient_suffixes):
+                return "transient"
+            if size > max_file_bytes:
+                return "oversize"
+            return None
+
+        members: list[Path] = []
+        seen: set[str] = set()
+        skipped: dict[str, list[str]] = {}
+
+        def _corpus_file(rel: str) -> bool:
+            # only the harvested corpus has its own tar (T5) — the rest of
+            # data/harness/ holds operator artifacts (prime-rlm's
+            # memory_trail.md + the pre-consolidation harness_state tarball)
+            # that nothing else backs up, so the sweep must take them.
+            # Shape: data/harness/<harness>/conversations/<session>.parquet
+            parts = Path(rel).parts
+            return len(parts) >= 4 and parts[-2] == "conversations"
+
+        for base in (mem, data_dir):
+            if not base.exists():
+                continue
+            for p in sorted(base.rglob("*")):
+                if not p.is_file() and not p.is_symlink():
+                    continue
+                rel = str(p.relative_to(mem))
+                if _corpus_file(rel):
+                    continue
+                try:
+                    size = p.stat().st_size
+                except OSError:
+                    continue
+                why = _skip(rel, size)
+                if why:
+                    skipped.setdefault(why, []).append(rel)
+                    continue
+                if rel in seen:
+                    continue  # memory/ and memory/data/ walks overlap
+                seen.add(rel)
+                members.append(p)
+        if not members:
+            self._log(logging.INFO, "memory sidecars: nothing uncovered — backup skipped")
+            return 0
+        dst = self.backup_path.parent / "memory_sidecars_backup.tar"
+        try:
+            dst.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            self._log(logging.WARNING, f"cannot create backup dir ({e}); sidecar backup skipped")
+            return 0
+        with zstd.open(zst_path(dst), "wb") as raw:
+            with tarfile.open(fileobj=raw, mode="w|") as tar:
+                for p in members:
+                    tar.add(p, arcname=str(p.relative_to(mem)))
+        for why, names in sorted(skipped.items()):
+            self._log(
+                logging.INFO,
+                f"memory sidecars: skipped {len(names)} {why} file(s): "
+                + ", ".join(sorted(names)[:6])
+                + (" …" if len(names) > 6 else ""),
+            )
+        self._log(
+            logging.INFO, f"memory sidecars ({len(members)} files) backed up to {zst_path(dst)}"
+        )
+        return zst_path(dst).stat().st_size
+
+    def _backup_duckdb(self) -> int:
+        """Pre-mutation recovery copy of the DuckDB cache file,
+        stored zstd-compressed (``<duckdb_backup_path>.zst``).
+
+        Delegates to :meth:`_duckdb_zstd_backup` (the checkpoint-then-copy
+        routine, shared with the convo_search index) — see that method for
+        the version-sensitive read-only CHECKPOINT caveat and
+        doc/design/graph_design.md §9.3 (Bundle O3).
+
+        See https://ducklake.select/docs/stable/duckdb/guides/backups_and_recovery.html
+        """
+        src, bp = self.duckdb_path, self.duckdb_backup_path
+        if src is None or bp is None:
+            return 0
+        return self._duckdb_zstd_backup(src, bp, label="graph.duckdb")
 
     def run(self) -> dict:  # noqa: C901
         steps = [
@@ -473,6 +693,9 @@ class DBMaintainer:
             backup_size = self._backup(conn)
             self._backup_embed_store()
             self._backup_corpus()
+            self._backup_convo_search()
+            self._backup_convo_corpus()
+            self._backup_memory_sidecars()
 
             # P2.5: incremental vacuum when auto_vacuum==INCREMENTAL and freelist exists.
             # Full VACUUM rewrites 31 MB file (~0.6s); incremental_vacuum reclaims only freelist pages (~0.1s).

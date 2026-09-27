@@ -251,6 +251,9 @@ _SQLITE3_CONNECT_ALLOWLIST = {
     # autocommit (isolation_level=None) — VACUUM/ANALYZE/REINDEX can't run in
     # a transaction; connect() exposes no isolation_level kwarg.
     "helpers/maintenance/db_maint.py",
+    # Same reason: gc_embed_cache DELETEs unreferenced rows and then VACUUMs
+    # the pooled store to return the pages (SQLite never shrinks on DELETE).
+    "helpers/maintenance/gc_embed_cache.py",
     # Online-backup API + snapshot verify need their own throwaway connections
     # to scratch files; connect() targets the production DB path.
     "helpers/maintenance/snapshot_db.py",
@@ -259,6 +262,16 @@ _SQLITE3_CONNECT_ALLOWLIST = {
     "helpers/misc/database_integrity_check.py",
     # Read-only SELECT in a validator. FK enforcement irrelevant for SELECT.
     "helpers/validators/static_checks.py",
+    # Read-only mode=ro URI opens of the HARNESS's own live store (the
+    # opencode db). A read-write connect() would take a write lock on the
+    # very store the harvester must never disturb, and would create an empty
+    # db if the harness has none.
+    "helpers/maintenance/harvest_conversations.py",
+    # Read-only mode=ro URI open of a SIDECAR file (the convo FTS5 sidecar).
+    # connect() would open it read-write and CREATE an empty db when the
+    # sidecar is missing — mode=ro must fail loudly instead of leaving a
+    # phantom 0-byte index behind.
+    "helpers/misc/convo_query.py",
     # Read-only diagnostics bench tools (mode=ro URI connections to the
     # note_search/doc_search sidecars for measurement SELECTs; FK
     # enforcement irrelevant — no writes ever). Sandbox copies (A/B

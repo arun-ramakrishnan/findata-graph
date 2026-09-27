@@ -24,12 +24,13 @@ QA_JOBS ?= 1
 # is just a no-op directory on PATH and lookup falls through to the system.
 export PATH := $(CURDIR)/.venv/bin:$(PATH)
 
-.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants stamp-centrality
+.PHONY: help qa test live-invariants perf cover fuzz integration snapshot snapshot-check snapshot-restore sync-tags sync-coverage-tags sync-sector-links static-checks license-check tmp-sweep install-dev triage-quotes graph-smoke graph-stats graph-algos graph-rebuild update-extensions recompute-graph recompute-hyper search-fresh convo-fresh embed-gc search-tui derive-relations derive-co-mentions derive-themes derive-events derive-insights derive-indices quote-coverage derive-themes-rebuild derive-cited-in derive-cited-in-rebuild derive-hyperedges derive-all refresh-indices refresh-vigil refresh-shp frontend frontend-check fold-identifiers format maint maint-full md-lint metrics-rebuild mojo-bench mojo-build mojo-test mojo-format relations-enrich lint types types-tests lint-audit deptry advisory secret-scan script-search-rebuild triage-relations live-invariants stamp-centrality
 
 help:           ## Show available targets (alphabetical; entries generated from the ## annotations — keep both in sync)
 > @echo "FinData targets (alphabetical):"
 > @echo "  advisory                 Run advisory (non-gating) checks in PARALLEL (default 4 jobs; override: make advisory -j N): ty on tests, live invariants, frontend, graph algos, analytics, suggestions, doc/script/note-search freshness checks, lint-audit (appends outputs/advisory_report.md)"
 > @echo "  analytics                Read-only analytics over the git-tracked Parquet snapshot (A3; arg = report name)"
+> @echo "  convo-fresh              Check conversation corpus+index freshness — harvest sources vs parquet corpus vs pointer index (exit 1 on drift; APPLY=1 harvests+rebuilds; also run by make advisory)"
 > @echo "  cover                    Run all tests with coverage over helpers/ (branch + missing-line report)"
 > @echo "  deptry                   Run deptry dependency-health scan (unused/undeclared/transitive deps)"
 > @echo "  derive-all               READ-ONLY preview of every derive-* step (dry-runs; nothing written, sidecar suppressed)"
@@ -44,6 +45,7 @@ help:           ## Show available targets (alphabetical; entries generated from 
 > @echo "  derive-relations         Extract jv_with/acquired/subsidiary_of/same_group/supplier_to/customer_of edges from newsletter prose"
 > @echo "  derive-themes            Derive exposed_to (company -> theme) edges from company-note prose"
 > @echo "  derive-themes-rebuild    derive-themes + graph-rebuild — the paired run themes require (writes edges, then rebuilds the DuckDB cache to match)"
+> @echo "  embed-gc                 Evict dead embed-cache rows (trial/spike leftovers) — report-only, exit 1 when dead rows exist; APPLY=1 deletes+VACUUMs"
 > @echo "  fold-identifiers         Fold exchange ISIN/CIK values into the entity identifier registry"
 > @echo "  format                   Normalize Python formatting repo-wide (ruff format; fix for the test_lint_gates.py format gate)"
 > @echo "  frontend                 Build the TypeScript frontend bundle into static/findata.bundle.js (needs Bun)"
@@ -298,14 +300,37 @@ search-fresh:    ## Check ALL search indexes for staleness — doc/, script meta
 >   extra="$(if $(APPLY),,--check)"; \
 >   echo "search-fresh: $(if $(APPLY),APPLY — refreshing,check) mode"; \
 >   for s in rebuild_doc_search rebuild_script_search rebuild_note_search; do \
+>     t0=$$(date +%s%3N); \
 >     echo "--- $$s $$extra"; \
 >     python3 helpers/maintenance/$$s.py $$extra || rc=1; \
+>     echo "    took $$(( $$(date +%s%3N) - t0 ))ms"; \
 >   done; \
 >   if [ $$rc -eq 0 ]; then echo "✓ all search indexes fresh (doc_search, script_search, note_search)"; fi; \
 >   exit $$rc
 
 
-search-tui:      ## Full-screen search front door — docs/scripts/notes indexes + ripwire + rg lanes; enter reads markdown via glow
+convo-fresh:      ## Check conversation corpus+index freshness — harness sources vs parquet corpus vs pointer index (every check runs even if one fails; exit 1 on drift; APPLY=1 harvests+incrementally rebuilds; also run by make advisory)
+> @rc=0; \
+>   echo "convo-fresh: $(if $(APPLY),APPLY — harvesting+rebuilding,check) mode"; \
+>   t0=$$(date +%s%3N); \
+>   echo "--- harvest_conversations $(if $(APPLY),,--check)"; \
+>   python3 helpers/maintenance/harvest_conversations.py $(if $(APPLY),,--check) || rc=1; \
+>   echo "    took $$(( $$(date +%s%3N) - t0 ))ms"; \
+>   t1=$$(date +%s%3N); \
+>   echo "--- rebuild_convo_search $(if $(APPLY),--incremental,--check)"; \
+>   python3 helpers/maintenance/rebuild_convo_search.py $(if $(APPLY),--incremental,--check) || rc=1; \
+>   echo "    took $$(( $$(date +%s%3N) - t1 ))ms"; \
+>   if [ $$rc -eq 0 ]; then echo "✓ convo corpus+index fresh"; fi; \
+>   exit $$rc
+
+
+embed-gc:       ## Evict dead rows from the shared embed cache (trial/spike leftovers); report-only + exit 1 when dead rows exist, APPLY=1 deletes + VACUUMs
+> @echo "embed-gc: $(if $(APPLY),APPLY — deleting dead cache rows,report) mode"; \
+> if [ -x .venv/bin/python3 ]; then .venv/bin/python3 helpers/maintenance/gc_embed_cache.py $(if $(APPLY),--apply,); \
+> else python3 helpers/maintenance/gc_embed_cache.py $(if $(APPLY),--apply,); fi
+
+
+search-tui:      ## Full-screen search front door — docs/scripts/notes/conversations indexes + ripwire + rg lanes; enter reads markdown via glow
 >	@if [ -x .venv/bin/python3 ]; then .venv/bin/python3 helpers/misc/search_tui.py; else python3 helpers/misc/search_tui.py; fi
 > @echo "✓ search TUI exited (doc/procedures/search.md §Search TUI)"
 
